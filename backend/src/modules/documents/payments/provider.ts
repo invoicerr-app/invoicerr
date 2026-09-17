@@ -2,15 +2,15 @@
  * Online payment ("paiement en ligne") — the narrow interface a payment provider implements,
  * and nothing more. Modeled on `transports/transport-registry.ts`'s own `DocumentTransport` (a
  * provider registers itself under an id, the caller never branches on which one it got) rather than
- * going through `PluginRegistry` (`backend/src/plugins/`) — see
- * `documentation/docs/developer-guide/plugin-system.md`, "the narrow-interface-at-the-core pattern":
- * `PluginRegistry` is for an INSTANCE-WIDE, single-active-provider toggle (signing, storage), stored in
- * the `Plugin` table and flipped from Settings. A payment provider is neither: it needs a PER-COMPANY
- * credential (a company brings its own Stripe account — see `payment-sessions.service.ts`'s own header
- * on that decision) and it is reached from TWO directions a plugin's own `handleWebhook()` was never
- * built for (a company-authenticated "open a checkout session" call, and an unauthenticated,
- * signature-verified provider webhook) — exactly the shape `TransportRegistry`/
- * `AuthorityStatusPollerRegistry`/`DeclarationProviderRegistry` already hold for the identical
+ * an INSTANCE-WIDE, single-active-provider toggle flipped from a Settings screen — see
+ * `documentation/docs/developer-guide/plugin-system.md`, "the narrow-interface-at-the-core pattern"
+ * (the in-app plugin mechanism that pattern replaced, signing/storage stored in one `Plugin` table,
+ * was removed entirely 2026-09-17). A payment provider needs a PER-COMPANY credential (a company
+ * brings its own Stripe account — see `payment-sessions.service.ts`'s own header on that decision) and
+ * it is reached from TWO directions a single instance-wide toggle was never built for (a
+ * company-authenticated "open a checkout session" call, and an unauthenticated, signature-verified
+ * provider webhook) — exactly the shape `TransportRegistry`/`AuthorityStatusPollerRegistry`/
+ * `DeclarationProviderRegistry` already hold for the identical
  * "a provider registers itself under an id, credentials come from `ChannelCredentialsService`" problem.
  *
  * Stripe was first (`providers/stripe/stripe-provider.ts`); Mollie (`providers/mollie/`) and PayPal

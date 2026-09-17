@@ -1,249 +1,63 @@
-import { IPluginForm } from './types';
-import { existsSync, readFileSync } from 'node:fs';
+import { Injectable, Module, OnModuleInit } from '@nestjs/common';
 
 import { FakeReceivedInvoiceOcrExtractor } from '@/modules/documents/received-invoices/ocr/fake-extractor';
 import { receivedDocumentExtractorRegistry } from '@/modules/documents/received-invoices/ocr/extractor';
-import { LocalStorageProvider } from './storage/providers/local/local';
-import { Logger } from '@nestjs/common';
 import { LocalOcrProvider } from './ocr/providers/local/local';
-import { PluginType } from '../../prisma/generated/prisma/client';
-import { S3StorageProvider } from './storage/providers/s3/s3';
-import { join } from 'node:path';
-import prisma from '@/prisma/prisma.service';
 
-export class PluginRegistry {
-  private readonly logger: Logger = new Logger(PluginRegistry.name);
-  private static instance: PluginRegistry;
-  private readonly inAppPluginTypes = new Map<PluginType, Map<string, any>>();
-  private readonly providersMap = new Map<string, any>();
-  private static isInitialized = false;
-  private static initializationPromise: Promise<void> | null = null;
-  public static readonly multiInstancePluginTypes: Set<PluginType> = new Set([PluginType.STORAGE]);
-
-  private constructor() {}
-
-  static getInstance(): PluginRegistry {
-    if (!PluginRegistry.instance) {
-      PluginRegistry.instance = new PluginRegistry();
-    }
-    return PluginRegistry.instance;
-  }
-
-  async initializeIfNeeded(): Promise<void> {
-    if (PluginRegistry.isInitialized) {
-      return;
-    }
-
-    if (PluginRegistry.initializationPromise) {
-      await PluginRegistry.initializationPromise;
-      return;
-    }
-
-    // Start the initialization
-    PluginRegistry.initializationPromise = this.doInitialization();
-    await PluginRegistry.initializationPromise;
-  }
-
-  private async doInitialization(): Promise<void> {
-    if (PluginRegistry.isInitialized) {
-      return;
-    }
-
-    this.initializeInAppPlugins();
-    await this.syncWithDatabase();
-    PluginRegistry.isInitialized = true;
-    PluginRegistry.initializationPromise = null;
-  }
-
-  private initializeInAppPlugins() {
-    this.removeRemovedProviders();
-    // The signature plugin existed to get QUOTES signed: it left along with them.
-    this.registerProvider(PluginType.STORAGE, new S3StorageProvider());
-    this.registerProvider(PluginType.STORAGE, new LocalStorageProvider());
-    this.registerOcrExtractor();
-  }
-
-  /**
-   * Deliberately NOT a `registerProvider(PluginType.OCR, ...)` call: this registers directly into
-   * `received-invoices/ocr/extractor.ts`'s OWN registry, a completely separate structure from
-   * `this.providersMap`/`Plugin` above. `PluginType`/`PluginRegistry` is instance-wide and
-   * Prisma-backed, which does not fit a provider whose entire configuration is one environment
-   * variable naming a docker-compose service.
-   *
-   * Exactly ONE extractor registered per process: the real one, UNLESS `NODE_ENV=test`, where a
-   * deterministic, network-free FAKE takes its place — the SAME discipline `clients.module.ts`'s own
-   * `VAT_VALIDATION_FAKE` swap already establishes for VAT validation (see that file's own header) —
-   * so Cypress spec 36 can exercise "PDF -> pre-filled OCR proposal" through a real browser with no
-   * `OCR_SERVICE_URL` and no OCR container anywhere in the test stack.
-   */
-  private registerOcrExtractor(): void {
-    if (process.env.NODE_ENV === 'test') {
-      receivedDocumentExtractorRegistry.register(new FakeReceivedInvoiceOcrExtractor());
-    } else {
-      receivedDocumentExtractorRegistry.register(new LocalOcrProvider());
-    }
-  }
-
-  private removeRemovedProviders() {
-    prisma.plugin.findMany().then((plugins) => {
-      plugins.forEach((plugin) => {
-        if (!this.providersMap.has(plugin.id)) {
-          prisma.plugin
-            .delete({ where: { id: plugin.id } })
-            .then(() => {
-              this.logger.log(`Removed plugin "${plugin.id}" from database as it is no longer registered.`);
-            })
-            .catch((err) => {
-              this.logger.error(`Error removing plugin "${plugin.id}":`, err);
-            });
-        }
-      });
-    });
-  }
-
-  private registerProvider(type: PluginType, provider: { id: string; name: string; form?: IPluginForm }) {
-    if (!this.inAppPluginTypes.has(type)) {
-      this.inAppPluginTypes.set(type, new Map());
-    }
-
-    if (provider && provider.id) {
-      const form = provider.form || {};
-      this.inAppPluginTypes.get(type)!.set(provider.id, form);
-      this.providersMap.set(provider.id, provider);
-      this.logger.log(`Registered ${type} provider: ${provider.id}`);
-    }
-  }
-
-  private async syncWithDatabase(): Promise<void> {
-    for (const [type, providers] of this.inAppPluginTypes) {
-      const pluginType = this.getPluginTypeEnum(type);
-
-      for (const [providerId, _form] of providers) {
-        const existingPlugin = await prisma.plugin.findUnique({
-          where: {
-            id: providerId,
-          },
-        });
-
-        if (!existingPlugin) {
-          await prisma.plugin.create({
-            data: {
-              id: providerId,
-              name: this.providersMap.get(providerId)?.name || providerId,
-              type: pluginType,
-              config: {},
-              isActive: false,
-            },
-          });
-          this.logger.log(`Synced ${type} provider "${providerId}" to database`);
-        }
-      }
-    }
-  }
-
-  private getPluginTypeEnum(type: string): PluginType {
-    switch (type.toLowerCase()) {
-      case 'signing':
-        return PluginType.SIGNING;
-      case 'storage':
-        return PluginType.STORAGE;
-      default:
-        throw new Error(`Unknown plugin type: ${type}`);
-    }
-  }
-
-  async getProvidersByType<T>(type: string): Promise<T[]> {
-    await this.initializeIfNeeded();
-
-    const results = await Promise.all(
-      Array.from(this.providersMap.entries()).map(async ([pluginId, provider]) => {
-        const plugin = await prisma.plugin.findFirst({
-          where: {
-            id: pluginId,
-            isActive: true,
-          },
-        });
-        if (!plugin || plugin.type.toLowerCase() !== type.toLowerCase()) {
-          return null;
-        }
-        return [pluginId, provider];
-      }),
-    );
-
-    const pluginEntries = results.filter((entry): entry is [string, any] => entry !== null);
-
-    return pluginEntries.map(([_, provider]) => provider as T);
-  }
-
-  async getProviderByType<T>(type: string): Promise<T | null> {
-    await this.initializeIfNeeded();
-
-    const results = await Promise.all(
-      Array.from(this.providersMap.entries()).map(async ([pluginId, provider]) => {
-        const plugin = await prisma.plugin.findFirst({
-          where: {
-            id: pluginId,
-            isActive: true,
-          },
-        });
-        if (!plugin || plugin.type.toLowerCase() !== type.toLowerCase()) {
-          return null;
-        }
-        return [pluginId, provider];
-      }),
-    );
-
-    const pluginEntries = results.filter((entry): entry is [string, any] => entry !== null);
-
-    if (pluginEntries.length === 0) {
-      return null;
-    }
-
-    return pluginEntries[0][1] as T;
-  }
-
-  async getProvider<T>(id: string): Promise<T | null> {
-    await this.initializeIfNeeded();
-
-    const plugin = await prisma.plugin.findFirst({
-      where: {
-        id,
-        isActive: true,
-      },
-    });
-
-    if (!plugin) {
-      return null;
-    }
-
-    return (this.providersMap.get(plugin.id) as T) || null;
-  }
-
-  public async getProviderForm(plugin_id: string): Promise<IPluginForm> {
-    let path: string = '';
-    for (const [type, providers] of this.inAppPluginTypes) {
-      if (providers.has(plugin_id)) {
-        path = join(
-          process.cwd(),
-          'src',
-          'plugins',
-          type.toLowerCase(),
-          'providers',
-          plugin_id,
-          `${plugin_id}-form.json`,
-        );
-        break;
-      }
-    }
-
-    path = path.replace('src/src', 'src');
-
-    if (!path || !existsSync(path)) {
-      await prisma.plugin.delete({ where: { id: plugin_id } });
-      throw new Error(`Form for plugin ID "${plugin_id}" not found.`);
-    }
-
-    const content = JSON.parse(readFileSync(path, 'utf-8')) as IPluginForm;
-    return content;
+/**
+ * The composition root for this codebase's one remaining extension point: received-invoice OCR.
+ *
+ * This directory used to also be the composition root for `PluginRegistry`/`PluginType` — an
+ * instance-wide, DB-backed, Settings-configurable mechanism with two categories that were EVER
+ * actually registered: `SIGNING` (dead since quote e-signature was removed) and `STORAGE` (a
+ * `local`/`s3` choice for broadcasting a signed quote or paid invoice PDF to a public URL, itself
+ * never wired to anything the app actually does — `utils/storage-upload.ts`'s only two callers,
+ * `uploadSignedQuotePdf`/`uploadPaidInvoicePdf`, had no call site of their own). Removed wholesale
+ * (2026-09-17, owner decision): a company-level S3 storage plugin is not a product this app offers
+ * any more — periodic backup of every document is an INSTANCE-level concern
+ * (`backend/src/modules/backup/`), never a per-deployment toggle a tenant admin can point at their
+ * own bucket. `backend/src/modules/documents/archive/s3-storage.ts` (`ARCHIVE_STORAGE=s3`) is
+ * unrelated and unaffected — see that file's own header.
+ *
+ * OCR never went through any of that: its whole configuration is one environment variable,
+ * `OCR_SERVICE_URL`, naming a container — never a `Plugin` database row, never a Settings screen.
+ * The core (`received-invoices/`) never imports the provider below directly, only the narrow
+ * extension point it declares (`received-invoices/ocr/extractor.ts`) — this file is the one place
+ * that is allowed to import both sides and wire them together.
+ */
+function registerOcrExtractor(): void {
+  if (process.env.NODE_ENV === 'test') {
+    // Deterministic, network-free stand-in — see `FakeReceivedInvoiceOcrExtractor`'s own header for
+    // why Cypress can exercise "PDF -> pre-filled OCR proposal" through a real browser with no OCR
+    // engine anywhere in the test stack.
+    receivedDocumentExtractorRegistry.register(new FakeReceivedInvoiceOcrExtractor());
+  } else {
+    receivedDocumentExtractorRegistry.register(new LocalOcrProvider());
   }
 }
+
+@Injectable()
+class OcrExtractorBootstrap implements OnModuleInit {
+  // Guards against a SECOND app bootstrap in the same Node process (e.g. more than one Nest testing
+  // module built inside one Jest worker) hitting `receivedDocumentExtractorRegistry.register`'s own
+  // "already registered" throw — the registry is a plain module-level singleton, not re-created per
+  // Nest application instance, so `onModuleInit` running twice in one process is a real case, not a
+  // hypothetical one.
+  private static registered = false;
+
+  onModuleInit(): void {
+    if (OcrExtractorBootstrap.registered) return;
+    OcrExtractorBootstrap.registered = true;
+    registerOcrExtractor();
+  }
+}
+
+/**
+ * Registered directly in `AppModule` — `received-invoices.module.ts` never imports this module
+ * itself, staying blind to which provider (or fake) backs the extension point, exactly as its own
+ * header describes. Not part of `DocumentsCoreModule`/the queue worker: received-invoice upload and
+ * its OCR fallback are an HTTP-only, synchronous flow (`ReceivedInvoicesController`), never reached
+ * from the BullMQ worker process.
+ */
+@Module({ providers: [OcrExtractorBootstrap] })
+export class OcrExtractorModule {}

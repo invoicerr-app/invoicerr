@@ -11,7 +11,6 @@ import {
   type LucideIcon,
   Mail,
   Palette,
-  Plug,
   Radio,
   Repeat,
   Server,
@@ -56,7 +55,6 @@ import { LogsSettings } from "./_components/logs.settings"
 import MailSettings from "./_components/mail.settings"
 import MembersSettings from "./_components/members.settings"
 import PaymentsSettings from "./_components/payments.settings"
-import PluginsSettings from "./_components/plugins.settings"
 import RecurringSettings from "./_components/recurring.settings"
 import SeatsSettings from "./_components/seats.settings"
 import SigningCertificatesSettings from "./_components/signing-certificates.settings"
@@ -91,7 +89,6 @@ type TabId =
   | "sso"
   | "webhooks"
   | "apiKeys"
-  | "plugins"
   | "logs"
   | "danger"
 
@@ -220,7 +217,6 @@ const TAB_GROUPS: TabGroup[] = [
     tabs: [
       { value: "webhooks", labelKey: "settings.tabs.webhooks", icon: Webhook, adminOnly: true },
       { value: "apiKeys", labelKey: "settings.tabs.apiKeys", icon: KeyRound, adminOnly: true },
-      { value: "plugins", labelKey: "settings.tabs.plugins", icon: Plug },
       { value: "logs", labelKey: "settings.tabs.logs", icon: FileText },
     ],
   },
@@ -250,7 +246,6 @@ const CONTENT: Record<TabId, ComponentType> = {
   sso: SsoSettings,
   webhooks: WebhooksSettings,
   apiKeys: ApiKeysSettings,
-  plugins: PluginsSettings,
   logs: LogsSettings,
   danger: DangerZoneSettings,
 }

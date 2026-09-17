@@ -5,7 +5,7 @@ import { PaymentProvider } from './provider';
  * `reporting/declaration-provider.ts#DeclarationProviderRegistry` already holds for the identical
  * "exactly one real implementation per process, resolved by an id read off a `CompanyChannelConfig`
  * row" problem. See `provider.ts`'s own header for why this is its own small registry rather than
- * `PluginRegistry` or `TransportRegistry` itself.
+ * an instance-wide, single-active-provider toggle, or `TransportRegistry` itself.
  */
 export class PaymentProviderRegistry {
   private readonly providers = new Map<string, PaymentProvider>();

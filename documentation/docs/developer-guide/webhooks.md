@@ -48,7 +48,3 @@ list — it renders whatever `GET /api/webhooks/options` returns, so it can neve
    event, the `DocumentWebhookEmitter.dispatch` it mirrors (`documents/queue/document-webhooks.ts`) —
    from the relevant service, at the point where the underlying state change happens. A value with no
    real call site fails `webhook-event-emitters.spec.ts` on the next `npm test`.
-
-## Inbound plugin webhooks
-
-Separate from outbound dispatch, plugins can also receive inbound webhooks from third-party services (e.g. signature completion callbacks). See [Plugin system](./plugin-system.md#inbound-plugin-webhooks).

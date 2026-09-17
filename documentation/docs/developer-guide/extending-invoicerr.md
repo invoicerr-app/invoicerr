@@ -70,4 +70,4 @@ and it never changes what a document type IS, only what one country's version of
 - Seeing what the five covered countries currently get, generated straight from the data → the
   [country compliance matrix](./country-support/index.md).
 - Adding a capability that isn't either of these two axes at all (a webhook event, a new field
-  *kind*, an MCP tool) → [Plugin System](./plugin-system.md).
+  *kind*, an MCP tool) → [Extension Points](./plugin-system.md).

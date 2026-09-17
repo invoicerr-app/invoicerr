@@ -129,7 +129,9 @@ export class ReceivedDocumentExtractorRegistry {
  * index.ts` (the composition root that registers providers into it) both reach — a plain module-level
  * singleton, the same non-DI shape this whole module already uses everywhere else (see
  * `received-invoices.module.ts`'s own header: this module's service reaches Prisma through free
- * functions, never an injected repository, specifically to avoid dragging in modules — `PluginRegistry`
- * (`plugins/index.ts`) is ALSO a plain singleton for the identical reason).
+ * functions, never an injected repository, specifically to avoid dragging in modules). `plugins/
+ * index.ts`'s own registration call runs from a small `OnModuleInit` Nest provider — DI-managed
+ * because it needs to run exactly once at app boot, but it still registers into THIS plain singleton
+ * rather than the core ever reaching into Nest's DI container itself.
  */
 export const receivedDocumentExtractorRegistry = new ReceivedDocumentExtractorRegistry();

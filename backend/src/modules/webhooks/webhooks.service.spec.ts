@@ -19,7 +19,6 @@
  */
 import { HttpException, HttpStatus } from '@nestjs/common';
 
-import { PluginsService } from '../plugins/plugins.service';
 import { Webhook, WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
 import { WebhooksService } from './webhooks.service';
 import prisma from '@/prisma/prisma.service';
@@ -57,7 +56,7 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new WebhooksService({} as PluginsService);
+    service = new WebhooksService();
   });
 
   describe('create', () => {
@@ -175,30 +174,6 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
 
       expect(results).toEqual([false, true]);
       expect(global.fetch).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('generateWebhookUrl — BACKEND_PUBLIC_URL vs. APP_URL (utils/backend-public-url.ts)', () => {
-    const originalAppUrl = process.env.APP_URL;
-    const originalBackendPublicUrl = process.env.BACKEND_PUBLIC_URL;
-
-    afterEach(() => {
-      process.env.APP_URL = originalAppUrl;
-      process.env.BACKEND_PUBLIC_URL = originalBackendPublicUrl;
-    });
-
-    it('builds the inbound plugin-webhook URL off APP_URL when BACKEND_PUBLIC_URL is unset', () => {
-      delete process.env.BACKEND_PUBLIC_URL;
-      process.env.APP_URL = 'http://localhost:5173';
-
-      expect(service.generateWebhookUrl('plugin-1')).toBe('http://localhost:5173/api/webhooks/plugin-1');
-    });
-
-    it('prefers BACKEND_PUBLIC_URL when set — this URL is called by a third-party SERVER, never a browser', () => {
-      process.env.APP_URL = 'http://localhost:5173';
-      process.env.BACKEND_PUBLIC_URL = 'https://tunnel.example.com';
-
-      expect(service.generateWebhookUrl('plugin-1')).toBe('https://tunnel.example.com/api/webhooks/plugin-1');
     });
   });
 });

@@ -6,8 +6,8 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form"
 import { DatePicker } from "./date-picker"
 
 // `PopoverContent` positions itself through Radix's Popper primitive, which needs a `ResizeObserver`
-// to mount at all -- jsdom has none. Same stub as `webhook-instructions-modal.spec.tsx` /
-// `office-svg.spec.tsx` for the same reason (a Radix `Tooltip`/`Popover` there too).
+// to mount at all -- jsdom has none. Same stub as `office-svg.spec.tsx` for the same reason (a
+// Radix `Tooltip`/`Popover` there too).
 beforeEach(() => {
   vi.stubGlobal(
     "ResizeObserver",

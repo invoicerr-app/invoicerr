@@ -59,13 +59,20 @@ export class WebhookDispatcherService {
 
     try {
       await this.webhookService.send(webhooks, event, payload);
+      // Explicit `companyId` on every log line below — this is the ONE choke point every dispatch in
+      // the app funnels through (document actions, billing, clients…), reached from request-scoped AND
+      // job-scoped callers alike; resolving it locally here (already done, two lines up, to build the
+      // `webhooks` query itself) is simpler than trusting every one of those callers to have already
+      // established an ambient context.
       logger.info('Webhook dispatched', {
         category: 'webhook-dispatcher',
+        companyId,
         details: { event, webhooks: summaries },
       });
     } catch (error) {
       logger.error('Error dispatching webhook', {
         category: 'webhook-dispatcher',
+        companyId,
         details: { error, event, webhooks: summaries },
       });
       throw error;

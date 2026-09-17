@@ -1,7 +1,11 @@
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { CompanyContextInterceptor } from '@/interceptors/company-context.interceptor';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { ArticlesModule } from './modules/articles/articles.module';
 import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module';
+import { BackupModule } from './modules/backup/backup.module';
+import { BackupQueueWorkerModule } from './modules/backup/backup-queue-worker.module';
+import { isBackupEnabled } from './modules/backup/backup.constants';
 import { AuthGuard } from '@/guards/auth.guard';
 import { RolesGuard } from '@/guards/roles.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
@@ -29,7 +33,7 @@ import { LegalModule } from './legal/legal.module';
 import { MailService } from './mail/mail.service';
 import { McpModule } from './modules/mcp/mcp.module';
 import { Module } from '@nestjs/common';
-import { PluginsModule } from './modules/plugins/plugins.module';
+import { OcrExtractorModule } from './plugins';
 import { ReceivedInvoicesModule } from './modules/documents/received-invoices/received-invoices.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -52,6 +56,16 @@ import { LegalAcceptanceGuard } from './legal/legal-acceptance.guard';
  * module's own header for the full "invisible and inert" guarantee this is the structural half of.
  */
 const billingEnabled = isBillingEnabled();
+
+/**
+ * Instance file backup (`backend/src/modules/backup`) — a periodic sweep to a SECONDARY,
+ * operator-owned S3 bucket, entirely separate from `documents/archive/storage.ts`'s own
+ * `ARCHIVE_STORAGE=s3` (see `backup-runner.ts`'s own header for the "why two buckets" account).
+ * `BackupModule` (the `GET /api/backup/status` route) is imported ONLY when this is true — the same
+ * "invisible and inert without its flag" contract `billingEnabled` above already holds for hosted
+ * billing: with no `BACKUP_S3_BUCKET` set, the module never enters the graph at all.
+ */
+const backupEnabled = isBackupEnabled();
 
 /**
  * `DocumentsModule` (via `DocumentsCoreModule`) always imports the document-action queue's
@@ -160,11 +174,19 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // Hosted billing (product decision 2026-09-15) — see this file's own `billingEnabled` comment
     // right above the class. `[]` for the self-hosted default.
     ...(billingEnabled ? [BillingModule] : []),
+    // Instance file backup — see this file's own `backupEnabled` comment above. `[]` with no
+    // `BACKUP_S3_BUCKET` configured, the module's own default.
+    ...(backupEnabled ? [BackupModule] : []),
     // ExpenseCategoriesModule is registered further up, BEFORE DocumentsModule — see that entry's own
     // comment for why (HTTP route-shadowing, not DI).
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
+    // Same `workerInline` gate as `DocumentsQueueWorkerModule` right above, ANDed with `backupEnabled`:
+    // a scaled deployment (`WORKER_INLINE=false`) wants only dedicated `ROLE=worker` processes
+    // consuming the backup-sweep repeatable too, never the API — see `backup-queue-worker.module.ts`'s
+    // own header.
+    ...(backupEnabled && workerInline ? [BackupQueueWorkerModule] : []),
     McpModule,
-    PluginsModule,
+    OcrExtractorModule,
     WebhooksModule,
     InvitationsModule,
     // Terms of Service / Privacy Policy / DPA / Legal Notice / Cookies — always imported (see this
@@ -185,6 +207,15 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    // Request-scoped `companyId` for every `Log` write this request triggers — see
+    // `@/interceptors/company-context.interceptor.ts`'s own header for why this has to be an
+    // Interceptor (runs after every `APP_GUARD` above, `AuthGuard` included) rather than folded into
+    // `AuthGuard` itself. Registered early in this list on purpose: Nest runs interceptors in
+    // registration order, and nothing else here needs to run BEFORE the company context exists.
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CompanyContextInterceptor,
     },
     // Hosted billing's read-only gate (product decision 2026-09-15) — refuses every WRITE from a
     // `blocked`/`zipped` company. Registered ONLY under the flag, like `BillingModule` right above:

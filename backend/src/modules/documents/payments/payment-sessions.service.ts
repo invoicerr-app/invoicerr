@@ -64,8 +64,9 @@ export interface InvoiceCheckoutSessionResult {
  * here once rather than re-derived at every call site:
  *
  *  1. PROVIDER SHAPE: a `PaymentProvider` (`provider.ts`) resolved through `PaymentProviderRegistry` —
- *     never `PluginRegistry`, never a hardcoded `if (providerId === 'stripe')` branch. See
- *     `provider.ts`'s own header for the full "narrow-interface-at-the-core" reasoning.
+ *     never an instance-wide, single-active-provider toggle, never a hardcoded
+ *     `if (providerId === 'stripe')` branch. See `provider.ts`'s own header for the full
+ *     "narrow-interface-at-the-core" reasoning.
  *  2. CREDENTIAL OWNERSHIP: bring-your-own-account, per company, through the SAME encrypted
  *     `CompanyChannelConfig` storage every national channel already uses
  *     (`ChannelCredentialsService`, `CREDENTIALS_ENCRYPTION_KEY`) — never a single operator-wide Stripe

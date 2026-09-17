@@ -457,23 +457,9 @@ export default defineConfig({
             // suite started) — it VERIFIES one actually happened, right below, instead of quietly
             // trusting it and letting a real gap resurface as the exact silent 403 this fix exists
             // to prevent.
-            //
-            // `Plugin` joins the exclusion list for the SAME "boot-once, no in-process re-trigger"
-            // reason as `B2gRoutingRule` above, discovered running `09-settings.cy.ts`'s own in-app
-            // plugin toggle test against a backend that had already lived through many resets: unlike
-            // the three tables above, `Plugin` has no dedicated boot-reseed SERVICE, but
-            // `PluginRegistry#syncWithDatabase` (`src/plugins/index.ts`) is reached only from
-            // `PluginsService`'s CONSTRUCTOR, fire-and-forget, gated by a module-level
-            // `PluginRegistry.isInitialized` flag that only ever flips once per PROCESS — so a
-            // mid-suite truncate empties it until the next full backend restart, exactly like the
-            // other three, and `GET /api/plugins/in-app` (`getInAppPlugins`) never calls
-            // `initializeIfNeeded()` before reading, so nothing re-populates it on its own. Left off the
-            // post-truncate verification loop below (unlike the three above): an empty `Plugin` only
-            // ever breaks ONE screen's own toggle count, never a blanket 403 across every later spec's
-            // document actions, so the same hard-throw would be disproportionate here.
             const { rows } = await client.query(
               `SELECT tablename FROM pg_tables WHERE schemaname = 'public'
-                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule', 'CountryIdentifierRequirement', 'B2gRoutingRule', 'Plugin')`,
+                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule', 'CountryIdentifierRequirement', 'B2gRoutingRule')`,
             );
             if (rows.length > 0) {
               const tables = rows.map((row: { tablename: string }) => `"${row.tablename}"`).join(", ");

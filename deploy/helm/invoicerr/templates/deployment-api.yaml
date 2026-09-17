@@ -149,6 +149,36 @@ spec:
                   key: ARCHIVE_S3_SECRET_ACCESS_KEY
             {{- end }}
 
+            # Instance file backup — a SECOND, dedicated bucket, entirely separate from ARCHIVE_S3_*
+            # above (see values.yaml's own `backup` header). OFF (nothing rendered here) with an empty
+            # `backup.s3.bucket` — read by backend/src/modules/backup. `WORKER_INLINE=false` above
+            # (hardcoded on this Deployment) already keeps the api pod from ALSO consuming the
+            # backup-sweep repeatable — same split ARCHIVE_STORAGE's own queue already relies on.
+            {{- if .Values.backup.s3.bucket }}
+            - name: BACKUP_S3_BUCKET
+              value: {{ .Values.backup.s3.bucket | quote }}
+            - name: BACKUP_S3_ENDPOINT
+              value: {{ .Values.backup.s3.endpoint | quote }}
+            - name: BACKUP_S3_REGION
+              value: {{ .Values.backup.s3.region | quote }}
+            - name: BACKUP_S3_FORCE_PATH_STYLE
+              value: {{ .Values.backup.s3.forcePathStyle | quote }}
+            - name: BACKUP_S3_PREFIX
+              value: {{ .Values.backup.s3.prefix | quote }}
+            - name: BACKUP_S3_SCHEDULE
+              value: {{ .Values.backup.s3.schedule | quote }}
+            - name: BACKUP_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_S3_ACCESS_KEY_ID
+            - name: BACKUP_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_S3_SECRET_ACCESS_KEY
+            {{- end }}
+
             # DOCUMENTS_INBOUND_DIR has no S3 backend today (received-invoices/storage.ts is
             # local-disk only) — always set, always mounted, regardless of archive.storage. See
             # values.yaml's own `documents` header.

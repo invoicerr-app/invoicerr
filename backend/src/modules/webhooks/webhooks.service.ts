@@ -1,12 +1,9 @@
-import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Webhook, WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
 
 import { DiscordDriver } from './drivers/discord.driver';
 import { GenericDriver } from './drivers/generic.driver';
-import { IWebhookProvider } from '@/plugins/types';
 import { MattermostDriver } from './drivers/mattermost.driver';
-import { PluginsService } from '../plugins/plugins.service';
-import { Request } from 'express';
 import { RocketChatDriver } from './drivers/rocketchat.driver';
 import { SlackDriver } from './drivers/slack.driver';
 import { TeamsDriver } from './drivers/teams.driver';
@@ -15,7 +12,6 @@ import { WebhookUrlValidationError, assertPublicWebhookUrl } from './webhook-url
 import { ZapierDriver } from './drivers/zapier.driver';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
-import { backendPublicUrl } from '@/utils/backend-public-url';
 import { ResolvedOutboundUrl, pinnedDispatcher } from '@/utils/outbound-url';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { isEncryptedWebhookSecret } from './webhook-secret-format';
@@ -43,86 +39,6 @@ export class WebhooksService {
     new TeamsDriver(),
     new ZapierDriver(),
   ];
-
-  constructor(private readonly pluginsService: PluginsService) {}
-
-  /**
-   * Handle a received webhook for a specific plugin
-   */
-  async handlePluginWebhook(pluginId: string, body: any, req: Request): Promise<any> {
-    logger.info(`Processing webhook for plugin: ${pluginId}`, { category: 'webhook', details: { pluginId } });
-    // Check that the plugin exists and is active
-    const plugin = await prisma.plugin.findFirst({
-      where: {
-        id: pluginId,
-        isActive: true,
-        webhookUrl: {
-          not: null,
-        },
-      },
-    });
-
-    if (!plugin) {
-      logger.warn(`Active plugin with UUID ${pluginId} not found or has no webhook configured`, {
-        category: 'webhook',
-        details: { pluginId },
-      });
-      throw new NotFoundException(
-        `Active plugin with UUID ${pluginId} not found or has no webhook configured`,
-      );
-    }
-
-    logger.info(`Found plugin: ${plugin.name} (${plugin.type})`, {
-      category: 'webhook',
-      details: { pluginId, pluginType: plugin.type },
-    });
-
-    // Get the plugin's provider
-    const provider = await this.pluginsService.getProviderByType<IWebhookProvider>(plugin.type.toLowerCase());
-
-    if (!provider) {
-      logger.warn(`No provider found for plugin type: ${plugin.type}`, {
-        category: 'webhook',
-        details: { pluginType: plugin.type },
-      });
-      throw new NotFoundException(`No provider found for plugin type: ${plugin.type}`);
-    }
-
-    // Check that the provider has a handleWebhook method
-    if (typeof provider.handleWebhook !== 'function') {
-      logger.warn(`Provider for plugin ${plugin.name} does not implement handleWebhook method`, {
-        category: 'webhook',
-        details: { pluginName: plugin.name },
-      });
-      return { message: 'Webhook received but not handled by provider' };
-    }
-
-    // Call the provider's handleWebhook method
-    try {
-      const result = await provider.handleWebhook(req, body);
-      logger.info(`Webhook processed successfully for plugin ${plugin.name}`, {
-        category: 'webhook',
-        details: { pluginName: plugin.name },
-      });
-      return result;
-    } catch (error) {
-      logger.error(`Error in provider webhook handler for plugin ${plugin.name}`, {
-        category: 'webhook',
-        details: { pluginName: plugin.name, error },
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Generate a webhook URL for a given plugin ID — the address the EXTERNAL plugin's own service
-   * calls back into `POST /api/webhooks/:uuid` (`webhooks.controller.ts`'s own public endpoint) at.
-   * `backendPublicUrl()` (see that function's own header) — never bare `APP_URL`: this URL is called
-   * by a third-party SERVER, not opened by a browser.
-   */
-  generateWebhookUrl(pluginId: string): string {
-    return `${backendPublicUrl()}/api/webhooks/${pluginId}`;
-  }
 
   /**
    * SECURITY_AUDIT.md finding #2 (SSRF) — reject a webhook URL that is not a public http(s)

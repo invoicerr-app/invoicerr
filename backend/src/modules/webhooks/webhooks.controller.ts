@@ -1,20 +1,5 @@
-import {
-  Controller,
-  Post,
-  Param,
-  Body,
-  Req,
-  Res,
-  Logger,
-  HttpStatus,
-  Get,
-  Delete,
-  UseGuards,
-  Patch,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Controller, Post, Param, Body, Logger, Get, Delete, UseGuards, Patch } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { WebhooksService } from './webhooks.service';
 import { AuthGuard } from '@/guards/auth.guard';
 import { WebhookEvent, WebhookType, CompanyRole } from '../../../prisma/generated/prisma/client';
@@ -60,47 +45,6 @@ export class WebhooksController {
   @ApiResponse({ status: 404, description: 'Webhook not found' })
   async findOne(@ActiveCompany() companyId: string, @Param('id') id: string) {
     return this.webhooksService.findOne(companyId, id);
-  }
-
-  @Post(':uuid')
-  @AllowAnonymous()
-  @ApiOperation({
-    summary: 'Handle an incoming plugin webhook',
-    description:
-      'Public endpoint called by external services to deliver webhook payloads to a plugin identified by its UUID.',
-  })
-  @ApiParam({ name: 'uuid', type: String, description: 'UUID of the target plugin' })
-  @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
-  @ApiResponse({ status: 500, description: 'Webhook processing failed' })
-  async handleWebhook(
-    @Param('uuid') uuid: string,
-    @Body() body: any,
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
-    try {
-      const result = await this.webhooksService.handlePluginWebhook(uuid, body, req);
-
-      return res.status(200).json({
-        success: true,
-        message: 'Webhook processed successfully',
-        data: result,
-      });
-    } catch (error) {
-      // The full detail (which of "plugin not found", "no provider for this type", or the provider's
-      // own thrown error it was) stays server-side only. This route is `@AllowAnonymous()`, so the
-      // caller is an unauthenticated third party — echoing `error.message` back let it distinguish a
-      // "plugin UUID does not exist" outcome from any other failure, turning the endpoint into an
-      // oracle for enumerating valid plugin UUIDs. One generic message covers every failure branch
-      // identically; the real reason is still fully logged for whoever operates this instance.
-      const detail = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error processing webhook for plugin ${uuid}: ${detail}`);
-
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Webhook processing failed',
-      });
-    }
   }
 
   // Protected CRUD endpoints for managing webhooks (company-scoped)

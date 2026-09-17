@@ -84,38 +84,6 @@ describe('Settings E2E', () => {
         });
     });
 
-    describe('Plugins Settings', () => {
-        // The external, git-clone "Add Plugin" form and the installed-plugins list it fed were
-        // removed on 2026-09-03 (no real extension point behind them, see the backend's
-        // plugins.service.ts's own header). No spec touched `/settings/plugins` before the removal (grep found
-        // none) — this is a fresh smoke of the screen that remains: in-app plugins only
-        // (PluginRegistry/PluginType — signing, storage), proving the removal didn't take the
-        // survivor down with it.
-        it('loads the plugins settings page', () => {
-            cy.visit('/settings/plugins');
-            // `cy.contains(/plugins/i)` alone also matches the sidebar's own "Plugins" nav entry, which
-            // is on screen regardless of whether the CONTENT pane rendered or crashed blank — asserting
-            // the page's own root (`plugins.settings.tsx`'s `dataCy="plugins-section"`) is what actually
-            // proves this screen rendered.
-            cy.get('[data-cy="plugins-section"]', { timeout: 10000 }).should('be.visible');
-        });
-
-        it('shows only the in-app plugin surface — no external git-url install form survives', () => {
-            cy.visit('/settings/plugins');
-            cy.get('[data-cy="plugins-section"]', { timeout: 10000 }).should('be.visible');
-
-            cy.get('input#git-url').should('not.exist');
-            cy.contains(/add plugin/i).should('not.exist');
-
-            // The in-app toggles (storage providers — `s3` and `local`, `PluginRegistry
-            // #initializeInAppPlugins`) are ALWAYS registered at boot: unlike the removed git-url form,
-            // there is nothing conditional about their presence, so this must never be gated behind an
-            // `if` — a screen that lost every toggle would leave that guard false and skip the very
-            // assertion meant to catch it.
-            cy.get('button[role="switch"]', { timeout: 10000 }).should('have.length.at.least', 1);
-        });
-    });
-
     describe('Settings Sidebar Navigation', () => {
         /**
          * Picks one entry from the mobile settings picker (`settings-nav-select`) — deliberately NOT
@@ -125,7 +93,7 @@ describe('Settings E2E', () => {
          * `pointer-events` and only re-enables the TRIGGER once closed, so a retry-click while still
          * open times out on exactly the CSS guard this file hit in CI (`ensureElDoesNotHaveCSS`,
          * `pointer-events: none` inherited from `body`). This picker's OWN option list is also long
-         * (21 tabs across six groups) — long enough that the first render can still be settling past
+         * (20 tabs across six groups) — long enough that the first render can still be settling past
          * `openSelect`'s 800ms poll window, which is what triggered that retry in the first place. One
          * deliberate click, a generous wait for the options panel, then `scrollIntoView` on the target
          * option (it may render below the panel's own capped, scrollable height) is what an actual user
@@ -152,10 +120,6 @@ describe('Settings E2E', () => {
             pickSettingsNavOption('invitations');
             cy.url().should('include', '/settings/invitations');
             cy.get('[data-cy="settings-tab-invitations"]', { timeout: 10000 }).should('be.visible');
-
-            pickSettingsNavOption('plugins');
-            cy.url().should('include', '/settings/plugins');
-            cy.get('[data-cy="settings-tab-plugins"]', { timeout: 10000 }).should('be.visible');
 
             pickSettingsNavOption('company');
             cy.url().should('include', '/settings/company');

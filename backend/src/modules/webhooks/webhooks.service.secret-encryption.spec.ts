@@ -16,7 +16,6 @@ process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef012345
 
 import { createHmac } from 'node:crypto';
 
-import { PluginsService } from '../plugins/plugins.service';
 import { Webhook, WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
 import { WebhooksService } from './webhooks.service';
 import { isEncryptedWebhookSecret } from './webhook-secret-format';
@@ -56,7 +55,7 @@ describe('WebhooksService — secret encryption', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new WebhooksService({} as PluginsService);
+    service = new WebhooksService();
   });
 
   describe('create', () => {

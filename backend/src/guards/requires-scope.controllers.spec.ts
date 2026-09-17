@@ -5,9 +5,8 @@
  * refused on a write and let through on a read for a REAL route.
  *
  * Part 1 (metadata tripwire, no DB): pins the exact scope/mode `SetMetadata` attached to a
- * representative method on every annotated controller — the same "still wired, not an assumption"
- * discipline `plugins.controller.spec.ts`'s own `Reflect.getMetadata('path', ...)` table already
- * holds for routing. Catches an annotation silently lost in a future refactor.
+ * representative method on every annotated controller. Catches an annotation silently lost in a
+ * future refactor.
  *
  * Part 2 (real `AuthGuard`, real Prisma, `@/lib/auth` mocked exactly like `auth.guard.spec.ts`):
  * a `clients:read`-only key against the REAL `ClientsController.getClients`/`postClientsInfo`
@@ -22,15 +21,6 @@ jest.mock('@/lib/auth', () => ({
 
 jest.mock('better-auth/node', () => ({
   fromNodeHeaders: jest.fn((headers: unknown) => headers),
-}));
-
-// `webhooks.controller.ts` imports `AllowAnonymous` from this package for its one public route
-// (the external webhook receiver) — same ESM barrier as `better-auth/node` above (it transitively
-// pulls in `better-auth/plugins`, ESM-only, same as `sso-registrar.service.spec.ts` already
-// documents). A no-op decorator is enough: this file only asserts REQUIRES_SCOPE_KEY is absent from
-// that route, never that `@AllowAnonymous` itself still marks it public.
-jest.mock('@thallesp/nestjs-better-auth', () => ({
-  AllowAnonymous: () => () => undefined,
 }));
 
 import { ForbiddenException } from '@nestjs/common';
@@ -219,14 +209,6 @@ describe('@RequiresScope / @RequiresDocumentTypeScope — wired onto the REST co
     const handler = (Controller.prototype as unknown as Record<string, object>)[method];
     expect(handler).toBeDefined();
     expect(Reflect.getMetadata(key, handler)).toEqual(expected);
-  });
-
-  // Handing an ANONYMOUS external webhook receiver a scope requirement would be a self-lockout (it
-  // has no auth at all, by design — @AllowAnonymous) rather than a security improvement, so this one
-  // route on WebhooksController is deliberately excluded from the sweep above.
-  it('never annotates the public webhook receiver — it has no caller identity to hold a scope', () => {
-    const handler = WebhooksController.prototype.handleWebhook;
-    expect(Reflect.getMetadata(REQUIRES_SCOPE_KEY, handler)).toBeUndefined();
   });
 });
 

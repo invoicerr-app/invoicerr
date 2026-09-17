@@ -33,17 +33,21 @@ spec:
       # service_healthy` — a Kubernetes Deployment has no native equivalent (two Deployments start
       # independently, with nothing like Compose's healthcheck-gated startup order). Without this,
       # the worker boots at the same time as a BRAND NEW api pod and loses the race on first
-      # install: `backend/src/worker.ts`'s own bootstrap loads plugins
-      # (`prisma.plugin.findMany()`) before Redis/queue wiring, and that query fails outright
-      # (`P2021 the table public.Plugin does not exist`) until the api pod's `sync-schema.ts` has
-      # actually run `migrate deploy` — OBSERVED on a real `kind` install, 2026-09-17: the worker
-      # pod crash-looped 3 times with exactly that error before the api pod's migration finished,
-      # then recovered on its own once kubelet's backoff happened to retry after that moment. It IS
-      # self-healing (kubelet keeps restarting it, and every later request just requeues), but it
-      # wastes the first minute of every fresh install on confusing CrashLoopBackOff noise — this
-      # initContainer polls the api Service's own `/api/health` (only 200 once nginx has started,
-      # i.e. once migrations are done — see deployment-api.yaml's own readinessProbe comment) so the
-      # worker container itself never even starts until that is true.
+      # install: `DocumentsCoreModule`'s own boot-reseed services (`B2gRoutingBootUpsertService`,
+      # `CountryPolicyBootReseedService`, `CountryIdentifierRequirementsBootReseedService` — every
+      # process that imports the module, worker included, runs them on `OnModuleInit`) query/upsert
+      # their own tables before Redis/queue wiring, and those queries fail outright (Prisma P2021,
+      # table does not exist) until the api pod's `sync-schema.ts` has actually run `migrate deploy`
+      # — OBSERVED on a real `kind` install, 2026-09-17: the worker pod crash-looped 3 times with
+      # exactly that class of error (at the time, `P2021 the table public.Plugin does not exist` —
+      # the in-app plugin mechanism that table backed was removed the same day, but the underlying
+      # boot race is unrelated to which table hits it first) before the api pod's migration
+      # finished, then recovered on its own once kubelet's backoff happened to retry after that
+      # moment. It IS self-healing (kubelet keeps restarting it, and every later request just
+      # requeues), but it wastes the first minute of every fresh install on confusing
+      # CrashLoopBackOff noise — this initContainer polls the api Service's own `/api/health` (only
+      # 200 once nginx has started, i.e. once migrations are done — see deployment-api.yaml's own
+      # readinessProbe comment) so the worker container itself never even starts until that is true.
       initContainers:
         # Same Redis race deployment-api.yaml's own `wait-for-redis` initContainer documents — the
         # worker needs Redis directly too (BullMQ), not merely as a side effect of waiting for api.
@@ -148,6 +152,34 @@ spec:
                 secretKeyRef:
                   name: {{ include "invoicerr.secretName" . }}
                   key: ARCHIVE_S3_SECRET_ACCESS_KEY
+            {{- end }}
+
+            # Instance file backup — a SECOND, dedicated bucket, entirely separate from ARCHIVE_S3_*
+            # above (see values.yaml's own `backup` header). OFF (nothing rendered here) with an empty
+            # `backup.s3.bucket` — read by backend/src/modules/backup.
+            {{- if .Values.backup.s3.bucket }}
+            - name: BACKUP_S3_BUCKET
+              value: {{ .Values.backup.s3.bucket | quote }}
+            - name: BACKUP_S3_ENDPOINT
+              value: {{ .Values.backup.s3.endpoint | quote }}
+            - name: BACKUP_S3_REGION
+              value: {{ .Values.backup.s3.region | quote }}
+            - name: BACKUP_S3_FORCE_PATH_STYLE
+              value: {{ .Values.backup.s3.forcePathStyle | quote }}
+            - name: BACKUP_S3_PREFIX
+              value: {{ .Values.backup.s3.prefix | quote }}
+            - name: BACKUP_S3_SCHEDULE
+              value: {{ .Values.backup.s3.schedule | quote }}
+            - name: BACKUP_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_S3_ACCESS_KEY_ID
+            - name: BACKUP_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_S3_SECRET_ACCESS_KEY
             {{- end }}
 
             - name: DOCUMENTS_INBOUND_DIR

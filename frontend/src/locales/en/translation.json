@@ -1793,7 +1793,6 @@
       "logs": "Logs",
       "invitations": "Invitations",
       "dangerZone": "Danger Zone",
-      "plugins": "Plugins",
       "webhooks": "Webhooks",
       "apiKeys": "API Keys",
       "channels": "E-invoicing",
@@ -1822,7 +1821,8 @@
         "loading": "Loading…",
         "upload": "Upload logo",
         "replace": "Replace logo",
-        "remove": "Remove logo"
+        "remove": "Remove logo",
+        "maxSize": "Maximum 10 MB"
       },
       "appearance": {
         "title": "Colour & font"
@@ -1850,7 +1850,7 @@
         "logoRemoveSuccess": "Logo removed",
         "logoRemoveError": "Failed to remove logo",
         "invalidFileType": "Please choose a PNG, JPEG or WebP image",
-        "fileTooLarge": "This file is over the 750 KiB limit"
+        "fileTooLarge": "This file is over the 10 MB limit"
       }
     },
     "accountingExport": {
@@ -2290,23 +2290,6 @@
         "actionError": "Failed to complete action",
         "actionFailed": "Action failed",
         "unexpectedError": "An unexpected error occurred"
-      }
-    },
-    "plugins": {
-      "title": "Plugins ({{count}})",
-      "description": "Manage the built-in plugins available to this application",
-      "emptyState": "No plugins available",
-      "actions": {
-        "webhook": "Webhook"
-      },
-      "messages": {
-        "toggleSuccess": "Plugin toggled successfully",
-        "toggleError": "Failed to toggle plugin",
-        "configureSuccess": "Plugin configured successfully",
-        "configureError": "Failed to configure plugin"
-      },
-      "webhook": {
-        "secretPlaceholder": "Validate that popup to generate secure secret"
       }
     },
     "emailTemplates": {
@@ -3574,36 +3557,6 @@
     "revenue": "Revenue (excl. VAT)",
     "deposits": "Deposits (invoice paid)"
   },
-  "webhook": {
-    "instructions": {
-      "documenso": {
-        "title": "Instructions for Documenso webhook configuration:",
-        "step1": "1. Go to your Documenso admin panel",
-        "step2": "2. Configure webhook URL",
-        "step3": "3. Configure webhook secret",
-        "step4": "4. Enable the following events: document.signed, document.completed (minimum required)",
-        "step5": "5. Additional events you may want to enable: document.pending, document.completed, document.rejected"
-      }
-    },
-    "modal": {
-      "title": "Webhook Configuration for {{pluginName}}",
-      "url": "Webhook URL",
-      "secret": "Webhook Secret",
-      "secretDescription": "Keep this secret secure. It will be used to verify webhook authenticity.",
-      "instructions": "Configuration Instructions",
-      "copyUrl": "Copy webhook URL",
-      "copySecret": "Copy webhook secret",
-      "urlCopied": "Webhook URL copied to clipboard!",
-      "urlCopyFailed": "Couldn't copy the webhook URL — copy it manually instead.",
-      "secretCopied": "Webhook secret copied to clipboard!",
-      "secretCopyFailed": "Couldn't copy the webhook secret — copy it manually instead.",
-      "showSecret": "Show webhook secret",
-      "hideSecret": "Hide webhook secret",
-      "warningLabel": "Important:",
-      "warning": "Configure both the webhook URL and secret in your {{pluginName}} settings to receive authenticated real-time updates. Store the secret securely - it won't be shown again.",
-      "gotIt": "Got it!"
-    }
-  },
   "receivedInvoices": {
     "title": "Received Invoices",
     "description": "Supplier invoices received via e-invoicing channels.",
@@ -4450,7 +4403,9 @@
         "loadingPreview": "Loading preview...",
         "previewAlt": "Attachment preview",
         "openFile": "Open file",
-        "uploadError": "Upload failed"
+        "uploadError": "Upload failed",
+        "maxSize": "Maximum 10 MB",
+        "tooLarge": "This file is over the 10 MB limit"
       },
       "unsupportedKind": "Field \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
       "unknownType": "Unknown document type \"{{typeId}}\".",
@@ -4562,8 +4517,10 @@
         "button": "Upload",
         "title": "Upload a received invoice",
         "dropHint": "Drag and drop a PDF, or an XML/Factur-X invoice, here",
+        "maxSize": "Maximum 10 MB",
         "browse": "Browse files",
         "error": "Upload failed",
+        "tooLarge": "This file is over the 10 MB limit",
         "supplierNotMatched": "No matching supplier found — choose an existing one or create it from the Clients screen.",
         "supplierAmbiguous": "More than one client shares this supplier's VAT number or name — choose the right one by hand.",
         "ocrUnavailable": "No OCR extractor available for this document — enter the fields manually.",

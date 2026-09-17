@@ -18,7 +18,7 @@ import { SdiNotificheService } from './sdi-notifiche.service';
  * `WebhooksModule` is the ONE addition: `SdiNotificheService` now dispatches
  * `DOCUMENT_AUTHORITY_EVENT`, whose emitter (`WebhookDispatcherService`) is NOT `@Global()` the way
  * `DocumentEventsPublisher` is — it has to be imported explicitly wherever it is injected.
- * `WebhooksModule` itself only imports `PluginsModule` (no Prisma-managed provider, no documents
+ * `WebhooksModule` itself imports nothing of its own (no Prisma-managed provider, no documents
  * coupling), so this stays exactly as narrow as the header above already commits to.
  *
  * `{ provide: DOCUMENT_WEBHOOK_EMITTER, useExisting: WebhookDispatcherService }` mirrors

@@ -73,8 +73,8 @@ export class SdiNotificheService {
     // `DOCUMENT_AUTHORITY_EVENT`'s own emitter. UNLIKE `eventsPublisher`,
     // the `DOCUMENT_WEBHOOK_EMITTER` token's own provider (`WebhooksModule`) is NOT `@Global()` —
     // `sdi-notifiche.module.ts` now imports `WebhooksModule` directly (a small, one-line addition;
-    // `WebhooksModule` only imports `PluginsModule`, which touches nothing this module graph already
-    // avoids — see that module's own header) specifically so this resolves. Injected by TOKEN, never
+    // `WebhooksModule` itself imports nothing of its own, so this touches nothing this module graph
+    // already avoids — see that module's own header) specifically so this resolves. Injected by TOKEN, never
     // the concrete `WebhookDispatcherService` class — see that token's own header
     // (`queue/document-webhooks.ts`) for why: the concrete class drags `webhooks.service.ts` →
     // `drivers/discord.driver.ts` → `@teever/ez-hook` into every file that imports it, breaking this
@@ -139,7 +139,14 @@ export class SdiNotificheService {
     const count = await createAuthorityEvents(document.companyId, document.id, SDI_PROVIDER_ID, [event]);
     logger.info(
       `SdI notifica ${parsed.notificaType} journaled for document ${document.id} (IdentificativoSdI ${parsed.identificativoSdI})`,
-      { category: 'documents', details: { documentId: document.id, notificaType: parsed.notificaType } },
+      {
+        category: 'documents',
+        // Explicit, not left to the ambient context: this is a `@Public()` push endpoint (see
+        // `sdi-notifiche.controller.ts`'s own header) with no company context of its own — `companyId`
+        // is only known from here on, once `document` above resolved it.
+        companyId: document.companyId,
+        details: { documentId: document.id, notificaType: parsed.notificaType },
+      },
     );
     // Only on a genuinely new row (count > 0, never for a
     // re-delivered notifica the dedup already absorbed): this push receiver is itself a worker→API

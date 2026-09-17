@@ -1,9 +1,7 @@
 /**
  * The base URL a THIRD-PARTY SERVER — never a browser, never this app's own frontend — needs to reach
  * THIS backend at, to deliver a webhook: Mollie's `POST /v2/payments` `webhookUrl` field
- * (`payments/providers/mollie/mollie-provider.ts#webhookUrlFor`), and the inbound plugin webhook URL
- * this app hands out for `POST /api/webhooks/:uuid` (`webhooks/webhooks.service.ts#generateWebhookUrl`,
- * `plugins/plugins.service.ts#pluginValidation`).
+ * (`payments/providers/mollie/mollie-provider.ts#webhookUrlFor`).
  *
  * `APP_URL` cannot serve this alone: it is ALSO the frontend's own origin (every browser-redirect URL
  * in this codebase — `client-portal/portal.service.ts`'s checkout return URLs, `client-portal/

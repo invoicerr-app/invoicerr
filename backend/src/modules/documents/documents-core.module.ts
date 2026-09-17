@@ -358,7 +358,8 @@ function buildAuthorityStatusPollerRegistry(
  * Online payment — same "a provider registers itself under an id"
  * shape as `buildTransportRegistry`/`buildAuthorityStatusPollerRegistry` above. Stripe → Mollie →
  * PayPal, in that order (product decision 2026-09-15) — see `payments/provider.ts`'s own header on why
- * this is its own narrow registry, never `PluginRegistry`. Credentials are resolved the SAME way every
+ * this is its own narrow registry, never a DB-backed, single-active-provider toggle (the in-app plugin
+ * mechanism, removed 2026-09-17). Credentials are resolved the SAME way every
  * other channel already does (`ChannelCredentialsService`, injected into `PaymentSessionsService`
  * below, never into a provider itself — a `PaymentProvider` implementation is handed already-decrypted
  * config by its caller, the same shape `DocumentTransport.send()` is handed a `ResolvedChannelConfig`'s
@@ -612,8 +613,8 @@ function buildEntityReferenceRegistry(
  * imports this Core module gets it" reason — `WebhookDispatcherService` needs to resolve in a
  * dedicated worker process (`WORKER_INLINE=false`) exactly as much as in the API, since that is where
  * the "sent" write (and therefore the webhook it announces) actually happens under that topology.
- * `PluginsModule` (its only own import — `WebhooksModule`'s header) touches neither Clients/Articles/
- * Company/Documents, so this adds no cycle.
+ * `WebhooksModule` itself imports nothing of its own any more (the in-app plugin mechanism it used to
+ * pull in for the inbound plugin-webhook receiver was removed 2026-09-17), so this adds no cycle.
  */
 @Module({
   imports: [ClientsModule, ArticlesModule, DocumentQueueModule, CompanyModule, WebhooksModule],

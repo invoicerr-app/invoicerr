@@ -970,35 +970,13 @@ enum PdfDocumentType {
 // Short-lived, unauthenticated download link for a quote/invoice PDF — minted
 // by the MCP PDF tools so a chat client (e.g. OpenWebUI) that can't render an
 // embedded MCP resource block can still offer the user a clickable URL.
-enum PluginType {
-  SIGNING
-  STORAGE
-  // Added for an EARLY iteration of the OCR provider: an in-app plugin wired through
-  // `PluginRegistry`/the Settings > Plugins screen. Superseded twice over as the requirements
-  // settled — first by a per-company credential (which `PluginRegistry`'s INSTANCE-WIDE "one active
-  // provider per type" rule cannot express), then by the shape that shipped: one environment
-  // variable, `OCR_SERVICE_URL`, naming a container. No `Plugin` row, no Settings screen, ever
-  // involved — see `plugins/ocr/providers/local/local.ts`.
-  // LEFT IN PLACE, unused: Postgres cannot cheaply DROP a value from a live enum without rebuilding
-  // the whole type (see `20260903000000_generic_document_webhook_events`'s own migration, which had
-  // to do exactly that for `WebhookEvent`), and no `Plugin` row of this type was ever created, so
-  // leaving it costs nothing beyond one inert enum member. `PDF_FORMAT`/`OIDC` (documented in
-  // developer-guide/plugin-system.md) were never added here for the same reason in reverse: they
-  // are not plugin types at all.
-  OCR
-}
 
-model Plugin {
-  id            String     @id @default(cuid())
-  name          String
-  type          PluginType
-  config        Json?      @default("{}")
-  isActive      Boolean    @default(true)
-  webhookUrl    String?
-  webhookSecret String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-}
+// `PluginType`/`Plugin` (in-app, DB-backed, Settings-configurable signing/storage providers) were
+// removed 2026-09-17 — see `backend/prisma/migrations/20260917170000_remove_plugin_storage_system/
+// migration.sql`'s own header for what they were and why the table is genuinely droppable (unlike an
+// enum VALUE, a whole table+enum has no "cheap to leave inert" concern). Received-invoice OCR, the
+// one extension point that used to share this enum's `OCR` member, never actually went through
+// `Plugin` — see `backend/src/plugins/index.ts`'s own header.
 
 enum WebhookEvent {
   // Document events (generic, 2026-09-03) — replaces the per-type
@@ -1337,10 +1315,37 @@ model Log {
   userId    String?
   path      String?
   details   Json
+  // Which company this row is FOR — added long after `Log` itself (it predates multi-tenancy) once
+  // every write site was threaded through to answer it (`@/logger/logger.service.ts`'s own header).
+  // Nullable, and genuinely so, never a placeholder to backfill: a row written before this column
+  // existed, and a genuinely instance-level event (a boot check spanning every company's data at once
+  // — see `documents.service.ts#onModuleInit`'s `warnAboutUndeclaredStatuses`), both have no ONE
+  // company to name.
+  //
+  // Deliberately a PLAIN string, never a `@relation` — the one `companyId` field in this whole schema
+  // that isn't one, and on purpose: a log write must never fail because of what it is ABOUT. Two write
+  // sites already, honestly, carry a `companyId` that may not resolve to any current `Company` row —
+  // `payments-webhook.controller.ts`'s `:companyId` is a caller-supplied ROUTING hint, unverified until
+  // deep inside `handleWebhookEvent` (that controller's own header), and
+  // `billing/webhook-handlers.ts#recoverLegacySubscriptionCancellation` explicitly documents "a
+  // companyId no Company row matches" as one of the two NORMAL reasons it runs at all. A real foreign
+  // key would turn exactly those two documented, expected cases into a swallowed `Log` write (caught by
+  // `createLog`'s own try/catch, `logger.service.ts`) — the DB audit trail disappearing for precisely
+  // the anomalous/attack-adjacent traffic an operator would most want it for. No `onDelete: Cascade`
+  // either, as a direct consequence: a deleted company's own log rows simply keep their (now
+  // unresolvable) `companyId` — the same "row exists, id no longer resolves to a live company" shape
+  // this column already has for a row written before it existed, never a reason to bulk-delete a
+  // company's own history the moment the company itself goes away.
+  companyId String?
 
   @@index([level])
   @@index([category])
   @@index([timestamp])
+  // `modules/logger/logger.controller.ts#streamLogs`'s own query shape: filtered by `companyId`,
+  // ordered by `timestamp` — a composite index serves that filter+sort together, rather than the
+  // planner falling back to the bare `[timestamp]` index above and scanning past every OTHER
+  // company's rows to find this one's most recent 100.
+  @@index([companyId, timestamp])
 }
 
 // ======= END OF LOGGING SYSTEM ======= //
@@ -2962,3 +2967,47 @@ enum InboundInvoiceStatus {
 
 /// One row per received supplier invoice document.
 /// Dedup key: (channel, externalId) — the authority-assigned document reference.
+
+// ======= START OF INSTANCE FILE BACKUP ======= //
+// backend/src/modules/backup. NOT a database backup (Postgres has its own, run separately) — this
+// table only tracks runs of the periodic sweep that copies every document-related file on this
+// instance (legal archives, received-invoice/attachment/logo uploads) to a secondary, dedicated S3
+// bucket. Additive only. One row per sweep, created RUNNING and updated in place as the run
+// progresses, so GET /api/backup/status always has something to read even for a run still in flight.
+
+enum BackupRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model BackupRun {
+  id         String          @id @default(cuid())
+  status     BackupRunStatus @default(RUNNING)
+  startedAt  DateTime        @default(now())
+  finishedAt DateTime?
+
+  // Every file the sweep considered this run, however it was handled — see backup-runner.ts's own
+  // header for why an existing, same-size object at the destination key counts as "skipped" rather
+  // than re-uploaded: every source path here is already content-hash-addressed, so a matching key is
+  // proof enough of identical bytes without re-reading them.
+  filesScanned  Int @default(0)
+  filesUploaded Int @default(0)
+  filesSkipped  Int @default(0)
+  filesFailed   Int @default(0)
+
+  // Bytes actually WRITTEN to the backup bucket this run (uploaded files only, never skipped ones) —
+  // BigInt, not Int: a large instance's cumulative archive can exceed Postgres' plain Int ceiling
+  // (2^31 bytes, ~2 GiB) well within one deployment's lifetime.
+  bytesUploaded BigInt @default(0)
+
+  // One `{ key, message }` entry per file that failed to copy — never the file's own bytes. A failed
+  // file must never abort the run (backup-runner.ts's own header), so this accumulates across the
+  // whole sweep. Never returned as-is by GET /api/backup/status: any company's OWNER can reach that
+  // route, and a key here embeds another tenant's companyId/documentId (backup-status.service.ts's
+  // own header) — this column stays for whoever has direct database access.
+  errors Json @default("[]")
+
+  @@index([startedAt])
+}
+// ======= END OF INSTANCE FILE BACKUP ======= //

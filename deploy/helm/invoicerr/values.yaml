@@ -41,7 +41,7 @@ serviceAccount:
 api:
   replicaCount: 1
   # OBSERVED on a real `kind` install, 2026-09-17: the api pod's own first boot (running Prisma
-  # migrations, syncing plugin/policy/B2G-routing rows, THEN starting nginx) hit the previous 512Mi
+  # migrations, syncing policy/B2G-routing rows, THEN starting nginx) hit the previous 512Mi
   # limit and was OOMKilled once before settling — and rendering a PDF (playwright-core driving the
   # base image's own bundled Chromium, see the repo's Dockerfile/CLAUDE.md
   # "pdf-renderer-needs-chromium") is a much heavier one-off spike than boot itself: a headless
@@ -167,6 +167,8 @@ worker:
 #   REDIS_PASSWORD                  Optional — only if the bundled or external Redis requires auth.
 #   ARCHIVE_S3_ACCESS_KEY_ID        REQUIRED when archive.storage=s3 (the default — see below).
 #   ARCHIVE_S3_SECRET_ACCESS_KEY    REQUIRED when archive.storage=s3.
+#   BACKUP_S3_ACCESS_KEY_ID         REQUIRED when backup.s3.bucket is set (off by default — see below).
+#   BACKUP_S3_SECRET_ACCESS_KEY     REQUIRED when backup.s3.bucket is set.
 existingSecret: ""
 
 # generateSecret — OFF by default. Turn on ONLY for a disposable local/kind install. Loudly UNSAFE
@@ -183,6 +185,8 @@ generateSecret:
   redisPassword: ""
   archiveS3AccessKeyId: ""
   archiveS3SecretAccessKey: ""
+  backupS3AccessKeyId: ""
+  backupS3SecretAccessKey: ""
 
 # ===================================================================================================
 # Application-level settings wired as plain env vars (non-secret).
@@ -227,6 +231,28 @@ archive:
     # (bucket.endpoint/key) — leave this false. Set true only for a provider/gateway that requires
     # path-style (endpoint/bucket/key), e.g. some MinIO setups behind a plain reverse proxy.
     forcePathStyle: false
+
+# ===================================================================================================
+# Instance file backup (backend/src/modules/backup) — a periodic sweep to a SECOND, dedicated S3
+# bucket, entirely separate from `archive` above (which stays the PRIMARY store for legal archives).
+# Copies legal archives PLUS everything under DOCUMENTS_INBOUND_DIR (received-invoice uploads,
+# expense attachments, company logos) — disaster-recovery insurance, never a second source of truth
+# the app reads back from, and it never touches the database (Postgres has its own backup story).
+# OFF by default: an empty `bucket` is what `isBackupEnabled()` reads as "module disabled" — no
+# route, no queue, nothing rendered into either Deployment's env below.
+# ===================================================================================================
+backup:
+  s3:
+    bucket: "" # set to enable, e.g. "invoicerr-backup" — see values.yaml's own `archive.s3` above for
+    # the shape (bucket/endpoint/region/forcePathStyle mean exactly the same thing here)
+    endpoint: ""
+    region: ""
+    forcePathStyle: false
+    # Every object key is written under "<prefix>/…" when set — leave empty for an unprefixed bucket.
+    prefix: ""
+    # Cron (UTC) — read by backend/src/modules/backup/queue/backup-queue.dispatcher.ts via
+    # BACKUP_S3_SCHEDULE. Default: daily at 03:00.
+    schedule: "0 3 * * *"
 
 # ===================================================================================================
 # Local, on-disk shared storage — mounted at /data on BOTH api and worker.

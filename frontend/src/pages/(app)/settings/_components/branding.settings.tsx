@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ApiError } from "@/hooks/use-api-query"
 import {
+  buildFileUploadForm,
   downloadBrandingLogo,
   useBrandingPreview,
   useClearBrandingLogo,
@@ -24,21 +25,6 @@ import { SettingsFormFooter, SettingsPage, SettingsSection, useSavedFlash } from
 
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
 const ALLOWED_LOGO_MIMES = ["image/jpeg", "image/png", "image/webp"]
-/** Same real ceiling `documents/attachments`'s own upload already enforces — checked client-side too
- *  so a caller sees a NAMED reason before spending an upload round-trip on a file the server would
- *  refuse anyway. */
-const MAX_LOGO_BYTES = 750 * 1024
-
-/** Same technique every OTHER binary upload in this frontend already uses (settings/_components/
- *  signing-certificates.settings.tsx's own PFX upload, field-renderers/file-field.tsx's own file) —
- *  reused verbatim rather than shared (no multipart/`FileInterceptor` anywhere in this backend). */
-async function fileToBase64(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer()
-  let binary = ""
-  const bytes = new Uint8Array(arrayBuffer)
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
-}
 
 /**
  * Company settings → Branding (`/settings/branding`, 2026-09-15 product decision). The PDF itself
@@ -179,20 +165,22 @@ export default function BrandingSettings() {
       toast.error(t("settings.branding.messages.invalidFileType", "Please choose a PNG, JPEG or WebP image"))
       return
     }
-    if (file.size > MAX_LOGO_BYTES) {
-      toast.error(t("settings.branding.messages.fileTooLarge", "This file is over the 750 KiB limit"))
-      return
-    }
     try {
-      const base64 = await fileToBase64(file)
-      await uploadLogo.mutateAsync({ fileName: file.name, mime: file.type, base64 })
+      await uploadLogo.mutateAsync(buildFileUploadForm(file))
       toast.success(t("settings.branding.messages.logoUploadSuccess", "Logo uploaded"))
     } catch (error) {
-      toast.error(
-        error instanceof ApiError
-          ? error.message
-          : t("settings.branding.messages.logoUploadError", "Failed to upload logo"),
-      )
+      // A 413 is refused by multer at the multipart wire itself (limits.fileSize), before this
+      // company's own byte-counted message ever gets a chance to run — same reasoning
+      // `field-renderers/file-field.tsx#handleFile` already documents for its own upload.
+      if (error instanceof ApiError && error.status === 413) {
+        toast.error(t("settings.branding.messages.fileTooLarge", "This file is over the 10 MB limit"))
+      } else {
+        toast.error(
+          error instanceof ApiError
+            ? error.message
+            : t("settings.branding.messages.logoUploadError", "Failed to upload logo"),
+        )
+      }
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
@@ -305,6 +293,9 @@ export default function BrandingSettings() {
                       {t("settings.branding.logo.remove", "Remove logo")}
                     </Button>
                   )}
+                  <span className="text-xs text-muted-foreground" data-cy="branding-logo-max-size">
+                    {t("settings.branding.logo.maxSize", "Maximum 10 MB")}
+                  </span>
                 </div>
                 <input
                   ref={fileInputRef}
