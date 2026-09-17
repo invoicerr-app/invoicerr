@@ -22,6 +22,7 @@ import {
   useRevokeAllPortalAccess,
   useRevokePortalAccess,
 } from "@/hooks/queries"
+import { copyToClipboard } from "@/lib/clipboard"
 import type { Client, PortalInviteEmailStatus } from "@/types"
 
 interface ClientPortalAccessDialogProps {
@@ -82,8 +83,13 @@ export function ClientPortalAccessDialog({ client, onOpenChange }: ClientPortalA
   }
 
   const handleCopy = async (url: string) => {
-    await navigator.clipboard.writeText(url)
-    toast.success(t("clients.portalAccess.copied"))
+    // The URL stays visible and selectable in the input above regardless of the outcome — a failed
+    // copy only means the toast tells the user to select it by hand instead of claiming success.
+    if (await copyToClipboard(url)) {
+      toast.success(t("clients.portalAccess.copied"))
+    } else {
+      toast.error(t("clients.portalAccess.copyFailed"))
+    }
   }
 
   const handleRevoke = async (tokenId: string) => {

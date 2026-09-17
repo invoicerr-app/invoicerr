@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { NoFreeSeatNotice } from "@/components/no-free-seat-notice"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
+import { copyToClipboard } from "@/lib/clipboard"
 import type { CompanyRole } from "@/types"
 import {
   SettingsFormFooter,
@@ -53,9 +54,13 @@ export default function InvitationsSettings() {
       setExpiresInDays("")
       mutate()
 
-      // Copy code to clipboard
-      await navigator.clipboard.writeText(result.code)
-      toast.info(t("settings.invitations.messages.codeCopied"))
+      // Copy code to clipboard — the code stays readable in the list below either way (see
+      // `copyCode`), so a rejected/unsupported copy only downgrades the toast, never the outcome.
+      if (await copyToClipboard(result.code)) {
+        toast.info(t("settings.invitations.messages.codeCopied"))
+      } else {
+        toast.error(t("settings.invitations.messages.copyFailed"))
+      }
     } else {
       toast.error(t("settings.invitations.messages.createError"))
     }
@@ -80,8 +85,11 @@ export default function InvitationsSettings() {
   }
 
   const copyCode = async (code: string) => {
-    await navigator.clipboard.writeText(code)
-    toast.success(t("settings.invitations.messages.codeCopied"))
+    if (await copyToClipboard(code)) {
+      toast.success(t("settings.invitations.messages.codeCopied"))
+    } else {
+      toast.error(t("settings.invitations.messages.copyFailed"))
+    }
   }
 
   const formatDate = (dateStr: string) => {

@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { shareLinksKey, useCreateShareLink, useRevokeShareLink, useShareLinks } from "@/hooks/queries"
+import { copyToClipboard } from "@/lib/clipboard"
 
 interface ShareLinkDialogProps {
   typeId: string
@@ -72,8 +73,13 @@ export function ShareLinkDialog({ typeId, documentId, open, onOpenChange }: Shar
   }
 
   const handleCopy = async (url: string) => {
-    await navigator.clipboard.writeText(url)
-    toast.success(t("documents.shareLink.copied"))
+    // The URL stays visible and selectable in the input above regardless of the outcome — a failed
+    // copy only means the toast tells the user to select it by hand instead of claiming success.
+    if (await copyToClipboard(url)) {
+      toast.success(t("documents.shareLink.copied"))
+    } else {
+      toast.error(t("documents.shareLink.copyFailed"))
+    }
   }
 
   const handleRevoke = async (tokenId: string) => {

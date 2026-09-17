@@ -82,6 +82,7 @@
       "createError": "The invite could not be created.",
       "copy": "Copy",
       "copied": "Link copied to clipboard.",
+      "copyFailed": "Couldn't copy the link — select it above and copy it manually.",
       "emailedYes": "An email with this link was sent to the client.",
       "emailedNo": "No email on file for this client — copy the link and send it yourself.",
       "emailedSendFailed": "The invite email could not be sent — copy the link and send it yourself.",
@@ -1906,6 +1907,7 @@
         "deleteSuccess": "Invitation code deleted",
         "deleteError": "Failed to delete invitation code",
         "codeCopied": "Code copied to clipboard",
+        "copyFailed": "Couldn't copy the code — copy it manually instead.",
         "fetchError": "Failed to load invitation codes"
       },
       "roles": {
@@ -4606,6 +4608,7 @@
       "createError": "The share link could not be created.",
       "copy": "Copy",
       "copied": "Link copied to clipboard.",
+      "copyFailed": "Couldn't copy the link — select it above and copy it manually.",
       "activeLinksTitle": "Active links",
       "noActiveLinks": "No active links yet.",
       "createdAt": "Created {{date}}",
