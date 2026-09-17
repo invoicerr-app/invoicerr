@@ -90,18 +90,21 @@ export const NO_MAIL_SERVER_CONFIGURED_MESSAGE =
  * forget a filter that runs on its own way out, unlike one each template builder would have to
  * remember to apply itself.
  *
- * Clones `options` first, THEN overwrites `html` as its own assignment statement — never a single
- * object-literal spread with the sanitized value inlined as one of its properties. Both shapes behave
- * identically at runtime, but only the two-step form leaves an unambiguous "last write wins" on
- * `html`: a literal that spreads the raw source object and overrides one of ITS OWN keys in the same
- * expression reads, to at least one static analyzer, as though the field might still carry the
- * pre-sanitization value carried in by the spread.
+ * Builds the returned object property-by-property — never a `{ ...options }` spread — so `html`
+ * only ever exists in the result as the sanitized value: there is no intermediate state where the
+ * raw string sits on the object waiting to be overwritten, which is what a spread-then-assign would
+ * produce (and what a flow analyzer can't always tell apart from a spread whose overwrite got lost
+ * or reordered later). Every other `MailOptions` field is copied through unchanged from `options`.
  */
 function sanitizedMailOptions(options: MailOptions): MailOptions {
-  if (!options.html) return options;
-  const safe: MailOptions = { ...options };
-  safe.html = sanitizeEmailHtml(options.html);
-  return safe;
+  return {
+    to: options.to,
+    from: options.from,
+    subject: options.subject,
+    text: options.text,
+    html: options.html === undefined ? undefined : sanitizeEmailHtml(options.html),
+    attachments: options.attachments,
+  };
 }
 
 @Injectable()
