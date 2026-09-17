@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { genericOAuth } from 'better-auth/plugins';
 
 import { auth } from '@/lib/auth';
+import { assertPublicOutboundUrl } from '@/utils/outbound-url';
 import {
   companyIdFromProviderId,
   companyProviderId,
@@ -42,6 +43,41 @@ interface AuthContextLike {
 }
 
 /**
+ * Re-validated right here, not only at `sso.service.ts#upsert` write time: a hostname that resolved to
+ * a public IP when the company saved its configuration can be repointed at an internal one by the
+ * time a real sign-in attempt lazily triggers this build ("DNS rebinding" — see
+ * `@/utils/outbound-url.ts`'s own header). `buildFor`'s own try/catch is what turns a rejection here
+ * into "this one provider fails to build, logged" rather than a crash — the error message is kept
+ * generic (never `OutboundUrlValidationError#reason` or the URL itself) so that log line cannot be
+ * used as a network-scanning oracle by whoever can read it.
+ *
+ * Deliberately does NOT pin the connection the way the webhook/PDP/SdI guards do
+ * (`pinnedDispatcher`/`pinnedNodeLookup`): the actual discovery/token/userinfo fetches this validates
+ * for happen inside `genericOAuth()`'s own `init`/sign-in handling a few lines and, for the token
+ * exchange, an entire separate HTTP request later — both go through `betterFetch`
+ * (`@better-fetch/fetch`, via `better-auth`/`@better-auth/core`) with no `dispatcher` or custom-`fetch`
+ * hook exposed anywhere in the `genericOAuth` config surface to connect through instead. This
+ * re-validation narrows the DNS-rebinding window to whatever it costs to resolve DNS once more; it
+ * does not close it the way the other three callers' pinning does. Documented here rather than
+ * silently accepted: closing it for real would mean vendoring or monkey-patching better-auth's own
+ * fetch internals.
+ */
+async function assertResolvedEndpointsArePublic(resolved: SsoProviderResolved): Promise<void> {
+  const allowPrivateForTesting = process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1';
+  const urls = [resolved.discoveryUrl, resolved.authorizationUrl, resolved.tokenUrl, resolved.userInfoUrl];
+  for (const url of urls) {
+    if (!url) continue;
+    try {
+      await assertPublicOutboundUrl(url, { allowPrivateForTesting });
+    } catch {
+      throw new Error(
+        `SSO provider ${resolved.providerId} has an endpoint that failed outbound-URL validation.`,
+      );
+    }
+  }
+}
+
+/**
  * Build a better-auth provider for one company, using better-auth's OWN provider construction.
  *
  * `genericOAuth({ config: [cfg] }).init(ctx)` is the exact code path a provider declared at boot goes
@@ -63,6 +99,8 @@ export async function buildCompanyProvider(
   ctx: AuthContextLike,
   resolved: SsoProviderResolved,
 ): Promise<ProviderLike | null> {
+  await assertResolvedEndpointsArePublic(resolved);
+
   const plugin = genericOAuth({
     config: [
       {

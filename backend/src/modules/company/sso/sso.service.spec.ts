@@ -23,15 +23,20 @@ import {
 
 // `sso.service.ts` imports `node:dns` as a namespace (`import * as dns`), not a default import — see
 // `modules/webhooks/webhook-url-guard.spec.ts`'s own comment for why the mock must match that shape
-// exactly (no `__esModule`/`default` wrapper) or `dns.promises.resolveTxt` would see `undefined` under
-// this project's ts-jest config and never reach this mock at all.
+// exactly (no `__esModule`/`default` wrapper) or `dns.promises.resolveTxt`/`dns.promises.lookup` would
+// see `undefined` under this project's ts-jest config and never reach this mock at all. `lookup` is
+// what the SSRF guard on the four IdP endpoint fields (`@/utils/outbound-url.ts`, called from
+// `upsert`) uses — mocked here alongside `resolveTxt` (domain verification's own DNS need) rather than
+// in a second `jest.mock` call, since Jest only honours the LAST `jest.mock('node:dns', ...)` for a
+// given module.
 import * as dns from 'node:dns';
 
 import prisma from '@/prisma/prisma.service';
 import { encryptJson } from '@/utils/secret-crypto';
+import { OutboundUrlValidationError } from '@/utils/outbound-url';
 import { SsoService } from './sso.service';
 
-jest.mock('node:dns', () => ({ promises: { resolveTxt: jest.fn() } }));
+jest.mock('node:dns', () => ({ promises: { resolveTxt: jest.fn(), lookup: jest.fn() } }));
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -65,6 +70,7 @@ jest.mock('@/prisma/prisma.service', () => ({
 }));
 
 const resolveTxt = dns.promises.resolveTxt as unknown as jest.Mock;
+const lookup = dns.promises.lookup as unknown as jest.Mock;
 
 const mockedPrisma = prisma as unknown as {
   companySsoProvider: {
@@ -139,6 +145,11 @@ describe('SsoService', () => {
     mockedPrisma.$transaction.mockImplementation(async (cb: (tx: typeof mockedPrisma) => unknown) =>
       cb(mockedPrisma),
     );
+    // Default: every hostname resolves PUBLIC — the SSRF guard on `upsert`'s endpoint fields
+    // (`@/utils/outbound-url.ts`) is exercised for real (never bypassed) in this file, so every
+    // EXISTING test's `https://idp.acme.com/...`/`https://idp/...` fixture URL needs a DNS answer to
+    // get past it. Tests that specifically prove the guard's own wiring override this per-call.
+    lookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
   });
 
   describe('upsert → resolveForRegistration — the encryption round-trip', () => {
@@ -310,6 +321,87 @@ describe('SsoService', () => {
         'profile',
         'email',
       ]);
+    });
+  });
+
+  describe('upsert — SSRF guard on the four endpoint fields', () => {
+    it('refuses a discovery URL that resolves to a private address, before ever writing the row', async () => {
+      lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
+
+      await expect(service.upsert(COMPANY_ID, VALID_BODY)).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockedPrisma.companySsoProvider.upsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses a literal internal IP with no DNS lookup involved at all', async () => {
+      await expect(
+        service.upsert(COMPANY_ID, {
+          ...VALID_BODY,
+          discoveryUrl: 'https://169.254.169.254/latest/meta-data/',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(lookup).not.toHaveBeenCalled();
+      expect(mockedPrisma.companySsoProvider.upsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses plain http — these four endpoints are https-only', async () => {
+      await expect(
+        service.upsert(COMPANY_ID, {
+          clientId: 'x',
+          authorizationUrl: 'http://idp.acme.com/authorize',
+          tokenUrl: 'https://idp.acme.com/token',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockedPrisma.companySsoProvider.upsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses a non-standard port — port 443 only', async () => {
+      await expect(
+        service.upsert(COMPANY_ID, {
+          ...VALID_BODY,
+          discoveryUrl: 'https://idp.acme.com:8443/.well-known/openid-configuration',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockedPrisma.companySsoProvider.upsert).not.toHaveBeenCalled();
+    });
+
+    it('checks every present endpoint field, not only discoveryUrl', async () => {
+      mockedPrisma.companySsoProvider.upsert.mockImplementation(async ({ create }) =>
+        row({ credentials: create.credentials }),
+      );
+      const body = {
+        clientId: 'x',
+        authorizationUrl: 'https://idp.acme.com/authorize',
+        tokenUrl: 'https://internal.acme.com/token',
+      };
+
+      lookup.mockResolvedValueOnce([{ address: '203.0.113.10', family: 4 }]); // authorizationUrl: public
+      lookup.mockResolvedValueOnce([{ address: '203.0.113.11', family: 4 }]); // tokenUrl: public
+      await expect(service.upsert(COMPANY_ID, body)).resolves.toBeDefined();
+
+      lookup.mockResolvedValueOnce([{ address: '203.0.113.10', family: 4 }]); // authorizationUrl: public
+      lookup.mockResolvedValueOnce([{ address: '10.0.0.9', family: 4 }]); // tokenUrl: PRIVATE
+      await expect(service.upsert(COMPANY_ID, body)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('never echoes the internal validation reason back to the caller', async () => {
+      lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
+      try {
+        await service.upsert(COMPANY_ID, VALID_BODY);
+        throw new Error('expected upsert to reject');
+      } catch (err) {
+        expect(err).toBeInstanceOf(BadRequestException);
+        expect(err).not.toBeInstanceOf(OutboundUrlValidationError);
+        const message = (err as BadRequestException).message;
+        expect(message).not.toContain('private');
+        expect(message).not.toContain('10.0.0.5');
+      }
+    });
+
+    it("accepts a normal public https discovery URL on the default port (every other test's baseline)", async () => {
+      mockedPrisma.companySsoProvider.upsert.mockImplementation(async ({ create }) =>
+        row({ credentials: create.credentials }),
+      );
+      await expect(service.upsert(COMPANY_ID, VALID_BODY)).resolves.toBeDefined();
     });
   });
 

@@ -151,6 +151,21 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
+    it('connects through the address just validated (pinned dispatcher), not a second DNS lookup fetch would do on its own', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
+      const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', type: WebhookType.GENERIC });
+
+      await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
+
+      // THE DNS-rebinding fix: `GenericDriver` must receive and forward the `dispatcher`
+      // `assertPublicWebhookUrl` handed back, not let `fetch` resolve `8.8.8.8`'s (non-)hostname a
+      // second, independent time. A literal IP has nothing to "look up" either way, so the one thing
+      // actually checkable here is that the option reached `fetch` at all — `outbound-url.spec.ts`
+      // owns the exhaustive proof that connecting through it actually lands on the pinned address.
+      const opts = fetchSpy.mock.calls[0][1] as RequestInit & { dispatcher?: unknown };
+      expect(opts.dispatcher).toBeDefined();
+    });
+
     it('one internal webhook does not block delivery to the other, valid ones in the same batch', async () => {
       jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
       const bad = makeWebhook({ id: 'wh-bad', url: 'http://10.0.0.5/hook' });

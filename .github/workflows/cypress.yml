@@ -241,6 +241,13 @@ jobs:
           # Postgres container, never a production secret — same reasoning `.env.test`'s own copy
           # documents at length.
           CREDENTIALS_ENCRYPTION_KEY: e2896d60a5fe20415931030ea7eadb3352f2698948ba29948a9f2e04b8840e6d
+          # That same "pdp" channel's `baseUrl` IS the local HTTP stub above (127.0.0.1) — the shared
+          # outbound-URL SSRF guard (`@/utils/outbound-url.ts`) rejects a private/loopback target by
+          # default, and this job (unlike `cypress-run`/`cypress-run-saas` below, which load
+          # `backend/.env.test` via `npm run start:test`) invokes jest directly with no dotenv step, so
+          # that file's own copy of this flag never reaches it. TEST-ONLY — see `.env.example`'s own
+          # entry for why this must never be set on a real deployment.
+          ALLOW_PRIVATE_OUTBOUND_URLS: '1'
         run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
 
       # The migration-vs-schema enum tripwire: deploys the FULL migration chain on
@@ -389,6 +396,131 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-videos-screenshots
+          path: |
+            ${{ github.workspace }}/e2e/cypress/videos
+            ${{ github.workspace }}/e2e/cypress/screenshots
+
+  # The hosted-billing seat model (76-seats.cy.ts) and the SaaS-mode legal-acceptance flow
+  # (75-legal-acceptance.cy.ts) both self-detect `saasMode` and skip their own SaaS-only tests when
+  # it is false (`this.skip()`) — which every OTHER job in this workflow triggers, since none of them
+  # sets `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`. Eight tests between the two files therefore
+  # never ran in CI at all: Mocha reports a skipped test as "pending", never as failing, so a job full
+  # of nothing but pending SaaS tests was, and would stay, green — indistinguishable from a job that
+  # actually exercised the seat/NO_FREE_SEAT/legal-acceptance flows. This job is the dedicated SaaS
+  # lane those two specs' own headers ask for: same stack as `cypress-run` above, with billing turned
+  # on and `CYPRESS_expectSaas=1` (see both specs' own `before()` hooks) so a misconfiguration that
+  # left billing off would fail the job outright instead of quietly reporting pending again.
+  #
+  # The Polar credentials below are throwaway, non-functional strings, not real sandbox secrets:
+  # `billing-customer.ts`'s own header records that a company's Polar customer is created LAZILY, on
+  # its first real checkout, never at signup or company creation — and neither spec this job runs ever
+  # starts one (`76-seats.cy.ts`'s own header: seat quantity is read via `cy.task`, standing in for a
+  # webhook, never pushed to Polar). `polar-env.ts#assertPolarEnvConfiguredForBoot` only checks these
+  # vars are non-blank at boot; nothing in either spec's path calls the real Polar API.
+  cypress-run-saas:
+    runs-on: ubuntu-latest
+    env:
+      REDIS_URL: redis://localhost:6379
+      WARNING__ENABLE_BILLING_FOR_USERS__WARNING: "true"
+      POLAR_ACCESS_TOKEN: e2e-saas-lane-dummy-token
+      POLAR_WEBHOOK_SECRET: whsec_e2e_saas_lane_dummy_secret
+      POLAR_ORGANIZATION_ID: e2e-saas-lane-dummy-org
+      POLAR_PRODUCT_ID_MONTHLY: e2e-saas-lane-dummy-monthly
+      POLAR_PRODUCT_ID_YEARLY: e2e-saas-lane-dummy-yearly
+      POLAR_SERVER: sandbox
+    services:
+      postgres-test:
+        image: postgres:16
+        env:
+          POSTGRES_USER: invoicerr
+          POSTGRES_PASSWORD: invoicerr
+          POSTGRES_DB: invoicerr_db
+        ports:
+          - "5433:5432"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - "8025:8025"
+          - "1025:1025"
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma generate
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma migrate deploy
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma db seed
+
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        run: cd backend && npx playwright-core install chromium
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Install e2e dependencies
+        run: |
+          cd e2e
+          npm ci
+
+      - name: Wait for DB
+        run: |
+          npx wait-on tcp:5433 --timeout 60000
+          npx wait-on tcp:8025 --timeout 60000
+          npx wait-on tcp:1025 --timeout 60000
+          npx wait-on tcp:6379 --timeout 60000
+
+      - name: Run backend, frontend & the SaaS-only specs
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/logs
+          npm install -D dotenv-cli
+          (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
+          (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
+          npx wait-on http-get://localhost:4000/api/health --timeout 120000
+          # Same Firefox-over-Electron reasoning as `cypress-run` above. `CYPRESS_expectSaas=1` makes
+          # both specs' own `before()` hook fail the run instead of silently skipping if `saasMode`
+          # somehow still resolves false with the flag set.
+          (cd $GITHUB_WORKSPACE/e2e && CYPRESS_expectSaas=1 npx cypress run --browser firefox --spec "cypress/e2e/{75,76}-*.cy.ts")
+
+      - name: Upload backend logs (SaaS lane)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs-saas
+          path: ${{ github.workspace }}/logs/backend.log
+
+      - name: Upload Cypress videos and screenshots (SaaS lane)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos-screenshots-saas
           path: |
             ${{ github.workspace }}/e2e/cypress/videos
             ${{ github.workspace }}/e2e/cypress/screenshots

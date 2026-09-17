@@ -70,6 +70,12 @@ import { create } from 'xmlbuilder2';
 
 import { SdiHttpPort, SdiStatusResult, SdiSubmitRequest, SdiSubmitResult } from './sdi-client';
 import { firstByLocalName, parseXml, textOf } from './xml-helpers';
+import {
+  OutboundUrlValidationError,
+  ResolvedOutboundUrl,
+  assertPublicOutboundUrl,
+  pinnedNodeLookup,
+} from '@/utils/outbound-url';
 
 // ---------------------------------------------------------------------------
 // Constants read from the spec (see this file's own header for sources)
@@ -233,6 +239,7 @@ function postSoap(
   soapAction: string,
   body: string,
   mtls: { pfx?: Buffer; passphrase?: string },
+  resolved: ResolvedOutboundUrl | null,
 ): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     let url: URL;
@@ -266,6 +273,12 @@ function postSoap(
             'Content-Length': payload.length,
             SOAPAction: `"${soapAction}"`,
           },
+          // Connects to `resolved.address` directly instead of letting `https.request` resolve
+          // `url.hostname` itself a second, independent time — SNI/the TLS certificate check still use
+          // `hostname` above, untouched; only the actual socket target is pinned. See
+          // `assertEndpointIsPublic`'s own header on why re-validating alone leaves a DNS-rebinding
+          // window this closes.
+          lookup: pinnedNodeLookup(resolved),
         },
         (res) => {
           const chunks: Buffer[] = [];
@@ -308,16 +321,52 @@ function postSoap(
 export class SdiCoopClient implements SdiHttpPort {
   constructor(private readonly config: SdiCoopClientConfig) {}
 
+  /**
+   * `endpoint` is a tenant-supplied "sdi" channel credential (`PUT /api/company/channels/sdi`), not a
+   * fixed constant — see `SdiCoopClientConfig.endpoint`'s own comment on why no default exists. Left
+   * unvalidated, an intermediary could point it at an internal address and have this SHARED backend
+   * dial it on their behalf, presenting that intermediary's OWN mTLS client certificate to whatever
+   * answered — an authenticated SSRF primitive, arguably worse here than a bare HTTP SSRF since the
+   * certificate itself is handed to the attacker-chosen host. Re-checked here, on every `submit()`
+   * call, not only once when the channel is connected: DNS is not a fact fixed at connect time
+   * ("DNS rebinding" — see `@/utils/outbound-url.ts`'s own header). https-only (real AdE traffic and
+   * this file's own e2e fixture both are); the message thrown is deliberately generic, never the
+   * internal `reason` or the endpoint itself, so a caller surfacing it cannot use this guard as a
+   * network-scanning oracle.
+   *
+   * Returns the `ResolvedOutboundUrl` this check just proved public — `submit()` connects THROUGH it
+   * (`pinnedNodeLookup`, passed into `postSoap`'s own `https.request` call) rather than letting that
+   * request resolve `endpoint`'s hostname a second, independent time; re-validating alone would still
+   * leave that second resolution as the exact DNS-rebinding window this whole guard exists to close.
+   */
+  private async resolveEndpoint(): Promise<ResolvedOutboundUrl | null> {
+    try {
+      return await assertPublicOutboundUrl(this.config.endpoint, {
+        allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+      });
+    } catch (err) {
+      if (err instanceof OutboundUrlValidationError) {
+        throw sdiCoopError('TRANSPORT_ERROR', 'SdI endpoint failed outbound-URL validation.');
+      }
+      throw err;
+    }
+  }
+
   async submit(request: SdiSubmitRequest): Promise<SdiSubmitResult> {
+    const resolved = await this.resolveEndpoint();
+
     const nomeFile = request.filename;
     const fileBase64 = request.xmlBytes.toString('base64');
     const envelope = buildRiceviFileEnvelope(nomeFile, fileBase64);
 
     const pfx = request.certificate ? Buffer.from(request.certificate, 'base64') : undefined;
-    const { status, body } = await postSoap(this.config, RICEVI_FILE_SOAP_ACTION, envelope, {
-      pfx,
-      passphrase: request.certificatePassword,
-    });
+    const { status, body } = await postSoap(
+      this.config,
+      RICEVI_FILE_SOAP_ACTION,
+      envelope,
+      { pfx, passphrase: request.certificatePassword },
+      resolved,
+    );
 
     if (status >= 500) {
       // A 5xx with no parseable Fault/Errore inside is still a named, honest failure — never

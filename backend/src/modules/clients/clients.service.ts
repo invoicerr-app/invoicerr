@@ -131,6 +131,7 @@ export class ClientsService {
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_SEARCHED, {
+        companyId,
         query,
         results: results.length,
       });
@@ -280,6 +281,7 @@ export class ClientsService {
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
+        companyId,
         client: newClient,
       });
     } catch (error) {
@@ -379,6 +381,7 @@ export class ClientsService {
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, {
+        companyId,
         client: updatedClient,
       });
     } catch (error) {
@@ -405,6 +408,7 @@ export class ClientsService {
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_DELETED, {
+        companyId,
         client: existingClient,
       });
     } catch (error) {

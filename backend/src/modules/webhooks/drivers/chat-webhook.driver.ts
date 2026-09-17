@@ -1,3 +1,5 @@
+import type { Dispatcher } from 'undici';
+
 import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
 import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
 
@@ -93,7 +95,7 @@ export class ChatWebhook {
     return this;
   }
 
-  async send(): Promise<Response> {
+  async send(dispatcher?: Dispatcher): Promise<Response> {
     const payload: Record<string, unknown> = {
       text: this.text,
       attachments: this.attachments.map((attachment) => attachment.build()),
@@ -108,7 +110,9 @@ export class ChatWebhook {
       body: JSON.stringify(payload),
       redirect: 'manual',
       signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-    });
+      // See `webhook-driver.interface.ts`'s own header on why this must never be omitted.
+      dispatcher,
+    } as RequestInit);
 
     this.text = '';
     this.attachments = [];
@@ -133,7 +137,7 @@ export abstract class ChatWebhookDriver implements WebhookDriver {
     return type === this.type;
   }
 
-  async send(url: string, payload: any): Promise<boolean> {
+  async send(url: string, payload: any, _secret?: string | null, dispatcher?: Dispatcher): Promise<boolean> {
     const hook = new ChatWebhook(url, this.iconKey);
 
     const eventType = payload.event as WebhookEvent;
@@ -159,7 +163,7 @@ export abstract class ChatWebhookDriver implements WebhookDriver {
       .setUsername('Invoicerr')
       .setIcon('https://invoicerr.app/favicon.png')
       .addAttachment(attachment)
-      .send();
+      .send(dispatcher);
 
     return res.ok;
   }

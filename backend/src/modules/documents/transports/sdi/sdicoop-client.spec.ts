@@ -281,15 +281,46 @@ describe('SdiCoopClient — mTLS against a local stub server', () => {
   let clientPfxBase64: string;
   const CLIENT_PFX_PASSWORD = 'test-pfx-password-not-real';
   let stub: StubServer;
+  let originalAllowPrivateOutboundUrls: string | undefined;
 
   beforeAll(async () => {
     clientCert = generateSelfSignedCert(CLIENT_CN);
     clientPfxBase64 = buildClientPfx(clientCert, CLIENT_PFX_PASSWORD);
     stub = await startStubServer(clientCert.certPem);
+    // Every test below submits to a genuine 127.0.0.1 stub — the whole point being a REAL mTLS
+    // handshake, never a mocked one — which the outbound-URL SSRF guard (`submit()`'s own
+    // `assertEndpointIsPublic`) would otherwise reject as a private/loopback target on every single
+    // call. This is exactly the "local test double" case that escape hatch exists for (same category
+    // as `ALLOW_PRIVATE_WEBHOOK_URLS` letting 42-webhooks' own local receiver through) — the guard's
+    // OWN rejection behavior is proven separately, below, with the flag temporarily unset.
+    originalAllowPrivateOutboundUrls = process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+    process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
   });
 
   afterAll(async () => {
     await stub.close();
+    if (originalAllowPrivateOutboundUrls === undefined) delete process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+    else process.env.ALLOW_PRIVATE_OUTBOUND_URLS = originalAllowPrivateOutboundUrls;
+  });
+
+  it('refuses to even attempt the request when the endpoint is private and the escape hatch is off', async () => {
+    const previous = process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+    delete process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+    try {
+      const client = new SdiCoopClient({ endpoint: stub.url, ca: stub.serverCertPem });
+      await expect(
+        client.submit({
+          idTrasmittente: 'IT01234567890',
+          xmlBytes: Buffer.from('<FatturaElettronica/>', 'utf-8'),
+          filename: 'IT01234567890_0000000001.xml',
+          certificate: clientPfxBase64,
+          certificatePassword: CLIENT_PFX_PASSWORD,
+        }),
+      ).rejects.toThrow(/outbound-URL validation/);
+    } finally {
+      if (previous === undefined) delete process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+      else process.env.ALLOW_PRIVATE_OUTBOUND_URLS = previous;
+    }
   });
 
   it('presents its client certificate (verified server-side) and parses IdentificativoSdI on success', async () => {
@@ -377,6 +408,22 @@ describe('SdiCoopClient — mTLS against a local stub server', () => {
       ).rejects.toThrow(/neither a usable IdentificativoSdI/);
     },
   );
+
+  it('the escape hatch never relaxes the scheme check — a plain-http endpoint is still refused', async () => {
+    const client = new SdiCoopClient({
+      endpoint: stub.url.replace('https://', 'http://'),
+      ca: stub.serverCertPem,
+    });
+    await expect(
+      client.submit({
+        idTrasmittente: 'IT01234567890',
+        xmlBytes: Buffer.from('<FatturaElettronica/>', 'utf-8'),
+        filename: 'IT01234567890_0000000001.xml',
+        certificate: clientPfxBase64,
+        certificatePassword: CLIENT_PFX_PASSWORD,
+      }),
+    ).rejects.toThrow(/outbound-URL validation/);
+  });
 
   it('getStatus()/sendEsito() are honest, named non-implementations — SDICoop trasmittente has neither', async () => {
     const client = new SdiCoopClient({ endpoint: stub.url, ca: stub.serverCertPem });

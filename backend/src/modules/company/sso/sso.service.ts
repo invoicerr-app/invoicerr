@@ -32,6 +32,7 @@ import {
 } from '@/lib/sso-domain-verification';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
+import { OutboundUrlValidationError, assertPublicOutboundUrl } from '@/utils/outbound-url';
 
 /**
  * The secret half of a company's SSO configuration — the ONLY thing that lives inside the encrypted
@@ -152,6 +153,54 @@ const blank = (value: string | undefined | null): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+/**
+ * SSRF guard for the four IdP endpoints a company types into this form itself — `discoveryUrl`,
+ * `authorizationUrl`, `tokenUrl`, `userInfoUrl` are handed unchanged to better-auth's `genericOAuth`
+ * (`sso-registrar.service.ts#buildCompanyProvider`), which fetches the discovery document and later
+ * POSTs this tenant's own `clientId`/`clientSecret` to whichever `token_endpoint` that document names
+ * — a SECOND, equally attacker-controlled hop. https-only and port-443-only (an IdP endpoint has no
+ * legitimate reason to be plain HTTP or a non-standard port); the private/loopback/link-local block
+ * and the DNS re-resolution live in the shared `@/utils/outbound-url.ts` guard, same as the webhook
+ * and PDP/SdI transport guards.
+ *
+ * Re-run again in `sso-registrar.service.ts#buildCompanyProvider`, right before better-auth actually
+ * dials one of these URLs — this write-time check alone would leave a DNS-rebinding window (a hostname
+ * resolving to a public IP now, repointed at an internal one by the time a real sign-in attempt
+ * triggers the lazy provider build).
+ *
+ * UNLIKE the webhook/PDP/SdI guards, neither call site can PIN the actual connection to the address
+ * just validated (`@/utils/outbound-url.ts#pinnedDispatcher`/`pinnedNodeLookup`): the real network
+ * calls (discovery fetch, then the token/userinfo exchange during an actual sign-in) happen entirely
+ * inside better-auth's `genericOAuth` plugin and `@better-auth/core/oauth2` — both call `betterFetch`
+ * directly with no `dispatcher`/custom-`fetch` override exposed through the plugin's own config
+ * surface (checked directly against this project's installed `better-auth` version, not assumed). A
+ * residual DNS-rebinding window therefore remains here — narrowed to the few milliseconds between this
+ * re-validation and better-auth's own resolution, never eliminated. Closing it fully would mean
+ * vendoring/monkey-patching those library internals, which is its own, disproportionate piece of work
+ * for this fix; re-validating immediately before every use is the mitigation actually shipped.
+ */
+async function assertEndpointsArePublic(endpoints: {
+  discoveryUrl?: string;
+  authorizationUrl?: string;
+  tokenUrl?: string;
+  userInfoUrl?: string;
+}): Promise<void> {
+  const allowPrivateForTesting = process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1';
+  for (const [field, url] of Object.entries(endpoints)) {
+    if (!url) continue;
+    try {
+      await assertPublicOutboundUrl(url, { allowPrivateForTesting });
+    } catch (err) {
+      if (err instanceof OutboundUrlValidationError) {
+        // Never echo `err.reason` or the URL itself back to the client — see outbound-url.ts's own
+        // header on why that would turn the guard into a network-scanning oracle.
+        throw new BadRequestException(`${field} must be a public https:// endpoint on port 443.`);
+      }
+      throw err;
+    }
+  }
+}
+
 /** The host of whichever URL identifies the IdP, for the status response. Never throws on junk. */
 const issuerHostOf = (row: {
   discoveryUrl: string | null;
@@ -255,6 +304,8 @@ export class SsoService {
           'URL and a token URL.',
       );
     }
+
+    await assertEndpointsArePublic(endpoints);
 
     const credentials: SsoCredentials = { clientId };
     const clientSecret = blank(body.clientSecret);

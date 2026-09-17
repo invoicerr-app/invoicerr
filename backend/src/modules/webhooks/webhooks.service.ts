@@ -16,6 +16,7 @@ import { ZapierDriver } from './drivers/zapier.driver';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
 import { backendPublicUrl } from '@/utils/backend-public-url';
+import { ResolvedOutboundUrl, pinnedDispatcher } from '@/utils/outbound-url';
 
 /** HTTP body for creating a webhook (route contract: only `url` is required). */
 export interface WebhookCreateInput {
@@ -134,7 +135,11 @@ export class WebhooksService {
       await assertPublicWebhookUrl(url);
     } catch (err) {
       if (err instanceof WebhookUrlValidationError) {
-        this.logger.warn(`Rejected webhook URL at write time (${err.reason})`);
+        // Never `err.reason` here: it is precisely "which private range, which port" detail that
+        // turns this endpoint into a network-scanning oracle for whoever can create a webhook — see
+        // `outbound-url.ts`'s own header. The log line says nothing an attacker doesn't already know
+        // (they supplied the URL); it exists only to distinguish this rejection from an unrelated 400.
+        this.logger.warn('Rejected webhook URL at write time — failed the outbound-URL SSRF guard');
         throw new HttpException('webhook URL must be a public http(s) endpoint', HttpStatus.BAD_REQUEST);
       }
       throw err;
@@ -234,12 +239,20 @@ export class WebhooksService {
         // resolved to a public IP when the webhook was saved can be repointed at an internal one by
         // the time the event actually fires ("DNS rebinding" — see webhook-url-guard.ts). A webhook
         // failing this check is skipped (reported as a failed send), never allowed to abort the
-        // batch for every other webhook of the same event.
+        // batch for every other webhook of the same event. `resolved` is what makes this a REAL fix
+        // rather than a narrowed race: `driver.send` below connects to `resolved.address` directly
+        // (via `pinnedDispatcher`) instead of letting `fetch` re-resolve the hostname a second,
+        // independent time — which is exactly the gap a short-TTL DNS answer could flip in between.
+        let resolved: ResolvedOutboundUrl | null;
         try {
-          await assertPublicWebhookUrl(webhook.url);
+          resolved = await assertPublicWebhookUrl(webhook.url);
         } catch (err) {
-          const reason = err instanceof WebhookUrlValidationError ? err.reason : 'validation error';
-          this.logger.warn(`Skipped webhook dispatch: URL failed the SSRF guard at send time (${reason})`);
+          // Never `err.reason` — see `validateWebhookUrl`'s own comment on why.
+          const known = err instanceof WebhookUrlValidationError;
+          this.logger.warn(
+            `Skipped webhook dispatch: URL failed the outbound-URL SSRF guard at send time` +
+              (known ? '' : ' (unexpected validation error)'),
+          );
           return false;
         }
 
@@ -251,6 +264,7 @@ export class WebhooksService {
             ...payload,
           },
           webhook.secret ?? null,
+          pinnedDispatcher(resolved),
         );
       }),
     );

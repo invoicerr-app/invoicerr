@@ -17,7 +17,41 @@
  * Flow / directory / lifecycle-push methods below are kept unused rather than trimmed: another
  * transport (KSeF/SdI reuse the same "one client per jurisdiction" shape) or a PDP polling follow-up
  * can reach for them without a second port of this file.
+ *
+ * `baseUrl` is a company-supplied credential (`PUT /api/company/channels/pdp`), not a fixed constant —
+ * this client is deliberately generic over "any PDP that exposes either API shape" (see the AFNOR
+ * paragraph above), so it cannot simply hardcode superpdp's own host. Left unvalidated, a tenant could
+ * point it at an internal address and have this SHARED backend dial it on their behalf, presenting
+ * that tenant's own OAuth credentials to whatever answered — an authenticated SSRF primitive. Every
+ * public entry point below (`authenticate`, `request`, `downloadInvoiceFile`) re-validates `baseUrl`
+ * through the shared `@/utils/outbound-url.ts` guard before it ever reaches `fetch`: no private/
+ * loopback/link-local target, DNS re-resolved on every single call, never trusted once at rest, since
+ * a hostname that resolved public when the channel was connected can be repointed internal by the time
+ * an invoice is actually sent ("DNS rebinding").
+ *
+ * Deliberately NOT the same https-only/port-443-only policy `sso.service.ts` applies to a company's
+ * OIDC endpoints: this client's own e2e coverage
+ * (`74-received-invoice-inbound.cy.ts`) drives the real reception sweep against a genuine local
+ * `node:http` server standing in for the sandbox (`cypress.config.ts#startFakePdpServer`), and
+ * `31-national-channels.cy.ts` connects the channel UI against a plain-HTTP closed port — restricting
+ * scheme/port here would make both fail on infrastructure this fix has no mandate to rebuild (a real
+ * TLS-terminated fake PDP), for a threat (plaintext transport to a LEGITIMATE public PDP) genuinely
+ * different from the one this finding is actually about (reaching an INTERNAL host at all), which the
+ * private-IP/DNS-rebinding check above already closes regardless of scheme or port. A hard host
+ * allowlist (superpdp only) was similarly NOT added: it would contradict this file's own documented
+ * "any PDP" design and break a real commercial PDP other than superpdp, which the AFNOR Flow /
+ * Directory methods below exist specifically to support.
+ *
+ * `redirect: 'manual'` on every fetch closes the other half of the same finding — a validated host
+ * could still answer with a 30x pointing the SAME request at an internal one, which an auto-followed
+ * redirect would silently complete.
  */
+import {
+  OutboundUrlValidationError,
+  ResolvedOutboundUrl,
+  assertPublicOutboundUrl,
+  pinnedDispatcher,
+} from '@/utils/outbound-url';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -182,11 +216,46 @@ export class PdpClient {
     this.maxRetries = opts?.maxRetries ?? DEFAULT_MAX_RETRIES;
   }
 
+  /**
+   * Re-checked at the top of every public entry point (`authenticate`, `request`,
+   * `downloadInvoiceFile`), not only once when this client is constructed: `baseUrl` came from a
+   * tenant's own channel configuration, and DNS is not a fact fixed at connect time — a hostname that
+   * resolved to a public IP then can be repointed at an internal one by the time an invoice is
+   * actually sent ("DNS rebinding" — see this file's own header). The message thrown here is
+   * deliberately generic: `pdp-transport.ts` folds a caught error's `.message` straight into the
+   * `BadRequestException` it returns to the API caller, so leaking WHY (which reason, which address)
+   * would turn this guard into a network-scanning oracle for whoever controls the channel config.
+   *
+   * Returns the `ResolvedOutboundUrl` this check just proved public — every fetch below MUST connect
+   * through `pinnedDispatcher(resolved)` rather than letting `fetch` resolve `this.baseUrl`'s hostname
+   * a SECOND, independent time: that second resolution is exactly the TOCTOU/DNS-rebinding gap
+   * re-validating "immediately before every use" narrows but does not, on its own, close — a
+   * short-TTL record can still answer differently the few milliseconds later `fetch` asks again.
+   */
+  private async resolveBaseUrl(): Promise<ResolvedOutboundUrl | null> {
+    try {
+      return await assertPublicOutboundUrl(this.baseUrl, {
+        // Both schemes, no port restriction — see this file's own header on why this differs from the
+        // https-only/port-443 policy `sso.service.ts` applies to a company's OIDC endpoints.
+        allowedProtocols: ['http:', 'https:'],
+        allowedPorts: null,
+        allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+      });
+    } catch (err) {
+      if (err instanceof OutboundUrlValidationError) {
+        throw new PdpApiError('PDP baseUrl failed outbound-URL validation.', 0, null, this.baseUrl);
+      }
+      throw err;
+    }
+  }
+
   // -----------------------------------------------------------------------
   // OAuth2
   // -----------------------------------------------------------------------
 
   async authenticate(): Promise<string> {
+    const resolved = await this.resolveBaseUrl();
+
     if (this.token && Date.now() < this.token.expiresAt - 60_000) {
       return this.token.accessToken;
     }
@@ -203,7 +272,15 @@ export class PdpClient {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
       signal: AbortSignal.timeout(this.timeoutMs),
-    });
+      // A validated `baseUrl` could still answer with a 30x pointing this SAME request at an internal
+      // address — `fetch`'s own default (`redirect: 'follow'`) would complete that hop with no further
+      // check at all. Never followed automatically; a legitimate PDP has no reason to redirect its own
+      // OAuth token endpoint.
+      redirect: 'manual',
+      // Connects to `resolved.address` directly — see `resolveBaseUrl`'s own header on why this, not
+      // merely re-validating, is what actually closes the DNS-rebinding window for THIS request.
+      dispatcher: pinnedDispatcher(resolved),
+    } as RequestInit);
 
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok) {
@@ -264,6 +341,10 @@ export class PdpClient {
         await sleep(Math.min(500 * 2 ** (attempt - 1), 5_000));
       }
 
+      // Resolved (and pinned) SEPARATELY from whatever `authenticate()` does internally: that call may
+      // return a cached token without ever touching the network, and this method's OWN fetch a few
+      // lines down needs its own, freshly-checked pin regardless — see `resolveBaseUrl`'s own header.
+      const resolved = await this.resolveBaseUrl();
       const token = await this.authenticate();
       const headers: Record<string, string> = {
         Authorization: `Bearer ${token}`,
@@ -273,7 +354,11 @@ export class PdpClient {
         method,
         headers,
         signal: AbortSignal.timeout(this.timeoutMs),
-      };
+        // See `authenticate()`'s own comment on its identical option: never follow a redirect
+        // automatically, or a validated `baseUrl` could still bounce this request to an internal one.
+        redirect: 'manual',
+        dispatcher: pinnedDispatcher(resolved),
+      } as RequestInit;
 
       if (opts?.formData) {
         // FormData: let fetch set Content-Type with boundary
@@ -399,13 +484,17 @@ export class PdpClient {
     id: number,
     format: 'original' | 'en16931' | 'cii' | 'ubl' | 'factur-x' = 'original',
   ): Promise<{ bytes: Buffer; contentType: string }> {
+    const resolved = await this.resolveBaseUrl(); // own, fresh pin — see `request()`'s identical comment
     const token = await this.authenticate();
     const path = `/v1.beta/invoices/${id}?format=${format}`;
     const res = await fetch(`${this.baseUrl}${path}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(this.timeoutMs),
-    });
+      // See `authenticate()`'s own comment on its identical option.
+      redirect: 'manual',
+      dispatcher: pinnedDispatcher(resolved),
+    } as RequestInit);
     const contentType = res.headers.get('content-type') ?? 'application/octet-stream';
     if (!res.ok) {
       // Same error-shaping discipline as `request<T>()` above — a JSON error body is read as JSON,

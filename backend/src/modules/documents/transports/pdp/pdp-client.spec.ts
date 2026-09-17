@@ -2,9 +2,17 @@
  * PDP client unit tests — mocked HTTP layer.
  *
  * Tests OAuth2 authentication, request handling, status mapping, and error handling.
- * No network calls — all fetch() calls are mocked.
+ * No network calls — all fetch() calls are mocked, including `node:dns` (the outbound-URL SSRF guard
+ * now re-checked on every `authenticate()` call resolves `baseUrl` for real otherwise — see that
+ * import's own comment for why the mock shape must match a namespace import exactly).
  */
+import * as dns from 'node:dns';
+
 import { PdpClient, PdpApiError } from './pdp-client';
+
+jest.mock('node:dns', () => ({ promises: { lookup: jest.fn() } }));
+
+const lookup = dns.promises.lookup as unknown as jest.Mock;
 
 // ---------------------------------------------------------------------------
 // Mock fetch
@@ -15,6 +23,11 @@ global.fetch = mockFetch as unknown as typeof fetch;
 
 beforeEach(() => {
   mockFetch.mockReset();
+  lookup.mockReset();
+  // Default: `CLIENT_CONFIG.baseUrl` (api.superpdp.tech) resolves PUBLIC — every EXISTING test in this
+  // file exercises the client's actual HTTP behavior, not the SSRF guard, so it needs a DNS answer to
+  // get past `authenticate()`'s own re-check. The guard's own tests (below) override this per-case.
+  lookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
 });
 
 function mockTokenResponse(overrides?: Partial<{ access_token: string; expires_in: number }>): unknown {
@@ -342,6 +355,76 @@ describe('PdpClient', () => {
 
       expect(result.id).toBe(1);
       expect(mockFetch).toHaveBeenCalledTimes(3); // auth + retry1 + success
+    });
+  });
+
+  describe('SSRF guard on baseUrl (a tenant-supplied channel credential)', () => {
+    it('refuses a baseUrl that resolves to a private address, without ever calling fetch', async () => {
+      lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
+      const client = new PdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://internal.example.com' });
+
+      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('refuses a literal internal IP with no DNS lookup at all', async () => {
+      const client = new PdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://169.254.169.254' });
+
+      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      expect(lookup).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('never echoes the internal validation reason into the thrown message (no scanning oracle)', async () => {
+      lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
+      const client = new PdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://internal.example.com' });
+
+      try {
+        await client.authenticate();
+        throw new Error('expected authenticate() to reject');
+      } catch (err) {
+        expect(err).toBeInstanceOf(PdpApiError);
+        expect((err as PdpApiError).message).not.toContain('private');
+        expect((err as PdpApiError).message).not.toContain('10.0.0.5');
+      }
+    });
+
+    it('re-validates on every call — a token cached from before a rebind does not skip the guard', async () => {
+      mockFetch.mockResolvedValueOnce(mockTokenResponse({ expires_in: 3600 }) as unknown as Response);
+      const client = new PdpClient(CLIENT_CONFIG);
+      await client.authenticate(); // caches a token while the baseUrl still resolves public
+
+      lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]); // "DNS rebinding"
+      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+    });
+
+    it("every fetch call this client makes sets redirect: 'manual' — a validated host must not be able to bounce the request", async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
+        .mockResolvedValueOnce(mockJsonResponse({ id: 1, status_code: [] }) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await client.getInvoice(1);
+
+      for (const call of mockFetch.mock.calls) {
+        const opts = call[1] as RequestInit;
+        expect(opts.redirect).toBe('manual');
+      }
+    });
+
+    it('the ALLOW_PRIVATE_OUTBOUND_URLS escape hatch (dev/e2e only) lets a closed-port local target through', async () => {
+      const original = process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+      process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
+      try {
+        mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response);
+        const client = new PdpClient({ ...CLIENT_CONFIG, baseUrl: 'http://127.0.0.1:1' });
+
+        await expect(client.authenticate()).resolves.toBe('mock-bearer-token');
+        expect(lookup).not.toHaveBeenCalled();
+      } finally {
+        if (original === undefined) delete process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+        else process.env.ALLOW_PRIVATE_OUTBOUND_URLS = original;
+      }
     });
   });
 });

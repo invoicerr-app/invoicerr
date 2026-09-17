@@ -23,15 +23,31 @@
  * So what this spec proves: the config handed to better-auth is the stored configuration, the
  * id-verification guard catches a declined config instead of silently returning another provider, the
  * entry inserted is shaped the way better-auth's own resolution requires, a broken provider cannot
- * break an unrelated sign-in, removal finds its entry without triggering a build, and the OIDC_ONLY
- * boot assertion fires. What it does NOT prove: that the real `genericOAuth` builds a working
- * provider (only `npm run build` and the production path cover that), and nothing about a real OAuth
- * round-trip — there is no identity provider in this environment.
+ * break an unrelated sign-in (including one whose stored endpoint fails the outbound-URL guard's own
+ * DNS-rebinding-safe re-check), removal finds its entry without triggering a build, and the
+ * OIDC_ONLY boot assertion fires. What it does NOT prove: that the real `genericOAuth` builds a
+ * working provider (only `npm run build` and the production path cover that), and nothing about a
+ * real OAuth round-trip — there is no identity provider in this environment.
+ *
+ * A THIRD module is mocked for the same "no real network in a unit test" reason as the two above:
+ * `@/utils/outbound-url`, whose own exhaustive decision-logic coverage is `outbound-url.spec.ts`'s job
+ * (and `sso.service.spec.ts` for the write-time call). Here it only needs to prove it is CALLED, and
+ * that a rejection propagates as "this one provider fails to build", never a crash — real DNS
+ * resolution against `idp.acme.com` would make this spec flaky and network-dependent for no benefit.
  */
 import { resetRegisteredCompanyProviders } from '@/lib/sso-registry';
 import { auth } from '@/lib/auth';
+import { assertPublicOutboundUrl } from '@/utils/outbound-url';
 import { SsoProviderResolved, SsoService } from './sso.service';
 import { SsoRegistrarService, buildCompanyProvider } from './sso-registrar.service';
+
+jest.mock('@/utils/outbound-url', () => ({
+  __esModule: true,
+  assertPublicOutboundUrl: jest.fn().mockResolvedValue(undefined),
+  OutboundUrlValidationError: class extends Error {},
+}));
+
+const mockedAssertPublicOutboundUrl = assertPublicOutboundUrl as jest.Mock;
 
 jest.mock('@/lib/auth', () => {
   // Built inside the factory rather than closed over: `jest.mock` is hoisted above the imports, so a
@@ -131,6 +147,37 @@ describe('buildCompanyProvider — better-auth constructs the provider, nothing 
       tokenUrl: 'https://idp.acme.com/token',
       scopes: ['openid', 'profile', 'email'],
     });
+  });
+
+  it('re-validates every stored endpoint through the shared outbound-URL guard before building', async () => {
+    const ctx = { socialProviders: [], logger: { error: jest.fn() } };
+
+    await buildCompanyProvider(
+      ctx as never,
+      resolved({ discoveryUrl: 'https://idp.acme.com/.well-known/openid-configuration' }),
+    );
+
+    const checked = mockedAssertPublicOutboundUrl.mock.calls.map(([url]) => url);
+    expect(checked).toEqual(
+      expect.arrayContaining([
+        'https://idp.acme.com/.well-known/openid-configuration',
+        'https://idp.acme.com/authorize',
+        'https://idp.acme.com/token',
+        'https://idp.acme.com/userinfo',
+      ]),
+    );
+  });
+
+  it('refuses to build — never silently proceeds — when a stored endpoint fails that guard', async () => {
+    // A hostname that resolved to a public IP when the company saved its configuration can be
+    // repointed at an internal one by the time this thunk actually runs ("DNS rebinding") — this is
+    // what proves the guard is re-run HERE, not only once at `sso.service.ts#upsert` write time.
+    mockedAssertPublicOutboundUrl.mockRejectedValueOnce(
+      new Error('outbound URL rejected: literal address is private/internal'),
+    );
+    const ctx = { socialProviders: [], logger: { error: jest.fn() } };
+
+    await expect(buildCompanyProvider(ctx as never, resolved())).rejects.toThrow();
   });
 
   it('omits an absent client secret entirely rather than passing undefined for a public client', async () => {
@@ -264,6 +311,29 @@ describe('SsoRegistrarService', () => {
 
       const entries = (await context()).socialProviders;
       await expect(findProvider(entries, PROVIDER_ID)).resolves.toBeUndefined();
+    });
+
+    it('a stored endpoint that fails the outbound-URL guard behaves like any other broken provider', async () => {
+      // Persistent, not `Once`: `findProvider` below walks the array TWICE, and a failed build is
+      // deliberately un-memoised (see `makeThunk`'s own header on why) so each walk re-invokes the
+      // thunk — a `Once` rejection would only fail the first of those, and the second would then
+      // build a real (unexpected) provider. Restored in `finally` so this does not leak into the
+      // OTHER tests in this describe block, which all expect a successful build by default.
+      mockedAssertPublicOutboundUrl.mockRejectedValue(new Error('outbound URL rejected'));
+      try {
+        const service = new SsoRegistrarService(fakeSso());
+        await service.register(COMPANY_ID);
+
+        const ctx = await context();
+        ctx.socialProviders.push({ id: 'pocketid' });
+
+        // The thunk swallows the rejection (see `makeThunk`'s own header) — never throws through
+        // better-auth's own provider walk, and the environment provider behind it still resolves.
+        await expect(findProvider(ctx.socialProviders, 'pocketid')).resolves.toEqual({ id: 'pocketid' });
+        await expect(findProvider(ctx.socialProviders, PROVIDER_ID)).resolves.toBeUndefined();
+      } finally {
+        mockedAssertPublicOutboundUrl.mockResolvedValue(undefined);
+      }
     });
 
     it('forgets a failure so a fixed IdP or key is retried without a restart', async () => {

@@ -43,12 +43,12 @@ describe('assertPublicWebhookUrl', () => {
 
     it('accepts https', async () => {
       lookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
-      await expect(assertPublicWebhookUrl('https://hooks.example.com/endpoint')).resolves.toBeUndefined();
+      await expect(assertPublicWebhookUrl('https://hooks.example.com/endpoint')).resolves.not.toBeNull();
     });
 
     it('accepts plain http (the finding is about internal targets, not transport encryption)', async () => {
       lookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
-      await expect(assertPublicWebhookUrl('http://hooks.example.com/endpoint')).resolves.toBeUndefined();
+      await expect(assertPublicWebhookUrl('http://hooks.example.com/endpoint')).resolves.not.toBeNull();
     });
   });
 
@@ -92,12 +92,12 @@ describe('assertPublicWebhookUrl', () => {
     });
 
     it('accepts a public literal IPv4 address', async () => {
-      await expect(assertPublicWebhookUrl('https://8.8.8.8/hook')).resolves.toBeUndefined();
+      await expect(assertPublicWebhookUrl('https://8.8.8.8/hook')).resolves.not.toBeNull();
       expect(lookup).not.toHaveBeenCalled();
     });
 
     it('accepts a public literal IPv6 address', async () => {
-      await expect(assertPublicWebhookUrl('https://[2001:4860:4860::8888]/hook')).resolves.toBeUndefined();
+      await expect(assertPublicWebhookUrl('https://[2001:4860:4860::8888]/hook')).resolves.not.toBeNull();
       expect(lookup).not.toHaveBeenCalled();
     });
   });
@@ -105,7 +105,7 @@ describe('assertPublicWebhookUrl', () => {
   describe('DNS resolution', () => {
     it('accepts a hostname whose only resolved address is public', async () => {
       lookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
-      await expect(assertPublicWebhookUrl('https://hooks.example.com/endpoint')).resolves.toBeUndefined();
+      await expect(assertPublicWebhookUrl('https://hooks.example.com/endpoint')).resolves.not.toBeNull();
       expect(lookup).toHaveBeenCalledWith('hooks.example.com', { all: true });
     });
 
@@ -149,7 +149,7 @@ describe('assertPublicWebhookUrl', () => {
 
     it('re-resolves on every call — the property DNS-rebinding defense at send time depends on', async () => {
       lookup.mockResolvedValueOnce([{ address: '203.0.113.10', family: 4 }]);
-      await expect(assertPublicWebhookUrl('https://rebind.example.com/endpoint')).resolves.toBeUndefined();
+      await expect(assertPublicWebhookUrl('https://rebind.example.com/endpoint')).resolves.not.toBeNull();
 
       lookup.mockResolvedValueOnce([{ address: '169.254.169.254', family: 4 }]);
       await expect(assertPublicWebhookUrl('https://rebind.example.com/endpoint')).rejects.toThrow(
@@ -168,10 +168,10 @@ describe('assertPublicWebhookUrl — ALLOW_PRIVATE_WEBHOOK_URLS escape hatch (de
     else process.env.ALLOW_PRIVATE_WEBHOOK_URLS = original;
   });
 
-  it('with the flag set, a localhost/private URL is allowed (so 42-webhooks can use its local receiver)', async () => {
+  it('with the flag set, a localhost/private URL is allowed (so 42-webhooks can use its local receiver) — nothing to pin, so null', async () => {
     process.env.ALLOW_PRIVATE_WEBHOOK_URLS = '1';
-    await expect(assertPublicWebhookUrl('http://localhost:9099/hook')).resolves.toBeUndefined();
-    await expect(assertPublicWebhookUrl('http://127.0.0.1:9099/hook')).resolves.toBeUndefined();
+    await expect(assertPublicWebhookUrl('http://localhost:9099/hook')).resolves.toBeNull();
+    await expect(assertPublicWebhookUrl('http://127.0.0.1:9099/hook')).resolves.toBeNull();
   });
 
   it('the flag NEVER relaxes the scheme check — file: is still rejected even when set', async () => {

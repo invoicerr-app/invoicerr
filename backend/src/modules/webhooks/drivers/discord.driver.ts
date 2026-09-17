@@ -1,3 +1,5 @@
+import type { Dispatcher } from 'undici';
+
 import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
 import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
 
@@ -50,7 +52,7 @@ export class DiscordDriver implements WebhookDriver {
     return type === WebhookType.DISCORD;
   }
 
-  async send(url: string, payload: any): Promise<boolean> {
+  async send(url: string, payload: any, _secret?: string | null, dispatcher?: Dispatcher): Promise<boolean> {
     const eventType = payload.event as WebhookEvent;
     const eventStyle = EVENT_STYLES[eventType] || {
       color: '#5865F2',
@@ -87,7 +89,7 @@ export class DiscordDriver implements WebhookDriver {
       embeds: [embed],
     });
 
-    return this.postToDiscord(url, body);
+    return this.postToDiscord(url, body, dispatcher);
   }
 
   /**
@@ -95,7 +97,12 @@ export class DiscordDriver implements WebhookDriver {
    * fatal to the event that triggered it (`WebhooksService#send` treats a `false` return as "this
    * one webhook failed", never as a reason to abort the rest of the batch).
    */
-  private async postToDiscord(url: string, body: string, isRetry = false): Promise<boolean> {
+  private async postToDiscord(
+    url: string,
+    body: string,
+    dispatcher?: Dispatcher,
+    isRetry = false,
+  ): Promise<boolean> {
     let res: Response;
     try {
       res = await fetch(url, {
@@ -107,7 +114,9 @@ export class DiscordDriver implements WebhookDriver {
         // redirects; this only ever matters for a compromised/malicious one.
         redirect: 'manual',
         signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-      });
+        // See `webhook-driver.interface.ts`'s own header on why this must never be omitted.
+        dispatcher,
+      } as RequestInit);
     } catch (err) {
       this.logger.warn(`Discord webhook send failed: ${err instanceof Error ? err.message : String(err)}`);
       return false;
@@ -117,7 +126,7 @@ export class DiscordDriver implements WebhookDriver {
       const waitMs = await this.readRetryAfterMs(res);
       if (waitMs !== undefined && waitMs <= MAX_RATE_LIMIT_WAIT_MS) {
         await new Promise((resolve) => setTimeout(resolve, waitMs));
-        return this.postToDiscord(url, body, true);
+        return this.postToDiscord(url, body, dispatcher, true);
       }
       this.logger.warn(
         `Discord webhook rate-limited past the bounded retry window (retry_after=${waitMs ?? 'unknown'}ms)`,

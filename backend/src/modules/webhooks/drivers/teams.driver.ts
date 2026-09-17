@@ -1,3 +1,5 @@
+import type { Dispatcher } from 'undici';
+
 import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
 import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
 
@@ -84,7 +86,7 @@ export class TeamsWebhook {
     return this;
   }
 
-  async send(): Promise<Response> {
+  async send(dispatcher?: Dispatcher): Promise<Response> {
     const payload: any = {
       type: 'message',
       attachments: [],
@@ -118,7 +120,9 @@ export class TeamsWebhook {
       body: JSON.stringify(payload),
       redirect: 'manual',
       signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-    });
+      // See `webhook-driver.interface.ts`'s own header on why this must never be omitted.
+      dispatcher,
+    } as RequestInit);
 
     this.text = '';
     this.card = null;
@@ -132,7 +136,7 @@ export class TeamsDriver implements WebhookDriver {
     return type === WebhookType.TEAMS;
   }
 
-  async send(url: string, payload: any): Promise<boolean> {
+  async send(url: string, payload: any, _secret?: string | null, dispatcher?: Dispatcher): Promise<boolean> {
     const hook = new TeamsWebhook(url);
 
     const eventType = payload.event as WebhookEvent;
@@ -153,7 +157,7 @@ export class TeamsDriver implements WebhookDriver {
       card.addFactSet([{ name: 'Entreprise', value: payload.company.name }]);
     }
 
-    const res = await hook.setCard(card).send();
+    const res = await hook.setCard(card).send(dispatcher);
 
     return res.ok;
   }
