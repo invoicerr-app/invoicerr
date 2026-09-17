@@ -37,6 +37,15 @@ LCEN art. 6-I-2. Scaleway operates the Kubernetes cluster and the object storage
 in its Paris region. Contact: same postal address; see Scaleway's own published legal notice
 (scaleway.com) for their support channels.
 
+The **documentation site** at **docs.invoicerr.app** — where this notice is itself published — and the
+**source code repository** at **github.com/invoicerr-app/invoicerr** (public issues, discussions where
+enabled, and the GitHub Actions workflows that build and publish the Service's container images to the
+GitHub Container Registry) are hosted by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San Francisco,
+CA 94107, USA, a wholly-owned subsidiary of Microsoft Corporation, via its GitHub Pages, GitHub
+Actions, and GitHub Container Registry services. GitHub, Inc. does not host the hosted Service itself
+(Scaleway SAS, above) and never receives or stores the account, billing, or document data created
+through it — see Privacy Policy, Section 10.
+
 ## 4. Intellectual Property
 
 The Invoicerr software is distributed under the license published in the `LICENSE` file at the root
@@ -82,3 +91,10 @@ this Agreement.
   Paris, France) and Neon (managed Postgres database, EU region) — see Terms of Service Section 12.1.
   Section 3 completed with Scaleway SAS's corporate name, SIREN/RCS, and registered office, discharging
   the LCEN art. 6-I-2 requirement this section previously left as a placeholder pending that decision.
+- **2026-09-17** — GitHub added as hosting provider for the documentation website. Section 3 gained
+  **GitHub, Inc.** (address, Microsoft parent) as host of **docs.invoicerr.app** — the site this very
+  notice is published on — and of the public source repository, via GitHub Pages / Actions / Container
+  Registry. **Not** described as hosting `invoicerr.app` as a separate public website: no landing page
+  distinct from the Scaleway-hosted app exists in this repository (`frontend/src/pages/index.tsx`, the
+  route served at that domain, only redirects to sign-in or the dashboard) — flagged for the owner
+  rather than assumed; see the task's own report.

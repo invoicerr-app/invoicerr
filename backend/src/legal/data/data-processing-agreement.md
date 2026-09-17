@@ -118,6 +118,11 @@ third-party OCR provider.**
 subscription and payment data as an independent controller/merchant of record (Privacy Policy
 Sections 3-4), not Customer Personal Data appearing on the documents you issue.
 
+**GitHub, Inc. is not a sub-processor under this DPA either**: it hosts our public documentation
+website (docs.invoicerr.app) and our source code repository via GitHub Pages, Actions, and Container
+Registry — infrastructure that never receives, stores, or processes Customer Personal Data. See
+Privacy Policy, Section 10.
+
 Each sub-processor above is bound, by contract, to data-protection obligations materially equivalent
 to those in this DPA — in particular the confidentiality duty of Section 6 and the security measures
 of Section 9 (**GDPR Art. 28(4)**). We remain fully liable to you for that sub-processor's performance
@@ -212,3 +217,8 @@ this DPA as well.
   Paris/France region) and **Neon, LLC** (a Databricks, Inc. affiliate; the managed PostgreSQL database
   in which Customer Personal Data is stored, EU region — AWS Europe, Frankfurt) in place of the
   `[HOSTING PROVIDER, COUNTRY]` placeholder.
+- **2026-09-17** — GitHub added as hosting provider for the documentation website. Section 7 gained an
+  explicit note that **GitHub, Inc.** is not a sub-processor under this DPA: it hosts only our public
+  documentation site and source repository (GitHub Pages/Actions/Container Registry), never Customer
+  Personal Data — the same treatment already given to Polar in this section, for the same reason (no
+  Customer Personal Data flows to it).

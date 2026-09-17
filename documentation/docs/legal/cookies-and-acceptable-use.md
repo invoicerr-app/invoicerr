@@ -67,6 +67,16 @@ the suspension and termination provisions of the Terms of Service, Section 11.
 Availability figures we may publish are **indicative only** and do not constitute a contractual
 service level — the same best-effort basis the Terms of Service, Section 14.1 already describes.
 
+## Part C — Documentation Website
+
+### 8. No Cookies, No Analytics
+
+Our public documentation site at **docs.invoicerr.app** is a static site built with Docusaurus and
+served by **GitHub Pages** (GitHub, Inc. — see Privacy Policy, Section 10). It sets no cookie of its
+own and loads no analytics, advertising, or tracking script of any kind; its on-page search index runs
+entirely in your browser. GitHub's own technical access logs for that site (visitor IP address and
+request headers, needed to serve the page) are described in the Privacy Policy, Section 10, not here.
+
 ---
 
 ### Changelog
@@ -77,3 +87,8 @@ service level — the same best-effort basis the Terms of Service, Section 14.1 
   acceptable-use list already matched the `legal-tos-privacy` skill's cookie and AUP checklists, and
   is now also the document the Terms of Service, Section 5 incorporates by reference as its own
   Acceptable Use Policy.
+- **2026-09-17** — GitHub added as hosting provider for the documentation website. New Part C
+  ("Documentation Website") states that docs.invoicerr.app (GitHub Pages) sets no cookie and loads no
+  analytics — verified against `documentation/docusaurus.config.ts`'s plugin list, which carries only
+  a local, in-browser search index (`@easyops-cn/docusaurus-search-local`) and no analytics/tracking
+  plugin.

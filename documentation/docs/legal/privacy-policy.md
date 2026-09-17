@@ -141,18 +141,40 @@ The Service sets exactly one cookie, used only to keep you signed in. See the
 [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md) for what it is and why no consent
 banner is shown for it.
 
-## 10. Children
+## 10. Websites We Operate
+
+Separately from the Service itself, we publish a public documentation website at
+**docs.invoicerr.app**, built with Docusaurus and served by **GitHub Pages** — a hosting service
+operated by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, a
+wholly-owned subsidiary of Microsoft Corporation. Visiting that site sends your IP address and
+standard HTTP request headers to GitHub so it can serve the page; that is GitHub's own technical
+access log, which we do not receive and do not control. **No account, billing, or other Service data
+described in Section 3 ever transits through, or is stored on, that documentation site.** It sets no
+cookie and loads no analytics, advertising, or tracking script — its on-page search runs entirely in
+your browser (see the [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md)).
+
+Our source code is also published on GitHub, at
+[github.com/invoicerr-app/invoicerr](https://github.com/invoicerr-app/invoicerr). Issues and
+discussions posted there are public and are governed by GitHub's own privacy statement and terms, not
+by this Policy.
+
+GitHub, Inc. has self-certified to the U.S. Department of Commerce that it adheres to the EU-U.S. Data
+Privacy Framework (DPF), including the UK Extension to the EU-U.S. DPF, for personal data it receives
+from the EU/UK in this capacity — the same Chapter V safeguard referenced in Section 5 for our other
+US-based providers.
+
+## 11. Children
 
 The Service is offered strictly business-to-business (Terms of Service Section 1.2) and is not
 directed at, or knowingly used by, individuals acting outside a professional capacity.
 
-## 11. Changes to This Policy
+## 12. Changes to This Policy
 
 We may update this Policy from time to time; the version and effective date at the top of this page
 identify the version in force. Where a change is material, we will tell you by email before it takes
 effect, the same way the Terms of Service, Section 18.1 describes for that document.
 
-## 12. Contact
+## 13. Contact
 
 Questions about this Policy, or a request under Section 8, can be sent to **contact@invoicerr.app**,
 or by post to the address in Section 1.
@@ -189,3 +211,14 @@ or by post to the address in Section 1.
   list gained **Neon/Databricks**: Neon, LLC's parent, Databricks, Inc., is a US company, even though
   the Company's own database runs in Neon's EU region — the same distinction already drawn for the
   other named US-based sub-processors.
+- **2026-09-17** — GitHub added as hosting provider for the documentation website. New Section 10
+  ("Websites We Operate") discloses **GitHub, Inc.** (address, Microsoft parent, self-certified EU-U.S.
+  DPF membership including the UK Extension) as the GitHub Pages host of **docs.invoicerr.app** and of
+  our public source repository, with the same "receives only visitor IP/request headers, no Service
+  data, no cookie, no analytics" scoping already given to Cloudflare/Google for support email in
+  Section 4. **Deliberately did not** describe `invoicerr.app` itself as a GitHub Pages-hosted site: this
+  repository has no landing page distinct from the app — `frontend/src/pages/index.tsx` (the route
+  served at that domain) only redirects to `/auth/sign-in` or `/dashboard`, and
+  `deploy/helm/invoicerr/values.yaml` / `kubernetes.md` show `invoicerr.app` is the Ingress host for the
+  Scaleway-hosted Service already named in Section 4 — the same domain, not a second site. Flagged for
+  the owner rather than assumed; see the task's own report.
