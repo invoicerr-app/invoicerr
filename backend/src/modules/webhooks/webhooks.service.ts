@@ -17,6 +17,8 @@ import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
 import { backendPublicUrl } from '@/utils/backend-public-url';
 import { ResolvedOutboundUrl, pinnedDispatcher } from '@/utils/outbound-url';
+import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
+import { isEncryptedWebhookSecret } from './webhook-secret-format';
 
 /** HTTP body for creating a webhook (route contract: only `url` is required). */
 export interface WebhookCreateInput {
@@ -146,6 +148,54 @@ export class WebhooksService {
     }
   }
 
+  /**
+   * Encrypt a webhook's plaintext HMAC secret before it ever reaches Prisma. Every other
+   * integration credential in this codebase already goes through `secret-crypto.ts` at rest
+   * (`CompanyChannelConfig.config` via `channels.service.ts`, `CompanySigningCertificate`'s PFX/pass);
+   * `Webhook.secret` was the one column that stayed in the clear.
+   *
+   * Falls back to storing the plaintext value when `CREDENTIALS_ENCRYPTION_KEY` is not configured —
+   * DELIBERATELY different from `channels.service.ts#upsertChannelConfig`, which refuses to save at
+   * all in that case: channel credentials are an opt-in feature gated behind that key from day one,
+   * but webhook secrets predate it and are not opt-in. Turning webhook creation into a hard failure
+   * for every self-hosted instance that never set the key would be a regression this fix must not
+   * cause; `migratePlaintextWebhookSecrets` (`webhook-secret-migration.ts`) sweeps up whatever is
+   * stored this way the moment a key does become available.
+   */
+  private encryptSecretForStorage(secret: string): string {
+    if (!isEncryptionAvailable()) return secret;
+    return encryptJson(secret);
+  }
+
+  /**
+   * The read-side counterpart, called by `send()` right before computing the HMAC signature.
+   * A stored value can be in any of three states at any given time (this method's own three branches,
+   * in order): still legacy plaintext (no key was configured when it was written, or the boot
+   * migration has not reached it yet) — used as-is, unchanged behavior; an encrypted blob with the key
+   * available — decrypted and used; or an encrypted blob with the key NOW missing (rotated away,
+   * misconfigured) — unusable, so the send proceeds UNSIGNED rather than HMAC-ing the payload with the
+   * literal ciphertext string, which would produce a signature no legitimate receiver could ever
+   * verify anyway.
+   */
+  private resolveSecretForSigning(stored: string | null): string | null {
+    if (!stored) return null;
+    if (!isEncryptedWebhookSecret(stored)) return stored;
+
+    if (!isEncryptionAvailable()) {
+      this.logger.error(
+        'Webhook secret is encrypted but CREDENTIALS_ENCRYPTION_KEY is unavailable — sending unsigned',
+      );
+      return null;
+    }
+
+    try {
+      return decryptJson<string>(stored);
+    } catch {
+      this.logger.error('Failed to decrypt webhook secret (corrupted blob or wrong key) — sending unsigned');
+      return null;
+    }
+  }
+
   private getDriver(type: WebhookType): WebhookDriver {
     const driver = this.drivers.find((d) => d.supports(type));
     if (!driver) {
@@ -174,25 +224,32 @@ export class WebhooksService {
     return webhooks.map((w) => ({ ...w, secret: undefined }));
   }
 
-  /** Create a webhook for the active company. Returns the full row (incl. secret) + company for event dispatch. */
+  /**
+   * Create a webhook for the active company. Returns the full row + company for event dispatch, with
+   * `webhook.secret` overridden back to the PLAINTEXT value (never what actually landed in the
+   * `secret` column, which is encrypted — see `encryptSecretForStorage`): this is the one deliberate,
+   * one-time reveal the settings screen relies on (`webhooks.settings.tsx` shows it once right after
+   * creation, then never again — every other read, `findOne`/`list`, strips the column entirely).
+   */
   async create(companyId: string, body: WebhookCreateInput) {
     await this.validateWebhookUrl(body.url);
 
     const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
-    const secret = body.secret ?? '';
+    const plainSecret = body.secret ?? '';
+    const storedSecret = plainSecret ? this.encryptSecretForStorage(plainSecret) : plainSecret;
 
     const webhook = await prisma.webhook.create({
       data: {
         url: body.url,
         type: body.type ?? 'GENERIC',
         events: body.events ?? [],
-        secret,
+        secret: storedSecret,
         companyId,
       },
     });
 
-    return { webhook, company };
+    return { webhook: { ...webhook, secret: plainSecret }, company };
   }
 
   /** Update a webhook (company-scoped, 404 otherwise). Returns the full updated row + company for event dispatch. */
@@ -204,13 +261,25 @@ export class WebhooksService {
 
     const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
+    // Only encrypt when the caller is actually SETTING a new secret. `existing.secret` already carries
+    // whatever format it was persisted in (an encrypted blob, or still legacy plaintext until the boot
+    // migration reaches it) and must never be run back through `encryptSecretForStorage` on an update
+    // that leaves it untouched — that would encrypt an already-encrypted blob a second time and make
+    // it permanently undecryptable.
+    const storedSecret =
+      body.secret !== undefined
+        ? body.secret
+          ? this.encryptSecretForStorage(body.secret)
+          : body.secret
+        : existing.secret;
+
     const webhook = await prisma.webhook.update({
       where: { id },
       data: {
         url: body.url ?? existing.url,
         type: body.type ?? existing.type,
         events: body.events ?? existing.events,
-        secret: body.secret ?? existing.secret,
+        secret: storedSecret,
       },
     });
 
@@ -263,7 +332,7 @@ export class WebhooksService {
             event,
             ...payload,
           },
-          webhook.secret ?? null,
+          this.resolveSecretForSigning(webhook.secret),
           pinnedDispatcher(resolved),
         );
       }),

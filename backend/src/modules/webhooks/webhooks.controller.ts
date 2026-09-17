@@ -87,12 +87,18 @@ export class WebhooksController {
         data: result,
       });
     } catch (error) {
-      this.logger.error(`Error processing webhook for plugin ${uuid}:`, error);
+      // The full detail (which of "plugin not found", "no provider for this type", or the provider's
+      // own thrown error it was) stays server-side only. This route is `@AllowAnonymous()`, so the
+      // caller is an unauthenticated third party — echoing `error.message` back let it distinguish a
+      // "plugin UUID does not exist" outcome from any other failure, turning the endpoint into an
+      // oracle for enumerating valid plugin UUIDs. One generic message covers every failure branch
+      // identically; the real reason is still fully logged for whoever operates this instance.
+      const detail = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error processing webhook for plugin ${uuid}: ${detail}`);
 
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Webhook processing failed',
-        error: error.message,
       });
     }
   }
@@ -139,7 +145,14 @@ export class WebhooksController {
     const { webhook, company } = await this.webhooksService.create(companyId, body);
 
     try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_CREATED, { webhook, company });
+      // This payload is what OTHER webhooks subscribed to WEBHOOK_CREATED receive over HTTP;
+      // `webhook.secret` here is this brand-new webhook's own plaintext secret (see
+      // `WebhooksService.create`'s own comment on why it's plaintext at this point), which is for the
+      // CALLER of THIS request alone, once, in the response below — never for a third receiver.
+      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_CREATED, {
+        webhook: { ...webhook, secret: undefined },
+        company,
+      });
     } catch (err) {
       this.logger.error('Failed to dispatch WEBHOOK_CREATED', err);
     }
@@ -174,7 +187,12 @@ export class WebhooksController {
     const { webhook, company } = await this.webhooksService.update(companyId, id, body);
 
     try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_UPDATED, { webhook, company });
+      // Same reasoning as `create` above: never forward the (encrypted, but still not this
+      // receiver's business) secret to another webhook's payload.
+      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_UPDATED, {
+        webhook: { ...webhook, secret: undefined },
+        company,
+      });
     } catch (err) {
       this.logger.error('Failed to dispatch WEBHOOK_UPDATED', err);
     }
@@ -194,7 +212,11 @@ export class WebhooksController {
     const { webhook, company } = await this.webhooksService.remove(companyId, id);
 
     try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_DELETED, { webhook, company });
+      // Same reasoning as `create` above.
+      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_DELETED, {
+        webhook: { ...webhook, secret: undefined },
+        company,
+      });
     } catch (err) {
       this.logger.error('Failed to dispatch WEBHOOK_DELETED', err);
     }
