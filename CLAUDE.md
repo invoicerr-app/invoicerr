@@ -104,6 +104,10 @@ in place first). Self-hosted instances ran `db push` until v1.4.4a, so
 `src/prisma/sync-schema.ts` (invoked from `main.ts` only in production, API role only) levels legacy
 DBs to the frozen `schema-v1.4.4a.prisma`, baselines the frozen migration list, then runs
 `migrate deploy`. That baseline list is frozen — never add to it; new migrations must actually run.
+`sync-schema.ts` also reseeds the country-policy/country-identifiers catalogs on every boot but never
+purges a whole removed country (nor do the b2g-routing/country-policy/country-identifiers
+`OnModuleInit` boot services) — only the explicit, single-run `npm run catalogs:release`
+(`backend/scripts/release-catalogs.ts`) does, wired as a Helm pre-upgrade hook Job for Kubernetes.
 
 ### The documents module (`backend/src/modules/documents/`) — the core of this branch
 The compliance **engine** this repository used to have — one `CountryComplianceProfile` per country
@@ -228,7 +232,7 @@ other locales are Weblate-managed, `npm run i18n:check` gates PRs.
 - `documentation/docs/developer-guide/live-testing.md` — required secrets and how to run each real
   round-trip.
 - `documentation/docs/developer-guide/credentials-guide.md` — per-authority onboarding notes.
-- `documentation/docs/developer-guide/` — plugin system, webhooks, MCP server, auth.
+- `documentation/docs/developer-guide/` — extension points, webhooks, MCP server, auth.
 
 ## Working with the owner
 

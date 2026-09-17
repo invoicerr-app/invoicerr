@@ -165,20 +165,32 @@ export async function syncDatabaseSchema(): Promise<void> {
 
   // The document country-action policy (backend/src/modules/documents/country-policy/) is read from
   // its JSON files and seeded here on every production boot — a self-hosted instance that pulls a
-  // new image with an updated fr.json/us.json (or a newly added country) gets the update on its next
-  // restart, the same way `prisma migrate dev`/`db seed` already re-seeds it for dev and CI (see
-  // prisma.config.ts). Idempotent (seedCountryPolicies' own doc comment): safe to run on every boot,
-  // never just once.
-  console.log('[sync-schema] Seeding document country-action policy...');
-  const summary = await seedCountryPolicies(prisma);
+  // new image with an updated fr.json/us.json gets the update on its next restart, the same way
+  // `prisma migrate dev`/`db seed` already re-seeds it for dev and CI (see prisma.config.ts).
+  // Idempotent (seedCountryPolicies' own doc comment): safe to run on every boot, never just once.
+  //
+  // `purgeRemovedCountries: false` — DELIBERATELY, even though this runs once per boot rather than
+  // per-replica like `boot-reseed.ts`'s own online path. This function has no way to tell "this
+  // instance's image genuinely dropped a country" apart from "this is an OLD replica, mid-rolling-
+  // deployment, whose own image just hasn't caught up to the newer one that already seeded that
+  // country" — the exact race `seedCountryPolicies`'s own `purgeRemovedCountries` doc comment names.
+  // A self-hosted single-instance deploy restarting on a new image is indistinguishable, from in
+  // here, from one replica of a multi-replica rolling upgrade — so this path only ever ADDS/UPDATES
+  // rows for the countries its OWN catalog still names, never deletes a whole country's rows. A
+  // country genuinely removed from `data/*.json` is purged only by the explicit, single-run
+  // `npm run catalogs:release` (`backend/scripts/release-catalogs.ts`) — see that file's own header,
+  // and run it once per deployment that actually drops a country, never automatically.
+  console.log('[sync-schema] Seeding document country-action policy (no whole-country purge)...');
+  const summary = await seedCountryPolicies(prisma, undefined, false);
   console.log(
     `[sync-schema] Document country policy: ${summary.upserted} upserted, ${summary.deleted} deleted (stale).`,
   );
 
-  // Same reasoning, same idempotency, for the SEPARATE country identifier-requirements catalog
-  // (backend/src/modules/documents/country-identifiers/) — see that seed's own header.
-  console.log('[sync-schema] Seeding country identifier requirements...');
-  const identifierSummary = await seedCountryIdentifierRequirements(prisma);
+  // Same reasoning, same idempotency, same "never purge a whole country here" rule, for the
+  // SEPARATE country identifier-requirements catalog (backend/src/modules/documents/country-identifiers/)
+  // — see that seed's own header.
+  console.log('[sync-schema] Seeding country identifier requirements (no whole-country purge)...');
+  const identifierSummary = await seedCountryIdentifierRequirements(prisma, undefined, false);
   console.log(
     `[sync-schema] Country identifier requirements: ${identifierSummary.upserted} upserted, ` +
       `${identifierSummary.deleted} deleted (stale).`,

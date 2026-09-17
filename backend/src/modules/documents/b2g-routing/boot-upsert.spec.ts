@@ -152,6 +152,32 @@ describe('upsertB2gRoutingRules', () => {
     expect(rows()).toHaveLength(0);
   });
 
+  /**
+   * THE MUTATION TARGET: `purgeRemovedCountries: false` (what `boot-upsert.service.ts`'s own
+   * `OnModuleInit` passes on EVERY process, EVERY boot) must never delete a whole country's row —
+   * see this function's own `purgeRemovedCountries` doc comment for the rolling-deployment race this
+   * closes. Only the default (`true`, used by `scripts/release-catalogs.ts`'s deliberate, single-run
+   * `npm run catalogs:release`) is allowed to purge — proven by the test just above.
+   */
+  it('purgeRemovedCountries: false — a country removed from THIS catalog keeps its existing row', async () => {
+    const { client, rows } = buildFakePrisma();
+    const withBoth = new B2gRoutingCatalog([
+      legalFact({ countryCode: 'FR' }),
+      legalFact({ countryCode: 'DE' }),
+    ]);
+    await upsertB2gRoutingRules(client, withBoth);
+
+    const withOnlyFr = new B2gRoutingCatalog([legalFact({ countryCode: 'FR' })]);
+    const summary = await upsertB2gRoutingRules(client, withOnlyFr, false);
+
+    expect(summary).toEqual({ upserted: 1, deleted: 0 });
+    expect(
+      rows()
+        .map((r) => r.countryCode)
+        .sort(),
+    ).toEqual(['DE', 'FR']); // DE survives
+  });
+
   // The REAL catalog (`data/all.ts`'s shipped files), not a hand-rolled fake — the ONE test in this
   // file that exercises the actual `defaultB2gRoutingCatalog` default parameter, proving what
   // `B2gRoutingBootUpsertService`'s own boot log line ("N upserted, M deleted") reports for a REAL

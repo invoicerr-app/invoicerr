@@ -21,7 +21,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
-    "legal:sync": "ts-node scripts/sync-legal-docs.ts"
+    "legal:sync": "ts-node scripts/sync-legal-docs.ts",
+    "catalogs:release": "tsx scripts/release-catalogs.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1004.0",
@@ -63,6 +64,7 @@
     "ioredis": "^5.11.1",
     "jszip": "^3.10.2",
     "markdown-it": "^14.3.0",
+    "multer": "^2.2.0",
     "node-forge": "^1.4.0",
     "node-schematron": "^2.1.0",
     "nodemailer": "^10.0.9",

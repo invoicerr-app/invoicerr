@@ -81,6 +81,23 @@ function rowFor(fact: B2gRoutingRuleFact): B2gRoutingRuleRow {
 export async function upsertB2gRoutingRules(
   prisma: PrismaB2gRoutingClient,
   catalog: B2gRoutingCatalog = defaultB2gRoutingCatalog,
+  /**
+   * Whether to purge a whole country's row when it drops out of `data/*.json` entirely — `true` by
+   * DEFAULT, for this function's two deliberate, single-writer callers: a hand-rolled/default-catalog
+   * call (tests, this function's own callers other than the boot service below) and
+   * `scripts/release-catalogs.ts`'s `npm run catalogs:release` (an explicit, single-run command an
+   * operator runs once per deployment that actually drops a country).
+   *
+   * `boot-upsert.service.ts`'s `OnModuleInit` — the ONLINE path that runs in EVERY process (api
+   * inline AND every worker replica) on EVERY boot — passes `false`. Same "rolling deployment" race
+   * `country-policy/seed.ts`'s own `purgeRemovedCountries` doc comment names in full: an OLD replica
+   * still running yesterday's shorter catalog, restarting on its own liveness probe mid-deployment,
+   * must never delete a country a NEWER replica already upserted just because ITS OWN catalog doesn't
+   * (yet) know about it. Until this flag existed, `upsertB2gRoutingRules` purged UNCONDITIONALLY on
+   * every boot — the narrowest version of that race of all three catalogs sharing this shape, since
+   * every process (not just a per-boot online-correction path) ran the purge, every time.
+   */
+  purgeRemovedCountries = true,
 ): Promise<B2gRoutingBootUpsertSummary> {
   const countries = catalog.countries();
 
@@ -114,13 +131,15 @@ export async function upsertB2gRoutingRules(
     upserted++;
   }
 
-  const keep = new Set(countries);
-  const existing = await prisma.b2gRoutingRule.findMany({ select: { id: true, countryCode: true } });
-  const stale = existing.filter((row) => !keep.has(row.countryCode));
   let deleted = 0;
-  if (stale.length > 0) {
-    await prisma.b2gRoutingRule.deleteMany({ where: { id: { in: stale.map((row) => row.id) } } });
-    deleted = stale.length;
+  if (purgeRemovedCountries) {
+    const keep = new Set(countries);
+    const existing = await prisma.b2gRoutingRule.findMany({ select: { id: true, countryCode: true } });
+    const stale = existing.filter((row) => !keep.has(row.countryCode));
+    if (stale.length > 0) {
+      await prisma.b2gRoutingRule.deleteMany({ where: { id: { in: stale.map((row) => row.id) } } });
+      deleted = stale.length;
+    }
   }
 
   return { upserted, deleted };

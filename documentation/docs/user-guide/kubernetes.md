@@ -113,11 +113,13 @@ Neon gives you **two** connection strings for the same database:
   built-in PgBouncer, which is what you want for a replicated app with several short-lived
   connections from each `api`/`worker` pod.
 - **Direct/unpooled** (no `-pooler` in the hostname) — set this as `DATABASE_URL_UNPOOLED`
-  (optional, api pod only). Prisma Migrate takes a session-level advisory lock that does not
-  reliably survive PgBouncer's transaction-mode pooling, so `backend/src/prisma/sync-schema.ts`
-  uses this URL — falling back to `DATABASE_URL` when it is unset — for the one-off
-  `prisma migrate deploy`/`db push` it runs at api-pod boot only. The long-lived Nest process's own
-  runtime queries always use the pooled `DATABASE_URL`, on Neon or anywhere else.
+  (optional, api pod and the `catalogs-release` hook Job only). Prisma Migrate takes a
+  session-level advisory lock that does not reliably survive PgBouncer's transaction-mode pooling,
+  so `backend/src/prisma/sync-schema.ts` uses this URL — falling back to `DATABASE_URL` when it is
+  unset — for the one-off `prisma migrate deploy`/`db push` it runs at api-pod boot, and the
+  `catalogs-release` Job (see "Updating" below) does the same for its own `migrate deploy` step. The
+  long-lived Nest process's own runtime queries always use the pooled `DATABASE_URL`, on Neon or
+  anywhere else.
 
 Both strings need `?sslmode=require`. Neon's own dashboard shows both, ready to copy, under
 **Connection Details**.
@@ -215,11 +217,19 @@ cert-manager has issued the certificate (`kubectl get certificate`), the app is 
 
 1. Bump `image.tag` in your values file to the new release.
 2. `helm upgrade invoicerr deploy/helm/invoicerr -f values.prod.yaml`.
-3. Watch the api pod's logs during the rollout — migrations run there automatically
-   (`backend/src/prisma/sync-schema.ts`), same as every other Invoicerr upgrade.
-4. `helm rollback invoicerr` reverts the Kubernetes objects to the previous revision if something
-   goes wrong — it does **not** revert a database migration that already ran; check the release
-   notes for the version you are rolling back from before relying on it for a schema change.
+3. Helm runs a `catalogs-release` Job as a `pre-upgrade` hook **before** the api/worker Deployments
+   roll out — `kubectl logs job/invoicerr-catalogs-release` shows it. It applies pending migrations
+   and then runs `npm run catalogs:release`, the only thing allowed to remove a country's rows
+   (document-action policy, identifier requirements, B2G routing) once that country drops out of a
+   catalog — every per-pod boot path only ever adds/updates rows for its own replicas, never purges,
+   precisely so an old replica mid-rollout can never delete a country a newer one already seeded. A
+   failed Job blocks the upgrade and is left in place (not auto-deleted) so its logs stay readable.
+4. Watch the api pod's logs during the rollout too — migrations also run there automatically
+   (`backend/src/prisma/sync-schema.ts`, redundantly-safe after step 3), same as every other
+   Invoicerr upgrade.
+5. `helm rollback invoicerr` reverts the Kubernetes objects to the previous revision if something
+   goes wrong — it does **not** revert a database migration or catalog purge that already ran; check
+   the release notes for the version you are rolling back from before relying on it for either.
 
 ## Operational notes from a real install
 

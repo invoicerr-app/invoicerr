@@ -25,6 +25,13 @@
  * see `b2g-routing.ts`'s own header), never a silent B2B fallback, so failing OPEN at send time is
  * itself the safety net; failing the whole boot on a transient DB blip would be strictly worse for a
  * feature this narrow.
+ *
+ * Calls `upsertB2gRoutingRules` with `purgeRemovedCountries: false` — see that function's own doc
+ * comment for the full "rolling deployment" account (mirrors `country-policy/boot-reseed.ts`'s
+ * identical reasoning): this runs in EVERY process, EVERY boot, so an old replica still running
+ * yesterday's shorter catalog must never be the thing that deletes a country a newer replica already
+ * upserted. A whole-country removal only ever happens through the deliberate, single-run
+ * `npm run catalogs:release` (`backend/scripts/release-catalogs.ts`).
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
@@ -38,7 +45,7 @@ export class B2gRoutingBootUpsertService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
-      const summary = await upsertB2gRoutingRules(prisma);
+      const summary = await upsertB2gRoutingRules(prisma, undefined, false);
       this.logger.log(
         `B2G routing rules upserted at boot: ${summary.upserted} upserted, ${summary.deleted} deleted (stale).`,
       );

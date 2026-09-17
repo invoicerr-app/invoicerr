@@ -109,8 +109,10 @@ describe('detectAndReseedCountryPolicyDrift', () => {
    * `purgeRemovedCountries` doc comment for why: an OLD replica restarting with YESTERDAY's catalog
    * during a rolling deployment would otherwise see a country a NEWER replica already seeded as
    * "removed" (simply absent from the stale catalog it happens to be running) and delete it out from
-   * under the new image. Only the deliberate, single-run reseed (`prisma/seed.ts`, `sync-schema.ts`)
-   * is allowed to actually purge a genuinely-removed country — see seed.spec.ts's own coverage of that.
+   * under the new image. Only the deliberate, single-run `npm run catalogs:release`
+   * (`scripts/release-catalogs.ts`) is allowed to actually purge a genuinely-removed country —
+   * `sync-schema.ts`'s own boot path passes `false` too now, same reasoning — see seed.spec.ts's own
+   * coverage of that.
    */
   it('a country REMOVED from the catalog entirely is detected as drift, reported, but NEVER purged through this automatic path', async () => {
     const table = new FakeCountryPolicyTable();

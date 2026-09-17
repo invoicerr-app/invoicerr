@@ -73,6 +73,26 @@ Prisma does not provide prebuilt binaries for that architecture — the applicat
 The repository's [`docker-compose.yml`](https://github.com/invoicerr-app/invoicerr/blob/main/docker-compose.yml) also includes a commented-out OIDC example, useful if you want single sign-on.
 :::
 
+## Updating
+
+`docker compose pull && docker compose up -d` picks up a new image and re-applies pending database
+migrations automatically on the container's next boot — same as any other restart.
+
+One thing that is **not** automatic: if a release actually **drops a country** from one of the
+document-action policy / identifier-requirements / B2G-routing catalogs, removing that country's
+database rows is a deliberate, separate step — every automatic boot path only ever adds/updates
+rows, on purpose (so a rolling multi-container setup, or simply restarting on a half-pulled image,
+can never delete a country a newer container already seeded). Run this once, after the new
+container is up, whenever a release note says a country was removed:
+
+```bash
+docker compose exec invoicerr sh -c "cd /usr/share/nginx/backend && npm run catalogs:release"
+```
+
+(swap `invoicerr` for your own service name if you renamed it in `docker-compose.yml`). It is
+idempotent — safe to run on every update regardless of whether that particular release actually
+removed a country.
+
 ## Environment variables
 
 These are set under the `invoicerr` service's `environment` key.

@@ -43,6 +43,15 @@ COPY --from=backend-builder /app/dist /usr/share/nginx/backend
 COPY --from=backend-builder /app/node_modules /usr/share/nginx/backend/node_modules
 COPY --from=backend-builder /app/package*.json /usr/share/nginx/backend/
 COPY --from=backend-builder /app/prisma /usr/share/nginx/backend/prisma
+# `backend/scripts/*.ts` (e.g. release-catalogs.ts, run as `npm run catalogs:release`) are raw
+# TypeScript, run via `tsx` — never compiled by `nest build` (outside tsconfig's own `include`).
+# `tsx` is present (a devDependency, but `npm ci` above installs it before NODE_ENV=production is
+# ever set, and the whole node_modules tree above is copied as-is). Their own imports reach into
+# `../src/...` with no file extension, same as `prisma/seed.ts` already does: the COPY just above
+# put `dist/src/**` (this stage's OWN compiled output) at `.../backend/src/**` in THIS image, so an
+# extensionless `../src/prisma/whatever` resolves to real, already-compiled `.js` here — nothing
+# extra to ship for that half, just this one line for the scripts themselves.
+COPY --from=backend-builder /app/scripts /usr/share/nginx/backend/scripts
 COPY --from=backend-builder /app/package.json /usr/share/nginx/
 COPY --from=backend-builder /app/prisma.config.ts /usr/share/nginx/backend
 COPY --from=backend-builder /app/prisma.config.ts /usr/share/nginx/backend/prisma

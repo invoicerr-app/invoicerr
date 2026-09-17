@@ -111,24 +111,29 @@ export async function seedCountryPolicies(
   /**
    * Whether to run the WHOLE-COUNTRY purge below at all — `true` by DEFAULT, preserving this
    * function's own "the file is the ongoing source of truth" contract byte for byte for its two
-   * DELIBERATE, single-writer callers (`prisma/seed.ts`'s `migrate dev`/`migrate reset`/`db seed`
-   * hook, and `sync-schema.ts`'s production API-role boot): a country genuinely dropped from
-   * `data/*.json` in a real release IS meant to lose its rows there.
+   * DELIBERATE, single-writer callers: `prisma/seed.ts`'s `migrate dev`/`migrate reset`/`db seed`
+   * hook (dev/CI only — never invoked by a production boot, see that file's own header), and
+   * `scripts/release-catalogs.ts`'s `npm run catalogs:release` (an explicit, single-run command an
+   * operator runs once per deployment that actually drops a country — see that script's own header).
+   * A country genuinely dropped from `data/*.json` in a real release IS meant to lose its rows, just
+   * never as a side effect of an ordinary boot.
    *
-   * `boot-reseed.ts#detectAndReseedCountryPolicyDrift` — the ONLINE, per-process-boot correction that
-   * runs in EVERY replica, API and worker alike, on EVERY boot — passes `false`. That path has no
-   * business purging a whole country at all: during a rolling deployment, an OLD replica (still
-   * running yesterday's image, yesterday's catalog) restarting on its own liveness probe would
-   * otherwise see a country the NEW replica already seeded as "removed" (simply absent from the OLD
-   * catalog it happens to be running) and DELETE those rows out from under the new image — 403s on
-   * every action for that country until the next boot of a new-image replica. An advisory lock would
-   * not close this hole: the old replica is not racing a concurrent writer, it is running ALONE with a
-   * stale catalog and would, correctly per its OWN view, decide the newer country is stale. Only
-   * refusing to purge from the automatic, per-boot path — leaving a REAL country removal to the
-   * deliberate, single-run reseed that ships with the release that actually removes it — closes it.
-   * `boot-reseed.service.ts`'s own drift-detection LOG still names any such "removed" country, so a
-   * genuine, intended removal is still visible, just never silently acted on by a replica that might
-   * be the stale one.
+   * EVERY automatic boot path — `sync-schema.ts`'s production API-role boot included, not just
+   * `boot-reseed.ts#detectAndReseedCountryPolicyDrift` (the ONLINE, per-process-boot correction that
+   * runs in EVERY replica, API and worker alike, on EVERY boot) — passes `false`. Neither has any
+   * business purging a whole country: during a rolling deployment, an OLD replica (still running
+   * yesterday's image, yesterday's catalog) restarting on its own liveness probe, OR a single
+   * self-hosted instance restarting on a freshly pulled image, would otherwise see a country the
+   * NEWER catalog already seeded (or is about to, from a sibling replica) as "removed" (simply absent
+   * from the catalog IT happens to be running) and DELETE those rows out from under the newer image —
+   * 403s on every action for that country until the next boot of a new-image replica. An advisory
+   * lock would not close this hole: the stale process is not racing a concurrent writer, it is
+   * running ALONE with a stale catalog and would, correctly per its OWN view, decide the newer
+   * country is stale. Only refusing to purge from every automatic path — leaving a REAL country
+   * removal to the deliberate, single-run `catalogs:release` command that ships with the release that
+   * actually removes it — closes it. `boot-reseed.service.ts`'s own drift-detection LOG still names
+   * any such "removed" country, so a genuine, intended removal is still visible, just never silently
+   * acted on by a process that might be the stale one.
    */
   purgeRemovedCountries = true,
 ): Promise<CountryPolicySeedSummary> {

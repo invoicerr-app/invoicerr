@@ -113,11 +113,13 @@ export async function seedCountryIdentifierRequirements(
    * Same flag, same default, same reasoning as `country-policy/seed.ts`'s own
    * `seedCountryPolicies` parameter of the identical name — see that function's own doc comment for
    * the full "rolling deployment" account; it applies here verbatim, table name swapped.
-   * `true` by default for this function's two deliberate, single-writer callers (`prisma/seed.ts`,
-   * `sync-schema.ts`'s production API-role boot); `boot-reseed.ts#detectAndReseedCountryIdentifierRequirementsDrift`
-   * — the ONLINE, per-process-boot correction running in EVERY replica on EVERY boot — passes `false`,
-   * so a replica still running yesterday's (shorter) catalog can never delete a country a newer
-   * replica already seeded.
+   * `true` by default for this function's two deliberate, single-writer callers: `prisma/seed.ts`
+   * (dev/CI only) and `scripts/release-catalogs.ts`'s `npm run catalogs:release` (an explicit,
+   * single-run command, never automatic). EVERY automatic boot path passes `false` instead —
+   * `sync-schema.ts`'s production API-role boot AND
+   * `boot-reseed.ts#detectAndReseedCountryIdentifierRequirementsDrift` (the ONLINE, per-process-boot
+   * correction running in EVERY replica on EVERY boot) alike — so neither a stale replica nor an
+   * ordinary self-hosted restart can ever delete a country a newer catalog already seeded.
    */
   purgeRemovedCountries = true,
 ): Promise<CountryIdentifierRequirementsSeedSummary> {
