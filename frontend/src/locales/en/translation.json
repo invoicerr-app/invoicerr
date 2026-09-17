@@ -3093,7 +3093,7 @@
       "empty": "No document type is available for this company's country."
     },
     "company": {
-      "plan": "Entreprise",
+      "plan": "Company",
       "switcherLabel": "Your companies",
       "createNew": "Create new company",
       "manage": "Manage company"
