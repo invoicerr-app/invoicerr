@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApiError } from "@/hooks/use-api-query"
 import { useAcceptLegal, useLegalDocuments, useLegalStatus } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
@@ -59,8 +60,18 @@ export default function LegalAcceptPage() {
     })
   }
 
+  // `defaultValue` only matters once `pendingDocs` is non-empty; Radix keeps whatever value was
+  // current if that document later drops out of the list (e.g. the mutation resolves mid-render),
+  // which is harmless here since a successful accept navigates away immediately.
+  const firstPendingSlug = pendingDocs[0]?.slug
+
   return (
-    <PublicPageShell width="narrow" dataCy="legal-accept-page">
+    // `default` (not `narrow`, which `[slug].tsx` and the signature page use for a single centred
+    // card): this screen can show several full documents at once, and `narrow`'s ~28rem column made
+    // it read as a mobile view even at desktop widths — a lone card floating in a sea of empty page.
+    // The document body itself still caps its own measure below, so the wider column only gives the
+    // header/tabs/button room to breathe, not longer text lines.
+    <PublicPageShell width="default" dataCy="legal-accept-page">
       <div className="space-y-6 pb-16">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">
@@ -75,32 +86,53 @@ export default function LegalAcceptPage() {
         </div>
 
         {loading && (
-          <div className="space-y-3" data-cy="legal-accept-loading">
+          <div className="max-w-2xl space-y-3" data-cy="legal-accept-loading">
             <Skeleton className="h-5 w-1/3" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-5/6" />
           </div>
         )}
 
-        {!loading &&
-          pendingDocs.map((doc) => (
-            <section key={doc.slug} data-cy={`legal-accept-document-${doc.slug}`}>
-              <h2 className="font-heading text-lg font-semibold tracking-tight">{doc.title}</h2>
-              <p className="text-xs text-muted-foreground">
-                {t("legal.document.version", "Version {{version}} — effective {{date}}", {
-                  version: doc.version,
-                  date: doc.effectiveDate,
-                })}
-              </p>
-              <LegalMarkdown
-                content={doc.content}
-                className={`max-h-64 overflow-y-auto rounded-md border p-4 ${LEGAL_CONTENT_CLASSNAME}`}
-              />
-            </section>
-          ))}
+        {/* One document renders on its own, no tab strip — the strip only earns its place (and its
+            up-front "which one am I reading" decision) once there is more than one to choose from. */}
+        {!loading && pendingDocs.length > 0 && (
+          <Tabs defaultValue={firstPendingSlug}>
+            {pendingDocs.length > 1 && (
+              <TabsList
+                aria-label={t("legal.accept.documentsTabsLabel", "Documents to review")}
+                data-cy="legal-accept-tabs"
+              >
+                {pendingDocs.map((doc) => (
+                  <TabsTrigger key={doc.slug} value={doc.slug} data-cy={`legal-accept-tab-${doc.slug}`}>
+                    {doc.title}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            )}
+            {pendingDocs.map((doc) => (
+              <TabsContent key={doc.slug} value={doc.slug} data-cy={`legal-accept-document-${doc.slug}`}>
+                {/* `max-w-2xl` caps the reading measure at a comfortable ~75 characters per line even
+                    though the page column above is wider — a long-form legal text stretched across
+                    the full column would be harder to read, not easier. */}
+                <div className="max-w-2xl">
+                  {pendingDocs.length === 1 && (
+                    <h2 className="font-heading text-lg font-semibold tracking-tight">{doc.title}</h2>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {t("legal.document.version", "Version {{version}} — effective {{date}}", {
+                      version: doc.version,
+                      date: doc.effectiveDate,
+                    })}
+                  </p>
+                  <LegalMarkdown content={doc.content} className={`mt-4 ${LEGAL_CONTENT_CLASSNAME}`} />
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
 
         <Button
-          className="w-full"
+          className="w-full max-w-2xl"
           onClick={handleAccept}
           loading={acceptMutation.isPending}
           disabled={loading}

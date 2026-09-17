@@ -4776,6 +4776,7 @@
     "accept": {
       "title": "Updated legal terms",
       "description": "We've updated the following document(s). Please review them before continuing.",
+      "documentsTabsLabel": "Documents to review",
       "button": "I accept — continue",
       "error": "Could not save your acceptance — please try again."
     }

@@ -298,7 +298,11 @@ export default function Settings() {
   const Content = CONTENT[currentTab]
 
   return (
-    <div className="flex h-full flex-col lg:flex-row">
+    // `min-h-0` here (and on `aside`/`main` below) overrides flexbox's default `min-height: auto`,
+    // which otherwise floors a flex item's height at its own content size — without it, a tall tab
+    // (Company, Seats) forced this whole row taller than the viewport, so it was the OUTER app shell
+    // that ended up scrolling as one piece (sidebar dragged along with it) instead of `main` alone.
+    <div className="flex h-full min-h-0 flex-col lg:flex-row">
       {/* Below `lg` the rail becomes a grouped picker: one control, always in reach, instead of a
           21-entry list pushing the content a screen down. */}
       <div className="border-b px-4 py-3 lg:hidden">
@@ -347,12 +351,10 @@ export default function Settings() {
       {/* The desktop rail: real links (middle-click, keyboard, screen reader all work), grouped
           under small-caps labels, the active one on the accent ground rather than a filled block —
           it is a "you are here", not a button to press. */}
-      <aside className="hidden w-60 shrink-0 border-r bg-sidebar/60 lg:block">
-        <nav
-          aria-label={t("settings.common.navLabel")}
-          className="sticky top-0 px-3 py-5"
-          data-cy="settings-nav"
-        >
+      {/* Its own `overflow-y-auto`, independent of `main`'s below: a sidebar this tall only ever
+          scrolls on a very short screen, but it must never be main's overflow dragging it along. */}
+      <aside className="hidden w-60 min-h-0 shrink-0 overflow-y-auto border-r bg-sidebar/60 lg:block">
+        <nav aria-label={t("settings.common.navLabel")} className="px-3 py-5" data-cy="settings-nav">
           {groups.map((group) => (
             <div key={group.id} className="mb-5 last:mb-0">
               <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -393,7 +395,10 @@ export default function Settings() {
         </nav>
       </aside>
 
-      <main className="flex-1 overflow-auto px-4 py-6 sm:px-6" data-cy={`settings-tab-${currentTab}`}>
+      <main
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-6"
+        data-cy={`settings-tab-${currentTab}`}
+      >
         <div className="mx-auto max-w-4xl">
           <Content />
         </div>
