@@ -228,6 +228,35 @@ Cypress.Commands.add('pickToday', (triggerSelector: string) => {
 });
 
 /**
+ * Picks an explicit date through a `DatePicker`'s own month/year dropdowns
+ * (`captionLayout="dropdown"`) instead of repeated `.rdp-button_previous`/`_next` clicks — the only
+ * practical way to reach a date a year or more away. Selects the YEAR first: react-day-picker
+ * regenerates the month dropdown's options for whatever year is currently displayed, so picking the
+ * month before the year would pick from the wrong year's list. Both `select()` calls need
+ * `force: true` — the dropdown is a real, native `<select>` but react-day-picker renders it
+ * `opacity-0`, absolutely positioned over its own formatted caption text, so Cypress' actionability
+ * check would otherwise refuse it as hidden.
+ * @example cy.pickDate('[data-cy="document-field-dueDate-input"]', '2027-03-15')
+ */
+Cypress.Commands.add('pickDate', (triggerSelector: string, iso: string) => {
+    const [year, month, day] = iso.split('-').map(Number);
+    cy.openDatePicker(triggerSelector);
+    cy.get('select[aria-label="Choose the Year"]').select(String(year), { force: true });
+    cy.get('select[aria-label="Choose the Month"]').select(String(month - 1), { force: true });
+    // Never ambiguous with an outside-month day: those only ever fill in the first/last week's
+    // leftover cells (days 1-6 or the tail past a month's last day), so a mid-month day like the
+    // 15th used by the caller above is unique in the grid without filtering by month.
+    cy.get('[data-day]').contains(new RegExp(`^${day}$`)).first().click({ force: true });
+    cy.get('[data-cy="date-picker-today"]').should('not.exist');
+    // Same fixed wait `pickToday` above carries after its own close click, for the identical race:
+    // the closed popover's `DismissableLayer` detaches its outside-pointerdown listener in a passive
+    // effect's cleanup, not synchronously with `setOpen(false)` — a caller's very next trigger click
+    // (e.g. the currency `SearchSelect` right after a due date, in the wizard's Details step) can
+    // still be swallowed by that stale listener if it fires before the cleanup flushes.
+    cy.wait(50);
+});
+
+/**
  * Opens a Radix `Select` trigger and clicks one of its options, retrying the trigger click
  * (bounded) if the option never becomes visible — the same open-side race `openDatePicker` and
  * `openDocumentRowMenu` above guard against, hit here when the trigger sits right after a "more"

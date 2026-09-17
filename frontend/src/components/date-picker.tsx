@@ -44,6 +44,19 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
   // feel a calendar is expected to have) after a date was chosen.
   const [open, setOpen] = useState(false)
 
+  // `captionLayout="dropdown"` without an explicit `startMonth`/`endMonth` makes react-day-picker
+  // fall back to its own default: 100 years back, but only up to 31 Dec of THIS year (see
+  // `getNavMonths` in its source) -- so the year <select> simply has no option past the current
+  // year and a due date next year can't be picked from the calendar at all. An invoicing app needs
+  // both directions: due dates get pushed a year or more out, and a founding/issue date can be
+  // backfilled from years ago. Widen the window, and widen it again around whatever date is
+  // already selected so an out-of-range value (an old `foundedAt`, say) still lands on a
+  // navigable year instead of silently clamping the calendar's display.
+  const currentYear = new Date().getFullYear()
+  const selectedYear = field.value?.getFullYear()
+  const startYear = selectedYear && selectedYear < currentYear - 10 ? selectedYear : currentYear - 10
+  const endYear = selectedYear && selectedYear > currentYear + 10 ? selectedYear : currentYear + 10
+
   const trigger = (
     <PopoverTrigger asChild>
       <Button
@@ -93,6 +106,8 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
             setOpen(false)
           }}
           captionLayout="dropdown"
+          startMonth={new Date(startYear, 0, 1)}
+          endMonth={new Date(endYear, 11, 31)}
           showOutsideDays={field.showOutsideDays || true}
         />
         <div className="flex justify-center border-t p-2">

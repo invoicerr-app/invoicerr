@@ -95,6 +95,15 @@ declare namespace Cypress {
         openDatePicker(triggerSelector: string): Chainable<void>
 
         /**
+         * Picks an explicit date through a `DatePicker`'s month/year dropdowns
+         * (`captionLayout="dropdown"`) — the only practical way to reach a date a year or more
+         * away, unlike `.rdp-button_previous`/`_next` clicks. See the implementation for why the
+         * year is selected before the month.
+         * @example cy.pickDate('[data-cy="document-field-dueDate-input"]', '2027-03-15')
+         */
+        pickDate(triggerSelector: string, iso: string): Chainable<void>
+
+        /**
          * Opens a Radix `Select` trigger and clicks one of its options, retrying the trigger click
          * (bounded) if the option never becomes visible — for a trigger that sits right after a
          * "more" menu closes, the same open-side race `openDatePicker` guards against on the
