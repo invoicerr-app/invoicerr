@@ -1,7 +1,11 @@
+import { TriangleAlert } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Navigate, Outlet, useLocation } from "react-router"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
+import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onboarding"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
@@ -32,6 +36,34 @@ const PageHeaderActions = () => {
   if (!actions) return null
 
   return <div className="flex items-center gap-2 ml-auto">{actions}</div>
+}
+
+/**
+ * Rendered in place of the whole app shell when the no-free-seat gate's own query (`useSeats` below)
+ * settles into a genuine error (a transient 500, a network drop) rather than the 404 that means "no
+ * billing here at all". Blocking on `null` forever with nothing on screen left a member with no way
+ * to tell "still loading" from "broken", and no recourse short of a manual page reload — this gives
+ * them the same "what happened, try again" shape every other failed fetch in the app already gets.
+ */
+const SeatCheckErrorScreen = ({ onRetry }: { onRetry: () => void }) => {
+  const { t } = useTranslation()
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+      <EmptyState
+        icon={TriangleAlert}
+        tone="destructive"
+        title={t("seatGate.errorTitle")}
+        description={t("seatGate.errorDescription")}
+        action={
+          <Button type="button" variant="outline" onClick={onRetry} data-cy="seat-check-error-retry">
+            {t("common.emptyState.retry")}
+          </Button>
+        }
+        data-cy="seat-check-error-screen"
+      />
+    </div>
+  )
 }
 
 const AuthenticatedLayout = () => {
@@ -110,6 +142,7 @@ const Layout = () => {
     isPending: seatsPending,
     isError: seatsErrored,
     error: seatsError,
+    refetch: refetchSeats,
   } = useSeats(!!session)
 
   if (isPending) {
@@ -168,9 +201,17 @@ const Layout = () => {
   // over-capacity member through on nothing more than a blip. Blocking here has no write-side stakes
   // either way (`billing/seat-gate.ts` enforces the real limit server-side, unconditionally) — this
   // is purely about not showing the product screen to someone the product itself would still refuse.
+  //
+  // A genuine (settled) error gets its own visible retry screen below rather than joining the
+  // `null` branch: `null` is fine for the brief in-flight window (nothing to show yet), but an ERROR
+  // is not "still loading" — rendering nothing forever left a member unable to tell the two apart,
+  // with no way to recover short of a manual page reload.
   const seatsRouteMissing = seatsErrored && seatsError instanceof ApiError && seatsError.status === 404
-  if (seatsPending || (seatsErrored && !seatsRouteMissing)) {
+  if (seatsPending) {
     return null
+  }
+  if (seatsErrored && !seatsRouteMissing) {
+    return <SeatCheckErrorScreen onRetry={() => refetchSeats()} />
   }
 
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id

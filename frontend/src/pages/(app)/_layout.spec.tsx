@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -111,10 +111,27 @@ describe("(app)/_layout — no-free-seat gate", () => {
       seatsResult({ isError: true, error: new ApiError(500, "Internal Server Error") }),
     )
 
-    const { container } = renderLayout()
+    renderLayout()
 
     expect(screen.queryByTestId("dashboard-content")).not.toBeInTheDocument()
-    expect(container).toBeEmptyDOMElement()
+  })
+
+  it("shows a visible retry screen (not a blank shell) once a genuine seats-query error settles", () => {
+    mockedUseSession.mockReturnValue({ data: SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    const refetch = vi.fn()
+    mockedUseSeats.mockReturnValue(
+      seatsResult({ isError: true, error: new ApiError(500, "Internal Server Error"), refetch }),
+    )
+
+    renderLayout()
+
+    expect(screen.getByTestId("seat-check-error-screen")).toBeVisible()
+    const retryButton = screen.getByTestId("seat-check-error-retry")
+    expect(retryButton).toBeVisible()
+
+    fireEvent.click(retryButton)
+    expect(refetch).toHaveBeenCalledTimes(1)
   })
 
   it("a 404 (self-hosted, no billing at all) is treated as 'no seat gate', not as an error to block on", () => {

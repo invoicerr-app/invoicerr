@@ -2282,6 +2282,8 @@
       "messages": {
         "otpSentSuccess": "Verification code sent to your email",
         "otpSentError": "Failed to send verification code",
+        "otpLockedTitle": "Locked out",
+        "otpLockedDescription": "Too many failed attempts. This action is locked for your company and can no longer be confirmed by a one-time code.",
         "actionSuccess": "Action completed successfully",
         "actionError": "Failed to complete action",
         "actionFailed": "Action failed",
@@ -4772,7 +4774,9 @@
     "title": "Waiting for a seat",
     "descriptionWithOwner": "There's no free seat for you right now. Ask {{ownerName}} to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
     "description": "There's no free seat for you right now. Ask your company's owner to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "errorTitle": "Couldn't check your seat",
+    "errorDescription": "We couldn't confirm your access to this company right now. This is usually temporary — try again in a moment."
   },
   "pwaInstall": {
     "dismiss": "Dismiss",

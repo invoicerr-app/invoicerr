@@ -26,13 +26,26 @@ import { SettingsPage, SettingsSection } from "./settings-section"
  *  re-types (translating it would make the very act of matching it depend on the viewer's locale). */
 const RESET_APP_KEYWORD = "RESET"
 
+/** The confirm step's own OTP failures stay deliberately generic no matter the cause (wrong code,
+ *  expired, or already locked — the backend folds all three into the same message on purpose, so a
+ *  caller here can never narrow down a guess). The ONE outcome the backend does surface distinctly is
+ *  the permanent lockout on the REQUEST step itself (five failed confirmations, for good) — matched on
+ *  the response text since that refusal carries no separate error code, only this one stable phrase. */
+function isOtpLockedError(error: unknown): boolean {
+  return error instanceof Error && /locked/i.test(error.message)
+}
+
 export default function DangerZoneSettings() {
   const { t } = useTranslation()
   const [currentAction, setCurrentAction] = useState<"app" | "all" | null>(null)
   const [otp, setOtp] = useState("")
   const [confirmText, setConfirmText] = useState("")
-  const { trigger: sendOTP, loading: isLoadingOtp } = usePost("/api/danger/otp")
-  const { trigger: sendAction } = usePost(`/api/danger/reset/${currentAction}?otp=${otp}`)
+  const { trigger: sendOTP, loading: isLoadingOtp, lastError: lastOtpError } = usePost("/api/danger/otp")
+  // The OTP travels in the request BODY only, via `sendAction({ otp })` below — never appended here
+  // as a query string. A confirmation code is a bearer secret for the duration of its own window,
+  // and a query string lands in nginx access logs and browser history exactly like a password would
+  // (see `danger.controller.ts`'s own comment on its `@Body` for the backend side of this).
+  const { trigger: sendAction } = usePost(`/api/danger/reset/${currentAction}`)
   const [otpModalOpen, setOtpModalOpen] = useState(false)
 
   const navigate = useNavigate()
@@ -56,10 +69,23 @@ export default function DangerZoneSettings() {
     setOtp("")
     setConfirmText("")
     sendOTP()
-      .then(() => {
+      .then((result) => {
+        // `usePost`'s own `trigger` never rejects — it swallows HTTP/network failures and resolves
+        // `null`, stashing the real error on `lastError` instead (see that hook's own doc comment).
+        // Re-throwing here routes a failed request into the `.catch` below, the same way
+        // `executeReset` already has to for the confirm step.
+        if (!result) {
+          throw lastOtpError.current ?? new Error(t("settings.dangerZone.messages.unexpectedError"))
+        }
         toast.success(t("settings.dangerZone.messages.otpSentSuccess"))
       })
       .catch((error) => {
+        if (isOtpLockedError(error)) {
+          toast.error(t("settings.dangerZone.messages.otpLockedTitle"), {
+            description: t("settings.dangerZone.messages.otpLockedDescription"),
+          })
+          return
+        }
         toast.error(t("settings.dangerZone.messages.otpSentError"), {
           description:
             error instanceof Error ? error.message : t("settings.dangerZone.messages.unexpectedError"),
