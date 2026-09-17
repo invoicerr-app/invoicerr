@@ -46,3 +46,6 @@ e2e/demo-videos/
 /.env
 /.env.*
 !/.env.example
+
+# Launch video workspace (generated, not part of the product)
+brag-output/
