@@ -231,20 +231,37 @@ export function buildDeletionWarningEmail(params: BillingWarningEmailParams): {
 
 /**
  * "Our legal documents have changed" — sent to EVERY user of the instance (not just OWNERs, unlike
- * the two warnings above) the first time `legal-release-boot.service.ts` notices a document's text
- * hash moved past a release it had already recorded. Same posture as the billing warnings: instance
- * mail (`MailService#sendMail`), always English, plain function rather than a `SystemEmailFamily` —
- * this is instance-authored content about a legal text a company has no business rewording.
+ * the two warnings above) once per boot pass in which `legal-release-notify.ts` finds at least one
+ * document whose text hash moved past a release it had already recorded. Same posture as the billing
+ * warnings: instance mail (`MailService#sendMail`), always English, plain function rather than a
+ * `SystemEmailFamily` — this is instance-authored content about legal text a company has no business
+ * rewording.
+ *
+ * ONE call = ONE email, no matter how many documents changed: a deploy that ships several document
+ * edits at once (a common shape — a legal review round tends to touch the Terms, the Privacy Policy
+ * and the Legal Notice together) still means a user reads exactly one message, listing every one of
+ * them. The caller is what enforces this by collecting every changed document before calling this
+ * function once per user, rather than calling it once per document.
  */
 export interface LegalDocumentChangedEmailParams {
   appUrl: string;
-  /** The document's front-matter `title` (e.g. "Terms of Service"), not its slug. */
-  documentTitle: string;
-  /** The document's front-matter `version` — carried here purely for display, the same "kept for
-   *  display only" role it has on `LegalAcceptance` itself since decision 2026-09-17. */
-  version: string;
-  /** The document's slug — used to link to `/legal/<slug>` on the frontend. */
-  slug: string;
+  /** Every document this user has not yet been told about, in the order they should be listed —
+   *  never empty (the caller only builds this email once it has at least one). */
+  documents: Array<{ title: string; version: string; slug: string }>;
+  /** Whether at least one of `documents` is one the sign-in interstitial will actually block on
+   *  (`legal-documents.ts#REQUIRED_ACCEPTANCE_SLUGS`) — the other three are reference material nobody
+   *  is forced to re-accept, so a batch containing only those gets no call to action, just the reading
+   *  links. */
+  requiresAcceptance: boolean;
+}
+
+/** "X", "X and Y", or "X, Y and N more" — a subject line and an opening sentence both need a compact
+ *  name for an arbitrary-length list of titles, so this is shared rather than written twice. */
+function describeDocumentTitles(documents: Array<{ title: string }>): string {
+  if (documents.length === 1) return documents[0].title;
+  if (documents.length === 2) return `${documents[0].title} and ${documents[1].title}`;
+  const [first, second, ...rest] = documents;
+  return `${first.title}, ${second.title} and ${rest.length} more`;
 }
 
 export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmailParams): {
@@ -252,24 +269,47 @@ export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmail
   text: string;
   html: string;
 } {
-  const { appUrl, documentTitle, version, slug } = params;
-  const documentUrl = `${appUrl}/legal/${slug}`;
+  const { appUrl, documents, requiresAcceptance } = params;
+  const plural = documents.length > 1;
+  const subject = plural
+    ? `Updated legal documents: ${describeDocumentTitles(documents)}`
+    : `Updated legal document: ${documents[0].title}`;
+
+  const listText = documents
+    .map((d) => `- ${d.title} (version ${d.version}): ${appUrl}/legal/${d.slug}`)
+    .join('\n');
+  const listHtml = documents
+    .map((d) => `<li><a href="${appUrl}/legal/${d.slug}">${d.title}</a> — version ${d.version}</li>`)
+    .join('');
+
+  // The accept screen is ONE link for the whole batch, never one per document: re-acceptance is a
+  // single gate (`REQUIRED_ACCEPTANCE_SLUGS`, checked as a set) a user clears in one visit regardless
+  // of how many of the required documents moved.
+  const acceptUrl = `${appUrl}/legal/accept`;
+  const acceptText = requiresAcceptance
+    ? `\nYou will be asked to accept the changes the next time you sign in:\n${acceptUrl}\n`
+    : '';
+  const acceptHtml = requiresAcceptance
+    ? '<p>You will be asked to accept the changes the next time you sign in:</p>' +
+      `<p><a href="${acceptUrl}" style="background: #007bff; color: white; padding: 12px 24px; ` +
+      'text-decoration: none; border-radius: 6px; display: inline-block;">Review and accept</a></p>'
+    : '';
+
   return {
-    subject: `Our legal documents have changed: ${documentTitle}`,
+    subject,
     text:
       'Hello,\n\n' +
-      `We have updated our "${documentTitle}" (version ${version}). You can read the new version here:\n` +
-      `${documentUrl}\n\n` +
-      'You will be asked to accept it the next time you sign in.\n\n' +
-      'Best regards,\nThe Invoicerr Team\n\n' +
+      `We have updated the following legal document${plural ? 's' : ''}. You can read the new ` +
+      `version${plural ? 's' : ''} here:\n\n` +
+      `${listText}\n` +
+      acceptText +
+      '\nBest regards,\nThe Invoicerr Team\n\n' +
       `This email was sent from ${appUrl}`,
     html:
-      '<h2>Our legal documents have changed</h2>' +
-      `<p>Hello,</p><p>We have updated our <strong>${documentTitle}</strong> (version ${version}). ` +
-      'You can read the new version here:</p>' +
-      `<p><a href="${documentUrl}" style="background: #007bff; color: white; padding: 12px 24px; ` +
-      `text-decoration: none; border-radius: 6px; display: inline-block;">Read ${documentTitle}</a></p>` +
-      '<p>You will be asked to accept it the next time you sign in.</p>' +
+      `<h2>Updated legal document${plural ? 's' : ''}</h2>` +
+      `<p>Hello,</p><p>We have updated the following legal document${plural ? 's' : ''}:</p>` +
+      `<ul>${listHtml}</ul>` +
+      acceptHtml +
       '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
       `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
   };

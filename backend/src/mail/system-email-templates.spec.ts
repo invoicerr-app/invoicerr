@@ -164,28 +164,75 @@ describe('OWNER warning emails (J-7/J-1 before the zip, and before the permanent
 });
 
 describe('buildLegalDocumentChangedEmail', () => {
-  it('names the document, its version, and links to /legal/<slug>', () => {
+  it('names the document, its version, and links to /legal/<slug> — singular subject for one document', () => {
     const email = buildLegalDocumentChangedEmail({
       appUrl: APP_URL,
-      documentTitle: 'Terms of Service',
-      version: '2026-09-17',
-      slug: 'terms-of-service',
+      documents: [{ title: 'Terms of Service', version: '2026-09-17', slug: 'terms-of-service' }],
+      requiresAcceptance: true,
     });
 
-    expect(email.subject).toContain('Terms of Service');
+    expect(email.subject).toBe('Updated legal document: Terms of Service');
     expect(email.text).toContain('Terms of Service');
     expect(email.text).toContain('2026-09-17');
     expect(email.text).toContain(`${APP_URL}/legal/terms-of-service`);
     expect(email.html).toContain(`href="${APP_URL}/legal/terms-of-service"`);
   });
 
-  it('mentions that re-acceptance will be asked for at the next sign-in', () => {
+  it('mentions that re-acceptance will be asked for at the next sign-in, and links to /legal/accept, when required', () => {
     const email = buildLegalDocumentChangedEmail({
       appUrl: APP_URL,
-      documentTitle: 'Privacy Policy',
-      version: '2026-09-17',
-      slug: 'privacy-policy',
+      documents: [{ title: 'Privacy Policy', version: '2026-09-17', slug: 'privacy-policy' }],
+      requiresAcceptance: true,
     });
     expect(email.text.toLowerCase()).toContain('next time you sign in');
+    expect(email.text).toContain(`${APP_URL}/legal/accept`);
+    expect(email.html).toContain(`href="${APP_URL}/legal/accept"`);
+  });
+
+  it('carries no call to action when none of the changed documents require re-acceptance', () => {
+    const email = buildLegalDocumentChangedEmail({
+      appUrl: APP_URL,
+      documents: [{ title: 'Legal Notice', version: '2026-09-17', slug: 'legal-notice' }],
+      requiresAcceptance: false,
+    });
+    expect(email.text).not.toContain('/legal/accept');
+    expect(email.html).not.toContain('/legal/accept');
+  });
+
+  /** The actual bug this shape exists to prevent: several documents changed in the same pass must
+   *  produce ONE email listing all of them, with a plural subject naming the first two and how many
+   *  more, never a caller having to build one of these per document. */
+  it('lists every document and uses a plural, summarized subject when several changed at once', () => {
+    const email = buildLegalDocumentChangedEmail({
+      appUrl: APP_URL,
+      documents: [
+        { title: 'Privacy Policy', version: '2026-09-17', slug: 'privacy-policy' },
+        { title: 'Legal Notice', version: '2026-09-17', slug: 'legal-notice' },
+        { title: 'Terms of Service', version: '2026-09-17', slug: 'terms-of-service' },
+        { title: 'Cookies & Acceptable Use', version: '2026-09-17', slug: 'cookies-acceptable-use' },
+      ],
+      requiresAcceptance: true,
+    });
+
+    expect(email.subject).toBe('Updated legal documents: Privacy Policy, Legal Notice and 2 more');
+    expect(email.text).toContain('Privacy Policy');
+    expect(email.text).toContain('Legal Notice');
+    expect(email.text).toContain('Terms of Service');
+    expect(email.text).toContain('Cookies & Acceptable Use');
+    expect(email.html).toContain(`href="${APP_URL}/legal/privacy-policy"`);
+    expect(email.html).toContain(`href="${APP_URL}/legal/cookies-acceptable-use"`);
+  });
+
+  it('uses a two-item subject with no "and N more" when exactly two documents changed', () => {
+    const email = buildLegalDocumentChangedEmail({
+      appUrl: APP_URL,
+      documents: [
+        { title: 'Privacy Policy', version: '2026-09-17', slug: 'privacy-policy' },
+        { title: 'Legal Notice', version: '2026-09-17', slug: 'legal-notice' },
+      ],
+      requiresAcceptance: false,
+    });
+
+    expect(email.subject).toBe('Updated legal documents: Privacy Policy and Legal Notice');
   });
 });
