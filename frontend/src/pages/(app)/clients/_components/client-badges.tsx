@@ -9,15 +9,14 @@ import type { Client } from "@/types"
  *  "view" dialog can import it without a circular dependency between the two. */
 export function ClientBadges({ client }: { client: Client }) {
   const { t } = useTranslation()
+  // The email is optional now — a client without one falls back to its own id, the same rule
+  // index.tsx's own row keys use, so these selectors never render the literal string "undefined".
+  const rowKey = client.contactEmail?.trim() || client.id
   return (
     <>
       <Badge
         variant={client.isActive ? "success" : "secondary"}
-        data-cy={
-          client.isActive
-            ? `client-status-active-${client.contactEmail}`
-            : `client-status-inactive-${client.contactEmail}`
-        }
+        data-cy={client.isActive ? `client-status-active-${rowKey}` : `client-status-inactive-${rowKey}`}
       >
         {client.isActive ? t("clients.list.status.active") : t("clients.list.status.inactive")}
       </Badge>
@@ -29,7 +28,7 @@ export function ClientBadges({ client }: { client: Client }) {
       {client.kind === "GOVERNMENT" && <Badge variant="outline">{t("clients.list.kind.government")}</Badge>}
       {/* The "supplier" role, visible without opening the record. */}
       {client.isSupplier && (
-        <Badge variant="secondary" data-cy={`client-role-supplier-${client.contactEmail}`}>
+        <Badge variant="secondary" data-cy={`client-role-supplier-${rowKey}`}>
           {t("clients.list.role.supplier")}
         </Badge>
       )}

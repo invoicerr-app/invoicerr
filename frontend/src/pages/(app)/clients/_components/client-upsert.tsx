@@ -13,20 +13,23 @@ import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { DocumentField } from "@/components/documents/document-field"
-import { useResolvedCompanyCustomFields } from "@/hooks/queries"
+import { useClientDuplicates, useResolvedCompanyCustomFields } from "@/hooks/queries"
 
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
-import { Loader2, Search } from "lucide-react"
+import { Loader2, Search, TriangleAlert } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
+import { Link } from "react-router"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { type IdentifierRequirement, useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
 import { type B2gRoutingRule, useB2gRoutingRule } from "@/hooks/use-b2g-routing"
 import { useTranslation } from "react-i18next"
@@ -639,31 +642,90 @@ function FiscalStep({
 }
 
 /**
+ * Non-blocking "this might already exist" hint — the owner explicitly wants genuine duplicates
+ * allowed (a franchise's two branches on one inbox, a common name in unrelated companies), so this
+ * only ever INFORMS: it never disables Continue/Create, and its own query is `enabled: false` (see
+ * `useClientDuplicates`) until at least one of its two criteria — email, or name+country together —
+ * has something to check. Debounced so it fires once typing pauses, not once per keystroke.
+ * `excludeId` is the client being EDITED, so an unchanged record never flags itself.
+ */
+function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues>; excludeId?: string }) {
+  const { t } = useTranslation()
+  const emailRaw = form.watch("contactEmail" as never) as unknown as string | undefined
+  const nameRaw = form.watch("name" as never) as unknown as string | undefined
+  const countryRaw = form.watch("country" as never) as unknown as string | undefined
+
+  const email = useDebouncedValue(emailRaw)
+  const name = useDebouncedValue(nameRaw)
+  const country = useDebouncedValue(countryRaw)
+
+  const { data: matches } = useClientDuplicates({ email, name, country, excludeId })
+  if (!matches || matches.length === 0) return null
+
+  return (
+    <div className="space-y-2" data-cy="client-duplicate-warning">
+      {matches.map((match) => (
+        <Alert key={match.id} variant="warning" data-cy={`client-duplicate-warning-${match.id}`}>
+          <TriangleAlert />
+          <AlertDescription>
+            <span>
+              {match.matchedOn.includes("email")
+                ? t("clients.upsert.duplicates.email", "A client with this email already exists: {{name}}.", {
+                    name: match.name,
+                  })
+                : t(
+                    "clients.upsert.duplicates.nameCountry",
+                    "A client with this name already exists in {{country}}: {{name}}.",
+                    { name: match.name, country: match.country },
+                  )}
+            </span>
+            <Link
+              to={`/clients?view=${match.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium underline underline-offset-2"
+              data-cy={`client-duplicate-link-${match.id}`}
+            >
+              {t("clients.upsert.duplicates.viewLink", "View existing client")}
+            </Link>
+          </AlertDescription>
+        </Alert>
+      ))}
+    </div>
+  )
+}
+
+/**
  * CONTACT & PORTAIL — how this client is reached: email, phone, document language, plus (editing
  * only — a not-yet-created client has no id to invite) an entry point into the EXISTING portal-access
  * dialog (`client-portal-access.tsx`), never a re-implementation of it. This company's own custom
  * CLIENT-target fields close out the step (see `CustomFieldsSection`'s own header for why they live
- * here).
+ * here). The duplicate hint (`DuplicateWarning`) sits at the top: by this step, both criteria it can
+ * check (email — entered right below; name+country — already set on the earlier steps) have whatever
+ * they are going to have.
  */
 function ContactStep({
   form,
   isEditing,
+  clientId,
   onOpenPortalAccess,
 }: {
   form: UseFormReturn<FieldValues>
   isEditing: boolean
+  clientId?: string
   onOpenPortalAccess: () => void
 }) {
   const { t } = useTranslation()
   return (
     <div className="space-y-6" data-cy="client-form-contact">
+      <DuplicateWarning form={form} excludeId={clientId} />
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={form.control}
           name="contactEmail"
           render={({ field }) => (
             <FormItem>
-              <FormLabel required>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
+              <FormLabel>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
               <FormControl>
                 <Input {...field} placeholder={t("clients.upsert.fields.contactEmail.placeholder")} />
               </FormControl>
@@ -865,9 +927,15 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           if (!val) return true
           return /^[+]?[0-9\s\-()]{8,20}$/.test(val)
         }, t("clients.upsert.validation.contactPhone.format")),
+      // Optional — only required where it is actually USED (sending a document by email, the portal
+      // invite, dunning reminders); each of those refuses/skips cleanly with its own explicit message
+      // rather than silently guessing an address (see the backend's `email-transport.ts`,
+      // `portal-tokens.service.ts`, `reminder-sweep-runner.ts`). A blank value is accepted outright;
+      // a NON-blank one is still checked for shape, so a typo does not silently save an unusable
+      // address.
       contactEmail: z
         .string()
-        .min(1, t("clients.upsert.validation.contactEmail.required"))
+        .optional()
         .refine((val) => {
           if (!val) return true
           return z.string().email().safeParse(val).success
@@ -1272,6 +1340,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         <ContactStep
           form={form as unknown as UseFormReturn<FieldValues>}
           isEditing={isEditing}
+          clientId={client?.id}
           onOpenPortalAccess={() => setPortalAccessOpen(true)}
         />
       ),

@@ -207,7 +207,16 @@ describe("Clients E2E", () => {
 	});
 
 	describe("Common Validation Errors", () => {
-		it("shows error for empty email", () => {
+		// The email is only required where it is actually USED (sending a document,
+		// the portal invite, dunning reminders) — each of those refuses/skips cleanly on its own
+		// (see 28-document-async-send.cy.ts's "send_failed ... no contact email on file" coverage).
+		// The client RECORD itself must save with no email at all — a real screen submission, the
+		// network response asserted directly (201), never inferred from the dialog merely closing.
+		it("creates a client with NO email at all — the field is optional, saved as a 201", () => {
+			cy.intercept("POST", `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients`).as(
+				"createClientNoEmail",
+			);
+
 			cy.visit("/clients");
 			cy.contains("button", /add|new|créer|ajouter/i, {
 				timeout: 10000,
@@ -217,7 +226,7 @@ describe("Clients E2E", () => {
 				"be.visible",
 			);
 
-			cy.get('[name="name"]').clear().type("Test Company");
+			cy.get('[name="name"]').clear().type("No Email At All SARL");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
@@ -226,18 +235,22 @@ describe("Clients E2E", () => {
 			cy.get('[name="city"]').clear().type("Test City");
 			cy.continueSteppedDialog("client-dialog");
 
-			// A VALID SIREN — this test is about the email field; the Fiscal step's own "Continue" (its
-			// `fields` list includes "identifiers") would otherwise block HERE on the identifier's
-			// pattern, never reaching Contact at all.
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("123456789");
 			cy.continueSteppedDialog("client-dialog");
 
+			// The email field, left BLANK — no error, no block, the Contact step's own "Continue"
+			// accepts it exactly like a filled one.
 			cy.get('[name="contactEmail"]').clear();
-			cy.get('[data-cy="client-dialog-continue"]').click();
-			cy.get('[data-cy="client-dialog"]').should("be.visible");
-			cy.contains(/required|requis|email/i);
+			cy.get('[name="contactPhone"]').clear().type("+1 23 456 7890");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-submit"]').click();
+
+			cy.wait("@createClientNoEmail").its("response.statusCode").should("eq", 201);
+			cy.get('[data-cy="client-dialog"]').should("not.exist");
+			cy.contains("No Email At All SARL", { timeout: 10000 });
 		});
 
 		it("shows error for invalid email format", () => {
@@ -349,6 +362,102 @@ describe("Clients E2E", () => {
 						"a syntactically-bad VAT is persisted INVALID, never silently accepted as valid",
 					).to.eq("INVALID");
 				});
+		});
+	});
+
+	// The wizard warns — but never blocks — when the email being typed already belongs
+	// to another client of this company. `clients.duplicates.spec.ts` (jest) proves the backend
+	// matching rule directly; this proves the SCREEN actually calls it and still lets the create
+	// through.
+	describe("Duplicate detection (non-blocking)", () => {
+		const originalName = "Duplicate Check Original SARL";
+		const duplicateEmail = "duplicate-check-t194@example.com";
+
+		it("creates the original client that the next test will collide with", () => {
+			cy.intercept("POST", `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients`).as(
+				"createOriginal",
+			);
+
+			cy.visit("/clients");
+			cy.contains("button", /add|new|créer|ajouter/i, {
+				timeout: 10000,
+			}).click();
+
+			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
+				"be.visible",
+			);
+
+			cy.get('[name="name"]').clear().type(originalName);
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.selectCountry("client-country-select", "France");
+			cy.get('[name="address"]').clear().type("1 Original Street");
+			cy.get('[name="postalCode"]').clear().type("12345");
+			cy.get('[name="city"]').clear().type("Test City");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("123456789");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type(duplicateEmail);
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-submit"]').click();
+			cy.wait("@createOriginal").its("response.statusCode").should("eq", 201);
+			cy.get('[data-cy="client-dialog"]').should("not.exist");
+			cy.contains(originalName, { timeout: 10000 });
+		});
+
+		it("shows a non-blocking warning for the same email, naming the existing client, and still creates it", () => {
+			cy.intercept("POST", `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients`).as(
+				"createDuplicate",
+			);
+			cy.intercept("GET", `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients/duplicates*`).as(
+				"checkDuplicates",
+			);
+
+			cy.visit("/clients");
+			cy.contains("button", /add|new|créer|ajouter/i, {
+				timeout: 10000,
+			}).click();
+
+			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
+				"be.visible",
+			);
+
+			// A DIFFERENT name and address — the collision under test is the EMAIL alone.
+			cy.get('[name="name"]').clear().type("Duplicate Check Second SARL");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.selectCountry("client-country-select", "France");
+			cy.get('[name="address"]').clear().type("2 Second Street");
+			cy.get('[name="postalCode"]').clear().type("54321");
+			cy.get('[name="city"]').clear().type("Other City");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("987654321");
+			cy.continueSteppedDialog("client-dialog");
+
+			// The SAME email as the previous test's client — the debounced check fires once typing
+			// settles.
+			cy.get('[name="contactEmail"]').clear().type(duplicateEmail);
+			cy.wait("@checkDuplicates", { timeout: 10000 });
+
+			cy.get('[data-cy="client-duplicate-warning"]', { timeout: 10000 })
+				.should("be.visible")
+				.and("contain.text", originalName);
+
+			// Non-blocking: "Continue" and "Create" both still work with the warning on screen.
+			cy.continueSteppedDialog("client-dialog");
+			cy.get('[data-cy="client-submit"]').click();
+
+			cy.wait("@createDuplicate").its("response.statusCode").should("eq", 201);
+			cy.get('[data-cy="client-dialog"]').should("not.exist");
+			cy.contains("Duplicate Check Second SARL", { timeout: 10000 });
 		});
 	});
 

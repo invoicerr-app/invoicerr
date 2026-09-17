@@ -19,7 +19,12 @@ export interface Client {
   foundedAt?: Date
   contactFirstname?: string
   contactLastname?: string
-  contactEmail: string
+  // Optional — only required where it is actually USED (sending a document by email, the client
+  // portal invite, dunning reminders): each of those refuses/skips cleanly with its own explicit
+  // message rather than silently guessing an address (see the backend's own `email-transport.ts`,
+  // `portal-tokens.service.ts` and `reminder-sweep-runner.ts`). A client with no email at all is a
+  // normal, supported record — e.g. one only ever billed on paper, or via the client portal itself.
+  contactEmail?: string
   contactPhone?: string
   address?: string
   addressLine2?: string
@@ -40,6 +45,18 @@ export interface Client {
   // custom field, keyed by that definition's own immutable `key` (never prefixed — see the backend's
   // own `Client.customFields` schema.prisma header). Absent/`{}` for a client with none filled in yet.
   customFields?: Record<string, unknown>
+}
+
+/** One potential duplicate found by `GET /clients/duplicates` — mirrors the backend's own
+ *  `ClientDuplicateMatch` (clients/dto/clients.dto.ts). `matchedOn` is why THIS row was returned: a
+ *  shared `contactEmail` and/or a shared `name` + `country` pair (see that endpoint's own header for
+ *  the exact rule) — the wizard uses it to pick which warning copy to show. */
+export interface ClientDuplicateMatch {
+  id: string
+  name: string
+  contactEmail: string | null
+  country: string
+  matchedOn: ("email" | "name_country")[]
 }
 
 /**

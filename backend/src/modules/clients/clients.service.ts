@@ -18,9 +18,31 @@ function needsRevalidation(row?: { validationStatus: string | null; validatedAt:
   return ageDays > REVALIDATE_AFTER_DAYS;
 }
 
-import { EditClientsDto, IdentifierEntry } from '@/modules/clients/dto/clients.dto';
+/** No real client email/name/country is anywhere near this long — a value past it is either a client
+ *  that will never exist or a caller poking at the endpoint, not a legitimate lookup. Bounding it here
+ *  (rather than accepting whatever a GET query string hands over) keeps `findDuplicates`'s own
+ *  case-insensitive match a fixed-cost equality check, never a growing one. */
+const MAX_MATCH_VALUE_LENGTH = 300;
+
+/** Trims `value` and returns it only if non-empty and within `MAX_MATCH_VALUE_LENGTH` — an oversized
+ *  input is treated exactly like an ABSENT one (never a thrown 400), matching `findDuplicates`'s own
+ *  "this only ever informs" contract: a garbage-length query param does not get a different error
+ *  experience than simply not having typed anything usable yet. */
+function boundedOrUndefined(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed.length > MAX_MATCH_VALUE_LENGTH) return undefined;
+  return trimmed;
+}
+
+import {
+  ClientDuplicateMatch,
+  DuplicateMatchReason,
+  EditClientsDto,
+  FindDuplicatesQuery,
+  IdentifierEntry,
+} from '@/modules/clients/dto/clients.dto';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { WebhookEvent } from '../../../prisma/generated/prisma/client';
+import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
@@ -41,7 +63,7 @@ export class ClientsService {
    *  entity-reference resolution (a 'reference' field only stores an id; resolving it to a label
    *  for display, e.g. a quote's client, goes through here). */
   async getClientById(companyId: string, id: string) {
-    return prisma.client.findFirst({ where: { id, companyId } });
+    return prisma.client.findFirst({ where: { id, companyId }, include: { partyIdentifiers: true } });
   }
 
   /**
@@ -140,6 +162,65 @@ export class ClientsService {
     }
 
     return results;
+  }
+
+  /**
+   * Non-blocking duplicate detection for the client wizard (create AND edit) — never a DB-level
+   * unique constraint: the owner explicitly accepts genuine duplicates (a franchise's two branches
+   * sharing one billing inbox, a common name repeated across unrelated companies), so this only ever
+   * INFORMS, never refuses a write. Two independent match rules, either one enough to surface a row:
+   *   - the same `contactEmail`, case-insensitive (a typo'd casing must not hide an existing record);
+   *   - the same `name` AND the same `country`, both case-insensitive (name alone is too common a
+   *     collision — "Martin" — to warn on by itself; country narrows it to "the same business
+   *     entity", not just a shared surname across unrelated clients).
+   * Returns `[]` — never throws, never 400s — when neither criterion is usable (no `email`, and no
+   * `name`+`country` pair, or a value so long it can only be garbage — see `MAX_MATCH_VALUE_LENGTH`
+   * below): a partially-filled wizard has nothing to check yet, and that is a normal state, not an
+   * error — this endpoint stays a hint, never a gate a caller could get a 400 stuck on.
+   */
+  async findDuplicates(companyId: string, query: FindDuplicatesQuery): Promise<ClientDuplicateMatch[]> {
+    const email = boundedOrUndefined(query.email);
+    const name = boundedOrUndefined(query.name);
+    const country = boundedOrUndefined(query.country);
+    const excludeId = boundedOrUndefined(query.excludeId);
+    const hasNameCountry = !!name && !!country;
+    if (!email && !hasNameCountry) return [];
+
+    const or: Prisma.ClientWhereInput[] = [];
+    if (email) or.push({ contactEmail: { equals: email, mode: 'insensitive' } });
+    if (hasNameCountry) {
+      or.push({
+        name: { equals: name, mode: 'insensitive' },
+        country: { equals: country, mode: 'insensitive' },
+      });
+    }
+
+    const rows = await prisma.client.findMany({
+      where: {
+        companyId,
+        isActive: true,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+        OR: or,
+      },
+      select: { id: true, name: true, contactEmail: true, country: true },
+      take: 10,
+      orderBy: { name: 'asc' },
+    });
+
+    return rows.map((row) => {
+      const matchedOn: DuplicateMatchReason[] = [];
+      if (email && row.contactEmail && row.contactEmail.toLowerCase() === email.toLowerCase()) {
+        matchedOn.push('email');
+      }
+      if (
+        hasNameCountry &&
+        row.name.toLowerCase() === name!.toLowerCase() &&
+        row.country.toLowerCase() === country!.toLowerCase()
+      ) {
+        matchedOn.push('name_country');
+      }
+      return { id: row.id, name: row.name, contactEmail: row.contactEmail, country: row.country, matchedOn };
+    });
   }
 
   private async upsertPartyIdentifiers(

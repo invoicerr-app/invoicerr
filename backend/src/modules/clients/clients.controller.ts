@@ -1,6 +1,6 @@
 import { ClientsService } from '@/modules/clients/clients.service';
 import { EditClientsDto } from '@/modules/clients/dto/clients.dto';
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
@@ -43,6 +43,37 @@ export class ClientsController {
     return await this.clientsService.searchClients(companyId, query);
   }
 
+  @Get('duplicates')
+  @RequiresScope('clients:read')
+  @ApiOperation({
+    summary: 'Find potential duplicate clients',
+    description:
+      'Non-blocking duplicate detection for the client wizard: matches an existing, active client ' +
+      'by contact email (case-insensitive), or by name + country together (also case-insensitive), ' +
+      'scoped to the active company. Returns an empty array when neither criterion is usable — this ' +
+      'never refuses anything, it only informs. Pass excludeId when editing an existing client so it ' +
+      'never flags itself as its own duplicate.',
+  })
+  @ApiQuery({ name: 'email', required: false, type: String })
+  @ApiQuery({ name: 'name', required: false, type: String })
+  @ApiQuery({ name: 'country', required: false, type: String })
+  @ApiQuery({
+    name: 'excludeId',
+    required: false,
+    type: String,
+    description: 'Client id to exclude (editing)',
+  })
+  @ApiResponse({ status: 200, description: 'Potential duplicates found (possibly empty)' })
+  findDuplicates(
+    @ActiveCompany() companyId: string,
+    @Query('email') email?: string,
+    @Query('name') name?: string,
+    @Query('country') country?: string,
+    @Query('excludeId') excludeId?: string,
+  ) {
+    return this.clientsService.findDuplicates(companyId, { email, name, country, excludeId });
+  }
+
   @Get(':id/statement')
   @RequiresScope('clients:read')
   @ApiOperation({
@@ -58,6 +89,28 @@ export class ClientsController {
   @ApiResponse({ status: 404, description: 'Not found for this company' })
   getStatement(@ActiveCompany() companyId: string, @Param('id') id: string) {
     return this.clientsService.getStatement(companyId, id);
+  }
+
+  // Declared AFTER 'search'/'duplicates'/':id/statement' — a bare `:id` is a single-segment wildcard
+  // that would otherwise shadow those static routes if it matched first.
+  @Get(':id')
+  @RequiresScope('clients:read')
+  @ApiOperation({
+    summary: 'Get a client',
+    description:
+      'Returns a single client by id, scoped to the active company — e.g. the duplicate-detection ' +
+      'wizard\'s own "view existing client" link, opening a record that may not be on the caller\'s ' +
+      'currently loaded page of the paginated list.',
+  })
+  @ApiParam({ name: 'id', type: String, description: 'Client ID' })
+  @ApiResponse({ status: 200, description: 'Client found' })
+  @ApiResponse({ status: 404, description: 'Not found for this company' })
+  async getClient(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    const client = await this.clientsService.getClientById(companyId, id);
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+    return client;
   }
 
   @Post()

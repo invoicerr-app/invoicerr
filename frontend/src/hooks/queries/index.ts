@@ -1,8 +1,10 @@
 export { useArticles } from "./use-articles"
 export {
   useClients,
+  useClient,
   useClientSearch,
   useClientStatement,
+  useClientDuplicates,
   type ClientsListResponse,
 } from "./use-clients"
 export { useCompany } from "./use-company"

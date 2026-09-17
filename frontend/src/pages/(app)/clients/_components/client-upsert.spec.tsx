@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { MemoryRouter } from "react-router"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ClientUpsert } from "@/pages/(app)/clients/_components/client-upsert"
@@ -57,7 +58,12 @@ function renderDialog(client: Client) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <ClientUpsert client={client} open onOpenChange={vi.fn()} />
+      {/* `MemoryRouter` — the duplicate-warning banner's own "View existing client" is a real
+       *  `<Link>` (react-router), which throws without a Router ancestor even when nothing in a
+       *  given test ever navigates. */}
+      <MemoryRouter>
+        <ClientUpsert client={client} open onOpenChange={vi.fn()} />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -112,5 +118,66 @@ describe("<ClientUpsert>", () => {
     // just silently refused to do anything.
     expect(await screen.findByText("Company name is required")).toBeInTheDocument()
     expect(screen.getByTestId("client-dialog-step-body-identity")).toBeInTheDocument()
+  })
+
+  it("saves with a BLANK email — the field is optional, not a client-side block", async () => {
+    const patch = vi.fn()
+    installFetchMock({
+      "GET /api/custom-fields/resolved": () => [],
+      "GET /api/clients/duplicates": () => [],
+      "PATCH /api/clients/client-1": (_url, init) => {
+        patch(init?.body ? JSON.parse(init.body as string) : undefined)
+        return { ...CLIENT, contactEmail: "" }
+      },
+    })
+
+    renderDialog(CLIENT)
+
+    fireEvent.click(await screen.findByTestId("client-dialog-step-contact"))
+    await screen.findByTestId("client-dialog-step-body-contact")
+    fireEvent.change(fieldInput("contactEmail"), { target: { value: "" } })
+
+    fireEvent.click(screen.getByTestId("client-dialog-step-recap"))
+    fireEvent.click(await screen.findByTestId("client-submit"))
+
+    await waitFor(() => expect(patch).toHaveBeenCalled())
+    expect(patch.mock.calls[0][0].contactEmail).toBe("")
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("shows a non-blocking duplicate warning naming the existing client, without stopping the save", async () => {
+    const patch = vi.fn()
+    installFetchMock({
+      "GET /api/custom-fields/resolved": () => [],
+      "GET /api/clients/duplicates": () => [
+        {
+          id: "existing-client-9",
+          name: "Existing Dupe SARL",
+          contactEmail: "billing@acme.test",
+          country: "France",
+          matchedOn: ["email"],
+        },
+      ],
+      "PATCH /api/clients/client-1": (_url, init) => {
+        patch(init?.body ? JSON.parse(init.body as string) : undefined)
+        return CLIENT
+      },
+    })
+
+    renderDialog(CLIENT)
+
+    fireEvent.click(await screen.findByTestId("client-dialog-step-contact"))
+    await screen.findByTestId("client-dialog-step-body-contact")
+
+    // Visible: the warning names the OTHER client the email collides with.
+    const warning = await screen.findByTestId("client-duplicate-warning")
+    expect(warning.textContent).toContain("Existing Dupe SARL")
+
+    // Non-blocking: the warning being on screen does not stop "Continue"/"Save".
+    fireEvent.click(screen.getByTestId("client-dialog-step-recap"))
+    fireEvent.click(await screen.findByTestId("client-submit"))
+
+    await waitFor(() => expect(patch).toHaveBeenCalled())
+    expect(toast.error).not.toHaveBeenCalled()
   })
 })

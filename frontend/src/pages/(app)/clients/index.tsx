@@ -1,13 +1,14 @@
 import { FileText, Pencil, Plus, SearchX, Trash2, UserRoundCheck, Users } from "lucide-react"
-import { type ReactNode, useMemo, useState } from "react"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router"
 
 import BetterPagination from "@/components/pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/ui/empty-state"
-import { useClients } from "@/hooks/queries"
+import { useClient, useClients } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
 import type { Client } from "@/types"
 
@@ -51,6 +52,10 @@ interface ClientRowProps {
 function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDelete }: ClientRowProps) {
   const { t } = useTranslation()
   const email = client.contactEmail
+  // `data-cy` selectors below key off the email for readability in specs — but the email is optional
+  // now, so a client without one falls back to its own id rather than every email-less row rendering
+  // the literal string "undefined" (and colliding with every OTHER email-less row on the same page).
+  const rowKey = email?.trim() || client.id
   const meta = [
     client.contactEmail,
     client.contactPhone,
@@ -61,7 +66,7 @@ function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDele
 
   return (
     <ListRow
-      dataCy={`client-row-${email}`}
+      dataCy={`client-row-${rowKey}`}
       onOpen={() => onView(client)}
       identity={
         <>
@@ -76,7 +81,7 @@ function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDele
                   event.stopPropagation()
                   onView(client)
                 }}
-                data-cy={`view-client-button-${email}`}
+                data-cy={`view-client-button-${rowKey}`}
               >
                 {clientDisplayName(client)}
               </button>
@@ -101,7 +106,7 @@ function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDele
           size="sm"
           className="w-full sm:w-auto"
           onClick={() => onEdit(client)}
-          dataCy={`edit-client-button-${email}`}
+          dataCy={`edit-client-button-${rowKey}`}
         >
           <Pencil aria-hidden="true" />
           {t("clients.list.tooltips.edit")}
@@ -110,16 +115,19 @@ function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDele
       menu={
         <ListRowMenu
           label={t("clients.list.rowMenu")}
-          dataCy={`client-row-menu-${email}`}
-          contentDataCy={`client-row-menu-content-${email}`}
+          dataCy={`client-row-menu-${rowKey}`}
+          contentDataCy={`client-row-menu-content-${rowKey}`}
         >
-          <DropdownMenuItem onSelect={() => onStatement(client)} data-cy={`statement-client-button-${email}`}>
+          <DropdownMenuItem
+            onSelect={() => onStatement(client)}
+            data-cy={`statement-client-button-${rowKey}`}
+          >
             <FileText aria-hidden="true" />
             {t("clients.list.tooltips.statement")}
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onPortalAccess(client)}
-            data-cy={`portal-access-client-button-${email}`}
+            data-cy={`portal-access-client-button-${rowKey}`}
           >
             <UserRoundCheck aria-hidden="true" />
             {t("clients.list.tooltips.portalAccess")}
@@ -128,7 +136,7 @@ function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDele
           <DropdownMenuItem
             variant="destructive"
             onSelect={() => onDelete(client)}
-            data-cy={`delete-client-button-${email}`}
+            data-cy={`delete-client-button-${rowKey}`}
           >
             <Trash2 aria-hidden="true" />
             {t("clients.list.tooltips.delete")}
@@ -143,6 +151,7 @@ export default function Clients() {
   const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const { data: clients, isLoading } = useClients(page)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [createClientDialog, setCreateClientDialog] = useState<boolean>(false)
   const [editClientDialog, setEditClientDialog] = useState<Client | null>(null)
@@ -150,6 +159,26 @@ export default function Clients() {
   const [deleteClientDialog, setDeleteClientDialog] = useState<Client | null>(null)
   const [statementClientDialog, setStatementClientDialog] = useState<Client | null>(null)
   const [portalAccessClientDialog, setPortalAccessClientDialog] = useState<Client | null>(null)
+
+  // "?view=<id>" — the duplicate-detection wizard's own "view existing client" link
+  // (client-upsert.tsx's DuplicateWarning), opened in a fresh tab that has no local state to hand the
+  // dialog directly. Fetched by id (never assumed to be on THIS page's own paginated slice — the
+  // match could be on any page), and the param is cleared once consumed so closing/reopening the
+  // dialog later never re-triggers this.
+  const viewParamId = searchParams.get("view") || undefined
+  const { data: viewParamClient } = useClient(viewParamId)
+  useEffect(() => {
+    if (!viewParamId || !viewParamClient) return
+    setViewClientDialog(viewParamClient)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete("view")
+        return next
+      },
+      { replace: true },
+    )
+  }, [viewParamId, viewParamClient, setSearchParams])
 
   const [searchTerm, setSearchTerm] = useState("")
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(undefined)
@@ -165,7 +194,7 @@ export default function Clients() {
           client.name.toLowerCase().includes(term) ||
           client.contactFirstname?.toLowerCase().includes(term) ||
           client.contactLastname?.toLowerCase().includes(term) ||
-          client.contactEmail.toLowerCase().includes(term)) &&
+          client.contactEmail?.toLowerCase().includes(term)) &&
         (!activeFilter ||
           (activeFilter === "active" && client.isActive) ||
           (activeFilter === "inactive" && !client.isActive)) &&
