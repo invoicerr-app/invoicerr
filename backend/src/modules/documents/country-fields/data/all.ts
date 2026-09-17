@@ -30,7 +30,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CountryFieldOverlayFile } from '../schema';
+import { assertValidCountryFields, CountryFieldOverlayFile } from '../schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
@@ -53,6 +53,10 @@ function loadCountryFile(code: string): CountryFieldOverlayFile {
         `expected "${code.toUpperCase()}"`,
     );
   }
+  // The one gate this catalog was missing relative to every other `data/all.ts` loader — see
+  // schema.ts's own `assertValidCountryFields` header for the full "why" (no provenance to check
+  // here, unlike country-policy/, but the SHAPE of every operation still has to be sound).
+  assertValidCountryFields(parsed, `documents/country-fields/data/${code}.json`);
   return parsed;
 }
 

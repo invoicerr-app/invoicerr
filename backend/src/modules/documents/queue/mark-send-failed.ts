@@ -17,7 +17,7 @@
  * this call, "send_failed" would be a status nothing ever confirmed the type's OWN lifecycle actually
  * allows from wherever the record was — a hole this whole mechanism exists to close.
  */
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
@@ -113,7 +113,37 @@ export async function markSendFailed(
     return;
   }
 
-  const updated = await updateDocumentStatus(companyId, typeId, documentId, 'send_failed', error.message);
+  // Conditional on the record STILL being "sending" — the check right above (`existing.status !==
+  // 'sending'`) reads that fact once, but this `onFailed` handler and a genuine, concurrent success
+  // landing first (or a duplicate BullMQ delivery of the same terminal-failure event) can both pass it
+  // before either one writes: `fromStatuses` turns this into the same atomic compare-and-swap
+  // `persistence.ts#claimDocumentTransition` already gives `async-send.ts`'s own phase-2 re-claim,
+  // rather than a bare `update` that would happily clobber an already-"sent" record back to
+  // "send_failed". A `ConflictException` here means someone else already resolved this record — caught
+  // and treated exactly like the "already moved on" case above, never propagated (an `onFailed` event
+  // listener that throws kills the whole worker process — see this file's own header).
+  let updated: DocumentInstanceResult;
+  try {
+    updated = await updateDocumentStatus(
+      companyId,
+      typeId,
+      documentId,
+      'send_failed',
+      error.message,
+      undefined,
+      undefined,
+      ['sending'],
+    );
+  } catch (conflictError) {
+    if (conflictError instanceof ConflictException) {
+      logger.info('markSendFailed: record moved on concurrently — nothing to mark', {
+        category: 'documents',
+        details: { companyId, typeId, documentId, actionId },
+      });
+      return;
+    }
+    throw conflictError;
+  }
 
   const violation = checkTransitionResult(descriptor, typeId, action, documentId, existing.status, {
     document: updated,

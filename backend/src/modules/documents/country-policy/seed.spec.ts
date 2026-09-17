@@ -151,6 +151,34 @@ describe('seedCountryPolicies', () => {
     expect(table.rows.every((r) => r.countryCode === 'AA')).toBe(true);
   });
 
+  /**
+   * THE MUTATION TARGET: `purgeRemovedCountries: false` (what `boot-reseed.ts`'s own automatic,
+   * per-process-boot correction now always passes — see that file's own call site) must NEVER run the
+   * whole-country purge, even though a country is genuinely missing from THIS call's own catalog. This
+   * is what protects a rolling deployment: an OLD replica restarting with yesterday's (shorter)
+   * catalog must not delete a country a NEWER replica already seeded. The per-country loop above
+   * (upserting AA, and pruning any of AA's OWN stale rules) is completely unaffected by this flag —
+   * only the GLOBAL, cross-country purge is gated.
+   */
+  it('purgeRemovedCountries: false skips the whole-country purge — a country missing from THIS catalog keeps its rows', async () => {
+    const table = new FakeCountryPolicyTable();
+    const withBoth = new CountryPolicyCatalog([
+      { countryCode: 'AA', rules: [ALLOW_SEND, ALLOW_SAVE_DRAFT] },
+      { countryCode: 'BB', rules: [ALLOW_SEND] },
+    ]);
+    await seedCountryPolicies(table.client, withBoth);
+    expect(table.rows).toHaveLength(3);
+
+    const withOnlyAa = new CountryPolicyCatalog([
+      { countryCode: 'AA', rules: [ALLOW_SEND, ALLOW_SAVE_DRAFT] },
+    ]);
+    const result = await seedCountryPolicies(table.client, withOnlyAa, false);
+
+    expect(result).toEqual({ upserted: 2, deleted: 0 });
+    expect(table.rows).toHaveLength(3); // BB's row survives — never purged by this call
+    expect(table.rows.map((r) => r.countryCode).sort()).toEqual(['AA', 'AA', 'BB']);
+  });
+
   it("seeds several countries independently — one country's rows never leak into another's", async () => {
     const table = new FakeCountryPolicyTable();
     const catalog = new CountryPolicyCatalog([

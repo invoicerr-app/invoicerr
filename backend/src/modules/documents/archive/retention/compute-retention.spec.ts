@@ -83,7 +83,7 @@ describe('computeRetention', () => {
       const archivedMuchLater = new Date('2026-11-02T00:00:00.000Z');
       const result = computeRetention(file, archivedMuchLater, issueDate);
       // 2026-12-31 (end of the ISSUE year, not 2026-11-02) + 8 years.
-      expect(result.retentionUntil?.toISOString()).toBe('2034-12-31T00:00:00.000Z');
+      expect(result.retentionUntil?.toISOString()).toBe('2034-12-31T23:59:59.999Z');
       expect(result.retentionBasis).toMatch(/8y/);
     });
 
@@ -146,7 +146,7 @@ describe('computeRetention', () => {
       const issueDate = new Date('2026-12-20T00:00:00.000Z');
       const result = computeRetention(file, archivedAt, issueDate);
       // 31 Dec (issue year + 1) = 2027-12-31, + 5y = 2032-12-31 — never 2031-12-31 (issueDateYearEnd).
-      expect(result.retentionUntil?.toISOString()).toBe('2032-12-31T00:00:00.000Z');
+      expect(result.retentionUntil?.toISOString()).toBe('2032-12-31T23:59:59.999Z');
     });
 
     it("'taxDeadlineYearEndUnknownSafe': an invoice issued early in the year gets the SAME safe padding, even though its true deadline likely fell the same year", () => {
@@ -157,7 +157,7 @@ describe('computeRetention', () => {
       const issueDate = new Date('2026-02-01T00:00:00.000Z');
       const result = computeRetention(file, archivedAt, issueDate);
       // 31 Dec 2027 (issue year + 1, the safe bound applied uniformly regardless of month) + 5y.
-      expect(result.retentionUntil?.toISOString()).toBe('2032-12-31T00:00:00.000Z');
+      expect(result.retentionUntil?.toISOString()).toBe('2032-12-31T23:59:59.999Z');
     });
   });
 

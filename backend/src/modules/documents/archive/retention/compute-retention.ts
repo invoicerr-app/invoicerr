@@ -111,9 +111,19 @@ function addYears(date: Date, years: number): Date {
   return result;
 }
 
-/** 31 December of `date`'s own UTC calendar year, at midnight UTC. */
+/**
+ * 31 December of `date`'s own UTC calendar year, at the LAST instant of that day (23:59:59.999 UTC)
+ * — never midnight AT ITS START, which is a full day too EARLY, the exact dangerous direction this
+ * file's own header warns against. Every statute this axis cites names the END of the year, not its
+ * first midnight: "mit dem Schluss des Kalenderjahres" (UStG § 14b Abs. 1 Satz 3 — "with the CLOSE of
+ * the calendar year"), "os 10 anos civis subsequentes" (CIVA art. 52.º n.º 1 — the ten calendar years
+ * SUBSEQUENT to the year of the operation, which only finish running once that later year itself
+ * ends), "od konca roku kalendarzowego" (Ordynacja podatkowa art. 70 § 1 — "from the END of the
+ * calendar year"). A `retentionUntil` landing at midnight on 31 December told a company it could
+ * destroy a document a full 24 hours before the statute's own limitation period actually finished.
+ */
 function endOfYearUtc(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), 11, 31));
+  return new Date(Date.UTC(date.getUTCFullYear(), 11, 31, 23, 59, 59, 999));
 }
 
 /**

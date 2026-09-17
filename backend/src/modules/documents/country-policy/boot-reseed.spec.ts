@@ -102,7 +102,17 @@ describe('detectAndReseedCountryPolicyDrift', () => {
     expect(table.rows[0].allowed).toBe(false); // actually corrected, not just detected
   });
 
-  it('a country REMOVED from the catalog entirely is detected as drift AND purged', async () => {
+  /**
+   * THE MUTATION TARGET: a country REMOVED from the CURRENT PROCESS's own catalog is reported as
+   * drift (so a genuine removal is still visible in `boot-reseed.service.ts`'s own log) but is
+   * deliberately NEVER purged through this automatic, per-boot path — see `seedCountryPolicies`'s own
+   * `purgeRemovedCountries` doc comment for why: an OLD replica restarting with YESTERDAY's catalog
+   * during a rolling deployment would otherwise see a country a NEWER replica already seeded as
+   * "removed" (simply absent from the stale catalog it happens to be running) and delete it out from
+   * under the new image. Only the deliberate, single-run reseed (`prisma/seed.ts`, `sync-schema.ts`)
+   * is allowed to actually purge a genuinely-removed country — see seed.spec.ts's own coverage of that.
+   */
+  it('a country REMOVED from the catalog entirely is detected as drift, reported, but NEVER purged through this automatic path', async () => {
     const table = new FakeCountryPolicyTable();
     const withBoth = new CountryPolicyCatalog([
       { countryCode: 'AA', rules: [ALLOW_SEND] },
@@ -114,9 +124,9 @@ describe('detectAndReseedCountryPolicyDrift', () => {
     const summary = await detectAndReseedCountryPolicyDrift(table.client, withOnlyAa);
 
     expect(summary.reseeded).toBe(true);
-    expect(summary.drift.removedCountries).toEqual(['BB']);
-    expect(summary.deleted).toBe(1);
-    expect(table.rows.map((r) => r.countryCode)).toEqual(['AA']);
+    expect(summary.drift.removedCountries).toEqual(['BB']); // still NAMED, so the log still warns
+    expect(summary.deleted).toBe(0); // but never ACTED ON by this automatic, per-boot path
+    expect(table.rows.map((r) => r.countryCode).sort()).toEqual(['AA', 'BB']); // BB's rows survive
   });
 
   // The REAL catalog, not a hand-rolled fixture — proves the real `data/*.json` files load and seed

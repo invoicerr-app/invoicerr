@@ -113,6 +113,17 @@ export function applyFieldOverlay(
         target.splice(index, 1);
         break;
       }
+
+      default: {
+        // Never reached for a FILE-sourced overlay — data/all.ts's own `assertValidCountryFields`
+        // already refuses an unknown `op` at load. This is the SECOND, independent gate, for a
+        // hand-built operations list that skipped that loader (a test, a future caller) — the same
+        // "two gates" discipline country-policy/seed.ts holds for its own provenance check. This
+        // `switch` used to have NO `default` at all: an unrecognized `op` (a typo — "delete" for
+        // "remove") fell through and vanished, silently, with no trace anywhere.
+        const unknownOp = (operation as { op?: unknown }).op;
+        throw new FieldOverlayError(`${context}: unknown operation "op" ${JSON.stringify(unknownOp)}.`);
+      }
     }
   }
 

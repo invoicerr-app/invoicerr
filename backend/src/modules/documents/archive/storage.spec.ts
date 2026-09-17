@@ -1,10 +1,11 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
   archiveRoot,
   artifactExists,
+  checkArchiveStorageSharing,
   deleteArchivedArtifacts,
   extFor,
   listArchivedArtifactKeys,
@@ -115,5 +116,94 @@ describe('archive/storage — local, content-hash-addressed persistence', () => 
 
     const keys = await listArchivedArtifactKeys();
     expect(keys).toEqual([`${uri}/pdf.pdf`]);
+  });
+});
+
+/**
+ * THE MUTATION TARGET: a split API/worker deployment (`WORKER_INLINE=false`,
+ * docker-compose.scale.yml) with `ARCHIVE_STORAGE=local` (the default) needs `DOCUMENTS_ARCHIVE_DIR`
+ * to be the SAME mounted volume in every container — if it is not, `verifyDocumentArchive` silently
+ * reports every archive `{status:'corrupted', actual:null}` from the role that did not write it, and
+ * nothing in the code used to detect the misconfiguration. These tests prove the detector itself: a
+ * genuinely shared root reads back its own and another role's witness; a root that is NOT actually
+ * shared (modeled here as a witness file this role cannot read) is refused, named.
+ */
+describe('archive/storage — checkArchiveStorageSharing (the multi-replica witness check)', () => {
+  let dir: string;
+  const originalEnv = process.env.DOCUMENTS_ARCHIVE_DIR;
+  const originalArchiveStorage = process.env.ARCHIVE_STORAGE;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'documents-archive-witness-test-'));
+    process.env.DOCUMENTS_ARCHIVE_DIR = dir;
+    delete process.env.ARCHIVE_STORAGE;
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+    if (originalEnv === undefined) delete process.env.DOCUMENTS_ARCHIVE_DIR;
+    else process.env.DOCUMENTS_ARCHIVE_DIR = originalEnv;
+    if (originalArchiveStorage === undefined) delete process.env.ARCHIVE_STORAGE;
+    else process.env.ARCHIVE_STORAGE = originalArchiveStorage;
+  });
+
+  it('ARCHIVE_STORAGE=s3 short-circuits to shared:true without touching the filesystem at all', () => {
+    process.env.ARCHIVE_STORAGE = 's3';
+    rmSync(dir, { recursive: true, force: true }); // prove nothing local is even created
+
+    const result = checkArchiveStorageSharing('api');
+
+    expect(result).toEqual({
+      shared: true,
+      reason: expect.stringMatching(/ARCHIVE_STORAGE=s3/),
+    });
+    expect(existsSync(dir)).toBe(false);
+  });
+
+  it('the FIRST role to boot: no other witness exists yet — inconclusive, but reported as shared (never a false failure on ordinary startup order)', () => {
+    const result = checkArchiveStorageSharing('api');
+
+    expect(result.shared).toBe(true);
+    expect(result.reason).toMatch(/no other role has written its own witness/i);
+    expect(existsSync(join(dir, '.archive-storage-witness-api.json'))).toBe(true);
+  });
+
+  it("a SECOND role, on a genuinely shared root: reads the first role's witness back and confirms it", () => {
+    checkArchiveStorageSharing('api'); // the API role boots first, writes its own witness
+
+    const result = checkArchiveStorageSharing('worker');
+
+    expect(result).toEqual({ shared: true, reason: expect.stringMatching(/confirmed readable/i) });
+    // Both witnesses now sit side by side — proves this role wrote its OWN, distinct from the first's.
+    expect(existsSync(join(dir, '.archive-storage-witness-api.json'))).toBe(true);
+    expect(existsSync(join(dir, '.archive-storage-witness-worker.json'))).toBe(true);
+  });
+
+  it('a witness that EXISTS but cannot be READ (permission denied) is refused, named — the exact "not truly shared" case this exists to catch', () => {
+    const apiWitness = join(dir, '.archive-storage-witness-api.json');
+    writeFileSync(apiWitness, JSON.stringify({ role: 'api' }));
+    chmodSync(apiWitness, 0o000); // simulate two containers seeing the SAME path but not the same bytes
+
+    try {
+      const result = checkArchiveStorageSharing('worker');
+
+      expect(result.shared).toBe(false);
+      expect(result.reason).toMatch(/cannot read it back/);
+    } finally {
+      chmodSync(apiWitness, 0o644); // restore, so afterEach's rmSync can clean up
+    }
+  });
+
+  it('a non-writable root is refused, named, rather than silently reporting shared:true', () => {
+    chmodSync(dir, 0o500); // read+execute only — no write
+
+    try {
+      const result = checkArchiveStorageSharing('api');
+
+      expect(result.shared).toBe(false);
+      expect(result.reason).toMatch(/not writable/);
+    } finally {
+      chmodSync(dir, 0o700); // restore, so afterEach's rmSync can clean up
+    }
   });
 });

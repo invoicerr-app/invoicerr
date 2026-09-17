@@ -37,40 +37,72 @@ import prisma from '@/prisma/prisma.service';
 
 import { detectAndReseedCountryPolicyDrift } from './boot-reseed';
 
+/** How many times a failed boot-reseed attempt retries, and how long it waits between attempts —
+ *  see `onModuleInit`'s own header for why this exists at all. Exported so the spec can drive it
+ *  without a real delay. */
+export const BOOT_RESEED_MAX_ATTEMPTS = 3;
+export const BOOT_RESEED_RETRY_DELAY_MS = 250;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 @Injectable()
 export class CountryPolicyBootReseedService implements OnModuleInit {
   private readonly logger = new Logger(CountryPolicyBootReseedService.name);
 
   async onModuleInit(): Promise<void> {
-    try {
-      const summary = await detectAndReseedCountryPolicyDrift(prisma);
+    // Bounded retry — the sequential per-country loop inside `seedCountryPolicies` (seed.ts) can fail
+    // partway through on a TRANSIENT error (a concurrent P2002, a P2028 timeout, a momentary
+    // connection blip): before this, that left the table half-seeded and the ONLY recovery path was
+    // "a later boot" — a human restarting the process, or the next liveness-probe restart, whichever
+    // came first. Retrying the WHOLE detect-then-reseed call a few times, immediately, lets a
+    // genuinely transient failure self-heal within the SAME boot instead: every write here is
+    // idempotent (`seedCountryPolicies`'s own upserts), so re-running it after a partial failure is
+    // exactly as safe as running it once — it simply finishes what the failed attempt started.
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= BOOT_RESEED_MAX_ATTEMPTS; attempt++) {
+      try {
+        const summary = await detectAndReseedCountryPolicyDrift(prisma);
 
-      if (!summary.reseeded) {
-        this.logger.log(
-          'Document country-action policy already matches data/*.json at boot — no reseed needed.',
+        if (!summary.reseeded) {
+          this.logger.log(
+            'Document country-action policy already matches data/*.json at boot — no reseed needed.',
+          );
+          return;
+        }
+
+        this.logger.warn(
+          'Document country-action policy DRIFTED from data/*.json at boot — ' +
+            `added: [${summary.drift.addedCountries.join(', ')}], ` +
+            `changed: [${summary.drift.changedCountries.join(', ')}], ` +
+            `removed: [${summary.drift.removedCountries.join(', ')}]. ` +
+            `Reseeded: ${summary.upserted} upserted, ${summary.deleted} deleted (stale).`,
         );
         return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < BOOT_RESEED_MAX_ATTEMPTS) {
+          this.logger.warn(
+            `Document country-action policy reseed failed at boot (attempt ${attempt}/` +
+              `${BOOT_RESEED_MAX_ATTEMPTS}) — retrying: ` +
+              `${error instanceof Error ? error.message : String(error)}`,
+          );
+          await delay(BOOT_RESEED_RETRY_DELAY_MS);
+        }
       }
-
-      this.logger.warn(
-        'Document country-action policy DRIFTED from data/*.json at boot — ' +
-          `added: [${summary.drift.addedCountries.join(', ')}], ` +
-          `changed: [${summary.drift.changedCountries.join(', ')}], ` +
-          `removed: [${summary.drift.removedCountries.join(', ')}]. ` +
-          `Reseeded: ${summary.upserted} upserted, ${summary.deleted} deleted (stale).`,
-      );
-    } catch (error) {
-      // NEVER throws, same reasoning as B2gRoutingBootUpsertService's own header: a startup-time DB
-      // hiccup here must not crash the whole app. A stale/missing rule degrades to the existing,
-      // already-loud refusal at request time (country-policy.ts's evaluateCountryPolicy — a named
-      // 403, never a silent one), never a worse failure than what this mechanism already guarded
-      // against before it existed. Failing the whole boot on a transient DB blip would be strictly
-      // worse for a correction this narrow.
-      this.logger.error(
-        'Failed to detect/reseed document country-action policy drift at boot — a stale or missing ' +
-          'rule may 403 every document action for an affected country until this succeeds on a ' +
-          `later boot: ${error instanceof Error ? error.message : String(error)}`,
-      );
     }
+
+    // NEVER throws out of `onModuleInit`, same reasoning as B2gRoutingBootUpsertService's own header:
+    // a startup-time DB hiccup here must not crash the whole app. A stale/missing rule degrades to the
+    // existing, already-loud refusal at request time (country-policy.ts's evaluateCountryPolicy — a
+    // named 403, never a silent one), never a worse failure than what this mechanism already guarded
+    // against before it existed. Reached only once every retry above is exhausted.
+    this.logger.error(
+      `Failed to detect/reseed document country-action policy drift at boot after ` +
+        `${BOOT_RESEED_MAX_ATTEMPTS} attempts — a stale or missing rule may 403 every document action ` +
+        'for an affected country until this succeeds on a later boot: ' +
+        `${lastError instanceof Error ? lastError.message : String(lastError)}`,
+    );
   }
 }

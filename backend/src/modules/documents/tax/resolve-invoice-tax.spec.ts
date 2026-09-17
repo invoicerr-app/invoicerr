@@ -373,6 +373,68 @@ describe('resolveInvoiceCrossBorderTax — the OSS block itself still fires for 
     expect(line.__crossBorderCategory).toBe('S');
     expect(line.vatRate).toBe('20');
   });
+
+  /**
+   * THE MUTATION TARGET: a French seller charging a REDUCED rate (10%, "taux intermédiaire", CGI art.
+   * 278 bis/279) on a service sold to a German consumer used to have that rate silently REWRITTEN to
+   * FR's own 20% standard rate — `resolveInvoiceCrossBorderTax` never populated `taxRateHint`, so
+   * `tax-engine.ts#domesticVat` fell back to `sys.standardRate` unconditionally. This is a genuine
+   * over-charge to the final consumer, and a divergence between the accepted quote and the invoice
+   * actually sent — never merely a display quirk.
+   */
+  it('B2C SERVICES to DE at a REDUCED French rate (10%, "taux intermédiaire") is PRESERVED — never rewritten to the 20% standard rate', () => {
+    const data = dataWithLines([
+      {
+        description: 'Chauffage au bois',
+        quantity: 1,
+        unitPrice: 100,
+        vatRate: '10',
+        supplyType: 'SERVICES',
+      },
+    ]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'DE' },
+      data,
+    });
+    expect(result.crossBorder).toBe(true);
+    const line = (result.data.lines as Record<string, unknown>[])[0];
+    expect(line.__crossBorderCategory).toBe('S');
+    expect(line.vatRate).toBe('10'); // never "20"
+  });
+
+  it("B2C SERVICES to DE with a rate not in the seller's own catalog: falls back to the standard rate, with a NAMED warning, never silently", () => {
+    const data = dataWithLines([
+      {
+        description: 'Consulting',
+        quantity: 1,
+        unitPrice: 100,
+        vatRate: 'not-a-real-rate',
+        supplyType: 'SERVICES',
+      },
+    ]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'DE' },
+      data,
+    });
+    const line = (result.data.lines as Record<string, unknown>[])[0];
+    expect(line.vatRate).toBe('20'); // FR's own standard-rate fallback
+    expect(result.warnings.join(' ')).toMatch(/not one of FR's known VAT rates/);
+  });
+
+  it("a GOODS line (OSS) is UNAFFECTED by taxRateHint resolution — its own rate is still the destination country's standard rate", () => {
+    const data = dataWithLines([
+      { description: 'Widgets', quantity: 1, unitPrice: 100, vatRate: '10', supplyType: 'GOODS' },
+    ]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'DE' },
+      data,
+    });
+    const line = (result.data.lines as Record<string, unknown>[])[0];
+    expect(line.vatRate).toBe('19'); // DE's own standard rate (OSS) — the seller's "10" is irrelevant here
+  });
 });
 
 describe('resolveInvoiceCrossBorderTax — a syntactically wrong VAT number never unlocks B2B', () => {
@@ -418,10 +480,15 @@ describe('resolveInvoiceCrossBorderTax — a syntactically wrong VAT number neve
  * reads the CURRENT persisted instance). None of that is safe unless resolving an ALREADY-RESOLVED
  * line a second time reproduces the EXACT SAME treatment — this is what makes it safe, proven here by
  * actually feeding a first pass's own output back in as the second pass's input, rather than merely
- * asserted in a comment. It holds by construction: the cross-border branch never reads a line's
- * EXISTING `vatRate` to decide anything (only `supplyType`, and the seller/buyer identity passed
- * alongside `data`, never through it) — see `resolveInvoiceCrossBorderTax`'s own `clonedRows` above,
- * which only ever WRITES `vatRate`/`__crossBorderCategory`, never reads them back.
+ * asserted in a comment. It holds by construction: `supplyType` and the seller/buyer identity passed
+ * alongside `data` (never through it) decide every branch except one — the seller-taxed B2C-services
+ * branch DOES read a line's `vatRate` (as `taxRateHint`, see the module's own header), but only to
+ * resolve it against the SELLER's own catalog, a DETERMINISTIC function of (seller country, stored
+ * value): re-resolving the first pass's own written-back `vatRate` (itself always a real percentage
+ * from that same catalog) reproduces the identical percentage every time, so the round trip still
+ * holds — see the reduced-rate test further below, where this actually matters (an idempotence proof
+ * at the seller's own STANDARD rate alone could never tell a preserved reduced rate apart from a
+ * silently-substituted standard one).
  */
 describe('resolveInvoiceCrossBorderTax — idempotence: re-resolving an ALREADY-RESOLVED line is stable', () => {
   it("FR→DE B2B SERVICES (reverse charge): feeding the first pass's own result back in as the second pass's input reproduces it byte-for-byte", () => {
@@ -468,6 +535,31 @@ describe('resolveInvoiceCrossBorderTax — idempotence: re-resolving an ALREADY-
     const firstPass = resolveInvoiceCrossBorderTax({ ...parties, data: draft });
     const secondPass = resolveInvoiceCrossBorderTax({ ...parties, data: firstPass.data });
 
+    expect(secondPass.data).toEqual(firstPass.data);
+  });
+
+  // The case an idempotence proof AT the standard rate alone cannot tell apart from a silent
+  // substitution: re-resolving a REDUCED rate must reproduce the SAME reduced rate, not converge onto
+  // the seller's own standard one.
+  it('FR→DE B2C SERVICES at a REDUCED French rate (10%): re-resolving the already-resolved line reproduces 10%, never drifts to 20%', () => {
+    const draft = dataWithLines([
+      {
+        description: 'Chauffage au bois',
+        quantity: 1,
+        unitPrice: 100,
+        vatRate: '10',
+        supplyType: 'SERVICES',
+      },
+    ]);
+    const parties = { seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' } };
+
+    const firstPass = resolveInvoiceCrossBorderTax({ ...parties, data: draft });
+    const firstLine = (firstPass.data.lines as Record<string, unknown>[])[0];
+    expect(firstLine.vatRate).toBe('10');
+
+    const secondPass = resolveInvoiceCrossBorderTax({ ...parties, data: firstPass.data });
+    const secondLine = (secondPass.data.lines as Record<string, unknown>[])[0];
+    expect(secondLine.vatRate).toBe('10');
     expect(secondPass.data).toEqual(firstPass.data);
   });
 

@@ -108,6 +108,29 @@ export function rowFor(countryCode: string, rule: DocumentActionRuleFact): Docum
 export async function seedCountryPolicies(
   prisma: PrismaCountryPolicyClient,
   catalog: CountryPolicyCatalog = defaultCountryPolicyCatalog,
+  /**
+   * Whether to run the WHOLE-COUNTRY purge below at all — `true` by DEFAULT, preserving this
+   * function's own "the file is the ongoing source of truth" contract byte for byte for its two
+   * DELIBERATE, single-writer callers (`prisma/seed.ts`'s `migrate dev`/`migrate reset`/`db seed`
+   * hook, and `sync-schema.ts`'s production API-role boot): a country genuinely dropped from
+   * `data/*.json` in a real release IS meant to lose its rows there.
+   *
+   * `boot-reseed.ts#detectAndReseedCountryPolicyDrift` — the ONLINE, per-process-boot correction that
+   * runs in EVERY replica, API and worker alike, on EVERY boot — passes `false`. That path has no
+   * business purging a whole country at all: during a rolling deployment, an OLD replica (still
+   * running yesterday's image, yesterday's catalog) restarting on its own liveness probe would
+   * otherwise see a country the NEW replica already seeded as "removed" (simply absent from the OLD
+   * catalog it happens to be running) and DELETE those rows out from under the new image — 403s on
+   * every action for that country until the next boot of a new-image replica. An advisory lock would
+   * not close this hole: the old replica is not racing a concurrent writer, it is running ALONE with a
+   * stale catalog and would, correctly per its OWN view, decide the newer country is stale. Only
+   * refusing to purge from the automatic, per-boot path — leaving a REAL country removal to the
+   * deliberate, single-run reseed that ships with the release that actually removes it — closes it.
+   * `boot-reseed.service.ts`'s own drift-detection LOG still names any such "removed" country, so a
+   * genuine, intended removal is still visible, just never silently acted on by a replica that might
+   * be the stale one.
+   */
+  purgeRemovedCountries = true,
 ): Promise<CountryPolicySeedSummary> {
   const countries = catalog.countries();
 
@@ -170,14 +193,23 @@ export async function seedCountryPolicies(
   // country dropped from `data/*.json` entirely is never visited by that loop at all, so its rows
   // survive forever without this second, GLOBAL pass — one query outside any per-country
   // transaction, precisely because it has to reach rows for countries the loop above never touched.
-  const keepCountries = new Set(countries);
-  const allRows = await prisma.documentCountryActionRule.findMany({ select: COUNTRY_POLICY_ROW_SELECT });
-  const wholeCountryStale = allRows.filter((row) => !keepCountries.has(row.countryCode));
-  if (wholeCountryStale.length > 0) {
-    await prisma.documentCountryActionRule.deleteMany({
-      where: { id: { in: wholeCountryStale.map((row) => row.id) } },
-    });
-    deleted += wholeCountryStale.length;
+  //
+  // Gated on `purgeRemovedCountries` — see this function's own parameter doc comment for the full
+  // "rolling deployment" scenario this guards against. Skipping the purge never leaves a stale rule
+  // BEHIND for a country still in the catalog (that is the per-country loop above, unaffected by this
+  // flag) — it only ever means "a country absent from THIS run's catalog keeps its existing rows",
+  // which is exactly the safe default for a caller that cannot tell "genuinely removed" apart from
+  // "this replica's own catalog just hasn't caught up yet".
+  if (purgeRemovedCountries) {
+    const keepCountries = new Set(countries);
+    const allRows = await prisma.documentCountryActionRule.findMany({ select: COUNTRY_POLICY_ROW_SELECT });
+    const wholeCountryStale = allRows.filter((row) => !keepCountries.has(row.countryCode));
+    if (wholeCountryStale.length > 0) {
+      await prisma.documentCountryActionRule.deleteMany({
+        where: { id: { in: wholeCountryStale.map((row) => row.id) } },
+      });
+      deleted += wholeCountryStale.length;
+    }
   }
 
   return { upserted, deleted };

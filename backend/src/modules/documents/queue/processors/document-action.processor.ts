@@ -216,11 +216,21 @@ export class DocumentActionProcessor extends WorkerHost {
     // un-retried attempt. THE MUTATION TARGET #2 ("the job's failure gets persisted as 'sent' anyway")
     // lives in the action handler itself (actions/async-send.ts) and in `onFailed` below, not in this
     // method.
-    return this.documentsService.runAction(companyId, typeId, actionId, {
-      documentId,
-      data: payload.data,
-      params: payload.params,
-    });
+    // `role` stays `undefined` (this queue never carries one — see `DocumentsService.runAction`'s own
+    // header on that parameter) and `isQueuedReplay: true` is threaded through as the SIXTH argument:
+    // this "run" branch is reached ONLY via `queue.constants.ts#enqueueAction`'s own `'run'` job name,
+    // which `actions/async-send.ts` is the ONLY caller of, always for the SAME action it just admitted
+    // moments (or, after a backoff, hours) earlier — `runAction` itself narrows this flag down to the
+    // one shape it actually changes anything for (`actionId === 'send'` AND the record already
+    // "sending"), so passing it unconditionally here is safe for every job this branch ever sees.
+    return this.documentsService.runAction(
+      companyId,
+      typeId,
+      actionId,
+      { documentId, data: payload.data, params: payload.params },
+      undefined,
+      true,
+    );
   }
 
   private requireSweepRunner(): DocumentScheduleSweepRunner {

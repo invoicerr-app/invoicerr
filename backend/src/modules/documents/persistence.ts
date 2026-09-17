@@ -1,5 +1,5 @@
 import { Prisma } from '../../../prisma/generated/prisma/client';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
 
 import { DocumentInstanceResult } from './actions/action-registry';
@@ -25,12 +25,50 @@ export async function findOwnedDocument(
 }
 
 /**
+ * THE SHARED compare-and-swap PRIMITIVE behind every conditional write in this file —
+ * `claimDocumentTransition` (the cross-process claim below) and `upsertDocument`/
+ * `updateDocumentStatus`'s own optional `fromStatuses` guard both route through this ONE
+ * `updateMany`, so "a write is conditional on the row's CURRENT status" stays one mechanism, never
+ * two independently-evolving ones. Returns the row count Prisma reports (0 or 1) — never throws on
+ * its own; every caller here decides what a `0` means for its own write.
+ */
+async function updateManyConditionally(
+  companyId: string,
+  typeId: string,
+  id: string,
+  fromStatuses: string[],
+  data: Prisma.DocumentInstanceUpdateManyMutationInput,
+  knownUpdatedAt?: Date,
+): Promise<number> {
+  const result = await prisma.documentInstance.updateMany({
+    where: {
+      id,
+      companyId,
+      typeId,
+      status: { in: fromStatuses },
+      ...(knownUpdatedAt !== undefined ? { updatedAt: knownUpdatedAt } : {}),
+    },
+    data,
+  });
+  return result.count;
+}
+
+/**
  * Creates a new instance, or updates an existing one owned by this company — used by any action
  * that persists the document's current field values under a given status (e.g. "save-draft", and the
  * first phase of the async "send" — actions/async-send.ts — moving "draft"/"send_failed" to
  * "sending"). Always resets `lastActionError` to null: any ordinary write like this one means the
  * record is moving forward again, and a stale failure message from a PREVIOUS attempt must never
  * linger next to it — see `DocumentInstance.lastActionError`'s own schema comment.
+ *
+ * `fromStatuses`, when given, makes this an atomic compare-and-swap (`updateManyConditionally` above)
+ * instead of an unconditional `update` — the general form of the TOCTOU this module used to have on
+ * EVERY write here: `runAction` (documents.service.ts) reads a document's status once, several
+ * `await`s before any handler actually writes it, so two concurrent calls against the SAME record can
+ * both pass that stale read and both reach this function. `undefined` (the default — every EXISTING
+ * caller that has not been updated to pass its own expected status yet) preserves the exact previous,
+ * unconditional behavior, byte for byte; a caller that DOES pass `fromStatuses` gets a named
+ * `ConflictException` instead of a silently-won race the moment the row has already moved on.
  */
 export async function upsertDocument(
   companyId: string,
@@ -38,15 +76,30 @@ export async function upsertDocument(
   documentId: string | undefined,
   status: string,
   data: Record<string, unknown>,
+  fromStatuses?: string[],
 ): Promise<DocumentInstanceResult> {
   const jsonData = data as Prisma.InputJsonValue;
 
   if (documentId) {
     await findOwnedDocument(companyId, typeId, documentId);
-    return prisma.documentInstance.update({
-      where: { id: documentId },
-      data: { status, data: jsonData, lastActionError: null },
+    if (fromStatuses === undefined) {
+      return prisma.documentInstance.update({
+        where: { id: documentId },
+        data: { status, data: jsonData, lastActionError: null },
+      });
+    }
+    const count = await updateManyConditionally(companyId, typeId, documentId, fromStatuses, {
+      status,
+      data: jsonData,
+      lastActionError: null,
     });
+    if (count === 0) {
+      throw new ConflictException(
+        `Document "${documentId}" is no longer in one of the expected statuses ` +
+          `(${fromStatuses.join(', ')}) — another request already changed it concurrently.`,
+      );
+    }
+    return findOwnedDocument(companyId, typeId, documentId);
   }
 
   return prisma.documentInstance.create({
@@ -70,6 +123,10 @@ export async function upsertDocument(
  * SAME transport result's own `providerId` (`DocumentInstance.channelProviderId`'s own schema
  * comment) — written on the exact same call, for the exact same reason, so the two columns can never
  * disagree about which delivery they describe.
+ *
+ * `fromStatuses`, when given, is the SAME compare-and-swap `upsertDocument` above now supports (see
+ * its own doc comment) — `undefined` (every caller not yet updated to pass its own expected status)
+ * stays byte-for-byte the previous, unconditional `update`.
  */
 export async function updateDocumentStatus(
   companyId: string,
@@ -79,17 +136,26 @@ export async function updateDocumentStatus(
   lastActionError: string | null = null,
   transportRef?: string,
   channelProviderId?: string,
+  fromStatuses?: string[],
 ): Promise<DocumentInstanceResult> {
   await findOwnedDocument(companyId, typeId, id);
-  return prisma.documentInstance.update({
-    where: { id },
-    data: {
-      status,
-      lastActionError,
-      ...(transportRef !== undefined ? { transportRef } : {}),
-      ...(channelProviderId !== undefined ? { channelProviderId } : {}),
-    },
-  });
+  const data: Prisma.DocumentInstanceUpdateManyMutationInput = {
+    status,
+    lastActionError,
+    ...(transportRef !== undefined ? { transportRef } : {}),
+    ...(channelProviderId !== undefined ? { channelProviderId } : {}),
+  };
+  if (fromStatuses === undefined) {
+    return prisma.documentInstance.update({ where: { id }, data });
+  }
+  const count = await updateManyConditionally(companyId, typeId, id, fromStatuses, data);
+  if (count === 0) {
+    throw new ConflictException(
+      `Document "${id}" is no longer in one of the expected statuses (${fromStatuses.join(', ')}) — ` +
+        'another request already changed it concurrently.',
+    );
+  }
+  return findOwnedDocument(companyId, typeId, id);
 }
 
 /**
@@ -123,11 +189,7 @@ export async function claimDocumentTransition(
   knownUpdatedAt: Date,
   toStatus: string,
 ): Promise<number> {
-  const result = await prisma.documentInstance.updateMany({
-    where: { id, companyId, typeId, status: { in: fromStatuses }, updatedAt: knownUpdatedAt },
-    data: { status: toStatus },
-  });
-  return result.count;
+  return updateManyConditionally(companyId, typeId, id, fromStatuses, { status: toStatus }, knownUpdatedAt);
 }
 
 /**

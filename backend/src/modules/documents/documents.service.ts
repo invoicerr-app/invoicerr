@@ -884,6 +884,26 @@ export class DocumentsService implements OnModuleInit {
    * forwarding `@ActiveRole()`. `undefined` reads as "not a MEMBER" (see `requiresApproval`'s own
    * header), so those callers are never re-gated — only the ORIGINAL, human, over-the-wire "send" ever
    * sees this check.
+   *
+   * `isQueuedReplay` is a SECOND, ADDITIVE trailing parameter — `false` for every EXISTING caller
+   * (documents.controller.ts included), which keeps every gate below running in EXACTLY the same
+   * order, for the exact same callers, as before this parameter existed (see `earlyReplayFetch`
+   * below: it is only ever populated when `isQueuedReplay` is true, so a default call's own
+   * `resolveActionPolicy` keeps running first, unconditionally, precisely where it always has). It
+   * exists ONLY for `queue/processors/document-action.processor.ts`'s own replay of an async "send"
+   * job (see that file's own call site): by the time BullMQ hands this job to a worker, phase 1
+   * (`actions/async-send.ts`) already ran `runAction` ONCE, live, moments (or, after a backoff, HOURS)
+   * earlier — country policy, the approval threshold, field/row-selection/reference validation all
+   * already passed THEN, against the company's state AT THAT MOMENT, and an irreversible document
+   * number was already taken on the strength of that admission. Re-running those same gates a second
+   * time here can only ever compare against a company state that has since DRIFTED (a subscription
+   * that expired in the meantime, an admin archiving the expense category this exact record already
+   * carries, a country catalog reseed) — and since the number is already spent, failing the job over
+   * any of that just burns every retry and stamps "send_failed" on a record whose number will never be
+   * reused (see numbering/sequence.ts's own header). `isAdmittedReplay` below narrows this flag to the
+   * ONE shape that is actually true of: the "send" action, on a record ALREADY "sending". Any other
+   * combination — a fresh call, a different action, a record not already "sending" — runs every gate
+   * exactly as if this parameter were never passed at all.
    */
   async runAction(
     companyId: string,
@@ -891,19 +911,34 @@ export class DocumentsService implements OnModuleInit {
     actionId: string,
     payload: RunActionDto,
     role?: CompanyRole,
+    isQueuedReplay = false,
   ): Promise<ActionResult> {
     const { descriptor, action } = this.resolveAction(typeId, actionId);
 
-    const policyDecision = await this.resolveActionPolicy(companyId, typeId, actionId);
-    if (!policyDecision.allowed) {
-      throw new ForbiddenException(policyDecision.reason);
+    // ONLY ever populated for `isQueuedReplay` — see this method's own header. A default call
+    // (`isQueuedReplay: false`, every EXISTING caller) leaves this `undefined`, so `isAdmittedReplay`
+    // below is trivially false and every gate that follows runs in its ORIGINAL, unconditional order.
+    const earlyReplayFetch =
+      isQueuedReplay && payload.documentId
+        ? await findOwnedDocument(companyId, typeId, payload.documentId)
+        : undefined;
+    const isAdmittedReplay = isQueuedReplay && actionId === 'send' && earlyReplayFetch?.status === 'sending';
+
+    let policyDecision: CountryPolicyDecision | undefined;
+    if (!isAdmittedReplay) {
+      policyDecision = await this.resolveActionPolicy(companyId, typeId, actionId);
+      if (!policyDecision.allowed) {
+        throw new ForbiddenException(policyDecision.reason);
+      }
     }
 
-    let currentStatus: string | undefined;
+    let currentStatus: string | undefined = earlyReplayFetch?.status;
     // Captured alongside `currentStatus` for `validateReferenceFields` below — see that call's own
     // comment for why a NEW or CHANGED reference is checked but an unchanged one is grandfathered in.
-    let existingData: Record<string, unknown> | undefined;
-    if (payload.documentId) {
+    let existingData: Record<string, unknown> | undefined = earlyReplayFetch
+      ? ((earlyReplayFetch.data ?? {}) as Record<string, unknown>)
+      : undefined;
+    if (!earlyReplayFetch && payload.documentId) {
       const existing = await findOwnedDocument(companyId, typeId, payload.documentId);
       currentStatus = existing.status;
       existingData = (existing.data ?? {}) as Record<string, unknown>;
@@ -920,7 +955,8 @@ export class DocumentsService implements OnModuleInit {
     // here rather than folded into `evaluateCountryPolicy`'s allowed/forbidden decision: the action
     // IS permitted by this country in principle (policyDecision.allowed is already true at this
     // point), just not from this particular status, which is exactly what a 409 already means for
-    // the descriptor's own `availableWhen` — never a second, redundant 403.
+    // the descriptor's own `availableWhen` — never a second, redundant 403. Skipped for an admitted
+    // replay for the exact same reason `resolveActionPolicy` above is — see this method's own header.
     //
     // A brand-new, never-saved record (`currentStatus === undefined`) is NOT checked against this
     // restriction: there is no status yet for a country's per-status rule to have an opinion about —
@@ -928,8 +964,9 @@ export class DocumentsService implements OnModuleInit {
     // this restriction narrows only once a status actually exists to narrow. The descriptor's own
     // `availableWhen: 'always'` already treats a never-saved record as satisfied the exact same way.
     if (
+      !isAdmittedReplay &&
       currentStatus !== undefined &&
-      policyDecision.restrictedToStatuses &&
+      policyDecision?.restrictedToStatuses &&
       !policyDecision.restrictedToStatuses.includes(currentStatus)
     ) {
       throw new ConflictException(
@@ -1005,42 +1042,52 @@ export class DocumentsService implements OnModuleInit {
       payload.data = stripSidecarKeys(fields, payload.data ?? {});
     }
 
-    const dataErrors = validateAgainstDescriptor(fields, payload.data ?? {}, this.fieldKindRegistry);
-    // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares
-    // none (the loop inside just finds nothing), never a DB round-trip for the quote or the invoice.
-    // See row-selection/resolve-row-selection.ts's header for why this is a SEPARATE, async pass
-    // rather than one more FieldKindRegistry validator: it needs company-scoped persistence access
-    // validateAgainstDescriptor's pure, synchronous kinds deliberately never get.
-    const rowSelectionErrors = await validateRowSelections({
-      companyId,
-      descriptor: { ...descriptor, fields },
-      typeRegistry: this.typeRegistry,
-      data: payload.data ?? {},
-    });
-    // Company-scoped existence for every top-level 'reference' field that is NEW or CHANGED by this
-    // very write — see references/validate-references.ts's own header for the full "why", in
-    // particular why this is NOT re-checked for a value carried over unchanged from the already-
-    // persisted document. This is what closes the hole this fix exists for: a scripted client can no
-    // longer persist another tenant's (or a nonexistent) client/invoice/quote id as `data.client` (or
-    // `data.invoice`, `data.origin`, `data.supplierClient`) and have every downstream consumer trust it.
-    const referenceErrors = await validateReferenceFields({
-      companyId,
-      referenceRegistry: this.referenceRegistry,
-      fields,
-      data: payload.data ?? {},
-      existingData,
-    });
-    const paramErrors = action.params
-      ? validateAgainstDescriptor(action.params, payload.params ?? {}, this.fieldKindRegistry)
-      : [];
-    if (
-      dataErrors.length > 0 ||
-      rowSelectionErrors.length > 0 ||
-      referenceErrors.length > 0 ||
-      paramErrors.length > 0
-    ) {
-      const errors = [...dataErrors, ...rowSelectionErrors, ...referenceErrors, ...paramErrors];
-      throw new BadRequestException({ message: 'Invalid document data', errors });
+    // Every one of these four checks re-validates `payload.data`/`payload.params` against the
+    // company's CURRENT fields/rows/references — exactly the class of gate `isAdmittedReplay` exists
+    // to skip (see this method's own header): for an admitted replay, `payload.data` is this SAME
+    // module's own previously-resolved data (async-send.ts's own header, the SAME reasoning the
+    // sidecar-stripping skip just above already holds), already validated once, live, at enqueue time.
+    // Re-validating it here can only ever fail on drift since then (an admin archiving the expense
+    // category this exact record already carries, a required custom field added after the fact) —
+    // never on anything about the data itself, which has not changed.
+    if (!isAdmittedReplay) {
+      const dataErrors = validateAgainstDescriptor(fields, payload.data ?? {}, this.fieldKindRegistry);
+      // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares
+      // none (the loop inside just finds nothing), never a DB round-trip for the quote or the invoice.
+      // See row-selection/resolve-row-selection.ts's header for why this is a SEPARATE, async pass
+      // rather than one more FieldKindRegistry validator: it needs company-scoped persistence access
+      // validateAgainstDescriptor's pure, synchronous kinds deliberately never get.
+      const rowSelectionErrors = await validateRowSelections({
+        companyId,
+        descriptor: { ...descriptor, fields },
+        typeRegistry: this.typeRegistry,
+        data: payload.data ?? {},
+      });
+      // Company-scoped existence for every top-level 'reference' field that is NEW or CHANGED by this
+      // very write — see references/validate-references.ts's own header for the full "why", in
+      // particular why this is NOT re-checked for a value carried over unchanged from the already-
+      // persisted document. This is what closes the hole this fix exists for: a scripted client can no
+      // longer persist another tenant's (or a nonexistent) client/invoice/quote id as `data.client` (or
+      // `data.invoice`, `data.origin`, `data.supplierClient`) and have every downstream consumer trust it.
+      const referenceErrors = await validateReferenceFields({
+        companyId,
+        referenceRegistry: this.referenceRegistry,
+        fields,
+        data: payload.data ?? {},
+        existingData,
+      });
+      const paramErrors = action.params
+        ? validateAgainstDescriptor(action.params, payload.params ?? {}, this.fieldKindRegistry)
+        : [];
+      if (
+        dataErrors.length > 0 ||
+        rowSelectionErrors.length > 0 ||
+        referenceErrors.length > 0 ||
+        paramErrors.length > 0
+      ) {
+        const errors = [...dataErrors, ...rowSelectionErrors, ...referenceErrors, ...paramErrors];
+        throw new BadRequestException({ message: 'Invalid document data', errors });
+      }
     }
 
     // Stamps a stable id onto any row of an 'array' field that at least one CURRENTLY REGISTERED
@@ -1059,8 +1106,10 @@ export class DocumentsService implements OnModuleInit {
     // PDP/Chorus Pro/KSeF deposits and the outbound email itself happen INSIDE that action's
     // `deliver()` phase, never as a separately-recognized action, so gating this one id is what gates
     // all of them. A no-op call (returns immediately, no query) when billing is disabled — see that
-    // function's own header.
-    if (actionId === 'send') {
+    // function's own header. Skipped for an admitted replay for the same reason every other admission
+    // gate above is (this method's own header): a subscription that lapsed AFTER phase 1 already took
+    // an irreversible document number cannot un-take it — refusing delivery here only burns a retry.
+    if (actionId === 'send' && !isAdmittedReplay) {
       await assertCanSend(companyId);
     }
 

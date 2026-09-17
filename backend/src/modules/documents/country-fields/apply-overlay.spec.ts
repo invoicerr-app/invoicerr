@@ -161,6 +161,16 @@ describe('applyFieldOverlay — path resolution errors', () => {
     const operations: FieldOverlayOperation[] = [{ op: 'remove', path: 'currency', key: 'x' }];
     expect(() => applyFieldOverlay(TRUNK_FIELDS, operations)).toThrow(/not an 'array' field/);
   });
+
+  // THE MUTATION TARGET (bug #2 — no `default:` on the operation switch): the SECOND, independent
+  // gate for a hand-built operations list that skipped data/all.ts's own `assertValidCountryFields`
+  // (a test, a future caller) — see schema.spec.ts for the FILE-loading side of this same fix. This
+  // switch used to have no `default` case at all: an unrecognized `op` fell through and vanished,
+  // silently, with no trace anywhere.
+  it('refuses an unknown "op" value, loudly — never a silent no-op', () => {
+    const operations = [{ op: 'delete', path: '', key: 'currency' }] as unknown as FieldOverlayOperation[];
+    expect(() => applyFieldOverlay(TRUNK_FIELDS, operations)).toThrow(/unknown operation "op" "delete"/);
+  });
 });
 
 describe('applyFieldOverlay — operations compose in order', () => {

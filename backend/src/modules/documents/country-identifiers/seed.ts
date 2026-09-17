@@ -109,6 +109,17 @@ export function rowFor(countryCode: string, fact: IdentifierSchemeFact): Country
 export async function seedCountryIdentifierRequirements(
   prisma: PrismaCountryIdentifierRequirementsClient,
   catalog: CountryIdentifierRequirementsCatalog = defaultCountryIdentifierRequirementsCatalog,
+  /**
+   * Same flag, same default, same reasoning as `country-policy/seed.ts`'s own
+   * `seedCountryPolicies` parameter of the identical name — see that function's own doc comment for
+   * the full "rolling deployment" account; it applies here verbatim, table name swapped.
+   * `true` by default for this function's two deliberate, single-writer callers (`prisma/seed.ts`,
+   * `sync-schema.ts`'s production API-role boot); `boot-reseed.ts#detectAndReseedCountryIdentifierRequirementsDrift`
+   * — the ONLINE, per-process-boot correction running in EVERY replica on EVERY boot — passes `false`,
+   * so a replica still running yesterday's (shorter) catalog can never delete a country a newer
+   * replica already seeded.
+   */
+  purgeRemovedCountries = true,
 ): Promise<CountryIdentifierRequirementsSeedSummary> {
   const countries = catalog.countries();
 
@@ -171,16 +182,23 @@ export async function seedCountryIdentifierRequirements(
   // country dropped from `data/*.json` entirely is never visited by it at all — its rows would
   // otherwise survive forever. One query outside any per-country transaction, precisely because it
   // has to reach rows for countries the loop above never touched.
-  const keepCountries = new Set(countries);
-  const allRows = await prisma.countryIdentifierRequirement.findMany({
-    select: COUNTRY_IDENTIFIER_REQUIREMENT_ROW_SELECT,
-  });
-  const wholeCountryStale = allRows.filter((row) => !keepCountries.has(row.countryCode));
-  if (wholeCountryStale.length > 0) {
-    await prisma.countryIdentifierRequirement.deleteMany({
-      where: { id: { in: wholeCountryStale.map((row) => row.id) } },
+  //
+  // Gated on `purgeRemovedCountries` — see this function's own parameter doc comment (and
+  // country-policy/seed.ts's own, which this mirrors) for why: skipping it never leaves a stale
+  // SCHEME behind for a country still in the catalog (the per-country loop above, unaffected by this
+  // flag) — it only ever means "a country absent from THIS run's catalog keeps its existing rows".
+  if (purgeRemovedCountries) {
+    const keepCountries = new Set(countries);
+    const allRows = await prisma.countryIdentifierRequirement.findMany({
+      select: COUNTRY_IDENTIFIER_REQUIREMENT_ROW_SELECT,
     });
-    deleted += wholeCountryStale.length;
+    const wholeCountryStale = allRows.filter((row) => !keepCountries.has(row.countryCode));
+    if (wholeCountryStale.length > 0) {
+      await prisma.countryIdentifierRequirement.deleteMany({
+        where: { id: { in: wholeCountryStale.map((row) => row.id) } },
+      });
+      deleted += wholeCountryStale.length;
+    }
   }
 
   return { upserted, deleted };

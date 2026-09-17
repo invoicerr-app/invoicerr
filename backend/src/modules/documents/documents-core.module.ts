@@ -26,6 +26,7 @@ import { registerRequestSignatureAction } from './actions/request-signature';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
 import { registerReceivedInvoiceActions } from './actions/received-invoice-actions';
 import { B2gRoutingBootUpsertService } from './b2g-routing/boot-upsert.service';
+import { ArchiveStorageSharingBootCheckService } from './archive/storage-sharing-boot-check.service';
 import { AuthorityStatusPollerRegistry } from './conformity/authority-status-poller';
 import { CountryIdentifierRequirementsBootReseedService } from './country-identifiers/boot-reseed.service';
 import { CountryPolicyBootReseedService } from './country-policy/boot-reseed.service';
@@ -664,6 +665,11 @@ function buildEntityReferenceRegistry(
     // these two tables when it first shipped (see `schema.prisma`'s own comment on `B2gRoutingRule`).
     CountryPolicyBootReseedService,
     CountryIdentifierRequirementsBootReseedService,
+    // Same "OnModuleInit, every process, never throws" shape as the two services just above — see
+    // that service's own header for what it checks (the API/worker archive-storage-sharing
+    // misconfiguration `archive/storage.ts`'s own header names) and why a failure here is a logged
+    // WARNING, never a boot-blocking error the way a country-catalog reseed failure escalates to.
+    ArchiveStorageSharingBootCheckService,
     // The "sdi-pec" RECEIVE side — parses/journals SdI's own notifiche once drained from a company's
     // PEC mailbox (`transports/sdi-pec/pec-notifiche.service.ts`) and the drain loop itself
     // (`pec-inbox-poller.service.ts`). Plain classes, resolved by Nest the same way

@@ -1,8 +1,13 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
-import { claimDocumentTransition, findOwnedDocument, upsertDocument } from './persistence';
+import {
+  claimDocumentTransition,
+  findOwnedDocument,
+  updateDocumentStatus,
+  upsertDocument,
+} from './persistence';
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -95,6 +100,152 @@ describe('persistence — upsertDocument', () => {
       NotFoundException,
     );
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+// THE MUTATION TARGET (generalized TOCTOU): before this, EVERY write in this file was a bare
+// `update({ where: { id } })` — no `companyId`, no expected `status` — so two concurrent callers that
+// both read the SAME stale status (documents.service.ts#runAction reads it once, several `await`s
+// before a handler ever writes) could both pass whatever gate led here and both land their write. This
+// proves `upsertDocument`/`updateDocumentStatus`'s own new `fromStatuses` parameter routes through the
+// SAME `updateMany` compare-and-swap `claimDocumentTransition` already used, rather than a second,
+// independently-written mechanism — the "sans dupliquer" this fix has to hold.
+describe('persistence — upsertDocument/updateDocumentStatus, conditional on the CURRENT status', () => {
+  beforeEach(() => {
+    findFirst.mockReset();
+    update.mockReset();
+    updateMany.mockReset();
+  });
+
+  it('upsertDocument WITHOUT fromStatuses is byte-for-byte the previous, unconditional write', async () => {
+    findFirst.mockResolvedValue({ id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: 'draft' });
+    update.mockResolvedValue({ id: 'doc-1', typeId: 'invoice', status: 'sending', data: {} });
+
+    await upsertDocument('company-1', 'invoice', 'doc-1', 'sending', { total: 1 });
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'doc-1' },
+      data: { status: 'sending', data: { total: 1 }, lastActionError: null },
+    });
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('upsertDocument WITH fromStatuses succeeds via updateMany when the row is still in an expected status', async () => {
+    findFirst
+      .mockResolvedValueOnce({ id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: 'draft' }) // findOwnedDocument guard
+      .mockResolvedValueOnce({ id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: 'sending' }); // re-fetch after the CAS
+    updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await upsertDocument('company-1', 'invoice', 'doc-1', 'sending', { total: 1 }, [
+      'draft',
+      'send_failed',
+    ]);
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'doc-1',
+        companyId: 'company-1',
+        typeId: 'invoice',
+        status: { in: ['draft', 'send_failed'] },
+      },
+      data: { status: 'sending', data: { total: 1 }, lastActionError: null },
+    });
+    expect(update).not.toHaveBeenCalled(); // never the unconditional path once fromStatuses is given
+    expect(result.status).toBe('sending');
+  });
+
+  it('upsertDocument WITH fromStatuses refuses with a named 409, never a silent second write, once the row already moved on', async () => {
+    findFirst.mockResolvedValue({ id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: 'draft' });
+    updateMany.mockResolvedValue({ count: 0 }); // a concurrent caller already won the race
+
+    await expect(
+      upsertDocument('company-1', 'invoice', 'doc-1', 'sending', { total: 1 }, ['draft']),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('updateDocumentStatus WITHOUT fromStatuses is byte-for-byte the previous, unconditional write', async () => {
+    findFirst.mockResolvedValue({
+      id: 'doc-1',
+      companyId: 'company-1',
+      typeId: 'invoice',
+      status: 'sending',
+    });
+    update.mockResolvedValue({ id: 'doc-1', typeId: 'invoice', status: 'sent' });
+
+    await updateDocumentStatus('company-1', 'invoice', 'doc-1', 'sent');
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'doc-1' },
+      data: { status: 'sent', lastActionError: null },
+    });
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('updateDocumentStatus WITH fromStatuses succeeds via updateMany, carrying transportRef/channelProviderId through', async () => {
+    findFirst
+      .mockResolvedValueOnce({ id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: 'sending' })
+      .mockResolvedValueOnce({ id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: 'sent' });
+    updateMany.mockResolvedValue({ count: 1 });
+
+    await updateDocumentStatus('company-1', 'invoice', 'doc-1', 'sent', null, 'ref-123', 'provider-x', [
+      'sending',
+    ]);
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: { in: ['sending'] } },
+      data: {
+        status: 'sent',
+        lastActionError: null,
+        transportRef: 'ref-123',
+        channelProviderId: 'provider-x',
+      },
+    });
+  });
+
+  it('two "concurrent" updateDocumentStatus calls for the SAME record: only the first (matching updateMany) wins, the second gets a named 409', async () => {
+    updateMany
+      .mockResolvedValueOnce({ count: 1 }) // the winner
+      .mockResolvedValueOnce({ count: 0 }); // the row already moved on by the time this one runs
+
+    // Call #1: findOwnedDocument's own initial read, then the post-CAS re-fetch.
+    findFirst.mockResolvedValueOnce({
+      id: 'doc-1',
+      companyId: 'company-1',
+      typeId: 'invoice',
+      status: 'sending',
+    });
+    findFirst.mockResolvedValueOnce({
+      id: 'doc-1',
+      companyId: 'company-1',
+      typeId: 'invoice',
+      status: 'sent',
+    });
+    const first = await updateDocumentStatus(
+      'company-1',
+      'invoice',
+      'doc-1',
+      'sent',
+      undefined,
+      undefined,
+      undefined,
+      ['sending'],
+    );
+    expect(first.status).toBe('sent');
+
+    // Call #2 (the "loser"): findOwnedDocument's own initial read still sees "sending" (its own stale
+    // snapshot), but the CAS itself (updateMany, mocked to return count 0 above) reports the row
+    // already moved on — the exact race this fix closes.
+    findFirst.mockResolvedValueOnce({
+      id: 'doc-1',
+      companyId: 'company-1',
+      typeId: 'invoice',
+      status: 'sending',
+    });
+    await expect(
+      updateDocumentStatus('company-1', 'invoice', 'doc-1', 'send_failed', 'boom', undefined, undefined, [
+        'sending',
+      ]),
+    ).rejects.toThrow(ConflictException);
   });
 });
 

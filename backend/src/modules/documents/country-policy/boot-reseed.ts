@@ -45,6 +45,12 @@ export async function detectAndReseedCountryPolicyDrift(
     return { drift, upserted: 0, deleted: 0, reseeded: false };
   }
 
-  const seedSummary = await seedCountryPolicies(prisma, catalog);
+  // `purgeRemovedCountries: false` — this is the ONLINE, per-process-boot path, running in EVERY
+  // replica (API and worker alike) on EVERY boot, never the deliberate, single-run reseed
+  // (`prisma/seed.ts`, `sync-schema.ts`) — see `seedCountryPolicies`'s own parameter doc comment for
+  // the full "a stale replica would otherwise delete a newer replica's own country" reasoning. A
+  // country that genuinely looks removed is still named in `drift.removedCountries` (and logged loudly
+  // by `boot-reseed.service.ts`) — it is simply never ACTED ON by this automatic path.
+  const seedSummary = await seedCountryPolicies(prisma, catalog, false);
   return { drift, upserted: seedSummary.upserted, deleted: seedSummary.deleted, reseeded: true };
 }

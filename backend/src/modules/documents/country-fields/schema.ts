@@ -67,3 +67,93 @@ export interface CountryFieldOverlayFile {
   /** Free-form, file-level caveats. */
   notes?: string;
 }
+
+export class InvalidCountryFieldOverlayError extends Error {}
+
+/**
+ * The one gate a field-overlay file cannot get past without a structurally sound shape — this catalog
+ * carries no per-operation PROVENANCE (see this file's own header: an "add/modify/remove" is a
+ * structural/product fact, not itself a new legal claim), so unlike country-policy/schema.ts's
+ * `assertValidProvenance` this checks SHAPE, not sourcing. Before this existed, a JSON typo on `op`
+ * (`"delete"` for `"remove"`) or a missing `key`/`field.key` reached `apply-overlay.ts` at RUNTIME —
+ * where an unrecognized `op` fell through its own `switch` with no `default` case and silently did
+ * nothing, and a missing `key` threw an unlabelled error far from the file that actually caused it.
+ * This makes both a loud, named failure at BOOT instead — the same "every failure mode here is a
+ * loud, named Error, never a silent no-op" discipline `apply-overlay.ts`'s own header already holds
+ * for the APPLY side, now held for the DATA side too.
+ *
+ * Called from `data/all.ts` when a file loads — the only loader this catalog has (no seed/DB step to
+ * double-gate at the way `country-policy/seed.ts` re-validates independently of `data/all.ts`).
+ */
+export function assertValidCountryFields(file: CountryFieldOverlayFile, context: string): void {
+  if (!Array.isArray(file.overlays)) {
+    throw new InvalidCountryFieldOverlayError(`${context}: "overlays" must be an array.`);
+  }
+
+  const seenTypeIds = new Set<string>();
+  file.overlays.forEach((overlay, overlayIndex) => {
+    const overlayContext = `${context}: overlay block #${overlayIndex + 1}`;
+    if (!overlay.typeId?.trim()) {
+      throw new InvalidCountryFieldOverlayError(`${overlayContext} is missing its "typeId".`);
+    }
+    if (seenTypeIds.has(overlay.typeId)) {
+      // registry.ts#operationsFor resolves ONE block per typeId with a bare `.find()` — a SECOND
+      // block for the SAME type would silently lose every one of its operations, applied nowhere and
+      // reported nowhere. Refused here, at load, rather than discovered only once a country-specific
+      // field is silently missing from a live screen.
+      throw new InvalidCountryFieldOverlayError(
+        `${context}: typeId "${overlay.typeId}" is declared in more than one overlay block — merge ` +
+          'them into a single block (registry.ts only ever reads the FIRST one; the rest would be ' +
+          'silently ignored).',
+      );
+    }
+    seenTypeIds.add(overlay.typeId);
+
+    if (!Array.isArray(overlay.operations)) {
+      throw new InvalidCountryFieldOverlayError(
+        `${context}: typeId "${overlay.typeId}" is missing "operations" (must be an array).`,
+      );
+    }
+
+    overlay.operations.forEach((operation, operationIndex) => {
+      const where = `${context}: typeId "${overlay.typeId}", operation #${operationIndex + 1}`;
+      if (typeof operation.path !== 'string') {
+        throw new InvalidCountryFieldOverlayError(`${where}: "path" must be a string.`);
+      }
+      switch (operation.op) {
+        case 'add':
+          if (!operation.field?.key?.trim()) {
+            throw new InvalidCountryFieldOverlayError(`${where} ("add"): missing a field with a "key".`);
+          }
+          if (!operation.field.kind?.trim()) {
+            throw new InvalidCountryFieldOverlayError(
+              `${where} ("add"): field "${operation.field.key}" is missing a "kind".`,
+            );
+          }
+          break;
+        case 'modify':
+          if (!operation.key?.trim()) {
+            throw new InvalidCountryFieldOverlayError(
+              `${where} ("modify"): missing the "key" of the field to modify.`,
+            );
+          }
+          break;
+        case 'remove':
+          if (!operation.key?.trim()) {
+            throw new InvalidCountryFieldOverlayError(
+              `${where} ("remove"): missing the "key" of the field to remove.`,
+            );
+          }
+          break;
+        default:
+          // The exact bug this validation exists to catch: an unknown `op` (a typo — "delete" for
+          // "remove") used to fall through apply-overlay.ts's own `switch` with NO `default` case and
+          // silently do nothing. Refused here, loudly, before it can ever reach a live company.
+          throw new InvalidCountryFieldOverlayError(
+            `${where}: unknown "op" ${JSON.stringify((operation as { op?: unknown }).op)} — must be ` +
+              '"add", "modify", or "remove".',
+          );
+      }
+    });
+  });
+}

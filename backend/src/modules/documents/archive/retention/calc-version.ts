@@ -69,5 +69,11 @@
  * exactly as it was written (see `schema.prisma`'s own comment on `retentionCalcVersion`: no
  * migration ever rewrites it) — bumping this only changes what NEW rows record, and what the UI
  * therefore treats as "known current" versus "possibly stale".
+ *
+ * BUMPED TO 2: `compute-retention.ts#endOfYearUtc` used to anchor on MIDNIGHT AT THE START of 31
+ * December instead of its last instant (23:59:59.999) — every rule using `issueDateYearEnd` (DE ×2,
+ * PT) or `taxDeadlineYearEndUnknownSafe` (PL) resolved a `retentionUntil` a full day too EARLY, the
+ * same dangerous direction v1 itself was created to fix. Rows written under v1 stay exactly as they
+ * were computed; only a NEW write records v2 and gets the corrected, one-day-later value.
  */
-export const CURRENT_RETENTION_CALC_VERSION = 1;
+export const CURRENT_RETENTION_CALC_VERSION = 2;

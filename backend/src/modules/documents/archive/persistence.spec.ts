@@ -135,8 +135,10 @@ describe('archive/persistence', () => {
         select: { data: true },
       });
       const written = createArchive.mock.calls[0][0].data;
-      // 2026-12-31 (end of the ISSUE year) + 8 — not the archivedAt-based date the old defect produced.
-      expect(written.retentionUntil.toISOString()).toBe('2034-12-31T00:00:00.000Z');
+      // 2026-12-31 23:59:59.999 (the LAST instant of the ISSUE year — "mit dem Schluss des
+      // Kalenderjahres", see compute-retention.ts#endOfYearUtc's own header) + 8 — not the
+      // archivedAt-based date the old defect produced, and not the year's first midnight either.
+      expect(written.retentionUntil.toISOString()).toBe('2034-12-31T23:59:59.999Z');
     });
 
     it('archives even a country with no declared retention rule — null retentionUntil, honest basis', async () => {

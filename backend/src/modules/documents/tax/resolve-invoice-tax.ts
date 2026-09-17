@@ -29,8 +29,17 @@
  * including the SAME OBJECT REFERENCE guarantee on `ResolveInvoiceCrossBorderTaxResult.data` below.
  *
  * CROSS-BORDER (seller country !== buyer country): the engine DECIDES. The user's chosen `vatRate`
- * is IGNORED entirely and REPLACED by whatever `tax-engine.ts#determineLineTax` resolves (0% reverse
- * charge, 0% intra-Community supply, 0% export, a US destination-state rate, …). The buyer's ROLE
+ * is REPLACED by whatever `tax-engine.ts#determineLineTax` resolves (0% reverse charge, 0%
+ * intra-Community supply, 0% export, a US destination-state rate, …) on every branch where the place
+ * of taxation is NOT the seller's own country. On the one branch where it IS (a non-digital B2C
+ * service sold across the same union — `determineLineTax`'s own "default to taxing where the supplier
+ * is" case, `domesticVat` under the hood), the user's chosen rate is resolved against the SELLER's own
+ * catalog (`vat-rates/registry.ts#resolveVatRatePercentage`, same lookup `assertDomesticRatesKnown`
+ * above already uses) and threaded through as `DocumentLine.taxRateHint` — read, never ignored,
+ * because a reduced/exempt rate is a fact about the seller's OWN law that a bare `sys.standardRate`
+ * fallback would otherwise silently overwrite (see `resolveInvoiceCrossBorderTax`'s own
+ * `taxRateHints`). Unresolvable against that catalog degrades to the SAME `sys.standardRate` fallback,
+ * with a named warning rather than a silent one. The buyer's ROLE
  * (B2B/B2C) is derived from a REAL, ALREADY-STORED VAT-validation verdict
  * (`PartyIdentifier.validationStatus`, written by `modules/clients/clients.service.ts` — see that
  * file's own header for why validation happens when the VAT number is entered, never at send time),
@@ -539,12 +548,48 @@ export function resolveInvoiceCrossBorderTax(
     taxScheme: input.seller.taxScheme,
   };
 
+  // The seller's own country is the taxing jurisdiction on exactly ONE cross-border branch —
+  // `tax-engine.ts#determineLineTax`'s "Other B2C services across the union → default to taxing where
+  // the supplier is" case, which calls `domesticVat` and reads `line.taxRateHint`
+  // (`rate = zeroByHint(line) ? 0 : (line.taxRateHint ?? sys.standardRate)`). EVERY OTHER branch below
+  // (B2B reverse charge, intra-Community goods, export, out-of-scope, OSS) computes its own rate
+  // independently and never reads `taxRateHint` at all — so resolving it here for every line,
+  // unconditionally, changes nothing for them; there is exactly one branch this can affect, and it is
+  // the one this fix targets. Without this, that branch fell back to `sys.standardRate` for every
+  // line (`taxRateHint` was never populated at all), silently REPLACING whatever reduced/exempt rate
+  // the user actually chose on the invoice with the seller's own STANDARD rate — a real, provable
+  // over-charge (e.g. a French 10% "taux intermédiaire" service rewritten to 20% the moment a German
+  // consumer buys it), never merely a display quirk.
+  const isTaxedAtSellerRate = (index: number): boolean =>
+    inSameUnion && role === 'B2C' && supplyTypes[index] !== 'GOODS' && supplyTypes[index] !== 'DIGITAL';
+
+  const taxRateHints = rows.map((row, index) => {
+    const stored = row.vatRate;
+    if (typeof stored !== 'string' || stored.trim() === '') return undefined;
+    const resolved = resolveVatRatePercentage(vatRateCatalog, sellerCC, stored);
+    if (resolved !== null) return resolved;
+    // Unresolvable against the seller's own catalog — the same "no known rate to cite" situation
+    // `assertDomesticRatesKnown` already refuses a DOMESTIC invoice over. A NAMED warning here, never
+    // a silent standard-rate substitution, but ONLY when this line will actually reach the ONE branch
+    // that would otherwise silently substitute one (see above) — every other line's `vatRate` is
+    // simply irrelevant to its own cross-border treatment, and warning about it would be noise.
+    if (isTaxedAtSellerRate(index)) {
+      warnings.push(
+        `Line ${index + 1}'s chosen VAT rate ("${stored}") is not one of ${sellerCC}'s known VAT ` +
+          `rates — this cross-border B2C service is taxed at ${sellerCC}'s own standard rate instead, ` +
+          'since there is no known rate on this invoice to honour.',
+      );
+    }
+    return undefined;
+  });
+
   const lines: DocumentLine[] = rows.map((_row, index) => ({
     id: String(index),
     description: '',
     quantity: 1,
     unitNetMinor: 0,
     supplyType: supplyTypes[index],
+    taxRateHint: taxRateHints[index],
   }));
 
   const result = determineTax(

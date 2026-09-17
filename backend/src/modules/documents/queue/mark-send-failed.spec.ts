@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import { transitionsAvailableWhen } from '../descriptors/lifecycle';
 import { DocumentActionTransition, DocumentTypeDescriptor } from '../descriptors/types';
@@ -79,7 +79,39 @@ describe('markSendFailed', () => {
       'doc-1',
       'send_failed',
       'SMTP connection refused',
+      undefined,
+      undefined,
+      ['sending'],
     );
+  });
+
+  // THE MUTATION TARGET (generalized TOCTOU fix): the `existing.status !== 'sending'` check above and
+  // this write are two separate steps — a genuine success (or a duplicate BullMQ delivery of the same
+  // terminal-failure event) can land BETWEEN them. Proven here by having `updateDocumentStatus` itself
+  // report the loss (`ConflictException`, exactly what `persistence.ts`'s own `fromStatuses` guard
+  // throws when the row already moved on) rather than by racing real timers.
+  it('a ConflictException from the conditional write (record moved on between the check and the write) is swallowed, never rethrown', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'widget',
+      status: 'sending',
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (persistence.updateDocumentStatus as jest.Mock).mockRejectedValue(
+      new ConflictException('Document "doc-1" is no longer in one of the expected statuses (sending).'),
+    );
+
+    await expect(
+      markSendFailed(resolveDescriptor, {
+        companyId: 'company-1',
+        typeId: 'widget',
+        documentId: 'doc-1',
+        actionId: 'send',
+        error: new Error('too slow'),
+      }),
+    ).resolves.toBeUndefined();
   });
 
   it('is idempotent: a record that already moved past "sending" (e.g. a genuine success won the race) is left alone', async () => {

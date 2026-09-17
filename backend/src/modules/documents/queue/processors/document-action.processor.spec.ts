@@ -49,11 +49,14 @@ describe('DocumentActionProcessor', () => {
 
       await processor.process(fakeJob(JOB_DATA));
 
-      expect(runAction).toHaveBeenCalledWith('company-1', 'quote', 'send', {
-        documentId: 'doc-1',
-        data: { client: 'client-1' },
-        params: { recipient: 'a@b.com' },
-      });
+      expect(runAction).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'send',
+        { documentId: 'doc-1', data: { client: 'client-1' }, params: { recipient: 'a@b.com' } },
+        undefined,
+        true, // isQueuedReplay — see documents.service.ts#runAction's own header
+      );
     });
 
     it('a country-policy-forbidden action (ForbiddenException from runAction) fails the job attempt — never silently succeeds', async () => {

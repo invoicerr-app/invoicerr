@@ -219,3 +219,113 @@ export async function listArchivedArtifactKeys(): Promise<string[]> {
   }
   return keys;
 }
+
+/**
+ * The witness-file check behind `checkArchiveStorageSharing` below — separated so a caller (a health
+ * check, a repeated boot-time poll) can list what OTHER roles have already proven reachable without
+ * writing its own witness on every call.
+ */
+const WITNESS_FILE_PREFIX = '.archive-storage-witness-';
+
+function witnessFileName(role: string): string {
+  return `${WITNESS_FILE_PREFIX}${role}.json`;
+}
+
+export interface ArchiveStorageSharingCheck {
+  /** `false` only when THIS process itself could not read or write `archiveRoot()` — never when the
+   *  check is merely inconclusive (see `reason` for that case). */
+  shared: boolean;
+  /** Always populated, human-readable — never a raw stack trace, never silent. */
+  reason: string;
+}
+
+/**
+ * A CHEAP, LOUD-ABLE guard against exactly the failure this file's own header names for a split
+ * API/worker deployment: `ARCHIVE_STORAGE=local` (the default) with `WORKER_INLINE=false`
+ * (`docker-compose.scale.yml`) needs `DOCUMENTS_ARCHIVE_DIR` to resolve to the SAME mounted volume in
+ * every container, or `verifyDocumentArchive` (`archive/persistence.ts`) silently reports every
+ * archive `{status:'corrupted', actual:null}` from whichever role did NOT write it — a legal control
+ * lying about intact archives, not merely a missing feature.
+ *
+ * Writes a small witness file under `archiveRoot()`, named after THIS role (`witnessFileName`), and —
+ * if another role's own witness is ALREADY there from some earlier boot — proves it is genuinely
+ * READABLE from here too, not merely a directory that happens to share a path STRING on two unrelated
+ * filesystems. This is deliberately NOT a synchronous "the other role must already have booted" check:
+ * a role that boots FIRST (either one — order is not controlled) simply finds no other witness yet and
+ * reports `shared: true` with an "inconclusive, nothing to cross-check against yet" reason, exactly
+ * like this file's own committed self-description would be honest about. A LATER boot of the other
+ * role — or a repeated health-check poll — is what actually turns this into proof, once both roles
+ * have written their own witness at least once.
+ *
+ * `undefined` (never called) is silently fine for `ARCHIVE_STORAGE=s3`: nothing local is shared or
+ * needs to be, since `s3-storage.ts`'s own bucket already IS the one shared resource by construction —
+ * this function returns `shared: true` immediately for that case rather than touching the filesystem
+ * at all. Wiring this into an actual boot sequence (`main.ts`/`worker.ts`) is deliberately NOT done
+ * here — this file only owns the archive-storage primitive, never process bootstrap.
+ */
+export function checkArchiveStorageSharing(role: string): ArchiveStorageSharingCheck {
+  if (process.env.ARCHIVE_STORAGE === 's3') {
+    return {
+      shared: true,
+      reason: 'ARCHIVE_STORAGE=s3 — the bucket is the one shared resource; nothing local to check.',
+    };
+  }
+
+  const root = archiveRoot();
+  let entries: string[];
+  try {
+    mkdirSync(root, { recursive: true });
+    entries = existsSync(root) ? readdirSync(root) : [];
+  } catch (error) {
+    return {
+      shared: false,
+      reason:
+        `DOCUMENTS_ARCHIVE_DIR ("${root}") could not be created/listed by this "${role}" process — ` +
+        `${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+
+  const otherWitnesses = entries.filter(
+    (name) => name.startsWith(WITNESS_FILE_PREFIX) && name !== witnessFileName(role),
+  );
+  for (const name of otherWitnesses) {
+    try {
+      readFileSync(join(root, name), 'utf8');
+    } catch (error) {
+      // "fichier absent" vs "octets corrompus", the same distinction `archive/persistence.ts`'s own
+      // per-artifact `ArchiveMismatch.actual` already makes: this is neither — the witness IS listed
+      // (so it exists) but cannot be READ by this role, the one shape that actually proves two roles
+      // are NOT looking at the same filesystem despite sharing a path string.
+      return {
+        shared: false,
+        reason:
+          `"${name}" was written under this same DOCUMENTS_ARCHIVE_DIR ("${root}") by another role, ` +
+          `but this "${role}" process cannot read it back — the two roles are almost certainly NOT ` +
+          `sharing the same volume: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  try {
+    writeFileSync(
+      join(root, witnessFileName(role)),
+      JSON.stringify({ role, pid: process.pid, writtenAt: new Date().toISOString() }),
+    );
+  } catch (error) {
+    return {
+      shared: false,
+      reason:
+        `DOCUMENTS_ARCHIVE_DIR ("${root}") is not writable by this "${role}" process — ` +
+        `${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+
+  return otherWitnesses.length > 0
+    ? { shared: true, reason: `Confirmed readable from this role too: ${otherWitnesses.join(', ')}.` }
+    : {
+        shared: true,
+        reason:
+          'No other role has written its own witness here yet — inconclusive on this boot, not a ' +
+          'failure; re-check once every role has started at least once for a real cross-role proof.',
+      };
+}
