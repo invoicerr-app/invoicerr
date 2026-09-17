@@ -286,6 +286,8 @@ export async function renderDocumentInstance(
     // it there). `language: true` — the FALLBACK layer for `recipientLanguageFor` below, read
     // unconditionally (it's one column on a row this function fetches anyway). The three
     // `branding*` columns (chantier B) feed `render-html.ts`'s own `branding` input below.
+    // `exemptVat: true` — read here for `computeDocumentTotals`'s own `sellerExemptVat` option below
+    // (`DocumentTotals.showVat`), never rendered directly in `render-html.ts`'s company header block.
     select: {
       name: true,
       address: true,
@@ -294,6 +296,7 @@ export async function renderDocumentInstance(
       country: true,
       iban: true,
       language: true,
+      exemptVat: true,
       brandingAccentColor: true,
       brandingFont: true,
       brandingLogoId: true,
@@ -341,7 +344,11 @@ export async function renderDocumentInstance(
     }
   }
 
-  const totals = computeDocumentTotals(descriptor, instanceData);
+  // A franchise-base seller's DRAFT can still carry a stray non-zero line rate until "send" rewrites
+  // every line to 0% (`tax/resolve-invoice-tax.ts#applyDomesticTaxScheme`) — `sellerExemptVat` hides
+  // the redundant VAT row on THIS PDF (draft preview or final) without waiting for that resolution,
+  // and without touching a single net/vat/gross figure (see `DocumentTotals.showVat`'s own header).
+  const totals = computeDocumentTotals(descriptor, instanceData, { sellerExemptVat: company.exemptVat });
   const language = await recipientLanguageFor(companyId, descriptor, company.language, instanceData);
   const paymentMethods = await paymentMethodsFor(
     descriptor,

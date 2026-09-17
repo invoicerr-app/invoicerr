@@ -994,6 +994,107 @@ describe('renderDocumentHtml', () => {
     });
   });
 
+  // VAT display (`DocumentTotals.showVat`) — a VAT-exempt seller, or a document whose every line
+  // resolves to exactly 0%, gets no "Net"/"VAT ... 0.00" rows at all: a single "Total" row.
+  describe('totals — VAT display (showVat)', () => {
+    const descriptor: DocumentTypeDescriptor = { id: 'invoice', label: 'Invoice', fields: [], actions: [] };
+
+    it('renders Net + one row per VAT-breakdown entry + Total when showVat is true (the pre-existing behaviour)', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: 'EUR',
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+          showVat: true,
+        },
+      });
+
+      expect(html).toContain('>Net<');
+      expect(html).toContain('VAT 20% on 100.00 EUR');
+      expect(html).toContain('>Total<');
+      expect(html).toContain('120.00 EUR');
+    });
+
+    it('omitting `showVat` entirely still shows the breakdown — every pre-existing fixture/caller keeps working unchanged', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: 'EUR',
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+        },
+      });
+
+      expect(html).toContain('>Net<');
+      expect(html).toContain('VAT 20% on 100.00 EUR');
+    });
+
+    it('showVat: false — no "Net" row, no "VAT ... 0.00" row, just ONE "Total" row', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: 'EUR',
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 0,
+          grossMinor: 10000,
+          vatBreakdown: [{ ratePercent: 0, baseMinor: 10000, vatMinor: 0 }],
+          warnings: [],
+          showVat: false,
+        },
+      });
+
+      expect(html).not.toContain('>Net<');
+      expect(html).not.toContain('VAT 0% on');
+      expect(html).toContain('>Total<');
+      // The gross figure (== net here, since there is no VAT to charge) still prints exactly once.
+      expect((html.match(/100\.00 EUR/g) ?? []).length).toBe(1);
+    });
+
+    it('showVat: false still hides EVERY breakdown row, even a mistakenly non-empty one with a positive rate', () => {
+      // Defensive: a caller could in principle hand `showVat: false` alongside a non-trivial
+      // breakdown (e.g. a stale value from before a franchise-base seller's lines were resolved to
+      // 0%) — this render layer trusts the flag, never re-derives it from the breakdown itself.
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: 'EUR',
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+          showVat: false,
+        },
+      });
+
+      expect(html).not.toContain('VAT 20% on');
+      expect(html).not.toContain('>Net<');
+    });
+  });
+
   // Per-recipient document language ("langue du document par destinataire") — `language` translates ONLY this
   // render layer's OWN chrome vocabulary (`language/pdf-chrome-strings.ts`); `descriptor.label`/
   // `field.label`/`option.label` stay exactly what the descriptor wrote, in every test below, proving

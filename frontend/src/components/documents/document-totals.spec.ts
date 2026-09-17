@@ -191,4 +191,26 @@ describe("computeDocumentTotals", () => {
     expect(totals?.warnings).toEqual(["line 1 has no usable VAT rate — counted in net only"])
     expect(totals?.vatMinor).toBe(0)
   })
+
+  describe("showVat (the company's own `exemptVat` toggle)", () => {
+    it("is true by default, a positive-rate line, no company info passed", () => {
+      const totals = computeDocumentTotals(withLines, {
+        currency: "EUR",
+        lines: [{ quantity: 1, unitPrice: 100, vatRate: "20" }],
+      })
+      expect(totals?.showVat).toBe(true)
+    })
+
+    it("is false once the 5th arg (the company's `exemptVat`) is true, even with a positive line rate on file", () => {
+      const totals = computeDocumentTotals(
+        withLines,
+        { currency: "EUR", lines: [{ quantity: 1, unitPrice: 100, vatRate: "20" }] },
+        undefined,
+        true,
+      )
+      expect(totals?.showVat).toBe(false)
+      // Still the honest, not-yet-resolved amount — only the display flag changes.
+      expect(totals?.vatMinor).toBe(2000)
+    })
+  })
 })

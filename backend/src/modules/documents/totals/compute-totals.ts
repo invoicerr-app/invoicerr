@@ -24,6 +24,43 @@ export interface DocumentTotals {
   grossMinor: number;
   vatBreakdown: VatBreakdownEntry[];
   warnings: string[];
+  /**
+   * Whether the VAT breakdown is worth printing at all — a display flag, never an input to the
+   * arithmetic above (net/vat/gross stay exactly what the lines say either way). False when either:
+   *  - the seller itself has no VAT to charge at all (`ComputeTotalsOptions.sellerExemptVat`, the
+   *    small-business exemption a company ticks in Settings — `Company.exemptVat`), regardless of
+   *    what a not-yet-resolved line's own rate still says (a franchise-base seller's DRAFT can still
+   *    carry a stray non-zero rate until "send" rewrites every line to 0% —
+   *    `tax/resolve-invoice-tax.ts#applyDomesticTaxScheme` — this flag must not wait for that to
+   *    happen before hiding a line nobody will ever actually charge); or
+   *  - every line that DOES carry a rate resolved to exactly 0% (an all-exempt/all-reverse-charge
+   *    document — autoliquidation, an export, an intra-Community supply) — there is no VAT amount on
+   *    this document at all, so a "VAT 0% on X — 0.00" row would say nothing a reader doesn't already
+   *    read off the gross total.
+   * True the moment ANY rate in the breakdown is positive — a MIXED document (e.g. one exported line
+   * at 0% next to a domestic line at 20%) still needs its breakdown, 0% row included, so the total
+   * doesn't look miscounted.
+   *
+   * Deliberately does NOT touch `mentions/`/`__crossBorderMentions` — a country-mandated notice (the
+   * franchise-base "art. 293 B" wording, an autoliquidation mention) is resolved and printed entirely
+   * independently of this flag (`rendering/render-instance-pdf.ts#legalMentionsFor`) and must keep
+   * printing when this flag goes false: hiding a redundant AMOUNT is not the same as hiding the LEGAL
+   * FACT that produced it.
+   *
+   * Optional so every pre-existing literal built as a `DocumentTotals` fixture (this module's own
+   * specs, `render-html.spec.ts`, `render-instance-pdf.spec.ts`, `company/branding/
+   * sample-preview-document.ts`) keeps compiling and behaving exactly as before this field existed —
+   * `render-html.ts` treats an absent value as "show", the same as an explicit `true`.
+   */
+  showVat?: boolean;
+}
+
+export interface ComputeTotalsOptions {
+  /** `Company.exemptVat` — see `DocumentTotals.showVat`'s own header. Never read for anything but
+   *  that one derived flag: a franchise-base seller's stored lines/rates are computed exactly as
+   *  typed, the same arithmetic as any other company, so a caller that omits this keeps getting
+   *  byte-for-byte the same net/vat/gross numbers it always did. */
+  sellerExemptVat?: boolean;
 }
 
 /**
@@ -71,6 +108,7 @@ export interface DocumentTotals {
 export function computeDocumentTotals(
   descriptor: DocumentTypeDescriptor,
   data: Record<string, unknown>,
+  options?: ComputeTotalsOptions,
 ): DocumentTotals {
   const warnings: string[] = [];
   const lines: LineTotal[] = [];
@@ -104,6 +142,7 @@ export function computeDocumentTotals(
       grossMinor: 0,
       vatBreakdown: [],
       warnings,
+      showVat: false,
     };
   }
 
@@ -241,6 +280,10 @@ export function computeDocumentTotals(
 
   const totalGrossMinor = totalNetMinor + totalVatMinor;
 
+  // See `DocumentTotals.showVat`'s own header for the full rule — a display flag only, computed last
+  // so it reads off the SAME `vatBreakdown` this function just built, never a second pass over `lines`.
+  const showVat = !options?.sellerExemptVat && vatBreakdown.some((entry) => entry.ratePercent > 0);
+
   return {
     currency,
     lines,
@@ -249,13 +292,20 @@ export function computeDocumentTotals(
     grossMinor: totalGrossMinor,
     vatBreakdown,
     warnings,
+    showVat,
   };
 }
 
 /**
  * Whether `computeDocumentTotals` has any SOURCE of money on this type at all — i.e. whether a
- * non-zero total is even reachable for it. A type with no line array (the credit note, the expense)
- * always totals zero above, by construction, not because a particular instance happens to be empty.
+ * non-zero total is even reachable for it. A type with NO line array at all (the expense) always
+ * totals zero above, by construction, not because a particular instance happens to be empty. The
+ * credit note now DOES declare one (`lines`, credit-note.descriptor.ts's own FREE shape) — but a
+ * LINKED credit note's own `lines` is always empty by construction (credit-note-actions.ts's own
+ * `assertCreditNoteAmountSourceIsUnambiguous`; its real amount comes from `correctedLines` instead,
+ * via settlement/credits.ts's OWN, separate calculation), so this still totals zero for that shape —
+ * only a genuinely instance-level fact now, not a type-level one the way it used to be for every
+ * credit note.
  *
  * Exported for the email-template VOCABULARY (actions/email-template.ts's
  * `describeDocumentEmailVocabulary`): advertising `{totalGross}` to someone editing a type's email

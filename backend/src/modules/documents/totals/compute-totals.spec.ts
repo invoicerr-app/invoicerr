@@ -472,4 +472,81 @@ describe('computeDocumentTotals', () => {
       expect(result.warnings).toEqual([]);
     });
   });
+
+  // `DocumentTotals.showVat` — a display flag, never an input to the arithmetic above: the same
+  // net/vat/gross figures come out whether or not this flag ends up true.
+  describe('showVat', () => {
+    it('is true for an ordinary document with a positive VAT rate', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20' }],
+      });
+
+      expect(result.showVat).toBe(true);
+    });
+
+    it('stays true for a MIXED document — a real 20% line next to a 0% one still needs its breakdown', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [
+          { description: 'Export', quantity: 1, unitPrice: 100, vatRate: '0' },
+          { description: 'Domestic', quantity: 1, unitPrice: 100, vatRate: '20' },
+        ],
+      });
+
+      expect(result.showVat).toBe(true);
+      expect(result.vatBreakdown).toEqual([
+        { ratePercent: 0, baseMinor: 10000, vatMinor: 0 },
+        { ratePercent: 20, baseMinor: 10000, vatMinor: 2000 },
+      ]);
+    });
+
+    it('is false when every line resolves to exactly 0% — an all-exempt/all-reverse-charge document, no `sellerExemptVat` needed', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Autoliquidation', quantity: 1, unitPrice: 100, vatRate: '0' }],
+      });
+
+      expect(result.showVat).toBe(false);
+      // The 0% row itself is still computed honestly — hiding it on screen/PDF is a rendering
+      // decision (render-html.ts), never something this function itself drops.
+      expect(result.vatBreakdown).toEqual([{ ratePercent: 0, baseMinor: 10000, vatMinor: 0 }]);
+    });
+
+    it('is false for a VAT-exempt seller even though the line still carries a stray positive rate — a draft not yet resolved by the tax engine', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(
+        descriptor,
+        { currency: 'EUR', lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20' }] },
+        { sellerExemptVat: true },
+      );
+
+      expect(result.showVat).toBe(false);
+      // Never an arithmetic override: the honest (not-yet-resolved) VAT amount is still computed —
+      // only the DISPLAY flag reacts to `sellerExemptVat`, exactly as this option's own header states.
+      expect(result.vatMinor).toBe(2000);
+      expect(result.grossMinor).toBe(12000);
+    });
+
+    it('is false for a VAT-exempt seller on an otherwise VAT-free document too — both conditions agree', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(
+        descriptor,
+        { currency: 'EUR', lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '0' }] },
+        { sellerExemptVat: true },
+      );
+
+      expect(result.showVat).toBe(false);
+    });
+
+    it('is false when the document type has no line array at all (nothing to break down)', () => {
+      const descriptor = buildTestDescriptor({ arrayField: false });
+      const result = computeDocumentTotals(descriptor, { currency: 'EUR' });
+
+      expect(result.showVat).toBe(false);
+    });
+  });
 });

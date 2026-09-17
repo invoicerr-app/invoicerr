@@ -104,6 +104,14 @@ export interface ClientDocumentTotals {
   grossMinor: number
   vatBreakdown: ClientVatBreakdownEntry[]
   warnings: string[]
+  /** Whether the VAT breakdown is worth showing at all — mirrors the backend's own
+   *  `compute-totals.ts#DocumentTotals.showVat` EXACTLY (same rule, same reasons this file's own
+   *  header already commits to never diverging on): false when the seller has no VAT to charge at
+   *  all (`sellerExemptVat`, the company's own small-business exemption checkbox) OR every rate in
+   *  the breakdown is exactly 0% (an all-exempt/all-reverse-charge document); true the moment ANY
+   *  rate is positive, so a mixed document still shows its 0% row alongside a real one. Never changes
+   *  net/vat/gross — a display flag only. */
+  showVat: boolean
 }
 
 /**
@@ -141,6 +149,11 @@ export function computeTotals(
    *  Optional so a caller with no VAT-rate field at all (or a plain custom-value one, `options` never
    *  populated) doesn't need to construct an empty shape just to call this. */
   vatRateOptions?: VatRateFieldOptions,
+  /** `Company.exemptVat` — see `ClientDocumentTotals.showVat`'s own header. Optional so every
+   *  existing caller (list-amount.ts's per-row total, which shows no VAT line to begin with, and
+   *  every pre-existing test here) keeps computing net/vat/gross unchanged; only the derived
+   *  `showVat` flag reads it. */
+  sellerExemptVat?: boolean,
 ): ClientDocumentTotals {
   const warnings: string[] = []
   const processedLines: Array<{
@@ -253,6 +266,10 @@ export function computeTotals(
 
   const totalGrossMinor = totalNetMinor + totalVatMinor
 
+  // Mirrors the backend's own `compute-totals.ts` rule exactly — see this function's own
+  // `sellerExemptVat` param and `ClientDocumentTotals.showVat`'s header for the reasoning.
+  const showVat = !sellerExemptVat && vatBreakdown.some((entry) => entry.ratePercent > 0)
+
   return {
     currency,
     lines: resultLines,
@@ -261,5 +278,6 @@ export function computeTotals(
     grossMinor: totalGrossMinor,
     vatBreakdown,
     warnings,
+    showVat,
   }
 }

@@ -643,34 +643,42 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     const { totals } = input;
     const currency = totals.currency || '—';
     const decimals = decimalsFor(currency);
+    // `showVat === false` is the only case that hides anything here — absent (every fixture/caller
+    // predating this flag) or explicitly `true` renders BYTE-FOR-BYTE what this block always rendered.
+    // See `DocumentTotals.showVat`'s own header (compute-totals.ts) for the rule this reads.
+    const showVat = totals.showVat !== false;
 
     html += `
     <div class="totals-section">
       <div class="totals-label">${escapeHtmlSafe(strings.totals)}</div>
 `;
 
-    // Net amount
-    const netDisplay = `${fromMinor(totals.netMinor, currency).toFixed(decimals)} ${currency}`;
-    html += `
+    if (showVat) {
+      // Net amount
+      const netDisplay = `${fromMinor(totals.netMinor, currency).toFixed(decimals)} ${currency}`;
+      html += `
       <div class="totals-row">
         <span>${escapeHtmlSafe(strings.net)}</span>
         <span class="totals-amount">${escapeHtmlSafe(netDisplay)}</span>
       </div>
 `;
 
-    // VAT breakdown (one row per rate)
-    for (const entry of totals.vatBreakdown) {
-      const baseDisplay = `${fromMinor(entry.baseMinor, currency).toFixed(decimals)} ${currency}`;
-      const vatDisplay = `${fromMinor(entry.vatMinor, currency).toFixed(decimals)} ${currency}`;
-      html += `
+      // VAT breakdown (one row per rate)
+      for (const entry of totals.vatBreakdown) {
+        const baseDisplay = `${fromMinor(entry.baseMinor, currency).toFixed(decimals)} ${currency}`;
+        const vatDisplay = `${fromMinor(entry.vatMinor, currency).toFixed(decimals)} ${currency}`;
+        html += `
       <div class="totals-row">
         <span>${escapeHtmlSafe(strings.vatOn(entry.ratePercent.toString(), baseDisplay))}</span>
         <span class="totals-amount">${escapeHtmlSafe(vatDisplay)}</span>
       </div>
 `;
+      }
     }
 
-    // Gross total
+    // Gross total — the ONLY row when `showVat` is false: net and gross are the same figure in that
+    // case (see `DocumentTotals.showVat`'s own header), so printing "Net" and "Total" side by side
+    // would just repeat the same amount under two labels for no reason a reader could act on.
     const grossDisplay = `${fromMinor(totals.grossMinor, currency).toFixed(decimals)} ${currency}`;
     html += `
       <div class="totals-row summary">

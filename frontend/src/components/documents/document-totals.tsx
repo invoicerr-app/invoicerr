@@ -13,6 +13,7 @@ import {
   looksNumeric,
 } from "@/components/documents/totals-calculator"
 import { extractCurrency, findLineArrayFields } from "@/components/documents/totals-shape"
+import { useCompany } from "@/hooks/queries"
 
 /**
  * The LIVE totals (net, VAT breakdown, gross) of the document form currently mounted around this
@@ -24,7 +25,15 @@ import { extractCurrency, findLineArrayFields } from "@/components/documents/tot
 export function useDocumentTotals(descriptor: DocumentTypeDescriptor) {
   const { t } = useTranslation()
   const formValues = useWatch()
-  return useMemo(() => computeDocumentTotals(descriptor, formValues, t), [formValues, descriptor, t])
+  // The active company's own `exemptVat` — see `computeDocumentTotals`'s own `sellerExemptVat` param
+  // and `ClientDocumentTotals.showVat`'s header. `data` is undefined while the query is still
+  // in flight (or on a company with none set); `sellerExemptVat` then stays undefined too, the exact
+  // same "show" default `computeTotals` already holds for every caller that never passes it.
+  const { data: company } = useCompany()
+  return useMemo(
+    () => computeDocumentTotals(descriptor, formValues, t, company?.exemptVat),
+    [formValues, descriptor, t, company?.exemptVat],
+  )
 }
 
 /**
@@ -40,6 +49,10 @@ export function computeDocumentTotals(
   /** See `computeTotals`'s own header — optional, only `useDocumentTotals` above (the one path that
    *  actually renders `.warnings` to a user) passes it. */
   t?: TFunction,
+  /** `Company.exemptVat` — see `computeTotals`'s own header and `ClientDocumentTotals.showVat`.
+   *  Optional so `list-amount.ts`'s per-row total (which never shows a VAT line to begin with, only
+   *  the gross figure) doesn't need a company lookup just to call this. */
+  sellerExemptVat?: boolean,
 ): ClientDocumentTotals | null {
   const arrayFields = findLineArrayFields(descriptor)
   if (!values || arrayFields.length === 0) return null
@@ -95,6 +108,7 @@ export function computeDocumentTotals(
     discountField?.key,
     t,
     vatRateOptions,
+    sellerExemptVat,
   )
 }
 
@@ -123,28 +137,38 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
   const currency = totals.currency || "—"
   const decimals = decimalsFor(currency)
 
+  // See `ClientDocumentTotals.showVat`'s own header: false for a VAT-exempt seller, or a document
+  // whose every line resolves to exactly 0% VAT — there is no amount a "VAT ... 0.00" row would add
+  // over the total already shown below, so it (and the now-identical "Net" row) is skipped entirely
+  // rather than printed at zero.
+  const showVat = totals.showVat
+
   return (
     <div data-cy="document-totals">
       <dl className="space-y-2 text-sm">
-        <div className="flex justify-between gap-4 font-medium">
-          <dt>{t("documents.totals.net")}</dt>
-          <dd className="amount">{formatTotal(totals.netMinor, currency)}</dd>
-        </div>
-
-        {totals.vatBreakdown.map((entry) => (
-          <div
-            key={`vat-${entry.ratePercent}`}
-            className="flex justify-between gap-4 text-xs text-muted-foreground"
-          >
-            <dt>
-              {t("documents.totals.vat", {
-                rate: entry.ratePercent.toString(),
-                base: fromMinor(entry.baseMinor, currency).toFixed(decimals),
-              })}
-            </dt>
-            <dd className="amount">{formatTotal(entry.vatMinor, currency)}</dd>
+        {showVat && (
+          <div className="flex justify-between gap-4 font-medium" data-cy="document-totals-net">
+            <dt>{t("documents.totals.net")}</dt>
+            <dd className="amount">{formatTotal(totals.netMinor, currency)}</dd>
           </div>
-        ))}
+        )}
+
+        {showVat &&
+          totals.vatBreakdown.map((entry) => (
+            <div
+              key={`vat-${entry.ratePercent}`}
+              data-cy="document-totals-vat"
+              className="flex justify-between gap-4 text-xs text-muted-foreground"
+            >
+              <dt>
+                {t("documents.totals.vat", {
+                  rate: entry.ratePercent.toString(),
+                  base: fromMinor(entry.baseMinor, currency).toFixed(decimals),
+                })}
+              </dt>
+              <dd className="amount">{formatTotal(entry.vatMinor, currency)}</dd>
+            </div>
+          ))}
 
         <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
           <dt>{t("documents.totals.gross")}</dt>
