@@ -46,24 +46,19 @@ export function extFor(mime: string): string {
  *  ever becomes part of a filesystem path. */
 const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
 
-/** `<root>/<companyId>/<sha256>.<ext>` — but `sha256` is UNTRUSTED input on the read path (see
- *  `SHA256_HEX_PATTERN`'s own comment), so this both rejects anything that is not a genuine SHA-256
- *  hex digest AND, belt-and-suspenders, refuses to hand back a path that does not resolve INSIDE this
- *  company's own directory. Either check alone would already stop a `sha256` like
- *  `"../otherCompanyId/deadbeef...".slice(0, 64)` from reading a sibling tenant's file — one because
- *  `/`/`.` are not hex digits, the other because the resolved path itself would land outside
- *  `companyDir` — but the two together do not depend on staying in sync with each other as this
- *  module evolves. */
+/** `<root>/<companyId>/<sha256>.<ext>` — `sha256` is UNTRUSTED input on the read path (see
+ *  `SHA256_HEX_PATTERN`'s own comment), so this rejects anything that is not a genuine SHA-256 hex
+ *  digest before it ever becomes part of a path. The hex check alone already stops a `sha256` like
+ *  `"../otherCompanyId/deadbeef...".slice(0, 64)` (`/`/`.` are not hex digits), but this only builds
+ *  the path — it does NOT resolve `root` and re-check containment itself; each of
+ *  `persistInboundFile`/`readInboundFile` below does that redundantly, in its OWN body, immediately
+ *  before the actual disk access, rather than trust that a check run inside this helper two calls
+ *  earlier still holds by the time the write/read happens. */
 function inboundPath(companyId: string, sha256: string, mime: string): string {
   if (!SHA256_HEX_PATTERN.test(sha256)) {
     throw new Error(`"${sha256}" is not a valid content hash (expected 64 lowercase hex characters).`);
   }
-  const companyDir = resolve(inboundRoot(), companyId);
-  const path = resolve(companyDir, `${sha256}.${extFor(mime)}`);
-  if (path !== companyDir && !path.startsWith(companyDir + sep)) {
-    throw new Error(`Refusing to read/write outside this company's own storage directory.`);
-  }
-  return path;
+  return resolve(inboundRoot(), companyId, `${sha256}.${extFor(mime)}`);
 }
 
 /** Writes `bytes` under `<root>/<companyId>/<sha256>.<ext>` — `sha256` is computed by the CALLER
@@ -78,7 +73,15 @@ export function persistInboundFile(
   mime: string,
   bytes: Uint8Array,
 ): string {
+  const root = resolve(inboundRoot(), companyId);
   const path = inboundPath(companyId, sha256, mime);
+  // Belt-and-suspenders, right where the write actually happens: `inboundPath`'s own hex-pattern
+  // check already rules out a traversal shape, but re-resolving `root` here and refusing a `path`
+  // that does not land INSIDE it is what proves, at the exact call site touching disk, that this
+  // write can never escape this company's own directory.
+  if (path !== root && !path.startsWith(root + sep)) {
+    throw new Error(`Refusing to read/write outside this company's own storage directory.`);
+  }
   mkdirSync(join(inboundRoot(), companyId), { recursive: true });
   writeFileSync(path, Buffer.from(bytes));
   return `file://${path}`;
@@ -89,7 +92,14 @@ export function persistInboundFile(
  *  discipline `archive/storage.ts#readArchivedArtifact` already holds. */
 export function readInboundFile(companyId: string, sha256: string, mime: string): Buffer | null {
   try {
-    return readFileSync(inboundPath(companyId, sha256, mime));
+    const root = resolve(inboundRoot(), companyId);
+    const path = inboundPath(companyId, sha256, mime);
+    // Same check as `persistInboundFile` above, for the same reason: proven again, here, right
+    // before the read, rather than trusted from a helper this function merely called.
+    if (path !== root && !path.startsWith(root + sep)) {
+      throw new Error(`Refusing to read/write outside this company's own storage directory.`);
+    }
+    return readFileSync(path);
   } catch {
     return null;
   }

@@ -50,9 +50,25 @@ async function fileToBase64(file: File): Promise<string> {
  * mime), so asserting the SCHEME here is a cheap, permanent guarantee that this component only ever
  * navigates to something the browser itself vouches for — not to a string that merely happens to have
  * reached this variable the same way a real preview URL would.
+ *
+ * Returns the value REBUILT from a parsed `URL` (`.href`), never `url` itself: a prefix check that
+ * then hands the original string on unchanged leaves that string exactly as untrusted at the `src`/
+ * `href` it feeds as it was before the check ran — nothing about the string itself is any different.
+ * Parsing it into a `URL` and reading `.href` back produces a value derived from the browser's own
+ * URL parser rather than from whatever bytes happened to be sitting in the variable, which is what
+ * makes this a real guarantee about the string that is actually rendered, not just about the one that
+ * was tested. `URL` throws on anything that fails to parse at all (an empty string, most non-URL
+ * text) — caught below and treated the same as "wrong scheme": nothing to preview.
  */
-export function isPreviewableObjectUrl(url: string | null): url is string {
-  return !!url && url.startsWith("blob:")
+export function toPreviewableObjectUrl(url: string | null): string | null {
+  if (!url) return null
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  return parsed.protocol === "blob:" ? parsed.href : null
 }
 
 /**
@@ -166,6 +182,9 @@ export function FileField({ field, name }: FieldRendererProps) {
   const isImage = mime.startsWith("image/")
   const fileName = localFile?.name ?? attachment?.fileName
   const hasValue = !!localFile || !!attachment
+  // Rebuilt once per render, from `previewUrl`, never `previewUrl` itself — see this function's own
+  // header for why the two usages below read `safePreviewUrl`, not the state variable directly.
+  const safePreviewUrl = toPreviewableObjectUrl(previewUrl)
 
   return (
     <FormField
@@ -185,9 +204,9 @@ export function FileField({ field, name }: FieldRendererProps) {
                     <span className="text-sm text-muted-foreground">
                       {t("documents.form.file.loadingPreview")}
                     </span>
-                  ) : isImage && isPreviewableObjectUrl(previewUrl) ? (
+                  ) : isImage && safePreviewUrl ? (
                     <img
-                      src={previewUrl}
+                      src={safePreviewUrl}
                       alt={t("documents.form.file.previewAlt")}
                       className="h-16 w-16 rounded object-cover"
                       data-cy={`document-field-${field.key}-preview-image`}
@@ -197,9 +216,9 @@ export function FileField({ field, name }: FieldRendererProps) {
                   )}
                   <div className="flex flex-1 flex-col overflow-hidden">
                     <span className="truncate text-sm">{fileName}</span>
-                    {!isImage && isPreviewableObjectUrl(previewUrl) && (
+                    {!isImage && safePreviewUrl && (
                       <a
-                        href={previewUrl}
+                        href={safePreviewUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs text-primary underline"

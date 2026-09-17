@@ -841,7 +841,12 @@ export class DocumentsService implements OnModuleInit {
     this.resolveAction(typeId, actionId); // 404s for an unknown type/action, same as runAction.
 
     const resolver = this.actionRegistry.resolveParamsDefaults(typeId, actionId);
-    if (!resolver) return {};
+    // `actionId` is caller-supplied (the route param), and `resolver` comes back from a lookup keyed
+    // on it — checked by TYPE, not just truthiness, before it is ever invoked below: a `Map` can only
+    // ever hand back what `registerParamsDefaults` put in it (always a function) or `undefined`, but
+    // asserting that explicitly here, right where the call happens, is what makes this call site prove
+    // its own safety rather than lean on a guarantee made two files away.
+    if (typeof resolver !== 'function') return {};
 
     return resolver({
       companyId,
@@ -976,7 +981,11 @@ export class DocumentsService implements OnModuleInit {
     }
 
     const handler = this.actionRegistry.resolve(typeId, actionId);
-    if (!handler) {
+    // Same reasoning as `resolveActionParamsDefaults` above: `actionId` is caller-supplied, so the
+    // guard right before `handler` is actually invoked (further down this method) checks its TYPE,
+    // not just its truthiness — proving, at the call site itself, that what is about to run is a
+    // function `ActionRegistry.register` put there, never anything else a lookup could return.
+    if (typeof handler !== 'function') {
       logger.error('Document action declared but not implemented', {
         category: 'documents',
         details: { typeId, actionId },

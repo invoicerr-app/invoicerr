@@ -6,6 +6,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ResendMailProvider } from '@/mail/providers/resend.provider';
 import { SmtpMailProvider } from '@/mail/providers/smtp.provider';
 import { logger } from '@/logger/logger.service';
+import { sanitizeEmailHtml } from '@/mail/sanitize-email-html';
 import { toTransportAttachments } from '@/mail/attachments';
 import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
 
@@ -77,6 +78,22 @@ export const NO_MAIL_SERVER_CONFIGURED_MESSAGE =
   'No mail server is configured: this company has none set in Settings → Mail, and this instance ' +
   'has neither RESEND_API_KEY nor SMTP_HOST configured either. Configure one before sending.';
 
+/**
+ * Filters `options.html` through `sanitizeEmailHtml`'s allow-list right before it reaches a real
+ * transport. `sanitizeEmailHtml` otherwise only runs on the WRITE path for a company's OWN stored
+ * template (see its own header) — it never sees a value some caller built at SEND time by
+ * interpolating untrusted text straight into an html string (a legal document's front-matter title in
+ * `mail/system-email-templates.ts`, for instance). Escaping that value instead was rejected: `html`
+ * is genuinely meant to carry markup — every shipped template is real HTML — so turning `<`/`>` into
+ * entities here would mangle every legitimate send, not just a hostile one. Filtering here, at every
+ * one of this service's own dispatch points, is what actually closes the gap: a send path can never
+ * forget a filter that runs on its own way out, unlike one each template builder would have to
+ * remember to apply itself.
+ */
+function sanitizedMailOptions(options: MailOptions): MailOptions {
+  return options.html ? { ...options, html: sanitizeEmailHtml(options.html) } : options;
+}
+
 @Injectable()
 export class MailService {
   private readonly provider: IMailProvider;
@@ -126,13 +143,14 @@ export class MailService {
         pass: overrides.password,
       },
     });
+    const safe = sanitizedMailOptions(options);
     await transporter.sendMail({
       from: overrides.fromAddress,
-      to: options.to,
-      subject: options.subject,
-      text: options.text,
-      html: options.html,
-      attachments: toTransportAttachments(options.attachments),
+      to: safe.to,
+      subject: safe.subject,
+      text: safe.text,
+      html: safe.html,
+      attachments: toTransportAttachments(safe.attachments),
     });
   }
 
@@ -157,7 +175,7 @@ export class MailService {
 
     // Global provider path (SMTP_* env vars / Resend).
     try {
-      await this.provider.sendMail(options);
+      await this.provider.sendMail(sanitizedMailOptions(options));
     } catch (error) {
       logger.error('Failed to send email. Please check your mail provider configuration.', {
         category: 'mail',
@@ -221,7 +239,7 @@ export class MailService {
         apiKey: companySettings.apiKey,
         defaultFrom: companySettings.fromAddress,
       });
-      await provider.sendMail(options);
+      await provider.sendMail(sanitizedMailOptions(options));
       return { message: 'Email sent successfully' };
     }
 
@@ -232,7 +250,7 @@ export class MailService {
       throw new BadRequestException(NO_MAIL_SERVER_CONFIGURED_MESSAGE);
     }
 
-    await this.provider.sendMail(options);
+    await this.provider.sendMail(sanitizedMailOptions(options));
     return { message: 'Email sent successfully' };
   }
 }

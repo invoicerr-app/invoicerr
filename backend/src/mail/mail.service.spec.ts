@@ -176,4 +176,70 @@ describe('MailService#sendForCompany — the société → instance → refus no
     ).rejects.toThrow(NO_MAIL_SERVER_CONFIGURED_MESSAGE);
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it("sanitizes a stored value baked into html before it ever reaches the company's Resend request", async () => {
+    // Mirrors a real caller (mail/system-email-templates.ts#buildLegalDocumentChangedEmail)
+    // interpolating a legal document's front-matter title straight into an html string with no
+    // escaping of its own — the html part is trusted to be markup, never to be safe by construction.
+    mockedResolveCompanyMailSettings.mockResolvedValue({
+      kind: 'resend',
+      apiKey: 're_company_key',
+      fromAddress: 'billing@company.example.com',
+    });
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '{"id":"x"}' } as Response);
+
+    const service = new MailService();
+    await service.sendForCompany('company-1', {
+      to: 'client@example.com',
+      subject: 'Hi',
+      html: '<p>Hello</p><script>alert(document.cookie)</script>',
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1]?.body as string) as { html: string };
+    expect(body.html).toBe('<p>Hello</p>');
+    expect(body.html).not.toContain('script');
+  });
+});
+
+describe('MailService#sendMail — per-company SMTP override', () => {
+  const ORIGINAL_ENV = process.env;
+
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    // Isolated from whatever the real shell happens to export — the provider actually selected here
+    // must be deterministic (nothing about smtpOverrides depends on it, but MailService's constructor
+    // still runs `resolveInstanceMailProviderId` and would otherwise try to build a real
+    // ResendMailProvider against a real key from the ambient environment).
+    process.env = { ...ORIGINAL_ENV };
+    delete process.env.MAIL_PROVIDER;
+    delete process.env.RESEND_API_KEY;
+    delete process.env.SMTP_HOST;
+  });
+
+  afterAll(() => {
+    process.env = ORIGINAL_ENV;
+  });
+
+  it('sanitizes html before it reaches the one-shot SMTP transport built for smtpOverrides', async () => {
+    const sendMailMock = jest.fn().mockResolvedValue(undefined);
+    jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+    const service = new MailService();
+    await service.sendMail(
+      { to: 'client@example.com', subject: 'Hi', html: '<p>Hello</p><script>alert(1)</script>' },
+      {
+        host: 'smtp.example.com',
+        port: 587,
+        secure: false,
+        username: 'user',
+        password: 'pass',
+        fromAddress: 'billing@company.example.com',
+      },
+    );
+
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
+    const sentHtml = sendMailMock.mock.calls[0][0].html as string;
+    expect(sentHtml).toBe('<p>Hello</p>');
+    expect(sentHtml).not.toContain('script');
+  });
 });

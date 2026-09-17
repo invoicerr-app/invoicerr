@@ -1332,16 +1332,23 @@ function escapeMdx(text) {
     .replace(/\{/g, '&#123;')
     .replace(/\}/g, '&#125;');
 }
-/** Markdown table cell + MDX escaping: no raw pipes/newlines, nothing MDX would try to parse. */
+/** Markdown table cell + MDX escaping: no raw pipes/newlines, nothing MDX would try to parse.
+ *  Backslashes are escaped FIRST, before the pipe escape below: a pipe is neutralized by prefixing it
+ *  with a backslash, so any backslash ALREADY in the source text must be doubled before that prefix is
+ *  added — otherwise a source string ending in an odd run of backslashes right before a `|` combines
+ *  with the newly-added one into an even run (a literal, escaped backslash) followed by an
+ *  unescaped `|`, which a Markdown table parser reads as a real column delimiter, not as the escaped
+ *  pipe this function meant to produce. */
 function cell(text) {
-  return escapeMdx(clean(text)).replace(/\|/g, '\\|');
+  return escapeMdx(clean(text).replace(/\\/g, '\\\\')).replace(/\|/g, '\\|');
 }
 /** Same table-cell safety (no raw pipes/newlines) WITHOUT MDX-escaping — for cell content already
  *  built entirely from this script's own trusted strings (never raw data prose) and already passed
  *  through `createGlossaryMarker()`'s `mark()`: escaping here would turn the `<abbr>` tags `mark()`
- *  just inserted back into inert `&lt;abbr…&gt;` text, defeating rule #6 (glossary tooltips). */
+ *  just inserted back into inert `&lt;abbr…&gt;` text, defeating rule #6 (glossary tooltips). Same
+ *  backslash-first ordering as `cell` above, and for the same reason. */
 function cellHtml(text) {
-  return clean(text).replace(/\|/g, '\\|');
+  return clean(text).replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 }
 function escapeAttr(text) {
   return String(text ?? '')
