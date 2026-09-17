@@ -45,6 +45,26 @@ function isLinesKind(field: DocumentFieldDescriptor): boolean {
  *
  *  - LINES: any table-shaped field (`isLinesKind` above) — a document's own line items, or (credit
  *    note) the source invoice's lines it corrects. Always its own step, whatever its `required`.
+ *    TWO KINDS OF FIELD FOLLOW IT ONTO THE SAME STEP, whatever THEIR OWN `required` says — both for
+ *    the identical underlying reason: `SteppedDialog` mounts exactly ONE step's fields at a time
+ *    (`current.render()`, stepped-dialog.tsx), so a mechanism that only reacts while TWO sibling
+ *    fields are BOTH mounted together would silently stop working the moment they end up on
+ *    different steps:
+ *     1. an OPTIONAL field some OTHER field's own `sourceField` hint NAMES (row-selection.ts) — e.g.
+ *        a credit note's own `invoice`, optional now that it can be a FREE credit note with nothing
+ *        to correct, but still `correctedLines`' `sourceField`: picking it is the prerequisite that
+ *        makes that table useful at all, and `RowSelectionField`'s own live query already reacts to
+ *        it (react-hook-form `watch`) the moment it resolves.
+ *     2. a field whose own `lockedFromReference.field` NAMES a field that itself ends up here by
+ *        rule 1 — e.g. that same credit note's own `currency`, `lockedFromReference`-ing `invoice`:
+ *        the lock is a `useEffect` INSIDE `SelectField` itself (field-renderers/primitive-fields.tsx)
+ *        that only fires while `SelectField` is actually mounted, so a `currency` left behind on
+ *        "Details" while `invoice` moved to "Lines" would never re-lock once an invoice is picked —
+ *        computed in a SECOND pass, since it depends on where rule 1 already placed its own target
+ *        (a field can never decide its own group before the field it follows has one).
+ *    Both rules read hints off the descriptor (`sourceField`/`lockedFromReference`/`kind`), never one
+ *    type's id — a REQUIRED field that happens to match either one is left exactly where it already
+ *    was (worth pinning to "Details" as the record's own identity); only an OPTIONAL one moves.
  *  - DETAILS: among what's left, every REQUIRED field — the facts a record cannot be saved without
  *    (client, dates, currency…), i.e. the record's own "identity".
  *  - OPTIONS: every remaining (optional) field — notes, a client reference, a country overlay's
@@ -55,11 +75,32 @@ function isLinesKind(field: DocumentFieldDescriptor): boolean {
  * step; `received-invoice` declares every field `required: false`: no Details step).
  */
 function buildFieldGroups(fields: DocumentFieldDescriptor[]) {
+  const rowSelectionSourceKeys = new Set(
+    fields
+      .filter((field): field is DocumentFieldDescriptor & { sourceField: string } => {
+        return field.kind === "rowSelection" && !!field.sourceField
+      })
+      .map((field) => field.sourceField),
+  )
+  // See this function's own header, rules 1 and 2. `forcedIntoLines` is built in TWO passes over the
+  // descriptor's own field order (never the other way — a field can only follow where its own target
+  // already landed) but the FINAL loop below still walks `fields` in their original order, so
+  // rendering order within "Lines" stays whatever the descriptor declared (e.g. "invoice" still
+  // renders before "currency", which still renders before "correctedLines"/"lines").
+  const forcedIntoLines = new Set<string>()
+  for (const field of fields) {
+    if (!field.required && rowSelectionSourceKeys.has(field.key)) forcedIntoLines.add(field.key)
+  }
+  for (const field of fields) {
+    const followedKey = field.lockedFromReference?.field
+    if (followedKey && forcedIntoLines.has(followedKey)) forcedIntoLines.add(field.key)
+  }
+
   const lineFields: DocumentFieldDescriptor[] = []
   const detailsFields: DocumentFieldDescriptor[] = []
   const optionsFields: DocumentFieldDescriptor[] = []
   for (const field of fields) {
-    if (isLinesKind(field)) lineFields.push(field)
+    if (isLinesKind(field) || forcedIntoLines.has(field.key)) lineFields.push(field)
     else if (field.required) detailsFields.push(field)
     else optionsFields.push(field)
   }

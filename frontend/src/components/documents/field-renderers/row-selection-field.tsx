@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/form"
 import { useSelectableRows } from "@/hooks/queries"
 
+import { useConditionallyRequired } from "./primitive-fields"
 import type { FieldRendererProps } from "./registry"
 
 /** The id `field.sourceField`'s current value names, whichever shape that sibling holds (a bare
@@ -51,6 +52,10 @@ export function RowSelectionField({ field, name, documentTypeId }: FieldRenderer
   const { control, watch } = useFormContext()
   const sourceValue = field.sourceField ? watch(field.sourceField) : undefined
   const sourceId = sourceIdFrom(sourceValue)
+  // A credit note's own `correctedLines` is `requiredIfPresent: 'invoice'` (required once THIS same
+  // sibling `sourceField` resolves, never unconditionally) — the star indicator has to track that,
+  // not `field.required` alone, or it would simply never show once "invoice" stopped being mandatory.
+  const required = useConditionallyRequired(field)
 
   const { data, isLoading } = useSelectableRows(documentTypeId, field.key, sourceId)
   const rows = data?.rows ?? []
@@ -69,7 +74,7 @@ export function RowSelectionField({ field, name, documentTypeId }: FieldRenderer
 
         return (
           <FormItem data-cy={`document-field-${field.key}`}>
-            <FormLabel required={field.required}>{field.label}</FormLabel>
+            <FormLabel required={required}>{field.label}</FormLabel>
             <FormControl>
               <div className="space-y-2 rounded-md border p-3">
                 {!sourceId && (

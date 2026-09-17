@@ -407,16 +407,28 @@ describe('describeDocumentEmailVocabulary — derived per type, never a fixed li
       'typeLabel',
     ]);
     expect(keysFor(buildInvoiceDescriptor())).toContain('totalGross');
-    // A credit note points at an invoice, not a client, and has no money lines of its own
-    // ('correctedLines' is a row selection). An expense has neither.
-    expect(keysFor(buildCreditNoteDescriptor())).toEqual(['companyName', 'displayNumber', 'typeLabel']);
+    // A credit note points at an invoice, not a client — no `recipientName` — but DOES now have a
+    // real money source of its own ('lines', the FREE-credit-note shape, credit-note.descriptor.ts's
+    // own header): `totalGross` is offered, even though a LINKED note's own `lines` stays empty by
+    // construction and still totals zero for that instance (descriptorHasLineTotals only asks
+    // whether the TYPE has a source of money reachable at all, not whether this one instance does).
+    expect(keysFor(buildCreditNoteDescriptor())).toEqual([
+      'companyName',
+      'displayNumber',
+      'totalGross',
+      'typeLabel',
+    ]);
+    // An expense has no client reference AND no line array at all — neither placeholder.
     expect(keysFor(buildExpenseDescriptor())).toEqual(['companyName', 'displayNumber', 'typeLabel']);
   });
 });
 
 describe('describeSendablePlaceholders — what VALIDATION checks against', () => {
   it('always includes totalGross, even where the vocabulary does not offer it', () => {
-    const descriptor = buildCreditNoteDescriptor();
+    // The credit note now HAS `totalGross` in its own editable vocabulary (see the previous test's own
+    // comment) — the expense is what still lacks a line array at the TYPE level, the case this test
+    // exists to cover.
+    const descriptor = buildExpenseDescriptor();
 
     expect(describeDocumentEmailVocabulary({ descriptor, companyName: 'Acme' })).not.toHaveProperty(
       'totalGross',

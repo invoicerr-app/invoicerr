@@ -108,9 +108,7 @@ function createInvoiceDraft(
 			failOnStatusCode: false,
 		})
 		.then((saved) => {
-			expect(saved.status, "brouillon de facture créé").to.be.oneOf([
-				200, 201,
-			]);
+			expect(saved.status, "brouillon de facture créé").to.be.oneOf([200, 201]);
 			const invoiceId = saved.body?.document?.id as string;
 			expect(invoiceId, "le brouillon a un identifiant").to.be.a("string");
 			return invoiceId;
@@ -204,10 +202,8 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 						const internalCreditNote = routes.find(
 							(r) => r.routeId === "INTERNAL_CREDIT_NOTE",
 						);
-						expect(
-							internalCreditNote,
-							"INTERNAL_CREDIT_NOTE est présente",
-						).to.exist;
+						expect(internalCreditNote, "INTERNAL_CREDIT_NOTE est présente").to
+							.exist;
 						expect(
 							internalCreditNote!.status,
 							"l'avoir interne français est IMPOSÉ",
@@ -270,9 +266,7 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 						client: clientId,
 						issueDate: "2026-09-15",
 						currency: "EUR",
-						lines: [
-							{ description: "Conseil", quantity: 1, unitPrice: 1000 },
-						],
+						lines: [{ description: "Conseil", quantity: 1, unitPrice: 1000 }],
 					},
 				},
 				failOnStatusCode: false,
@@ -353,9 +347,28 @@ describe("Correct — the screen, browser level", () => {
 						"eq",
 						"/documents/credit-note",
 					);
-					cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
-						"be.visible",
-					);
+					cy.get('[data-cy="document-create-dialog"]', {
+						timeout: 10000,
+					}).should("be.visible");
+
+					// What the descriptor still requires UNCONDITIONALLY: only the credit note's own
+					// issue date sits on "Details" now (`invoice` itself is OPTIONAL at the descriptor
+					// level: a credit note can now be FREE, with nothing to correct at all). `invoice`
+					// moved to the "Lines" step instead of "Options" — document-create-dialog.tsx's own
+					// `buildFieldGroups` groups an OPTIONAL field with whatever `rowSelection` field
+					// names it as `sourceField` — `correctedLines` has nothing useful to offer before
+					// "invoice" resolves. `currency` FOLLOWS `invoice` onto that same step for the
+					// identical reason (its own `lockedFromReference` lock only re-applies while both
+					// fields are mounted together — `buildFieldGroups`'s own header spells out why).
+					// Three `Continue` clicks still stand between here and the Summary step that
+					// actually carries the `document-action-save-draft` button.
+					cy.pickToday('[data-cy="document-field-issueDate-input"]');
+					cy.continueDocumentWizard(); // Details -> Lines
+
+					// "Lines" is where `invoice` AND `currency` both now live — `invoice` still
+					// pre-filled and resolved to the client's own label (never a bare id or an empty
+					// picker), and `currency` already locked to it (EUR, disabled) since the two are
+					// mounted together on this same step.
 					cy.get('[data-cy="document-field-invoice-input"] button', {
 						timeout: 10000,
 					}).should("contain.text", clientName);
@@ -364,19 +377,6 @@ describe("Correct — the screen, browser level", () => {
 					})
 						.should("be.disabled")
 						.and("contain.text", "EUR");
-
-					// What the descriptor still requires: the credit note's own issue date and the
-					// corrected line (taken from the linked invoice — the same pattern as 25's own
-					// `lockedFromReference` test). The dialog is the same stepped
-					// document-create-dialog.tsx every other type uses (owner decision 2026-09-16):
-					// `invoice`/`issueDate`/`currency` (all `required`) sit on "Details",
-					// `correctedLines` (a `rowSelection`, table-shaped) gets its own "Lines" step
-					// (document-create-dialog.tsx's `isLinesKind`), and `notes` (optional) is
-					// "Options" — three `Continue` clicks stand between here and the Summary step
-					// that actually carries the `document-action-save-draft` button.
-					cy.pickToday('[data-cy="document-field-issueDate-input"]');
-					cy.continueDocumentWizard(); // Details -> Lines
-
 					cy.get(
 						'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]',
 						{ timeout: 10000 },
@@ -497,9 +497,10 @@ describe("Cancellation — a country that grounds it, a country that doesn't", (
 						.its("body")
 						.then((before) => {
 							const numberBefore = before.displayNumber as string;
-							expect(numberBefore, "la facture a bien un numéro avant annulation").to.be.a(
-								"string",
-							);
+							expect(
+								numberBefore,
+								"la facture a bien un numéro avant annulation",
+							).to.be.a("string");
 
 							cy.visit("/documents/invoice");
 
@@ -689,9 +690,10 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				invoiceTransportId: "email",
 			},
 		}).then((res) => {
-			expect(res.status, "pays vendeur réglé sur la Pologne dès la création").to.be.oneOf([
-				200, 201,
-			]);
+			expect(
+				res.status,
+				"pays vendeur réglé sur la Pologne dès la création",
+			).to.be.oneOf([200, 201]);
 		});
 	});
 
@@ -717,7 +719,9 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				},
 			})
 			.then((res) => {
-				expect(res.status, "client polonais créé par API").to.be.oneOf([200, 201]);
+				expect(res.status, "client polonais créé par API").to.be.oneOf([
+					200, 201,
+				]);
 				const id = res.body?.id as string;
 				expect(id, "le client créé a un identifiant").to.be.a("string");
 				return id;
@@ -742,16 +746,21 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 		};
 	}
 
-	it("CORRECTIVE_INVOICE is required by Polish law AND genuinely implemented — clicking it opens the REAL invoice screen, pre-linked to the corrected invoice, and Poland's own conditionally-required \"Correction reason\" field shows up (required only because this invoice corrects another)", () => {
+	it('CORRECTIVE_INVOICE is required by Polish law AND genuinely implemented — clicking it opens the REAL invoice screen, pre-linked to the corrected invoice, and Poland\'s own conditionally-required "Correction reason" field shows up (required only because this invoice corrects another)', () => {
 		createPolishClient("Klient Korekta Sp. z o.o.").then((clientId) => {
 			cy.request({
 				method: "POST",
 				url: `${api}/api/documents/types/invoice/actions/save-draft`,
 				body: { data: polishInvoiceData(clientId) },
 			}).then((saved) => {
-				expect(saved.status, "brouillon de la facture originale créé").to.be.oneOf([200, 201]);
+				expect(
+					saved.status,
+					"brouillon de la facture originale créé",
+				).to.be.oneOf([200, 201]);
 				const originalId = saved.body?.document?.id as string;
-				expect(originalId, "la facture originale a un identifiant").to.be.a("string");
+				expect(originalId, "la facture originale a un identifiant").to.be.a(
+					"string",
+				);
 
 				cy.request({
 					method: "POST",
@@ -768,9 +777,9 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				cy.get(`[data-cy="document-correction-button-${originalId}"]`, {
 					timeout: 20000,
 				}).click({ force: true });
-				cy.get('[data-cy="document-correction-dialog"]', { timeout: 5000 }).should(
-					"be.visible",
-				);
+				cy.get('[data-cy="document-correction-dialog"]', {
+					timeout: 5000,
+				}).should("be.visible");
 
 				// The imposed route: status AND its own real mechanism, never the "not implemented" panel.
 				cy.get(
@@ -785,7 +794,10 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				// THE REAL mechanism, pre-linked — never a stub: navigation to the INVOICE screen (never
 				// credit-note: Poland has no separate credit-note instrument, correction-routes/data/pl.json's
 				// own CREDIT_NOTE citation), a fresh create dialog opens.
-				cy.location("pathname", { timeout: 10000 }).should("eq", "/documents/invoice");
+				cy.location("pathname", { timeout: 10000 }).should(
+					"eq",
+					"/documents/invoice",
+				);
 				cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
 					"be.visible",
 				);
@@ -830,7 +842,9 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 					.type("1000", { force: true });
 				// The VAT rate is a real SearchSelect for Poland (vat-rates/data/pl.json ships a
 				// catalog) — "23% — Stawka podstawowa" is that catalog's own label for the standard rate.
-				cy.get('[data-cy="document-field-lines-row-0"] [data-cy$="-input"] button')
+				cy.get(
+					'[data-cy="document-field-lines-row-0"] [data-cy$="-input"] button',
+				)
 					.last()
 					.click({ force: true });
 				cy.get('[data-cy$="-input-options"]', { timeout: 10000 }).should(
@@ -871,10 +885,12 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 						interception.response?.statusCode,
 						"la facture de correction se crée",
 					).to.be.oneOf([200, 201]);
-					const correctionId = interception.response?.body?.document?.id as string;
-					expect(correctionId, "la facture de correction a un identifiant").to.be.a(
-						"string",
-					);
+					const correctionId = interception.response?.body?.document
+						?.id as string;
+					expect(
+						correctionId,
+						"la facture de correction a un identifiant",
+					).to.be.a("string");
 					expect(correctionId).not.to.eq(originalId);
 
 					// The proof that matters, read back via the API: the correction is genuinely
@@ -898,7 +914,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 		});
 	});
 
-	it("the server-side guard: a correction invoice with correctsInvoiceId set but NO correctionReason is refused, naming the field — never silently accepted, and the block fires as early as \"save-draft\" (the generic requiredIfPresent gate every action already runs through — documents.service.ts#runAction — not a bespoke send-time check)", () => {
+	it('the server-side guard: a correction invoice with correctsInvoiceId set but NO correctionReason is refused, naming the field — never silently accepted, and the block fires as early as "save-draft" (the generic requiredIfPresent gate every action already runs through — documents.service.ts#runAction — not a bespoke send-time check)', () => {
 		createPolishClient("Klient Sans Motif Sp. z o.o.").then((clientId) => {
 			cy.request({
 				method: "POST",
@@ -914,7 +930,10 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 
 				// The correction invoice itself — a scripted client bypassing the screen entirely,
 				// correctsInvoiceId set, correctionReason deliberately left OUT.
-				const correctionData = { ...polishInvoiceData(clientId), correctsInvoiceId: originalId };
+				const correctionData = {
+					...polishInvoiceData(clientId),
+					correctsInvoiceId: originalId,
+				};
 				cy.request({
 					method: "POST",
 					url: `${api}/api/documents/types/invoice/actions/save-draft`,
@@ -933,7 +952,9 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				cy.request({
 					method: "POST",
 					url: `${api}/api/documents/types/invoice/actions/save-draft`,
-					body: { data: { ...correctionData, correctionReason: "Erreur de quantité" } },
+					body: {
+						data: { ...correctionData, correctionReason: "Erreur de quantité" },
+					},
 				}).then((res) => {
 					expect(
 						res.status,

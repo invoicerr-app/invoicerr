@@ -21,6 +21,12 @@ export interface DocumentFieldDescriptor {
    *  marker, field-renderers/primitive-fields.tsx's `useConditionallyRequired`) — the backend's own
    *  `validateAgainstDescriptor` is what actually enforces it, never trusted from here alone. */
   requiredIfPresent?: string
+  /** Mirrors the backend's `DocumentFieldDescriptor.requiredIfAbsent` (descriptors/types.ts) — the
+   *  mirror image of `requiredIfPresent` above: this field is required only once a named SIBLING
+   *  field is itself NOT set (e.g. a credit note's own `reason`, required only once its `invoice`
+   *  is left unset — a "free" credit note, with nothing else to explain what it is for). Same
+   *  "screen convenience only" posture. */
+  requiredIfAbsent?: string
   helpText?: string
   /** Mirrors the backend's `DocumentFieldDescriptor.hideWhenEmpty` (descriptors/types.ts) — skips this
    *  field entirely (no label, no "—" placeholder) wherever a consumer honors the hint and its value

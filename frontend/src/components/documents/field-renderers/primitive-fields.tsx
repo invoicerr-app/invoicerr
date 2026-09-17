@@ -70,11 +70,16 @@ export function legacyOptionLabels(field: FieldRendererProps["field"]): { value:
  *  `descriptors/validate.ts#validateAgainstDescriptor` (which every action already runs against, per
  *  `documents.service.ts#runAction`) is what actually enforces it, the same "never trusted alone"
  *  split every other conditional guard in this module already holds. */
-function useConditionallyRequired(field: FieldRendererProps["field"]): boolean {
+export function useConditionallyRequired(field: FieldRendererProps["field"]): boolean {
   const { watch } = useFormContext()
   const siblingValue = watch(field.requiredIfPresent || "__requiredIfPresent_unset__")
+  // `requiredIfAbsent` (types.ts) — the mirror image, watched the same dummy-field-name way so this
+  // hook's own call order never depends on which hint (if either) a given field actually declares.
+  const absentSiblingValue = watch(field.requiredIfAbsent || "__requiredIfAbsent_unset__")
   if (field.required) return true
-  return !!field.requiredIfPresent && isPresentValue(siblingValue)
+  if (field.requiredIfPresent) return isPresentValue(siblingValue)
+  if (field.requiredIfAbsent) return !isPresentValue(absentSiblingValue)
+  return false
 }
 
 export function TextField({ field, name }: FieldRendererProps) {
@@ -99,12 +104,13 @@ export function TextField({ field, name }: FieldRendererProps) {
 
 export function LongTextField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
+  const required = useConditionallyRequired(field)
   return (
     <FormField
       control={control}
       name={name}
       render={({ field: rhfField }) => (
-        <FieldChrome field={field}>
+        <FieldChrome field={field} required={required}>
           <Textarea
             {...rhfField}
             value={rhfField.value ?? ""}

@@ -11,13 +11,15 @@ function isMissing(value: unknown): boolean {
   return value === undefined || value === null || value === '';
 }
 
-/** Whether `field` is required RIGHT NOW for this `data` — `required` (unconditional) OR
- *  `requiredIfPresent` (conditional on a sibling field actually being set, see that hint's own
- *  header in types.ts). Folded into ONE predicate so the ordinary "is this field required" check
- *  below never has to know there are two different ways a field can end up that way. */
+/** Whether `field` is required RIGHT NOW for this `data` — `required` (unconditional),
+ *  `requiredIfPresent` (conditional on a sibling field actually being set), or `requiredIfAbsent`
+ *  (its mirror image, conditional on that sibling NOT being set — see both hints' own headers in
+ *  types.ts). Folded into ONE predicate so the ordinary "is this field required" check below never
+ *  has to know there are three different ways a field can end up that way. */
 function isRequiredFor(field: DocumentFieldDescriptor, data: Record<string, unknown>): boolean {
   if (field.required) return true;
   if (field.requiredIfPresent) return !isMissing(data[field.requiredIfPresent]);
+  if (field.requiredIfAbsent) return isMissing(data[field.requiredIfAbsent]);
   return false;
 }
 

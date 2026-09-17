@@ -130,6 +130,17 @@ function looksLikeSelection(value: unknown): value is string[] {
  * failed the synchronous structural check (not an array of ids at all): that error is already
  * reported once, by the right validator, and this function re-explaining the same malformed value
  * would only be noise.
+ *
+ * An EMPTY selection (`[]`) is likewise skipped entirely, deliberately BEFORE ever resolving
+ * `sourceField` — a selection with nothing picked has nothing to cross-check against the source at
+ * all, so there is no reason to demand the source even be SET (let alone real, let alone still
+ * carrying the picked rows). This only became reachable once a 'rowSelection' field could be
+ * `requiredIfPresent`/optional rather than unconditionally `required` (a credit note's own
+ * `correctedLines`, once its sibling `invoice` is itself optional — credit-note.descriptor.ts's own
+ * "Two shapes, one type" header): before that, an empty selection always failed the SHAPE check's own
+ * `min` first, so this branch was never exercised. Without this, an empty selection with no source
+ * picked would still hit the "needs ... to be set first" error below — wrong for a value that never
+ * claimed to point at anything.
  */
 export async function validateRowSelections(params: {
   companyId: string;
@@ -146,6 +157,7 @@ export async function validateRowSelections(params: {
     const value = data[field.key];
     if (value === undefined || value === null || value === '') continue; // required-ness: validate.ts's job.
     if (!looksLikeSelection(value)) continue; // shape: validateRowSelectionShape's job.
+    if (value.length === 0) continue; // nothing selected — nothing to cross-check against a source.
 
     const resolved = resolveRowSelectionSource(field, descriptor, typeRegistry);
     if (!resolved.ok) {

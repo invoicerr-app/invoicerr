@@ -96,6 +96,11 @@ export function buildZodSchema(fields: DocumentFieldDescriptor[]) {
   // predicate, same message shape) — this is client-side, in-form feedback ONLY; the backend is still
   // the one authority (this file's own header).
   const conditionallyRequired: { key: string; label: string; requiredIfPresent: string }[] = []
+  // Mirror list for `requiredIfAbsent` (types.ts) — kept SEPARATE from the one above rather than one
+  // shared shape with a "presence-or-absence" flag, since the two need OPPOSITE conditions in the
+  // `superRefine` loop below and a single merged list would need that flag re-checked on every entry
+  // anyway; two short, flat loops read more plainly than one branching one.
+  const conditionallyRequiredIfAbsent: { key: string; label: string; requiredIfAbsent: string }[] = []
 
   for (const field of fields) {
     const schema = baseSchemaFor(field)
@@ -107,15 +112,27 @@ export function buildZodSchema(fields: DocumentFieldDescriptor[]) {
         requiredIfPresent: field.requiredIfPresent,
       })
     }
+    if (field.requiredIfAbsent) {
+      conditionallyRequiredIfAbsent.push({
+        key: field.key,
+        label: field.label,
+        requiredIfAbsent: field.requiredIfAbsent,
+      })
+    }
   }
 
   const base = z.object(shape)
-  if (conditionallyRequired.length === 0) return base
+  if (conditionallyRequired.length === 0 && conditionallyRequiredIfAbsent.length === 0) return base
 
   return base.superRefine((data, ctx) => {
     const record = data as Record<string, unknown>
     for (const { key, label, requiredIfPresent } of conditionallyRequired) {
       if (!isPresentValue(record[requiredIfPresent])) continue
+      if (isPresentValue(record[key])) continue
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `"${label}" is required.` })
+    }
+    for (const { key, label, requiredIfAbsent } of conditionallyRequiredIfAbsent) {
+      if (isPresentValue(record[requiredIfAbsent])) continue
       if (isPresentValue(record[key])) continue
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `"${label}" is required.` })
     }

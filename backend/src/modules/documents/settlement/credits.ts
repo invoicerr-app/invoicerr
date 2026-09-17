@@ -68,10 +68,15 @@ export interface CreditsForDocument {
 /**
  * The credited amount for ONE credit note — the GROSS/TTC of ONLY the invoice lines it actually
  * corrects (`correctedLines`), computed with the INVOICE's OWN descriptor. Deliberately NOT
- * `computeDocumentTotals(creditNoteDescriptor, creditNoteData)`: the credit note's own descriptor has
- * no 'array' field to compute from at all — `correctedLines` is a 'rowSelection' (a POINTER into the
- * invoice's `lines`, see row-selection/row-selection.ts), never a fresh table of amounts — so that
- * call would always yield zero totals, for every credit note, regardless of what it corrects.
+ * `computeDocumentTotals(creditNoteDescriptor, creditNoteData)`: `correctedLines` is a 'rowSelection'
+ * (a POINTER into the invoice's `lines`, see row-selection/row-selection.ts), never a fresh table of
+ * amounts, so that call would still see nothing to sum FOR THIS CORRECTION regardless of what the
+ * credit note's own `lines` field (credit-note.descriptor.ts's own FREE shape) might separately hold
+ * — this function is only ever called for a LINKED credit note (`resolveCreditsForDocument`/
+ * `creditsForInvoiceFromNotes` below only ever match a note against an `invoiceId`, which a FREE note
+ * never has), and a linked note's own `lines` is always empty by construction
+ * (credit-note-actions.ts's own `assertCreditNoteAmountSourceIsUnambiguous` refuses the two ever being
+ * set together) — so the generic call would yield zero here regardless, never the right number to use.
  *
  * GROSS, not NET: the invoice owes its GROSS/TTC total (compute-settlement.ts's own
  * `totalGrossMinor`), so a credit note correcting part of it must withdraw the same kind of amount

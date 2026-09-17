@@ -290,6 +290,19 @@ export interface DocumentFieldDescriptor {
    * (field-renderers/primitive-fields.tsx) is the screen convenience on top, never the enforcement.
    */
   requiredIfPresent?: string;
+  /**
+   * The mirror image of `requiredIfPresent` just above: makes this field required ONLY once a named
+   * SIBLING field is itself ABSENT — e.g. a credit note's own `reason` (`credit-note.descriptor.ts`),
+   * required only once its `invoice` is left unset (a "free" credit note, with nothing else to
+   * explain what it is for — an invoice-linked one already carries that explanation in the correction
+   * itself). The two hints are never both meaningful on the same field for the same sibling (one asks
+   * "the sibling is there", the other "it is not") but nothing here enforces that either way — same
+   * posture as `requiredIfPresent`. Read by the same single place, `descriptors/validate.ts`'s
+   * `isRequiredFor`, folded into the identical "is this field required right now" decision; the
+   * frontend's own mirror (`schema.ts`, `field-renderers/primitive-fields.tsx`) is the screen
+   * convenience on top, never the enforcement.
+   */
+  requiredIfAbsent?: string;
   helpText?: string;
   /**
    * "client reference / PO number" — ANY kind, not just this field's

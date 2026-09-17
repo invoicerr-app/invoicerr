@@ -2,6 +2,8 @@ import { BadRequestException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
+import { resolveCompanyCountryCode } from '../country-policy/country-policy';
+import { resolveCorrectionRoutesForCountry } from '../correction-routes/correction-routes';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
@@ -129,6 +131,104 @@ async function checkAndEmitInvoiceSettledFromCreditNote(
   }
 }
 
+/** Whether this credit note corrects an invoice at all — the fork `credit-note.descriptor.ts`'s own
+ *  "Two shapes, one type" header describes. Pulled out as its own predicate since three separate
+ *  guards below all need the identical "linked or free" read of the same field. */
+function hasOriginInvoice(data: Record<string, unknown>): boolean {
+  return typeof data.invoice === 'string' && data.invoice.length > 0;
+}
+
+/**
+ * A FREE credit note (no `invoice`) has no legal basis in every country this catalog covers — Poland's
+ * own `ustawa o VAT` (art. 106j ust. 1) gives a seller-issued reduction NO instrument of its own: the
+ * SAME referenced document, the faktura korygująca, covers both an increase and a decrease, and the
+ * FA(3) `RodzajFaktury` enumeration this repo already reads (formats/national/fa3-provider.ts) has no
+ * "avoir"/"nota kredytowa" type at all — see correction-routes/data/pl.json's own CREDIT_NOTE fact,
+ * status 'forbidden', sourced against art. 106j and the Ministry of Finance's own FA(3) brochure. A
+ * credit note with nothing to reference is therefore not a lesser version of that document for a
+ * Polish seller, it is not a legal document at all — refused outright, quoting the exact citation the
+ * catalog already carries, rather than silently accepted as if FR/DE/IT/PT's own open CREDIT_NOTE
+ * route applied here too (each of those keeps it 'allowed': a credit note is a document in its own
+ * right there, with no legal requirement that it reference an original invoice). Reads the CATALOG,
+ * never a second, hand-kept country list here — a future country file changing its own CREDIT_NOTE
+ * status changes this decision automatically, with nothing in this action to revisit.
+ *
+ * Reads the SELLER's own country the same way every other country-aware guard in this module does
+ * (`resolveCompanyCountryCode`) — an UNRESOLVED country, or one with no correction-routes file at all,
+ * blocks NOTHING here: this guard only ever NARROWS an already-permitted action, it never invents the
+ * FIRST refusal a missing country file would already be (`country-policy.ts`'s own DECISION 1, a
+ * separate gate that already ran before this one even executes).
+ */
+async function assertFreeCreditNoteAllowedForCountry(
+  companyId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  if (hasOriginInvoice(data)) return; // linked credit note — this guard has nothing to say about it.
+
+  const countryCode = await resolveCompanyCountryCode(companyId);
+  if (!countryCode) return;
+
+  const decision = resolveCorrectionRoutesForCountry(countryCode);
+  const creditNoteRoute = decision?.routes.find((route) => route.routeId === 'CREDIT_NOTE');
+  if (creditNoteRoute?.status !== 'forbidden') return;
+
+  throw new BadRequestException(
+    `${countryCode} requires this credit note to reference the invoice it corrects — a free-standing ` +
+      `credit note with no original invoice has no legal basis here (${creditNoteRoute.label}).`,
+  );
+}
+
+/**
+ * The two ways this type carries an amount — `correctedLines` (a POINTER into the invoice's own
+ * lines, meaningful only once `invoice` is set) and `lines` (a fresh table of the user's own rows,
+ * meaningful only once it is not) — are mutually exclusive, never both at once on the same record.
+ * Enforced here, not by the descriptor's own `required`/`requiredIfPresent`/`requiredIfAbsent` hints
+ * alone: those can each say "this field must be present", but none of them can say "and that OTHER
+ * one must be empty" — a scripted client posting both would otherwise leave two disagreeing sources
+ * of truth for what this credit note actually credits, with `totals/compute-totals.ts` silently
+ * pricing `lines` and ignoring `correctedLines` entirely (that function only ever looks for 'array'
+ * fields with a money+number subfield pair — `correctedLines` is a 'rowSelection', not one, so it
+ * would never even notice the disagreement).
+ *
+ * The "at least one row" floor for EACH shape is also decided here, deliberately NOT as a static
+ * `min` on either field's own descriptor entry: neither field is unconditionally required any more
+ * (both fork on the SAME sibling, `invoice`), and `validateAgainstDescriptor`
+ * (descriptors/validate.ts) only ever skips a kind's own validator when the value is genuinely
+ * MISSING — an empty array (`[]`, what this app's own form always submits for an untouched
+ * 'array'/'rowSelection' field, see schema.ts's `defaultValuesFor`) is NOT missing, so a static
+ * `min: 1` would fire on the shape that is legitimately empty just as readily as the one that is not
+ * (e.g. `correctedLines: []` on a genuinely FREE note, which has every reason to be empty). Two
+ * explicit checks below, one per shape, read far more plainly than trying to make one declarative
+ * `min` conditional on a sibling the core field-kind vocabulary has no notion of.
+ */
+function assertCreditNoteAmountSourceIsUnambiguous(data: Record<string, unknown>): void {
+  const lines = Array.isArray(data.lines) ? data.lines : [];
+  const correctedLines = Array.isArray(data.correctedLines) ? data.correctedLines : [];
+
+  if (hasOriginInvoice(data)) {
+    if (lines.length > 0) {
+      throw new BadRequestException(
+        'A credit note either corrects an invoice\'s own lines ("Corrected lines") or carries its own ' +
+          'free-amount lines ("Lines") — never both at once. Clear one before saving.',
+      );
+    }
+    if (correctedLines.length === 0) {
+      throw new BadRequestException(
+        'A credit note that corrects an invoice needs at least one corrected line ("Corrected ' +
+          'lines") — otherwise there is nothing to credit.',
+      );
+    }
+    return;
+  }
+
+  if (lines.length === 0) {
+    throw new BadRequestException(
+      'A credit note with no invoice to correct needs at least one line of its own ("Lines") — ' +
+        'otherwise there is nothing to credit.',
+    );
+  }
+}
+
 /**
  * The currency a credit note declares has no business meaning independent of
  * the invoice it corrects: a credit note carries NO conversion of its own (settlement/
@@ -138,12 +238,14 @@ async function checkAndEmitInvoiceSettledFromCreditNote(
  * valid business case with its own rule, it is a data-entry mistake with no sensible reading at all,
  * refused outright rather than silently miscounted forever against the wrong total.
  *
- * `data.invoice` is already GUARANTEED to resolve to a real, owned invoice by the time this handler
- * ever runs: `correctedLines` (credit-note.descriptor.ts, kind: 'rowSelection', sourceField:
- * 'invoice') is REQUIRED, so `validateRowSelections` (documents.service.ts#runAction, BEFORE any
- * handler) has already fetched and confirmed this exact invoice exists — the SECOND
- * `findOwnedDocument` call below is a deliberate, cheap re-read (that validation lives in a
- * different module, with no shared cache), not a sign this function is otherwise unreachable.
+ * Once `data.invoice` IS set (a LINKED credit note, never the free shape — see this file's own
+ * `hasOriginInvoice`), it is already GUARANTEED to resolve to a real, owned invoice by the time this
+ * handler ever runs: `correctedLines` (credit-note.descriptor.ts, kind: 'rowSelection',
+ * `requiredIfPresent: 'invoice'`) is then required, so `validateRowSelections`
+ * (documents.service.ts#runAction, BEFORE any handler) has already fetched and confirmed this exact
+ * invoice exists — the SECOND `findOwnedDocument` call below is a deliberate, cheap re-read (that
+ * validation lives in a different module, with no shared cache), not a sign this branch is otherwise
+ * unreachable.
  *
  * TWO call sites, deliberately — both write paths that can change what `data.currency` persists.
  * `registerCreditNoteSaveDraftAction` below guards "save-draft" (creation AND every later re-edit,
@@ -165,10 +267,10 @@ async function assertCreditNoteCurrencyMatchesInvoice(
   data: Record<string, unknown>,
 ): Promise<void> {
   const invoiceId = typeof data.invoice === 'string' ? data.invoice : undefined;
-  // Unreachable in practice — the descriptor's own required 'invoice' field, and the rowSelection
-  // validation this function's own header describes, already refuse an invoice-less credit note
-  // before this ever runs — but a guard never trusts that alone (duplicate-extension.ts's own
-  // discipline).
+  // A FREE credit note (credit-note.descriptor.ts's own "Two shapes, one type") has no `invoice` at
+  // all — genuinely reachable now that the field is optional, and correctly a no-op: there is nothing
+  // to compare this note's own currency against, so it stays the user's free choice (this function's
+  // whole job is comparing TWO currencies, and a free note only ever has one).
   if (!invoiceId) return;
 
   const invoice = await findOwnedDocument(companyId, 'invoice', invoiceId);
@@ -192,18 +294,22 @@ async function assertCreditNoteCurrencyMatchesInvoice(
 
 /**
  * "save-draft" for the credit note — NOT the plain generic mechanism: wraps
- * `performSaveDraft` (generic-actions.ts) with the currency guard above, the same "diverge from the
- * shared mechanism for one documented, invoice-shaped reason" precedent invoice-actions.ts's own
- * `registerInvoiceSaveDraftAction` already set — this is credit-note's
- * analogous case, not a coincidence: both types need ONE extra check the generic mechanism has no
- * business knowing about, and both reuse `performSaveDraft` for the actual persistence so the two
- * never drift.
+ * `performSaveDraft` (generic-actions.ts) with THREE guards above (amount-source, country, currency —
+ * in that order: structural shape first, then whether a free note is legal for this seller at all,
+ * then the currency comparison, which only ever has something to compare once `invoice` resolves
+ * anyway), the same "diverge from the shared mechanism for one documented, invoice-shaped reason"
+ * precedent invoice-actions.ts's own `registerInvoiceSaveDraftAction` already set — this is
+ * credit-note's analogous case, not a coincidence: both types need extra checks the generic
+ * mechanism has no business knowing about, and both reuse `performSaveDraft` for the actual
+ * persistence so the two never drift.
  */
 function registerCreditNoteSaveDraftAction(
   registry: ActionRegistry,
   webhooks?: DocumentWebhookEmitter,
 ): void {
   registry.register('credit-note', 'save-draft', async (ctx) => {
+    assertCreditNoteAmountSourceIsUnambiguous(ctx.data);
+    await assertFreeCreditNoteAllowedForCountry(ctx.companyId, ctx.data);
     await assertCreditNoteCurrencyMatchesInvoice(ctx.companyId, ctx.data);
     return performSaveDraft(ctx.companyId, 'credit-note', ctx.documentId, ctx.data, webhooks);
   });
@@ -234,6 +340,8 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       // closes, no `data` replacement needed (returning `undefined` leaves `data` exactly as
       // submitted; only a MISMATCH ever throws).
       preflight: async () => {
+        assertCreditNoteAmountSourceIsUnambiguous(data);
+        await assertFreeCreditNoteAllowedForCountry(companyId, data);
         await assertCreditNoteCurrencyMatchesInvoice(companyId, data);
         return undefined;
       },

@@ -380,8 +380,10 @@ export function buildEmailTemplateParts(input: {
  *    reference field is never offered it, which is what keeps the editor's advertised vocabulary and
  *    the send's real vocabulary from ever disagreeing.
  *  - `totalGross`: offered only when the type has a real source of money at all
- *    (`descriptorHasLineTotals`). A credit note or an expense totals zero BY CONSTRUCTION (see that
- *    predicate's own header), so advertising the placeholder would be advertising a permanent "0.00".
+ *    (`descriptorHasLineTotals`). An expense totals zero BY CONSTRUCTION (see that predicate's own
+ *    header); a LINKED credit note does too, for a narrower, instance-level reason (its real amount
+ *    lives in `correctedLines`/settlement, never this generic computation) — either way advertising
+ *    the placeholder to an editor would be advertising a permanent "0.00" for that instance.
  *    A template that writes it anyway still renders that number — the send's vocabulary is unchanged,
  *    so no already-stored template starts warning because this list is narrower.
  */

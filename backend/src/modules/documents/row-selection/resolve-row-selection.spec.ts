@@ -163,6 +163,25 @@ describe('validateRowSelections — the async, cross-document half', () => {
     expect(persistence.findOwnedDocument).not.toHaveBeenCalled();
   });
 
+  /**
+   * The mirror case: an EMPTY selection with no source set is NOT an error — a FREE credit note
+   * (credit-note.descriptor.ts's own "Two shapes, one type") leaves both `invoice` and its own
+   * `correctedLines` unset at once, which must never be confused with "picked rows against a source
+   * that was never named". Only reachable now that 'rowSelection' can be optional at all (this same
+   * field used to be unconditionally `required, min: 1`, which always failed the SHAPE check first).
+   */
+  it('does NOT block an EMPTY selection with no source set — nothing was picked, so nothing needs a source', async () => {
+    const errors = await validateRowSelections({
+      companyId: 'company-1',
+      descriptor: creditNoteType,
+      typeRegistry: buildRegistry(invoiceType, creditNoteType),
+      data: { correctedLines: [] },
+    });
+
+    expect(errors).toEqual([]);
+    expect(persistence.findOwnedDocument).not.toHaveBeenCalled();
+  });
+
   it('blocks with a clear message when the referenced document no longer exists', async () => {
     (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new NotFoundException('gone'));
 

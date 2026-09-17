@@ -15,6 +15,7 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import { ROW_ID_KEY } from './row-selection/row-selection';
 import * as settlementCredits from './settlement/credits';
 import * as settlementPayments from './settlement/payments';
+import { computeDocumentTotals } from './totals/compute-totals';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
@@ -631,6 +632,179 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       // Blocked BEFORE the "sending" write AND before anything is queued — the same "nothing
       // persisted on a hard block" discipline every other named refusal in this codebase holds.
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * The FREE credit note — no `invoice`: a commercial gesture, a refund of an overpayment
+   * nobody tied to one invoice line, nothing to "correct" at all. See credit-note.descriptor.ts's own
+   * "Two shapes, one type" header and credit-note-actions.ts's own guards
+   * (`assertCreditNoteAmountSourceIsUnambiguous`, `assertFreeCreditNoteAllowedForCountry`).
+   */
+  describe('the FREE credit note — no invoice', () => {
+    const freeCreditNoteData = {
+      issueDate: '2026-02-01',
+      currency: 'EUR',
+      reason: 'Goodwill gesture — refund of an overpayment never tied to one invoice.',
+      lines: [{ description: 'Overpayment refund', quantity: 1, unitPrice: 50, vatRate: '0' }],
+    };
+
+    beforeEach(() => {
+      (persistence.upsertDocument as jest.Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'cn-free-1',
+          typeId: 'credit-note',
+          status,
+          data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+    });
+
+    it('is accepted with no invoice, a reason, and at least one free line — never even reads an invoice', async () => {
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
+        data: freeCreditNoteData,
+      });
+
+      expect(result.document?.status).toBe('draft');
+      expect(persistence.findOwnedDocument).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'credit-note',
+        undefined,
+        'draft',
+        freeCreditNoteData,
+      );
+    });
+
+    it('requires a "reason" once there is no invoice — the descriptor\'s own requiredIfAbsent', async () => {
+      const withoutReason: Record<string, unknown> = { ...freeCreditNoteData };
+      delete withoutReason.reason;
+
+      await expect(
+        buildService().service.runAction('company-1', 'credit-note', 'save-draft', { data: withoutReason }),
+      ).rejects.toThrow(/Invalid document data/);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('requires at least one free "lines" row once there is no invoice — otherwise nothing to credit', async () => {
+      const dataWithNoLines = { ...freeCreditNoteData, lines: [] };
+
+      let caught: unknown;
+      try {
+        await buildService().service.runAction('company-1', 'credit-note', 'save-draft', {
+          data: dataWithNoLines,
+        });
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      expect((caught as BadRequestException).message).toMatch(/needs at least one line/);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('refuses BOTH an invoice and free lines together — never two disagreeing sources of the same amount', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+        invoiceDocument('invoice-doc-1', ['line-1']),
+      );
+      const dataWithBoth = { ...validCreditNoteData, lines: freeCreditNoteData.lines };
+
+      let caught: unknown;
+      try {
+        await buildService().service.runAction('company-1', 'credit-note', 'save-draft', {
+          data: dataWithBoth,
+        });
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      expect((caught as BadRequestException).message).toMatch(/never both at once/);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('computes a real total through the generic engine — no longer a permanent zero for this shape', () => {
+      const descriptor = buildService().service.getType('credit-note');
+      const totals = computeDocumentTotals(descriptor, freeCreditNoteData);
+      expect(totals.grossMinor).toBe(5000); // 50.00 EUR, 0% VAT.
+    });
+
+    /**
+     * correction-routes/data/pl.json's own CREDIT_NOTE fact ('forbidden', already pinned by
+     * correction-routes/data/all.spec.ts) is what this guard reads — Poland has no separate
+     * "nota kredytowa" instrument, only the referenced faktura korygująca (art. 106j ust. 1 ustawy o
+     * VAT). FR keeps CREDIT_NOTE 'allowed', so nothing blocks it there.
+     */
+    describe('country gate — a FREE credit note is not legal everywhere', () => {
+      it('is BLOCKED for a Polish seller, naming the country', async () => {
+        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PL');
+
+        let caught: unknown;
+        try {
+          await buildService().service.runAction('company-1', 'credit-note', 'save-draft', {
+            data: freeCreditNoteData,
+          });
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(BadRequestException);
+        expect((caught as BadRequestException).message).toMatch(/PL requires this credit note to reference/);
+        expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      });
+
+      it('is ALLOWED for a French seller — France keeps its own CREDIT_NOTE route open', async () => {
+        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+
+        const { service } = buildService();
+        const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
+          data: freeCreditNoteData,
+        });
+
+        expect(result.document?.status).toBe('draft');
+        expect(persistence.upsertDocument).toHaveBeenCalled();
+      });
+
+      it('does not block a LINKED credit note for a Polish seller — the gate only ever looks at FREE ones', async () => {
+        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PL');
+        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+          invoiceDocument('invoice-doc-1', ['line-1']),
+        );
+
+        const { service } = buildService();
+        const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
+          data: validCreditNoteData,
+        });
+
+        expect(result.document?.status).toBe('draft');
+      });
+
+      it('"send" (phase 1) is ALSO guarded — no bypass through the async preflight', async () => {
+        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PL');
+        // runAction's own status-gate needs a CURRENT record to check "from draft" against before it
+        // ever reaches the preflight — same shared fixture/comment as the currency guard's own
+        // identical "send (phase 1)" bypass test above (`.status`, not `.typeId`, is all either call
+        // site reads off it).
+        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+          invoiceDocument('invoice-doc-1', ['line-1']),
+        );
+
+        let caught: unknown;
+        try {
+          await buildService().service.runAction('company-1', 'credit-note', 'send', {
+            documentId: 'cn-free-1',
+            data: freeCreditNoteData,
+          });
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(BadRequestException);
+        expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      });
     });
   });
 });
