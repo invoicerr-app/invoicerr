@@ -1,7 +1,7 @@
 # Invoicerr
 
 
-![Invoicerr Banner](https://github.com/invoicerr-app/invoicerr/blob/ac4ea3fb8293b63e0b58bd33ea38b6b7018f673a/Invoicerr_banner.webp)
+![Invoicerr Banner](./Invoicerr_banner.webp)
 
 Invoicerr is a simple, open-source invoicing application designed to help freelancers manage their quotes and invoices efficiently. It provides a clean interface for creating, sending, and tracking quotes and invoices — so you get paid faster, with less hassle.
 
