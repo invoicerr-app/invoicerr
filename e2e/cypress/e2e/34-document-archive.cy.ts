@@ -126,8 +126,13 @@ describe('Legal archiving ⚖ — hash, date, verification and FR retention, pro
 			});
 			cy.get('[data-cy="document-archive-date"]').should("be.visible");
 			// FR retention (⚖) shown on screen, never an invented duration — see data/fr.json: the
-			// rule that applies (commercial, 10 years) is CITED, not just a number.
-			cy.get('[data-cy="document-archive-retention"]').should("contain.text", "C. com. art. L123-22");
+			// rule that applies (commercial, 10 years) is CITED, not just a number. The year (2037,
+			// locale-invariant unlike the full formatted date `toLocaleDateString()` renders) proves the
+			// SCREEN shows the actually-computed date, not merely a citation with no date behind it — see
+			// the API assertions below for exactly which computation produces "2037".
+			cy.get('[data-cy="document-archive-retention"]')
+				.should("contain.text", "C. com. art. L123-22")
+				.and("contain.text", "2037");
 
 			// The verification genuinely RE-HASHES the bytes server-side (persistence.ts#verifyDocumentArchive)
 			// — never a static client-side verdict.
@@ -150,15 +155,34 @@ describe('Legal archiving ⚖ — hash, date, verification and FR retention, pro
 					);
 					const archive = archives[0];
 					expect(archive.contentHash, "un hash SHA-256 réel").to.match(/^[0-9a-f]{64}$/);
-					expect(archive.retentionUntil, "FR : une échéance de rétention, jamais nulle").to.be.a(
-						"string",
-					);
-					expect(archive.retentionBasis, "la règle retenue est citée").to.match(
-						/C\. com\. art\. L123-22/,
-					);
-					expect(archive.retentionBasis, "la seconde obligation simultanée est nommée aussi").to.match(
-						/LPF art\. L102 B/,
-					);
+					// La date EXACTE, jamais un simple `to.be.a("string")" — les deux obligations FR
+					// s'appliquent SIMULTANÉMENT (data/fr.json) et c'est la PLUS LONGUE des deux échéances
+					// calculées qui l'emporte (compute-retention.ts#computeRetention, le `reduce` qui
+					// cherche le max) : fiscale (issueDate + 6 ans, origine "issueDate") =
+					// 2026-08-31 + 6 = 2032-08-31 ; commerciale (issueDate + 1 an de marge de sécurité pour
+					// la clôture d'exercice inconnue, puis + 10 ans, origine "fiscalYearEndUnknownSafe") =
+					// 2026-08-31 + 11 = 2037-08-31. Un `reduce` inversé (qui retiendrait le MINIMUM) donnerait
+					// 2032-08-31 et resterait indétectable si seule la PRÉSENCE des deux citations était
+					// vérifiée, quel que soit l'ordre — exactement la faiblesse que ce test corrige.
+					expect(
+						archive.retentionUntil,
+						"FR : échéance exacte = la plus longue des deux obligations (10 ans commerciaux, jamais les 6 ans fiscaux)",
+					).to.eq("2037-08-31T00:00:00.000Z");
+					// La règle GAGNANTE est nommée EN PREMIER dans `retentionBasis`
+					// (`describeRule(winning.rule)` est le tout début de la chaîne, `compute-retention.ts`) —
+					// vérifié ici par une ancre `^`, jamais par une simple présence n'importe où dans le
+					// texte : un `reduce` inversé produirait une chaîne commençant par "fiscale 6y" tout en
+					// citant ENCORE les deux références (la liste complète des règles résolues suit toujours
+					// le nom de la gagnante), donc une recherche de sous-chaîne à elle seule ne peut jamais
+					// distinguer les deux cas.
+					expect(
+						archive.retentionBasis,
+						"la règle GAGNANTE (commerciale, 10 ans) est nommée en tête, jamais seulement présente",
+					).to.match(/^commerciale 10y \(C\. com\. art\. L123-22\)/);
+					expect(
+						archive.retentionBasis,
+						"la seconde obligation simultanée (fiscale, 6 ans) reste citée aussi, pour mémoire",
+					).to.match(/LPF art\. L102 B/);
 
 					// The API-side verification too: intact.
 					cy.request({

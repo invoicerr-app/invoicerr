@@ -1,4 +1,4 @@
-export {}; // makes this spec a module, not a global script -- see tsconfig.json
+import { tolerateUncaughtException } from '../support/e2e';
 
 /**
  * `Settings > Seats` — the seat-positions/over-capacity model: who sits at which numbered desk, the
@@ -56,6 +56,9 @@ function fillSignupForm({
 /** Same helper `03-auth.cy.ts` uses — a real button click, so the code consumed by a later sign-up is
  *  the actual redeemable string, never the truncated preview the table shows. */
 function createInvitationCodeViaUI(): Cypress.Chainable<string> {
+	// See `03-auth.cy.ts`'s own identical helper for the full explanation: the app's own
+	// clipboard-copy-on-create is a real, unguarded `await`, out of this file's e2e-only scope to fix.
+	tolerateUncaughtException(/Clipboard write was blocked/);
 	cy.intercept('POST', '**/api/invitations').as('createSeatsInvitation');
 	cy.visit('/settings/invitations');
 	cy.wait(1000);
@@ -72,6 +75,19 @@ describe('Settings > Seats', () => {
 		cy.request({ url: `${api}/api/billing/status`, failOnStatusCode: false }).then((response) => {
 			saasMode = response.status === 200;
 			cy.log(`this instance's saasMode: ${saasMode}`);
+			// A dedicated SaaS CI lane sets `CYPRESS_expectSaas` to assert billing is ACTUALLY on for
+			// this run, rather than let the four `saasMode`-only tests below silently report "pending"
+			// (Mocha's own status for a `this.skip()`) inside a job that then reports green regardless —
+			// pending is not failing, so a lane that believes it exercises seats can stay green forever
+			// while never running a single one of these assertions. The ordinary (non-SaaS) CI lane never
+			// sets this, so it is unaffected.
+			if (Cypress.env('expectSaas') && !saasMode) {
+				throw new Error(
+					'CYPRESS_expectSaas is set but GET /api/billing/status did not answer 200 — billing is ' +
+						'not actually enabled on this stack (WARNING__ENABLE_BILLING_FOR_USERS__WARNING unset ' +
+						'or misconfigured?). Refusing to silently skip every SaaS-only test below.',
+				);
+			}
 		});
 	});
 

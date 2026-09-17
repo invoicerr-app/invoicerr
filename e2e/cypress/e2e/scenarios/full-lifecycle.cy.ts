@@ -29,23 +29,38 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  *    checksum-VALID buyer VAT number, cross-border, same union, GOODS or SERVICES, ALWAYS reverse-
  *    charges or zero-rates in `tax-engine.ts#determineLineTax` (§2). `de-fr`'s own buyer VAT number,
  *    "FR12345678901", in fact fails `validateFrVat`'s own key checksum (SIREN 345678901 → expected key
- *    15, given key 12) — the resulting B2C/OSS treatment (§below) is real, but for a DIFFERENT reason
- *    than the fixture's comment claims, and this file asserts THAT reason, not the comment's.
+ *    15, given key 12) — the resulting B2C role (never B2B) is real, but for a DIFFERENT reason than
+ *    the fixture's comment claims, and this file asserts THAT reason, not the comment's. Which SPECIFIC
+ *    B2C branch a confirmed-B2C, cross-border, same-union line then reaches (OSS destination VAT vs. the
+ *    seller's own domestic rate) is a SEPARATE question from role, gated on `supplyType` — see this
+ *    file's own header below, "a fourth defect", for why `de-fr` (a GOODS line) still lands on the
+ *    seller's own rate today, not OSS.
  *  - `it-pt`'s buyer VAT ("PT501442600") hits `vat-syntax.ts`'s DEFAULT branch (Portugal has no
  *    dedicated checksum function — only FR/IT/DE/ES/PL do) which always answers `valid: true`: this
- *    buyer is genuinely B2B with a confirmed VAT, so `it-pt` reverse-charges/zero-rates (GOODS →
- *    category K, intra-Community supply, 0%) — never "seller's own rate".
+ *    buyer is genuinely B2B with a confirmed VAT, so `it-pt` reverse-charges/zero-rates — never "seller's
+ *    own rate". Which specific B2B branch (intra-Community supply, category K, vs. reverse charge,
+ *    category AE) again depends on `supplyType` — see "a fourth defect" below for why this GOODS line
+ *    still lands on category AE today, not K.
  *  - `pt-de`'s buyer VAT ("DE812000006") IS checksum-valid (verified against `validateDeVat`'s ISO
  *    7064 Mod 11,10 by hand) — SERVICES, B2B, same union → Art. 196 reverse charge, 0%, exactly like
  *    `fr-pl`, not the "standard 23%" the fixture's comment assumes.
- *  - `pl-de`'s B2C OSS destination charge (Germany's own 19%, `tax-systems/data/de.json`) is the ONE
- *    leg whose fixture comment already matches what the engine actually does.
+ *  - `pl-de`'s fixture comment names Germany's own 19% OSS destination charge as the resolved outcome —
+ *    the ONE leg whose fixture comment already matches the RIGHT tax composition for this country pair
+ *    and item. It is nonetheless the clearest demonstration of "a fourth defect" below: that composition
+ *    is unreachable through the real screen today (the Polish seller has no `supplyType` control), so
+ *    this file asserts the actual, DEGRADED outcome (Poland's own 23%), not the fixture's comment.
  *
  * None of this is asserted from memory: every rate/category below is traced to the exact JSON file or
  * `vat-syntax.ts` function that produces it, cited inline at the point of assertion.
  *
- * ## Three real defects this file's own run found (it-pt AND pl-de) — all three now FIXED, each
- * assertion below pins the SUCCESSFUL outcome the fix produces, with its own citation
+ * ## Three real defects this file's own run found (it-pt AND pl-de) — all three now FIXED
+ *
+ * Defects 1 and 3 (identifier survival across a company-settings save, and the missing VAT-scheme
+ * identifier for a seller with no `country-identifiers` file) are still exercised and still pass below,
+ * on every leg that hits them. Defect 2 (BT-80 for category K) is NOT independently re-proven by this
+ * file any more — see "a fourth defect" below: `it-pt`, the one leg that used to reach category K here,
+ * no longer does, once its draft creation stopped fabricating a `supplyType` the real screen cannot
+ * produce. `formats/providers.spec.ts`'s own BT-80 suite (backend, jest) still covers defect 2 directly.
  *
  * This file's initial run found two independent bugs, neither predicted at design time, and — once
  * both were fixed — a third, narrower one hiding behind them:
@@ -97,6 +112,49 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  *     `onboarding-vat-input` every other leg's seller already used, and their invoices export
  *     successfully — see each leg's own assertion for the exact citation (category, rate, mentions,
  *     BT-80).
+ *
+ * ## A fourth defect this file's own draft-creation code was masking: `supplyType` has no screen for
+ * four of these five sellers
+ *
+ * `resolve-invoice-tax.ts#extractSupplyType` reads a line's `supplyType` key to tell GOODS from
+ * SERVICES, which decides whether a cross-border B2B line reaches category K (intra-Community supply)
+ * versus category AE (reverse charge), and whether a cross-border B2C line reaches OSS destination VAT
+ * at all (`tax-engine.ts#determineLineTax` §2: "B2C across the union → OSS" is gated on
+ * `GOODS`/`DIGITAL` specifically). The ONLY screen input for it is `country-fields/data/fr.json`'s
+ * `lines[].supplyType` overlay, resolved on the SELLER's own country (`documents.service.ts`) — so a
+ * DE, IT, PT or PL seller (`de-fr`, `it-pt`/`it-it`, `pt-de`, `pl-de` below) has no way at all, through
+ * the real app, to tell the engine a line is a delivery of goods rather than a supply of services. This
+ * file's draft-creation helper used to paper over that by sending `supplyType` on every leg regardless
+ * of seller country — which meant `de-fr`, `it-pt` and `pl-de` (the three whose `item.type` is
+ * `'PRODUCT'`, i.e. GOODS) were asserting a tax treatment their own seller's screen can never actually
+ * produce, exactly the risk `resolve-invoice-tax.ts:410-417`'s own SERVICES fallback and
+ * `35-cross-border-tax.cy.ts:424`'s identical injection both carry. `createInvoiceDraft` below now
+ * sends `supplyType` ONLY for a French seller (today, only `fr-pl` — and even there it changes nothing
+ * observable: `fr-pl`'s own item is already a SERVICE, i.e. the fallback's own default), and the three
+ * affected legs assert the REAL, DEGRADED outcome a DE/IT/PL seller's screen produces today — a
+ * documented product gap, not a resurrection of this file's old, more flattering assertions:
+ *
+ *  - `de-fr` (GOODS, B2C, cross-border, same union): falls to `tax-engine.ts`'s "other B2C services"
+ *    branch (§2, line 311-312) → `domesticVat(supplier)` → the SELLER's OWN rate, Germany's 19%
+ *    (`tax-systems/data/de.json`), category S — never France's 20% OSS destination rate.
+ *  - `it-pt` (GOODS, B2B confirmed, cross-border, same union): falls to the SERVICES branch of §2
+ *    (line 292-305) → reverse charge, category AE, 0%, jurisdiction Portugal — never category K
+ *    (intra-Community supply). The Italian-seller mention becomes "inversione contabile"
+ *    (`LOCALIZED_MENTION.reverseCharge.IT`), not "operazione non imponibile"
+ *    (`LOCALIZED_MENTION.intraComm` has no IT override, so `it-pt`'s ORIGINAL, GOODS-based assertion
+ *    used the generic directive text — moot now that this leg no longer reaches that branch at all).
+ *    BT-80 ("Deliver to" country) is gone too: `build-semantic-invoice.ts` only builds it for category
+ *    K, per BR-IC-12.
+ *  - `pl-de` (GOODS, B2C individual, cross-border, same union): same branch as `de-fr` →
+ *    `domesticVat(supplier)` → Poland's own 23% (`tax-systems/data/pl.json`), category S — never
+ *    Germany's 19% OSS destination rate, the one outcome the old fixture comment (see the top-of-file
+ *    NOTE) already got right for the WRONG reason.
+ *
+ * Fixing this for real means exposing `supplyType` to DE/IT/PT/PL the way `country-fields/data/fr.json`
+ * already does for FR, and creating the draft through the actual multi-step wizard instead of
+ * `cy.request` so a future screen change cannot silently re-diverge from what this file asserts —
+ * both out of this file's own scope (a country-fields data file and the create-dialog's screen-driven
+ * flow, not this e2e spec alone).
  *
  * ## What this file deliberately does NOT re-prove
  *
@@ -236,20 +294,35 @@ const BUYER_IDENTIFIERS: Record<string, BuyerIdentifiers> = {
 /** SERVICE/HOUR/DAY → SERVICES, PRODUCT → GOODS — `tax/types.ts`'s own `SupplyType`, the field the
  *  cross-border engine actually branches on (`tax-engine.ts#determineLineTax`); this fixture's own
  *  `item.type` (a display/UoM concept, `descriptors/invoice.descriptor.ts`'s `unit` field) is a
- *  DIFFERENT axis and never doubles as this one. */
+ *  DIFFERENT axis and never doubles as this one. Kept even though `createInvoiceDraft` below no longer
+ *  sends it for most legs (see this file's header, "a fourth defect") — every assertion still needs to
+ *  know what the line WOULD be classified as, to tell a leg where the gap changes nothing (a SERVICE
+ *  item, matching the engine's own SERVICES fallback) from one where it does (a PRODUCT item). */
 const SUPPLY_TYPE: "GOODS" | "SERVICES" = s.item.type === "PRODUCT" ? "GOODS" : "SERVICES";
 const UNIT = s.item.type === "PRODUCT" ? "unit" : s.item.type === "DAY" ? "day" : "hour";
 
+/** Countries whose `country-fields/data/<cc>.json` catalog actually overlays a `supplyType` input onto
+ *  the invoice line — resolved on the SELLER's own country (`documents.service.ts`). Today only France
+ *  does (`country-fields/data/fr.json`); every other seller's screen has no control that could ever
+ *  produce this key, so `createInvoiceDraft` below must not fabricate it for them — see this file's own
+ *  header, "a fourth defect", for what asserting the injected value instead of the real gap would hide. */
+const COUNTRIES_WITH_SUPPLY_TYPE_FIELD = new Set(["France"]);
+
+// Both currency pickers used to open their own panel inline (a plain click, no retry) — CI run
+// (it-pt leg) timed out on `company-currency-select-options` never appearing at all, the same
+// open-side "stale DismissableLayer outside-pointerdown listener" race `commands.ts`'s own
+// `openSelect`/`openSearchSelect`/`openDatePicker` headers document at length (a scripted click
+// landing in the narrow window a just-closed sibling Radix layer is still detaching that listener
+// in). `pl-de`'s own identical call passed in the same run, confirming a timing race rather than a
+// deterministic break. `cy.openSearchSelect` is the shared, bounded-retry-protected command for this
+// exact primitive — used here instead of reimplementing the same open once more without the retry.
 function selectEuro(dataCyPrefix: string) {
-	cy.get(`[data-cy="${dataCyPrefix}"] button`).scrollIntoView().click({ force: true });
-	cy.wait(300);
-	cy.get(`[data-cy="${dataCyPrefix}-options"]`, { timeout: 5000 }).should("be.visible");
+	cy.openSearchSelect(dataCyPrefix);
 	cy.get(`[data-cy="${dataCyPrefix}-option-${EURO_SLUG}"]`).click({ force: true });
 }
 
 function selectClientEuro() {
-	cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
-	cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+	cy.openSearchSelect("client-currency-select");
 	cy.get('[data-cy="client-currency-select"] input').type("Euro");
 	cy.get(`[data-cy="client-currency-select-option-${EURO_SLUG}"]`).click();
 }
@@ -309,8 +382,11 @@ function createInvoiceDraft(clientId: string, issueDate: string, dueDate: string
 							// Undeclared on `invoice.descriptor.ts`'s own `fields` on purpose — the SAME extra,
 							// tolerated key `35-cross-border-tax.cy.ts` already relies on: `resolve-invoice-
 							// tax.ts#extractSupplyType` reads it straight off the raw line row, and nothing in
-							// `descriptors/validate.ts` strips an undeclared key from a stored draft.
-							supplyType: SUPPLY_TYPE,
+							// `descriptors/validate.ts` strips an undeclared key from a stored draft. Sent ONLY
+							// when the SELLER's own country actually offers a screen control for it (see this
+							// file's header, "a fourth defect") — sending it unconditionally would assert a tax
+							// treatment four of these five sellers' real screens can never produce.
+							...(COUNTRIES_WITH_SUPPLY_TYPE_FIELD.has(s.company.country) ? { supplyType: SUPPLY_TYPE } : {}),
 						},
 					],
 				},
@@ -779,77 +855,78 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			cy.get(`[data-cy="document-xml-cii-${id}"]`, { timeout: 10000 }).should("be.visible").click();
 			cy.wait("@cii", { timeout: 20000 }).then((x) => {
 				if (scenarioId === "it-pt") {
-					// ALL THREE DEFECTS FIXED — see this file's own header for the full writeup, and
-					// `pl-de`'s own branch below for the category-S twin of defect 3's fix. The TAX
-					// resolution itself was always correct — IT→PT, GOODS, buyer VAT "PT501442600"
-					// (Portugal has no dedicated checksum function in `vat-syntax.ts`, only FR/IT/DE/ES/PL
-					// do, so the dispatcher's default branch answers `valid: true` unconditionally →
-					// confirmed B2B) → same EU union, GOODS → intra-Community supply, category K, rate 0%,
-					// Art. 138 (never the seller's own 22% the fixture's comment assumed) — `tax-engine.ts`
-					// composed the right answer from the start. BR-IC-12 (defect 2) is gone:
-					// `build-semantic-invoice.ts` now builds BT-80 for category K. BR-IC-02 (defect 3) is
-					// ALSO gone: the seller's own "IT01234567897" VAT number, typed through
-					// `onboarding-vat-input` (`SELLER_IDENTIFIERS`'s own comment — a real, checksum-valid
-					// Partita IVA), now populates BT-31, so the export succeeds end to end.
-					expect(x.response?.statusCode, "EN 16931 export succeeds — all three defects fixed").to.eq(
-						200,
-					);
+					// Defects 1 and 3 are still fixed (identifier survival across a settings save, and a
+					// VAT-scheme identifier for a seller with no `country-identifiers` file — see this
+					// file's header) — but this leg's REAL tax treatment is NOT category K. This item is a
+					// PRODUCT (GOODS), and the Italian seller's own screen has no `supplyType` control at
+					// all (`country-fields/data/fr.json` is the only overlay for it — see this file's
+					// header, "a fourth defect"): `resolve-invoice-tax.ts` therefore treats this line as
+					// SERVICES, which for a confirmed-B2B cross-border pair in the same union reaches
+					// `tax-engine.ts`'s reverse-charge branch (category AE, 0%, jurisdiction Portugal) —
+					// never intra-Community supply (category K). Both are 0%-VAT-due treatments, so the
+					// TOTAL is identical either way; the CATEGORY, the mention and BT-80's presence are not.
+					expect(x.response?.statusCode, "EN 16931 export succeeds").to.eq(200);
 					const body = String(x.response?.body);
-					expect(body, "0% (intra-Community supply)").to.match(
+					expect(body, "0% (reverse charge, not the seller's own 22%)").to.match(
 						/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/,
 					);
-					expect(body, "category K").to.contain("<ram:CategoryCode>K</ram:CategoryCode>");
+					expect(body, "category AE — GOODS misread as SERVICES, see this file's header").to.contain(
+						"<ram:CategoryCode>AE</ram:CategoryCode>",
+					);
+					expect(body, "NOT category K: this leg cannot express its line as GOODS today").not.to.contain(
+						"<ram:CategoryCode>K</ram:CategoryCode>",
+					);
 					// The two checks above match a substring ANYWHERE in the document — a stray, unrelated
 					// tax subtotal at a nonzero rate sitting next to this 0% line would still pass them.
 					// Pinning the document-level TaxTotalAmount closes that gap: 20 × 35 = 700.00 € net, 0%
-					// VAT (intra-Community supply) → 0.00.
-					expect(body, "TaxTotalAmount 0.00 (intra-Community supply, no VAT due)").to.match(
+					// VAT (reverse charge, no VAT due either way) → 0.00.
+					expect(body, "TaxTotalAmount 0.00 (0% VAT, no amount due)").to.match(
 						/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/,
 					);
-					// The mention is now the one the SELLER's own law names, not the generic text citing
-					// the directive: the seller is Italian, and D.L. 331/1993 art. 46 comma 2 requires
-					// stating, in place of the tax amount, « che si tratta di
-					// operazione non imponibile ». Watch out for a citation trap: intra-Community supply
-					// falls under that text, NOT DPR 633/1972 art. 21 comma 6 lett. b), which lists the
-					// export cases (art. 8, 8-bis, 9, 38-quater) and yet carries the same wording.
-					expect(body, "mention italienne « operazione non imponibile »").to.contain(
-						"operazione non imponibile",
-					);
-					// BT-80 — the buyer's own country (Portugal), the same shape
-					// `formats/providers.spec.ts`'s own BT-80 suite already proves for CII.
-					expect(body, "BT-80 present, carrying the buyer's own country (PT)").to.match(
-						/<ram:ShipToTradeParty>[\s\S]*?<ram:CountryID>PT<\/ram:CountryID>/,
+					// The reverse-charge mention the ITALIAN seller's own law names for this branch — D.P.R.
+					// 633/1972 art. 17 comma 2's "inversione contabile" (`LOCALIZED_MENTION.reverseCharge.IT`)
+					// — never "operazione non imponibile" (D.L. 331/1993 art. 46 comma 2, the intra-Community
+					// mention this leg can no longer reach) nor the generic directive text.
+					expect(body, "mention italienne « inversione contabile »").to.contain("inversione contabile");
+					// BT-80 ("Deliver to" country) is built ONLY for category K (BR-IC-12,
+					// `build-semantic-invoice.ts`) — this leg no longer reaches that category, so BT-80 must
+					// be absent. Asserting the absence, not just staying silent about it, is the point: a
+					// regression that built BT-80 unconditionally would otherwise pass unnoticed here.
+					expect(body, "BT-80 absent — this leg's line is not category K").not.to.match(
+						/<ram:ShipToTradeParty>/,
 					);
 					return;
 				}
 
 				if (scenarioId === "pl-de") {
-					// ALL THREE DEFECTS FIXED — see this file's own header, and `it-pt`'s own branch above
-					// for the category-K twin of defect 3's fix. The TAX resolution was always correct —
-					// PL→DE, GOODS, buyer is an INDIVIDUAL with NO VAT at all → B2C from the very first
-					// check → GOODS, B2C, same union → OSS destination VAT, category S, Germany's own real
-					// 19% standard rate (`tax-systems/data/de.json`) — the one leg whose fixture comment
-					// already matched the engine's real behavior. BR-S-02 (defect 3) is gone: the seller's
-					// own "PL5260001246" VAT number, typed through the exact same `onboarding-vat-input`
-					// (`SELLER_IDENTIFIERS`'s own comment — the well-known KSeF sandbox test NIP, checksum-
-					// valid), now populates BT-31, so the export succeeds end to end. No BT-80/category-K
-					// concern here — this leg is category S, not K, confirming the fix is independent of
-					// category, exactly like defects 1 and 2 before it.
-					expect(x.response?.statusCode, "EN 16931 export succeeds — all three defects fixed").to.eq(
-						200,
-					);
+					// Defects 1 and 3 are still fixed — but this leg's REAL tax treatment is NOT the OSS
+					// destination rate the old fixture comment (and this file's own, pre-fix assertion)
+					// claimed. This item is a PRODUCT (GOODS), and the Polish seller's own screen has no
+					// `supplyType` control (see this file's header, "a fourth defect"): the line resolves as
+					// SERVICES, and `tax-engine.ts`'s B2C branch only routes to OSS for `GOODS`/`DIGITAL` —
+					// a B2C "service" across the union instead falls to `domesticVat(supplier)`, the SELLER's
+					// own rate. Poland's own standard rate is 23% (`tax-systems/data/pl.json`), not
+					// Germany's 19% — the exact undercharge risk this file's header quotes verbatim from the
+					// review that found it: a Polish seller selling actual goods to a German consumer is
+					// taxed at the SELLER's rate instead of the (higher, in this case) destination rate,
+					// invisibly, because the screen never asked which one this line is.
+					expect(x.response?.statusCode, "EN 16931 export succeeds").to.eq(200);
 					const body = String(x.response?.body);
-					expect(body, "19% (OSS destination = Germany's own standard rate)").to.match(
-						/<ram:RateApplicablePercent>19<\/ram:RateApplicablePercent>/,
+					expect(body, "23% (the SELLER's own rate — not Germany's 19% OSS destination rate)").to.match(
+						/<ram:RateApplicablePercent>23<\/ram:RateApplicablePercent>/,
 					);
-					expect(body, "category S (OSS is destination-STANDARD-rated, not exempt)").to.contain(
+					// Both the OSS-destination and the seller's-own-rate treatments land on category S (a
+					// standard, non-exempt rate) — the CATEGORY alone cannot distinguish the bug from the
+					// correct outcome here, which is exactly why the RATE and the amount below are what this
+					// leg actually pins.
+					expect(body, "category S (standard-rated either way)").to.contain(
 						"<ram:CategoryCode>S</ram:CategoryCode>",
 					);
-					// Same substring-anywhere gap as it-pt's own category K check above — pin the actual
-					// amount due, not just a rate/category appearing somewhere in the document: 2 × 150 =
-					// 300.00 € net, 19% (Germany's own OSS destination rate) → 57.00.
-					expect(body, "TaxTotalAmount 57.00 (300.00 € net × 19%)").to.match(
-						/<ram:TaxTotalAmount currencyID="EUR">57\.00<\/ram:TaxTotalAmount>/,
+					// Pin the actual amount due, not just a rate appearing somewhere in the document: 2 × 150
+					// = 300.00 € net, 23% (Poland's own rate, the bug) → 69.00 — NOT 57.00, which is what
+					// 300.00 € × 19% (the correct, unreachable-today OSS destination rate) would have been.
+					expect(body, "TaxTotalAmount 69.00 (300.00 € net × 23%, the seller's own rate)").to.match(
+						/<ram:TaxTotalAmount currencyID="EUR">69\.00<\/ram:TaxTotalAmount>/,
 					);
 					return;
 				}
@@ -876,23 +953,27 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					// DE→FR, GOODS, buyer VAT "FR12345678901" — checksum-INVALID (see this file's header:
 					// SIREN 345678901 mod 97 = 1, expected key 15, given key 12) → treated as B2C BEFORE any
 					// stored VIES-style verdict is even consulted (`resolveBuyerRole`'s own "never a silent
-					// B2B") → B2C GOODS across the same union → OSS destination VAT
-					// (`tax-engine.ts#ossDestinationVat`), charging the BUYER's own country's rate
-					// (`tax-systems/data/fr.json`, DERIVED from `vat-rates/data/fr.json`'s "fr-standard" 20%
-					// entry) — 20%, category S. The number coincides with what was TYPED (also 20%) only
-					// because France's own standard rate happens to be 20% too; the decisive proof this was
-					// actually recomputed via OSS, not merely left alone, is the buyer's stored
-					// `validationStatus` asserted in the previous test (INVALID, never left null).
-					expect(body, "20% (OSS destination = France's own standard rate)").to.match(
-						/<ram:RateApplicablePercent>20<\/ram:RateApplicablePercent>/,
+					// B2B"). This item is a PRODUCT (GOODS), which would reach OSS destination VAT
+					// (France's own 20%) IF the engine could tell it apart from a service — but the German
+					// seller's own screen has no `supplyType` control at all (see this file's header, "a
+					// fourth defect"), so the line resolves as SERVICES, and a B2C "service" across the union
+					// falls to `domesticVat(supplier)` instead: the SELLER's OWN rate, Germany's 19%
+					// (`tax-systems/data/de.json`), category S. The decisive proof this is the SERVICES
+					// fallback and not a coincidence is the buyer's stored `validationStatus` asserted in the
+					// previous test (INVALID, never left null) together with the RATE below — 19%, which
+					// cannot be confused with either the seller's typed 19% (same number, different reason:
+					// no cross-border composition ran at all) if the buyer had been a confirmed B2B instead.
+					expect(body, "19% (the SELLER's own rate — not France's 20% OSS destination rate)").to.match(
+						/<ram:RateApplicablePercent>19<\/ram:RateApplicablePercent>/,
 					);
-					expect(body, "category S (OSS is destination-STANDARD-rated, not exempt)").to.contain(
+					expect(body, "category S (standard-rated either way)").to.contain(
 						"<ram:CategoryCode>S</ram:CategoryCode>",
 					);
-					// Same substring-anywhere gap as fr-pl's own check above — pin the actual amount due:
-					// 1 × 1200 = 1200.00 € net, 20% (France's own OSS destination rate) → 240.00.
-					expect(body, "TaxTotalAmount 240.00 (1200.00 € net × 20%)").to.match(
-						/<ram:TaxTotalAmount currencyID="EUR">240\.00<\/ram:TaxTotalAmount>/,
+					// Pin the actual amount due: 1 × 1200 = 1200.00 € net, 19% (Germany's own rate, the bug)
+					// → 228.00 — NOT 240.00, which is what 1200.00 € × 20% (the correct, unreachable-today OSS
+					// destination rate) would have been.
+					expect(body, "TaxTotalAmount 228.00 (1200.00 € net × 19%, the seller's own rate)").to.match(
+						/<ram:TaxTotalAmount currencyID="EUR">228\.00<\/ram:TaxTotalAmount>/,
 					);
 				}
 

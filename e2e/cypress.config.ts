@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { defineConfig } from "cypress";
 import { Queue } from "bullmq";
 import { Client } from "pg";
+import pdfParse from "pdf-parse";
 
 /**
  * The "receiver" side for `42-webhooks.cy.ts`. A vanilla
@@ -407,13 +408,17 @@ export default defineConfig({
 
         /**
          * `75-legal-acceptance.cy.ts`'s ONE piece of Node-side help: backdates a user's
-         * `LegalAcceptance` row to an arbitrary, deliberately STALE `version` — the sign-in
+         * `LegalAcceptance` row to an arbitrary, deliberately STALE `contentHash` — the sign-in
          * re-acceptance interstitial (`pages/legal/accept.tsx`, redirected to from
-         * `(app)/_layout.tsx`) only fires when a required document's CURRENT version (whatever ships
-         * in `documentation/docs/legal/*.md` today) differs from what the user last accepted, and
-         * nothing this offline suite controls can make the shipped document's own version go
-         * backwards. Writing the row directly is what lets the spec prove the interstitial fires
-         * without waiting for an actual text change to land.
+         * `(app)/_layout.tsx`) only fires when a required document's CURRENT content hash (whatever
+         * ships in `documentation/docs/legal/*.md` today, hashed by `legal-documents.ts` — decision
+         * 2026-09-17: acceptance is keyed on the hash, not `version`, see `LegalAcceptance`'s own
+         * schema comment) differs from what the user last accepted, and nothing this offline suite
+         * controls can make the shipped document's own text hash backwards to a real prior one.
+         * Writing the row directly, with an OBVIOUSLY-fake hash, is what lets the spec prove the
+         * interstitial fires without waiting for an actual text change to land. `version` is still
+         * written alongside it (display-only column, same as production) so the interstitial's own
+         * "Version X — effective Y" line has something real to render.
          */
         async setStaleLegalAcceptance({
           email,
@@ -435,18 +440,22 @@ export default defineConfig({
             if (rows.length === 0) throw new Error(`setStaleLegalAcceptance: no user found for ${email}`);
             const userId = rows[0].id as string;
             // DELETE first, not just INSERT: sign-up already wrote a row for this exact
-            // (userId, slug) at TODAY's real version (backend's own `recordLegalAcceptance`) —
-            // `getPendingAcceptanceSlugs` only asks "is there ANY row at the CURRENT version", so a
-            // stale row living ALONGSIDE that real one would change nothing. Removing the real one is
-            // what actually simulates "this user accepted an older text before a new version shipped".
+            // (userId, slug) at TODAY's real content hash (backend's own `recordLegalAcceptance`) —
+            // `getPendingAcceptanceSlugs` only asks "is there ANY row at the CURRENT hash", so a stale
+            // row living ALONGSIDE that real one would change nothing. Removing the real one is what
+            // actually simulates "this user accepted an older text before a new version shipped".
             await client.query(`DELETE FROM "legal_acceptance" WHERE "userId" = $1 AND "documentSlug" = $2`, [
               userId,
               slug,
             ]);
+            // 64 hex chars, sha256-shaped, but not a hash of anything this repo has ever shipped —
+            // guaranteed never to collide with a real `contentHash` no matter how the document's text
+            // evolves.
+            const staleHash = "0".repeat(63) + "1";
             await client.query(
-              `INSERT INTO "legal_acceptance" (id, "userId", "documentSlug", version, "acceptedAt")
-               VALUES (gen_random_uuid()::text, $1, $2, $3, now())`,
-              [userId, slug, version],
+              `INSERT INTO "legal_acceptance" (id, "userId", "documentSlug", version, "contentHash", "acceptedAt")
+               VALUES (gen_random_uuid()::text, $1, $2, $3, $4, now())`,
+              [userId, slug, version, staleHash],
             );
             return null;
           } finally {
@@ -499,6 +508,23 @@ export default defineConfig({
           } finally {
             await client.end();
           }
+        },
+
+        /**
+         * `20-document-totals.cy.ts`'s own PDF-content proof. A rendered invoice/quote PDF is
+         * FlateDecode-compressed (Chromium's own PDF writer), so the string "Totals" almost never
+         * appears verbatim in the raw bytes — a spec that fell back to "the file got bigger" on a miss
+         * stayed green whether the totals block rendered the right numbers, the wrong numbers, or (bar
+         * a length coincidence) no numbers at all. Runs in THIS process, not the browser: `pdf-parse`
+         * (built on Mozilla's own `pdf.js`) needs a real filesystem/zlib-capable Node, which a Cypress
+         * spec running inside Electron/Firefox is not — the same reason `resetDatabase`/`pg` above run
+         * here rather than in the spec. Cypress tasks only accept JSON-serializable arguments, so the
+         * caller sends the PDF as base64 (`Cypress.Buffer` on its side) rather than a raw Buffer.
+         */
+        async extractPdfText(base64: string): Promise<string> {
+          const buffer = Buffer.from(base64, "base64");
+          const parsed = await pdfParse(buffer);
+          return parsed.text;
         },
       });
     },

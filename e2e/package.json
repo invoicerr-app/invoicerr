@@ -1,10 +1,12 @@
 {
   "devDependencies": {
     "@types/node": "^24.6.2",
+    "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.15.0",
     "@types/wait-on": "^5.3.4",
     "bullmq": "^5.80.2",
     "cypress": "^15.18.0",
+    "pdf-parse": "^1.1.4",
     "pg": "^8.16.3"
   },
   "scripts": {

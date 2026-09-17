@@ -155,7 +155,16 @@ Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
             return pollForOpen(elapsedMs + OPEN_POLL_MS);
         });
     const openWithRetries = (attempt: number): void => {
-        cy.get(triggerSelector).scrollIntoView().click();
+        // `force: true` here too (added alongside the bounded retry above, not a leftover): CI run on
+        // 43-correction-routes.cy.ts's own Poland KOR test hit a DIFFERENT failure than the one this
+        // retry loop guards against — not "clicked but nothing opened", but Cypress's own
+        // actionability WAIT (restored once support/e2e.ts's global `force: true` override was
+        // removed) spanning long enough for this trigger's surrounding form to re-render (a
+        // conditionally-required field appearing once other data resolves) and detach the exact node
+        // this command had queried, "the page updated while this command was executing". Skipping
+        // that wait removes the window; the retry loop above still catches a click that lands cleanly
+        // but doesn't open the popover.
+        cy.get(triggerSelector).scrollIntoView().click({ force: true });
         pollForOpen(0).then((opened) => {
             if (opened || attempt >= MAX_ATTEMPTS) {
                 if (attempt > 1) {
@@ -330,13 +339,48 @@ Cypress.Commands.add('openSearchSelect', (dataCy: string) => {
  * fills a multi-step create dialog goes through here instead of repeating the wait. Captures the
  * CURRENT step body's own `data-cy` (it carries the step id — `...-step-body-details`,
  * `...-step-body-lines`, ...) before clicking, then waits for that attribute to actually change.
+ *
+ * Retries the CLICK itself (bounded), not just the wait after it — the same open-side race
+ * `openSelect`/`openSearchSelect`/`openDatePicker` above guard against: a "Continue" click fired
+ * right after a sibling Radix popover (a `SearchSelect`/`Select` field on the step just filled)
+ * closes can be swallowed by that popover's own `DismissableLayer`, still detaching its
+ * outside-pointerdown listener on a deferred passive-effect cleanup. CI observed this landing the
+ * click with no visible effect at all (05-clients.cy.ts's own "creates an individual client",
+ * 36-received-invoices.cy.ts's own "Structured deposit with lines" — both type into a field then
+ * call this immediately after, no intervening wait) once the global `force: true` override
+ * (support/e2e.ts) that used to paper over it was removed.
  * @example cy.continueDocumentWizard()
  */
 Cypress.Commands.add('continueDocumentWizard', () => {
     cy.get('[data-cy^="document-create-dialog-step-body-"]')
         .invoke('attr', 'data-cy')
         .then((before) => {
-            cy.get('[data-cy="document-create-dialog-continue"]').should('be.visible').click();
+            const POLL_MS = 100;
+            const TIMEOUT_MS = 800;
+            const MAX_ATTEMPTS = 3;
+            const hasAdvanced = () =>
+                cy
+                    .get('[data-cy^="document-create-dialog-step-body-"]', { log: false })
+                    .invoke({ log: false }, 'attr', 'data-cy')
+                    .then((current) => current !== before);
+            const pollForAdvance = (elapsedMs: number): Cypress.Chainable<boolean> =>
+                hasAdvanced().then((advanced) => {
+                    if (advanced || elapsedMs >= TIMEOUT_MS) return cy.wrap(advanced, { log: false });
+                    cy.wait(POLL_MS, { log: false });
+                    return pollForAdvance(elapsedMs + POLL_MS);
+                });
+            const continueWithRetries = (attempt: number): void => {
+                cy.get('[data-cy="document-create-dialog-continue"]').should('be.visible').click();
+                pollForAdvance(0).then((advanced) => {
+                    if (advanced || attempt >= MAX_ATTEMPTS) return;
+                    Cypress.log({
+                        name: 'continueDocumentWizard',
+                        message: `step did not advance on attempt ${attempt} -- retrying the click`,
+                    });
+                    continueWithRetries(attempt + 1);
+                });
+            };
+            continueWithRetries(1);
             cy.get('[data-cy^="document-create-dialog-step-body-"]', { timeout: 10000 }).should(($el) => {
                 expect($el.attr('data-cy')).not.to.eq(before);
             });
@@ -347,14 +391,41 @@ Cypress.Commands.add('continueDocumentWizard', () => {
  * The generic sibling of `continueDocumentWizard` above for any OTHER `stepped-dialog.tsx` wizard —
  * takes the dialog's own `dataCy` prefix instead of hardcoding "document-create-dialog", so
  * article-upsert.tsx and time-entry-upsert.tsx (and any later 3-step dialog) share this one command
- * rather than each spec re-deriving the same before/after `data-cy` wait.
+ * rather than each spec re-deriving the same before/after `data-cy` wait. Same bounded click-retry
+ * as `continueDocumentWizard` above, for the identical stale-listener race on the SAME underlying
+ * `stepped-dialog.tsx` primitive.
  * @example cy.continueSteppedDialog('article-dialog')
  */
 Cypress.Commands.add('continueSteppedDialog', (dataCy: string) => {
     cy.get(`[data-cy^="${dataCy}-step-body-"]`)
         .invoke('attr', 'data-cy')
         .then((before) => {
-            cy.get(`[data-cy="${dataCy}-continue"]`).should('be.visible').click();
+            const POLL_MS = 100;
+            const TIMEOUT_MS = 800;
+            const MAX_ATTEMPTS = 3;
+            const hasAdvanced = () =>
+                cy
+                    .get(`[data-cy^="${dataCy}-step-body-"]`, { log: false })
+                    .invoke({ log: false }, 'attr', 'data-cy')
+                    .then((current) => current !== before);
+            const pollForAdvance = (elapsedMs: number): Cypress.Chainable<boolean> =>
+                hasAdvanced().then((advanced) => {
+                    if (advanced || elapsedMs >= TIMEOUT_MS) return cy.wrap(advanced, { log: false });
+                    cy.wait(POLL_MS, { log: false });
+                    return pollForAdvance(elapsedMs + POLL_MS);
+                });
+            const continueWithRetries = (attempt: number): void => {
+                cy.get(`[data-cy="${dataCy}-continue"]`).should('be.visible').click();
+                pollForAdvance(0).then((advanced) => {
+                    if (advanced || attempt >= MAX_ATTEMPTS) return;
+                    Cypress.log({
+                        name: 'continueSteppedDialog',
+                        message: `step did not advance on attempt ${attempt} -- retrying the click`,
+                    });
+                    continueWithRetries(attempt + 1);
+                });
+            };
+            continueWithRetries(1);
             cy.get(`[data-cy^="${dataCy}-step-body-"]`, { timeout: 10000 }).should(($el) => {
                 expect($el.attr('data-cy')).not.to.eq(before);
             });
@@ -465,6 +536,17 @@ Cypress.Commands.add('openDocumentRowMenu', (documentId: string) => {
  * (action-presentation.ts's `pickPrimaryAction`, the same rule the detail page applies) — a spec
  * should not have to know, the same way a user does not: the label reads the same in both places.
  * The row-level twin of `runDocumentAction` above.
+ *
+ * `force: true` on both clicks — deliberately, not a leftover: this row is a LIVE card, re-rendered
+ * by the same list-level polling that updates its own status badge while a document is mid-transit
+ * (queue jobs, channel retries). CI hit "the page updated while this command was executing" here
+ * twice (31-national-channels.cy.ts's own SdI send, 43-correction-routes.cy.ts's own Poland KOR
+ * click) once Cypress's normal actionability wait — retrying visibility/stability for up to the
+ * default command timeout — was restored (support/e2e.ts's removed global `force: true` override
+ * used to hide this): the LONGER that wait runs, the more likely a background poll repaints the row
+ * out from under the captured element reference. `force: true` skips that wait and clicks
+ * immediately against the CURRENT DOM instead, which is what a real user's own, much faster click
+ * would land on too.
  * @example cy.runDocumentRowAction(quoteId, 'send')
  */
 Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: string) => {
@@ -472,11 +554,11 @@ Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: stri
     cy.get(`[data-cy="document-list-row-${documentId}"]`, { timeout: 15000 }).should('exist');
     cy.get('body').then(($body) => {
         if ($body.find(`${selector}:visible`).length > 0) {
-            cy.get(selector).scrollIntoView().click();
+            cy.get(selector).scrollIntoView().click({ force: true });
             return;
         }
         cy.openDocumentRowMenu(documentId);
-        cy.get(selector, { timeout: 10000 }).should('be.visible').click();
+        cy.get(selector, { timeout: 10000 }).should('be.visible').click({ force: true });
     });
 });
 
@@ -494,8 +576,15 @@ Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: stri
 // nothing calls it.
 
 Cypress.on('window:before:load', (window) => {
-    Object.defineProperty(window.navigator, 'language', { value: 'en-US' })
-    Object.defineProperty(window.navigator, 'languages', { value: ['en-US'] })
+    // `configurable: true` on both — `Object.defineProperty` defaults to `configurable: false`, and
+    // this handler fires on EVERY `window:before:load` (every `cy.visit`, plus `cy.session()`'s own
+    // internal re-visits when validating a cached session). A same-origin in-app navigation can reuse
+    // the SAME `window`/`navigator` object across two such firings, and redefining an already
+    // non-configurable property throws `TypeError: Cannot redefine property` — surfaced only once the
+    // suite stopped swallowing every uncaught exception unconditionally (`support/e2e.ts`), where it
+    // failed `cy.login()`'s own session setup for literally every spec.
+    Object.defineProperty(window.navigator, 'language', { value: 'en-US', configurable: true })
+    Object.defineProperty(window.navigator, 'languages', { value: ['en-US'], configurable: true })
 })
 /**
  * Reset to a known world, before every spec.

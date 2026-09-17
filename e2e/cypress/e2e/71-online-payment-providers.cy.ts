@@ -10,8 +10,11 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * end-to-end THROUGH THIS APPLICATION (persisted, correlated, turned into a `DocumentPayment`), but no
  * real Mollie/PayPal account is ever reached. See each provider's own header
  * (`backend/src/modules/documents/payments/providers/{mollie,paypal}/*-provider.ts`) for exactly what
- * that Fake wiring does and does not prove — and this spec has never been RUN (no Cypress in this
- * task's own verification budget — say so in any report referencing it).
+ * that Fake wiring does and does not prove. RUN, green, 5/5 (2026-09-17): `connects Mollie...`,
+ * `refuses a webhook naming a payment id this backend never opened...`, `connects PayPal...`,
+ * `refuses a webhook missing the PayPal transmission headers...`, `refuses a webhook naming an
+ * order id this backend never created...` — against the full e2e stack (`npm run start:test` on both
+ * projects), never only typechecked.
  *
  * WHY TWO PROVIDERS NEED DIFFERENT WEBHOOK SHAPES THAN STRIPE'S OWN SPEC:
  *  - Mollie's webhook carries NO signature at all — a bare form-encoded `id=tr_xxx` POST. Verification

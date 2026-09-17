@@ -47,6 +47,18 @@ describe("Legal acceptance", () => {
 		cy.request(`${api}/api/legal/documents`).then((response) => {
 			saasMode = !!response.body.saasMode;
 			cy.log(`this instance's saasMode: ${saasMode}`);
+			// Same guard `76-seats.cy.ts`'s own `before()` holds, for the identical reason: a dedicated
+			// SaaS CI lane sets `CYPRESS_expectSaas` to assert billing is ACTUALLY on, rather than let the
+			// four SaaS-only tests below silently report "pending" inside a job that then reports green
+			// regardless of whether they ever ran.
+			if (Cypress.env('expectSaas') && !saasMode) {
+				throw new Error(
+					'CYPRESS_expectSaas is set but GET /api/legal/documents reported saasMode:false — ' +
+						'billing/legal-acceptance is not actually enabled on this stack ' +
+						'(WARNING__ENABLE_BILLING_FOR_USERS__WARNING unset or misconfigured?). Refusing to ' +
+						'silently skip every SaaS-only test below.',
+				);
+			}
 		});
 	});
 
@@ -165,8 +177,9 @@ describe("Legal acceptance", () => {
 			cy.get('[data-cy="auth-submit-btn"]').click();
 			cy.get('[data-sonner-toast]', { timeout: 15000 }).should("contain.text", "created");
 
-			// Backdate this user's Terms of Service acceptance to a version older than whatever ships
-			// today — see cypress.config.ts's own header on this task for why a real DB write, not a
+			// Backdate this user's Terms of Service acceptance to a content hash that can never match
+			// whatever ships today (decision 2026-09-17: the interstitial compares hashes, not version
+			// strings) — see cypress.config.ts's own header on this task for why a real DB write, not a
 			// fixture, is what proves the interstitial without waiting for an actual document change.
 			cy.task("setStaleLegalAcceptance", { email, slug: "terms-of-service", version: "2000-01-01" });
 

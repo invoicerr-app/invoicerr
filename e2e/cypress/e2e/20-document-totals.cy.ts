@@ -262,21 +262,34 @@ describe("Document totals", () => {
 					}).then((res) => {
 						expect(res.status).to.eq(200);
 
-						// The PDF is binary, so we check either:
-						// 1. The string "Totals" appears somewhere in the PDF (if not compressed)
-						// 2. OR the file size is significantly larger than a document without totals
-						//    (indicating content was added — this is more reliable for compressed PDFs)
-
-						const pdfContent = res.body;
-						const hasMetadata = String(pdfContent).includes("Totals");
-
-						if (hasMetadata) {
-							expect(pdfContent).to.include("Totals");
-						} else {
-							// If "Totals" is not found (PDF compression), check file size is reasonable
-							// A document with totals section should be noticeably larger
-							expect(pdfContent.length).to.be.greaterThan(1500);
-						}
+						// Chromium's own PDF writer compresses the content stream (FlateDecode), so the
+						// string "Totals" almost never appears verbatim in the raw bytes — the file-size
+						// fallback this used to have would stay green whether the totals block rendered the
+						// RIGHT numbers, the WRONG numbers, or none at all, as long as the byte count
+						// happened to land above the threshold. Decode the actual page text instead
+						// (`cy.task("extractPdfText", ...)`, `pdf-parse` in the Node plugin process — see
+						// `cypress.config.ts`'s own header on that task) and assert the real amounts:
+						// 2 hours x 50 = 100.00 net, 20% VAT = 20.00, gross = 120.00
+						// (`render-html.ts`'s own `netDisplay`/`vatDisplay`/`grossDisplay`, "<amount> EUR").
+						const base64 = Cypress.Buffer.from(res.body as string, "binary").toString("base64");
+						cy.task("extractPdfText", base64).then((rawText) => {
+							// Collapse whitespace: `pdf.js` places each text run where Chromium's layout put
+							// it, and a number and its currency code can land in ADJACENT runs joined by more
+							// than one space (or, per PDF viewer, a stray newline) — never asserted as one
+							// exact literal string for that reason.
+							const text = String(rawText).replace(/\s+/g, " ");
+							// Verified against a real run: the rendered page's own CSS uppercases this label
+							// (`.totals-label`, `render-html.ts`) — `pdf-parse`/`pdf.js` extracts the text as
+							// Chromium actually PAINTED it, "TOTALS", never the DOM's original-case string —
+							// matched case-insensitively for that reason, not loosened to `/total/i` (which
+							// would also match the "Total" row label right below it, proving nothing extra).
+							expect(text.toUpperCase(), "the totals section's own label is present").to.contain(
+								"TOTALS",
+							);
+							expect(text, "net amount (100.00 EUR)").to.match(/100\.00\s*EUR/);
+							expect(text, "VAT amount (20.00 EUR, 20% of the net base)").to.match(/20\.00\s*EUR/);
+							expect(text, "gross amount (120.00 EUR)").to.match(/120\.00\s*EUR/);
+						});
 					});
 				});
 			});

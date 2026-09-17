@@ -1,4 +1,4 @@
-export {}; // makes this spec a module, not a global script -- see tsconfig.json
+import { tolerateUncaughtException } from "../support/e2e";
 
 /**
  * The authenticated client portal — a client with an invoice AND a quote
@@ -114,6 +114,12 @@ function inviteToPortalFromScreen(email: string): Cypress.Chainable<{ url: strin
 
 	cy.get('[data-cy="portal-access-create-button"]').click();
 	cy.get('[data-cy="portal-access-created-url"]', { timeout: 15000 }).should("be.visible");
+	// `client-portal-access.tsx#handleCopy` has no `try`/`catch` around
+	// `navigator.clipboard.writeText(...)` either — the same real, out-of-e2e-scope gap
+	// `37-document-share-link.cy.ts`'s own identical comment documents for its sibling dialog; a
+	// scripted click in headless Firefox does not always carry the Clipboard API's own required
+	// "user activation", which then surfaces as an unhandled rejection here too.
+	tolerateUncaughtException(/Clipboard write was blocked/);
 	cy.get('[data-cy="portal-access-copy-button"]').click();
 	cy.get('[data-cy="portal-access-list"]').find('[data-cy^="portal-access-row-"]').should("have.length", 1);
 

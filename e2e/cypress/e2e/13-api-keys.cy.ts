@@ -32,7 +32,13 @@ describe('API Keys Settings E2E', () => {
 
         // The plaintext key is shown once, in the "API key created" section
         cy.contains(/this key will be shown only once/i, { timeout: 10000 }).should('be.visible');
-        cy.contains('.font-mono', /^sk_/).should('be.visible');
+        // Unrelated pre-existing flake, found by this file's own replay (not caused by removing the
+        // global `force: true` override — that override only ever touched click/type/clear, never a
+        // bare `.should('be.visible')`): at the CI viewport (1000x660) this `<code>` sits low enough
+        // in the "API key created" card that an ancestor's `overflow: hidden` clips it before any
+        // scroll happens, so Cypress correctly reports it not visible — `scrollIntoView()` first is
+        // what a reviewer would do too.
+        cy.contains('.font-mono', /^sk_/).scrollIntoView().should('be.visible');
 
         // The new key appears in the list, as its own row (settings-section.tsx's `SettingsListRow`
         // grammar — a row is never a `[data-slot="card"]` any more, unlike the settings screen's OWN

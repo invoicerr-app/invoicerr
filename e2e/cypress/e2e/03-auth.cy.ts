@@ -1,4 +1,4 @@
-export {}; // makes this spec a module, not a global script -- see tsconfig.json
+import { tolerateUncaughtException } from '../support/e2e';
 
 const apiUrl = Cypress.env('apiUrl') as string;
 
@@ -14,6 +14,15 @@ const apiUrl = Cypress.env('apiUrl') as string;
  * it exercises an invitation code that can actually be redeemed.
  */
 function createInvitationCodeViaUI(): Cypress.Chainable<string> {
+    // `invitations.settings.tsx#createInvitation` awaits the POST, THEN calls
+    // `navigator.clipboard.writeText(...)` with no `try`/`catch` — by the time that promise
+    // resolves, the click's own "user activation" window has closed, so the browser throws
+    // "Clipboard write was blocked due to lack of user activation" as an UNHANDLED rejection.
+    // Real for an actual user on a slow enough network too, not a Cypress-only artifact — the
+    // same known, out-of-e2e-scope product gap `09-settings.cy.ts`'s own "creates a new
+    // invitation code" test documents; tolerated here for every test that goes through this
+    // helper, rather than duplicated at each of its (five) call sites.
+    tolerateUncaughtException(/Clipboard write was blocked/);
     cy.intercept('POST', '**/api/invitations').as('createInvitationRequest');
     cy.visit('/settings/invitations');
     cy.wait(1000);
