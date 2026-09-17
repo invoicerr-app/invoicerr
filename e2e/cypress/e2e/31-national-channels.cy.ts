@@ -234,16 +234,36 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	});
 
 	it("picks pdp as the invoicing transport, on the company settings screen", () => {
+		// `invoiceTransports` (`useDocumentTransports`, `company.settings.tsx`) loads ASYNCHRONOUSLY on
+		// mount — see that field's own `Select` for a DIFFERENT race already documented on this same
+		// list (Radix's hidden native mirror firing a spurious empty `onValueChange` while the list is
+		// still loading). This is the same async list, a different race: a scripted click on the
+		// trigger landing BEFORE this fetch resolves opens the popover with ZERO options, and
+		// `cy.openSelect`'s own bounded retry (support/commands.ts) would then retry the TRIGGER click —
+		// which on a Radix `Select` toggles the popover CLOSED rather than reopening it, so a fetch that
+		// resolves a moment later never gets a chance to be seen open. Waiting for this GET before
+		// touching the trigger removes the window entirely instead of racing a bounded retry against CI
+		// load (Firefox, 1000x660) — measured cause of the CI flake on this exact test and the "sends an
+		// invoice via <transport>" one right after it (reading whatever transport this one failed to
+		// actually persist).
+		cy.intercept("GET", `${api}/api/documents/transports`).as("transports");
 		cy.visit("/settings/company");
-		cy.get('[data-cy="company-invoice-transport-select"]', {
-			timeout: 15000,
-		}).click();
-		cy.get('[data-cy="company-invoice-transport-options"]', {
-			timeout: 10000,
-		}).should("be.visible");
-		cy.get('[data-cy="company-invoice-transport-option-pdp"]').click();
+		cy.wait("@transports", { timeout: 15000 });
+
+		cy.get('[data-cy="company-invoice-transport-select"]', { timeout: 15000 }).should("exist");
+		cy.openSelect(
+			'[data-cy="company-invoice-transport-select"]',
+			'[data-cy="company-invoice-transport-option-pdp"]',
+		);
+
+		// A fixed `cy.wait(2000)` here raced `onSubmit`'s own sequential awaits (the company PATCH,
+		// then two number-format PUTs, then a reconciliation-settings mutation — company.settings.tsx's
+		// own `onSubmit`): a CI runner slower than 2s left the GET below reading STALE data.
+		// Intercepting the one request that actually carries `invoiceTransportId` and asserting its
+		// status is deterministic regardless of how long the rest of that sequence takes.
+		cy.intercept("POST", `${api}/api/company/info`).as("saveCompany");
 		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait(2000);
+		cy.wait("@saveCompany", { timeout: 15000 }).its("response.statusCode").should("be.oneOf", [200, 201]);
 
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body")
@@ -428,16 +448,23 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	});
 
 	it("picks ksef as the invoicing transport, on the company settings screen", () => {
+		// Same async-list race as the PDP test above — see its comment for why this waits on the
+		// transports GET before opening the Select.
+		cy.intercept("GET", `${api}/api/documents/transports`).as("transports");
 		cy.visit("/settings/company");
-		cy.get('[data-cy="company-invoice-transport-select"]', {
-			timeout: 15000,
-		}).click();
-		cy.get('[data-cy="company-invoice-transport-options"]', {
-			timeout: 10000,
-		}).should("be.visible");
-		cy.get('[data-cy="company-invoice-transport-option-ksef"]').click();
+		cy.wait("@transports", { timeout: 15000 });
+
+		cy.get('[data-cy="company-invoice-transport-select"]', { timeout: 15000 }).should("exist");
+		cy.openSelect(
+			'[data-cy="company-invoice-transport-select"]',
+			'[data-cy="company-invoice-transport-option-ksef"]',
+		);
+
+		// Same reasoning as the PDP test above — see its comment: a fixed `cy.wait(2000)` raced
+		// `onSubmit`'s own sequential awaits, intercepting the save request removes the guess.
+		cy.intercept("POST", `${api}/api/company/info`).as("saveCompany");
 		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait(2000);
+		cy.wait("@saveCompany", { timeout: 15000 }).its("response.statusCode").should("be.oneOf", [200, 201]);
 
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body")
@@ -612,16 +639,23 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	});
 
 	it("picks sdi as the invoicing transport, on the company settings screen", () => {
+		// Same async-list race as the PDP test above — see its comment for why this waits on the
+		// transports GET before opening the Select.
+		cy.intercept("GET", `${api}/api/documents/transports`).as("transports");
 		cy.visit("/settings/company");
-		cy.get('[data-cy="company-invoice-transport-select"]', {
-			timeout: 15000,
-		}).click();
-		cy.get('[data-cy="company-invoice-transport-options"]', {
-			timeout: 10000,
-		}).should("be.visible");
-		cy.get('[data-cy="company-invoice-transport-option-sdi"]').click();
+		cy.wait("@transports", { timeout: 15000 });
+
+		cy.get('[data-cy="company-invoice-transport-select"]', { timeout: 15000 }).should("exist");
+		cy.openSelect(
+			'[data-cy="company-invoice-transport-select"]',
+			'[data-cy="company-invoice-transport-option-sdi"]',
+		);
+
+		// Same reasoning as the PDP test above — see its comment: a fixed `cy.wait(2000)` raced
+		// `onSubmit`'s own sequential awaits, intercepting the save request removes the guess.
+		cy.intercept("POST", `${api}/api/company/info`).as("saveCompany");
 		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait(2000);
+		cy.wait("@saveCompany", { timeout: 15000 }).its("response.statusCode").should("be.oneOf", [200, 201]);
 
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body")
@@ -785,16 +819,23 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	});
 
 	it("picks chorus-pro as the invoicing transport, on the company settings screen", () => {
+		// Same async-list race as the PDP test above — see its comment for why this waits on the
+		// transports GET before opening the Select.
+		cy.intercept("GET", `${api}/api/documents/transports`).as("transports");
 		cy.visit("/settings/company");
-		cy.get('[data-cy="company-invoice-transport-select"]', {
-			timeout: 15000,
-		}).click();
-		cy.get('[data-cy="company-invoice-transport-options"]', {
-			timeout: 10000,
-		}).should("be.visible");
-		cy.get('[data-cy="company-invoice-transport-option-chorus-pro"]').click();
+		cy.wait("@transports", { timeout: 15000 });
+
+		cy.get('[data-cy="company-invoice-transport-select"]', { timeout: 15000 }).should("exist");
+		cy.openSelect(
+			'[data-cy="company-invoice-transport-select"]',
+			'[data-cy="company-invoice-transport-option-chorus-pro"]',
+		);
+
+		// Same reasoning as the PDP test above — see its comment: a fixed `cy.wait(2000)` raced
+		// `onSubmit`'s own sequential awaits, intercepting the save request removes the guess.
+		cy.intercept("POST", `${api}/api/company/info`).as("saveCompany");
 		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait(2000);
+		cy.wait("@saveCompany", { timeout: 15000 }).its("response.statusCode").should("be.oneOf", [200, 201]);
 
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body")
