@@ -89,9 +89,19 @@ export const NO_MAIL_SERVER_CONFIGURED_MESSAGE =
  * one of this service's own dispatch points, is what actually closes the gap: a send path can never
  * forget a filter that runs on its own way out, unlike one each template builder would have to
  * remember to apply itself.
+ *
+ * Clones `options` first, THEN overwrites `html` as its own assignment statement — never a single
+ * object-literal spread with the sanitized value inlined as one of its properties. Both shapes behave
+ * identically at runtime, but only the two-step form leaves an unambiguous "last write wins" on
+ * `html`: a literal that spreads the raw source object and overrides one of ITS OWN keys in the same
+ * expression reads, to at least one static analyzer, as though the field might still carry the
+ * pre-sanitization value carried in by the spread.
  */
 function sanitizedMailOptions(options: MailOptions): MailOptions {
-  return options.html ? { ...options, html: sanitizeEmailHtml(options.html) } : options;
+  if (!options.html) return options;
+  const safe: MailOptions = { ...options };
+  safe.html = sanitizeEmailHtml(options.html);
+  return safe;
 }
 
 @Injectable()

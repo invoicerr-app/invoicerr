@@ -13,6 +13,11 @@ env:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    # Read-only: this job only computes tag/cache variables and reads the release list via `gh
+    # release view` (GH_TOKEN below) — it never pushes an image or a package, so it needs neither
+    # `packages: write` (that's `build`/`merge`, which actually push to GHCR) nor any other scope.
+    permissions:
+      contents: read
     outputs:
       repo-name-lower: ${{ steps.set-vars.outputs.repo-name-lower }}
       image-tag: ${{ steps.set-vars.outputs.image-tag }}

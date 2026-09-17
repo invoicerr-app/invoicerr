@@ -1340,7 +1340,7 @@ function escapeMdx(text) {
  *  unescaped `|`, which a Markdown table parser reads as a real column delimiter, not as the escaped
  *  pipe this function meant to produce. */
 function cell(text) {
-  return escapeMdx(clean(text).replace(/\\/g, '\\\\')).replace(/\|/g, '\\|');
+  return escapeMdx(clean(text)).replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 }
 /** Same table-cell safety (no raw pipes/newlines) WITHOUT MDX-escaping — for cell content already
  *  built entirely from this script's own trusted strings (never raw data prose) and already passed

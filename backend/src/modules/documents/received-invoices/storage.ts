@@ -46,19 +46,14 @@ export function extFor(mime: string): string {
  *  ever becomes part of a filesystem path. */
 const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
 
-/** `<root>/<companyId>/<sha256>.<ext>` — `sha256` is UNTRUSTED input on the read path (see
- *  `SHA256_HEX_PATTERN`'s own comment), so this rejects anything that is not a genuine SHA-256 hex
- *  digest before it ever becomes part of a path. The hex check alone already stops a `sha256` like
- *  `"../otherCompanyId/deadbeef...".slice(0, 64)` (`/`/`.` are not hex digits), but this only builds
- *  the path — it does NOT resolve `root` and re-check containment itself; each of
- *  `persistInboundFile`/`readInboundFile` below does that redundantly, in its OWN body, immediately
- *  before the actual disk access, rather than trust that a check run inside this helper two calls
- *  earlier still holds by the time the write/read happens. */
-function inboundPath(companyId: string, sha256: string, mime: string): string {
+/** Throws unless `sha256` is a genuine SHA-256 hex digest — called first thing, by value, in both
+ *  functions below, so neither ever builds so much as a partial path out of an unvalidated string.
+ *  The hex check alone already stops a `sha256` like `"../otherCompanyId/deadbeef...".slice(0, 64)`
+ *  (`/`/`.` are not hex digits). */
+function assertValidContentHash(sha256: string): void {
   if (!SHA256_HEX_PATTERN.test(sha256)) {
     throw new Error(`"${sha256}" is not a valid content hash (expected 64 lowercase hex characters).`);
   }
-  return resolve(inboundRoot(), companyId, `${sha256}.${extFor(mime)}`);
 }
 
 /** Writes `bytes` under `<root>/<companyId>/<sha256>.<ext>` — `sha256` is computed by the CALLER
@@ -66,40 +61,43 @@ function inboundPath(companyId: string, sha256: string, mime: string): string {
  *  over one artifact's own bytes is exactly what that function already does) and never recomputed
  *  here, the one difference from `archive/storage.ts#persistArtifacts` (which hashes internally) —
  *  this module's own caller needs the hash BEFORE persisting, to run the duplicate-upload check
- *  first (`received-invoices.service.ts`), so recomputing it a second time here would be pure waste. */
+ *  first (`received-invoices.service.ts`), so recomputing it a second time here would be pure waste.
+ *
+ *  `target` is resolved directly in THIS function, from `root`, and is the exact identifier both the
+ *  containment check and the `fs` call below use — never a path handed back by some other helper two
+ *  calls removed from the write, which would leave the check proving something about a value that
+ *  isn't the one actually reaching disk. */
 export function persistInboundFile(
   companyId: string,
   sha256: string,
   mime: string,
   bytes: Uint8Array,
 ): string {
+  assertValidContentHash(sha256);
   const root = resolve(inboundRoot(), companyId);
-  const path = inboundPath(companyId, sha256, mime);
-  // Belt-and-suspenders, right where the write actually happens: `inboundPath`'s own hex-pattern
-  // check already rules out a traversal shape, but re-resolving `root` here and refusing a `path`
-  // that does not land INSIDE it is what proves, at the exact call site touching disk, that this
-  // write can never escape this company's own directory.
-  if (path !== root && !path.startsWith(root + sep)) {
+  const target = resolve(root, `${sha256}.${extFor(mime)}`);
+  if (!target.startsWith(root + sep)) {
     throw new Error(`Refusing to read/write outside this company's own storage directory.`);
   }
-  mkdirSync(join(inboundRoot(), companyId), { recursive: true });
-  writeFileSync(path, Buffer.from(bytes));
-  return `file://${path}`;
+  mkdirSync(root, { recursive: true });
+  writeFileSync(target, Buffer.from(bytes));
+  return `file://${target}`;
 }
 
 /** Reads back exactly what `persistInboundFile` wrote — `null` (never throws) for a missing file,
  *  the same "a missing artifact is a fact to report, not an exception to crash the request over"
- *  discipline `archive/storage.ts#readArchivedArtifact` already holds. */
+ *  discipline `archive/storage.ts#readArchivedArtifact` already holds. Same `target`-built-then-
+ *  checked-then-used shape as `persistInboundFile` above, proven again here rather than trusted from
+ *  a shared helper, right before the read that actually touches disk. */
 export function readInboundFile(companyId: string, sha256: string, mime: string): Buffer | null {
   try {
+    assertValidContentHash(sha256);
     const root = resolve(inboundRoot(), companyId);
-    const path = inboundPath(companyId, sha256, mime);
-    // Same check as `persistInboundFile` above, for the same reason: proven again, here, right
-    // before the read, rather than trusted from a helper this function merely called.
-    if (path !== root && !path.startsWith(root + sep)) {
+    const target = resolve(root, `${sha256}.${extFor(mime)}`);
+    if (!target.startsWith(root + sep)) {
       throw new Error(`Refusing to read/write outside this company's own storage directory.`);
     }
-    return readFileSync(path);
+    return readFileSync(target);
   } catch {
     return null;
   }
