@@ -106,36 +106,74 @@ describe("CSV accounting export — invoice + payment within a period", () => {
 	});
 
 	/**
-	 * A FULL screen-driven download (pick both dates via the real `DatePicker`, click "Download",
-	 * assert the real network response's content) turned out to be BLOCKED by a genuine bug, not a
-	 * flaky selector — confirmed by hand, twice, independently of this suite: `cy.pickToday`
-	 * (`support/commands.ts`, the same helper every OTHER date field in this app already uses
-	 * successfully) times out waiting for `[data-cy="date-picker-today"]`, and a minimal isolated
-	 * repro (visit this exact screen, click `[data-cy="accounting-export-from"]`, inspect the DOM)
-	 * found ZERO `[data-radix-popper-content-wrapper]`/`[data-slot="popover-content"]` nodes anywhere
-	 * on the page afterward — the click reaches the button (it gets `focus-visible` styling) but the
-	 * Popover never opens at all, not even invisibly. Root cause traced to
-	 * `frontend/src/components/date-picker.tsx`'s own `Wrapper` (`insideForm ? FormControl : Fragment`)
-	 * fed straight into `<PopoverTrigger asChild><Wrapper>...</Wrapper></PopoverTrigger>`: outside a
-	 * `<Form>` (exactly this screen's own case — `accounting-export.settings.tsx` uses bare
-	 * `useState`, no `<Form>` anywhere), `Wrapper` is `React.Fragment`, and Radix's `asChild` (a `Slot`)
-	 * clones its `onClick`/`ref` onto the trigger's OWN immediate child — a bare `Fragment` cannot
-	 * receive or forward either, so the actual `<button>` never gets the click handler or the ref
-	 * Radix needs to open anything. This is a FRONTEND fix, out of this e2e-only mission's scope —
-	 * left unfixed here and reported instead. What this test asserts below is everything that DOES
-	 * work today: the screen renders both pickers and the button, and the button's own real
-	 * client-side guard (`handleDownload`'s `if (!from || !to)`) fires for a real click with nothing
-	 * picked — proving it is wired to an actual handler, not a dead button. The exact CONTENT
-	 * (amounts, RFC-4180 rows) the review asked this screen to prove is still fully covered, at the
-	 * API level, by the test right above.
+	 * The screen itself, driven end-to-end: both dates are picked through the real `DatePicker` —
+	 * navigating its own month/year DROPDOWNS then clicking a day cell, the same control surface
+	 * `cy.openDatePicker`/`cy.pickToday` drive, just landing on a specific day instead of "today" — and
+	 * "Download" is a real click whose assertions read the ACTUAL network response it produced: the
+	 * only way to catch a wrong query-param name, an inverted `from > to` guard, or a blob read/revoked
+	 * in the wrong order, none of which the `cy.request`-only test above would ever notice, since the
+	 * endpoint itself keeps answering 200 regardless.
+	 *
+	 * Reuses the invoice + payment that test already created and proved via the API (August 2026,
+	 * gross/paid 1200.00) rather than minting a second one dated "today": a FRESH invoice issued today
+	 * would need the "pdp" channel here — France requires it for anything issued from 2026-09-01 on
+	 * (`transports/channel-policy`'s own mandate, evaluated on the invoice's OWN `issueDate`, orthogonal
+	 * to what this test is proving) — and a second period would only re-prove what the test above
+	 * already covers, not add any assurance the screen itself was missing.
 	 */
-	it("renders both DatePickers and the download button, and its own client-side guard fires on a real click", () => {
+	it("downloads a real CSV for the period picked on screen, matching the invoice + payment proven above", () => {
 		cy.visit("/settings/accountingExport");
 		cy.get('[data-cy="accounting-export-section"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="accounting-export-from"]').should("be.visible");
-		cy.get('[data-cy="accounting-export-to"]').should("be.visible");
 
+		// Picks an EXACT calendar day through the popover's own month/year `<select>`s
+		// (`captionLayout="dropdown"`, date-picker.tsx) then a day cell, rather than clicking
+		// ".rdp-button_previous" a computed number of times (29-document-recurrence.cy.ts's own
+		// technique, fine there since it only needs SOME past date): this suite's "today" is a real,
+		// ever-advancing wall clock, so a step count towards a FIXED month would eventually go stale.
+		// The dropdown's year range always reaches 100 years back from "today" (react-day-picker's own
+		// default once a year dropdown is present), so 2026 stays reachable however far this spec's
+		// own future runs drift.
+		const pickDate = (triggerSelector: string, isoDay: string) => {
+			cy.openDatePicker(triggerSelector);
+			cy.get('select[aria-label="Choose the Month"]').select("Aug");
+			cy.get('select[aria-label="Choose the Year"]').select("2026");
+			// The exact ISO day (react-day-picker's own `data-day` on the day CELL, "yyyy-MM-dd"),
+			// never the button's visible "1"/"31" text: August 2026 opens on a Saturday, so its grid's
+			// own leading OUTSIDE days reach back into July — which also ends on a 31st, so the
+			// visible text "31" appears twice in the same grid. The cell's `data-day` names the exact
+			// day unambiguously regardless of which month's grid happens to display it.
+			cy.get(`[data-day="${isoDay}"] button`).click();
+			// Same closing-side race `cy.pickToday` documents and guards against, right above: a stale
+			// `DismissableLayer` listener from THIS popover can still swallow the very next trigger's
+			// click for a brief window after `setOpen(false)` fires.
+			cy.get('[data-cy="date-picker-today"]').should("not.exist");
+			cy.wait(50);
+		};
+
+		pickDate('[data-cy="accounting-export-from"]', "2026-08-01");
+		pickDate('[data-cy="accounting-export-to"]', "2026-08-31");
+
+		cy.intercept("GET", `${api}/api/accounting-export*`).as("exportCsv");
 		cy.get('[data-cy="accounting-export-download"]').click();
-		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("be.visible");
+
+		cy.wait("@exportCsv", { timeout: 10000 }).then((interception) => {
+			// The exact regression a mocked/unit-only proof can't see: the screen must send the param
+			// NAMES the backend actually reads.
+			expect(interception.request.url, "bornes envoyées par l'écran")
+				.to.include("from=2026-08-01")
+				.and.to.include("to=2026-08-31");
+			expect(interception.response?.statusCode, "le clic a réellement produit un export").to.eq(200);
+			expect(String(interception.response?.headers["content-type"]), "servi comme CSV").to.include("csv");
+
+			const lines = String(interception.response?.body)
+				.split("\n")
+				.filter((l) => l.length > 0);
+			const invoiceRows = lines.filter((l) => l.startsWith("invoice,"));
+			const paymentRows = lines.filter((l) => l.startsWith("payment,"));
+			expect(invoiceRows, "la facture prouvée par l'API ci-dessus apparaît").to.have.length(1);
+			expect(paymentRows, "le paiement prouvé par l'API ci-dessus apparaît").to.have.length(1);
+			expect(invoiceRows[0], "même brut que l'API — 1200.00").to.include("1200.00");
+			expect(paymentRows[0], "même montant encaissé que l'API — 1200.00").to.include("1200.00");
+		});
 	});
 });

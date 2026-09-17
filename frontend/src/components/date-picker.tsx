@@ -4,7 +4,7 @@ import { Button } from "./ui/button"
 import { Calendar } from "./ui/calendar"
 import { CalendarIcon } from "lucide-react"
 import { FormControl } from "./ui/form"
-import { Fragment, useState } from "react"
+import { useState } from "react"
 import { useFormContext } from "react-hook-form"
 import type React from "react"
 import { cn } from "@/lib/utils"
@@ -25,13 +25,18 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
   const { t, i18n } = useTranslation()
 
   // `FormControl` reaches for react-hook-form's context to wire a field's id, description and error
-  // together. Outside a `<Form>` that context is null and the component throws while destructuring
-  // it, taking the whole page down -- which is exactly what the accounting export screen did: it
-  // picks two plain dates with `useState` and has no form at all. The wrapper is therefore only
-  // applied when a form is actually present. Four of the five callers are inside one and keep the
-  // accessibility wiring; the fifth renders a bare button, which is all it ever needed.
+  // together, which only exists inside a `<Form>`. It used to sit BETWEEN `PopoverTrigger` and the
+  // `Button`, swapped for a bare `Fragment` outside a form to avoid throwing on the missing context.
+  // That broke the trigger instead: `PopoverTrigger asChild` clones its single child and forwards
+  // `ref`/`onClick` onto it, and Radix's own `Slot` deliberately skips the `ref` (to dodge a "Fragment
+  // does not support refs" crash) and `onClick` never has anywhere to attach on a `Fragment`, which
+  // renders no DOM node at all -- so outside a form the trigger was neither clickable nor
+  // measurable, and the popover could never open (the accounting export screen's two date pickers,
+  // no `<Form>` in sight). Wrapping `PopoverTrigger` itself instead of the `Button` sidesteps this
+  // entirely: the trigger's only child is always the real, ref-forwarding `Button`, and `FormControl`
+  // (also Slot-based) composes cleanly around it when a form is present -- the same nesting shadcn's
+  // own docs use for a date field.
   const insideForm = useFormContext() !== null
-  const Wrapper = insideForm ? FormControl : Fragment
 
   // Controlled so both a day click and the "Today" shortcut below can close the popover themselves
   // -- an uncontrolled Popover only ever closes on an outside click/Escape, which used to leave a
@@ -39,30 +44,32 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
   // feel a calendar is expected to have) after a date was chosen.
   const [open, setOpen] = useState(false)
 
+  const trigger = (
+    <PopoverTrigger asChild>
+      <Button
+        variant={"outline"}
+        className={cn(
+          "w-[240px] pl-3 text-left font-normal",
+          !field.value && "text-muted-foreground",
+          field.className,
+        )}
+        data-cy={field["data-cy"]}
+      >
+        {field.value ? (
+          format(field.value, "PPP", {
+            locale: languageToLocale(i18n.language),
+          })
+        ) : (
+          <span>{field.placeholder || "Pick a date"}</span>
+        )}
+        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+      </Button>
+    </PopoverTrigger>
+  )
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Wrapper {...(insideForm ? { className: "w-full" } : {})}>
-          <Button
-            variant={"outline"}
-            className={cn(
-              "w-[240px] pl-3 text-left font-normal",
-              !field.value && "text-muted-foreground",
-              field.className,
-            )}
-            data-cy={field["data-cy"]}
-          >
-            {field.value ? (
-              format(field.value, "PPP", {
-                locale: languageToLocale(i18n.language),
-              })
-            ) : (
-              <span>{field.placeholder || "Pick a date"}</span>
-            )}
-            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-          </Button>
-        </Wrapper>
-      </PopoverTrigger>
+      {insideForm ? <FormControl className="w-full">{trigger}</FormControl> : trigger}
       {/* `max-h-(--radix-popover-content-available-height) overflow-y-auto` -- same pattern
           select.tsx/dropdown-menu.tsx already use for their own Radix content: on a short viewport
           (Cypress' own default 1000x660 measured it, ~39px of margin either side of the trigger) the
