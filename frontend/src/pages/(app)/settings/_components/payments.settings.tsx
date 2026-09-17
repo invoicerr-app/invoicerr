@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCompanies } from "@/hooks/queries"
 import { useGet, usePost, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { copyToClipboard } from "@/lib/clipboard"
 import type { Company } from "@/types"
 
 import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
@@ -257,12 +258,17 @@ function PaymentProviderCard({
   )
 
   const copyWebhookUrl = async () => {
-    try {
-      await navigator.clipboard.writeText(webhookUrl)
+    // The URL stays visible in the read-only input either way — a failed copy only means the toast
+    // tells the user to select it by hand instead of claiming a copy that never landed.
+    if (await copyToClipboard(webhookUrl)) {
       toast.success(t("settings.payments.messages.copied", "Copied to clipboard"))
-    } catch {
-      // A clipboard permission refusal is not an error worth a red toast — the value is on screen and
-      // selectable either way.
+    } else {
+      toast.error(
+        t(
+          "settings.payments.messages.copyFailed",
+          "Couldn't copy — select the URL above and copy it manually.",
+        ),
+      )
     }
   }
 

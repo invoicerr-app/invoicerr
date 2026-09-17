@@ -4,6 +4,7 @@ import { Copy, ExternalLink, KeyRound, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -12,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
+import { copyToClipboard } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
 
 import {
@@ -74,8 +76,15 @@ export default function ApiKeysSettings() {
     } catch {}
   }
 
-  const handleCopy = () => {
-    if (createdKey) void navigator.clipboard.writeText(createdKey)
+  const handleCopy = async () => {
+    if (!createdKey) return
+    // The key stays visible in the panel above either way — this is the only chance to grab it
+    // (`createdKeyNotice`), so a failed copy gets its own toast rather than silently doing nothing.
+    if (await copyToClipboard(createdKey)) {
+      toast.success(t("settings.apiKeys.messages.copied"))
+    } else {
+      toast.error(t("settings.apiKeys.messages.copyFailed"))
+    }
   }
 
   return (

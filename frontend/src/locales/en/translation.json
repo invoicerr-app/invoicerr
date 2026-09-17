@@ -2466,6 +2466,10 @@
       "list": {
         "title": "Active keys",
         "empty": "No API key created yet."
+      },
+      "messages": {
+        "copied": "Copied to clipboard",
+        "copyFailed": "Couldn't copy — select the key above and copy it manually."
       }
     },
     "channels": {
@@ -2556,6 +2560,7 @@
         "connectError": "Failed to connect the payment provider",
         "connectSuccess": "Payment provider connected",
         "copied": "Copied to clipboard",
+        "copyFailed": "Couldn't copy — select the URL above and copy it manually.",
         "disconnectError": "Failed to disconnect the payment provider",
         "disconnectSuccess": "Payment provider disconnected",
         "fieldsRequired": "All fields for this provider are required"
@@ -2762,7 +2767,8 @@
         "removeError": "Failed to remove the SSO configuration",
         "fieldsRequired": "{{field}} is required",
         "endpointsRequired": "Provide a discovery URL, or both an authorization URL and a token URL.",
-        "copied": "Copied to clipboard"
+        "copied": "Copied to clipboard",
+        "copyFailed": "Couldn't copy — select the value above and copy it manually."
       }
     },
     "customFields": {
@@ -3587,6 +3593,10 @@
       "instructions": "Configuration Instructions",
       "copyUrl": "Copy webhook URL",
       "copySecret": "Copy webhook secret",
+      "urlCopied": "Webhook URL copied to clipboard!",
+      "urlCopyFailed": "Couldn't copy the webhook URL — copy it manually instead.",
+      "secretCopied": "Webhook secret copied to clipboard!",
+      "secretCopyFailed": "Couldn't copy the webhook secret — copy it manually instead.",
       "showSecret": "Show webhook secret",
       "hideSecret": "Hide webhook secret",
       "warningLabel": "Important:",

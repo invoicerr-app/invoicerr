@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authenticatedFetch, useDelete, useGet, usePost, usePut } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { copyToClipboard } from "@/lib/clipboard"
 import {
   SettingsFormFooter,
   SettingsIconDisc,
@@ -211,12 +212,14 @@ export default function SsoSettings() {
   }
 
   const copy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
+    // The value stays visible in the read-only input either way — a failed copy only means the toast
+    // tells the user to select it by hand instead of claiming a copy that never landed.
+    if (await copyToClipboard(value)) {
       toast.success(t("settings.sso.messages.copied", "Copied to clipboard"))
-    } catch {
-      // A clipboard permission refusal is not an error worth a red toast: the value is on screen and
-      // selectable either way.
+    } else {
+      toast.error(
+        t("settings.sso.messages.copyFailed", "Couldn't copy — select the value above and copy it manually."),
+      )
     }
   }
 

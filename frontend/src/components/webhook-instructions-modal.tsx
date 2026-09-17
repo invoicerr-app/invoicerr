@@ -2,6 +2,7 @@ import { Check, Copy, ExternalLink, Eye, EyeOff } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 import { Button } from "@/components/ui/button"
+import { copyToClipboard } from "@/lib/clipboard"
 import { toast } from "sonner"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -29,24 +30,24 @@ export function WebhookInstructionsModal({
   const [showSecret, setShowSecret] = useState(false)
 
   const copyWebhookUrl = async () => {
-    try {
-      await navigator.clipboard.writeText(webhookUrl)
+    if (await copyToClipboard(webhookUrl)) {
       setCopiedUrl(true)
-      toast.success("Webhook URL copied to clipboard!")
+      toast.success(t("webhook.modal.urlCopied"))
       setTimeout(() => setCopiedUrl(false), 2000)
-    } catch (error) {
-      toast.error("Failed to copy webhook URL")
+    } else {
+      // Never flips the checkmark on for a copy that never landed — the URL is still readable above
+      // for a manual copy.
+      toast.error(t("webhook.modal.urlCopyFailed"))
     }
   }
 
   const copyWebhookSecret = async () => {
-    try {
-      await navigator.clipboard.writeText(webhookSecret)
+    if (await copyToClipboard(webhookSecret)) {
       setCopiedSecret(true)
-      toast.success("Webhook secret copied to clipboard!")
+      toast.success(t("webhook.modal.secretCopied"))
       setTimeout(() => setCopiedSecret(false), 2000)
-    } catch (error) {
-      toast.error("Failed to copy webhook secret")
+    } else {
+      toast.error(t("webhook.modal.secretCopyFailed"))
     }
   }
 
