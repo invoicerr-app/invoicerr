@@ -1,5 +1,5 @@
 import type * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
+import { Slot, Slottable } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -62,10 +62,18 @@ function ButtonWithoutTooltip({
   }) {
   const Comp = asChild ? Slot : "button"
 
+  // Radix's `Slot` requires EXACTLY one element child (or a `Slottable`-wrapped one) to merge its own
+  // props onto — `React.Children.count` counts a `false` entry as an occupied slot just like a real
+  // element, so `{loading && <Icon/>}{children}` (two JSX expressions, only one of them typically
+  // truthy) already reads as TWO children the instant `asChild` is true, regardless of `loading`'s
+  // value — Slot then throws "Expected a single React element child or `Slottable`" rather than
+  // silently picking one. `<Slottable>` marks `props.children` as the one Slot should actually forward
+  // props to, letting the loading icon render alongside it as an ordinary sibling — the plain
+  // `<button>` path (`asChild` false) is untouched, `Slottable` being a no-op wrapper there.
   return (
     <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props}>
       {loading && <Loader2Icon className="mr-2 animate-spin" />}
-      {props.children}
+      {asChild ? <Slottable>{props.children}</Slottable> : props.children}
     </Comp>
   )
 }

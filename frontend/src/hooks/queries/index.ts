@@ -78,6 +78,7 @@ export {
 export { useShareLinks, useCreateShareLink, useRevokeShareLink, shareLinksKey } from "./use-share-links"
 export {
   usePublicSignature,
+  usePublicSignatureDocument,
   useRequestPublicSignatureOtp,
   useSignPublicSignature,
   type PublicSignatureView,

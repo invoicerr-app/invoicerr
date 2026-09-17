@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, HttpException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  forwardRef,
+  HttpException,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 
 import { MailTemplateType, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
@@ -18,6 +25,8 @@ import {
   renderEmailTemplate,
 } from '../actions/email-template';
 
+import { persistArtifacts, readArchivedArtifact } from '../archive/storage';
+import { DocumentsService } from '../documents.service';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import {
   buildDocumentWebhookPayload,
@@ -29,6 +38,7 @@ import { generateSignatureToken, hashSignatureToken } from './signature-token';
 import {
   createSignatureForDocument,
   findSignatureByTokenHash,
+  freezeDocumentPdfSnapshot,
   markSignatureSigned,
   mintOtpChallenge,
   recordFailedAttempt,
@@ -86,6 +96,19 @@ export interface PublicSignatureView {
   displayNumber: string | null;
 }
 
+export interface PublicSignatureDocument {
+  bytes: Buffer;
+  typeId: string;
+  documentId: string;
+}
+
+/** The archive artifact `role` this snapshot is stored under (`archive/hashing.ts`'s own header: role
+ *  IS the delivered format, never a generic label) — distinct from every role a real conformity
+ *  archive ever writes ('pdf', 'facturx', 'fa3', 'fatturapa'…), so a signature preview can never land
+ *  on the same content-hash directory as an official archived artifact for the same document. */
+const DOCUMENT_SNAPSHOT_ROLE = 'signature-preview';
+const DOCUMENT_SNAPSHOT_MIME = 'application/pdf';
+
 /**
  * The NARROW slice of `ClientsService` this file actually needs — injected through a Nest DI TOKEN
  * (`CLIENT_CONTACT_LOOKUP`), never the concrete `ClientsService` class, for the EXACT reason
@@ -116,6 +139,20 @@ export class SignaturesService {
     @Inject(CLIENT_CONTACT_LOOKUP) private readonly clientsService: ClientContactLookup,
     private readonly mailService: MailService,
     @Inject(DOCUMENT_WEBHOOK_EMITTER) private readonly webhooks: DocumentWebhookEmitter,
+    // A DIRECT constructor dependency on the concrete class — unlike `clientsService` above, this is
+    // safe on the ESM-import front: `documents.service.ts` itself never imports
+    // `ClientsService`/`WebhookDispatcherService` (the chain that drags in the pure-ESM
+    // `@teever/ez-hook` package — see `CLIENT_CONTACT_LOOKUP`'s own header), so nothing about
+    // importing it here reintroduces THAT jest limitation. `PublicDocumentsController` already
+    // injects the same class the identical way. It DOES, however, close a real Nest DI cycle —
+    // `forwardRef` is required here, not optional decoration: `DocumentsService` depends on the
+    // `ACTION_REGISTRY` token, whose own factory (`documents-core.module.ts#buildActionRegistry`)
+    // depends on THIS class to register the "request-signature" action — see that factory's own
+    // matching `forwardRef(() => SignaturesService)` comment for the full "why" and why deferring
+    // resolution is safe here (this constructor never calls anything on `documentsService` before
+    // Nest has finished constructing every provider — only `getPublicDocument`, invoked much later by
+    // an actual HTTP request, ever touches it).
+    @Inject(forwardRef(() => DocumentsService)) private readonly documentsService: DocumentsService,
   ) {}
 
   /**
@@ -161,6 +198,68 @@ export class SignaturesService {
     const row = await this.resolveActiveOrThrow(token);
     const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId).catch(() => null);
     return { typeId: row.typeId, displayNumber: document?.displayNumber ?? null };
+  }
+
+  /**
+   * The document a signer reviews before verifying an OTP — see schema.prisma's own comment on
+   * `Signature.documentPdfUri`/`documentPdfHash` for WHY this cannot simply call
+   * `documentsService.renderInstancePdf` fresh on every call the way the authenticated download and
+   * the share-link download both do: that render is not byte-stable once a company has an active
+   * PAdES certificate, so two renders of the "same" document can legitimately disagree. This method
+   * renders EXACTLY ONCE per signature row — on whichever call, from whichever viewer, gets there
+   * first — freezes those bytes to durable storage, and serves that SAME frozen copy forever after,
+   * which is what actually makes "what the signer saw" and "what gets sealed by verifyAndSign" the
+   * same artifact rather than two independent facts that happen to usually agree.
+   */
+  async getPublicDocument(token: string): Promise<PublicSignatureDocument> {
+    const row = await this.resolveActiveOrThrow(token);
+
+    if (row.documentPdfUri) {
+      const cached = await readArchivedArtifact(
+        row.documentPdfUri,
+        DOCUMENT_SNAPSHOT_ROLE,
+        DOCUMENT_SNAPSHOT_MIME,
+      );
+      if (cached) {
+        return { bytes: cached, typeId: row.typeId, documentId: row.documentId };
+      }
+      // The row NAMES a snapshot, but its bytes are no longer readable from storage (e.g. an operator
+      // wiped `.documents-archive` by hand) — this row's own "one frozen artifact, forever" promise is
+      // already broken, and `freezeDocumentPdfSnapshot`'s `documentPdfUri: null` guard would refuse to
+      // overwrite a URI that is still SET, however dead. Rather than build a second repair path for an
+      // operator-caused corruption this rare, serve a fresh render (still the current, correct
+      // document content) and say so loudly — this is the one case in this method where two calls
+      // could legitimately disagree byte-for-byte, and it must never fail silently.
+      logger.warn('Signature document snapshot is unreadable from storage — re-rendering', {
+        category: 'documents',
+        companyId: row.companyId,
+        details: { signatureId: row.id, uri: row.documentPdfUri },
+      });
+      return {
+        bytes: await this.documentsService.renderInstancePdf(row.companyId, row.typeId, row.documentId),
+        typeId: row.typeId,
+        documentId: row.documentId,
+      };
+    }
+
+    const pdf = await this.documentsService.renderInstancePdf(row.companyId, row.typeId, row.documentId);
+    const { uri, contentHash } = await persistArtifacts(row.documentId, [
+      { role: DOCUMENT_SNAPSHOT_ROLE, mime: DOCUMENT_SNAPSHOT_MIME, bytes: pdf },
+    ]);
+    const frozen = await freezeDocumentPdfSnapshot(row.id, { uri, hash: contentHash });
+
+    // A concurrent first view may have frozen a DIFFERENT render and won the race (first-write-wins —
+    // see `freezeDocumentPdfSnapshot`'s own header) — serve whatever the row actually ended up
+    // pointing at, not necessarily this call's own render, so every viewer converges on ONE snapshot.
+    if (frozen.documentPdfUri === uri) {
+      return { bytes: pdf, typeId: row.typeId, documentId: row.documentId };
+    }
+    const winner = await readArchivedArtifact(
+      frozen.documentPdfUri!,
+      DOCUMENT_SNAPSHOT_ROLE,
+      DOCUMENT_SNAPSHOT_MIME,
+    );
+    return { bytes: winner ?? pdf, typeId: row.typeId, documentId: row.documentId };
   }
 
   /**

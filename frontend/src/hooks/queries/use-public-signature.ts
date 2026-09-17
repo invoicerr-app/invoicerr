@@ -1,7 +1,10 @@
-import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
+import { useQuery } from "@tanstack/react-query"
+
+import { authenticatedFetch } from "@/hooks/use-fetch"
+import { ApiError, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 
 /**
- * The frontend half of the signature flow — three PUBLIC, unauthenticated endpoints
+ * The frontend half of the signature flow — four PUBLIC, unauthenticated endpoints
  * (`backend/.../public/public-signatures.controller.ts`), driving the `/signature/:token` page. No
  * `useApiQuery`/`useApiMutation` call here is any different from an authenticated one (both hooks
  * only ever wrap `authenticatedFetch`, which sends the session cookie IF one exists but never
@@ -26,6 +29,38 @@ export function usePublicSignature(token: string) {
     `/api/public/signatures/${encodeURIComponent(token)}`,
     { retry: false },
   )
+}
+
+/**
+ * The document this signature will seal — `GET .../document` (`SignaturesService.getPublicDocument`'s
+ * own header: rendered once, frozen, byte-identical on every later fetch, which is what makes "the PDF
+ * the Review step shows" and "the PDF the signature seals" the SAME artifact). A plain `useQuery`, not
+ * `useApiQuery`: that hook always parses the response as JSON, which a PDF response is not — the
+ * `queryFn` below calls `authenticatedFetch` directly and hands back a `Blob` for the page to turn into
+ * an object URL. `staleTime: Infinity` because the backend's own artifact never changes once frozen —
+ * refetching it on a window refocus or a remount would only re-download the identical bytes.
+ */
+export function usePublicSignatureDocument(token: string, enabled: boolean) {
+  return useQuery<Blob, ApiError>({
+    queryKey: ["public-signature-document", token],
+    queryFn: async () => {
+      const res = await authenticatedFetch(`/api/public/signatures/${encodeURIComponent(token)}/document`)
+      if (!res.ok) {
+        // Same shape `apiFetch` (use-api-query.ts) already gives every OTHER call in this app — a
+        // Nest exception body carries `{ message }`, surfaced as-is rather than a generic fallback.
+        const body = await res
+          .clone()
+          .json()
+          .catch(() => undefined)
+        const message = typeof body?.message === "string" ? body.message : `GET .../document failed`
+        throw new ApiError(res.status, message, body)
+      }
+      return res.blob()
+    },
+    enabled: enabled && !!token,
+    retry: false,
+    staleTime: Infinity,
+  })
 }
 
 /** Mints and emails a fresh OTP — capped at 3 mints per signature request, EVER (the backend's own

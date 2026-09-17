@@ -28,6 +28,8 @@ export interface SignatureRecord {
   lockedAt: Date | null;
   signedAt: Date | null;
   isActive: boolean;
+  documentPdfUri: string | null;
+  documentPdfHash: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -139,4 +141,26 @@ export async function markSignatureSigned(id: string): Promise<SignatureRecord> 
     where: { id },
     data: { signedAt: new Date(), isActive: false },
   });
+}
+
+/**
+ * Freezes the "what the signer reviewed" PDF snapshot — ATOMIC and FIRST-WRITE-WINS, the same shape
+ * `mintOtpChallenge`'s own header documents for the identical concurrency problem: two requests that
+ * both observe `documentPdfUri === null` and race to render/persist their own copy must not both
+ * "win" and leave the row pointing at whichever write happened to run last. The `updateMany`'s own
+ * `where: { documentPdfUri: null }` is re-checked by Postgres at write time, so only the FIRST of two
+ * concurrent freezes actually changes the row; the second's `updateMany` matches zero rows and its
+ * own freshly-rendered (and now orphaned) bytes are simply never referenced by anything. The caller
+ * (`SignaturesService.getPublicDocument`) re-fetches afterward and serves whichever snapshot actually
+ * won, not necessarily its own — see that method's own header.
+ */
+export async function freezeDocumentPdfSnapshot(
+  id: string,
+  snapshot: { uri: string; hash: string },
+): Promise<SignatureRecord> {
+  await prisma.signature.updateMany({
+    where: { id, documentPdfUri: null },
+    data: { documentPdfUri: snapshot.uri, documentPdfHash: snapshot.hash },
+  });
+  return prisma.signature.findUniqueOrThrow({ where: { id } });
 }

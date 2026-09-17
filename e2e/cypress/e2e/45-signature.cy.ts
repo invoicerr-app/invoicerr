@@ -4,13 +4,15 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Electronic quote signature (email OTP) — HARDENED
  * (GHSA-vhjw-gwc5-pjfp closed). Proven THROUGH THE SCREEN, on the anonymous client side: the seller
  * requests a signature (`request-signature` action on a "sent" quote), the client receives a
- * high-entropy token link by email, opens the public `/signature/:token` page, requests an OTP (sent
- * by email), enters it, and signs — the quote moves to SIGNED. The ASSERTIONS that matter read the
- * API back; the real OTP and the real token are READ from Mailpit (never guessed), the same
- * discipline as 23-document-email.cy.ts. The anti-brute-force guarantee (lifetime lockout ≤ 0.01%)
- * and the CSPRNG are proven exhaustively in jest (`signatures/otp.spec.ts`,
- * `signatures.service.spec.ts`); here we prove the real on-screen JOURNEY + the named refusal of a
- * wrong code.
+ * high-entropy token link by email, opens the public `/signature/:token` page, reviews the document
+ * (the Review step's own `GET .../document` PDF preview — the same frozen artifact `sign` will seal,
+ * see the backend's own `SignaturesService.getPublicDocument` header), ticks the mandatory "I have
+ * read the document" box, requests an OTP (sent by email), enters it, and signs — the quote moves to
+ * SIGNED. The ASSERTIONS that matter read the API back; the real OTP and the real token are READ
+ * from Mailpit (never guessed), the same discipline as 23-document-email.cy.ts. The anti-brute-force
+ * guarantee (lifetime lockout ≤ 0.01%) and the CSPRNG are proven exhaustively in jest
+ * (`signatures/otp.spec.ts`, `signatures.service.spec.ts`); here we prove the real on-screen JOURNEY +
+ * the named refusal of a wrong code.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 const appOrigin = "http://localhost:6284";
@@ -116,6 +118,26 @@ function createSentQuoteAndRequestSignature(): Cypress.Chainable<{
 		});
 }
 
+/**
+ * The Review step's own gate: waits for the REAL `GET .../document` request the page fires as soon as
+ * it resolves the token (never a stub — this proves the SAME network call a scripted client hitting
+ * the public API directly would see — the intercept itself is armed by the caller, BEFORE `cy.visit`,
+ * so it can never miss a request the page fires on mount — see this function's own call sites), then
+ * ticks the mandatory checkbox that unlocks "Send verification code".
+ */
+function confirmDocumentReviewed(): void {
+	cy.get('[data-cy="signature-card"]', { timeout: 15000 }).should("be.visible");
+	cy.wait("@signatureDocument", { timeout: 15000 }).then((x) => {
+		expect(x.response?.statusCode, "le document du Review se charge (200)").to.eq(200);
+		expect(
+			String(x.response?.headers["content-type"]),
+			"et il est servi comme un PDF",
+		).to.contain("application/pdf");
+	});
+	cy.get('[data-cy="signature-document-preview"]', { timeout: 15000 }).should("exist");
+	cy.get('[data-cy="signature-confirm-read-checkbox"]').click();
+}
+
 describe("Electronic quote signature — client journey on screen, hardened", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -130,11 +152,14 @@ describe("Electronic quote signature — client journey on screen, hardened", ()
 			// The public page is anonymous (no session) — the client side never logs in.
 			cy.clearCookies();
 			cy.clearEmails();
+			// Armed BEFORE the visit: the page fires this request on mount, not on a later click — an
+			// intercept registered after `cy.visit` could race the request and miss it entirely.
+			cy.intercept("GET", "**/api/public/signatures/*/document").as(
+				"signatureDocument",
+			);
 			cy.visit(`${appOrigin}/signature/${token}`);
 
-			cy.get('[data-cy="signature-card"]', { timeout: 15000 }).should(
-				"be.visible",
-			);
+			confirmDocumentReviewed();
 			cy.get('[data-cy="signature-request-otp-button"]').click();
 			cy.get('[data-cy="signature-otp-message"]', { timeout: 10000 }).should(
 				"be.visible",
@@ -176,11 +201,12 @@ describe("Electronic quote signature — client journey on screen, hardened", ()
 	it("a wrong code is refused ON SCREEN (named message) and does NOT sign the quote", () => {
 		createSentQuoteAndRequestSignature().then(({ quoteId, token }) => {
 			cy.clearCookies();
+			cy.intercept("GET", "**/api/public/signatures/*/document").as(
+				"signatureDocument",
+			);
 			cy.visit(`${appOrigin}/signature/${token}`);
 
-			cy.get('[data-cy="signature-card"]', { timeout: 15000 }).should(
-				"be.visible",
-			);
+			confirmDocumentReviewed();
 			cy.get('[data-cy="signature-request-otp-button"]').click();
 			cy.get('[data-cy="signature-otp-message"]', { timeout: 10000 }).should(
 				"be.visible",

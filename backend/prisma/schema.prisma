@@ -2256,6 +2256,18 @@ model Signature {
   // now-removed module's own column.
   isActive Boolean @default(true)
 
+  // The FROZEN "what the signer reviewed" snapshot — both null until the first "GET .../document"
+  // call. `documents.service.ts#renderInstancePdf` is built fresh on every call and is NOT
+  // byte-stable across renders (PAdES-BES embeds a real signing timestamp when the company has an
+  // active certificate), so a re-render at sign time could never be trusted to match what was shown
+  // earlier. Instead the PDF is rendered ONCE, on the first view, and its bytes are written to the
+  // SAME durable, content-addressed store the legal archive uses (`archive/storage.ts`) — `documentPdfUri`
+  // is that store's own URI, `documentPdfHash` its SHA-256. Every later view reads back these exact
+  // bytes rather than rendering again, which is what actually makes "what the signer saw" and "what
+  // gets sealed" the same artifact, not merely two renders that are expected to agree.
+  documentPdfUri  String?
+  documentPdfHash String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

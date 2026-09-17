@@ -6,12 +6,32 @@ import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { MailService, NO_MAIL_SERVER_CONFIGURED_MESSAGE } from '@/mail/mail.service';
 import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
 
+import { computeContentHash } from '../archive/hashing';
+import * as archiveStorage from '../archive/storage';
 import * as persistence from '../persistence';
 import { hashSignatureToken } from './signature-token';
 import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 import { SignaturesService } from './signatures.service';
 
 jest.mock('../persistence');
+// `archive/storage.ts` itself is unit-tested on its own (archive/storage.spec.ts) — mocked here with
+// a tiny in-memory map keyed by the SAME content-addressed uri the real module would compute, so
+// tests below can prove "the second read returns exactly what the first write persisted" without
+// touching the filesystem at all — the identical "mock the module boundary with a faithful fake, not
+// a bare jest.fn() per method" discipline this file's own `@/prisma/prisma.service` mock documents.
+jest.mock('../archive/storage');
+const archivedFiles = new Map<string, Buffer>();
+(archiveStorage.persistArtifacts as jest.Mock).mockImplementation(
+  async (documentId: string, artifacts: Array<{ role: string; mime: string; bytes: Uint8Array }>) => {
+    const contentHash = computeContentHash(artifacts);
+    const uri = `file:///fake-archive/${documentId}/${contentHash}`;
+    archivedFiles.set(uri, Buffer.from(artifacts[0].bytes));
+    return { uri, contentHash };
+  },
+);
+(archiveStorage.readArchivedArtifact as jest.Mock).mockImplementation(async (uri: string) => {
+  return archivedFiles.get(uri) ?? null;
+});
 // Only used by the "company → instance" cascade tests near the bottom of this file — every other
 // test here keeps using a bare fake `{ sendForCompany: jest.fn() }`, never touching this at all.
 jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
@@ -66,6 +86,12 @@ jest.mock('@/prisma/prisma.service', () => {
         lockedAt: null,
         signedAt: null,
         isActive: true,
+        // Real Prisma returns SQL NULL (=== `null`) for an unset nullable column, never `undefined` —
+        // load-bearing here: `freezeDocumentPdfSnapshot`'s guard is `where: { documentPdfUri: null }`,
+        // and this fake's own `matches()` uses `===`, so an `undefined` default would silently never
+        // match that guard and break the freeze this mock exists to prove.
+        documentPdfUri: null,
+        documentPdfHash: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         ...data,
@@ -138,13 +164,21 @@ const SENT_QUOTE = {
 
 function buildService(
   webhooks: { dispatch: jest.Mock } = { dispatch: jest.fn().mockResolvedValue(undefined) },
+  documentsService: { renderInstancePdf: jest.Mock } = {
+    renderInstancePdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.7 fake rendered bytes')),
+  },
 ) {
   const clientsService = {
     getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
   };
   const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
-  const service = new SignaturesService(clientsService as any, mailService as any, webhooks as any);
-  return { service, clientsService, mailService, webhooks };
+  const service = new SignaturesService(
+    clientsService as any,
+    mailService as any,
+    webhooks as any,
+    documentsService as any,
+  );
+  return { service, clientsService, mailService, webhooks, documentsService };
 }
 
 function rows(): Array<Record<string, any>> {
@@ -155,6 +189,7 @@ describe('SignaturesService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     rows().length = 0;
+    archivedFiles.clear();
     // See the mock factory's own comment: implementations survive `clearAllMocks`, so the stored-template
     // fixture is put back deliberately before every test.
     const mock = jest.requireMock('@/prisma/prisma.service');
@@ -244,6 +279,54 @@ describe('SignaturesService', () => {
       await expect(service.verifyAndSign('deadbeef'.repeat(8), '00000000')).rejects.toThrow(
         'This signature request is invalid, expired, or already used.',
       );
+      await expect(service.getPublicDocument('deadbeef'.repeat(8))).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+    });
+
+    describe('getPublicDocument — the frozen "what was reviewed" snapshot', () => {
+      it('renders once, freezes the bytes, and serves that SAME copy on every later call', async () => {
+        const { service, mailService, documentsService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+
+        const first = await service.getPublicDocument(token);
+        const second = await service.getPublicDocument(token);
+
+        expect(documentsService.renderInstancePdf).toHaveBeenCalledTimes(1);
+        expect(second.bytes.equals(first.bytes)).toBe(true);
+        expect(rows()[0].documentPdfUri).toEqual(expect.any(String));
+        expect(rows()[0].documentPdfHash).toMatch(/^[0-9a-f]{64}$/);
+      });
+
+      it('an already-signed token can no longer fetch the document — same generic refusal', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        await service.getPublicDocument(token); // the reviewer opened it before verifying the OTP
+
+        mailService.sendForCompany.mockClear();
+        await service.requestOtp(token);
+        const code = /(\d{4})-(\d{4})/
+          .exec(mailService.sendForCompany.mock.calls[0][1].html)!
+          .slice(1, 3)
+          .join('');
+        await service.verifyAndSign(token, code);
+
+        await expect(service.getPublicDocument(token)).rejects.toThrow(
+          'This signature request is invalid, expired, or already used.',
+        );
+      });
+
+      it('a snapshot missing from storage is re-rendered rather than served as a 500', async () => {
+        const { service, mailService, documentsService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        await service.getPublicDocument(token);
+        archivedFiles.clear(); // simulate an operator having wiped the archive store by hand
+
+        const result = await service.getPublicDocument(token);
+
+        expect(result.bytes).toBeInstanceOf(Buffer);
+        expect(documentsService.renderInstancePdf).toHaveBeenCalledTimes(2);
+      });
     });
 
     it('requestOtp mints a code, emails it, and stores ONLY its hash — never the code in the clear', async () => {
@@ -565,9 +648,12 @@ describe('SignaturesService', () => {
       const clientsService = {
         getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
       };
-      const service = new SignaturesService(clientsService as any, new MailService(), {
-        dispatch: jest.fn(),
-      } as any);
+      const service = new SignaturesService(
+        clientsService as any,
+        new MailService(),
+        { dispatch: jest.fn() } as any,
+        { renderInstancePdf: jest.fn() } as any,
+      );
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
 
@@ -585,9 +671,12 @@ describe('SignaturesService', () => {
       const clientsService = {
         getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
       };
-      const service = new SignaturesService(clientsService as any, new MailService(), {
-        dispatch: jest.fn(),
-      } as any);
+      const service = new SignaturesService(
+        clientsService as any,
+        new MailService(),
+        { dispatch: jest.fn() } as any,
+        { renderInstancePdf: jest.fn() } as any,
+      );
 
       const result = await service.requestSignature('company-1', 'quote', 'quote-1');
 
@@ -612,9 +701,12 @@ describe('SignaturesService', () => {
         const clientsService = {
           getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
         };
-        const service = new SignaturesService(clientsService as any, new MailService(), {
-          dispatch: jest.fn(),
-        } as any);
+        const service = new SignaturesService(
+          clientsService as any,
+          new MailService(),
+          { dispatch: jest.fn() } as any,
+          { renderInstancePdf: jest.fn() } as any,
+        );
         await service.requestSignature('company-1', 'quote', 'quote-1');
         // `resolveActiveOrThrow` compares HASHES, so requesting the OTP below needs the RAW token —
         // recovered from the signature-request email itself, the same way every other public-flow test

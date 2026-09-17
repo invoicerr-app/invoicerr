@@ -4598,6 +4598,13 @@
       "unavailableTitle": "Link unavailable",
       "unavailableDescription": "This signature link is invalid, expired, or has already been used.",
       "genericError": "Something went wrong. Please try again.",
+      "documentPreviewLabel": "Document preview",
+      "documentLoadError": "Could not load the document to review. Please try again.",
+      "previewUnavailable": "Your browser can't display the document here.",
+      "previewTroubleHint": "Trouble viewing the document?",
+      "openPdfButton": "Open the PDF",
+      "downloadButton": "Download",
+      "confirmReadLabel": "I have read the document",
       "steps": {
         "review": "Review",
         "verify": "Verify",

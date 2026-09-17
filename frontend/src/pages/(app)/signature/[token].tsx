@@ -1,15 +1,22 @@
-import { CheckCircle2, FileWarning } from "lucide-react"
-import { useState } from "react"
+import { CheckCircle2, Download, FileWarning } from "lucide-react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useParams } from "react-router"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
+import { Label } from "@/components/ui/label"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/hooks/use-api-query"
-import { usePublicSignature, useRequestPublicSignatureOtp, useSignPublicSignature } from "@/hooks/queries"
+import {
+  usePublicSignature,
+  usePublicSignatureDocument,
+  useRequestPublicSignatureOtp,
+  useSignPublicSignature,
+} from "@/hooks/queries"
 
 type SignatureStep = "review" | "verify" | "signed"
 const STEP_ORDER: SignatureStep[] = ["review", "verify", "signed"]
@@ -59,14 +66,94 @@ function SignatureStepper({ current }: { current: SignatureStep }) {
 }
 
 /**
+ * The Review step's own document panel — an object URL over the blob `usePublicSignatureDocument`
+ * fetches, never a raw `blob:` reference handed straight to `<object>` from the query result: the URL
+ * must be revoked (`DocumentPreview`'s caller does that) once nothing references it any more, or the
+ * bytes leak for the life of the tab. `<object>` (not a bare `<iframe>`) because it has an actual
+ * FALLBACK mechanism — its children render only when the browser genuinely cannot embed the PDF — and
+ * the small "open in a new tab" line below the frame is a SECOND, always-visible fallback for the
+ * subtler case this app cannot detect on its own: the embed "succeeds" but renders too small or
+ * non-interactive to actually read (some mobile webviews).
+ */
+function DocumentPreview({
+  isLoading,
+  isError,
+  error,
+  documentUrl,
+}: {
+  isLoading: boolean
+  isError: boolean
+  error: unknown
+  documentUrl: string | null
+}) {
+  const { t } = useTranslation()
+
+  if (isLoading || (!documentUrl && !isError)) {
+    return (
+      <Skeleton className="h-[50vh] w-full rounded-lg sm:h-[70vh]" data-cy="signature-document-loading" />
+    )
+  }
+
+  if (isError || !documentUrl) {
+    return (
+      <div
+        className="flex h-[50vh] w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center sm:h-[70vh]"
+        data-cy="signature-document-error"
+      >
+        <FileWarning className="h-6 w-6 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          {error instanceof ApiError ? error.message : t("documents.publicSignature.documentLoadError")}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <object
+        data={documentUrl}
+        type="application/pdf"
+        className="h-[50vh] w-full rounded-lg border sm:h-[70vh]"
+        aria-label={t("documents.publicSignature.documentPreviewLabel")}
+        data-cy="signature-document-preview"
+      >
+        {/* Rendered only when the browser cannot embed a PDF at all — see this component's own header. */}
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
+          <p className="text-sm text-muted-foreground">{t("documents.publicSignature.previewUnavailable")}</p>
+          <Button asChild variant="outline" size="sm" dataCy="signature-open-pdf-fallback-button">
+            <a href={documentUrl} target="_blank" rel="noreferrer">
+              {t("documents.publicSignature.openPdfButton")}
+            </a>
+          </Button>
+        </div>
+      </object>
+      <p className="text-center text-xs text-muted-foreground">
+        {t("documents.publicSignature.previewTroubleHint")}{" "}
+        <a
+          href={documentUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-4 hover:text-foreground"
+          data-cy="signature-open-pdf-link"
+        >
+          {t("documents.publicSignature.openPdfButton")}
+        </a>
+      </p>
+    </div>
+  )
+}
+
+/**
  * The public `/signature/:token` page: an anonymous client opens the
- * emailed link, asks for a verification code, and submits it. No `@ActiveCompany()`, no session, no
- * sidebar (this route is one of `(app)/_layout.tsx`'s own `ALLOWED_PATHS`, rendered through
- * `UnauthenticatedLayout` for a visitor with no session — see that file's own header). Shares
- * `PublicPageShell` with the client portal (`pages/portal/index.tsx`) — the ONE frame every public,
- * no-session page in this app renders through — rather than any authenticated document screen: this
- * page has nothing in common with the document list/form beyond both ultimately talking to the same
- * backend.
+ * emailed link, reviews the document, asks for a verification code, and submits it. No
+ * `@ActiveCompany()`, no session, no sidebar (this route is one of `(app)/_layout.tsx`'s own
+ * `ALLOWED_PATHS`, rendered through `UnauthenticatedLayout` for a visitor with no session — see that
+ * file's own header). Shares `PublicPageShell` with the client portal (`pages/portal/index.tsx`) — the
+ * ONE frame every public, no-session page in this app renders through — rather than any authenticated
+ * document screen: this page has nothing in common with the document list/form beyond both ultimately
+ * talking to the same backend. `width="default"` (not `narrow`): once the Review step embeds a
+ * full-width PDF, the ~28rem `narrow` column made the preview cramped — the same reasoning
+ * `pages/legal/accept.tsx` already documents for its own switch away from `narrow`.
  *
  * Every backend refusal (unknown token, locked, already signed, wrong/expired code) surfaces as a
  * plain `ApiError` with an already human-readable message — see the backend's own
@@ -87,6 +174,24 @@ export default function PublicSignaturePage() {
   const [signedAt, setSignedAt] = useState<string | null>(null)
   const [signError, setSignError] = useState<string | null>(null)
   const [otpMessage, setOtpMessage] = useState<string | null>(null)
+  const [hasReadDocument, setHasReadDocument] = useState(false)
+
+  // Fetched as soon as the request resolves — not gated on the Review step still being the current
+  // one — so the SAME "render once, freeze, serve forever" artifact the backend promises
+  // (`SignaturesService.getPublicDocument`'s own header) is already in flight by the time a visitor
+  // finishes reading the header above it.
+  const documentQuery = usePublicSignatureDocument(token, !!view)
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null)
+
+  // Object URLs are a browser-memory resource, not the query cache's own concern — created once per
+  // fetched `Blob` and explicitly revoked, whether by a fresh blob replacing it or by this page
+  // unmounting, or the bytes leak for the tab's whole remaining lifetime.
+  useEffect(() => {
+    if (!documentQuery.data) return
+    const url = URL.createObjectURL(documentQuery.data)
+    setDocumentUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [documentQuery.data])
 
   const handleRequestOtp = () => {
     setOtpMessage(null)
@@ -116,7 +221,7 @@ export default function PublicSignaturePage() {
 
   if (isLoading) {
     return (
-      <PublicPageShell width="narrow">
+      <PublicPageShell width="default">
         <div className="flex min-h-[50vh] items-center justify-center p-6">
           <div className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6">
             <Skeleton className="h-6 w-2/3" />
@@ -130,7 +235,7 @@ export default function PublicSignaturePage() {
 
   if (error || !view) {
     return (
-      <PublicPageShell width="narrow">
+      <PublicPageShell width="default">
         <div className="flex min-h-[50vh] items-center justify-center p-6">
           <div
             className="w-full max-w-sm space-y-2 rounded-xl border bg-card p-6 text-center"
@@ -153,7 +258,7 @@ export default function PublicSignaturePage() {
 
   if (signedAt) {
     return (
-      <PublicPageShell width="narrow">
+      <PublicPageShell width="default">
         <div className="flex min-h-[50vh] items-center justify-center p-6">
           <div
             className="w-full max-w-sm space-y-3 rounded-xl border bg-card p-6 text-center"
@@ -178,10 +283,12 @@ export default function PublicSignaturePage() {
     )
   }
 
+  const downloadFilename = `${view.typeId}${view.displayNumber ? `-${view.displayNumber}` : ""}.pdf`
+
   return (
-    <PublicPageShell width="narrow">
-      <div className="flex min-h-[50vh] items-center justify-center p-6">
-        <div className="w-full max-w-sm space-y-5 rounded-xl border bg-card p-6" data-cy="signature-card">
+    <PublicPageShell width="default">
+      <div className="flex justify-center p-6">
+        <div className="w-full max-w-2xl space-y-5 rounded-xl border bg-card p-6" data-cy="signature-card">
           <SignatureStepper current={otpRequested ? "verify" : "review"} />
 
           <div className="space-y-1 text-center">
@@ -195,72 +302,110 @@ export default function PublicSignaturePage() {
             </p>
           </div>
 
-          <div className="space-y-4">
-            {!otpRequested && (
+          {!otpRequested && (
+            <div className="space-y-4">
+              <DocumentPreview
+                isLoading={documentQuery.isLoading}
+                isError={documentQuery.isError}
+                error={documentQuery.error}
+                documentUrl={documentUrl}
+              />
+
+              {documentUrl && (
+                <div className="flex justify-center">
+                  <Button asChild variant="outline" size="sm" dataCy="signature-download-button">
+                    <a href={documentUrl} download={downloadFilename}>
+                      <Download className="h-4 w-4" />
+                      {t("documents.publicSignature.downloadButton")}
+                    </a>
+                  </Button>
+                </div>
+              )}
+
+              <div className="mx-auto flex max-w-sm items-start gap-2 text-left">
+                <Checkbox
+                  id="signature-confirm-read"
+                  checked={hasReadDocument}
+                  onCheckedChange={(checked) => setHasReadDocument(checked === true)}
+                  disabled={!documentUrl}
+                  className="mt-0.5"
+                  data-cy="signature-confirm-read-checkbox"
+                />
+                <Label
+                  htmlFor="signature-confirm-read"
+                  className="text-sm font-normal leading-snug text-muted-foreground"
+                >
+                  {t("documents.publicSignature.confirmReadLabel")}
+                </Label>
+              </div>
+
               <Button
                 type="button"
-                className="w-full"
+                className="mx-auto block w-full max-w-sm"
+                disabled={!hasReadDocument}
                 loading={requestOtp.isPending}
                 onClick={handleRequestOtp}
                 dataCy="signature-request-otp-button"
               >
                 {t("documents.publicSignature.requestCodeButton")}
               </Button>
-            )}
 
-            {otpRequested && (
-              <>
-                <div className="flex justify-center">
-                  <InputOTP
-                    maxLength={8}
-                    value={code}
-                    onChange={(value) => setCode(value.replace(/\D/g, ""))}
-                  >
-                    <InputOTPGroup data-cy="signature-otp-input">
-                      {Array.from({ length: 8 }).map((_, index) => (
-                        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-length, never-reordered slot list.
-                        <InputOTPSlot key={index} index={index} />
-                      ))}
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
+              {otpMessage && (
+                <p className="text-center text-sm text-muted-foreground" data-cy="signature-otp-message">
+                  {otpMessage}
+                </p>
+              )}
+            </div>
+          )}
 
-                {signError && (
-                  <p className="text-center text-sm text-destructive" data-cy="signature-sign-error">
-                    {signError}
-                  </p>
-                )}
+          {otpRequested && (
+            <div className="mx-auto w-full max-w-sm space-y-4">
+              <div className="flex justify-center">
+                <InputOTP maxLength={8} value={code} onChange={(value) => setCode(value.replace(/\D/g, ""))}>
+                  <InputOTPGroup data-cy="signature-otp-input">
+                    {Array.from({ length: 8 }).map((_, index) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-length, never-reordered slot list.
+                      <InputOTPSlot key={index} index={index} />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
 
-                <Button
-                  type="button"
-                  className="w-full"
-                  disabled={code.length !== 8}
-                  loading={sign.isPending}
-                  onClick={handleSign}
-                  dataCy="signature-sign-button"
-                >
-                  {t("documents.publicSignature.signButton")}
-                </Button>
+              {signError && (
+                <p className="text-center text-sm text-destructive" data-cy="signature-sign-error">
+                  {signError}
+                </p>
+              )}
 
-                <Button
-                  type="button"
-                  variant="link"
-                  className="w-full"
-                  loading={requestOtp.isPending}
-                  onClick={handleRequestOtp}
-                  dataCy="signature-resend-otp-button"
-                >
-                  {t("documents.publicSignature.resendCodeButton")}
-                </Button>
-              </>
-            )}
+              <Button
+                type="button"
+                className="w-full"
+                disabled={code.length !== 8}
+                loading={sign.isPending}
+                onClick={handleSign}
+                dataCy="signature-sign-button"
+              >
+                {t("documents.publicSignature.signButton")}
+              </Button>
 
-            {otpMessage && (
-              <p className="text-center text-sm text-muted-foreground" data-cy="signature-otp-message">
-                {otpMessage}
-              </p>
-            )}
-          </div>
+              <Button
+                type="button"
+                variant="link"
+                className="w-full"
+                loading={requestOtp.isPending}
+                onClick={handleRequestOtp}
+                dataCy="signature-resend-otp-button"
+              >
+                {t("documents.publicSignature.resendCodeButton")}
+              </Button>
+
+              {otpMessage && (
+                <p className="text-center text-sm text-muted-foreground" data-cy="signature-otp-message">
+                  {otpMessage}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </PublicPageShell>
