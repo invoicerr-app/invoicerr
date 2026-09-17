@@ -292,13 +292,19 @@ describeWithRedis('document-conformity sweep — real Redis, real Postgres', () 
   });
 
   it('the real sweep finds an eligible document and journals a REAL event through a REAL job', async () => {
+    // `transportRef` must be a real PDP invoice id (a non-negative integer, as string) — the REAL
+    // poller resolved into this spec's own registry (see this file's own header) parses it with
+    // `pdp-status-poller.ts#parseInvoiceId`, which refuses anything else BY NAME rather than let it
+    // silently become `/v1.beta/invoices/NaN`. This stub never inspects the id either way, but a
+    // non-numeric placeholder here would never even reach it: `poll()` throws before the HTTP call,
+    // and the sweep's own generic catch journals that as `poll:blocked`, not the two events below.
     const document = await prisma.documentInstance.create({
       data: {
         companyId,
         typeId: 'invoice',
         status: 'sent',
         data: {},
-        transportRef: 'deposit-1',
+        transportRef: '397536',
         channelProviderId: PDP_PROVIDER_ID,
       },
     });
@@ -327,13 +333,16 @@ describeWithRedis('document-conformity sweep — real Redis, real Postgres', () 
   });
 
   it('two sweep passes racing on the SAME eligible document journal NO duplicate rows', async () => {
+    // Same requirement as the first test above — a distinct numeric id, never a second document
+    // sharing the first one's transportRef (which would make the two documents indistinguishable
+    // to nothing here, but is simply not how two real PDP deposits ever look).
     const document = await prisma.documentInstance.create({
       data: {
         companyId,
         typeId: 'invoice',
         status: 'sent',
         data: {},
-        transportRef: 'deposit-2',
+        transportRef: '397537',
         channelProviderId: PDP_PROVIDER_ID,
       },
     });
