@@ -147,11 +147,29 @@ describe("Electronic signature — company certificates", () => {
 		cy.get('[data-cy$="-status"]').should("contain.text", "Active");
 	});
 
-	it("a downloaded invoice's PDF BECOMES PAdES-signed (/ByteRange + /Contents in the bytes)", () => {
+	it("a downloaded invoice's PDF BECOMES PAdES-signed — a real, cryptographically verified signature covering the WHOLE file", () => {
 		createInvoiceDraft().then((invoiceId) => {
 			fetchInvoicePdfRaw(invoiceId).then((bytes) => {
-				expect(bytes, "signature PAdES présente — /ByteRange").to.include("/ByteRange");
-				expect(bytes, "signature PAdES présente — /Contents").to.include("/Contents");
+				// The two substrings alone only prove a signature DICTIONARY was written — a PDF edited
+				// AFTER signing (a watermark, a metadata tweak) keeps both while every real viewer would
+				// reject it. `cy.task("verifyPadesSignatureCoverage", ...)` (`@signpdf/utils` + `pkijs`, the
+				// SAME "real control" pattern the backend's own CAdES jest test already applies — see
+				// `cypress.config.ts`'s own header) recomputes the digest over the ACTUAL `/ByteRange`
+				// bytes and verifies the RSA signature over it — a tamper inside the signed range, or a
+				// forged signature, would turn this false; verified by hand against a real signed invoice
+				// before writing this task.
+				const base64 = Cypress.Buffer.from(bytes, "binary").toString("base64");
+				cy.task("verifyPadesSignatureCoverage", base64).then((result) => {
+					const { signatureVerified, byteRangeCoversWholeFile } = result as {
+						signatureVerified: boolean;
+						byteRangeCoversWholeFile: boolean;
+					};
+					expect(signatureVerified, "la signature PAdES est cryptographiquement valide").to.eq(true);
+					expect(
+						byteRangeCoversWholeFile,
+						"le ByteRange couvre tout le fichier, sauf le seul trou /Contents",
+					).to.eq(true);
+				});
 			});
 		});
 	});

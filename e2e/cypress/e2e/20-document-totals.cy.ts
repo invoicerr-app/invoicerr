@@ -156,7 +156,10 @@ describe("Document totals", () => {
 		// The totals, on the Summary step — the displayed fact comes from the client-side
 		// recalculation (document-totals.tsx), mirroring the backend.
 		cy.get('[data-cy="document-totals"]', { timeout: 10000 }).should("exist");
-		cy.get('[data-cy="document-totals-gross"]').should("contain", "120");
+		// Anchored, not a bare substring: `formatTotal` renders exactly "120.00 EUR" for 100 net @
+		// 20% — a `"contain", "120"` check would pass identically for a x10 amplification bug
+		// rendering "1200.00 EUR".
+		cy.get('[data-cy="document-totals-gross"]').invoke("text").should("match", /^120\.00 EUR$/);
 	});
 
 	// The per-line discount — applied BEFORE VAT, mirrored client-side

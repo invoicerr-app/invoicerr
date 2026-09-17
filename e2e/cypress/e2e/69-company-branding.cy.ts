@@ -188,21 +188,28 @@ describe("Company branding — logo, accent color, font, presets", () => {
 			expect(status.hasLogo, "le logo est bien enregistré").to.eq(true);
 		});
 
-		cy.request({ url: `${api}/api/company/branding/logo`, encoding: "binary" }).then(
-			(response) => {
-				expect(response.status, "GET /api/company/branding/logo doit répondre 200").to.eq(
-					200,
-				);
-				expect(
-					response.headers["content-type"],
-					"le mime stocké est bien une image",
-				).to.match(/^image\//);
-				expect(
-					response.body.length,
-					"les octets du logo sont bien servis, non vides",
-				).to.be.greaterThan(0);
-			},
-		);
+		// Exact byte comparison against the fixture actually uploaded — not merely "an image, non
+		// empty": a default logo served in its place, or a truncated/corrupted write, would still be a
+		// non-empty `image/*` response at this fixture's own tiny size (68 bytes) and pass a
+		// length-only check. Same discipline `62-expense-attachments.cy.ts` already holds for its own
+		// content-addressed download.
+		cy.readFile("cypress/fixtures/branding/logo-fixture.png", "binary").then((original) => {
+			cy.request({ url: `${api}/api/company/branding/logo`, encoding: "binary" }).then(
+				(response) => {
+					expect(response.status, "GET /api/company/branding/logo doit répondre 200").to.eq(
+						200,
+					);
+					expect(
+						response.headers["content-type"],
+						"le mime stocké est bien une image",
+					).to.match(/^image\//);
+					expect(
+						response.body,
+						"les octets servis sont EXACTEMENT ceux du fichier envoyé",
+					).to.eq(original);
+				},
+			);
+		});
 	});
 
 	it("the live preview reflects the CURRENTLY SAVED accent color (property 5)", () => {

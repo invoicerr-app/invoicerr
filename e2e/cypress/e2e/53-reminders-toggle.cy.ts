@@ -41,4 +41,24 @@ describe("Settings — automatic reminders toggle", () => {
 			"checked",
 		);
 	});
+
+	it("clicking the on-screen toggle actually writes the setting — the switch only feeds react-hook-form; Save sends it", () => {
+		setReminders(false);
+		cy.visit("/settings/company");
+		cy.get('[data-cy="company-reminders-enabled"]', { timeout: 15000 }).should(
+			"have.attr",
+			"data-state",
+			"unchecked",
+		);
+
+		// The Switch's own `onCheckedChange` only calls `field.onChange` (company.settings.tsx) — it
+		// writes nothing by itself. A regression that unplugs that handler would leave the toggle
+		// visually clickable but the saved value untouched; only Save actually POSTs the form.
+		cy.intercept("POST", `${api}/api/company/info`).as("saveCompany");
+		cy.get('[data-cy="company-reminders-enabled"]').click();
+		cy.get('[data-cy="company-submit-btn"]').click();
+		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+
+		cy.request({ url: `${api}/api/company/info` }).its("body.remindersEnabled").should("eq", true);
+	});
 });

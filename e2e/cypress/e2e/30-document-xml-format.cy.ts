@@ -595,9 +595,15 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				.type("DE89370400440532013000", {
 					force: true,
 				});
+			// A fixed `cy.wait(1000)` here proved nothing about the PATCH landing before the send below
+			// — this file's own header documents CI slowdowns measured up to x400 (CPU contention from
+			// Factur-X/Schematron builds sharing the `WORKER_INLINE` process) and a real "no transport
+			// configured" 501 this exact gap once produced. Intercepting the real save request and
+			// asserting its response removes the guess entirely.
+			cy.intercept("POST", `${api}/api/company/info`).as("saveCompanyIban");
 			cy.get('[data-cy="company-submit-btn"]').click();
+			cy.wait("@saveCompanyIban", { timeout: 20000 }).its("response.statusCode").should("be.oneOf", [200, 201]);
 			cy.get("[data-sonner-toast]", { timeout: 10000 }).should("be.visible");
-			cy.wait(1000);
 
 			createAndSendInvoice({ buyerReference: "04011000-1234512345-06" }).then(
 				({ id, displayNumber }) => {

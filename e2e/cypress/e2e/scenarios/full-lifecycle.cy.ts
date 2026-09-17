@@ -593,8 +593,36 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		cy.get('[data-cy="company-pdfformat-option-pdf"]').click();
 		cy.get('[data-cy="company-dateformat-select"]').click();
 		cy.get('[data-cy="company-dateformat-option-dd-MM-yyyy"]').first().click();
+		cy.intercept("POST", `${api}/api/company/info`).as("saveCompanySettings");
 		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait(3000);
+		cy.wait("@saveCompanySettings").its("response.statusCode").should("be.oneOf", [200, 201]);
+
+		// This save is exactly the one the defect this suite exists to catch hit: identifiers set two
+		// steps ago, at ONBOARDING, silently dropped by a LATER settings save that never touched them
+		// (`editCompanyInfo` used to sync `partyIdentifiers` against the country catalog on every write,
+		// deleting any scheme the catalog didn't list). Reading them back here, right after THIS save,
+		// is what actually proves the fix — leaving it to the send step further down only catches it on
+		// the legs whose cross-border BT-31 gate happens to need the identifier (it-pt, pl-de); it-it's
+		// purely domestic leg would sail through with the identifier silently gone and nothing here to
+		// say so.
+		cy.request({ url: `${api}/api/company/info` })
+			.its("body.partyIdentifiers")
+			.then((identifiers: { scheme: string; value: string }[]) => {
+				const hasIdentifier = (scheme: string, value: string) =>
+					identifiers.some((identifier) => identifier.scheme === scheme && identifier.value === value);
+				if (seller.legalId) {
+					expect(
+						hasIdentifier("LEGAL_ID", seller.legalId),
+						`onboarding LEGAL_ID "${seller.legalId}" survives the company settings save`,
+					).to.eq(true);
+				}
+				if (seller.vat) {
+					expect(
+						hasIdentifier("VAT", seller.vat),
+						`onboarding VAT "${seller.vat}" survives the company settings save`,
+					).to.eq(true);
+				}
+			});
 
 		cy.request({
 			method: "POST",

@@ -369,13 +369,63 @@ describe("A document is a descriptor, and the screen follows it", () => {
 								`${type.id} — le bouton "${id}" vient du descripteur`,
 							).to.include(id);
 						}
+						// `d.actions[0]` is, for EVERY type this registry declares today, the one action
+						// that actually creates the record from nothing ("save-draft" everywhere except
+						// received-invoice's own "receive") — a real, data-driven stand-in for "the
+						// creation action" rather than a hand-picked id. `onScreen.length.greaterThan(0)`
+						// alone would stay green even if THIS ONE specific button disappeared as long as
+						// some other, unrelated action rendered in its place — this asserts the one button
+						// a fresh, unsaved document actually needs is the one actually offered.
+						const creationActionId = d.actions[0]?.id;
+						expect(
+							creationActionId,
+							`${type.id} — declare au moins une action`,
+						).to.be.a("string");
 						expect(
 							onScreen,
-							`${type.id} — au moins une action est offerte`,
-						).to.have.length.greaterThan(0);
+							`${type.id} — l'action de création ("${creationActionId}") est bien proposée sur un document non enregistré`,
+						).to.include(creationActionId);
 					});
 				});
 			}
+		});
+	});
+
+	it("clicking the creation action for real actually creates the record — invoice", () => {
+		// The two tests above only prove the wizard MOUNTS every field and OFFERS the creation button —
+		// neither one ever presses it. This is the one test in the file that does: a real click on
+		// `document-action-save-draft`, then the created record read back from the API — proving the
+		// button is wired to the real endpoint, not merely rendered.
+		cy.visit("/documents/invoice");
+		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
+
+		descriptorFor("invoice").then((d) => {
+			advanceWizardToLastStep(d.fields);
+
+			cy.intercept("POST", `${api}/api/documents/types/invoice/actions/save-draft`).as("saveDraft");
+			cy.get('[data-cy="document-action-save-draft"]').should("be.visible").click();
+			cy.wait("@saveDraft").then((interception) => {
+				expect(
+					interception.response?.statusCode,
+					"le clic sur le bouton crée réellement le document, pas seulement visuellement",
+				).to.be.oneOf([200, 201]);
+				const createdId = interception.response?.body?.document?.id as string;
+				expect(createdId, "un identifiant est renvoyé").to.be.a("string");
+
+				cy.request({ url: `${api}/api/documents/${createdId}?typeId=invoice` })
+					.its("body")
+					.then((doc) => {
+						expect(
+							doc.status,
+							"le document créé par le clic existe bien en base, à l'état draft",
+						).to.eq("draft");
+						expect(
+							doc.data?.lines,
+							"la ligne remplie par le wizard est bien persistée, pas seulement affichée",
+						).to.have.length.greaterThan(0);
+					});
+			});
 		});
 	});
 

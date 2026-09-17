@@ -10,18 +10,23 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * this spec, which never talks to any real server FOR PDP.
  *
  * Wave 2 (KSeF/PL, SdI/IT) extends this file with the SAME pattern — country suggestion → connect
- * via the screen → choose the transport → send → "send_failed" naming the channel — with TWO
- * assumed differences, documented here rather than guessed silently:
+ * via the screen → choose the transport → send → "send_failed" naming the channel — genuinely AS
+ * that country's own company, with ONE assumed difference, documented here rather than guessed
+ * silently:
  *
- *  1. NO `country-policy/data/{pl,it}.json` file exists (see that
- *     module's own header: "no tax/legal rule invented"). A company whose country IS
- *     Poland/Italy therefore has EVERY document action blocked (403, `country-policy.ts`'s own
- *     decision 1) — including `save-draft`. The tests below therefore switch the seeded company's
- *     country to Poland/Italy ONLY to verify the channel suggestion (which depends
- *     ONLY on the country, never on `country-policy`), then switch it back to France before
- *     creating/sending a draft — the sending company stays French, only its TRANSPORT changes to
- *     `ksef`/`sdi`, exactly as the registry already allows ("nothing requires that a country pick
- *     ITS OWN suggested channel" — see `transport-registry.ts`'s own header).
+ *  1. `country-policy/data/{pl,it}.json` now exist (added `d2fab703`, after this file was first
+ *     written) — every action these tests need (`save-draft`, `send`) is allowed for both, so the
+ *     company genuinely STAYS Poland/Italy through connect → pick-transport → create → send, never
+ *     switching back to France first. It still needs a VAT identifier of its own, though: `send()`
+ *     builds each country's NATIONAL format (FA(3) for KSeF, FatturaPA for SdI) before ever reaching
+ *     the network, and that format's own XSD requires the seller's VAT number
+ *     (`fa3-provider.ts`/`fatturapa-provider.ts`, `getIdentifier(company, 'VAT')`) — a company with
+ *     none would fail THAT validation and never reach the real sandbox at all, which is the one thing
+ *     these tests exist to prove. `setCompanyCountry` below therefore also sets a real VAT (Italy:
+ *     also a LEGAL_ID/Codice Fiscale) whenever it switches country, and the France leg (Chorus Pro,
+ *     right after) restores the SEEDED French company's own SIRET/VAT explicitly — both schemes are
+ *     `@@unique([companyId, scheme])` in `schema.prisma`, so setting a Polish/Italian VAT overwrote
+ *     the French one in place rather than adding a second row.
  *  2. Unlike PDP (whose URL is a field typed by the user, and thus falsifiable toward a
  *     closed port), the KSeF URL is FIXED per environment (`ksef-client.ts`'s own `BASE_URLS`) —
  *     no configuration field replaces it. The KSeF test therefore sends a FAKE token to the REAL
@@ -95,17 +100,33 @@ const FAKE_CHORUS_PRO = {
 	technicalAccountPassword: "e2e-fake-tech-password",
 };
 
-/** Switches the seeded company's country — see this file's own header, point 1, for why this is
- *  used ONLY to check the channel suggestion, never to create/send a document. */
-function setCompanyCountry(country: string, countryCode: string) {
+/** Switches the seeded company's country — genuinely, for the rest of that wave (connect, pick
+ *  transport, create, send), never switched back before sending — see this file's own header,
+ *  point 1. `identifiers` replaces whichever identifier the given scheme already carries
+ *  (`@@unique([companyId, scheme])`, `schema.prisma`) — pass the ones the TARGET country's own
+ *  national format needs (or the seeded French ones, to restore them before the Chorus Pro wave). */
+function setCompanyCountry(
+	country: string,
+	countryCode: string,
+	identifiers?: { scheme: string; value: string }[],
+) {
 	return cy.request({
 		method: "POST",
 		url: `${api}/api/company/info`,
-		body: { name: "Acme Corp", country, countryCode },
+		body: { name: "Acme Corp", country, countryCode, ...(identifiers ? { identifiers } : {}) },
 	});
 }
 
-function createInvoiceDraft() {
+/**
+ * `vatRate` is validated against the ISSUING company's OWN `vat-rates/data/<cc>.json` catalog
+ * (`validateAgainstDescriptor`) — a seller-country-specific list of ALLOWED rates, never a bare
+ * "any percentage" field. "20" is France's own standard rate (`fr.json`, `fr-standard`) and stays the
+ * default for the PDP/Chorus Pro waves below (both French); the KSeF/SdI waves — genuinely Polish/
+ * Italian now (see this file's own header, point 1) — pass their OWN standard rate explicitly ("23",
+ * "22" — `pl.json`/`it.json`'s own `pl-standard`/`it-standard`), since neither would validate against
+ * the OTHER country's list.
+ */
+function createInvoiceDraft(vatRate = "20") {
 	return cy
 		.request({ url: `${api}/api/documents/references/client/search` })
 		.its("body")
@@ -130,7 +151,7 @@ function createInvoiceDraft() {
 									quantity: 2,
 									unit: "hour",
 									unitPrice: 150,
-									vatRate: "20",
+									vatRate,
 								},
 							],
 						},
@@ -138,9 +159,10 @@ function createInvoiceDraft() {
 					failOnStatusCode: false,
 				})
 				.then((saved) => {
-					expect(saved.status, "brouillon de facture créé").to.be.oneOf([
-						200, 201,
-					]);
+					expect(
+						saved.status,
+						`brouillon de facture créé — ${JSON.stringify(saved.body).slice(0, 220)}`,
+					).to.be.oneOf([200, 201]);
 					const invoiceId = saved.body?.document?.id as string;
 					expect(invoiceId, "le brouillon a un identifiant").to.be.a("string");
 					return invoiceId;
@@ -346,7 +368,11 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	// ── Wave 2: KSeF (Poland) — see this file's own header for the two assumed differences ──
 
 	it("a POLISH company sees the KSeF suggestion on the channels screen — the data comes from data/pl.json, never an `if`", () => {
-		setCompanyCountry("Poland", "PL");
+		// A real Polish VAT (the well-known KSeF sandbox test NIP, `PL5260001246` — the same one
+		// `scenarios/full-lifecycle.cy.ts` already uses as a buyer identifier) — needed for the FA(3)
+		// send further down, not for this suggestion check itself; set once, here, since the company
+		// STAYS Poland for the rest of this wave (see this file's own header, point 1).
+		setCompanyCountry("Poland", "PL", [{ scheme: "VAT", value: "PL5260001246" }]);
 		cy.visit("/settings/channels");
 
 		cy.get('[data-cy="channel-ksef"]', { timeout: 15000 }).should("exist");
@@ -354,9 +380,6 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		// PDP is no longer suggested to a Polish company — the suggestion follows the country, never
 		// a fixed default channel.
 		cy.get('[data-cy="channel-pdp-suggested"]').should("not.exist");
-
-		// Restore France for the rest of this spec — see this file's own header, point 1.
-		setCompanyCountry("France", "FR");
 	});
 
 	it('connects the KSeF channel via the screen with fake credentials — status "Connected"', () => {
@@ -427,7 +450,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	});
 
 	it('sends an invoice via KSeF → the queue really fails (fake token rejected by the real ksef-test.mf.gov.pl) and "send_failed" names the channel', () => {
-		createInvoiceDraft().then((invoiceId) => {
+		createInvoiceDraft("23").then((invoiceId) => {
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
 				.find('[data-cy="document-status-badge"]')
@@ -455,10 +478,17 @@ describe("National transports — the PDP channel, connected/disconnected via th
 						doc.status,
 						'la facture est réellement "send_failed" en base',
 					).to.eq("send_failed");
+					// `ksef-transport.ts` wraps EVERY failure (DNS, timeout, a blocked sandbox egress) in a
+					// message that names the channel — matching only `/KSeF/` would pass identically for a
+					// broken `BASE_URLS` entry or a runner with no outbound network at all, silently
+					// blind to its own reachability. The real sandbox's own rejection code for an invalid
+					// token — verified against a real run: `ksef-transport.ts`'s own auth-step wrapper
+					// produces "KSeF authentication rejected (code 450: ...)", the Polish description
+					// untranslated — only an actual round-trip to ksef-test.mf.gov.pl can produce this.
 					expect(
 						doc.lastActionError,
-						"l'erreur enregistrée nomme le canal KSeF",
-					).to.match(/KSeF/);
+						"l'erreur enregistrée est le vrai rejet KSeF (code 450), pas un message générique",
+					).to.match(/code 450/);
 					expect(
 						doc.transportRef,
 						"aucune référence de session/facture sans soumission acceptée",
@@ -488,6 +518,18 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Not connected",
 		);
+
+		// The toast/badge pair above only proves the SCREEN'S OWN local state changed — an optimistic
+		// UI update ahead of a server-side failure would look identical. Read the row back from the
+		// API, the same proof the PDP disconnect test above already holds for this exact button.
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then((body: { configured: { providerId: string }[] }) => {
+				expect(
+					body.configured.find((c) => c.providerId === "ksef"),
+					"plus aucune ligne ksef en base — un disconnect complet, pas juste isActive:false",
+				).to.be.undefined;
+			});
 	});
 
 	// ── Wave 2: SdI (Italy) — same pattern as PDP, fake server (closed port) — a real SOAP
@@ -498,7 +540,16 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		// see data/it.json's own `provenance`/`notes`): the "suggested" badge stays true (a mandate
 		// reinforces a suggestion, it does not contradict it — the same convention as PDP/France,
 		// already proven by 32-channel-mandate.cy.ts), and the "mandated" badge now appears too.
-		setCompanyCountry("Italy", "IT");
+		//
+		// VAT + LEGAL_ID (Codice Fiscale) — the same pair `scenarios/full-lifecycle.cy.ts` already uses
+		// for its own `it-pt` leg's Italian seller — needed for the FatturaPA send further down
+		// (`fatturapa-provider.ts` reads both off the seller company), not for this suggestion check
+		// itself; set once, here, since the company STAYS Italy for the rest of this wave (see this
+		// file's own header, point 1).
+		setCompanyCountry("Italy", "IT", [
+			{ scheme: "VAT", value: "IT01234567897" },
+			{ scheme: "LEGAL_ID", value: "11223344554" },
+		]);
 		cy.visit("/settings/channels");
 
 		cy.get('[data-cy="channel-sdi"]', { timeout: 15000 }).should("exist");
@@ -507,8 +558,6 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			.should("exist")
 			.and("contain.text", "2019-01-01");
 		cy.get('[data-cy="channel-pdp-suggested"]').should("not.exist");
-
-		setCompanyCountry("France", "FR");
 	});
 
 	it('connects the SdI channel via the screen with fake credentials — status "Connected"', () => {
@@ -585,7 +634,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	});
 
 	it('sends an invoice via SdI → the queue really fails (fake server, closed port) and "send_failed" names the channel', () => {
-		createInvoiceDraft().then((invoiceId) => {
+		createInvoiceDraft("22").then((invoiceId) => {
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
 				.find('[data-cy="document-status-badge"]')
@@ -646,6 +695,18 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Not connected",
 		);
+
+		// The toast/badge pair above only proves the SCREEN'S OWN local state changed — an optimistic
+		// UI update ahead of a server-side failure would look identical. Read the row back from the
+		// API, the same proof the PDP disconnect test above already holds for this exact button.
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then((body: { configured: { providerId: string }[] }) => {
+				expect(
+					body.configured.find((c) => c.providerId === "sdi"),
+					"plus aucune ligne sdi en base — un disconnect complet, pas juste isActive:false",
+				).to.be.undefined;
+			});
 	});
 
 	// ── Wave 3: Chorus Pro (France, B2G) — see this file's own header for the assumed difference
@@ -656,8 +717,14 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		// Chorus Pro is the FRENCH B2G channel: the company must be in France for the rest of the
 		// group (transport choice, send → PISTE rejection) to exercise the right routing. Made
 		// explicit here since the 5-country prune (the Peppol/BE group that fixed a country just
-		// before this one was removed).
-		setCompanyCountry("France", "FR");
+		// before this one was removed). The Polish/Italian VAT the two waves above set (see this
+		// file's own header, point 1) overwrote the SEEDED French company's own VAT in place
+		// (`@@unique([companyId, scheme])`) — restored here alongside its SIRET, both the exact values
+		// `support/commands.ts#resetAndSeed` gave this company originally.
+		setCompanyCountry("France", "FR", [
+			{ scheme: "LEGAL_ID", value: "73282932000074" },
+			{ scheme: "VAT", value: "FR44732829320" },
+		]);
 		cy.visit("/settings/channels");
 
 		cy.get('[data-cy="channel-chorus-pro"]', { timeout: 15000 }).should(
@@ -740,6 +807,34 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	});
 
 	it('sends an invoice via chorus-pro → the queue really fails (fake PISTE credentials rejected by the real sandbox-oauth.piste.gouv.fr) and "send_failed" names the channel', () => {
+		// `chorus-pro-transport.ts` refuses BEFORE ever reaching PISTE when the RECIPIENT has no
+		// SIRET/SIREN on file (it identifies every Chorus Pro recipient by that number) — the seeded
+		// baseline client (`support/commands.ts#resetAndSeed`) has none. Setting one here is what lets
+		// this test actually reach the real PISTE rejection it claims to prove, rather than stopping one
+		// gate earlier at a DIFFERENT, generic-sounding 400 that the OLD, loose `/Chorus Pro/` match
+		// would have hidden.
+		cy.request({ url: `${api}/api/documents/references/client/search` })
+			.its("body")
+			.then((clients: { id: string; label: string }[]) => {
+				cy.request({
+					method: "PATCH",
+					url: `${api}/api/clients/${clients[0].id}`,
+					// `EditClientsDto` validates a company client's "name" even on a partial PATCH — the
+					// seeded client's own name, unchanged, plus the one field this test actually adds.
+					body: { name: clients[0].label, identifiers: [{ scheme: "LEGAL_ID", value: "73282932000074" }] },
+				}).then((res) => expect(res.status, "SIRET client enregistré").to.be.oneOf([200, 201]));
+			});
+
+		// A SECOND, SEPARATE preflight gate — verified against a real run — refuses just as early when
+		// the SELLER has no active payment method: "a public-sector invoice is always paid by bank
+		// transfer to the supplier's own account". Enabling "Bank transfer" with a real-shaped IBAN is
+		// what lets this test clear THIS gate too, on top of the client's own SIRET above.
+		cy.request({
+			method: "PATCH",
+			url: `${api}/api/payment-methods/bank_transfer`,
+			body: { enabled: true, config: { iban: "FR1420041010050500013M02606" } },
+		}).then((res) => expect(res.status, "moyen de paiement bank_transfer activé").to.be.oneOf([200, 201]));
+
 		createInvoiceDraft().then((invoiceId) => {
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
@@ -769,10 +864,16 @@ describe("National transports — the PDP channel, connected/disconnected via th
 						doc.status,
 						'la facture est réellement "send_failed" en base',
 					).to.eq("send_failed");
+					// Same tightening as the KSeF test above — `/Chorus Pro/` alone would also match a
+					// broken `CHORUS_PRO_URLS` entry or a sandboxed runner with no egress at all.
+					// `choruspro-client.ts` names the PISTE sandbox's own real rejection as an HTTP status
+					// (verified by hand — see this file's own header, "Wave 3": a genuine
+					// `HTTP 400 {"error":"invalid_client"}`), which only an actual round-trip to
+					// sandbox-oauth.piste.gouv.fr can produce.
 					expect(
 						doc.lastActionError,
-						"l'erreur enregistrée nomme le canal Chorus Pro",
-					).to.match(/Chorus Pro/);
+						"l'erreur enregistrée est le vrai rejet PISTE (HTTP 400), pas un message générique",
+					).to.match(/HTTP 400/);
 					expect(
 						doc.transportRef,
 						"aucun numeroFluxDepot sans dépôt accepté",
@@ -802,5 +903,17 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Not connected",
 		);
+
+		// The toast/badge pair above only proves the SCREEN'S OWN local state changed — an optimistic
+		// UI update ahead of a server-side failure would look identical. Read the row back from the
+		// API, the same proof the PDP disconnect test above already holds for this exact button.
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then((body: { configured: { providerId: string }[] }) => {
+				expect(
+					body.configured.find((c) => c.providerId === "chorus-pro"),
+					"plus aucune ligne chorus-pro en base — un disconnect complet, pas juste isActive:false",
+				).to.be.undefined;
+			});
 	});
 });

@@ -141,8 +141,12 @@ describe("Personal account page (/account)", () => {
 		cy.get('[data-cy="account-security-submit-button"]').click();
 
 		cy.wait("@changePassword", { timeout: 10000 }).then((interception) => {
-			expect(interception.response?.statusCode, "a wrong current password must be refused").to.not.eq(
-				200,
+			// `to.not.eq(200)` would pass identically for an unhandled exception (a 500 from a
+			// comparison bug or a database access error) — better-auth's own `changePassword`
+			// (`update-user.mjs`) throws `APIError.from("BAD_REQUEST", INVALID_PASSWORD)` for a wrong
+			// current password, i.e. a genuine 400, never a 500.
+			expect(interception.response?.statusCode, "a wrong current password is refused with a real 400, not an unhandled exception").to.eq(
+				400,
 			);
 		});
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should("be.visible");

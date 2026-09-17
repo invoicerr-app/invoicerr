@@ -306,6 +306,28 @@ describe("Company Settings E2E", () => {
 				"have.value",
 				"Île-de-France",
 			);
+			// The screen's own re-render is not proof by itself — it reads from the same client-side
+			// form state the save just populated, so a save that silently dropped the identifier
+			// server-side would still show the typed value here. `company-legalid-input` is re-hydrated
+			// from `partyIdentifiers` on load (see `company.settings.tsx`), so asserting its value AFTER
+			// this fresh visit already leans on the API — this test additionally hits `/api/company/info`
+			// directly for the exact regression this PR fixes: out-of-catalog identifiers wiped on save.
+			cy.get('[data-cy="company-legalid-input"]').should(
+				"have.value",
+				"73282932000074",
+			);
+			// `deep.include` on an array requires an element deep-EQUAL to the given object — the real
+			// `PartyIdentifier` row also carries `id`/`companyId`/`validationStatus`/timestamps, so that
+			// assertion never matches whatever was actually saved (see `assertIdentifierOnFile` further
+			// down this same file for the identical gotcha). A `.find()` on the two fields that matter
+			// is what that helper — and `scenarios/full-lifecycle.cy.ts`'s own lookup — already use.
+			cy.request({ url: `${api}/api/company/info` })
+				.its("body.partyIdentifiers")
+				.then((partyIdentifiers: { scheme: string; value: string }[]) => {
+					const legalId = partyIdentifiers.find((pi) => pi.scheme === "LEGAL_ID");
+					expect(legalId, "LEGAL_ID is present in partyIdentifiers").to.exist;
+					expect(legalId!.value, "LEGAL_ID's own stored value").to.eq("73282932000074");
+				});
 		});
 
 		it("updates company with US state abbreviation", () => {

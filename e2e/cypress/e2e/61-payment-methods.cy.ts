@@ -13,10 +13,11 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     differently per method").
  *  2. The difference reaches all the way to an actual INVOICE PDF: `usesPaymentMethods` (invoice.
  *     descriptor.ts) means an invoice's own rendered PDF grows a "Payment methods" section once a
- *     method is enabled, and grows FURTHER once a second, richer method (PayPal, with its own e-mail
- *     line) joins it — measured by PDF SIZE, the same "a QR/section embeds real bytes no other
- *     difference explains" technique 48-payment-qr.cy.ts already established for the identical class
- *     of proof (a PDF's binary content cannot be parsed from Cypress directly).
+ *     method is enabled, with a richer method (PayPal, with its own configured e-mail line and "Buy
+ *     Now" link) rendering more than Cash's bare label alone — proven on the PDF's own DECODED TEXT
+ *     (`cy.task("extractPdfText", ...)`, `pdf-parse` in the Node plugin process, same technique
+ *     `20-document-totals.cy.ts` already established), never a byte-count delta: a PDF "growing" is
+ *     no proof of WHAT grew, so this asserts the exact configured e-mail and link text instead.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -63,17 +64,27 @@ function createInvoiceDraft(clientId: string) {
 		});
 }
 
-/** Fetches the PDF (binary), verifies it is indeed a PDF, and returns its size in bytes — the same
- *  helper 48-payment-qr.cy.ts already uses for the identical "prove a content difference from
- *  Cypress" problem. */
-function pdfSize(id: string): Cypress.Chainable<number> {
+/** Fetches the PDF (binary) and verifies it is indeed a PDF. */
+function fetchInvoicePdf(id: string): Cypress.Chainable<string> {
 	return cy
 		.request({ url: `${api}/api/documents/${id}/pdf?typeId=invoice`, encoding: "binary" })
 		.then((res) => {
 			expect(res.status, "PDF rendu").to.eq(200);
 			expect(res.headers["content-type"]).to.include("application/pdf");
-			return res.body.length as number;
+			return res.body as string;
 		});
+}
+
+/** Decodes the PDF's own real page text (`cy.task("extractPdfText", ...)`, `pdf-parse` in the Node
+ *  plugin process — see `cypress.config.ts`'s own header on that task, and
+ *  `20-document-totals.cy.ts` for the same technique). Whitespace collapsed: `pdf.js` places each
+ *  text run where Chromium's layout put it, and adjacent runs can land separated by more than one
+ *  space — never asserted as one exact literal string for that reason. */
+function pdfText(id: string): Cypress.Chainable<string> {
+	return fetchInvoicePdf(id).then((body) => {
+		const base64 = Cypress.Buffer.from(body, "binary").toString("base64");
+		return cy.task("extractPdfText", base64).then((rawText) => String(rawText).replace(/\s+/g, " "));
+	});
 }
 
 describe("Payment methods — configured through the screen, rendered differently per method", () => {
@@ -148,7 +159,7 @@ describe("Payment methods — configured through the screen, rendered differentl
 		cy.get('[data-cy="payment-method-card-no-fields-cash"]').should("be.visible");
 	});
 
-	it("the configured difference reaches the actual invoice PDF — Cash+PayPal renders a LARGER PDF than Cash alone", () => {
+	it("the configured difference reaches the actual invoice PDF — Cash+PayPal renders the configured e-mail and pay link, Cash alone renders neither", () => {
 		// Baseline set PRECISELY (never assumed from a previous test's own leftover state, which would
 		// make this test's outcome depend on run order): PayPal explicitly disabled via the API — the
 		// screen-driven configuration itself is already proven by the earlier tests in this spec, this
@@ -163,7 +174,12 @@ describe("Payment methods — configured through the screen, rendered differentl
 			// Cash alone: an invoice's PDF already carries a "Payment methods" section (Cash's own
 			// label), but no PayPal line yet.
 			createInvoiceDraft(clientId).then((cashOnlyId) => {
-				pdfSize(cashOnlyId).then((cashOnlySize) => {
+				pdfText(cashOnlyId).then((cashOnlyText) => {
+					// The rendered content, not a byte count: a PDF "growing" is no proof of WHAT grew —
+					// the wrong e-mail (the company's own, a stale default) or a truncated link would
+					// still add roughly the same number of bytes and pass a size-delta check identically.
+					expect(cashOnlyText, "pas de section PayPal tant qu'il est désactivé").to.not.contain("PayPal");
+
 					// Now enable PayPal — through the SCREEN, a real click on a real dialog, exactly like
 					// the earlier tests in this spec.
 					cy.visit("/payment-methods");
@@ -182,16 +198,23 @@ describe("Payment methods — configured through the screen, rendered differentl
 					);
 
 					createInvoiceDraft(clientId).then((cashAndPaypalId) => {
-						pdfSize(cashAndPaypalId).then((cashAndPaypalSize) => {
-							cy.log(`Cash only = ${cashOnlySize} o | Cash + PayPal = ${cashAndPaypalSize} o`);
-							// PayPal's own e-mail line plus its full "Buy Now" URL is well over a hundred
-							// characters of NEW text on the PDF — a real content difference, not PDF
-							// metadata noise (a timestamp/producer string a re-render can shift by a few
-							// bytes on its own, which is why the margin is generous rather than "any").
+						pdfText(cashAndPaypalId).then((cashAndPaypalText) => {
+							// The exact line `presentFromFields` builds — the CONFIGURED e-mail, not the
+							// company's own or a stale one (paypal.descriptor.ts).
 							expect(
-								cashAndPaypalSize,
-								"PayPal's own e-mail line and link add real bytes no other difference explains",
-							).to.be.greaterThan(cashOnlySize + 100);
+								cashAndPaypalText,
+								"la ligne PayPal porte le bon e-mail configuré",
+							).to.contain("PayPal e-mail: billing@acme-client.test");
+							// The "Buy Now" link (paypal.descriptor.ts#buildPayPalLink) is rendered as plain
+							// visible text (render-html.ts), never behind different anchor text — its own
+							// `business=` param is the SAME e-mail, URL-encoded, so a link built from the
+							// wrong address (or from none at all) is caught here too.
+							expect(
+								cashAndPaypalText,
+								"le lien de paiement pointe vers le bon compte PayPal",
+							)
+								.to.contain("paypal.com/cgi-bin/webscr")
+								.and.to.contain("business=billing%40acme-client.test");
 						});
 					});
 				});

@@ -213,11 +213,12 @@ describe("Client portal — a real client's own space, reached without a fresh e
 			createClient("Portal Client B", "portal-b@example.com").then((clientBId) => {
 				createSentInvoice(clientAId).then((invoiceA) => {
 					createSentInvoice(clientBId).then((invoiceB) => {
-						cy.request({
-							method: "POST",
-							url: `${api}/api/clients/${clientAId}/portal-access`,
-						})
-							.its("body")
+						createSentQuote(clientBId, 300).then((quoteB) => {
+							cy.request({
+								method: "POST",
+								url: `${api}/api/clients/${clientAId}/portal-access`,
+							})
+								.its("body")
 							.then((accessA) => {
 								const tokenA = accessA.token as string;
 
@@ -233,13 +234,42 @@ describe("Client portal — a real client's own space, reached without a fresh e
 								});
 
 								// …but NEVER client B's — same company, wrong client, a 404 (never a 403 that would
-								// confirm "this exists, you may just not open it").
+								// confirm "this exists, you may just not open it"). That guard
+								// (`assertVisibleToClient`) is ONE choke point every read in `portal.service.ts`
+								// funnels through — but the two WRITES a client can make (`refuseQuote`,
+								// `requestQuoteSignature`) use a SEPARATE guard, `assertBelongsToClient`, called
+								// individually by each method with no shared middleware: proving the read-side
+								// guard says nothing about whether either write-side call site remembered its own.
 								cy.request({
 									url: `${api}/api/portal/documents/invoice/${invoiceB}/pdf`,
 									headers: { Authorization: `Bearer ${tokenA}` },
 									failOnStatusCode: false,
 								}).then((res) => {
 									expect(res.status, "client A NE VOIT PAS la facture du client B").to.eq(404);
+								});
+
+								cy.request({
+									method: "POST",
+									url: `${api}/api/portal/quotes/${quoteB}/refuse`,
+									headers: { Authorization: `Bearer ${tokenA}` },
+									failOnStatusCode: false,
+								}).then((res) => {
+									expect(
+										res.status,
+										"client A ne peut pas refuser un devis du client B",
+									).to.eq(404);
+								});
+
+								cy.request({
+									method: "POST",
+									url: `${api}/api/portal/quotes/${quoteB}/request-signature`,
+									headers: { Authorization: `Bearer ${tokenA}` },
+									failOnStatusCode: false,
+								}).then((res) => {
+									expect(
+										res.status,
+										"client A ne peut pas déclencher la signature d'un devis du client B",
+									).to.eq(404);
 								});
 
 								// A missing/garbage token never resolves at all.
@@ -267,6 +297,7 @@ describe("Client portal — a real client's own space, reached without a fresh e
 											expect(res.status, "un jeton révoqué ne resout plus jamais rien").to.eq(401);
 										});
 									});
+							});
 							});
 					});
 				});

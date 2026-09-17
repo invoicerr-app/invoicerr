@@ -62,23 +62,28 @@ describe('API Keys Settings E2E', () => {
 
     it('does not create a key with an empty name', () => {
         cy.visit('/settings/apiKeys');
-        cy.wait(1000);
 
-        // `cy.get` on a prefix that may legitimately match zero rows (e.g. right after the previous
-        // test revoked its only key) would hang until timeout, so the count is read via plain jQuery
-        // inside `.then()` rather than asserted through Cypress's own retry-until-exists `cy.get`.
         cy.get('body').then(($bodyBefore) => {
             const countBefore = $bodyBefore.find('[data-cy^="api-key-row-"]').length;
 
+            // `api-keys.settings.tsx#handleCreate` refuses to even ATTEMPT the request for an empty
+            // name (`if (!values.name?.trim()) return`, BEFORE `createApiKey` is ever called) — a
+            // regression that let it through would fire a real `POST /api/api-keys`, which this
+            // intercept would catch. Proving that directly replaces the old `cy.wait(1000)` + a
+            // one-shot jQuery read: a slow backend (CI load, a cold Postgres start) could answer
+            // AFTER that fixed wait and still slip the row/notice checks below past a snapshot taken
+            // too early — `@createApiKey.all` and the two retrying `.should()`s below have no such
+            // race, whatever the backend's own timing turns out to be.
+            cy.intercept('POST', '**/api/api-keys').as('createApiKey');
             cy.get('input[name="name"]').clear();
             cy.contains('button', /create api key/i).click();
-            cy.wait(1000);
+            cy.get('@createApiKey.all', { timeout: 3000 }).should('have.length', 0);
 
-            // No "key created" notice and no extra row
+            // No "key created" notice and no extra row — `.should('have.length', countBefore)`
+            // resolves immediately when `countBefore` is 0 (the explicit assertion overrides
+            // `cy.get`'s own default "must exist" retry, unlike a bare `cy.get(selector)`).
             cy.contains(/this key will be shown only once/i).should('not.exist');
-            cy.get('body').then(($bodyAfter) => {
-                expect($bodyAfter.find('[data-cy^="api-key-row-"]').length).to.eq(countBefore);
-            });
+            cy.get('[data-cy^="api-key-row-"]').should('have.length', countBefore);
         });
     });
 });

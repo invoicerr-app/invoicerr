@@ -15,6 +15,13 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString
 const DUE_31_60 = daysAgo(40); // 40 days overdue → bucket 31-60
 const DUE_60_PLUS = daysAgo(72); // 72 days overdue → bucket 60+
 
+// The exact same `${(minor/100).toFixed(2)} ${currency}` shape `client-statement.tsx#formatMinor`
+// renders — EUR always has 2 decimals (`totals-calculator.ts#decimalsFor`'s own default). Deriving
+// the expected text from the SAME `minor` value the API step already read, rather than a hand-typed
+// literal, is what actually catches a bucket swap (31-60 shown where 60+ belongs) or a wrong field
+// mapping: a literal string would have to be wrong in exactly the same way to hide either.
+const formatEur = (minor: number) => `${(minor / 100).toFixed(2)} EUR`;
+
 function createClient() {
 	return cy
 		.request({
@@ -81,6 +88,17 @@ describe("Client account statement — aged balance, on screen", () => {
 	});
 
 	it("sorts two overdue invoices into the right aged buckets and displays them in the statement", () => {
+		// Populated by the API step below, read by the on-screen assertions further down — a `let`
+		// rather than threading the value through nested closures, since the two need the SAME totals.
+		let eur: {
+			currency: string;
+			totalOutstandingMinor: number;
+			currentMinor: number;
+			days0to30Minor: number;
+			days31to60Minor: number;
+			days60PlusMinor: number;
+		};
+
 		createClient().then((clientId: string) => {
 			createSentInvoice(clientId, DUE_31_60, 1000).then((invA) => {
 				createSentInvoice(clientId, DUE_60_PLUS, 500).then((invB) => {
@@ -89,7 +107,7 @@ describe("Client account statement — aged balance, on screen", () => {
 						.its("body")
 						.then((st) => {
 							expect(st.totals, "un jeu de totaux par devise").to.have.length(1);
-							const eur = st.totals[0];
+							eur = st.totals[0];
 							expect(eur.currency).to.eq("EUR");
 							const rowA = st.documents.find((d: { id: string }) => d.id === invA);
 							const rowB = st.documents.find((d: { id: string }) => d.id === invB);
@@ -109,11 +127,26 @@ describe("Client account statement — aged balance, on screen", () => {
 					cy.get(`[data-cy="client-row-menu-${CLIENT_EMAIL}"]`, { timeout: 15000 }).click();
 					cy.get(`[data-cy="statement-client-button-${CLIENT_EMAIL}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="client-statement"]', { timeout: 10000 }).should("be.visible");
-					cy.get('[data-cy="client-statement-total"]').should("be.visible");
-					cy.get('[data-cy="client-statement-aged-31-60"]').should("exist");
-					cy.get('[data-cy="client-statement-aged-60-plus"]').should("exist");
 					cy.get(`[data-cy="client-statement-row-${invA}"]`).should("exist");
 					cy.get(`[data-cy="client-statement-row-${invB}"]`).should("exist");
+
+					// Exact rendered amounts, derived from the SAME `minor` values step 1) already read
+					// back — never a bare `exist`/`be.visible`, which would pass just as well with the
+					// 31-60 and 60+ buckets swapped, or every bucket rendering "0.00 EUR".
+					cy.then(() => {
+						cy.get('[data-cy="client-statement-total"]').should(
+							"contain.text",
+							formatEur(eur.totalOutstandingMinor),
+						);
+						cy.get('[data-cy="client-statement-aged-31-60"]').should(
+							"contain.text",
+							formatEur(eur.days31to60Minor),
+						);
+						cy.get('[data-cy="client-statement-aged-60-plus"]').should(
+							"contain.text",
+							formatEur(eur.days60PlusMinor),
+						);
+					});
 				});
 			});
 		});

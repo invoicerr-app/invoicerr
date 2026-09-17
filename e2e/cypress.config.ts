@@ -8,6 +8,19 @@ import { defineConfig } from "cypress";
 import { Queue } from "bullmq";
 import { Client } from "pg";
 import pdfParse from "pdf-parse";
+import jsQR from "jsqr";
+import { PDFDict, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from "pdf-lib";
+import { extractSignature } from "@signpdf/utils";
+import * as asn1js from "asn1js";
+import * as pkijs from "pkijs";
+import { webcrypto } from "node:crypto";
+
+// One-time engine registration for pkijs's own cryptographic verify — mirrors
+// `signing/providers.ts#ensureXmlCryptoEngine`'s identical "native WebCrypto" registration the
+// backend's own jest suite (`providers.spec.ts`) already does for the SAME library, for the CAdES
+// side of this exact feature. Needed once, at MODULE load (not per-task-call): `pkijs.setEngine`
+// sets library-wide state.
+pkijs.setEngine("native", new pkijs.CryptoEngine({ crypto: webcrypto as unknown as Crypto }));
 
 /**
  * The "receiver" side for `42-webhooks.cy.ts`. A vanilla
@@ -194,6 +207,144 @@ async function triggerPdpReceptionSweep(): Promise<null> {
   return null;
 }
 
+/**
+ * `48-payment-qr.cy.ts`'s own SEPA/EPC069-12 QR content proof. The old version of that spec measured
+ * PDF SIZE only — its own header used to claim "a QR inside a binary PDF cannot be decoded from
+ * Cypress" — which stayed green whether the QR carried the right IBAN/amount/reference, the wrong
+ * ones, or (bar a byte-count coincidence) none at all. That claim turned out to be false: Chromium's
+ * own `page.pdf()` (`render-pdf.ts`) keeps the `<img>` the QR is embedded as a REAL, separate
+ * `/XObject /Subtype /Image` stream rather than flattening the whole page into one bitmap — verified
+ * by hand against a real invoice PDF from this exact pipeline before writing this task. `pdf-lib`
+ * walks the page's own `/Resources /XObject` dictionary to find it (no HTML/page rasterization
+ * needed at all), `decodePDFRawStream` undoes whatever `/Filter` Chromium's writer used
+ * (FlateDecode, observed), and the result is a plain RGB8 raster (`qrcode`'s own PNG, re-encoded by
+ * Chromium as an uncompressed image sample) — expanded to RGBA (jsQR's own required shape) and handed
+ * to `jsQR`. Runs in THIS process for the SAME reason `extractPdfText` above does: `pdf-lib`/`jsqr`
+ * need a real Node, not a Cypress spec running inside Electron/Firefox; the caller sends the PDF as
+ * base64 for the same JSON-serializable-arguments reason `extractPdfText` already documents.
+ *
+ * Returns the decoded string of EVERY image XObject that IS a valid QR (never just the first) — a
+ * document with a company logo configured would carry a SECOND image, and the caller can tell them
+ * apart by content (the SEPA payload always starts "BCD\n002") without this task guessing which one
+ * is "the" QR. An invoice with no QR embedded (no IBAN, or a non-EUR currency) legitimately returns
+ * an empty array — a genuine finding for the caller's own "absent" assertions, not an error.
+ */
+async function decodeSepaQrFromPdf(base64: string): Promise<string[]> {
+  const bytes = Buffer.from(base64, "base64");
+  const pdfDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  const decoded: string[] = [];
+  for (const page of pdfDoc.getPages()) {
+    const resources = page.node.Resources();
+    if (!resources) continue;
+    const xObjects = resources.lookup(PDFName.of("XObject"));
+    if (!(xObjects instanceof PDFDict)) continue;
+    for (const key of xObjects.keys()) {
+      const xObject = xObjects.lookup(key);
+      if (!(xObject instanceof PDFRawStream)) continue;
+      const subtype = xObject.dict.lookup(PDFName.of("Subtype"));
+      if (!subtype || subtype.toString() !== "/Image") continue;
+      const width = Number(xObject.dict.lookup(PDFName.of("Width"))?.toString());
+      const height = Number(xObject.dict.lookup(PDFName.of("Height"))?.toString());
+      if (!width || !height) continue;
+      const raw = decodePDFRawStream(xObject).decode();
+      // Observed shape for THIS pipeline's own QR: plain RGB8, no color-space indirection to resolve
+      // here — a stream that doesn't fit that exact byte count is some OTHER kind of image (the
+      // company's own logo, e.g. a JPEG `/DCTDecode` this task does not attempt to decompress) and is
+      // simply skipped, not misread as a QR.
+      if (raw.length !== width * height * 3) continue;
+      const rgba = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0, j = 0; i < raw.length; i += 3, j += 4) {
+        rgba[j] = raw[i];
+        rgba[j + 1] = raw[i + 1];
+        rgba[j + 2] = raw[i + 2];
+        rgba[j + 3] = 255;
+      }
+      const result = jsQR(rgba, width, height);
+      if (result?.data) decoded.push(result.data);
+    }
+  }
+  return decoded;
+}
+
+/**
+ * `33-signing-certificates.cy.ts`'s own PAdES ByteRange proof. Checking for the substrings
+ * `/ByteRange` and `/Contents` (the OLD version of that spec) proves a signature dictionary was
+ * WRITTEN, never that it covers what it claims to, or that the bytes it covers are even real: a PDF
+ * modified AFTER signing (a watermark, a metadata edit) keeps both substrings while invalidating the
+ * signature every real PDF viewer would reject it for. This performs the REAL check instead — the
+ * "real control" the backend's own CAdES jest test already applies via `pkijs` (`signing/
+ * providers.spec.ts`'s "PKCS#7 envelope verifies with pkijs"), here for PAdES's DETACHED signature
+ * shape (the signed bytes are the PDF's own `/ByteRange` slices, never embedded in the PKCS7 blob
+ * itself, unlike CAdES's enveloping one):
+ *
+ *  1. `@signpdf/utils#extractSignature` — the SAME extraction the backend's own jest specs already
+ *     use (`signing/providers.spec.ts`, `sign-instance-pdf.spec.ts`) — reads `/ByteRange` and slices
+ *     the REAL PDF bytes it names into `signedData`, and the raw PKCS7 DER out of `/Contents`.
+ *  2. `asn1js`/`pkijs` parse that DER into a `SignedData` structure exactly like `providers.spec.ts`'s
+ *     own CAdES test already does.
+ *  3. `signedData.verify({ data: <the ByteRange-sliced bytes> })` is what actually PROVES coverage:
+ *     for a DETACHED signature, this recomputes the digest over the SUPPLIED `data`, compares it
+ *     against the `messageDigest` the signer committed to, and verifies the RSA signature over the
+ *     signed attributes — three real cryptographic facts a byte-tamper (or a `/ByteRange` that quietly
+ *     excludes some of the file) breaks, and a substring check cannot see at all. Verified by hand
+ *     against a real signed invoice from this exact pipeline before writing this task: flipping one
+ *     byte inside the covered range turns `signatureVerified` false (a real
+ *     `SignedDataVerifyError`, "Message digest doesn't match"), confirming the check is live, not
+ *     tautological.
+ *
+ * `byteRangeCoversWholeFile` is the SEPARATE, complementary fact `signatureVerified` alone does not
+ * establish: that `/ByteRange` itself spans the ENTIRE file minus only the `/Contents` hex placeholder
+ * (starts at byte 0, ends at the file's own last byte) — a signature that is cryptographically valid
+ * over a SHORTER range (leaving unsigned trailer bytes a tool could still append to) would pass (3)
+ * above yet still be a weaker guarantee than "the whole file, once signed, cannot change at all".
+ */
+async function verifyPadesSignatureCoverage(base64: string): Promise<{
+  signatureVerified: boolean;
+  byteRangeCoversWholeFile: boolean;
+  byteRange: number[];
+}> {
+  const bytes = Buffer.from(base64, "base64");
+  const { ByteRange, signature, signedData } = extractSignature(bytes) as {
+    ByteRange: number[];
+    signature: string;
+    signedData: Buffer;
+  };
+
+  const byteRangeCoversWholeFile = ByteRange[0] === 0 && ByteRange[2] + ByteRange[3] === bytes.length;
+
+  const derBuffer = Buffer.from(signature, "binary");
+  const asn1Object = asn1js.fromBER(
+    derBuffer.buffer.slice(derBuffer.byteOffset, derBuffer.byteOffset + derBuffer.byteLength),
+  );
+  const contentInfo = new pkijs.ContentInfo({ schema: asn1Object.result });
+  const signedDataObj = new pkijs.SignedData({ schema: contentInfo.content });
+  // A FRESH, exactly-sized `ArrayBuffer` — `signedData.buffer` (Node's own `Buffer`, a `Uint8Array`
+  // subclass) is typed `ArrayBufferLike` (`ArrayBuffer | SharedArrayBuffer`) and can also be a larger
+  // pooled allocation than `signedData` itself views; `new Uint8Array(signedData)` copies into a
+  // plain `Uint8Array` backed by a buffer of exactly `signedData.length`, which is what pkijs's own
+  // `ArrayBuffer`-typed `data` param requires.
+  const dataBuffer = new Uint8Array(signedData).buffer;
+
+  let signatureVerified = false;
+  try {
+    const result = (await signedDataObj.verify({
+      signer: 0,
+      checkChain: false,
+      extendedMode: true,
+      data: dataBuffer,
+    })) as pkijs.SignedDataVerifyResult;
+    signatureVerified = result.signatureVerified === true;
+  } catch {
+    // `extendedMode` still throws for a digest mismatch (verified by hand — see this function's own
+    // header) rather than resolving with `signatureVerified: false` — caught here so a genuinely
+    // broken signature is reported to the CALLER as a normal, assertable `false`, never an opaque
+    // task-crashed error.
+    signatureVerified = false;
+  }
+
+  return { signatureVerified, byteRangeCoversWholeFile, byteRange: ByteRange };
+}
+
 export default defineConfig({
   // The suite runs 15 specs back to back in one CI job with video capture on, which
   // grows the Electron renderer's heap until it crashes ("Renderer process just
@@ -306,9 +457,23 @@ export default defineConfig({
             // suite started) — it VERIFIES one actually happened, right below, instead of quietly
             // trusting it and letting a real gap resurface as the exact silent 403 this fix exists
             // to prevent.
+            //
+            // `Plugin` joins the exclusion list for the SAME "boot-once, no in-process re-trigger"
+            // reason as `B2gRoutingRule` above, discovered running `09-settings.cy.ts`'s own in-app
+            // plugin toggle test against a backend that had already lived through many resets: unlike
+            // the three tables above, `Plugin` has no dedicated boot-reseed SERVICE, but
+            // `PluginRegistry#syncWithDatabase` (`src/plugins/index.ts`) is reached only from
+            // `PluginsService`'s CONSTRUCTOR, fire-and-forget, gated by a module-level
+            // `PluginRegistry.isInitialized` flag that only ever flips once per PROCESS — so a
+            // mid-suite truncate empties it until the next full backend restart, exactly like the
+            // other three, and `GET /api/plugins/in-app` (`getInAppPlugins`) never calls
+            // `initializeIfNeeded()` before reading, so nothing re-populates it on its own. Left off the
+            // post-truncate verification loop below (unlike the three above): an empty `Plugin` only
+            // ever breaks ONE screen's own toggle count, never a blanket 403 across every later spec's
+            // document actions, so the same hard-throw would be disproportionate here.
             const { rows } = await client.query(
               `SELECT tablename FROM pg_tables WHERE schemaname = 'public'
-                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule', 'CountryIdentifierRequirement', 'B2gRoutingRule')`,
+                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule', 'CountryIdentifierRequirement', 'B2gRoutingRule', 'Plugin')`,
             );
             if (rows.length > 0) {
               const tables = rows.map((row: { tablename: string }) => `"${row.tablename}"`).join(", ");
@@ -525,6 +690,18 @@ export default defineConfig({
           const buffer = Buffer.from(base64, "base64");
           const parsed = await pdfParse(buffer);
           return parsed.text;
+        },
+
+        // See this file's own header just above ("SEPA/EPC069-12 QR content proof") for why this
+        // decodes the PDF's own embedded image XObject rather than trusting a byte-count delta.
+        decodeSepaQrFromPdf(base64: string) {
+          return decodeSepaQrFromPdf(base64);
+        },
+
+        // See this file's own header just above ("PAdES ByteRange proof") for why this cryptographically
+        // verifies the signature over the real ByteRange bytes rather than checking for two substrings.
+        verifyPadesSignatureCoverage(base64: string) {
+          return verifyPadesSignatureCoverage(base64);
         },
       });
     },

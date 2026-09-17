@@ -52,27 +52,20 @@ describe('Settings E2E', () => {
             tolerateUncaughtException(/Clipboard write was blocked/);
 
             cy.visit('/settings/invitations');
-            cy.wait(1000);
+            cy.get('input#expiresInDays', { timeout: 10000 }).type('30');
 
-            cy.get('body').then($body => {
-                if ($body.find('input#expiresInDays').length > 0) {
-                    cy.get('input#expiresInDays').type('30');
-                }
-            });
-
+            cy.intercept('POST', '**/api/invitations').as('createInvitation');
             cy.contains('button', /create|créer|generate|générer/i).click();
-            cy.wait(2000);
+            cy.wait('@createInvitation').its('response.statusCode').should('be.oneOf', [200, 201]);
+            cy.get('[data-cy^="invitation-row-"]', { timeout: 10000 }).should('have.length.at.least', 1);
         });
 
         it('displays invitation codes list', () => {
+            // The previous test's own creation left at least one row behind — `invitations.settings.tsx`
+            // renders the list as `SettingsListRow`/`invitation-row-<id>` (no `<table>` any more), so a
+            // guard on `<table>` was permanently false and the assertion inside it never ran.
             cy.visit('/settings/invitations');
-            cy.wait(1000);
-
-            cy.get('body').then($body => {
-                if ($body.find('table').length > 0) {
-                    cy.get('table').should('exist');
-                }
-            });
+            cy.get('[data-cy^="invitation-row-"]', { timeout: 10000 }).should('have.length.at.least', 1);
         });
     });
 
@@ -100,44 +93,73 @@ describe('Settings E2E', () => {
         // survivor down with it.
         it('loads the plugins settings page', () => {
             cy.visit('/settings/plugins');
-            cy.wait(1000);
-            cy.contains(/plugins/i, { timeout: 10000 });
+            // `cy.contains(/plugins/i)` alone also matches the sidebar's own "Plugins" nav entry, which
+            // is on screen regardless of whether the CONTENT pane rendered or crashed blank — asserting
+            // the page's own root (`plugins.settings.tsx`'s `dataCy="plugins-section"`) is what actually
+            // proves this screen rendered.
+            cy.get('[data-cy="plugins-section"]', { timeout: 10000 }).should('be.visible');
         });
 
         it('shows only the in-app plugin surface — no external git-url install form survives', () => {
             cy.visit('/settings/plugins');
-            cy.wait(1000);
+            cy.get('[data-cy="plugins-section"]', { timeout: 10000 }).should('be.visible');
 
             cy.get('input#git-url').should('not.exist');
             cy.contains(/add plugin/i).should('not.exist');
 
-            // The in-app toggles (signing/storage providers) are what's left of this screen.
-            cy.get('body').then($body => {
-                if ($body.find('button[role="switch"]').length > 0) {
-                    cy.get('button[role="switch"]').should('have.length.at.least', 1);
-                }
-            });
+            // The in-app toggles (storage providers — `s3` and `local`, `PluginRegistry
+            // #initializeInAppPlugins`) are ALWAYS registered at boot: unlike the removed git-url form,
+            // there is nothing conditional about their presence, so this must never be gated behind an
+            // `if` — a screen that lost every toggle would leave that guard false and skip the very
+            // assertion meant to catch it.
+            cy.get('button[role="switch"]', { timeout: 10000 }).should('have.length.at.least', 1);
         });
     });
 
     describe('Settings Sidebar Navigation', () => {
-        it('navigates between settings sections', () => {
-            cy.visit('/settings');
-            cy.wait(1000);
+        /**
+         * Picks one entry from the mobile settings picker (`settings-nav-select`) — deliberately NOT
+         * `cy.openSelect`: that command's own bounded retry RE-CLICKS THE TRIGGER when the option
+         * doesn't appear in time, which is wrong for a native Radix `Select` specifically (unlike the
+         * `SearchSelect`/`DatePicker` popovers it was built for): while open, Radix locks `body`'s own
+         * `pointer-events` and only re-enables the TRIGGER once closed, so a retry-click while still
+         * open times out on exactly the CSS guard this file hit in CI (`ensureElDoesNotHaveCSS`,
+         * `pointer-events: none` inherited from `body`). This picker's OWN option list is also long
+         * (21 tabs across six groups) — long enough that the first render can still be settling past
+         * `openSelect`'s 800ms poll window, which is what triggered that retry in the first place. One
+         * deliberate click, a generous wait for the options panel, then `scrollIntoView` on the target
+         * option (it may render below the panel's own capped, scrollable height) is what an actual user
+         * does here, and is not this specific race.
+         */
+        function pickSettingsNavOption(tabId: string) {
+            cy.get('[data-cy="settings-nav-select"]').click();
+            cy.get('[data-cy="settings-nav-select-options"]', { timeout: 10000 }).should('be.visible');
+            cy.get(`[data-cy="settings-nav-option-${tabId}"]`, { timeout: 10000 }).scrollIntoView().click();
+        }
 
-            // On a small screen, the navigation can be a select or a menu
-            // Just check that the page is reachable through its URL
-            cy.visit('/settings/account');
-            cy.wait(500);
-            cy.url().should('include', '/settings/account');
-            
+        it('navigates between settings sections', () => {
+            // A bare `cy.visit(x)` + `cy.url().should('include', x)` proves nothing: the URL was set
+            // by the visit itself, not by any navigation control. Cypress's own default viewport
+            // (1000x660) sits BELOW Tailwind's `lg` breakpoint (1024px), so the desktop rail
+            // (`settings-nav-*`, `hidden lg:block`) is not on screen here — the control an actual user
+            // has at this width is the mobile picker (`settings-nav-select`, `lg:hidden`), and that is
+            // what this test drives. `/settings/account` is deliberately not exercised here: that route
+            // has no distinct tab of its own any more (falls back to "company", see this file's own
+            // header) — the real account area lives at `/account` (`73-account-page.cy.ts`).
             cy.visit('/settings/company');
-            cy.wait(500);
-            cy.url().should('include', '/settings/company');
-            
-            cy.visit('/settings/invitations');
-            cy.wait(500);
+            cy.get('[data-cy="settings-tab-company"]', { timeout: 10000 }).should('be.visible');
+
+            pickSettingsNavOption('invitations');
             cy.url().should('include', '/settings/invitations');
+            cy.get('[data-cy="settings-tab-invitations"]', { timeout: 10000 }).should('be.visible');
+
+            pickSettingsNavOption('plugins');
+            cy.url().should('include', '/settings/plugins');
+            cy.get('[data-cy="settings-tab-plugins"]', { timeout: 10000 }).should('be.visible');
+
+            pickSettingsNavOption('company');
+            cy.url().should('include', '/settings/company');
+            cy.get('[data-cy="settings-tab-company"]', { timeout: 10000 }).should('be.visible');
         });
     });
 });

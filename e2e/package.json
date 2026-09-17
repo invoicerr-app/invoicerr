@@ -1,13 +1,18 @@
 {
   "devDependencies": {
+    "@signpdf/utils": "^3.3.0",
     "@types/node": "^24.6.2",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.15.0",
     "@types/wait-on": "^5.3.4",
+    "asn1js": "^3.0.10",
     "bullmq": "^5.80.2",
     "cypress": "^15.18.0",
+    "jsqr": "^1.4.0",
+    "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.4",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "pkijs": "^3.4.0"
   },
   "scripts": {
     "e2e:open": "cypress open",

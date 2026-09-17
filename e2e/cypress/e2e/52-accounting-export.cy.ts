@@ -104,4 +104,38 @@ describe("CSV accounting export — invoice + payment within a period", () => {
 				});
 			});
 	});
+
+	/**
+	 * A FULL screen-driven download (pick both dates via the real `DatePicker`, click "Download",
+	 * assert the real network response's content) turned out to be BLOCKED by a genuine bug, not a
+	 * flaky selector — confirmed by hand, twice, independently of this suite: `cy.pickToday`
+	 * (`support/commands.ts`, the same helper every OTHER date field in this app already uses
+	 * successfully) times out waiting for `[data-cy="date-picker-today"]`, and a minimal isolated
+	 * repro (visit this exact screen, click `[data-cy="accounting-export-from"]`, inspect the DOM)
+	 * found ZERO `[data-radix-popper-content-wrapper]`/`[data-slot="popover-content"]` nodes anywhere
+	 * on the page afterward — the click reaches the button (it gets `focus-visible` styling) but the
+	 * Popover never opens at all, not even invisibly. Root cause traced to
+	 * `frontend/src/components/date-picker.tsx`'s own `Wrapper` (`insideForm ? FormControl : Fragment`)
+	 * fed straight into `<PopoverTrigger asChild><Wrapper>...</Wrapper></PopoverTrigger>`: outside a
+	 * `<Form>` (exactly this screen's own case — `accounting-export.settings.tsx` uses bare
+	 * `useState`, no `<Form>` anywhere), `Wrapper` is `React.Fragment`, and Radix's `asChild` (a `Slot`)
+	 * clones its `onClick`/`ref` onto the trigger's OWN immediate child — a bare `Fragment` cannot
+	 * receive or forward either, so the actual `<button>` never gets the click handler or the ref
+	 * Radix needs to open anything. This is a FRONTEND fix, out of this e2e-only mission's scope —
+	 * left unfixed here and reported instead. What this test asserts below is everything that DOES
+	 * work today: the screen renders both pickers and the button, and the button's own real
+	 * client-side guard (`handleDownload`'s `if (!from || !to)`) fires for a real click with nothing
+	 * picked — proving it is wired to an actual handler, not a dead button. The exact CONTENT
+	 * (amounts, RFC-4180 rows) the review asked this screen to prove is still fully covered, at the
+	 * API level, by the test right above.
+	 */
+	it("renders both DatePickers and the download button, and its own client-side guard fires on a real click", () => {
+		cy.visit("/settings/accountingExport");
+		cy.get('[data-cy="accounting-export-section"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="accounting-export-from"]').should("be.visible");
+		cy.get('[data-cy="accounting-export-to"]').should("be.visible");
+
+		cy.get('[data-cy="accounting-export-download"]').click();
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("be.visible");
+	});
 });
