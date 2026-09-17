@@ -11,7 +11,7 @@ import { LocalOcrProvider } from './ocr/providers/local/local';
  * instance-wide, DB-backed, Settings-configurable mechanism with two categories that were EVER
  * actually registered: `SIGNING` (dead since quote e-signature was removed) and `STORAGE` (a
  * `local`/`s3` choice for broadcasting a signed quote or paid invoice PDF to a public URL, itself
- * never wired to anything the app actually does — `utils/storage-upload.ts`'s only two callers,
+ * never wired to anything the app actually does — the upload helpers it fed,
  * `uploadSignedQuotePdf`/`uploadPaidInvoicePdf`, had no call site of their own). Removed wholesale
  * (2026-09-17, owner decision): a company-level S3 storage plugin is not a product this app offers
  * any more — periodic backup of every document is an INSTANCE-level concern
