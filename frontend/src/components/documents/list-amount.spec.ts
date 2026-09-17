@@ -35,6 +35,33 @@ describe("resolveRowAmount", () => {
     expect(amount).toEqual({ minor: 24000, currency: "EUR" })
   })
 
+  it("sums a catalog-id VAT rate into the gross total instead of counting it as net-only", () => {
+    const withCatalogIdVatRate = descriptor([
+      { key: "currency", kind: "select", label: "Currency", options: [] },
+      {
+        key: "lines",
+        kind: "array",
+        label: "Lines",
+        fields: [
+          { key: "quantity", kind: "number", label: "Qty" },
+          { key: "unitPrice", kind: "money", label: "Unit price", currencyField: "currency" },
+          {
+            key: "vatRate",
+            kind: "select",
+            label: "VAT",
+            options: [{ value: "it-standard", label: "22% — Ordinaria" }],
+            legacyOptions: [{ value: "22", label: "22% — Ordinaria" }],
+          },
+        ],
+      },
+    ] as unknown as DocumentTypeDescriptor["fields"])
+    const amount = resolveRowAmount(withCatalogIdVatRate, {
+      currency: "EUR",
+      lines: [{ quantity: 2, unitPrice: 100, vatRate: "it-standard" }],
+    })
+    expect(amount).toEqual({ minor: 24400, currency: "EUR" })
+  })
+
   it("falls back to the first top-level money field when there are no line rows", () => {
     const expense = descriptor([
       { key: "amount", kind: "money", label: "Amount", currencyField: "currency" },

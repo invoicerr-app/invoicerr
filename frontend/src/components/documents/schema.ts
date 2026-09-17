@@ -17,12 +17,20 @@ function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
       return z.string()
     case "select": {
       const values = (field.options ?? []).map((o) => o.value)
+      // `legacyOptions` (types.ts's own header) is never OFFERED as a choice, but a value already
+      // persisted under it must still round-trip through this form without tripping client-side
+      // validation the instant the record is reopened — e.g. a VAT-rate line saved back when
+      // `options` still held bare percentages ("20") instead of today's catalog ids ("it-standard").
+      const legacyValues = (field.legacyOptions ?? []).map((o) => o.value)
       // Mirrors the backend's field-kinds.ts 'select' validator exactly: an empty list always
       // accepts any non-empty string (there is nothing to check client-side, and — if
       // `allowCustomValue` isn't even set — this is also the pre-existing, unrelated "no options
       // configured" tolerance this schema already had); a NON-empty list is enforced regardless of
-      // `allowCustomValue`, which only ever opens the escape hatch for an EMPTY list.
-      return values.length > 0 ? z.string().refine((v) => values.includes(v)) : z.string()
+      // `allowCustomValue`, which only ever opens the escape hatch for an EMPTY list — `legacyOptions`
+      // is a THIRD, independent way in, not gated on `allowCustomValue` either, same as the backend.
+      return values.length > 0
+        ? z.string().refine((v) => values.includes(v) || legacyValues.includes(v))
+        : z.string()
     }
     case "reference":
       // Multi-target (`entities`): the stored value is `{ entity, id }`, not a bare id — see

@@ -64,6 +64,35 @@ const withNonNumericSelectBeforeVat = descriptor([
   },
 ] as unknown as DocumentTypeDescriptor["fields"])
 
+/** A line shape whose `vatRate` field carries catalog ids as `value` (Italy's 0% "esente" vs 22%
+ *  "standard") plus the `legacyOptions` sibling the backend sends alongside them — the shape every
+ *  company descriptor with a known VAT-rate catalog now sends (vat-rates/registry.ts). */
+const withCatalogIdVatRate = descriptor([
+  { key: "currency", kind: "select", label: "Currency", options: [] },
+  {
+    key: "lines",
+    kind: "array",
+    label: "Lines",
+    fields: [
+      { key: "quantity", kind: "number", label: "Qty" },
+      { key: "unitPrice", kind: "money", label: "Unit price", currencyField: "currency" },
+      {
+        key: "vatRate",
+        kind: "select",
+        label: "VAT",
+        options: [
+          { value: "it-esente", label: "0% — Esente" },
+          { value: "it-standard", label: "22% — Ordinaria" },
+        ],
+        legacyOptions: [
+          { value: "0", label: "0% — Esente" },
+          { value: "22", label: "22% — Ordinaria" },
+        ],
+      },
+    ],
+  },
+] as unknown as DocumentTypeDescriptor["fields"])
+
 describe("computeDocumentTotals", () => {
   it("returns zeroed totals rather than null when a real line sums to net 0 (fully discounted)", () => {
     const totals = computeDocumentTotals(withLines, {
@@ -122,5 +151,44 @@ describe("computeDocumentTotals", () => {
     expect(totals?.netMinor).toBe(10000)
     expect(totals?.vatMinor).toBe(2000)
     expect(totals?.grossMinor).toBe(12000)
+  })
+
+  it("resolves a catalog-id VAT rate to its real percentage instead of treating it as unusable", () => {
+    const totals = computeDocumentTotals(withCatalogIdVatRate, {
+      currency: "EUR",
+      lines: [{ quantity: 1, unitPrice: 100, vatRate: "it-standard" }],
+    })
+    expect(totals?.warnings).toEqual([])
+    expect(totals?.netMinor).toBe(10000)
+    expect(totals?.vatMinor).toBe(2200)
+    expect(totals?.grossMinor).toBe(12200)
+  })
+
+  it("tells apart two 0% catalog ids on the same line shape instead of collapsing them", () => {
+    const totals = computeDocumentTotals(withCatalogIdVatRate, {
+      currency: "EUR",
+      lines: [{ quantity: 1, unitPrice: 100, vatRate: "it-esente" }],
+    })
+    expect(totals?.warnings).toEqual([])
+    expect(totals?.vatMinor).toBe(0)
+    expect(totals?.grossMinor).toBe(10000)
+  })
+
+  it("still resolves a bare percentage a document saved before catalog ids existed", () => {
+    const totals = computeDocumentTotals(withCatalogIdVatRate, {
+      currency: "EUR",
+      lines: [{ quantity: 1, unitPrice: 100, vatRate: "22" }],
+    })
+    expect(totals?.warnings).toEqual([])
+    expect(totals?.vatMinor).toBe(2200)
+  })
+
+  it("warns, rather than silently charging 0%, for a VAT-rate id this company's catalog no longer lists", () => {
+    const totals = computeDocumentTotals(withCatalogIdVatRate, {
+      currency: "EUR",
+      lines: [{ quantity: 1, unitPrice: 100, vatRate: "de-standard" }],
+    })
+    expect(totals?.warnings).toEqual(["line 1 has no usable VAT rate — counted in net only"])
+    expect(totals?.vatMinor).toBe(0)
   })
 })

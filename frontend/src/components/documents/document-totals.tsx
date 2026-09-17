@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 import type { DocumentTypeDescriptor } from "@/components/documents/types"
 import {
   type ClientDocumentTotals,
+  type VatRateFieldOptions,
   computeTotals,
   decimalsFor,
   fromMinor,
@@ -79,6 +80,10 @@ export function computeDocumentTotals(
   if (!moneyField) return null
 
   const currency = extractCurrency(descriptor, values)
+  const vatRateOptions: VatRateFieldOptions | undefined = vatRateField
+    ? { options: vatRateField.options, legacyOptions: vatRateField.legacyOptions }
+    : undefined
+
   // A net total of exactly 0 is a real, showable total (a fully offered line, a 100% discount) —
   // only the absence of any line to sum (checked above) means "nothing to show".
   return computeTotals(
@@ -89,6 +94,7 @@ export function computeDocumentTotals(
     vatRateField?.key,
     discountField?.key,
     t,
+    vatRateOptions,
   )
 }
 

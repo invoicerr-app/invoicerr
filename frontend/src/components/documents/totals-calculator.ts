@@ -39,6 +39,49 @@ export function looksNumeric(value: string): boolean {
   return !Number.isNaN(Number(value))
 }
 
+/** The two option lists a VAT-rate 'select' field descriptor carries — see the backend's
+ *  `vat-rates/registry.ts#VatRateOptionsResolution`. Kept as a narrow shape here (not the full field
+ *  descriptor type) so this file doesn't need to import the frontend's own descriptor mirror just for
+ *  this. */
+export interface VatRateFieldOptions {
+  /** Each rate's stable catalog id as `value` (e.g. "it-esente") — what a field now stores once a
+   *  company's country has a known VAT-rate catalog. */
+  options?: { value: string; label: string }[]
+  /** The SAME rates, same order/index as `options` — each one's bare PERCENTAGE as `value` instead.
+   *  Never rendered as a choice; exists only so a catalog id can be resolved back to its percentage
+   *  without this file needing the catalog itself (which is backend-only data). */
+  legacyOptions?: { value: string; label: string }[]
+}
+
+/**
+ * Resolves a stored VAT-rate value to its percentage — mirrors the backend's own
+ * `vat-rates/registry.ts#resolveVatRatePercentage` exactly, from what the descriptor already hands
+ * this side (no VAT-rate catalog exists on the frontend, so this can only ever work from `options`/
+ * `legacyOptions`, never look a rate up independently):
+ *  1. `value` is a catalog id (e.g. "it-esente") — find its position in `options`, then read the SAME
+ *     position out of `legacyOptions` for the percentage. Both lists come from the exact same rates
+ *     array, in the same order (`vatRateFieldOptions` builds them together), so the index always names
+ *     the same rate in both.
+ *  2. Otherwise, `value` is either the legacy bare-percentage form a document saved before catalog ids
+ *     existed still carries, or a hand-typed rate on a field with no catalog at all
+ *     (`allowCustomValue`) — parsed directly, exactly as this function always did before catalog ids.
+ * `null` when neither applies (an id the active company's catalog no longer lists, or genuinely
+ * unparseable text) — the caller warns exactly as it already does for "no usable VAT rate".
+ */
+export function resolveVatRatePercent(value: string, fieldOptions?: VatRateFieldOptions): number | null {
+  const options = fieldOptions?.options ?? []
+  const legacyOptions = fieldOptions?.legacyOptions ?? []
+  const catalogIndex = options.findIndex((option) => option.value === value)
+  if (catalogIndex !== -1) {
+    const legacyMatch = legacyOptions[catalogIndex]
+    const percent = legacyMatch ? Number(legacyMatch.value) : NaN
+    if (!Number.isNaN(percent)) return percent
+  }
+
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
 export interface ClientLineTotal {
   index: number
   netMinor: number
@@ -94,6 +137,10 @@ export function computeTotals(
    *  omitted. The one caller that actually SHOWS these to a user (`document-totals.tsx`'s
    *  `useDocumentTotals`) passes its own `useTranslation()` result. */
   t?: TFunction,
+  /** `vatRateFieldKey`'s own `options`/`legacyOptions` — see `resolveVatRatePercent`'s own header.
+   *  Optional so a caller with no VAT-rate field at all (or a plain custom-value one, `options` never
+   *  populated) doesn't need to construct an empty shape just to call this. */
+  vatRateOptions?: VatRateFieldOptions,
 ): ClientDocumentTotals {
   const warnings: string[] = []
   const processedLines: Array<{
@@ -144,9 +191,9 @@ export function computeTotals(
         t?.("documents.totals.warnings.noUsableVatRate", { line: lineNumber }) ??
         `line ${lineNumber} has no usable VAT rate — counted in net only`
       if (rateValue !== undefined && rateValue !== null && rateValue !== "") {
-        const parsed = Number(rateValue)
-        if (!Number.isNaN(parsed)) {
-          vatRatePercent = parsed
+        const resolved = resolveVatRatePercent(String(rateValue), vatRateOptions)
+        if (resolved !== null) {
+          vatRatePercent = resolved
         } else {
           warnings.push(noUsableRateWarning)
         }

@@ -31,6 +31,15 @@ export interface DocumentFieldDescriptor {
   hideWhenEmpty?: boolean
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
+  /** 'select' only: additional values the backend's validator (field-kinds.ts) still accepts, but
+   *  never rendered as a choice here — backward compatibility for a value ALREADY PERSISTED under a
+   *  convention `options` no longer offers going forward (today: a VAT rate's bare percentage, before
+   *  `vat-rates/registry.ts#vatRateFieldOptions` switched `options`'s own `value` to each rate's
+   *  stable catalog id). Read by this file's own `schema.ts` (client-side validation) and
+   *  `totals-calculator.ts#resolveVatRatePercent` (resolving a catalog id back to its percentage via
+   *  the matching index) — never by a field renderer, which only ever iterates `options`. Absent for
+   *  every field that never needed this migration. */
+  legacyOptions?: DocumentFieldOption[]
   /** 'select' only: whether a value NOT among `options` is still accepted — but ONLY when `options`
    *  is itself EMPTY (no known catalog for this field at all, e.g. no VAT rate list for the active
    *  company's country — see the backend's vat-rates/). A select with zero options is a dead
