@@ -5,6 +5,7 @@ import { Request } from 'express';
 import { Public } from '@thallesp/nestjs-better-auth';
 
 import { logger } from '@/logger/logger.service';
+import { runWithCompanyId } from '@/lib/request-context';
 
 import { PaymentWebhookVerificationError } from './provider';
 import { PaymentSessionsService } from './payment-sessions.service';
@@ -62,11 +63,21 @@ export class PaymentsWebhookController {
       throw new BadRequestException('Missing request body.');
     }
 
+    // Wrapped in `runWithCompanyId` — `@Public()` means `AuthGuard` never resolves a `request.companyId`
+    // for this route (no session, no API key), so `CompanyContextInterceptor` establishes no company
+    // context of its own either. `:companyId` is a route param this controller already trusts as a
+    // ROUTING hint (see this file's own header) — the exact same value is the right one to scope every
+    // `Log` write this handler (and `PaymentSessionsService.handleWebhookEvent`) makes to.
+    return runWithCompanyId(companyId, () => this.processWebhook(providerId, companyId, req));
+  }
+
+  private async processWebhook(providerId: string, companyId: string, req: RequestWithRawBody) {
     try {
       const result = await this.paymentSessions.handleWebhookEvent(
         companyId,
         providerId,
-        req.rawBody,
+        // Never undefined here — the caller already refused the request above when it was.
+        req.rawBody as Buffer,
         req.headers,
       );
       // Always 200 for anything that got PAST signature verification — see

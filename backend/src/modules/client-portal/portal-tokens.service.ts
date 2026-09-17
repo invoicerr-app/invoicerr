@@ -180,6 +180,7 @@ export class PortalTokensService {
     } catch (error) {
       logger.error('Failed to send the client portal invite email — the invite link was still created', {
         category: 'client-portal',
+        companyId,
         details: { recipient: contactEmail, message: error instanceof Error ? error.message : String(error) },
       });
       return 'send_failed';

@@ -310,7 +310,7 @@ export async function createCheckoutSession(
         "Polar refused this company's VAT number as a checkout tax id (422) — retrying the checkout " +
           'without it. Likely cause: a checksum-valid number with no active VIES registration (e.g. a ' +
           'franchise-en-base trader) — see checkout-session.ts / checkout-tax-id.ts.',
-        { category: 'billing', details: { companyId: params.companyId } },
+        { category: 'billing', companyId: params.companyId, details: { companyId: params.companyId } },
       );
       taxIdRejected = true;
       checkout = await client.checkouts.create({

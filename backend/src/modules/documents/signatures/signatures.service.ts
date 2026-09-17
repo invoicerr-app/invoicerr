@@ -259,6 +259,10 @@ export class SignaturesService {
     } catch (error) {
       logger.error('Failed to dispatch a DOCUMENT_SIGNED webhook — the document was still signed', {
         category: 'documents',
+        // Explicit, not left to the ambient context: signing happens on the `@Public()` signature
+        // route (no session, no active company) — `row.companyId`, resolved from the signature token
+        // itself, is the only company this request ever knows.
+        companyId: row.companyId,
         details: {
           companyId: row.companyId,
           typeId: row.typeId,
@@ -385,8 +389,11 @@ export class SignaturesService {
     const { subject, body, html, warnings } = renderEmailTemplate(template, parts);
 
     for (const warning of warnings) {
+      // Explicit, not left to the ambient context: this method's own two callers include the
+      // `@Public()` signature-request flow (no active company otherwise).
       logger.warn(`System email template: ${warning}`, {
         category: 'documents',
+        companyId,
         details: { family, recipient },
       });
     }
@@ -402,6 +409,7 @@ export class SignaturesService {
       if (error instanceof HttpException) throw error;
       logger.error(`Failed to send ${label} email`, {
         category: 'documents',
+        companyId,
         details: { recipient, message: error instanceof Error ? error.message : String(error) },
       });
       throw new BadRequestException(`Failed to send ${label} email. Please check your SMTP configuration.`);

@@ -152,6 +152,10 @@ async function recoverLegacySubscriptionCancellation(facts: PolarSubscriptionWeb
   });
 
   if (!legacyRow) {
+    // No `companyId` here, deliberately: `facts.companyId` resolved to NO real company (that is the
+    // whole reason this fallback ran at all — see this function's own caller), so attributing this row
+    // to it would be exactly the fabricated-scope mistake `logger.service.ts`'s own header warns
+    // against. Genuinely unattributable, the same as a foreign/deleted-company webhook always was.
     logger.info(
       'Polar webhook: no company for the resolved id, and no stored row matches this subscription ' +
         'either — deleted, or a foreign event. Ignored.',
@@ -181,6 +185,9 @@ async function recoverLegacySubscriptionCancellation(facts: PolarSubscriptionWeb
       'Ignored a stale legacy-customer Polar fact — a fresher one was already applied for this company',
       {
         category: 'billing',
+        // The RECOVERED company — real, and different from `facts.companyId` above (which is what
+        // failed to resolve in the first place, see this function's own caller).
+        companyId: legacyRow.companyId,
         details: {
           companyId: legacyRow.companyId,
           factAt: facts.factAt,
@@ -196,6 +203,7 @@ async function recoverLegacySubscriptionCancellation(facts: PolarSubscriptionWeb
       'polarSubscriptionId — company row recomputed',
     {
       category: 'billing',
+      companyId: legacyRow.companyId,
       details: {
         companyId: legacyRow.companyId,
         polarSubscriptionId: facts.polarSubscriptionId,
@@ -223,6 +231,9 @@ export async function applySubscriptionWebhook(
   if (facts.factAt && sub.lastPolarFactAt && facts.factAt.getTime() < sub.lastPolarFactAt.getTime()) {
     logger.warn('Ignored a stale Polar fact — a fresher one was already applied for this company', {
       category: 'billing',
+      // `company` above already confirmed this id resolves to a real row — unlike the legacy-recovery
+      // fallback (`recoverLegacySubscriptionCancellation`), `facts.companyId` is trustworthy here.
+      companyId: facts.companyId,
       details: { companyId: facts.companyId, factAt: facts.factAt, lastPolarFactAt: sub.lastPolarFactAt },
     });
     return;

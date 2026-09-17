@@ -152,6 +152,10 @@ export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): Aut
             'comment).',
           {
             category: 'documents',
+            // Explicit, not left to the ambient request/job context: this poller is called from
+            // `conformity-sweep-runner.ts#runPoll`, a plain BullMQ job body with no company context of
+            // its own, and `companyId` is already this function's own first argument.
+            companyId,
             details: {
               companyId,
               providerId: CHORUS_PRO_PROVIDER_ID,

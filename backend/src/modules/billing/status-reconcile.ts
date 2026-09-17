@@ -168,7 +168,7 @@ export async function reconcileFromPolarIfStale(
     logger.warn(
       'Polar status reconcile: company was ACTIVE but its own company-scoped customer has no ' +
         'subscription at all — recomputing (likely a stale row from a deleted pre-migration customer)',
-      { category: 'billing', details: { companyId: sub.companyId } },
+      { category: 'billing', companyId: sub.companyId, details: { companyId: sub.companyId } },
     );
     const anchor = sub.lastPolarFactAt ?? new Date(now);
     return await recomputeStatusForVanishedSubscription(
@@ -180,6 +180,7 @@ export async function reconcileFromPolarIfStale(
   } catch (error) {
     logger.warn('Polar status reconcile failed — the local row is unchanged, next request will retry', {
       category: 'billing',
+      companyId: sub.companyId,
       details: { companyId: sub.companyId, error: error instanceof Error ? error.message : String(error) },
     });
     return sub;

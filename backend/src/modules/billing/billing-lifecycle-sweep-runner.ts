@@ -10,6 +10,8 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 
+import { runWithCompanyId } from '@/lib/request-context';
+
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { buildBlockedZipWarningEmail, buildDeletionWarningEmail } from '@/mail/system-email-templates';
 import { BillingExportService, ExportZipTimedOutError, ExportZipTooLargeError } from './export-zip.service';
@@ -116,56 +118,11 @@ export class BillingLifecycleSweepRunner {
     }
 
     for (const sub of subscriptions) {
-      // Computed from the subscription as read at the TOP of this iteration, deliberately BEFORE
-      // `applyOne` below might advance its own status this same tick — see `lifecycle.ts`'s own header
-      // on `computeDueBillingWarnings` for why that never coincides with a real milestone in practice
-      // (a 7-or-1-day warning fires well inside a window, never at the exact transition boundary).
-      try {
-        await this.sendDueBillingWarnings(sub, now, result);
-      } catch (error) {
-        this.logger.error(`Billing warning mail failed for company ${sub.companyId} — retried next tick`, {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      try {
-        await this.applyOne(sub, now, result);
-      } catch (error) {
-        this.logger.error(
-          `Billing lifecycle sweep failed for company ${sub.companyId} — left untouched, retried next tick`,
-          { error: error instanceof Error ? error.message : String(error) },
-        );
-      }
-
-      // A separate try/catch, deliberately: a failure here must never re-run (or skip) the status
-      // transition above for the SAME company, and vice versa — the two are independent concerns
-      // sharing only the subscription row read at the top of this loop.
-      if (sub.status === 'ACTIVE') {
-        try {
-          const reconciled = await reconcileCompanySeats(sub);
-          if (reconciled?.corrected) result.seatsReconciled++;
-        } catch (error) {
-          this.logger.error(
-            `Seat reconciliation failed for company ${sub.companyId} — left untouched, retried next tick`,
-            { error: error instanceof Error ? error.message : String(error) },
-          );
-        }
-      }
-
-      // Same independence: a company's Polar CUSTOMER push (name/email) is unrelated to its own
-      // status transition or seat count — retried here only when the LAST attempt
-      // (`customer-sync.ts`, fired inline from `company.service.ts`/`billing-email.ts`) failed.
-      if (sub.customerSyncFailedAt) {
-        try {
-          const retried = await this.retryCustomerSync(sub.companyId);
-          if (retried) result.customerSyncRetried++;
-        } catch (error) {
-          this.logger.error(
-            `Polar customer sync retry failed for company ${sub.companyId} — left untouched, retried next tick`,
-            { error: error instanceof Error ? error.message : String(error) },
-          );
-        }
-      }
+      // Wrapped in `runWithCompanyId` — this sweep has no request of its own, and every step below can
+      // reach a `Log` write several calls deep (`export-zip.service.ts` rendering a PDF, `MailService`
+      // sending the OWNER's export/warning email, `customer-sync.ts`'s own retry) that needs a company
+      // to be scoped correctly.
+      await runWithCompanyId(sub.companyId, () => this.processOneSubscription(sub, now, result));
     }
 
     this.logger.log(
@@ -178,6 +135,68 @@ export class BillingLifecycleSweepRunner {
     );
 
     return result;
+  }
+
+  /**
+   * The four independent per-subscription steps `runSweep`'s own loop used to inline directly — pulled
+   * out into their own method so `runWithCompanyId` (see that call site's own comment) wraps all four
+   * as one unit, without the loop body itself needing to know anything about company context.
+   */
+  private async processOneSubscription(
+    sub: CompanySubscription,
+    now: Date,
+    result: RunBillingLifecycleSweepResult,
+  ): Promise<void> {
+    // Computed from the subscription as read at the TOP of this iteration, deliberately BEFORE
+    // `applyOne` below might advance its own status this same tick — see `lifecycle.ts`'s own header
+    // on `computeDueBillingWarnings` for why that never coincides with a real milestone in practice
+    // (a 7-or-1-day warning fires well inside a window, never at the exact transition boundary).
+    try {
+      await this.sendDueBillingWarnings(sub, now, result);
+    } catch (error) {
+      this.logger.error(`Billing warning mail failed for company ${sub.companyId} — retried next tick`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    try {
+      await this.applyOne(sub, now, result);
+    } catch (error) {
+      this.logger.error(
+        `Billing lifecycle sweep failed for company ${sub.companyId} — left untouched, retried next tick`,
+        { error: error instanceof Error ? error.message : String(error) },
+      );
+    }
+
+    // A separate try/catch, deliberately: a failure here must never re-run (or skip) the status
+    // transition above for the SAME company, and vice versa — the two are independent concerns
+    // sharing only the subscription row read at the top of this loop.
+    if (sub.status === 'ACTIVE') {
+      try {
+        const reconciled = await reconcileCompanySeats(sub);
+        if (reconciled?.corrected) result.seatsReconciled++;
+      } catch (error) {
+        this.logger.error(
+          `Seat reconciliation failed for company ${sub.companyId} — left untouched, retried next tick`,
+          { error: error instanceof Error ? error.message : String(error) },
+        );
+      }
+    }
+
+    // Same independence: a company's Polar CUSTOMER push (name/email) is unrelated to its own
+    // status transition or seat count — retried here only when the LAST attempt
+    // (`customer-sync.ts`, fired inline from `company.service.ts`/`billing-email.ts`) failed.
+    if (sub.customerSyncFailedAt) {
+      try {
+        const retried = await this.retryCustomerSync(sub.companyId);
+        if (retried) result.customerSyncRetried++;
+      } catch (error) {
+        this.logger.error(
+          `Polar customer sync retry failed for company ${sub.companyId} — left untouched, retried next tick`,
+          { error: error instanceof Error ? error.message : String(error) },
+        );
+      }
+    }
   }
 
   /**

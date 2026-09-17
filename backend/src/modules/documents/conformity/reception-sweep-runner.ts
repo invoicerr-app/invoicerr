@@ -41,6 +41,7 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
+import { runWithCompanyId } from '@/lib/request-context';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
@@ -110,30 +111,35 @@ export class PdpReceptionSweepRunner {
 
     for (const config of activeConfigs) {
       try {
-        const inbound = await this.poller.listInbound(config.companyId);
-        for (const deposit of inbound) {
-          const pdpInboundId = String(deposit.id);
-          const alreadyImported = await this.isAlreadyImported(config.companyId, pdpInboundId);
-          if (alreadyImported) {
-            skipped++;
-            continue;
-          }
-          try {
-            await this.importOne(config.companyId, pdpInboundId);
-            imported++;
-          } catch (error) {
-            // See this file's own header, "Idempotency" — a concurrent pass won the race for this
-            // EXACT deposit between the `isAlreadyImported` check just above and this write. Counted
-            // as an ordinary dedup hit, not a failure: nothing about THIS deposit needs retrying, the
-            // other pass already imported it. Never swallows any OTHER error — those still propagate
-            // to the per-COMPANY catch below, unchanged.
-            if (isPdpInboundIdConflict(error)) {
+        // Wrapped in `runWithCompanyId` — this sweep has no request of its own, and `importOne` below
+        // calls straight into `DocumentsService.runAction` (whose own `Log` writes, and every
+        // downstream action handler's, need a company to be scoped correctly).
+        await runWithCompanyId(config.companyId, async () => {
+          const inbound = await this.poller.listInbound(config.companyId);
+          for (const deposit of inbound) {
+            const pdpInboundId = String(deposit.id);
+            const alreadyImported = await this.isAlreadyImported(config.companyId, pdpInboundId);
+            if (alreadyImported) {
               skipped++;
               continue;
             }
-            throw error;
+            try {
+              await this.importOne(config.companyId, pdpInboundId);
+              imported++;
+            } catch (error) {
+              // See this file's own header, "Idempotency" — a concurrent pass won the race for this
+              // EXACT deposit between the `isAlreadyImported` check just above and this write. Counted
+              // as an ordinary dedup hit, not a failure: nothing about THIS deposit needs retrying, the
+              // other pass already imported it. Never swallows any OTHER error — those still propagate
+              // to the per-COMPANY catch below, unchanged.
+              if (isPdpInboundIdConflict(error)) {
+                skipped++;
+                continue;
+              }
+              throw error;
+            }
           }
-        }
+        });
       } catch (error) {
         failed++;
         // Never lets one company's failure (an expired token, a transient network error) stop the

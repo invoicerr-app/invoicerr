@@ -117,6 +117,7 @@ async function checkCustomerExists(
     if (isResourceNotFoundError(error)) return false;
     logger.warn('Polar customer existence check failed during provisioning — retried next pass', {
       category: 'billing',
+      companyId,
       details: { companyId, ...extractPolarErrorDetails(error) },
     });
     return 'error';
@@ -136,6 +137,7 @@ async function persistPolarCustomerId(companyId: string, polarCustomerId: string
   } catch (error) {
     logger.warn('Failed to persist a confirmed Polar customer id — retried next pass', {
       category: 'billing',
+      companyId,
       details: { companyId, ...extractPolarErrorDetails(error) },
     });
   }
@@ -203,7 +205,11 @@ export async function reconcileMissingCompanyCustomers(
           'Polar customer provisioning skipped: company has no billing email (Company.email and ' +
             'Company.billingEmail are both empty) — Polar refuses a customer with no email. Set one in ' +
             'Settings > Billing (or Company.email) and it will be picked up on the next pass.',
-          { category: 'billing', details: { companyId: company.id, companyName: company.name } },
+          {
+            category: 'billing',
+            companyId: company.id,
+            details: { companyId: company.id, companyName: company.name },
+          },
         );
         continue;
       }
@@ -225,13 +231,18 @@ export async function reconcileMissingCompanyCustomers(
             'Polar customer provisioning refused: billing email already used by another Polar customer. ' +
               'Company left without a Polar customer — set a distinct Company.billingEmail ' +
               '(Settings > Billing) and it will be picked up on the next pass.',
-            { category: 'billing', details: { companyId: company.id, email: error.email } },
+            {
+              category: 'billing',
+              companyId: company.id,
+              details: { companyId: company.id, email: error.email },
+            },
           );
           continue;
         }
         summary.failed++;
         logger.warn('Polar customer provisioning failed for one company — retried next pass', {
           category: 'billing',
+          companyId: company.id,
           details: { companyId: company.id, ...extractPolarErrorDetails(error) },
         });
       }

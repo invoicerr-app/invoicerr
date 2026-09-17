@@ -31,6 +31,7 @@
  *    would otherwise surface that fact.
  */
 import { logger } from '@/logger/logger.service';
+import { runWithCompanyId } from '@/lib/request-context';
 
 import { createAuthorityVerdictArchive, TerminalVerdictInput } from './persistence';
 
@@ -42,34 +43,39 @@ import { createAuthorityVerdictArchive, TerminalVerdictInput } from './persisten
  * successful result into a failure (`archive-on-send.ts`'s own header).
  */
 export async function archiveTerminalAuthorityVerdictIfAny(input: TerminalVerdictInput): Promise<void> {
-  try {
-    const outcome = await createAuthorityVerdictArchive(input);
-    if (!outcome.archived && outcome.reason === 'no-deposit-archive') {
-      logger.error(
-        'Cannot archive an authority verdict: this document has no deposit archive to link it to',
-        {
-          category: 'documents',
-          details: {
-            companyId: input.companyId,
-            documentId: input.documentId,
-            providerId: input.providerId,
-            statusCode: input.statusCode,
+  // Wrapped in `runWithCompanyId` — called from `conformity-sweep-runner.ts#runPoll`, a BullMQ job with
+  // no request context of its own; self-scoping here (rather than trusting the caller) keeps this
+  // function's own `Log` writes correct regardless of what, if anything, wraps it.
+  return runWithCompanyId(input.companyId, async () => {
+    try {
+      const outcome = await createAuthorityVerdictArchive(input);
+      if (!outcome.archived && outcome.reason === 'no-deposit-archive') {
+        logger.error(
+          'Cannot archive an authority verdict: this document has no deposit archive to link it to',
+          {
+            category: 'documents',
+            details: {
+              companyId: input.companyId,
+              documentId: input.documentId,
+              providerId: input.providerId,
+              statusCode: input.statusCode,
+            },
           },
+        );
+      }
+      // `outcome.reason === 'duplicate'` is the expected steady state — see this file's own header.
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error('Archiving a terminal authority verdict failed', {
+        category: 'documents',
+        details: {
+          companyId: input.companyId,
+          documentId: input.documentId,
+          providerId: input.providerId,
+          statusCode: input.statusCode,
+          message,
         },
-      );
+      });
     }
-    // `outcome.reason === 'duplicate'` is the expected steady state — see this file's own header.
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error('Archiving a terminal authority verdict failed', {
-      category: 'documents',
-      details: {
-        companyId: input.companyId,
-        documentId: input.documentId,
-        providerId: input.providerId,
-        statusCode: input.statusCode,
-        message,
-      },
-    });
-  }
+  });
 }

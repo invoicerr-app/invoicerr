@@ -1,4 +1,5 @@
 import { logger } from '@/logger/logger.service';
+import { runWithCompanyId } from '@/lib/request-context';
 
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { DocumentInstanceResult } from '../actions/action-registry';
@@ -44,20 +45,25 @@ export async function emitDocumentSettled(
   settlement: DocumentSettlement,
 ): Promise<void> {
   if (!webhooks) return;
-  try {
-    await webhooks.dispatch(
-      WebhookEvent.DOCUMENT_SETTLED,
-      buildDocumentWebhookPayload(companyId, typeId, document, { settlement }),
-    );
-  } catch (error) {
-    logger.error('Failed to dispatch a DOCUMENT_SETTLED webhook — the document was still settled', {
-      category: 'documents',
-      details: {
-        companyId,
-        typeId,
-        documentId: document.id,
-        message: error instanceof Error ? error.message : String(error),
-      },
-    });
-  }
+  // Wrapped in `runWithCompanyId` — reached from an invoice's "record-payment" and a credit note's
+  // "send", both of which can run from the async-send queue's worker (no request context of its own);
+  // self-scoping here keeps this function's own `Log` write correct regardless of the caller.
+  return runWithCompanyId(companyId, async () => {
+    try {
+      await webhooks.dispatch(
+        WebhookEvent.DOCUMENT_SETTLED,
+        buildDocumentWebhookPayload(companyId, typeId, document, { settlement }),
+      );
+    } catch (error) {
+      logger.error('Failed to dispatch a DOCUMENT_SETTLED webhook — the document was still settled', {
+        category: 'documents',
+        details: {
+          companyId,
+          typeId,
+          documentId: document.id,
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  });
 }

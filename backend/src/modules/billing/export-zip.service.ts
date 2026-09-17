@@ -181,6 +181,7 @@ export class BillingExportService {
       } catch (error) {
         logger.warn('Billing export: one document could not be rendered to PDF — JSON only', {
           category: 'billing',
+          companyId,
           details: {
             companyId,
             documentId: doc.id,

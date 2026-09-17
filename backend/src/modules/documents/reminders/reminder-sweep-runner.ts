@@ -63,6 +63,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
+import { runWithCompanyId } from '@/lib/request-context';
 import prisma from '@/prisma/prisma.service';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
@@ -137,7 +138,10 @@ export class ReminderSweepRunner {
     for (const company of companies) {
       let result: CompanyReminderResult;
       try {
-        result = await this.runForCompany(company.id, company.name, now);
+        // Wrapped in `runWithCompanyId` — this sweep has no request of its own, and `runForCompany`
+        // below (and the `mailService.sendForCompany` it calls) both write `Log` rows that need a
+        // company to be scoped correctly.
+        result = await runWithCompanyId(company.id, () => this.runForCompany(company.id, company.name, now));
       } catch (error) {
         // A whole company's own query blowing up (a transient DB hiccup, a data anomaly this
         // function's inner try/catches didn't anticipate) must not cost every OTHER opted-in

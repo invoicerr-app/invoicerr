@@ -26,10 +26,18 @@
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import { logger } from '@/logger/logger.service';
+import { runWithCompanyId } from '@/lib/request-context';
 
 import { findOwnedDocument } from '../persistence';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from './document-webhooks';
 
+/**
+ * Wrapped in `runWithCompanyId` — this function is called from three quite different call sites
+ * (`conformity-sweep-runner.ts`, `reporting-runner.ts`, `transports/sdi/sdi-notifiche.service.ts`), the
+ * last of which is a `@Public()` push endpoint with no ambient company context of its own — rather than
+ * rely on every current AND future caller to have already established one, the one function that
+ * actually has `companyId` in hand (its own second parameter) sets it itself.
+ */
 export async function dispatchDocumentAuthorityEventWebhook(
   webhooks: DocumentWebhookEmitter | undefined,
   companyId: string,
@@ -39,26 +47,28 @@ export async function dispatchDocumentAuthorityEventWebhook(
   statusCode: string,
 ): Promise<void> {
   if (!webhooks) return;
-  try {
-    const document = await findOwnedDocument(companyId, typeId, documentId);
-    await webhooks.dispatch(
-      WebhookEvent.DOCUMENT_AUTHORITY_EVENT,
-      buildDocumentWebhookPayload(companyId, typeId, document, { providerId, statusCode }),
-    );
-  } catch (error) {
-    logger.error(
-      'Failed to dispatch a DOCUMENT_AUTHORITY_EVENT webhook — the authority event was still journaled',
-      {
-        category: 'documents',
-        details: {
-          companyId,
-          typeId,
-          documentId,
-          providerId,
-          statusCode,
-          message: error instanceof Error ? error.message : String(error),
+  return runWithCompanyId(companyId, async () => {
+    try {
+      const document = await findOwnedDocument(companyId, typeId, documentId);
+      await webhooks.dispatch(
+        WebhookEvent.DOCUMENT_AUTHORITY_EVENT,
+        buildDocumentWebhookPayload(companyId, typeId, document, { providerId, statusCode }),
+      );
+    } catch (error) {
+      logger.error(
+        'Failed to dispatch a DOCUMENT_AUTHORITY_EVENT webhook — the authority event was still journaled',
+        {
+          category: 'documents',
+          details: {
+            companyId,
+            typeId,
+            documentId,
+            providerId,
+            statusCode,
+            message: error instanceof Error ? error.message : String(error),
+          },
         },
-      },
-    );
-  }
+      );
+    }
+  });
 }

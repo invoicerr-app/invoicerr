@@ -67,6 +67,7 @@ export async function reconcileCompanySeats(
 
   logger.warn('Seat quantity drift corrected FROM Polar (local row was stale)', {
     category: 'billing',
+    companyId: sub.companyId,
     details: { companyId: sub.companyId, previousLocalSeats: sub.seats, polarSeats },
   });
 

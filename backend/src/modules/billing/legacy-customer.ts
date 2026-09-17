@@ -87,6 +87,7 @@ export interface CompanyCustomerFactsClient {
  *  the company-scoped one. A 404 (the customer itself was deleted — the exact reported incident) reads
  *  as "no", the same safe default every other check in this module already applies to an outage. */
 async function hasActiveSubscriptionOnLegacyCustomer(
+  companyId: string,
   customerId: string,
   client: CompanyCustomerFactsClient,
 ): Promise<boolean> {
@@ -97,7 +98,8 @@ async function hasActiveSubscriptionOnLegacyCustomer(
     if (!isResourceNotFoundError(error)) {
       logger.warn('Legacy Polar-customer subscription check failed — defaulting to not legacy', {
         category: 'billing',
-        details: { customerId, error: error instanceof Error ? error.message : String(error) },
+        companyId,
+        details: { companyId, customerId, error: error instanceof Error ? error.message : String(error) },
       });
     }
     return false;
@@ -126,6 +128,7 @@ export async function getCompanyCustomerFacts(
     if (!isResourceNotFoundError(error)) {
       logger.warn('Company Polar-customer facts check failed — defaulting to the safer reading', {
         category: 'billing',
+        companyId: sub.companyId,
         details: { companyId: sub.companyId, error: error instanceof Error ? error.message : String(error) },
       });
       const facts: CompanyCustomerFacts = { hasCompanyCustomer: false, legacySubscription: false };
@@ -146,7 +149,7 @@ export async function getCompanyCustomerFacts(
       : null;
 
   const legacySubscription = legacyCandidateId
-    ? await hasActiveSubscriptionOnLegacyCustomer(legacyCandidateId, client)
+    ? await hasActiveSubscriptionOnLegacyCustomer(sub.companyId, legacyCandidateId, client)
     : false;
 
   const facts: CompanyCustomerFacts = { hasCompanyCustomer, legacySubscription };

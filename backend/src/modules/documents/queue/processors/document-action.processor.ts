@@ -54,6 +54,8 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger, Optional } from '@nestjs/common';
 import { Job } from 'bullmq';
 
+import { runWithCompanyId } from '@/lib/request-context';
+
 import { ActionResult } from '../../actions/action-registry';
 import {
   CurrencyRateSweepRunner,
@@ -223,13 +225,20 @@ export class DocumentActionProcessor extends WorkerHost {
     // moments (or, after a backoff, hours) earlier — `runAction` itself narrows this flag down to the
     // one shape it actually changes anything for (`actionId === 'send'` AND the record already
     // "sending"), so passing it unconditionally here is safe for every job this branch ever sees.
-    return this.documentsService.runAction(
-      companyId,
-      typeId,
-      actionId,
-      { documentId, data: payload.data, params: payload.params },
-      undefined,
-      true,
+    //
+    // Wrapped in `runWithCompanyId` — this worker has no HTTP request of its own to carry a company
+    // context (`CompanyContextInterceptor`, `@/lib/request-context.ts`'s own header), so every `Log`
+    // write `runAction` and whatever it calls make (an action handler, a transport, the mail service, a
+    // render) would otherwise resolve to no company at all.
+    return runWithCompanyId(companyId, () =>
+      this.documentsService.runAction(
+        companyId,
+        typeId,
+        actionId,
+        { documentId, data: payload.data, params: payload.params },
+        undefined,
+        true,
+      ),
     );
   }
 
@@ -391,15 +400,20 @@ export class DocumentActionProcessor extends WorkerHost {
     // markSendFailed might still fail for, this handler must never let it escape — log every bit of
     // context (both the original job failure and this marking failure) and stop, never rethrow.
     try {
-      await markSendFailed((id) => this.documentsService.getType(id), {
-        companyId,
-        typeId,
-        documentId,
-        actionId,
-        error,
-        events: this.eventsPublisher,
-        webhooks: this.webhookDispatcher,
-      });
+      // Wrapped in `runWithCompanyId` — see the "run" branch's own comment above for why: this event
+      // listener has no request/job context of its own either, and `markSendFailed` itself writes a
+      // `Log` row (via `checkTransitionResult`'s own failure path) that needs one.
+      await runWithCompanyId(companyId, () =>
+        markSendFailed((id) => this.documentsService.getType(id), {
+          companyId,
+          typeId,
+          documentId,
+          actionId,
+          error,
+          events: this.eventsPublisher,
+          webhooks: this.webhookDispatcher,
+        }),
+      );
     } catch (markError) {
       this.logger.error(
         `markSendFailed itself failed for job ${job.id} (${typeId}/${documentId}, action "${actionId}") — ` +

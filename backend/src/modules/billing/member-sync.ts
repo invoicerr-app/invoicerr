@@ -92,6 +92,7 @@ export async function syncCompanyMemberOnMembershipChange(
   } catch (error) {
     logger.warn('Polar member sync failed — will retry on the next membership change', {
       category: 'billing',
+      companyId,
       details: { companyId, userId, error: error instanceof Error ? error.message : String(error) },
     });
   }

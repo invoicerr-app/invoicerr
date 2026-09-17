@@ -76,6 +76,7 @@ export async function syncPolarCustomerOnCompanyChange(
 
     logger.warn('Polar customer sync failed — will retry from the lifecycle sweep', {
       category: 'billing',
+      companyId,
       details: { companyId, error: error instanceof Error ? error.message : String(error) },
     });
     await prisma.companySubscription

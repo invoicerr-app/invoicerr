@@ -16,6 +16,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
+import { runWithCompanyId } from '@/lib/request-context';
 
 import { PecInboxPort } from './pec-inbox-port';
 import { PecNotificheService } from './pec-notifiche.service';
@@ -37,24 +38,30 @@ export class PecInboxPollerService {
    * unseen, but the drain continues with the rest.
    */
   async pollOnce(companyId: string, port: PecInboxPort): Promise<PecInboxPollResult> {
-    const messages = await port.fetchUnseen();
-    let handled = 0;
-    for (const message of messages) {
-      try {
-        const result = await this.notifiche.handleMessage(companyId, message);
-        if (result.handled) handled += 1;
-        await port.markSeen(message.id);
-      } catch (error) {
-        logger.error('SdI PEC inbox poll: failed to process one message — left unseen for the next poll', {
-          category: 'documents',
-          details: {
-            companyId,
-            messageId: message.id,
-            message: error instanceof Error ? error.message : String(error),
-          },
-        });
+    // Wrapped in `runWithCompanyId` — not yet wired to a schedule (see this file's own header), but its
+    // one caller-to-be has no request context either; self-scoping here means `PecNotificheService.
+    // handleMessage`'s own `Log` writes (journaled notifiche, unknown NomeFile) are correct the moment
+    // it is.
+    return runWithCompanyId(companyId, async () => {
+      const messages = await port.fetchUnseen();
+      let handled = 0;
+      for (const message of messages) {
+        try {
+          const result = await this.notifiche.handleMessage(companyId, message);
+          if (result.handled) handled += 1;
+          await port.markSeen(message.id);
+        } catch (error) {
+          logger.error('SdI PEC inbox poll: failed to process one message — left unseen for the next poll', {
+            category: 'documents',
+            details: {
+              companyId,
+              messageId: message.id,
+              message: error instanceof Error ? error.message : String(error),
+            },
+          });
+        }
       }
-    }
-    return { fetched: messages.length, handled };
+      return { fetched: messages.length, handled };
+    });
   }
 }

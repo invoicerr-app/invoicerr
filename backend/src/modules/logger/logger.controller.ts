@@ -6,7 +6,6 @@ import { logger } from '@/logger/logger.service';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { Roles } from '@/decorators/roles.decorator';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
-import prisma from '@/prisma/prisma.service';
 
 interface MessageEvent {
   data: any;
@@ -24,22 +23,17 @@ export function clampStreamIntervalMs(raw: string | undefined): number {
   return Math.max(MIN_STREAM_INTERVAL_MS, parseInt(raw || '1000', 10) || 1000);
 }
 
-// NOTE: the Log model has no companyId (it predates multi-tenancy and isn't scoped per-company
-// anywhere it's written) — adding one is a cross-cutting change touching every `logger.info/warn/
-// error()` call site in the app (`@/logger/logger.service.ts`), out of reach for this controller
-// alone. `@Roles(OWNER, ADMIN)` only ever limited WHO can open this stream, never WHAT it shows once
-// opened, which is what let any company's own OWNER watch every OTHER company's activity — user ids,
-// request paths, and whatever free-text `details` a log call happened to attach (a client's contact
-// email, a webhook secret…). `streamLogs` below closes the gap it CAN close without that migration:
-// the stream is filtered, after the fact, to log rows whose `userId` belongs to the ACTIVE company's
-// own membership — a real user this OWNER/ADMIN already has visibility into via the Members screen.
-// A row with no `userId` at all (a cron/queue-worker log with no human behind it) is dropped rather
-// than shown to every company, the same "ambiguous means hidden, never leaked" choice `mentions/`'s
-// own header makes for country data. Residual, and worth naming: a user who belongs to SEVERAL
-// companies still has every one of their log lines surface in each of those companies' streams, not
-// just the one the action was actually taken in — `Log` has no way to say which company an entry was
-// FOR, only who triggered it. Closing that fully needs the same `Log.companyId` migration+backfill
-// this comment already flags as out of reach here.
+// `Log.companyId` (see `schema.prisma`'s own comment on it, and `@/logger/logger.service.ts`'s header)
+// is now filtered at the DATABASE level below — a real fix, not the `userId`-membership heuristic this
+// comment used to describe here: that heuristic surfaced every log line a company's own member ever
+// triggered in EVERY company they belong to (not just the one the action was actually taken in), and
+// dropped every row with no `userId` at all (a cron/queue-worker log with no human behind it) even when
+// it genuinely belonged to this company. Filtering by `companyId` directly closes both: a row is either
+// FOR this company or it is not, regardless of who (or what background job) wrote it. A row written
+// before this column existed, or one that is genuinely instance-level (`companyId: null` — a boot check
+// spanning every company at once), simply never matches any one company's filter — invisible on every
+// company's own screen, the same "ambiguous means hidden, never leaked" choice `mentions/`'s own header
+// makes for country data, never a reason to fall back to the old, leakier heuristic for those rows.
 @ApiTags('logs')
 @Controller('logs')
 @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
@@ -77,44 +71,24 @@ export class LoggerController {
     @Query('intervalMs') intervalMs?: string,
   ): Observable<MessageEvent> {
     const ms = clampStreamIntervalMs(intervalMs);
-    let lastTimestamp = new Date(0);
 
     return interval(ms).pipe(
       startWith(0),
       switchMap(() =>
         from(
           (async () => {
-            // The active company's own current membership — re-read every tick rather than once at
-            // subscribe time, so a member added/removed mid-stream is reflected immediately, the same
-            // "never trust a stale snapshot" discipline `guards/auth.guard.ts` now applies to API keys.
-            const members = await prisma.userCompany.findMany({
-              where: { companyId },
-              select: { userId: true },
-            });
-            const memberIds = new Set(members.map((m) => m.userId));
-
-            const filters: any = {};
+            const filters: any = { companyId };
             if (category) filters.category = category;
             if (level) filters.level = level;
             if (userId) filters.userId = userId;
 
-            const logs = await logger.fetchLogs(filters, { skip: 0, take: 100 });
-
-            // Tenant scoping `Log` cannot do at the query level (it has no `companyId` — see this
-            // class's own header): a row with no `userId`, or one belonging to someone outside this
-            // company's membership, is dropped rather than shown.
-            const scopedLogs = logs.filter((entry) => !!entry.userId && memberIds.has(entry.userId));
-
-            const newLogs = scopedLogs
+            // Tenant scoping now happens IN the query itself (`companyId` — see this class's own
+            // header) — no more post-fetch membership filter, and no more silently dropping a row that
+            // has no `userId` at all (a queue-worker log with no human behind it, now correctly kept
+            // when it carries this company's own `companyId`).
+            return (await logger.fetchLogs(filters, { skip: 0, take: 100 }))
               .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
               .reverse();
-
-            if (newLogs.length > 0) {
-              const newest = newLogs[newLogs.length - 1];
-              lastTimestamp = new Date(newest.timestamp);
-            }
-
-            return newLogs;
           })(),
         ),
       ),

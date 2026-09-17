@@ -24,6 +24,7 @@
  * an action's failure or letting it disappear on the next "save-draft".
  */
 import { logger } from '@/logger/logger.service';
+import { runWithCompanyId } from '@/lib/request-context';
 import prisma from '@/prisma/prisma.service';
 
 import { ArchivedArtifactInput } from './hashing';
@@ -49,35 +50,40 @@ export async function archiveDeliveredArtifactsIfAny(input: ArchiveDeliveredArti
   const { companyId, documentId, artifacts } = input;
   if (!artifacts || artifacts.length === 0) return;
 
-  try {
-    await createDocumentArchive({ companyId, documentId, artifacts });
-    // Clears a PREVIOUS archiving failure — a re-send that archives successfully this time no longer
-    // needs to keep the trace of the earlier attempt's failure next to a document that is now
-    // actually preserved.
-    await prisma.documentInstance.update({ where: { id: documentId }, data: { lastArchiveError: null } });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error('Document archiving failed after a successful delivery', {
-      category: 'documents',
-      details: { companyId, documentId, message },
-    });
+  // Wrapped in `runWithCompanyId` — this runs from `async-send.ts`, itself reached either in-request
+  // (already scoped) or from `document-action.processor.ts`'s worker (no request of its own to carry
+  // one) — self-scoping here means this function's own `Log` writes are correct regardless of which.
+  return runWithCompanyId(companyId, async () => {
     try {
-      await prisma.documentInstance.update({
-        where: { id: documentId },
-        data: { lastArchiveError: message },
-      });
-    } catch (writeError) {
-      // If EVEN this compensating write fails (database unavailable…), the failure is already logged
-      // at error level above — the delivery itself has already genuinely succeeded and must stay
-      // that way: nothing here may ever propagate up to `async-send.ts`.
-      logger.error('Could not even record the archiving failure on the document itself', {
+      await createDocumentArchive({ companyId, documentId, artifacts });
+      // Clears a PREVIOUS archiving failure — a re-send that archives successfully this time no longer
+      // needs to keep the trace of the earlier attempt's failure next to a document that is now
+      // actually preserved.
+      await prisma.documentInstance.update({ where: { id: documentId }, data: { lastArchiveError: null } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error('Document archiving failed after a successful delivery', {
         category: 'documents',
-        details: {
-          companyId,
-          documentId,
-          message: writeError instanceof Error ? writeError.message : String(writeError),
-        },
+        details: { companyId, documentId, message },
       });
+      try {
+        await prisma.documentInstance.update({
+          where: { id: documentId },
+          data: { lastArchiveError: message },
+        });
+      } catch (writeError) {
+        // If EVEN this compensating write fails (database unavailable…), the failure is already logged
+        // at error level above — the delivery itself has already genuinely succeeded and must stay
+        // that way: nothing here may ever propagate up to `async-send.ts`.
+        logger.error('Could not even record the archiving failure on the document itself', {
+          category: 'documents',
+          details: {
+            companyId,
+            documentId,
+            message: writeError instanceof Error ? writeError.message : String(writeError),
+          },
+        });
+      }
     }
-  }
+  });
 }
