@@ -5,7 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- PNG fallback for the browsers that don't resolve an SVG favicon (old Safari, some in-app
          webviews) — rendered from favicon.svg's own small-grid redraw, not a downscale of
-         brand/logo-mark.svg: that 512-space path aliases badly below 32px. -->
+         brand/logo-mark.svg: that 512-space path aliases badly below 32px.
+         The dark pair below is the same redraw in --foreground's dark value (#ebeff2, never pure
+         white) instead of the brand ink (#0f1f2a) — favicon.svg already themes itself via an
+         embedded `prefers-color-scheme` media query, but that only fires for browsers that both
+         render SVG favicons AND evaluate `<style>` media queries inside one; these `media`-scoped
+         PNGs cover the narrower set that understands `media` on a <link rel="icon"> but not the
+         SVG. Unscoped, so it also stands in as the universal fallback for browsers that support
+         neither. -->
+    <link rel="icon" type="image/png" sizes="32x32" media="(prefers-color-scheme: dark)" href="/favicon-32-dark.png" />
+    <link rel="icon" type="image/png" sizes="16x16" media="(prefers-color-scheme: dark)" href="/favicon-16-dark.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
