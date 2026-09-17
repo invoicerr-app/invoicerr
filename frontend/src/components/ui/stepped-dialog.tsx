@@ -260,6 +260,37 @@ export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>
     const valid = current.fields.length === 0 ? true : await form.trigger(current.fields as never)
     if (!valid) return
     if (last) {
+      // The per-step gate above only ever proved THIS step's own fields — on the last step that is
+      // frequently a read-only recap declaring `fields: []` (document-create-dialog.tsx, client-
+      // upsert.tsx), so `valid` was `true` unconditionally and a value left invalid on an EARLIER
+      // step (edited, then jumped away from via a header chip without walking forward again — see
+      // `stepperJumpTo`) reached `onSubmit` untouched. Re-validate the WHOLE form here, once, right
+      // before submitting: it's the only gate that actually proves every step's own fields, not just
+      // the one on screen.
+      const wholeFormValid = await form.trigger()
+      if (!wholeFormValid) {
+        // Attaching the error to the field (react-hook-form already did, via `trigger()` above)
+        // isn't enough on its own — `FormMessage` only renders once that field's OWN step is
+        // mounted, and the recap step that got the user here doesn't render it at all. Jump to
+        // whichever step actually declares the first invalid field, the same way clicking that
+        // step's own header chip would, so the error becomes visible instead of leaving the user on
+        // a recap that silently refuses to submit.
+        //
+        // Deliberately `form.getFieldState(...)` here, never `form.formState.errors` — the latter is
+        // the value from react-hook-form's OWN last committed React render (a plain snapshot object,
+        // refreshed only through its normal subscribe-and-re-render cycle), while `getFieldState`
+        // reads the control's live internal state directly. Proven live in this component's own
+        // spec: right after `await form.trigger()` resolved `false` in this same handler,
+        // `formState.errors` still read back `{}` — no render had happened yet in between — while
+        // `getFieldState` already saw the field as invalid.
+        const stepIndex = steps.findIndex((step) =>
+          step.fields.some((field) => form.getFieldState(field as never).invalid),
+        )
+        if (stepIndex !== -1) {
+          setState((s) => ({ index: stepIndex, maxReached: Math.max(s.maxReached, stepIndex) }))
+        }
+        return
+      }
       await onSubmit(form.getValues())
       return
     }

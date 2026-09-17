@@ -122,16 +122,21 @@ describe("<ArticleUpsert>", () => {
 
     fireEvent.click(await screen.findByTestId("article-submit"))
 
-    // No unhandled rejection, no silent no-op: a toast fires and the API is never called with the
-    // stale, invalid data.
-    await waitFor(() => expect(toast.error).toHaveBeenCalled())
-    expect(patch).not.toHaveBeenCalled()
+    // No unhandled rejection, no silent no-op: the API is never called with the stale, invalid data.
+    // `SteppedDialog` itself now re-validates the WHOLE form on the last step's submit
+    // (`stepped-dialog.tsx`'s own `handleContinue`) and jumps back to the first step carrying an
+    // error BEFORE ever calling this component's `onSubmit` — so the `safeParse` branch below (and
+    // its `toast.error`) never even runs here; that branch stays as this form's own last line of
+    // defense for whatever `SteppedDialog`'s generic gate cannot see, not the layer that catches
+    // THIS scenario.
+    await waitFor(() => expect(patch).not.toHaveBeenCalled())
+    expect(toast.error).not.toHaveBeenCalled()
     expect(screen.getByTestId("article-dialog")).toBeInTheDocument()
 
     // The error is visible RIGHT NOW, with no further action — the wizard itself jumped back to
-    // Identity (the step that actually renders the "name" field) the moment `safeParse` found the
-    // error there, rather than leaving it attached to a field sitting behind the Stock step the user
-    // was still looking at.
+    // Identity (the step that actually renders the "name" field) the moment the whole-form
+    // `form.trigger()` found the error there, rather than leaving it attached to a field sitting
+    // behind the Stock step the user was still looking at.
     expect(await screen.findByText("Name is required")).toBeInTheDocument()
     expect(screen.getByTestId("article-dialog-step-body-identity")).toBeInTheDocument()
   })

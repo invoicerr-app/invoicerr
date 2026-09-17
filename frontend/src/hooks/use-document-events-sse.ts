@@ -44,9 +44,9 @@ export interface DocumentEventMessage {
  *
  * `useDocumentInstances`'s own `refetchInterval` (`use-document-types.ts`) — and
  * `useDocumentAuthorityEvents`'s own — stay in place as a SLOW fallback (see each hook's own comment
- * for the exact interval and why): SSE can fall silent (a misbehaving proxy, a dropped connection
- * before the browser's own auto-reconnect kicks in) without this codebase's own discipline of "the
- * screen must still catch up eventually" ever being violated.
+ * for the exact interval and why): SSE can still fall silent for the length of one reconnect
+ * attempt (`useSse`'s own bounded backoff, `use-fetch.ts`) without this codebase's own discipline of
+ * "the screen must still catch up eventually" ever being violated.
  */
 export function useDocumentEventsSse(): void {
   const queryClient = useQueryClient()

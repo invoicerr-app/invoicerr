@@ -136,55 +136,109 @@ export interface useSseResult<T = any> {
   close: () => void
 }
 
+/** Bounded exponential backoff for `useSse`'s own reconnect below — doubling from 1s up to a 30s
+ *  cap, rather than retrying instantly, so a backend that is down for a real reason (a deploy, an
+ *  actual outage) isn't hammered by every open tab. */
+const SSE_RECONNECT_BASE_MS = 1_000
+const SSE_RECONNECT_MAX_MS = 30_000
+
 export function useSse<T = any>(url: string, options?: EventSourceInit): useSseResult<T> {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Set by `close()` below (or by this effect's own cleanup) — checked before every reconnect
+  // ATTEMPT, not just once, so an already-scheduled `setTimeout(connect, delay)` from a connection
+  // that failed right before something else stopped the stream can never resurrect it.
+  const stoppedRef = useRef(false)
 
   useEffect(() => {
-    const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
+    stoppedRef.current = false
+    // Scoped to THIS effect run (one per distinct `url`), not a ref: a fresh URL is a logically
+    // different stream, so it starts its own backoff and has no event id of its own yet.
+    let reconnectDelay = SSE_RECONNECT_BASE_MS
+    let lastEventId: string | undefined
 
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-    }
+    function connect() {
+      if (stoppedRef.current) return
 
-    const es = new EventSource(fullUrl, {
-      ...options,
-      withCredentials: true,
-    })
+      const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
+      // A manually re-created EventSource — unlike the browser's OWN internal auto-reconnect, which
+      // this hook deliberately bypasses below — starts with no `Last-Event-ID` request header of its
+      // own: a plain EventSource accepts no custom headers at all, so a query param is the only
+      // channel left to carry it. A no-op against every stream in this codebase today (each one emits
+      // pure "go re-fetch" nudges with no `id:` field — see documents.controller.ts's own
+      // `MessageEvent`), but future-proofs the first one that starts sending an id and wants a
+      // reconnecting client to resume from it instead of silently skipping whatever it missed.
+      const connectUrl = lastEventId
+        ? `${fullUrl}${fullUrl.includes("?") ? "&" : "?"}lastEventId=${encodeURIComponent(lastEventId)}`
+        : fullUrl
 
-    eventSourceRef.current = es
-    setLoading(true)
-    setError(null)
+      const es = new EventSource(connectUrl, {
+        ...options,
+        withCredentials: true,
+      })
 
-    es.onopen = () => {
-      // Optional: handle the open event
-    }
+      eventSourceRef.current = es
+      setLoading(true)
+      setError(null)
 
-    es.onmessage = (event) => {
-      setLoading(false)
-      try {
-        const parsed = JSON.parse(event.data)
-        setData(parsed)
-      } catch {
-        setData(event.data as T)
+      es.onopen = () => {
+        // A connection actually succeeded — forget any backoff built up by earlier failures, so the
+        // NEXT drop starts fast again instead of inheriting a delay stretched out by an unrelated,
+        // already-resolved outage.
+        reconnectDelay = SSE_RECONNECT_BASE_MS
+      }
+
+      es.onmessage = (event) => {
+        setLoading(false)
+        if (event.lastEventId) lastEventId = event.lastEventId
+        try {
+          const parsed = JSON.parse(event.data)
+          setData(parsed)
+        } catch {
+          setData(event.data as T)
+        }
+      }
+
+      es.onerror = (err) => {
+        console.error("SSE Error", err)
+        setError(new Error("SSE connection error"))
+        setLoading(false)
+        // Closing here is what disables the BROWSER's own native auto-reconnect — reopening it
+        // ourselves, after the bounded delay above, is the entire point: a restarted backend, a 2s
+        // Wi-Fi drop, or a corporate proxy that kills long-lived connections used to leave this
+        // stream permanently dead for the rest of the session, with no code path ever recovering it.
+        // `useDocumentEventsSse`'s own header explicitly (and, before this fix, wrongly) relied on
+        // "the browser's own auto-reconnect" for exactly this.
+        es.close()
+        if (stoppedRef.current) return
+        const delay = reconnectDelay
+        reconnectDelay = Math.min(delay * 2, SSE_RECONNECT_MAX_MS)
+        reconnectTimeoutRef.current = setTimeout(connect, delay)
       }
     }
 
-    es.onerror = (err) => {
-      console.error("SSE Error", err)
-      setError(new Error("SSE connection error"))
-      setLoading(false)
-      es.close()
-    }
+    connect()
 
     return () => {
-      es.close()
+      stoppedRef.current = true
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
     }
   }, [url])
 
   const close = () => {
+    stoppedRef.current = true
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
       eventSourceRef.current = null

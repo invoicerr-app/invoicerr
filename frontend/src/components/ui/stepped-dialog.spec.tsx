@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { type FieldValues, useForm, type UseFormReturn } from "react-hook-form"
 import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
@@ -190,7 +190,9 @@ describe("<SteppedDialog> — behavior", () => {
     expect(submitBtn).toHaveTextContent("Save draft")
 
     fireEvent.click(submitBtn)
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: "Léa" }))
+    // `onSubmit` now fires only after the full-form `form.trigger()` gate resolves (see the
+    // "re-validates the WHOLE form" spec below) — no longer synchronous with the click.
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: "Léa" })))
   })
 
   it("a step chip for an upcoming step is disabled; a done step's chip jumps back to it", async () => {
@@ -220,6 +222,33 @@ describe("<SteppedDialog> — behavior", () => {
 
     fireEvent.click(screen.getByTestId("harness-step-c"))
     expect(await screen.findByText("step c content")).toBeInTheDocument()
+  })
+
+  it("re-validates the WHOLE form on the last step's submit, and snaps back to the step with the error instead of calling onSubmit", async () => {
+    const onSubmit = vi.fn()
+    render(<Harness onSubmit={onSubmit} />)
+
+    // Reach the last step ("c", fields: []) the normal way, with a valid "name".
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Léa" } })
+    fireEvent.click(screen.getByTestId("harness-continue")) // a -> b
+    await screen.findByText("step b content")
+    fireEvent.click(screen.getByTestId("harness-continue")) // b -> c
+    await screen.findByText("step c content")
+
+    // Jump back to step "a" via its header chip (already reached — no revalidation on the way there)
+    // and clear the required field, then jump straight back to the recap.
+    fireEvent.click(screen.getByTestId("harness-step-a"))
+    fireEvent.change(await screen.findByLabelText("name"), { target: { value: "" } })
+    fireEvent.click(screen.getByTestId("harness-step-c"))
+    await screen.findByText("step c content")
+
+    // The recap's own `fields: []` means the per-step gate alone would pass unconditionally —
+    // clicking "Save draft" here used to call onSubmit with the now-invalid "name" still empty.
+    fireEvent.click(screen.getByTestId("harness-submit"))
+
+    expect(await screen.findByLabelText("name")).toBeInTheDocument()
+    expect(await screen.findByText("Required")).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it("does not snap back to step 1 when steps.length changes mid-session, while the dialog stays open", async () => {

@@ -1,9 +1,11 @@
 import { useTranslation } from "react-i18next"
 import { Navigate } from "react-router"
+import { toast } from "sonner"
 
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ApiError } from "@/hooks/use-api-query"
 import { useAcceptLegal, useLegalDocuments, useLegalStatus } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 import { LEGAL_CONTENT_CLASSNAME, LegalMarkdown } from "@/lib/legal-markdown"
@@ -43,6 +45,16 @@ export default function LegalAcceptPage() {
     acceptMutation.mutate(undefined, {
       onSuccess: () => {
         window.location.href = "/dashboard"
+      },
+      // Without this, a failed `POST /legal/accept` (an expired session, a transient 500) left the
+      // spinner just stop, with no other sign anything happened: this screen blocks the entire app shell
+      // ((app)/_layout.tsx's own redirect here), so a silent failure trapped the visitor on it with
+      // no way forward except signing out by hand. `acceptMutation.isPending` going back to `false`
+      // already re-enables the button (`Button`'s own `disabled={disabled || loading}`) — this only
+      // adds the part that was missing: telling the user it failed, and why, so retrying isn't a
+      // guess.
+      onError: (error) => {
+        toast.error(error instanceof ApiError ? error.message : t("legal.accept.error"))
       },
     })
   }

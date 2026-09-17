@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next"
+
 /**
  * Client-side totals calculation — mirrors backend compute-totals.ts logic.
  * Same arithmetic (minor units, VAT per aggregated base), same structure.
@@ -23,6 +25,18 @@ export function toMinor(amount: number, currency: string): number {
 
 export function fromMinor(minor: number, currency: string): number {
   return minor / 10 ** decimalsFor(currency)
+}
+
+/**
+ * Whether a string looks like a number (for VAT-rate-field detection) — mirrors the backend's own
+ * `compute-totals.ts#looksNumeric` EXACTLY: "20", "5.5", "0" all return true; "standard" returns
+ * false. Used (document-totals.tsx) to decide whether an undocumented `select` subfield is a VAT
+ * rate at all — a `select` whose options are non-numeric (a "quality" or "category" dropdown) must
+ * NOT be mistaken for one, the same distinction the backend already draws when picking which
+ * `select` subfield to tax on.
+ */
+export function looksNumeric(value: string): boolean {
+  return !Number.isNaN(Number(value))
 }
 
 export interface ClientLineTotal {
@@ -60,6 +74,12 @@ export interface ClientDocumentTotals {
  * - VAT computed per rate on the aggregated, already-discounted base, not per line
  * - Currency from top-level field with 'currency' in key
  * - Quantity defaults to 1, discount defaults to 0, VAT rate to null (counted in net only)
+ * - A MISSING `vatRateFieldKey` means this line SHAPE has no VAT-like subfield at all (a purchase
+ *   order has none: it is not a tax document) — a STRUCTURAL fact about the document TYPE, never a
+ *   per-row data problem, so it is silent, exactly like the backend's own `extractVatRate` when
+ *   `arrayField.fields` never declares one (compute-totals.ts's own header explains why). Only a
+ *   rate that genuinely EXISTS as a concept on this line shape but is unset/unparseable on ONE row
+ *   still warns — that case is a real data problem, not a fact about the type.
  */
 export function computeTotals(
   lines: Array<Record<string, unknown>>,
@@ -68,6 +88,12 @@ export function computeTotals(
   numberFieldKey: string | undefined,
   vatRateFieldKey: string | undefined,
   discountFieldKey: string | undefined,
+  /** Optional so every existing caller that never reads `.warnings` (list-amount.ts's per-row
+   *  total, this file's own tests) keeps working unchanged — falls back to the same raw English the
+   *  backend emits (this file "mirrors compute-totals.ts EXACTLY", including its warning text) when
+   *  omitted. The one caller that actually SHOWS these to a user (`document-totals.tsx`'s
+   *  `useDocumentTotals`) passes its own `useTranslation()` result. */
+  t?: TFunction,
 ): ClientDocumentTotals {
   const warnings: string[] = []
   const processedLines: Array<{
@@ -108,22 +134,25 @@ export function computeTotals(
     // Calculate net for this line (in minor units) — discount applied before VAT, same as backend.
     const netMinor = Math.round(unitPriceMinor * quantity * (1 - discountPercent / 100))
 
-    // Extract VAT rate
+    // Extract VAT rate — see this function's own header on the `vatRateFieldKey` branch below:
+    // "no VAT-like subfield on this shape at all" (a purchase order) is silent, never a warning.
     let vatRatePercent: number | null = null
     if (vatRateFieldKey) {
       const rateValue = line[vatRateFieldKey]
+      const lineNumber = lineIndex + 1
+      const noUsableRateWarning =
+        t?.("documents.totals.warnings.noUsableVatRate", { line: lineNumber }) ??
+        `line ${lineNumber} has no usable VAT rate — counted in net only`
       if (rateValue !== undefined && rateValue !== null && rateValue !== "") {
         const parsed = Number(rateValue)
         if (!Number.isNaN(parsed)) {
           vatRatePercent = parsed
         } else {
-          warnings.push(`line ${lineIndex + 1} has no usable VAT rate — counted in net only`)
+          warnings.push(noUsableRateWarning)
         }
       } else {
-        warnings.push(`line ${lineIndex + 1} has no usable VAT rate — counted in net only`)
+        warnings.push(noUsableRateWarning)
       }
-    } else {
-      warnings.push(`line ${lineIndex + 1} has no usable VAT rate — counted in net only`)
     }
 
     processedLines.push({ index: lineIndex, netMinor, vatRatePercent })

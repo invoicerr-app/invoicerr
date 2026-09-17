@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next"
 import { useMemo } from "react"
 import { useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -8,6 +9,7 @@ import {
   computeTotals,
   decimalsFor,
   fromMinor,
+  looksNumeric,
 } from "@/components/documents/totals-calculator"
 import { extractCurrency, findLineArrayFields } from "@/components/documents/totals-shape"
 
@@ -19,8 +21,9 @@ import { extractCurrency, findLineArrayFields } from "@/components/documents/tot
  * it, and the detail page's header reads it once more for the headline amount.
  */
 export function useDocumentTotals(descriptor: DocumentTypeDescriptor) {
+  const { t } = useTranslation()
   const formValues = useWatch()
-  return useMemo(() => computeDocumentTotals(descriptor, formValues), [formValues, descriptor])
+  return useMemo(() => computeDocumentTotals(descriptor, formValues, t), [formValues, descriptor, t])
 }
 
 /**
@@ -33,6 +36,9 @@ export function useDocumentTotals(descriptor: DocumentTypeDescriptor) {
 export function computeDocumentTotals(
   descriptor: DocumentTypeDescriptor,
   values: Record<string, unknown> | undefined,
+  /** See `computeTotals`'s own header — optional, only `useDocumentTotals` above (the one path that
+   *  actually renders `.warnings` to a user) passes it. */
+  t?: TFunction,
 ): ClientDocumentTotals | null {
   const arrayFields = findLineArrayFields(descriptor)
   if (!values || arrayFields.length === 0) return null
@@ -58,9 +64,17 @@ export function computeDocumentTotals(
   const discountField = firstArrayField.fields?.find(
     (f) => f.kind === "number" && f.key.toLowerCase().includes("discount"),
   )
+  // Mirrors the backend's own `extractVatRate` EXACTLY, `looksNumeric` included: a `select` whose
+  // key doesn't say "vat" is only a VAT-rate field when its OWN first option looks like a number
+  // ("20", "5.5") — options.length > 0 alone also matches a non-numeric dropdown ("standard",
+  // "reduced"), which would make this resolve a field the backend never taxes on, and silently show
+  // 0 VAT on screen for an invoice the server DOES tax (the divergence this mirrors against).
   const vatRateField = firstArrayField.fields?.find((f) => {
     if (f.kind !== "select") return false
-    return f.key.toLowerCase().includes("vat") || (f.options && f.options.length > 0)
+    return (
+      f.key.toLowerCase().includes("vat") ||
+      (!!f.options && f.options.length > 0 && looksNumeric(f.options[0].value))
+    )
   })
   if (!moneyField) return null
 
@@ -74,6 +88,7 @@ export function computeDocumentTotals(
     numberField?.key,
     vatRateField?.key,
     discountField?.key,
+    t,
   )
 }
 

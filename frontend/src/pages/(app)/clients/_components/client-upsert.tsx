@@ -30,11 +30,17 @@ import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { type IdentifierRequirement, useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
 import { type B2gRoutingRule, useB2gRoutingRule } from "@/hooks/use-b2g-routing"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { FormSection } from "../../_shared/form-dialog"
-import { SteppedDialog, type SteppedDialogStep } from "@/components/ui/stepped-dialog"
+import {
+  SteppedDialog,
+  type SteppedDialogHandle,
+  type SteppedDialogStep,
+  stepForField,
+} from "@/components/ui/stepped-dialog"
 import { ClientPortalAccessDialog } from "./client-portal-access"
 import { isValidPostalCode } from "./postal-code"
 
@@ -809,6 +815,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   const isEditing = !!client
   const queryClient = useQueryClient()
   const [portalAccessOpen, setPortalAccessOpen] = useState(false)
+  // See `SteppedDialog`'s own `onSubmit` prop comment further down — the escape hatch that lets the
+  // last line of defense below jump to whichever step actually shows the field it just rejected.
+  const dialogRef = useRef<SteppedDialogHandle>(null)
 
   const saveErrorMessage = t("clients.upsert.messages.saveError", "Failed to save client")
   const { trigger: createClient, loading: createLoading } = useMutationWithToast(
@@ -1284,6 +1293,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   return (
     <>
       <SteppedDialog
+        ref={dialogRef}
         steps={steps}
         // Concretely typed on this form (unlike document-create-dialog.tsx's runtime-built one) — the
         // widening cast is the one `stepped-dialog.spec.tsx`'s own harness already documents as the
@@ -1297,14 +1307,33 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         // `z.coerce`/`.transform()` field today (no numeric inputs, unlike a document's line items),
         // so in practice the two are identical — but re-parsing here is what keeps that true if a
         // coercing field is ever added, rather than relying on every future field author to remember
-        // this component's own submit path skips the resolver. `safeParse`, not `parse`: every field
-        // was already checked by its own step's `form.trigger()` on the common path, but the wizard's
-        // own "went back, broke it, jumped ahead via a header chip" gap (this schema's own superRefine
-        // comment) means a stale invalid value can still reach here — falling back to the raw values
-        // rather than throwing lets the ACTUAL gate (the backend) answer instead of crashing the tab.
+        // this component's own submit path skips the resolver. `safeParse`, not `parse`: `SteppedDialog`
+        // itself already re-validates the WHOLE form (its own `handleContinue`) before ever calling
+        // this, so `!parsed.success` below should be unreachable in practice — this is the LAST line
+        // of defense, not the primary one, for however a future divergence between this schema and the
+        // form's own resolver could still let a stale invalid value through. Never post it anyway: an
+        // invalid payload sent to the backend used to fail with a generic toast and no indication of
+        // which of the 5 steps was at fault (the Summary step that got the user here renders nothing
+        // that could show an inline error) — attach the issues to their fields and jump back to the
+        // first one instead, exactly like `article-upsert.tsx`'s own last-line-of-defense does.
         onSubmit={(values) => {
           const parsed = clientSchema.safeParse(values)
-          onSubmit(parsed.success ? parsed.data : (values as z.infer<typeof clientSchema>))
+          if (!parsed.success) {
+            let firstErrorField: string | undefined
+            for (const issue of parsed.error.issues) {
+              const key = issue.path[0]
+              if (typeof key !== "string") continue
+              form.setError(key as never, { type: "manual", message: issue.message })
+              firstErrorField ??= key
+            }
+            if (firstErrorField) {
+              const stepIndex = stepForField(steps, firstErrorField)
+              if (stepIndex !== undefined) dialogRef.current?.goToStep(stepIndex)
+            }
+            toast.error(t("clients.upsert.messages.validationError"))
+            return
+          }
+          onSubmit(parsed.data)
         }}
         submitLabel={isEditing ? t("clients.upsert.actions.save") : t("clients.upsert.actions.create")}
         open={open}

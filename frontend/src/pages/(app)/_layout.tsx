@@ -8,6 +8,7 @@ import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
 import { Sidebar } from "@/components/sidebar"
 import { WaitingForSeatScreen } from "@/components/waiting-for-seat-screen"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
+import { ApiError } from "@/hooks/use-api-query"
 import { useLegalStatus, useSeats } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 
@@ -104,7 +105,12 @@ const Layout = () => {
   const { data: legalStatus, isPending: legalStatusPending } = useLegalStatus(!!session)
   // Same reasoning as `legalStatus` above: gated on a session existing, harmless (a plain 404, `useSeats`'s
   // own `retry: false`) on a self-hosted instance where this route does not exist at all.
-  const { data: seatsView } = useSeats(!!session)
+  const {
+    data: seatsView,
+    isPending: seatsPending,
+    isError: seatsErrored,
+    error: seatsError,
+  } = useSeats(!!session)
 
   if (isPending) {
     return null
@@ -149,8 +155,24 @@ const Layout = () => {
   // No-free-seat gate (an over-capacity company — the OWNER lowered the bought quantity below the
   // current headcount): blocks the whole app shell exactly like the legal interstitial above, but
   // renders in place rather than navigating — there is no separate route for it, just a full-screen
-  // component. `seatsView` stays `undefined` on a self-hosted instance (the route 404s) or before the
-  // fetch resolves, so this never fires outside SaaS mode and never flashes before the real check runs.
+  // component. `seatsView` stays `undefined` on a self-hosted instance (the route genuinely 404s —
+  // this app never bundles billing there) or before the fetch resolves.
+  //
+  // Wait for THIS query too, exactly like `legalStatusPending` above — the check below reads
+  // `seatsView`, so rendering `AuthenticatedLayout` (sidebar, `<Outlet/>`, its own SSE connection)
+  // while the request is still in flight was a real flash of the full app shell for an over-capacity
+  // member, not merely a theoretical one. And a 404 is the ONLY error this route is allowed to mean
+  // "no gate applies" for (self-hosted, billing not mounted at all) — `useSeats`'s own `retry: false`
+  // means a genuine failure (a transient 500, a network drop) settles into `isError` just as fast,
+  // and treating THAT the same as "no seats data, so nothing to wait for" would silently wave an
+  // over-capacity member through on nothing more than a blip. Blocking here has no write-side stakes
+  // either way (`billing/seat-gate.ts` enforces the real limit server-side, unconditionally) — this
+  // is purely about not showing the product screen to someone the product itself would still refuse.
+  const seatsRouteMissing = seatsErrored && seatsError instanceof ApiError && seatsError.status === 404
+  if (seatsPending || (seatsErrored && !seatsRouteMissing)) {
+    return null
+  }
+
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id
   const isWaitingForSeat =
     !!currentUserId && !!seatsView?.waiting.some((member) => member.userId === currentUserId)

@@ -288,6 +288,7 @@
       },
       "messages": {
         "saveError": "Failed to save client",
+        "validationError": "Please fix the highlighted fields before saving",
         "lookupSuccess": "Company information retrieved successfully.",
         "lookupNotFound": "Company not found. You can enter the information manually.",
         "lookupError": "Could not reach the company directory.",
@@ -4563,7 +4564,10 @@
     "totals": {
       "net": "Net",
       "vat": "VAT {{rate}}% on {{base}}",
-      "gross": "Total"
+      "gross": "Total",
+      "warnings": {
+        "noUsableVatRate": "Line {{line}} has no usable VAT rate — counted in net only"
+      }
     },
     "settlement": {
       "title": "Settlement",
@@ -4798,7 +4802,8 @@
     "accept": {
       "title": "Updated legal terms",
       "description": "We've updated the following document(s). Please review them before continuing.",
-      "button": "I accept — continue"
+      "button": "I accept — continue",
+      "error": "Could not save your acceptance — please try again."
     }
   }
 }
