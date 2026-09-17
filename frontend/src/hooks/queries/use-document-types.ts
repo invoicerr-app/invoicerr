@@ -122,14 +122,63 @@ export function useDocumentType(typeId: string | undefined, clientId?: string) {
  */
 const SENDING_POLL_INTERVAL_MS = 60_000
 
-export function useDocumentInstances(typeId: string | undefined) {
-  return useApiQuery<DocumentInstance[]>(["documents", typeId], `/api/documents?typeId=${typeId}`, {
-    enabled: !!typeId,
-    refetchInterval: (query) => {
-      const instances = query.state.data as DocumentInstance[] | undefined
-      return instances?.some((instance) => instance.status === "sending") ? SENDING_POLL_INTERVAL_MS : false
+/** `GET /documents`'s own filters — mirrors the backend's `ParsedListDocumentsQuery`
+ *  (dto/list-documents.dto.ts). `status`/`sort`/`order` are always sendable; `clientId`/`dateFrom`/
+ *  `dateTo`/`q` each read the type's own descriptor server-side, so the screen only ever offers them
+ *  once it knows (via the SAME descriptor this page already fetched) that this type has a field for
+ *  them — see document-list.tsx's own `resolveClientFieldKey`/`resolveDateFieldKey`. */
+export interface DocumentInstancesFilters {
+  page?: number
+  pageSize?: number
+  status?: string[]
+  clientId?: string
+  /** `YYYY-MM-DD`, inclusive — matches the backend's own `dateFrom`/`dateTo` contract. */
+  dateFrom?: string
+  dateTo?: string
+  q?: string
+  sort?: "updatedAt" | "createdAt" | "number" | "status"
+  order?: "asc" | "desc"
+}
+
+/** `GET /documents`'s own response shape — one PAGE, never a bare array (issue: the list used to
+ *  fetch a flat, unpaginated `take: 50` with every filter re-applied client-side against whatever
+ *  those 50 rows happened to be, silently hiding anything past the cap). */
+export interface DocumentInstancesPage {
+  items: DocumentInstance[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+function buildDocumentListParams(typeId: string, filters: DocumentInstancesFilters): string {
+  const params = new URLSearchParams()
+  params.set("typeId", typeId)
+  params.set("page", String(filters.page ?? 1))
+  params.set("pageSize", String(filters.pageSize ?? 25))
+  for (const status of filters.status ?? []) params.append("status", status)
+  if (filters.clientId) params.set("clientId", filters.clientId)
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
+  if (filters.dateTo) params.set("dateTo", filters.dateTo)
+  if (filters.q) params.set("q", filters.q)
+  if (filters.sort) params.set("sort", filters.sort)
+  if (filters.order) params.set("order", filters.order)
+  return params.toString()
+}
+
+export function useDocumentInstances(typeId: string | undefined, filters: DocumentInstancesFilters = {}) {
+  return useApiQuery<DocumentInstancesPage>(
+    ["documents", typeId, filters],
+    `/api/documents?${typeId ? buildDocumentListParams(typeId, filters) : ""}`,
+    {
+      enabled: !!typeId,
+      refetchInterval: (query) => {
+        const page = query.state.data as DocumentInstancesPage | undefined
+        return page?.items?.some((instance) => instance.status === "sending")
+          ? SENDING_POLL_INTERVAL_MS
+          : false
+      },
     },
-  })
+  )
 }
 
 export function useDocumentInstance(typeId: string | undefined, id: string | undefined) {

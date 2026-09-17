@@ -229,6 +229,11 @@
           "nameLabel": "Name"
         }
       },
+      "duplicates": {
+        "email": "A client with this email already exists: {{name}}.",
+        "nameCountry": "A client with this name already exists in {{country}}: {{name}}.",
+        "viewLink": "View existing client"
+      },
       "validation": {
         "name": {
           "required": "Company name is required"

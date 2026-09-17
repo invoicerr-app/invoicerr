@@ -9,6 +9,7 @@ import {
   Search,
   SearchX,
   TriangleAlert,
+  X,
 } from "lucide-react"
 import { type ReactNode, useMemo, useState } from "react"
 import { Link } from "react-router"
@@ -51,8 +52,10 @@ import type {
 } from "@/components/documents/types"
 import { isActionAvailable, statusLabel } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
-import { useResolvedCompanyCustomFields } from "@/hooks/queries"
+import { DatePicker } from "@/components/date-picker"
+import { useReferenceResolve, useReferenceSearch, useResolvedCompanyCustomFields } from "@/hooks/queries"
 import BetterPagination from "@/components/pagination"
+import SearchSelect from "@/components/search-input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -72,11 +75,25 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-const PAGE_SIZE = 10
-
 /** A row's grid — see DocumentListRow's own comment on why the desktop columns are fixed widths. */
 const ROW_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_9rem_minmax(10rem,auto)_5rem] sm:gap-4"
+
+/** Mirrors the backend's `list-filters.ts#resolveClientFieldKey` exactly — the ONE field on this
+ *  type that references a CLIENT entity, which is what the `clientId` filter (and the search box's
+ *  own "match the client's name" term) key off. `undefined` for a type with no such field (e.g.
+ *  purchase-order's own "supplier" targets a DIFFERENT entity), which is what gates the client filter
+ *  out of the header entirely rather than offering a control the backend would 400 on. */
+function resolveClientFieldKey(descriptor: DocumentTypeDescriptor): string | undefined {
+  return descriptor.fields.find((field) => field.kind === "reference" && field.entity === "client")?.key
+}
+
+/** Mirrors the backend's `list-filters.ts#resolveDateFieldKey` — `'issueDate'` first, else `'date'`,
+ *  else this type has no date the period filter could mean anything for. */
+function resolveDateFieldKey(descriptor: DocumentTypeDescriptor): string | undefined {
+  const byKey = (key: string) => descriptor.fields.find((field) => field.key === key && field.kind === "date")
+  return (byKey("issueDate") ?? byKey("date"))?.key
+}
 
 interface DocumentCardTitleProps {
   descriptor: DocumentTypeDescriptor
@@ -611,7 +628,10 @@ function DocumentListSkeleton() {
 
 interface StatusChipProps {
   label: string
-  count: number
+  /** Omitted entirely once filtering moved server-side: a page-local count (or a count for a status
+   *  another status chip is currently narrowing away) would be actively misleading rather than
+   *  merely absent — see DocumentList's own header for the full reasoning. */
+  count?: number
   active: boolean
   onClick: () => void
   dataCy: string
@@ -619,7 +639,9 @@ interface StatusChipProps {
 
 /** One status filter as a pressed/unpressed pill — a real `<button aria-pressed>`, not a `Badge`
  *  with an onClick: the old chips looked like static labels because they were. Active = filled with
- *  the foreground ink, not the primary blue, so the header keeps a single blue control. */
+ *  the foreground ink, not the primary blue, so the header keeps a single blue control. MULTIPLE
+ *  chips can be active at once (status is now an OR-list filter, `?status=draft&status=sent`) — a
+ *  click toggles this one chip, it never exclusively replaces whatever else is already active. */
 function StatusChip({ label, count, active, onClick, dataCy }: StatusChipProps) {
   return (
     <button
@@ -635,18 +657,149 @@ function StatusChip({ label, count, active, onClick, dataCy }: StatusChipProps) 
       data-cy={dataCy}
     >
       <span>{label}</span>
-      <span className={cn("tabular-nums text-xs", active ? "text-background/70" : "text-muted-foreground")}>
-        {count}
-      </span>
+      {count !== undefined && (
+        <span className={cn("tabular-nums text-xs", active ? "text-background/70" : "text-muted-foreground")}>
+          {count}
+        </span>
+      )}
     </button>
   )
 }
 
-type SortKey = "updated-desc" | "updated-asc" | "amount-desc" | "amount-asc"
+/** `Date` (the `DatePicker`'s own value shape) <-> `"YYYY-MM-DD"` (the backend's `dateFrom`/`dateTo`
+ *  contract, `dto/list-documents.dto.ts`) — a CALENDAR DAY, never an instant, so this reads/writes
+ *  the browser's own local year/month/day rather than going through `toISOString()` (UTC), which
+ *  would silently shift the picked day for anyone west of UTC. */
+function dateToParam(date: Date | null): string | undefined {
+  if (!date) return undefined
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+function paramToDate(value: string | undefined): Date | null {
+  if (!value) return null
+  const [year, month, day] = value.split("-").map(Number)
+  return new Date(year, month - 1, day)
+}
+
+interface DocumentClientFilterProps {
+  clientId?: string
+  onChange: (value: string | undefined) => void
+}
+
+/** The `clientId` filter — the generic 'client' reference search/resolve endpoints every
+ *  `ReferenceField` already uses (references/document-reference.provider.ts), never a bespoke
+ *  client-picker of this list's own. Only rendered by the caller when `resolveClientFieldKey` finds
+ *  this type actually has a client to filter by. */
+function DocumentClientFilter({ clientId, onChange }: DocumentClientFilterProps) {
+  const { t } = useTranslation()
+  const [search, setSearch] = useState("")
+  const { data: results = [] } = useReferenceSearch("client", search)
+  const { data: resolved } = useReferenceResolve("client", clientId)
+
+  return (
+    <div className="flex items-center gap-1">
+      <SearchSelect
+        options={results.map((option) => ({ value: option.id, label: option.label }))}
+        allOptions={resolved ? [{ value: resolved.id, label: resolved.label }] : []}
+        value={clientId ?? ""}
+        onValueChange={(value) => onChange((value as string) || undefined)}
+        onSearchChange={setSearch}
+        placeholder={t("documents.list.filters.clientPlaceholder")}
+        searchPlaceholder={t("documents.form.reference.searchPlaceholder")}
+        noResultsText={t("documents.form.reference.noResults")}
+        className="w-full sm:w-56"
+        data-cy="document-list-filter-client"
+      />
+      {clientId && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          onClick={() => onChange(undefined)}
+          tooltip={t("documents.list.filters.clear")}
+          aria-label={t("documents.list.filters.clear")}
+          dataCy="document-list-filter-client-clear"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export interface DocumentDateRange {
+  dateFrom?: string
+  dateTo?: string
+}
+
+interface DocumentDateRangeFilterProps {
+  dateFrom?: string
+  dateTo?: string
+  /** ALWAYS receives the FULL intended range, both keys, never just the one that changed — see this
+   *  file's own header comment on `applyParams` (`[typeId]/index.tsx`) for why: multiple
+   *  `setSearchParams` calls fired synchronously in the same click handler do NOT compose (only the
+   *  LAST one actually ends up applied — a real, proven bug, not a theoretical one), so "clear both
+   *  dateFrom and dateTo" MUST be one call carrying both, never two calls each clearing one. */
+  onChange: (range: DocumentDateRange) => void
+}
+
+/** The `dateFrom`/`dateTo` period filter, against whichever field `resolveDateFieldKey` names for
+ *  this type (issuance date for most types, an expense's own `date`) — two plain `DatePicker`s
+ *  (from `@/components/date-picker`, unmodified), never a bespoke range widget. */
+function DocumentDateRangeFilter({ dateFrom, dateTo, onChange }: DocumentDateRangeFilterProps) {
+  const { t } = useTranslation()
+  const hasRange = !!dateFrom || !!dateTo
+
+  return (
+    <div className="flex items-center gap-1">
+      <DatePicker
+        value={paramToDate(dateFrom)}
+        onChange={(date) => onChange({ dateFrom: dateToParam(date), dateTo })}
+        placeholder={t("documents.list.filters.dateFrom")}
+        className="w-auto sm:w-36"
+        data-cy="document-list-filter-date-from"
+      />
+      <span className="text-muted-foreground text-sm">–</span>
+      <DatePicker
+        value={paramToDate(dateTo)}
+        onChange={(date) => onChange({ dateFrom, dateTo: dateToParam(date) })}
+        placeholder={t("documents.list.filters.dateTo")}
+        className="w-auto sm:w-36"
+        data-cy="document-list-filter-date-to"
+      />
+      {hasRange && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          onClick={() => onChange({ dateFrom: undefined, dateTo: undefined })}
+          tooltip={t("documents.list.filters.clear")}
+          aria-label={t("documents.list.filters.clear")}
+          dataCy="document-list-filter-date-clear"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export type SortKey = "updated-desc" | "updated-asc" | "number-desc" | "number-asc"
 
 interface DocumentListProps {
   descriptor: DocumentTypeDescriptor
-  instances: DocumentInstance[]
+  /** THIS PAGE's rows only — never the full list. Pagination/filtering/sorting all happen
+   *  server-side now (`GET /documents`'s own `page`/`pageSize`/`status`/`clientId`/`dateFrom`/
+   *  `dateTo`/`q`/`sort`/`order` — see `hooks/queries/use-document-types.ts#useDocumentInstances`);
+   *  this component never re-filters, re-sorts, or re-slices what it's handed. */
+  items: DocumentInstance[]
+  /** The TOTAL row count matching the current filters, across every page — what the pagination
+   *  footer below sizes itself from (`Math.ceil(total / pageSize)`), never `items.length`. */
+  total: number
+  page: number
+  pageSize: number
+  onPageChange: (page: number) => void
   isLoading: boolean
   /** The list's own GET failed — shown as a state of the list with a retry, never a blank card. */
   error?: unknown
@@ -655,102 +808,97 @@ interface DocumentListProps {
   /** A row was clicked: the page navigates to the record's own screen. */
   onOpen: (instance: DocumentInstance) => void
   onActionSuccess: (result: DocumentInstance, actionId: string) => void
+  /** Every filter below is CONTROLLED from the page (`[typeId]/index.tsx`), which mirrors them into
+   *  the URL query string — shareable, and the browser back button restores a previous filter state.
+   *  `search` is whatever the box currently shows (every keystroke, uncommitted) — the PARENT is what
+   *  debounces it into the actual `q` sent to the server; this component never debounces anything
+   *  itself. */
+  search: string
+  onSearchChange: (value: string) => void
+  statusFilter: string[]
+  onStatusFilterChange: (value: string[]) => void
+  clientId?: string
+  onClientIdChange: (value: string | undefined) => void
+  dateFrom?: string
+  dateTo?: string
+  /** See `DocumentDateRangeFilterProps.onChange`'s own header — always the FULL range, never a
+   *  single key, so a "clear the whole range" click is one call, never two. */
+  onDateRangeChange: (range: DocumentDateRange) => void
+  sort: SortKey
+  onSortChange: (value: SortKey) => void
+  /** Clears search + status + client + date range TOGETHER, in the ONE call the "Clear filters"
+   *  empty-state button fires — never five separate `onXChange` calls: see `[typeId]/index.tsx`'s
+   *  own `applyParams` header for the proven reason multiple `setSearchParams` calls per click do
+   *  NOT compose (only the last one actually applies). */
+  onClearFilters: () => void
 }
 
 /**
  * The one generic list: a row per document instance (see DocumentListRow above) — never a bare
  * table, which would show every field with equal weight instead of a title a reader can actually
- * scan for. Search, status chips with counts, a sort, and ONE filled button ("New <type>") make up
- * the header; the rows carry one primary action each and a menu for the rest. A new document type
- * needs no list screen of its own, and no code here: it declares `listItem` on its descriptor (see
- * types.ts) and gets this rendering exactly like the other types.
+ * scan for. Search (debounced upstream), a MULTI status filter, an optional client filter, an
+ * optional date-range filter, a sort, and ONE filled button ("New <type>") make up the header; the
+ * rows carry one primary action each and a menu for the rest. A new document type needs no list
+ * screen of its own, and no code here: it declares `listItem` on its descriptor (see types.ts) and
+ * gets this rendering exactly like the other types — the client/date filters simply don't render for
+ * a type whose descriptor carries no field either one could mean anything for
+ * (`resolveClientFieldKey`/`resolveDateFieldKey`, this file's own top).
  */
 export function DocumentList({
   descriptor,
-  instances,
+  items,
+  total,
+  page,
+  pageSize,
+  onPageChange,
   isLoading,
   error,
   onRetry,
   onCreate,
   onOpen,
   onActionSuccess,
+  search,
+  onSearchChange,
+  statusFilter,
+  onStatusFilterChange,
+  clientId,
+  onClientIdChange,
+  dateFrom,
+  dateTo,
+  onDateRangeChange,
+  sort,
+  onSortChange,
+  onClearFilters,
 }: DocumentListProps) {
   const { t } = useTranslation()
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
-  const [sort, setSort] = useState<SortKey>("updated-desc")
-  const [page, setPage] = useState(1)
 
   // See custom-slots.ts's own comment on "list-header-extra" — additive, next to the generic "New"
   // button below, never in place of it. `instance` is deliberately omitted (this slot is per-LIST,
   // not per-record).
   const headerExtras = getDocumentCustomComponents(descriptor.id, "list-header-extra")
 
-  // Status categories are DERIVED from the loaded data, never a fixed enum — the same discipline
-  // DocumentStatusBadge holds for color: a status this core has never seen still gets a filter chip.
-  const statusCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const instance of instances) counts.set(instance.status, (counts.get(instance.status) ?? 0) + 1)
-    return counts
-  }, [instances])
+  const clientFieldKey = useMemo(() => resolveClientFieldKey(descriptor), [descriptor])
+  const dateFieldKey = useMemo(() => resolveDateFieldKey(descriptor), [descriptor])
 
-  // One amount per row, resolved once here rather than inside each row: the sort needs every
-  // figure up front, and the row then shows the same object it was sorted by.
+  // One amount per CURRENT-PAGE row — a reading aid on the row itself, never a list-wide total: see
+  // list-amount.ts's own `resolveRowAmount` header. There is no "total of this list" figure computed
+  // anywhere in this component (there never was one beyond a single row's own amount), so there is
+  // nothing here that could silently start summing only a page instead of everything once pagination
+  // moved server-side — the one thing worth naming explicitly given that move.
   const amounts = useMemo(() => {
     const byId = new Map<string, RowAmount | null>()
-    for (const instance of instances) byId.set(instance.id, resolveRowAmount(descriptor, instance.data))
+    for (const instance of items) byId.set(instance.id, resolveRowAmount(descriptor, instance.data))
     return byId
-  }, [descriptor, instances])
-  const hasAmounts = useMemo(() => [...amounts.values()].some((amount) => amount !== null), [amounts])
+  }, [descriptor, items])
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    const rows = instances.filter((instance) => {
-      if (statusFilter && instance.status !== statusFilter) return false
-      if (!term) return true
-      // A generic full-text filter: match against the document's own data verbatim (plus its
-      // number) rather than guessing which fields are "searchable" per type.
-      return `${instance.displayNumber ?? ""} ${JSON.stringify(instance.data)}`.toLowerCase().includes(term)
-    })
-    const byUpdated = (a: DocumentInstance, b: DocumentInstance) =>
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    // Amount sorts compare in minor units of whatever currency each row carries — a mixed-currency
-    // list sorts by raw figure, deliberately: it is a reading aid, not an accounting statement.
-    const byAmount = (a: DocumentInstance, b: DocumentInstance) =>
-      (amounts.get(b.id)?.minor ?? Number.NEGATIVE_INFINITY) -
-      (amounts.get(a.id)?.minor ?? Number.NEGATIVE_INFINITY)
-    switch (sort) {
-      case "updated-asc":
-        return rows.sort((a, b) => byUpdated(b, a))
-      case "amount-desc":
-        return rows.sort(byAmount)
-      case "amount-asc":
-        return rows.sort((a, b) => byAmount(b, a))
-      default:
-        return rows.sort(byUpdated)
-    }
-  }, [instances, search, statusFilter, sort, amounts])
+  const pageCount = Math.max(1, Math.ceil(total / pageSize))
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const currentPage = Math.min(page, pageCount)
-  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const hasActiveFilter = !!search || statusFilter.length > 0 || !!clientId || !!dateFrom || !!dateTo
 
-  const hasActiveFilter = !!search || !!statusFilter
-
-  const setSearchAndResetPage = (value: string) => {
-    setSearch(value)
-    setPage(1)
-  }
-
-  const selectStatusFilter = (status: string | undefined) => {
-    setStatusFilter(status)
-    setPage(1)
-  }
-
-  const clearFilters = () => {
-    setSearch("")
-    setStatusFilter(undefined)
-    setPage(1)
+  const toggleStatus = (status: string) => {
+    onStatusFilterChange(
+      statusFilter.includes(status) ? statusFilter.filter((s) => s !== status) : [...statusFilter, status],
+    )
   }
 
   const createLabel = t("documents.list.actions.create", { label: descriptor.label })
@@ -775,14 +923,22 @@ export function DocumentList({
         data-cy="document-list-error"
       />
     )
-  } else if (filtered.length === 0) {
+  } else if (items.length === 0) {
+    // `hasActiveFilter` is what tells "no document has ever been created" (the create-focused empty
+    // state) apart from "these filters happen to match nothing" (the clear-filters one) — `total`
+    // alone can't: with a filter active, `total === 0` means the LATTER, not the former.
     body = hasActiveFilter ? (
       <EmptyState
         icon={SearchX}
         title={t("documents.list.emptyState.noResults")}
         description={t("documents.list.emptyState.noResultsHint")}
         action={
-          <Button type="button" variant="outline" onClick={clearFilters} dataCy="document-list-clear-filters">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClearFilters}
+            dataCy="document-list-clear-filters"
+          >
             {t("common.emptyState.clearFilters")}
           </Button>
         }
@@ -807,7 +963,7 @@ export function DocumentList({
   } else {
     body = (
       <div className="divide-y" data-cy="document-list-cards">
-        {paged.map((instance) => (
+        {items.map((instance) => (
           <DocumentListRow
             key={instance.id}
             descriptor={descriptor}
@@ -840,7 +996,7 @@ export function DocumentList({
                 placeholder={t("documents.list.searchPlaceholder")}
                 aria-label={t("documents.list.searchPlaceholder")}
                 value={search}
-                onChange={(event) => setSearchAndResetPage(event.target.value)}
+                onChange={(event) => onSearchChange(event.target.value)}
                 className="w-full pl-9"
                 data-cy="document-list-search"
               />
@@ -859,7 +1015,7 @@ export function DocumentList({
             </div>
           </div>
 
-          <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
+          <Select value={sort} onValueChange={(value) => onSortChange(value as SortKey)}>
             <SelectTrigger
               className="w-full sm:order-2 sm:w-44"
               aria-label={t("documents.list.sort.label")}
@@ -870,19 +1026,30 @@ export function DocumentList({
             <SelectContent>
               <SelectItem value="updated-desc">{t("documents.list.sort.updatedDesc")}</SelectItem>
               <SelectItem value="updated-asc">{t("documents.list.sort.updatedAsc")}</SelectItem>
-              {hasAmounts && (
+              {/* "number" only means something for a type that actually numbers its instances — see
+                  DocumentCardNumber's own identical `descriptor.numbering` gate. */}
+              {descriptor.numbering && (
                 <>
-                  <SelectItem value="amount-desc">{t("documents.list.sort.amountDesc")}</SelectItem>
-                  <SelectItem value="amount-asc">{t("documents.list.sort.amountAsc")}</SelectItem>
+                  <SelectItem value="number-desc">{t("documents.list.sort.numberDesc")}</SelectItem>
+                  <SelectItem value="number-asc">{t("documents.list.sort.numberAsc")}</SelectItem>
                 </>
               )}
             </SelectContent>
           </Select>
         </div>
 
+        {(clientFieldKey || dateFieldKey) && (
+          <div className="flex flex-wrap items-center gap-2" data-cy="document-list-extra-filters">
+            {clientFieldKey && <DocumentClientFilter clientId={clientId} onChange={onClientIdChange} />}
+            {dateFieldKey && (
+              <DocumentDateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onChange={onDateRangeChange} />
+            )}
+          </div>
+        )}
+
         {isLoading && (
           // Placeholder pills where the chips will land, so the header keeps its height and the
-          // rows below don't drop by a line once the counts arrive.
+          // rows below don't drop by a line once the descriptor arrives.
           <div className="flex gap-2 py-0.5" aria-hidden="true">
             <Skeleton className="h-8 w-16 rounded-full" />
             <Skeleton className="h-8 w-20 rounded-full" />
@@ -890,9 +1057,11 @@ export function DocumentList({
           </div>
         )}
 
-        {instances.length > 0 && (
+        {!isLoading && (descriptor.statuses?.length ?? 0) > 0 && (
           // A single scrolling line on a phone rather than a wrapping cloud: `-mx-6 px-6` lets the
           // pills run to the card's edge and the scroll start where the header's padding starts.
+          // MULTI-select: every declared status gets its own chip, any number active at once — "All"
+          // is really "no status narrowing", active exactly when the list is empty.
           <div
             role="group"
             aria-label={t("documents.list.filters.ariaLabel")}
@@ -901,19 +1070,17 @@ export function DocumentList({
           >
             <StatusChip
               label={t("documents.list.filters.all")}
-              count={instances.length}
-              active={statusFilter === undefined}
-              onClick={() => selectStatusFilter(undefined)}
+              active={statusFilter.length === 0}
+              onClick={() => onStatusFilterChange([])}
               dataCy="document-status-filter-all"
             />
-            {[...statusCounts.entries()].map(([status, count]) => (
+            {(descriptor.statuses ?? []).map((status) => (
               <StatusChip
-                key={status}
-                label={statusLabel(descriptor, status)}
-                count={count}
-                active={statusFilter === status}
-                onClick={() => selectStatusFilter(statusFilter === status ? undefined : status)}
-                dataCy={`document-status-filter-${status}`}
+                key={status.id}
+                label={statusLabel(descriptor, status.id)}
+                active={statusFilter.includes(status.id)}
+                onClick={() => toggleStatus(status.id)}
+                dataCy={`document-status-filter-${status.id}`}
               />
             ))}
           </div>
@@ -922,9 +1089,9 @@ export function DocumentList({
 
       <CardContent className="p-0">{body}</CardContent>
 
-      {!isLoading && !error && filtered.length > 0 && pageCount > 1 && (
+      {!isLoading && !error && items.length > 0 && pageCount > 1 && (
         <div className="border-t p-4">
-          <BetterPagination pageCount={pageCount} page={currentPage} setPage={setPage} />
+          <BetterPagination pageCount={pageCount} page={page} setPage={onPageChange} />
         </div>
       )}
     </Card>

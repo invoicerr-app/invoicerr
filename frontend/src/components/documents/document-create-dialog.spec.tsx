@@ -90,7 +90,9 @@ describe("<DocumentCreateDialog> — every declared action blocked by country po
     const postDraft = vi.fn()
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
-      "GET /api/documents": () => [],
+      // `GET /documents`'s own paginated shape (`{ items, total, page, pageSize }`) — see
+      // `hooks/queries/use-document-types.ts#DocumentInstancesPage`.
+      "GET /api/documents": () => ({ items: [], total: 0, page: 1, pageSize: 25 }),
       "POST /api/documents/types/invoice/actions/save-draft": () => {
         postDraft()
         return { changed: true, document: null, message: "Done." }

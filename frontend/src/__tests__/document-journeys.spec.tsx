@@ -84,6 +84,19 @@ function installFetchMock(handlers: Record<string, FetchHandler>) {
   return fn
 }
 
+/** `GET /documents`'s own response shape (`{ items, total, page, pageSize }`) — every `"GET
+ *  /api/documents"` handler below wraps its fixture instances through this rather than returning a
+ *  bare array, matching what a real backend now replies with (see
+ *  `hooks/queries/use-document-types.ts#DocumentInstancesPage`). */
+function documentsPage(items: DocumentInstance[]): {
+  items: DocumentInstance[]
+  total: number
+  page: number
+  pageSize: number
+} {
+  return { items, total: items.length, page: 1, pageSize: 25 }
+}
+
 function documentTypeTree(queryClient: QueryClient, typeId: string, extra?: React.ReactNode) {
   return (
     <QueryClientProvider client={queryClient}>
@@ -159,7 +172,7 @@ describe("Issuance — draft sent, the screen follows without reload (SSE mechan
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
-      "GET /api/documents": () => [instance()],
+      "GET /api/documents": () => documentsPage([instance()]),
       "POST /api/documents/types/invoice/actions/send": () => {
         status = "sending"
         return { changed: true, document: instance(), message: "Queued" }
@@ -220,7 +233,7 @@ describe("Custom slots — the list-row-extra component renders on the row AND o
     }
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
-      "GET /api/documents": () => [instance],
+      "GET /api/documents": () => documentsPage([instance]),
       "GET /api/documents/inv-slots": () => instance,
       "GET /api/documents/inv-slots/authority-events": () => [],
       "GET /api/documents/inv-slots/archives": () => [],
@@ -261,7 +274,7 @@ describe("Custom slots — the list-row-extra component renders on the row AND o
     }
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
-      "GET /api/documents": () => [instance],
+      "GET /api/documents": () => documentsPage([instance]),
       "GET /api/documents/inv-draft-slots/authority-events": () => [],
     })
     renderDocumentTypeScreen("invoice")
@@ -301,7 +314,7 @@ describe("Rejection — a logged negative authority verdict appears on the confo
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
-      "GET /api/documents": () => [instance],
+      "GET /api/documents": () => documentsPage([instance]),
       "GET /api/documents/inv-2": () => instance,
       "GET /api/documents/inv-2/authority-events": () => [
         {
@@ -398,7 +411,7 @@ describe("Correction — what the screen REALLY offers today (not a dedicated sc
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
-      "GET /api/documents": () => [instance],
+      "GET /api/documents": () => documentsPage([instance]),
       "GET /api/documents/inv-3": () => instance,
       "GET /api/documents/inv-3/authority-events": () => [],
       "GET /api/documents/inv-3/archives": () => [],
@@ -471,7 +484,7 @@ describe("Credit note — the mandatory reference, the locked currency, the cred
     let saved: DocumentInstance | undefined
     installFetchMock({
       "GET /api/documents/types/credit-note": () => creditNoteDescriptor,
-      "GET /api/documents": () => (saved ? [saved] : []),
+      "GET /api/documents": () => documentsPage(saved ? [saved] : []),
       "GET /api/documents/references/invoice/search": () => [{ id: "inv-9", label: "Invoice INV-2026-0009" }],
       "GET /api/documents/references/invoice/inv-9": () => ({
         id: "inv-9",
@@ -566,7 +579,7 @@ describe("Credit note — the mandatory reference, the locked currency, the cred
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => invoiceDescriptor,
-      "GET /api/documents": () => [invoiceInstance],
+      "GET /api/documents": () => documentsPage([invoiceInstance]),
       "GET /api/documents/inv-9": () => invoiceInstance,
       "GET /api/documents/inv-9/authority-events": () => [],
       "GET /api/documents/inv-9/archives": () => [],
@@ -649,7 +662,7 @@ describe("Cancellation — the journey as it exists (GAP logged: no dedicated sc
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
-      "GET /api/documents": () => [instance],
+      "GET /api/documents": () => documentsPage([instance]),
       "GET /api/documents/inv-5": () => instance,
       "GET /api/documents/inv-5/authority-events": () => [],
       "GET /api/documents/inv-5/archives": () => [],
@@ -753,7 +766,8 @@ describe("Correct — correction routes, by seller country", () => {
     installFetchMock({
       "GET /api/documents/types/invoice": () => invoiceDescriptor,
       "GET /api/documents/types/credit-note": () => creditNoteDescriptor,
-      "GET /api/documents": (url) => (url.searchParams.get("typeId") === "credit-note" ? [] : [invoice]),
+      "GET /api/documents": (url) =>
+        documentsPage(url.searchParams.get("typeId") === "credit-note" ? [] : [invoice]),
       "GET /api/documents/inv-fr/authority-events": () => [],
       "GET /api/documents/inv-fr/correction-routes": () => ({
         countryCode: "FR",
@@ -815,7 +829,7 @@ describe("Correct — correction routes, by seller country", () => {
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => invoiceDescriptor,
-      "GET /api/documents": () => [invoice],
+      "GET /api/documents": () => documentsPage([invoice]),
       "GET /api/documents/inv-pl/authority-events": () => [],
       "GET /api/documents/inv-pl/correction-routes": () => ({
         countryCode: "PL",
@@ -856,7 +870,7 @@ describe("Correct — correction routes, by seller country", () => {
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => invoiceDescriptor,
-      "GET /api/documents": () => [invoice],
+      "GET /api/documents": () => documentsPage([invoice]),
       "GET /api/documents/inv-notimpl/authority-events": () => [],
       "GET /api/documents/inv-notimpl/correction-routes": () => ({
         countryCode: "FR",
@@ -896,7 +910,7 @@ describe("Correct — correction routes, by seller country", () => {
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => invoiceDescriptor,
-      "GET /api/documents": () => [invoice],
+      "GET /api/documents": () => documentsPage([invoice]),
       "GET /api/documents/inv-be/authority-events": () => [],
       "GET /api/documents/inv-be/correction-routes": () => ({
         status: 404,
@@ -920,7 +934,7 @@ describe("Correct — correction routes, by seller country", () => {
 
     installFetchMock({
       "GET /api/documents/types/invoice": () => invoiceDescriptor,
-      "GET /api/documents": () => [invoice],
+      "GET /api/documents": () => documentsPage([invoice]),
       "GET /api/documents/inv-cancel-fr/authority-events": () => [],
       "GET /api/documents/inv-cancel-fr/correction-routes": () => ({
         countryCode: "FR",
@@ -974,4 +988,180 @@ describe("Correct — correction routes, by seller country", () => {
   // "document-correction-route-INTERNAL_CREDIT_NOTE-button" is no longer disabled even though its own
   // status is still "forbidden", and clicking it would silently navigate to the credit-note screen
   // for a route the seller's own country refuses outright. Reverted; suite green again.
+})
+
+/**
+ * Server-side pagination/filters (`GET /documents`'s own `page`/`status`/`clientId`/`dateFrom`/
+ * `dateTo`/`q`/`sort`/`order`) — the URL is the one source of truth (`useSearchParams` in
+ * `[typeId]/index.tsx`), so every assertion below reads the QUERY STRING the real `fetch` call
+ * actually carried, never internal component state.
+ */
+describe("Server-side pagination and filters — GET /documents's own query string", () => {
+  const invoiceDescriptor: DocumentTypeDescriptor = {
+    id: "invoice",
+    label: "Invoice",
+    statuses: [
+      { id: "draft", label: "Draft" },
+      { id: "sent", label: "Sent" },
+    ],
+    initialStatus: "draft",
+    numbering: { onEnterStatus: "sent" },
+    fields: [
+      { key: "client", kind: "reference", label: "Client", required: true, entity: "client" },
+      { key: "issueDate", kind: "date", label: "Date", required: true },
+    ],
+    listItem: { titleFields: ["client"] },
+    actions: [],
+  }
+
+  const expenseDescriptor: DocumentTypeDescriptor = {
+    id: "expense",
+    label: "Expense",
+    statuses: [{ id: "draft", label: "Draft" }],
+    initialStatus: "draft",
+    fields: [{ key: "description", kind: "text", label: "Description", required: true }],
+    listItem: { titleFields: ["description"] },
+    actions: [],
+  }
+
+  function invoiceInstance(id: string): DocumentInstance {
+    return {
+      id,
+      typeId: "invoice",
+      status: "sent",
+      data: { client: "client-1", issueDate: "2026-08-20T00:00:00.000Z" },
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+      displayNumber: `INV-${id}`,
+      lastActionError: null,
+    }
+  }
+
+  it("a pagination footer appears once total exceeds one page, and clicking page 2 asks the server for page=2", async () => {
+    const calls: URLSearchParams[] = []
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents": (url) => {
+        calls.push(url.searchParams)
+        const page = url.searchParams.get("page") ?? "1"
+        const items = page === "2" ? [invoiceInstance("p2-1")] : [invoiceInstance("p1-1")]
+        return { items, total: 30, page: Number(page), pageSize: 25 }
+      },
+    })
+
+    renderDocumentTypeScreen("invoice")
+    await screen.findByTestId("document-list-row-p1-1")
+
+    fireEvent.click(screen.getByRole("link", { name: "2" }))
+
+    await screen.findByTestId("document-list-row-p2-1")
+    expect(calls.at(-1)?.get("page")).toBe("2")
+  })
+  // MUTATION target: BetterPagination fed `filtered.length` (a client-side slice) instead of the
+  // server's own `total` -> the footer would never appear for a 30-row, single-fetched-page total,
+  // and "page=2" would never reach the server at all.
+
+  it("clicking a status chip asks the server for that status; clicking a second one ORs it in (multi-select)", async () => {
+    const calls: URLSearchParams[] = []
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents": (url) => {
+        calls.push(url.searchParams)
+        return documentsPage([invoiceInstance("inv-1")])
+      },
+    })
+
+    renderDocumentTypeScreen("invoice")
+    await screen.findByTestId("document-list-row-inv-1")
+
+    fireEvent.click(screen.getByTestId("document-status-filter-sent"))
+    // Waits for the row to settle again (the query's own brief loading state hides the status chips
+    // row — see DocumentList's own `!isLoading` gate) before the NEXT click, so each interaction below
+    // lands on a stable DOM rather than racing a still-in-flight refetch.
+    await screen.findByTestId("document-list-row-inv-1")
+    await waitFor(() => expect(calls.at(-1)?.getAll("status")).toEqual(["sent"]))
+
+    fireEvent.click(screen.getByTestId("document-status-filter-draft"))
+    await screen.findByTestId("document-list-row-inv-1")
+    await waitFor(() => expect(calls.at(-1)?.getAll("status")).toEqual(["sent", "draft"]))
+
+    // Toggling "sent" back OFF leaves only "draft" — never an exclusive replace.
+    fireEvent.click(screen.getByTestId("document-status-filter-sent"))
+    await waitFor(() => expect(calls.at(-1)?.getAll("status")).toEqual(["draft"]))
+  })
+  // MUTATION target: a single-select `statusFilter: string | undefined` instead of an array would
+  // make the second click above REPLACE "sent" with "draft" instead of adding to it — this is what
+  // the middle assertion (`["sent", "draft"]`) specifically catches.
+
+  it("typing in the search box is debounced — no request until typing pauses, one request after", async () => {
+    const calls: URLSearchParams[] = []
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents": (url) => {
+        calls.push(url.searchParams)
+        return documentsPage([invoiceInstance("inv-1")])
+      },
+    })
+
+    renderDocumentTypeScreen("invoice")
+    await screen.findByTestId("document-list-row-inv-1")
+    const callsBeforeTyping = calls.length
+
+    fireEvent.change(screen.getByTestId("document-list-search"), { target: { value: "acme" } })
+    // Immediately after typing: the visible box already shows it, but nothing new was asked for yet.
+    expect(screen.getByTestId("document-list-search")).toHaveValue("acme")
+    expect(calls.length).toBe(callsBeforeTyping)
+
+    // Real time, deliberately (not fake timers): this is what actually proves the debounce fires
+    // AFTER the pause rather than on some unrelated re-render.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    await waitFor(() => expect(calls.some((params) => params.get("q") === "acme")).toBe(true))
+  })
+
+  it("the client and date filters render for a client/date-bearing type, and neither renders for one with neither field", async () => {
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents/types/expense": () => expenseDescriptor,
+      "GET /api/documents": () => documentsPage([invoiceInstance("inv-1")]),
+    })
+
+    const invoiceScreen = renderDocumentTypeScreen("invoice")
+    await screen.findByTestId("document-list-row-inv-1")
+    expect(screen.getByTestId("document-list-filter-client")).toBeInTheDocument()
+    expect(screen.getByTestId("document-list-filter-date-from")).toBeInTheDocument()
+    invoiceScreen.unmount()
+
+    renderDocumentTypeScreen("expense")
+    await screen.findByTestId("document-list-card")
+    expect(screen.queryByTestId("document-list-filter-client")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("document-list-filter-date-from")).not.toBeInTheDocument()
+  })
+  // MUTATION target: `resolveClientFieldKey`/`resolveDateFieldKey` (document-list.tsx) always
+  // returning a key regardless of the descriptor -> the expense screen above would offer a client/
+  // date filter the backend has no field to apply it to, and would 400 the moment either was used.
+
+  it('"Clear filters" resets search AND status together, in one click', async () => {
+    const calls: URLSearchParams[] = []
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents": (url) => {
+        calls.push(url.searchParams)
+        // Empty once a status filter narrows it to nothing — what puts the screen in the
+        // "no results, clear filters" empty state rather than the row list.
+        const filtered = url.searchParams.getAll("status").includes("draft")
+        return documentsPage(filtered ? [] : [invoiceInstance("inv-1")])
+      },
+    })
+
+    renderDocumentTypeScreen("invoice")
+    await screen.findByTestId("document-list-row-inv-1")
+
+    fireEvent.click(screen.getByTestId("document-status-filter-draft"))
+    await screen.findByTestId("document-list-empty")
+
+    fireEvent.click(screen.getByTestId("document-list-clear-filters"))
+
+    await screen.findByTestId("document-list-row-inv-1")
+    expect(calls.at(-1)?.getAll("status")).toEqual([])
+  })
 })

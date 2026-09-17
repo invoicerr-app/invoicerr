@@ -35,35 +35,50 @@ describe('listDocumentsTool', () => {
     expect(listDocuments).not.toHaveBeenCalled();
   });
 
-  it('lists documents of the requested type for the active company', async () => {
-    const listDocuments = jest.fn().mockResolvedValue([doc('d1'), doc('d2', 'sent')]);
+  it('lists documents of the requested type for the active company, one page sized to the default limit (20)', async () => {
+    const listDocuments = jest
+      .fn()
+      .mockResolvedValue({ items: [doc('d1'), doc('d2', 'sent')], total: 2, page: 1, pageSize: 20 });
     const ctx = buildContext(listDocuments);
 
     const result = await listDocumentsTool.handler(ctx, { typeId: 'quote' });
 
-    expect(listDocuments).toHaveBeenCalledWith('company1', 'quote');
+    expect(listDocuments).toHaveBeenCalledWith('company1', 'quote', {
+      page: 1,
+      pageSize: 20,
+      sort: 'updatedAt',
+      order: 'desc',
+    });
     expect((result.structuredContent as any).documents).toEqual([
       expect.objectContaining({ id: 'd1', status: 'draft' }),
       expect.objectContaining({ id: 'd2', status: 'sent' }),
     ]);
   });
 
-  it('applies the caller-chosen limit on top of whatever DocumentsService returned', async () => {
-    const listDocuments = jest.fn().mockResolvedValue([doc('d1'), doc('d2'), doc('d3')]);
+  it('asks DocumentsService for exactly the caller-chosen limit as its own pageSize, never a separate client-side slice', async () => {
+    const listDocuments = jest
+      .fn()
+      .mockResolvedValue({ items: [doc('d1'), doc('d2')], total: 9, page: 1, pageSize: 2 });
     const ctx = buildContext(listDocuments);
 
     const result = await listDocumentsTool.handler(ctx, { typeId: 'quote', limit: 2 });
 
+    expect(listDocuments).toHaveBeenCalledWith('company1', 'quote', expect.objectContaining({ pageSize: 2 }));
     expect((result.structuredContent as any).documents).toHaveLength(2);
   });
 
-  it('defaults to 20 when no limit is given', async () => {
-    const documents = Array.from({ length: 30 }, (_, i) => doc(`d${i}`));
-    const listDocuments = jest.fn().mockResolvedValue(documents);
+  it('defaults pageSize to 20 when no limit is given', async () => {
+    const items = Array.from({ length: 20 }, (_, i) => doc(`d${i}`));
+    const listDocuments = jest.fn().mockResolvedValue({ items, total: 30, page: 1, pageSize: 20 });
     const ctx = buildContext(listDocuments);
 
     const result = await listDocumentsTool.handler(ctx, { typeId: 'quote' });
 
+    expect(listDocuments).toHaveBeenCalledWith(
+      'company1',
+      'quote',
+      expect.objectContaining({ pageSize: 20 }),
+    );
     expect((result.structuredContent as any).documents).toHaveLength(20);
   });
 });

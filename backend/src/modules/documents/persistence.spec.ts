@@ -1,10 +1,13 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
+import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import {
   claimDocumentTransition,
+  DOCUMENT_LIST_DATE_FILTER_READ_CAP,
   findOwnedDocument,
+  listDocumentsPage,
   updateDocumentStatus,
   upsertDocument,
 } from './persistence';
@@ -14,6 +17,8 @@ jest.mock('@/prisma/prisma.service', () => ({
   default: {
     documentInstance: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
       update: jest.fn(),
       create: jest.fn(),
       updateMany: jest.fn(),
@@ -21,10 +26,21 @@ jest.mock('@/prisma/prisma.service', () => ({
   },
 }));
 
+// Explicit factory mock (not automock) — lets the cap test below assert `logger.warn` was actually
+// called, the same "mock the singleton, assert on it" approach this module's own `logger.warn` call
+// is meant to be caught by (see `conformity/pollers/chorus-pro-status-poller.spec.ts` for the same
+// pattern on `logger.error`).
+jest.mock('@/logger/logger.service', () => ({
+  logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+}));
+
 const findFirst = prisma.documentInstance.findFirst as jest.Mock;
+const findMany = prisma.documentInstance.findMany as jest.Mock;
+const count = prisma.documentInstance.count as jest.Mock;
 const update = prisma.documentInstance.update as jest.Mock;
 const create = prisma.documentInstance.create as jest.Mock;
 const updateMany = prisma.documentInstance.updateMany as jest.Mock;
+const loggerWarn = logger.warn as jest.Mock;
 
 describe('persistence — upsertDocument', () => {
   beforeEach(() => {
@@ -346,5 +362,238 @@ describe('persistence — claimDocumentTransition', () => {
         'sending',
       ),
     ).resolves.toBe(0);
+  });
+});
+
+// GET /documents' own paginated, filtered read (issue: the list screen used to fetch a flat,
+// unpaginated `take: 50` with every filter re-applied client-side against whatever those 50 rows
+// happened to be — silently hiding anything past the cap). Every descriptor-derived fact
+// (clientFieldKey/dateFieldKey/searchTextFieldKeys/searchClientIds) arrives here ALREADY resolved —
+// this function only ever turns them into a Prisma query, never itself reads a descriptor or queries
+// `Client` — see documents.service.list-documents.spec.ts for that resolution half.
+describe('persistence — listDocumentsPage', () => {
+  beforeEach(() => {
+    findMany.mockReset();
+    count.mockReset();
+    loggerWarn.mockReset();
+  });
+
+  const baseOptions = {
+    typeId: 'invoice',
+    page: 1,
+    pageSize: 25,
+    sort: 'updatedAt' as const,
+    order: 'desc' as const,
+  };
+
+  it('scopes by companyId and typeId, paginates with skip/take, and counts the SAME where clause', async () => {
+    findMany.mockResolvedValue([{ id: 'doc-1' }, { id: 'doc-2' }]);
+    count.mockResolvedValue(37);
+
+    const result = await listDocumentsPage('company-1', { ...baseOptions, page: 3, pageSize: 10 });
+
+    const expectedWhere = { companyId: 'company-1', typeId: 'invoice' };
+    expect(findMany).toHaveBeenCalledWith({
+      where: expectedWhere,
+      orderBy: { updatedAt: 'desc' },
+      skip: 20,
+      take: 10,
+    });
+    expect(count).toHaveBeenCalledWith({ where: expectedWhere });
+    expect(result).toEqual({ items: [{ id: 'doc-1' }, { id: 'doc-2' }], total: 37, page: 3, pageSize: 10 });
+  });
+
+  it('lists across every type when typeId is absent — the pre-existing "coarse" shape', async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await listDocumentsPage('company-1', { ...baseOptions, typeId: undefined });
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { companyId: 'company-1' } }));
+  });
+
+  it('applies status as an IN clause, never a single equals', async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await listDocumentsPage('company-1', { ...baseOptions, status: ['draft', 'sent'] });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { companyId: 'company-1', typeId: 'invoice', status: { in: ['draft', 'sent'] } },
+      }),
+    );
+  });
+
+  it('applies clientId as an EXACT JSON-path equals under the resolved clientFieldKey', async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await listDocumentsPage('company-1', {
+      ...baseOptions,
+      clientFieldKey: 'client',
+      clientId: 'client-9',
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          companyId: 'company-1',
+          typeId: 'invoice',
+          data: { path: ['client'], equals: 'client-9' },
+        },
+      }),
+    );
+  });
+
+  it('never applies clientId without a resolved clientFieldKey (the service already refused that combination)', async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await listDocumentsPage('company-1', { ...baseOptions, clientId: 'client-9' });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { companyId: 'company-1', typeId: 'invoice' } }),
+    );
+  });
+
+  it('q builds an OR of displayNumber contains + one string_contains per text field + one equals per matched client id', async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await listDocumentsPage('company-1', {
+      ...baseOptions,
+      q: 'acme',
+      searchTextFieldKeys: ['description'],
+      clientFieldKey: 'client',
+      searchClientIds: ['client-9', 'client-10'],
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { displayNumber: { contains: 'acme', mode: 'insensitive' } },
+            { data: { path: ['description'], string_contains: 'acme', mode: 'insensitive' } },
+            { data: { path: ['client'], equals: 'client-9' } },
+            { data: { path: ['client'], equals: 'client-10' } },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it('applies no OR clause at all when q is blank', async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await listDocumentsPage('company-1', baseOptions);
+
+    const where = findMany.mock.calls[0][0].where;
+    expect(where).not.toHaveProperty('OR');
+  });
+
+  describe('a date range filter forces the in-memory path (no `count`, an honest capped read instead)', () => {
+    it('never calls count when dateFrom/dateTo is present', async () => {
+      findMany.mockResolvedValue([]);
+
+      await listDocumentsPage('company-1', {
+        ...baseOptions,
+        dateFieldKey: 'issueDate',
+        dateFrom: '2026-01-01',
+      });
+
+      expect(count).not.toHaveBeenCalled();
+    });
+
+    it('excludes a document whose date falls outside the range, inclusive at both UTC-day boundaries', async () => {
+      findMany.mockResolvedValue([
+        { id: 'too-early', data: { issueDate: '2025-12-31T23:59:00.000Z' } },
+        { id: 'lower-bound', data: { issueDate: '2026-01-01T00:00:00.000Z' } },
+        { id: 'inside', data: { issueDate: '2026-01-15T10:00:00.000Z' } },
+        { id: 'upper-bound', data: { issueDate: '2026-01-31T23:59:59.000Z' } },
+        { id: 'too-late', data: { issueDate: '2026-02-01T00:00:00.000Z' } },
+      ]);
+
+      const result = await listDocumentsPage('company-1', {
+        ...baseOptions,
+        pageSize: 10,
+        dateFieldKey: 'issueDate',
+        dateFrom: '2026-01-01',
+        dateTo: '2026-01-31',
+      });
+
+      expect(result.items.map((item) => item.id)).toEqual(['lower-bound', 'inside', 'upper-bound']);
+      expect(result.total).toBe(3);
+    });
+
+    it('excludes a document with a missing or unparseable date — an honest default, never a guess', async () => {
+      findMany.mockResolvedValue([
+        { id: 'missing', data: {} },
+        { id: 'not-a-date', data: { issueDate: 'not a date' } },
+        { id: 'ok', data: { issueDate: '2026-01-15T00:00:00.000Z' } },
+      ]);
+
+      const result = await listDocumentsPage('company-1', {
+        ...baseOptions,
+        dateFieldKey: 'issueDate',
+        dateFrom: '2026-01-01',
+      });
+
+      expect(result.items.map((item) => item.id)).toEqual(['ok']);
+    });
+
+    it('paginates the SURVIVORS in memory — page 2 starts after the first pageSize survivors, not the first pageSize candidates', async () => {
+      findMany.mockResolvedValue([
+        { id: 'in-1', data: { issueDate: '2026-01-01T00:00:00.000Z' } },
+        { id: 'out-of-range', data: { issueDate: '2025-06-01T00:00:00.000Z' } }, // filtered out, never counted as a page slot
+        { id: 'in-2', data: { issueDate: '2026-01-02T00:00:00.000Z' } },
+        { id: 'in-3', data: { issueDate: '2026-01-03T00:00:00.000Z' } },
+      ]);
+
+      const result = await listDocumentsPage('company-1', {
+        ...baseOptions,
+        page: 2,
+        pageSize: 2,
+        dateFieldKey: 'issueDate',
+        dateFrom: '2026-01-01',
+      });
+
+      expect(result.items.map((item) => item.id)).toEqual(['in-3']);
+      expect(result.total).toBe(3);
+    });
+
+    it('warns once the candidate read hits its cap — the point past which `total` is a survivor count of a TRUNCATED read, not a true total', async () => {
+      const candidates = Array.from({ length: DOCUMENT_LIST_DATE_FILTER_READ_CAP }, (_, i) => ({
+        id: `doc-${i}`,
+        data: { issueDate: '2026-01-15T00:00:00.000Z' },
+      }));
+      findMany.mockResolvedValue(candidates);
+
+      await listDocumentsPage('company-1', {
+        ...baseOptions,
+        dateFieldKey: 'issueDate',
+        dateFrom: '2026-01-01',
+      });
+
+      expect(loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('cap'),
+        expect.objectContaining({
+          details: expect.objectContaining({ cap: DOCUMENT_LIST_DATE_FILTER_READ_CAP }),
+        }),
+      );
+    });
+
+    it('never warns for an ordinary, uncapped read', async () => {
+      findMany.mockResolvedValue([{ id: 'doc-1', data: { issueDate: '2026-01-15T00:00:00.000Z' } }]);
+
+      await listDocumentsPage('company-1', {
+        ...baseOptions,
+        dateFieldKey: 'issueDate',
+        dateFrom: '2026-01-01',
+      });
+
+      expect(loggerWarn).not.toHaveBeenCalled();
+    });
   });
 });

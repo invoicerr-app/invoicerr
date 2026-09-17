@@ -42,6 +42,14 @@ import {
 } from './attachments/attachments.service';
 import { DocumentsService } from './documents.service';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
+import {
+  DOCUMENT_LIST_DEFAULT_PAGE_SIZE,
+  DOCUMENT_LIST_MAX_PAGE_SIZE,
+  firstValue,
+  parseListDocumentsQuery,
+  RawListDocumentsQuery,
+} from './dto/list-documents.dto';
+import { DOCUMENT_LIST_SORT_FIELDS } from './persistence';
 import { DocumentEventMessage } from './queue/document-events';
 import { DocumentEventsBridge } from './queue/document-events-bridge';
 import { CreateDocumentScheduleDto, UpdateDocumentScheduleDto } from './schedules/schedule.dto';
@@ -719,12 +727,52 @@ export class DocumentsController {
   @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List document instances',
-    description: 'Saved instances for the active company, newest first.',
+    description:
+      'One PAGE of instances for the active company, filtered and sorted server-side — ' +
+      '`{ items, total, page, pageSize }`, never a bare array. `clientId`/`dateFrom`/`dateTo`/`q` each ' +
+      "read the named type's own descriptor (which field is its client reference, which its issuance " +
+      'date, which of its `listItem.titleFields` are free text) and so all four REQUIRE `typeId` — a ' +
+      '400 otherwise, and a 400 too for a filter naming a field this specific type has none of ' +
+      '(never a silent, indistinguishable-from-"nothing matched" empty page).',
   })
   @ApiQuery({ name: 'typeId', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Instances retrieved' })
-  listDocuments(@ActiveCompany() companyId: string, @Query('typeId') typeId?: string) {
-    return this.documentsService.listDocuments(companyId, typeId);
+  @ApiQuery({ name: 'page', required: false, type: Number, description: '1-indexed. Default 1.' })
+  @ApiQuery({
+    name: 'pageSize',
+    required: false,
+    type: Number,
+    description: `Default ${DOCUMENT_LIST_DEFAULT_PAGE_SIZE}, clamped to ${DOCUMENT_LIST_MAX_PAGE_SIZE}.`,
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: [String],
+    description: 'Repeatable, or one comma-separated value. OR-ed together.',
+  })
+  @ApiQuery({ name: 'clientId', required: false, type: String, description: 'Requires typeId.' })
+  @ApiQuery({ name: 'dateFrom', required: false, type: String, description: 'YYYY-MM-DD, requires typeId.' })
+  @ApiQuery({ name: 'dateTo', required: false, type: String, description: 'YYYY-MM-DD, requires typeId.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Case-insensitive: document number, title field(s), client name. Requires typeId.',
+  })
+  @ApiQuery({ name: 'sort', required: false, enum: DOCUMENT_LIST_SORT_FIELDS })
+  @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'] })
+  @ApiResponse({ status: 200, description: 'One page of instances retrieved' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'A malformed page/pageSize/date, an unknown sort field, or a descriptor filter with no typeId',
+  })
+  listDocuments(@ActiveCompany() companyId: string, @Query() rawQuery: RawListDocumentsQuery) {
+    const { typeId, ...listQuery } = rawQuery;
+    return this.documentsService.listDocuments(
+      companyId,
+      firstValue(typeId),
+      parseListDocumentsQuery(listQuery),
+    );
   }
 
   @Get(':id/totals')

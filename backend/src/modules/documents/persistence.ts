@@ -1,5 +1,6 @@
 import { Prisma } from '../../../prisma/generated/prisma/client';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import { DocumentInstanceResult } from './actions/action-registry';
@@ -209,6 +210,194 @@ export async function listDocuments(
     orderBy: { updatedAt: 'desc' },
     take,
   });
+}
+
+/** The real columns `GET /documents` may sort by — deliberately NOT `issueDate` or any other field
+ *  living inside `data` (see `dateValueInRange` below for why a JSON path never gets a computed SQL
+ *  ORDER BY here). `number` sorts numbered instances by their take-a-number sequence; an
+ *  un-numbered type's rows (all `number: null`) fall back to Postgres's own NULLS ordering, which is
+ *  an honest "no ordering opinion" for a type this key means nothing for. */
+export const DOCUMENT_LIST_SORT_FIELDS = ['updatedAt', 'createdAt', 'number', 'status'] as const;
+export type DocumentListSortField = (typeof DOCUMENT_LIST_SORT_FIELDS)[number];
+
+export interface ListDocumentsPageOptions {
+  /** Absent means "every type" — the pre-existing, still-supported shape of this route (see
+   *  `utils/scope-check.ts`'s own "coarse fallback for a document-shaped REST route that does NOT
+   *  carry a typeId" comment). `clientId`/date/`q` filtering all read ONE type's own descriptor, so
+   *  `DocumentsService` refuses those with a 400 before this ever runs without a `typeId` — this
+   *  module itself has no opinion, it just applies whatever it's handed. */
+  typeId?: string;
+  page: number;
+  pageSize: number;
+  status?: string[];
+  sort: DocumentListSortField;
+  order: 'asc' | 'desc';
+  /** The `data` key this type's own descriptor uses for its client-reference field, resolved by the
+   *  CALLER (DocumentsService, the only layer that knows a type's fields) — this module stays a dumb
+   *  Prisma layer, never itself aware of what a "client" field is for a given type. Absent when the
+   *  type declares no such field; `clientId` is then simply not applied (the caller already refused
+   *  the request with a 400 before it ever reaches here — see `list-filters.ts#resolveClientFieldKey`). */
+  clientFieldKey?: string;
+  clientId?: string;
+  /** The `data` key this type's own descriptor uses for its issuance date
+   *  (`list-filters.ts#resolveDateFieldKey`) — same "resolved by the caller" reasoning as
+   *  `clientFieldKey`. `dateFrom`/`dateTo` are already-validated `YYYY-MM-DD` strings (the
+   *  controller's own `parseListDocumentsQuery`), never a bare `Date` — this function is the one
+   *  place that turns them into UTC-day boundaries, right next to `dateValueInRange`, which compares
+   *  against the exact same boundaries. */
+  dateFieldKey?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  /** The raw search term — matched against `displayNumber` (a real column, `contains`) and, when
+   *  given, every one of `searchTextFieldKeys` (`data` path `string_contains`) — plus, when
+   *  `clientFieldKey` is set, an exact `equals` per id in `searchClientIds` (ids whose OWN name
+   *  matched `q`, resolved by the caller — this module never queries `Client` itself). All ORed
+   *  together; absent/blank applies no search narrowing at all. */
+  q?: string;
+  searchTextFieldKeys?: string[];
+  searchClientIds?: string[];
+}
+
+export interface ListDocumentsPageResult {
+  items: DocumentInstanceResult[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Same cap discipline `accounting-export.service.ts`'s own `ACCOUNTING_EXPORT_READ_LIMIT` already
+ *  holds for the identical constraint (a JSON-embedded date has no SQL ORDER BY/range this codebase
+ *  trusts — see this function's own header): an honest "most recently touched N documents" read, not
+ *  an unbounded table scan, whenever a date filter forces the in-memory path below. Larger than the
+ *  accounting export's own 500 — this is a general list, not one bounded to a single fiscal period. */
+export const DOCUMENT_LIST_DATE_FILTER_READ_CAP = 2000;
+
+/** `"YYYY-MM-DD"` -> the UTC midnight of that day, in milliseconds — the exact same conversion
+ *  `accounting-export.service.ts#dayMs` already holds for the identical param shape, duplicated
+ *  rather than imported (a sibling, single-purpose concern; see `dateValueInRange`'s own header for
+ *  why this whole file doesn't reuse that module instead). */
+function dayMs(dateStr: string): number {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+/** Whether `dateValue` (whatever `data[dateFieldKey]` currently holds — normally an ISO string, e.g.
+ *  from a 'date' field's own `toISOString()`) falls within `[fromMs, toMs]`, each bound optional and
+ *  inclusive, compared at UTC day boundaries — the exact same rule
+ *  `accounting-export.service.ts#issueDateInRange` already applies to the SAME kind of field.
+ *  Missing/unparseable -> excluded: a document with no readable date cannot honestly be placed in
+ *  ANY range — an honest default, never a guess. Duplicated here rather than imported from that
+ *  service (a sibling, single-purpose concern — persistence.ts owes accounting-export nothing, and a
+ *  future change to one's own rounding must not silently reach into the other). */
+function dateValueInRange(dateValue: unknown, fromMs: number | undefined, toMs: number | undefined): boolean {
+  if (typeof dateValue !== 'string') return false;
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) return false;
+  const ms = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+  if (fromMs !== undefined && ms < fromMs) return false;
+  if (toMs !== undefined && ms > toMs) return false;
+  return true;
+}
+
+/** Every already-DB-pushable OR term `q` resolves to — see `ListDocumentsPageOptions.q`'s own header
+ *  for what each term means. `[]` (never applied as a WHERE clause) when `q` is blank. */
+function buildSearchOr(options: ListDocumentsPageOptions): Prisma.DocumentInstanceWhereInput[] {
+  if (!options.q) return [];
+  const terms: Prisma.DocumentInstanceWhereInput[] = [
+    { displayNumber: { contains: options.q, mode: 'insensitive' } },
+  ];
+  for (const key of options.searchTextFieldKeys ?? []) {
+    terms.push({ data: { path: [key], string_contains: options.q, mode: 'insensitive' } });
+  }
+  if (options.clientFieldKey) {
+    for (const id of options.searchClientIds ?? []) {
+      terms.push({ data: { path: [options.clientFieldKey], equals: id } });
+    }
+  }
+  return terms;
+}
+
+/**
+ * The paginated, filtered companion to `listDocuments` above — what `GET /documents` (the list
+ * screen) actually calls today; `listDocuments` itself stays untouched for its dozen other callers
+ * (contributions, reconciliation, the accounting export…), every one of which wants an honestly-
+ * capped, unpaginated read, never a page.
+ *
+ * Two different execution paths, chosen by whether a date-range filter is present:
+ *  - No date filter: `status`/`clientId`/`searchOr` are already ordinary Prisma WHERE clauses
+ *    (a real column, an exact JSON-path `equals`, and `string_contains`/`equals` OR terms
+ *    respectively — all three push down to SQL cleanly), so pagination is a plain `skip`/`take` +
+ *    `count`, exactly the fast path a table this size deserves.
+ *  - A date filter is present: `dateFieldKey` names a field living inside the JSON `data` blob,
+ *    which Prisma/Postgres has no trustworthy ORDER BY or range comparison for that agrees with this
+ *    codebase's own notion of "a valid date" (see `dateValueInRange`'s own header — a malformed
+ *    value must read as EXCLUDED, never as an arbitrary lexicographic sort position a raw jsonb
+ *    comparison would silently produce). So the range is applied in application code, over a capped
+ *    candidate set already narrowed by every DB-pushable clause, and pagination becomes an in-memory
+ *    slice of the SURVIVORS — `total` is the survivor count, honestly bounded by the same cap.
+ */
+export async function listDocumentsPage(
+  companyId: string,
+  options: ListDocumentsPageOptions,
+): Promise<ListDocumentsPageResult> {
+  const searchOr = buildSearchOr(options);
+  const where: Prisma.DocumentInstanceWhereInput = {
+    companyId,
+    ...(options.typeId ? { typeId: options.typeId } : {}),
+    ...(options.status && options.status.length > 0 ? { status: { in: options.status } } : {}),
+    ...(options.clientId && options.clientFieldKey
+      ? { data: { path: [options.clientFieldKey], equals: options.clientId } }
+      : {}),
+    ...(searchOr.length > 0 ? { OR: searchOr } : {}),
+  };
+  const orderBy = { [options.sort]: options.order } as Prisma.DocumentInstanceOrderByWithRelationInput;
+
+  const hasDateFilter = !!(options.dateFrom || options.dateTo);
+  if (!hasDateFilter) {
+    const [items, total] = await Promise.all([
+      prisma.documentInstance.findMany({
+        where,
+        orderBy,
+        skip: (options.page - 1) * options.pageSize,
+        take: options.pageSize,
+      }),
+      prisma.documentInstance.count({ where }),
+    ]);
+    return { items, total, page: options.page, pageSize: options.pageSize };
+  }
+
+  const candidates = await prisma.documentInstance.findMany({
+    where,
+    orderBy,
+    take: DOCUMENT_LIST_DATE_FILTER_READ_CAP,
+  });
+  // Hitting the cap exactly means there may be MORE rows this WHERE clause would otherwise have
+  // matched, beyond what was ever read — `total` below is then the survivor count of a truncated
+  // candidate set, not a true total, and a company approaching this in ordinary use is a real
+  // capacity signal a raised cap or a dedicated export (accounting-export.service.ts already exists
+  // for exactly that) should pick up, not something that should only ever be discovered by a support
+  // ticket about a document that "isn't in the list".
+  if (candidates.length === DOCUMENT_LIST_DATE_FILTER_READ_CAP) {
+    logger.warn('Date-filtered document list hit its in-memory read cap — total may be undercounted', {
+      category: 'documents',
+      details: { typeId: options.typeId, cap: DOCUMENT_LIST_DATE_FILTER_READ_CAP },
+    });
+  }
+  const dateFieldKey = options.dateFieldKey;
+  const fromMs = options.dateFrom ? dayMs(options.dateFrom) : undefined;
+  const toMs = options.dateTo ? dayMs(options.dateTo) : undefined;
+  const survivors = dateFieldKey
+    ? candidates.filter((doc) =>
+        dateValueInRange((doc.data as Record<string, unknown> | null)?.[dateFieldKey], fromMs, toMs),
+      )
+    : candidates;
+  const start = (options.page - 1) * options.pageSize;
+  return {
+    items: survivors.slice(start, start + options.pageSize),
+    total: survivors.length,
+    page: options.page,
+    pageSize: options.pageSize,
+  };
 }
 
 /**

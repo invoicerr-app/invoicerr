@@ -1509,6 +1509,14 @@ model DocumentInstance {
   paymentCheckoutSessions PaymentCheckoutSession[]
 
   @@index([companyId, typeId])
+  // `persistence.ts#listDocumentsPage` (`GET /documents`'s own paginated read) — one type's own rows,
+  // for one company, ordered most-recently-updated-first, is the DEFAULT view before any filter is
+  // even touched (no status picked, no search typed). `companyId, typeId` alone (the index right
+  // above) still narrows Postgres to the right rows first; adding `updatedAt` lets it walk that
+  // narrowed set ALREADY IN ORDER instead of narrowing then sorting — the one figure that actually
+  // changes with a table's size, and the whole reason a page + total went from a single unindexed
+  // `take: 50` to a real, paginated query in the first place.
+  @@index([companyId, typeId, updatedAt])
   // What `conformity/authority-events.persistence.ts#findConformitySweepCandidates` actually filters
   // on, in this order — status/channelProviderId/conformityResolvedAt narrow a large table down to
   // "sent on a pollable channel, not yet resolved" before Postgres ever has to look at transportRef or

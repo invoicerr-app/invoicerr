@@ -21,11 +21,12 @@ const inputSchema = {
 };
 
 /**
- * Saved instances of ONE type, for the active company — `DocumentsService.listDocuments` already
- * caps at 50 (persistence.ts's own `take` default); this tool applies a further, caller-chosen
- * `limit` (default 20) on top rather than growing that method a new parameter of its own — a plain
- * `.slice()` is all "reasonably paginated" needs here, and it keeps DocumentsService's own signature,
- * used by the REST controller too, untouched.
+ * Saved instances of ONE type, for the active company — `DocumentsService.listDocuments` is the
+ * same paginated read `GET /documents` uses (persistence.ts's own `listDocumentsPage`); this tool
+ * asks for exactly one page sized to the caller's own `limit` (default 20, capped at 50) rather than
+ * fetching a fixed page and slicing it down, so a `limit` of 50 genuinely reaches the 21st-through-
+ * 50th most recently updated instance instead of whatever the REST screen's own default page size
+ * happened to already cut off.
  */
 export const listDocumentsTool: ToolDescriptor<typeof inputSchema> = {
   name: 'list_documents',
@@ -45,9 +46,13 @@ export const listDocumentsTool: ToolDescriptor<typeof inputSchema> = {
     }
 
     const take = input.limit ?? 20;
-    const documents = await ctx.services.documentsService.listDocuments(ctx.companyId, input.typeId);
-    const limited = documents.slice(0, take);
-    const summary = limited.map((doc) => ({
+    const { items } = await ctx.services.documentsService.listDocuments(ctx.companyId, input.typeId, {
+      page: 1,
+      pageSize: take,
+      sort: 'updatedAt',
+      order: 'desc',
+    });
+    const summary = items.map((doc) => ({
       id: doc.id,
       status: doc.status,
       number: doc.number ?? null,

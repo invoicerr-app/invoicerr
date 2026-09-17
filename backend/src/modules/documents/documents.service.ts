@@ -95,8 +95,10 @@ import { FormatProviderRegistry, UnknownFormatError } from './formats/format-reg
 import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
 import { companyToFormatParty, clientToFormatParty } from './formats/party-snapshot';
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
+import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
+import { resolveClientFieldKey, resolveDateFieldKey, resolveSearchTextFieldKeys } from './list-filters';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
-import { findOwnedDocument, listDocuments } from './persistence';
+import { findOwnedDocument, listDocumentsPage, ListDocumentsPageResult } from './persistence';
 import { applyStockOnIssuance } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
@@ -818,8 +820,84 @@ export class DocumentsService implements OnModuleInit {
     }
   }
 
-  async listDocuments(companyId: string, typeId?: string) {
-    return listDocuments(companyId, typeId);
+  /**
+   * `GET /documents` — one page of instances, filtered and sorted server-side (issue: the list
+   * screen used to fetch a flat, unpaginated `take: 50` — see `persistence.ts#listDocuments`'s own
+   * comment — with every filter re-applied client-side against whatever those 50 rows happened to
+   * be, silently hiding anything past the cap). `query` is already fully SHAPE-validated by the
+   * controller's own `parseListDocumentsQuery` (page bounds, date format, sort whitelist); what's
+   * left here is the part that needs a type's own DESCRIPTOR to make sense of at all —
+   * `clientId`/`dateFrom`/`dateTo`/`q` each key off a field this specific type may or may not even
+   * declare, so ALL FOUR require `typeId` (refused with a named 400 otherwise, never silently
+   * ignored) and any one of them naming a field the type doesn't have is its own named 400 too —
+   * "0 results" would look identical to "this filter matched nothing" and a caller could never tell
+   * the two apart.
+   */
+  async listDocuments(
+    companyId: string,
+    typeId: string | undefined,
+    query: ParsedListDocumentsQuery,
+  ): Promise<ListDocumentsPageResult> {
+    const needsDescriptor = !!(query.clientId || query.dateFrom || query.dateTo || query.q);
+    if (needsDescriptor && !typeId) {
+      throw new BadRequestException(
+        "clientId/dateFrom/dateTo/q each read one document type's own descriptor — pass typeId.",
+      );
+    }
+
+    let clientFieldKey: string | undefined;
+    let dateFieldKey: string | undefined;
+    let searchTextFieldKeys: string[] = [];
+    if (typeId) {
+      const descriptor = this.mergedDescriptor(typeId);
+      clientFieldKey = resolveClientFieldKey(descriptor);
+      dateFieldKey = resolveDateFieldKey(descriptor);
+      searchTextFieldKeys = resolveSearchTextFieldKeys(descriptor);
+      if (query.clientId && !clientFieldKey) {
+        throw new BadRequestException(`Document type "${typeId}" has no client field to filter by.`);
+      }
+      if ((query.dateFrom || query.dateTo) && !dateFieldKey) {
+        throw new BadRequestException(`Document type "${typeId}" has no date field to filter by.`);
+      }
+    }
+
+    // The ONE query this method runs directly rather than through persistence.ts: resolving which
+    // clients' own NAME matches `q` is a `Client` lookup, not a `DocumentInstance` one — persistence.ts
+    // stays ignorant of what a "client" even is (see `ListDocumentsPageOptions`'s own header) and only
+    // ever turns the ids this resolves into plain `data` path `equals` terms.
+    const searchClientIds =
+      query.q && clientFieldKey ? await this.resolveClientIdsMatchingName(companyId, query.q) : undefined;
+
+    return listDocumentsPage(companyId, {
+      typeId,
+      page: query.page,
+      pageSize: query.pageSize,
+      status: query.status,
+      sort: query.sort,
+      order: query.order,
+      clientFieldKey,
+      clientId: query.clientId,
+      dateFieldKey,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+      q: query.q,
+      searchTextFieldKeys,
+      searchClientIds,
+    });
+  }
+
+  /** Client ids whose own `name` contains `q` (case-insensitive), company-scoped — `listDocuments`'s
+   *  own `q` search folds these in as exact `data` path matches (see `buildSearchOr` in
+   *  persistence.ts). Capped at 50: this feeds an OR clause, not a picker — a search this broad is
+   *  already telling the caller their term is too generic to narrow anything, the same honest-cap
+   *  discipline `accounting-export/client-labels.ts`'s own batch resolve holds for the same table. */
+  private async resolveClientIdsMatchingName(companyId: string, q: string): Promise<string[]> {
+    const clients = await prisma.client.findMany({
+      where: { companyId, name: { contains: q, mode: 'insensitive' } },
+      select: { id: true },
+      take: 50,
+    });
+    return clients.map((client) => client.id);
   }
 
   async getDocument(companyId: string, typeId: string, id: string) {
