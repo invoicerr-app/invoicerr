@@ -294,8 +294,9 @@ npm run catalogs:release    # from the backend workspace — /usr/share/nginx/ba
 
 ## Contributing
 
-Issues and pull requests are welcome. Setting the four workspaces up, running the test stack and
-running the end-to-end suites are covered in
+Issues and pull requests are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for how to report a
+bug, propose a feature, and get a pull request merged. Setting the four workspaces up, running the test
+stack and running the end-to-end suites are covered in
 [local development](https://docs.invoicerr.app/docs/developer-guide/local-development); how the
 pieces fit together is in [architecture](https://docs.invoicerr.app/docs/developer-guide/architecture).
 
