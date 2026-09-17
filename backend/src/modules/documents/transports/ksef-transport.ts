@@ -102,14 +102,36 @@ async function requireConnectedKsef(
   return credentials;
 }
 
+/** `authenticate()`'s own result — `expiresAt` (epoch ms, derived from `authRedeem`'s own
+ *  `accessToken.validUntil`) is what lets `conformity/pollers/ksef-status-poller.ts` cache this
+ *  token across several polls instead of re-authenticating for every single one — see that file's own
+ *  header ("mutualized handshake") for why a fresh handshake per poll rate-limits the poller against
+ *  its own KSeF quota. `send()` below only ever needs `accessToken`; `expiresAt` would be meaningless
+ *  to it (one submission, one use, never cached). */
+export interface KsefAccessToken {
+  accessToken: string;
+  expiresAt: number;
+}
+
+/** KSeF's own `validUntil` is authority-supplied text, never independently validated before it reaches
+ *  here — the same "trust but verify" posture `pollers/pdp-status-poller.ts#parseEventDate` already
+ *  holds for its own authority-supplied timestamp. An unparseable value falls back to a short,
+ *  conservative TTL rather than either crashing or (worse) caching a token forever: re-authenticating
+ *  a little too often is merely wasteful, trusting a garbage expiry for a much longer window is not. */
+const FALLBACK_ACCESS_TOKEN_TTL_MS = 5 * 60 * 1000;
+
+function resolveAccessTokenExpiry(validUntil: string | undefined): number {
+  const parsed = validUntil ? Date.parse(validUntil) : NaN;
+  return Number.isNaN(parsed) ? Date.now() + FALLBACK_ACCESS_TOKEN_TTL_MS : parsed;
+}
+
 /** The short auth handshake (challenge → ksef-token → poll status → redeem) — REPRISED verbatim in
  *  SHAPE from `ksef-transmission.ts` at the reference, just no longer wrapped in a `TransmissionResult`.
  *  Throws on outright rejection or on exhausting the poll budget — both are genuine send() failures,
  *  never a silent partial state. Exported so `conformity/pollers/ksef-status-poller.ts` can reuse the
- *  EXACT same handshake rather than a second, drifting copy — a poll needs its own fresh access token
- *  just like `send()` does (KSeF access tokens are short-lived), and this is the one place that
- *  already gets it right. */
-export async function authenticate(client: KsefClient): Promise<string> {
+ *  EXACT same handshake rather than a second, drifting copy — a poll needs its own access token just
+ *  like `send()` does, and this is the one place that already gets it right. */
+export async function authenticate(client: KsefClient): Promise<KsefAccessToken> {
   const challenge = await client.authChallenge();
   const authResponse = await client.authKsefToken(challenge.challenge, challenge.timestampMs);
 
@@ -120,7 +142,10 @@ export async function authenticate(client: KsefClient): Promise<string> {
     );
     if (status.status.code === 200) {
       const tokens = await client.authRedeem(authResponse.authenticationToken.token);
-      return tokens.accessToken.token;
+      return {
+        accessToken: tokens.accessToken.token,
+        expiresAt: resolveAccessTokenExpiry(tokens.accessToken.validUntil),
+      };
     }
     if (status.status.code >= 400) {
       throw new Error(
@@ -209,7 +234,7 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
       let accessToken = '';
       try {
         logger.info('KSeF: authenticating', { category: 'documents', details: { companyId: ctx.companyId } });
-        accessToken = await authenticate(ksefClient);
+        accessToken = (await authenticate(ksefClient)).accessToken;
 
         logger.info('KSeF: opening online session', {
           category: 'documents',

@@ -464,4 +464,62 @@ describe('ChorusProClient — consulterCr', () => {
       'Chorus Pro consulterCRDetaille failed (HTTP 404)',
     );
   });
+
+  // THE MUTATION TARGET: a 200 with NO `etatCourantDepotFlux` at all is a FUNCTIONAL error on the call
+  // itself (an unknown flux, an invalid parameter…) — this used to default to 'EN_COURS_DE_TRAITEMENT',
+  // silently folding that error into an ordinary PENDING poll forever (see this file's own header).
+  it('throws (never defaults to EN_COURS_DE_TRAITEMENT) when the 200 response carries no etatCourantDepotFlux', async () => {
+    const http = makeHttp({
+      post: async (url) => {
+        if (String(url).includes('/token')) return TOKEN_RESPONSE;
+        return { status: 200, data: { codeRetour: 1, libelle: 'Flux inconnu' } };
+      },
+    });
+    const client = new ChorusProClient(BASE_CONFIG, http);
+    await expect(client.consulterCr('unknown')).rejects.toThrow(/functional error/);
+    await expect(client.consulterCr('unknown')).rejects.toThrow(/codeRetour 1: Flux inconnu/);
+  });
+
+  it('still throws (with a placeholder) when even codeRetour/libelle are absent from the 200 response', async () => {
+    const http = makeHttp({
+      post: async (url) => {
+        if (String(url).includes('/token')) return TOKEN_RESPONSE;
+        return { status: 200, data: {} };
+      },
+    });
+    const client = new ChorusProClient(BASE_CONFIG, http);
+    await expect(client.consulterCr('42')).rejects.toThrow(/codeRetour unknown: \(no libelle\)/);
+  });
+
+  // Adversarial case the missing-field check alone does not cover: PISTE could in principle answer a
+  // functional error (`codeRetour !== 0`) WHILE still echoing a (stale/default) `etatCourantDepotFlux`
+  // — `codeRetour: 0` is the only value this codebase has ever observed live as "success"
+  // (`deposerFlux`'s own real round-trip, this file's own commit history), so any other value must be
+  // read as failure regardless of what the flux-status field happens to carry alongside it.
+  it('throws when codeRetour is nonzero even though etatCourantDepotFlux IS present', async () => {
+    const http = makeHttp({
+      post: async (url) => {
+        if (String(url).includes('/token')) return TOKEN_RESPONSE;
+        return {
+          status: 200,
+          data: { codeRetour: 2, libelle: 'Paramètre invalide', etatCourantDepotFlux: 'VALIDE' },
+        };
+      },
+    });
+    const client = new ChorusProClient(BASE_CONFIG, http);
+    await expect(client.consulterCr('42')).rejects.toThrow(/functional error/);
+    await expect(client.consulterCr('42')).rejects.toThrow(/codeRetour 2: Paramètre invalide/);
+  });
+
+  it('does NOT throw when codeRetour is explicitly 0 alongside a real etatCourantDepotFlux', async () => {
+    const http = makeHttp({
+      post: async (url) => {
+        if (String(url).includes('/token')) return TOKEN_RESPONSE;
+        return { status: 200, data: { codeRetour: 0, etatCourantDepotFlux: 'VALIDE' } };
+      },
+    });
+    const client = new ChorusProClient(BASE_CONFIG, http);
+    const result = await client.consulterCr('42');
+    expect(result.statutFlux).toBe('VALIDE');
+  });
 });

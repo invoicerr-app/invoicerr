@@ -37,9 +37,10 @@
  * platform-assigned id SYNCHRONOUSLY on submission, a PEC send only ever proves "handed to the next
  * mail hop" — SdI's own `IdentificativoSdI` is assigned LATER and arrives asynchronously, in the first
  * notifica (`transports/sdi-pec/pec-notifiche.service.ts`). So `reference` here is the FILENAME this
- * transport itself chose (`pec-protocol.ts#buildPecAttachmentFilename`, deterministic per document
- * id) — a genuinely usable reference (unique, chosen before sending, and the exact key every one of
- * SdI's six notifica types echoes back in its own `NomeFile` field), satisfying the same hard-success
+ * transport itself chose (`pec-protocol.ts#buildPecAttachmentFilename`, drawn from a persistent
+ * per-idTrasmittente counter — see that function's own header for why, never derived from the document
+ * id any more) — a genuinely usable reference (unique, chosen before sending, and the exact key every
+ * one of SdI's six notifica types echoes back in its own `NomeFile` field), satisfying the same hard-success
  * contract every transport in this directory enforces ("accepted with no usable reference is a
  * failure") without pretending to know an `IdentificativoSdI` that does not exist yet.
  */
@@ -208,7 +209,7 @@ export function buildSdiPecTransport(deps: SdiPecTransportDeps): DocumentTranspo
 
       let filename: string;
       try {
-        filename = buildPecAttachmentFilename(credentials.idTrasmittente, ctx.document.id);
+        filename = await buildPecAttachmentFilename(credentials.idTrasmittente);
       } catch (error) {
         // A malformed idTrasmittente (bad channel config) fails HERE, named — never an opaque SdI
         // rejection days later. See pec-protocol.ts#buildPecAttachmentFilename's own error text.

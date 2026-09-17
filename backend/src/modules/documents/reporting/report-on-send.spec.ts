@@ -4,13 +4,17 @@
  * "mock `country-policy/country-policy` wholesale" discipline `actions/invoice-channel-mandate.spec.ts`
  * already holds for the identical dependency.
  */
+import * as authorityEventsPersistence from '../conformity/authority-events.persistence';
 import * as countryPolicy from '../country-policy/country-policy';
+import { REPORT_FAILED_STATUS_CODE } from './report-job';
 import { ReportingObligationCatalog } from './registry';
 import { reportOnSendIfObligated } from './report-on-send';
 
 jest.mock('../country-policy/country-policy');
+jest.mock('../conformity/authority-events.persistence');
 
 const mockedResolveCountry = countryPolicy.resolveCompanyCountryCode as jest.Mock;
+const mockedJournalSynthetic = authorityEventsPersistence.journalSyntheticEvent as jest.Mock;
 
 const fixtureCatalog = new ReportingObligationCatalog([
   {
@@ -55,6 +59,7 @@ const frShapedCatalog = new ReportingObligationCatalog([
 describe('reportOnSendIfObligated', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedJournalSynthetic.mockResolvedValue(1);
   });
 
   // THE MUTATION TARGET the task's own brief names: a trigger that declares for EVERY country (not
@@ -219,6 +224,72 @@ describe('reportOnSendIfObligated', () => {
     ).resolves.toBeUndefined();
   });
 
+  // THE MUTATION TARGET: an enqueue failure used to be logged ONLY — nothing on
+  // `DocumentAuthorityEvent`, so the Declarations screen (`list-declarations.ts`, which reads ONLY
+  // that table) showed nothing at all, not even a failure. This proves the lost declaration is now
+  // JOURNALED, replayably, under the obligation's own real providerId ("nav") — never a made-up one
+  // `list-declarations.ts`'s own `providerId: { in: declarationProviderIds() }` filter would exclude.
+  it('journals REPORT_FAILED_STATUS_CODE under the obligation’s own providerId when enqueueReport itself rejects', async () => {
+    mockedResolveCountry.mockResolvedValue('HU');
+    const enqueueReport = jest.fn().mockRejectedValue(new Error('Redis is down'));
+
+    await reportOnSendIfObligated(
+      {
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+      },
+      fixtureCatalog,
+    );
+
+    expect(mockedJournalSynthetic).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      'nav',
+      REPORT_FAILED_STATUS_CODE,
+      expect.stringContaining('Redis is down'),
+    );
+  });
+
+  // BELT AND SUSPENDERS — the same posture `conformity-sweep-runner.ts#runPoll`'s own compensating
+  // write and `reporting-runner.ts#recordTerminalFailure` both hold: the fallback journal itself is not
+  // guaranteed to succeed either, and that must not crash this function.
+  it('never throws even when journaling the enqueue failure itself also fails', async () => {
+    mockedResolveCountry.mockResolvedValue('HU');
+    const enqueueReport = jest.fn().mockRejectedValue(new Error('Redis is down'));
+    mockedJournalSynthetic.mockRejectedValue(new Error('db unreachable'));
+
+    await expect(
+      reportOnSendIfObligated(
+        {
+          companyId: 'company-1',
+          typeId: 'invoice',
+          documentId: 'doc-1',
+          queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+        },
+        fixtureCatalog,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('never journals anything when enqueueReport succeeds — only a genuine failure is worth a row', async () => {
+    mockedResolveCountry.mockResolvedValue('HU');
+    const enqueueReport = jest.fn().mockResolvedValue(true);
+
+    await reportOnSendIfObligated(
+      {
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+      },
+      fixtureCatalog,
+    );
+
+    expect(mockedJournalSynthetic).not.toHaveBeenCalled();
+  });
+
   it('never throws even when resolving the country itself rejects', async () => {
     mockedResolveCountry.mockRejectedValue(new Error('DB unreachable'));
     const enqueueReport = jest.fn();
@@ -235,5 +306,8 @@ describe('reportOnSendIfObligated', () => {
       ),
     ).resolves.toBeUndefined();
     expect(enqueueReport).not.toHaveBeenCalled();
+    // No `providerId` was ever resolved at this point — nothing meaningful to journal a lost
+    // declaration against, unlike the enqueue-failure case above.
+    expect(mockedJournalSynthetic).not.toHaveBeenCalled();
   });
 });

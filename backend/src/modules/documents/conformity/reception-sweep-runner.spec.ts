@@ -9,8 +9,9 @@
  * already holds (`conformity-sweep-runner.spec.ts`'s own header).
  */
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+import prisma from '@/prisma/prisma.service';
 
-import * as persistence from '../persistence';
+import { Prisma } from '../../../../prisma/generated/prisma/client';
 import * as storage from '../received-invoices/storage';
 import * as supplierReconciliation from '../received-invoices/supplier-reconciliation';
 import { DocumentsService } from '../documents.service';
@@ -21,15 +22,33 @@ import { buildPdpReceptionStatusPusher } from '../transports/pdp/pdp-reception';
 
 jest.mock('./pollers/pdp-reception-poller');
 jest.mock('../transports/pdp/pdp-reception');
-jest.mock('../persistence');
+jest.mock('@/prisma/prisma.service', () => ({
+  __esModule: true,
+  default: { $queryRaw: jest.fn() },
+}));
 jest.mock('../received-invoices/storage');
 jest.mock('../received-invoices/supplier-reconciliation');
 
 const mockedBuildPoller = buildPdpReceptionPoller as jest.Mock;
 const mockedBuildPusher = buildPdpReceptionStatusPusher as jest.Mock;
-const mockedListDocuments = persistence.listDocuments as jest.Mock;
+// `isAlreadyImported` issues a raw, tagged-template query (see that method's own header for why —
+// the index this proves against would never actually be USED by Prisma's own JSON-path filter) —
+// mocked as a plain function, called with the template's own interpolated values as its rest args,
+// matching how `prisma.$queryRaw` itself is invoked under the hood.
+const mockedQueryRaw = (prisma as unknown as { $queryRaw: jest.Mock }).$queryRaw;
 const mockedPersistInboundFile = storage.persistInboundFile as jest.Mock;
 const mockedReconcile = supplierReconciliation.reconcileSupplierClient as jest.Mock;
+
+/** A `PrismaClientKnownRequestError` shaped exactly like a real `P2002` unique-constraint violation —
+ *  the constructor itself requires an internal `clientVersion`, which this codebase's own
+ *  `reminder-sweep-runner.spec.ts` already builds the identical way for the same reason (there is no
+ *  public factory for this class). */
+function p2002Error(): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError(
+    "Unique constraint failed on the fields: (`companyId`,`data->>'pdpInboundId'`)",
+    { code: 'P2002', clientVersion: '7.8.0' },
+  );
+}
 
 const ACTIVE_CONFIG_A = { companyId: 'company-a', providerId: 'pdp', channel: 'PDP', environment: 'TEST' };
 const ACTIVE_CONFIG_B = { companyId: 'company-b', providerId: 'pdp', channel: 'PDP', environment: 'TEST' };
@@ -61,7 +80,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
       pushPaid: jest.fn(),
     });
 
-    mockedListDocuments.mockResolvedValue([]);
+    mockedQueryRaw.mockResolvedValue([]);
     mockedPersistInboundFile.mockReturnValue('file:///tmp/whatever');
     mockedReconcile.mockResolvedValue({ outcome: 'no-match' });
   });
@@ -149,20 +168,111 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
     );
   });
 
-  it('skips a deposit already imported — dedup by `data.pdpInboundId`, never a second `received-invoice`', async () => {
+  it('skips a deposit already imported — dedup by an EXACT `data.pdpInboundId` lookup, never a second `received-invoice`', async () => {
     const channelCredentials = buildChannelCredentials(jest.fn().mockResolvedValue([ACTIVE_CONFIG_A]));
     listInbound.mockResolvedValue([{ id: 604667, direction: 'in' }]);
-    mockedListDocuments.mockResolvedValue([
-      { id: 'ri-1', typeId: 'received-invoice', status: 'received', data: { pdpInboundId: '604667' } },
-    ]);
+    mockedQueryRaw.mockResolvedValue([{ id: 'ri-1' }]);
     const runAction = jest.fn();
     const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
 
     const result = await runner.runSweep();
 
+    // The tagged-template call's own rest args are exactly its interpolated values, in order — see
+    // `isAlreadyImported`'s own header for why this is a hand-written `->>'pdpInboundId'` query, never
+    // Prisma's own JSON-path filter.
+    const [, ...values] = mockedQueryRaw.mock.calls[0];
+    expect(values).toEqual(['company-a', 'received-invoice', '604667']);
     expect(runAction).not.toHaveBeenCalled();
     expect(downloadAndExtract).not.toHaveBeenCalled();
     expect(result).toEqual({ companies: 1, imported: 0, skipped: 1, failed: 0 });
+  });
+
+  // THE MUTATION TARGET: the OLD dedup check scanned only the last 500 received invoices — a deposit
+  // older than that window would silently stop being recognized as already-imported. This test proves
+  // the NEW lookup has no such window: the query filters on the EXACT `pdpInboundId` value itself,
+  // never a `LIMIT`/offset over a company's own history, so a company's history size can never matter
+  // (a `LIMIT 1` IS present — "does at least one match exist", never a bounded scan window).
+  it('still recognizes an already-imported deposit regardless of how large this company’s received-invoice history is', async () => {
+    const channelCredentials = buildChannelCredentials(jest.fn().mockResolvedValue([ACTIVE_CONFIG_A]));
+    listInbound.mockResolvedValue([{ id: 1, direction: 'in' }]);
+    mockedQueryRaw.mockResolvedValue([{ id: 'ri-old' }]);
+    const runAction = jest.fn();
+    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+
+    const result = await runner.runSweep();
+
+    const [sql, ...values] = mockedQueryRaw.mock.calls[0];
+    expect(sql.join('')).not.toMatch(/OFFSET/i);
+    expect(values).toEqual(['company-a', 'received-invoice', '1']);
+    expect(result).toEqual({ companies: 1, imported: 0, skipped: 1, failed: 0 });
+  });
+
+  // THE MUTATION TARGET this whole rewrite exists to close (this file's own header, "Idempotency"):
+  // Prisma's own `{ path: [...], equals }` JSON filter compiles to a `#>`-based expression on
+  // Postgres, byte-for-byte DIFFERENT from the partial unique index's own `->>'pdpInboundId'` — so it
+  // would never actually use that index. Asserted here against the LITERAL SQL text, not merely "some
+  // query happened", because a query that merely returns the right ANSWER (every test above already
+  // proves that) would still silently regress this fix if it stopped matching the index's own
+  // expression.
+  it("queries the EXACT `->>'pdpInboundId'` text expression the partial unique index declares", async () => {
+    const channelCredentials = buildChannelCredentials(jest.fn().mockResolvedValue([ACTIVE_CONFIG_A]));
+    listInbound.mockResolvedValue([{ id: 604667, direction: 'in' }]);
+    mockedQueryRaw.mockResolvedValue([]);
+    downloadAndExtract.mockResolvedValue({
+      bytes: Buffer.from('pdf'),
+      mime: 'application/pdf',
+      fileName: 'invoice.pdf',
+      extraction: { fields: {} },
+    });
+    const runner = new PdpReceptionSweepRunner(
+      channelCredentials,
+      buildDocumentsService(jest.fn().mockResolvedValue({ document: { id: 'ri-1' }, changed: true })),
+    );
+
+    await runner.runSweep();
+
+    const [sql] = mockedQueryRaw.mock.calls[0];
+    expect(sql.join('')).toContain(`"data"->>'pdpInboundId'`);
+    expect(sql.join('')).not.toContain('#>');
+  });
+
+  // THE MUTATION TARGET: a genuine race between two overlapping sweep passes for the SAME
+  // never-before-seen deposit — the partial unique index (this file's own header) makes the LOSING
+  // side's write fail with P2002. That must read as an ordinary dedup hit, never a sweep failure, and
+  // must never abort the REST of this company's own deposits in the same pass.
+  it('treats a P2002 conflict on import as a concurrent-pass dedup hit — never a failure, never aborts the rest of this company’s deposits', async () => {
+    const channelCredentials = buildChannelCredentials(jest.fn().mockResolvedValue([ACTIVE_CONFIG_A]));
+    listInbound.mockResolvedValue([
+      { id: 1, direction: 'in' },
+      { id: 2, direction: 'in' },
+    ]);
+    downloadAndExtract.mockResolvedValue({
+      bytes: Buffer.from('%PDF-1.4 fake'),
+      mime: 'application/pdf',
+      fileName: 'pdp-inbound.pdf',
+      extraction: { syntax: 'FACTURX_CII', fields: { supplier: 'Acme Supplies' } },
+    });
+    const runAction = jest
+      .fn()
+      .mockRejectedValueOnce(p2002Error()) // deposit 1: lost the race
+      .mockResolvedValueOnce({ document: { id: 'ri-2' }, changed: true }); // deposit 2: imports fine
+    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+
+    const result = await runner.runSweep();
+
+    expect(runAction).toHaveBeenCalledTimes(2); // deposit 2 was still attempted, never skipped upstream
+    expect(result).toEqual({ companies: 1, imported: 1, skipped: 1, failed: 0 });
+  });
+
+  it('still counts a genuinely UNRELATED failure during import as a failure, never silently as a dedup hit', async () => {
+    const channelCredentials = buildChannelCredentials(jest.fn().mockResolvedValue([ACTIVE_CONFIG_A]));
+    listInbound.mockResolvedValue([{ id: 1, direction: 'in' }]);
+    downloadAndExtract.mockRejectedValue(new Error('PDP download timed out'));
+    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService());
+
+    const result = await runner.runSweep();
+
+    expect(result).toEqual({ companies: 1, imported: 0, skipped: 0, failed: 1 });
   });
 
   it("never lets one company's failure stop the pass for every other company", async () => {

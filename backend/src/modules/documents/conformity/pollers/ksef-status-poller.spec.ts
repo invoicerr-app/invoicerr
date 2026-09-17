@@ -11,10 +11,14 @@ import { ChannelCredentialsService } from '@/modules/company/channels/channels.s
 
 import { InvoiceStatusResponse } from '../../transports/ksef/ksef-client';
 import { ChannelNotConnectedError } from '../authority-status-poller';
-import { buildKsefStatusPoller } from './ksef-status-poller';
+import { __resetKsefAccessTokenCacheForTests, buildKsefStatusPoller } from './ksef-status-poller';
 
 const mockInvoiceStatus = jest.fn();
-const mockAuthenticate = jest.fn().mockResolvedValue('fresh-access-token');
+/** `expiresAt` far enough in the future that the cache (this file's own subject) actually kicks in
+ *  for two immediate, back-to-back polls in the same test. */
+const mockAuthenticate = jest
+  .fn()
+  .mockResolvedValue({ accessToken: 'fresh-access-token', expiresAt: Date.now() + 10 * 60 * 1000 });
 
 jest.mock('../../transports/ksef-transport', () => {
   const actual = jest.requireActual('../../transports/ksef-transport');
@@ -61,7 +65,17 @@ function syntheticStatus(code: number, description: string, details?: string[]):
 }
 
 describe('buildKsefStatusPoller', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuthenticate.mockResolvedValue({
+      accessToken: 'fresh-access-token',
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+    // The cache is module-level (this file's own header) — without this, a token cached by an EARLIER
+    // test would silently survive into a LATER one and make its own assertion pass for the wrong
+    // reason (or fail spuriously, depending on run order).
+    __resetKsefAccessTokenCacheForTests();
+  });
 
   it('maps a "still processing" status (SYNTHETIC) to a non-terminal event', async () => {
     mockInvoiceStatus.mockResolvedValue(syntheticStatus(100, 'W trakcie przetwarzania'));
@@ -98,12 +112,68 @@ describe('buildKsefStatusPoller', () => {
     expect(poller.isTerminal('pl:415')).toBe(true);
   });
 
-  it('re-authenticates fresh on every poll (KSeF access tokens are short-lived)', async () => {
+  it('reuses ONE cached access token across several polls for the same (company, environment) — the fix for the poller rate-limiting itself', async () => {
     mockInvoiceStatus.mockResolvedValue(syntheticStatus(100, 'processing'));
     const poller = buildKsefStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     await poller.poll('company-1', 'session-1|invoice-1');
+    await poller.poll('company-1', 'session-1|invoice-2');
+    await poller.poll('company-1', 'session-1|invoice-3');
+
+    // ONE handshake (challenge + ksef-token + status + redeem) for three documents belonging to the
+    // SAME company/environment — not three, which is exactly the "N documents = N handshakes" failure
+    // mode this cache exists to close.
+    expect(mockAuthenticate).toHaveBeenCalledTimes(1);
+    expect(mockInvoiceStatus).toHaveBeenCalledTimes(3);
+  });
+
+  it('authenticates separately per company (never shares a token across tenants)', async () => {
+    mockInvoiceStatus.mockResolvedValue(syntheticStatus(100, 'processing'));
+    const poller = buildKsefStatusPoller({ channelCredentials: buildChannelCredentials() });
+
     await poller.poll('company-1', 'session-1|invoice-1');
+    await poller.poll('company-2', 'session-1|invoice-1');
+
+    expect(mockAuthenticate).toHaveBeenCalledTimes(2);
+  });
+
+  // Reproduces the credential-rotation gap this cache would otherwise have: keying purely on
+  // (company, environment) would keep answering polls with a token minted under credentials the
+  // company has since REPLACED, for as long as that token's own TTL allows.
+  it('re-authenticates when the same company/environment reconnects with a DIFFERENT KSeF token', async () => {
+    mockInvoiceStatus.mockResolvedValue(syntheticStatus(100, 'processing'));
+    const resolveActive = jest
+      .fn()
+      .mockResolvedValueOnce({ ...CONNECTED_CONFIG, config: { nip: '5260001246', ksefToken: 'token-a' } })
+      .mockResolvedValueOnce({ ...CONNECTED_CONFIG, config: { nip: '5260001246', ksefToken: 'token-b' } });
+    const poller = buildKsefStatusPoller({ channelCredentials: buildChannelCredentials(resolveActive) });
+
+    await poller.poll('company-1', 'session-1|invoice-1');
+    await poller.poll('company-1', 'session-1|invoice-2');
+
+    expect(mockAuthenticate).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-authenticates once the cached token has expired', async () => {
+    mockAuthenticate.mockResolvedValue({ accessToken: 'about-to-expire', expiresAt: Date.now() + 1 });
+    mockInvoiceStatus.mockResolvedValue(syntheticStatus(100, 'processing'));
+    const poller = buildKsefStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    await poller.poll('company-1', 'session-1|invoice-1');
+    // The cached token's `expiresAt` is already inside the poller's own 60s refresh margin by the time
+    // this second call runs — a real re-authentication, not a reuse of the near-dead token.
+    await poller.poll('company-1', 'session-1|invoice-2');
+
+    expect(mockAuthenticate).toHaveBeenCalledTimes(2);
+  });
+
+  it('evicts the cached token when the status call itself fails, so the NEXT poll re-authenticates rather than retrying the same bad token', async () => {
+    mockInvoiceStatus.mockRejectedValueOnce(new Error('401 Unauthorized'));
+    mockInvoiceStatus.mockResolvedValueOnce(syntheticStatus(100, 'processing'));
+    const poller = buildKsefStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    await expect(poller.poll('company-1', 'session-1|invoice-1')).rejects.toThrow('401 Unauthorized');
+    await poller.poll('company-1', 'session-1|invoice-2');
 
     expect(mockAuthenticate).toHaveBeenCalledTimes(2);
   });

@@ -16,7 +16,8 @@
  * NEVER learns an `IdentificativoSdI` synchronously at send time (a PEC message's own SMTP acceptance
  * only proves "handed to the next mail hop", nothing about SdI's own processing) — so
  * `DocumentInstance.transportRef` is set, at send time, to the FILENAME this codebase itself chose
- * (`pec-protocol.ts#buildPecAttachmentFilename`, deterministic per document id). Every one of the six
+ * (`pec-protocol.ts#buildPecAttachmentFilename`, drawn from a persistent per-idTrasmittente counter —
+ * see that function's own header for why). Every one of the six
  * notifica types carries that SAME filename back in its own `NomeFile` field (`fileSdI_Type`, shared by
  * all six per `sdi/sdi-notifiche.ts`'s own header) — so reconciling by `NomeFile` works uniformly for
  * the FIRST notifica this document ever receives and for every one after it, with no separate
@@ -155,6 +156,15 @@ export class PecNotificheService {
       const event: RawAuthorityEvent = {
         statusCode: `it:${parsed.notificaType}`,
         statusText: NOTIFICA_TYPE_LABELS[parsed.notificaType],
+        // `mapNotifica`'s own `notes` array always opens with three boilerplate entries (idSdI,
+        // notifica type, date — see that method's own body) and, for most notifica types, appends
+        // exactly ONE more explaining what this codebase actually did with it. That extra entry is
+        // where the AT case's "SdI accepted the invoice but could not deliver it [...] the seller
+        // must tell the buyer" instruction lives (`sdi-client.ts`'s own `case 'AT'` comment claims
+        // this exact text "the document screen surfaces verbatim" — true only once it actually reaches
+        // `reason`, which it did not before this dropped every entry past `outcome.status`). RC alone
+        // adds nothing past the boilerplate, so `reason` is correctly left unset for it.
+        reason: outcome.notes.slice(3).join('; ') || undefined,
         observedAt: new Date(),
         rawPayload: {
           channel: 'pec',

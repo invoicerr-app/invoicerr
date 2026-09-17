@@ -104,9 +104,29 @@
  *    address rather than solely from the FatturaPA XML header's own `IdTrasmittente` — not stated in
  *    either read source. `SDI_REPLY_ADDRESS_HINT_TYPES` below documents exactly which first-response
  *    message kinds the specification says carry the new reply address (see its own comment).
+ *
+ * ## Collision-free progressivo (added after review, see `nextPecProgressivo` below)
+ *
+ * §2.2 caps the progressivo at 5 alphanumeric characters — `[a-zA-Z0-9]{1,5}`, base36 case-insensitive
+ * once normalized, a space of 36^5 ≈ 60,466,176 values. This file used to DERIVE that value from a
+ * SHA-1 hash of the document id truncated into that space (`buildPecProgressivo`, removed) — a
+ * plausible-looking but genuinely PROBABILISTIC scheme: by the birthday paradox, hashing into a 60M
+ * space collides at ~0.8% probability by 1,000 documents for the SAME `idTrasmittente`, and ~50% by
+ * ~9,200. A collision is not cosmetic — §5.1.1 above rejects a duplicate name outright ("Codice 00002 -
+ * Nome file duplicato"), and because the OLD scheme was a pure function of `documentId`, a rejected
+ * invoice could NEVER be resubmitted through this channel at all (the same input always re-derives the
+ * same already-taken name). `nextPecProgressivo` replaces the hash with a PERSISTENT, ATOMIC COUNTER
+ * per `idTrasmittente` (`PecFilenameSequence`, the same `INSERT ... ON CONFLICT DO UPDATE ...
+ * RETURNING` shape `numbering/sequence.ts#bumpSequence` already uses, for the identical "safe under
+ * Postgres's own default isolation, no outer transaction needed" reason) — a counter can structurally
+ * never repeat a value already handed out, closing the collision at its root rather than merely making
+ * it rarer. `buildPecAttachmentFilename` no longer takes a `documentId` at all: the filename is not,
+ * and no longer needs to be, a pure function of the document being sent (nothing in this codebase
+ * predicts it ahead of an actual send — `sdi-pec-transport.ts` always uses the ACTUAL string this
+ * function returns as `transportRef`, never a value precomputed from `documentId` elsewhere).
  */
 
-import { createHash } from 'node:crypto';
+import prisma from '@/prisma/prisma.service';
 
 /** The SdI PEC address for a FIRST submission — read verbatim above, never guessed nor hardcoded from
  *  a different source. A later submission MUST go to whatever address SdI itself replied from instead
@@ -164,20 +184,45 @@ export function isValidPecAttachmentFilename(filename: string): boolean {
   return PEC_ATTACHMENT_FILENAME_PATTERN.test(filename);
 }
 
+/** §2.2's own hard ceiling on the progressivo: 5 base36 characters, `36**5` distinct values. Guarded
+ *  explicitly in `nextPecProgressivo` below rather than left to wrap silently — a wrapped counter would
+ *  reintroduce, deterministically this time, the exact "reuses an already-handed-out value" failure
+ *  this file's own header explains the counter exists to close. */
+const PEC_PROGRESSIVO_SPACE = 36 ** 5;
+
 /**
- * Deterministic ≤5-character alphanumeric progressivo (§2.2's own maximum) derived from the document
- * id — the same "derived from the invoice, never invented" convention `pdp-transport.ts`'s own
- * `externalId` and `sdi-transport.ts`'s own filename both already follow, just kept within the
- * stricter 5-character bound those two files are not held to (see `PEC_ATTACHMENT_FILENAME_PATTERN`'s
- * own comment). A SHA-1 hash rather than a raw slice of the id: `documentId` is a cuid/uuid whose own
- * characters (hyphens, and possibly more than 5 of them before any letter/digit run repeats) do not
- * fit `[a-zA-Z0-9]{1,5}` directly, so slicing it verbatim the way `sdi-transport.ts` does would not
- * even pass THIS file's own stricter pattern.
+ * Atomically advances the PERSISTENT, per-`idTrasmittente` PEC progressivo counter and returns the
+ * value it just handed out, base36, uppercase, zero-padded to §2.2's own 5-character maximum — see
+ * this file's own header, "Collision-free progressivo", for why this replaced a hash-derived value.
+ * Same `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` shape `numbering/sequence.ts#bumpSequence`
+ * already uses for the identical reason: safe under Postgres's own default `READ COMMITTED` isolation
+ * with no outer transaction needed, because `ON CONFLICT` already takes a row-level lock on the
+ * conflicting key — two concurrent sends for the SAME `idTrasmittente` are serialized by Postgres
+ * itself, never handed the same counter value twice. Scoped by `idTrasmittente`, never by this
+ * codebase's own `companyId`: SdI's own uniqueness rule (§5.1.1 above, "nome file già presente nel
+ * SDI") is a fact about the TRASMITTENTE's identity, not about which tenant of this application holds
+ * the credentials.
  */
-export function buildPecProgressivo(documentId: string): string {
-  const digestHex = createHash('sha1').update(documentId).digest('hex');
-  const numeric = BigInt(`0x${digestHex.slice(0, 12)}`);
-  return numeric.toString(36).toUpperCase().slice(-5).padStart(5, '0');
+export async function nextPecProgressivo(idTrasmittente: string): Promise<string> {
+  // `nextValue` is a plain Postgres `INT` (`PecFilenameSequence`'s own schema comment) — `$queryRaw`
+  // hands one back as a JS `number`, never a `bigint`, the same shape `numbering/sequence.ts#bumpSequence`
+  // already relies on for its own `INT` counter column.
+  const rows = await prisma.$queryRaw<{ value: number }[]>`
+    INSERT INTO "PecFilenameSequence" ("idTrasmittente", "nextValue")
+    VALUES (${idTrasmittente}, 2)
+    ON CONFLICT ("idTrasmittente")
+    DO UPDATE SET "nextValue" = "PecFilenameSequence"."nextValue" + 1
+    RETURNING "nextValue" - 1 AS "value"
+  `;
+  const value = rows[0].value;
+  if (value >= PEC_PROGRESSIVO_SPACE) {
+    throw new Error(
+      `PEC filename counter for idTrasmittente "${idTrasmittente}" has exhausted the §2.2 5-character ` +
+        `progressivo space (${PEC_PROGRESSIVO_SPACE} values) — refusing to wrap back to a value ` +
+        'already handed out.',
+    );
+  }
+  return value.toString(36).toUpperCase().padStart(5, '0');
 }
 
 /** Builds the canonical PEC attachment filename for a FatturaPA submission — `idTrasmittente` already
@@ -185,10 +230,12 @@ export function buildPecProgressivo(documentId: string): string {
  *  same field shape `sdi-transport.ts#SdiCredentials.idTrasmittente` already establishes for this
  *  codebase's "sdi" channel — see this file's own header, §2.2, for why country code and fiscal id are
  *  simply adjacent with no separator between them (the worked examples show no separator there
- *  either). The result is validated against `PEC_ATTACHMENT_FILENAME_PATTERN` before being returned —
- *  a caller never receives a filename SdI would reject anyway. */
-export function buildPecAttachmentFilename(idTrasmittente: string, documentId: string): string {
-  const filename = `${idTrasmittente}_${buildPecProgressivo(documentId)}.xml`;
+ *  either). The progressivo comes from `nextPecProgressivo` (a persistent counter, never a value
+ *  derivable in advance from anything about the document) — see this file's own header for why. The
+ *  result is validated against `PEC_ATTACHMENT_FILENAME_PATTERN` before being returned — a caller never
+ *  receives a filename SdI would reject anyway. */
+export async function buildPecAttachmentFilename(idTrasmittente: string): Promise<string> {
+  const filename = `${idTrasmittente}_${await nextPecProgressivo(idTrasmittente)}.xml`;
   if (!isValidPecAttachmentFilename(filename)) {
     throw new Error(
       `Built PEC attachment filename "${filename}" does not match the required §2.2 pattern ` +

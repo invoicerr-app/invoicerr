@@ -38,21 +38,52 @@
  *   MC — Mancata Consegna (failed delivery): SdI could not deliver → PENDING (retry for 15 days)
  *   NE — Notifica Esito (buyer outcome): buyer accepted/refused → CLEARED or REJECTED
  *   DT — Decorrenza Termini (15-day term expired): SdI considers it delivered → CLEARED
- *   AT — Attestazione di Avvenuta Trasmissione (transmission attempted, delivery impossible) → REJECTED
+ *   AT — Attestazione di Avvenuta Trasmissione (transmission attempted, delivery impossible) → CLEARED
  *
- * CORRECTION (verified against a primary source while building the "sdi-pec" sibling transport,
- * 2026-09-13): AT does NOT mean successful transmission — this header, and `mapNotifica`'s own AT
- * case below, previously mapped it to `CLEARED`. The published "Specifiche delle regole tecniche...",
+ * AT is read as CLEARED, not REJECTED, on a full reading of the two primary-source passages that
+ * actually bear on it — established directly from the published "Specifiche delle regole tecniche...",
  * v1.8.1, 01/10/2020 (https://www.fatturapa.gov.it/export/documenti/Specifiche_tecniche_SdI_v1.8.1.pdf,
- * read via `pdftotext -layout`), §4 point (e), is explicit that AT is the OPPOSITE of a success: «se,
- * trascorsi 10 giorni dalla data di trasmissione della notifica di mancata consegna, il SdI non è
- * riuscito a recapitare la fattura elettronica al soggetto ricevente, inoltra al soggetto trasmittente
- * una definitiva attestazione di avvenuta trasmissione della fattura con impossibilità di recapito
- * [...]; nei casi di fattura elettronica destinata a soggetti diversa di pubblica amministrazione, tale
- * attestazione attribuisce titolo di definitività alla mancata consegna» — "attestation that
- * transmission occurred, WITH IMPOSSIBILITY OF DELIVERY": a definitive, terminal non-delivery, not a
- * success. `sdi-notifiche.ts`'s own `NOTIFICA_TYPE_LABELS.AT` already had this right ("SdI could not
- * deliver within the maximum term") — only this file's header and `mapNotifica` disagreed with it.
+ * read via `pdftotext -layout`), never from one comment's paraphrase of the other's quote:
+ *
+ * §4 point (e) — the FULL sentence, not only its closing clause — describes ONE finding with two
+ * DIFFERENT downstream consequences depending on the recipient: «se, trascorsi 10 giorni dalla data di
+ * trasmissione della notifica di mancata consegna, il SdI non è riuscito a recapitare la fattura
+ * elettronica al soggetto ricevente [...] inoltra al soggetto trasmittente una definitiva attestazione
+ * di avvenuta trasmissione della fattura con impossibilità di recapito in ottemperanza alle
+ * disposizioni riportate nella circolare interpretativa n.1 del 31 marzo 2014 [...]; questa
+ * attestazione dà diritto al soggetto trasmittente di recapitare direttamente la fattura
+ * all'amministrazione destinataria utilizzando canali a lui noti [...], senza ulteriori passaggi
+ * attraverso il Sistema di Interscambio; nei casi di fattura elettronica destinata a soggetti diversa
+ * di pubblica amministrazione, tale attestazione attribuisce titolo di definitività alla mancata
+ * consegna». Two things follow from reading the WHOLE sentence, not only its last clause:
+ *   1. "attribuisce titolo di definitività ALLA MANCATA CONSEGNA" (non-PA case) makes the DELIVERY
+ *      ATTEMPT definitive/final — it says nothing about the INVOICE itself being invalid. Reading only
+ *      this clause could be mistaken for "the transmission failed, full stop" and mapped to REJECTED;
+ *      but "REJECTED" in this codebase's own vocabulary (see NS just above) means the FILE ITSELF was
+ *      refused for a defect and must be corrected and resent — which is not what happened here (see
+ *      point 2).
+ *   2. §4 points (a)/(c), read earlier in the SAME section, establish that an invoice only reaches
+ *      point (e)/AT after SdI ALREADY validated it and attempted delivery successfully on SdI's own
+ *      side ("il SdI, ricevuto correttamente il file [...] effettua le verifiche previste"; "nel caso
+ *      di esito positivo dei controlli il SdI trasmette la fattura [...] al soggetto ricevente") — an
+ *      invoice that fails those checks gets NS (Notifica di Scarto) instead, never reaches AT at all.
+ *      By the time AT fires, the invoice has ALREADY passed every check SdI performs; only the LAST
+ *      HOP (SdI → recipient's own mailbox) failed, for a reason on the recipient's side, not the
+ *      invoice's own content.
+ * §1.10 (Allegato B-1) confirms the SAME framing from the notifica's OWN stated purpose: «attestare
+ * l'avvenuta RICEZIONE della fattura e l'impossibilità di recapitare il file al destinatario» — SdI
+ * attests the invoice WAS RECEIVED [by SdI], only delivery TO THE RECIPIENT failed.
+ *
+ * `CLEARED` is therefore the reading this codebase's OWN CLEARED/REJECTED vocabulary actually supports
+ * — the invoice was validly received and processed by SdI (the authority leg is done), distinct from
+ * NS's genuine rejection of a defective file. This mapping does not distinguish PA from non-PA
+ * recipients (§4(e)'s two sub-cases) — `mapNotifica` has no such input — which is a real, acknowledged
+ * simplification: the PA sub-case additionally grants the seller a right to redeliver directly, outside
+ * SdI, that this mapping's `notes` field (below) does not itself capture. What the `notes` field DOES
+ * say is the seller's remaining obligation to separately inform the buyer the invoice is waiting in
+ * their own reserved area — the one thing CLEARED on its own cannot express. `sdi-notifiche.ts`'s own
+ * `NOTIFICA_TYPE_LABELS.AT` wording ("SdI could not deliver within the maximum term") states the FACT,
+ * not a CLEARED/REJECTED verdict, so it needs no change either way.
  */
 
 // ---------------------------------------------------------------------------
@@ -238,8 +269,9 @@ export class SdiClient {
    *   NE EC01 (esito accepted)    → CLEARED  (buyer accepted)
    *   NE EC02 (esito refused)     → REJECTED (buyer refused)
    *   DT (Decorrenza Termini)     → CLEARED  (15-day term elapsed; SdI deems delivered)
-   *   AT (Attestazione di Avvenuta Trasmissione) → REJECTED (definitive non-delivery — see this
-   *                                                file's own header, "CORRECTION")
+   *   AT (Attestazione di Avvenuta Trasmissione) → CLEARED (SdI already validated + accepted the
+   *                                                invoice — see this file's own header and the case
+   *                                                below)
    */
   static mapNotifica(notifica: SdiNotifica, ref: string): SdiNotificaOutcome {
     const notes: string[] = [
@@ -293,6 +325,12 @@ export class SdiClient {
       // leg is done. What CLEARED does NOT carry is the seller's remaining obligation to tell the
       // buyer the invoice is waiting for them, which no status in this union can express -- hence
       // the note, which the document screen surfaces verbatim.
+      //
+      // §4 point (e) — the OTHER clause of the same source, read in full in this file's own header —
+      // does not contradict this: "titolo di definitività alla mancata consegna" makes the DELIVERY
+      // ATTEMPT definitive, not the invoice itself invalid; only NS (a genuinely rejected file, never
+      // having passed SdI's own checks) belongs on REJECTED. See that header for the full reasoning
+      // across both cited sections before changing this case.
       case 'AT':
         return {
           channel: 'SDI',

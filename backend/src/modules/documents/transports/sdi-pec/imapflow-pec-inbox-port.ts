@@ -104,11 +104,24 @@ export class ImapFlowPecInboxPort implements PecInboxPort {
     try {
       const lock = await client.getMailboxLock('INBOX');
       try {
-        const messages: PecInboundMessage[] = [];
-        for await (const message of client.fetch(
+        // `fetchAll`, never `fetch()`'s own async generator — imapflow's own doc comment on `fetch()`
+        // is explicit: "NB! You can not run any IMAP commands in this loop otherwise you will end up
+        // in a deadloop". `toPecInboundMessage` below issues exactly such a command per message
+        // (`client.download()`), which this file used to call INSIDE a `for await (... of
+        // client.fetch(...))` loop — precisely the pattern that warning names. Never independently
+        // exercised against a real server (this file's own header: implemented-awaiting-credentials),
+        // so this was invisible to every existing spec (`toPecInboundMessage`'s own mapping test calls
+        // it directly, never through this iteration). `fetchAll` resolves the WHOLE "not yet seen"
+        // listing into a plain array before this method ever calls `download()` — bounded by however
+        // many messages are actually unseen in one mailbox (never the `1:*` range fetchAll's own doc
+        // comment warns could exhaust memory), so every `download()` below runs strictly AFTER the
+        // fetch command has fully completed, never interleaved with it.
+        const fetched = await client.fetchAll(
           { seen: false },
           { uid: true, envelope: true, bodyStructure: true },
-        )) {
+        );
+        const messages: PecInboundMessage[] = [];
+        for (const message of fetched) {
           messages.push(await toPecInboundMessage(client, message));
         }
         return messages;

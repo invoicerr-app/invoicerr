@@ -1,12 +1,35 @@
+import prisma from '@/prisma/prisma.service';
+
 import {
   buildPecAttachmentFilename,
-  buildPecProgressivo,
   isValidPecAttachmentFilename,
+  nextPecProgressivo,
   PEC_ATTACHMENT_FILENAME_PATTERN,
   PEC_RAW_ATTACHMENT_SAFE_MAX_BYTES,
   resolvePecRecipient,
   SDI_PEC_FIRST_SUBMISSION_ADDRESS,
 } from './pec-protocol';
+
+jest.mock('@/prisma/prisma.service', () => ({
+  __esModule: true,
+  default: { $queryRaw: jest.fn() },
+}));
+
+const mockedQueryRaw = prisma.$queryRaw as unknown as jest.Mock;
+
+/** A tiny in-memory stand-in for the real `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` — real
+ *  enough to prove "the SAME idTrasmittente never gets the same value twice, two different ones never
+ *  share a counter" without a real database (the real round trip, atomicity included, is
+ *  `numbering/sequence.live.spec.ts`'s own sibling coverage for the identical SQL shape). */
+function statefulSequenceMock() {
+  const counters = new Map<string, number>();
+  return jest.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+    const idTrasmittente = String(values[0]);
+    const current = counters.get(idTrasmittente) ?? 1;
+    counters.set(idTrasmittente, current + 1);
+    return [{ value: current }];
+  });
+}
 
 describe('pec-protocol — facts read from fatturapa.gov.it, encoded as pure functions', () => {
   it('SDI_PEC_FIRST_SUBMISSION_ADDRESS is the exact address published on "Inviare la FatturaPA"', () => {
@@ -57,45 +80,79 @@ describe('pec-protocol — facts read from fatturapa.gov.it, encoded as pure fun
     });
   });
 
-  describe('buildPecProgressivo — deterministic, ≤5 alphanumeric characters', () => {
-    it("is exactly 5 characters, always, regardless of the input id's own length/shape", () => {
-      expect(buildPecProgressivo('doc-1')).toHaveLength(5);
-      expect(buildPecProgressivo('a-much-longer-cuid-style-document-identifier-000000')).toHaveLength(5);
-      expect(buildPecProgressivo('')).toHaveLength(5);
+  // THE MUTATION TARGET: the OLD `buildPecProgressivo` hashed the document id into the 5-character
+  // space (36^5 ≈ 60M) — a measurable birthday-paradox collision well within real submission volume
+  // (see `pec-protocol.ts`'s own header, "Collision-free progressivo"). `nextPecProgressivo` replaces
+  // it with a PERSISTENT COUNTER, which cannot collide with itself by construction.
+  describe('nextPecProgressivo — a persistent, per-idTrasmittente counter, ≤5 alphanumeric characters', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('is exactly 5 characters, always', async () => {
+      mockedQueryRaw.mockImplementation(statefulSequenceMock());
+      expect(await nextPecProgressivo('IT01234567890')).toHaveLength(5);
     });
 
-    it('only ever produces [A-Z0-9] — a subset of the allowed [a-zA-Z0-9]', () => {
-      expect(buildPecProgressivo('doc-1')).toMatch(/^[A-Z0-9]{5}$/);
+    it('only ever produces [A-Z0-9] — a subset of the allowed [a-zA-Z0-9]', async () => {
+      mockedQueryRaw.mockImplementation(statefulSequenceMock());
+      expect(await nextPecProgressivo('IT01234567890')).toMatch(/^[A-Z0-9]{5}$/);
     });
 
-    it('is deterministic — the SAME document id always yields the SAME progressivo', () => {
-      expect(buildPecProgressivo('doc-42')).toBe(buildPecProgressivo('doc-42'));
+    it('never hands out the same value twice for the SAME idTrasmittente — the whole point of a counter', async () => {
+      mockedQueryRaw.mockImplementation(statefulSequenceMock());
+      const first = await nextPecProgressivo('IT01234567890');
+      const second = await nextPecProgressivo('IT01234567890');
+      const third = await nextPecProgressivo('IT01234567890');
+      expect(new Set([first, second, third]).size).toBe(3);
     });
 
-    it('two different document ids yield different progressivi (no trivial collision)', () => {
-      expect(buildPecProgressivo('doc-42')).not.toBe(buildPecProgressivo('doc-43'));
+    it('advances INDEPENDENTLY per idTrasmittente — one trasmittente never consumes another’s counter', async () => {
+      mockedQueryRaw.mockImplementation(statefulSequenceMock());
+      const a1 = await nextPecProgressivo('IT01234567890');
+      const b1 = await nextPecProgressivo('IT09876543210');
+      const a2 = await nextPecProgressivo('IT01234567890');
+      // Both trasmittenti start their OWN counter at the same first value — proving they are tracked
+      // separately, not sharing one global sequence.
+      expect(a1).toBe(b1);
+      expect(a2).not.toBe(a1);
+    });
+
+    it('passes idTrasmittente as the query parameter, never string-concatenated into the SQL', async () => {
+      mockedQueryRaw.mockImplementation(statefulSequenceMock());
+      await nextPecProgressivo("IT01234567890'; DROP TABLE x; --");
+      const [, ...values] = mockedQueryRaw.mock.calls[0];
+      expect(values).toEqual(["IT01234567890'; DROP TABLE x; --"]);
+    });
+
+    it('throws rather than wrapping once the 5-character space is exhausted', async () => {
+      mockedQueryRaw.mockResolvedValue([{ value: 36 ** 5 }]);
+      await expect(nextPecProgressivo('IT01234567890')).rejects.toThrow(/exhausted/);
     });
   });
 
   describe('buildPecAttachmentFilename', () => {
-    it('builds a filename that is always valid against PEC_ATTACHMENT_FILENAME_PATTERN', () => {
-      const filename = buildPecAttachmentFilename('IT01234567890', 'doc-1234567890');
+    beforeEach(() => jest.clearAllMocks());
+
+    it('builds a filename that is always valid against PEC_ATTACHMENT_FILENAME_PATTERN', async () => {
+      mockedQueryRaw.mockImplementation(statefulSequenceMock());
+      const filename = await buildPecAttachmentFilename('IT01234567890');
       expect(filename).toMatch(/^IT01234567890_[A-Z0-9]{5}\.xml$/);
       expect(isValidPecAttachmentFilename(filename)).toBe(true);
     });
 
-    it('the SAME (idTrasmittente, documentId) pair always builds the SAME filename', () => {
-      expect(buildPecAttachmentFilename('IT01234567890', 'doc-1')).toBe(
-        buildPecAttachmentFilename('IT01234567890', 'doc-1'),
-      );
+    it('two successive calls for the SAME idTrasmittente build two DIFFERENT filenames', async () => {
+      mockedQueryRaw.mockImplementation(statefulSequenceMock());
+      const first = await buildPecAttachmentFilename('IT01234567890');
+      const second = await buildPecAttachmentFilename('IT01234567890');
+      expect(first).not.toBe(second);
     });
 
     it(
       'throws (never silently truncates or sanitizes) when idTrasmittente itself contains characters ' +
         '§2.2 forbids — a malformed attachment name, refused BEFORE anything is sent',
-      () => {
-        expect(() => buildPecAttachmentFilename('IT 0123 4567890', 'doc-1')).toThrow(/does not match/);
-        expect(() => buildPecAttachmentFilename('IT-01234567890', 'doc-1')).toThrow(/Nome file non valido/);
+      async () => {
+        mockedQueryRaw.mockImplementation(statefulSequenceMock());
+        await expect(buildPecAttachmentFilename('IT 0123 4567890')).rejects.toThrow(/does not match/);
+        await expect(buildPecAttachmentFilename('IT-01234567890')).rejects.toThrow(/Nome file non valido/);
       },
     );
   });

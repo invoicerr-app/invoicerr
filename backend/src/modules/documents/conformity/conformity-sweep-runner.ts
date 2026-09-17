@@ -16,6 +16,7 @@ import {
   createAuthorityEvents,
   findConformitySweepCandidates,
   journalSyntheticEvent,
+  markConformityResolved,
 } from './authority-events.persistence';
 import { AuthorityStatusPollerRegistry, ChannelNotConnectedError } from './authority-status-poller';
 import {
@@ -118,7 +119,17 @@ export class ConformitySweepRunner {
         maxPollAgeMs,
       );
 
-      if (decision.action === 'skip') continue;
+      if (decision.action === 'skip') {
+        // Self-healing backfill — see `conformityResolvedAt`'s own schema comment and
+        // `findConformitySweepCandidates`'s own header: a document already terminal (or already given
+        // up on) that this column has not yet recorded (every row from before this column existed,
+        // or one whose `runPoll`-side write below raced with something and lost) gets marked HERE,
+        // the first time this sweep re-encounters it — after which it never appears in a candidate
+        // list again. A no-op write for the overwhelming majority of passes, once the one-time
+        // backlog has converged.
+        await markConformityResolved(candidate.id, now);
+        continue;
+      }
 
       if (decision.action === 'gave-up') {
         // A plain, synchronous, idempotent write — never an external HTTP call, so there is no need
@@ -135,6 +146,13 @@ export class ConformitySweepRunner {
           `No terminal conformity verdict after ${Math.round(maxPollAgeMs / (24 * 60 * 60 * 1000))} day(s) — giving up.`,
           now,
         );
+        // Unconditional on `created` (unlike the SSE/webhook nudges below): this document IS gave-up
+        // either way — `created === 0` only means a CONCURRENT pass's write won the same unique
+        // constraint this pass's own would have hit, not that giving up didn't happen. Gating this on
+        // `created > 0` would leave a document racingly un-marked (and so re-fetched every pass) for
+        // as long as it kept losing that race, which — unlike the notification side effects, where a
+        // duplicate would be the real bug — has no such downside to worry about here.
+        await markConformityResolved(candidate.id, now);
         if (created > 0) {
           gaveUp++;
           // SSE nudge — journaled just above (Postgres already holds
@@ -239,6 +257,27 @@ export class ConformitySweepRunner {
           `Verdict archiving unexpectedly threw for document ${data.documentId} ("${data.providerId}") — ` +
             `the conformity journal itself is unaffected: ` +
             `${archiveError instanceof Error ? archiveError.message : String(archiveError)}`,
+        );
+      }
+
+      // `conformityResolvedAt` — see that column's own schema comment and
+      // `authority-events.persistence.ts#findConformitySweepCandidates`'s own header: this is the ONE
+      // write that lets a resolved document stop being fetched by the sweep query at all, rather than
+      // being loaded and `skip`ped in memory forever. Own try/catch, the identical isolation reasoning
+      // the archiving block just above already holds — a failure here must neither be mistaken for a
+      // poll failure (which reports `BLOCKED_STATUS_CODE`) nor prevent `journaled` from being returned
+      // accurately: worst case, this document simply stays a candidate until the sweep's own 'skip'
+      // branch backfills it on a later pass.
+      try {
+        const terminalEvent = events.find((event) => poller.isTerminal(event.statusCode));
+        if (terminalEvent) {
+          await markConformityResolved(data.documentId, terminalEvent.observedAt);
+        }
+      } catch (resolvedError) {
+        this.logger.error(
+          `Marking document ${data.documentId} ("${data.providerId}") conformity-resolved failed — ` +
+            `the conformity journal itself is unaffected: ` +
+            `${resolvedError instanceof Error ? resolvedError.message : String(resolvedError)}`,
         );
       }
 

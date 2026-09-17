@@ -377,7 +377,7 @@ model Company {
   // `attachments/attachments.service.ts` already stores a receipt — see that file's own header for
   // why this is ONE column (the mime is recovered by trying the three allowed image extensions on
   // read, never a second nullable column that could drift out of sync with this one).
-  brandingLogoId String?
+  brandingLogoId      String?
   // Hex `#rrggbb`, validated by `company/branding/branding.service.ts` BEFORE it is ever written here
   // — never a CSS/Tailwind token or a named color, so `render-html.ts` can drop it straight into an
   // inline style with no lookup table.
@@ -386,13 +386,13 @@ model Company {
   // deliberately never a raw CSS `font-family` string a caller could point at an arbitrary,
   // unlicensed webfont. An unrecognized value here (a stale key from a since-shrunk catalog) is
   // treated by the renderer exactly like NULL — never a broken `font-family` declaration.
-  brandingFont String?
+  brandingFont        String?
   // The last NAMED preset (`documents/rendering/branding/presets.ts`) the company explicitly picked —
   // a label of where `brandingAccentColor`/`brandingFont` started from, never a LIVE binding: picking
   // "Modern" and then hand-adjusting the accent color does NOT clear this back to null (see
   // `branding.service.ts#setBranding`'s own header). NULL means "no preset ever chosen" — either no
   // branding at all, or colour/font set by hand without ever picking a named starting point.
-  brandingPreset String?
+  brandingPreset      String?
 
   // Per-document-type number FORMAT, keyed by DocumentTypeDescriptor.id — e.g.
   // `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here falls back to
@@ -546,11 +546,11 @@ model CompanySubscription {
   // Set the moment `status` becomes BLOCKED (from TRIAL's own 14 days, or from PAST_DUE with no
   // window of its own — see lifecycle.ts's header) — the anchor `lifecycle.ts#computeLifecycleTransition`
   // adds BLOCKED_DAYS (14) to.
-  blockedAt DateTime?
+  blockedAt     DateTime?
   // Set the moment the zip export is actually mailed to the OWNER (`export-zip.ts`) — the DAY this
   // stamps, never the day BLOCKED was entered, is what a human auditing this row would want to see
   // "how long ago did we warn them" against.
-  zipSentAt DateTime?
+  zipSentAt     DateTime?
   // When the real, cascading deletion (`deletion.ts`) may run — computed once, when `zipSentAt` is
   // stamped: `zipSentAt` itself (never-paid — no grace) or `zipSentAt + 180 days` (this company once
   // had a real `polarSubscriptionId` — see lifecycle.ts's header for why that field alone is what
@@ -1093,8 +1093,8 @@ enum WebhookType {
 }
 
 model Webhook {
-  id  String @id @default(cuid())
-  url String
+  id     String         @id @default(cuid())
+  url    String
   // AES-256-GCM encrypted (secret-crypto) HMAC signing secret when `CREDENTIALS_ENCRYPTION_KEY` is
   // configured — `WebhooksService#encryptSecretForStorage` writes it, `#resolveSecretForSigning`
   // decrypts it back right before signing an outgoing dispatch. Column type stays `String?`: a legacy
@@ -1428,6 +1428,21 @@ model DocumentInstance {
   // lifecycle and the platform's own verdict are deliberately two separate facts.
   authorityEvents DocumentAuthorityEvent[]
 
+  // Set ONCE this document's conformity poll has nothing left to ever learn — a REAL terminal
+  // verdict (PDP fr:202/fr:213, …) or a synthetic 'poll:gave-up' (conformity/conformity-sweep.ts),
+  // written by `conformity/conformity-sweep-runner.ts` at the exact moment it makes that call. THE
+  // reason `conformity/authority-events.persistence.ts#findConformitySweepCandidates` can filter this
+  // column directly in SQL instead of loading every "sent" document on a pollable channel — including
+  // ones resolved years ago — and re-deriving "already terminal" from a freshly re-joined
+  // `authorityEvents` table on every 60s pass, forever. Deliberately NOT derived here from a
+  // `statusCode` enumeration: only the poller that produced a code knows whether ITS OWN vocabulary
+  // calls it terminal (`conformity/authority-status-poller.ts`'s own header) — this column just
+  // records the fact once the runner has already decided it, never re-decides it itself. Null for
+  // every non-terminal "sent" document AND for every row that predates this column (self-healing: the
+  // sweep backfills it the next time it visits an already-terminal row it had not marked yet, see
+  // that runner's own comment on the 'skip' branch).
+  conformityResolvedAt DateTime?
+
   // Legal archiving: the error from the most recent FAILED archiving attempt
   // (documents/archive/archive-on-send.ts), deliberately its OWN column, never `lastActionError`
   // above. Two reasons: (1) `lastActionError` is reset to null by EVERY ordinary write this instance
@@ -1489,6 +1504,11 @@ model DocumentInstance {
   paymentCheckoutSessions PaymentCheckoutSession[]
 
   @@index([companyId, typeId])
+  // What `conformity/authority-events.persistence.ts#findConformitySweepCandidates` actually filters
+  // on, in this order — status/channelProviderId/conformityResolvedAt narrow a large table down to
+  // "sent on a pollable channel, not yet resolved" before Postgres ever has to look at transportRef or
+  // join authorityEvents.
+  @@index([status, channelProviderId, conformityResolvedAt], map: "document_instance_conformity_sweep_idx")
 }
 
 // A RECURRENCE: "replay ACTION on SOURCE DOCUMENT, on this cadence" — generic on
@@ -2255,9 +2275,9 @@ model Signature {
 // "PERMANENT, independent of any later re-arming" posture for the one field that actually carries the
 // guarantee.
 model DangerOtp {
-  id        String   @id @default(cuid())
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId String   @unique
+  id        String  @id @default(cuid())
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String  @unique
 
   codeHash  String
   expiresAt DateTime
@@ -2329,6 +2349,20 @@ model DocumentNumberSequence {
   nextNumber Int     @default(1)
 
   @@id([companyId, typeId])
+}
+
+// The persistent, atomic PEC filename progressivo counter — see
+// `transports/sdi-pec/pec-protocol.ts#nextPecProgressivo`'s own header for why this replaced a
+// SHA-1-hash-derived progressivo (measurable birthday-paradox collisions well within real submission
+// volume) and why it is scoped by `idTrasmittente` (a fact about the SdI TRASMITTENTE identity, per
+// §5.1.1's own uniqueness rule) rather than by this codebase's own companyId — deliberately no
+// `Company` relation: `idTrasmittente` can outlive a single company row (channel credentials can be
+// re-entered), and this counter's only job is never handing out the same 5-character value twice for
+// the same trasmittente, nothing tenant-scoped. `nextValue` is a plain `INT` (§2.2's own 5-character
+// base36 ceiling is ~60M, nowhere near needing a BIGINT).
+model PecFilenameSequence {
+  idTrasmittente String @id
+  nextValue      Int    @default(1)
 }
 
 // Mirror of backend/src/modules/documents/country-policy/data/*.json, seeded (never hand-edited —
@@ -2585,10 +2619,10 @@ enum CompanyCustomFieldTarget {
 // forever, exactly the way a country overlay's own 'remove' operation never touches data already
 // persisted before the country's rules changed.
 model CompanyCustomField {
-  id        String                   @id @default(cuid())
-  companyId String
-  company   Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  target    CompanyCustomFieldTarget
+  id             String                   @id @default(cuid())
+  companyId      String
+  company        Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  target         CompanyCustomFieldTarget
   // DOCUMENT target only: a DocumentTypeDescriptor.id (e.g. "invoice"), or NULL to mean "every
   // document type" — deliberately NOT validated against DocumentTypeRegistry (same declared
   // independence country-fields/schema.ts's own `TypeFieldOverlay.typeId` already keeps, for the same
@@ -2596,8 +2630,8 @@ model CompanyCustomField {
   // CLIENT-target row — a client has no "type" for this to narrow.
   documentTypeId String?
   // Immutable after creation — see this model's own header.
-  key   String
-  label String
+  key            String
+  label          String
   // One of the RESTRICTED subset of CORE_FIELD_KINDS this feature offers — see
   // `company-custom-fields/types.ts#ALLOWED_CUSTOM_FIELD_KINDS` for the closed list and why it is
   // narrower than the full core set (no 'array'/'reference'/'file'/... — a company-defined field is a
@@ -2605,19 +2639,19 @@ model CompanyCustomField {
   // application layer the same way `CompanyFieldOverlayOperation`'s own `field.kind` already is,
   // because it must stay in lockstep with a TypeScript union living in application code, not the
   // schema.
-  kind String
+  kind           String
   // 'select' only — `{ value: string; label: string }[]`, the exact shape
   // `DocumentFieldDescriptor.options` already has. NULL for every other kind.
-  options  Json?
-  required Boolean @default(false)
+  options        Json?
+  required       Boolean                  @default(false)
   // Display/entry order among this company's OTHER definitions for the SAME (target, documentTypeId)
   // scope — never a global order across scopes, which would be meaningless (a client-target field has
   // no business being interleaved with an invoice-only one).
-  order Int @default(0)
+  order          Int                      @default(0)
   // Soft-delete — see this model's own header for the full "why".
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  archivedAt     DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
   // One key per (company, target, document type) scope — a CLIENT-target row and a DOCUMENT-target row
   // for a DIFFERENT type may reuse the same human-chosen key without colliding, since each becomes its
@@ -2647,16 +2681,16 @@ model CompanyCustomField {
 // `country-fields/apply-overlay.ts`'s 'modify' operation to patch that ONE field's `options`, the same
 // reuse-not-reinvent precedent `applyCompanyCustomFieldsView` already set for its own, different case.
 model ExpenseCategory {
-  id        String  @id @default(cuid())
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   // The value actually stored on an expense's `data.category` — immutable once created (same
   // reasoning as `CompanyCustomField.key`'s own header: renaming it would silently reinterpret every
   // expense that already carries it). Derived from `label` at creation time
   // (expense-categories/persistence.ts#slugify) and never accepted from the caller.
-  key   String
+  key        String
   // The only thing "rename a category" (`PUT /api/documents/expense-categories/:id`) ever changes.
-  label String
+  label      String
   // Soft-delete, same discipline as `CompanyCustomField.archivedAt`'s own header: an expense that
   // already carries an archived category's `key` keeps reading it forever (this table is resolved
   // with `includeArchived: true` for THAT case — see `resolveActiveExpenseCategoryOptions`'s own

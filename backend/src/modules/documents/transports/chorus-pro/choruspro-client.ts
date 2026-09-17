@@ -424,7 +424,48 @@ export class ChorusProClient {
       throw new Error(`Chorus Pro consulterCRDetaille failed (HTTP ${resp.status})`);
     }
     const data = resp.data as Record<string, unknown>;
-    const statutFlux = String(data.etatCourantDepotFlux ?? 'EN_COURS_DE_TRAITEMENT');
+    // A 200 response carrying NO `etatCourantDepotFlux` at all is not "still processing" — it is a
+    // FUNCTIONAL error on the CALL ITSELF (an unknown flux, an invalid parameter…), reported through
+    // `codeRetour`/`libelle` (this method's own doc comment: "the call's own outcome code, distinct
+    // from the flux's state") rather than through the flux-status field, which the call never even
+    // reached in that case. Defaulting this to `EN_COURS_DE_TRAITEMENT` used to fold that error
+    // straight into an ordinary PENDING poll — the exact "no status at all reads as PENDING forever"
+    // defect the 2026-09-14 fix (this file's own header) closed for an UNRECOGNIZED status value, but
+    // not for a MISSING one.
+    //
+    // `codeRetour !== 0` is checked independently of `etatCourantDepotFlux`'s own presence — a nonzero
+    // `codeRetour` is the same functional-error signal EVEN when the flux-status field happens to also
+    // be present (a degraded response echoing a stale/default flux state alongside the error, rather
+    // than omitting it outright): `codeRetour: 0` is the observed, LIVE-PROVEN success value for this
+    // exact PISTE response family (`deposerFlux`'s own live round-trip, this file's own commit history —
+    // `WsRetourDeposerFluxFacture` and `WsRetourConsulterCRDetaille` share the `codeRetour`/`libelle`
+    // pair per the same Swagger definitions this file's header already cites), so ANY other value is
+    // treated as failure rather than silently trusted alongside whatever flux state came with it.
+    //
+    // Either branch throws rather than defaults: `chorus-pro-status-poller.ts#poll()` has no catch of
+    // its own, so this propagates to `conformity-sweep-runner.ts#runPoll`'s own outer catch, which
+    // journals it as a VISIBLE `poll:blocked` (with this message as `reason`) rather than a silent,
+    // indistinguishable wait — never a crash, see that method's own "an event handler never kills the
+    // process" guarantee.
+    const codeRetourValue = data.codeRetour;
+    const codeRetourNumber = typeof codeRetourValue === 'number' ? codeRetourValue : Number(codeRetourValue);
+    const codeRetourSignalsFailure =
+      codeRetourValue !== undefined && codeRetourValue !== null && Number.isFinite(codeRetourNumber)
+        ? codeRetourNumber !== 0
+        : false;
+    if (
+      data.etatCourantDepotFlux === undefined ||
+      data.etatCourantDepotFlux === null ||
+      codeRetourSignalsFailure
+    ) {
+      const codeRetour = codeRetourValue !== undefined ? String(codeRetourValue) : 'unknown';
+      const libelle = typeof data.libelle === 'string' && data.libelle ? data.libelle : '(no libelle)';
+      throw new Error(
+        `Chorus Pro consulterCRDetaille reported a functional error for flux ${numeroFluxDepot} ` +
+          `(codeRetour ${codeRetour}: ${libelle}) — never a flux status.`,
+      );
+    }
+    const statutFlux = String(data.etatCourantDepotFlux);
     const erreursDP = Array.isArray(data.listeErreurDP) ? (data.listeErreurDP as ChorusProErreurDP[]) : [];
     const erreursTechniques = Array.isArray(data.listeErreurTechnique)
       ? (data.listeErreurTechnique as ChorusProErreurTechnique[])

@@ -116,6 +116,66 @@ describe('PecNotificheService.handleMessage', () => {
     );
   });
 
+  // The AT case's explanatory note ("SdI accepted the invoice but could not deliver it [...] the
+  // seller must tell the buyer") used to be computed by `SdiClient.mapNotifica` and then discarded —
+  // only `outcome.status` reached `rawPayload.mappedStatus`, so a CLEARED verdict with a real
+  // follow-up obligation reached the document screen with NO indication of that obligation at all.
+  it("carries the AT notifica's own follow-up instruction through to the journaled reason", async () => {
+    mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
+    mockedCreateEvents.mockResolvedValue(1);
+    const service = new PecNotificheService(buildChannelCredentials() as never);
+
+    await service.handleMessage(
+      'company-42',
+      message({
+        attachments: [
+          {
+            filename: 'IT01234567890_00001.xml',
+            content: Buffer.from(
+              notificaXml('attestazioneTrasmissioneFattura', '123456789012', 'IT01234567890_00001.xml'),
+            ),
+          },
+        ],
+      }),
+    );
+
+    expect(mockedCreateEvents).toHaveBeenCalledWith(
+      'company-42',
+      'doc-42',
+      SDI_PEC_PROVIDER_ID,
+      expect.arrayContaining([
+        expect.objectContaining({ reason: expect.stringContaining('the seller must tell the buyer') }),
+      ]),
+    );
+  });
+
+  // RC adds nothing past `mapNotifica`'s own three boilerplate notes — `reason` must stay unset
+  // rather than surfacing "idSdI: …; notifica: RC; data: …" as if it were an explanation.
+  it('leaves reason unset for a plain RC (nothing beyond the boilerplate notes)', async () => {
+    mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
+    mockedCreateEvents.mockResolvedValue(1);
+    const service = new PecNotificheService(buildChannelCredentials() as never);
+
+    await service.handleMessage(
+      'company-42',
+      message({
+        attachments: [
+          {
+            filename: 'IT01234567890_00001.xml',
+            content: Buffer.from(notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml')),
+          },
+        ],
+      }),
+    );
+
+    expect(mockedCreateEvents).toHaveBeenCalledWith(
+      'company-42',
+      'doc-42',
+      SDI_PEC_PROVIDER_ID,
+      expect.arrayContaining([expect.objectContaining({ reason: undefined })]),
+    );
+  });
+
   it('an unknown NomeFile journals NOTHING, on ANY document', async () => {
     mockedFindDocument.mockResolvedValue(null);
     const channelCredentials = buildChannelCredentials();

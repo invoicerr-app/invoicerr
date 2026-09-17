@@ -71,6 +71,17 @@ export function readMaxPollAgeMs(): number {
   return parseInt(process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS ?? `${7 * 24 * 60 * 60 * 1000}`, 10);
 }
 
+/** The hard ceiling on how many rows ONE `findConformitySweepCandidates` call ever asks Postgres for —
+ *  see that function's own header for why an unbounded `findMany` is exactly the "degrades
+ *  monotonically at scale, invisible in test" failure this exists to close. Default 500: generous
+ *  enough that a normal company's whole in-flight backlog fits in one pass, small enough that even a
+ *  fresh deploy's one-time backfill (every pre-existing terminal document still has a null
+ *  `conformityResolvedAt` until THIS sweep visits it once — see that column's own schema comment)
+ *  costs one bounded query per 60s tick rather than one unbounded one. */
+export function readConformitySweepBatchSize(): number {
+  return parseInt(process.env.DOCUMENT_CONFORMITY_SWEEP_BATCH_SIZE ?? '500', 10);
+}
+
 /** See this file's own header — a wall-clock window, not a stored per-document due date. */
 export function buildConformityPollJobId(documentId: string, now: Date, intervalMs: number): string {
   const window = Math.floor(now.getTime() / intervalMs);

@@ -30,13 +30,29 @@ jest.mock('@/prisma/prisma.service', () => ({
   default: {
     company: { findUnique: jest.fn() },
     client: { findFirst: jest.fn() },
+    $queryRaw: jest.fn(),
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
   client: { findFirst: jest.Mock };
+  $queryRaw: jest.Mock;
 };
+
+/** `pec-protocol.ts#nextPecProgressivo`'s own persistent counter, backing `buildPecAttachmentFilename`
+ *  — a tiny in-memory stand-in for the real `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`, the same
+ *  fake `pec-protocol.spec.ts` itself uses for the identical SQL shape. Reset in `beforeEach` below so
+ *  no test's own counter state leaks into another. */
+function statefulPecSequenceMock() {
+  const counters = new Map<string, number>();
+  return jest.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+    const idTrasmittente = String(values[0]);
+    const current = counters.get(idTrasmittente) ?? 1;
+    counters.set(idTrasmittente, current + 1);
+    return [{ value: current }];
+  });
+}
 
 const CONNECTED_CONFIG = {
   providerId: SDI_PEC_PROVIDER_ID,
@@ -110,6 +126,7 @@ describe('buildSdiPecTransport', () => {
       country: 'Italy',
       partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432109' }],
     });
+    mockedPrisma.$queryRaw.mockImplementation(statefulPecSequenceMock());
   });
 
   describe('preflight()', () => {
@@ -175,12 +192,23 @@ describe('buildSdiPecTransport', () => {
       },
     );
 
-    it('the SAME document always builds the SAME filename — deterministic, never a random nonce', async () => {
+    // THE MUTATION TARGET (fix for a real collision risk, see `pec-protocol.ts`'s own header,
+    // "Collision-free progressivo"): the filename USED TO be a pure hash of `documentId` alone — the
+    // SAME document would always rebuild the exact SAME name, which meant a genuine resend after a lost
+    // delivery confirmation could never pick a fresh name if SdI had, in fact, already accepted the
+    // first one (Codice 00002 - Nome file duplicato, permanently unsendable). The progressivo now comes
+    // from a persistent counter instead — two sends (even for the very same document) get two DIFFERENT
+    // filenames, closing that failure mode; `transportRef`/reconciliation still work unchanged because
+    // `pec-notifiche.service.ts` reconciles by whichever filename was ACTUALLY used, never one
+    // precomputed ahead of a send (see this transport's own header).
+    it('two sends for the SAME document build two DIFFERENT filenames — never a reused, potentially SdI-duplicate name', async () => {
       const deps1 = buildDeps();
       const deps2 = buildDeps();
       const result1 = await buildSdiPecTransport(deps1).send(CTX);
       const result2 = await buildSdiPecTransport(deps2).send(CTX);
-      expect(result1.reference).toBe(result2.reference);
+      expect(result1.reference).not.toBe(result2.reference);
+      expect(result1.reference).toMatch(/^IT01234567890_[A-Z0-9]{5}\.xml$/);
+      expect(result2.reference).toMatch(/^IT01234567890_[A-Z0-9]{5}\.xml$/);
     });
 
     it(

@@ -8,11 +8,44 @@
  */
 import { Readable } from 'node:stream';
 
-import { toPecInboundMessage } from './imapflow-pec-inbox-port';
+import { ImapFlow } from 'imapflow';
+
+import { ImapFlowPecInboxPort, toPecInboundMessage } from './imapflow-pec-inbox-port';
 
 function bufferStream(content: string): Readable {
   return Readable.from([Buffer.from(content)]);
 }
+
+/** A hand-built fake standing in for the real `ImapFlow` — real enough to prove `fetchUnseen()` never
+ *  calls the forbidden-mid-loop `fetch()` async generator (this file's own header, "STATUS:
+ *  implemented-awaiting-credentials" — never independently exercised against a real server, which is
+ *  exactly how this defect went unnoticed). `fetch` itself is deliberately NOT implemented on this
+ *  fake: calling it would throw "not a function", which is itself the proof a regression back to it
+ *  would be caught immediately. */
+function buildFakeImapClient(fetchAllResult: unknown[]) {
+  const calls: string[] = [];
+  return {
+    calls,
+    connect: jest.fn().mockResolvedValue(undefined),
+    getMailboxLock: jest.fn().mockImplementation(async () => {
+      calls.push('lock');
+      return { release: jest.fn(() => calls.push('release')) };
+    }),
+    fetchAll: jest.fn().mockImplementation(async () => {
+      calls.push('fetchAll');
+      return fetchAllResult;
+    }),
+    download: jest.fn().mockImplementation(async () => {
+      calls.push('download');
+      return { content: bufferStream('<ricevutaConsegna/>') };
+    }),
+    logout: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
+jest.mock('imapflow', () => ({
+  ImapFlow: jest.fn(),
+}));
 
 describe('toPecInboundMessage', () => {
   it("extracts the From address, subject, and every attachment part's decoded content", async () => {
@@ -96,5 +129,86 @@ describe('toPecInboundMessage', () => {
     } as never);
 
     expect(message.attachments).toEqual([{ filename: 'part-1.2', content: Buffer.from('data') }]);
+  });
+});
+
+// THE MUTATION TARGET: `fetchUnseen()` used to call `download()` (a second IMAP command) INSIDE the
+// `for await (... of client.fetch(...))` loop — exactly the pattern imapflow's own `fetch()` doc
+// comment warns against ("You can not run any IMAP commands in this loop otherwise you will end up in
+// a deadloop"). Fixed by switching to `fetchAll()`, which resolves the WHOLE listing before this
+// method ever calls `download()`.
+describe('ImapFlowPecInboxPort.fetchUnseen', () => {
+  const mockedImapFlow = ImapFlow as unknown as jest.Mock;
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('uses fetchAll — never the async-generator fetch() — so download() never interleaves with it', async () => {
+    const message = {
+      uid: 42,
+      envelope: { from: [{ address: 'sdi07@pec.fatturapa.it' }], subject: 'Ricevuta di consegna' },
+      bodyStructure: {
+        part: '1',
+        type: 'multipart/mixed',
+        childNodes: [
+          {
+            part: '1.1',
+            type: 'application/xml',
+            disposition: 'attachment',
+            dispositionParameters: { filename: 'IT01234567890_00001.xml' },
+          },
+        ],
+      },
+    };
+    const fakeClient = buildFakeImapClient([message]);
+    mockedImapFlow.mockImplementation(() => fakeClient);
+
+    const port = new ImapFlowPecInboxPort({
+      host: 'imap.pec-provider.it',
+      port: 993,
+      secure: true,
+      username: 'fatture@rossi-srl.pec.it',
+      password: 'super-secret',
+    });
+    const result = await port.fetchUnseen();
+
+    expect(fakeClient.fetchAll).toHaveBeenCalledWith(
+      { seen: false },
+      { uid: true, envelope: true, bodyStructure: true },
+    );
+    expect((fakeClient as unknown as { fetch?: unknown }).fetch).toBeUndefined();
+    // `fetchAll` fully resolved BEFORE `download` was ever called — the actual property this fix
+    // establishes, not merely that both happened to be called at some point.
+    expect(fakeClient.calls.indexOf('fetchAll')).toBeLessThan(fakeClient.calls.indexOf('download'));
+    expect(result).toHaveLength(1);
+    expect(result[0].attachments).toEqual([
+      { filename: 'IT01234567890_00001.xml', content: Buffer.from('<ricevutaConsegna/>') },
+    ]);
+  });
+
+  it('downloads every message returned by fetchAll, in order, and releases the lock only once done', async () => {
+    const messages = [
+      { uid: 1, envelope: { from: [{ address: 'a@pec.example.it' }] }, bodyStructure: { part: '1' } },
+      { uid: 2, envelope: { from: [{ address: 'b@pec.example.it' }] }, bodyStructure: { part: '1' } },
+    ];
+    const fakeClient = buildFakeImapClient(messages);
+    mockedImapFlow.mockImplementation(() => fakeClient);
+
+    const port = new ImapFlowPecInboxPort({
+      host: 'imap.pec-provider.it',
+      port: 993,
+      secure: true,
+      username: 'fatture@rossi-srl.pec.it',
+      password: 'super-secret',
+    });
+    const result = await port.fetchUnseen();
+
+    expect(result).toHaveLength(2);
+    expect(result.map((m) => m.id)).toEqual(['1', '2']);
+    // lock acquired once, fetchAll once, then released once (never released before the downloads it
+    // gates are done — the "still inside the same lock, just not interleaved with fetchAll itself"
+    // property this fix preserves from the original code).
+    expect(fakeClient.calls[0]).toBe('lock');
+    expect(fakeClient.calls[fakeClient.calls.length - 1]).toBe('release');
+    expect(fakeClient.calls.filter((c) => c === 'release')).toHaveLength(1);
   });
 });

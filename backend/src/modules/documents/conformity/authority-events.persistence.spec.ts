@@ -16,6 +16,7 @@ import {
   findOwnedDocumentByTransportRef,
   journalSyntheticEvent,
   listAuthorityEvents,
+  markConformityResolved,
 } from './authority-events.persistence';
 
 jest.mock('@/prisma/prisma.service', () => ({
@@ -137,7 +138,7 @@ describe('findConformitySweepCandidates — eligibility', () => {
     expect(mockedPrisma.documentInstance.findMany).not.toHaveBeenCalled();
   });
 
-  it('filters on status "sent", a non-null transportRef, and a pollable channelProviderId', async () => {
+  it('filters on status "sent", a non-null transportRef, a pollable channelProviderId, and NOT YET resolved', async () => {
     mockedPrisma.documentInstance.findMany.mockResolvedValue([]);
     await findConformitySweepCandidates(['pdp', 'ksef']);
     expect(mockedPrisma.documentInstance.findMany).toHaveBeenCalledWith({
@@ -145,9 +146,29 @@ describe('findConformitySweepCandidates — eligibility', () => {
         status: 'sent',
         transportRef: { not: null },
         channelProviderId: { in: ['pdp', 'ksef'] },
+        conformityResolvedAt: null,
       },
+      orderBy: { updatedAt: 'asc' },
+      take: expect.any(Number),
       include: { authorityEvents: { select: { statusCode: true } } },
     });
+  });
+
+  // The fix for "chargeant toutes les factures... sans borne" — a resolved document must never be
+  // fetched again, and even the unresolved set is bounded by an explicit `take`.
+  it('defaults `take` to the configured sweep batch size, and honors an explicit override', async () => {
+    const originalEnv = process.env.DOCUMENT_CONFORMITY_SWEEP_BATCH_SIZE;
+    try {
+      process.env.DOCUMENT_CONFORMITY_SWEEP_BATCH_SIZE = '250';
+      mockedPrisma.documentInstance.findMany.mockResolvedValue([]);
+      await findConformitySweepCandidates(['pdp']);
+      expect(mockedPrisma.documentInstance.findMany.mock.calls[0][0].take).toBe(250);
+
+      await findConformitySweepCandidates(['pdp'], 7);
+      expect(mockedPrisma.documentInstance.findMany.mock.calls[1][0].take).toBe(7);
+    } finally {
+      process.env.DOCUMENT_CONFORMITY_SWEEP_BATCH_SIZE = originalEnv;
+    }
   });
 
   it("maps a row's own authorityEvents relation down to a flat statusCode list", async () => {
@@ -215,6 +236,26 @@ describe('the document lifecycle status never moves because of a conformity writ
     await journalSyntheticEvent('company-1', 'doc-1', 'pdp', 'poll:gave-up', 'too old');
     expect(mockedPrisma.documentInstance.update).not.toHaveBeenCalled();
     expect(mockedPrisma.documentInstance.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('markConformityResolved', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('writes conformityResolvedAt on the named document, by id', async () => {
+    const resolvedAt = new Date('2026-09-17T00:00:00Z');
+    await markConformityResolved('doc-1', resolvedAt);
+    expect(mockedPrisma.documentInstance.update).toHaveBeenCalledWith({
+      where: { id: 'doc-1' },
+      data: { conformityResolvedAt: resolvedAt },
+    });
+  });
+
+  it('defaults to "now" when no timestamp is given', async () => {
+    await markConformityResolved('doc-1');
+    const call = mockedPrisma.documentInstance.update.mock.calls[0][0];
+    expect(call.where).toEqual({ id: 'doc-1' });
+    expect(call.data.conformityResolvedAt).toBeInstanceOf(Date);
   });
 });
 

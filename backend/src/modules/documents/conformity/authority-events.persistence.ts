@@ -11,6 +11,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { RawAuthorityEvent } from './authority-status-poller';
+import { readConformitySweepBatchSize } from './conformity-sweep';
 
 export interface DocumentAuthorityEventResult {
   id: string;
@@ -153,18 +154,37 @@ export interface ConformitySweepCandidateRow {
 
 /**
  * Every document the sweep even CONSIDERS this pass — `status: 'sent'`, a non-null `transportRef`
- * (nothing to poll without one), and a `channelProviderId` the poller REGISTRY actually knows how to
- * poll (`pollableProviderIds`, resolved by the caller — never hard-coded here: "sdi" is excluded
- * simply by never being in that list, see `authority-status-poller.ts`'s own header). Terminal
- * filtering happens AFTER this query, in `conformity-sweep.ts#decideConformityAction` — a pure
- * function over `existingStatusCodes`, fetched here via the relation in ONE query (never N+1).
+ * (nothing to poll without one), a `channelProviderId` the poller REGISTRY actually knows how to poll
+ * (`pollableProviderIds`, resolved by the caller — never hard-coded here: "sdi" is excluded simply by
+ * never being in that list, see `authority-status-poller.ts`'s own header), and — the filter that
+ * actually keeps this query BOUNDED at scale — `conformityResolvedAt: null`.
+ *
+ * That last clause is why a document whose conformity was already resolved (a real terminal verdict,
+ * or a 'poll:gave-up') stops being fetched AT ALL from the very next pass onward, rather than being
+ * loaded — with its full `authorityEvents` relation — on EVERY 60s pass forever only to be `skip`ped
+ * in memory a moment later (`conformity-sweep.ts#decideConformityAction`): at scale (tens of
+ * thousands of long-since-terminal "sent" invoices) that in-memory skip was cheap PER ROW but the
+ * unbounded `findMany` fetching every one of those rows, joined with its own events, every single
+ * pass, was not. `conformityResolvedAt` is written by `conformity-sweep-runner.ts` the moment it
+ * decides a document is terminal (or gives up on it) — see that column's own schema comment for why
+ * this table, not a per-provider "terminal status codes" list, is the source of truth: only the
+ * POLLER that produced a code knows whether its own vocabulary calls it terminal, this query has no
+ * business re-deriving that.
+ *
+ * `take` (`readConformitySweepBatchSize`, default 500) is the SECOND, independent bound: even the set
+ * of genuinely NOT-YET-resolved candidates could be large if one pollable channel is very busy —
+ * `orderBy: updatedAt asc` means the OLDEST still-pending documents are polled first each pass, so a
+ * batch limit can never starve a document forever (it works its way to the front once the ones ahead
+ * of it resolve or give up), the same "oldest-first, bounded window" fairness `reception-sweep-
+ * runner.ts` already applies for its own inbound dedup query.
  *
  * A document sent by "email" (`channelProviderId` null) never matches `in: pollableProviderIds`
- * (`null` cannot equal any string in the list) — the exact "email = non" case the eligibility
- * test names.
+ * (`null` cannot equal any string in the list) — the exact "email = non" case the eligibility test
+ * names.
  */
 export async function findConformitySweepCandidates(
   pollableProviderIds: string[],
+  take: number = readConformitySweepBatchSize(),
 ): Promise<ConformitySweepCandidateRow[]> {
   if (pollableProviderIds.length === 0) return [];
   const rows = await prisma.documentInstance.findMany({
@@ -172,7 +192,10 @@ export async function findConformitySweepCandidates(
       status: 'sent',
       transportRef: { not: null },
       channelProviderId: { in: pollableProviderIds },
+      conformityResolvedAt: null,
     },
+    orderBy: { updatedAt: 'asc' },
+    take,
     include: { authorityEvents: { select: { statusCode: true } } },
   });
   return rows.map((row) => ({
@@ -186,4 +209,26 @@ export async function findConformitySweepCandidates(
     updatedAt: row.updatedAt,
     existingStatusCodes: row.authorityEvents.map((event) => event.statusCode),
   }));
+}
+
+/**
+ * Marks `documentId`'s conformity as RESOLVED — the ONE write `findConformitySweepCandidates` above
+ * filters on, so it never re-fetches this row again. Called by `conformity-sweep-runner.ts` from
+ * exactly two places: the moment a POLL observes a code the provider's own `isTerminal` calls
+ * terminal, and the moment the sweep itself gives up (`GAVE_UP_STATUS_CODE`) — both already know this
+ * is the right call to make, this function just performs the write. Also what SELF-HEALS a document
+ * that was ALREADY terminal before this column existed (every pre-migration row starts with a null
+ * `conformityResolvedAt`): the runner's own 'skip' branch calls this the first time it re-encounters
+ * one, so a one-time backlog converges to fully marked within a few sweep passes rather than needing a
+ * dedicated backfill migration. Idempotent by nature (a plain overwrite, no uniqueness to violate) —
+ * two racing passes reaching the same conclusion about the same document is harmless.
+ */
+export async function markConformityResolved(
+  documentId: string,
+  resolvedAt: Date = new Date(),
+): Promise<void> {
+  await prisma.documentInstance.update({
+    where: { id: documentId },
+    data: { conformityResolvedAt: resolvedAt },
+  });
 }

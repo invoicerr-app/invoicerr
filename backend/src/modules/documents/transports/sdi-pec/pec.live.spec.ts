@@ -112,7 +112,7 @@ describeLive('SdI PEC live round-trip', () => {
       );
       expect(buildResult.validation.valid).toBe(true); // fail loud if the XSD gate itself regressed
 
-      const filename = buildPecAttachmentFilename(idTrasmittente, documentId);
+      const filename = await buildPecAttachmentFilename(idTrasmittente);
 
       const transporter = nodemailer.createTransport({
         host: smtpHost,

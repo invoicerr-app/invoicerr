@@ -32,7 +32,30 @@
  * `ksef-status-poller.live.spec.ts` is gated `KSEF_LIVE=1` (`KSEF_AUTH_TOKEN` required) and SKIPS
  * cleanly today, saying so on stderr — it does not invent a sandbox or a fabricated token to force a
  * green run.
+ *
+ * ## Mutualized handshake — one access token per (company, environment), not one per document
+ *
+ * The FIRST version of this poller called `authenticate()` fresh on every `poll()` — meaning a
+ * `runSweep` pass with N pending PL documents for the SAME company fired N full handshakes
+ * (`authChallenge` + `authKsefToken` + up to `AUTH_POLL_ATTEMPTS` `authStatus` polls +
+ * **`authRedeem`, which mints a brand-new, never-revoked access/refresh token pair every single
+ * time**) once per minute, against a quota this sweep itself controls the pace of. That is the poller
+ * rate-limiting ITSELF: a company with even a handful of documents awaiting a verdict could exhaust
+ * KSeF's own auth quota well before any of them ever see a terminal status, and keep failing every
+ * poll (`poll:blocked`) until `poll:gave-up` at the max poll age. `accessTokenCache` below fixes this
+ * the same way `transports/pdp/pdp-client.ts`'s own `PdpClient.token` already does for PDP: cache the
+ * token in memory, keyed by `${companyId}:${environment}:${credentialFingerprint}` (never companyId
+ * alone, and never `${companyId}:${environment}` alone — a company can hold
+ * BOTH TEST and PROD KSeF credentials over its lifetime, and a TEST token must never reach the PROD
+ * API or vice versa), reused by every poll while it stays valid rather than re-minted for each one.
+ * The fingerprint is what turns a credential ROTATION on that same (company, environment) slot — the
+ * company re-entered a new KSeF token in company settings, `upsertChannelConfig` overwrote the row in
+ * place — into an automatic cache MISS: without it, this cache would keep answering polls with an
+ * access token minted under the credential that was just REPLACED, for as long as that token's own
+ * TTL allows, silently outliving the very rotation meant to end its use.
  */
+import { createHash } from 'node:crypto';
+
 import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
@@ -49,6 +72,61 @@ import {
 } from '../authority-status-poller';
 
 export const KSEF_PROVIDER_ID = 'ksef';
+
+/** Refreshed this far ahead of the cached token's own `expiresAt` — the identical 60s safety margin
+ *  `transports/pdp/pdp-client.ts`'s own token cache already applies, so a token technically still
+ *  valid by KSeF's clock is never handed to a poll that might cross the expiry boundary mid-flight. */
+const ACCESS_TOKEN_REFRESH_MARGIN_MS = 60_000;
+
+/** Module-level, not per-poller-instance: `buildKsefStatusPoller` is called exactly ONCE at boot to
+ *  build the singleton this provider registers in `AuthorityStatusPollerRegistry`, so a closure-scoped
+ *  cache would already live exactly as long as the process does — a module-level `Map` is simply the
+ *  more conventional way to spell that same lifetime, and keeps the cache reachable from
+ *  `__resetKsefAccessTokenCacheForTests` below without threading it through `KsefStatusPollerDeps`. */
+const accessTokenCache = new Map<string, { accessToken: string; expiresAt: number }>();
+
+/** Test-only escape hatch — every `buildKsefStatusPoller({...})` call in a fresh `describe` block must
+ *  start from an empty cache, or an EARLIER test's cached token would silently make a LATER test's own
+ *  "does it re-authenticate" assertion pass for the wrong reason. Not exported outside this module's
+ *  own spec file's needs beyond this. */
+export function __resetKsefAccessTokenCacheForTests(): void {
+  accessTokenCache.clear();
+}
+
+/** Ties the cache key to the CONTENT of the credentials, not merely their (company, environment)
+ *  slot — a plain digest of the KSeF token itself (the one secret that actually changes when a
+ *  company rotates its credentials; `nip` rarely if ever does, and is already folded into the key via
+ *  `environment`'s own scoping). Truncated: this is a cache key, never a security boundary of its own
+ *  (the real secret stays in `credentials.ksefToken`, never logged or persisted here) — enough bits to
+ *  make an accidental collision between two DIFFERENT tokens for the same (company, environment)
+ *  astronomically unlikely, no more. */
+function credentialFingerprint(credentials: KsefCredentials): string {
+  return createHash('sha256').update(credentials.ksefToken).digest('hex').slice(0, 16);
+}
+
+/** One access token per `(companyId, environment, credentialFingerprint)`, reused for every poll
+ *  while it stays valid — see this file's own header, "Mutualized handshake". Evicted eagerly
+ *  whenever using it fails (a 401 the cached token no longer satisfies, a network error mid-call): the
+ *  NEXT poll re-authenticates fresh rather than retrying the exact same bad value until it happens to
+ *  expire on its own — the identical discipline `transports/pdp/pdp-client.ts`'s own 401-triggered
+ *  `clearToken()` already holds. Also evicted IMPLICITLY the moment credentials are rotated: the
+ *  fingerprint changes, so the OLD cache entry (still keyed under the OLD fingerprint) is simply never
+ *  looked up again — see this file's own header for why that self-invalidation matters here. */
+async function getSharedAccessToken(
+  client: KsefClient,
+  companyId: string,
+  credentials: KsefCredentials,
+): Promise<string> {
+  const cacheKey = `${companyId}:${credentials.environment}:${credentialFingerprint(credentials)}`;
+  const cached = accessTokenCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt - ACCESS_TOKEN_REFRESH_MARGIN_MS) {
+    return cached.accessToken;
+  }
+
+  const fresh = await authenticate(client);
+  accessTokenCache.set(cacheKey, fresh);
+  return fresh.accessToken;
+}
 
 /** See this file's own header (§1) for why this mirrors `ksef-transport.ts#authenticate`'s own
  *  `{ code, description, details }` reading rather than a KSeF-invoice-status-specific convention
@@ -126,12 +204,23 @@ export function buildKsefStatusPoller(deps: KsefStatusPollerDeps): AuthorityStat
         symmetricKeyPem: keys.symmetricKeyPem,
       });
 
-      // A fresh access token every poll — KSeF's own tokens are short-lived, and whatever token
-      // `send()` used at deposit time is long gone by the time a later sweep pass polls. Same
-      // handshake `send()` itself uses (`ksef-transport.ts#authenticate`, exported for this reuse).
-      const accessToken = await authenticate(client);
-      const status = await client.invoiceStatus(sessionRef, invoiceRef, accessToken);
-      return [mapKsefStatus(status)];
+      // Shared across every poll for this (company, environment, credential) triple while it stays
+      // valid — see this file's own header, "Mutualized handshake". Whatever token `send()` used at
+      // deposit time is long gone by the time a later sweep pass polls (that one was never cached to
+      // begin with), so this still authenticates on the FIRST poll for a given triple; only the
+      // REPEATED handshake per document, per pass, is what this cache removes.
+      const cacheKey = `${companyId}:${credentials.environment}:${credentialFingerprint(credentials)}`;
+      const accessToken = await getSharedAccessToken(client, companyId, credentials);
+      try {
+        const status = await client.invoiceStatus(sessionRef, invoiceRef, accessToken);
+        return [mapKsefStatus(status)];
+      } catch (error) {
+        // The cached token could be the reason this call failed (revoked/expired server-side before
+        // our own `expiresAt` margin says it should be) — evicted so the NEXT poll re-authenticates
+        // fresh rather than retrying this exact same value until it happens to expire on its own.
+        accessTokenCache.delete(cacheKey);
+        throw error;
+      }
     },
   };
 }

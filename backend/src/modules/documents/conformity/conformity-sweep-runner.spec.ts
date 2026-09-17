@@ -22,6 +22,7 @@ import {
   createAuthorityEvents,
   findConformitySweepCandidates,
   journalSyntheticEvent,
+  markConformityResolved,
 } from './authority-events.persistence';
 import {
   AuthorityStatusPoller,
@@ -43,6 +44,7 @@ const mockedFindCandidates = findConformitySweepCandidates as jest.Mock;
 const mockedCreateEvents = createAuthorityEvents as jest.Mock;
 const mockedJournalSynthetic = journalSyntheticEvent as jest.Mock;
 const mockedArchiveVerdict = archiveTerminalAuthorityVerdictIfAny as jest.Mock;
+const mockedMarkResolved = markConformityResolved as jest.Mock;
 
 function buildPdpPoller(overrides: Partial<AuthorityStatusPoller> = {}): AuthorityStatusPoller {
   return {
@@ -111,6 +113,29 @@ describe('ConformitySweepRunner.runSweep', () => {
     expect(enqueueConformityPoll).not.toHaveBeenCalled();
   });
 
+  // THE BACKFILL: `findConformitySweepCandidates` filters out `conformityResolvedAt`-set rows in
+  // SQL — a document reaching this in-memory 'skip' branch at all is either brand new (a real
+  // terminal code just journaled by THIS pass's own earlier poll) or a pre-existing row this column
+  // has never touched. Either way, marking it here is what stops it from ever being fetched again.
+  it('backfills conformityResolvedAt the first time an already-terminal candidate is (still) seen', async () => {
+    mockedFindCandidates.mockResolvedValue([
+      {
+        id: 'doc-1',
+        companyId: 'company-1',
+        transportRef: '123456',
+        channelProviderId: 'pdp',
+        updatedAt: new Date('2026-08-29T10:00:00Z'),
+        existingStatusCodes: ['fr:200', 'fr:201', 'fr:202'],
+      },
+    ]);
+
+    const now = new Date('2026-08-29T10:05:00Z');
+    const runner = new ConformitySweepRunner(registry, dispatcher);
+    await runner.runSweep(now);
+
+    expect(mockedMarkResolved).toHaveBeenCalledWith('doc-1', now);
+  });
+
   it('gives up (journals synthetically, never polls) once the max poll age is exceeded', async () => {
     process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS = String(24 * 60 * 60 * 1000); // 1 day, for this test
     mockedFindCandidates.mockResolvedValue([
@@ -137,6 +162,7 @@ describe('ConformitySweepRunner.runSweep', () => {
       expect.any(String),
       expect.any(Date),
     );
+    expect(mockedMarkResolved).toHaveBeenCalledWith('doc-1', new Date('2026-08-10T00:00:00Z'));
     expect(enqueueConformityPoll).not.toHaveBeenCalled();
     delete process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS;
   });
@@ -159,6 +185,10 @@ describe('ConformitySweepRunner.runSweep', () => {
     const result = await runner.runSweep(new Date('2026-08-10T00:00:00Z'));
 
     expect(result.gaveUp).toBe(0);
+    // Still marked resolved even though THIS pass's own journal write lost the dedup race — the
+    // OTHER pass's write already made the document gave-up in fact, and this document must not keep
+    // being re-fetched by every future pass just because this particular call returned a zero count.
+    expect(mockedMarkResolved).toHaveBeenCalledWith('doc-1', new Date('2026-08-10T00:00:00Z'));
     delete process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS;
   });
 
@@ -368,6 +398,77 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
     const runner = new ConformitySweepRunner(registry, dispatcher);
     // A throwing runPoll would reject this promise — the `resolves` matcher below IS the proof, the
     // same discipline this file's own "NEVER THROWS" tests already use for the channel-blocked path.
+    await expect(
+      runner.runPoll({ companyId: 'company-1', documentId: 'doc-1', providerId: 'pdp', transportRef: 'x' }),
+    ).resolves.toEqual({ journaled: 1 });
+  });
+});
+
+// The bounded-sweep fix's OTHER half (alongside `authority-events.persistence.spec.ts`'s own
+// `conformityResolvedAt: null` filter proof): `runPoll` is what actually WRITES the marker the moment
+// it observes a terminal event, so that document stops being a candidate at all from the next sweep
+// pass onward.
+describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
+  const dispatcher = {} as DocumentQueueDispatcher;
+  let registry: AuthorityStatusPollerRegistry;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    registry = new AuthorityStatusPollerRegistry();
+    mockedArchiveVerdict.mockResolvedValue(undefined);
+  });
+
+  it('marks the document resolved, with the terminal event’s OWN observedAt, when one is observed', async () => {
+    const events = [
+      { statusCode: 'fr:200', observedAt: new Date('2026-09-06T10:00:00Z') },
+      { statusCode: 'fr:202', observedAt: new Date('2026-09-06T10:00:02Z') },
+    ];
+    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(events) }));
+    mockedCreateEvents.mockResolvedValue(2);
+
+    const runner = new ConformitySweepRunner(registry, dispatcher);
+    await runner.runPoll({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: 'x',
+    });
+
+    expect(mockedMarkResolved).toHaveBeenCalledWith('doc-1', events[1].observedAt);
+  });
+
+  it('never marks the document resolved when every observed event is non-terminal', async () => {
+    registry.register(
+      buildPdpPoller({
+        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+      }),
+    );
+    mockedCreateEvents.mockResolvedValue(1);
+
+    const runner = new ConformitySweepRunner(registry, dispatcher);
+    await runner.runPoll({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: 'x',
+    });
+
+    expect(mockedMarkResolved).not.toHaveBeenCalled();
+  });
+
+  it('never lets a failure marking conformityResolvedAt affect the poll’s own result', async () => {
+    registry.register(
+      buildPdpPoller({
+        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:202', observedAt: new Date() }]),
+      }),
+    );
+    mockedCreateEvents.mockResolvedValue(1);
+    // `mockRejectedValueOnce`, deliberately — a persistent `mockRejectedValue` here would leak into
+    // every LATER test in this file that never resets it (`jest.clearAllMocks()` clears call state,
+    // never a configured implementation), silently poisoning unrelated 'gave-up' tests further down.
+    mockedMarkResolved.mockRejectedValueOnce(new Error('db unreachable'));
+
+    const runner = new ConformitySweepRunner(registry, dispatcher);
     await expect(
       runner.runPoll({ companyId: 'company-1', documentId: 'doc-1', providerId: 'pdp', transportRef: 'x' }),
     ).resolves.toEqual({ journaled: 1 });
