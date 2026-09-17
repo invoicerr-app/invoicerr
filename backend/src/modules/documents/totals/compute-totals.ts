@@ -1,5 +1,6 @@
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
 import { toMinor, decimalsFor, fromMinor } from '@/utils/financial';
+import { defaultVatRateCatalog, findVatRateById } from '../vat-rates/registry';
 
 export interface LineTotal {
   index: number;
@@ -330,6 +331,23 @@ function extractVatRate(
     return null;
   }
 
+  // `vat-rates/registry.ts#vatRateFieldOptions` now stores each rate's own stable CATALOG id as the
+  // field's value (e.g. "it-esente"), never a bare percentage — the ONLY way to keep two same-
+  // percentage regimes (Italy's `it-esente`/`it-non-imponibile`, both 0%) distinguishable at all. This
+  // function is called with whatever DESCRIPTOR its own caller happens to hold — many of them
+  // (accounting-export, reminders, bank-reconciliation, settlement…) reuse the bare, country-BLIND
+  // `INVOICE_DESCRIPTOR` singleton, never the per-company view `descriptors/company-view.ts` builds,
+  // so `vatField.options` is frequently EMPTY here regardless of what the live form would show — this
+  // cannot rely on `field.options`/`field.legacyOptions` the way `field-kinds.ts`'s own validator
+  // does. `findVatRateById` looks the value up directly against the real, shipped catalog instead —
+  // country-independent by construction (every id is globally unique), which is exactly what a
+  // function with no notion of "which company" needs.
+  const catalogRate = findVatRateById(defaultVatRateCatalog, String(value));
+  if (catalogRate) return catalogRate.rate;
+
+  // No catalog id matched — a country with no known VAT-rate list at all, a hand-typed
+  // `allowCustomValue` rate, or simply a document saved BEFORE the id-based value existed (the bare
+  // percentage itself, e.g. "20"). Parsed exactly as this function always has.
   const parsed = Number(value);
   if (Number.isNaN(parsed)) {
     warnings.push(`line ${lineNumber} has no usable VAT rate — counted in net only`);

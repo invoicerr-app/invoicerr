@@ -42,6 +42,7 @@ function applyVatRateCatalogOptions(
     if (field.kind === 'select' && field.usesVatRateCatalog) {
       const resolution = vatRateFieldOptions(catalog, countryCode);
       field.options = resolution.options;
+      field.legacyOptions = resolution.legacyOptions;
       if (!resolution.known) {
         field.helpText = NO_VAT_CATALOG_HELP_TEXT;
       }

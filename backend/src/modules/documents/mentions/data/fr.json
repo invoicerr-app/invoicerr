@@ -43,8 +43,9 @@
       },
       {
         "validFrom": "2026-07-01",
+        "validTo": "2027-01-01",
         "value": "12,40 %",
-        "notes": "ECB MRO 2,40 % since 17 June 2026, hence in force as of 1 July → 12,40 %"
+        "notes": "ECB MRO 2,40 % since 17 June 2026, hence in force as of 1 July → 12,40 %. validTo caps this at the NEXT scheduled semi-annual check (L441-10 II reads the rate again on 1 January) rather than left open-ended: an invoice issued on or after 2027-01-01 with no newer entry added here now refuses to emit (see invoice-notes.ts's own UnresolvedInvoiceNotePlaceholderError) instead of silently keeping this stale rate forever."
       }
     ]
   },

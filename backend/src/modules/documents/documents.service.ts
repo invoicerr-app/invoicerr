@@ -89,7 +89,7 @@ import {
   isActionAvailable,
   WidgetLocation,
 } from './descriptors/types';
-import { validateAgainstDescriptor } from './descriptors/validate';
+import { stripSidecarKeys, validateAgainstDescriptor } from './descriptors/validate';
 import { RunActionDto } from './dto/documents.dto';
 import { FormatProviderRegistry, UnknownFormatError } from './formats/format-registry';
 import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
@@ -979,6 +979,31 @@ export class DocumentsService implements OnModuleInit {
     // identical call: a no-op for every type other than "expense".
     const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, countryViewFields);
     const fields = await applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
+
+    // Strips every caller-controlled `__`-prefixed sidecar key (descriptors/validate.ts's own header)
+    // from the RAW body BEFORE it is validated or handed to ANY handler — "save-draft" included, not
+    // merely "send": these keys are an internal, server-only convention a handful of fields rely on
+    // (field-kinds.ts's own `usesVatRateCatalog` branch) to recognize a value THIS SERVER already
+    // resolved, never something a caller could legitimately post directly. Skipped ONLY for the
+    // worker's own replay of "send" while the record is already "sending" — the ONE case where
+    // `payload.data` genuinely IS this module's own previously-resolved data (actions/async-send.ts's
+    // own header), sidecars included, and stripping it would throw away a real resolution on every
+    // retry. Gated on `actionId === 'send'` as well as the status, deliberately NOT on status alone:
+    // "save-draft" declares `{ from: 'always', to: 'draft' }` (invoice.descriptor.ts /
+    // quote.descriptor.ts), so it stays callable while a record is "sending" too, and country-policy's
+    // own per-status narrowing that happens to close that window for "invoice" (statuses: ["draft"])
+    // is NOT declared for "quote"/"credit-note"/"purchase-order" in any shipped country — a caller
+    // could otherwise race a "save-draft" against an in-flight "send" and have a fabricated sidecar
+    // (and, transitively, field-kinds.ts's `usesVatRateCatalog` bypass it gates) persisted straight
+    // through, on a type/country where nothing else happens to forbid it. Checking the action id keeps
+    // this exemption exactly as narrow as its own justification, never a side effect of how some
+    // country's policy data happens to be written today.
+    // Reassigned onto `payload.data` itself (never a second, parallel variable) so every later read of
+    // it in this same method — row-selection/reference validation, `stampRowIds`, the handler call
+    // itself — sees the SAME cleaned object, with no raw copy left for anything to read by mistake.
+    if (!(currentStatus === 'sending' && actionId === 'send')) {
+      payload.data = stripSidecarKeys(fields, payload.data ?? {});
+    }
 
     const dataErrors = validateAgainstDescriptor(fields, payload.data ?? {}, this.fieldKindRegistry);
     // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares

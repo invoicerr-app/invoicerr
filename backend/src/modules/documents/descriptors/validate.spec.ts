@@ -1,6 +1,6 @@
 import { FieldKindRegistry, registerCoreFieldKinds } from './field-kinds';
 import { DocumentFieldDescriptor } from './types';
-import { validateAgainstDescriptor } from './validate';
+import { stripSidecarKeys, validateAgainstDescriptor } from './validate';
 
 describe('validateAgainstDescriptor', () => {
   const registry = new FieldKindRegistry();
@@ -84,5 +84,58 @@ describe('validateAgainstDescriptor', () => {
         message: '"Rating" has field kind "plugin:acme.rating", which no validator is registered for.',
       },
     ]);
+  });
+});
+
+describe('stripSidecarKeys', () => {
+  it('removes every top-level key starting with "__", keeps everything else untouched', () => {
+    const data = { client: 'client-1', __crossBorderMentions: [{ text: 'fabricated' }], notes: 'hello' };
+    expect(stripSidecarKeys([], data)).toEqual({ client: 'client-1', notes: 'hello' });
+  });
+
+  it('recurses into declared "array" field rows, stripping each row\'s own "__" keys', () => {
+    const lineFields: DocumentFieldDescriptor[] = [
+      { key: 'description', kind: 'text', label: 'Designation' },
+      { key: 'vatRate', kind: 'select', label: 'VAT rate', options: [] },
+    ];
+    const fields: DocumentFieldDescriptor[] = [
+      { key: 'lines', kind: 'array', label: 'Lines', fields: lineFields },
+    ];
+    const data = {
+      lines: [
+        {
+          description: 'Widget',
+          vatRate: '20',
+          __crossBorderCategory: 'AE',
+          __crossBorderExemptionReason: 'x',
+        },
+      ],
+    };
+
+    const cleaned = stripSidecarKeys(fields, data);
+
+    expect(cleaned.lines).toEqual([{ description: 'Widget', vatRate: '20' }]);
+  });
+
+  it('never mutates the original object — a caller still holding a reference sees it unchanged', () => {
+    const original = { __crossBorderMentions: 'x', client: 'client-1' };
+    const cleaned = stripSidecarKeys([], original);
+    expect(original).toEqual({ __crossBorderMentions: 'x', client: 'client-1' });
+    expect(cleaned).not.toBe(original);
+  });
+
+  it('a row that is not itself an object (or an array field with no declared row fields) is left as-is, never crashes', () => {
+    const fields: DocumentFieldDescriptor[] = [{ key: 'lines', kind: 'array', label: 'Lines' }];
+    expect(stripSidecarKeys(fields, { lines: ['not-an-object', 42, null] })).toEqual({
+      lines: ['not-an-object', 42, null],
+    });
+    expect(stripSidecarKeys(fields, { lines: 'not-an-array' })).toEqual({ lines: 'not-an-array' });
+  });
+
+  it('a document with no sidecar keys at all round-trips unchanged (structurally)', () => {
+    const data = { client: 'client-1', lines: [{ description: 'Widget' }] };
+    expect(stripSidecarKeys([{ key: 'lines', kind: 'array', label: 'Lines', fields: [] }], data)).toEqual(
+      data,
+    );
   });
 });

@@ -21,7 +21,7 @@ import { PecNotificheService, SDI_PEC_PROVIDER_ID } from './pec-notifiche.servic
 
 jest.mock('../../conformity/authority-events.persistence');
 
-const mockedFindDocument = persistence.findDocumentByTransportRef as jest.Mock;
+const mockedFindDocument = persistence.findOwnedDocumentByTransportRef as jest.Mock;
 const mockedCreateEvents = persistence.createAuthorityEvents as jest.Mock;
 
 function notificaXml(root: string, idSdI: string, nomeFile: string): string {
@@ -98,7 +98,11 @@ describe('PecNotificheService.handleMessage', () => {
       identificativoSdI: '123456789012',
       internalStatus,
     });
-    expect(mockedFindDocument).toHaveBeenCalledWith(SDI_PEC_PROVIDER_ID, 'IT01234567890_00001.xml');
+    expect(mockedFindDocument).toHaveBeenCalledWith(
+      'company-42',
+      SDI_PEC_PROVIDER_ID,
+      'IT01234567890_00001.xml',
+    );
     expect(mockedCreateEvents).toHaveBeenCalledWith(
       'company-42',
       'doc-42',
@@ -222,6 +226,83 @@ describe('PecNotificheService.handleMessage', () => {
               filename: 'IT01234567890_00001.xml',
               content: Buffer.from(
                 notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml'),
+              ),
+            },
+          ],
+        }),
+      );
+
+      expect(channelCredentials.upsertChannelConfig).not.toHaveBeenCalled();
+    });
+
+    // THE MUTATION TARGET: this service used to learn the reply address from the `From` of ANY
+    // message that merely PARSED as one of the six known notifica shapes — no domain check, no
+    // message-kind restriction, no requirement that the notifica reconcile with a real document
+    // first. A third party who knows this mailbox's address (or simply forges a From header, since
+    // SMTP does not authenticate it on its own) could redirect every future FatturaPA submission —
+    // full client data, amounts, fiscal identifiers — to an address of their own choosing.
+    it('never learns from a message whose "From" is NOT under SdI\'s own domain, even for a hint type', async () => {
+      mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
+      mockedCreateEvents.mockResolvedValue(1);
+      const channelCredentials = buildChannelCredentials();
+      const service = new PecNotificheService(channelCredentials as never);
+
+      await service.handleMessage(
+        'company-42',
+        message({
+          from: 'attacker@evil.example.com',
+          attachments: [
+            {
+              filename: 'IT01234567890_00001.xml',
+              content: Buffer.from(
+                notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml'),
+              ),
+            },
+          ],
+        }),
+      );
+
+      expect(channelCredentials.upsertChannelConfig).not.toHaveBeenCalled();
+    });
+
+    it("never learns from a notifica type the specification does not document as carrying a reply address (DT), even from SdI's own domain", async () => {
+      mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
+      mockedCreateEvents.mockResolvedValue(1);
+      const channelCredentials = buildChannelCredentials();
+      const service = new PecNotificheService(channelCredentials as never);
+
+      await service.handleMessage(
+        'company-42',
+        message({
+          from: 'sdi07@pec.fatturapa.it',
+          attachments: [
+            {
+              filename: 'IT01234567890_00001.xml',
+              content: Buffer.from(
+                notificaXml('notificaDecorrenzaTermini', '123456789012', 'IT01234567890_00001.xml'),
+              ),
+            },
+          ],
+        }),
+      );
+
+      expect(channelCredentials.upsertChannelConfig).not.toHaveBeenCalled();
+    });
+
+    it("never learns from a notifica that failed to reconcile with a known document, even from SdI's own domain with a hint type", async () => {
+      mockedFindDocument.mockResolvedValue(null);
+      const channelCredentials = buildChannelCredentials();
+      const service = new PecNotificheService(channelCredentials as never);
+
+      await service.handleMessage(
+        'company-42',
+        message({
+          from: 'sdi07@pec.fatturapa.it',
+          attachments: [
+            {
+              filename: 'IT01234567890_99999.xml',
+              content: Buffer.from(
+                notificaXml('ricevutaConsegna', '999999999999', 'IT01234567890_99999.xml'),
               ),
             },
           ],

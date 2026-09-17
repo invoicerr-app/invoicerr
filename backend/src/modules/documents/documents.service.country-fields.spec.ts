@@ -123,7 +123,9 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
       const vatField = descriptor.fields
         .find((f) => f.key === 'lines')
         ?.fields?.find((f) => f.key === 'vatRate');
-      expect(vatField?.options).toEqual([{ value: '20', label: '20% — Taux normal' }]);
+      // `value` is the rate's own stable id — see vat-rates/registry.ts#vatRateFieldOptions's own
+      // header on why a bare percentage cannot tell two same-percentage regimes apart.
+      expect(vatField?.options).toEqual([{ value: 'fr-standard', label: '20% — Taux normal' }]);
     });
 
     it('a country with NO overlay and NO known catalog gets the trunk intact, and an honest notice on the VAT field', async () => {

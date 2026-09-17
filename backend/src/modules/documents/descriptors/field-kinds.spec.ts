@@ -202,6 +202,33 @@ describe('FieldKindRegistry', () => {
         validateAgainstDescriptor([otherField], { vatRate: '19', __crossBorderCategory: 'S' }, registry),
       ).toEqual([{ key: 'vatRate', message: '"VAT rate" is not one of the offered choices.' }]);
     });
+
+    // THE MUTATION TARGET: the bypass used to trust the sidecar's mere PRESENCE, for ANY string value
+    // — a garbage `__crossBorderCategory` (never one of the real, closed EN 16931 BT-151 codes) let a
+    // caller-typed value through just as easily as a genuine one the tax engine actually wrote.
+    it('a __crossBorderCategory that is not one of the real EN 16931 BT-151 codes gets NO exception — the bypass is not "any string", only a real category', () => {
+      expect(
+        validateAgainstDescriptor(
+          [vatRateField],
+          { vatRate: '19', __crossBorderCategory: 'not-a-real-category' },
+          registry,
+        ),
+      ).toEqual([{ key: 'vatRate', message: '"VAT rate" is not one of the offered choices.' }]);
+    });
+
+    it.each([
+      'S',
+      'Z',
+      'E',
+      'AE',
+      'K',
+      'G',
+      'O',
+    ])('every real EN 16931 BT-151 code (%s) still opens the exception', (code) => {
+      expect(
+        validateAgainstDescriptor([vatRateField], { vatRate: '19', __crossBorderCategory: code }, registry),
+      ).toEqual([]);
+    });
   });
 
   // Enriched expense categories ("notes de frais enrichies") — the 12th kind, an uploaded attachment.

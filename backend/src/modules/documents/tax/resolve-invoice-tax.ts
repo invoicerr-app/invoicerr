@@ -89,7 +89,7 @@
  */
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
-import { defaultVatRateCatalog, VatRateCatalog } from '../vat-rates/registry';
+import { defaultVatRateCatalog, resolveVatRatePercentage, VatRateCatalog } from '../vat-rates/registry';
 import { TrustFlagVatValidator, VatValidator, taxUnionOf } from './classification';
 import { determineTax, DocumentTaxResult } from './tax-engine';
 import { defaultTaxSystemRegistry, TaxSystemRegistry } from './tax-systems/registry';
@@ -169,15 +169,6 @@ function extractSupplyType(value: unknown): SupplyType | undefined {
   return value === 'GOODS' || value === 'SERVICES' ? value : undefined;
 }
 
-function parseVatRate(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
 /**
  * The invoice's OWN `issueDate` (`descriptors/invoice.descriptor.ts`'s required 'date' field,
  * `data.issueDate`) — never the server clock. `tax-engine.ts` does not read `TransactionContext
@@ -221,6 +212,13 @@ export function extractCurrency(data: Record<string, unknown>): string {
  * DOMESTIC guard: a rate foreign to the seller's own known catalog is refused, named. A seller
  * country with NO known catalog at all is left alone — same permissiveness `vat-rates/registry.ts`
  * already documents for `allowCustomValue` countries.
+ *
+ * `row.vatRate` is resolved through `resolveVatRatePercentage` — the catalog `id`
+ * `vat-rates/registry.ts#vatRateFieldOptions` now emits as the canonical field value (e.g.
+ * "it-esente"), OR the bare percentage string a document saved before that change still carries (e.g.
+ * "20") — never a bare `Number(row.vatRate)` on its own, which would silently treat every id-based
+ * value as "not a number, not my job" and let this guard go blind on exactly the two-same-percentage
+ * regimes (Italy's `it-esente`/`it-non-imponibile`) an `id` exists to tell apart in the first place.
  */
 function assertDomesticRatesKnown(
   sellerCountryCode: string,
@@ -228,17 +226,25 @@ function assertDomesticRatesKnown(
   catalog: VatRateCatalog,
 ): void {
   if (!catalog.has(sellerCountryCode)) return;
-  const known = catalog.ratesFor(sellerCountryCode).map((r) => r.rate);
   rows.forEach((row, index) => {
-    const rate = parseVatRate(row.vatRate);
-    if (rate === null) return; // compute-totals.ts already warns for this — not this function's job
-    if (!known.includes(rate)) {
-      throw new ForeignVatRateError(
-        `The VAT rate ${rate}% chosen on line ${index + 1} is not one of ${sellerCountryCode}'s known ` +
-          `VAT rates (${known.map((r) => `${r}%`).join(', ')}) — refusing to send an invoice with a ` +
-          `rate foreign to ${sellerCountryCode}.`,
-      );
+    if (typeof row.vatRate !== 'string' || row.vatRate.trim() === '') {
+      return; // compute-totals.ts already warns for this — not this function's job
     }
+    if (resolveVatRatePercentage(catalog, sellerCountryCode, row.vatRate) !== null) return;
+
+    // Neither the id form nor the legacy percentage form resolved for THIS country. A value that is
+    // STILL a bare, parseable number is judged the way this guard always has — a real percentage,
+    // just foreign to this country's own list, named as a percentage in the message. Anything else
+    // (an id belonging to ANOTHER country's catalog, or plain garbage) is refused the same way, named
+    // as the raw string instead, since there is no numeric rate to show.
+    const asNumber = Number(row.vatRate);
+    const knownPercentages = catalog.ratesFor(sellerCountryCode).map((r) => `${r.rate}%`);
+    const shownRate = Number.isFinite(asNumber) ? `${asNumber}%` : `"${row.vatRate}"`;
+    throw new ForeignVatRateError(
+      `The VAT rate ${shownRate} chosen on line ${index + 1} is not one of ${sellerCountryCode}'s known ` +
+        `VAT rates (${knownPercentages.join(', ')}) — refusing to send an invoice with a rate foreign ` +
+        `to ${sellerCountryCode}.`,
+    );
   });
 }
 

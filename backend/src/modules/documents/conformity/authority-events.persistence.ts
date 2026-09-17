@@ -116,6 +116,31 @@ export async function findDocumentByTransportRef(
   return row;
 }
 
+/**
+ * The TENANT-SCOPED sibling of `findDocumentByTransportRef` above — for every caller that DOES
+ * already know which company a notifica belongs to before ever resolving the document, unlike SdI's
+ * own SOAP push (there is genuinely no per-tenant identity in that transport at all — see the
+ * function above's own header). `pec-notifiche.service.ts` is called by
+ * `pec-inbox-poller.service.ts` polling ONE specific company's OWN configured mailbox: `companyId` is
+ * a parameter it already holds, so resolving the notifica's `NomeFile` WITHOUT it (as the code used
+ * to) meant a filename collision — or one deliberately forged by whoever controls the mailbox's
+ * sender — could journal an authority event onto ANOTHER tenant's document. `null` for "no document
+ * with this ref at all" AND for "one exists, but not owned by this company" — the two are
+ * indistinguishable to the caller, on purpose (the same posture `findOwnedDocument`, `persistence.ts`,
+ * already holds for every other single-document lookup in this module).
+ */
+export async function findOwnedDocumentByTransportRef(
+  companyId: string,
+  channelProviderId: string,
+  transportRef: string,
+): Promise<{ id: string; companyId: string; typeId: string } | null> {
+  const row = await prisma.documentInstance.findFirst({
+    where: { companyId, channelProviderId, transportRef },
+    select: { id: true, companyId: true, typeId: true },
+  });
+  return row;
+}
+
 export interface ConformitySweepCandidateRow {
   id: string;
   companyId: string;

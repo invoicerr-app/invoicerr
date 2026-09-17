@@ -14,11 +14,22 @@
  * fact must hold before either one produces anything), never the underlying resolution/encoding logic
  * a second time.
  */
+import { BadRequestException } from '@nestjs/common';
+
+import prisma from '@/prisma/prisma.service';
+
 import { DocumentTypeDescriptor } from '../descriptors/types';
+import { resolveDocumentCustomFieldDescriptors } from '../company-custom-fields/persistence';
+import { EntityReferenceRegistry } from '../references/reference-registry';
 import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
 import { PaymentMethodPresentation } from '../payment-methods/types';
 import { DocumentTotals } from '../totals/compute-totals';
-import { legalMentionsFor, paymentMethodsFor, sepaPaymentQrFor } from './render-instance-pdf';
+import {
+  legalMentionsFor,
+  paymentMethodsFor,
+  renderDocumentInstance,
+  sepaPaymentQrFor,
+} from './render-instance-pdf';
 
 // `paymentMethodsFor` needs neither Prisma nor Puppeteer EITHER, once its one real dependency
 // (`resolveEnabledPaymentMethodPresentations`, which DOES touch Prisma — see persistence.spec.ts for
@@ -28,6 +39,18 @@ import { legalMentionsFor, paymentMethodsFor, sepaPaymentQrFor } from './render-
 jest.mock('../payment-methods/persistence');
 const mockedResolvePresentations = resolveEnabledPaymentMethodPresentations as jest.MockedFunction<
   typeof resolveEnabledPaymentMethodPresentations
+>;
+
+// Needed ONLY by the dedicated `renderDocumentInstance` describe block further down — every test
+// ABOVE it never reaches these two boundaries at all (`legalMentionsFor`/`sepaPaymentQrFor` are pure
+// synchronous helpers, per this file's own header).
+jest.mock('@/prisma/prisma.service', () => ({
+  __esModule: true,
+  default: { company: { findUnique: jest.fn() }, client: { findFirst: jest.fn() } },
+}));
+jest.mock('../company-custom-fields/persistence');
+const mockedResolveCustomFields = resolveDocumentCustomFieldDescriptors as jest.MockedFunction<
+  typeof resolveDocumentCustomFieldDescriptors
 >;
 
 const invoiceDescriptor: DocumentTypeDescriptor = {
@@ -300,5 +323,47 @@ describe('paymentMethodsFor', () => {
       currency: undefined,
       reference: undefined,
     });
+  });
+});
+
+// THE MUTATION TARGET: `legalMentionsFor` above is a pure, synchronous helper — this describe block
+// is the one place in this file that reaches `renderDocumentInstance` itself, the ACTUAL entry point
+// a PDF download/send goes through, to prove the named error it can throw is converted to a
+// `BadRequestException` (never a bare 500) BEFORE any HTML/Chromium work is even attempted — the
+// throw happens while resolving legal mentions, strictly before `renderDocumentHtml`/`renderPdf` are
+// ever called, so this test needs no Puppeteer at all despite exercising the real function.
+describe('renderDocumentInstance — an unresolvable legal-mention placeholder becomes a named 400', () => {
+  beforeEach(() => {
+    mockedResolveCustomFields.mockResolvedValue([]);
+    (prisma.company.findUnique as jest.Mock).mockResolvedValue({
+      name: 'Dupont Consulting',
+      address: '12 Rue de la Paix',
+      city: 'Paris',
+      postalCode: '75002',
+      country: 'France',
+      iban: null,
+      language: null,
+      brandingAccentColor: null,
+      brandingFont: null,
+      brandingLogoId: null,
+    });
+  });
+
+  it('a pre-2026 French invoice (before lateFeeRate has any value) rejects with BadRequestException, never a raw crash', async () => {
+    await expect(
+      renderDocumentInstance(
+        { referenceRegistry: new EntityReferenceRegistry() },
+        'company-1',
+        invoiceDescriptor,
+        {
+          id: 'doc-1',
+          status: 'sent',
+          data: { issueDate: '2025-11-15', currency: 'EUR', lines: [] },
+          createdAt: new Date(),
+          displayNumber: 'INV-2025-0001',
+          atcud: null,
+        },
+      ),
+    ).rejects.toThrow(BadRequestException);
   });
 });

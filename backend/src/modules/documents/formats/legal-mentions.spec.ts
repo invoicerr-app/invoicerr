@@ -146,4 +146,16 @@ describe.each([
     expect(xml).toContain("l'an");
     expect(xml).toContain('Escompte pour paiement anticipé : néant');
   });
+
+  // THE MUTATION TARGET: an issue date before `lateFeeRate`'s own earliest catalog value used to mean
+  // the XML shipped with the literal, un-interpolated "{lateFeeRate}" token baked into BT-22 — see
+  // `mentions/invoice-notes.spec.ts` for the same fact proven at the resolver's own level. Here it
+  // must instead be a NAMED build failure (`SemanticBuildError`, `build-semantic-invoice.ts`'s own
+  // class) — the same "cannot even attempt to build" case `format-provider.ts`'s own header documents
+  // for an unresolvable BT-151 — never a bare crash, and never a printed placeholder.
+  it('refuses to build (SemanticBuildError, never a raw {token}) for an issue date before lateFeeRate has a value at all', async () => {
+    await expect(provider.build(descriptor, documentFor('2025-11-15'), FRENCH_SELLER, BUYER)).rejects.toThrow(
+      /lateFeeRate/,
+    );
+  });
 });

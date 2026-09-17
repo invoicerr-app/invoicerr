@@ -331,4 +331,74 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
       expect(result.validation.valid).toBe(true);
     });
   });
+
+  // THE MUTATION TARGET: `mapNatura` used to decide N2 vs. N6 purely from the CLIENT's own country —
+  // it had no way to tell `it-esente` (DPR 633/72 art. 10, no input-VAT deduction right) apart from
+  // `it-non-imponibile` (art. 8, deduction right preserved), since both resolve to the exact same 0%.
+  // A domestic Italian invoice choosing either regime now carries the CORRECT Natura on both the
+  // per-line DettaglioLinee AND the aggregated DatiRiepilogo — still judged by the real vendored XSD.
+  describe('Natura is derived from the CATALOG entry actually chosen, not guessed from the bare 0% rate', () => {
+    function domesticZeroRateData(vatRate: string) {
+      return {
+        client: 'client-1',
+        issueDate: '2026-09-15',
+        dueDate: '2026-10-15',
+        currency: 'EUR',
+        lines: [{ description: 'Prestazione', quantity: 1, unit: 'unit', unitPrice: 500, vatRate }],
+      };
+    }
+
+    it('it-esente (art. 10 DPR 633/72, EXEMPT) → Natura N4, on both DettaglioLinee and DatiRiepilogo', async () => {
+      const result = await fatturapaFormatProvider.build(
+        descriptor,
+        document(domesticZeroRateData('it-esente')),
+        SELLER,
+        BUYER,
+      );
+
+      expect(result.validation.valid).toBe(true);
+      expect(result.validation.errors).toEqual([]);
+      const xml = flatten(new TextDecoder().decode(result.bytes));
+
+      // DettaglioLinee — the per-line detail. `RiferimentoNormativo` is NOT a valid child of
+      // DettaglioLinee at all (the vendored `Schema_VFPR12.xsd`'s own `DettaglioLineeType`) — `Natura`
+      // is the line's own last element here.
+      expect(xml).toContain('<AliquotaIVA>0.00</AliquotaIVA><Natura>N4</Natura></DettaglioLinee>');
+      // DatiRiepilogo — the aggregated summary. Schema order: AliquotaIVA, Natura?, ImponibileImporto,
+      // Imposta, EsigibilitaIVA?, RiferimentoNormativo? (`DatiRiepilogoType`) — Natura right after the
+      // rate, RiferimentoNormativo LAST, never grouped together at the end.
+      expect(xml).toContain(
+        '<AliquotaIVA>0.00</AliquotaIVA><Natura>N4</Natura><ImponibileImporto>500.00</ImponibileImporto><Imposta>0.00</Imposta><EsigibilitaIVA>I</EsigibilitaIVA><RiferimentoNormativo>Esente art. 10 DPR 633/72</RiferimentoNormativo>',
+      );
+    });
+
+    it("it-non-imponibile (art. 8 DPR 633/72, ZERO) → Natura N3 — DISTINCT from it-esente's N4, even though both are 0%", async () => {
+      const result = await fatturapaFormatProvider.build(
+        descriptor,
+        document(domesticZeroRateData('it-non-imponibile')),
+        SELLER,
+        BUYER,
+      );
+
+      expect(result.validation.valid).toBe(true);
+      expect(result.validation.errors).toEqual([]);
+      const xml = flatten(new TextDecoder().decode(result.bytes));
+
+      expect(xml).toContain('<AliquotaIVA>0.00</AliquotaIVA><Natura>N3</Natura>');
+      expect(xml).toContain('<RiferimentoNormativo>Non imponibile art. 8 DPR 633/72</RiferimentoNormativo>');
+      expect(xml).not.toContain('<Natura>N4</Natura>');
+    });
+
+    it('a plain legacy "0" (no catalog id at all) falls back to the pre-existing client-based heuristic (N2, domestic Italian buyer) — never N3/N4 invented from nothing', async () => {
+      const result = await fatturapaFormatProvider.build(
+        descriptor,
+        document(domesticZeroRateData('0')),
+        SELLER,
+        BUYER,
+      );
+
+      const xml = flatten(new TextDecoder().decode(result.bytes));
+      expect(xml).toContain('<AliquotaIVA>0.00</AliquotaIVA><Natura>N2</Natura>');
+    });
+  });
 });

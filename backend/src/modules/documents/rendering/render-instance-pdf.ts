@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
@@ -8,7 +8,11 @@ import { findClientReferenceField } from '../actions/email-template';
 import { resolveDocumentCustomFieldDescriptors } from '../company-custom-fields/persistence';
 import { DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
 import { extractCrossBorderMentions } from '../formats/shared-build';
-import { resolveInvoiceNotes, ResolvedInvoiceNote } from '../mentions/invoice-notes';
+import {
+  resolveInvoiceNotes,
+  ResolvedInvoiceNote,
+  UnresolvedInvoiceNotePlaceholderError,
+} from '../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../mentions/registry';
 import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
 import { PaymentMethodPresentation } from '../payment-methods/types';
@@ -348,6 +352,26 @@ export async function renderDocumentInstance(
   );
   const customFields = await companyCustomFieldsFor(companyId, descriptor.id, instanceData);
 
+  // A mention whose own placeholder cannot be resolved for this issue date
+  // (`mentions/invoice-notes.ts#UnresolvedInvoiceNotePlaceholderError` — a catalog with no value
+  // covering the date, e.g. a pre-2026 French invoice against `lateFeeRate`, or a maintenance lapse
+  // past the catalog's own last dated window) is a DATA problem the caller can act on — a wrong or
+  // stale legal mention, never a server bug — so it becomes a named 400 here, the exact same
+  // "isInvoiceTaxBlockError-shaped" treatment `invoice-actions.ts`'s own cross-border-tax preflight
+  // already gives `UnresolvedBuyerCountryError`/`ForeignVatRateError` and their siblings. Left
+  // uncaught, this would otherwise surface as a bare 500 to whoever downloads or is sent this PDF —
+  // exactly the "silent break" this named error type exists to prevent from happening TWICE (once as
+  // a printed `{token}`, once as an unexplained crash).
+  let legalMentions: ResolvedInvoiceNote[];
+  try {
+    legalMentions = legalMentionsFor(descriptor, company.country, instanceData);
+  } catch (error) {
+    if (error instanceof UnresolvedInvoiceNotePlaceholderError) {
+      throw new BadRequestException(error.message);
+    }
+    throw error;
+  }
+
   const html = renderDocumentHtml({
     descriptor,
     instance: {
@@ -362,7 +386,7 @@ export async function renderDocumentInstance(
     referenceLabels,
     totals,
     language,
-    legalMentions: legalMentionsFor(descriptor, company.country, instanceData),
+    legalMentions,
     paymentQr: await sepaPaymentQrFor(descriptor, company, totals, instanceData, instance.displayNumber),
     paymentMethods,
     customFields,

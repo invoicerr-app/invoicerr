@@ -228,8 +228,22 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * the quote's own
  * does: "draft"/"send_failed" -> "sending" (the API's synchronous call — a fresh send or a retry),
  * then "sending" -> "sent" OR "send_failed" (the worker's replay). `availableWhen` is DERIVED from
- * BOTH (lifecycle.ts's header), so it includes "sending" too — see quote.descriptor.ts's own comment
- * on why that is necessary for the worker, not an invitation for a human to re-click mid-flight.
+ * BOTH (lifecycle.ts's header), so it includes "sending" too — necessary for the worker's own replay
+ * to pass `documents.service.ts#runAction`'s status gate at all, since that gate has no notion of
+ * "this call came from the queue, not a browser". This is NOT merely "an invitation for a human to
+ * re-click mid-flight" the way an earlier version of this comment put it: a genuine external caller
+ * (double-click, a second tab, an HTTP client retrying after a timeout) reaches the SAME "sending"
+ * branch the worker does, and reaching it is harmless BY CONSTRUCTION rather than by convention —
+ * `actions/async-send.ts`'s own claim (an in-process `Set` short-circuit backed by
+ * `persistence.ts#claimDocumentTransition`'s database-level compare-and-swap, its own file header, "the
+ * sending branch") lets exactly ONE caller — anywhere, not merely in this one process — actually invoke
+ * `deliver()`, refusing every other one with a 409 before it ever touches a transport. Removing
+ * "sending" from `availableWhen` was considered and
+ * rejected: `lifecycle.ts`'s own `transitionsAvailableWhen` DERIVES `availableWhen` from the union of
+ * every declared transition's `from`, and `checkTransitionResult` needs THIS SAME second transition
+ * entry to validate the worker's own "sending" -> "sent"/"send_failed" write — dropping the entry (or
+ * hand-typing a narrower `availableWhen` that drifts from it) would break that boot-time/request-time
+ * consistency check for a cosmetic gain the DB-level claim already makes redundant.
  *
  * "record-payment" declares an explicit `availableWhen: ['sent']` (deliberately UNCHANGED by the async-send mechanism
  * — a payment is only meaningful once the invoice has genuinely been delivered, never while it is

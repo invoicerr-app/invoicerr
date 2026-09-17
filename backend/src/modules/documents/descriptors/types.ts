@@ -312,6 +312,19 @@ export interface DocumentFieldDescriptor {
   /** 'select': the choices offered. */
   options?: { value: string; label: string }[];
   /**
+   * 'select' only: additional values the VALIDATOR (field-kinds.ts) still accepts, but the frontend
+   * never renders as a choice — backward compatibility for a value ALREADY PERSISTED under a
+   * convention this field's `options` no longer offers going forward, never a second list of
+   * user-facing choices. Introduced for `usesVatRateCatalog` fields (`vat-rates/registry.ts
+   * #vatRateFieldOptions`'s own header): `options` now carries each rate's stable `id` as its
+   * `value` — the ONLY way to keep two same-percentage rates (Italy's 0% "esente" and "non
+   * imponibile") distinguishable in a dropdown — but every invoice line saved BEFORE that change
+   * stored the bare percentage itself (e.g. "20") as `vatRate`; re-opening (or merely re-validating on
+   * a "send" retry) one of those must not suddenly 400 on a value the descriptor's own catalog used to
+   * accept. Absent for every field that never needed this migration.
+   */
+  legacyOptions?: { value: string; label: string }[];
+  /**
    * 'select' only: whether a value NOT among `options` is still accepted — but ONLY when `options`
    * is itself EMPTY, never as a way to bypass a known, non-empty list. This is the escape hatch for
    * "no known catalog for this field at all" (see vat-rates/ and descriptors/company-view.ts, which

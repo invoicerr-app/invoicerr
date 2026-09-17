@@ -160,7 +160,11 @@ import { getIdentifier } from '@/utils/entity-identifiers';
 
 import { DocumentTotals } from '../../totals/compute-totals';
 import { TaxCategoryCode } from '../../tax/types';
-import { resolveInvoiceNotes, toUblNote } from '../../mentions/invoice-notes';
+import {
+  resolveInvoiceNotes,
+  toUblNote,
+  UnresolvedInvoiceNotePlaceholderError,
+} from '../../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../../mentions/registry';
 import { resolveFrenchBusinessProcessCode } from './business-process';
 import { SupplyType } from './supply-type';
@@ -604,10 +608,25 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   // about the SELLER's own jurisdiction, never the buyer's. `input.issueDate` is a plain "yyyy-mm-dd"
   // string (`SemanticInvoiceInput`'s own doc comment) — `new Date(...)` parses it at midnight UTC,
   // the exact instant the mention must be frozen to, never the moment this bridge happens to run.
-  const legalMentionNotes = resolveInvoiceNotes(
-    defaultMentionsCatalog.fileFor(sellerCountryCode),
-    new Date(input.issueDate),
-  ).map(toUblNote);
+  // A mention whose own placeholder cannot be resolved for `input.issueDate`
+  // (`mentions/invoice-notes.ts#UnresolvedInvoiceNotePlaceholderError` — no catalog value covers this
+  // date, e.g. a pre-2026 French invoice against `lateFeeRate`, or a maintenance lapse past the
+  // catalog's own last dated window) is a DATA problem, not a builder bug — re-thrown as THIS file's
+  // own `SemanticBuildError` (never left to surface as a bare crash) so it gets the exact same 400
+  // treatment `documents.service.ts`'s own `downloadDocumentFormat` already gives every other named
+  // hard block this function can throw (an unresolved buyer/seller country, above).
+  let legalMentionNotes: string[];
+  try {
+    legalMentionNotes = resolveInvoiceNotes(
+      defaultMentionsCatalog.fileFor(sellerCountryCode),
+      new Date(input.issueDate),
+    ).map(toUblNote);
+  } catch (error) {
+    if (error instanceof UnresolvedInvoiceNotePlaceholderError) {
+      throw new SemanticBuildError(error.message);
+    }
+    throw error;
+  }
 
   // Cross-border tax — the tax engine's OWN mentions (reverse charge, intra-
   // Community supply, export, …), appended through the EXACT SAME `toUblNote` encoding as the

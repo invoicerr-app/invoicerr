@@ -12,6 +12,8 @@ import { RawAuthorityEvent } from './authority-status-poller';
 import {
   createAuthorityEvents,
   findConformitySweepCandidates,
+  findDocumentByTransportRef,
+  findOwnedDocumentByTransportRef,
   journalSyntheticEvent,
   listAuthorityEvents,
 } from './authority-events.persistence';
@@ -20,13 +22,13 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     documentAuthorityEvent: { createMany: jest.fn(), findMany: jest.fn() },
-    documentInstance: { findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    documentInstance: { findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   documentAuthorityEvent: { createMany: jest.Mock; findMany: jest.Mock };
-  documentInstance: { findMany: jest.Mock; update: jest.Mock; updateMany: jest.Mock };
+  documentInstance: { findFirst: jest.Mock; findMany: jest.Mock; update: jest.Mock; updateMany: jest.Mock };
 };
 
 /** A tiny in-memory stand-in for Postgres's own `@@unique([documentId, providerId, statusCode])` +
@@ -213,5 +215,74 @@ describe('the document lifecycle status never moves because of a conformity writ
     await journalSyntheticEvent('company-1', 'doc-1', 'pdp', 'poll:gave-up', 'too old');
     expect(mockedPrisma.documentInstance.update).not.toHaveBeenCalled();
     expect(mockedPrisma.documentInstance.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("findDocumentByTransportRef — CROSS-TENANT by construction, for SdI's own SOAP push", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('resolves by (channelProviderId, transportRef) ALONE — no companyId in the WHERE clause at all', async () => {
+    mockedPrisma.documentInstance.findFirst.mockResolvedValue({
+      id: 'doc-1',
+      companyId: 'company-1',
+      typeId: 'invoice',
+    });
+
+    await findDocumentByTransportRef('sdi', 'IT01234567890_00001.xml');
+
+    expect(mockedPrisma.documentInstance.findFirst).toHaveBeenCalledWith({
+      where: { channelProviderId: 'sdi', transportRef: 'IT01234567890_00001.xml' },
+      select: { id: true, companyId: true, typeId: true },
+    });
+  });
+
+  it('null for an unknown ref — never throws', async () => {
+    mockedPrisma.documentInstance.findFirst.mockResolvedValue(null);
+    await expect(findDocumentByTransportRef('sdi', 'unknown')).resolves.toBeNull();
+  });
+});
+
+// THE MUTATION TARGET: `pec-notifiche.service.ts` used to call `findDocumentByTransportRef` — the
+// CROSS-TENANT variant above — even though it already knows exactly which company's own mailbox it
+// is draining. This is the scoped sibling that closes that gap.
+describe('findOwnedDocumentByTransportRef — scoped by companyId, for a caller that already knows it', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('includes companyId in the WHERE clause alongside channelProviderId/transportRef', async () => {
+    mockedPrisma.documentInstance.findFirst.mockResolvedValue({
+      id: 'doc-1',
+      companyId: 'company-1',
+      typeId: 'invoice',
+    });
+
+    await findOwnedDocumentByTransportRef('company-1', 'sdi-pec', 'IT01234567890_00001.xml');
+
+    expect(mockedPrisma.documentInstance.findFirst).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        channelProviderId: 'sdi-pec',
+        transportRef: 'IT01234567890_00001.xml',
+      },
+      select: { id: true, companyId: true, typeId: true },
+    });
+  });
+
+  it('null when a document with this ref exists but belongs to a DIFFERENT company — never leaks it as a match', async () => {
+    // A real Prisma call scoped by `companyId` in its own WHERE clause would simply find no row for
+    // "company-2" when the only matching row belongs to "company-1" — modeled here by the mock
+    // returning null, the same shape a real cross-tenant miss would produce.
+    mockedPrisma.documentInstance.findFirst.mockResolvedValue(null);
+
+    const result = await findOwnedDocumentByTransportRef('company-2', 'sdi-pec', 'IT01234567890_00001.xml');
+
+    expect(result).toBeNull();
+    expect(mockedPrisma.documentInstance.findFirst).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-2',
+        channelProviderId: 'sdi-pec',
+        transportRef: 'IT01234567890_00001.xml',
+      },
+      select: { id: true, companyId: true, typeId: true },
+    });
   });
 });

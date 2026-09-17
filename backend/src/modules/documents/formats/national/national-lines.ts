@@ -25,6 +25,15 @@ export interface NationalLine {
   /** Discounted net, in MINOR units — `compute-totals.ts`'s own output, never recalculated. */
   netMinor: number;
   vatRatePercent: number | null;
+  /** The RAW, as-stored `vatRate` field value for this line — the catalog `id`
+   *  (`vat-rates/registry.ts#vatRateFieldOptions`'s own header, e.g. "it-esente") a fresh document
+   *  now carries, or the bare legacy percentage string an older one still does. `vatRatePercent`
+   *  above is already the resolved NUMBER either way; this is kept alongside it, verbatim and
+   *  unresolved, for a national provider that needs to know WHICH catalog entry was actually picked
+   *  — not merely its percentage — because two entries can share one (`fatturapa-provider.ts
+   *  #mapNatura`, Italy's `it-esente` vs. `it-non-imponibile`, both 0%). `undefined` for a row with
+   *  no usable value at all, same condition `vatRatePercent` itself being `null` already covers. */
+  rawVatRate: string | undefined;
   vatMinor: number;
   grossMinor: number;
 }
@@ -41,6 +50,7 @@ export function extractNationalLines(data: Record<string, unknown>, totals: Docu
       unitPrice: typeof row.unitPrice === 'number' ? row.unitPrice : 0,
       netMinor: lineTotal.netMinor,
       vatRatePercent: lineTotal.vatRatePercent,
+      rawVatRate: typeof row.vatRate === 'string' ? row.vatRate : undefined,
       vatMinor: lineTotal.vatMinor,
       grossMinor: lineTotal.grossMinor,
     };

@@ -26,6 +26,25 @@ export class CountryReadinessController {
     return { countryCodes: this.countryReadinessService.listFullySupportedCountries() };
   }
 
+  // Static, before the dynamic ':countryCode' route below — same ordering discipline as
+  // 'fully-supported' above, and for the identical reason.
+  @Get('mention-window-alerts')
+  @ApiOperation({
+    summary: 'Legal mentions whose interpolated value table is about to stop covering new invoices',
+    description:
+      'One entry per (country, placeholder) whose `documents/mentions/data/*.json` value table has ' +
+      'every window bounded (no open-ended entry) and its latest `validTo` within 90 days — or ' +
+      'already past. Once that date is reached, `mentions/invoice-notes.ts` refuses to build the ' +
+      'mention at all (a named 400, never a printed "{token}") for every invoice in that country — ' +
+      'this is the advance warning meant to prevent that from ever being a surprise. Not scoped by ' +
+      '@ActiveCompany(): this is an operational fact about the catalog itself, not about any one ' +
+      "company's data.",
+  })
+  @ApiResponse({ status: 200, description: 'Mention window alerts computed' })
+  getMentionWindowAlerts() {
+    return { alerts: this.countryReadinessService.getMentionWindowAlerts() };
+  }
+
   @Get(':countryCode')
   @ApiOperation({
     summary: 'Whether a country has every core compliance mechanism wired',

@@ -415,4 +415,61 @@ describe('computeDocumentTotals', () => {
       expect(result.netMinor).toBeGreaterThanOrEqual(0);
     });
   });
+
+  // THE MUTATION TARGET: `vat-rates/registry.ts#vatRateFieldOptions` now stores each rate's own
+  // stable catalog id as the field's value (e.g. "it-esente"), never a bare percentage — and MOST
+  // real callers of `computeDocumentTotals` (accounting-export, reminders, bank-reconciliation,
+  // settlement…) reuse the bare, country-BLIND `INVOICE_DESCRIPTOR` singleton, whose own `vatRate`
+  // field declares `options: []` — never the per-company view that would carry those options at all.
+  // `Number("it-esente")` is `NaN`; without a fix this would have counted every such line in NET
+  // ONLY, silently dropping its VAT — proven here against the REAL shipped catalog id, not a
+  // synthetic one, so this only ever tests what a real Italian invoice line actually stores.
+  describe('a VAT-rate value that is a real catalog id (vat-rates/registry.ts), not a bare percentage', () => {
+    it('resolves "it-esente" (0%, EXEMPT) to a real, non-null 0% rate — even with an EMPTY options array on the field', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Consulenza medica', quantity: 1, unitPrice: 100, vatRate: 'it-esente' }],
+      });
+
+      expect(result.lines[0].vatRatePercent).toBe(0);
+      expect(result.warnings).toEqual([]);
+      expect(result.netMinor).toBe(10000);
+      expect(result.vatMinor).toBe(0);
+      expect(result.grossMinor).toBe(10000);
+    });
+
+    it('resolves "it-non-imponibile" (also 0%, but a DIFFERENT regime/id) the same way — both Italian 0% ids compute identically, never confused with a missing rate', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Esportazione', quantity: 1, unitPrice: 100, vatRate: 'it-non-imponibile' }],
+      });
+
+      expect(result.lines[0].vatRatePercent).toBe(0);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('resolves a NON-zero real catalog id (fr-standard, 20%) to its own percentage too — not only the zero-rate ids', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Conseil', quantity: 1, unitPrice: 100, vatRate: 'fr-standard' }],
+      });
+
+      expect(result.lines[0].vatRatePercent).toBe(20);
+      expect(result.vatMinor).toBe(2000);
+    });
+
+    it('a value that matches NO real catalog id still falls back to plain numeric parsing — legacy documents unaffected', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20' }],
+      });
+
+      expect(result.lines[0].vatRatePercent).toBe(20);
+      expect(result.warnings).toEqual([]);
+    });
+  });
 });

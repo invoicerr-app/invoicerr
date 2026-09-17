@@ -76,6 +76,7 @@ import { fromMinor } from '@/utils/financial';
 import { DocumentInstanceResult } from '../../actions/action-registry';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
+import { defaultVatRateCatalog, findVatRateById } from '../../vat-rates/registry';
 import { toDateOnly } from '../shared-build';
 import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from '../format-provider';
 import { validateXsd } from '../vendored/validate-xsd';
@@ -126,8 +127,28 @@ const EU_CC = [
   'SE',
 ]; // prettier-ignore
 
-function mapNatura(vatRate: number, clientCountry: string, clientVatId: string): string | undefined {
+/**
+ * `rawVatRate` — the RAW, as-stored `vatRate` field value (`national-lines.ts#NationalLine
+ * .rawVatRate`'s own header) — is checked FIRST, before falling back to the pre-existing
+ * client-country heuristic: two Italian catalog entries share the exact SAME 0% (`vat-rates/data/
+ * it.json`'s own `it-esente`/`it-non-imponibile`), and only the rate's own `id` can tell them apart —
+ * the bare `vatRate` NUMBER this function used to receive alone genuinely cannot. `findVatRateById`
+ * is country-independent (every shipped id is globally unique), so no extra "is this seller Italian"
+ * check is needed before trying it: a non-Italian seller's own rate ids (e.g. "fr-standard") simply
+ * never match `it-esente`/`it-non-imponibile` and fall through unchanged.
+ */
+function mapNatura(
+  vatRate: number,
+  rawVatRate: string | undefined,
+  clientCountry: string,
+  clientVatId: string,
+): string | undefined {
   if (vatRate > 0) return undefined;
+
+  const catalogRate = rawVatRate ? findVatRateById(defaultVatRateCatalog, rawVatRate) : undefined;
+  if (catalogRate?.id === 'it-non-imponibile') return 'N3';
+  if (catalogRate?.id === 'it-esente') return 'N4';
+
   const cc = (clientCountry || '').slice(0, 2).toUpperCase();
   if (cc !== 'IT' && EU_CC.includes(cc) && clientVatId) return 'N6';
   return 'N2';
@@ -155,7 +176,7 @@ function buildDettaglioLinea(
   clienteVatId: string,
 ) {
   const rate = line.vatRatePercent ?? 0;
-  const natura = mapNatura(rate, clienteVatCountry, clienteVatId);
+  const natura = mapNatura(rate, line.rawVatRate, clienteVatCountry, clienteVatId);
   return {
     NumeroLinea: line.index + 1,
     Descrizione: line.description,
@@ -166,7 +187,13 @@ function buildDettaglioLinea(
     // close — see this file's own header).
     PrezzoTotale: fmtAmount(fromMinor(line.netMinor, currency), 8),
     AliquotaIVA: fmtRate(rate),
-    ...(natura ? { Natura: natura, RiferimentoNormativo: riferimentoNormativo(natura) } : {}),
+    // `RiferimentoNormativo` is DELIBERATELY absent here — `DettaglioLineeType` (the vendored
+    // `Schema_VFPR12.xsd`, `AliquotaIVA, Ritenuta?, Natura?, RiferimentoAmministrazione?,
+    // AltriDatiGestionali*`) has NO such element at all; only `DatiRiepilogoType` (the summary,
+    // `riepilogoList` below) does. Emitting it here was a LATENT bug this file carried since it was
+    // reprised — never caught because no fixture before this Natura-driving change ever exercised a
+    // 0%-rate line at all (see this file's own header, "Provenance").
+    ...(natura ? { Natura: natura } : {}),
   };
 }
 
@@ -237,14 +264,34 @@ async function build(
   }
 
   // ── DatiRiepilogo: grouped by VAT rate, from totals.vatBreakdown (never recomputed) ───────────
+  // `vatBreakdown` groups strictly by NUMERIC percentage, never by catalog id — a seller mixing
+  // `it-esente` AND `it-non-imponibile` lines (both 0%) on the SAME invoice would fold them into ONE
+  // bucket here, which cannot honestly carry two different Natura codes at once. Picking the FIRST
+  // contributing line's own `rawVatRate` for this bucket is exactly right for the overwhelmingly
+  // common case (a whole invoice uses ONE regime, not a mix) and never worse than the pre-existing
+  // client-only heuristic `mapNatura` falls back to when no line matches or the value is not a
+  // catalog id at all.
   const riepilogoList = totals.vatBreakdown.map((entry) => {
-    const natura = mapNatura(entry.ratePercent, clienteVatCountry, clienteVatId);
+    const representativeLine = lines.find((line) => line.vatRatePercent === entry.ratePercent);
+    const natura = mapNatura(
+      entry.ratePercent,
+      representativeLine?.rawVatRate,
+      clienteVatCountry,
+      clienteVatId,
+    );
     return {
       AliquotaIVA: fmtRate(entry.ratePercent),
+      // `DatiRiepilogoType` (the vendored `Schema_VFPR12.xsd`) declares its own element sequence as
+      // `AliquotaIVA, Natura?, SpeseAccessorie?, Arrotondamento?, ImponibileImporto, Imposta,
+      // EsigibilitaIVA?, RiferimentoNormativo?` — `Natura` sits right after `AliquotaIVA`, and
+      // `RiferimentoNormativo` is the VERY LAST element, after `EsigibilitaIVA`, never grouped
+      // together with `Natura` at the end the way this object used to place them (a second half of
+      // the SAME latent element-order bug `buildDettaglioLinea` above carried).
+      ...(natura ? { Natura: natura } : {}),
       ImponibileImporto: fmtAmount(fromMinor(entry.baseMinor, currency), 2),
       Imposta: fmtAmount(fromMinor(entry.vatMinor, currency), 2),
       EsigibilitaIVA: 'I' as const,
-      ...(natura ? { Natura: natura, RiferimentoNormativo: riferimentoNormativo(natura) } : {}),
+      ...(natura ? { RiferimentoNormativo: riferimentoNormativo(natura) } : {}),
     };
   });
 

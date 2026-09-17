@@ -6,6 +6,8 @@ import { ALL_COUNTRY_IDENTIFIER_FILES } from '@/modules/documents/country-identi
 import { ALL_TAX_SYSTEM_FILES } from '@/modules/documents/tax/tax-systems/data/all';
 import { ALL_VAT_RATE_FILES } from '@/modules/documents/vat-rates/data/all';
 import { ALL_CHANNEL_POLICY_FILES } from '@/modules/documents/transports/channel-policy/data/all';
+import { ALL_MENTIONS_FILES } from '@/modules/documents/mentions/data/all';
+import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions/schema';
 
 /**
  * The six CŒUR mechanisms a country needs to be "complete" — a business decision, NOT something
@@ -131,6 +133,88 @@ export const ALL_DOCUMENT_CATALOG_DIRS: readonly string[] = [
   ...EXCLUDED_CATALOG_DIRS,
 ];
 
+/** How far ahead a bounded `noteValues` window's own coverage horizon is allowed to sit before it
+ *  becomes an alert — see `computeMentionWindowAlerts`'s own header for what "coverage horizon" means. */
+const MENTION_WINDOW_ALERT_THRESHOLD_DAYS = 90;
+
+export interface MentionWindowAlert {
+  /** ISO 3166-1 alpha-2, uppercase — the mentions file this window belongs to. */
+  countryCode: string;
+  /** The `noteValues` key this window interpolates into a mention's own `{placeholder}` (e.g.
+   *  "lateFeeRate") — matches `mentions/schema.ts#CountryMentionsFile.noteValues`'s own keys. */
+  field: string;
+  /** The LATEST `validTo` across this field's own value table — the point past which NO entry covers
+   *  an invoice's issue date at all (see this function's own header). */
+  expiresOn: string;
+  /** Negative once the window has ALREADY closed with nothing yet covering it — a maintenance lapse
+   *  already in effect today, not merely approaching. Never rounded up: an alert that reads "1 day
+   *  left" when there are in fact 18 hours left is the wrong direction to be optimistic in. */
+  daysRemaining: number;
+}
+
+/**
+ * Turns a `documents/mentions/data/*.json` file that WILL (or already does) leave a mention's own
+ * `{placeholder}` unresolved into an operational alert — see `mentions/invoice-notes.ts`'s own
+ * `UnresolvedInvoiceNotePlaceholderError` for what happens the day this actually lapses: every
+ * invoice for that country hard-refuses to build (`build-semantic-invoice.ts`/`render-instance-pdf.ts`
+ * both convert it to a named 400), never a silently-printed `{token}` — but a hard 400 on every
+ * invoice in a jurisdiction is still a real outage, and the WHOLE point of an alert like this one is
+ * that it must never be the first anyone hears of it. "Pas de panne silencieuse programmée."
+ *
+ * A field's own value table (`TemporalValue[]`) has a genuine coverage GAP coming only when EVERY
+ * entry in it is itself bounded (`validTo` set) — the moment even ONE entry is open-ended (no
+ * `validTo` at all), that field is covered indefinitely and this function has nothing to warn about
+ * for it, regardless of what any OTHER, earlier-ending entry might suggest (an earlier bounded window
+ * immediately followed by a later one — or by an open-ended one — is not a gap, it is ordinary
+ * scheduled maintenance already done). When every entry IS bounded, the field's own "coverage
+ * horizon" is the LATEST `validTo` among them — this deliberately does not attempt to detect an
+ * INTERNAL gap between two non-contiguous bounded windows (every catalog shipped today keeps its own
+ * windows contiguous by convention — see e.g. `mentions/data/fr.json`'s own "TO BE MAINTAINED TWICE A
+ * YEAR" note — so the one gap that actually matters in practice is always the trailing one).
+ *
+ * Returns one alert per (country, field) whose horizon is within `MENTION_WINDOW_ALERT_THRESHOLD_DAYS`
+ * of `now` — INCLUDING a horizon already in the past (`daysRemaining` negative): a lapse that already
+ * happened is a stronger, not a weaker, reason to alert. `now` is an explicit parameter (never read as
+ * `new Date()` deep inside a loop) purely so this stays trivially testable against a fixed clock — it
+ * is NOT the same "freeze at issue date" clock discipline `resolveInvoiceNotes` itself holds (that one
+ * judges a SPECIFIC document; this one judges the CATALOG's own health today, which is inherently
+ * about "today").
+ *
+ * `files` defaults to the real shipped catalog (`ALL_MENTIONS_FILES`) — overridable so a spec can feed
+ * a synthetic fixture and assert this function's own edge cases (an exactly-at-threshold horizon, an
+ * already-past one, an open-ended table) without depending on whatever dates happen to be in
+ * `mentions/data/fr.json` on the day the spec runs, the same `files = ALL_*_FILES` default-parameter
+ * testability pattern `vat-rates/registry.ts#VatRateCatalog`'s own constructor already holds.
+ */
+export function computeMentionWindowAlerts(
+  now: Date = new Date(),
+  files: readonly Pick<CountryMentionsFile, 'countryCode' | 'noteValues'>[] = ALL_MENTIONS_FILES,
+): MentionWindowAlert[] {
+  const alerts: MentionWindowAlert[] = [];
+  for (const file of files) {
+    for (const [field, entries] of Object.entries(file.noteValues ?? {}) as [string, TemporalValue[]][]) {
+      if (entries.length === 0) continue;
+      if (entries.some((entry) => !entry.validTo)) continue;
+
+      const boundedEntries = entries as Array<TemporalValue & { validTo: string }>;
+      const horizon = boundedEntries.reduce(
+        (latest, entry) => (entry.validTo > latest ? entry.validTo : latest),
+        boundedEntries[0].validTo,
+      );
+      const daysRemaining = Math.floor((new Date(horizon).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      if (daysRemaining <= MENTION_WINDOW_ALERT_THRESHOLD_DAYS) {
+        alerts.push({
+          countryCode: file.countryCode.toUpperCase(),
+          field,
+          expiresOn: horizon,
+          daysRemaining,
+        });
+      }
+    }
+  }
+  return alerts;
+}
+
 export interface CountryReadiness {
   /** Always uppercased, regardless of the casing the caller queried with. */
   countryCode: string;
@@ -174,5 +258,13 @@ export class CountryReadinessService {
     if (!first) return [];
     const fullySupported = [...first].filter((code) => rest.every((codes) => codes.has(code)));
     return fullySupported.sort();
+  }
+
+  /** Thin DI-friendly wrapper — see the free `computeMentionWindowAlerts` function's own header for the
+   *  full "why". Kept as a standalone function (not only a method) so it stays trivially importable
+   *  from a spec or a sweep with no `CountryReadinessService` instance needed, the same split this
+   *  file's own module-level `ALL_DOCUMENT_CATALOG_DIRS` already draws for the SAME reason. */
+  getMentionWindowAlerts(now: Date = new Date()): MentionWindowAlert[] {
+    return computeMentionWindowAlerts(now);
   }
 }

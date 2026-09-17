@@ -25,10 +25,18 @@
  *    (queue/__tests__/document-action-queue.redis.spec.ts) caught in practice, not a theoretical one.
  *    Only once numbered does this enqueue a document-action job for this SAME action and return.
  *    Nothing is delivered yet.
- *  - called with the record already "sending" — this only ever happens via
+ *  - called with the record already "sending" — the INTENDED caller is
  *    queue/processors/document-action.processor.ts replaying the job through `runAction`, never a
  *    normal user click (the frontend hides an in-flight record's actions — see
- *    document-list.tsx's own `isProcessing` check): runs `deliver()`. A thrown error propagates
+ *    document-list.tsx's own `isProcessing` check). But this action's own `availableWhen` is DERIVED
+ *    from `transitions` (descriptors/lifecycle.ts's own header) and has to include "sending" for that
+ *    worker replay to be allowed through `documents.service.ts#runAction`'s own status gate AT ALL —
+ *    which means a SECOND, genuinely external caller (a double-click, a second browser tab, an HTTP
+ *    client retrying after a timeout, an API-key integration) passes the exact same gate and reaches
+ *    this exact branch too. A hidden-in-the-frontend action is a UI courtesy, not a server-side
+ *    guarantee — this branch runs `deliver()` for whichever caller wins the in-process claim just
+ *    below (`inFlightDeliveries`), and refuses every other one with a named, loud `ConflictException`
+ *    rather than silently delivering twice. A thrown error from `deliver()` itself still propagates
  *    UNCAUGHT — never caught and turned into "send_failed" here, so BullMQ's own retry/backoff gets
  *    to run first. Only queue/mark-send-failed.ts, once every retry is exhausted, records
  *    "send_failed" — see that file's own header for why that is a deliberately SEPARATE path.
@@ -38,6 +46,8 @@
  * (credit-note-actions.ts) nothing at all — a plain status transition with no transport, no email,
  * exactly as before the async model, just reached one hop later.
  */
+import { ConflictException } from '@nestjs/common';
+
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import { DocumentInstanceResult, ActionResult } from './action-registry';
@@ -47,11 +57,30 @@ import { logger } from '@/logger/logger.service';
 import { TakenDocumentNumber } from '../numbering/sequence';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
-import { findOwnedDocument, updateDocumentStatus, upsertDocument } from '../persistence';
+import {
+  claimDocumentTransition,
+  findOwnedDocument,
+  updateDocumentStatus,
+  upsertDocument,
+} from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { reportOnSendIfObligated } from '../reporting/report-on-send';
+
+/**
+ * The IN-PROCESS fast path for the double-delivery guard below — a `Set` of
+ * `companyId:typeId:documentId` keys currently claimed for delivery in THIS process. Checked FIRST,
+ * before ever reaching the database, so the overwhelmingly common case (a genuine duplicate landing on
+ * the SAME process — the default `WORKER_INLINE=true` topology, where the API and the BullMQ worker
+ * share one process) is refused with no round trip at all. This is a SHORT-CIRCUIT, never the actual
+ * guarantee: the real one is `persistence.ts#claimDocumentTransition`'s database-level compare-and-swap
+ * (see its own header), which is what closes the gap this `Set` cannot — a horizontally-scaled
+ * deployment (`WORKER_INLINE=false`, `docker-compose.scale.yml`, or either role replicated by a Helm
+ * chart) runs the API and worker as SEPARATE processes, each holding its OWN `Set`, blind to the
+ * other's claim, but every one of them shares the SAME `DocumentInstance` row.
+ */
+const inFlightDeliveries = new Set<string>();
 
 export interface AsyncSendDeliverContext {
   companyId: string;
@@ -200,14 +229,76 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   const existing = await findOwnedDocument(companyId, typeId, documentId);
 
   if (existing.status === 'sending') {
-    const { message, reference, providerId, artifacts } = await deliver({
+    // THE DOUBLE-DELIVERY GUARD — see this file's own header ("inFlightDeliveries") for the full
+    // scope/limits: this branch is reached BOTH by the worker's legitimate replay AND by a second,
+    // concurrent/duplicate "send" call landing on an already-"sending" record (a double-click, a
+    // second browser tab, a client retrying after an HTTP timeout — this action's own `availableWhen`
+    // has to include "sending" for the worker's replay to reach this branch at all, so a second HUMAN
+    // call passes the exact same `isActionAvailable` gate). Without this claim, both callers would
+    // call `deliver()` — a second REAL deposit/email, not a theoretical one.
+    const claimKey = `${companyId}:${typeId}:${documentId}`;
+    // Checked AND claimed in the SAME synchronous stretch, with no `await` in between: an `await`
+    // between `.has()` and `.add()` would reopen exactly the race this guard exists to close (two
+    // concurrent calls both observing an empty `Set` before either one adds itself) the moment the
+    // very next line's database round trip suspends this function. Released again just below if the
+    // database claim itself is refused — the in-process slot must never stay reserved for a caller the
+    // database says lost.
+    if (inFlightDeliveries.has(claimKey)) {
+      throw new ConflictException(
+        `Document "${documentId}" is already being delivered — refusing to send it a second time ` +
+          'concurrently.',
+      );
+    }
+    inFlightDeliveries.add(claimKey);
+
+    // THE CROSS-PROCESS GUARANTEE — see `persistence.ts#claimDocumentTransition`'s own header for why
+    // `existing.updatedAt` (read a moment ago, right above) makes this a genuine compare-and-swap even
+    // though `fromStatuses`/`toStatus` are both "sending" here (no actual status value changes: this is
+    // a RE-claim of an already-"sending" row, never a real transition). `0` means someone else — in
+    // this process or another one entirely — already holds the claim; `deliver()` must never run.
+    const claimedRows = await claimDocumentTransition(
       companyId,
       typeId,
       documentId,
-      document: existing,
-      data,
-      params,
-    });
+      ['sending'],
+      existing.updatedAt,
+      'sending',
+    );
+    if (claimedRows === 0) {
+      inFlightDeliveries.delete(claimKey);
+      throw new ConflictException(
+        `Document "${documentId}" is already being delivered — refusing to send it a second time ` +
+          'concurrently.',
+      );
+    }
+
+    let delivered: Awaited<ReturnType<AsyncSendDeliver>>;
+    try {
+      delivered = await deliver({
+        companyId,
+        typeId,
+        documentId,
+        document: existing,
+        data,
+        params,
+      });
+    } catch (error) {
+      // Released ONLY here, on a `deliver()` failure — releasing immediately (rather than after some
+      // cooldown) is what lets a legitimate BullMQ retry — a genuinely failed attempt, e.g. a
+      // transient network error the transport itself surfaced — proceed right away instead of being
+      // wrongly told "already delivering" by its own predecessor's still-held claim.
+      inFlightDeliveries.delete(claimKey);
+      throw error;
+    }
+    const { message, reference, providerId, artifacts } = delivered;
+    // The claim is deliberately STILL HELD here, across this write: `deliver()` already succeeded
+    // (a real deposit/email may already be out), so if THIS write itself throws (a DB hiccup — see
+    // this file's own header, "(a)"), the honest state is "we do not know whether this was recorded",
+    // never "safe to blindly call deliver() again". Leaving the claim held makes a same-process retry
+    // fail loud (another `ConflictException`, eventually `send_failed` once BullMQ's own attempts are
+    // exhausted) rather than risking a second real submission — the claim is only ever cleared by this
+    // process ending (nothing to leak: the process is gone) or, once genuinely delivered, by the
+    // record leaving "sending" for good, the one status this guard applies to at all.
     const sent = await updateDocumentStatus(
       companyId,
       typeId,
@@ -217,6 +308,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       reference,
       providerId,
     );
+    inFlightDeliveries.delete(claimKey);
 
     // The fact is ACQUIRED right above (Postgres already holds
     // "sent"); publishing right after, before archive/reporting, is what lets a browser's own SSE

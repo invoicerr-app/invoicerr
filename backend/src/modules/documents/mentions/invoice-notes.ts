@@ -26,16 +26,47 @@ export interface ResolvedInvoiceNote {
   legalRef: string;
 }
 
-/** `{name}` → the value in force at `at`, or the placeholder left untouched when none is. */
-function interpolate(text: string, values: Record<string, TemporalValue[]> | undefined, at: Date): string {
-  return text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+/**
+ * Thrown by `interpolate` (and so by `resolveInvoiceNotes`) when a mention's own `{placeholder}`
+ * has no value in force for the date it is being resolved for — an invoice issued before its value
+ * table's own earliest `validFrom` (e.g. a pre-2012 date against `recoveryIndemnity`'s table, which
+ * only starts there), or on/after its last window's `validTo` because nobody has entered the NEXT
+ * one yet (see `mentions/data/fr.json`'s own `lateFeeRate` header on the semi-annual ECB check this
+ * is what makes fail loudly rather than silently). Named so a caller can tell this apart from any
+ * other error and turn it into an actionable 400/send-refusal (the same "a named hard block, never a
+ * generic throw" posture `tax/resolve-invoice-tax.ts`'s own `isInvoiceTaxBlockError` siblings hold)
+ * rather than a document quietly printing the raw `{token}` on a legally mandated mention — the bug
+ * this type exists to make impossible: printing "{lateFeeRate}" ON THE INVOICE ITSELF is not a
+ * degraded rendering, it is a broken legal document that reads as though the software is broken,
+ * because it is.
+ */
+export class UnresolvedInvoiceNotePlaceholderError extends Error {}
+
+/** `{name}` → the value in force at `at` — throws `UnresolvedInvoiceNotePlaceholderError` (never
+ *  silently leaves the raw `{name}` token in place) when the value table is absent, empty, or simply
+ *  has no window covering `at`. */
+function interpolate(
+  text: string,
+  values: Record<string, TemporalValue[]> | undefined,
+  at: Date,
+  legalRef: string,
+): string {
+  return text.replace(/\{(\w+)\}/g, (_whole, name: string) => {
     const table = values?.[name];
-    if (!table?.length) return whole;
-    const hit = pickByDate(
-      table.map((t) => ({ validFrom: t.validFrom, validTo: t.validTo, value: t.value })),
-      at,
-    );
-    return hit ?? whole;
+    const hit = table?.length
+      ? pickByDate(
+          table.map((t) => ({ validFrom: t.validFrom, validTo: t.validTo, value: t.value })),
+          at,
+        )
+      : null;
+    if (hit == null) {
+      throw new UnresolvedInvoiceNotePlaceholderError(
+        `Mention "${legalRef}" declares the placeholder "{${name}}", but no value is in force for it ` +
+          `on ${at.toISOString().slice(0, 10)} — refusing to print the raw template token on a legally ` +
+          'mandated mention.',
+      );
+    }
+    return hit;
   });
 }
 
@@ -54,7 +85,7 @@ export function resolveInvoiceNotes(file: CountryMentionsFile | undefined, at: D
 
   return rules.map((r) => ({
     subjectCode: r.subjectCode,
-    text: interpolate(r.text, file?.noteValues, at),
+    text: interpolate(r.text, file?.noteValues, at, r.legalRef),
     legalRef: r.legalRef,
   }));
 }

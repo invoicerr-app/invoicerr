@@ -8,7 +8,14 @@ import { ALL_TAX_SYSTEM_FILES } from '@/modules/documents/tax/tax-systems/data/a
 import { ALL_VAT_RATE_FILES } from '@/modules/documents/vat-rates/data/all';
 import { ALL_CHANNEL_POLICY_FILES } from '@/modules/documents/transports/channel-policy/data/all';
 
-import { ALL_DOCUMENT_CATALOG_DIRS, CountryReadinessService } from './country-readiness.service';
+import { ALL_MENTIONS_FILES } from '@/modules/documents/mentions/data/all';
+import { CountryMentionsFile } from '@/modules/documents/mentions/schema';
+
+import {
+  ALL_DOCUMENT_CATALOG_DIRS,
+  computeMentionWindowAlerts,
+  CountryReadinessService,
+} from './country-readiness.service';
 
 /**
  * Deliberately re-derives its expectations from the SAME `ALL_*_FILES` exports the service itself
@@ -173,6 +180,73 @@ describe('CountryReadinessService', () => {
     const [anyKnownCode] = [...allKnownCountryCodes()];
     expect(service.getReadiness(anyKnownCode.toLowerCase())).toEqual(service.getReadiness(anyKnownCode));
     expect(service.getReadiness(`  ${anyKnownCode}  `)).toEqual(service.getReadiness(anyKnownCode));
+  });
+
+  describe('computeMentionWindowAlerts', () => {
+    // A synthetic fixture (never the real fr.json) so these assertions never depend on whatever
+    // dates happen to be shipped on the day this spec runs — see the function's own header on why
+    // `files` is an overridable parameter for exactly this reason.
+    const fixture: Pick<CountryMentionsFile, 'countryCode' | 'noteValues'>[] = [
+      {
+        countryCode: 'fr', // lowercase on purpose — proves the alert's own countryCode is normalized.
+        noteValues: {
+          // Every window bounded, latest one ends soon — MUST alert.
+          lateFeeRate: [
+            { validFrom: '2026-01-01', validTo: '2026-07-01', value: '12,15 %' },
+            { validFrom: '2026-07-01', validTo: '2027-01-01', value: '12,40 %' },
+          ],
+          // Open-ended (no validTo on its one entry) — must NEVER alert, regardless of the date.
+          recoveryIndemnity: [{ validFrom: '2012-01-01', value: '40 €' }],
+        },
+      },
+      {
+        countryCode: 'DE',
+        noteValues: {
+          // Bounded, but its horizon is far in the future — must NOT alert yet.
+          farAway: [{ validFrom: '2026-01-01', validTo: '2030-01-01', value: 'x' }],
+        },
+      },
+    ];
+
+    it('alerts on a field whose every window is bounded and whose horizon is within 90 days', () => {
+      const alerts = computeMentionWindowAlerts(new Date('2026-11-01T00:00:00.000Z'), fixture);
+      expect(alerts).toContainEqual({
+        countryCode: 'FR',
+        field: 'lateFeeRate',
+        expiresOn: '2027-01-01',
+        daysRemaining: 61,
+      });
+    });
+
+    it('does NOT alert yet when the horizon is more than 90 days away', () => {
+      const alerts = computeMentionWindowAlerts(new Date('2026-08-01T00:00:00.000Z'), fixture);
+      expect(alerts.find((a) => a.countryCode === 'FR' && a.field === 'lateFeeRate')).toBeUndefined();
+      expect(alerts.find((a) => a.countryCode === 'DE' && a.field === 'farAway')).toBeUndefined();
+    });
+
+    it('alerts with a NEGATIVE daysRemaining once the horizon has already passed — a lapse already in effect', () => {
+      const alerts = computeMentionWindowAlerts(new Date('2027-06-01T00:00:00.000Z'), fixture);
+      const alert = alerts.find((a) => a.countryCode === 'FR' && a.field === 'lateFeeRate');
+      expect(alert).toBeDefined();
+      expect(alert!.daysRemaining).toBeLessThan(0);
+    });
+
+    it('never alerts on a field with at least one open-ended entry, no matter how far in the future "now" is', () => {
+      const alerts = computeMentionWindowAlerts(new Date('2099-01-01T00:00:00.000Z'), fixture);
+      expect(alerts.find((a) => a.field === 'recoveryIndemnity')).toBeUndefined();
+    });
+
+    it('defaults to the REAL shipped catalog when no fixture is passed', () => {
+      // Not asserting a specific date here (that would go stale the moment fr.json's own window is
+      // extended) — only that this call path actually reads ALL_MENTIONS_FILES, proven by comparing
+      // against a call that is handed the SAME real data explicitly.
+      const withDefault = computeMentionWindowAlerts(new Date('2026-11-01T00:00:00.000Z'));
+      const withExplicitRealFiles = computeMentionWindowAlerts(
+        new Date('2026-11-01T00:00:00.000Z'),
+        ALL_MENTIONS_FILES,
+      );
+      expect(withDefault).toEqual(withExplicitRealFiles);
+    });
   });
 
   describe('listFullySupportedCountries', () => {

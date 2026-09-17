@@ -17,14 +17,16 @@ function loadPt(): CountryVatRatesFile {
 describe('PT — vat-rates/data/pt.json', () => {
   const pt = loadPt();
 
-  it('declares countryCode PT with exactly three mainland (continente) rates — 23 / 13 / 6 — every one "legal"', () => {
+  it('declares countryCode PT with exactly four mainland (continente) rates — 23 / 13 / 6 / 0 (isento) — every one "legal"', () => {
     expect(pt.countryCode).toBe('PT');
     const rates = pt.rates.map((r) => r.rate).sort((a, b) => a - b);
-    expect(rates).toEqual([6, 13, 23]);
+    expect(rates).toEqual([0, 6, 13, 23]);
     for (const rate of pt.rates) {
       expect(rate.provenance.kind).toBe('legal');
       if (rate.provenance.kind === 'legal') {
-        expect(rate.provenance.sourceCheckedAt).toBe('2026-09-04');
+        // The three positive rates were checked 2026-09-04; pt-isento (see the dedicated describe
+        // block below) was added 2026-09-17.
+        expect(['2026-09-04', '2026-09-17']).toContain(rate.provenance.sourceCheckedAt);
       }
     }
   });
@@ -79,9 +81,30 @@ describe('PT — vat-rates/data/pt.json', () => {
     expect(r6.category).toBe('SUPER_REDUCED');
   });
 
-  it('no ZERO rate is modeled — CIVA art. 14.º qualifies exports as "isentas", never a literal "taxa de 0%"', () => {
+  it('no ZERO-category rate is modeled — CIVA never states a literal "taxa de 0%" for any regime, domestic or cross-border', () => {
     expect(pt.rates.some((r) => r.category === 'ZERO')).toBe(false);
     expect(pt.notes ?? '').toMatch(/isentas do imposto/);
+  });
+
+  // THE MUTATION TARGET: art. 9.º's DOMESTIC exemptions (medical services, credit operations,
+  // insurance, …) had no path onto a Portuguese invoice line at all before this entry existed — a
+  // 'select' field kind refuses any value outside this catalog's own options, and there was no "0"
+  // among them for Portugal.
+  describe('pt-isento (art. 9.º CIVA — domestic exemptions)', () => {
+    it('is category EXEMPT, sourced to art. 9.º CIVA, rate 0', () => {
+      const isento = pt.rates.find((r) => r.id === 'pt-isento')!;
+      expect(isento).toBeDefined();
+      expect(isento.rate).toBe(0);
+      expect(isento.category).toBe('EXEMPT');
+      if (isento.provenance.kind === 'legal') {
+        expect(isento.provenance.sourceText).toMatch(/Isenções nas operações internas/);
+        expect(isento.provenance.sourceText).toMatch(/Estão isentas do imposto/);
+      }
+    });
+
+    it('is distinct from the mainland-rate entries — the "select" field dropdown now offers "0" for Portugal', () => {
+      expect(String(pt.rates.find((r) => r.id === 'pt-isento')!.rate)).toBe('0');
+    });
   });
 
   it('the file-level notes documents CIVA art. 18.º n.º 3 delegating regional rates to Madeira/Açores, and the TEDB-sourced 22%/16% regional standard-equivalent rates, without modeling them as separate VatRateFact entries', () => {
@@ -90,6 +113,6 @@ describe('PT — vat-rates/data/pt.json', () => {
     expect(pt.notes ?? '').toMatch(/Azores Autonomous Region/);
     expect(pt.notes ?? '').toMatch(/22\.0/);
     expect(pt.notes ?? '').toMatch(/16\.0/);
-    expect(pt.rates.length).toBe(3);
+    expect(pt.rates.length).toBe(4);
   });
 });

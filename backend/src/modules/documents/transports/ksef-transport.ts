@@ -201,9 +201,15 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
 
       let sessionRef = '';
       let invoiceRef = '';
+      // Hoisted out of the `try` below (rather than `const`-declared inside it) so the
+      // `closeSession` call further down — deliberately OUTSIDE that same try/catch, see its own
+      // comment — can still reach it. Empty only if authentication itself never completed, in which
+      // case `sessionRef` is also still empty and `closeSession` is skipped entirely (nothing to
+      // close was ever opened).
+      let accessToken = '';
       try {
         logger.info('KSeF: authenticating', { category: 'documents', details: { companyId: ctx.companyId } });
-        const accessToken = await authenticate(ksefClient);
+        accessToken = await authenticate(ksefClient);
 
         logger.info('KSeF: opening online session', {
           category: 'documents',
@@ -219,10 +225,6 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
         });
         const invoiceResult = await ksefClient.sendInvoice(sessionRef, accessToken, xmlContent, sessionKey);
         invoiceRef = invoiceResult.referenceNumber ?? '';
-
-        // Close the session even though the transport never polls its outcome — an open session left
-        // dangling is a real KSeF-side resource, not a free no-op to skip.
-        await ksefClient.closeSession(sessionRef, accessToken);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logger.warn('KSeF submission failed', {
@@ -232,6 +234,30 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
         // Propagates UNCAUGHT into `deliver()` — see async-send.ts's own header: BullMQ's retries
         // get a chance to run before this ever becomes "send_failed".
         throw new BadRequestException(`KSeF submission failed: ${message}`);
+      }
+
+      // Closed OUTSIDE the submission's own try/catch, deliberately: `sendInvoice()` above already
+      // returned a real `invoiceRef` by this point — the invoice genuinely reached KSeF and was
+      // accepted. A `closeSession` that then fails (a network blip, KSeF returning a transient 5xx on
+      // this UNRELATED call) must never be reported as a submission FAILURE: turning it into the same
+      // `BadRequestException` the try/catch above throws made this branch propagate uncaught into
+      // `deliver()`, so BullMQ retried the WHOLE action from scratch — re-authenticating, opening a
+      // SECOND online session, and re-submitting the SAME invoice a second time, even though the first
+      // one had already been accepted with a valid reference. An open session KSeF eventually expires
+      // on its own is a resource leak worth a loud log; a genuine SECOND deposit of an accepted
+      // invoice is a real duplicate filing — the two are not the same severity, and must not share the
+      // same failure path.
+      try {
+        await ksefClient.closeSession(sessionRef, accessToken);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn(
+          'KSeF session close failed — the invoice was already accepted, this is a resource leak only',
+          {
+            category: 'documents',
+            details: { companyId: ctx.companyId, documentId: ctx.document.id, sessionRef, message },
+          },
+        );
       }
 
       if (!sessionRef || !invoiceRef) {

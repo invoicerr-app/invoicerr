@@ -28,11 +28,18 @@
  *
  * §3.1.1 of the read specification (see `pec-protocol.ts`'s own header) is explicit that SdI's FIRST
  * response names the PEC address every LATER submission must target. This service updates that
- * learned address (`pec-protocol.ts`'s own "sdi-pec" channel config, `sdiReplyAddress`) on EVERY
- * recognized notifica, not only the first — simpler than tracking "has a hint arrived yet", and safe:
- * SdI's own reply-from address for a given exchange is, by construction, an address this codebase is
- * ALREADY allowed to use (`pec-protocol.ts#resolvePecRecipient`), so re-learning it costs nothing and
- * tolerates SdI ever reassigning it later, which the read specification does not rule out.
+ * learned address (`pec-protocol.ts`'s own "sdi-pec" channel config, `sdiReplyAddress`) once a
+ * notifica has been reconciled with a real, previously-sent document AND every one of three things is
+ * true: the notifica PARSED as one of the message kinds the specification actually documents as
+ * carrying a reply address (`SDI_REPLY_ADDRESS_HINT_TYPES` — read, never "every recognized notifica",
+ * see below), and the message's own envelope `From` lands under SdI's own registered domain
+ * (`isFromSdi`). Learning it from the mere SHAPE of an attachment — as this file used to, before
+ * either of those two checks existed — meant ANY message a company's mailbox receives, from anyone,
+ * carrying something `parseSdiNotifica` recognizes, could redirect every subsequent FatturaPA
+ * submission (client data, amounts, full fiscal identifiers) to an address of the sender's choosing.
+ * Restricted to the hint types, not "every recognized notifica": simpler code is not worth trusting a
+ * field this codebase can act on for message kinds the specification never actually documents as
+ * carrying one.
  */
 import { Inject, Injectable, Optional } from '@nestjs/common';
 
@@ -41,7 +48,7 @@ import { ChannelCredentialsService } from '@/modules/company/channels/channels.s
 
 import {
   createAuthorityEvents,
-  findDocumentByTransportRef,
+  findOwnedDocumentByTransportRef,
 } from '../../conformity/authority-events.persistence';
 import { RawAuthorityEvent } from '../../conformity/authority-status-poller';
 import { DocumentEventsPublisher } from '../../queue/document-events-publisher';
@@ -50,8 +57,16 @@ import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../../queue/do
 import { NOTIFICA_TYPE_LABELS, parseSdiNotifica, SdiNotificaType } from '../sdi/sdi-notifiche';
 import { SdiClient, SdiNotificaOutcome } from '../sdi/sdi-client';
 import { PecInboundMessage } from './pec-inbox-port';
+import { SDI_REPLY_ADDRESS_HINT_TYPES } from './pec-protocol';
 
 export const SDI_PEC_PROVIDER_ID = 'sdi-pec';
+
+/** The ONE domain every address the read specification documents (the first-submission address,
+ *  `pec-protocol.ts#SDI_PEC_FIRST_SUBMISSION_ADDRESS`, and whatever SdI later replies from) actually
+ *  lives under — see this file's own header, "Learning the reply address". Compared
+ *  case-insensitively: SMTP domain parts are not case-sensitive, and a spoofed `From` could otherwise
+ *  trivially dodge an exact-case check. */
+const SDI_PEC_REPLY_DOMAIN = 'pec.fatturapa.it';
 
 export interface HandlePecMessageResult {
   /** Whether an event was actually journaled — `false` for a message carrying no recognizable SdI
@@ -90,7 +105,41 @@ export class PecNotificheService {
       const parsed = parseSdiNotifica(attachment.content.toString('utf-8'));
       if (!parsed) continue;
 
-      await this.learnReplyAddress(companyId, message.from);
+      // Scoped by `companyId` — this poller already knows exactly which company's OWN mailbox it is
+      // draining (`pec-inbox-poller.service.ts`), so resolving `NomeFile` WITHOUT that fact (as this
+      // used to) could journal an authority event onto ANOTHER tenant's document on a filename
+      // collision, or one deliberately forged by whoever controls messages landing in this mailbox —
+      // see `conformity/authority-events.persistence.ts#findOwnedDocumentByTransportRef`'s own header.
+      const document = await findOwnedDocumentByTransportRef(companyId, SDI_PEC_PROVIDER_ID, parsed.nomeFile);
+      if (!document) {
+        logger.warn(
+          `SdI PEC notifica ${parsed.notificaType} received for an unknown NomeFile — nothing ` +
+            'journaled (no DocumentInstance owned by this company carries this transportRef for the ' +
+            '"sdi-pec" channel)',
+          {
+            category: 'documents',
+            details: { companyId, nomeFile: parsed.nomeFile, notificaType: parsed.notificaType },
+          },
+        );
+        return {
+          handled: false,
+          notificaType: parsed.notificaType,
+          nomeFile: parsed.nomeFile,
+          identificativoSdI: parsed.identificativoSdI,
+        };
+      }
+
+      // See this file's own header, "Learning the reply address" — gated on the notifica having
+      // ALREADY reconciled with a real, previously-sent document (the check just above), the message
+      // kind actually being one the specification documents as carrying a reply address, AND the
+      // envelope `From` genuinely being SdI's own domain. Any one of the three failing means this
+      // message never gets to redirect where the NEXT real FatturaPA submission is sent.
+      if (
+        this.isFromSdi(message.from) &&
+        (SDI_REPLY_ADDRESS_HINT_TYPES as readonly SdiNotificaType[]).includes(parsed.notificaType)
+      ) {
+        await this.learnReplyAddress(companyId, message.from);
+      }
 
       const outcome = SdiClient.mapNotifica(
         {
@@ -102,24 +151,6 @@ export class PecNotificheService {
         },
         parsed.nomeFile,
       );
-
-      const document = await findDocumentByTransportRef(SDI_PEC_PROVIDER_ID, parsed.nomeFile);
-      if (!document) {
-        logger.warn(
-          `SdI PEC notifica ${parsed.notificaType} received for an unknown NomeFile — nothing ` +
-            'journaled (no DocumentInstance carries this transportRef for the "sdi-pec" channel)',
-          {
-            category: 'documents',
-            details: { nomeFile: parsed.nomeFile, notificaType: parsed.notificaType },
-          },
-        );
-        return {
-          handled: false,
-          notificaType: parsed.notificaType,
-          nomeFile: parsed.nomeFile,
-          identificativoSdI: parsed.identificativoSdI,
-        };
-      }
 
       const event: RawAuthorityEvent = {
         statusCode: `it:${parsed.notificaType}`,
@@ -200,5 +231,18 @@ export class PecNotificheService {
       isActive: resolved.isActive,
       config: { ...resolved.config, sdiReplyAddress: trimmed },
     });
+  }
+
+  /** See `SDI_PEC_REPLY_DOMAIN`'s own comment — the domain check `learnReplyAddress`'s one caller
+   *  gates on. Case-insensitive; refuses an address with no `@` at all rather than throwing. */
+  private isFromSdi(fromAddress: string): boolean {
+    const at = fromAddress.lastIndexOf('@');
+    if (at === -1) return false;
+    return (
+      fromAddress
+        .slice(at + 1)
+        .trim()
+        .toLowerCase() === SDI_PEC_REPLY_DOMAIN
+    );
   }
 }

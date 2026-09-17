@@ -696,6 +696,170 @@ describe('runAsyncSendAction', () => {
     });
   });
 
+  // THE DOUBLE-DELIVERY GUARD — a genuine double-click, a second browser tab, an HTTP client
+  // retrying after a timeout, or BullMQ's own at-least-once redelivery of the SAME job, all reach the
+  // phase-2 branch above with the record ALREADY "sending". Without this guard, `deliver()` would run
+  // twice — a real second deposit/email, not a theoretical one. See async-send.ts's own header.
+  describe('the delivery claim — refusing to call deliver() twice for the same document', () => {
+    function sendingDocument(id = 'doc-1') {
+      return {
+        id,
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+
+    /** A `deliver()` double that does not resolve until the test explicitly tells it to — the shape
+     *  needed to prove a SECOND call sees the claim as still held WHILE the first is genuinely
+     *  in-flight, not merely "called before the first happened to finish". */
+    function deferredDeliver() {
+      let resolve!: (value: { message: string }) => void;
+      const promise = new Promise<{ message: string }>((res) => {
+        resolve = res;
+      });
+      const deliver = jest.fn().mockReturnValue(promise);
+      return { deliver, resolve };
+    }
+
+    it('a single caller (the ordinary case) runs deliver() exactly once', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument());
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
+
+      await runAsyncSendAction({ ...baseInput, queueDispatcher: { enqueueAction: jest.fn() }, deliver });
+
+      expect(deliver).toHaveBeenCalledTimes(1);
+    });
+
+    // THE DOUBLE-CLICK SPEC: a second call for the SAME document, made WHILE the first is still
+    // genuinely inside deliver() (never yet resolved), must be refused immediately — never queued,
+    // never eventually calling deliver() a second time once the first finishes.
+    it('a second call for the SAME document made WHILE the first is still delivering is refused with a ConflictException — deliver() never runs twice', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument());
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
+      const { deliver, resolve } = deferredDeliver();
+
+      const firstCall = runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: jest.fn() },
+        deliver,
+      });
+      // The first call is now inside `deliver()` (its own promise is still pending) — a second,
+      // concurrent call for the exact same document must see the claim already held.
+      const secondCall = runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: jest.fn() },
+        deliver,
+      });
+
+      await expect(secondCall).rejects.toThrow(/already being delivered/);
+      expect(deliver).toHaveBeenCalledTimes(1);
+
+      resolve({ message: 'Sent.' });
+      await expect(firstCall).resolves.toMatchObject({ changed: true });
+    });
+
+    // A DIFFERENT document is never blocked by another one's own in-flight claim — the guard is keyed
+    // per (companyId, typeId, documentId), never a single global flag.
+    it("a concurrent call for a DIFFERENT document is never blocked by another one's own in-flight claim", async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockImplementation((_c: string, _t: string, id: string) =>
+        Promise.resolve(sendingDocument(id)),
+      );
+      (persistence.updateDocumentStatus as jest.Mock).mockImplementation((_c, _t, id) =>
+        Promise.resolve({ id, status: 'sent' }),
+      );
+      const { deliver: deliverOne, resolve: resolveOne } = deferredDeliver();
+      const deliverTwo = jest.fn().mockResolvedValue({ message: 'Sent.' });
+
+      const firstCall = runAsyncSendAction({
+        ...baseInput,
+        documentId: 'doc-1',
+        queueDispatcher: { enqueueAction: jest.fn() },
+        deliver: deliverOne,
+      });
+      const secondCall = runAsyncSendAction({
+        ...baseInput,
+        documentId: 'doc-2',
+        queueDispatcher: { enqueueAction: jest.fn() },
+        deliver: deliverTwo,
+      });
+
+      await expect(secondCall).resolves.toMatchObject({ changed: true });
+      expect(deliverTwo).toHaveBeenCalledTimes(1);
+
+      resolveOne({ message: 'Sent.' });
+      await firstCall;
+    });
+
+    it("releases the claim when deliver() throws — a legitimate BullMQ retry is not blocked by its own predecessor's claim", async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument());
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
+      const deliverError = new Error('transient network error');
+      const failingThenSucceeding = jest
+        .fn()
+        .mockRejectedValueOnce(deliverError)
+        .mockResolvedValueOnce({ message: 'Sent.' });
+
+      await expect(
+        runAsyncSendAction({
+          ...baseInput,
+          queueDispatcher: { enqueueAction: jest.fn() },
+          deliver: failingThenSucceeding,
+        }),
+      ).rejects.toBe(deliverError);
+
+      // The immediate retry (a fresh call for the SAME document, exactly what BullMQ's own
+      // attempts/backoff would do) is NOT blocked by the failed attempt's own claim — proving it was
+      // genuinely released, not merely never taken.
+      await expect(
+        runAsyncSendAction({
+          ...baseInput,
+          queueDispatcher: { enqueueAction: jest.fn() },
+          deliver: failingThenSucceeding,
+        }),
+      ).resolves.toMatchObject({ changed: true });
+      expect(failingThenSucceeding).toHaveBeenCalledTimes(2);
+    });
+
+    // CROSS-PROCESS — the in-memory Set above only protects a single process (the default
+    // WORKER_INLINE=true topology); `persistence.ts#claimDocumentTransition` is the guarantee that
+    // also holds when the API and a separate BullMQ worker (or a replica of either) do NOT share one.
+    it('consults persistence.claimDocumentTransition, scoped to this exact document and its own freshly-read updatedAt', async () => {
+      const doc = sendingDocument();
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(doc);
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
+      (persistence.claimDocumentTransition as jest.Mock).mockResolvedValue(1);
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
+
+      await runAsyncSendAction({ ...baseInput, queueDispatcher: { enqueueAction: jest.fn() }, deliver });
+
+      expect(persistence.claimDocumentTransition).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        ['sending'],
+        doc.updatedAt,
+        'sending',
+      );
+    });
+
+    it('a claim refused at the DATABASE level (count 0) refuses the send, even though nothing in THIS process holds the in-memory claim', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument());
+      (persistence.claimDocumentTransition as jest.Mock).mockResolvedValue(0);
+      const deliver = jest.fn();
+
+      await expect(
+        runAsyncSendAction({ ...baseInput, queueDispatcher: { enqueueAction: jest.fn() }, deliver }),
+      ).rejects.toThrow(/already being delivered/);
+
+      expect(deliver).not.toHaveBeenCalled();
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+  });
+
   // The worker→API SSE bridge (`queue/document-events-publisher.ts`).
   // `events` is OPTIONAL (see `RunAsyncSendInput.events`'s own header) — every test ABOVE this block
   // omits it and must keep passing unchanged; these are the DEDICATED tests for the publish behavior

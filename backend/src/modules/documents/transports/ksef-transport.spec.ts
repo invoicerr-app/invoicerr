@@ -254,5 +254,24 @@ describe('buildKsefTransport', () => {
 
       await expect(transport.send(CTX)).rejects.toThrow(/KSeF submission failed: ECONNREFUSED/);
     });
+
+    // THE MUTATION TARGET: `closeSession` used to run INSIDE the same try/catch as `sendInvoice` —
+    // the invoice had already been ACCEPTED (a real `invoiceRef` in hand) by the time this call runs,
+    // so a `closeSession` failure (an unrelated network blip, KSeF answering a transient 5xx on a
+    // call this transport does not even poll the outcome of) must never turn an already-accepted
+    // submission into a thrown failure: that would propagate uncaught into `deliver()`
+    // (async-send.ts's own header), letting BullMQ retry the WHOLE action and genuinely re-submit the
+    // SAME invoice a second time — a real duplicate filing, not a theoretical one.
+    it('a closeSession failure never fails the submission — the invoice was already accepted, only the session leaks', async () => {
+      mockNominalKsefRoundTrip();
+      mockCloseSession.mockRejectedValue(new Error('ECONNRESET'));
+      const deps = buildDeps();
+      const transport = buildKsefTransport(deps);
+
+      const result = await transport.send(CTX);
+
+      expect(result.reference).toBe('session-ref-1|invoice-ref-1');
+      expect(mockCloseSession).toHaveBeenCalledWith('session-ref-1', 'access-token-1');
+    });
   });
 });

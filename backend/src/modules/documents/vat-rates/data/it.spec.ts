@@ -16,14 +16,16 @@ function loadIt(): CountryVatRatesFile {
 describe('IT — vat-rates/data/it.json', () => {
   const it_ = loadIt();
 
-  it('declares countryCode IT with exactly four rates — 22 / 10 / 5 / 4 — every one "legal"', () => {
+  it('declares countryCode IT with exactly six rates — 22 / 10 / 5 / 4 / 0 (esente) / 0 (non imponibile) — every one "legal"', () => {
     expect(it_.countryCode).toBe('IT');
     const rates = it_.rates.map((r) => r.rate).sort((a, b) => a - b);
-    expect(rates).toEqual([4, 5, 10, 22]);
+    expect(rates).toEqual([0, 0, 4, 5, 10, 22]);
     for (const rate of it_.rates) {
       expect(rate.provenance.kind).toBe('legal');
       if (rate.provenance.kind === 'legal') {
-        expect(rate.provenance.sourceCheckedAt).toBe('2026-09-13');
+        // The four positive rates were checked 2026-09-13; the two zero-rate entries (esente/non
+        // imponibile — see the dedicated describe block below) were added 2026-09-17.
+        expect(['2026-09-13', '2026-09-17']).toContain(rate.provenance.sourceCheckedAt);
       }
     }
   });
@@ -69,12 +71,47 @@ describe('IT — vat-rates/data/it.json', () => {
     }
   });
 
-  it('no ZERO or EXEMPT entry is modeled — the statute has no literal "aliquota … zero", and "esente" vs "non imponibile" are two distinct regimes the flat EXEMPT bucket cannot tell apart', () => {
-    const categories = it_.rates.map((r) => r.category);
-    expect(categories).not.toContain('ZERO');
-    expect(categories).not.toContain('EXEMPT');
-    expect(it_.notes ?? '').toMatch(/esenti/);
-    expect(it_.notes ?? '').toMatch(/non imponibil/);
+  // THE MUTATION TARGET: the statute has no literal "aliquota … zero", but "esente" (art. 10) and
+  // "non imponibile" (art. 8) are two REAL, distinct, sourced regimes — and this schema's category
+  // enum already has two DIFFERENT buckets (EXEMPT/ZERO) that tell them apart without conflating
+  // them into one. Before these two entries existed, a purely domestic Italian invoice line falling
+  // under either regime (a medical service, a bank fee, an export) had NO valid catalog value at all.
+  describe('esente (art. 10) and non imponibile (art. 8) — the two zero-rate regimes', () => {
+    it('it-esente is category EXEMPT, sourced to art. 10 DPR 633/1972, rate 0', () => {
+      const esente = it_.rates.find((r) => r.id === 'it-esente')!;
+      expect(esente).toBeDefined();
+      expect(esente.rate).toBe(0);
+      expect(esente.category).toBe('EXEMPT');
+      if (esente.provenance.kind === 'legal') {
+        expect(esente.provenance.sourceText).toMatch(/Operazioni esenti dall'imposta/);
+        expect(esente.provenance.sourceText).toMatch(/Sono esenti dall'imposta/);
+      }
+    });
+
+    it('it-non-imponibile is category ZERO (deduction right preserved, unlike esente), sourced to art. 8 DPR 633/1972, rate 0', () => {
+      const nonImponibile = it_.rates.find((r) => r.id === 'it-non-imponibile')!;
+      expect(nonImponibile).toBeDefined();
+      expect(nonImponibile.rate).toBe(0);
+      expect(nonImponibile.category).toBe('ZERO');
+      if (nonImponibile.provenance.kind === 'legal') {
+        expect(nonImponibile.provenance.sourceText).toMatch(/Cessioni all'esportazione/);
+        expect(nonImponibile.provenance.sourceText).toMatch(/non imponibili/);
+      }
+    });
+
+    it('the two zero-rate entries have distinct ids and categories — never merged into one misleading EXEMPT bucket', () => {
+      const esente = it_.rates.find((r) => r.id === 'it-esente')!;
+      const nonImponibile = it_.rates.find((r) => r.id === 'it-non-imponibile')!;
+      expect(esente.category).not.toBe(nonImponibile.category);
+    });
+
+    it('the field-kind dropdown offers "0" for Italy — the same string a "select" field would validate a domestic zero-rate line against', () => {
+      const zeroOptions = it_.rates.filter((r) => r.rate === 0);
+      expect(zeroOptions.length).toBe(2);
+      for (const option of zeroOptions) {
+        expect(String(option.rate)).toBe('0');
+      }
+    });
   });
 
   it('does not model Tabella A parte I (the flat-rate farmer compensation mechanism under art. 34)', () => {

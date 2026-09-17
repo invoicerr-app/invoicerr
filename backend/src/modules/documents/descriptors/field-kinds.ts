@@ -50,6 +50,14 @@ function numberRangeError(value: number, field: DocumentFieldDescriptor): string
   return null;
 }
 
+/** The real EN 16931 BT-151 ("VAT category code") values — see the 'select' validator's own
+ *  `usesVatRateCatalog` branch below for why this file needs to know them at all. Kept in sync BY
+ *  EYE with `formats/shared-build.ts`'s own `VAT_CATEGORY_CODES` (never imported: a 'descriptors'
+ *  file has no business depending on 'formats', the same layering this module already holds
+ *  elsewhere) — both lists are the same closed, standardized vocabulary, not something either file
+ *  invents independently. */
+const CROSS_BORDER_CATEGORY_CODES = new Set(['S', 'Z', 'E', 'AE', 'K', 'G', 'O']);
+
 /**
  * Registers the closed core set (CORE_FIELD_KINDS) into `registry`. These are structural checks
  * only — "is this shaped like a date/a number/one of the offered choices" — never a business or
@@ -82,6 +90,11 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
     if (typeof value !== 'string') return 'must be one of the offered choices.';
     const options = field.options ?? [];
     if (options.some((o) => o.value === value)) return null;
+    // See `DocumentFieldDescriptor.legacyOptions`'s own header (types.ts) — a value already
+    // PERSISTED under a convention `options` no longer offers going forward (today: a VAT rate's bare
+    // percentage, before `vat-rates/registry.ts#vatRateFieldOptions` switched to each rate's own
+    // stable `id`). Never rendered as a choice, never a way to bypass a genuinely unknown value.
+    if ((field.legacyOptions ?? []).some((o) => o.value === value)) return null;
     // `allowCustomValue` is an escape hatch for "no catalog/options known AT ALL" (see types.ts's own
     // comment) — it only opens when `options` is itself empty. A NON-empty, known list is enforced
     // exactly as before regardless of this flag: a scripted client must be refused exactly what the
@@ -107,7 +120,26 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
     // by a jest test that calls `resolveInvoiceCrossBorderTax` directly and never replays through
     // `runAction`. `allowCustomValue`'s own contract (never bypass a known, non-empty list for a
     // genuinely user-typed value) stays exactly as strict as before for every OTHER case.
-    if (field.usesVatRateCatalog && typeof data.__crossBorderCategory === 'string') return null;
+    // Narrowed further (defense in depth): the sidecar's mere PRESENCE used to be enough to bypass
+    // this check entirely, for ANY string value — meaning a caller could type an arbitrary garbage
+    // `vatRate` (or, before `invoice-actions.ts`'s own strip existed, fabricate the sidecar itself on
+    // a purely domestic line) and have it accepted outright. Requiring the value to be one of the real
+    // EN 16931 BT-151 category codes (`shared-build.ts`'s own `VAT_CATEGORY_CODES` — duplicated here
+    // rather than imported, the same small-intentional-duplication this module already holds
+    // elsewhere: a 'descriptors' file has no business depending on 'formats') at least confines what a
+    // request that reaches this validator can ever get treated as "already resolved by the tax
+    // engine" — never a bypass for an arbitrary string. The LOAD-BEARING guard against a caller
+    // fabricating this sidecar on a domestic invoice in the first place is
+    // `actions/invoice-actions.ts`'s own strip (`descriptors/validate.ts#stripSidecarKeys`, applied
+    // before this validator ever runs for a fresh, non-replayed submission) — this is a second,
+    // independent layer, not a substitute for it.
+    if (
+      field.usesVatRateCatalog &&
+      typeof data.__crossBorderCategory === 'string' &&
+      CROSS_BORDER_CATEGORY_CODES.has(data.__crossBorderCategory)
+    ) {
+      return null;
+    }
     return 'is not one of the offered choices.';
   });
 

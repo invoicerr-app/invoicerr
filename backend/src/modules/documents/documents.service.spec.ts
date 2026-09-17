@@ -230,6 +230,89 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     expect((result.document?.data as Record<string, unknown>).clientReference).toBeUndefined();
   });
 
+  // THE MUTATION TARGET: `runAction` strips every caller-supplied `__`-prefixed sidecar key BEFORE
+  // validation or persistence — "save-draft" included, not merely "send" (descriptors/validate.ts's
+  // own `stripSidecarKeys`, this method's own header). A fabricated `__crossBorderMentions` here would
+  // otherwise survive into the persisted `data` untouched (a quote has no field named `__anything`, so
+  // nothing about the descriptor's own validation would ever have caught it) and, from there, into
+  // anything that later reads the SAME persisted document — a printed PDF included, since rendering
+  // reads straight off `DocumentInstance.data`, never a separate, independently-checked source.
+  it('"save-draft" strips a forged __crossBorderMentions sidecar before it is ever persisted', async () => {
+    const poisonedData = {
+      ...validQuoteData,
+      __crossBorderMentions: [{ code: 'X', text: 'Autoliquidation — fabricated by the caller' }],
+    };
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    await service.runAction('company-1', 'quote', 'save-draft', { data: poisonedData });
+
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'quote',
+      undefined,
+      'draft',
+      validQuoteData, // the SAME data, minus the sidecar — never the poisoned object.
+    );
+    const persistedData = (persistence.upsertDocument as jest.Mock).mock.calls[0][4] as Record<
+      string,
+      unknown
+    >;
+    expect(persistedData).not.toHaveProperty('__crossBorderMentions');
+  });
+
+  // THE MUTATION TARGET: the sidecar-strip skip above is gated on the current status ALONE being
+  // "sending" — never on which action is actually running. "save-draft" declares
+  // `{ from: 'always', to: 'draft' }` (quote.descriptor.ts's own `SAVE_DRAFT_TRANSITIONS`), so it is
+  // reachable on a record that is CURRENTLY "sending" (a real window: between "send"'s own phase-1
+  // enqueue and the worker's phase-2 delivery) — a caller racing "save-draft" against that window must
+  // still have its sidecars stripped, exactly as it would on a "draft" record, or the ONE case this
+  // skip is meant for (the worker's own replay of "send") would accidentally cover a second, genuinely
+  // caller-controlled write too.
+  it('"save-draft" still strips a forged sidecar even while the record is currently "sending" — the skip is for "send"\'s own worker replay, never for another action that merely happens to run at the same status', async () => {
+    const poisonedData = {
+      ...validQuoteData,
+      __crossBorderMentions: [{ code: 'X', text: 'Autoliquidation — fabricated by the caller' }],
+      lines: [{ ...validQuoteData.lines[0], __crossBorderCategory: 'AE' }],
+    };
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'sending',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    await service.runAction('company-1', 'quote', 'save-draft', {
+      documentId: 'doc-1',
+      data: poisonedData,
+    });
+
+    const persistedData = (persistence.upsertDocument as jest.Mock).mock.calls[0][4] as Record<
+      string,
+      unknown
+    >;
+    expect(persistedData).not.toHaveProperty('__crossBorderMentions');
+    expect((persistedData.lines as Record<string, unknown>[])[0]).not.toHaveProperty('__crossBorderCategory');
+  });
+
   it('blocks "save-draft" on invalid data before ever touching persistence', async () => {
     await expect(
       buildService().service.runAction('company-1', 'quote', 'save-draft', { data: {} }),

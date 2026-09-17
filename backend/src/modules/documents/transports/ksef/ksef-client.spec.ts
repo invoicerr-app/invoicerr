@@ -1,5 +1,5 @@
 import { generateKeyPairSync } from 'node:crypto';
-import { KsefClient, KsefHttpClient, HttpRequest, HttpResponse } from './ksef-client';
+import { FA3_FORM_CODE, KsefClient, KsefHttpClient, HttpRequest, HttpResponse } from './ksef-client';
 
 // Generate test RSA keys for the client config
 function genRsaKey(): string {
@@ -157,11 +157,26 @@ describe('KsefClient', () => {
 
       expect(result.referenceNumber).toBe('20260628-SN-ABCDEF1234-567890AB-CDEF');
       const body = (http.request as jest.Mock).mock.calls[0][0].body;
-      expect(body.formCode).toEqual({ systemCode: 'FA (2)', schemaVersion: '1-0E', value: 'FA' });
+      // THE MUTATION TARGET: the session's own `formCode` must be the SAME version the invoice body
+      // this transport actually deposits declares (`fa3-provider.ts`'s `Naglowek.KodFormularza`) — a
+      // session opened under a version the payload does not match is accepted synchronously by KSeF
+      // (see `openOnlineSession`'s own header) and only rejected later, invisibly to this codebase.
+      expect(body.formCode).toEqual({ systemCode: 'FA (3)', schemaVersion: '1-0E', value: 'FA' });
       expect(body.encryption).toBeDefined();
       expect(typeof body.encryption.encryptedSymmetricKey).toBe('string');
       // The IV sent at session open MUST be the caller's key IV (same key reused for sendInvoice).
       expect(body.encryption.initializationVector).toBe(key.iv.toString('base64'));
+    });
+
+    // Cross-checked against the VENDORED schema's own fixed attributes, never a second hand-typed
+    // literal that could drift from it unnoticed the same way the retired `FA (2)` value did.
+    it("formCode matches the vendored FA(3) XSD's own fixed kodSystemowy/wersjaSchemy attributes", () => {
+      const xsdPath = require.resolve('../../formats/vendored/pl/schemat_FA3.xsd');
+      const xsd = require('node:fs').readFileSync(xsdPath, 'utf-8') as string;
+
+      expect(xsd).toContain('fixed="FA (3)"');
+      expect(xsd).toContain('fixed="1-0E"');
+      expect(FA3_FORM_CODE).toEqual({ systemCode: 'FA (3)', schemaVersion: '1-0E', value: 'FA' });
     });
   });
 

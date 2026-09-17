@@ -77,6 +77,16 @@ export interface OpenSessionResponse {
   validUntil: string;
 }
 
+/**
+ * The ONE `FormCode` this client ever opens an online session under — copied verbatim from the
+ * vendored schema's own FIXED attributes (`formats/vendored/pl/schemat_FA3.xsd`:
+ * `kodSystemowy="FA (3)"`, `wersjaSchemy="1-0E"`), never hand-retyped a second time next to
+ * `openOnlineSession` below. `formats/national/fa3-provider.ts` is the only invoice-body builder this
+ * transport ever calls (`../ksef-transport.ts`), so this is not a per-call parameter: there is exactly
+ * one FA version in play, and the session this client opens must always name that same one.
+ */
+export const FA3_FORM_CODE = { systemCode: 'FA (3)', schemaVersion: '1-0E', value: 'FA' } as const;
+
 export interface SendInvoiceResponse {
   referenceNumber: string;
 }
@@ -333,7 +343,20 @@ export class KsefClient {
 
   // ── online session ─────────────────────────────────────────────────────────
 
-  /** Open an online session for FA(2) invoice submission. */
+  /**
+   * Open an online session for FA(3) invoice submission. `FA3_FORM_CODE` below MUST match the
+   * `KodFormularza` the invoice body itself declares (`formats/national/fa3-provider.ts`'s own
+   * `Naglowek.KodFormularza`) — KSeF opens the session under whatever version this call names, then
+   * validates the deposited XML against THAT version's schema, so a mismatch here is invisible at
+   * submission time (KSeF's own accept is synchronous; the schema mismatch only surfaces on the
+   * ASYNCHRONOUS validation pass, by which point `send()` has already returned success and the
+   * document has already been recorded and archived as delivered — see `actions/async-send.ts`'s own
+   * header on why a transport must never report success before it actually knows the outcome). This
+   * used to open every session as `FA (2)` — the schema this codebase's own FA3 builder was RETIRED
+   * from — verified against the vendored schema itself
+   * (`formats/vendored/pl/schemat_FA3.xsd`'s own `kodSystemowy`/`wersjaSchemy` fixed attributes) rather
+   * than against a second copy of the same literal typed out independently.
+   */
   async openOnlineSession(accessToken: string, sessionKey: SessionKey): Promise<OpenSessionResponse> {
     // The SAME session key must encrypt every invoice sent in this session, so it is supplied
     // by the caller (not generated here) and reused in sendInvoice().
@@ -342,7 +365,7 @@ export class KsefClient {
     const session = await this.post<OpenSessionResponse>(
       '/sessions/online',
       {
-        formCode: { systemCode: 'FA (2)', schemaVersion: '1-0E', value: 'FA' },
+        formCode: FA3_FORM_CODE,
         encryption: {
           encryptedSymmetricKey,
           initializationVector: sessionKey.iv.toString('base64'),

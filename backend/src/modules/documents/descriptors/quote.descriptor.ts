@@ -43,8 +43,13 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    invocation can honestly land on either outcome, and `checkTransitionResult` (lifecycle.ts)
  *    accepts either. `availableWhen` below is DERIVED from BOTH entries (lifecycle.ts's header), so
  *    it now includes "sending" too — necessary for the worker's replay to pass the same 409 gate a
- *    human click would, not an invitation for a human to click it a second time mid-flight (the
- *    frontend hides an in-flight record's own action buttons — document-list.tsx).
+ *    human click would. A second, genuinely external call reaching this same branch (double-click, a
+ *    second tab, an HTTP retry — the frontend hiding an in-flight record's own action buttons,
+ *    document-list.tsx, is a UI courtesy, never a server-side guarantee) is harmless by construction,
+ *    not merely unlikely: `actions/async-send.ts`'s own claim — an in-process `Set` short-circuit
+ *    backed by `persistence.ts#claimDocumentTransition`'s database-level compare-and-swap, that file's
+ *    own header — lets exactly ONE caller, anywhere, actually run `deliver()`, refusing every other one
+ *    with a 409 before it ever touches a transport — see that file's own "delivery claim" tests.
  * "convert-to-invoice" and "request-deposit" declare NO transition: neither ever changes the QUOTE's
  * own status — each one's entire effect is a brand-new INVOICE elsewhere (convert-to-invoice.ts,
  * request-deposit.ts) — so their `availableWhen` stays its own explicit, hand-declared fact, exactly

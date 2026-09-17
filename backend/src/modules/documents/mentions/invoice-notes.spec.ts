@@ -6,7 +6,7 @@
  */
 import { ALL_MENTIONS_FILES } from './data/all';
 import { defaultMentionsCatalog } from './registry';
-import { resolveInvoiceNotes, toUblNote } from './invoice-notes';
+import { resolveInvoiceNotes, toUblNote, UnresolvedInvoiceNotePlaceholderError } from './invoice-notes';
 import { CountryMentionsFile } from './schema';
 
 const fr = defaultMentionsCatalog.fileFor('FR');
@@ -61,9 +61,45 @@ describe('resolveInvoiceNotes — France, against the real shipped data', () => 
     expect(aab?.text).toBe('Escompte pour paiement anticipé : néant');
   });
 
-  it('a mention predating France’s reform-free baseline (1900-01-01) already applies — no artificial start gap', () => {
-    const notes = resolveInvoiceNotes(fr, new Date('2020-01-01'));
-    expect(notes.map((n) => n.subjectCode)).toEqual(['PMT', 'PMD', 'AAB']);
+  // THE MUTATION TARGET: before this fix, a placeholder with no value table entry covering `at` was
+  // left as its own raw `{token}` in the printed text — a legally mandated mention on a REAL invoice
+  // reading "au taux de {lateFeeRate} l'an". `lateFeeRate`'s own table only starts 2026-01-01 even
+  // though PMD itself (like every mention here) is statutory from 1900-01-01 — exactly the gap a
+  // pre-2026 issue date (a backdated import, a re-rendered archive, a late-issued invoice) falls into.
+  it("an issue date before lateFeeRate's own earliest value (a pre-2026 backdated/imported invoice) refuses rather than printing the raw {lateFeeRate} token", () => {
+    expect(() => resolveInvoiceNotes(fr, new Date('2025-11-15'))).toThrow(
+      UnresolvedInvoiceNotePlaceholderError,
+    );
+  });
+
+  // THE TWIN DEFECT, opposite direction: the LAST window has no `validTo` capping it, so a maintenance
+  // lapse (the ECB rate moves again and nobody adds the next dated entry) would otherwise carry the
+  // STALE rate forward silently, forever. `fr.json`'s own last `lateFeeRate` entry now ends at
+  // 2027-01-01 (the next semi-annual check L441-10 II schedules) precisely so this fails loudly
+  // instead.
+  it("an issue date on/after the last lateFeeRate window's own validTo (an un-maintained catalog) also refuses, rather than silently carrying the stale rate forward", () => {
+    expect(() => resolveInvoiceNotes(fr, new Date('2027-01-01'))).toThrow(
+      UnresolvedInvoiceNotePlaceholderError,
+    );
+  });
+
+  it("a mention predating France’s reform-free baseline (1900-01-01) already applies — no artificial start gap (a fixture with no placeholder to resolve, decoupled from the REAL data's own value-table start dates above)", () => {
+    const fixture: CountryMentionsFile = {
+      countryCode: 'ZZ',
+      invoiceNotes: [
+        {
+          validFrom: '1900-01-01',
+          value: {
+            subjectCode: 'AAB',
+            text: 'Escompte pour paiement anticipé : néant',
+            legalRef: 'Some act',
+            statutory: true,
+          },
+        },
+      ],
+    };
+    const notes = resolveInvoiceNotes(fixture, new Date('1950-01-01'));
+    expect(notes.map((n) => n.subjectCode)).toEqual(['AAB']);
   });
 });
 

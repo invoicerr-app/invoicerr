@@ -85,3 +85,43 @@ export function validateAgainstDescriptor(
 
   return errors;
 }
+
+/**
+ * Recursively removes every key starting with `__` from `data` and from each row of every declared
+ * 'array' field — the internal, server-only sidecar convention a handful of fields rely on (e.g.
+ * `field-kinds.ts`'s 'select' validator, `usesVatRateCatalog` branch, keyed on `__crossBorderCategory`)
+ * to recognize a value THIS SERVER already resolved (`tax/resolve-invoice-tax.ts`'s own header),
+ * never a descriptor field a caller could see, type into a form, or post directly. A raw HTTP body is
+ * not the only thing that can carry one of these keys today — the pre-refonte draft simply passed one
+ * FORWARD once it existed (a preflight resolution replayed through the SAME "sending" record) — so
+ * this is a generic, schema-driven strip a caller applies at whatever boundary actually separates
+ * "fresh, caller-supplied data" from "this server's own, already-resolved data": see
+ * `actions/invoice-actions.ts`'s own "send" registration for the one caller that matters today, and
+ * why it strips ONLY when the record is not already "sending" (a worker replaying its own prior
+ * resolution) — this function itself has no notion of that distinction, it only removes the keys it
+ * is asked to remove, from whatever `data` it is handed.
+ *
+ * Returns a NEW object (and new row objects) — never mutates `data` in place — so a caller that still
+ * holds a reference to the original is never surprised by this call.
+ */
+export function stripSidecarKeys<T extends Record<string, unknown>>(
+  fields: DocumentFieldDescriptor[],
+  data: T,
+): T {
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key.startsWith('__')) continue;
+    cleaned[key] = value;
+  }
+  for (const field of fields) {
+    if (field.kind !== 'array' || !field.fields?.length) continue;
+    const rows = cleaned[field.key];
+    if (!Array.isArray(rows)) continue;
+    cleaned[field.key] = rows.map((row) =>
+      row !== null && typeof row === 'object' && !Array.isArray(row)
+        ? stripSidecarKeys(field.fields as DocumentFieldDescriptor[], row as Record<string, unknown>)
+        : row,
+    );
+  }
+  return cleaned as T;
+}

@@ -99,7 +99,10 @@ describe('applyCompanyFieldView', () => {
     });
 
     const vatField = result.find((f) => f.key === 'lines')?.fields?.find((f) => f.key === 'vatRate');
-    expect(vatField?.options).toEqual([{ value: '20', label: '20% — Taux normal' }]);
+    // `value` is the rate's own stable id — see vat-rates/registry.ts#vatRateFieldOptions's own
+    // header on why a bare percentage cannot tell two same-percentage regimes apart.
+    expect(vatField?.options).toEqual([{ value: 'fr-standard', label: '20% — Taux normal' }]);
+    expect(vatField?.legacyOptions).toEqual([{ value: '20', label: '20% — Taux normal' }]);
     expect(vatField?.helpText).toBe('The VAT rate that applies to this line.');
   });
 
@@ -116,7 +119,7 @@ describe('applyCompanyFieldView', () => {
 
     expect(result.map((f) => f.key)).toEqual(['lines']); // 'client' removed by the overlay
     const vatField = result[0].fields?.find((f) => f.key === 'vatRate');
-    expect(vatField?.options).toEqual([{ value: '20', label: '20% — Taux normal' }]);
+    expect(vatField?.options).toEqual([{ value: 'fr-standard', label: '20% — Taux normal' }]);
   });
 
   it('never mutates the fields it was given', () => {
@@ -168,6 +171,6 @@ describe('applyCompanyFieldView', () => {
     });
 
     const added = result.find((f) => f.key === 'lines')?.fields?.find((f) => f.key === 'secondVatRate');
-    expect(added?.options).toEqual([{ value: '20', label: '20% — Taux normal' }]);
+    expect(added?.options).toEqual([{ value: 'fr-standard', label: '20% — Taux normal' }]);
   });
 });

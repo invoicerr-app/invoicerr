@@ -93,6 +93,44 @@ export async function updateDocumentStatus(
 }
 
 /**
+ * Atomically claims `id` for a status transition ACROSS PROCESSES — the database-level guarantee
+ * `actions/async-send.ts`'s own in-process `Set` cannot provide once the API and a BullMQ worker run
+ * as separate processes (`WORKER_INLINE=false`) or either one is horizontally replicated (a Helm
+ * chart scaling either deployment). No new column: `fromStatuses` names every status this claim may
+ * legitimately start from, and `knownUpdatedAt` — the row's own `updatedAt` as the CALLER read it a
+ * moment ago (e.g. `findOwnedDocument`'s own result) — is folded into the WHERE clause specifically so
+ * this stays a genuine compare-and-swap even when `toStatus` equals the row's CURRENT status
+ * (`async-send.ts`'s own phase-2 re-claim: "sending" reclaimed again, right before `deliver()`, with
+ * no real status change at all). That inclusion is load-bearing, not decorative: a same-value
+ * conditional write alone would never exclude a concurrent second claim — Postgres re-evaluates a
+ * blocked UPDATE's own WHERE clause against the row's POST-COMMIT values once the first transaction's
+ * lock releases (its "EvalPlanQual" step under READ COMMITTED), and a `status` that never actually
+ * changed value still matches, so BOTH callers would see a non-zero count. `DocumentInstance.updatedAt`
+ * carries `@updatedAt`, so Prisma bumps it on every `.updateMany()` that touches a row REGARDLESS of
+ * whether `data` names it explicitly — which is exactly what makes the SECOND caller's now-stale
+ * `knownUpdatedAt` fail to match once the first claim has already committed.
+ *
+ * Returns the row count actually claimed (0 or 1) — never throws for "someone else already claimed
+ * it"; the caller decides what a `0` means (`async-send.ts` turns it into a named `ConflictException`
+ * before ever calling `deliver()`), the same "this module reports the fact, the caller judges it"
+ * posture the rest of it already holds.
+ */
+export async function claimDocumentTransition(
+  companyId: string,
+  typeId: string,
+  id: string,
+  fromStatuses: string[],
+  knownUpdatedAt: Date,
+  toStatus: string,
+): Promise<number> {
+  const result = await prisma.documentInstance.updateMany({
+    where: { id, companyId, typeId, status: { in: fromStatuses }, updatedAt: knownUpdatedAt },
+    data: { status: toStatus },
+  });
+  return result.count;
+}
+
+/**
  * `take` defaults to 50 (the list screen's own page size budget) — a contribution that needs to
  * aggregate over more history (contributions/invoice-contributions.ts) passes a larger explicit
  * value rather than this function growing a second, uncapped code path. Still ordered by
