@@ -259,6 +259,25 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
     // (entity decoding, resilience to a pathological shape, the size bound) rather than a
     // field-mapping fact about what our own providers emit — the same reasoning
     // `received-invoices.service.spec.ts`'s own hand-written `MINIMAL_CII_XML` fixture already relies on.
+
+    // A fixed absolute-ms budget on wall-clock time is a flaky proxy for "not quadratic": a shared CI
+    // runner measured 170ms on a fixture that runs in ~29ms locally (same code, same input) — noise
+    // from the box, not a regression. What we actually want to assert never changes with the runner's
+    // speed: growing the ADVERSARIAL input by `factor` should grow the time by roughly `factor` (linear
+    // scan cost), never by roughly `factor²` (the old regex's own re-scan-from-every-open-tag
+    // behaviour). So every test below times the SAME operation at two input sizes and checks the RATIO
+    // instead of either raw number. `factor * 3` is deliberately generous — linear work lands near
+    // `factor`×, real quadratic work lands near `factor²`× (16× at factor=4), so 12× catches the
+    // regression with slack to spare for scheduler jitter — and `absoluteCapMs` stays only as a filet
+    // against a genuinely hung process, wide enough to never fire from ordinary CI slowness.
+    function assertGrowthAtMostLinear(elapsedSmall: number, elapsedLarge: number, factor: number) {
+      const absoluteCapMs = 2000;
+      expect(elapsedLarge).toBeLessThan(absoluteCapMs);
+      // Floors the denominator so timer-resolution noise (sub-millisecond runs) can't inflate the ratio.
+      const ratio = elapsedLarge / Math.max(elapsedSmall, 1);
+      expect(ratio).toBeLessThan(factor * 3);
+    }
+
     const CII_WITH_ENTITIES = `<?xml version="1.0" encoding="utf-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">
   <rsm:SupplyChainTradeTransaction>
@@ -283,23 +302,39 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
     });
 
     it('a deposit rich in never-closed opening tags is rejected fast — no catastrophic backtracking', async () => {
-      const bomb =
+      const buildBomb = (openTagCount: number) =>
         '<?xml version="1.0"?><rsm:CrossIndustryInvoice ' +
         'xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" ' +
         'xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">' +
-        '<ram:IncludedSupplyChainTradeLineItem>'.repeat(20_000); // deliberately never closed
-      const bytes = new TextEncoder().encode(bomb);
+        '<ram:IncludedSupplyChainTradeLineItem>'.repeat(openTagCount); // deliberately never closed
 
-      const start = performance.now();
-      const result = await extractReceivedInvoiceFields(bytes, 'application/xml', 'bomb.xml');
-      const elapsedMs = performance.now() - start;
+      const SMALL = 5_000;
+      const LARGE = SMALL * 4;
+
+      const start1 = performance.now();
+      const result1 = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(buildBomb(SMALL)),
+        'application/xml',
+        'bomb.xml',
+      );
+      const elapsedSmall = performance.now() - start1;
+
+      const start2 = performance.now();
+      const result2 = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(buildBomb(LARGE)),
+        'application/xml',
+        'bomb.xml',
+      );
+      const elapsedLarge = performance.now() - start2;
 
       // The old regex-based `extractAllBlocks` re-scanned the remaining document from every one of
-      // these 20 000 opening tags looking for a close tag that never comes — quadratic over the byte
-      // count. A real parser fails fast on the same input instead of stalling the event loop.
-      expect(elapsedMs).toBeLessThan(100);
+      // these opening tags looking for a close tag that never comes — quadratic over the byte count.
+      // A real parser fails fast on the same input instead of stalling the event loop; see this
+      // describe block's own comment for why growth (not a raw ms figure) is what gets asserted.
+      assertGrowthAtMostLinear(elapsedSmall, elapsedLarge, 4);
       // Malformed (never actually closed) — an honest empty extraction, never a thrown error.
-      expect(result).toEqual({ syntax: null, fields: {} });
+      expect(result1).toEqual({ syntax: null, fields: {} });
+      expect(result2).toEqual({ syntax: null, fields: {} });
     });
 
     it('never resolves an external entity (XXE) — the file it points at is never read', async () => {
@@ -327,49 +362,86 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
     });
 
     it('a billion-laughs entity blowup is refused fast, never expanded', async () => {
-      const billionLaughs = `<?xml version="1.0"?>
+      // Each level fans out ×10 off the previous one — level 4 alone is already `lol` × 1 000; a real
+      // parser expansion would blow that up to `lol` × 10⁸ by level 9. Building both from one generator
+      // and comparing their elapsed time (rather than asserting either against a raw ms figure) is what
+      // actually proves "never expanded": a real expansion would turn this 10⁵× jump in the entity
+      // count into a comparably enormous jump in wall time, while "reported as a parse error and never
+      // touched again" — the actual behaviour — costs about the same either way, whatever a shared
+      // runner's own absolute speed happens to be that day.
+      const buildBillionLaughs = (levels: number) => {
+        const decls = ['<!ENTITY lol "lol">'];
+        for (let level = 2; level <= levels; level++) {
+          const prevRef = `&${level === 2 ? 'lol' : `lol${level - 1}`};`;
+          decls.push(`<!ENTITY lol${level} "${prevRef.repeat(10)}">`);
+        }
+        return `<?xml version="1.0"?>
 <!DOCTYPE lolz [
- <!ENTITY lol "lol">
- <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
- <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
- <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">
+${decls.join('\n')}
 ]>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">
   <rsm:SupplyChainTradeTransaction>
-    <SellerTradeParty><Name>&lol4;</Name></SellerTradeParty>
+    <SellerTradeParty><Name>&lol${levels};</Name></SellerTradeParty>
   </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`;
+      };
 
-      const start = performance.now();
-      const result = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(billionLaughs),
+      const start1 = performance.now();
+      const resultSmall = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(buildBillionLaughs(4)),
         'application/xml',
         'lol.xml',
       );
-      const elapsedMs = performance.now() - start;
+      const elapsedSmall = performance.now() - start1;
+
+      const start2 = performance.now();
+      const resultLarge = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(buildBillionLaughs(9)),
+        'application/xml',
+        'lol.xml',
+      );
+      const elapsedLarge = performance.now() - start2;
 
       // Same underlying reason as the XXE test above: `@xmldom/xmldom` does not expand ANY custom
-      // entity (predefined + numeric references only — see this file's own header), so a
+      // entity (predefined + numeric references only — see this file's own header), so an
       // exponentially-nested one never actually multiplies out in memory; it is reported as an
-      // "entity not found" parse error instead, same as any other malformed document.
-      expect(elapsedMs).toBeLessThan(100);
-      expect(result).toEqual({ syntax: null, fields: {} });
+      // "entity not found" parse error instead, same as any other malformed document. `factor: 1` below
+      // asserts near-flat growth — anything but flat here would mean expansion is actually happening.
+      assertGrowthAtMostLinear(elapsedSmall, elapsedLarge, 1);
+      expect(resultSmall).toEqual({ syntax: null, fields: {} });
+      expect(resultLarge).toEqual({ syntax: null, fields: {} });
     });
 
     it('a deposit far over the size bound is refused before it reaches the parser at all', async () => {
-      const oversized =
+      const buildOversized = (megabytes: number) =>
         '<?xml version="1.0"?><rsm:CrossIndustryInvoice ' +
         'xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">' +
-        'a'.repeat(6 * 1024 * 1024) +
+        'a'.repeat(megabytes * 1024 * 1024) +
         '</rsm:CrossIndustryInvoice>';
-      const bytes = new TextEncoder().encode(oversized);
 
-      const start = performance.now();
-      const result = await extractReceivedInvoiceFields(bytes, 'application/xml', 'huge.xml');
-      const elapsedMs = performance.now() - start;
+      const start1 = performance.now();
+      const resultSmall = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(buildOversized(6)),
+        'application/xml',
+        'huge.xml',
+      );
+      const elapsedSmall = performance.now() - start1;
 
-      expect(elapsedMs).toBeLessThan(100);
-      expect(result).toEqual({ syntax: null, fields: {} });
+      const start2 = performance.now();
+      const resultLarge = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(buildOversized(24)),
+        'application/xml',
+        'huge.xml',
+      );
+      const elapsedLarge = performance.now() - start2;
+
+      // Both are already over `MAX_XML_INPUT_BYTES` (5MB) — quadrupling the deposit's own size must
+      // NOT quadruple the rejection cost, which is exactly what "refused before it reaches the parser"
+      // means: only the (linear) byte-length check runs, never the DOM parse a genuine document this
+      // size would otherwise cost.
+      assertGrowthAtMostLinear(elapsedSmall, elapsedLarge, 4);
+      expect(resultSmall).toEqual({ syntax: null, fields: {} });
+      expect(resultLarge).toEqual({ syntax: null, fields: {} });
     });
   });
 });

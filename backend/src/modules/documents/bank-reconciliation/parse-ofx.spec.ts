@@ -93,15 +93,32 @@ describe('parseBankStatementOfx — honest degrade', () => {
   // Regression for the block extractor's own worst case: a `[\s\S]*?` lazy quantifier between two
   // literal tags, run through a global `.match()`, rescans to the end of the string for EVERY one of
   // many `<STMTTRN>` occurrences that never finds a closing tag — quadratic in the occurrence count.
-  // 20k unclosed opens is enough to turn a millisecond-scale parse into a multi-second one under the
-  // old regex; the budget below is generous (a real request would time out long before 500ms) but
-  // still catches the O(n²) shape if it ever comes back.
+  //
+  // A fixed absolute-ms budget is a flaky proxy for that: a shared CI runner measured well over a
+  // tight threshold here on the exact same code that comfortably clears it locally — machine noise,
+  // not a regression. What's actually invariant across runners is GROWTH: quadrupling the occurrence
+  // count should roughly quadruple linear work, never roughly SIXTEEN-fold it (the old regex's own
+  // shape). So this times the same parse at two sizes and asserts the ratio instead of a raw number —
+  // `factor * 3` is generous slack above the expected ~4× (linear) while still well under the ~16× a
+  // real O(n²) regression would produce — and keeps a wide absolute cap purely as a hung-process filet.
   it('does not go quadratic on many <STMTTRN> opens with no closing tag anywhere', () => {
-    const hostile = '<STMTTRN>'.repeat(20_000);
-    const start = performance.now();
-    const result = parseBankStatementOfx(hostile, 'EUR');
-    const elapsedMs = performance.now() - start;
-    expect(result).toEqual({ lines: [], errors: [] });
-    expect(elapsedMs).toBeLessThan(500);
+    const SMALL = 5_000;
+    const LARGE = SMALL * 4;
+
+    const start1 = performance.now();
+    const resultSmall = parseBankStatementOfx('<STMTTRN>'.repeat(SMALL), 'EUR');
+    const elapsedSmall = performance.now() - start1;
+
+    const start2 = performance.now();
+    const resultLarge = parseBankStatementOfx('<STMTTRN>'.repeat(LARGE), 'EUR');
+    const elapsedLarge = performance.now() - start2;
+
+    expect(resultSmall).toEqual({ lines: [], errors: [] });
+    expect(resultLarge).toEqual({ lines: [], errors: [] });
+
+    const factor = LARGE / SMALL;
+    const absoluteCapMs = 2000; // filet against a genuinely hung process, not ordinary runner slowness.
+    expect(elapsedLarge).toBeLessThan(absoluteCapMs);
+    expect(elapsedLarge / Math.max(elapsedSmall, 1)).toBeLessThan(factor * 3);
   });
 });

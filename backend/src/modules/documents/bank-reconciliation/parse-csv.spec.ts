@@ -165,18 +165,39 @@ describe('parseBankStatementCsv — explicit row/line caps (the two loop bounds 
 
   // Regression for the loop bound itself: `splitCsvLine`'s own per-character loop must never run on
   // more than MAX_STATEMENT_LINE_LENGTH characters, whatever the file contains — this is the actual
-  // bound the huge-row cap above exists to put in place, timed rather than merely asserted on shape.
+  // bound the huge-row cap above exists to put in place.
+  //
+  // A fixed absolute-ms budget doesn't actually prove that bound holds: it only proves "fast enough on
+  // today's runner", which a shared CI box can miss on a noisy day despite the loop being correctly
+  // bounded (a tight ms figure is what turned this suite flaky in the first place). What the bound
+  // itself guarantees, independent of any one machine's speed, is COST PER ROW staying capped: quadruple
+  // the row count and the total time should roughly quadruple (linear in row count), never grow far
+  // past that. So this times the same parse at two row counts and checks the ratio — generous slack
+  // above the expected ~4×, but well short of what an unbounded per-row cost (or a reintroduced
+  // per-character regression) would produce — plus a wide absolute cap as a hung-process filet only.
   it('parses a file at the row/line caps without a runaway cost', () => {
     const header = 'Date;Montant;Libellé';
     const prefix = '15/08/2026;1,00;';
     const row = `${prefix}${'x'.repeat(MAX_STATEMENT_LINE_LENGTH - prefix.length)}`;
-    const text = [header, ...Array(1000).fill(row)].join('\n');
+    const buildText = (rowCount: number) => [header, ...Array(rowCount).fill(row)].join('\n');
 
-    const start = performance.now();
-    const result = parseBankStatementCsv(text, FR_MAPPING, 'EUR');
-    const elapsedMs = performance.now() - start;
+    const SMALL = 250;
+    const LARGE = SMALL * 4;
 
-    expect(result.lines).toHaveLength(1000);
-    expect(elapsedMs).toBeLessThan(500);
+    const start1 = performance.now();
+    const resultSmall = parseBankStatementCsv(buildText(SMALL), FR_MAPPING, 'EUR');
+    const elapsedSmall = performance.now() - start1;
+
+    const start2 = performance.now();
+    const resultLarge = parseBankStatementCsv(buildText(LARGE), FR_MAPPING, 'EUR');
+    const elapsedLarge = performance.now() - start2;
+
+    expect(resultSmall.lines).toHaveLength(SMALL);
+    expect(resultLarge.lines).toHaveLength(LARGE);
+
+    const factor = LARGE / SMALL;
+    const absoluteCapMs = 2000; // filet against a genuinely hung process, not ordinary runner slowness.
+    expect(elapsedLarge).toBeLessThan(absoluteCapMs);
+    expect(elapsedLarge / Math.max(elapsedSmall, 1)).toBeLessThan(factor * 3);
   });
 });
