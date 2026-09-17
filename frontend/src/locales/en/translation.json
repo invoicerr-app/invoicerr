@@ -4107,8 +4107,28 @@
           "notes": {
             "label": "Notes"
           },
+          "reason": {
+            "label": "Reason"
+          },
           "correctedLines": {
             "label": "Corrected lines"
+          },
+          "lines": {
+            "label": "Lines",
+            "fields": {
+              "description": {
+                "label": "Designation"
+              },
+              "quantity": {
+                "label": "Quantity"
+              },
+              "unitPrice": {
+                "label": "Unit price"
+              },
+              "vatRate": {
+                "label": "VAT rate"
+              }
+            }
           }
         },
         "actions": {
@@ -4378,7 +4398,8 @@
     "form": {
       "reference": {
         "searchPlaceholder": "Search...",
-        "noResults": "No matches"
+        "noResults": "No matches",
+        "createNew": "+ Create new {{label}}"
       },
       "array": {
         "addRow": "Add row",
@@ -4505,11 +4526,17 @@
         "updatedDesc": "Recently updated",
         "updatedAsc": "Least recently updated",
         "amountDesc": "Highest amount",
-        "amountAsc": "Lowest amount"
+        "amountAsc": "Lowest amount",
+        "numberDesc": "Number, highest first",
+        "numberAsc": "Number, lowest first"
       },
       "filters": {
         "all": "All",
-        "ariaLabel": "Filter by status"
+        "ariaLabel": "Filter by status",
+        "clientPlaceholder": "Filter by client",
+        "dateFrom": "From",
+        "dateTo": "To",
+        "clear": "Clear"
       }
     },
     "custom": {
@@ -4605,6 +4632,13 @@
       "openPdfButton": "Open the PDF",
       "downloadButton": "Download",
       "confirmReadLabel": "I have read the document",
+      "confirmSign": {
+        "title": "This cannot be undone",
+        "description": "You are about to sign this document. Once signed, it cannot be reversed.",
+        "descriptionWithNumber": "You are about to sign {{number}}. Once signed, it cannot be reversed.",
+        "back": "Back",
+        "confirm": "Sign now"
+      },
       "steps": {
         "review": "Review",
         "verify": "Verify",

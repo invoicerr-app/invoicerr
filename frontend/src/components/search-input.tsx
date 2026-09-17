@@ -1,5 +1,5 @@
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { Check, ChevronDown, X } from "lucide-react"
+import { Check, ChevronDown, Plus, X } from "lucide-react"
 import { cn, dataCy } from "@/lib/utils"
 import { useRef, useState } from "react"
 
@@ -25,6 +25,13 @@ interface SearchSelectProps {
   disabled?: boolean
   multiple?: boolean
   noResultsComponent?: React.ReactNode // Added a property for a custom component
+  /** A persistent row pinned below the results — shown REGARDLESS of `options` (even empty, even
+   *  after a search that matched nothing), unlike every ordinary option above it which only ever
+   *  renders when the search finds it. Lets a caller offer a "+ Create new…" escape hatch without
+   *  this entity-agnostic component ever knowing what it creates (the caller supplies the label and
+   *  the handler) — see reference-field.tsx, the one caller wiring it today. Closes the popover
+   *  itself before firing `onClick`, same as picking an ordinary option does. */
+  footerAction?: { label: string; onClick: () => void; "data-cy"?: string }
   "data-cy"?: string
 }
 
@@ -41,6 +48,7 @@ export default function SearchSelect({
   disabled = false,
   multiple = false,
   noResultsComponent,
+  footerAction,
   "data-cy": dataCyValue,
 }: SearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -183,6 +191,27 @@ export default function SearchSelect({
                 </button>
               ))}
             </div>
+
+            {footerAction && (
+              // OUTSIDE the scrollable results `div` above (not its last row): a long result list
+              // would otherwise scroll this out of view, and a search matching nothing would hide it
+              // entirely behind `renderNoResults()` — both defeat the one property this exists for,
+              // "always there, whatever the search did".
+              <div className="border-t p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false)
+                    footerAction.onClick()
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-sm text-primary hover:bg-accent"
+                  {...(footerAction["data-cy"] ? dataCy(footerAction["data-cy"]) : {})}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>{footerAction.label}</span>
+                </button>
+              </div>
+            )}
           </PopoverPrimitive.Content>
         </PopoverPrimitive.Portal>
       </div>

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useFormContext } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
+import { getReferenceCreateComponent } from "@/components/documents/reference-create-registry"
 import { isMultiTargetReference, type MultiTargetReferenceValue } from "@/components/documents/types"
 import SearchSelect from "@/components/search-input"
 import {
@@ -53,17 +54,28 @@ function capitalize(value: string): string {
  *
  * SINGLE-target (`field.entity`) is completely unchanged from before `entities` existed: a bare id
  * string, one search, one resolve.
+ *
+ * SINGLE-target ALSO, optionally, carries a "+ Create new…" escape hatch: `reference-create-
+ * registry.ts` (an open registry keyed by `entity`, same shape as `field-renderers/registry.ts`'s
+ * for KINDS) is consulted for `singleEntity`; a hit renders as `SearchSelect`'s own `footerAction`
+ * (always visible, even with zero search results) and, on click, mounts the registered dialog ON TOP
+ * of whatever wizard this field is already inside — never closing or resetting it, since that dialog
+ * is a sibling in the tree, not a replacement for this one. Multi-target never offers this: it picks
+ * between EXISTING documents (a quote or invoice), which "create new" cannot mean anything for.
  */
 export function ReferenceField({ field, name }: FieldRendererProps) {
   const { t } = useTranslation()
   const { control, watch } = useFormContext()
   const [search, setSearch] = useState("")
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false)
   const multiTarget = isMultiTargetReference(field)
   const targetEntities = field.entities ?? []
   const currentValue = watch(name) as string | MultiTargetReferenceValue | undefined
 
   // Single-target path — untouched behaviour.
   const singleEntity = multiTarget ? undefined : field.entity
+  const QuickCreateComponent = singleEntity ? getReferenceCreateComponent(singleEntity) : undefined
+  const inputDataCy = `document-field-${field.key}-input`
   const { data: singleSearchResults = [] } = useReferenceSearch(singleEntity, search)
   const { data: singleResolved } = useReferenceResolve(
     singleEntity,
@@ -137,11 +149,50 @@ export function ReferenceField({ field, name }: FieldRendererProps) {
               placeholder={field.label}
               searchPlaceholder={t("documents.form.reference.searchPlaceholder")}
               noResultsText={t("documents.form.reference.noResults")}
-              data-cy={`document-field-${field.key}-input`}
+              data-cy={inputDataCy}
+              footerAction={
+                QuickCreateComponent
+                  ? {
+                      label: t("documents.form.reference.createNew", "+ Create new {{label}}", {
+                        label: field.label,
+                      }),
+                      onClick: () => setQuickCreateOpen(true),
+                      "data-cy": `${inputDataCy}-create-new`,
+                    }
+                  : undefined
+              }
             />
           </FormControl>
           {field.helpText && <FormDescription>{field.helpText}</FormDescription>}
           <FormMessage />
+
+          {QuickCreateComponent && (
+            <QuickCreateComponent
+              open={quickCreateOpen}
+              onOpenChange={(next) => {
+                setQuickCreateOpen(next)
+                if (!next) {
+                  // Two Radix Dialogs stacked (this quick-create one over whatever wizard the field
+                  // itself is inside): Radix's own close-focus restore would try to refocus the "+
+                  // Create new…" button — it lived inside the SearchSelect popover THIS SAME CLICK
+                  // already closed, so by the time this dialog unmounts that button is long gone and
+                  // focus is lost rather than restored. `requestAnimationFrame` waits one paint past
+                  // that failed default before explicitly handing focus back to the picker's own
+                  // trigger, found by the exact `data-cy` its wrapper already carries.
+                  requestAnimationFrame(() => {
+                    document.querySelector<HTMLButtonElement>(`[data-cy="${inputDataCy}"] button`)?.focus()
+                  })
+                }
+              }}
+              onCreated={(id) => {
+                // Single-target only (the one shape `QuickCreateComponent` can ever be non-undefined
+                // for — see this component's own header) — the bare id `rhfField.onChange` already
+                // takes on every other selection here, letting `useReferenceResolve` above pick up its
+                // label the same way it would for a value set any other way.
+                rhfField.onChange(id)
+              }}
+            />
+          )}
         </FormItem>
       )}
     />
