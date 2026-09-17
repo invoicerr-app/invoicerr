@@ -50,8 +50,39 @@ export interface OfxParseResult {
   errors: string[];
 }
 
+/**
+ * Every `<STMTTRN>...</STMTTRN>` block, found by pairing two PLAIN literal-tag searches rather than
+ * one `/<STMTTRN>[\s\S]*?<\/STMTTRN>/g` regex. That single regex is quadratic on a hostile upload: a
+ * lazy `[\s\S]*?` has no negated class to stop it early, so on a string with many `<STMTTRN>`
+ * occurrences and NO closing tag anywhere, every one of the global match's starting positions rescans
+ * all the way to the end of the string before giving up — O(n) work, repeated O(n) times. Two
+ * `/<stmttrn>/gi`/`/<\/stmttrn>/gi` searches, each just relocated forward via `lastIndex` and never
+ * re-scanning what the other already passed, do the identical pairing in genuinely O(n) time — there
+ * is no quantifier in either pattern for a pathological input to exploit.
+ */
+function extractStmttrnBlocks(text: string): string[] {
+  const blocks: string[] = [];
+  const openTag = /<stmttrn>/gi;
+  const closeTag = /<\/stmttrn>/gi;
+  let searchFrom = 0;
+  for (;;) {
+    openTag.lastIndex = searchFrom;
+    const openMatch = openTag.exec(text);
+    if (!openMatch) break;
+
+    closeTag.lastIndex = openMatch.index + openMatch[0].length;
+    const closeMatch = closeTag.exec(text);
+    if (!closeMatch) break; // An unclosed final block is dropped — same as the regex it replaces.
+
+    const blockEnd = closeMatch.index + closeMatch[0].length;
+    blocks.push(text.slice(openMatch.index, blockEnd));
+    searchFrom = blockEnd;
+  }
+  return blocks;
+}
+
 export function parseBankStatementOfx(text: string, currency: string): OfxParseResult {
-  const blocks = text.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/gi) ?? [];
+  const blocks = extractStmttrnBlocks(text);
   const lines: ParsedStatementLine[] = [];
   const errors: string[] = [];
 

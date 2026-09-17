@@ -26,6 +26,12 @@ on:
   schedule:
     - cron: '0 3 * * *'     # nightly 03:00 UTC — only fires from the default branch (main); see cron caveat above
 
+# Every step below only checks out this repo, runs jest, and reads secrets already scoped to this
+# job's own env block — nothing here pushes a package, comments on a PR, or otherwise needs the
+# GITHUB_TOKEN for anything beyond cloning. `contents: read` is the whole ask.
+permissions:
+  contents: read
+
 jobs:
   live:
     runs-on: ubuntu-latest

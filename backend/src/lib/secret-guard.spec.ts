@@ -101,7 +101,12 @@ describe('insecureSecretMessage', () => {
     expect(message).toContain('not set');
   });
 
-  it('names the exact variable and the offending value for "placeholder"', () => {
+  it('names the exact variable for "placeholder", but never echoes the offending value itself', () => {
+    // `looksLikePlaceholder` also matches by PREFIX ("your_", "changeme", ...), so `finding.value` is
+    // not always one of the small set of PUBLIC example strings this file hardcodes — it can be an
+    // operator's own real, hand-typed secret that merely happens to start with one of those prefixes.
+    // Logging it back in clear text would be exactly the class of bug this message exists to CATCH,
+    // one level up (an auth secret readable by anyone who can read this process's own output).
     const finding: InsecureSecretFinding = {
       variable: 'JWT_SECRET',
       reason: 'placeholder',
@@ -109,7 +114,8 @@ describe('insecureSecretMessage', () => {
     };
     const message = insecureSecretMessage(finding);
     expect(message).toContain('JWT_SECRET');
-    expect(message).toContain('your_jwt_secret');
+    expect(message).not.toContain('your_jwt_secret');
+    expect(message).toContain('placeholder');
   });
 });
 

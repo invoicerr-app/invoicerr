@@ -132,11 +132,21 @@ export function findInsecureSecret(env: NodeJS.ProcessEnv = process.env): Insecu
   return null;
 }
 
+/**
+ * `finding.value` is deliberately NEVER interpolated into this message, even though every exact-match
+ * placeholder it can hold (`PLACEHOLDER_SECRETS` above) is itself a public, intentionally-not-secret
+ * string — this codebase's own boot log is not the place to prove that, and `looksLikePlaceholder`
+ * also matches by PREFIX (`your_`, `changeme`, ...): an operator's own hand-typed passphrase that
+ * merely happens to start with one of those is a real secret, not a copy-pasted example, and would
+ * otherwise be echoed here in clear text to every place this process's stderr ends up (a log
+ * aggregator, a support bundle, a terminal over someone's shoulder).
+ */
 export function insecureSecretMessage(finding: InsecureSecretFinding): string {
   const base =
     finding.reason === 'empty'
       ? `${finding.variable} is not set.`
-      : `${finding.variable} is set to "${finding.value}", a well-known placeholder value.`;
+      : `${finding.variable} is set to a well-known placeholder value (e.g. the public example in ` +
+        'docker-compose.yml).';
   return (
     `[secret-guard] Refusing to boot: ${base} This signs every session cookie/JWT — set a real ` +
     `BETTER_AUTH_SECRET (generate one with \`openssl rand -hex 32\`); the docker-compose example ` +

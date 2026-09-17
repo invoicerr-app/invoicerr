@@ -65,6 +65,16 @@ import sanitizeHtml = require('sanitize-html');
  * named here, so they are gone by construction rather than by a blacklist someone has to keep
  * complete.
  */
+
+/**
+ * Tags whose CONTENT is markup/behaviour rather than prose a reader was meant to see — shared with
+ * `actions/email-template.ts#stripHtmlTags`, which strips ALL tags (not just the ones this policy
+ * disallows) to derive a plain-text email part: a single list keeps "what must never survive as
+ * visible text" from drifting between the two policies, rather than a second copy silently missing a
+ * tag this one adds later.
+ */
+export const EMAIL_NON_TEXT_TAGS = ['script', 'style', 'textarea', 'option'];
+
 const EMAIL_HTML_POLICY: sanitizeHtml.IOptions = {
   allowedTags: [
     'p',
@@ -116,9 +126,9 @@ const EMAIL_HTML_POLICY: sanitizeHtml.IOptions = {
   allowedSchemes: ['http', 'https', 'mailto'],
   allowedSchemesAppliedToAttributes: ['href', 'src'],
   // Nothing is "escaped into visible text" silently: a disallowed tag's CONTENT is kept (so a
-  // paragraph wrapped in an unknown tag does not vanish) while the tag itself goes — except for these
-  // three, whose content is markup/behaviour rather than prose a reader was meant to see.
-  nonTextTags: ['script', 'style', 'textarea', 'option'],
+  // paragraph wrapped in an unknown tag does not vanish) while the tag itself goes — except for these,
+  // whose content is markup/behaviour rather than prose a reader was meant to see.
+  nonTextTags: EMAIL_NON_TEXT_TAGS,
 };
 
 /**

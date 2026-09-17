@@ -22,6 +22,12 @@ on:
       - 'e2e/cypress/fixtures/scenarios.ts'
       - '.github/workflows/scenarios.yml'
 
+# The one job below only checks out this repo, runs the scenario spec, and uploads its own logs/videos
+# (through `actions/upload-artifact`'s own runtime token, not a GITHUB_TOKEN permission) — nothing
+# here needs more than read access to the repository.
+permissions:
+  contents: read
+
 jobs:
   scenario:
     runs-on: ubuntu-latest

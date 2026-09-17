@@ -10,6 +10,12 @@ on:
   pull_request:
   push:
 
+# None of the seven jobs below pushes a package, comments on a PR, or otherwise calls the GitHub API
+# for anything beyond the checkout every job already does — `actions/upload-artifact`/`actions/cache`
+# authenticate through their own runtime token, not GITHUB_TOKEN permissions, so this is the whole ask.
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest

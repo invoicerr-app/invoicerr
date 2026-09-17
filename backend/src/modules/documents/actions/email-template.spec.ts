@@ -305,6 +305,24 @@ describe('deriveTextFromHtml', () => {
   it('keeps a still-uninterpolated placeholder href visible rather than dropping the link', () => {
     expect(deriveTextFromHtml('<p><a href="{signatureUrl}">Sign</a></p>')).toBe('Sign ({signatureUrl})');
   });
+
+  // A single `/<[^>]*>/g` pass matches the FIRST `<` to the FIRST `>`, so a nested/malformed tag lets
+  // its own closing bracket close the OUTER one too, leaving the tag's own opening delimiter behind as
+  // literal `<script` text — this exact construction is the standard incomplete-multi-character-
+  // sanitization PoC. Both the standalone body and the link-label path (a label is stripped
+  // separately, see `deriveTextFromHtml`'s own "Links FIRST" comment) go through the same real-parser
+  // strip (`stripHtmlTags`), so neither leaves `<script` in what is, after all, the text/plain part of
+  // a real outgoing email — even though the malformed fragment's own inner words can still surface as
+  // inert prose (see `stripHtmlTags`'s own header for why that residue is harmless here).
+  it('never leaves a literal "<script" tag behind for a nested/malformed tag', () => {
+    const bodyResult = deriveTextFromHtml('<p><scr<script>alert(document.cookie)</script>ipt></p>');
+    expect(bodyResult.toLowerCase()).not.toContain('<script');
+
+    const linkLabelResult = deriveTextFromHtml(
+      '<p><a href="https://x.test"><scr<script>alert(1)</script>ipt></a></p>',
+    );
+    expect(linkLabelResult.toLowerCase()).not.toContain('<script');
+  });
 });
 
 describe('describeDocumentEmailVocabulary — derived per type, never a fixed list', () => {

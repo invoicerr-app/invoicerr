@@ -42,6 +42,20 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 /**
+ * `previewUrl` (below) is always the return value of `URL.createObjectURL()` — never text a user
+ * typed — so it can never carry a `javascript:` payload; the browser itself generates the whole
+ * string. This is still checked explicitly, rather than trusted implicitly, before it is ever handed
+ * to `src`/`href`: an object URL's own MIME type comes from whichever `Blob`/`File` it was created
+ * from (a locally picked file's own browser-reported `.type`, or this company's stored attachment
+ * mime), so asserting the SCHEME here is a cheap, permanent guarantee that this component only ever
+ * navigates to something the browser itself vouches for — not to a string that merely happens to have
+ * reached this variable the same way a real preview URL would.
+ */
+export function isPreviewableObjectUrl(url: string | null): url is string {
+  return !!url && url.startsWith("blob:")
+}
+
+/**
  * 'file' — the 12th core field kind, for enriched expense notes ("notes de frais enrichies"): an
  * attachment scoped to this company, stored content-addressed by the backend's `attachments/` module
  * (reusing `received-invoices/storage.ts`'s own mechanism — see that module's header) and referenced
@@ -171,7 +185,7 @@ export function FileField({ field, name }: FieldRendererProps) {
                     <span className="text-sm text-muted-foreground">
                       {t("documents.form.file.loadingPreview")}
                     </span>
-                  ) : isImage && previewUrl ? (
+                  ) : isImage && isPreviewableObjectUrl(previewUrl) ? (
                     <img
                       src={previewUrl}
                       alt={t("documents.form.file.previewAlt")}
@@ -183,7 +197,7 @@ export function FileField({ field, name }: FieldRendererProps) {
                   )}
                   <div className="flex flex-1 flex-col overflow-hidden">
                     <span className="truncate text-sm">{fileName}</span>
-                    {!isImage && previewUrl && (
+                    {!isImage && isPreviewableObjectUrl(previewUrl) && (
                       <a
                         href={previewUrl}
                         target="_blank"

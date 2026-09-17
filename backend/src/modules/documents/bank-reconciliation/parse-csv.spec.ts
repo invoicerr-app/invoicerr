@@ -1,5 +1,10 @@
 import { CsvColumnMapping } from './csv-mapping';
-import { detectCsvDelimiter, parseBankStatementCsv } from './parse-csv';
+import {
+  detectCsvDelimiter,
+  MAX_STATEMENT_LINE_LENGTH,
+  MAX_STATEMENT_ROWS,
+  parseBankStatementCsv,
+} from './parse-csv';
 
 const FR_MAPPING: CsvColumnMapping = {
   dateColumn: 'Date',
@@ -115,5 +120,63 @@ describe('parseBankStatementCsv — honest, row-numbered degrade', () => {
     expect(result.lines).toHaveLength(1);
     expect(result.lines[0].label).toBe('Fine');
     expect(result.errors.join(' ')).toMatch(/out of the range/);
+  });
+});
+
+describe('parseBankStatementCsv — explicit row/line caps (the two loop bounds this file takes from the upload)', () => {
+  it('throws — a whole-file fact — for a data-row count over MAX_STATEMENT_ROWS', () => {
+    const header = 'Date;Montant;Libellé';
+    const row = '15/08/2026;1,00;x';
+    const text = [header, ...Array(MAX_STATEMENT_ROWS + 1).fill(row)].join('\n');
+
+    expect(() => parseBankStatementCsv(text, FR_MAPPING, 'EUR')).toThrow(
+      new RegExp(`${MAX_STATEMENT_ROWS}-row limit`),
+    );
+  });
+
+  it('accepts a file at exactly MAX_STATEMENT_ROWS data rows — the cap is inclusive, not off-by-one', () => {
+    const header = 'Date;Montant;Libellé';
+    const row = '15/08/2026;1,00;x';
+    const text = [header, ...Array(MAX_STATEMENT_ROWS).fill(row)].join('\n');
+
+    const result = parseBankStatementCsv(text, FR_MAPPING, 'EUR');
+    expect(result.lines).toHaveLength(MAX_STATEMENT_ROWS);
+  });
+
+  it('throws — a whole-file fact — for a header row over MAX_STATEMENT_LINE_LENGTH characters', () => {
+    const hugeHeader = `Date;Montant;${'x'.repeat(MAX_STATEMENT_LINE_LENGTH)}`;
+    const text = [hugeHeader, '15/08/2026;1,00;x'].join('\n');
+
+    expect(() => parseBankStatementCsv(text, FR_MAPPING, 'EUR')).toThrow(
+      new RegExp(`${MAX_STATEMENT_LINE_LENGTH}-character limit`),
+    );
+  });
+
+  it('skips — a per-ROW fact — a single data line over MAX_STATEMENT_LINE_LENGTH characters, keeps the rest', () => {
+    const hugeRow = `01/02/2026;1,00;${'x'.repeat(MAX_STATEMENT_LINE_LENGTH)}`;
+    const text = ['Date;Montant;Libellé', hugeRow, '02/02/2026;2,00;Fine'].join('\n');
+
+    const result = parseBankStatementCsv(text, FR_MAPPING, 'EUR');
+    expect(result.lines).toHaveLength(1);
+    expect(result.lines[0].label).toBe('Fine');
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toMatch(/^Row 2:.*character limit/);
+  });
+
+  // Regression for the loop bound itself: `splitCsvLine`'s own per-character loop must never run on
+  // more than MAX_STATEMENT_LINE_LENGTH characters, whatever the file contains — this is the actual
+  // bound the huge-row cap above exists to put in place, timed rather than merely asserted on shape.
+  it('parses a file at the row/line caps without a runaway cost', () => {
+    const header = 'Date;Montant;Libellé';
+    const prefix = '15/08/2026;1,00;';
+    const row = `${prefix}${'x'.repeat(MAX_STATEMENT_LINE_LENGTH - prefix.length)}`;
+    const text = [header, ...Array(1000).fill(row)].join('\n');
+
+    const start = performance.now();
+    const result = parseBankStatementCsv(text, FR_MAPPING, 'EUR');
+    const elapsedMs = performance.now() - start;
+
+    expect(result.lines).toHaveLength(1000);
+    expect(elapsedMs).toBeLessThan(500);
   });
 });

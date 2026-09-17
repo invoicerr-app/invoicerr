@@ -115,6 +115,24 @@ function splitCsvLine(line: string, delimiter: string): string[] {
  *  row is still recoverable. */
 export const MAX_STATEMENT_AMOUNT_MINOR = 2_147_483_647;
 
+/**
+ * Hard ceilings on a CSV import's SHAPE, checked before `parseBankStatementCsv` does any per-row work
+ * — a WHOLE-FILE guard, distinct from the per-row `errors[]` below: a malformed row is a fact about
+ * ONE row (skipped, the rest still imports — this module's own header); a file with more rows, or a
+ * line with more characters, than either of these lets through is a fact about the FILE itself, the
+ * same category that header's own "malformed MAPPING" already throws for.
+ *
+ * `rawLines.length` and each line's own `.length` are both LOOP BOUNDS this module takes directly
+ * from the uploaded file, with nothing capping either otherwise: the body-parser's own JSON size
+ * limit (`main.ts`, `1mb`) happens to bound the total bytes today, but this module has no business
+ * depending on a ceiling declared in an unrelated file for its own safety — and raising that limit
+ * tomorrow must not silently raise this one too. Both numbers are generous for a real bank export
+ * (a multi-year statement is a few thousand rows; no real column header runs anywhere near 20k
+ * characters) and exist only to put a floor under a pathological one.
+ */
+export const MAX_STATEMENT_ROWS = 50_000;
+export const MAX_STATEMENT_LINE_LENGTH = 20_000;
+
 function parseCsvAmount(raw: string, decimalSeparator: '.' | ','): number {
   const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
   const stripped = raw
@@ -189,6 +207,21 @@ export function parseBankStatementCsv(
   if (rawLines.length === 0) {
     return { lines: [], errors: [] };
   }
+  // Whole-file facts, checked BEFORE either loop below ever runs — see MAX_STATEMENT_ROWS/
+  // MAX_STATEMENT_LINE_LENGTH's own header for why these live here rather than relying on a size
+  // limit declared somewhere else entirely.
+  if (rawLines.length - 1 > MAX_STATEMENT_ROWS) {
+    throw new Error(
+      `This file has ${rawLines.length - 1} data rows, over the ${MAX_STATEMENT_ROWS}-row limit a ` +
+        'single import can process.',
+    );
+  }
+  if (rawLines[0].length > MAX_STATEMENT_LINE_LENGTH) {
+    throw new Error(
+      `The header row is ${rawLines[0].length} characters long, over the ${MAX_STATEMENT_LINE_LENGTH}-` +
+        'character limit a single line can carry.',
+    );
+  }
 
   const delimiter = detectCsvDelimiter(rawLines[0]);
   const headers = splitCsvLine(rawLines[0], delimiter);
@@ -207,6 +240,17 @@ export function parseBankStatementCsv(
 
   for (let i = 1; i < rawLines.length; i++) {
     const fileRow = i + 1; // 1-based, header included — what a human counts opening the file.
+    // A per-ROW fact, unlike the two whole-file checks above: one absurd line does not have to take
+    // the rest of the file down with it, so this degrades exactly like a bad date/amount below —
+    // named in `errors`, this row skipped — rather than throwing. `splitCsvLine`'s own loop never
+    // runs on more characters than this, whatever the file actually contains.
+    if (rawLines[i].length > MAX_STATEMENT_LINE_LENGTH) {
+      errors.push(
+        `Row ${fileRow}: line is ${rawLines[i].length} characters long, over the ` +
+          `${MAX_STATEMENT_LINE_LENGTH}-character limit a single line can carry.`,
+      );
+      continue;
+    }
     const fields = splitCsvLine(rawLines[i], delimiter);
     const row: Record<string, string> = {};
     headers.forEach((header, index) => {

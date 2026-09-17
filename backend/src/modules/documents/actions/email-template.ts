@@ -1,3 +1,8 @@
+// Same CJS-compat form `mail/sanitize-email-html.ts` already uses for this same dependency (no
+// esModuleInterop in this project's tsconfig, and sanitize-html is `export =`).
+import sanitizeHtml = require('sanitize-html');
+
+import { EMAIL_NON_TEXT_TAGS } from '@/mail/sanitize-email-html';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
 import { DocumentEmailTemplate, DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
@@ -35,6 +40,25 @@ function escapeHtmlValue(value: string): string {
 }
 
 /**
+ * Removes every tag from `html`, keeping the surviving text — via `sanitize-html`'s real parser rather
+ * than a hand-rolled `/<[^>]*>/g` regex. A single regex pass is not idempotent against a NESTED or
+ * malformed construction (`<scr<script>ipt>`): matching the first `<` to the first `>` it finds
+ * consumes the inner tag's own closing bracket and can leave a literal `<script` fragment behind for
+ * whatever reads the "stripped" result next — this function's own caller, `deriveTextFromHtml`,
+ * produces the text/plain part of an outgoing email, so a mail client that second-guesses a
+ * text/plain body would see real markup. A real parser has no such blind spot: it tracks tag
+ * boundaries structurally, so no opening `<script` (or any other tag delimiter) ever survives as
+ * text — a malformed/nested construction can still leave a disallowed tag's own INNER TEXT behind
+ * (e.g. `<scr<script>alert(1)</script>ipt>` keeps the word `alert(1)`, since the malformed outer
+ * fragment does not parse as an exact `script` tag for `nonTextTags` to recognize), but that is inert
+ * prose in a text/plain part, never markup a client could act on — the one thing this function exists
+ * to prevent.
+ */
+function stripHtmlTags(html: string): string {
+  return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {}, nonTextTags: EMAIL_NON_TEXT_TAGS });
+}
+
+/**
  * Turns an html body into a readable text/plain alternative — LINKS KEEP THEIR URL, block ends and
  * `<br>` become newlines, list items gain a leading dash, the remaining tags go, and the handful of
  * entities an email body realistically carries are decoded (`&amp;` LAST, so an escaped `&amp;lt;` does
@@ -57,7 +81,7 @@ export function deriveTextFromHtml(html: string): string {
     .replace(
       /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/\s*a\s*>/gi,
       (_match, href: string, label: string) => {
-        const text = label.replace(/<[^>]*>/g, '').trim();
+        const text = stripHtmlTags(label).trim();
         const url = href.trim();
         if (!url) return text;
         if (!text || text.includes(url)) return url;
@@ -72,20 +96,25 @@ export function deriveTextFromHtml(html: string): string {
     .replace(/<\s*li[^>]*>/gi, '\n- ')
     .replace(/<\/\s*(p|div|h[1-6]|tr|ul|ol|table|blockquote|pre)\s*>/gi, '\n');
 
-  return withBreaks
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&apos;/gi, "'")
-    .replace(/&amp;/gi, '&')
-    .split('\n')
-    .map((line) => line.replace(/[ \t]+/g, ' ').trim())
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return (
+    stripHtmlTags(withBreaks)
+      // `&nbsp;` — either still literal (sanitize-html leaves an ALREADY-encoded `&amp;nbsp;` alone,
+      // same as every other entity below) or already decoded to a real U+00A0 by the parser above
+      // (unlike `&amp;`/`&lt;`/`&gt;`, which it re-escapes on the way out — see `stripHtmlTags`'s own
+      // header) — both collapse to a plain space either way.
+      .replace(/&nbsp;|\u00a0/gi, ' ')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#0?39;/g, "'")
+      .replace(/&apos;/gi, "'")
+      .replace(/&amp;/gi, '&')
+      .split('\n')
+      .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
 }
 
 /**

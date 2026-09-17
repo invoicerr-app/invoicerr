@@ -78,9 +78,13 @@ function substitutePlaceholders(text: string, variables: Record<string, string>)
 
 /** Whether a rich-text editor's HTML value is, once its markup is stripped, actually empty — a fresh
  *  TipTap document is `<p></p>`, not `""`, so a plain `.trim() === ""` would never disable Save on an
- *  emptied-out template. */
-function isHtmlEmpty(html: string): boolean {
-  return html.replace(/<[^>]*>/g, "").trim() === ""
+ *  emptied-out template. Goes through DOMPurify (already this file's own sanitizer for the live
+ *  preview below) rather than a hand-rolled `/<[^>]*>/g` regex: a single regex pass matches the FIRST
+ *  `<` to the FIRST `>`, so a nested/malformed tag (`<scr<script>ipt>`) can leave a literal `<script`
+ *  behind in what this function treats as "plain text" — DOMPurify parses through a real (inert)
+ *  document instead, so no tag delimiter ever survives the strip. */
+export function isHtmlEmpty(html: string): boolean {
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: [] }).trim() === ""
 }
 
 /** True for a string that already carries real markup — used only to decide whether a legacy body

@@ -13,7 +13,7 @@
  * overwritten with byte-identical content) — company scoping adds isolation, not extra dedup logic.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 /** Root of the inbound-file store. `DOCUMENTS_INBOUND_DIR` if set (tests repoint it under
  *  `os.tmpdir()`); otherwise `<cwd>/.documents-inbound` — the same "dev-friendly default, gitignored"
@@ -39,8 +39,31 @@ export function extFor(mime: string): string {
   return 'bin';
 }
 
+/** What `archive/hashing.ts#computeArtifactHash` always produces — lowercase, exactly 64 hex
+ *  characters. `sha256` reaches this module straight off an HTTP route param on more than one caller
+ *  (`documents.controller.ts#downloadAttachment`'s `:fileRef`, echoed through
+ *  `AttachmentsService.download`) — never validated there, so it must be validated HERE, before it
+ *  ever becomes part of a filesystem path. */
+const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
+
+/** `<root>/<companyId>/<sha256>.<ext>` — but `sha256` is UNTRUSTED input on the read path (see
+ *  `SHA256_HEX_PATTERN`'s own comment), so this both rejects anything that is not a genuine SHA-256
+ *  hex digest AND, belt-and-suspenders, refuses to hand back a path that does not resolve INSIDE this
+ *  company's own directory. Either check alone would already stop a `sha256` like
+ *  `"../otherCompanyId/deadbeef...".slice(0, 64)` from reading a sibling tenant's file — one because
+ *  `/`/`.` are not hex digits, the other because the resolved path itself would land outside
+ *  `companyDir` — but the two together do not depend on staying in sync with each other as this
+ *  module evolves. */
 function inboundPath(companyId: string, sha256: string, mime: string): string {
-  return join(inboundRoot(), companyId, `${sha256}.${extFor(mime)}`);
+  if (!SHA256_HEX_PATTERN.test(sha256)) {
+    throw new Error(`"${sha256}" is not a valid content hash (expected 64 lowercase hex characters).`);
+  }
+  const companyDir = resolve(inboundRoot(), companyId);
+  const path = resolve(companyDir, `${sha256}.${extFor(mime)}`);
+  if (path !== companyDir && !path.startsWith(companyDir + sep)) {
+    throw new Error(`Refusing to read/write outside this company's own storage directory.`);
+  }
+  return path;
 }
 
 /** Writes `bytes` under `<root>/<companyId>/<sha256>.<ext>` — `sha256` is computed by the CALLER

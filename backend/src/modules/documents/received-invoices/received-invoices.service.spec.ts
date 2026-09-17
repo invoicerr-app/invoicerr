@@ -451,17 +451,15 @@ describe('ReceivedInvoicesService', () => {
 
   describe('downloadFile', () => {
     it('reads back exactly what was persisted for an owned document', async () => {
-      persistInboundFile(
-        'company-1',
-        'hash-abc',
-        'application/pdf',
-        new TextEncoder().encode('the pdf bytes'),
-      );
+      // A real-shaped SHA-256 (64 lowercase hex characters) — storage.ts's own `inboundPath` now
+      // rejects anything else as an invalid content hash before it ever becomes a filesystem path.
+      const fileRef = 'a'.repeat(64);
+      persistInboundFile('company-1', fileRef, 'application/pdf', new TextEncoder().encode('the pdf bytes'));
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'ri-1',
         typeId: 'received-invoice',
         status: 'received',
-        data: { fileRef: 'hash-abc', fileName: 'invoice.pdf', fileMime: 'application/pdf' },
+        data: { fileRef, fileName: 'invoice.pdf', fileMime: 'application/pdf' },
         createdAt: new Date(),
         updatedAt: new Date(),
       });

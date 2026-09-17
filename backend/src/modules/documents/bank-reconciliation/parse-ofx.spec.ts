@@ -89,4 +89,19 @@ describe('parseBankStatementOfx — honest degrade', () => {
   it('a file with no <STMTTRN> block at all parses to zero lines, zero errors', () => {
     expect(parseBankStatementOfx('<OFX></OFX>', 'EUR')).toEqual({ lines: [], errors: [] });
   });
+
+  // Regression for the block extractor's own worst case: a `[\s\S]*?` lazy quantifier between two
+  // literal tags, run through a global `.match()`, rescans to the end of the string for EVERY one of
+  // many `<STMTTRN>` occurrences that never finds a closing tag — quadratic in the occurrence count.
+  // 20k unclosed opens is enough to turn a millisecond-scale parse into a multi-second one under the
+  // old regex; the budget below is generous (a real request would time out long before 500ms) but
+  // still catches the O(n²) shape if it ever comes back.
+  it('does not go quadratic on many <STMTTRN> opens with no closing tag anywhere', () => {
+    const hostile = '<STMTTRN>'.repeat(20_000);
+    const start = performance.now();
+    const result = parseBankStatementOfx(hostile, 'EUR');
+    const elapsedMs = performance.now() - start;
+    expect(result).toEqual({ lines: [], errors: [] });
+    expect(elapsedMs).toBeLessThan(500);
+  });
 });
