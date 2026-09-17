@@ -30,15 +30,27 @@
  * own docs) is whether every organization can call `create`/`createExternal` for an ADDITIONAL named
  * member the way the auto-created owner member proved live in sandbox; caught and logged like every
  * other Polar failure here, never assumed to always succeed.
+ *
+ * Also owns `ensureCompanyBillingMember` (below) — a SEPARATE concern from the per-user sync above (it
+ * never reads `UserCompany` at all), grouped in this file because both need the exact same "only once
+ * this company is a `team` customer" guard. Ensures the ONE Polar member standing for the company's own
+ * billing identity (`member-resolution.ts#resolveOrCreateCompanyBillingMemberId`) exists PROACTIVELY —
+ * at every membership change (called from `syncCompanyMemberOnMembershipChange` itself) and at
+ * `customer-provisioning.ts`'s own boot/sweep pass — rather than only lazily, the first time someone
+ * actually clicks "Manage subscription" (`portal-session.ts` already resolves-or-creates it lazily too,
+ * so this is defense in depth: warms the common case and keeps `Company.billingEmail` changes reflected
+ * even for a company nobody re-opens the portal for).
  */
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
+import { loadCompanyBillingIdentity, resolveBillingEmail } from './billing-customer';
 import { isBillingEnabled } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import {
   MemberResolutionClient,
   removeMemberForUser,
+  resolveOrCreateCompanyBillingMemberId,
   ResolvedMemberUser,
   resolveOrCreateMemberIdForUser,
 } from './member-resolution';
@@ -76,6 +88,10 @@ export async function syncCompanyMemberOnMembershipChange(
     const customer = await client.customers.getExternal({ externalId: companyId });
     if (customer.type !== 'team') return; // no member subsystem yet — see this file's own header.
 
+    // Best-effort, same as everything else in this try block — a failure here must not skip the
+    // per-user sync below, so it is NOT allowed to throw out of this call (see its own header).
+    await ensureCompanyBillingMember(companyId, customer.id, client);
+
     const membership = await prisma.userCompany.findUnique({
       where: { userId_companyId: { userId, companyId } },
     });
@@ -105,4 +121,34 @@ async function loadResolvedUser(userId: string): Promise<ResolvedMemberUser | nu
   });
   if (!user) return null;
   return { id: userId, email: user.email, name: `${user.firstname} ${user.lastname}`.trim() || null };
+}
+
+/**
+ * Makes sure the ONE Polar member standing for this company's own billing identity exists (and, on a
+ * `Company.billingEmail` change, ends up pointing at a member with the NEW email — see
+ * `member-resolution.ts#resolveOrCreateCompanyBillingMemberId`'s own header on when that means
+ * reusing Polar's auto-created owner member versus creating a fresh one). Callers own the "is this
+ * customer actually a `team` customer yet" guard (both call sites here already checked it for their
+ * own, adjacent reason) — this function assumes `customerId` names one. Never throws: a Polar hiccup
+ * here must not turn an unrelated membership-change or provisioning pass into a failure — logged and
+ * left for the NEXT call (every membership change, every provisioning/sweep pass) to retry.
+ */
+export async function ensureCompanyBillingMember(
+  companyId: string,
+  customerId: string,
+  client: MemberResolutionClient = getPolarClient() as unknown as MemberResolutionClient,
+): Promise<void> {
+  try {
+    const identity = await loadCompanyBillingIdentity(companyId);
+    await resolveOrCreateCompanyBillingMemberId(client, customerId, companyId, {
+      email: resolveBillingEmail(identity),
+      name: identity.name,
+    });
+  } catch (error) {
+    logger.warn('Polar company billing member sync failed — will retry on the next pass', {
+      category: 'billing',
+      companyId,
+      details: { companyId, error: error instanceof Error ? error.message : String(error) },
+    });
+  }
 }

@@ -1,7 +1,7 @@
 import { ConflictException } from '@nestjs/common';
 
 import { BillingController } from './billing.controller';
-import { BillingEmailTakenError } from './billing-customer';
+import { BillingEmailTakenError, loadCompanyBillingIdentity } from './billing-customer';
 import { getCompanyBillingEmail, setCompanyBillingEmail } from './billing-email';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { createCheckoutSession } from './checkout-session';
@@ -16,6 +16,13 @@ import { reconcileFromPolarIfStale } from './status-reconcile';
 
 jest.mock('./company-subscription.store');
 jest.mock('./status-reconcile');
+// Partial mock, deliberately: only `loadCompanyBillingIdentity` (the one Prisma call `openPortal` now
+// makes) is faked — `BillingEmailTakenError`/`resolveBillingEmail` stay the REAL exports, same reason
+// `portal-session` below is partially mocked rather than wholesale.
+jest.mock('./billing-customer', () => ({
+  ...jest.requireActual('./billing-customer'),
+  loadCompanyBillingIdentity: jest.fn(),
+}));
 // Partial mock, deliberately: only the two Polar-calling functions are faked — `PolarCustomerNotFoundError`
 // (and its `code`) and `BILLING_NO_COMPANY_CUSTOMER_CODE` stay the REAL exports, so a fixture built with
 // `new PolarCustomerNotFoundError(...)` below carries a real `.message`/`.code` the controller actually
@@ -29,6 +36,7 @@ jest.mock('./checkout-session');
 jest.mock('./legacy-customer');
 jest.mock('./billing-email');
 
+const loadBillingIdentity = loadCompanyBillingIdentity as jest.Mock;
 const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
 const reconcile = reconcileFromPolarIfStale as jest.Mock;
 const createPortalSession = createCustomerPortalSession as jest.Mock;
@@ -169,25 +177,60 @@ describe('BillingController.startCheckout', () => {
 describe('BillingController.openPortal', () => {
   afterEach(() => jest.resetAllMocks());
 
-  it('opens a portal session for the active company, scoped to the calling user', async () => {
+  it("opens a portal session under the COMPANY's own billing identity — never the calling user's", async () => {
+    loadBillingIdentity.mockResolvedValue({
+      id: 'company-1',
+      name: 'Acme Inc',
+      email: 'contact@acme.test',
+      billingEmail: 'billing@acme.test',
+    });
     createPortalSession.mockResolvedValue({ url: 'https://polar.sh/portal/abc', redirect: true });
     const controller = new BillingController();
 
-    const result = await controller.openPortal('company-1', CLICKING_USER);
+    const result = await controller.openPortal('company-1');
 
+    // The billing-email OVERRIDE wins over the plain contact email (`resolveBillingEmail`'s own
+    // precedence) — and neither is `CLICKING_USER`'s own email: this route no longer reads `@User()`
+    // at all, which is the fix itself (see `portal-session.ts`'s own header on the real incident).
+    expect(loadBillingIdentity).toHaveBeenCalledWith('company-1');
     expect(createPortalSession).toHaveBeenCalledWith(
       'company-1',
-      { id: 'user-1', email: 'owner@acme.test', name: 'Ada Owner' },
+      { email: 'billing@acme.test', name: 'Acme Inc' },
       expect.any(String),
     );
     expect(result).toEqual({ url: 'https://polar.sh/portal/abc', redirect: true });
   });
 
+  it("falls back to the company's own contact email when no billing-email override is set", async () => {
+    loadBillingIdentity.mockResolvedValue({
+      id: 'company-1',
+      name: 'Acme Inc',
+      email: 'contact@acme.test',
+      billingEmail: null,
+    });
+    createPortalSession.mockResolvedValue({ url: 'https://polar.sh/portal/abc', redirect: true });
+    const controller = new BillingController();
+
+    await controller.openPortal('company-1');
+
+    expect(createPortalSession).toHaveBeenCalledWith(
+      'company-1',
+      { email: 'contact@acme.test', name: 'Acme Inc' },
+      expect.any(String),
+    );
+  });
+
   it('turns a PolarCustomerNotFoundError into a named 409, not the raw message', async () => {
+    loadBillingIdentity.mockResolvedValue({
+      id: 'company-1',
+      name: 'Acme Inc',
+      email: 'contact@acme.test',
+      billingEmail: null,
+    });
     createPortalSession.mockRejectedValue(new PolarCustomerNotFoundError('company-1'));
     const controller = new BillingController();
 
-    const error = await controller.openPortal('company-1', CLICKING_USER).catch((e) => e);
+    const error = await controller.openPortal('company-1').catch((e) => e);
 
     expect(error).toBeInstanceOf(ConflictException);
     expect(error.getResponse()).toMatchObject({ code: BILLING_NO_COMPANY_CUSTOMER_CODE });

@@ -7,20 +7,28 @@
  * `portal` endpoint), it always calls
  * `polar2.customerSessions.create({ externalCustomerId: session.user.id, returnUrl })` — no `memberId`,
  * no way to configure one, hard-coded to the SESSION USER besides. Polar rejects a `memberId`-less call
- * with `"member_id is required for team customers"` for a TEAM customer. This product's hosted plan IS
- * seat-based (`POLAR_PRODUCT_ID_MONTHLY`/`YEARLY` are `amountType: "seat_based"` prices, confirmed by
- * reading the live sandbox products 2026-09-15) — and Polar's own model requires a customer that
- * checks out against a seat-based price to be a TEAM customer (so seats can be assigned to individual
- * members), regardless of what `type` the customer row started as. Confirmed live in sandbox: a paying
- * company's Polar customer reads back `type: "team"` with exactly one Polar-auto-created `role: "owner"`
- * member.
+ * with `"member_id is required for team customers"` for a TEAM customer — re-confirmed live in sandbox
+ * 2026-09-17 with a fresh team customer created for this exact question: `customerSessions.create`
+ * with only `customerId` (no `memberId`) answers 422 `"member_id is required for team customers"`, so
+ * there is no `memberId`-less path to fall back to for a TEAM customer, ever. This product's hosted
+ * plan IS seat-based (`POLAR_PRODUCT_ID_MONTHLY`/`YEARLY` are `amountType: "seat_based"` prices,
+ * confirmed by reading the live sandbox products 2026-09-15) — and Polar's own model requires a
+ * customer that checks out against a seat-based price to be a TEAM customer (so seats can be assigned
+ * to individual members), regardless of what `type` the customer row started as. Confirmed live in
+ * sandbox: a paying company's Polar customer reads back `type: "team"` with exactly one
+ * Polar-auto-created `role: "owner"` member.
  *
- * Multi-user follow-up (same product decision, same day): the portal session is opened for the Polar
- * MEMBER matching the CLICKING user — never unconditionally the owner member — via
- * `member-resolution.ts#resolveOrCreateMemberIdForUser` (creates one, keyed by this user's own id, if
- * neither an app-created nor a Polar-auto-created member matches them yet). Reachable only for
- * OWNER/ADMIN in the first place (`@Roles` on `billing.controller.ts`'s own `POST /billing/portal`) —
- * a plain MEMBER never calls this at all.
+ * The `memberId` this file resolves is `member-resolution.ts#resolveOrCreateCompanyBillingMemberId`'s
+ * — the ONE member standing for the COMPANY's own billing identity — NOT the clicking user's own
+ * member. An earlier version of this function (2026-09-16's "multi-user follow-up") opened the session
+ * for whichever OWNER/ADMIN was clicking; a real dev-instance incident (2026-09-17) showed the portal
+ * page then carrying THAT user's own personal login email instead of the company's billing email
+ * (`https://…/portal/overview?…&email=<clicking user>`, confirmed by a live, unmodified sandbox call
+ * that `email=` in `customerPortalUrl` comes straight from Polar's own response — nothing in this
+ * codebase appends it) — wrong for a product whose customer IS the company, not any one of its users.
+ * Reachable only for OWNER/ADMIN in the first place (`@Roles` on `billing.controller.ts`'s own
+ * `POST /billing/portal`) — a plain MEMBER never calls this at all; which specific OWNER/ADMIN clicked
+ * no longer changes what the portal opens as.
  *
  * `individual` customers (a company that has never completed a checkout yet, so Polar never promoted
  * it to `team`) keep working with a plain `externalCustomerId` call, no `memberId` — proven in sandbox
@@ -33,8 +41,10 @@
  */
 import { isResourceNotFoundError } from './billing-customer';
 import {
+  CompanyBillingMemberIdentity,
   MemberResolutionClient,
   ResolvedMemberUser,
+  resolveOrCreateCompanyBillingMemberId,
   resolveOrCreateMemberIdForUser,
 } from './member-resolution';
 import { getPolarClient } from './polar-client';
@@ -85,24 +95,25 @@ export class PolarCustomerNotFoundError extends Error {
 }
 
 /**
- * `companyId` is what `checkout-session.ts`'s own `getOrCreatePolarCustomerForCompany` already stamps
- * as the Polar customer's `externalId` (option A, `billing-customer.ts`'s own header). `user` is the
- * CLICKING user (id/email/name) — see this file's own header on why the session is opened for THEM,
- * not the auto-created owner. `returnUrl` mirrors `portal-return-url.ts`'s `FALLBACK_RETURN_URL()` —
- * passed in rather than re-read from `process.env` here so this function stays a pure client call,
- * easy to unit test without env plumbing.
+ * The `customers.getExternal` → team-or-individual → `customerSessions.create` dance both portal
+ * functions below need, parameterized only by WHOSE external id the customer is filed under and HOW to
+ * resolve a `memberId` for a TEAM customer — the one thing that differs between "the company's own
+ * billing identity" (`createCustomerPortalSession`) and "the pre-migration customer's own user"
+ * (`createLegacyCustomerPortalSession`). Not exported — both callers below already have the identity
+ * they need before calling in, so a THIRD, generic entry point would only invite a caller to pass the
+ * wrong one.
  */
-export async function createCustomerPortalSession(
-  companyId: string,
-  user: ResolvedMemberUser,
+async function openPortalSessionFor(
+  externalId: string,
+  resolveMemberId: (client: PortalSessionClient, customerId: string) => Promise<string>,
   returnUrl: string,
-  client: PortalSessionClient = getPolarClient() as unknown as PortalSessionClient,
+  client: PortalSessionClient,
 ): Promise<PortalSessionResult> {
   let customer: { id: string; type: string };
   try {
-    customer = await client.customers.getExternal({ externalId: companyId });
+    customer = await client.customers.getExternal({ externalId });
   } catch (error) {
-    if (isResourceNotFoundError(error)) throw new PolarCustomerNotFoundError(companyId);
+    if (isResourceNotFoundError(error)) throw new PolarCustomerNotFoundError(externalId);
     throw error;
   }
 
@@ -110,25 +121,46 @@ export async function createCustomerPortalSession(
     customer.type === 'team'
       ? await client.customerSessions.create({
           customerId: customer.id,
-          memberId: await resolveOrCreateMemberIdForUser(client, customer.id, companyId, user),
+          memberId: await resolveMemberId(client, customer.id),
           returnUrl,
         })
-      : await client.customerSessions.create({ externalCustomerId: companyId, returnUrl });
+      : await client.customerSessions.create({ externalCustomerId: externalId, returnUrl });
 
   return { url: session.customerPortalUrl, redirect: true };
 }
 
 /**
- * Same call as `createCustomerPortalSession` above, just keyed by the CLICKING user's own id instead of
- * the company's — opens a portal session for the pre-2026-09-16 per-USER Polar customer a
- * `legacySubscription: true` company's OWNER/ADMIN needs to cancel by hand (there is no Polar API to
- * migrate a subscription onto the new company-scoped customer — see `legacy-customer.ts`'s own header).
- * Reuses `createCustomerPortalSession` wholesale rather than duplicating the team/individual/member
- * dance: that function's own `companyId` parameter is really just "the customer's own external id"
- * throughout its implementation (and `member-resolution.ts`'s, which it calls into) — nothing in either
- * actually assumes it names a `Company` row, so passing the user's own id works unchanged. Throws the
- * SAME `PolarCustomerNotFoundError` (keyed by `user.id` this time) when no Polar customer is registered
- * at all under this user's id — `billing.controller.ts`'s own `POST /billing/portal/legacy` turns that
+ * `companyId` is what `checkout-session.ts`'s own `getOrCreatePolarCustomerForCompany` already stamps
+ * as the Polar customer's `externalId` (option A, `billing-customer.ts`'s own header). `billing` is
+ * the COMPANY's own billing identity (`billing-customer.ts#resolveBillingEmail` + the company's name),
+ * never the clicking user's — see this file's own header on why. `returnUrl` mirrors
+ * `portal-return-url.ts`'s `FALLBACK_RETURN_URL()` — passed in rather than re-read from `process.env`
+ * here so this function stays a pure client call, easy to unit test without env plumbing.
+ */
+export function createCustomerPortalSession(
+  companyId: string,
+  billing: CompanyBillingMemberIdentity,
+  returnUrl: string,
+  client: PortalSessionClient = getPolarClient() as unknown as PortalSessionClient,
+): Promise<PortalSessionResult> {
+  return openPortalSessionFor(
+    companyId,
+    (c, customerId) => resolveOrCreateCompanyBillingMemberId(c, customerId, companyId, billing),
+    returnUrl,
+    client,
+  );
+}
+
+/**
+ * Opens a portal session for the pre-2026-09-16 per-USER Polar customer a `legacySubscription: true`
+ * company's OWNER/ADMIN needs to cancel by hand (there is no Polar API to migrate a subscription onto
+ * the new company-scoped customer — see `legacy-customer.ts`'s own header). Keyed by the CLICKING
+ * user's own id and resolved via `member-resolution.ts#resolveOrCreateMemberIdForUser` — UNLIKE
+ * `createCustomerPortalSession` above, there is no "company billing identity" to open this one under:
+ * the customer itself IS this one user, by construction, so the member matching them is correct here
+ * in a way it stopped being correct for the company-scoped portal. Throws the SAME
+ * `PolarCustomerNotFoundError` (keyed by `user.id` this time) when no Polar customer is registered at
+ * all under this user's id — `billing.controller.ts`'s own `POST /billing/portal/legacy` turns that
  * into the same named 409 `POST /billing/portal` does. `billing.settings.tsx` avoids ever hitting this
  * in the first place by checking `legacyPortalAvailable` (`legacy-customer.ts#hasLegacyPolarCustomer`)
  * before rendering the link at all — this is the button's own click-time safety net, not the primary
@@ -139,5 +171,10 @@ export function createLegacyCustomerPortalSession(
   returnUrl: string,
   client: PortalSessionClient = getPolarClient() as unknown as PortalSessionClient,
 ): Promise<PortalSessionResult> {
-  return createCustomerPortalSession(user.id, user, returnUrl, client);
+  return openPortalSessionFor(
+    user.id,
+    (c, customerId) => resolveOrCreateMemberIdForUser(c, customerId, user.id, user),
+    returnUrl,
+    client,
+  );
 }

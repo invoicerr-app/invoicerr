@@ -1,11 +1,14 @@
 import {
+  COMPANY_BILLING_MEMBER_EXTERNAL_ID,
   findMemberIdForUser,
   MemberResolutionClient,
   removeMemberForUser,
+  resolveOrCreateCompanyBillingMemberId,
   resolveOrCreateMemberIdForUser,
 } from './member-resolution';
 
 const USER = { id: 'user-1', email: 'ada@acme.test', name: 'Ada' };
+const BILLING = { email: 'billing@acme.test', name: 'Acme Inc' };
 
 function notFoundError(): Error {
   return Object.assign(new Error('not found'), { statusCode: 404 });
@@ -153,6 +156,90 @@ describe('resolveOrCreateMemberIdForUser', () => {
       memberCreateFromCustomer: { email: 'ada@acme.test', name: 'Ada', externalId: 'user-1' },
     });
     expect(result).toBe('member-new');
+  });
+});
+
+describe('resolveOrCreateCompanyBillingMemberId', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  it('resolves the existing member by the sentinel company externalId, without creating one', async () => {
+    const getExternal = jest.fn().mockResolvedValue({ id: 'member-company' });
+    const createExternal = jest.fn();
+    const client = fakeClient({
+      customers: { members: { getExternal, createExternal, delete: jest.fn() } },
+    });
+
+    const result = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
+
+    expect(getExternal).toHaveBeenCalledWith({
+      externalId: 'company-1',
+      memberExternalId: COMPANY_BILLING_MEMBER_EXTERNAL_ID,
+    });
+    expect(result).toBe('member-company');
+    expect(createExternal).not.toHaveBeenCalled();
+  });
+
+  it("reuses Polar's own auto-created owner member when its email already matches the resolved billing email — the common case right after a company's first seat-based checkout", async () => {
+    const listMembers = jest
+      .fn()
+      .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: BILLING.email, externalId: null }]));
+    const createExternal = jest.fn();
+    const client = fakeClient({
+      customers: {
+        members: {
+          getExternal: jest.fn().mockRejectedValue(notFoundError()),
+          createExternal,
+          delete: jest.fn(),
+        },
+      },
+      members: { listMembers },
+    });
+
+    const result = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
+
+    expect(result).toBe('member-auto-owner');
+    expect(createExternal).not.toHaveBeenCalled();
+  });
+
+  it('creates a fresh member as role "billing_manager" — never the default "member" role — when nothing matches', async () => {
+    const createExternal = jest.fn().mockResolvedValue({ id: 'member-new-billing' });
+    const client = fakeClient({
+      customers: {
+        members: {
+          getExternal: jest.fn().mockRejectedValue(notFoundError()),
+          createExternal,
+          delete: jest.fn(),
+        },
+      },
+      members: { listMembers: jest.fn().mockResolvedValue(asPages([])) },
+    });
+
+    const result = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
+
+    expect(createExternal).toHaveBeenCalledWith({
+      externalId: 'company-1',
+      memberCreateFromCustomer: {
+        email: BILLING.email,
+        name: BILLING.name,
+        externalId: COMPANY_BILLING_MEMBER_EXTERNAL_ID,
+        role: 'billing_manager',
+      },
+    });
+    expect(result).toBe('member-new-billing');
+  });
+
+  it("never resolves to a member found under a real user's own externalId — only the sentinel", async () => {
+    // `USER.id` ('user-1') must NEVER be looked up by this function — it stands for the COMPANY, not
+    // any particular Invoicerr user (the exact bug this function exists to fix).
+    const getExternal = jest.fn().mockRejectedValue(notFoundError());
+    const createExternal = jest.fn().mockResolvedValue({ id: 'member-new-billing' });
+    const client = fakeClient({
+      customers: { members: { getExternal, createExternal, delete: jest.fn() } },
+    });
+
+    await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
+
+    expect(getExternal).not.toHaveBeenCalledWith(expect.objectContaining({ memberExternalId: USER.id }));
   });
 });
 

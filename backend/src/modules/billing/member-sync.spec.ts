@@ -2,12 +2,22 @@ import prisma from '@/prisma/prisma.service';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
-import { MemberSyncClient, syncCompanyMemberOnMembershipChange } from './member-sync';
+import {
+  ensureCompanyBillingMember,
+  MemberSyncClient,
+  syncCompanyMemberOnMembershipChange,
+} from './member-sync';
 import * as memberResolution from './member-resolution';
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { userCompany: { findUnique: jest.fn() }, user: { findUnique: jest.fn() } },
+  default: {
+    userCompany: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn() },
+    // `findUniqueOrThrow` backs `billing-customer.ts#loadCompanyBillingIdentity`, which
+    // `ensureCompanyBillingMember` (this file's own, called for every `team`-customer sync below) reads.
+    company: { findUniqueOrThrow: jest.fn() },
+  },
 }));
 jest.mock('./company-subscription.store');
 jest.mock('./member-resolution');
@@ -15,8 +25,13 @@ jest.mock('./member-resolution');
 const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
 const findUserCompany = prisma.userCompany.findUnique as jest.Mock;
 const findUser = prisma.user.findUnique as jest.Mock;
+const findCompany = prisma.company.findUniqueOrThrow as jest.Mock;
 const resolveOrCreate = memberResolution.resolveOrCreateMemberIdForUser as jest.Mock;
 const removeMember = memberResolution.removeMemberForUser as jest.Mock;
+const resolveOrCreateCompanyBillingMember =
+  memberResolution.resolveOrCreateCompanyBillingMemberId as jest.Mock;
+
+const COMPANY_ROW = { id: 'company-1', name: 'Acme Inc', email: 'contact@acme.test', billingEmail: null };
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
@@ -33,6 +48,11 @@ function fakeClient(customerType = 'team'): MemberSyncClient {
 describe('syncCompanyMemberOnMembershipChange', () => {
   beforeEach(() => {
     process.env[BILLING_FLAG_NAME] = 'true';
+    // Default so every existing `team`-customer test below (none of which cared about the company
+    // billing member before) keeps passing unchanged — `ensureCompanyBillingMember` now also runs for
+    // each of them; tests that DO care about it override this / assert on it explicitly.
+    findCompany.mockResolvedValue(COMPANY_ROW);
+    resolveOrCreateCompanyBillingMember.mockResolvedValue('member-company-billing');
   });
 
   afterEach(() => {
@@ -149,5 +169,54 @@ describe('syncCompanyMemberOnMembershipChange', () => {
     const client = fakeClient('team');
 
     await expect(syncCompanyMemberOnMembershipChange('company-1', 'user-1', client)).resolves.toBeUndefined();
+  });
+
+  it("also ensures the company's own billing member for every team-customer sync — not just the per-user one", async () => {
+    getOrCreate.mockResolvedValue({ polarSubscriptionId: 'sub_1' });
+    findUserCompany.mockResolvedValue({ role: 'OWNER' });
+    findUser.mockResolvedValue({ email: 'owner@acme.test', firstname: 'Ada', lastname: 'Owner' });
+    const client = fakeClient('team');
+
+    await syncCompanyMemberOnMembershipChange('company-1', 'user-1', client);
+
+    expect(resolveOrCreateCompanyBillingMember).toHaveBeenCalledWith(client, 'cus_1', 'company-1', {
+      email: 'contact@acme.test',
+      name: 'Acme Inc',
+    });
+  });
+
+  it('does NOT ensure the company billing member for an individual (non-team) customer', async () => {
+    getOrCreate.mockResolvedValue({ polarSubscriptionId: 'sub_1' });
+    const client = fakeClient('individual');
+
+    await syncCompanyMemberOnMembershipChange('company-1', 'user-1', client);
+
+    expect(resolveOrCreateCompanyBillingMember).not.toHaveBeenCalled();
+  });
+});
+
+describe('ensureCompanyBillingMember', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  it("resolves the company's billing identity and ensures its Polar member", async () => {
+    findCompany.mockResolvedValue({ ...COMPANY_ROW, billingEmail: 'billing@acme.test' });
+    resolveOrCreateCompanyBillingMember.mockResolvedValue('member-x');
+    const client = fakeClient('team');
+
+    await ensureCompanyBillingMember('company-1', 'cus_1', client);
+
+    // The billing-email OVERRIDE wins over the plain contact email — same precedence as everywhere
+    // else this codebase resolves a company's billing email (`billing-customer.ts#resolveBillingEmail`).
+    expect(resolveOrCreateCompanyBillingMember).toHaveBeenCalledWith(client, 'cus_1', 'company-1', {
+      email: 'billing@acme.test',
+      name: 'Acme Inc',
+    });
+  });
+
+  it('never throws — a Polar or DB failure is logged and left for the next pass', async () => {
+    findCompany.mockRejectedValue(new Error('db is down'));
+    const client = fakeClient('team');
+
+    await expect(ensureCompanyBillingMember('company-1', 'cus_1', client)).resolves.toBeUndefined();
   });
 });

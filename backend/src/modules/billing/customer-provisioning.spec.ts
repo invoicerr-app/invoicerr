@@ -7,7 +7,10 @@ import { CUSTOMER_PROVISIONING_BATCH_SIZE, reconcileMissingCompanyCustomers } fr
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { company: { findMany: jest.fn() } },
+  // `findUniqueOrThrow` is only exercised by the `type: "team"` test below — `ensureCompanyBillingMember`
+  // (`member-sync.ts`) calls straight through to `billing-customer.ts#loadCompanyBillingIdentity`, which
+  // reads the SAME mocked `prisma.company` this spec already narrows to `findMany` for every other test.
+  default: { company: { findMany: jest.fn(), findUniqueOrThrow: jest.fn() } },
 }));
 
 jest.mock('./company-subscription.store');
@@ -17,6 +20,7 @@ jest.mock('@/logger/logger.service', () => ({
 }));
 
 const findMany = prisma.company.findMany as jest.Mock;
+const findUniqueOrThrow = prisma.company.findUniqueOrThrow as jest.Mock;
 const warn = logger.warn as jest.Mock;
 const recordCustomerId = recordPolarCustomerId as jest.Mock;
 
@@ -43,6 +47,27 @@ function fakeClient(overrides: Partial<BillingCustomerClient> = {}): BillingCust
   } as unknown as BillingCustomerClient;
 }
 
+/** Same runtime shape as `fakeClient` above, but ALSO carrying the `MemberResolutionClient` surface
+ *  (`customers.members.*`/`members.listMembers`) — only the `type: "team"` test below needs it, for
+ *  `ensureCompanyBillingMember`'s own call (`customer-provisioning.ts`'s own header on why a `team`
+ *  customer discovered already-existing also ensures the company's billing member). Typed loosely
+ *  (`unknown`, not `BillingCustomerClient`) since this test also asserts on the `members.*` mocks —
+ *  something the narrower interface deliberately doesn't declare. */
+function fakeClientWithMembers(
+  getExternal: jest.Mock,
+  memberGetExternal: jest.Mock,
+  createExternal: jest.Mock,
+) {
+  return {
+    customers: {
+      getExternal,
+      create: jest.fn(),
+      members: { getExternal: memberGetExternal, createExternal, delete: jest.fn() },
+    },
+    members: { listMembers: jest.fn().mockResolvedValue((async function* () {})()) },
+  };
+}
+
 const COMPANY_A = { id: 'company-a', name: 'Acme', email: 'a@acme.test', billingEmail: null };
 const COMPANY_B = { id: 'company-b', name: 'Beta', email: 'b@beta.test', billingEmail: null };
 const COMPANY_NO_EMAIL = { id: 'company-c', name: 'Ghost Test Co', email: '', billingEmail: null };
@@ -67,6 +92,33 @@ describe('reconcileMissingCompanyCustomers', () => {
       failed: 0,
     });
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('ensures the company billing member for an already-existing customer discovered as type "team"', async () => {
+    findMany.mockResolvedValue([COMPANY_A]);
+    findUniqueOrThrow.mockResolvedValue(COMPANY_A);
+    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_team', type: 'team' });
+    const memberGetExternal = jest
+      .fn()
+      .mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 }));
+    const createExternal = jest.fn().mockResolvedValue({ id: 'member-billing' });
+    const client = fakeClientWithMembers(getExternal, memberGetExternal, createExternal);
+
+    const summary = await reconcileMissingCompanyCustomers(client as unknown as BillingCustomerClient);
+
+    expect(summary.alreadyExisted).toBe(1);
+    // Resolved by the company's own billing identity (no override set — falls back to `Company.email`),
+    // never any particular user's — see `member-resolution.ts#resolveOrCreateCompanyBillingMemberId`'s
+    // own header.
+    expect(createExternal).toHaveBeenCalledWith({
+      externalId: 'company-a',
+      memberCreateFromCustomer: {
+        email: 'a@acme.test',
+        name: 'Acme',
+        externalId: '__company_billing__',
+        role: 'billing_manager',
+      },
+    });
   });
 
   it('creates a customer for a company that has none yet', async () => {

@@ -91,7 +91,7 @@ describeLive('Polar live round-trip (sandbox organization) — option A, one cus
 
     const portal = await createCustomerPortalSession(
       companyId,
-      { id: 'sandbox-proof-user', email: companyEmail, name: 'Sandbox Proof User' },
+      { email: companyEmail, name: 'Sandbox Proof User' },
       'https://invoicerr.app/settings/billing',
     );
     if (!portal.url.startsWith('https://')) {

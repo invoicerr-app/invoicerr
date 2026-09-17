@@ -7,6 +7,7 @@ import {
 } from './portal-session';
 
 const CLICKING_USER = { id: 'user-1', email: 'owner@acme.test', name: 'Ada Owner' };
+const COMPANY_BILLING = { email: 'billing@acme.test', name: 'Acme Inc' };
 
 function fakeClient(overrides: Partial<PortalSessionClient> = {}): PortalSessionClient {
   return {
@@ -39,7 +40,7 @@ describe('createCustomerPortalSession', () => {
 
     const result = await createCustomerPortalSession(
       'company-1',
-      CLICKING_USER,
+      COMPANY_BILLING,
       'https://app/settings/billing',
       client,
     );
@@ -52,9 +53,9 @@ describe('createCustomerPortalSession', () => {
     expect(result).toEqual({ url: 'https://polar.sh/portal/abc', redirect: true });
   });
 
-  it("opens a session for the CLICKING user's own member — already known by our own externalId", async () => {
+  it("opens a session for the COMPANY's own billing member — already known by its own sentinel externalId, never a user's", async () => {
     const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team' });
-    const getExternalMember = jest.fn().mockResolvedValue({ id: 'member-clicking-user' });
+    const getExternalMember = jest.fn().mockResolvedValue({ id: 'member-company-billing' });
     const client = fakeClient({
       customers: {
         getExternal: jest.fn().mockResolvedValue({ id: 'cus_team', type: 'team' }),
@@ -65,28 +66,35 @@ describe('createCustomerPortalSession', () => {
 
     const result = await createCustomerPortalSession(
       'company-2',
-      CLICKING_USER,
+      COMPANY_BILLING,
       'https://app/settings/billing',
       client,
     );
 
-    expect(getExternalMember).toHaveBeenCalledWith({ externalId: 'company-2', memberExternalId: 'user-1' });
+    // Resolved by the company's own sentinel id (`__company_billing__`), NEVER by `CLICKING_USER.id` —
+    // this is the exact bug this function fixes: the portal must not depend on who clicked.
+    expect(getExternalMember).toHaveBeenCalledWith({
+      externalId: 'company-2',
+      memberExternalId: '__company_billing__',
+    });
     expect(create).toHaveBeenCalledWith({
       customerId: 'cus_team',
-      memberId: 'member-clicking-user',
+      memberId: 'member-company-billing',
       returnUrl: 'https://app/settings/billing',
     });
     expect(result).toEqual({ url: 'https://polar.sh/portal/team', redirect: true });
   });
 
-  it("falls back to matching by email (Polar's own auto-created owner member) when no externalId match exists", async () => {
+  it("falls back to matching by email (Polar's own auto-created owner member, minted from the company's own billing email) when no sentinel externalId match exists", async () => {
     const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team2' });
     const getExternalMember = jest
       .fn()
       .mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 }));
     const listMembers = jest
       .fn()
-      .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'owner@acme.test', externalId: null }]));
+      .mockResolvedValue(
+        asPages([{ id: 'member-auto-owner', email: COMPANY_BILLING.email, externalId: null }]),
+      );
     const client = fakeClient({
       customers: {
         getExternal: jest.fn().mockResolvedValue({ id: 'cus_team2', type: 'team' }),
@@ -96,12 +104,12 @@ describe('createCustomerPortalSession', () => {
       customerSessions: { create },
     });
 
-    await createCustomerPortalSession('company-3', CLICKING_USER, 'https://app/settings/billing', client);
+    await createCustomerPortalSession('company-3', COMPANY_BILLING, 'https://app/settings/billing', client);
 
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ memberId: 'member-auto-owner' }));
   });
 
-  it('creates a fresh member for the clicking user when neither lookup matches', async () => {
+  it('creates a fresh company billing member, role billing_manager, when neither lookup matches', async () => {
     const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team3' });
     const getExternalMember = jest
       .fn()
@@ -116,11 +124,16 @@ describe('createCustomerPortalSession', () => {
       customerSessions: { create },
     });
 
-    await createCustomerPortalSession('company-4', CLICKING_USER, 'https://app/settings/billing', client);
+    await createCustomerPortalSession('company-4', COMPANY_BILLING, 'https://app/settings/billing', client);
 
     expect(createExternal).toHaveBeenCalledWith({
       externalId: 'company-4',
-      memberCreateFromCustomer: { email: 'owner@acme.test', name: 'Ada Owner', externalId: 'user-1' },
+      memberCreateFromCustomer: {
+        email: COMPANY_BILLING.email,
+        name: COMPANY_BILLING.name,
+        externalId: '__company_billing__',
+        role: 'billing_manager',
+      },
     });
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ memberId: 'member-new' }));
   });
@@ -135,7 +148,7 @@ describe('createCustomerPortalSession', () => {
 
     const error = await createCustomerPortalSession(
       'company-5',
-      CLICKING_USER,
+      COMPANY_BILLING,
       'https://app/settings/billing',
       client,
     ).catch((e) => e);
@@ -154,7 +167,7 @@ describe('createCustomerPortalSession', () => {
     });
 
     await expect(
-      createCustomerPortalSession('company-6', CLICKING_USER, 'https://app/settings/billing', client),
+      createCustomerPortalSession('company-6', COMPANY_BILLING, 'https://app/settings/billing', client),
     ).rejects.toThrow('polar is down');
   });
 });
@@ -183,6 +196,27 @@ describe('createLegacyCustomerPortalSession', () => {
       returnUrl: 'https://app/settings/billing',
     });
     expect(result).toEqual({ url: 'https://polar.sh/portal/legacy', redirect: true });
+  });
+
+  it("still resolves a member by the CLICKING user's own identity for a team legacy customer — unlike the company-scoped portal above", async () => {
+    const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/legacy-team' });
+    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_legacy_team', type: 'team' });
+    const getExternalMember = jest.fn().mockResolvedValue({ id: 'member-legacy-user' });
+    const client = fakeClient({
+      customers: {
+        getExternal,
+        members: { getExternal: getExternalMember, createExternal: jest.fn(), delete: jest.fn() },
+      },
+      customerSessions: { create },
+    });
+
+    await createLegacyCustomerPortalSession(CLICKING_USER, 'https://app/settings/billing', client);
+
+    expect(getExternalMember).toHaveBeenCalledWith({
+      externalId: CLICKING_USER.id,
+      memberExternalId: CLICKING_USER.id,
+    });
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ memberId: 'member-legacy-user' }));
   });
 
   it('throws PolarCustomerNotFoundError (keyed by the user id) when no legacy customer exists', async () => {

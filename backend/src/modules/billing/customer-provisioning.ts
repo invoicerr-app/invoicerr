@@ -52,6 +52,8 @@ import {
   resolveBillingEmail,
 } from './billing-customer';
 import { recordPolarCustomerId } from './company-subscription.store';
+import { MemberResolutionClient } from './member-resolution';
+import { ensureCompanyBillingMember } from './member-sync';
 import { callPolarWithRetry, getPolarClient } from './polar-client';
 
 /** How many companies one `findMany` round-trip loads — the WHERE filter below already narrows the set
@@ -101,18 +103,20 @@ function extractPolarErrorDetails(error: unknown): { statusCode: number | 'unkno
 /** `false` (never throws) on anything other than "no customer registered at all" — the caller treats
  *  that as `failed`, not as `false` meaning "definitely missing", so a transient outage never causes a
  *  duplicate-creation attempt to race a customer that may already exist. Returns the customer's own id
- *  on success so the caller can persist it (`persistPolarCustomerId`) — this is the read half of the
- *  fix documented in this file's own header; the id was previously discarded here entirely. */
+ *  AND `type` on success so the caller can persist the id (`persistPolarCustomerId`) and, for a `type:
+ *  "team"` customer discovered here retroactively (promoted by a real checkout since this app last saw
+ *  it), also ensure the company's own billing member (`member-sync.ts#ensureCompanyBillingMember`) —
+ *  the id-only return was this file's earlier state; `type` was added for that second use. */
 async function checkCustomerExists(
   companyId: string,
   client: BillingCustomerClient,
-): Promise<{ id: string } | false | 'error'> {
+): Promise<{ id: string; type: string } | false | 'error'> {
   try {
     const customer = await callPolarWithRetry(
       () => client.customers.getExternal({ externalId: companyId }),
       `customer provisioning: customers.getExternal for company ${companyId}`,
     );
-    return { id: customer.id };
+    return { id: customer.id, type: customer.type };
   } catch (error) {
     if (isResourceNotFoundError(error)) return false;
     logger.warn('Polar customer existence check failed during provisioning — retried next pass', {
@@ -192,6 +196,19 @@ export async function reconcileMissingCompanyCustomers(
         // back locally (e.g. created directly at checkout, before this pass ever saw the company) — the
         // fix that makes this company drop out of the query above from now on.
         await persistPolarCustomerId(company.id, existing.id);
+        // A customer discovered here can already be `type: "team"` (promoted by a real checkout
+        // between passes) — proactively ensure the company's own billing member exists for it too,
+        // rather than waiting for the next membership change or portal click to do it lazily. Cast
+        // locally: at runtime `client` is always the real `Polar` SDK object (satisfies the wider
+        // `MemberResolutionClient` surface too), so only a spec that deliberately drives the `team`
+        // branch needs to build a fake `client` that actually carries `members`/`customers.members`.
+        if (existing.type === 'team') {
+          await ensureCompanyBillingMember(
+            company.id,
+            existing.id,
+            client as unknown as MemberResolutionClient,
+          );
+        }
         continue;
       }
 

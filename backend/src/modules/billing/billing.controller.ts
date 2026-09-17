@@ -24,7 +24,7 @@ import { CurrentUser } from '@/types/user';
 import { RequiresScope } from '@/utils/scope-check';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
-import { BillingEmailTakenError } from './billing-customer';
+import { BillingEmailTakenError, loadCompanyBillingIdentity, resolveBillingEmail } from './billing-customer';
 import { BillingGateExempt } from './billing-gate-exempt.decorator';
 import { BillingEmailView, getCompanyBillingEmail, setCompanyBillingEmail } from './billing-email';
 import { SetBillingEmailDto, StartCheckoutDto } from './billing.dto';
@@ -143,26 +143,25 @@ export class BillingController {
   @RequiresScope('billing:write')
   @BillingGateExempt()
   @ApiOperation({
-    summary: 'Open a Polar customer-portal session for the CALLING OWNER/ADMIN',
+    summary: "Open a Polar customer-portal session under THIS COMPANY's own billing identity",
     description:
       "Replaces better-auth's own `/api/auth/customer/portal` route for this product — see " +
       "portal-session.ts's header for why that route is unconditionally broken for a seat-based " +
-      'TEAM customer. Scoped by COMPANY, never by user, but the session itself opens for the Polar ' +
-      'MEMBER matching the CALLING user (created on demand if none matches yet) — never ' +
-      'unconditionally the auto-created owner. A MEMBER never reaches this route at all. Refuses ' +
-      '(409, BILLING_NO_COMPANY_CUSTOMER) when this company has no Polar customer yet — check ' +
-      '`hasCompanyCustomer` on GET /billing/status before offering this action at all.',
+      'TEAM customer. Scoped by COMPANY, never by user: the session opens for the Polar member ' +
+      "standing for the company's own resolved billing email (`billing-email.ts`), never for " +
+      "whichever OWNER/ADMIN happens to click — see portal-session.ts's own header for the real " +
+      'incident this fixed. Reachable only by OWNER/ADMIN in the first place; a MEMBER never reaches ' +
+      'this route at all. Refuses (409, BILLING_NO_COMPANY_CUSTOMER) when this company has no Polar ' +
+      'customer yet — check `hasCompanyCustomer` on GET /billing/status before offering this action.',
   })
   @ApiResponse({ status: 201, description: 'Portal session URL' })
   @ApiResponse({ status: 409, description: 'This company has no Polar customer yet' })
-  async openPortal(
-    @ActiveCompany() companyId: string,
-    @User() user: CurrentUser,
-  ): Promise<PortalSessionResult> {
+  async openPortal(@ActiveCompany() companyId: string): Promise<PortalSessionResult> {
     try {
+      const identity = await loadCompanyBillingIdentity(companyId);
       return await createCustomerPortalSession(
         companyId,
-        { id: user.id, email: user.email, name: `${user.firstname} ${user.lastname}`.trim() || null },
+        { email: resolveBillingEmail(identity), name: identity.name },
         FALLBACK_RETURN_URL(),
       );
     } catch (error) {
