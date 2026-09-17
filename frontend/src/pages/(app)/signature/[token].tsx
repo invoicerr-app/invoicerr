@@ -5,6 +5,7 @@ import { useParams } from "react-router"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import { Label } from "@/components/ui/label"
 import { PublicPageShell } from "@/components/public-page-shell"
@@ -175,6 +176,10 @@ export default function PublicSignaturePage() {
   const [signError, setSignError] = useState<string | null>(null)
   const [otpMessage, setOtpMessage] = useState<string | null>(null)
   const [hasReadDocument, setHasReadDocument] = useState(false)
+  // The code alone unlocks "Sign" (below) but never submits it — issue #198 asked for an explicit
+  // confirmation before a signature is sealed, and sealing is exactly the one step in this whole flow
+  // that cannot be walked back (no "unsign"). This state gates that second, deliberate step.
+  const [confirmSignOpen, setConfirmSignOpen] = useState(false)
 
   // Fetched as soon as the request resolves — not gated on the Review step still being the current
   // one — so the SAME "render once, freeze, serve forever" artifact the backend promises
@@ -211,8 +216,15 @@ export default function PublicSignaturePage() {
     sign.mutate(
       { code },
       {
+        // No `setConfirmSignOpen(false)` here: a success swaps the whole page to the "signed" branch
+        // below (`signedAt` becomes truthy), which unmounts this dialog along with everything else in
+        // this branch — an extra close call would just be a no-op racing that unmount.
         onSuccess: (result) => setSignedAt(result.signedAt),
         onError: (err) => {
+          // Closed back to the Verify step on failure so the existing `signError` line there is what
+          // the visitor actually sees — leaving the confirmation open would bury a "wrong code" refusal
+          // behind a dialog that has nothing to say about it.
+          setConfirmSignOpen(false)
           setSignError(err instanceof ApiError ? err.message : t("documents.publicSignature.genericError"))
         },
       },
@@ -377,12 +389,14 @@ export default function PublicSignaturePage() {
                 </p>
               )}
 
+              {/* Opens the confirmation below rather than signing directly — the code alone only
+                  proves the visitor received the email, not that they meant to press this exact
+                  button. `sign.mutate` itself only ever fires from the dialog's own confirm button. */}
               <Button
                 type="button"
                 className="w-full"
                 disabled={code.length !== 8}
-                loading={sign.isPending}
-                onClick={handleSign}
+                onClick={() => setConfirmSignOpen(true)}
                 dataCy="signature-sign-button"
               >
                 {t("documents.publicSignature.signButton")}
@@ -404,6 +418,24 @@ export default function PublicSignaturePage() {
                   {otpMessage}
                 </p>
               )}
+
+              <ConfirmationDialog
+                open={confirmSignOpen}
+                onOpenChange={setConfirmSignOpen}
+                title={t("documents.publicSignature.confirmSign.title")}
+                description={
+                  view.displayNumber
+                    ? t("documents.publicSignature.confirmSign.descriptionWithNumber", {
+                        number: view.displayNumber,
+                      })
+                    : t("documents.publicSignature.confirmSign.description")
+                }
+                confirmLabel={t("documents.publicSignature.confirmSign.confirm")}
+                cancelLabel={t("documents.publicSignature.confirmSign.back")}
+                onConfirm={handleSign}
+                loading={sign.isPending}
+                dataCy="signature-confirm-dialog"
+              />
             </div>
           )}
         </div>

@@ -154,3 +154,49 @@ describe("(app)/_layout — no-free-seat gate", () => {
     expect(screen.getByTestId("dashboard-content")).toBeInTheDocument()
   })
 })
+
+/**
+ * The public `/signature/:token` path (`ALLOWED_PATHS`) never reads `session`/`legalStatus`/
+ * `seatsView` — regression for issue #380: `useSession()` refetches on its own (better-auth
+ * revalidates on window focus), so `isPending` flips back to `true` long after the first load, not
+ * only during it. The gate used to check `isPending` BEFORE the allowed-path branch, so every such
+ * refetch blanked (`return null`) this page for one render and then REMOUNTED it on the next —
+ * wiping whatever step/code a visitor was mid-entry on every tab-back.
+ */
+describe("(app)/_layout — the public signature path ignores session-refetch churn", () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  function renderSignaturePath(sessionIsPending: boolean) {
+    mockedUseSession.mockReturnValue({ data: null, isPending: sessionIsPending } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(seatsResult({}))
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/signature/abc123"]}>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route
+                path="/signature/:token"
+                element={<div data-cy="signature-page-content">Signature</div>}
+              />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+  }
+
+  it("stays mounted while a background session refetch is in flight (isPending: true)", () => {
+    renderSignaturePath(true)
+    expect(screen.getByTestId("signature-page-content")).toBeInTheDocument()
+  })
+
+  it("renders identically once that refetch settles — the path never depended on it either way", () => {
+    renderSignaturePath(false)
+    expect(screen.getByTestId("signature-page-content")).toBeInTheDocument()
+  })
+})

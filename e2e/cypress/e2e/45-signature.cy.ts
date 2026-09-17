@@ -138,6 +138,26 @@ function confirmDocumentReviewed(): void {
 	cy.get('[data-cy="signature-confirm-read-checkbox"]').click();
 }
 
+/** "Sign" now only OPENS the confirmation dialog — it never signs by itself any more (issue #198).
+ *  Every spec that needs to actually seal the document goes through this, never a bare click on
+ *  `signature-sign-button`. */
+function confirmSignatureDialog(): void {
+	cy.get('[data-cy="signature-sign-button"]').click();
+	cy.get('[data-cy="signature-confirm-dialog"]').should("be.visible");
+	cy.get('[data-cy="signature-confirm-dialog-confirm"]').click();
+}
+
+/** A `GET` against an authenticated route, using a session cookie value captured EARLIER rather than
+ *  `cy.login()` itself — `cy.session()` (which `cy.login()` wraps) navigates the browser to
+ *  `about:blank` and wipes cookies/storage across every domain as part of restoring its cached
+ *  session, even when that session is already the active one (confirmed on screen: a mid-test
+ *  `cy.login()` call blanks whatever page is currently loaded). Harmless at the very END of a test,
+ *  where nothing more happens on the page afterward — fatal to a test that still needs the public
+ *  signature page alive after the check, which is exactly why this exists. */
+function authedGet(authCookie: string, url: string) {
+	return cy.request({ url, headers: { Cookie: `better-auth.session_token=${authCookie}` } });
+}
+
 describe("Electronic quote signature — client journey on screen, hardened", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -147,7 +167,21 @@ describe("Electronic quote signature — client journey on screen, hardened", ()
 		cy.login();
 	});
 
-	it("a client opens the link, requests a code, enters it and SIGNS — the quote moves to SIGNED", () => {
+	// This ONE journey deliberately carries three proofs, rather than three separate tests: the
+	// "otp" route is throttled at 3/min/IP for real (`public-signatures.controller.ts`'s own
+	// `@Throttle`), and every "request a code" click in this file spends one of those three — a
+	// fourth `it()` block that also requests a code would throttle itself out the moment the whole
+	// spec (not just this test) runs inside one 60s window, exactly the way the OTHER test below
+	// spends the file's second and last one.
+	it("a client opens the link, requests a code, backs out once, weathers a tab focus churn, then SIGNS — the quote moves to SIGNED", () => {
+		// Captured BEFORE `cy.clearCookies()` below so Proof 1 can check the API mid-flow without
+		// calling `cy.login()` again — see `authedGet`'s own header.
+		cy.getCookie("better-auth.session_token").then((sessionCookie) => {
+			expect(sessionCookie, "session cookie présent avant le passage en visiteur anonyme").to.not.be
+				.null;
+			cy.wrap((sessionCookie as Cypress.Cookie).value).as("authCookie");
+		});
+
 		createSentQuoteAndRequestSignature().then(({ quoteId, token }) => {
 			// The public page is anonymous (no session) — the client side never logs in.
 			cy.clearCookies();
@@ -157,7 +191,13 @@ describe("Electronic quote signature — client journey on screen, hardened", ()
 			cy.intercept("GET", "**/api/public/signatures/*/document").as(
 				"signatureDocument",
 			);
+			// An EXACT match (no wildcard after the token) — `.../otp` and `.../sign` are different
+			// URLs and must never bump this counter, or the focus-churn proof below would prove nothing.
+			cy.intercept("GET", `**/api/public/signatures/${token}`).as(
+				"signatureResolve",
+			);
 			cy.visit(`${appOrigin}/signature/${token}`);
+			cy.wait("@signatureResolve");
 
 			confirmDocumentReviewed();
 			cy.get('[data-cy="signature-request-otp-button"]').click();
@@ -179,22 +219,75 @@ describe("Electronic quote signature — client journey on screen, hardened", ()
 					.find("input")
 					.first()
 					.type(code, { force: true });
+
+				// Proof 1 — "Back" cancels: the dialog closes back onto the SAME Verify step, the code
+				// stays exactly as typed, and nothing was signed (checked against the API, never just
+				// the screen — a screen that merely forgot to re-show a stale success card would still
+				// look right here otherwise).
 				cy.get('[data-cy="signature-sign-button"]').click();
+				cy.get('[data-cy="signature-confirm-dialog"]').should("be.visible");
+				cy.get('[data-cy="signature-confirm-dialog-cancel"]').click();
+				cy.get('[data-cy="signature-confirm-dialog"]').should("not.exist");
+				cy.get('[data-cy="signature-otp-input"]').should("exist");
+				cy.get('[data-cy="signature-card"]')
+					.find("input")
+					.first()
+					.should("have.value", code);
+				cy.get("@authCookie").then((authCookie) => {
+					authedGet(authCookie as unknown as string, `${api}/api/documents/${quoteId}?typeId=quote`)
+						.its("body")
+						.then((doc) => {
+							expect(
+								doc.status,
+								"'Back' ne déclenche jamais la signature",
+							).to.eq("sent");
+						});
+				});
+
+				// Proof 2 — a background-tab blur/focus/visibilitychange mid-entry (issue #380) is not
+				// a gesture the app should react to: the token was already resolved once on mount, and
+				// re-resolving it now has nothing to offer but a chance to reset state mid-entry.
+				cy.get("@signatureResolve.all")
+					.its("length")
+					.as("resolveCallsBeforeFocusChurn");
+				cy.window().then((win) => {
+					win.dispatchEvent(new Event("blur"));
+					win.dispatchEvent(new Event("focus"));
+					win.document.dispatchEvent(new Event("visibilitychange"));
+				});
+				cy.get('[data-cy="signature-otp-input"]').should("exist");
+				cy.get('[data-cy="signature-request-otp-button"]').should("not.exist");
+				cy.get('[data-cy="signature-card"]')
+					.find("input")
+					.first()
+					.should("have.value", code);
+
+				// Proof 3 — the actual sign. No `cy.wait(ms)` for proof 2 above: this real sign
+				// round-trip right after is itself the deterministic wait a would-be extra "resolve"
+				// refetch would have had every chance to beat — one that never fires never will, and
+				// the count is checked right after this settles.
+				confirmSignatureDialog();
 				cy.get('[data-cy="signature-success-card"]', { timeout: 15000 }).should(
 					"be.visible",
 				);
+				cy.get("@resolveCallsBeforeFocusChurn").then((before) => {
+					cy.get("@signatureResolve.all")
+						.its("length")
+						.should("eq", before);
+				});
 			});
 
 			// The truth is in the database, read back via the API (never the screen alone): the quote is SIGNED.
-			cy.login();
-			cy.request({ url: `${api}/api/documents/${quoteId}?typeId=quote` })
-				.its("body")
-				.then((doc) => {
-					expect(
-						doc.status,
-						"le devis est passé SIGNED après signature réelle",
-					).to.eq("signed");
-				});
+			cy.get("@authCookie").then((authCookie) => {
+				authedGet(authCookie as unknown as string, `${api}/api/documents/${quoteId}?typeId=quote`)
+					.its("body")
+					.then((doc) => {
+						expect(
+							doc.status,
+							"le devis est passé SIGNED après signature réelle",
+						).to.eq("signed");
+					});
+			});
 		});
 	});
 
@@ -218,11 +311,14 @@ describe("Electronic quote signature — client journey on screen, hardened", ()
 				.find("input")
 				.first()
 				.type("00000000", { force: true });
-			cy.get('[data-cy="signature-sign-button"]').click();
+			confirmSignatureDialog();
 			cy.get('[data-cy="signature-sign-error"]', { timeout: 10000 }).should(
 				"be.visible",
 			);
 			cy.get('[data-cy="signature-success-card"]').should("not.exist");
+			// The refusal closes the dialog back onto the Verify step — it must not linger over an
+			// error it has nothing to say about.
+			cy.get('[data-cy="signature-confirm-dialog"]').should("not.exist");
 
 			cy.login();
 			cy.request({ url: `${api}/api/documents/${quoteId}?typeId=quote` })

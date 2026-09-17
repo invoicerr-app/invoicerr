@@ -145,18 +145,23 @@ const Layout = () => {
     refetch: refetchSeats,
   } = useSeats(!!session)
 
-  if (isPending) {
-    return null
-  }
-
   // A public route stays outside the app shell UNCONDITIONALLY — a signed-in staff member opening
   // a client's own signature link must see the same bare, public page a client does, never the
-  // sidebar/header chrome wrapped around someone else's document. Checked before the session
-  // branch below (which used to gate this), not after: that order let a logged-in visit fall
-  // through to AuthenticatedLayout regardless of path.
+  // sidebar/header chrome wrapped around someone else's document. Checked before EVERY
+  // session-derived gate below, `isPending` included, not only the `!session` branch (which used to
+  // gate this) — `useSession()` refetches on its own accord (better-auth revalidates on window
+  // focus), so `isPending` flips back to true well after the initial load, and this path never reads
+  // `session`/`legalStatus`/`seatsView` for anything. Gating on it anyway blanked (`return null`) —
+  // and, on the very next render, REMOUNTED — a page that has no use for a session in the first
+  // place: a signature link left mid-OTP-entry, tabbed away from and back to, lost its own step,
+  // its typed code, everything, on every single such refetch.
   const isAllowedPath = ALLOWED_PATHS.some((path) => location.pathname.match(new RegExp(path)))
   if (isAllowedPath) {
     return <UnauthenticatedLayout />
+  }
+
+  if (isPending) {
+    return null
   }
 
   if (!session) {
