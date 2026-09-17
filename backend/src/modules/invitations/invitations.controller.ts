@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Delete, Body, Param, Query, BadRequestException } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { InvitationsService } from './invitations.service';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
@@ -7,7 +8,16 @@ import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 import { Public } from '@thallesp/nestjs-better-auth';
-import { pendingInvitationCodes } from '@/lib/auth';
+import { createPendingSignupStore, createRedisClientForPendingSignups } from '@/lib/pending-signup-store';
+
+// A second, independent connection to the same Redis-backed store `lib/auth.ts` writes through — not
+// a shared singleton, deliberately: this controller runs inside Nest DI (unlike `lib/auth.ts`, which
+// runs outside it entirely — see that file's own header), and the two never need to share a live
+// client object to agree on the same DATA, only on the same key names (`pending-signup-store.ts`'s
+// own `invitationCodeKey`), which they do by construction. Mirrors how `modules/documents/queue/redis.
+// config.ts#createIoredisClient` is already called independently by more than one consumer in this
+// codebase rather than threaded through as a single shared instance.
+const pendingSignupStore = createPendingSignupStore(createRedisClientForPendingSignups());
 
 @ApiTags('invitations')
 @Controller('invitations')
@@ -28,6 +38,14 @@ export class InvitationsController {
 
   @Get('is-first-user')
   @Public()
+  // An anonymous scan of this route finds every freshly-deployed, not-yet-claimed self-hosted
+  // instance on the internet for free (the next signup on one automatically becomes its admin) — the
+  // same class of "reconnaissance oracle" `sso-lookup.controller.ts`'s own rate limit exists for, so
+  // this borrows its exact numbers: mass-probing many instances still costs something per attempt,
+  // even though the underlying fact (nobody has registered yet) is inherent to the "first user claims
+  // the instance" model and not something this route itself introduces (the identical answer is one
+  // signup attempt away regardless).
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Check if this is the first user',
     description: 'Returns whether any user has been registered yet (public).',
@@ -57,7 +75,7 @@ export class InvitationsController {
       throw new BadRequestException(result.message || 'Invalid invitation code');
     }
 
-    pendingInvitationCodes.set(body.email.toLowerCase(), body.code);
+    await pendingSignupStore.setPendingInvitationCode(body.email.toLowerCase(), body.code);
 
     return { valid: true, message: 'Invitation code validated' };
   }

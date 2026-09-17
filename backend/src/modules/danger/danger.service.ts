@@ -4,23 +4,45 @@ import { CurrentUser } from '@/types/user';
 import { BadRequestException, HttpException, Injectable, NotImplementedException } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 
+import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
+import {
+  clearDangerOtp,
+  findDangerOtp,
+  mintDangerOtp,
+  recordDangerOtpFailedAttempt,
+} from './danger-otp.persistence';
+
+const OTP_EXPIRATION_MINUTES = 10;
+
+/** Same generic refusal regardless of WHY the check failed (wrong code, expired, never requested, or
+ *  already locked out) — the identical "one outcome" discipline `signatures.service.ts#GENERIC_BLOCK_
+ *  MESSAGE` documents, so a caller can never learn from the response alone which of those it hit. */
+const GENERIC_OTP_FAILURE_MESSAGE = 'Invalid or expired OTP';
+
 @Injectable()
 export class DangerService {
-  private readonly otpExpirationMinutes = 10;
-
-  // F-012: still in-process memory, so an OTP issued by one replica is unknown to the others and a
-  // restart invalidates it. Making this durable and per-user is a separate change; what is fixed
-  // here is that the code now reaches the requester and is single-use.
-  private OTP: string | null = null;
-  private otpExpirationTime: Date | null = null; // Store the expiration time of the OTP
-
   constructor(private readonly mailService: MailService) {}
 
   async requestOtp(user: CurrentUser, companyId: string) {
-    const otp = Math.floor(10000000 + Math.random() * 90000000).toString();
+    const code = generateOtpCode();
+    const { minted } = await mintDangerOtp(companyId, hashOtpCode(code));
 
-    this.OTP = otp;
-    this.otpExpirationTime = new Date(new Date().getTime() + this.otpExpirationMinutes * 60000);
+    if (!minted) {
+      // `mintDangerOtp` refuses once this company's row is permanently locked (see that function's own
+      // header) — reported as a distinct, explicit message here rather than the generic OTP-check
+      // failure above: there is no code in flight yet for the caller to have gotten wrong, so folding
+      // this into `GENERIC_OTP_FAILURE_MESSAGE` would be actively misleading rather than merely vague.
+      logger.warn(
+        'OTP request refused — this company is permanently locked out after too many failed attempts',
+        {
+          category: 'danger',
+          details: { userId: user.id, companyId },
+        },
+      );
+      throw new BadRequestException(
+        'Too many failed attempts. This action is locked for this company and can no longer be confirmed by OTP.',
+      );
+    }
 
     try {
       // The company → instance → named refusal cascade (`MailService#sendForCompany`) — this route is
@@ -35,7 +57,7 @@ export class DangerService {
         // authorise; the requester could not.
         to: user.email,
         subject: 'OTP Code Sent',
-        text: `Your confirmation code for a destructive action on Invoicerr is: ${otp}. It is valid for ${this.otpExpirationMinutes} minutes. If you did not request this, ignore this message.`,
+        text: `Your confirmation code for a destructive action on Invoicerr is: ${code}. It is valid for ${OTP_EXPIRATION_MINUTES} minutes. If you did not request this, ignore this message.`,
       });
     } catch (error) {
       // `sendForCompany`'s own named refusal (no mail server configured anywhere) is a
@@ -48,38 +70,55 @@ export class DangerService {
       throw new BadRequestException('Failed to send OTP email. Please check your SMTP configuration.');
     }
 
-    logger.info('OTP sent', { category: 'danger', details: { userId: user.id } });
+    logger.info('OTP sent', { category: 'danger', details: { userId: user.id, companyId } });
     return { message: 'OTP sent successfully' };
   }
 
-  private isOtpValid(otp: string): boolean {
-    otp = otp.replace(/-/g, '');
-    if (!this.OTP || !this.otpExpirationTime) {
-      return false;
+  /**
+   * Verifies `submittedOtp` against this COMPANY's own current challenge (never a different one — see
+   * `DangerOtp.companyId`'s own uniqueness) and, on success, consumes it — a code authorises exactly
+   * ONE destructive action, never a replay. A code is "live" only while it exists, is not locked, and
+   * has not expired; `otpCodeMatches` is only ever evaluated once all three hold, mirroring
+   * `signatures.service.ts#verifyAndSign`'s own "no digest comparison is even meaningful against a
+   * hash that no longer represents the current, live challenge" discipline.
+   *
+   * Every non-succeeding call consumes one lifetime attempt — wrong code, expired code, or no code at
+   * all — folded into the SAME counter and the SAME generic message for the same reason
+   * `signatures.service.ts` folds its own three failure modes together: never give a caller a signal
+   * to narrow their next guess by.
+   */
+  private async verifyAndConsumeOtp(companyId: string, submittedOtp: string): Promise<void> {
+    const normalized = submittedOtp.replace(/-/g, '');
+    const record = await findDangerOtp(companyId);
+
+    const codeIsLive = !!record && !record.lockedAt && record.expiresAt.getTime() > Date.now();
+    const matches = codeIsLive && otpCodeMatches(normalized, record!.codeHash);
+
+    if (!matches) {
+      if (record && !record.lockedAt) {
+        await recordDangerOtpFailedAttempt(companyId);
+      }
+      throw new BadRequestException(GENERIC_OTP_FAILURE_MESSAGE);
     }
 
-    const isValid = this.OTP === otp && new Date() < this.otpExpirationTime;
-    return isValid;
+    await clearDangerOtp(companyId);
   }
 
   async resetApp(user: CurrentUser, companyId: string, otp: string) {
-    if (!this.isOtpValid(otp)) {
+    try {
+      await this.verifyAndConsumeOtp(companyId, otp);
+    } catch (error) {
       logger.warn('Invalid or expired OTP for resetApp', {
         category: 'danger',
         details: { userId: user.id },
       });
-      throw new BadRequestException('Invalid or expired OTP');
+      throw error;
     }
 
     // Reset everything for this company only, but the user data
     await prisma.company.deleteMany({ where: { id: companyId } });
     await prisma.mailTemplate.deleteMany({ where: { companyId } });
     await prisma.client.deleteMany({ where: { companyId } });
-
-    // F-012: resetApp did not clear the OTP (only resetAll did), leaving it replayable for the rest
-    // of its ten-minute window. A confirmation code authorises one action.
-    this.OTP = null;
-    this.otpExpirationTime = null;
 
     logger.info('Application reset successfully', {
       category: 'danger',
@@ -89,21 +128,22 @@ export class DangerService {
   }
 
   async resetAll(user: CurrentUser, companyId: string, otp: string) {
-    if (!this.isOtpValid(otp)) {
+    try {
+      await this.verifyAndConsumeOtp(companyId, otp);
+    } catch (error) {
       logger.warn('Invalid or expired OTP for resetAll', {
         category: 'danger',
         details: { userId: user.id },
       });
-      throw new BadRequestException('Invalid or expired OTP');
+      throw error;
     }
 
     // F-011: this method never deleted anything — it cleared the OTP and returned
     // "All data reset successfully". A destructive operation the user explicitly confirmed must
     // not report success it did not perform: they would believe their data gone. Until the reset is
-    // actually implemented, fail loudly rather than lie.
-    this.OTP = null;
-    this.otpExpirationTime = null;
-
+    // actually implemented, fail loudly rather than lie. The OTP is already consumed above (by
+    // `verifyAndConsumeOtp`), matching the original behavior of never leaving it replayable even though
+    // the reset itself is not implemented yet.
     logger.error('resetAll called but not implemented — refusing to report success', {
       category: 'danger',
       details: { userId: user.id, companyId },

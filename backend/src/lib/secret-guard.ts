@@ -27,14 +27,21 @@
  * leftover placeholder in the variable that ISN'T actually used (e.g. `BETTER_AUTH_SECRET` is a
  * real secret but `JWT_SECRET` still says "your_jwt_secret") correctly does not trip the guard.
  *
- * Gated to `NODE_ENV === 'production'` only — see the call site in `main.ts` — NOT because a
- * placeholder is ever legitimate anywhere, but because neither `.env.test` nor a bare local `.env`
- * sets either variable at all (better-auth's own `DEFAULT_SECRET` fallback covers dev/test, and
- * `isTest()` skips its own validation there too), and putting a real secret into `.env.test` just
- * to satisfy an all-environments guard would mean committing a real secret to a versioned file —
- * worse than the problem this fixes. Production is also the only environment finding #3 actually
- * threatens (a placeholder deployed and reachable on the internet). Confirmed this choice does not
- * break `npm run start:test` (see `secret-guard.spec.ts`).
+ * Runs in EVERY environment except `NODE_ENV === 'test'` — see the call site in `main.ts`. It used to
+ * be the other way round (gated to `NODE_ENV === 'production'` only), which is itself a finding: an
+ * instance boots this same guard-worthy check only when it correctly self-identifies as
+ * "production" — left unset, misspelled, or deliberately set to e.g. "staging" (better-auth's own
+ * `isProduction` read has the identical blind spot, see this file's own header above), the check
+ * simply never ran, and both this guard AND better-auth's own internal validation would silently pass
+ * a placeholder straight through to a reachable, internet-facing instance. The only environment this
+ * guard has a real, standing reason to skip is `test`: `.env.test` deliberately sets neither
+ * `BETTER_AUTH_SECRET` nor `JWT_SECRET` at all (better-auth's own `DEFAULT_SECRET` fallback covers it,
+ * and `isTest()` skips its own validation there too), and putting a real secret into a file committed
+ * to version control just to satisfy an all-environments guard would be worse than the problem this
+ * fixes. A bare local `.env` with no `NODE_ENV` set at all is NOT exempt any more — a placeholder or
+ * empty secret there now fails loudly with `insecureSecretMessage`'s own actionable instructions,
+ * rather than booting "successfully" on a secret anyone can read on GitHub. Confirmed this choice does
+ * not break `npm run start:test` (`NODE_ENV=test`, see `secret-guard.spec.ts`).
  */
 
 const PLACEHOLDER_SECRETS: ReadonlySet<string> = new Set(
@@ -140,11 +147,11 @@ export function insecureSecretMessage(finding: InsecureSecretFinding): string {
 
 /**
  * Throws a named, explicit error if the effective auth secret is empty or a known placeholder.
- * Called from `main.ts`, gated to `NODE_ENV === 'production'` — see this file's own header for
- * why. Takes `env` for testability; defaults to `process.env` at the real call site.
+ * Called from `main.ts`, exempting only `NODE_ENV === 'test'` — see this file's own header for why.
+ * Takes `env` for testability; defaults to `process.env` at the real call site.
  */
 export function assertSecretsConfiguredForBoot(env: NodeJS.ProcessEnv = process.env): void {
-  if (env.NODE_ENV !== 'production') {
+  if (env.NODE_ENV === 'test') {
     return;
   }
   const finding = findInsecureSecret(env);

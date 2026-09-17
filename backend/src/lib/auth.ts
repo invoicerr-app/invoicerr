@@ -27,7 +27,6 @@ import { recordLegalAcceptance } from '../legal/legal-acceptance';
 import { REQUIRED_ACCEPTANCE_SLUGS } from '../legal/legal-documents';
 import { isBillingEnabled } from '../modules/billing/billing-flag';
 import {
-  AccountMembership,
   SoleOwnerError,
   assertNotSoleOwner,
   cleanupAfterUserDelete,
@@ -39,6 +38,8 @@ import { syncCompanyMemberOnMembershipChange } from '../modules/billing/member-s
 import { syncPolarMemberEmailForUser } from '../modules/billing/member-email-sync';
 import { MailService } from '../mail/mail.service';
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
+import { createPendingSignupStore, createRedisClientForPendingSignups } from './pending-signup-store';
+import { devOnlyOrigins } from './dev-origins';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
@@ -52,17 +53,18 @@ const mailService = new MailService();
 
 const appUrl = () => process.env.APP_URL || 'http://localhost:3000';
 
-export const pendingInvitationCodes = new Map<string, string>();
-
 /**
- * Bridges `deleteUser.beforeDelete` to `deleteUser.afterDelete` for the SAME request: by the time
+ * Redis-backed, not two bare in-process `Map`s — see `pending-signup-store.ts`'s own header for the
+ * cross-replica gap that used to leave a pending invitation code, or a to-be-deleted user's
+ * memberships, unreadable whenever the depositing and the reading request landed on different API
+ * processes. Its `takePendingMembershipsForDeletedUser`/`setPendingMembershipsForDeletedUser` pair
+ * (used in `deleteUser.beforeDelete`/`afterDelete` below) bridges those two hooks for the SAME logical
+ * request the identical way the invitation-code half bridges "validate" to "sign up" — by the time
  * `afterDelete` runs, the DB's own `ON DELETE CASCADE` has already removed the deleted user's
  * `UserCompany` rows (see `account-lifecycle.ts#cleanupAfterUserDelete`'s own header), so there is
- * nothing left to query them from — `beforeDelete` captures the list while it still can. The same
- * in-process-Map shape `pendingInvitationCodes` above already uses for a similar
- * "captured earlier in the same flow, consumed once, never persisted" need.
+ * nothing left to query them from; `beforeDelete` captures the list while it still can.
  */
-const pendingMembershipsForDeletedUser = new Map<string, AccountMembership[]>();
+const pendingSignupStore = createPendingSignupStore(createRedisClientForPendingSignups());
 
 /**
  * The instance-wide provider's identity and whether it is registered, resolved ONCE here — it cannot
@@ -101,9 +103,9 @@ const validateInvitationForSignup = async (
 ): Promise<{ valid: boolean; invitationCode?: string; message?: string }> => {
   const isFirstUser = (await prisma.user.count()) === 0;
 
-  // `pendingInvitationCodes` is an IN-PROCESS Map: it survives a database reset. On a database with
-  // no users at all, a pending code is therefore necessarily a ghost from an earlier attempt — no
-  // code can be valid where no company exists, since a code belongs to a company.
+  // `pendingSignupStore` survives a database reset (Redis and Postgres are separate stores). On a
+  // database with no users at all, a pending code is therefore necessarily a ghost from an earlier
+  // attempt — no code can be valid where no company exists, since a code belongs to a company.
   //
   // We forget it HERE rather than in the policy: the rule "a supplied code is verified, even for
   // the first user" is correct and tested — someone who TYPES a code deserves to be told it is
@@ -113,10 +115,10 @@ const validateInvitationForSignup = async (
   // that had left an invalid code behind for the same address, and twenty-two tests fell over
   // because of it.
   if (isFirstUser) {
-    pendingInvitationCodes.delete(email);
+    await pendingSignupStore.deletePendingInvitationCode(email);
   }
 
-  const invitationCode = pendingInvitationCodes.get(email);
+  const invitationCode = (await pendingSignupStore.getPendingInvitationCode(email)) ?? undefined;
 
   let invitation: InvitationLookupResult | undefined;
   if (invitationCode) {
@@ -132,7 +134,7 @@ const validateInvitationForSignup = async (
     // A code was supplied and rejected: forget it, it must not be silently retried
     // (or re-consumed) by a later signup attempt for the same email.
     if (invitationCode) {
-      pendingInvitationCodes.delete(email);
+      await pendingSignupStore.deletePendingInvitationCode(email);
     }
     return { valid: false, message: registrationDenialMessage(decision.reason) };
   }
@@ -141,7 +143,7 @@ const validateInvitationForSignup = async (
 };
 
 const markInvitationAsUsed = async (email: string, userId: string) => {
-  const invitationCode = pendingInvitationCodes.get(email);
+  const invitationCode = await pendingSignupStore.getPendingInvitationCode(email);
   if (invitationCode) {
     try {
       const invitation = await prisma.invitationCode.findUnique({ where: { code: invitationCode } });
@@ -154,11 +156,23 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
       // nothing. Upsert (not a plain create): re-using an invitation link for a user who somehow
       // already belongs to that company stays the harmless no-op it always was (no capacity check, no
       // desk reassignment either — see that same header).
+      //
+      // `updateMany` guarded on `usedAt: null`, never a plain `update` — the earlier `findUnique`
+      // above already read `usedAt: null`, but that read is OUTSIDE this transaction, so two concurrent
+      // sign-ups for the same still-unused code (or a concurrent `useInvitation` accepting the same
+      // link) would otherwise both pass the check and both write, minting two `UserCompany` rows for
+      // one nominative invitation. `withSeatReservation`'s own row lock only serializes concurrent
+      // reservations for the SAME company when billing is enabled (see that function's own header) —
+      // self-hosted mode runs with no lock at all, so the guarded `WHERE usedAt IS NULL` here is what
+      // actually makes consumption atomic in every mode, not merely a belt-and-suspenders check.
       await withSeatReservation(invitation.companyId, userId, async (tx) => {
-        await tx.invitationCode.update({
-          where: { id: invitation.id },
+        const { count } = await tx.invitationCode.updateMany({
+          where: { id: invitation.id, usedAt: null },
           data: { usedAt: new Date(), usedById: userId },
         });
+        if (count === 0) {
+          throw new Error(`Invitation code "${invitationCode}" has already been used`);
+        }
         return tx.userCompany.upsert({
           where: { userId_companyId: { userId, companyId: invitation.companyId } },
           create: { userId, companyId: invitation.companyId, role: invitation.role },
@@ -168,14 +182,14 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
       // The invitation can carry OWNER/ADMIN — see `member-sync.ts`'s own header.
       await syncCompanyMemberOnMembershipChange(invitation.companyId, userId);
     } catch (error) {
-      pendingInvitationCodes.delete(email);
+      await pendingSignupStore.deletePendingInvitationCode(email);
       if (error instanceof NoFreeSeatError) {
         throw new APIError('FORBIDDEN', { message: error.message, code: NO_FREE_SEAT_CODE });
       }
       console.warn(`Could not mark invitation code as used: ${error}`);
       return;
     }
-    pendingInvitationCodes.delete(email);
+    await pendingSignupStore.deletePendingInvitationCode(email);
   }
 };
 
@@ -326,13 +340,29 @@ export const auth = betterAuth({
   // Fall back to JWT_SECRET so existing deployments that only set it keep working
   secret: process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET,
   trustedOrigins: [
-    'http://localhost:5173',
+    ...devOnlyOrigins(),
     process.env.APP_URL,
     ...(process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || []),
   ].filter((origin): origin is string => typeof origin === 'string'),
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
+  // Without this, better-auth's own default (`dist/cookies/index.mjs`) derives `secure` from whether
+  // `baseURL` (i.e. `APP_URL`) STARTS WITH `https://` — not from `NODE_ENV`. A deployment that
+  // terminates TLS somewhere other than this container's own bundled nginx (another reverse proxy in
+  // front of it) and leaves `APP_URL` on an internal `http://` address would then mint session cookies
+  // with no `Secure` attribute at all: they would be sent over any accidental plain-HTTP hop. Tying it
+  // to `NODE_ENV === 'production'` instead makes the decision explicit and independent of how `APP_URL`
+  // happens to be spelled. This line — `sameSite: 'lax'`, the default `emit` also documents explicitly
+  // here rather than leaving it an unstated library default — is the ONLY thing standing between every
+  // Nest route (`/api/*` outside `/api/auth`, which better-auth's own origin check already covers) and
+  // CSRF: there is no separate application-level CSRF token anywhere in this codebase. `httpOnly: true`
+  // is better-auth's own default already; restated here so all three attributes this guarantee depends
+  // on are visible in one place instead of two of them being implicit.
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === 'production',
+    defaultCookieAttributes: { sameSite: 'lax', httpOnly: true },
+  },
   emailAndPassword: {
     // OIDC_ONLY (instance-wide, DEFAULT OFF — `sso-policy.ts#isOidcOnly`) turns this into a
     // single-sign-on-only instance. better-auth does NOT gate `setPassword`/`changePassword` behind
@@ -410,7 +440,7 @@ export const auth = betterAuth({
       beforeDelete: async (user) => {
         try {
           const memberships = await assertNotSoleOwner(user.id);
-          pendingMembershipsForDeletedUser.set(user.id, memberships);
+          await pendingSignupStore.setPendingMembershipsForDeletedUser(user.id, memberships);
         } catch (error) {
           if (error instanceof SoleOwnerError) {
             throw new APIError('FORBIDDEN', { message: error.message, code: error.code });
@@ -419,8 +449,7 @@ export const auth = betterAuth({
         }
       },
       afterDelete: async (user) => {
-        const memberships = pendingMembershipsForDeletedUser.get(user.id) ?? [];
-        pendingMembershipsForDeletedUser.delete(user.id);
+        const memberships = await pendingSignupStore.takePendingMembershipsForDeletedUser(user.id);
         await cleanupAfterUserDelete(memberships, {
           id: user.id,
           email: user.email,

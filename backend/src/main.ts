@@ -12,6 +12,9 @@ import { syncDatabaseSchema } from './prisma/sync-schema';
 import { assertSecretsConfiguredForBoot } from './lib/secret-guard';
 import { assertPolarEnvConfiguredForBoot } from './modules/billing/polar-env';
 import { skipBodyParserFor } from './lib/body-parser-auth-skip';
+import { createAuthRateLimitMiddleware } from './lib/auth-rate-limit';
+import { devOnlyOrigins } from './lib/dev-origins';
+import { createSwaggerBasicAuthMiddleware } from './lib/swagger-basic-auth';
 import { auth } from './lib/auth';
 
 /**
@@ -43,8 +46,12 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.enableCors({
     credentials: true,
+    // `devOnlyOrigins()` is `[]` in production — see that function's own header for the vulnerability
+    // an unconditional `http://localhost:5173` entry used to open (any page running on a victim's own
+    // localhost:5173 could read/write the API with their session cookies). `lib/auth.ts`'s own
+    // `trustedOrigins` makes the identical call for the exact same reason.
     origin: [
-      'http://localhost:5173',
+      ...devOnlyOrigins(),
       process.env.APP_URL,
       ...(process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || []),
     ].filter(Boolean),
@@ -103,6 +110,15 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   // matches both of THEIR own runtime behaviors, not just this file's.
   const configuredBasePath = (auth.options as { basePath?: string }).basePath;
   const authBasePath = configuredBasePath ?? '/api/auth';
+
+  // `/api/auth/*` is mounted as raw Express middleware (see the comment block above) and therefore
+  // never reaches the Nest router — none of the three global `APP_GUARD`s registered in
+  // `app.module.ts`, `ThrottlerGuard` included, ever runs for a sign-in/sign-up/password-reset/OTP
+  // request. Registered here, via `app.use()`, for the exact same reason `skipBodyParserFor` below is:
+  // it forwards straight to Express, so it runs before `NestApplication.init()` ever wires up
+  // better-auth's own middleware — see `lib/auth-rate-limit.ts`'s own header for the full account of
+  // what this closes and why it does not merely duplicate better-auth's own internal limiter.
+  app.use(createAuthRateLimitMiddleware(authBasePath));
 
   app.use(
     skipBodyParserFor(
@@ -175,29 +191,45 @@ async function bootstrap() {
 
   const app = await createApp();
 
-  // Resolve relative to this file, not cwd: entrypoint.sh `cd`s into
-  // backend/src before starting node, but package.json only ever lives at
-  // the backend root. With tsc output at dist/src/, __dirname can be
-  // either src/ (ts-node) or dist/src/ (compiled), so try both depths.
-  const { version } = JSON.parse(
-    readFileSync(
-      [join(__dirname, '..', '..', 'package.json'), join(__dirname, '..', 'package.json')]
-        .find(existsSync)!
-        .replace(/\\/g, '/'),
-      'utf-8',
-    ),
-  );
+  // `SwaggerModule.setup()` below mounts straight onto Express, bypassing every Nest `APP_GUARD` — see
+  // `lib/swagger-basic-auth.ts`'s own header. Outside production this stays exactly as open as before
+  // (a local/staging developer exploring their own instance); IN production it is skipped entirely
+  // unless BOTH `SWAGGER_BASIC_AUTH_USER`/`SWAGGER_BASIC_AUTH_PASSWORD` are set, in which case it is
+  // mounted but gated behind HTTP Basic Auth for every `/api/docs*` path.
+  const swaggerBasicAuthUser = process.env.SWAGGER_BASIC_AUTH_USER;
+  const swaggerBasicAuthPassword = process.env.SWAGGER_BASIC_AUTH_PASSWORD;
+  const swaggerBasicAuthConfigured = !!swaggerBasicAuthUser && !!swaggerBasicAuthPassword;
+  const swaggerEnabled = process.env.NODE_ENV !== 'production' || swaggerBasicAuthConfigured;
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Invoicerr API')
-    .setDescription(
-      'Authenticate with an API key (Settings > API Keys) via the Authorization: Bearer header or the X-Api-Key header.',
-    )
-    .setVersion(version)
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'API key' }, 'apiKey')
-    .build();
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, swaggerDocument);
+  if (swaggerEnabled) {
+    if (swaggerBasicAuthConfigured) {
+      app.use(createSwaggerBasicAuthMiddleware(swaggerBasicAuthUser!, swaggerBasicAuthPassword!));
+    }
+
+    // Resolve relative to this file, not cwd: entrypoint.sh `cd`s into
+    // backend/src before starting node, but package.json only ever lives at
+    // the backend root. With tsc output at dist/src/, __dirname can be
+    // either src/ (ts-node) or dist/src/ (compiled), so try both depths.
+    const { version } = JSON.parse(
+      readFileSync(
+        [join(__dirname, '..', '..', 'package.json'), join(__dirname, '..', 'package.json')]
+          .find(existsSync)!
+          .replace(/\\/g, '/'),
+        'utf-8',
+      ),
+    );
+
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Invoicerr API')
+      .setDescription(
+        'Authenticate with an API key (Settings > API Keys) via the Authorization: Bearer header or the X-Api-Key header.',
+      )
+      .setVersion(version)
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'API key' }, 'apiKey')
+      .build();
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, swaggerDocument);
+  }
 
   await app.listen(process.env.PORT || 3000);
 }

@@ -60,6 +60,33 @@ describe('sanitizeEmailHtml', () => {
     expect(result).toContain('#f8f9fa');
   });
 
+  // Three GHSA advisories are open against the pinned sanitize-html@2.17.1; this regression proves
+  // each is unreachable through THIS policy specifically, independent of the library version — a
+  // future loosening of `EMAIL_HTML_POLICY` is what would actually reopen any of them, not the version
+  // number.
+  describe('GHSA advisories open against sanitize-html@2.17.1 — none reachable through this policy', () => {
+    it('GHSA-jxwj-j7wr-gfrw: the exact advisory PoC (literal `</textarea/>` mXSS) sanitizes to nothing', () => {
+      // https://github.com/advisories/GHSA-jxwj-j7wr-gfrw — requires `textarea`/`xmp` in `allowedTags`,
+      // which this policy never grants (and `textarea` is additionally in `nonTextTags` below).
+      const poc = '<textarea></textarea/><img src=x onerror="alert(document.domain)">';
+      expect(sanitizeEmailHtml(poc)).toBe('');
+    });
+
+    it('GHSA-vccv-cmxp-4j9h: a javascript: URI through action/formaction/poster/background never survives — none of those attributes are ever allowed', () => {
+      const result = sanitizeEmailHtml(
+        '<form action="javascript:alert(1)"><button formaction="javascript:alert(1)">x</button></form>' +
+          '<video poster="javascript:alert(1)"></video><div background="javascript:alert(1)">x</div>',
+      );
+      expect(result).not.toContain('javascript:');
+      expect(result).not.toMatch(/action=|poster=|background=/);
+    });
+
+    it('GHSA-g8qq-57p8-ggw5: SVG is stripped outright — no svg-family tag is ever allowed', () => {
+      const result = sanitizeEmailHtml('<svg><animate xlink:href="#x" attributeName="href" /></svg>');
+      expect(result).not.toMatch(/<svg|<animate/);
+    });
+  });
+
   it('keeps the structural tags a real template is built from', () => {
     const result = sanitizeEmailHtml(
       '<h2>T</h2><p>p</p><strong>b</strong><ul><li>i</li></ul><table><tr><td>c</td></tr></table><hr><br>',

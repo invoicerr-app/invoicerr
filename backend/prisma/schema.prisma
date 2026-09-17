@@ -496,6 +496,7 @@ model Company {
   signingCertificates     CompanySigningCertificate[]
   atcudSeries             CompanyAtcudSeries[]
   signatures              Signature[]
+  dangerOtp               DangerOtp?
   clientPortalTokens      ClientPortalToken[]
   ssoProvider             CompanySsoProvider?
   // Time tracking & project invoicing — see Project/TimeEntry below.
@@ -1092,8 +1093,14 @@ enum WebhookType {
 }
 
 model Webhook {
-  id     String         @id @default(cuid())
-  url    String
+  id  String @id @default(cuid())
+  url String
+  // AES-256-GCM encrypted (secret-crypto) HMAC signing secret when `CREDENTIALS_ENCRYPTION_KEY` is
+  // configured — `WebhooksService#encryptSecretForStorage` writes it, `#resolveSecretForSigning`
+  // decrypts it back right before signing an outgoing dispatch. Column type stays `String?`: a legacy
+  // row written before this encrypted (or written while no key was set) still holds the plaintext
+  // secret directly, told apart from the encrypted shape by `webhook-secret-format.ts` rather than by
+  // any DB-level marker — `webhook-secret-migration.ts` sweeps those up idempotently at every boot.
   secret String?
   type   WebhookType    @default(GENERIC)
   events WebhookEvent[]
@@ -2229,6 +2236,37 @@ model Signature {
 
   @@index([documentId])
   @@index([companyId])
+}
+
+// The one-time confirmation code gating `danger/` (`POST /danger/otp` then `reset/app`|`reset/all`) —
+// used to be a SINGLE, process-wide in-memory field (`Math.random()`, plain-text, `===` comparison, no
+// lockout): one company's OWNER minting a code silently overwrote whatever another company's OWNER had
+// just been emailed. One row per company (`companyId` is the unique key, never `id`) fixes the
+// cross-tenant collision; the CSPRNG/hash/timing-safe-compare/lockout hardening itself is
+// `documents/signatures/otp.ts`'s own, reused rather than re-invented (`danger-otp.persistence.ts`'s
+// own header).
+//
+// Unlike `Signature`, a fresh mint (`POST /danger/otp`) DOES reset `failedAttempts` — this challenge
+// sits behind an already-authenticated OWNER session (`@Roles(OWNER)`), never a bearer link a third
+// party could probe anonymously, so re-arming is a deliberate, freshly-authorized request rather than
+// a possible attacker's do-over. What must still never reset is the lock itself: once `lockedAt` is
+// set, `danger-otp.persistence.ts#mintDangerOtp` refuses to mint a replacement at all — this action
+// stays locked for the company until the row is manually cleared, matching `Signature`'s own
+// "PERMANENT, independent of any later re-arming" posture for the one field that actually carries the
+// guarantee.
+model DangerOtp {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String   @unique
+
+  codeHash  String
+  expiresAt DateTime
+
+  failedAttempts Int       @default(0)
+  lockedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // The client portal — a long-lived, revocable, hashed-random-token

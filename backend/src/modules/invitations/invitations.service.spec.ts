@@ -30,7 +30,8 @@ describe('InvitationsService', () => {
     invitationCode: {
       create: jest.Mock;
       findUnique: jest.Mock;
-      update: jest.Mock;
+      updateMany: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
     };
     userCompany: {
       findUnique: jest.Mock;
@@ -46,7 +47,8 @@ describe('InvitationsService', () => {
       invitationCode: {
         create: jest.fn(),
         findUnique: jest.fn(),
-        update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn(),
       },
       userCompany: {
         findUnique: jest.fn(),
@@ -135,7 +137,12 @@ describe('InvitationsService', () => {
         companyId: 'company1',
         role: CompanyRole.ADMIN,
       });
-      prisma.invitationCode.update.mockResolvedValue({ id: 'inv1', usedAt: new Date(), usedById: 'user2' });
+      prisma.invitationCode.updateMany.mockResolvedValue({ count: 1 });
+      prisma.invitationCode.findUniqueOrThrow.mockResolvedValue({
+        id: 'inv1',
+        usedAt: new Date(),
+        usedById: 'user2',
+      });
       prisma.userCompany.upsert.mockResolvedValue({});
 
       await service.useInvitation('CODE123', 'user2');
@@ -150,8 +157,10 @@ describe('InvitationsService', () => {
       // the company the invitation was accepted into — a no-op in an environment without the billing
       // flag (`withSeatReservation`'s own header), but the call itself must always happen.
       expect(seatReservation).toHaveBeenCalledWith('company1', 'user2', expect.any(Function));
-      expect(prisma.invitationCode.update).toHaveBeenCalledWith({
-        where: { id: 'inv1' },
+      // `updateMany`, guarded on `usedAt: null` — see this call site's own header on why a plain
+      // `update` would race two concurrent acceptances of the same code.
+      expect(prisma.invitationCode.updateMany).toHaveBeenCalledWith({
+        where: { id: 'inv1', usedAt: null },
         data: { usedAt: expect.any(Date), usedById: 'user2' },
       });
       // Never the code itself — see `createInvitation`'s own test on why.
@@ -160,6 +169,30 @@ describe('InvitationsService', () => {
         details: { id: 'inv1', userId: 'user2' },
       });
     });
+
+    it(
+      'a SECOND, concurrent acceptance of the same code is refused, not double-applied — reproduces the ' +
+        'race: both requests pass the outer `usedAt` check (read before either writes), but only the ' +
+        'first `updateMany` actually matches a row',
+      async () => {
+        prisma.invitationCode.findUnique.mockResolvedValue({
+          id: 'inv1',
+          code: 'CODE123',
+          usedAt: null,
+          expiresAt: null,
+          companyId: 'company1',
+          role: CompanyRole.MEMBER,
+        });
+        // The guarded updateMany matches zero rows — exactly what a real Postgres `WHERE usedAt IS
+        // NULL` reports once a concurrent request already flipped it.
+        prisma.invitationCode.updateMany.mockResolvedValue({ count: 0 });
+
+        await expect(service.useInvitation('CODE123', 'user3')).rejects.toThrow(
+          'This invitation code has already been used',
+        );
+        expect(prisma.userCompany.upsert).not.toHaveBeenCalled();
+      },
+    );
 
     it('refuses, named NO_FREE_SEAT, when the company has no free seat — the invitation stays unused', async () => {
       prisma.invitationCode.findUnique.mockResolvedValue({
@@ -212,7 +245,12 @@ describe('InvitationsService', () => {
         companyId: 'blocked-company',
         role: CompanyRole.MEMBER,
       });
-      prisma.invitationCode.update.mockResolvedValue({ id: 'inv2', usedAt: new Date(), usedById: 'user3' });
+      prisma.invitationCode.updateMany.mockResolvedValue({ count: 1 });
+      prisma.invitationCode.findUniqueOrThrow.mockResolvedValue({
+        id: 'inv2',
+        usedAt: new Date(),
+        usedById: 'user3',
+      });
       prisma.userCompany.upsert.mockResolvedValue({});
 
       await expect(service.useInvitation('CODE456', 'user3')).resolves.toBeDefined();

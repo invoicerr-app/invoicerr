@@ -42,6 +42,7 @@ import { auth } from './lib/auth';
 import { BillingModule } from './modules/billing/billing.module';
 import { CompanyWriteGuard } from './modules/billing/company-write.guard';
 import { isBillingEnabled } from './modules/billing/billing-flag';
+import { LegalAcceptanceGuard } from './legal/legal-acceptance.guard';
 
 /**
  * Hosted billing (product decision 2026-09-15) — `BillingModule` is imported ONLY when
@@ -193,6 +194,11 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // narrower, TRIAL-only gate on `send` specifically) stays a direct call from
     // `documents.service.ts#runAction` — unrelated, not duplicated here.
     ...(billingEnabled ? [{ provide: APP_GUARD, useClass: CompanyWriteGuard }] : []),
+    // Refuses every write from a caller with a pending legal-document re-acceptance — named
+    // `LEGAL_ACCEPTANCE_REQUIRED`. Registered ONLY under the same flag as `CompanyWriteGuard` right
+    // above, for the identical reason: self-hosted has nothing to accept in the first place. See
+    // `legal/legal-acceptance.guard.ts`'s own header for the full exemption list.
+    ...(billingEnabled ? [{ provide: APP_GUARD, useClass: LegalAcceptanceGuard }] : []),
     // Global rate limiting, see ThrottlerModule.forRoot's own comment
     // above. A THIRD global APP_GUARD: Nest runs every registered one, ANDing their results, so this
     // adds a check rather than replacing AuthGuard/RolesGuard's own.

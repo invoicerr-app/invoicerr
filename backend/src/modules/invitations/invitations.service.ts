@@ -122,13 +122,25 @@ export class InvitationsService {
     // the SAME transaction as the seat reservation — a `NoFreeSeatError` (thrown before either write
     // runs, see `withSeatReservation`'s own header) rolls the invitation's own `usedAt` back too, so a
     // refused code stays valid to retry once a seat frees up rather than being burned for nothing.
+    //
+    // `updateMany` guarded on `usedAt: null`, never a plain `update` — the `usedAt` check just above
+    // this block is OUTSIDE the transaction, so two concurrent requests for the SAME still-unused code
+    // (two tabs opening one invitation link at once) would otherwise both pass it and both write,
+    // minting two `UserCompany` rows for one nominative invitation. `withSeatReservation`'s own row
+    // lock only serializes concurrent reservations for the SAME company when billing is enabled (see
+    // that function's own header); self-hosted mode — the default — runs with no lock at all, so this
+    // guarded `WHERE usedAt IS NULL` is what actually makes consumption atomic in every mode. Mirrors
+    // the identical fix in `lib/auth.ts#markInvitationAsUsed`.
     let updatedInvitation: InvitationCode;
     try {
       updatedInvitation = await withSeatReservation(invitation.companyId, userId, async (tx) => {
-        const updated = await tx.invitationCode.update({
-          where: { id: invitation.id },
+        const { count } = await tx.invitationCode.updateMany({
+          where: { id: invitation.id, usedAt: null },
           data: { usedAt: new Date(), usedById: userId },
         });
+        if (count === 0) {
+          throw new BadRequestException('This invitation code has already been used');
+        }
         // Upsert (not a plain create): re-using an invitation link for a user who somehow already
         // belongs to the company is a no-op, never a unique-constraint failure.
         await tx.userCompany.upsert({
@@ -136,7 +148,7 @@ export class InvitationsService {
           create: { userId, companyId: invitation.companyId, role: invitation.role },
           update: {},
         });
-        return updated;
+        return tx.invitationCode.findUniqueOrThrow({ where: { id: invitation.id } });
       });
     } catch (error) {
       if (error instanceof NoFreeSeatError) {

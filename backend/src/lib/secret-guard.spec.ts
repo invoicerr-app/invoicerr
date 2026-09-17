@@ -136,14 +136,35 @@ describe('assertSecretsConfiguredForBoot', () => {
     ).not.toThrow();
   });
 
-  it('does NOT throw outside production even with an empty/placeholder secret — matches .env.test, which sets neither', () => {
+  it('does NOT throw under NODE_ENV=test even with an empty/placeholder secret — matches .env.test, which sets neither', () => {
     // This is the load-bearing assertion for "the guard must not break `npm run start:test`":
     // .env.test sets NODE_ENV=test and never sets BETTER_AUTH_SECRET/JWT_SECRET at all.
     expect(() => assertSecretsConfiguredForBoot({ NODE_ENV: 'test' })).not.toThrow();
     expect(() =>
       assertSecretsConfiguredForBoot({ NODE_ENV: 'test', BETTER_AUTH_SECRET: 'your_better_auth_secret' }),
     ).not.toThrow();
-    expect(() => assertSecretsConfiguredForBoot({})).not.toThrow(); // NODE_ENV unset (plain dev)
+  });
+
+  it('DOES throw with NODE_ENV unset, misspelled, or "staging" — the exact blind spot the old, production-only gate had', () => {
+    // Before this fix, the guard only ever ran under the EXACT string "production" — an instance left
+    // unconfigured, misspelled, or deliberately staged would boot "successfully" straight past a
+    // known-public secret. Only `test` is exempt (see the test right above); every other spelling must
+    // still be caught.
+    expect(() => assertSecretsConfiguredForBoot({})).toThrow(/BETTER_AUTH_SECRET/); // NODE_ENV unset
+    expect(() => assertSecretsConfiguredForBoot({ NODE_ENV: 'staging' })).toThrow(/BETTER_AUTH_SECRET/);
+    expect(() => assertSecretsConfiguredForBoot({ NODE_ENV: 'Production' })).toThrow(/BETTER_AUTH_SECRET/);
+    expect(() =>
+      assertSecretsConfiguredForBoot({ NODE_ENV: 'development', BETTER_AUTH_SECRET: 'changeme' }),
+    ).toThrow(/placeholder/);
+  });
+
+  it('does not throw outside production/test once a real secret is actually set', () => {
+    expect(() =>
+      assertSecretsConfiguredForBoot({
+        NODE_ENV: 'staging',
+        BETTER_AUTH_SECRET: 'f3a1c9d8e7b6a5f4c3d2e1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0',
+      }),
+    ).not.toThrow();
   });
 });
 

@@ -7,6 +7,7 @@ import { RequestWithUser } from '@/types/request';
 import { CurrentUser } from '@/types/user';
 
 import { AcceptLegalDto, parseAcceptLegalSlugs } from './legal.dto';
+import { LegalGateExempt } from './legal-gate-exempt.decorator';
 import { LegalService } from './legal.service';
 
 @ApiTags('legal')
@@ -44,6 +45,10 @@ export class LegalController {
   }
 
   @Post('accept')
+  // `LegalAcceptanceGuard` (registered globally, SaaS mode only — see that file's own header) refuses
+  // every write from a caller with a pending acceptance, named `LEGAL_ACCEPTANCE_REQUIRED` — this is
+  // the ONE write route that must survive that refusal, since it is the only way to ever clear it.
+  @LegalGateExempt()
   @ApiOperation({
     summary: 'Accept one or more legal documents',
     description:
