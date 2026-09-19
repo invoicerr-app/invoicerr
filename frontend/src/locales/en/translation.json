@@ -186,7 +186,8 @@
         },
         "language": {
           "label": "Document language",
-          "description": "The language this client's PDFs and emails are generated in. Leave on Automatic to use the company's own default language."
+          "description": "The language this client's PDFs and emails are generated in. Leave on Automatic to use the company's own default language.",
+          "suggested": "Suggested from the country you picked — change it any time."
         },
         "identifiers": {
           "label": "Country-specific identifiers",
@@ -1873,6 +1874,20 @@
         "error": "Export failed"
       }
     },
+    "dataExport": {
+      "title": "Export all my data",
+      "description": "Download a full archive of every document your company holds — its stored data and, where possible, a rendered copy of it — for your own records or to take with you.",
+      "form": {
+        "export": "Export all my data",
+        "hint": "A small export downloads immediately; a larger one is emailed to you instead."
+      },
+      "messages": {
+        "downloaded": "Your export has downloaded.",
+        "emailed": "Your export was too large to download directly — it was emailed to you instead.",
+        "error": "Export failed",
+        "memberNotice": "Only the company's owner or an admin can export the company's data."
+      }
+    },
     "recurring": {
       "title": "Recurrences",
       "description": "Every recurring schedule that automatically creates a new document from an existing one, across all document types."
@@ -3113,7 +3128,8 @@
     "preferences": {
       "language": {
         "title": "Language",
-        "description": "Choose the language of the interface. Languages marked (beta) are partially or machine translated."
+        "description": "Choose the language of the interface. Languages marked (beta) are partially or machine translated.",
+        "saveError": "Your language changed here, but couldn't be saved to your account — it won't follow you to another device."
       },
       "theme": {
         "title": "Theme",
@@ -4945,7 +4961,8 @@
     },
     "document": {
       "notFound": "This document could not be found.",
-      "version": "Version {{version}} — effective {{date}}"
+      "version": "Version {{version}} — effective {{date}}",
+      "language": "Language"
     },
     "accept": {
       "title": "Updated legal terms",

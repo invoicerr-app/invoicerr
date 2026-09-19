@@ -1,7 +1,9 @@
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Navigate } from "react-router"
 import { toast } from "sonner"
 
+import { LegalLanguageSelect } from "@/components/legal-language-select"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -24,9 +26,10 @@ import { LEGAL_CONTENT_CLASSNAME, LegalMarkdown } from "@/lib/legal-markdown"
  */
 export default function LegalAcceptPage() {
   const { t } = useTranslation()
+  const [langOverride, setLangOverride] = useState<string | undefined>(undefined)
   const { data: session, isPending: sessionPending } = authClient.useSession()
   const { data: status, isPending: statusPending } = useLegalStatus(!!session)
-  const { data: documentsView, isPending: documentsPending } = useLegalDocuments()
+  const { data: documentsView, isPending: documentsPending } = useLegalDocuments(langOverride)
   const acceptMutation = useAcceptLegal()
 
   if (sessionPending) return null
@@ -41,6 +44,15 @@ export default function LegalAcceptPage() {
   const pendingSlugs = status?.pending ?? []
   const pendingDocs = (documentsView?.documents ?? []).filter((doc) => pendingSlugs.includes(doc.slug))
   const loading = statusPending || documentsPending
+  // One selector for the whole screen rather than one per tab: it applies the SAME explicit `?lang=`
+  // to every pending document at once (`useLegalDocuments(langOverride)` above), so switching language
+  // never leaves one tab in the visitor's pick and another silently still in whatever the server
+  // resolved on its own. The union of every pending document's own `availableLanguages` is what decides
+  // whether it even shows — Terms of Service (en/fr only) and Privacy Policy (all six) pending together
+  // still surface French, German, Italian, Polish, and Portuguese as choices, each just falling back to
+  // English for whichever document doesn't carry it.
+  const availableLanguages = Array.from(new Set(pendingDocs.flatMap((doc) => doc.availableLanguages)))
+  const resolvedLanguage = pendingDocs[0]?.language ?? "en"
 
   const handleAccept = () => {
     acceptMutation.mutate(undefined, {
@@ -73,16 +85,25 @@ export default function LegalAcceptPage() {
     // header/tabs/button room to breathe, not longer text lines.
     <PublicPageShell width="default" dataCy="legal-accept-page">
       <div className="space-y-6 pb-16">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            {t("legal.accept.title", "Updated legal terms")}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t(
-              "legal.accept.description",
-              "We've updated the following document(s). Please review them before continuing.",
-            )}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">
+              {t("legal.accept.title", "Updated legal terms")}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t(
+                "legal.accept.description",
+                "We've updated the following document(s). Please review them before continuing.",
+              )}
+            </p>
+          </div>
+          {!loading && (
+            <LegalLanguageSelect
+              value={resolvedLanguage}
+              languages={availableLanguages}
+              onChange={setLangOverride}
+            />
+          )}
         </div>
 
         {loading && (

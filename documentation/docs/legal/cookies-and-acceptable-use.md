@@ -51,7 +51,7 @@ You must not use the Service to:
   unauthorized penetration testing or denial-of-service activity;
 - circumvent or interfere with the hosted Service's own access controls or rate limits, beyond the
   rights the software's open-source license already grants you over the source code itself (Terms of
-  Service, Section 9.1);
+  Service, Section 11.1);
 - send spam or unsolicited bulk communications through the Service's outbound email or transmission
   features;
 - resell or sublicense access to the hosted Service to a third party without our written consent;
@@ -60,12 +60,12 @@ You must not use the Service to:
 ### 6. Enforcement
 
 A violation of this Part B may lead to suspension or termination of your access, without prejudice to
-the suspension and termination provisions of the Terms of Service, Section 11.
+the suspension and termination provisions of the Terms of Service, Section 13.
 
 ### 7. Availability
 
 Availability figures we may publish are **indicative only** and do not constitute a contractual
-service level — the same best-effort basis the Terms of Service, Section 14.1 already describes.
+service level — the same best-effort basis the Terms of Service, Section 16.1 already describes.
 
 ## Part C — Public Websites
 
@@ -79,6 +79,17 @@ theme choice is remembered only in your browser's `localStorage`, never in a coo
 technical access logs for either site (visitor IP address and request headers, needed to serve the
 page — and, for invoicerr.app, the one client-side call to `api.github.com` for the GitHub star count)
 are described in the Privacy Policy, Section 10, not here.
+
+## Part D — Governing Language
+
+### 9. English Version Prevails
+
+This document is drafted and executed in English. Where we provide a translation into another
+language for your convenience and understanding, that translation is not a substitute for the English
+text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
+translated version, **the English version prevails** and is the version that governs the rights and
+obligations of the parties. Translations are provided in good faith to help each audience understand
+this document; they create no separate or additional rights.
 
 ---
 
@@ -98,3 +109,10 @@ are described in the Privacy Policy, Section 10, not here.
 - **2026-09-19** — Owner decision: the public website moved to **GitHub Pages** at **invoicerr.app**.
   Part C renamed "Public Websites" and now covers both sites: invoicerr.app is a static marketing page
   with no cookie and no analytics/tracking script, its theme choice kept only in `localStorage`.
+- **2026-09-19** — Owner decision, on counsel's advice: this document is now translated into French in
+  full (loi Toubon art. 2). New Part D ("Governing Language") states that the English text is the one
+  that governs whenever a translation reads differently — the same clause added to the other four
+  documents. No other fact changed.
+- **2026-09-19** — Updated Terms of Service cross-references to match that document's 2026-09-19
+  renumbering, done to make room for its new EU Data Act sections (9.1→11.1, Section 11→13,
+  14.1→16.1). No fact in this page itself changed.

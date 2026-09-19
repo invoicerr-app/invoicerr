@@ -71,7 +71,9 @@ export const queryKeys = {
     list: (page: number, status?: string) => ["declarations", "list", page, status] as const,
   },
   legal: {
-    documents: () => ["legal", "documents"] as const,
+    // `lang` folded into the key (not just the URL) so switching a document-language selector reuses
+    // react-query's own cache per language instead of refetching a language already seen this session.
+    documents: (lang?: string) => ["legal", "documents", lang ?? null] as const,
     status: () => ["legal", "status"] as const,
   },
   instance: {

@@ -1,6 +1,8 @@
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useParams } from "react-router"
 
+import { LegalLanguageSelect } from "@/components/legal-language-select"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLegalDocuments } from "@/hooks/queries"
@@ -13,11 +15,18 @@ import { LEGAL_CONTENT_CLASSNAME, LegalMarkdown } from "@/lib/legal-markdown"
  * `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`, unlike the sign-up checkbox these same documents also
  * back). Shares `PublicPageShell` with the client portal and the signature page — the one frame every
  * public, no-session page in this app renders through.
+ *
+ * With no explicit `langOverride`, the backend resolves this visitor's own language on its own
+ * (account locale, then `Accept-Language`, then English — `legal-request-language.ts`) — the
+ * `LegalLanguageSelect` below only ever appears once `doc.availableLanguages` proves this particular
+ * slug actually has more than one, and picking one re-fetches with an explicit `?lang=` that outranks
+ * every server-side signal.
  */
 export default function LegalDocumentPage() {
   const { t } = useTranslation()
   const { slug = "" } = useParams()
-  const { data, isPending, isError } = useLegalDocuments()
+  const [langOverride, setLangOverride] = useState<string | undefined>(undefined)
+  const { data, isPending, isError } = useLegalDocuments(langOverride)
   const doc = data?.documents.find((d) => d.slug === slug)
 
   return (
@@ -40,7 +49,14 @@ export default function LegalDocumentPage() {
 
         {doc && (
           <article data-cy="legal-document-content">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{doc.title}</h1>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h1 className="font-heading text-2xl font-semibold tracking-tight">{doc.title}</h1>
+              <LegalLanguageSelect
+                value={doc.language}
+                languages={doc.availableLanguages}
+                onChange={setLangOverride}
+              />
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {t("legal.document.version", "Version {{version}} — effective {{date}}", {
                 version: doc.version,

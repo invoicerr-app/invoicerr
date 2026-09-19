@@ -50,7 +50,7 @@ document data created through it — see Privacy Policy, Section 10.
 ## 4. Intellectual Property
 
 The Invoicerr software is distributed under the license published in the `LICENSE` file at the root
-of the repository (see Terms of Service, Section 9.1). The Invoicerr name and logo, as used on the
+of the repository (see Terms of Service, Section 11.1). The Invoicerr name and logo, as used on the
 hosted Service and its documentation, belong to the Publisher.
 
 ## 5. Personal Data
@@ -66,11 +66,20 @@ See the [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md).
 This notice is governed by **French law**. Any dispute is submitted to the exclusive jurisdiction of
 **the Commercial Court of Romans-sur-Isère (Tribunal de commerce de Romans-sur-Isère), the court of
 the Provider's registered office**, subject to any mandatory rule of law that provides otherwise — the
-same clause as Terms of Service, Section 18.2.
+same clause as Terms of Service, Section 20.2.
 
 The Service is offered strictly business-to-business (Terms of Service, Section 1.2). Accordingly, the
 consumer mediation scheme of articles **L.616-1 et seq. of the French Consumer Code** does not apply to
 this Agreement.
+
+## 8. Governing Language
+
+This document is drafted and executed in English. Where we provide a translation into another
+language for your convenience and understanding, that translation is not a substitute for the English
+text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
+translated version, **the English version prevails** and is the version that governs the rights and
+obligations of the parties. Translations are provided in good faith to help each audience understand
+this document; they create no separate or additional rights.
 
 ---
 
@@ -101,3 +110,11 @@ this Agreement.
   the Service now lives at **my.invoicerr.app**. Section 3 now names `invoicerr.app` as a second
   GitHub Pages-hosted site alongside `docs.invoicerr.app`, and states explicitly that the Scaleway-hosted
   Service runs at `my.invoicerr.app`.
+- **2026-09-19** — Owner decision, on counsel's advice: this document is now translated into French in
+  full (loi Toubon art. 2). New Section 8 ("Governing Language") states that the English text is the
+  one that governs whenever a translation reads differently — the same clause added to the other four
+  documents, and consistent with Section 7's existing choice of French law and jurisdiction. No other
+  fact changed.
+- **2026-09-19** — Updated Terms of Service cross-references to match that document's 2026-09-19
+  renumbering, done to make room for its new EU Data Act sections (9.1→11.1, 18.2→20.2). No fact in
+  this notice itself changed.

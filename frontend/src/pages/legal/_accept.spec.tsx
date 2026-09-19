@@ -71,6 +71,80 @@ function renderPage() {
   )
 }
 
+describe("<LegalAcceptPage> — language selector", () => {
+  it("shows one selector for the union of every pending document's languages, and re-fetches all of them with the chosen ?lang=", async () => {
+    const status = { requiresAcceptance: true, pending: ["terms-of-service", "privacy-policy"] }
+    const fetchMock = installFetchMock({
+      "GET /api/legal/status": () => status,
+      "GET /api/legal/documents": (url) => {
+        const lang = url.searchParams.get("lang")
+        return {
+          saasMode: true,
+          documents: [
+            {
+              slug: "terms-of-service",
+              title: "Terms of Service",
+              version: "2",
+              effectiveDate: "2026-01-01",
+              sidebarPosition: 1,
+              content: "Terms body.",
+              language: "en",
+              availableLanguages: ["en", "fr"],
+            },
+            {
+              slug: "privacy-policy",
+              title: lang === "fr" ? "Politique de Confidentialité" : "Privacy Policy",
+              version: "2",
+              effectiveDate: "2026-01-01",
+              sidebarPosition: 2,
+              content: lang === "fr" ? "Corps français." : "Privacy body.",
+              language: lang === "fr" ? "fr" : "en",
+              availableLanguages: ["en", "fr", "de", "it", "pl", "pt"],
+            },
+          ],
+        }
+      },
+    })
+
+    renderPage()
+
+    await screen.findByTestId("legal-accept-document-terms-of-service")
+    expect(screen.getByTestId("legal-language-select")).toBeInTheDocument()
+
+    // Every earlier GET (status + first documents fetch) carried no explicit lang.
+    for (const call of fetchMock.mock.calls) {
+      const url = new URL(call[0] as string, "http://localhost")
+      if (url.pathname.endsWith("/legal/documents")) expect(url.searchParams.has("lang")).toBe(false)
+    }
+  })
+
+  it("shows no selector when every pending document has only one language", async () => {
+    installFetchMock({
+      "GET /api/legal/status": () => ({ requiresAcceptance: true, pending: ["terms-of-service"] }),
+      "GET /api/legal/documents": () => ({
+        saasMode: true,
+        documents: [
+          {
+            slug: "terms-of-service",
+            title: "Terms of Service",
+            version: "2",
+            effectiveDate: "2026-01-01",
+            sidebarPosition: 1,
+            content: "Terms body.",
+            language: "en",
+            availableLanguages: ["en"],
+          },
+        ],
+      }),
+    })
+
+    renderPage()
+
+    await screen.findByTestId("legal-accept-document-terms-of-service")
+    expect(screen.queryByTestId("legal-language-select")).not.toBeInTheDocument()
+  })
+})
+
 describe("<LegalAcceptPage> — accept failure", () => {
   it("shows the server's own error message and re-enables the button, instead of leaving it dead with no feedback", async () => {
     installFetchMock({

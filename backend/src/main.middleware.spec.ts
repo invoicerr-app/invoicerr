@@ -2,7 +2,8 @@
  * Proves the `main.ts` body-parser fix against a real HTTP socket. What this file does NOT do, and
  * why, first — it matters for reading everything below:
  *
- * `createApp()` (`main.ts`) is not called here. It imports `auth` from `lib/auth.ts` unconditionally,
+ * `createApp()` (`create-app.ts`, imported by `main.ts`) is not called here. It imports `auth` from
+ * `lib/auth.ts` unconditionally,
  * and importing `lib/auth.ts` AT ALL turns out to be impossible under this repo's Jest setup:
  * `better-auth` ITSELF is ESM-only across nearly every subpath export `lib/auth.ts` needs — confirmed
  * by reading `node_modules/better-auth/package.json`'s own "exports" map: `./node`, `./api`,
@@ -130,7 +131,7 @@ class TestHarnessModule implements NestModule {
   }
 }
 
-/** Builds the app the same way `main.ts#createApp()` does for the body-parser section specifically —
+/** Builds the app the same way `create-app.ts#createApp()` does for the body-parser section specifically —
  *  `app.use()` calls BEFORE `app.listen()`, `skipBodyParserFor` imported unmodified from
  *  `lib/body-parser-auth-skip.ts` — against `TestHarnessModule` instead of the real `AppModule`
  *  (see this file's own header for why). */

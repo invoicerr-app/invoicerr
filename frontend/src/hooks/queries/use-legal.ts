@@ -9,6 +9,12 @@ export interface LegalDocumentView {
   sidebarPosition: number
   /** Raw markdown — render it yourself (see `lib/legal-markdown.tsx`). */
   content: string
+  /** The language this view actually resolved to — see backend `legal-request-language.ts` for the
+   *  priority order (`lang` query param, then account locale, then `Accept-Language`, then English). */
+  language: string
+  /** Every language THIS document has text in, `"en"` always first — what `LegalLanguageSelect`
+   *  renders, and the one field that decides whether a selector shows at all (`length > 1`). */
+  availableLanguages: string[]
 }
 
 export interface LegalDocumentsView {
@@ -19,9 +25,13 @@ export interface LegalDocumentsView {
 }
 
 /** `GET /api/legal/documents` — public, always reachable (even self-hosted, unlike
- *  `GET /api/billing/status`'s own 404-when-absent shape — see that route's own header). */
-export function useLegalDocuments() {
-  return useApiQuery<LegalDocumentsView>(queryKeys.legal.documents(), "/api/legal/documents", {
+ *  `GET /api/billing/status`'s own 404-when-absent shape — see that route's own header). `lang`, when
+ *  given, is an explicit override (a visitor picking a language by hand via `LegalLanguageSelect`) —
+ *  omit it to let the backend resolve the caller's language on its own (account locale, then
+ *  `Accept-Language`, then English). */
+export function useLegalDocuments(lang?: string) {
+  const url = lang ? `/api/legal/documents?lang=${encodeURIComponent(lang)}` : "/api/legal/documents"
+  return useApiQuery<LegalDocumentsView>(queryKeys.legal.documents(lang), url, {
     staleTime: 5 * 60_000,
   })
 }
