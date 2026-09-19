@@ -30,6 +30,29 @@ import { registerSW } from "virtual:pwa-register"
 // vite.config.ts hands registration to us for exactly this reason.
 if (!("Cypress" in window)) {
   registerSW({ immediate: true })
+  // `autoUpdate` + `skipWaiting`/`clientsClaim` make a freshly deployed worker take control of the
+  // tabs already open — but their JavaScript is still the previous build. Until they reload, that
+  // old bundle keeps talking to the NEW backend, and any contract that changed in between (a list
+  // that became a page object, a renamed field) surfaces as a crash on the next screen the user
+  // opens. Reload once the new worker is in charge; the sessionStorage flag keeps a worker that
+  // claims twice in a row from turning this into a reload loop.
+  navigator.serviceWorker?.addEventListener("controllerchange", () => {
+    const key = "invoicerr-sw-reloaded"
+    try {
+      if (sessionStorage.getItem(key) === "1") return
+      sessionStorage.setItem(key, "1")
+    } catch {
+      // Storage unavailable (private mode, blocked site data): reload anyway, once per event.
+    }
+    window.location.reload()
+  })
+  window.addEventListener("load", () => {
+    try {
+      sessionStorage.removeItem("invoicerr-sw-reloaded")
+    } catch {
+      // Same reasoning: without storage there is nothing to clear.
+    }
+  })
 }
 
 async function loadRuntimeConfig() {
