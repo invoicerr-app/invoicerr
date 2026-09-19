@@ -1,20 +1,22 @@
+import { vi, type Mock } from 'vitest';
+
 import JSZip = require('jszip');
 
 import { BillingExportService, ExportZipTimedOutError, ExportZipTooLargeError } from './export-zip.service';
 import { listDocuments } from '../documents/persistence';
 
-jest.mock('../documents/persistence');
+vi.mock('../documents/persistence');
 
-const listDocumentsMock = listDocuments as jest.Mock;
+const listDocumentsMock = listDocuments as Mock;
 
-function fakeDocumentsService(overrides: Partial<{ renderInstancePdf: jest.Mock }> = {}) {
+function fakeDocumentsService(overrides: Partial<{ renderInstancePdf: Mock }> = {}) {
   return {
-    renderInstancePdf: overrides.renderInstancePdf ?? jest.fn().mockResolvedValue(Buffer.from('pdf-bytes')),
+    renderInstancePdf: overrides.renderInstancePdf ?? vi.fn().mockResolvedValue(Buffer.from('pdf-bytes')),
   } as unknown as import('../documents/documents.service').DocumentsService;
 }
 
 describe('BillingExportService.buildCompanyZip', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('requests every document (a very large take — never the 50-row list-screen default)', async () => {
     listDocumentsMock.mockResolvedValue([]);
@@ -31,7 +33,7 @@ describe('BillingExportService.buildCompanyZip', () => {
     listDocumentsMock.mockResolvedValue([
       { id: 'doc-1', typeId: 'invoice', number: 42, data: { foo: 'bar' } },
     ]);
-    const render = jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4'));
+    const render = vi.fn().mockResolvedValue(Buffer.from('%PDF-1.4'));
     const service = new BillingExportService(fakeDocumentsService({ renderInstancePdf: render }));
 
     const buffer = await service.buildCompanyZip('company-1');
@@ -44,7 +46,7 @@ describe('BillingExportService.buildCompanyZip', () => {
 
   it('still includes the JSON when PDF rendering fails for one document, without throwing', async () => {
     listDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'quote', number: null, data: {} }]);
-    const render = jest.fn().mockRejectedValue(new Error('cannot render draft'));
+    const render = vi.fn().mockRejectedValue(new Error('cannot render draft'));
     const service = new BillingExportService(fakeDocumentsService({ renderInstancePdf: render }));
 
     const buffer = await service.buildCompanyZip('company-1');

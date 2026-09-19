@@ -12,6 +12,9 @@
  * "never reached better-auth" assertion possible, which is the point — a refusal that still called
  * `setPassword` first would not be a refusal.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 
@@ -20,21 +23,21 @@ import { CurrentUser } from '@/types/user';
 import { AuthExtendedController } from './auth-extended.controller';
 import { setUserLocale } from './preferences';
 
-jest.mock('@/lib/auth', () => ({
+vi.mock('@/lib/auth', () => ({
   __esModule: true,
-  auth: { api: { setPassword: jest.fn().mockResolvedValue({}) } },
+  auth: { api: { setPassword: vi.fn().mockResolvedValue({}) } },
 }));
 
 // `preferences.ts` reaches through to the shared `prisma` singleton — mocked at THAT boundary
 // (`preferences.spec.ts` covers `setUserLocale`/`parseAccountLocaleInput` on their own), so this file
 // only has to prove the controller wires the two together correctly.
-jest.mock('./preferences', () => {
-  const actual = jest.requireActual('./preferences');
-  return { ...actual, setUserLocale: jest.fn() };
+vi.mock('./preferences', async () => {
+  const actual = await vi.importActual('./preferences');
+  return { ...actual, setUserLocale: vi.fn() };
 });
 
-const setPasswordApi = (auth as unknown as { api: { setPassword: jest.Mock } }).api.setPassword;
-const mockSetUserLocale = setUserLocale as jest.Mock;
+const setPasswordApi = (auth as unknown as { api: { setPassword: Mock } }).api.setPassword;
+const mockSetUserLocale = setUserLocale as Mock;
 const request = { headers: {} } as unknown as Request;
 const currentUser = { id: 'user-1' } as CurrentUser;
 
@@ -45,7 +48,7 @@ describe('AuthExtendedController#setPassword', () => {
   let savedOidcOnly: string | undefined;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     setPasswordApi.mockResolvedValue({});
     controller = new AuthExtendedController();
     savedOidcOnly = process.env.OIDC_ONLY;
@@ -126,7 +129,7 @@ describe('AuthExtendedController#updatePreferences', () => {
   let controller: AuthExtendedController;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     controller = new AuthExtendedController();
   });
 

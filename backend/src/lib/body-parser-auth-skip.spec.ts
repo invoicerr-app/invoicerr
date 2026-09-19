@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import type { Request } from 'express';
 
 import { isUnderBasePath, normalizeBasePath, skipBodyParserFor } from './body-parser-auth-skip';
@@ -43,7 +45,7 @@ describe('isUnderBasePath', () => {
 });
 
 describe('skipBodyParserFor', () => {
-  const next = jest.fn();
+  const next = vi.fn();
   const res = {} as Parameters<ReturnType<typeof skipBodyParserFor>>[1];
 
   afterEach(() => {
@@ -51,7 +53,7 @@ describe('skipBodyParserFor', () => {
   });
 
   it('calls next() directly, never the wrapped parser, for a request under the base path', () => {
-    const parser = jest.fn();
+    const parser = vi.fn();
     const handler = skipBodyParserFor('/api/auth', parser);
 
     handler({ path: '/api/auth/polar/webhooks' } as Request, res, next);
@@ -61,7 +63,7 @@ describe('skipBodyParserFor', () => {
   });
 
   it('delegates to the wrapped parser for anything else, passing req/res/next through untouched', () => {
-    const parser = jest.fn();
+    const parser = vi.fn();
     const handler = skipBodyParserFor('/api/auth', parser);
     const req = { path: '/api/documents' } as Request;
 
@@ -73,7 +75,7 @@ describe('skipBodyParserFor', () => {
   });
 
   it('normalizes a trailing-slash base path before matching', () => {
-    const parser = jest.fn();
+    const parser = vi.fn();
     const handler = skipBodyParserFor('/api/auth/', parser);
 
     handler({ path: '/api/auth/polar/webhooks' } as Request, res, next);

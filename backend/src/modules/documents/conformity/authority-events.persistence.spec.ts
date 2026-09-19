@@ -6,6 +6,8 @@
  * Postgres itself enforces uniqueness). `findConformitySweepCandidates`'s own eligibility mapping is
  * proven against a plain mocked `findMany`.
  */
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { RawAuthorityEvent } from './authority-status-poller';
@@ -19,17 +21,17 @@ import {
   markConformityResolved,
 } from './authority-events.persistence';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    documentAuthorityEvent: { createMany: jest.fn(), findMany: jest.fn() },
-    documentInstance: { findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    documentAuthorityEvent: { createMany: vi.fn(), findMany: vi.fn() },
+    documentInstance: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  documentAuthorityEvent: { createMany: jest.Mock; findMany: jest.Mock };
-  documentInstance: { findFirst: jest.Mock; findMany: jest.Mock; update: jest.Mock; updateMany: jest.Mock };
+  documentAuthorityEvent: { createMany: Mock; findMany: Mock };
+  documentInstance: { findFirst: Mock; findMany: Mock; update: Mock; updateMany: Mock };
 };
 
 /** A tiny in-memory stand-in for Postgres's own `@@unique([documentId, providerId, statusCode])` +
@@ -37,7 +39,7 @@ const mockedPrisma = prisma as unknown as {
  *  time" without a real database. */
 function statefulCreateManyMock() {
   const seen = new Set<string>();
-  return jest.fn((args: { data: { documentId: string; providerId: string; statusCode: string }[] }) => {
+  return vi.fn((args: { data: { documentId: string; providerId: string; statusCode: string }[] }) => {
     let count = 0;
     for (const row of args.data) {
       const key = `${row.documentId}|${row.providerId}|${row.statusCode}`;
@@ -50,7 +52,7 @@ function statefulCreateManyMock() {
 }
 
 describe('createAuthorityEvents — dedup', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   const events: RawAuthorityEvent[] = [
     { statusCode: 'fr:200', statusText: 'Déposée (validée)', observedAt: new Date('2026-08-29T10:00:00Z') },
@@ -116,7 +118,7 @@ describe('createAuthorityEvents — dedup', () => {
 });
 
 describe('listAuthorityEvents', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('reads every event for (companyId, documentId), most recent first', async () => {
     mockedPrisma.documentAuthorityEvent.findMany.mockResolvedValue([{ id: 'evt-1' }]);
@@ -130,7 +132,7 @@ describe('listAuthorityEvents', () => {
 });
 
 describe('findConformitySweepCandidates — eligibility', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('returns nothing at all when no provider is pollable (never even queries)', async () => {
     const result = await findConformitySweepCandidates([]);
@@ -220,7 +222,7 @@ describe('findConformitySweepCandidates — eligibility', () => {
 // touch `documentAuthorityEvent` alone; if either were ever changed to also flip a document's status
 // (e.g. "helpfully" marking a rejected deposit as `send_failed`), THIS assertion fails immediately.
 describe('the document lifecycle status never moves because of a conformity write', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('journaling a REJECTION (fr:213) never touches DocumentInstance at all', async () => {
     mockedPrisma.documentAuthorityEvent.createMany.mockResolvedValue({ count: 1 });
@@ -240,7 +242,7 @@ describe('the document lifecycle status never moves because of a conformity writ
 });
 
 describe('markConformityResolved', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('writes conformityResolvedAt on the named document, by id', async () => {
     const resolvedAt = new Date('2026-09-17T00:00:00Z');
@@ -260,7 +262,7 @@ describe('markConformityResolved', () => {
 });
 
 describe("findDocumentByTransportRef — CROSS-TENANT by construction, for SdI's own SOAP push", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('resolves by (channelProviderId, transportRef) ALONE — no companyId in the WHERE clause at all', async () => {
     mockedPrisma.documentInstance.findFirst.mockResolvedValue({
@@ -287,7 +289,7 @@ describe("findDocumentByTransportRef — CROSS-TENANT by construction, for SdI's
 // CROSS-TENANT variant above — even though it already knows exactly which company's own mailbox it
 // is draining. This is the scoped sibling that closes that gap.
 describe('findOwnedDocumentByTransportRef — scoped by companyId, for a caller that already knows it', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('includes companyId in the WHERE clause alongside channelProviderId/transportRef', async () => {
     mockedPrisma.documentInstance.findFirst.mockResolvedValue({

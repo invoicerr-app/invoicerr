@@ -1,3 +1,10 @@
+import { vi, type Mock } from 'vitest';
+// A namespace import, not a default one: the mock factory below adds a `__store` NAMED export
+// alongside `default` that the real `@/prisma/prisma.service` module doesn't have — reading it back
+// through the module namespace (rather than `vi.importMock`, which is async and would force every
+// `store()` call site to become async too) is the same "import the module normally, it resolves to
+// the hoisted mock" idiom `invoice-b2g-chorus-pro-send.spec.ts` already uses for its own prisma mock.
+import * as prismaServiceModule from '@/prisma/prisma.service';
 import {
   clearCompanyDocumentEmailTemplate,
   getCompanyDocumentEmailTemplates,
@@ -6,17 +13,17 @@ import {
 
 /**
  * `@/prisma/prisma.service` is mocked with a tiny IN-MEMORY `Company` row rather than a bare
- * `jest.fn()` per method — the same "mock the module boundary, not a re-implementation of Prisma"
+ * `vi.fn()` per method — the same "mock the module boundary, not a re-implementation of Prisma"
  * discipline `signatures.service.spec.ts` documents for its own table. That is what lets the
  * read-modify-write semantics this module actually relies on (merge one type's template without
  * clobbering another's) be PROVEN rather than asserted against a stub, `$transaction` included.
  */
-jest.mock('@/prisma/prisma.service', () => {
+vi.mock('@/prisma/prisma.service', () => {
   const store: { documentEmailTemplates: unknown } = { documentEmailTemplates: null };
 
   const company = {
-    findUnique: jest.fn(async () => ({ documentEmailTemplates: store.documentEmailTemplates })),
-    update: jest.fn(async ({ data }: { data: { documentEmailTemplates: unknown } }) => {
+    findUnique: vi.fn(async () => ({ documentEmailTemplates: store.documentEmailTemplates })),
+    update: vi.fn(async ({ data }: { data: { documentEmailTemplates: unknown } }) => {
       store.documentEmailTemplates = data.documentEmailTemplates;
       return { id: 'company-1' };
     }),
@@ -26,14 +33,14 @@ jest.mock('@/prisma/prisma.service', () => {
     company,
     // Interactive transaction: hands the callback the same client, so the read and the write inside it
     // hit the same in-memory row.
-    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(client)),
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(client)),
   };
 
   return { __esModule: true, default: client, __store: store };
 });
 
 function store(): { documentEmailTemplates: unknown } {
-  return jest.requireMock('@/prisma/prisma.service').__store;
+  return (prismaServiceModule as unknown as { __store: { documentEmailTemplates: unknown } }).__store;
 }
 
 describe('getCompanyDocumentEmailTemplates', () => {
@@ -126,7 +133,7 @@ describe('setCompanyDocumentEmailTemplate', () => {
 describe('clearCompanyDocumentEmailTemplate', () => {
   beforeEach(() => {
     store().documentEmailTemplates = null;
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("removes one type's override and leaves the others alone", async () => {
@@ -142,7 +149,7 @@ describe('clearCompanyDocumentEmailTemplate', () => {
 
   it('is a no-op — not an error, and not a pointless write — for a type that had no override', async () => {
     store().documentEmailTemplates = { quote: { subject: 'Quote', body: 'Body' } };
-    const prisma = jest.requireMock('@/prisma/prisma.service').default;
+    const prisma = (prismaServiceModule as unknown as { default: { company: { update: Mock } } }).default;
 
     await expect(clearCompanyDocumentEmailTemplate('company-1', 'invoice')).resolves.toBeUndefined();
 

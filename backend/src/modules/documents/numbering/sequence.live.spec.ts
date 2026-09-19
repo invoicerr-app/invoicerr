@@ -11,11 +11,13 @@
  * Mailpit round-trip: the offline `backend-tests` CI job has no DATABASE_URL at all, so an unguarded
  * version of this file would hang or fail there on every PR.
  *
- *   DOCUMENTS_NUMBERING_LIVE_DB=1 npx jest sequence.live --no-coverage
+ *   DOCUMENTS_NUMBERING_LIVE_DB=1 npx vitest run sequence.live
  *
  * (run against whatever DATABASE_URL is already configured — invoicerr_dev in this repo's own dev
  * setup; a fresh checkout would point this at its own local Postgres).
  */
+import { vi } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { bumpSequence, takeDocumentNumber } from './sequence';
@@ -42,7 +44,8 @@ async function createTestCompany(): Promise<string> {
 }
 
 describeLive('numbering/sequence.ts — real concurrent Postgres', () => {
-  jest.setTimeout(30_000);
+  // Jest's `setTimeout` covers both tests AND hooks with one number; Vitest splits the two.
+  vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
   let companyId: string;
 

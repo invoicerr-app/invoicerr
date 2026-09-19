@@ -17,6 +17,8 @@
  *  - two sweep passes racing on the SAME due schedule produce exactly ONE duplicate — the jobId
  *    dedup (schedule-sweep.ts's own header) proven against a REAL queue, not a fake one.
  */
+import { vi } from 'vitest';
+
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Queue } from 'bullmq';
@@ -128,7 +130,7 @@ function buildDocumentsService(queueDispatcher: DocumentQueueDispatcher): Docume
 }
 
 describeWithRedis('document-schedule sweep — real Redis, real Postgres, real Mailpit', () => {
-  jest.setTimeout(60000);
+  vi.setConfig({ testTimeout: 60000, hookTimeout: 60000 });
 
   let moduleRef: TestingModule;
   let documentsService: DocumentsService;

@@ -56,6 +56,9 @@
  * every OTHER `/api/auth/*` route (sign-in, checkout, portal, …), so the illustrative path/middleware
  * names below are kept rather than renamed away from their original, real-incident example.
  */
+
+import { vi } from 'vitest';
+
 import { Injectable, Module } from '@nestjs/common';
 import type { INestApplication, MiddlewareConsumer, NestMiddleware, NestModule } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -70,7 +73,7 @@ const AUTH_BASE_PATH = '/api/auth';
 const WEBHOOK_PATH = `${AUTH_BASE_PATH}/polar/webhooks`;
 const TEST_WEBHOOK_SECRET = 'whsec_main_middleware_spec_test_secret';
 
-const onWebhookVerified = jest.fn();
+const onWebhookVerified = vi.fn();
 
 /**
  * Stands in for `@thallesp/nestjs-better-auth`'s `SkipBodyParsingMiddleware` + better-auth's own

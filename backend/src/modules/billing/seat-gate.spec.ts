@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ForbiddenException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -7,20 +9,20 @@ import { BILLING_FLAG_NAME } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { assertUserHasSeatOrThrow, SEAT_REQUIRED_CODE } from './seat-gate';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { userCompany: { findMany: jest.fn() } },
+  default: { userCompany: { findMany: vi.fn() } },
 }));
-jest.mock('./company-subscription.store');
+vi.mock('./company-subscription.store');
 
-const findMany = prisma.userCompany.findMany as jest.Mock;
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
+const findMany = prisma.userCompany.findMany as Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
 describe('assertUserHasSeatOrThrow', () => {
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     if (ORIGINAL_ENV === undefined) delete process.env[BILLING_FLAG_NAME];
     else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
   });

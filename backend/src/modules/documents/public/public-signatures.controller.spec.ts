@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 import { SignaturesService } from '../signatures/signatures.service';
@@ -7,7 +9,7 @@ import { PublicSignaturesController } from './public-signatures.controller';
 // real package ships an ESM-only transitive dependency (better-auth/dist/integrations/node.mjs)
 // jest's ts-jest transform doesn't parse. `Public` only sets metadata `AuthGuard` reads — nothing
 // this suite needs the real implementation of.
-jest.mock('@thallesp/nestjs-better-auth', () => ({
+vi.mock('@thallesp/nestjs-better-auth', () => ({
   Public: () => () => undefined,
 }));
 
@@ -39,7 +41,7 @@ function fakeResponse() {
 describe('PublicSignaturesController — GET :token/document', () => {
   it('serves the bytes SignaturesService.getPublicDocument returns, with the right headers', async () => {
     const bytes = Buffer.from('%PDF-1.7 fake bytes');
-    const getPublicDocument = jest.fn().mockResolvedValue({ bytes, typeId: 'quote', documentId: 'quote-1' });
+    const getPublicDocument = vi.fn().mockResolvedValue({ bytes, typeId: 'quote', documentId: 'quote-1' });
     const controller = buildController({ getPublicDocument });
     const res = fakeResponse();
 
@@ -66,7 +68,7 @@ describe('PublicSignaturesController — GET :token/document', () => {
    * contract.
    */
   it('relays the SAME 400 the rest of this controller returns — never a distinct 404/410', async () => {
-    const getPublicDocument = jest
+    const getPublicDocument = vi
       .fn()
       .mockRejectedValue(
         new BadRequestException('This signature request is invalid, expired, or already used.'),

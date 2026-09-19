@@ -1,4 +1,6 @@
-jest.mock('./backup-runs.persistence');
+import { vi, type Mock } from 'vitest';
+
+vi.mock('./backup-runs.persistence');
 
 import { Queue } from 'bullmq';
 
@@ -6,7 +8,7 @@ import { BackupStatusService } from './backup-status.service';
 import { getLatestBackupRun, BackupRunSummary } from './backup-runs.persistence';
 import { BACKUP_SWEEP_JOB_NAME } from './queue/backup-queue.constants';
 
-const mockGetLatestBackupRun = getLatestBackupRun as jest.Mock;
+const mockGetLatestBackupRun = getLatestBackupRun as Mock;
 
 const SAMPLE_RUN: BackupRunSummary = {
   id: 'run-1',
@@ -27,13 +29,13 @@ const SAMPLE_RUN: BackupRunSummary = {
 };
 
 describe('backup/BackupStatusService', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('reports the last run and the next scheduled tick, filtered by job NAME', async () => {
     mockGetLatestBackupRun.mockResolvedValue(SAMPLE_RUN);
     const nextTick = Date.parse('2026-09-18T03:00:00Z');
     const queue = {
-      getJobSchedulers: jest.fn().mockResolvedValue([
+      getJobSchedulers: vi.fn().mockResolvedValue([
         { name: 'some-other-scheduler', next: 1 },
         { name: BACKUP_SWEEP_JOB_NAME, next: nextTick },
       ]),
@@ -61,7 +63,7 @@ describe('backup/BackupStatusService', () => {
       "and a run's errors carry other tenants' companyId/documentId in their object keys",
     async () => {
       mockGetLatestBackupRun.mockResolvedValue(SAMPLE_RUN);
-      const queue = { getJobSchedulers: jest.fn().mockResolvedValue([]) } as unknown as Queue;
+      const queue = { getJobSchedulers: vi.fn().mockResolvedValue([]) } as unknown as Queue;
 
       const status = await new BackupStatusService(queue).getStatus();
 
@@ -72,7 +74,7 @@ describe('backup/BackupStatusService', () => {
 
   it('nextRunAt is null when the repeatable has not been registered yet', async () => {
     mockGetLatestBackupRun.mockResolvedValue(null);
-    const queue = { getJobSchedulers: jest.fn().mockResolvedValue([]) } as unknown as Queue;
+    const queue = { getJobSchedulers: vi.fn().mockResolvedValue([]) } as unknown as Queue;
 
     const status = await new BackupStatusService(queue).getStatus();
 

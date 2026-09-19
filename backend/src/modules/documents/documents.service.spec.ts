@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 
 import * as companyEmailTemplates from './actions/company-email-templates';
@@ -18,14 +20,14 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import * as renderInstancePdf from './rendering/render-instance-pdf';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
+vi.mock('./persistence');
 // The quote's "send" now renders a PDF and attaches it (actions/send-document-email.ts) — mocked at
 // its own entry point for the exact same reason `./numbering/take-number` right below already is:
 // this file is about the generic action machinery, not PDF rendering or Puppeteer (see
 // rendering/render-html.spec.ts and actions/send-document-email.spec.ts for those), and leaving it
 // unmocked would make a "send" test here hit a real database AND launch a real headless browser.
-jest.mock('./rendering/render-instance-pdf');
-jest.mock('./actions/company-email-templates');
+vi.mock('./rendering/render-instance-pdf');
+vi.mock('./actions/company-email-templates');
 // Legal archiving — `actions/async-send.ts`'s phase-2 delivery now calls
 // `archiveDeliveredArtifactsIfAny` (archive/archive-on-send.ts) once "sent" is persisted, which
 // reaches PAST persistence.ts straight to Prisma (`archive/persistence.ts`, `country-policy/
@@ -33,7 +35,7 @@ jest.mock('./actions/company-email-templates');
 // below is mocked: this file is about the generic action machinery, not archiving (that mechanism
 // has its own coverage — see archive/*.spec.ts), and leaving it unmocked would make a "send" test
 // here hit a real database with a fake companyId/documentId.
-jest.mock('./archive/archive-on-send');
+vi.mock('./archive/archive-on-send');
 // The real quote descriptor now declares `numbering: { onEnterStatus: 'sent' }` (quote.descriptor.ts)
 // — mocked wholesale here for the exact same reason `./persistence` is: this file is about the
 // generic action machinery, not numbering (that mechanism has its own coverage — see
@@ -42,15 +44,15 @@ jest.mock('./archive/archive-on-send');
 // unmocked would make a "send" test here hit a real database with a fake companyId. Resolving to
 // `undefined` (its own "nothing to do" case, see sequence.ts) keeps every test below exercising
 // exactly what it already tested before numbering existed.
-jest.mock('./numbering/take-number');
+vi.mock('./numbering/take-number');
 // Country policy is proven for real, against the real decision code, in
 // country-policy/country-policy.spec.ts (mocking only the Prisma client) and in
 // documents.service.country-policy.spec.ts (proving DocumentsService.runAction respects the
 // decision). This file is about the generic action machinery, not policy — defaulting to "allowed"
-// (reset before EVERY test, since `afterEach(() => jest.resetAllMocks())` below would otherwise wipe
+// (reset before EVERY test, since `afterEach(() => vi.resetAllMocks())` below would otherwise wipe
 // this implementation after the first test that runs) keeps every test below exercising exactly what
 // it already tested before country policy existed.
-jest.mock('./country-policy/country-policy');
+vi.mock('./country-policy/country-policy');
 
 /**
  * Wires the SAME building blocks documents.module.ts wires (real quote descriptor, real core field
@@ -68,9 +70,9 @@ function buildService() {
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
-  const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
+  const clientsService = { getClientById: vi.fn().mockResolvedValue(null) };
   const mailService = {
-    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   };
 
   const referenceRegistry = new EntityReferenceRegistry();
@@ -78,7 +80,7 @@ function buildService() {
   // "send" is asynchronous (actions/async-send.ts) — a fake dispatcher, no BullMQ,
   // no Nest, no Redis: the tests below only ever need to know WHAT was enqueued, never that it was
   // genuinely consumed (that proof is queue/__tests__/document-action-queue.redis.spec.ts).
-  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
   const actionRegistry = new ActionRegistry();
   registerQuoteActions(actionRegistry, {
@@ -123,13 +125,13 @@ const validQuoteData = {
 
 describe('DocumentsService — the quote type, wired exactly as documents.module.ts wires it', () => {
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
     // Default "send" composes fine — real PDF/company-template lookups replaced with a fake render
     // result, same discipline as the two mocks right above. Individual tests below override these
     // when the render outcome itself is what they're proving (none are, today — see
     // actions/send-document-email.spec.ts for that coverage).
-    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
       pdf: Buffer.from('%PDF-fake'),
       totals: {
         currency: 'EUR',
@@ -143,9 +145,9 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       referenceLabels: {},
       companyName: 'Test Co',
     });
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('lists the quote type', () => {
     expect(buildService().service.listTypes()).toEqual([{ id: 'quote', label: 'Quote' }]);
@@ -156,7 +158,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
   });
 
   it('runs "save-draft": implemented, validated, and persisted through the shared persistence layer', async () => {
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',
@@ -186,7 +188,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
   // own rendering of it is covered separately in rendering/render-html.spec.ts.
   it('persists an optional clientReference verbatim', async () => {
     const dataWithReference = { ...validQuoteData, clientReference: 'PO-2026-00042' };
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',
@@ -214,7 +216,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
   // Not required (quote.descriptor.ts) — a document that omits it altogether must keep validating and
   // saving exactly as it always did before this field existed.
   it('validates and saves fine when clientReference is omitted entirely', async () => {
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-2',
       typeId: 'quote',
       status: 'draft',
@@ -242,7 +244,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       ...validQuoteData,
       __crossBorderMentions: [{ code: 'X', text: 'Autoliquidation — fabricated by the caller' }],
     };
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',
@@ -261,10 +263,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       'draft',
       validQuoteData, // the SAME data, minus the sidecar — never the poisoned object.
     );
-    const persistedData = (persistence.upsertDocument as jest.Mock).mock.calls[0][4] as Record<
-      string,
-      unknown
-    >;
+    const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4] as Record<string, unknown>;
     expect(persistedData).not.toHaveProperty('__crossBorderMentions');
   });
 
@@ -282,7 +281,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       __crossBorderMentions: [{ code: 'X', text: 'Autoliquidation — fabricated by the caller' }],
       lines: [{ ...validQuoteData.lines[0], __crossBorderCategory: 'AE' }],
     };
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sending',
@@ -290,7 +289,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',
@@ -305,10 +304,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       data: poisonedData,
     });
 
-    const persistedData = (persistence.upsertDocument as jest.Mock).mock.calls[0][4] as Record<
-      string,
-      unknown
-    >;
+    const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4] as Record<string, unknown>;
     expect(persistedData).not.toHaveProperty('__crossBorderMentions');
     expect((persistedData.lines as Record<string, unknown>[])[0]).not.toHaveProperty('__crossBorderCategory');
   });
@@ -332,7 +328,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
   // quote can be in, and "convert-to-invoice" genuinely requires "draft" or "sent" — this uses a
   // status OUTSIDE that list, so the request must be refused before the handler is ever reached.
   it('refuses an action for a status outside its availableWhen list — 409, not a silent bypass', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'archived',
@@ -359,7 +355,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
 
   describe('"convert-to-invoice" — implemented, unlike "export-accounting" on the invoice', () => {
     it('creates a new invoice draft, carrying the quote data over and linking back with `origin`', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'quote-doc-1',
         typeId: 'quote',
         status: 'draft',
@@ -367,7 +363,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'invoice-doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -412,7 +408,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
 
   describe('"send" — implemented through the quote\'s own send-by-email mechanism, no special case', () => {
     it('validates its own params with the SAME field-kind vocabulary as document data', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'draft',
@@ -433,7 +429,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     });
 
     it('phase 1: once params are valid, persists "sending" and ENQUEUES — never calls MailService synchronously', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'draft',
@@ -441,7 +437,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'sending',
@@ -478,7 +474,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     });
 
     it('phase 2 (the worker\'s replay, record already "sending"): sends the email and marks the document "sent"', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'sending',
@@ -488,7 +484,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         number: 1,
         displayNumber: 'QUOTE-2026-0001',
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'sent',
@@ -583,7 +579,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     });
 
     it('runs through the exact same runAction path as a native action', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'draft',
@@ -591,7 +587,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-2',
         typeId: 'quote',
         status: 'draft',
@@ -618,7 +614,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     });
 
     it('still gets refused by the 409 status check — extension actions are not a shortcut', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'archived',
@@ -641,11 +637,11 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       const referenceRegistry = new EntityReferenceRegistry();
       const actionRegistry = new ActionRegistry();
       registerQuoteActions(actionRegistry, {
-        clientsService: { getClientById: jest.fn() } as never,
-        mailService: { sendForCompany: jest.fn() } as never,
+        clientsService: { getClientById: vi.fn() } as never,
+        mailService: { sendForCompany: vi.fn() } as never,
         typeRegistry,
         referenceRegistry,
-        queueDispatcher: { enqueueAction: jest.fn() },
+        queueDispatcher: { enqueueAction: vi.fn() },
       });
       const actionExtensionRegistry = new ActionExtensionRegistry();
       // "send" already exists natively on the quote descriptor — this is the misconfiguration.

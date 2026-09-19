@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { Queue } from 'bullmq';
 
 import { BackupQueueDispatcher } from './backup-queue.dispatcher';
@@ -13,7 +15,7 @@ describe('backup/queue/BackupQueueDispatcher', () => {
 
   it('registers exactly one repeatable, with the default daily-at-03:00-UTC cron pattern', async () => {
     delete process.env.BACKUP_S3_SCHEDULE;
-    const add = jest.fn().mockResolvedValue(undefined);
+    const add = vi.fn().mockResolvedValue(undefined);
     const dispatcher = new BackupQueueDispatcher({ add } as unknown as Queue);
 
     await dispatcher.registerBackupSweepRepeatable();
@@ -32,7 +34,7 @@ describe('backup/queue/BackupQueueDispatcher', () => {
 
   it('honours a configured BACKUP_S3_SCHEDULE cron pattern', async () => {
     process.env.BACKUP_S3_SCHEDULE = '0 */6 * * *';
-    const add = jest.fn().mockResolvedValue(undefined);
+    const add = vi.fn().mockResolvedValue(undefined);
     const dispatcher = new BackupQueueDispatcher({ add } as unknown as Queue);
 
     await dispatcher.registerBackupSweepRepeatable();

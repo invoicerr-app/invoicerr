@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 
@@ -14,29 +16,29 @@ import {
 // Same shape `danger.service.spec.ts` and `invitations.service.spec.ts` already use for a module that
 // imports the shared `prisma` singleton directly (never via Nest DI) — `findMany`/`count` are the only
 // two calls this file's functions ever make.
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     userCompany: {
-      findMany: jest.fn(),
-      count: jest.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
     },
   },
 }));
-jest.mock('@/modules/billing/member-sync');
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/modules/billing/member-sync');
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 import prisma from '@/prisma/prisma.service';
 
 const mockPrisma = prisma as unknown as {
-  userCompany: { findMany: jest.Mock; count: jest.Mock };
+  userCompany: { findMany: Mock; count: Mock };
 };
-const syncMember = syncCompanyMemberOnMembershipChange as jest.Mock;
+const syncMember = syncCompanyMemberOnMembershipChange as Mock;
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('buildChangeEmailMail / sendChangeEmailMail', () => {
@@ -54,7 +56,7 @@ describe('buildChangeEmailMail / sendChangeEmailMail', () => {
   });
 
   it('sends via the given mailer — the INSTANCE path, never a per-company cascade', async () => {
-    const mailer: AccountMailer = { sendMail: jest.fn().mockResolvedValue({ message: 'ok' }) };
+    const mailer: AccountMailer = { sendMail: vi.fn().mockResolvedValue({ message: 'ok' }) };
 
     await sendChangeEmailMail(mailer, {
       newEmail: 'new@acme.org',
@@ -63,7 +65,7 @@ describe('buildChangeEmailMail / sendChangeEmailMail', () => {
     });
 
     expect(mailer.sendMail).toHaveBeenCalledTimes(1);
-    const sent = (mailer.sendMail as jest.Mock).mock.calls[0][0];
+    const sent = (mailer.sendMail as Mock).mock.calls[0][0];
     expect(sent.to).toBe('new@acme.org');
     expect(sent.text + sent.html).toContain('https://app.test/verify?token=xyz');
   });

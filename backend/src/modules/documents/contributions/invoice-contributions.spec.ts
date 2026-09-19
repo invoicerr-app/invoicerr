@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import {
   buildInvoiceDashboardWidgets,
   buildInvoiceStatisticsWidgets,
@@ -10,22 +12,22 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
 import { ShortListWidget, TableWidget, TimeSeriesWidget } from './widgets';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 // The "pending" shortList below now excludes SETTLED invoices (settlement/) — mocked here the same
 // way `../persistence` already is, defaulting to "nothing paid" so every pre-existing test in this
 // file keeps meaning exactly what it always did.
-jest.mock('../settlement/payments');
+vi.mock('../settlement/payments');
 // Same reason, same discipline, for CREDITS (credit matching) — `listCreditNotes` also reaches
 // Prisma directly. Defaulted to "no credit notes at all" so every pre-existing test keeps meaning
 // exactly what it always did; the dedicated test below overrides it.
-jest.mock('../settlement/credits', () => {
-  const actual = jest.requireActual('../settlement/credits');
-  return { ...actual, listCreditNotes: jest.fn() };
+vi.mock('../settlement/credits', async () => {
+  const actual = await vi.importActual('../settlement/credits');
+  return { ...actual, listCreditNotes: vi.fn() };
 });
 
-const listDocuments = persistence.listDocuments as jest.Mock;
-const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as jest.Mock;
-const listCreditNotes = settlementCredits.listCreditNotes as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
+const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
+const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 
 function invoice(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -59,13 +61,13 @@ describe('invoiceTotal', () => {
 
 describe('buildInvoiceDashboardWidgets', () => {
   beforeEach(() => {
-    jest.useFakeTimers().setSystemTime(new Date('2026-08-30'));
+    vi.useFakeTimers().setSystemTime(new Date('2026-08-30'));
     listDocuments.mockReset();
     sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
     listCreditNotes.mockReset().mockResolvedValue([]);
   });
 
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('lists only "sent" invoices as pending, sorted by due date, with an arithmetic total', async () => {
     listDocuments.mockResolvedValue([

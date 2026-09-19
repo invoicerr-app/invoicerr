@@ -8,11 +8,12 @@
  * same from the outside, or an anonymous caller can enumerate which companies exist and which payment
  * providers they have connected purely from the 400 body.
  */
+import { vi } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
 // `@thallesp/nestjs-better-auth`'s own transitive dependency is ESM-only and does not parse under
 // ts-jest — same discipline `sdi-notifiche.controller.spec.ts` already holds for the identical import.
-jest.mock('@thallesp/nestjs-better-auth', () => ({
+vi.mock('@thallesp/nestjs-better-auth', () => ({
   Public: () => () => undefined,
 }));
 
@@ -28,7 +29,7 @@ function fakeRequest(rawBody?: Buffer) {
 
 describe('PaymentsWebhookController.handleWebhook', () => {
   it('answers 200 with the outcome once the event is verified and processed', async () => {
-    const handleWebhookEvent = jest.fn().mockResolvedValue({ outcome: 'processed' });
+    const handleWebhookEvent = vi.fn().mockResolvedValue({ outcome: 'processed' });
     const controller = new PaymentsWebhookController({
       handleWebhookEvent,
     } as unknown as PaymentSessionsService);
@@ -39,7 +40,7 @@ describe('PaymentsWebhookController.handleWebhook', () => {
   });
 
   it('400s, named, when the raw body was never captured', async () => {
-    const handleWebhookEvent = jest.fn();
+    const handleWebhookEvent = vi.fn();
     const controller = new PaymentsWebhookController({
       handleWebhookEvent,
     } as unknown as PaymentSessionsService);
@@ -59,7 +60,7 @@ describe('PaymentsWebhookController.handleWebhook', () => {
     const BAD_SIGNATURE_MESSAGE = 'Invalid Stripe webhook signature.';
 
     async function messageFor(rejection: Error): Promise<string> {
-      const handleWebhookEvent = jest.fn().mockRejectedValue(rejection);
+      const handleWebhookEvent = vi.fn().mockRejectedValue(rejection);
       const controller = new PaymentsWebhookController({
         handleWebhookEvent,
       } as unknown as PaymentSessionsService);
@@ -86,7 +87,7 @@ describe('PaymentsWebhookController.handleWebhook', () => {
 
   it('a genuine processing failure (post-verification) is rethrown as-is — a real 5xx, not swallowed', async () => {
     const processingError = new Error('record-payment failed');
-    const handleWebhookEvent = jest.fn().mockRejectedValue(processingError);
+    const handleWebhookEvent = vi.fn().mockRejectedValue(processingError);
     const controller = new PaymentsWebhookController({
       handleWebhookEvent,
     } as unknown as PaymentSessionsService);

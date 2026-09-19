@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { ContributionRegistry } from './contributions/contribution-registry';
@@ -24,10 +26,10 @@ import { TransportRegistry } from './transports/transport-registry';
  * type, never "invoice", to prove the effect is type-agnostic — the same discipline the numbering
  * spec's own header already documents for numbering itself.
  */
-jest.mock('./persistence');
-jest.mock('./country-policy/country-policy');
-jest.mock('./numbering/take-number');
-jest.mock('./stock/apply-stock-on-issuance');
+vi.mock('./persistence');
+vi.mock('./country-policy/country-policy');
+vi.mock('./numbering/take-number');
+vi.mock('./stock/apply-stock-on-issuance');
 
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
@@ -100,7 +102,7 @@ function registerSendHandler(
     document: await persistence.upsertDocument(companyId, typeId, documentId, resultStatus, data),
     changed: true,
   }));
-  (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+  (persistence.upsertDocument as Mock).mockResolvedValue({
     id: 'doc-1',
     typeId: 'widget',
     status: resultStatus,
@@ -114,16 +116,16 @@ function registerSendHandler(
 
 describe('DocumentsService.runAction — stock-effect wiring', () => {
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('calls applyStockOnIssuance when a synchronous action actually TAKES the number (tied to the `numbered` winner, not the in-memory gate alone)', async () => {
     const actionRegistry = new ActionRegistry();
     const lines = [{ articleId: 'article-1', quantity: 4 }];
     registerSendHandler(actionRegistry, 'sent', null, { lines });
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -133,7 +135,7 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
       number: 1,
       displayNumber: 'WIDGET-2026-0001',
     });
@@ -154,7 +156,7 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
       document: await persistence.upsertDocument(companyId, typeId, documentId, 'draft', data),
       changed: true,
     }));
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -180,7 +182,7 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
     const actionRegistry = new ActionRegistry();
     registerSendHandler(actionRegistry, 'sent', 1, { lines: [{ articleId: 'article-1', quantity: 4 }] });
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -202,7 +204,7 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
     const actionRegistry = new ActionRegistry();
     registerSendHandler(actionRegistry, 'sent', null, { lines: [{ articleId: 'article-1', quantity: 4 }] });
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -223,7 +225,7 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
     const actionRegistry = new ActionRegistry();
     registerSendHandler(actionRegistry, 'sent', null, { lines: [{ articleId: 'article-1', quantity: 4 }] });
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -238,7 +240,7 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
     // tied to `numbered` being truthy (the winner), so this caller must NOT decrement — the winning
     // caller (or the send worker in `send-document-email.ts`) already did. This is what prevents a
     // double-decrement; the earlier implementation fired here too, which was the bug.
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const service = buildService(numberedWidgetDescriptor(), actionRegistry);
     await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });

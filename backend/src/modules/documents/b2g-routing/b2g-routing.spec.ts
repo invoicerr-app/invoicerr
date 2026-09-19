@@ -6,20 +6,22 @@
  * correctly to whatever THIS module decides (mocking this module wholesale, the way
  * `invoice-channel-mandate.spec.ts` already mocks `channel-policy/mandate.ts`).
  */
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { resolveB2gRoutingRule, resolveClientB2gRouting } from './b2g-routing';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    client: { findFirst: jest.fn() },
-    b2gRoutingRule: { findUnique: jest.fn() },
+    client: { findFirst: vi.fn() },
+    b2gRoutingRule: { findUnique: vi.fn() },
   },
 }));
 
-const findClient = prisma.client.findFirst as jest.Mock;
-const findRule = prisma.b2gRoutingRule.findUnique as jest.Mock;
+const findClient = prisma.client.findFirst as Mock;
+const findRule = prisma.b2gRoutingRule.findUnique as Mock;
 
 const RULE_ROW = {
   countryCode: 'IT',
@@ -36,7 +38,7 @@ const RULE_ROW = {
 };
 
 describe('resolveB2gRoutingRule', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('returns undefined for a country with no rule at all', async () => {
     findRule.mockResolvedValue(null);
@@ -60,7 +62,7 @@ describe('resolveB2gRoutingRule', () => {
 });
 
 describe('resolveClientB2gRouting', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('does not apply when no clientId is given', async () => {
     const decision = await resolveClientB2gRouting('company-1', undefined);

@@ -15,6 +15,8 @@
  * from `mtls-test-fixtures.ts`, shared with `pt-at-client.spec.ts`'s own mTLS suite and
  * `queue/__tests__/document-report-queue.redis.spec.ts` — see that shared file's own header for why.
  */
+import { vi } from 'vitest';
+
 import * as https from 'node:https';
 import {
   createDecipheriv,
@@ -235,7 +237,7 @@ function channelCredentialsFor(
   overrides: Record<string, unknown> = {},
 ): ChannelCredentialsService {
   return {
-    resolveActive: jest.fn().mockResolvedValue({
+    resolveActive: vi.fn().mockResolvedValue({
       providerId: PT_AT_PROVIDER_ID,
       channel: 'PT_AT',
       environment: 'TEST',
@@ -330,7 +332,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
 
   it('no pt-at channel connected: declare() throws ChannelNotConnectedError, never attempts an HTTP call', async () => {
     const channelCredentials = {
-      resolveActive: jest.fn().mockResolvedValue(null),
+      resolveActive: vi.fn().mockResolvedValue(null),
     } as unknown as ChannelCredentialsService;
     const provider = buildPtAtDeclarationProvider({ channelCredentials });
 
@@ -339,7 +341,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
 
   it('an incomplete pt-at config (missing authPublicKeyPem) is treated the same as not connected', async () => {
     const channelCredentials = {
-      resolveActive: jest.fn().mockResolvedValue({
+      resolveActive: vi.fn().mockResolvedValue({
         providerId: PT_AT_PROVIDER_ID,
         channel: 'PT_AT',
         environment: 'TEST',
@@ -354,7 +356,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
 
   it('an incomplete pt-at config (missing the mTLS client certificate) is ALSO treated as not connected', async () => {
     const channelCredentials = {
-      resolveActive: jest.fn().mockResolvedValue({
+      resolveActive: vi.fn().mockResolvedValue({
         providerId: PT_AT_PROVIDER_ID,
         channel: 'PT_AT',
         environment: 'TEST',

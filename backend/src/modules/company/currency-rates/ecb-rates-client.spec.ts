@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { fetchEcbDailyRates } from './ecb-rates-client';
 
 /** A trimmed but structurally real fixture — the SAME three-level `<Cube>` nesting
@@ -18,7 +20,7 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </gesmes:Envelope>`;
 
 function mockFetchOnce(body: string, ok = true, status = 200): void {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok,
     status,
     text: () => Promise.resolve(body),
@@ -26,7 +28,7 @@ function mockFetchOnce(body: string, ok = true, status = 200): void {
 }
 
 describe('fetchEcbDailyRates', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('parses the reference date and every currency/rate pair from the fixture', async () => {
     mockFetchOnce(FIXTURE_XML);

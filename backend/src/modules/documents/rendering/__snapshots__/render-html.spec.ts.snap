@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`renderDocumentHtml branding (chantier B, 2026-09-15) pins the full unbranded render — any accidental byte change here must be a deliberate diff 1`] = `
+exports[`renderDocumentHtml > branding (chantier B, 2026-09-15) > pins the full unbranded render — any accidental byte change here must be a deliberate diff 1`] = `
 "
 <!DOCTYPE html>
 <html>

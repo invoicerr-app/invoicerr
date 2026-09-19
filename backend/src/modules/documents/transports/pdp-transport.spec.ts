@@ -5,6 +5,7 @@
  * preflight gate, the payload build, and the two facts that matter most — that an
  * empty deposit id is NEVER a success and that a disconnected channel blocks BEFORE any network call.
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -14,27 +15,32 @@ import { DocumentFormatProvider } from '../formats/format-provider';
 import { buildPdpTransport } from './pdp-transport';
 import { DocumentTransportContext } from './transport-registry';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    client: { findFirst: jest.fn() },
+    company: { findUnique: vi.fn() },
+    client: { findFirst: vi.fn() },
   },
 }));
 
-const mockAuthenticate = jest.fn();
-const mockSendInvoice = jest.fn();
+const mockAuthenticate = vi.fn();
+const mockSendInvoice = vi.fn();
 
-jest.mock('./pdp/pdp-client', () => ({
-  PdpClient: jest.fn().mockImplementation(() => ({
-    authenticate: mockAuthenticate,
-    sendInvoice: mockSendInvoice,
-  })),
+vi.mock('./pdp/pdp-client', () => ({
+  // A `function` expression, NOT an arrow function — production code does `new PdpClient(...)`
+  // (`pdp-transport.ts`'s own client builder). Jest's mocks never really `[[Construct]]` their
+  // implementation (they call it plainly and use the return value), so an arrow function "worked"
+  // there; Vitest's mocks DO construct it for real, and an arrow function has no `[[Construct]]` at
+  // all — "TypeError: ... is not a constructor".
+  // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new PdpClient(...)` under Vitest, see above.
+  PdpClient: vi.fn().mockImplementation(function () {
+    return { authenticate: mockAuthenticate, sendInvoice: mockSendInvoice };
+  }),
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  client: { findFirst: jest.Mock };
+  company: { findUnique: Mock };
+  client: { findFirst: Mock };
 };
 
 const CONNECTED_CONFIG = {
@@ -45,9 +51,9 @@ const CONNECTED_CONFIG = {
   config: { baseUrl: 'https://api.superpdp.tech', clientId: 'id-1', clientSecret: 'secret-1' },
 };
 
-function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock }) {
+function buildDeps(overrides?: { resolveActive?: Mock; build?: Mock }) {
   const channelCredentials = {
-    resolveActive: overrides?.resolveActive ?? jest.fn().mockResolvedValue(CONNECTED_CONFIG),
+    resolveActive: overrides?.resolveActive ?? vi.fn().mockResolvedValue(CONNECTED_CONFIG),
   } as unknown as ChannelCredentialsService;
   const facturxFormatProvider: DocumentFormatProvider = {
     id: 'facturx',
@@ -55,7 +61,7 @@ function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock })
     mime: 'application/pdf',
     build:
       overrides?.build ??
-      jest.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
+      vi.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
   };
   return { channelCredentials, facturxFormatProvider };
 }
@@ -76,7 +82,7 @@ const CTX: DocumentTransportContext = {
 
 describe('buildPdpTransport', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedPrisma.company.findUnique.mockResolvedValue({
       id: 'company-1',
       name: 'Dupont Consulting SARL',
@@ -99,7 +105,7 @@ describe('buildPdpTransport', () => {
 
   describe('preflight() — the PREFLIGHT gate, before anything is persisted or queued', () => {
     it('throws (named, for THIS channel) when no PDP channel is connected at all', async () => {
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
       const transport = buildPdpTransport(deps);
 
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
@@ -108,7 +114,7 @@ describe('buildPdpTransport', () => {
 
     it('throws when connected but the config is incomplete (missing clientSecret)', async () => {
       const deps = buildDeps({
-        resolveActive: jest.fn().mockResolvedValue({
+        resolveActive: vi.fn().mockResolvedValue({
           ...CONNECTED_CONFIG,
           config: { baseUrl: 'https://api.superpdp.tech', clientId: 'id-1' },
         }),
@@ -127,7 +133,7 @@ describe('buildPdpTransport', () => {
 
   describe('send() — delivery', () => {
     it('blocks (never calls the network) when the channel is not connected — re-checked, not cached from preflight', async () => {
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
       const transport = buildPdpTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(NotImplementedException);
@@ -144,7 +150,7 @@ describe('buildPdpTransport', () => {
     });
 
     it('never deposits an artifact that failed EN 16931 validation', async () => {
-      const build = jest.fn().mockResolvedValue({
+      const build = vi.fn().mockResolvedValue({
         bytes: new TextEncoder().encode('<invalid/>'),
         validation: { valid: false, errors: ['BR-CO-26: seller VAT missing'] },
       });

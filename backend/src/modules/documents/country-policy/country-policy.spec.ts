@@ -8,6 +8,8 @@
  * wiring. This file is where "a country with no policy blocks everything, and says so by name" is
  * actually proven, against the real branching logic.
  */
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -17,19 +19,19 @@ import {
   resolveCompanyCountryCode,
 } from './country-policy';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    documentCountryActionRule: { findMany: jest.fn() },
+    company: { findUnique: vi.fn() },
+    documentCountryActionRule: { findMany: vi.fn() },
   },
 }));
 
-const findCompany = prisma.company.findUnique as jest.Mock;
-const findRules = prisma.documentCountryActionRule.findMany as jest.Mock;
+const findCompany = prisma.company.findUnique as Mock;
+const findRules = prisma.documentCountryActionRule.findMany as Mock;
 
 describe('evaluateCountryPolicy', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   // DECISION 1, proven directly: a country with NO rows in the policy table blocks EVERY action —
   // no permissive fallback. If someone changes the `rules.length === 0` branch to return
@@ -239,7 +241,7 @@ describe('evaluateCountryPolicy', () => {
  * company/rules lookups happen EXACTLY ONCE no matter how many action ids are asked for.
  */
 describe('evaluateCountryPolicyForActions', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('decides every action id from ONE company lookup and ONE rules lookup — never one pair per action', async () => {
     findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
@@ -333,7 +335,7 @@ describe('evaluateCountryPolicyForActions', () => {
  * Prisma company lookup is mocked, same discipline as evaluateCountryPolicy above.
  */
 describe('resolveAvailableDocumentTypes', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it("returns the real FR file's declared document types", async () => {
     findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
@@ -386,7 +388,7 @@ describe('resolveAvailableDocumentTypes', () => {
 });
 
 describe('resolveCompanyCountryCode', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('prefers the explicit countryCode override over guessing from the free-text name', async () => {
     findCompany.mockResolvedValue({ country: 'Deutschland', countryCode: 'DE' });

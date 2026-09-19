@@ -1,10 +1,12 @@
+import { vi, type Mock } from 'vitest';
+
 import { listArticlesTool } from './list-articles.tool';
 import { ToolContext } from './types';
 
 // The removed compliance engine (git tag `avant-refonte-documents`) had no spec for `list_articles` — this one is new,
 // same shape as `list-clients.tool.spec.ts`.
 describe('listArticlesTool', () => {
-  function buildContext(findAll: jest.Mock): ToolContext {
+  function buildContext(findAll: Mock): ToolContext {
     return {
       companyId: 'company1',
       scopes: ['articles:read'],
@@ -19,7 +21,7 @@ describe('listArticlesTool', () => {
   }
 
   it("calls articlesService.findAll with the active company's id", async () => {
-    const findAll = jest.fn().mockResolvedValue([]);
+    const findAll = vi.fn().mockResolvedValue([]);
     const ctx = buildContext(findAll);
 
     await listArticlesTool.handler(ctx, {});
@@ -28,7 +30,7 @@ describe('listArticlesTool', () => {
   });
 
   it('maps articles to a compact summary', async () => {
-    const findAll = jest
+    const findAll = vi
       .fn()
       .mockResolvedValue([
         { id: 'a1', name: 'Widget', description: 'A widget', type: 'PRODUCT', unitPrice: 10, vatRate: 20 },

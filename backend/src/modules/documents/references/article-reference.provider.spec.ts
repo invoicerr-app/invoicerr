@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { buildArticleReferenceProvider } from './article-reference.provider';
 
 /**
@@ -26,8 +28,8 @@ describe('buildArticleReferenceProvider', () => {
 
   function buildFakeArticlesService(found: typeof article | null = article) {
     return {
-      findAll: jest.fn().mockResolvedValue(found ? [found] : []),
-      findOne: jest.fn().mockResolvedValue(found),
+      findAll: vi.fn().mockResolvedValue(found ? [found] : []),
+      findOne: vi.fn().mockResolvedValue(found),
     };
   }
 

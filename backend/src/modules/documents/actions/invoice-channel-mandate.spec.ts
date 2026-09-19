@@ -10,6 +10,7 @@
  * `DocumentsService.runAction`'s own gates entirely — the exact same style `send-divergence.spec.ts`
  * already established for this module.
  */
+import { vi, type Mock } from 'vitest';
 import { NotImplementedException } from '@nestjs/common';
 
 import * as persistence from '../persistence';
@@ -22,25 +23,25 @@ import { ActionRegistry } from './action-registry';
 import { registerInvoiceActions } from './invoice-actions';
 import * as taxLoadAndResolve from '../tax/load-and-resolve';
 
-jest.mock('../persistence');
-jest.mock('../transports/company-transport');
-jest.mock('../country-policy/country-policy');
-jest.mock('../transports/channel-policy/mandate');
+vi.mock('../persistence');
+vi.mock('../transports/company-transport');
+vi.mock('../country-policy/country-policy');
+vi.mock('../transports/channel-policy/mandate');
 // B2G routing (`b2g-routing/`) reaches Prisma directly, exactly like `country-policy/country-policy`
 // above — mocked here for the SAME "no Nest, no DB" reason, and defaulted to `applies: false` in
 // `beforeEach` below: this file's own concern is the SELLER-country mandate, never a GOVERNMENT
 // client — see `invoice-b2g-routing.spec.ts` for that mechanism's own dedicated tests, including the
 // one proving this mandate machinery is skipped ENTIRELY once a B2G rule applies.
-jest.mock('../b2g-routing/b2g-routing');
+vi.mock('../b2g-routing/b2g-routing');
 // `async-send.ts`'s own "number at enqueue time" mechanism (see that file's header) reaches Prisma
 // directly for a real invoice — mocked here for the same reason `send-divergence.spec.ts` and
 // `documents.service.invoice.spec.ts` already mock it: this file has no Nest, no DB, and does not
 // care about numbering at all, only about the mandate decision.
-jest.mock('../numbering/take-number');
+vi.mock('../numbering/take-number');
 // Cross-border VAT ("transfrontalier") — see `send-divergence.spec.ts`'s own comment on this exact
 // mock: a permissive pass-through, this file's own concern is the channel mandate, never cross-border
 // VAT.
-jest.mock('../tax/load-and-resolve');
+vi.mock('../tax/load-and-resolve');
 
 const FR_MANDATE = {
   providerId: 'pdp',
@@ -84,35 +85,35 @@ function sendingDocument() {
 
 function buildRegistry(transportRegistry = new TransportRegistry()) {
   const registry = new ActionRegistry();
-  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
+  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: vi.fn() } });
   return registry;
 }
 
 describe('invoice "send" — a country channel mandate overrides the company\'s free choice', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
   // Cross-border VAT — see `send-divergence.spec.ts`'s own comment on this exact mock and why it is
   // re-installed here, in `beforeEach`, rather than relying on the module factory alone.
   beforeEach(() => {
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
     // No B2G client in any of this file's own fixtures — see `invoice-b2g-routing.spec.ts` for the
     // dedicated suite that exercises `applies: true`.
-    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
       applies: false,
       missingIdentifierSchemes: [],
     });
   });
 
   it('BLOCKS at the preflight when the company is configured for a DIFFERENT transport — never persisted, message names channel + source', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(FR_MANDATE);
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const action = handler!({
@@ -132,10 +133,10 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   });
 
   it('BLOCKS the same way when NO transport is configured at all — names the mandate, not the generic "no transport" message', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(FR_MANDATE);
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue(null);
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue(null);
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
     const handler = buildRegistry().resolve('invoice', 'send');
     const action = handler!({
@@ -153,15 +154,15 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   });
 
   it('BLOCKS, naming both the mandate AND the underlying reason, when the mandated channel IS chosen but its own preflight refuses (not connected)', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(FR_MANDATE);
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('pdp');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('pdp');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('pdp', 'PDP', {
-      send: jest.fn(),
-      preflight: jest
+      send: vi.fn(),
+      preflight: vi
         .fn()
         .mockRejectedValue(new NotImplementedException('The PDP channel is not connected for this company.')),
     });
@@ -184,15 +185,15 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   });
 
   it('ALLOWS the send once the mandated channel is chosen AND ready — the mandate does not block what it requires', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(FR_MANDATE);
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('pdp');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingDocument());
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('pdp');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
 
     const transportRegistry = new TransportRegistry();
-    const fakePreflight = jest.fn().mockResolvedValue(undefined);
-    transportRegistry.register('pdp', 'PDP', { send: jest.fn(), preflight: fakePreflight });
+    const fakePreflight = vi.fn().mockResolvedValue(undefined);
+    transportRegistry.register('pdp', 'PDP', { send: vi.fn(), preflight: fakePreflight });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const result = await handler!({
@@ -209,14 +210,14 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   });
 
   it('a country with NO active mandate leaves the company entirely free to choose — unaffected by the mandate machinery', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('DE');
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(undefined);
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingDocument());
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('DE');
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue(undefined);
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const result = await handler!({
@@ -236,8 +237,8 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
       'chose "sdi-pec", the SAME legal channel over a different sub-channel (see ' +
       'channel-policy/schema.ts\'s own "equivalentProviderIds" header)',
     async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('IT');
-      (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue({
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('IT');
+      (mandate.activeChannelMandateFor as Mock).mockReturnValue({
         providerId: 'sdi',
         mandatedFrom: '2019-01-01',
         equivalentProviderIds: ['sdi-pec'],
@@ -248,13 +249,13 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
           sourceCheckedAt: '2026-09-13',
         },
       });
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('sdi-pec');
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingDocument());
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('sdi-pec');
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+      (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
 
       const transportRegistry = new TransportRegistry();
-      const fakePreflight = jest.fn().mockResolvedValue(undefined);
-      transportRegistry.register('sdi-pec', 'SdI via PEC', { send: jest.fn(), preflight: fakePreflight });
+      const fakePreflight = vi.fn().mockResolvedValue(undefined);
+      transportRegistry.register('sdi-pec', 'SdI via PEC', { send: vi.fn(), preflight: fakePreflight });
       const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
       const result = await handler!({
@@ -272,15 +273,15 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   );
 
   it("deliver() (the worker's replay, phase 2) ALSO respects the mandate — a mismatch is refused even if the preflight somehow let it through", async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(FR_MANDATE);
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
     // The company switched its transport to "email" AFTER the job was enqueued — deliver() must
     // still honor the mandate at the moment it actually runs, not trust whatever preflight decided.
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument());
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const action = handler!({

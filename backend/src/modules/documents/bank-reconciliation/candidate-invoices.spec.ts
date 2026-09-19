@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
 import * as clientLabels from '../accounting-export/client-labels';
@@ -12,18 +14,18 @@ import { resolveOutstandingInvoices } from './candidate-invoices';
  * credits` mocked ONLY for `listCreditNotes` — `creditsForInvoiceFromNotes`/`toSettlementCreditInputs`
  * stay the real, already-proven implementation.
  */
-jest.mock('../persistence');
-jest.mock('../settlement/payments');
-jest.mock('../settlement/credits', () => {
-  const actual = jest.requireActual('../settlement/credits');
-  return { ...actual, listCreditNotes: jest.fn() };
+vi.mock('../persistence');
+vi.mock('../settlement/payments');
+vi.mock('../settlement/credits', async () => {
+  const actual = await vi.importActual('../settlement/credits');
+  return { ...actual, listCreditNotes: vi.fn() };
 });
-jest.mock('../accounting-export/client-labels');
+vi.mock('../accounting-export/client-labels');
 
-const listDocuments = persistence.listDocuments as jest.Mock;
-const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as jest.Mock;
-const listCreditNotes = settlementCredits.listCreditNotes as jest.Mock;
-const resolveClientLabels = clientLabels.resolveClientLabels as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
+const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
+const listCreditNotes = settlementCredits.listCreditNotes as Mock;
+const resolveClientLabels = clientLabels.resolveClientLabels as Mock;
 
 // 100 EUR net, 20% VAT -> 120 gross (12000 minor) — the same minimal fixture
 // `settlement/client-statement.spec.ts` already uses.

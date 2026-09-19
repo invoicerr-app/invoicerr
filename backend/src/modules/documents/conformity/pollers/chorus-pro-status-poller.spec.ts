@@ -4,29 +4,34 @@
  * see that file's own header, and this poller's own header for the honesty note on the ONE thing that
  * round-trip surfaced as actually wrong: `mapChorusProStatus`'s value vocabulary).
  */
+import { vi, type Mock } from 'vitest';
+
 import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { ChannelNotConnectedError } from '../authority-status-poller';
 import { buildChorusProStatusPoller } from './chorus-pro-status-poller';
 
-const mockConsulterCr = jest.fn();
+const mockConsulterCr = vi.fn();
 
-jest.mock('../../transports/chorus-pro/choruspro-client', () => {
-  const actual = jest.requireActual('../../transports/chorus-pro/choruspro-client');
+vi.mock('../../transports/chorus-pro/choruspro-client', async () => {
+  const actual = await vi.importActual('../../transports/chorus-pro/choruspro-client');
   return {
     ...actual,
-    ChorusProClient: jest.fn().mockImplementation(() => ({ consulterCr: mockConsulterCr })),
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new ChorusProClient(...)` under Vitest (Jest's own mock never actually invoked [[Construct]], so an arrow function silently "worked" there).
+    ChorusProClient: vi.fn().mockImplementation(function () {
+      return { consulterCr: mockConsulterCr };
+    }),
   };
 });
 
 // Explicit factory mock (not automock): lets the UNKNOWN-status test below assert `logger.error` was
 // actually called, without a real Prisma write attempt — the same "mock the singleton, assert on it"
 // approach this module's OWN production code (`poll()`'s `logger.error` call) is meant to be caught by.
-jest.mock('@/logger/logger.service', () => ({
-  logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
-const mockLoggerError = logger.error as jest.Mock;
+const mockLoggerError = logger.error as Mock;
 
 const CONNECTED_CONFIG = {
   providerId: 'chorus-pro',
@@ -41,12 +46,12 @@ const CONNECTED_CONFIG = {
   },
 };
 
-function buildChannelCredentials(resolveActive = jest.fn().mockResolvedValue(CONNECTED_CONFIG)) {
+function buildChannelCredentials(resolveActive = vi.fn().mockResolvedValue(CONNECTED_CONFIG)) {
   return { resolveActive } as unknown as ChannelCredentialsService;
 }
 
 describe('buildChorusProStatusPoller', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('maps a PENDING statutFlux (EN_COURS_DE_TRAITEMENT) into one event, not terminal, no reason', async () => {
     mockConsulterCr.mockResolvedValue({
@@ -290,7 +295,7 @@ describe('buildChorusProStatusPoller', () => {
 
   it('throws ChannelNotConnectedError when chorus-pro has no connected credentials for this company', async () => {
     const poller = buildChorusProStatusPoller({
-      channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(null)),
+      channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(null)),
     });
     await expect(poller.poll('company-1', '375037')).rejects.toBeInstanceOf(ChannelNotConnectedError);
     expect(mockConsulterCr).not.toHaveBeenCalled(); // never even reaches the network call
@@ -306,7 +311,7 @@ describe('buildChorusProStatusPoller', () => {
       },
     };
     const poller = buildChorusProStatusPoller({
-      channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(incomplete)),
+      channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(incomplete)),
     });
     await expect(poller.poll('company-1', '375037')).rejects.toBeInstanceOf(ChannelNotConnectedError);
   });

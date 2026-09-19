@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import {
   COMPANY_BILLING_MEMBER_EXTERNAL_ID,
   findMemberIdForUser,
@@ -20,12 +22,12 @@ async function* asPages(items: Array<{ id: string; email: string; externalId: st
 
 function fakeClient(overrides: Partial<MemberResolutionClient> = {}): MemberResolutionClient {
   return {
-    members: { listMembers: jest.fn().mockResolvedValue(asPages([])) },
+    members: { listMembers: vi.fn().mockResolvedValue(asPages([])) },
     customers: {
       members: {
-        getExternal: jest.fn().mockRejectedValue(notFoundError()),
-        createExternal: jest.fn(),
-        delete: jest.fn(),
+        getExternal: vi.fn().mockRejectedValue(notFoundError()),
+        createExternal: vi.fn(),
+        delete: vi.fn(),
       },
     },
     ...overrides,
@@ -33,13 +35,13 @@ function fakeClient(overrides: Partial<MemberResolutionClient> = {}): MemberReso
 }
 
 describe('findMemberIdForUser', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('returns the member found by our own externalId, without listing', async () => {
-    const getExternal = jest.fn().mockResolvedValue({ id: 'member-1' });
-    const listMembers = jest.fn();
+    const getExternal = vi.fn().mockResolvedValue({ id: 'member-1' });
+    const listMembers = vi.fn();
     const client = fakeClient({
-      customers: { members: { getExternal, createExternal: jest.fn(), delete: jest.fn() } },
+      customers: { members: { getExternal, createExternal: vi.fn(), delete: vi.fn() } },
       members: { listMembers },
     });
 
@@ -51,7 +53,7 @@ describe('findMemberIdForUser', () => {
   });
 
   it('falls back to matching by email when no externalId match exists', async () => {
-    const listMembers = jest.fn().mockResolvedValue(
+    const listMembers = vi.fn().mockResolvedValue(
       asPages([
         { id: 'member-other', email: 'other@acme.test', externalId: null },
         { id: 'member-match', email: 'ada@acme.test', externalId: null },
@@ -69,7 +71,7 @@ describe('findMemberIdForUser', () => {
     // header): ONE `role: "owner"` member, minted straight from the customer's own email/name, with
     // no `externalId` this app ever set — never adopted into the externalId lookup path, matched by
     // email every time this function is called.
-    const listMembers = jest
+    const listMembers = vi
       .fn()
       .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
     const client = fakeClient({ members: { listMembers } });
@@ -91,9 +93,9 @@ describe('findMemberIdForUser', () => {
     const client = fakeClient({
       customers: {
         members: {
-          getExternal: jest.fn().mockRejectedValue(new Error('polar down')),
-          createExternal: jest.fn(),
-          delete: jest.fn(),
+          getExternal: vi.fn().mockRejectedValue(new Error('polar down')),
+          createExternal: vi.fn(),
+          delete: vi.fn(),
         },
       },
     });
@@ -104,7 +106,7 @@ describe('findMemberIdForUser', () => {
   it('with matchByEmail: false, never even lists members and returns null when no externalId match exists', async () => {
     // Same fixture as the "auto-created owner member" test above (a member sharing this user's own
     // email exists) — but with the flag `removeMemberForUser` passes, this must NOT find it.
-    const listMembers = jest
+    const listMembers = vi
       .fn()
       .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
     const client = fakeClient({ members: { listMembers } });
@@ -117,16 +119,16 @@ describe('findMemberIdForUser', () => {
 });
 
 describe('resolveOrCreateMemberIdForUser', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('returns the existing member id without creating one', async () => {
-    const createExternal = jest.fn();
+    const createExternal = vi.fn();
     const client = fakeClient({
       customers: {
         members: {
-          getExternal: jest.fn().mockResolvedValue({ id: 'member-1' }),
+          getExternal: vi.fn().mockResolvedValue({ id: 'member-1' }),
           createExternal,
-          delete: jest.fn(),
+          delete: vi.fn(),
         },
       },
     });
@@ -138,13 +140,13 @@ describe('resolveOrCreateMemberIdForUser', () => {
   });
 
   it('creates a fresh member, keyed by our own externalId, when none exists', async () => {
-    const createExternal = jest.fn().mockResolvedValue({ id: 'member-new' });
+    const createExternal = vi.fn().mockResolvedValue({ id: 'member-new' });
     const client = fakeClient({
       customers: {
         members: {
-          getExternal: jest.fn().mockRejectedValue(notFoundError()),
+          getExternal: vi.fn().mockRejectedValue(notFoundError()),
           createExternal,
-          delete: jest.fn(),
+          delete: vi.fn(),
         },
       },
     });
@@ -160,13 +162,13 @@ describe('resolveOrCreateMemberIdForUser', () => {
 });
 
 describe('resolveOrCreateCompanyBillingMemberId', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('resolves the existing member by the sentinel company externalId, without creating one', async () => {
-    const getExternal = jest.fn().mockResolvedValue({ id: 'member-company' });
-    const createExternal = jest.fn();
+    const getExternal = vi.fn().mockResolvedValue({ id: 'member-company' });
+    const createExternal = vi.fn();
     const client = fakeClient({
-      customers: { members: { getExternal, createExternal, delete: jest.fn() } },
+      customers: { members: { getExternal, createExternal, delete: vi.fn() } },
     });
 
     const result = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
@@ -180,16 +182,16 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
   });
 
   it("reuses Polar's own auto-created owner member when its email already matches the resolved billing email — the common case right after a company's first seat-based checkout", async () => {
-    const listMembers = jest
+    const listMembers = vi
       .fn()
       .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: BILLING.email, externalId: null }]));
-    const createExternal = jest.fn();
+    const createExternal = vi.fn();
     const client = fakeClient({
       customers: {
         members: {
-          getExternal: jest.fn().mockRejectedValue(notFoundError()),
+          getExternal: vi.fn().mockRejectedValue(notFoundError()),
           createExternal,
-          delete: jest.fn(),
+          delete: vi.fn(),
         },
       },
       members: { listMembers },
@@ -202,16 +204,16 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
   });
 
   it('creates a fresh member as role "billing_manager" — never the default "member" role — when nothing matches', async () => {
-    const createExternal = jest.fn().mockResolvedValue({ id: 'member-new-billing' });
+    const createExternal = vi.fn().mockResolvedValue({ id: 'member-new-billing' });
     const client = fakeClient({
       customers: {
         members: {
-          getExternal: jest.fn().mockRejectedValue(notFoundError()),
+          getExternal: vi.fn().mockRejectedValue(notFoundError()),
           createExternal,
-          delete: jest.fn(),
+          delete: vi.fn(),
         },
       },
-      members: { listMembers: jest.fn().mockResolvedValue(asPages([])) },
+      members: { listMembers: vi.fn().mockResolvedValue(asPages([])) },
     });
 
     const result = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
@@ -231,10 +233,10 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
   it("never resolves to a member found under a real user's own externalId — only the sentinel", async () => {
     // `USER.id` ('user-1') must NEVER be looked up by this function — it stands for the COMPANY, not
     // any particular Invoicerr user (the exact bug this function exists to fix).
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const createExternal = jest.fn().mockResolvedValue({ id: 'member-new-billing' });
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const createExternal = vi.fn().mockResolvedValue({ id: 'member-new-billing' });
     const client = fakeClient({
-      customers: { members: { getExternal, createExternal, delete: jest.fn() } },
+      customers: { members: { getExternal, createExternal, delete: vi.fn() } },
     });
 
     await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
@@ -244,15 +246,15 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
 });
 
 describe('removeMemberForUser', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('deletes the found member by its Polar-internal id', async () => {
-    const del = jest.fn();
+    const del = vi.fn();
     const client = fakeClient({
       customers: {
         members: {
-          getExternal: jest.fn().mockResolvedValue({ id: 'member-1' }),
-          createExternal: jest.fn(),
+          getExternal: vi.fn().mockResolvedValue({ id: 'member-1' }),
+          createExternal: vi.fn(),
           delete: del,
         },
       },
@@ -264,12 +266,12 @@ describe('removeMemberForUser', () => {
   });
 
   it('is a no-op when no member exists at all', async () => {
-    const del = jest.fn();
+    const del = vi.fn();
     const client = fakeClient({
       customers: {
         members: {
-          getExternal: jest.fn().mockRejectedValue(notFoundError()),
-          createExternal: jest.fn(),
+          getExternal: vi.fn().mockRejectedValue(notFoundError()),
+          createExternal: vi.fn(),
           delete: del,
         },
       },
@@ -285,15 +287,15 @@ describe('removeMemberForUser', () => {
       "Polar's own auto-created owner member happens to share this user's own billing email, and a " +
       'demotion/removal for this user must not strip the company of it',
     async () => {
-      const del = jest.fn();
-      const listMembers = jest
+      const del = vi.fn();
+      const listMembers = vi
         .fn()
         .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
       const client = fakeClient({
         customers: {
           members: {
-            getExternal: jest.fn().mockRejectedValue(notFoundError()), // no member under OUR externalId
-            createExternal: jest.fn(),
+            getExternal: vi.fn().mockRejectedValue(notFoundError()), // no member under OUR externalId
+            createExternal: vi.fn(),
             delete: del,
           },
         },
@@ -309,12 +311,12 @@ describe('removeMemberForUser', () => {
   );
 
   it('still deletes a member found by OUR OWN externalId — the fix narrows the match, it does not disable deletion entirely', async () => {
-    const del = jest.fn();
+    const del = vi.fn();
     const client = fakeClient({
       customers: {
         members: {
-          getExternal: jest.fn().mockResolvedValue({ id: 'member-ours' }),
-          createExternal: jest.fn(),
+          getExternal: vi.fn().mockResolvedValue({ id: 'member-ours' }),
+          createExternal: vi.fn(),
           delete: del,
         },
       },

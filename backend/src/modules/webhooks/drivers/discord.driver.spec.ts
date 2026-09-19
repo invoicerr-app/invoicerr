@@ -8,6 +8,9 @@
  * matches what the removed `@teever/ez-hook` version sent (`Webhook.toObject()`/`Embed.toObject()`
  * in the now-uninstalled package) — only the transport changed.
  */
+
+import { vi } from 'vitest';
+
 import { DiscordDriver } from './discord.driver';
 import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
 
@@ -21,7 +24,7 @@ function jsonResponse(status: number, body: unknown, headers: Record<string, str
 }
 
 describe('DiscordDriver', () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('supports only the DISCORD webhook type', () => {
     const driver = new DiscordDriver();
@@ -30,7 +33,7 @@ describe('DiscordDriver', () => {
   });
 
   it('posts the exact Discord payload shape for a known event', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(200, {}));
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(200, {}));
 
     const ok = await new DiscordDriver().send('https://discord.com/api/webhooks/1/abc', {
       event: WebhookEvent.WEBHOOK_CREATED,
@@ -75,7 +78,7 @@ describe('DiscordDriver', () => {
   });
 
   it('falls back to the generic style for an event with no dedicated entry', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(200, {}));
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(200, {}));
 
     const ok = await new DiscordDriver().send('https://discord.com/api/webhooks/1/abc', {
       event: 'SOME_UNMAPPED_EVENT',
@@ -85,7 +88,7 @@ describe('DiscordDriver', () => {
   });
 
   it('adds an "Entreprise" field only when the payload carries a company name', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(200, {}));
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(200, {}));
 
     await new DiscordDriver().send('https://discord.com/api/webhooks/1/abc', {
       event: WebhookEvent.WEBHOOK_CREATED,
@@ -98,7 +101,7 @@ describe('DiscordDriver', () => {
   });
 
   it('retries once, after a bounded wait, on a 429 carrying a Retry-After header', async () => {
-    const fetchSpy = jest
+    const fetchSpy = vi
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(
         jsonResponse(429, { message: 'rate limited', retry_after: 0.001 }, { 'retry-after': '0.001' }),
@@ -115,7 +118,7 @@ describe('DiscordDriver', () => {
   });
 
   it("falls back to the JSON body's retry_after when the header is absent", async () => {
-    const fetchSpy = jest
+    const fetchSpy = vi
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(jsonResponse(429, { message: 'rate limited', retry_after: 0.001 }))
       .mockResolvedValueOnce(jsonResponse(200, {}));
@@ -130,7 +133,7 @@ describe('DiscordDriver', () => {
   });
 
   it('gives up without a second call when retry_after exceeds the bounded wait', async () => {
-    const fetchSpy = jest
+    const fetchSpy = vi
       .spyOn(global, 'fetch')
       .mockResolvedValue(
         jsonResponse(429, { message: 'rate limited', retry_after: 10 }, { 'retry-after': '10' }),
@@ -146,7 +149,7 @@ describe('DiscordDriver', () => {
   });
 
   it('never retries a second 429 in a row (one bounded retry only)', async () => {
-    const fetchSpy = jest
+    const fetchSpy = vi
       .spyOn(global, 'fetch')
       .mockResolvedValue(jsonResponse(429, { retry_after: 0.001 }, { 'retry-after': '0.001' }));
 
@@ -160,7 +163,7 @@ describe('DiscordDriver', () => {
   });
 
   it('reports a non-429 failure status as a failed send, without retrying', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(500, {}));
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(500, {}));
 
     const ok = await new DiscordDriver().send('https://discord.com/api/webhooks/1/abc', {
       event: WebhookEvent.WEBHOOK_CREATED,
@@ -172,7 +175,7 @@ describe('DiscordDriver', () => {
   });
 
   it('catches a network error and reports a failed send instead of throwing — never fatal to the event', async () => {
-    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network unreachable'));
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network unreachable'));
 
     await expect(
       new DiscordDriver().send('https://discord.com/api/webhooks/1/abc', {

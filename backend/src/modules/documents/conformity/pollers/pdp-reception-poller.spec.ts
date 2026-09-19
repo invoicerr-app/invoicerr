@@ -4,23 +4,28 @@
  * the ACTUAL raw payload captured LIVE (2026-09-16, self-addressed sandbox deposit — see
  * `pdp-reception.ts`'s own header), pasted verbatim.
  */
+import { vi } from 'vitest';
+
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { buildPdpReceptionPoller } from './pdp-reception-poller';
 
-const mockListInvoices = jest.fn();
-const mockDownloadInvoiceFile = jest.fn();
-const mockAuthenticate = jest.fn();
+const mockListInvoices = vi.fn();
+const mockDownloadInvoiceFile = vi.fn();
+const mockAuthenticate = vi.fn();
 
-jest.mock('../../transports/pdp/pdp-client', () => {
-  const actual = jest.requireActual('../../transports/pdp/pdp-client');
+vi.mock('../../transports/pdp/pdp-client', async () => {
+  const actual = await vi.importActual('../../transports/pdp/pdp-client');
   return {
     ...actual,
-    PdpClient: jest.fn().mockImplementation(() => ({
-      authenticate: mockAuthenticate,
-      listInvoices: mockListInvoices,
-      downloadInvoiceFile: mockDownloadInvoiceFile,
-    })),
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new PdpClient(...)` under Vitest (Jest's own mock never actually invoked [[Construct]], so an arrow function silently "worked" there).
+    PdpClient: vi.fn().mockImplementation(function () {
+      return {
+        authenticate: mockAuthenticate,
+        listInvoices: mockListInvoices,
+        downloadInvoiceFile: mockDownloadInvoiceFile,
+      };
+    }),
   };
 });
 
@@ -32,7 +37,7 @@ const CONNECTED_CONFIG = {
   config: { baseUrl: 'https://api.superpdp.tech', clientId: 'id-1', clientSecret: 'secret-1' },
 };
 
-function buildChannelCredentials(resolveActive = jest.fn().mockResolvedValue(CONNECTED_CONFIG)) {
+function buildChannelCredentials(resolveActive = vi.fn().mockResolvedValue(CONNECTED_CONFIG)) {
   return { resolveActive } as unknown as ChannelCredentialsService;
 }
 
@@ -59,7 +64,7 @@ const MINIMAL_CII_XML = Buffer.from(
 );
 
 describe('buildPdpReceptionPoller', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   describe('listInbound', () => {
     it('lists every inbound deposit for a connected company (direction=in)', async () => {
@@ -74,7 +79,7 @@ describe('buildPdpReceptionPoller', () => {
 
     it('returns an EMPTY array (never throws) when PDP is not connected for this company', async () => {
       const poller = buildPdpReceptionPoller({
-        channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(null)),
+        channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(null)),
       });
 
       expect(await poller.listInbound('company-1')).toEqual([]);
@@ -100,7 +105,7 @@ describe('buildPdpReceptionPoller', () => {
 
     it('throws (never silently returns empty) when PDP is not connected for this company', async () => {
       const poller = buildPdpReceptionPoller({
-        channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(null)),
+        channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(null)),
       });
 
       await expect(poller.downloadAndExtract('company-1', 604667)).rejects.toThrow(/not connected/);

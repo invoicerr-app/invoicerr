@@ -18,8 +18,11 @@
  * Idempotent and additive-relative-to-code, not additive-relative-to-fixtures: safe to run
  * unconditionally.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { BadRequestException } from '@nestjs/common';
@@ -31,11 +34,11 @@ import { seedCountryIdentifierRequirements } from '../documents/country-identifi
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 const fakeVatValidator: VatValidationPort = {
-  validate: jest.fn().mockResolvedValue({ status: 'VALID', checkedAt: new Date(), source: 'eu-vies' }),
+  validate: vi.fn().mockResolvedValue({ status: 'VALID', checkedAt: new Date(), source: 'eu-vies' }),
 };
 
 async function createTestCompany() {

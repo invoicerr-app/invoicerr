@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { callPolarWithRetry } from './polar-client';
 
 function rateLimitError(): unknown {
@@ -6,14 +8,14 @@ function rateLimitError(): unknown {
 
 describe('callPolarWithRetry', () => {
   it('returns the result on the first try when nothing fails', async () => {
-    const fn = jest.fn().mockResolvedValue('ok');
+    const fn = vi.fn().mockResolvedValue('ok');
 
     await expect(callPolarWithRetry(fn, 'test call')).resolves.toBe('ok');
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
   it('retries on a 429 (rate limit) and eventually succeeds', async () => {
-    const fn = jest
+    const fn = vi
       .fn()
       .mockRejectedValueOnce(rateLimitError())
       .mockRejectedValueOnce(rateLimitError())
@@ -26,14 +28,14 @@ describe('callPolarWithRetry', () => {
   });
 
   it('never retries a non-429 failure — a business refusal or outage is not something a retry fixes', async () => {
-    const fn = jest.fn().mockRejectedValue(new Error('polar is down'));
+    const fn = vi.fn().mockRejectedValue(new Error('polar is down'));
 
     await expect(callPolarWithRetry(fn, 'test call', { baseDelayMs: 1 })).rejects.toThrow('polar is down');
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
   it('is BOUNDED — gives up and rethrows once maxAttempts is exhausted, never retries forever', async () => {
-    const fn = jest.fn().mockRejectedValue(rateLimitError());
+    const fn = vi.fn().mockRejectedValue(rateLimitError());
 
     await expect(
       callPolarWithRetry(fn, 'test call', { baseDelayMs: 1, maxAttempts: 3 }),
@@ -42,7 +44,7 @@ describe('callPolarWithRetry', () => {
   });
 
   it('backs off exponentially between attempts', async () => {
-    const fn = jest
+    const fn = vi
       .fn()
       .mockRejectedValueOnce(rateLimitError())
       .mockRejectedValueOnce(rateLimitError())
@@ -54,7 +56,7 @@ describe('callPolarWithRetry', () => {
     // wrongly attribute to this call.
     const delays: number[] = [];
     const realSetTimeout = global.setTimeout;
-    jest.spyOn(global, 'setTimeout').mockImplementation(((cb: () => void, ms?: number) => {
+    vi.spyOn(global, 'setTimeout').mockImplementation(((cb: () => void, ms?: number) => {
       if ((ms ?? 0) <= 1000) delays.push(ms ?? 0);
       return realSetTimeout(cb, 0);
     }) as unknown as typeof setTimeout);
@@ -62,6 +64,6 @@ describe('callPolarWithRetry', () => {
     await callPolarWithRetry(fn, 'test call', { baseDelayMs: 10 });
 
     expect(delays).toEqual([10, 20]);
-    (global.setTimeout as unknown as jest.Mock).mockRestore();
+    (global.setTimeout as unknown as Mock).mockRestore();
   });
 });

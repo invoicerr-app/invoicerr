@@ -1,9 +1,11 @@
+import { vi, type Mock } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import { buildDocumentReferenceProvider } from './document-reference.provider';
 import * as persistence from '../persistence';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 /**
  * This provider is what a document type's own reference fields resolve and search through — the
@@ -20,7 +22,7 @@ describe.each([
   { typeId: 'quote', typeLabel: 'Quote' },
   { typeId: 'invoice', typeLabel: 'Invoice' },
 ])('buildDocumentReferenceProvider("$typeId")', ({ typeId, typeLabel }) => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   function document(id: string, data: unknown) {
     return { id, typeId, status: 'draft', data, createdAt: new Date(), updatedAt: new Date() };
@@ -28,10 +30,10 @@ describe.each([
 
   describe('search', () => {
     it('labels each result from its client name and issue date, never a computed total', async () => {
-      (persistence.listDocuments as jest.Mock).mockResolvedValue([
+      (persistence.listDocuments as Mock).mockResolvedValue([
         document('d1', { client: 'client-1', issueDate: '2026-01-15', lines: [] }),
       ]);
-      const clientsService = { getClientById: jest.fn().mockResolvedValue({ name: 'Acme Corp' }) };
+      const clientsService = { getClientById: vi.fn().mockResolvedValue({ name: 'Acme Corp' }) };
 
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, clientsService as never);
       const results = await provider.search('company-1', '');
@@ -41,8 +43,8 @@ describe.each([
     });
 
     it('falls back to a labeled id when the document has no client, or the client is gone', async () => {
-      (persistence.listDocuments as jest.Mock).mockResolvedValue([document('d1', {})]);
-      const clientsService = { getClientById: jest.fn() };
+      (persistence.listDocuments as Mock).mockResolvedValue([document('d1', {})]);
+      const clientsService = { getClientById: vi.fn() };
 
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, clientsService as never);
       const results = await provider.search('company-1', '');
@@ -52,12 +54,12 @@ describe.each([
     });
 
     it('filters in memory by the resolved label when a query is given', async () => {
-      (persistence.listDocuments as jest.Mock).mockResolvedValue([
+      (persistence.listDocuments as Mock).mockResolvedValue([
         document('d1', { client: 'client-1', issueDate: '2026-01-15' }),
         document('d2', { client: 'client-2', issueDate: '2026-02-01' }),
       ]);
       const clientsService = {
-        getClientById: jest
+        getClientById: vi
           .fn()
           .mockResolvedValueOnce({ name: 'Acme Corp' })
           .mockResolvedValueOnce({ name: 'Widget Inc' }),
@@ -70,9 +72,9 @@ describe.each([
     });
 
     it('is scoped to the calling company AND the given type through persistence.listDocuments', async () => {
-      (persistence.listDocuments as jest.Mock).mockResolvedValue([]);
+      (persistence.listDocuments as Mock).mockResolvedValue([]);
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, {
-        getClientById: jest.fn(),
+        getClientById: vi.fn(),
       } as never);
 
       await provider.search('company-1', '');
@@ -83,10 +85,10 @@ describe.each([
 
   describe('resolve', () => {
     it('resolves an existing document to its label', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(
         document('d1', { client: 'client-1', issueDate: '2026-01-15' }),
       );
-      const clientsService = { getClientById: jest.fn().mockResolvedValue({ name: 'Acme Corp' }) };
+      const clientsService = { getClientById: vi.fn().mockResolvedValue({ name: 'Acme Corp' }) };
 
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, clientsService as never);
       const result = await provider.resolve('company-1', 'd1');
@@ -96,18 +98,18 @@ describe.each([
     });
 
     it('returns null (not an error) for an id that does not resolve for this company', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new NotFoundException('nope'));
+      (persistence.findOwnedDocument as Mock).mockRejectedValue(new NotFoundException('nope'));
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, {
-        getClientById: jest.fn(),
+        getClientById: vi.fn(),
       } as never);
 
       await expect(provider.resolve('company-1', 'missing')).resolves.toBeNull();
     });
 
     it('lets a non-NotFound error propagate instead of swallowing it', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new Error('db is down'));
+      (persistence.findOwnedDocument as Mock).mockRejectedValue(new Error('db is down'));
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, {
-        getClientById: jest.fn(),
+        getClientById: vi.fn(),
       } as never);
 
       await expect(provider.resolve('company-1', 'd1')).rejects.toThrow('db is down');

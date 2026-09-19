@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
 import * as companyEmailTemplates from '../actions/company-email-templates';
@@ -8,9 +9,9 @@ import { EntityReferenceRegistry } from '../references/reference-registry';
 import * as renderInstancePdf from '../rendering/render-instance-pdf';
 import { buildEmailTransport } from './email-transport';
 
-jest.mock('../actions/company-email-templates');
-jest.mock('../numbering/take-number');
-jest.mock('../rendering/render-instance-pdf');
+vi.mock('../actions/company-email-templates');
+vi.mock('../numbering/take-number');
+vi.mock('../rendering/render-instance-pdf');
 
 /**
  * The built-in "email" transport in isolation — the one path invoice-actions.ts's "send" reaches
@@ -29,7 +30,7 @@ function buildDeps() {
   typeRegistry.register(buildInvoiceDescriptor());
   const referenceRegistry = new EntityReferenceRegistry();
 
-  (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+  (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
     pdf: Buffer.from('%PDF-fake'),
     totals: {
       currency: 'EUR',
@@ -43,21 +44,21 @@ function buildDeps() {
     referenceLabels: {},
     companyName: 'Test Co',
   });
-  (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-  (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+  (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+  (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
   return { typeRegistry, referenceRegistry };
 }
 
 describe('buildEmailTransport', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("emails the rendered PDF to the referenced client's contact email, through sendDocumentInstanceEmail", async () => {
     const clientsService = {
-      getClientById: jest.fn().mockResolvedValue({ id: 'client-1', contactEmail: 'client-1@example.com' }),
+      getClientById: vi.fn().mockResolvedValue({ id: 'client-1', contactEmail: 'client-1@example.com' }),
     };
     const mailService = {
-      sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+      sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
     };
     const { typeRegistry, referenceRegistry } = buildDeps();
 
@@ -99,9 +100,9 @@ describe('buildEmailTransport', () => {
 
   it('refuses to send when the client has no contact email on file — never silently drops the delivery', async () => {
     const clientsService = {
-      getClientById: jest.fn().mockResolvedValue({ id: 'client-1', contactEmail: null }),
+      getClientById: vi.fn().mockResolvedValue({ id: 'client-1', contactEmail: null }),
     };
-    const mailService = { sendForCompany: jest.fn() };
+    const mailService = { sendForCompany: vi.fn() };
     const { typeRegistry, referenceRegistry } = buildDeps();
 
     const transport = buildEmailTransport({
@@ -128,8 +129,8 @@ describe('buildEmailTransport', () => {
   });
 
   it('refuses when the document has no client set at all', async () => {
-    const clientsService = { getClientById: jest.fn() };
-    const mailService = { sendForCompany: jest.fn() };
+    const clientsService = { getClientById: vi.fn() };
+    const mailService = { sendForCompany: vi.fn() };
     const { typeRegistry, referenceRegistry } = buildDeps();
 
     const transport = buildEmailTransport({

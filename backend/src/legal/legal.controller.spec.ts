@@ -1,9 +1,11 @@
+import { vi, type Mock } from 'vitest';
+
 // `@thallesp/nestjs-better-auth`'s own package ships an ESM-only transitive dependency
 // (better-auth/dist/integrations/node.mjs) jest's ts-jest transform doesn't parse — mocked here, the
 // same way `public-documents.controller.spec.ts`/`sdi-notifiche.controller.spec.ts` already do, rather
 // than widening jest's transformIgnorePatterns for one decorator whose only job is to set metadata
 // AuthGuard reads.
-jest.mock('@thallesp/nestjs-better-auth', () => ({
+vi.mock('@thallesp/nestjs-better-auth', () => ({
   Public: () => () => undefined,
 }));
 
@@ -11,8 +13,8 @@ jest.mock('@thallesp/nestjs-better-auth', () => ({
 // `better-auth/node` mocked for the exact reason `legal-request-language.spec.ts`'s own header
 // explains — stubbed here to always resolve `['en']` so this file stays about what THIS controller
 // does with the result, not about language resolution itself (already covered by that other spec).
-const resolveLegalDocumentLanguages = jest.fn().mockResolvedValue(['en']);
-jest.mock('./legal-request-language', () => ({
+const resolveLegalDocumentLanguages = vi.fn().mockResolvedValue(['en']);
+vi.mock('./legal-request-language', () => ({
   resolveLegalDocumentLanguages: (...args: unknown[]) => resolveLegalDocumentLanguages(...args),
 }));
 
@@ -37,9 +39,9 @@ function fakeRequest(overrides: Partial<{ ip: string; headers: Record<string, st
 
 function buildController() {
   const service = {
-    listDocuments: jest.fn(),
-    getStatus: jest.fn(),
-    accept: jest.fn(),
+    listDocuments: vi.fn(),
+    getStatus: vi.fn(),
+    accept: vi.fn(),
   } as unknown as LegalService;
   return { controller: new LegalController(service), service };
 }
@@ -51,14 +53,14 @@ describe('LegalController.documents', () => {
 
   it('delegates straight to the service, no user required (public route)', async () => {
     const { controller, service } = buildController();
-    (service.listDocuments as jest.Mock).mockReturnValue({ saasMode: false, documents: [] });
+    (service.listDocuments as Mock).mockReturnValue({ saasMode: false, documents: [] });
     await expect(controller.documents(fakeRequest())).resolves.toEqual({ saasMode: false, documents: [] });
     expect(service.listDocuments).toHaveBeenCalledWith(['en']);
   });
 
   it('resolves the preferred languages from the request and an explicit ?lang= before calling the service', async () => {
     const { controller, service } = buildController();
-    (service.listDocuments as jest.Mock).mockReturnValue({ saasMode: false, documents: [] });
+    (service.listDocuments as Mock).mockReturnValue({ saasMode: false, documents: [] });
     resolveLegalDocumentLanguages.mockResolvedValue(['de', 'fr', 'en']);
 
     const request = fakeRequest();
@@ -72,7 +74,7 @@ describe('LegalController.documents', () => {
 describe('LegalController.status', () => {
   it("delegates to the service with the caller's user id", () => {
     const { controller, service } = buildController();
-    (service.getStatus as jest.Mock).mockResolvedValue({
+    (service.getStatus as Mock).mockResolvedValue({
       requiresAcceptance: true,
       pending: ['privacy-policy'],
     });
@@ -85,7 +87,7 @@ describe('LegalController.status', () => {
 describe('LegalController.accept', () => {
   it('forwards the body slugs plus the request ip/user-agent as acceptance metadata', () => {
     const { controller, service } = buildController();
-    (service.accept as jest.Mock).mockResolvedValue({ accepted: ['terms-of-service'] });
+    (service.accept as Mock).mockResolvedValue({ accepted: ['terms-of-service'] });
 
     controller.accept(CLICKING_USER, { slugs: ['terms-of-service'] }, fakeRequest());
 
@@ -97,7 +99,7 @@ describe('LegalController.accept', () => {
 
   it('tolerates a missing body and a missing user-agent header', () => {
     const { controller, service } = buildController();
-    (service.accept as jest.Mock).mockResolvedValue({ accepted: [] });
+    (service.accept as Mock).mockResolvedValue({ accepted: [] });
 
     controller.accept(CLICKING_USER, undefined, fakeRequest({ headers: {} }));
 

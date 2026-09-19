@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import { DocumentsService } from '../documents.service';
@@ -13,25 +15,25 @@ import * as persistence from './persistence';
  * RECONCILED line's own invoice label) fully mocked — both reach Prisma directly, the same discipline
  * every other service-level spec in this module holds (documents.service.invoice.spec.ts's own
  * header). `DocumentsService` itself is never constructed for real: `reconcileLine`'s ONLY use of it
- * is a single `runAction` call, so a bare `{ runAction: jest.fn() }` is enough — the exact same "mock
+ * is a single `runAction` call, so a bare `{ runAction: vi.fn() }` is enough — the exact same "mock
  * the ONE method actually called, not the whole class" shape a plugin's own webhook emitter mock
  * already uses elsewhere in this module. `../settlement/payments` is NOT mocked here any more:
  * `reconcileLine` no longer calls `listPayments` at all — see `ActionResult.createdPaymentId`'s own
  * header and this file's "interleaved reconciliations" test below for why.
  */
-jest.mock('./persistence');
-jest.mock('./candidate-invoices');
-jest.mock('../persistence');
+vi.mock('./persistence');
+vi.mock('./candidate-invoices');
+vi.mock('../persistence');
 
-const findOwnedLine = persistence.findOwnedLine as jest.Mock;
-const findOwnedStatement = persistence.findOwnedStatement as jest.Mock;
-const claimLineForReconciliation = persistence.claimLineForReconciliation as jest.Mock;
-const attachReconciledPayment = persistence.attachReconciledPayment as jest.Mock;
-const releaseLineClaim = persistence.releaseLineClaim as jest.Mock;
-const listStatementLines = persistence.listStatementLines as jest.Mock;
-const resolveOutstandingInvoices = candidateInvoices.resolveOutstandingInvoices as jest.Mock;
-const findOwnedDocument = documentsPersistence.findOwnedDocument as jest.Mock;
-const findOwnedDocumentsByIds = documentsPersistence.findOwnedDocumentsByIds as jest.Mock;
+const findOwnedLine = persistence.findOwnedLine as Mock;
+const findOwnedStatement = persistence.findOwnedStatement as Mock;
+const claimLineForReconciliation = persistence.claimLineForReconciliation as Mock;
+const attachReconciledPayment = persistence.attachReconciledPayment as Mock;
+const releaseLineClaim = persistence.releaseLineClaim as Mock;
+const listStatementLines = persistence.listStatementLines as Mock;
+const resolveOutstandingInvoices = candidateInvoices.resolveOutstandingInvoices as Mock;
+const findOwnedDocument = documentsPersistence.findOwnedDocument as Mock;
+const findOwnedDocumentsByIds = documentsPersistence.findOwnedDocumentsByIds as Mock;
 
 function buildLine(
   overrides: Partial<persistence.BankStatementLineResult> = {},
@@ -63,13 +65,13 @@ function buildStatement() {
 }
 
 function buildService() {
-  const runAction = jest.fn();
+  const runAction = vi.fn();
   const service = new BankReconciliationService({ runAction } as unknown as DocumentsService);
   return { service, runAction };
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   findOwnedDocumentsByIds.mockResolvedValue([]);
   findOwnedDocument.mockResolvedValue({ id: 'inv-1', data: { client: 'client-1', currency: 'EUR' } });
 });

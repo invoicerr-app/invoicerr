@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from '../actions/action-extensions';
@@ -15,11 +17,22 @@ import { TransportRegistry } from '../transports/transport-registry';
 import { hashShareLinkToken } from './share-link-token';
 import { ShareLinksService } from './share-links.service';
 
-jest.mock('../persistence');
-jest.mock('../country-policy/country-policy');
+vi.mock('../persistence');
+vi.mock('../country-policy/country-policy');
+
+type ShareLinkRow = {
+  id: string;
+  tokenHash: string;
+  typeId: string;
+  documentId: string;
+  companyId: string;
+  expiresAt: Date;
+  createdAt: Date;
+  revokedAt: Date | null;
+};
 
 /**
- * `@/prisma/prisma.service` is mocked with a tiny IN-MEMORY table, not a bare `jest.fn()` per
+ * `@/prisma/prisma.service` is mocked with a tiny IN-MEMORY table, not a bare `vi.fn()` per
  * method — the same "mock the module boundary, not a re-implementation of Prisma" discipline
  * `documents.service.formats.spec.ts`'s own header already documents for the identical situation.
  * This is what lets `create` -> `list` -> `revoke` -> `resolvePublicToken` be exercised as a REAL
@@ -27,23 +40,14 @@ jest.mock('../country-policy/country-policy');
  * fake), rather than four separate tests each trusting a different hand-wired mock to agree with
  * the others.
  */
-jest.mock('@/prisma/prisma.service', () => {
-  const rows: Array<{
-    id: string;
-    tokenHash: string;
-    typeId: string;
-    documentId: string;
-    companyId: string;
-    expiresAt: Date;
-    createdAt: Date;
-    revokedAt: Date | null;
-  }> = [];
+vi.mock('@/prisma/prisma.service', () => {
+  const rows: ShareLinkRow[] = [];
   let nextId = 1;
   return {
     __esModule: true,
     default: {
       documentDownloadToken: {
-        create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           const row = {
             id: `token-${nextId++}`,
             createdAt: new Date(),
@@ -53,10 +57,10 @@ jest.mock('@/prisma/prisma.service', () => {
           rows.push(row);
           return row;
         }),
-        findUnique: jest.fn(async ({ where }: { where: { tokenHash: string } }) => {
+        findUnique: vi.fn(async ({ where }: { where: { tokenHash: string } }) => {
           return rows.find((r) => r.tokenHash === where.tokenHash) ?? null;
         }),
-        findFirst: jest.fn(
+        findFirst: vi.fn(
           async ({ where }: { where: { id: string; companyId: string; documentId: string } }) => {
             return (
               rows.find(
@@ -66,17 +70,17 @@ jest.mock('@/prisma/prisma.service', () => {
             );
           },
         ),
-        findMany: jest.fn(async ({ where }: { where: { companyId: string; documentId: string } }) => {
+        findMany: vi.fn(async ({ where }: { where: { companyId: string; documentId: string } }) => {
           return rows
             .filter((r) => r.companyId === where.companyId && r.documentId === where.documentId)
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         }),
-        findUniqueOrThrow: jest.fn(async ({ where }: { where: { id: string } }) => {
+        findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
           const row = rows.find((r) => r.id === where.id);
           if (!row) throw new Error(`no DocumentDownloadToken "${where.id}"`);
           return row;
         }),
-        update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
           const row = rows.find((r) => r.id === where.id);
           if (!row) throw new Error(`no DocumentDownloadToken "${where.id}"`);
           Object.assign(row, data);
@@ -89,6 +93,15 @@ jest.mock('@/prisma/prisma.service', () => {
     // stamps `expiresAt` 30 days out. Not part of the real module's surface.
     __rows: rows,
   };
+});
+
+// Resolved once, in `beforeAll` — the same "vi.importMock, not Jest's synchronous require-the-mock
+// helper" reasoning `documents.service.formats.spec.ts`'s own header now documents for the identical
+// situation. Every requireMock('@/prisma/prisma.service') call site below becomes a read of this
+// single, already-resolved reference instead.
+let mockedPrismaService: { default: { documentDownloadToken: Record<string, Mock> }; __rows: ShareLinkRow[] };
+beforeAll(async () => {
+  mockedPrismaService = await vi.importMock('@/prisma/prisma.service');
 });
 
 function buildDocumentsService(): DocumentsService {
@@ -128,14 +141,14 @@ const SENT_INSTANCE = {
 
 describe('ShareLinksService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (jest.requireMock('@/prisma/prisma.service').__rows as unknown[]).length = 0;
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    vi.clearAllMocks();
+    mockedPrismaService.__rows.length = 0;
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
   });
 
   describe('create', () => {
     it('mints a high-entropy token, persists ONLY its hash, and the hash never equals the token', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
 
       const service = buildService();
       const result = await service.create('company-1', 'invoice', 'doc-1');
@@ -146,7 +159,7 @@ describe('ShareLinksService', () => {
       expect(result.path).toBe(`/api/public/documents/${result.token}/pdf`);
       expect(result.expiresAt.getTime()).toBeGreaterThan(Date.now());
 
-      const rows = jest.requireMock('@/prisma/prisma.service').__rows;
+      const rows = mockedPrismaService.__rows;
       expect(rows).toHaveLength(1);
       // THE assertion the mutation test has to break: the stored value is a DIGEST, not
       // the token itself, and it is computed the same way `resolvePublicToken` looks it up.
@@ -156,20 +169,20 @@ describe('ShareLinksService', () => {
     });
 
     it('refuses a draft by name — no number, no legal existence yet to share', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({ ...SENT_INSTANCE, status: 'draft' });
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...SENT_INSTANCE, status: 'draft' });
 
       const service = buildService();
       await expect(service.create('company-1', 'invoice', 'doc-1')).rejects.toThrow(ConflictException);
       await expect(service.create('company-1', 'invoice', 'doc-1')).rejects.toThrow(/no legal existence/);
-      expect(jest.requireMock('@/prisma/prisma.service').__rows).toHaveLength(0);
+      expect(mockedPrismaService.__rows).toHaveLength(0);
     });
 
     it('403s, naming the reason, when the country policy forbids the action', async () => {
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+      (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
         allowed: false,
         reason: 'no policy for this country',
       });
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
 
       const service = buildService();
       await expect(service.create('company-1', 'invoice', 'doc-1')).rejects.toThrow(ForbiddenException);
@@ -185,7 +198,7 @@ describe('ShareLinksService', () => {
     });
 
     it('404s for an unknown document (tenant-scoped, via DocumentsService.getDocument)', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new NotFoundException('nope'));
+      (persistence.findOwnedDocument as Mock).mockRejectedValue(new NotFoundException('nope'));
       const service = buildService();
       await expect(service.create('company-1', 'invoice', 'doc-x')).rejects.toThrow(NotFoundException);
     });
@@ -193,7 +206,7 @@ describe('ShareLinksService', () => {
 
   describe('list — metadata only, the token is NEVER re-consultable', () => {
     it('shows id/createdAt/expiresAt/revokedAt/active but never the token or its hash', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
       const service = buildService();
 
       const created = await service.create('company-1', 'invoice', 'doc-1');
@@ -211,7 +224,7 @@ describe('ShareLinksService', () => {
 
   describe('revoke', () => {
     it('soft-revokes — sets revokedAt, the row still exists, and the public link stops resolving', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
       const service = buildService();
 
       const created = await service.create('company-1', 'invoice', 'doc-1');
@@ -232,7 +245,7 @@ describe('ShareLinksService', () => {
     });
 
     it('404s for an unknown share link id', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
       const service = buildService();
       await expect(service.revoke('company-1', 'invoice', 'doc-1', 'no-such-token')).rejects.toThrow(
         NotFoundException,
@@ -247,7 +260,7 @@ describe('ShareLinksService', () => {
     });
 
     it('returns null for an EXPIRED token', async () => {
-      const prismaMock = jest.requireMock('@/prisma/prisma.service');
+      const prismaMock = mockedPrismaService;
       const rawToken = 'a'.repeat(64);
       await prismaMock.default.documentDownloadToken.create({
         data: {
@@ -264,7 +277,7 @@ describe('ShareLinksService', () => {
     });
 
     it('returns null for a REVOKED token', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
       const service = buildService();
       const created = await service.create('company-1', 'invoice', 'doc-1');
       await service.revoke('company-1', 'invoice', 'doc-1', created.id);
@@ -273,13 +286,13 @@ describe('ShareLinksService', () => {
     });
 
     it('the three refusals are the exact same value — not merely all falsy', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
       const service = buildService();
 
       const created = await service.create('company-1', 'invoice', 'doc-1');
       await service.revoke('company-1', 'invoice', 'doc-1', created.id);
 
-      const prismaMock = jest.requireMock('@/prisma/prisma.service');
+      const prismaMock = mockedPrismaService;
       const expiredToken = 'b'.repeat(64);
       await prismaMock.default.documentDownloadToken.create({
         data: {
@@ -302,7 +315,7 @@ describe('ShareLinksService', () => {
     });
 
     it('resolves a valid, unexpired, non-revoked token to its company/type/document', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
       const service = buildService();
 
       const created = await service.create('company-1', 'invoice', 'doc-1');

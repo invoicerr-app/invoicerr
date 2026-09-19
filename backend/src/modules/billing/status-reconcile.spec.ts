@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import {
   getOrCreateCompanySubscription,
@@ -10,19 +12,19 @@ import {
 } from './status-reconcile';
 import { applySubscriptionWebhook } from './webhook-handlers';
 
-jest.mock('./company-subscription.store');
-jest.mock('./webhook-handlers');
+vi.mock('./company-subscription.store');
+vi.mock('./webhook-handlers');
 
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
-const applyWebhook = applySubscriptionWebhook as jest.Mock;
-const recomputeVanished = recomputeStatusForVanishedSubscription as jest.Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
+const applyWebhook = applySubscriptionWebhook as Mock;
+const recomputeVanished = recomputeStatusForVanishedSubscription as Mock;
 
 async function* asPages(items: unknown[]) {
   yield { result: { items } };
 }
 
 function fakeClient(items: unknown[]): ReconcileSubscriptionsClient {
-  return { subscriptions: { list: jest.fn().mockResolvedValue(asPages(items)) } };
+  return { subscriptions: { list: vi.fn().mockResolvedValue(asPages(items)) } };
 }
 
 function sub(overrides: Record<string, unknown> = {}): CompanySubscription {
@@ -38,7 +40,7 @@ function sub(overrides: Record<string, unknown> = {}): CompanySubscription {
 
 describe('reconcileFromPolarIfStale', () => {
   beforeEach(() => resetStatusReconcileCacheForTests());
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('does nothing when there is no polarCustomerId yet', async () => {
     const client = fakeClient([]);
@@ -47,7 +49,7 @@ describe('reconcileFromPolarIfStale', () => {
     const result = await reconcileFromPolarIfStale(row, client, 0);
 
     expect(result).toBe(row);
-    expect(client.subscriptions.list as jest.Mock).not.toHaveBeenCalled();
+    expect(client.subscriptions.list as Mock).not.toHaveBeenCalled();
   });
 
   it('applies the most recent Polar subscription through applySubscriptionWebhook and re-reads the row', async () => {
@@ -65,7 +67,7 @@ describe('reconcileFromPolarIfStale', () => {
 
     const result = await reconcileFromPolarIfStale(row, client, 0);
 
-    expect(client.subscriptions.list as jest.Mock).toHaveBeenCalledWith({
+    expect(client.subscriptions.list as Mock).toHaveBeenCalledWith({
       externalCustomerId: 'company-1',
       limit: 10,
     });
@@ -86,7 +88,7 @@ describe('reconcileFromPolarIfStale', () => {
 
     await reconcileFromPolarIfStale(row, client, 0);
 
-    expect(client.subscriptions.list as jest.Mock).toHaveBeenCalledWith({
+    expect(client.subscriptions.list as Mock).toHaveBeenCalledWith({
       externalCustomerId: 'company-1',
       limit: 10,
     });
@@ -156,7 +158,7 @@ describe('reconcileFromPolarIfStale', () => {
 
     const result = await reconcileFromPolarIfStale(row, client, 5_000);
 
-    expect(client.subscriptions.list as jest.Mock).toHaveBeenCalledWith({
+    expect(client.subscriptions.list as Mock).toHaveBeenCalledWith({
       externalCustomerId: 'company-1',
       limit: 10,
     });
@@ -218,7 +220,7 @@ describe('reconcileFromPolarIfStale', () => {
 
   it('swallows a Polar failure and returns the row unchanged', async () => {
     const client: ReconcileSubscriptionsClient = {
-      subscriptions: { list: jest.fn().mockRejectedValue(new Error('polar is down')) },
+      subscriptions: { list: vi.fn().mockRejectedValue(new Error('polar is down')) },
     };
     const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_1' });
 
@@ -232,7 +234,7 @@ describe('reconcileFromPolarIfStale', () => {
     await reconcileFromPolarIfStale(row, client, 0);
     await reconcileFromPolarIfStale(row, client, 1000);
 
-    expect(client.subscriptions.list as jest.Mock).toHaveBeenCalledTimes(1);
+    expect(client.subscriptions.list as Mock).toHaveBeenCalledTimes(1);
   });
 
   it('re-checks Polar again once the cache window has elapsed', async () => {
@@ -242,6 +244,6 @@ describe('reconcileFromPolarIfStale', () => {
     await reconcileFromPolarIfStale(row, client, 0);
     await reconcileFromPolarIfStale(row, client, 5 * 60 * 1000 + 1);
 
-    expect(client.subscriptions.list as jest.Mock).toHaveBeenCalledTimes(2);
+    expect(client.subscriptions.list as Mock).toHaveBeenCalledTimes(2);
   });
 });

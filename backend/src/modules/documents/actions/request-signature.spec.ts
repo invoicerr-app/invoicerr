@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { ActionRegistry } from './action-registry';
 import { registerRequestSignatureAction } from './request-signature';
 
@@ -10,7 +11,7 @@ import { registerRequestSignatureAction } from './request-signature';
  * result into the standard envelope. `SignaturesService` itself is a plain hand-built fake here
  * (never the real class) — its own behavior is `signatures.service.spec.ts`'s job.
  */
-function buildRegistry(signaturesService: { requestSignature: jest.Mock }) {
+function buildRegistry(signaturesService: { requestSignature: Mock }) {
   const registry = new ActionRegistry();
   registerRequestSignatureAction(registry, signaturesService as any);
   return registry;
@@ -19,7 +20,7 @@ function buildRegistry(signaturesService: { requestSignature: jest.Mock }) {
 describe('request-signature (action handler)', () => {
   it('delegates to SignaturesService.requestSignature with the runAction-provided companyId/typeId/documentId', async () => {
     const signaturesService = {
-      requestSignature: jest.fn().mockResolvedValue({ message: 'Signature request sent to a@b.com.' }),
+      requestSignature: vi.fn().mockResolvedValue({ message: 'Signature request sent to a@b.com.' }),
     };
     const handler = buildRegistry(signaturesService).resolve('quote', 'request-signature')!;
 
@@ -39,7 +40,7 @@ describe('request-signature (action handler)', () => {
   });
 
   it('refuses (defensively) a document that has not been saved yet — unreachable via runAction, still guarded', async () => {
-    const signaturesService = { requestSignature: jest.fn() };
+    const signaturesService = { requestSignature: vi.fn() };
     const handler = buildRegistry(signaturesService).resolve('quote', 'request-signature')!;
 
     await expect(
@@ -50,7 +51,7 @@ describe('request-signature (action handler)', () => {
 
   it('propagates a failure from SignaturesService.requestSignature verbatim (e.g. no client email on file)', async () => {
     const signaturesService = {
-      requestSignature: jest.fn().mockRejectedValue(new Error('no contact email on file')),
+      requestSignature: vi.fn().mockRejectedValue(new Error('no contact email on file')),
     };
     const handler = buildRegistry(signaturesService).resolve('quote', 'request-signature')!;
 

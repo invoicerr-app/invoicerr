@@ -12,6 +12,9 @@
  * `CREDENTIALS_ENCRYPTION_KEY` is set here, in-process, to a fixed test value — the same pattern
  * `channels.service.spec.ts` already established for exercising the real AES-256-GCM round-trip.
  */
+
+import { vi, type Mock } from 'vitest';
+
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 import { createHmac } from 'node:crypto';
@@ -22,17 +25,17 @@ import { isEncryptedWebhookSecret } from './webhook-secret-format';
 import { decryptJson, encryptJson } from '@/utils/secret-crypto';
 import prisma from '@/prisma/prisma.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUniqueOrThrow: jest.fn() },
-    webhook: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+    company: { findUniqueOrThrow: vi.fn() },
+    webhook: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUniqueOrThrow: jest.Mock };
-  webhook: { findFirst: jest.Mock; create: jest.Mock; update: jest.Mock };
+  company: { findUniqueOrThrow: Mock };
+  webhook: { findFirst: Mock; create: Mock; update: Mock };
 };
 
 const COMPANY_ID = 'company-1';
@@ -54,7 +57,7 @@ describe('WebhooksService — secret encryption', () => {
   let service: WebhooksService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new WebhooksService();
   });
 
@@ -133,14 +136,14 @@ describe('WebhooksService — secret encryption', () => {
   });
 
   describe('send — decrypts before signing', () => {
-    afterEach(() => jest.restoreAllMocks());
+    afterEach(() => vi.restoreAllMocks());
 
     it('signs with the decrypted secret, not the stored ciphertext', async () => {
       const plainSecret = 'signing-secret';
       const encrypted = encryptJson(plainSecret);
       let capturedBody = '';
       let capturedSignature: string | null = null;
-      jest.spyOn(global, 'fetch').mockImplementation(async (_url, init: any) => {
+      vi.spyOn(global, 'fetch').mockImplementation(async (_url, init: any) => {
         capturedBody = init.body;
         capturedSignature = init.headers['X-Webhook-Signature'] ?? null;
         return { ok: true } as Response;
@@ -156,7 +159,7 @@ describe('WebhooksService — secret encryption', () => {
     it('still signs correctly with a legacy plaintext secret (pre-migration row)', async () => {
       let capturedSignature: string | null = null;
       let capturedBody = '';
-      jest.spyOn(global, 'fetch').mockImplementation(async (_url, init: any) => {
+      vi.spyOn(global, 'fetch').mockImplementation(async (_url, init: any) => {
         capturedBody = init.body;
         capturedSignature = init.headers['X-Webhook-Signature'] ?? null;
         return { ok: true } as Response;
@@ -172,13 +175,13 @@ describe('WebhooksService — secret encryption', () => {
     it('sends unsigned rather than crash when an encrypted secret cannot be decrypted (wrong/rotated key)', async () => {
       const encryptedUnderAnotherKey = encryptJson('some-secret'); // still valid shape, just simulate corruption below
       const corrupted = encryptedUnderAnotherKey.replace('"ct":"', '"ct":"XX');
-      jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
+      vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
       const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', secret: corrupted });
 
       const results = await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
 
       expect(results).toEqual([true]); // delivery still happens...
-      const opts = (global.fetch as jest.Mock).mock.calls[0][1];
+      const opts = (global.fetch as Mock).mock.calls[0][1];
       expect(opts.headers['X-Webhook-Signature']).toBeUndefined(); // ...just without a (garbled) signature
     });
   });

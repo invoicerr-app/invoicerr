@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -5,24 +7,24 @@ import { BillingCustomerClient } from './billing-customer';
 import { recordPolarCustomerId } from './company-subscription.store';
 import { CUSTOMER_PROVISIONING_BATCH_SIZE, reconcileMissingCompanyCustomers } from './customer-provisioning';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   // `findUniqueOrThrow` is only exercised by the `type: "team"` test below — `ensureCompanyBillingMember`
   // (`member-sync.ts`) calls straight through to `billing-customer.ts#loadCompanyBillingIdentity`, which
   // reads the SAME mocked `prisma.company` this spec already narrows to `findMany` for every other test.
-  default: { company: { findMany: jest.fn(), findUniqueOrThrow: jest.fn() } },
+  default: { company: { findMany: vi.fn(), findUniqueOrThrow: vi.fn() } },
 }));
 
-jest.mock('./company-subscription.store');
+vi.mock('./company-subscription.store');
 
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const findMany = prisma.company.findMany as jest.Mock;
-const findUniqueOrThrow = prisma.company.findUniqueOrThrow as jest.Mock;
-const warn = logger.warn as jest.Mock;
-const recordCustomerId = recordPolarCustomerId as jest.Mock;
+const findMany = prisma.company.findMany as Mock;
+const findUniqueOrThrow = prisma.company.findUniqueOrThrow as Mock;
+const warn = logger.warn as Mock;
+const recordCustomerId = recordPolarCustomerId as Mock;
 
 /** The WHERE this file's own query filters on — a company still missing a known Polar customer id. */
 const MISSING_CUSTOMER_WHERE = { OR: [{ subscription: null }, { subscription: { polarCustomerId: null } }] };
@@ -42,7 +44,7 @@ function emailTakenError(): Error {
 
 function fakeClient(overrides: Partial<BillingCustomerClient> = {}): BillingCustomerClient {
   return {
-    customers: { getExternal: jest.fn(), create: jest.fn() },
+    customers: { getExternal: vi.fn(), create: vi.fn() },
     ...overrides,
   } as unknown as BillingCustomerClient;
 }
@@ -53,18 +55,14 @@ function fakeClient(overrides: Partial<BillingCustomerClient> = {}): BillingCust
  *  customer discovered already-existing also ensures the company's billing member). Typed loosely
  *  (`unknown`, not `BillingCustomerClient`) since this test also asserts on the `members.*` mocks —
  *  something the narrower interface deliberately doesn't declare. */
-function fakeClientWithMembers(
-  getExternal: jest.Mock,
-  memberGetExternal: jest.Mock,
-  createExternal: jest.Mock,
-) {
+function fakeClientWithMembers(getExternal: Mock, memberGetExternal: Mock, createExternal: Mock) {
   return {
     customers: {
       getExternal,
-      create: jest.fn(),
-      members: { getExternal: memberGetExternal, createExternal, delete: jest.fn() },
+      create: vi.fn(),
+      members: { getExternal: memberGetExternal, createExternal, delete: vi.fn() },
     },
-    members: { listMembers: jest.fn().mockResolvedValue((async function* () {})()) },
+    members: { listMembers: vi.fn().mockResolvedValue((async function* () {})()) },
   };
 }
 
@@ -73,12 +71,12 @@ const COMPANY_B = { id: 'company-b', name: 'Beta', email: 'b@beta.test', billing
 const COMPANY_NO_EMAIL = { id: 'company-c', name: 'Ghost Test Co', email: '', billingEmail: null };
 
 describe('reconcileMissingCompanyCustomers', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('counts an existing company-scoped customer as alreadyExisted and never creates one', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' });
-    const create = jest.fn();
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' });
+    const create = vi.fn();
     const client = fakeClient({ customers: { getExternal, create } });
 
     const summary = await reconcileMissingCompanyCustomers(client);
@@ -97,11 +95,11 @@ describe('reconcileMissingCompanyCustomers', () => {
   it('ensures the company billing member for an already-existing customer discovered as type "team"', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
     findUniqueOrThrow.mockResolvedValue(COMPANY_A);
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_team', type: 'team' });
-    const memberGetExternal = jest
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_team', type: 'team' });
+    const memberGetExternal = vi
       .fn()
       .mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 }));
-    const createExternal = jest.fn().mockResolvedValue({ id: 'member-billing' });
+    const createExternal = vi.fn().mockResolvedValue({ id: 'member-billing' });
     const client = fakeClientWithMembers(getExternal, memberGetExternal, createExternal);
 
     const summary = await reconcileMissingCompanyCustomers(client as unknown as BillingCustomerClient);
@@ -123,8 +121,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('creates a customer for a company that has none yet', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
     const client = fakeClient({ customers: { getExternal, create } });
 
     const summary = await reconcileMissingCompanyCustomers(client);
@@ -147,8 +145,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('counts a duplicate-billing-email refusal as emailTaken, never retried as a generic failure', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn().mockRejectedValue(emailTakenError());
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn().mockRejectedValue(emailTakenError());
     const client = fakeClient({ customers: { getExternal, create } });
 
     const summary = await reconcileMissingCompanyCustomers(client);
@@ -165,8 +163,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('counts any other creation failure as failed, never throwing out of the pass', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn().mockRejectedValue(new Error('polar is down'));
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn().mockRejectedValue(new Error('polar is down'));
     const client = fakeClient({ customers: { getExternal, create } });
 
     const summary = await reconcileMissingCompanyCustomers(client);
@@ -183,8 +181,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('counts an existence-check outage as failed, without attempting to create (avoids a possible duplicate)', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockRejectedValue(new Error('polar is down'));
-    const create = jest.fn();
+    const getExternal = vi.fn().mockRejectedValue(new Error('polar is down'));
+    const create = vi.fn();
     const client = fakeClient({ customers: { getExternal, create } });
 
     const summary = await reconcileMissingCompanyCustomers(client);
@@ -205,12 +203,12 @@ describe('reconcileMissingCompanyCustomers', () => {
     // Company A: this function's OWN existence check 404s, then `getOrCreatePolarCustomerForCompany`
     // re-checks internally (also 404s) before attempting — and failing — to create. Company B: this
     // function's own existence check finds one straight away, so nothing else is called for it.
-    const getExternal = jest
+    const getExternal = vi
       .fn()
       .mockRejectedValueOnce(notFoundError())
       .mockRejectedValueOnce(notFoundError())
       .mockResolvedValueOnce({ id: 'cus_b', type: 'individual' });
-    const create = jest.fn().mockRejectedValue(new Error('polar is down'));
+    const create = vi.fn().mockRejectedValue(new Error('polar is down'));
     const client = fakeClient({ customers: { getExternal, create } });
 
     const summary = await reconcileMissingCompanyCustomers(client);
@@ -243,8 +241,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('classifies a company with no billing email as skipped, logs it by name, and never attempts a create', async () => {
     findMany.mockResolvedValue([COMPANY_NO_EMAIL]);
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn();
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn();
     const client = fakeClient({ customers: { getExternal, create } });
 
     const summary = await reconcileMissingCompanyCustomers(client);
@@ -269,8 +267,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('a real Polar failure (500) is counted as failed and logs the company id, HTTP status and Polar message', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi
       .fn()
       .mockRejectedValue(Object.assign(new Error('Internal Server Error'), { statusCode: 500 }));
     const client = fakeClient({ customers: { getExternal, create } });
@@ -304,8 +302,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('persists the Polar customer id for an already-existing customer, so the next pass never re-checks it', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' });
-    const client = fakeClient({ customers: { getExternal, create: jest.fn() } });
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' });
+    const client = fakeClient({ customers: { getExternal, create: vi.fn() } });
 
     await reconcileMissingCompanyCustomers(client);
 
@@ -314,8 +312,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('persists the Polar customer id for a newly-created customer', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
     const client = fakeClient({ customers: { getExternal, create } });
 
     await reconcileMissingCompanyCustomers(client);
@@ -325,8 +323,8 @@ describe('reconcileMissingCompanyCustomers', () => {
 
   it('never counts a company as failed just because persisting its confirmed customer id failed', async () => {
     findMany.mockResolvedValue([COMPANY_A]);
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' });
-    const client = fakeClient({ customers: { getExternal, create: jest.fn() } });
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' });
+    const client = fakeClient({ customers: { getExternal, create: vi.fn() } });
     recordCustomerId.mockRejectedValue(new Error('db is down'));
 
     const summary = await reconcileMissingCompanyCustomers(client);
@@ -356,8 +354,8 @@ describe('reconcileMissingCompanyCustomers', () => {
       billingEmail: null,
     }));
     findMany.mockResolvedValueOnce(fullBatch).mockResolvedValueOnce([COMPANY_B]);
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_x', type: 'individual' });
-    const client = fakeClient({ customers: { getExternal, create: jest.fn() } });
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_x', type: 'individual' });
+    const client = fakeClient({ customers: { getExternal, create: vi.fn() } });
 
     const summary = await reconcileMissingCompanyCustomers(client);
 
@@ -377,8 +375,8 @@ describe('reconcileMissingCompanyCustomers', () => {
     findMany.mockResolvedValue([COMPANY_A]);
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' }),
-        create: jest.fn(),
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' }),
+        create: vi.fn(),
       },
     });
 

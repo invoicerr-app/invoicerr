@@ -1,18 +1,20 @@
+import { vi, type Mock } from 'vitest';
+
 import { ForbiddenException } from '@nestjs/common';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { assertCompanyWritable, COMPANY_BLOCKED } from './write-gate';
 
-jest.mock('./company-subscription.store');
+vi.mock('./company-subscription.store');
 
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
 describe('assertCompanyWritable', () => {
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     if (ORIGINAL_ENV === undefined) delete process.env[BILLING_FLAG_NAME];
     else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
   });

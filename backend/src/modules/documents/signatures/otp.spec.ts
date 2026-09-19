@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import * as crypto from 'node:crypto';
 
 import {
@@ -9,28 +11,43 @@ import {
   OTP_WINDOW_MS,
 } from './otp';
 
+// `vi.spyOn(crypto, 'randomInt')` (what this worked as under Jest, where a namespace import is a
+// mutable CJS-interop object) throws under Vitest — a real ES/Node module namespace object is
+// frozen, and spyOn tries to redefine one of its properties ("Cannot redefine property:
+// randomInt"). Wrapping the two exports this file needs as `vi.fn(actual.<export>)` sidesteps
+// that: each stays a REAL, call-through implementation by default (so a test that never overrides
+// it, like the "calls crypto.randomInt" test below, still gets a genuine random value back), and
+// `vi.fn(impl)`'s own reset target IS that initial `impl` — `vi.restoreAllMocks()` in `afterEach`
+// below restores it to the real function between tests, exactly the way `vi.spyOn(Math, 'random')`
+// already relies on for the same hook (Math itself is a plain, non-frozen global object, so
+// spyOn works fine on it — only the ES module namespace import needed this wrapper).
+vi.mock('node:crypto', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:crypto')>();
+  return { ...actual, randomInt: vi.fn(actual.randomInt), timingSafeEqual: vi.fn(actual.timingSafeEqual) };
+});
+
 describe('otp — CSPRNG, format, and the guarantee this whole feature exists to make true', () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("never calls Math.random — the removed module's own GHSA-vhjw-gwc5-pjfp break", () => {
-    const mathRandomSpy = jest.spyOn(Math, 'random');
+    const mathRandomSpy = vi.spyOn(Math, 'random');
     for (let i = 0; i < 200; i++) generateOtpCode();
     expect(mathRandomSpy).not.toHaveBeenCalled();
   });
 
   it('calls crypto.randomInt over the full [0, OTP_CODE_SPACE) range, not a hand-rolled equivalent', () => {
-    const randomIntSpy = jest.spyOn(crypto, 'randomInt');
+    const randomIntSpy = crypto.randomInt as Mock;
     generateOtpCode();
     expect(randomIntSpy).toHaveBeenCalledWith(0, OTP_CODE_SPACE);
   });
 
   it('is always an 8-digit, zero-padded string — a small value reads as "00000005", never "5"', () => {
-    jest.spyOn(crypto, 'randomInt').mockImplementation(() => 5);
+    (crypto.randomInt as Mock).mockImplementation(() => 5);
     expect(generateOtpCode()).toBe('00000005');
   });
 
   it('never truncates the top of the range — the largest possible value stays 8 digits', () => {
-    jest.spyOn(crypto, 'randomInt').mockImplementation(() => OTP_CODE_SPACE - 1);
+    (crypto.randomInt as Mock).mockImplementation(() => OTP_CODE_SPACE - 1);
     expect(generateOtpCode()).toBe('99999999');
     expect(generateOtpCode()).toHaveLength(8);
   });
@@ -57,7 +74,7 @@ describe('otp — CSPRNG, format, and the guarantee this whole feature exists to
 
   describe('otpCodeMatches — constant-time, well-formed-only comparison', () => {
     it('calls crypto.timingSafeEqual — never a hand-rolled === on the digests', () => {
-      const timingSafeEqualSpy = jest.spyOn(crypto, 'timingSafeEqual');
+      const timingSafeEqualSpy = crypto.timingSafeEqual as Mock;
       const stored = hashOtpCode('12345678');
       otpCodeMatches('12345678', stored);
       expect(timingSafeEqualSpy).toHaveBeenCalled();

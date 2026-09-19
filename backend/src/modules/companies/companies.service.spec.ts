@@ -4,6 +4,9 @@
  * `transfer.service.spec.ts` uses), real Prisma against whatever `DATABASE_URL` this test run
  * resolves ("invoicerr_dev" in this repo's own dev setup — jest never loads `.env.test`).
  */
+
+import { vi } from 'vitest';
+
 import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
@@ -138,10 +141,10 @@ describe('CompaniesService#leaveCompany', () => {
 });
 
 function fakeExportService(zip: Buffer) {
-  return { buildCompanyZip: jest.fn().mockResolvedValue(zip) } as unknown as BillingExportService;
+  return { buildCompanyZip: vi.fn().mockResolvedValue(zip) } as unknown as BillingExportService;
 }
 
-function fakeMailService(sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' })) {
+function fakeMailService(sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' })) {
   return { sendForCompany } as unknown as MailService;
 }
 
@@ -167,7 +170,7 @@ describe('CompaniesService#exportCompanyData', () => {
   it('emails the export to the caller instead once it exceeds the streaming threshold', async () => {
     const company = await createCompany();
     const zip = Buffer.alloc(SELF_SERVICE_EXPORT_STREAM_THRESHOLD_BYTES + 1, 1);
-    const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+    const sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' });
     const service = new CompaniesService(
       {} as never,
       fakeExportService(zip),

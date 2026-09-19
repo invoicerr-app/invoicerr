@@ -30,6 +30,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { vi } from 'vitest';
+
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Queue } from 'bullmq';
@@ -188,7 +190,7 @@ function buildDocumentsService(queueDispatcher: DocumentQueueDispatcher): Docume
 }
 
 describeWithRedis('document-action queue — real Redis, real Postgres, real Mailpit', () => {
-  jest.setTimeout(60000);
+  vi.setConfig({ testTimeout: 60000, hookTimeout: 60000 });
 
   let moduleRef: TestingModule;
   let documentsService: DocumentsService;

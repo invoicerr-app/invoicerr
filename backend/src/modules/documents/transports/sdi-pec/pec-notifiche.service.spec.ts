@@ -15,14 +15,15 @@
  *     message's own `from` address merged into the existing "sdi-pec" config — and is NOT called
  *     again once that address is already the one on file.
  */
+import { vi, type Mock } from 'vitest';
 import * as persistence from '../../conformity/authority-events.persistence';
 import { PecInboundMessage } from './pec-inbox-port';
 import { PecNotificheService, SDI_PEC_PROVIDER_ID } from './pec-notifiche.service';
 
-jest.mock('../../conformity/authority-events.persistence');
+vi.mock('../../conformity/authority-events.persistence');
 
-const mockedFindDocument = persistence.findOwnedDocumentByTransportRef as jest.Mock;
-const mockedCreateEvents = persistence.createAuthorityEvents as jest.Mock;
+const mockedFindDocument = persistence.findOwnedDocumentByTransportRef as Mock;
+const mockedCreateEvents = persistence.createAuthorityEvents as Mock;
 
 function notificaXml(root: string, idSdI: string, nomeFile: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -47,24 +48,24 @@ function message(overrides: Partial<PecInboundMessage> = {}): PecInboundMessage 
   };
 }
 
-function buildChannelCredentials(overrides?: { resolveActive?: jest.Mock; upsertChannelConfig?: jest.Mock }) {
+function buildChannelCredentials(overrides?: { resolveActive?: Mock; upsertChannelConfig?: Mock }) {
   return {
     resolveActive:
       overrides?.resolveActive ??
-      jest.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue({
         providerId: SDI_PEC_PROVIDER_ID,
         channel: 'SDI-PEC',
         environment: 'TEST',
         isActive: true,
         config: { pecAddress: 'me@pec.example.it', idTrasmittente: 'IT01234567890' },
       }),
-    upsertChannelConfig: overrides?.upsertChannelConfig ?? jest.fn().mockResolvedValue({}),
+    upsertChannelConfig: overrides?.upsertChannelConfig ?? vi.fn().mockResolvedValue({}),
   };
 }
 
 describe('PecNotificheService.handleMessage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it.each([
@@ -267,7 +268,7 @@ describe('PecNotificheService.handleMessage', () => {
       mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
       mockedCreateEvents.mockResolvedValue(1);
       const channelCredentials = buildChannelCredentials({
-        resolveActive: jest.fn().mockResolvedValue({
+        resolveActive: vi.fn().mockResolvedValue({
           providerId: SDI_PEC_PROVIDER_ID,
           channel: 'SDI-PEC',
           environment: 'TEST',
@@ -376,7 +377,7 @@ describe('PecNotificheService.handleMessage', () => {
       mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
       mockedCreateEvents.mockResolvedValue(1);
       const channelCredentials = buildChannelCredentials({
-        resolveActive: jest.fn().mockResolvedValue(null),
+        resolveActive: vi.fn().mockResolvedValue(null),
       });
       const service = new PecNotificheService(channelCredentials as never);
 

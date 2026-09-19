@@ -19,15 +19,18 @@
  * env vars are required (this hits a public, keyless feed), so the second `liveDescribe` argument is
  * omitted entirely, same as `ecb-rates-client.live.spec.ts`.
  *
- *   OPEN_ER_API_LIVE=1 npx jest open-er-api-rates-client.live --no-coverage
+ *   OPEN_ER_API_LIVE=1 npx vitest run src/modules/company/currency-rates/open-er-api-rates-client.live.spec.ts
  */
+
+import { vi } from 'vitest';
+
 import { liveDescribe } from '../../documents/transports/live-gate';
 import { fetchOpenErApiRates } from './open-er-api-rates-client';
 
 const describeLive = liveDescribe('OPEN_ER_API_LIVE');
 
 describeLive('open.er-api.com rates feed — live fetch', () => {
-  jest.setTimeout(15_000);
+  vi.setConfig({ testTimeout: 15_000, hookTimeout: 15_000 });
 
   it('returns a broad EUR-based rate table including a currency the ECB never quotes (MAD)', async () => {
     const { rates } = await fetchOpenErApiRates();

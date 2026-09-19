@@ -6,6 +6,9 @@
  * `company-mail-settings.service.spec.ts` instead; this file only proves MailService's OWN decision
  * logic given whatever that resolver returns.
  */
+
+import { vi, type MockedFunction, type Mock } from 'vitest';
+
 import * as nodemailer from 'nodemailer';
 
 import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
@@ -17,13 +20,21 @@ import {
   resolveInstanceMailProviderId,
 } from './mail.service';
 
-jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
-  resolveCompanyMailSettings: jest.fn(),
+vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: vi.fn(),
 }));
 
-const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
+// Wholesale mock, deliberately: nothing in this file ever calls the REAL `createTransport` (every
+// test below sets its own `.mockReturnValue(...)` before exercising the SUT), and under Vitest a
+// real ESM module's namespace object is frozen — `vi.spyOn(nodemailer, 'createTransport')` (what
+// this file used under Jest, which could still monkey-patch the CJS-transpiled exports object)
+// throws "Cannot redefine property: createTransport" here. Mocking the module up front, then casting
+// its export to `Mock` at each call site, is the Vitest-shaped equivalent.
+vi.mock('nodemailer', () => ({ createTransport: vi.fn() }));
 
-const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
+
+const mockFetch = vi.fn() as MockedFunction<typeof fetch>;
 global.fetch = mockFetch as unknown as typeof fetch;
 
 describe('resolveInstanceMailProviderId — the resolution table', () => {
@@ -90,7 +101,7 @@ describe('MailService#sendForCompany — the société → instance → refus no
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
-    jest.restoreAllMocks(); // undoes any jest.spyOn(nodemailer, 'createTransport') from a prior test
+    vi.restoreAllMocks(); // undoes any prior test's `(nodemailer.createTransport as Mock).mockReturnValue(...)`
     mockedResolveCompanyMailSettings.mockReset();
     mockFetch.mockReset();
     process.env = { ...ORIGINAL_ENV };
@@ -112,8 +123,8 @@ describe('MailService#sendForCompany — the société → instance → refus no
 
   it("uses the company's own SMTP override when one is configured, never touching the instance provider", async () => {
     process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
-    const sendMailMock = jest.fn().mockResolvedValue(undefined);
-    jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+    const sendMailMock = vi.fn().mockResolvedValue(undefined);
+    (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
     mockedResolveCompanyMailSettings.mockResolvedValue({
       kind: 'smtp',
@@ -205,7 +216,7 @@ describe('MailService#sendMail — per-company SMTP override', () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     // Isolated from whatever the real shell happens to export — the provider actually selected here
     // must be deterministic (nothing about smtpOverrides depends on it, but MailService's constructor
     // still runs `resolveInstanceMailProviderId` and would otherwise try to build a real
@@ -221,8 +232,8 @@ describe('MailService#sendMail — per-company SMTP override', () => {
   });
 
   it('sanitizes html before it reaches the one-shot SMTP transport built for smtpOverrides', async () => {
-    const sendMailMock = jest.fn().mockResolvedValue(undefined);
-    jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+    const sendMailMock = vi.fn().mockResolvedValue(undefined);
+    (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
     const service = new MailService();
     await service.sendMail(

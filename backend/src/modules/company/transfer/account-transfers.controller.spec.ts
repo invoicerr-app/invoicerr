@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
@@ -7,9 +9,9 @@ import { getPendingAcceptanceSlugs } from '@/legal/legal-acceptance';
 import { AccountTransfersController } from './account-transfers.controller';
 import { TransferService } from './transfer.service';
 
-jest.mock('@/legal/legal-acceptance');
+vi.mock('@/legal/legal-acceptance');
 
-const getPending = getPendingAcceptanceSlugs as jest.Mock;
+const getPending = getPendingAcceptanceSlugs as Mock;
 
 function buildContext(method: string, userId: string): ExecutionContext {
   const request = { method, user: { id: userId } };
@@ -26,7 +28,7 @@ function buildContext(method: string, userId: string): ExecutionContext {
 }
 
 describe('AccountTransfersController — accept is reached by the global legal-acceptance gate', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('POST :id/accept carries no @LegalGateExempt() — a pending re-acceptance refuses it, in SaaS mode', async () => {
     getPending.mockResolvedValue(['terms-of-service']);
@@ -49,7 +51,7 @@ describe('AccountTransfersController — accept is reached by the global legal-a
 
 describe('AccountTransfersController — delegation', () => {
   it('lists transfers addressed to the caller', async () => {
-    const listReceivedTransfers = jest.fn().mockResolvedValue([{ id: 't1' }]);
+    const listReceivedTransfers = vi.fn().mockResolvedValue([{ id: 't1' }]);
     const controller = new AccountTransfersController({
       listReceivedTransfers,
     } as unknown as TransferService);
@@ -61,7 +63,7 @@ describe('AccountTransfersController — delegation', () => {
   });
 
   it('accepts as the caller, never a body-supplied user id', async () => {
-    const acceptTransfer = jest.fn().mockResolvedValue({ success: true });
+    const acceptTransfer = vi.fn().mockResolvedValue({ success: true });
     const controller = new AccountTransfersController({ acceptTransfer } as unknown as TransferService);
 
     await controller.accept('transfer-1', { id: 'user-1' } as never);

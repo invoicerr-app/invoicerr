@@ -1,10 +1,12 @@
+import { vi, type Mock } from 'vitest';
+
 import { listDocumentTypesTool } from './list-document-types.tool';
 import { ToolContext } from './types';
 
 describe('listDocumentTypesTool', () => {
   function buildContext(
-    listAvailableTypes: jest.Mock,
-    describeTypeForCompany: jest.Mock,
+    listAvailableTypes: Mock,
+    describeTypeForCompany: Mock,
     scopes: string[] | null = ['quotes:read', 'invoices:read'],
   ): ToolContext {
     return {
@@ -21,13 +23,13 @@ describe('listDocumentTypesTool', () => {
   }
 
   it('describes every type the country makes available AND this key holds a scope for', async () => {
-    const listAvailableTypes = jest.fn().mockResolvedValue({
+    const listAvailableTypes = vi.fn().mockResolvedValue({
       types: [
         { id: 'quote', label: 'Quote' },
         { id: 'invoice', label: 'Invoice' },
       ],
     });
-    const describeTypeForCompany = jest.fn(async (_companyId: string, typeId: string) => ({
+    const describeTypeForCompany = vi.fn(async (_companyId: string, typeId: string) => ({
       id: typeId,
       label: typeId,
       fields: [],
@@ -44,13 +46,13 @@ describe('listDocumentTypesTool', () => {
   });
 
   it("never describes a type this key holds no scope for — even one the company's country allows", async () => {
-    const listAvailableTypes = jest.fn().mockResolvedValue({
+    const listAvailableTypes = vi.fn().mockResolvedValue({
       types: [
         { id: 'quote', label: 'Quote' },
         { id: 'invoice', label: 'Invoice' },
       ],
     });
-    const describeTypeForCompany = jest.fn(async (_companyId: string, typeId: string) => ({
+    const describeTypeForCompany = vi.fn(async (_companyId: string, typeId: string) => ({
       id: typeId,
       label: typeId,
       fields: [],
@@ -66,8 +68,8 @@ describe('listDocumentTypesTool', () => {
   });
 
   it('carries the reason through when the country has no types available at all', async () => {
-    const listAvailableTypes = jest.fn().mockResolvedValue({ types: [], reason: 'No policy for "ZZ".' });
-    const describeTypeForCompany = jest.fn();
+    const listAvailableTypes = vi.fn().mockResolvedValue({ types: [], reason: 'No policy for "ZZ".' });
+    const describeTypeForCompany = vi.fn();
     const ctx = buildContext(listAvailableTypes, describeTypeForCompany);
 
     const result = await listDocumentTypesTool.handler(ctx, {});

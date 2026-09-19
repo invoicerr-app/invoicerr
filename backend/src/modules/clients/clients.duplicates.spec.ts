@@ -8,8 +8,10 @@
  * (`?view=<id>`, resolved by `useClient` — see that hook's own header), so a tenant-isolation gap
  * there would let the banner leak another company's client into this one's wizard.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { ClientsService } from './clients.service';
@@ -18,10 +20,10 @@ import { VatValidationPort } from '../documents/tax/vat-validation';
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
-const fakeVatValidator = { validate: jest.fn() } as unknown as VatValidationPort;
+const fakeVatValidator = { validate: vi.fn() } as unknown as VatValidationPort;
 
 describe('ClientsService#findDuplicates', () => {
   let companyId: string;

@@ -6,21 +6,23 @@
  * branching logic — never by mocking the module this file's job is to test (this repository has
  * already hit false-green suites doing exactly that; see project MEMORY on it).
  */
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { resolveRequiredIdentifiers } from './country-identifiers';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    countryIdentifierRequirement: { findMany: jest.fn() },
+    countryIdentifierRequirement: { findMany: vi.fn() },
   },
 }));
 
-const findRequirements = prisma.countryIdentifierRequirement.findMany as jest.Mock;
+const findRequirements = prisma.countryIdentifierRequirement.findMany as Mock;
 
 describe('resolveRequiredIdentifiers', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   // DECISION, proven directly: a country with NO rows at all declares NO requirements — no
   // invented default — but SAYS so, exactly the "a country with no file has no declared

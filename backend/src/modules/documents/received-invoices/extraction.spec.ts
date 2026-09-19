@@ -7,6 +7,8 @@
  * expected numbers here are independently traceable to the same arithmetic that
  * file already proves against the REAL vendored EN 16931 Schematron.
  */
+import { vi, type Mock } from 'vitest';
+
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { ciiFormatProvider } from '../formats/cii-provider';
@@ -17,7 +19,7 @@ import { EntityReferenceRegistry } from '../references/reference-registry';
 import { ublFormatProvider } from '../formats/ubl-provider';
 import { extractReceivedInvoiceFields } from './extraction';
 
-jest.mock('../rendering/render-instance-pdf');
+vi.mock('../rendering/render-instance-pdf');
 
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
 
@@ -166,7 +168,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       // Same mock shape `formats/facturx-provider.spec.ts` uses, for the identical reason: a REAL,
       // valid PDF built with `pdf-lib` (so `@e-invoice-eu/core`'s embedder genuinely has bytes to
       // attach to), while `rendering/render-instance-pdf.ts` (real Puppeteer) has no business here.
-      (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+      (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
         pdf: await fakeRealPdf(),
         totals: {
           currency: 'EUR',

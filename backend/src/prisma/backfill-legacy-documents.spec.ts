@@ -23,7 +23,7 @@
  * `backend-tests` in `.github/workflows/cypress.yml`), but the flag is what actually decides it.
  *
  * Run locally:
- *   cd backend && BACKFILL_PROBE_TESTS=1 npx jest backfill-legacy-documents --forceExit
+ *   cd backend && BACKFILL_PROBE_TESTS=1 npx vitest run src/prisma/backfill-legacy-documents.spec.ts
  *
  * ## The throwaway database
  *
@@ -34,13 +34,16 @@
  * file never has to widen that other spec's own module surface just to reuse one guard: the one thing
  * that must never happen is either spec's CREATE/DROP DATABASE reaching `invoicerr_dev`/`invoicerr_db`.
  *
- * `syncDatabaseSchema()` itself is loaded via a runtime `require`, AFTER `process.env.DATABASE_URL`
- * is pointed at the throwaway database and AFTER `jest.resetModules()` — `src/prisma/prisma.service.ts`
+ * `syncDatabaseSchema()` itself is loaded via a dynamic `import()`, AFTER `process.env.DATABASE_URL`
+ * is pointed at the throwaway database and AFTER `vi.resetModules()` — `src/prisma/prisma.service.ts`
  * reads `process.env.DATABASE_URL` exactly once, at module-evaluation time (`new PrismaPg({
  * connectionString: process.env.DATABASE_URL })`), so a plain top-level `import` would freeze onto
- * whatever `DATABASE_URL` this test FILE happened to load under (jest's per-file module registry)
+ * whatever `DATABASE_URL` this test FILE happened to load under (vitest's per-file module registry)
  * rather than the throwaway one this spec creates in `beforeAll`.
  */
+
+import { vi } from 'vitest';
+
 import 'dotenv/config';
 
 import { execFileSync } from 'node:child_process';
@@ -99,7 +102,9 @@ const describeGated = backfillProbeTestsEnabled ? describe : describe.skip;
 // every intervening schema evolution between v1.4.4a and HEAD) genuinely takes longer than a single
 // `migrate deploy` on an empty database (`migration-fresh-schema.spec.ts`'s own 120s budget) — this
 // is that same cold-start cost PLUS the baseline loop's own ~23 subprocess spawns.
-jest.setTimeout(180_000);
+// Vitest splits Jest's single `setTimeout(ms)` (tests AND hooks) into two fields — both need the same
+// budget here since `beforeAll` does the real `db push`/baseline/`migrate deploy` work.
+vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
 
 const BACKEND_ROOT = join(__dirname, '..', '..');
 const THROWAWAY_DB_PREFIX = 'invoicerr_backfill_probe_';
@@ -258,9 +263,8 @@ describeGated('20260829233000 backfill — Invoice/Quote history survives the dr
     // task did not touch, and correct in every OTHER context), this wraps `child_process.execFileSync`
     // for the lifetime of this one test so a call with no explicit `env` gets today's live
     // `process.env` filled in — restoring the behavior `runPrisma`'s own author reasonably expected.
-    jest.doMock('child_process', () => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const actual = jest.requireActual('child_process');
+    vi.doMock('child_process', async () => {
+      const actual = await vi.importActual('child_process');
       return {
         ...actual,
         execFileSync: (...callArgs: unknown[]) => {
@@ -276,9 +280,12 @@ describeGated('20260829233000 backfill — Invoice/Quote history survives the dr
     });
 
     process.env.DATABASE_URL = throwawayUrl;
-    jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { syncDatabaseSchema } = require('./sync-schema') as typeof import('./sync-schema');
+    vi.resetModules();
+    // A dynamic import, not a top-level one: it MUST run after the `resetModules()`/`DATABASE_URL`
+    // mutation above so the fresh module instance picks up the throwaway connection string — a plain
+    // `require('./sync-schema')` fails outright here (Vite's require shim resolves paths literally,
+    // no `.ts`-extension fallback the way a static `import` gets), so this goes through `import()`.
+    const { syncDatabaseSchema } = await import('./sync-schema.js');
     await syncDatabaseSchema();
 
     const after = new Client({ connectionString: throwawayUrl });

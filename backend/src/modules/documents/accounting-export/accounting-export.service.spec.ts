@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
@@ -17,20 +19,20 @@ import * as clientLabels from './client-labels';
  * (credits.spec.ts), so this file never re-litigates rules that module already owns. `./client-labels`
  * is mocked wholesale — it is this feature's OWN new Prisma boundary (`prisma.client.findMany`).
  */
-jest.mock('../persistence');
-jest.mock('../settlement/payments');
-jest.mock('../settlement/credits', () => {
-  const actual = jest.requireActual('../settlement/credits');
-  return { ...actual, listCreditNotes: jest.fn() };
+vi.mock('../persistence');
+vi.mock('../settlement/payments');
+vi.mock('../settlement/credits', async () => {
+  const actual = await vi.importActual('../settlement/credits');
+  return { ...actual, listCreditNotes: vi.fn() };
 });
-jest.mock('./client-labels');
+vi.mock('./client-labels');
 
-const listDocuments = persistence.listDocuments as jest.Mock;
-const findOwnedDocumentsByIds = persistence.findOwnedDocumentsByIds as jest.Mock;
-const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as jest.Mock;
-const listPaymentsInRange = settlementPayments.listPaymentsInRange as jest.Mock;
-const listCreditNotes = settlementCredits.listCreditNotes as jest.Mock;
-const resolveClientLabels = clientLabels.resolveClientLabels as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
+const findOwnedDocumentsByIds = persistence.findOwnedDocumentsByIds as Mock;
+const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
+const listPaymentsInRange = settlementPayments.listPaymentsInRange as Mock;
+const listCreditNotes = settlementCredits.listCreditNotes as Mock;
+const resolveClientLabels = clientLabels.resolveClientLabels as Mock;
 
 // Two lines: 100 EUR net (20% VAT -> 120 gross, 12000 minor) and 50 EUR net (20% VAT -> 60 gross,
 // 6000 minor) — full gross 18000 minor, the same fixture `client-statement.spec.ts`/`credits.spec.ts`

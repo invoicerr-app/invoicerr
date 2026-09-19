@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
@@ -7,11 +9,11 @@ import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { CompanyWriteGuard } from './company-write.guard';
 import { assertUserHasSeatOrThrow } from './seat-gate';
 
-jest.mock('./company-subscription.store');
-jest.mock('./seat-gate');
+vi.mock('./company-subscription.store');
+vi.mock('./seat-gate');
 
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
-const assertSeat = assertUserHasSeatOrThrow as jest.Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
+const assertSeat = assertUserHasSeatOrThrow as Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
@@ -40,7 +42,7 @@ describe('CompanyWriteGuard', () => {
   const guard = new CompanyWriteGuard(new Reflector());
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     if (ORIGINAL_ENV === undefined) delete process.env[BILLING_FLAG_NAME];
     else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
   });

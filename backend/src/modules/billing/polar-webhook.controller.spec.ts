@@ -17,24 +17,26 @@
  * package's own ESM-only transitive dependency doesn't parse under ts-jest) — `lib/auth.ts` itself is
  * never imported, directly or transitively, anywhere in this file.
  */
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 import { Webhook } from 'standardwebhooks';
 
-jest.mock('@thallesp/nestjs-better-auth', () => ({
+vi.mock('@thallesp/nestjs-better-auth', () => ({
   Public: () => () => undefined,
 }));
-jest.mock('./webhook-handlers', () => ({
-  handleSubscriptionPayload: jest.fn().mockResolvedValue(undefined),
+vi.mock('./webhook-handlers', () => ({
+  handleSubscriptionPayload: vi.fn().mockResolvedValue(undefined),
 }));
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     polarWebhookEvent: {
-      create: jest.fn().mockResolvedValue({}),
-      delete: jest.fn().mockResolvedValue({}),
+      create: vi.fn().mockResolvedValue({}),
+      delete: vi.fn().mockResolvedValue({}),
     },
   },
 }));
@@ -44,9 +46,9 @@ import prisma from '@/prisma/prisma.service';
 import { PolarWebhookController } from './polar-webhook.controller';
 import { handleSubscriptionPayload } from './webhook-handlers';
 
-const handleMock = handleSubscriptionPayload as jest.Mock;
-const createDedupRow = prisma.polarWebhookEvent.create as jest.Mock;
-const deleteDedupRow = prisma.polarWebhookEvent.delete as jest.Mock;
+const handleMock = handleSubscriptionPayload as Mock;
+const createDedupRow = prisma.polarWebhookEvent.create as Mock;
+const deleteDedupRow = prisma.polarWebhookEvent.delete as Mock;
 
 const CURRENT_ERA_SECRET = 'whsec_BvK1GJTtxRCjrPFTQ9F0vWYiVWJGsquV7uaHOsDwgHc=';
 const PRE_CUTOVER_SECRET = 'whsec_kqzP3nJdV1sYcQmR8wXeH0fLtNbG6aE9pUxWyDoSjKl=';
@@ -106,7 +108,7 @@ describe('PolarWebhookController.handleWebhook', () => {
 
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('200s and dispatches, remapping the wire snake_case fields, for a current-era (Standard Webhooks) signature', async () => {

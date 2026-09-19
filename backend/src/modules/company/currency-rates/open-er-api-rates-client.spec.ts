@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { fetchOpenErApiRates } from './open-er-api-rates-client';
 
 /** A trimmed but structurally real fixture — the SAME top-level shape a real
@@ -15,7 +17,7 @@ const FIXTURE_BODY = {
 };
 
 function mockFetchOnce(body: unknown, ok = true, status = 200): void {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok,
     status,
     json: () => Promise.resolve(body),
@@ -23,7 +25,7 @@ function mockFetchOnce(body: unknown, ok = true, status = 200): void {
 }
 
 describe('fetchOpenErApiRates', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('parses every currency/rate pair from the fixture, EUR excluded', async () => {
     mockFetchOnce(FIXTURE_BODY);

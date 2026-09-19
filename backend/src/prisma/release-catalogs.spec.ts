@@ -6,17 +6,20 @@
  * underlying purge mechanics themselves are already proven by
  * country-policy/seed.spec.ts, country-identifiers/seed.spec.ts and b2g-routing/boot-upsert.spec.ts.
  */
-jest.mock('../modules/documents/country-policy/seed');
-jest.mock('../modules/documents/country-policy/registry', () => ({
-  defaultCountryPolicyCatalog: { countries: jest.fn(() => ['FR', 'DE']) },
+
+import { vi, type Mock } from 'vitest';
+
+vi.mock('../modules/documents/country-policy/seed');
+vi.mock('../modules/documents/country-policy/registry', () => ({
+  defaultCountryPolicyCatalog: { countries: vi.fn(() => ['FR', 'DE']) },
 }));
-jest.mock('../modules/documents/country-identifiers/seed');
-jest.mock('../modules/documents/country-identifiers/registry', () => ({
-  defaultCountryIdentifierRequirementsCatalog: { countries: jest.fn(() => ['FR', 'DE']) },
+vi.mock('../modules/documents/country-identifiers/seed');
+vi.mock('../modules/documents/country-identifiers/registry', () => ({
+  defaultCountryIdentifierRequirementsCatalog: { countries: vi.fn(() => ['FR', 'DE']) },
 }));
-jest.mock('../modules/documents/b2g-routing/boot-upsert');
-jest.mock('../modules/documents/b2g-routing/registry', () => ({
-  defaultB2gRoutingCatalog: { countries: jest.fn(() => ['FR']) },
+vi.mock('../modules/documents/b2g-routing/boot-upsert');
+vi.mock('../modules/documents/b2g-routing/registry', () => ({
+  defaultB2gRoutingCatalog: { countries: vi.fn(() => ['FR']) },
 }));
 
 import { seedCountryPolicies } from '../modules/documents/country-policy/seed';
@@ -27,9 +30,9 @@ import { upsertB2gRoutingRules } from '../modules/documents/b2g-routing/boot-ups
 import { defaultB2gRoutingCatalog } from '../modules/documents/b2g-routing/registry';
 import { PrismaCatalogReleaseClient, releaseCatalogs } from './release-catalogs';
 
-const mockedSeedCountryPolicies = seedCountryPolicies as jest.Mock;
-const mockedSeedCountryIdentifierRequirements = seedCountryIdentifierRequirements as jest.Mock;
-const mockedUpsertB2gRoutingRules = upsertB2gRoutingRules as jest.Mock;
+const mockedSeedCountryPolicies = seedCountryPolicies as Mock;
+const mockedSeedCountryIdentifierRequirements = seedCountryIdentifierRequirements as Mock;
+const mockedUpsertB2gRoutingRules = upsertB2gRoutingRules as Mock;
 
 function buildFakeClient(rows: {
   policy: string[];
@@ -58,7 +61,7 @@ function buildFakeClient(rows: {
 
 describe('releaseCatalogs', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedSeedCountryPolicies.mockResolvedValue({ upserted: 2, deleted: 1 });
     mockedSeedCountryIdentifierRequirements.mockResolvedValue({ upserted: 2, deleted: 0 });
     mockedUpsertB2gRoutingRules.mockResolvedValue({ upserted: 1, deleted: 1 });

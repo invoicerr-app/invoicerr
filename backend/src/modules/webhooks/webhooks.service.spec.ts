@@ -17,23 +17,26 @@
  * call instead, so the real driver is used here like every other one — none of the cases below ever
  * create a DISCORD-typed webhook, so it is constructed but never actually dispatches through.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { HttpException, HttpStatus } from '@nestjs/common';
 
 import { Webhook, WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
 import { WebhooksService } from './webhooks.service';
 import prisma from '@/prisma/prisma.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUniqueOrThrow: jest.fn() },
-    webhook: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+    company: { findUniqueOrThrow: vi.fn() },
+    webhook: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUniqueOrThrow: jest.Mock };
-  webhook: { findFirst: jest.Mock; create: jest.Mock; update: jest.Mock };
+  company: { findUniqueOrThrow: Mock };
+  webhook: { findFirst: Mock; create: Mock; update: Mock };
 };
 
 const COMPANY_ID = 'company-1';
@@ -55,7 +58,7 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
   let service: WebhooksService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new WebhooksService();
   });
 
@@ -128,10 +131,10 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
   });
 
   describe('send — re-validated right before every dispatch', () => {
-    afterEach(() => jest.restoreAllMocks());
+    afterEach(() => vi.restoreAllMocks());
 
     it('skips a webhook whose stored URL is internal, without ever calling fetch', async () => {
-      const fetchSpy = jest.spyOn(global, 'fetch');
+      const fetchSpy = vi.spyOn(global, 'fetch');
       const webhook = makeWebhook({ url: 'http://169.254.169.254/hook', type: WebhookType.GENERIC });
 
       const results = await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
@@ -141,7 +144,7 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
     });
 
     it('still dispatches to a webhook whose stored URL is public', async () => {
-      jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
+      vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
       const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', type: WebhookType.GENERIC });
 
       const results = await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
@@ -151,7 +154,7 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
     });
 
     it('connects through the address just validated (pinned dispatcher), not a second DNS lookup fetch would do on its own', async () => {
-      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
+      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
       const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', type: WebhookType.GENERIC });
 
       await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
@@ -166,7 +169,7 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
     });
 
     it('one internal webhook does not block delivery to the other, valid ones in the same batch', async () => {
-      jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
+      vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
       const bad = makeWebhook({ id: 'wh-bad', url: 'http://10.0.0.5/hook' });
       const good = makeWebhook({ id: 'wh-good', url: 'https://8.8.8.8/hook' });
 

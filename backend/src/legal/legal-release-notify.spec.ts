@@ -1,28 +1,30 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { listLegalDocuments } from './legal-documents';
 import { notifyUsersOfLegalReleases } from './legal-release-notify';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    legalDocumentRelease: { count: jest.fn() },
-    user: { findMany: jest.fn() },
-    legalDocumentReleaseNotification: { findMany: jest.fn(), createMany: jest.fn() },
+    legalDocumentRelease: { count: vi.fn() },
+    user: { findMany: vi.fn() },
+    legalDocumentReleaseNotification: { findMany: vi.fn(), createMany: vi.fn() },
   },
 }));
 
-const releaseCount = prisma.legalDocumentRelease.count as jest.Mock;
-const findManyUsers = prisma.user.findMany as jest.Mock;
-const findManyNotifications = prisma.legalDocumentReleaseNotification.findMany as jest.Mock;
-const createManyNotifications = prisma.legalDocumentReleaseNotification.createMany as jest.Mock;
+const releaseCount = prisma.legalDocumentRelease.count as Mock;
+const findManyUsers = prisma.user.findMany as Mock;
+const findManyNotifications = prisma.legalDocumentReleaseNotification.findMany as Mock;
+const createManyNotifications = prisma.legalDocumentReleaseNotification.createMany as Mock;
 
 const APP_URL = 'https://invoicerr.test';
 const docCount = listLegalDocuments().length;
 
-function fakeMailService(overrides: { sendMail?: jest.Mock } = {}) {
+function fakeMailService(overrides: { sendMail?: Mock } = {}) {
   return {
-    sendMail: overrides.sendMail ?? jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    sendMail: overrides.sendMail ?? vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   } as unknown as import('@/mail/mail.service').MailService;
 }
 
@@ -52,7 +54,7 @@ describe('notifyUsersOfLegalReleases', () => {
       { id: 'user-1', email: 'user-1@example.com' },
       { id: 'user-2', email: 'user-2@example.com' },
     ]);
-    const sendMail = jest.fn().mockResolvedValue({ message: 'Email sent successfully' });
+    const sendMail = vi.fn().mockResolvedValue({ message: 'Email sent successfully' });
 
     const summary = await notifyUsersOfLegalReleases(fakeMailService({ sendMail }), APP_URL);
 
@@ -81,7 +83,7 @@ describe('notifyUsersOfLegalReleases', () => {
       { id: 'user-1', email: 'user-1@example.com' },
       { id: 'user-2', email: 'user-2@example.com' },
     ]);
-    const sendMail = jest.fn().mockResolvedValue({ message: 'Email sent successfully' });
+    const sendMail = vi.fn().mockResolvedValue({ message: 'Email sent successfully' });
 
     const summary = await notifyUsersOfLegalReleases(fakeMailService({ sendMail }), APP_URL);
 
@@ -106,7 +108,7 @@ describe('notifyUsersOfLegalReleases', () => {
       where.slug === 'terms-of-service' ? 2 : 1,
     );
     findManyUsers.mockResolvedValue([{ id: 'user-1', email: 'user-1@example.com' }]);
-    const sendMail = jest.fn().mockResolvedValue({ message: 'Email sent successfully' });
+    const sendMail = vi.fn().mockResolvedValue({ message: 'Email sent successfully' });
 
     await notifyUsersOfLegalReleases(fakeMailService({ sendMail }), APP_URL);
 
@@ -122,7 +124,7 @@ describe('notifyUsersOfLegalReleases', () => {
     // Match whatever the current terms-of-service content hash actually is, rather than hard-coding one.
     const tos = listLegalDocuments().find((d) => d.slug === 'terms-of-service')!;
     findManyNotifications.mockResolvedValue([{ slug: tos.slug, contentHash: tos.contentHash }]);
-    const sendMail = jest.fn();
+    const sendMail = vi.fn();
 
     const summary = await notifyUsersOfLegalReleases(fakeMailService({ sendMail }), APP_URL);
 
@@ -143,7 +145,7 @@ describe('notifyUsersOfLegalReleases', () => {
     findManyNotifications.mockResolvedValue([
       { slug: alreadyDone.slug, contentHash: alreadyDone.contentHash },
     ]);
-    const sendMail = jest.fn().mockResolvedValue({ message: 'Email sent successfully' });
+    const sendMail = vi.fn().mockResolvedValue({ message: 'Email sent successfully' });
 
     await notifyUsersOfLegalReleases(fakeMailService({ sendMail }), APP_URL);
 
@@ -159,7 +161,7 @@ describe('notifyUsersOfLegalReleases', () => {
   it('does not record a failed send, so the next pass retries the whole pending batch for that user', async () => {
     releaseCount.mockResolvedValue(2); // every document has changed.
     findManyUsers.mockResolvedValue([{ id: 'user-1', email: 'user-1@example.com' }]);
-    const sendMail = jest.fn().mockRejectedValue(new Error('SMTP unreachable'));
+    const sendMail = vi.fn().mockRejectedValue(new Error('SMTP unreachable'));
 
     const summary = await notifyUsersOfLegalReleases(fakeMailService({ sendMail }), APP_URL);
 
@@ -182,7 +184,7 @@ describe('notifyUsersOfLegalReleases', () => {
       { id: 'user-1', email: 'user-1@example.com', locale: 'fr' },
       { id: 'user-2', email: 'user-2@example.com', locale: null },
     ]);
-    const sendMail = jest.fn().mockResolvedValue({ message: 'Email sent successfully' });
+    const sendMail = vi.fn().mockResolvedValue({ message: 'Email sent successfully' });
 
     await notifyUsersOfLegalReleases(fakeMailService({ sendMail }), APP_URL);
 

@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 import { InstanceController } from './instance.controller';
@@ -9,11 +11,11 @@ const USER = { id: 'u1', email: 'ops@example.test' } as never;
 function build() {
   const preflightView: InstancePreflightView = { companies: 2, users: 3, documents: 40 };
   const preflightService = {
-    getPreflight: jest.fn().mockResolvedValue(preflightView),
+    getPreflight: vi.fn().mockResolvedValue(preflightView),
   } as unknown as InstancePreflightService;
   const resetService = {
-    requestOtp: jest.fn().mockResolvedValue({ message: 'OTP sent successfully' }),
-    reset: jest.fn().mockResolvedValue({ message: 'Instance reset successfully' }),
+    requestOtp: vi.fn().mockResolvedValue({ message: 'OTP sent successfully' }),
+    reset: vi.fn().mockResolvedValue({ message: 'Instance reset successfully' }),
   } as unknown as InstanceResetService;
   return {
     controller: new InstanceController(preflightService, resetService),

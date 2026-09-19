@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { Job } from 'bullmq';
 
 import { BackupRunner, RunBackupSweepResult } from '../backup-runner';
@@ -15,7 +17,7 @@ describe('backup/queue/BackupProcessor', () => {
       bytesUploaded: 10n,
       errors: [],
     };
-    const runner = { runSweep: jest.fn().mockResolvedValue(result) } as unknown as BackupRunner;
+    const runner = { runSweep: vi.fn().mockResolvedValue(result) } as unknown as BackupRunner;
     const processor = new BackupProcessor(runner);
 
     const returned = await processor.process({ id: 'job-1' } as Job);
@@ -26,7 +28,7 @@ describe('backup/queue/BackupProcessor', () => {
 
   it('propagates a thrown error (never swallows it) so BullMQ records the attempt as failed', async () => {
     const runner = {
-      runSweep: jest.fn().mockRejectedValue(new Error('could not enumerate sources')),
+      runSweep: vi.fn().mockRejectedValue(new Error('could not enumerate sources')),
     } as unknown as BackupRunner;
     const processor = new BackupProcessor(runner);
 

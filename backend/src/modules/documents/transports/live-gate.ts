@@ -31,7 +31,13 @@
  *   PEC_LIVE=1          SdI-via-PEC (IT) round-trip (a real PEC mailbox — NO accreditation required)
  *   PORTAL_LIVE=1       National portal round-trip (requires PORTAL_ID + portal-specific creds)
  */
-export function liveDescribe(flagVar: string, requiredEnvVars: string[] = []): typeof describe {
+// Return type is `typeof describe.skip`, not `typeof describe`: Vitest's `describe` is
+// `SuiteAPI` (the chainable suite function plus `skipIf`/`runIf`), while `describe.skip` is the
+// narrower `ChainableSuiteAPI` it recurses into — missing those two members and not itself
+// exported by name. `describe` structurally satisfies that narrower shape (it has every member
+// `describe.skip` has, plus more), so both return statements below type-check against it; typing
+// the signature as `typeof describe` would not, since `describe.skip` lacks `skipIf`/`runIf`.
+export function liveDescribe(flagVar: string, requiredEnvVars: string[] = []): typeof describe.skip {
   // Primary gate: opt-in flag must be explicitly '1'.
   if (process.env[flagVar] !== '1') {
     return describe.skip;

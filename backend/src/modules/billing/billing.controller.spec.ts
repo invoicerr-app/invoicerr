@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 
 import { BillingController } from './billing.controller';
@@ -14,38 +16,41 @@ import {
 } from './portal-session';
 import { reconcileFromPolarIfStale } from './status-reconcile';
 
-jest.mock('./company-subscription.store');
-jest.mock('./status-reconcile');
+vi.mock('./company-subscription.store');
+vi.mock('./status-reconcile');
 // Partial mock, deliberately: only `loadCompanyBillingIdentity` (the one Prisma call `openPortal` now
 // makes) is faked — `BillingEmailTakenError`/`resolveBillingEmail` stay the REAL exports, same reason
 // `portal-session` below is partially mocked rather than wholesale.
-jest.mock('./billing-customer', () => ({
-  ...jest.requireActual('./billing-customer'),
-  loadCompanyBillingIdentity: jest.fn(),
-}));
+vi.mock('./billing-customer', async () => {
+  const actual = await vi.importActual('./billing-customer');
+  return { ...actual, loadCompanyBillingIdentity: vi.fn() };
+});
 // Partial mock, deliberately: only the two Polar-calling functions are faked — `PolarCustomerNotFoundError`
 // (and its `code`) and `BILLING_NO_COMPANY_CUSTOMER_CODE` stay the REAL exports, so a fixture built with
 // `new PolarCustomerNotFoundError(...)` below carries a real `.message`/`.code` the controller actually
 // reads, instead of whatever an auto-mocked class constructor would (or wouldn't) leave on the instance.
-jest.mock('./portal-session', () => ({
-  ...jest.requireActual('./portal-session'),
-  createCustomerPortalSession: jest.fn(),
-  createLegacyCustomerPortalSession: jest.fn(),
-}));
-jest.mock('./checkout-session');
-jest.mock('./legacy-customer');
-jest.mock('./billing-email');
+vi.mock('./portal-session', async () => {
+  const actual = await vi.importActual('./portal-session');
+  return {
+    ...actual,
+    createCustomerPortalSession: vi.fn(),
+    createLegacyCustomerPortalSession: vi.fn(),
+  };
+});
+vi.mock('./checkout-session');
+vi.mock('./legacy-customer');
+vi.mock('./billing-email');
 
-const loadBillingIdentity = loadCompanyBillingIdentity as jest.Mock;
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
-const reconcile = reconcileFromPolarIfStale as jest.Mock;
-const createPortalSession = createCustomerPortalSession as jest.Mock;
-const createLegacyPortalSession = createLegacyCustomerPortalSession as jest.Mock;
-const startCheckoutSession = createCheckoutSession as jest.Mock;
-const getFacts = getCompanyCustomerFacts as jest.Mock;
-const hasLegacyCustomer = hasLegacyPolarCustomer as jest.Mock;
-const getBillingEmail = getCompanyBillingEmail as jest.Mock;
-const setBillingEmail = setCompanyBillingEmail as jest.Mock;
+const loadBillingIdentity = loadCompanyBillingIdentity as Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
+const reconcile = reconcileFromPolarIfStale as Mock;
+const createPortalSession = createCustomerPortalSession as Mock;
+const createLegacyPortalSession = createLegacyCustomerPortalSession as Mock;
+const startCheckoutSession = createCheckoutSession as Mock;
+const getFacts = getCompanyCustomerFacts as Mock;
+const hasLegacyCustomer = hasLegacyPolarCustomer as Mock;
+const getBillingEmail = getCompanyBillingEmail as Mock;
+const setBillingEmail = setCompanyBillingEmail as Mock;
 
 const CLICKING_USER = {
   id: 'user-1',
@@ -55,7 +60,7 @@ const CLICKING_USER = {
 } as never;
 
 describe('BillingController.getStatus', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('lazily gets-or-creates the subscription for the active company, reconciles it, reads the customer facts, and returns the computed view', async () => {
     const stored = {
@@ -127,7 +132,7 @@ describe('BillingController.getStatus', () => {
 });
 
 describe('BillingController.startCheckout', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('starts a checkout for the active company', async () => {
     startCheckoutSession.mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc', redirect: true });
@@ -175,7 +180,7 @@ describe('BillingController.startCheckout', () => {
 });
 
 describe('BillingController.openPortal', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("opens a portal session under the COMPANY's own billing identity — never the calling user's", async () => {
     loadBillingIdentity.mockResolvedValue({
@@ -238,7 +243,7 @@ describe('BillingController.openPortal', () => {
 });
 
 describe('BillingController.openLegacyPortal', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("opens a portal session for the calling user's own legacy customer", async () => {
     createLegacyPortalSession.mockResolvedValue({ url: 'https://polar.sh/portal/legacy', redirect: true });
@@ -265,7 +270,7 @@ describe('BillingController.openLegacyPortal', () => {
 });
 
 describe('BillingController billing-email', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('reads the billing email view', async () => {
     getBillingEmail.mockResolvedValue({ billingEmail: null, companyEmail: 'contact@acme.test' });

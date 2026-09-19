@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { CreateCheckoutSessionInput } from '../../provider';
 import { FakeStripeCheckoutClient, RealStripeCheckoutClient } from './stripe-checkout-client';
 
@@ -15,11 +16,11 @@ describe('RealStripeCheckoutClient', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('posts a form-encoded body with a bearer secret key and returns the session id/url', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({ id: 'cs_test_abc', url: 'https://checkout.stripe.com/pay/cs_test_abc' }),
@@ -45,7 +46,7 @@ describe('RealStripeCheckoutClient', () => {
   });
 
   it('throws with the provider-reported message on a non-ok response — never invents a session id', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({ error: { message: 'Invalid API Key provided' } }),
@@ -56,7 +57,7 @@ describe('RealStripeCheckoutClient', () => {
   });
 
   it('throws when the response carries no usable id/url even though it answered ok — hard-success contract', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({}),

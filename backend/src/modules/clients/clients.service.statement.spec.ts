@@ -6,17 +6,20 @@
  * runs, never a real aggregation, so it has no business paying for a database round-trip (same
  * discipline archive/persistence.spec.ts already holds for its own Prisma-facing tests).
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi, type Mock } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    client: { findFirst: jest.fn() },
+    client: { findFirst: vi.fn() },
   },
 }));
-jest.mock('../documents/settlement/client-statement', () => ({
-  resolveClientStatement: jest.fn(),
+vi.mock('../documents/settlement/client-statement', () => ({
+  resolveClientStatement: vi.fn(),
 }));
 
 import { NotFoundException } from '@nestjs/common';
@@ -27,15 +30,15 @@ import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service
 import { VatValidationPort } from '../documents/tax/vat-validation';
 import { resolveClientStatement } from '../documents/settlement/client-statement';
 
-const findFirstClient = prisma.client.findFirst as jest.Mock;
-const resolveStatement = resolveClientStatement as jest.Mock;
+const findFirstClient = prisma.client.findFirst as Mock;
+const resolveStatement = resolveClientStatement as Mock;
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 const fakeVatValidator: VatValidationPort = {
-  validate: jest.fn(),
+  validate: vi.fn(),
 };
 
 describe('ClientsService.getStatement — tenant isolation', () => {

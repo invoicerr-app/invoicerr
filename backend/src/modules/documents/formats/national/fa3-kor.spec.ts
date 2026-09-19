@@ -5,27 +5,28 @@
  * invoice sent through any OTHER channel (or never sent at all through one this codebase can report a
  * `channelProviderId` for) falls back to `NrKSeFN` outright — no number to wait for, per the statute's
  * own exception. `../../persistence` and `../../conformity/authority-events.persistence` are mocked
- * wholesale, the same `jest.mock('../persistence')` discipline `conformity-sweep-runner.spec.ts`
+ * wholesale, the same `vi.mock('../persistence')` discipline `conformity-sweep-runner.spec.ts`
  * already holds — this proves the BRANCHING logic, never a real database round-trip.
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import * as authorityEventsPersistence from '../../conformity/authority-events.persistence';
 import * as persistence from '../../persistence';
 import { resolveFaVatKorContext } from './fa3-kor';
 
-jest.mock('../../persistence');
-jest.mock('../../conformity/authority-events.persistence');
+vi.mock('../../persistence');
+vi.mock('../../conformity/authority-events.persistence');
 
-const findOwnedDocument = persistence.findOwnedDocument as jest.Mock;
-const listAuthorityEvents = authorityEventsPersistence.listAuthorityEvents as jest.Mock;
+const findOwnedDocument = persistence.findOwnedDocument as Mock;
+const listAuthorityEvents = authorityEventsPersistence.listAuthorityEvents as Mock;
 
 // A structurally valid `TNumerKSeF` (schemat_FA3.xsd's own pattern) — NIP-YYYYMMDD-XXXXXX-XXXXXX-XX.
 const VALID_KSEF_NUMBER = '5260001246-20260901-010203-040506-AB';
 
 describe('fa3-kor — resolveFaVatKorContext', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('a KSeF-sent original with an observed, non-empty ksefNumber: the NrKSeF branch', async () => {

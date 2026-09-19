@@ -6,6 +6,7 @@
  * constraints ask for, one layer below `PecInboxPort` itself (`pec-inbox-poller.service.spec.ts`
  * already covers that layer with an even simpler mock).
  */
+import { vi, type Mock } from 'vitest';
 import { Readable } from 'node:stream';
 
 import { ImapFlow } from 'imapflow';
@@ -26,30 +27,30 @@ function buildFakeImapClient(fetchAllResult: unknown[]) {
   const calls: string[] = [];
   return {
     calls,
-    connect: jest.fn().mockResolvedValue(undefined),
-    getMailboxLock: jest.fn().mockImplementation(async () => {
+    connect: vi.fn().mockResolvedValue(undefined),
+    getMailboxLock: vi.fn().mockImplementation(async () => {
       calls.push('lock');
-      return { release: jest.fn(() => calls.push('release')) };
+      return { release: vi.fn(() => calls.push('release')) };
     }),
-    fetchAll: jest.fn().mockImplementation(async () => {
+    fetchAll: vi.fn().mockImplementation(async () => {
       calls.push('fetchAll');
       return fetchAllResult;
     }),
-    download: jest.fn().mockImplementation(async () => {
+    download: vi.fn().mockImplementation(async () => {
       calls.push('download');
       return { content: bufferStream('<ricevutaConsegna/>') };
     }),
-    logout: jest.fn().mockResolvedValue(undefined),
+    logout: vi.fn().mockResolvedValue(undefined),
   };
 }
 
-jest.mock('imapflow', () => ({
-  ImapFlow: jest.fn(),
+vi.mock('imapflow', () => ({
+  ImapFlow: vi.fn(),
 }));
 
 describe('toPecInboundMessage', () => {
   it("extracts the From address, subject, and every attachment part's decoded content", async () => {
-    const download = jest.fn().mockResolvedValue({ content: bufferStream('<ricevutaConsegna/>') });
+    const download = vi.fn().mockResolvedValue({ content: bufferStream('<ricevutaConsegna/>') });
     const client = { download };
 
     const message = await toPecInboundMessage(client, {
@@ -80,7 +81,7 @@ describe('toPecInboundMessage', () => {
   });
 
   it('a message with no attachment part at all yields an empty attachments array — never throws', async () => {
-    const download = jest.fn();
+    const download = vi.fn();
     const client = { download };
 
     const message = await toPecInboundMessage(client, {
@@ -94,13 +95,13 @@ describe('toPecInboundMessage', () => {
   });
 
   it('a missing From address never throws — falls back to an empty string rather than crashing the drain', async () => {
-    const client = { download: jest.fn() };
+    const client = { download: vi.fn() };
     const message = await toPecInboundMessage(client, { uid: 1, envelope: undefined } as never);
     expect(message.from).toBe('');
   });
 
   it('a download that returns no content for a part is skipped, not treated as an empty attachment', async () => {
-    const download = jest.fn().mockResolvedValue({});
+    const download = vi.fn().mockResolvedValue({});
     const client = { download };
 
     const message = await toPecInboundMessage(client, {
@@ -119,7 +120,7 @@ describe('toPecInboundMessage', () => {
   });
 
   it('falls back to "part-<n>" when the attachment carries no filename at all', async () => {
-    const download = jest.fn().mockResolvedValue({ content: bufferStream('data') });
+    const download = vi.fn().mockResolvedValue({ content: bufferStream('data') });
     const client = { download };
 
     const message = await toPecInboundMessage(client, {
@@ -138,9 +139,9 @@ describe('toPecInboundMessage', () => {
 // a deadloop"). Fixed by switching to `fetchAll()`, which resolves the WHOLE listing before this
 // method ever calls `download()`.
 describe('ImapFlowPecInboxPort.fetchUnseen', () => {
-  const mockedImapFlow = ImapFlow as unknown as jest.Mock;
+  const mockedImapFlow = ImapFlow as unknown as Mock;
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('uses fetchAll — never the async-generator fetch() — so download() never interleaves with it', async () => {
     const message = {
@@ -160,7 +161,15 @@ describe('ImapFlowPecInboxPort.fetchUnseen', () => {
       },
     };
     const fakeClient = buildFakeImapClient([message]);
-    mockedImapFlow.mockImplementation(() => fakeClient);
+    // A `function` expression, NOT an arrow function — `ImapFlowPecInboxPort#buildClient` does
+    // `new ImapFlow(...)`. Jest's mocks never really `[[Construct]]` their implementation (they call
+    // it plainly and use the return value), so an arrow function "worked" there; Vitest's mocks DO
+    // construct it for real, and an arrow function has no `[[Construct]]` at all — "TypeError: ...
+    // is not a constructor".
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new ImapFlow(...)` under Vitest, see above.
+    mockedImapFlow.mockImplementation(function () {
+      return fakeClient;
+    });
 
     const port = new ImapFlowPecInboxPort({
       host: 'imap.pec-provider.it',
@@ -191,7 +200,15 @@ describe('ImapFlowPecInboxPort.fetchUnseen', () => {
       { uid: 2, envelope: { from: [{ address: 'b@pec.example.it' }] }, bodyStructure: { part: '1' } },
     ];
     const fakeClient = buildFakeImapClient(messages);
-    mockedImapFlow.mockImplementation(() => fakeClient);
+    // A `function` expression, NOT an arrow function — `ImapFlowPecInboxPort#buildClient` does
+    // `new ImapFlow(...)`. Jest's mocks never really `[[Construct]]` their implementation (they call
+    // it plainly and use the return value), so an arrow function "worked" there; Vitest's mocks DO
+    // construct it for real, and an arrow function has no `[[Construct]]` at all — "TypeError: ...
+    // is not a constructor".
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new ImapFlow(...)` under Vitest, see above.
+    mockedImapFlow.mockImplementation(function () {
+      return fakeClient;
+    });
 
     const port = new ImapFlowPecInboxPort({
       host: 'imap.pec-provider.it',

@@ -15,6 +15,9 @@
  * `pinnedNodeLookup` are what actually close that window, and this is the one thing worth proving
  * against a REAL socket, not a mock of the connect step itself.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -30,12 +33,12 @@ import {
 
 // `outbound-url.ts` imports `node:dns` as a namespace (`import * as dns`, not a default import — see
 // that file's own comment on why), so the mock must match that shape exactly.
-jest.mock('node:dns', () => ({ promises: { lookup: jest.fn() } }));
+vi.mock('node:dns', () => ({ promises: { lookup: vi.fn() } }));
 
-const lookup = dns.promises.lookup as unknown as jest.Mock;
+const lookup = dns.promises.lookup as unknown as Mock;
 
 describe('assertPublicOutboundUrl', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   describe('scheme — default policy is https-only', () => {
     it('rejects plain http with no policy override', async () => {
@@ -162,7 +165,7 @@ describe('assertPublicOutboundUrl', () => {
 });
 
 describe('pinning — closes the TOCTOU/DNS-rebinding gap between validation and connection', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   // `resolved` is built BY HAND, not through `assertPublicOutboundUrl`, in these two tests: the local
   // stand-in server can only ever bind to a loopback address, which the real validation pipeline

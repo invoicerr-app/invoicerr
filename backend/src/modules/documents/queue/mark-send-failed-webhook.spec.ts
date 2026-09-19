@@ -4,9 +4,11 @@
  * of the HTTP client" discipline for the identical reason (see that file's own header for the full
  * "why SlackDriver, never GenericDriver/WebhooksService" reasoning — copied here rather than shared,
  * a deliberately self-contained test). `mark-send-failed.spec.ts`'s own "events" describe block
- * already proves the SSE nudge in isolation with a bare `jest.fn()`; this proves the webhook fires
+ * already proves the SSE nudge in isolation with a bare `vi.fn()`; this proves the webhook fires
  * for a genuine terminal failure and carries the error through the real driver/formatter pipeline.
  */
+import { vi, type Mock } from 'vitest';
+
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -18,7 +20,7 @@ import * as persistence from '../persistence';
 import { DocumentWebhookEmitter } from './document-webhooks';
 import { markSendFailed } from './mark-send-failed';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 const SEND_TRANSITIONS: DocumentActionTransition[] = [
   { from: ['draft', 'send_failed'], to: 'sending' },
@@ -77,7 +79,7 @@ function realEmitter(url: string): DocumentWebhookEmitter {
 }
 
 describe('markSendFailed — DOCUMENT_SEND_FAILED, against a REAL local HTTP stub', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('a terminal failure makes EXACTLY ONE POST reach the stub, carrying the error and the formatted payload', async () => {
     let requestCount = 0;
@@ -94,7 +96,7 @@ describe('markSendFailed — DOCUMENT_SEND_FAILED, against a REAL local HTTP stu
     });
 
     try {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sending',
@@ -103,7 +105,7 @@ describe('markSendFailed — DOCUMENT_SEND_FAILED, against a REAL local HTTP stu
         updatedAt: new Date(),
         displayNumber: 'WGT-2026-0003',
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'send_failed',

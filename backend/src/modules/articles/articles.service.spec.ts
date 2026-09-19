@@ -4,32 +4,35 @@
  * already holds, so this proves the SERVICE's own logic (the `isLowStock` predicate, and every read
  * method attaching it consistently) — never a real database.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { ArticlesService, isArticleLowStock } from './articles.service';
 
 import prisma from '@/prisma/prisma.service';
 import { ItemType } from '../../../prisma/generated/prisma/client';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     article: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
-      update: jest.fn(),
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn(),
     },
-    company: { findUnique: jest.fn() },
+    company: { findUnique: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   article: {
-    create: jest.Mock;
-    findMany: jest.Mock;
-    findFirst: jest.Mock;
-    update: jest.Mock;
+    create: Mock;
+    findMany: Mock;
+    findFirst: Mock;
+    update: Mock;
   };
-  company: { findUnique: jest.Mock };
+  company: { findUnique: Mock };
 };
 
 function article(overrides: Partial<Record<string, unknown>> = {}) {
@@ -81,7 +84,7 @@ describe('ArticlesService', () => {
   let service: ArticlesService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new ArticlesService();
     mockedPrisma.company.findUnique.mockResolvedValue({ currency: 'EUR' });
   });

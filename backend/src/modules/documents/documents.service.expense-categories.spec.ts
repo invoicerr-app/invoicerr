@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { registerExpenseActions } from './actions/expense-actions';
@@ -17,11 +19,11 @@ import prisma from '@/prisma/prisma.service';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
+vi.mock('./persistence');
 // Same reasoning documents.service.company-custom-fields.spec.ts's own header gives for mocking this
 // wholesale: this file is about wiring EXPENSE CATEGORIES into describeTypeForCompany/runAction, not
 // country policy — proven for real elsewhere.
-jest.mock('./country-policy/country-policy');
+vi.mock('./country-policy/country-policy');
 
 /**
  * Enriched expense categories ("notes de frais enrichies") — product decision 2026-09-15. Proves
@@ -97,21 +99,21 @@ describe('DocumentsService — wiring expense categories into the expense type',
   });
 
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
     // `describeTypeForCompany` decides every action in ONE batched call — see country-policy.ts's
     // own header on `evaluateCountryPolicyForActions` for why it, not `evaluateCountryPolicy`, is
     // what that method actually calls.
-    (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+    (countryPolicy.evaluateCountryPolicyForActions as Mock).mockImplementation(
       async (_companyId: string, _typeId: string, actionIds: string[]) =>
         actionIds.map(() => ({ allowed: true })),
     );
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue(undefined);
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(undefined);
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   describe('describeTypeForCompany — the FORM view', () => {
     it("this company's own default ten-plus-Other set shows up as the category field's options", async () => {
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+      (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
       const descriptor = await buildService().service.describeTypeForCompany(companyId, 'expense');
 
       const category = descriptor.fields.find((f) => f.key === 'category');
@@ -155,7 +157,7 @@ describe('DocumentsService — wiring expense categories into the expense type',
 
   describe('runAction — the SAME view is what actually gets validated', () => {
     it('"save-draft": a category value from this company\'s own active set is accepted', async () => {
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'expense',
         status: 'draft',
@@ -180,7 +182,7 @@ describe('DocumentsService — wiring expense categories into the expense type',
     });
 
     it('"save-draft": no category at all is fine — the field is optional', async () => {
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'expense',
         status: 'draft',

@@ -9,47 +9,50 @@
  * claim FEWER rows than requested, exactly what a genuine Postgres race would produce (see
  * `billToInvoice`'s own header for why that is the actual guarantee, not the pre-flight checks).
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
 import { TimeEntriesService } from './time-entries.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     timeEntry: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
-      findFirstOrThrow: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
-      delete: jest.fn(),
-      deleteMany: jest.fn(),
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findFirstOrThrow: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
-    project: { findFirst: jest.fn() },
-    client: { findFirst: jest.fn() },
-    company: { findUnique: jest.fn() },
-    $transaction: jest.fn(),
+    project: { findFirst: vi.fn() },
+    client: { findFirst: vi.fn() },
+    company: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   timeEntry: {
-    findFirstOrThrow: jest.Mock;
-    updateMany: jest.Mock;
-    deleteMany: jest.Mock;
-    create: jest.Mock;
-    findMany: jest.Mock;
-    findFirst: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
+    findFirstOrThrow: Mock;
+    updateMany: Mock;
+    deleteMany: Mock;
+    create: Mock;
+    findMany: Mock;
+    findFirst: Mock;
+    update: Mock;
+    delete: Mock;
   };
-  project: { findFirst: jest.Mock };
-  client: { findFirst: jest.Mock };
-  company: { findUnique: jest.Mock };
-  $transaction: jest.Mock;
+  project: { findFirst: Mock };
+  client: { findFirst: Mock };
+  company: { findUnique: Mock };
+  $transaction: Mock;
 };
 
 function project(overrides: Partial<Record<string, unknown>> = {}) {
@@ -86,9 +89,9 @@ function entry(overrides: Partial<Record<string, unknown>> = {}) {
 function makeTx(opts: { updateManyCount: number }) {
   return {
     documentInstance: {
-      create: jest.fn().mockResolvedValue({ id: 'invoice-1', typeId: 'invoice', status: 'draft' }),
+      create: vi.fn().mockResolvedValue({ id: 'invoice-1', typeId: 'invoice', status: 'draft' }),
     },
-    timeEntry: { updateMany: jest.fn().mockResolvedValue({ count: opts.updateManyCount }) },
+    timeEntry: { updateMany: vi.fn().mockResolvedValue({ count: opts.updateManyCount }) },
   };
 }
 
@@ -96,7 +99,7 @@ describe('TimeEntriesService', () => {
   let service: TimeEntriesService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new TimeEntriesService();
     mockedPrisma.company.findUnique.mockResolvedValue({ currency: 'EUR' });
   });

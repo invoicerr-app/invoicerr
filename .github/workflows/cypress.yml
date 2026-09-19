@@ -152,15 +152,18 @@ jobs:
       - name: Apply migrations and seed reference data
         run: cd backend && npx prisma migrate deploy && npx prisma db seed
 
-      # `--maxWorkers=2`, overriding package.json's own 4. That figure suits a developer machine with
-      # cores to spare; a GitHub runner has far fewer, so four workers contend for them and every
-      # CPU-bound test slows down together. Measured on this very job: the whole suite took 458s here
-      # against 102s locally -- 4.5x -- and `extraction.spec.ts`, which builds a real Factur-X PDF and
-      # runs the full EN 16931 Schematron over it, blew a 30s per-test budget it clears in 4s locally.
-      # Fewer workers each getting a real core is the fix; raising that test's timeout again would
-      # only have moved the next failure somewhere else.
-      - name: Run backend tests
-        run: cd backend && npm test -- --ci --maxWorkers=2
+      # Vitest is the sole runner now (the Jest -> Vitest migration that used to split this into two
+      # steps -- one runner each, coordinated by `vitest-migrated.json` -- is over; every spec
+      # converted, Jest removed). `--maxWorkers=2`, overriding package.json's/vitest.config.ts's own
+      # 4: that figure suits a developer machine with cores to spare; a GitHub runner has far fewer,
+      # so four workers contend for them and every CPU-bound test slows down together. Measured on
+      # this very job (Jest, pre-Vitest): the whole suite took 458s here against 102s locally -- 4.5x
+      # -- and `extraction.spec.ts`, which builds a real Factur-X PDF and runs the full EN 16931
+      # Schematron over it, blew a 30s per-test budget it clears in 4s locally. Fewer workers each
+      # getting a real core is the fix; raising that test's timeout again would only have moved the
+      # next failure somewhere else.
+      - name: Run backend tests (Vitest)
+        run: cd backend && npx vitest run --maxWorkers=2
 
   queue-integration:
     runs-on: ubuntu-latest
@@ -237,18 +240,25 @@ jobs:
       # forced failure (SMTP pointed nowhere) exhausts retries and lands on "send_failed" with the
       # error recorded, then a re-`send` succeeds. Self-gated on REDIS_URL (same pattern the
       # pre-refonte compliance queue's own specs used), so it self-skips in the offline
-      # backend-tests job and only executes here. --runInBand because every spec shares one Redis/
-      # Postgres/Mailpit and would otherwise race; --forceExit because BullMQ/ioredis keep
-      # connections open past the last assertion.
-      - name: Run document-action queue integration specs (real Redis + Postgres + Mailpit)
+      # backend-tests job and only executes here.
+      #
+      # One step, all five specs in this directory (Jest is gone, and with it the split this job used
+      # to run during the migration — four specs on Vitest, `document-events-bridge.redis.spec.ts`
+      # still on Jest because its own `--testPathPattern` could not match "everything in this
+      # directory" without also trying, and failing, to load the Vitest-only ones). `--no-file-
+      # parallelism` because every spec here shares one Redis/Postgres/Mailpit and would otherwise
+      # race. No `--forceExit` equivalent is needed: BullMQ/ioredis keep connections open past the
+      # last assertion, but Vitest's own `run` mode exits cleanly on its own once a run finishes —
+      # confirmed during the migration.
+      - name: Run document-action queue integration specs
         env:
           SMTP_HOST: localhost
           SMTP_PORT: 1025
           SMTP_SECURE: 'false'
           SMTP_FROM: queue-integration@invoicerr.test
           # The redis specs gate on this flag EXPLICITLY (not merely on REDIS_URL) so a bare local
-          # `npx jest` — which runs spec files in parallel workers sharing one queue/DB — skips them
-          # instead of failing on pure test-run topology. Removing this line makes this job skip
+          # `npx vitest run` — which runs spec files in parallel workers sharing one queue/DB — skips
+          # them instead of failing on pure test-run topology. Removing this line makes this job skip
           # everything it exists to run, silently. See the specs' own headers.
           DOCUMENTS_QUEUE_REDIS_TESTS: '1'
           # `document-conformity-queue.redis.spec.ts` connects a REAL "pdp" channel (its own encrypted
@@ -261,11 +271,11 @@ jobs:
           # That same "pdp" channel's `baseUrl` IS the local HTTP stub above (127.0.0.1) — the shared
           # outbound-URL SSRF guard (`@/utils/outbound-url.ts`) rejects a private/loopback target by
           # default, and this job (unlike `cypress-run`/`cypress-run-saas` below, which load
-          # `backend/.env.test` via `npm run start:test`) invokes jest directly with no dotenv step, so
-          # that file's own copy of this flag never reaches it. TEST-ONLY — see `.env.example`'s own
-          # entry for why this must never be set on a real deployment.
+          # `backend/.env.test` via `npm run start:test`) invokes vitest directly with no dotenv step,
+          # so that file's own copy of this flag never reaches it. TEST-ONLY — see `.env.example`'s
+          # own entry for why this must never be set on a real deployment.
           ALLOW_PRIVATE_OUTBOUND_URLS: '1'
-        run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
+        run: cd backend && npx vitest run --no-file-parallelism modules/documents/queue/__tests__
 
       # The migration-vs-schema enum tripwire: deploys the FULL migration chain on
       # its own disposable database (never `invoicerr_test`, the one this job already migrated above)
@@ -278,7 +288,7 @@ jobs:
       - name: Run migration-vs-schema enum tripwire (fresh disposable Postgres database)
         env:
           MIGRATION_FRESH_TESTS: '1'
-        run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'prisma/migration-fresh-schema.spec.ts'
+        run: cd backend && npx vitest run prisma/migration-fresh-schema.spec.ts
 
   cypress-run:
     runs-on: ubuntu-latest

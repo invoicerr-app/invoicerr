@@ -1,9 +1,11 @@
-jest.mock('@/prisma/prisma.service', () => ({
+import { vi } from 'vitest';
+
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { count: jest.fn().mockResolvedValue(3) },
-    user: { count: jest.fn().mockResolvedValue(5) },
-    documentInstance: { count: jest.fn().mockResolvedValue(120) },
+    company: { count: vi.fn().mockResolvedValue(3) },
+    user: { count: vi.fn().mockResolvedValue(5) },
+    documentInstance: { count: vi.fn().mockResolvedValue(120) },
   },
 }));
 

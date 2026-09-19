@@ -15,12 +15,15 @@
  * the read, 403 on the write, and — for documents — 403 even on a READ of a DIFFERENT type
  * (`invoice`) the key was never granted.
  */
-jest.mock('@/lib/auth', () => ({
-  auth: { api: { getSession: jest.fn().mockResolvedValue(null) } },
+
+import { vi } from 'vitest';
+
+vi.mock('@/lib/auth', () => ({
+  auth: { api: { getSession: vi.fn().mockResolvedValue(null) } },
 }));
 
-jest.mock('better-auth/node', () => ({
-  fromNodeHeaders: jest.fn((headers: unknown) => headers),
+vi.mock('better-auth/node', () => ({
+  fromNodeHeaders: vi.fn((headers: unknown) => headers),
 }));
 
 import { ForbiddenException } from '@nestjs/common';

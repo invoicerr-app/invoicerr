@@ -8,7 +8,7 @@
  * credential env var — this spec brings its own MinIO server rather than depending on a
  * pre-existing bucket/credentials. Run with:
  *
- *   BACKUP_S3_LIVE=1 npx jest backup-destination.live --no-coverage --forceExit
+ *   BACKUP_S3_LIVE=1 npx vitest run src/modules/backup/backup-destination.live.spec.ts
  */
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';

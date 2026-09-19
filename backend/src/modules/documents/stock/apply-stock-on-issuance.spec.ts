@@ -1,15 +1,17 @@
+import { vi, type Mock } from 'vitest';
+
 import { applyStockOnIssuance, computeStockDecrements } from './apply-stock-on-issuance';
 
 // Mocked wholesale, same discipline `documents.service.*.spec.ts` already holds for `./persistence`/
 // `./numbering/take-number` — this is a unit test of the WIRING (which articles get read/written),
 // never a proof of real Postgres behavior (that would be a `.live.spec.ts`, per documentation/docs/developer-guide/live-testing.md, and
 // there is no external API here to prove live in the first place).
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     article: {
-      findMany: jest.fn(),
-      updateMany: jest.fn(),
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -98,10 +100,10 @@ describe('computeStockDecrements (pure)', () => {
 });
 
 describe('applyStockOnIssuance (thin Prisma writer)', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("reads only THIS company's stock-tracked, actually-referenced articles, then issues one ATOMIC updateMany per article", async () => {
-    (prisma.article.findMany as jest.Mock).mockResolvedValue([{ id: 'article-1' }]);
+    (prisma.article.findMany as Mock).mockResolvedValue([{ id: 'article-1' }]);
 
     await applyStockOnIssuance('company-1', {
       id: 'doc-1',
@@ -130,7 +132,7 @@ describe('applyStockOnIssuance (thin Prisma writer)', () => {
   });
 
   it('a SERVICE article (excluded by the quantity:not-null query) gets no UPDATE at all', async () => {
-    (prisma.article.findMany as jest.Mock).mockResolvedValue([]); // the query itself excludes it
+    (prisma.article.findMany as Mock).mockResolvedValue([]); // the query itself excludes it
 
     await applyStockOnIssuance('company-1', {
       id: 'doc-1',
@@ -150,7 +152,7 @@ describe('applyStockOnIssuance (thin Prisma writer)', () => {
   // "mock ignores its arguments" trap 86e331c5's own commit message calls out: it actually behaves
   // like Postgres would for this query, filtering by the id it's given.
   it('a stock-tracked article belonging to a DIFFERENT company is excluded by the companyId scope — cross-tenant stock is never touched', async () => {
-    (prisma.article.findMany as jest.Mock).mockImplementation(({ where }: { where: { companyId: string } }) =>
+    (prisma.article.findMany as Mock).mockImplementation(({ where }: { where: { companyId: string } }) =>
       Promise.resolve(where.companyId === 'company-1' ? [] : [{ id: 'other-companys-article' }]),
     );
 
@@ -167,7 +169,7 @@ describe('applyStockOnIssuance (thin Prisma writer)', () => {
   });
 
   it('NEVER THROWS when the DB read itself fails — the document must stand regardless', async () => {
-    (prisma.article.findMany as jest.Mock).mockRejectedValue(new Error('connection lost'));
+    (prisma.article.findMany as Mock).mockRejectedValue(new Error('connection lost'));
 
     await expect(
       applyStockOnIssuance('company-1', { id: 'doc-1', data: { lines: [{ articleId: 'a', quantity: 1 }] } }),
@@ -191,8 +193,8 @@ describe('applyStockOnIssuance (thin Prisma writer)', () => {
    */
   it('two concurrent issuances of the SAME article both apply — no lost update', async () => {
     let serverSideQuantity = 10;
-    (prisma.article.findMany as jest.Mock).mockResolvedValue([{ id: 'article-1' }]);
-    (prisma.article.updateMany as jest.Mock).mockImplementation(
+    (prisma.article.findMany as Mock).mockResolvedValue([{ id: 'article-1' }]);
+    (prisma.article.updateMany as Mock).mockImplementation(
       ({ data }: { data: { quantity: { decrement: number } } }) => {
         serverSideQuantity -= data.quantity.decrement; // exactly what `quantity = quantity - $1` does
         return Promise.resolve({ count: 1 });

@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { CreateCheckoutSessionInput, PaymentWebhookVerificationError } from '../../provider';
 import { MollieProvider } from './mollie-provider';
 
@@ -11,7 +12,7 @@ const INPUT: CreateCheckoutSessionInput = {
 };
 
 function fakeClient() {
-  return { createPayment: jest.fn(), getPayment: jest.fn() };
+  return { createPayment: vi.fn(), getPayment: vi.fn() };
 }
 
 describe('MollieProvider.createCheckoutSession', () => {

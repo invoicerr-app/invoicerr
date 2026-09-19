@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { CreateCheckoutSessionInput, PaymentWebhookVerificationError } from '../../provider';
 import { PayPalProvider } from './paypal-provider';
 
@@ -26,7 +27,7 @@ const FULL_HEADERS = {
 };
 
 function fakeClient() {
-  return { createOrder: jest.fn(), captureOrder: jest.fn(), verifyWebhookSignature: jest.fn() };
+  return { createOrder: vi.fn(), captureOrder: vi.fn(), verifyWebhookSignature: vi.fn() };
 }
 
 function eventBody(eventType: string, resource: Record<string, unknown>): string {

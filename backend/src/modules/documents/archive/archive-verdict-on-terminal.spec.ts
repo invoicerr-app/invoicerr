@@ -1,17 +1,18 @@
+import { vi, type Mock } from 'vitest';
 import { archiveTerminalAuthorityVerdictIfAny } from './archive-verdict-on-terminal';
 import { createAuthorityVerdictArchive } from './persistence';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     // Read by `logger.error()` (logger.service.ts) whenever this module logs — mocked out so the
     // (expected) failure-path tests below don't also spam a "log entry could not be persisted" error.
-    log: { create: jest.fn().mockResolvedValue({}) },
+    log: { create: vi.fn().mockResolvedValue({}) },
   },
 }));
-jest.mock('./persistence');
+vi.mock('./persistence');
 
-const mockedCreate = createAuthorityVerdictArchive as jest.Mock;
+const mockedCreate = createAuthorityVerdictArchive as Mock;
 
 const INPUT = {
   companyId: 'company-1',
@@ -25,7 +26,7 @@ const INPUT = {
 };
 
 describe('archiveTerminalAuthorityVerdictIfAny', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('archives the verdict and does nothing further on success', async () => {
     mockedCreate.mockResolvedValue({ archived: true });

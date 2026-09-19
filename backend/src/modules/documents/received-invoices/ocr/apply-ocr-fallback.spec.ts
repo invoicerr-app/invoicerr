@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { ExtractionResult } from '../extraction';
 import { applyOcrFallback } from './apply-ocr-fallback';
 import { ExtractorNotReadyError, receivedDocumentExtractorRegistry } from './extractor';
@@ -12,7 +14,7 @@ describe('applyOcrFallback', () => {
   // ONE stub, registered once, reconfigured per test via its own mock — see this file's own header
   // reasoning against registering/unregistering per test (the registry has no `unregister`, on
   // purpose: nothing in the real system ever needs one — see `extractor.ts`'s own header).
-  const extract = jest.fn();
+  const extract = vi.fn();
   const stub = { id: 'stub-extractor', supports: (mime: string) => mime === 'application/pdf', extract };
 
   beforeAll(() => {

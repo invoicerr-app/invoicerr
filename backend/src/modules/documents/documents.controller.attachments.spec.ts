@@ -11,6 +11,8 @@
  * app's own origin — a stored-XSS primitive. This file proves the endpoint now never echoes an
  * untrusted mime, and always sets the two defense-in-depth headers regardless.
  */
+import { vi } from 'vitest';
+
 import { Response } from 'express';
 
 import { AttachmentsService } from './attachments/attachments.service';
@@ -53,7 +55,7 @@ function fakeResponse() {
 
 describe('DocumentsController.downloadAttachment — Content-Type is never the raw caller-supplied mime', () => {
   it('echoes back an allowed mime (a real PDF upload) unchanged', async () => {
-    const download = jest.fn().mockResolvedValue({ bytes: Buffer.from('%PDF-1.4'), mime: 'application/pdf' });
+    const download = vi.fn().mockResolvedValue({ bytes: Buffer.from('%PDF-1.4'), mime: 'application/pdf' });
     const controller = buildController({ download });
     const { res, headers } = fakeResponse();
 
@@ -73,7 +75,7 @@ describe('DocumentsController.downloadAttachment — Content-Type is never the r
     // exact shape a query-string-controlled `?mime=` produces against a file the caller could not
     // have uploaded as that type through THIS controller's own upload route (which enforces the
     // allowlist), but could through a different one sharing the same storage.
-    const download = jest
+    const download = vi
       .fn()
       .mockResolvedValue({ bytes: Buffer.from('<script>evil</script>'), mime: untrustedMime });
     const controller = buildController({ download });
@@ -85,7 +87,7 @@ describe('DocumentsController.downloadAttachment — Content-Type is never the r
   });
 
   it('always sets X-Content-Type-Options: nosniff', async () => {
-    const download = jest.fn().mockResolvedValue({ bytes: Buffer.from('x'), mime: 'image/png' });
+    const download = vi.fn().mockResolvedValue({ bytes: Buffer.from('x'), mime: 'image/png' });
     const controller = buildController({ download });
     const { res, headers } = fakeResponse();
 
@@ -95,7 +97,7 @@ describe('DocumentsController.downloadAttachment — Content-Type is never the r
   });
 
   it('always sets Content-Disposition: attachment — never rendered inline, even for a trusted mime', async () => {
-    const download = jest.fn().mockResolvedValue({ bytes: Buffer.from('x'), mime: 'image/jpeg' });
+    const download = vi.fn().mockResolvedValue({ bytes: Buffer.from('x'), mime: 'image/jpeg' });
     const controller = buildController({ download });
     const { res, headers } = fakeResponse();
 
@@ -106,7 +108,7 @@ describe('DocumentsController.downloadAttachment — Content-Type is never the r
 
   it('still serves the actual bytes, even when the mime is downgraded to octet-stream', async () => {
     const bytes = Buffer.from('<script>evil</script>');
-    const download = jest.fn().mockResolvedValue({ bytes, mime: 'text/html' });
+    const download = vi.fn().mockResolvedValue({ bytes, mime: 'text/html' });
     const controller = buildController({ download });
     const { res, body } = fakeResponse();
 
@@ -116,7 +118,7 @@ describe('DocumentsController.downloadAttachment — Content-Type is never the r
   });
 
   it('rejects with no mime query param before ever calling the service', async () => {
-    const download = jest.fn();
+    const download = vi.fn();
     const controller = buildController({ download });
     const { res } = fakeResponse();
 

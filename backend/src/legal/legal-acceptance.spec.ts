@@ -1,17 +1,19 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { getPendingAcceptanceSlugs, recordLegalAcceptance } from './legal-acceptance';
 import { currentContentHashOf, getLegalDocument } from './legal-documents';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    legalAcceptance: { upsert: jest.fn(), findMany: jest.fn() },
+    legalAcceptance: { upsert: vi.fn(), findMany: vi.fn() },
   },
 }));
 
-const upsert = prisma.legalAcceptance.upsert as jest.Mock;
-const findMany = prisma.legalAcceptance.findMany as jest.Mock;
+const upsert = prisma.legalAcceptance.upsert as Mock;
+const findMany = prisma.legalAcceptance.findMany as Mock;
 
 const tosVersion = getLegalDocument('terms-of-service')!.version;
 const tosHash = currentContentHashOf('terms-of-service')!;

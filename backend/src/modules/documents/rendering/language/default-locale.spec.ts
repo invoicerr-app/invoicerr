@@ -1,9 +1,10 @@
+import { vi, type Mock } from 'vitest';
 import { logger } from '@/logger/logger.service';
 
 import { __resetDefaultLocaleForTests, resolveDefaultLocale } from './default-locale';
 
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 describe('resolveDefaultLocale', () => {
@@ -11,7 +12,7 @@ describe('resolveDefaultLocale', () => {
 
   beforeEach(() => {
     __resetDefaultLocaleForTests();
-    (logger.warn as jest.Mock).mockClear();
+    (logger.warn as Mock).mockClear();
   });
 
   afterAll(() => {
@@ -41,7 +42,7 @@ describe('resolveDefaultLocale', () => {
     process.env.DEFAULT_LOCALE = 'zz';
     expect(resolveDefaultLocale()).toBeUndefined();
     expect(logger.warn).toHaveBeenCalledTimes(1);
-    const [message, options] = (logger.warn as jest.Mock).mock.calls[0];
+    const [message, options] = (logger.warn as Mock).mock.calls[0];
     expect(message).toContain('DEFAULT_LOCALE="zz"');
     expect(options).toMatchObject({ category: 'mail', companyId: null });
   });

@@ -35,8 +35,11 @@
  * replay something it considers already done.
  *
  * Run locally:
- *   cd backend && RESTORE_PROBE_TESTS=1 npx jest restore-legacy-numbers-payments-signatures --forceExit
+ *   cd backend && RESTORE_PROBE_TESTS=1 npx vitest run src/prisma/restore-legacy-numbers-payments-signatures.spec.ts
  */
+
+import { vi } from 'vitest';
+
 import 'dotenv/config';
 
 import { execFileSync } from 'node:child_process';
@@ -44,6 +47,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Client } from 'pg';
+
+import { computeSettlement } from '../modules/documents/settlement/compute-settlement';
 
 // See backfill-legacy-documents.spec.ts's own copy of this same list for why it is safe to copy
 // (FROZEN — sync-schema.ts#V1_4_4A_BASELINE_MIGRATIONS states "never add to it").
@@ -76,7 +81,9 @@ const V1_4_4A_BASELINE_MIGRATIONS = [
 const restoreProbeTestsEnabled = process.env.RESTORE_PROBE_TESTS === '1';
 const describeGated = restoreProbeTestsEnabled ? describe : describe.skip;
 
-jest.setTimeout(180_000);
+// Vitest splits Jest's single `setTimeout(ms)` (tests AND hooks) into two fields — both need the same
+// budget here since `beforeAll` does the real `db push`/baseline/`migrate deploy` work.
+vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
 
 const BACKEND_ROOT = join(__dirname, '..', '..');
 // The exact prefix this task was told to use for its own throwaway databases (never
@@ -221,9 +228,8 @@ describeGated('20260913150000 restore — number/displayNumber, DocumentPayment,
     // Step 3: run the REAL upgrade path. Same `execFileSync` env patch as
     // backfill-legacy-documents.spec.ts's own test — see that file's header for the full "why" (ts-jest
     // does not propagate a `process.env` mutation to a bare `execFileSync` the way plain Node does).
-    jest.doMock('child_process', () => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const actual = jest.requireActual('child_process');
+    vi.doMock('child_process', async () => {
+      const actual = await vi.importActual('child_process');
       return {
         ...actual,
         execFileSync: (...callArgs: unknown[]) => {
@@ -239,9 +245,12 @@ describeGated('20260913150000 restore — number/displayNumber, DocumentPayment,
     });
 
     process.env.DATABASE_URL = throwawayUrl;
-    jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { syncDatabaseSchema } = require('./sync-schema') as typeof import('./sync-schema');
+    vi.resetModules();
+    // A dynamic import, not a top-level one: it MUST run after the `resetModules()`/`DATABASE_URL`
+    // mutation above so the fresh module instance picks up the throwaway connection string — a plain
+    // `require('./sync-schema')` fails outright here (Vite's require shim resolves paths literally,
+    // no `.ts`-extension fallback the way a static `import` gets), so this goes through `import()`.
+    const { syncDatabaseSchema } = await import('./sync-schema.js');
     await syncDatabaseSchema();
 
     const db = new Client({ connectionString: throwawayUrl });
@@ -314,13 +323,6 @@ describeGated('20260913150000 restore — number/displayNumber, DocumentPayment,
       // The actual settlement balance a real "record-payment" read would compute — invoice-1's
       // 360.00 total minus the one restored 200.00 payment leaves 160.00 outstanding; invoice-2's
       // 600.00 total is fully settled by its own single restored payment.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { computeSettlement } = require('../modules/documents/settlement/compute-settlement') as {
-        computeSettlement: (
-          totalGrossMinor: number,
-          payments: { amountMinor: number }[],
-        ) => { outstandingMinor: number; settled: boolean };
-      };
       const invoice1Settlement = computeSettlement(36000, [{ amountMinor: payment1.documentAmountMinor }]);
       expect(invoice1Settlement.outstandingMinor).toBe(16000);
       expect(invoice1Settlement.settled).toBe(false);

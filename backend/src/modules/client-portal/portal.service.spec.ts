@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from '../documents/actions/action-extensions';
@@ -17,8 +19,8 @@ import { SignaturesService } from '../documents/signatures/signatures.service';
 import { TransportRegistry } from '../documents/transports/transport-registry';
 import { PortalService } from './portal.service';
 
-jest.mock('../documents/persistence');
-jest.mock('../documents/settlement/client-statement');
+vi.mock('../documents/persistence');
+vi.mock('../documents/settlement/client-statement');
 
 /**
  * `PortalService` is where the portal's ENTIRE security boundary lives (see that file's own header)
@@ -57,15 +59,13 @@ function buildDocumentsService(): DocumentsService {
 
 function fakeSignaturesService(): SignaturesService {
   return {
-    requestSignature: jest.fn().mockResolvedValue({ message: 'sent' }),
+    requestSignature: vi.fn().mockResolvedValue({ message: 'sent' }),
   } as unknown as SignaturesService;
 }
 
 function fakePaymentSessionsService(): PaymentSessionsService {
   return {
-    createInvoiceCheckoutSession: jest
-      .fn()
-      .mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/x' }),
+    createInvoiceCheckoutSession: vi.fn().mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/x' }),
   } as unknown as PaymentSessionsService;
 }
 
@@ -132,14 +132,14 @@ const CREDIT_NOTE_A = instance({
 
 describe('PortalService — the client-portal security boundary', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getDocumentPdf', () => {
     it('a client CANNOT reach another client’s document by id — same company, wrong client, 404', async () => {
       const { service, documentsService } = buildService();
-      const renderSpy = jest.spyOn(documentsService, 'renderInstancePdf');
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(QUOTE_B);
+      const renderSpy = vi.spyOn(documentsService, 'renderInstancePdf');
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(QUOTE_B);
 
       await expect(service.getDocumentPdf(COMPANY, CLIENT_A, 'quote', 'quote-b')).rejects.toBeInstanceOf(
         NotFoundException,
@@ -150,8 +150,8 @@ describe('PortalService — the client-portal security boundary', () => {
 
     it('a DRAFT document is never portal-visible, even to its own client', async () => {
       const { service, documentsService } = buildService();
-      const renderSpy = jest.spyOn(documentsService, 'renderInstancePdf');
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(DRAFT_QUOTE_A);
+      const renderSpy = vi.spyOn(documentsService, 'renderInstancePdf');
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(DRAFT_QUOTE_A);
 
       await expect(
         service.getDocumentPdf(COMPANY, CLIENT_A, 'quote', 'quote-a-draft'),
@@ -169,10 +169,8 @@ describe('PortalService — the client-portal security boundary', () => {
 
     it('a credit note resolves its client THROUGH the invoice it corrects — wrong client still 404s', async () => {
       const { service, documentsService } = buildService();
-      const renderSpy = jest
-        .spyOn(documentsService, 'renderInstancePdf')
-        .mockResolvedValue(Buffer.from('pdf'));
-      (persistence.findOwnedDocument as jest.Mock).mockImplementation(
+      const renderSpy = vi.spyOn(documentsService, 'renderInstancePdf').mockResolvedValue(Buffer.from('pdf'));
+      (persistence.findOwnedDocument as Mock).mockImplementation(
         async (_companyId: string, typeId: string, id: string) => {
           if (typeId === 'credit-note' && id === 'cn-a') return CREDIT_NOTE_A;
           if (typeId === 'invoice' && id === 'invoice-a') return INVOICE_A;
@@ -194,10 +192,8 @@ describe('PortalService — the client-portal security boundary', () => {
 
     it('succeeds, and renders, for the RIGHT client on a clientVisible status', async () => {
       const { service, documentsService } = buildService();
-      const renderSpy = jest
-        .spyOn(documentsService, 'renderInstancePdf')
-        .mockResolvedValue(Buffer.from('pdf'));
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(QUOTE_A);
+      const renderSpy = vi.spyOn(documentsService, 'renderInstancePdf').mockResolvedValue(Buffer.from('pdf'));
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(QUOTE_A);
 
       const pdf = await service.getDocumentPdf(COMPANY, CLIENT_A, 'quote', 'quote-a');
       expect(pdf.toString()).toBe('pdf');
@@ -208,7 +204,7 @@ describe('PortalService — the client-portal security boundary', () => {
   describe('refuseQuote', () => {
     it('refuses to decline another client’s quote — 404, never a 403', async () => {
       const { service } = buildService();
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(QUOTE_B);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(QUOTE_B);
 
       await expect(service.refuseQuote(COMPANY, CLIENT_A, 'quote-b')).rejects.toBeInstanceOf(
         NotFoundException,
@@ -218,7 +214,7 @@ describe('PortalService — the client-portal security boundary', () => {
 
     it('409s a quote that is no longer "sent" (already signed/refused)', async () => {
       const { service } = buildService();
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({ ...QUOTE_A, status: 'signed' });
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...QUOTE_A, status: 'signed' });
 
       await expect(service.refuseQuote(COMPANY, CLIENT_A, 'quote-a')).rejects.toBeInstanceOf(
         ConflictException,
@@ -228,8 +224,8 @@ describe('PortalService — the client-portal security boundary', () => {
 
     it('declines the client’s OWN "sent" quote', async () => {
       const { service } = buildService();
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(QUOTE_A);
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({ ...QUOTE_A, status: 'refused' });
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(QUOTE_A);
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({ ...QUOTE_A, status: 'refused' });
 
       const result = await service.refuseQuote(COMPANY, CLIENT_A, 'quote-a');
       expect(result).toEqual({ status: 'refused' });
@@ -240,7 +236,7 @@ describe('PortalService — the client-portal security boundary', () => {
   describe('requestQuoteSignature', () => {
     it('refuses to start a signature request for another client’s quote — 404', async () => {
       const { service, signatures } = buildService();
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(QUOTE_B);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(QUOTE_B);
 
       await expect(service.requestQuoteSignature(COMPANY, CLIENT_A, 'quote-b')).rejects.toBeInstanceOf(
         NotFoundException,
@@ -250,7 +246,7 @@ describe('PortalService — the client-portal security boundary', () => {
 
     it('409s once the quote already left "sent"', async () => {
       const { service, signatures } = buildService();
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({ ...QUOTE_A, status: 'refused' });
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...QUOTE_A, status: 'refused' });
 
       await expect(service.requestQuoteSignature(COMPANY, CLIENT_A, 'quote-a')).rejects.toBeInstanceOf(
         ConflictException,
@@ -260,7 +256,7 @@ describe('PortalService — the client-portal security boundary', () => {
 
     it('delegates to the EXISTING SignaturesService.requestSignature, unchanged, for the right client', async () => {
       const { service, signatures } = buildService();
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(QUOTE_A);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(QUOTE_A);
 
       const result = await service.requestQuoteSignature(COMPANY, CLIENT_A, 'quote-a');
       expect(result).toEqual({ message: 'sent' });
@@ -277,7 +273,7 @@ describe('PortalService — the client-portal security boundary', () => {
     it('a client CANNOT open a checkout session for another client’s invoice — 404, never calls PaymentSessionsService', async () => {
       const { service, paymentSessions } = buildService();
       const invoiceB = { ...INVOICE_A, id: 'invoice-b', data: { client: CLIENT_B, currency: 'EUR' } };
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(invoiceB);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceB);
 
       await expect(
         service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-b', 'raw-token'),
@@ -291,7 +287,7 @@ describe('PortalService — the client-portal security boundary', () => {
         'method’s own header on why a new tab cannot rely on localStorage)',
       async () => {
         const { service, paymentSessions } = buildService();
-        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(INVOICE_A);
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(INVOICE_A);
         process.env.APP_URL = 'http://localhost:5173';
 
         const result = await service.createInvoiceCheckoutSession(
@@ -311,7 +307,7 @@ describe('PortalService — the client-portal security boundary', () => {
 
     it('strips a trailing slash off APP_URL before building the return URL', async () => {
       const { service, paymentSessions } = buildService();
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(INVOICE_A);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(INVOICE_A);
       process.env.APP_URL = 'http://localhost:5173/';
 
       await service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-a', 'raw-token');
@@ -326,7 +322,7 @@ describe('PortalService — the client-portal security boundary', () => {
   describe('listQuotes', () => {
     it('lists only THIS client’s quotes, on a clientVisible status — never a draft, never another client’s', async () => {
       const { service } = buildService();
-      (persistence.listDocuments as jest.Mock).mockResolvedValue([QUOTE_A, QUOTE_B, DRAFT_QUOTE_A]);
+      (persistence.listDocuments as Mock).mockResolvedValue([QUOTE_A, QUOTE_B, DRAFT_QUOTE_A]);
 
       const rows = await service.listQuotes(COMPANY, CLIENT_A);
       expect(rows.map((row) => row.id)).toEqual(['quote-a']);
@@ -338,7 +334,7 @@ describe('PortalService — the client-portal security boundary', () => {
     it('delegates VERBATIM to resolveClientStatement — never a second balance computation', async () => {
       const { service } = buildService();
       const fakeStatement = { clientId: CLIENT_A, documents: [], totals: [] };
-      (clientStatement.resolveClientStatement as jest.Mock).mockResolvedValue(fakeStatement);
+      (clientStatement.resolveClientStatement as Mock).mockResolvedValue(fakeStatement);
 
       const result = await service.getStatement(COMPANY, CLIENT_A);
       expect(result).toBe(fakeStatement);

@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -15,12 +17,12 @@ import prisma from '@/prisma/prisma.service';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
+vi.mock('./persistence');
 // Country policy/resolution — proven for real elsewhere (country-policy/country-policy.spec.ts,
 // documents.service.country-policy.spec.ts); mocked wholesale here for the same reason
 // documents.service.country-fields.spec.ts and documents.service.spec.ts already mock it: this file
 // is about wiring COMPANY CUSTOM FIELDS into describeTypeForCompany/runAction, not country policy.
-jest.mock('./country-policy/country-policy');
+vi.mock('./country-policy/country-policy');
 
 /**
  * Custom fields — proves `DocumentsService` actually composes a
@@ -55,12 +57,12 @@ function buildService() {
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
-  const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
+  const clientsService = { getClientById: vi.fn().mockResolvedValue(null) };
   const mailService = {
-    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   };
   const referenceRegistry = new EntityReferenceRegistry();
-  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
   const actionRegistry = new ActionRegistry();
   registerQuoteActions(actionRegistry, {
@@ -114,21 +116,21 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
   });
 
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
     // `describeTypeForCompany` decides every action in ONE batched call — see country-policy.ts's
     // own header on `evaluateCountryPolicyForActions` for why it, not `evaluateCountryPolicy`, is
     // what that method actually calls.
-    (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+    (countryPolicy.evaluateCountryPolicyForActions as Mock).mockImplementation(
       async (_companyId: string, _typeId: string, actionIds: string[]) =>
         actionIds.map(() => ({ allowed: true })),
     );
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue(undefined);
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(undefined);
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   describe('describeTypeForCompany — the FORM view', () => {
     it('an ACTIVE custom field definition shows up as a real, required field', async () => {
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+      (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
       const descriptor = await buildService().service.describeTypeForCompany(companyId, 'quote');
 
       expect(descriptor.fields.find((f) => f.key === 'custom:cost_center')).toMatchObject({
@@ -142,7 +144,7 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
 
     it('a company with NO custom field definitions for this type is byte-for-byte unaffected', async () => {
       const other = await makeCompany('b');
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+      (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
 
       const descriptor = await buildService().service.describeTypeForCompany(other.id, 'quote');
       expect(descriptor.fields.some((f) => f.key.startsWith('custom:'))).toBe(false);
@@ -185,7 +187,7 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
     });
 
     it('"save-draft": filling the custom field persists it, prefixed, alongside the native data', async () => {
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'draft',
@@ -210,7 +212,7 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
     });
 
     it('"send": a required custom field left empty is refused BEFORE the handler ever runs — no email, no enqueue', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'draft',
@@ -235,7 +237,7 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
     });
 
     it('"send": filling the custom field lets phase 1 (persist "sending" + enqueue) proceed normally', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'draft',
@@ -243,7 +245,7 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'sending',
@@ -274,7 +276,7 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
       });
       await archiveCompanyCustomField(companyId, archivable.id);
 
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'draft',
@@ -282,7 +284,7 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
         status: 'sending',

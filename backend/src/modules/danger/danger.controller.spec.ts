@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 import { DangerController } from './danger.controller';
@@ -14,10 +16,10 @@ import { DangerService } from './danger.service';
  */
 function buildController() {
   const service = {
-    resetCompanyData: jest.fn().mockResolvedValue({ message: 'ok' }),
-    deleteCompany: jest.fn().mockResolvedValue({ message: 'ok' }),
-    requestOtp: jest.fn().mockResolvedValue({ message: 'ok' }),
-    getCompanyDataResetPreflight: jest.fn().mockResolvedValue({
+    resetCompanyData: vi.fn().mockResolvedValue({ message: 'ok' }),
+    deleteCompany: vi.fn().mockResolvedValue({ message: 'ok' }),
+    requestOtp: vi.fn().mockResolvedValue({ message: 'ok' }),
+    getCompanyDataResetPreflight: vi.fn().mockResolvedValue({
       blocked: false,
       retainedDocuments: 0,
       retentionUntil: null,

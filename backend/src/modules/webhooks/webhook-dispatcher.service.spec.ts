@@ -8,23 +8,26 @@
  * opposite now holds — a dispatch with no companyId is refused outright, never silently widened — and
  * that a successful dispatch never logs a webhook's `secret`.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
 import { WebhookDispatcherService } from './webhook-dispatcher.service';
 import { WebhooksService } from './webhooks.service';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { webhook: { findMany: jest.fn() } },
+  default: { webhook: { findMany: vi.fn() } },
 }));
 
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const mockedPrisma = prisma as unknown as { webhook: { findMany: jest.Mock } };
-const mockedLogger = logger as unknown as { info: jest.Mock; error: jest.Mock };
+const mockedPrisma = prisma as unknown as { webhook: { findMany: Mock } };
+const mockedLogger = logger as unknown as { info: Mock; error: Mock };
 
 const COMPANY_ID = 'company-1';
 
@@ -42,11 +45,11 @@ function makeWebhook(overrides: Record<string, unknown> = {}) {
 
 describe('WebhookDispatcherService.dispatch', () => {
   let service: WebhookDispatcherService;
-  let webhooksService: { send: jest.Mock };
+  let webhooksService: { send: Mock };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    webhooksService = { send: jest.fn().mockResolvedValue([true]) };
+    vi.clearAllMocks();
+    webhooksService = { send: vi.fn().mockResolvedValue([true]) };
     service = new WebhookDispatcherService(webhooksService as unknown as WebhooksService);
   });
 

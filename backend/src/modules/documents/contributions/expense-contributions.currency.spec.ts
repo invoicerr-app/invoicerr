@@ -1,20 +1,22 @@
+import { vi, type Mock } from 'vitest';
+
 import * as currencyRatesStore from '../../company/currency-rates/currency-rates.store';
 import * as persistence from '../persistence';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildExpenseDashboardWidgetsWithConsolidation } from './expense-contributions';
 import { MetricWidget } from './widgets';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 // Same "mock only the DB-touching reads, keep the real pure mapper" discipline as
 // currency-consolidation.spec.ts's own `loadCurrencyContext` tests.
-jest.mock('../../company/currency-rates/currency-rates.store', () => {
-  const actual = jest.requireActual('../../company/currency-rates/currency-rates.store');
-  return { ...actual, getReferenceCurrency: jest.fn(), listCurrencyRates: jest.fn() };
+vi.mock('../../company/currency-rates/currency-rates.store', async () => {
+  const actual = await vi.importActual('../../company/currency-rates/currency-rates.store');
+  return { ...actual, getReferenceCurrency: vi.fn(), listCurrencyRates: vi.fn() };
 });
 
-const listDocuments = persistence.listDocuments as jest.Mock;
-const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as jest.Mock;
-const listCurrencyRates = currencyRatesStore.listCurrencyRates as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
+const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as Mock;
+const listCurrencyRates = currencyRatesStore.listCurrencyRates as Mock;
 
 function expense(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -37,13 +39,13 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
   const now = new Date('2026-08-30');
 
   beforeEach(() => {
-    jest.useFakeTimers().setSystemTime(now);
+    vi.useFakeTimers().setSystemTime(now);
     listDocuments.mockReset();
     getReferenceCurrency.mockReset();
     listCurrencyRates.mockReset();
   });
 
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('no referenceCurrency set: the exact same widgets as the base handler, untouched — the default', async () => {
     listDocuments.mockResolvedValue([

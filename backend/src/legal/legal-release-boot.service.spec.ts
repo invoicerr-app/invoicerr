@@ -1,18 +1,20 @@
+import { vi, type Mock } from 'vitest';
+
 import { BILLING_FLAG_NAME } from '../modules/billing/billing-flag';
 import { LegalReleaseBootService } from './legal-release-boot.service';
 import { detectAndRecordNewLegalReleases } from './legal-release-detection';
 import { notifyUsersOfLegalReleases } from './legal-release-notify';
 
-jest.mock('./legal-release-detection');
-jest.mock('./legal-release-notify');
+vi.mock('./legal-release-detection');
+vi.mock('./legal-release-notify');
 
-const detect = detectAndRecordNewLegalReleases as jest.Mock;
-const notify = notifyUsersOfLegalReleases as jest.Mock;
+const detect = detectAndRecordNewLegalReleases as Mock;
+const notify = notifyUsersOfLegalReleases as Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
 function fakeMailService() {
-  return { sendMail: jest.fn() } as unknown as import('@/mail/mail.service').MailService;
+  return { sendMail: vi.fn() } as unknown as import('@/mail/mail.service').MailService;
 }
 
 const tosDoc = { slug: 'terms-of-service', title: 'Terms of Service', version: '2026-09-17' } as never;

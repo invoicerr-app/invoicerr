@@ -12,8 +12,11 @@
  * carries — in `DocumentInstance.displayNumber` itself, not just a function's return value — is the
  * pattern the settings screen saved.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { CompanyService } from './company.service';
@@ -22,7 +25,7 @@ import { takeDocumentNumberForTransition } from '../documents/numbering/take-num
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 describe('The "Number formats" settings card actually drives numbering (not just Company.numberFormats)', () => {

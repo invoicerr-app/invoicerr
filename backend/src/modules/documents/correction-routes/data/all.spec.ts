@@ -1,12 +1,15 @@
 /**
- * `jest.requireActual('node:fs')` passthrough for every REAL shipped file (fr/it/pl/de/es/mx/us.json,
+ * A real-`readFileSync` passthrough for every REAL shipped file (fr/it/pl/de/es/mx/us.json,
  * read straight off disk exactly like an unmocked test would) — the ONLY intercepted path is the one
  * INVENTED "zz.json" this file's own last test uses to prove the load-time gate against an eighth
  * country that never shipped, without needing a real, checked-in file that deliberately breaks the
  * rule it exists to enforce (see `all.ts`'s own `loadCountryFile` export comment).
  */
 
-const FAKE_ZZ_FILE_NO_PROVENANCE = {
+// Named with the "mock" prefix deliberately: `vi.mock` factories below are hoisted above this
+// declaration, and only an out-of-scope reference whose name starts with "mock" survives that
+// hoist (Vitest's own documented exception to "a mock factory can't close over module scope").
+const mockZzFileNoProvenance = {
   countryCode: 'ZZ',
   routes: [
     {
@@ -18,15 +21,23 @@ const FAKE_ZZ_FILE_NO_PROVENANCE = {
   ],
 };
 
-jest.mock('node:fs', () => ({
-  ...jest.requireActual('node:fs'),
-  readFileSync: jest.fn((path: string, encoding: BufferEncoding) => {
-    if (typeof path === 'string' && path.endsWith('zz.json')) {
-      return JSON.stringify(FAKE_ZZ_FILE_NO_PROVENANCE);
-    }
-    return jest.requireActual('node:fs').readFileSync(path, encoding);
-  }),
-}));
+import { vi } from 'vitest';
+
+// The inner `readFileSync` implementation below runs SYNCHRONOUSLY, every time production code
+// calls it — it cannot itself `await vi.importActual`. So the actual module is resolved ONCE, here,
+// at factory setup, and captured in `actual` for the mock's own function body to call synchronously.
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  return {
+    ...actual,
+    readFileSync: vi.fn((path: string, encoding: BufferEncoding) => {
+      if (typeof path === 'string' && path.endsWith('zz.json')) {
+        return JSON.stringify(mockZzFileNoProvenance);
+      }
+      return actual.readFileSync(path, encoding);
+    }),
+  };
+});
 
 import { InvalidCorrectionRouteProvenanceError } from '../schema';
 import { ALL_CORRECTION_ROUTES_FILES, loadCountryFile } from './all';
@@ -160,7 +171,7 @@ describe('correction-routes/data/all.ts', () => {
 // with the IDENTICAL pattern, independently of all.ts's own implementation, so a regression that
 // silently drops a file from discovery (a typo'd pattern, a change that stops sorting, anything) goes
 // red here — the whole point of "adding a country = dropping a file" is only true if this holds. Uses
-// `require('node:fs')` (real, unmocked — the file-level `jest.mock` above only overrides
+// `require('node:fs')` (real, unmocked — the file-level `vi.mock` above only overrides
 // `readFileSync`) rather than the module's own mocked `readFileSync`.
 describe('correction-routes/data — every *.json on disk is actually loaded (drop-in invariant)', () => {
   it('ALL_CORRECTION_ROUTES_FILES covers exactly the country files present in this directory, no more, no fewer', () => {

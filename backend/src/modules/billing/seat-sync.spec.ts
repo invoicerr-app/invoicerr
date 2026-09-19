@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
@@ -14,34 +16,34 @@ function fakeTx(overrides: {
   usedSeatIndexes?: (number | null)[];
 }) {
   return {
-    $queryRaw: jest.fn().mockResolvedValue([{ id: 'sub-row-1' }]),
+    $queryRaw: vi.fn().mockResolvedValue([{ id: 'sub-row-1' }]),
     userCompany: {
-      findUnique: jest.fn().mockResolvedValue(overrides.alreadyMember ? { id: 'existing-row' } : null),
-      count: jest.fn().mockResolvedValue(overrides.headcount ?? 0),
-      findMany: jest
+      findUnique: vi.fn().mockResolvedValue(overrides.alreadyMember ? { id: 'existing-row' } : null),
+      count: vi.fn().mockResolvedValue(overrides.headcount ?? 0),
+      findMany: vi
         .fn()
         .mockResolvedValue((overrides.usedSeatIndexes ?? []).map((seatIndex) => ({ seatIndex }))),
-      update: jest.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
     },
     companySubscription: {
-      findUniqueOrThrow: jest.fn().mockResolvedValue(overrides.sub ?? { seats: 1 }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(overrides.sub ?? { seats: 1 }),
     },
   };
 }
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    userCompany: { count: jest.fn() },
-    $transaction: jest.fn(),
+    userCompany: { count: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
-jest.mock('./company-subscription.store');
+vi.mock('./company-subscription.store');
 
-const count = prisma.userCompany.count as jest.Mock;
-const transaction = prisma.$transaction as jest.Mock;
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
-const lockRow = lockCompanySubscriptionRow as jest.Mock;
+const count = prisma.userCompany.count as Mock;
+const transaction = prisma.$transaction as Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
+const lockRow = lockCompanySubscriptionRow as Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
@@ -59,14 +61,14 @@ describe('withSeatReservation', () => {
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     if (ORIGINAL_ENV === undefined) delete process.env[BILLING_FLAG_NAME];
     else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
   });
 
   it('is a no-op wrapper when billing is disabled — still runs createMembership, no lock, no seat bookkeeping', async () => {
     delete process.env[BILLING_FLAG_NAME];
-    const createMembership = jest.fn().mockResolvedValue('created');
+    const createMembership = vi.fn().mockResolvedValue('created');
     transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn({}));
 
     await expect(withSeatReservation('company-1', 'user-1', createMembership)).resolves.toBe('created');
@@ -78,7 +80,7 @@ describe('withSeatReservation', () => {
   it('refuses with NoFreeSeatError when the company already has as many members as bought seats', async () => {
     getOrCreate.mockResolvedValue({});
     stubTransaction({ alreadyMember: false, sub: { seats: 2 }, headcount: 2 });
-    const createMembership = jest.fn().mockResolvedValue('created');
+    const createMembership = vi.fn().mockResolvedValue('created');
 
     const action = withSeatReservation('company-1', 'user-1', createMembership);
 
@@ -95,7 +97,7 @@ describe('withSeatReservation', () => {
       headcount: 2,
       usedSeatIndexes: [1, 3],
     });
-    const createMembership = jest.fn().mockResolvedValue('created');
+    const createMembership = vi.fn().mockResolvedValue('created');
 
     await withSeatReservation('company-1', 'user-2', createMembership);
 
@@ -114,7 +116,7 @@ describe('withSeatReservation', () => {
       headcount: 0,
       usedSeatIndexes: [],
     });
-    const createMembership = jest.fn().mockResolvedValue('created');
+    const createMembership = vi.fn().mockResolvedValue('created');
 
     await withSeatReservation('company-1', 'owner-1', createMembership);
 
@@ -127,7 +129,7 @@ describe('withSeatReservation', () => {
   it('re-opening a link for an ALREADY-member user is a no-op: no capacity check, no seatIndex reassignment', async () => {
     getOrCreate.mockResolvedValue({});
     const tx = stubTransaction({ alreadyMember: true });
-    const createMembership = jest.fn().mockResolvedValue('updated');
+    const createMembership = vi.fn().mockResolvedValue('updated');
 
     await withSeatReservation('company-1', 'user-1', createMembership);
 
@@ -140,14 +142,14 @@ describe('withSeatReservation', () => {
     getOrCreate.mockResolvedValue({});
     const tx = stubTransaction({ alreadyMember: false, sub: { seats: 5 }, headcount: 0 });
 
-    await withSeatReservation('company-1', 'user-1', jest.fn().mockResolvedValue(undefined));
+    await withSeatReservation('company-1', 'user-1', vi.fn().mockResolvedValue(undefined));
 
     expect(lockRow).toHaveBeenCalledWith(tx, 'company-1');
   });
 });
 
 describe('countCompanySeats', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('counts UserCompany rows for the company', async () => {
     count.mockResolvedValue(5);

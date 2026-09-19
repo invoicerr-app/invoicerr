@@ -1,9 +1,10 @@
+import { vi, type Mock } from 'vitest';
 import { ActionExtensionRegistry } from './action-extensions';
 import { ActionRegistry } from './action-registry';
 import { applyDateRecalc, registerDuplicateExtension } from './duplicate-extension';
 import * as persistence from '../persistence';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 describe('applyDateRecalc', () => {
   it('overrides the anchor field and shifts every dependent field by the SAME delta the source had', () => {
@@ -71,11 +72,11 @@ describe('registerDuplicateExtension — the handler', () => {
     updatedAt: new Date(),
   };
 
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('with no occurrenceDate/thenSend params at all, clones the source data VERBATIM (the plain manual button)', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SOURCE);
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({ ...SOURCE, id: 'doc-2' });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SOURCE);
+    (persistence.upsertDocument as Mock).mockResolvedValue({ ...SOURCE, id: 'doc-2' });
 
     const extensions = new ActionExtensionRegistry();
     const actions = new ActionRegistry();
@@ -96,8 +97,8 @@ describe('registerDuplicateExtension — the handler', () => {
   });
 
   it('with an occurrenceDate param and a registered dateRecalc, recomputes the anchor + dependent fields', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SOURCE);
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({ ...SOURCE, id: 'doc-2' });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SOURCE);
+    (persistence.upsertDocument as Mock).mockResolvedValue({ ...SOURCE, id: 'doc-2' });
 
     const extensions = new ActionExtensionRegistry();
     const actions = new ActionRegistry();
@@ -122,8 +123,8 @@ describe('registerDuplicateExtension — the handler', () => {
   });
 
   it('an occurrenceDate param is a no-op when the type was registered with NO dateRecalc (the quote today)', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SOURCE);
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({ ...SOURCE, id: 'doc-2' });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SOURCE);
+    (persistence.upsertDocument as Mock).mockResolvedValue({ ...SOURCE, id: 'doc-2' });
 
     const extensions = new ActionExtensionRegistry();
     const actions = new ActionRegistry();
@@ -154,8 +155,8 @@ describe('registerDuplicateExtension — the handler', () => {
   // "sending" forever. The chaining now lives in schedule-sweep-runner.ts's `runOccurrence`
   // instead, called SYNCHRONOUSLY, outside any job context — see that file's own tests.
   it('an unknown param (e.g. thenSend) is silently ignored — this handler only ever produces a fresh draft', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SOURCE);
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({ ...SOURCE, id: 'doc-2' });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SOURCE);
+    (persistence.upsertDocument as Mock).mockResolvedValue({ ...SOURCE, id: 'doc-2' });
 
     const extensions = new ActionExtensionRegistry();
     const actions = new ActionRegistry();

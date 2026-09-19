@@ -8,17 +8,20 @@
  * these three routes strip `secret` from the dispatch payload while leaving the direct HTTP response
  * (the one legitimate reveal) untouched.
  */
+
+import { vi, type Mock } from 'vitest';
+
 // `@thallesp/nestjs-better-auth` and `@/guards/auth.guard`'s own `@/lib/auth`/`better-auth/node`
 // imports all ship or pull in an ESM-only transitive dependency (better-auth/dist/plugins/index.mjs)
 // jest's ts-jest transform doesn't parse. `WebhooksController` imports `AuthGuard` for every one of
 // its routes — the exact same barrier `requires-scope.controllers.spec.ts` already documents and
 // mocks around the same way, rather than widening jest's transformIgnorePatterns for decorators this
 // file never exercises.
-jest.mock('@/lib/auth', () => ({
-  auth: { api: { getSession: jest.fn().mockResolvedValue(null) } },
+vi.mock('@/lib/auth', () => ({
+  auth: { api: { getSession: vi.fn().mockResolvedValue(null) } },
 }));
-jest.mock('better-auth/node', () => ({
-  fromNodeHeaders: jest.fn((headers: unknown) => headers),
+vi.mock('better-auth/node', () => ({
+  fromNodeHeaders: vi.fn((headers: unknown) => headers),
 }));
 
 import { WebhooksController } from './webhooks.controller';
@@ -26,15 +29,15 @@ import { WebhooksService } from './webhooks.service';
 import { WebhookDispatcherService } from './webhook-dispatcher.service';
 
 describe('WebhooksController — never forwards a secret into the dispatch payload', () => {
-  let webhooksService: { create: jest.Mock; update: jest.Mock; remove: jest.Mock };
-  let dispatcher: { dispatch: jest.Mock };
+  let webhooksService: { create: Mock; update: Mock; remove: Mock };
+  let dispatcher: { dispatch: Mock };
   let controller: WebhooksController;
 
   const COMPANY = { id: 'company-1' };
 
   beforeEach(() => {
-    webhooksService = { create: jest.fn(), update: jest.fn(), remove: jest.fn() };
-    dispatcher = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    webhooksService = { create: vi.fn(), update: vi.fn(), remove: vi.fn() };
+    dispatcher = { dispatch: vi.fn().mockResolvedValue(undefined) };
     controller = new WebhooksController(
       webhooksService as unknown as WebhooksService,
       dispatcher as unknown as WebhookDispatcherService,

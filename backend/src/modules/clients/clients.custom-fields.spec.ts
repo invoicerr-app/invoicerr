@@ -3,8 +3,11 @@
  * constructed directly (same "ClientsModule not importable under ts-jest" convention
  * `clients.mass-assignment.spec.ts`/`clients.vat-validation.spec.ts` already hold), real Prisma.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { ClientsService } from './clients.service';
@@ -14,11 +17,11 @@ import { createCompanyCustomField } from '../documents/company-custom-fields/per
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 const fakeVatValidator: VatValidationPort = {
-  validate: jest.fn().mockResolvedValue({ status: 'UNAVAILABLE', checkedAt: new Date(), source: 'test' }),
+  validate: vi.fn().mockResolvedValue({ status: 'UNAVAILABLE', checkedAt: new Date(), source: 'test' }),
 };
 
 describe('ClientsService — company custom fields (CLIENT target)', () => {

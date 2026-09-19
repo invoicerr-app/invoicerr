@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
 import { ActionRegistry } from './action-registry';
@@ -8,7 +9,7 @@ import {
 } from './request-installments';
 import * as persistence from '../persistence';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 /**
  * `computeMilestoneSplit` is pure — no mocks needed, exactly the "math split pure from I/O"
@@ -104,7 +105,7 @@ function mockQuote(overrides: {
   lines: Array<Record<string, unknown>>;
   notes?: string;
 }) {
-  (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+  (persistence.findOwnedDocument as Mock).mockResolvedValue({
     id: overrides.id ?? 'quote-1',
     typeId: 'quote',
     status: 'sent',
@@ -123,13 +124,13 @@ function mockQuote(overrides: {
 }
 
 describe('request-installments', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('mono-rate quote: creates one draft invoice per milestone, dates and amounts as computed', async () => {
     // Net 250.00 EUR (25000 cents) @ 20% VAT -> gross 300.00 EUR (30000 cents).
     mockQuote({ lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] });
     let call = 0;
-    (persistence.upsertDocument as jest.Mock).mockImplementation(() =>
+    (persistence.upsertDocument as Mock).mockImplementation(() =>
       Promise.resolve({
         id: `invoice-${++call}`,
         typeId: 'invoice',
@@ -157,7 +158,7 @@ describe('request-installments', () => {
 
     expect(persistence.upsertDocument).toHaveBeenCalledTimes(3);
 
-    const calls = (persistence.upsertDocument as jest.Mock).mock.calls;
+    const calls = (persistence.upsertDocument as Mock).mock.calls;
     expect(calls[0]).toEqual([
       'company-1',
       'invoice',
@@ -239,7 +240,7 @@ describe('request-installments', () => {
 
   it('zero-rate quote (no VAT anywhere): perfectly fine, uses rate 0', async () => {
     mockQuote({ lines: [{ description: 'A', quantity: 1, unitPrice: 200, vatRate: '' }] });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'invoice-1',
       typeId: 'invoice',
       status: 'draft',
@@ -263,7 +264,7 @@ describe('request-installments', () => {
     });
 
     expect(result.changed).toBe(true);
-    const calls = (persistence.upsertDocument as jest.Mock).mock.calls;
+    const calls = (persistence.upsertDocument as Mock).mock.calls;
     expect(calls[0][4].lines[0]).toEqual(expect.objectContaining({ vatRate: '0' }));
   });
 });

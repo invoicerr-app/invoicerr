@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
@@ -13,15 +15,28 @@ import { hashSignatureToken } from './signature-token';
 import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 import { SignaturesService } from './signatures.service';
 
-jest.mock('../persistence');
+// A plain `vi.spyOn(nodemailer, 'createTransport')` (what this worked as under Jest, where a
+// namespace import is a mutable CJS-interop object) throws under Vitest — a real ES module
+// namespace object is frozen, and spyOn tries to redefine one of its properties ("Cannot redefine
+// property: createTransport"). Wholesale-mocking the export instead (real for everything else via
+// `importOriginal`, `createTransport` a plain `vi.fn()`) sidesteps that: the three tests in the
+// "société → instance → refus-nommé cascade" describe below configure it directly rather than
+// spying on it per test. Every OTHER test in this file never constructs a real `MailService`/
+// touches `nodemailer` at all, so mocking this export file-wide changes nothing for them.
+vi.mock('nodemailer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('nodemailer')>();
+  return { ...actual, createTransport: vi.fn() };
+});
+
+vi.mock('../persistence');
 // `archive/storage.ts` itself is unit-tested on its own (archive/storage.spec.ts) — mocked here with
 // a tiny in-memory map keyed by the SAME content-addressed uri the real module would compute, so
 // tests below can prove "the second read returns exactly what the first write persisted" without
 // touching the filesystem at all — the identical "mock the module boundary with a faithful fake, not
-// a bare jest.fn() per method" discipline this file's own `@/prisma/prisma.service` mock documents.
-jest.mock('../archive/storage');
+// a bare vi.fn() per method" discipline this file's own `@/prisma/prisma.service` mock documents.
+vi.mock('../archive/storage');
 const archivedFiles = new Map<string, Buffer>();
-(archiveStorage.persistArtifacts as jest.Mock).mockImplementation(
+(archiveStorage.persistArtifacts as Mock).mockImplementation(
   async (documentId: string, artifacts: Array<{ role: string; mime: string; bytes: Uint8Array }>) => {
     const contentHash = computeContentHash(artifacts);
     const uri = `file:///fake-archive/${documentId}/${contentHash}`;
@@ -29,26 +44,26 @@ const archivedFiles = new Map<string, Buffer>();
     return { uri, contentHash };
   },
 );
-(archiveStorage.readArchivedArtifact as jest.Mock).mockImplementation(async (uri: string) => {
+(archiveStorage.readArchivedArtifact as Mock).mockImplementation(async (uri: string) => {
   return archivedFiles.get(uri) ?? null;
 });
 // Only used by the "company → instance" cascade tests near the bottom of this file — every other
-// test here keeps using a bare fake `{ sendForCompany: jest.fn() }`, never touching this at all.
-jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
-  resolveCompanyMailSettings: jest.fn(),
+// test here keeps using a bare fake `{ sendForCompany: vi.fn() }`, never touching this at all.
+vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: vi.fn(),
 }));
-const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
 
 /**
- * `@/prisma/prisma.service` is mocked with a tiny IN-MEMORY table (not a bare `jest.fn()` per
+ * `@/prisma/prisma.service` is mocked with a tiny IN-MEMORY table (not a bare `vi.fn()` per
  * method) — the same "mock the module boundary, not a re-implementation of Prisma" discipline
  * `share-links.service.spec.ts` already documents for the identical situation. This is what lets a
  * real round trip (mint -> fail x5 -> locked, or request -> otp -> sign) exercise the ACTUAL
  * `signature.persistence.ts` module, only the database itself is fake — including its atomic
  * `updateMany`-with-a-guard-condition semantics, which is exactly the part a hand-wired
- * `jest.fn().mockResolvedValue(...)` per call could never actually prove.
+ * `vi.fn().mockResolvedValue(...)` per call could never actually prove.
  */
-jest.mock('@/prisma/prisma.service', () => {
+vi.mock('@/prisma/prisma.service', () => {
   const rows: Array<Record<string, any>> = [];
   let nextId = 1;
 
@@ -76,7 +91,7 @@ jest.mock('@/prisma/prisma.service', () => {
   }
 
   const signature = {
-    create: jest.fn(async ({ data }: { data: Record<string, any> }) => {
+    create: vi.fn(async ({ data }: { data: Record<string, any> }) => {
       const row = {
         id: `sig-${nextId++}`,
         otpCodeHash: null,
@@ -99,27 +114,25 @@ jest.mock('@/prisma/prisma.service', () => {
       rows.push(row);
       return { ...row };
     }),
-    findUnique: jest.fn(async ({ where }: { where: Record<string, any> }) => {
+    findUnique: vi.fn(async ({ where }: { where: Record<string, any> }) => {
       const row = rows.find((r) => matches(r, where));
       return row ? { ...row } : null;
     }),
-    findUniqueOrThrow: jest.fn(async ({ where }: { where: Record<string, any> }) => {
+    findUniqueOrThrow: vi.fn(async ({ where }: { where: Record<string, any> }) => {
       const row = rows.find((r) => matches(r, where));
       if (!row) throw new Error(`no Signature "${JSON.stringify(where)}"`);
       return { ...row };
     }),
-    findFirst: jest.fn(async ({ where }: { where: Record<string, any> }) => {
+    findFirst: vi.fn(async ({ where }: { where: Record<string, any> }) => {
       const row = rows.find((r) => matches(r, where));
       return row ? { ...row } : null;
     }),
-    updateMany: jest.fn(
-      async ({ where, data }: { where: Record<string, any>; data: Record<string, any> }) => {
-        const matched = rows.filter((r) => matches(r, where));
-        for (const row of matched) applyData(row, data);
-        return { count: matched.length };
-      },
-    ),
-    update: jest.fn(async ({ where, data }: { where: Record<string, any>; data: Record<string, any> }) => {
+    updateMany: vi.fn(async ({ where, data }: { where: Record<string, any>; data: Record<string, any> }) => {
+      const matched = rows.filter((r) => matches(r, where));
+      for (const row of matched) applyData(row, data);
+      return { count: matched.length };
+    }),
+    update: vi.fn(async ({ where, data }: { where: Record<string, any>; data: Record<string, any> }) => {
       const row = rows.find((r) => matches(r, where));
       if (!row) throw new Error(`no Signature "${JSON.stringify(where)}"`);
       applyData(row, data);
@@ -131,7 +144,7 @@ jest.mock('@/prisma/prisma.service', () => {
   // engine interpolates (`actions/email-template.ts`), and html, which is the only thing
   // `MailTemplate.body` has ever held. Individual tests below override this to prove the no-row-at-all
   // path (the shipped default applies) and the unknown-placeholder path; it is exported so `beforeEach`
-  // can REINSTATE it, because `jest.clearAllMocks()` clears recorded calls but NOT implementations — an
+  // can REINSTATE it, because `vi.clearAllMocks()` clears recorded calls but NOT implementations — an
   // overriding test would otherwise silently poison every test that runs after it.
   const defaultMailTemplateFindFirst = async ({ where }: { where: { type: string } }) =>
     where.type === 'SIGNATURE_REQUEST'
@@ -145,10 +158,10 @@ jest.mock('@/prisma/prisma.service', () => {
     __esModule: true,
     default: {
       signature,
-      mailTemplate: { findFirst: jest.fn(defaultMailTemplateFindFirst) },
+      mailTemplate: { findFirst: vi.fn(defaultMailTemplateFindFirst) },
       // No company language set by default — `resolveRecipientLanguage`'s own fallback chain then
       // lands on English, the exact behavior every pre-existing test in this file already expects.
-      company: { findUnique: jest.fn().mockResolvedValue({ language: null }) },
+      company: { findUnique: vi.fn().mockResolvedValue({ language: null }) },
     },
     __rows: rows,
     __defaultMailTemplateFindFirst: defaultMailTemplateFindFirst,
@@ -166,15 +179,15 @@ const SENT_QUOTE = {
 };
 
 function buildService(
-  webhooks: { dispatch: jest.Mock } = { dispatch: jest.fn().mockResolvedValue(undefined) },
-  documentsService: { renderInstancePdf: jest.Mock } = {
-    renderInstancePdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.7 fake rendered bytes')),
+  webhooks: { dispatch: Mock } = { dispatch: vi.fn().mockResolvedValue(undefined) },
+  documentsService: { renderInstancePdf: Mock } = {
+    renderInstancePdf: vi.fn().mockResolvedValue(Buffer.from('%PDF-1.7 fake rendered bytes')),
   },
 ) {
   const clientsService = {
-    getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+    getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
   };
-  const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
+  const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
   const service = new SignaturesService(
     clientsService as any,
     mailService as any,
@@ -184,22 +197,42 @@ function buildService(
   return { service, clientsService, mailService, webhooks, documentsService };
 }
 
+// Resolved once, in `beforeAll` — the same "vi.importMock, not Jest's synchronous require-the-mock
+// helper" reasoning `documents.service.formats.spec.ts`'s own header documents for the identical
+// situation. Every requireMock('@/prisma/prisma.service') call site below (the `rows()` helper, the
+// `beforeEach` template-reinstatement, and the language-cascade tests near the bottom of this file)
+// becomes a read of this single, already-resolved reference instead.
+let mockedPrismaModule: {
+  default: {
+    signature: Record<string, Mock>;
+    mailTemplate: { findFirst: Mock };
+    company: { findUnique: Mock };
+  };
+  __rows: Array<Record<string, any>>;
+  __defaultMailTemplateFindFirst: (args: {
+    where: { type: string };
+  }) => Promise<{ subject: string; body: string }>;
+};
+beforeAll(async () => {
+  mockedPrismaModule = await vi.importMock('@/prisma/prisma.service');
+});
+
 function rows(): Array<Record<string, any>> {
-  return jest.requireMock('@/prisma/prisma.service').__rows;
+  return mockedPrismaModule.__rows;
 }
 
 describe('SignaturesService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     rows().length = 0;
     archivedFiles.clear();
     // See the mock factory's own comment: implementations survive `clearAllMocks`, so the stored-template
     // fixture is put back deliberately before every test.
-    const mock = jest.requireMock('@/prisma/prisma.service');
+    const mock = mockedPrismaModule;
     mock.default.mailTemplate.findFirst.mockImplementation(mock.__defaultMailTemplateFindFirst);
     mock.default.company.findUnique.mockResolvedValue({ language: null });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_QUOTE);
-    (persistence.updateDocumentStatus as jest.Mock).mockImplementation(
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_QUOTE);
+    (persistence.updateDocumentStatus as Mock).mockImplementation(
       async (_companyId: string, _typeId: string, id: string, status: string) => ({
         ...SENT_QUOTE,
         id,
@@ -255,10 +288,7 @@ describe('SignaturesService', () => {
   });
 
   describe('the public flow — resolve / otp / sign', () => {
-    async function requestAndGetToken(
-      service: SignaturesService,
-      mailService: { sendForCompany: jest.Mock },
-    ) {
+    async function requestAndGetToken(service: SignaturesService, mailService: { sendForCompany: Mock }) {
       await service.requestSignature('company-1', 'quote', 'quote-1');
       const html = mailService.sendForCompany.mock.calls[0][1].html as string;
       return /\/signature\/([0-9a-f]{64,})/.exec(html)![1];
@@ -384,7 +414,7 @@ describe('SignaturesService', () => {
 
     async function mintedCode(
       service: SignaturesService,
-      mailService: { sendForCompany: jest.Mock },
+      mailService: { sendForCompany: Mock },
       token: string,
     ) {
       mailService.sendForCompany.mockClear();
@@ -529,7 +559,7 @@ describe('SignaturesService', () => {
       const { service, mailService } = buildService();
       const token = await requestAndGetToken(service, mailService);
       const code = await mintedCode(service, mailService, token);
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({ ...SENT_QUOTE, status: 'draft' });
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...SENT_QUOTE, status: 'draft' });
 
       await expect(service.verifyAndSign(token, code)).rejects.toBeInstanceOf(ConflictException);
     });
@@ -550,7 +580,7 @@ describe('SignaturesService', () => {
 
     it('falls back to the SHIPPED default when the company has no stored template — never a refusal', async () => {
       const { service, mailService } = buildService();
-      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      const prisma = mockedPrismaModule.default;
       // A company whose rows were never created, or were deleted by the app reset: no longer a failure.
       prisma.mailTemplate.findFirst.mockResolvedValue(null);
 
@@ -567,16 +597,16 @@ describe('SignaturesService', () => {
 
     it("uses the CLIENT's own language for the shipped default — never a company override, which is never translated", async () => {
       const clientsService = {
-        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com', language: 'fr' }),
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com', language: 'fr' }),
       };
-      const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
-      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
+      const prisma = mockedPrismaModule.default;
       prisma.mailTemplate.findFirst.mockResolvedValue(null); // no override — the shipped default applies
       const service = new SignaturesService(
         clientsService as any,
         mailService as any,
-        { dispatch: jest.fn().mockResolvedValue(undefined) } as any,
-        { renderInstancePdf: jest.fn() } as any,
+        { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: vi.fn() } as any,
       );
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -588,17 +618,17 @@ describe('SignaturesService', () => {
 
     it("falls back to the COMPANY's own language when the client has none", async () => {
       const clientsService = {
-        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
       };
-      const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
-      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
+      const prisma = mockedPrismaModule.default;
       prisma.mailTemplate.findFirst.mockResolvedValue(null);
       prisma.company.findUnique.mockResolvedValue({ language: 'de' });
       const service = new SignaturesService(
         clientsService as any,
         mailService as any,
-        { dispatch: jest.fn().mockResolvedValue(undefined) } as any,
-        { renderInstancePdf: jest.fn() } as any,
+        { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: vi.fn() } as any,
       );
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -609,16 +639,16 @@ describe('SignaturesService', () => {
 
     it('threads the SAME client language into a re-armed OTP mail, resolved fresh from the client', async () => {
       const clientsService = {
-        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com', language: 'it' }),
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com', language: 'it' }),
       };
-      const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
-      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
+      const prisma = mockedPrismaModule.default;
       prisma.mailTemplate.findFirst.mockResolvedValue(null);
       const service = new SignaturesService(
         clientsService as any,
         mailService as any,
-        { dispatch: jest.fn().mockResolvedValue(undefined) } as any,
-        { renderInstancePdf: jest.fn() } as any,
+        { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: vi.fn() } as any,
       );
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -633,7 +663,7 @@ describe('SignaturesService', () => {
 
     it('still delivers the OTP on the shipped default, carrying the display-form code in both parts', async () => {
       const { service, mailService } = buildService();
-      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      const prisma = mockedPrismaModule.default;
       prisma.mailTemplate.findFirst.mockResolvedValue(null);
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -652,7 +682,7 @@ describe('SignaturesService', () => {
 
     it("a typo in a company's own template is WARNED about, never thrown — the email still goes out", async () => {
       const { service, mailService } = buildService();
-      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      const prisma = mockedPrismaModule.default;
       prisma.mailTemplate.findFirst.mockResolvedValue({
         subject: 'Sign {SIGNATURE_NUMBER}',
         body: '<p>Open {{SIGNATURE_URL}}</p>',
@@ -670,7 +700,7 @@ describe('SignaturesService', () => {
     });
 
     it('still signs even when the DOCUMENT_SIGNED webhook dispatch fails — the sign itself must not roll back', async () => {
-      const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('webhook endpoint down')) };
+      const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('webhook endpoint down')) };
       const { service, mailService } = buildService(webhooks);
       const token = await requestAndGetToken(service, mailService);
       const code = await mintedCode(service, mailService, token);
@@ -689,7 +719,7 @@ describe('SignaturesService', () => {
     const ORIGINAL_ENV = process.env;
 
     beforeEach(() => {
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
       mockedResolveCompanyMailSettings.mockReset();
       process.env = { ...ORIGINAL_ENV };
       delete process.env.MAIL_PROVIDER;
@@ -712,17 +742,17 @@ describe('SignaturesService', () => {
         password: 'pass',
         fromAddress: 'billing@company.example.com',
       });
-      const sendMailMock = jest.fn().mockResolvedValue(undefined);
-      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
       const clientsService = {
-        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
       };
       const service = new SignaturesService(
         clientsService as any,
         new MailService(),
-        { dispatch: jest.fn() } as any,
-        { renderInstancePdf: jest.fn() } as any,
+        { dispatch: vi.fn() } as any,
+        { renderInstancePdf: vi.fn() } as any,
       );
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -735,17 +765,17 @@ describe('SignaturesService', () => {
     it('falls back to the instance mail server when this company has none configured', async () => {
       process.env.SMTP_HOST = 'instance-smtp.example.com';
       mockedResolveCompanyMailSettings.mockResolvedValue(null);
-      const sendMailMock = jest.fn().mockResolvedValue(undefined);
-      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
       const clientsService = {
-        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
       };
       const service = new SignaturesService(
         clientsService as any,
         new MailService(),
-        { dispatch: jest.fn() } as any,
-        { renderInstancePdf: jest.fn() } as any,
+        { dispatch: vi.fn() } as any,
+        { renderInstancePdf: vi.fn() } as any,
       );
 
       const result = await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -765,17 +795,17 @@ describe('SignaturesService', () => {
         // usable token — this test is about `requestOtp`'s own failure mode, not about getting a token.
         process.env.SMTP_HOST = 'instance-smtp.example.com';
         mockedResolveCompanyMailSettings.mockResolvedValue(null);
-        const sendMailMock = jest.fn().mockResolvedValue(undefined);
-        jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+        const sendMailMock = vi.fn().mockResolvedValue(undefined);
+        (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
         const clientsService = {
-          getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+          getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
         };
         const service = new SignaturesService(
           clientsService as any,
           new MailService(),
-          { dispatch: jest.fn() } as any,
-          { renderInstancePdf: jest.fn() } as any,
+          { dispatch: vi.fn() } as any,
+          { renderInstancePdf: vi.fn() } as any,
         );
         await service.requestSignature('company-1', 'quote', 'quote-1');
         // `resolveActiveOrThrow` compares HASHES, so requesting the OTP below needs the RAW token —

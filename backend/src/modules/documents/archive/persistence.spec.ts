@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,29 +17,29 @@ import {
 import { CURRENT_RETENTION_CALC_VERSION } from './retention/calc-version';
 import { RetentionCatalog } from './retention/registry';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
+    company: { findUnique: vi.fn() },
     // Read by `resolveDocumentIssueDate` (persistence.ts) — not exercised by name in most tests below
     // (they use `origin: 'archivedAt'` synthetic rules precisely so this fixture never has to matter),
     // but still needs a callable mock or `createDocumentArchive` throws on the unconditional lookup.
-    documentInstance: { findFirst: jest.fn().mockResolvedValue(null) },
+    documentInstance: { findFirst: vi.fn().mockResolvedValue(null) },
     documentArchive: {
-      create: jest.fn(),
-      createMany: jest.fn(),
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
+      create: vi.fn(),
+      createMany: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
 
-const findCompany = prisma.company.findUnique as jest.Mock;
-const findDocumentInstance = prisma.documentInstance.findFirst as jest.Mock;
-const createArchive = prisma.documentArchive.create as jest.Mock;
-const createManyArchives = prisma.documentArchive.createMany as jest.Mock;
-const findManyArchives = prisma.documentArchive.findMany as jest.Mock;
-const findFirstArchive = prisma.documentArchive.findFirst as jest.Mock;
+const findCompany = prisma.company.findUnique as Mock;
+const findDocumentInstance = prisma.documentInstance.findFirst as Mock;
+const createArchive = prisma.documentArchive.create as Mock;
+const createManyArchives = prisma.documentArchive.createMany as Mock;
+const findManyArchives = prisma.documentArchive.findMany as Mock;
+const findFirstArchive = prisma.documentArchive.findFirst as Mock;
 
 // `origin: 'archivedAt'` deliberately, in every rule below — this suite tests PERSISTENCE wiring (hash
 // storage, re-send behaviour, the no-country-file null case), not any one country's real legal origin
@@ -60,7 +61,7 @@ describe('archive/persistence', () => {
   const originalEnv = process.env.DOCUMENTS_ARCHIVE_DIR;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     dir = mkdtempSync(join(tmpdir(), 'documents-archive-persistence-test-'));
     process.env.DOCUMENTS_ARCHIVE_DIR = dir;
   });

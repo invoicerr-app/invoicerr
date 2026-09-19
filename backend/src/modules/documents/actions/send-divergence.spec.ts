@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { NotImplementedException } from '@nestjs/common';
 
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
@@ -15,14 +16,14 @@ import { registerQuoteActions } from './quote-actions';
 import * as taxLoadAndResolve from '../tax/load-and-resolve';
 import * as b2gRouting from '../b2g-routing/b2g-routing';
 
-jest.mock('../persistence');
-jest.mock('../transports/company-transport');
+vi.mock('../persistence');
+vi.mock('../transports/company-transport');
 // The quote's "send" now renders+attaches a PDF (send-document-email.ts) — mocked at its own entry
 // point for the same reason `../persistence` is: this file is about WHICH path each type's "send"
 // takes, not PDF rendering or Puppeteer (that is send-document-email.spec.ts's job).
-jest.mock('../rendering/render-instance-pdf');
-jest.mock('../numbering/take-number');
-jest.mock('./company-email-templates');
+vi.mock('../rendering/render-instance-pdf');
+vi.mock('../numbering/take-number');
+vi.mock('./company-email-templates');
 // Country channel mandate — `invoice-actions.ts`'s "send" now ALSO resolves the company's own country
 // (`resolveCompanyCountryCode`) to check for a channel mandate. Mocked here for the same reason
 // `documents.service.invoice.spec.ts` already mocks this module wholesale: the real function reaches
@@ -30,7 +31,7 @@ jest.mock('./company-email-templates');
 // default — no country resolves, so no mandate is ever found, and every test below keeps meaning
 // exactly what it always did (none of them exercises a mandated country on purpose; that is
 // `invoice-channel-mandate.spec.ts`'s own job).
-jest.mock('../country-policy/country-policy');
+vi.mock('../country-policy/country-policy');
 // Cross-border VAT ("transfrontalier") — `invoice-actions.ts`'s "send" now ALSO resolves cross-
 // border VAT (`tax/load-and-resolve.ts`), which reaches Prisma directly, same reason as
 // `country-policy` above. A FACTORY mock (not an automock) — a permissive pass-through — because,
@@ -38,14 +39,14 @@ jest.mock('../country-policy/country-policy');
 // `undefined` return here would throw on `.data` inside `invoice-actions.ts`'s own deliver/preflight
 // wrappers: this file is about WHICH path each type's "send" takes, never about cross-border tax,
 // which is `tax/resolve-invoice-tax.spec.ts` and `tax/cross-border-formats.spec.ts`'s own job.
-jest.mock('../tax/load-and-resolve');
+vi.mock('../tax/load-and-resolve');
 // B2G routing (`b2g-routing/`) reaches Prisma directly too, same reason as `country-policy` above.
 // Unlike `country-policy` (an automocked `undefined` country code IS the neutral case), this one
 // MUST be given an explicit `{ applies: false }` in `beforeEach` below — `invoice-actions.ts` reads
 // `b2g.applies` off the resolved value, and an automocked bare `undefined` would throw before ever
 // reaching the divergence this file actually tests. No test here uses a GOVERNMENT client — see
 // `invoice-b2g-routing.spec.ts` for that mechanism's own dedicated suite.
-jest.mock('../b2g-routing/b2g-routing');
+vi.mock('../b2g-routing/b2g-routing');
 
 /**
  * Guardrail against the exact mistake this branch once made: generic-actions.ts used to export a
@@ -62,17 +63,17 @@ jest.mock('../b2g-routing/b2g-routing');
  * which is where each type's own divergence — MailService vs. TransportRegistry — actually happens).
  */
 describe('quote "send" and invoice "send" do not share a path', () => {
-  afterEach(() => jest.resetAllMocks());
-  // Cross-border VAT — see this file's own `jest.mock('../tax/load-and-resolve')` comment above.
-  // Re-installed in `beforeEach`, not just once, because `afterEach`'s own `jest.resetAllMocks()`
+  afterEach(() => vi.resetAllMocks());
+  // Cross-border VAT — see this file's own `vi.mock('../tax/load-and-resolve')` comment above.
+  // Re-installed in `beforeEach`, not just once, because `afterEach`'s own `vi.resetAllMocks()`
   // wipes it after every test — the SAME discipline `documents.service.invoice.spec.ts` already
   // holds for this exact mock.
   beforeEach(() => {
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
-    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
       applies: false,
       missingIdentifierSchemes: [],
     });
@@ -86,7 +87,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
   };
 
   it("the quote's send NEVER consults the company's transport configuration, and (in phase 2) calls MailService directly", async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sending',
@@ -94,7 +95,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sent',
@@ -102,7 +103,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
       pdf: Buffer.from('%PDF-fake'),
       totals: {
         currency: 'EUR',
@@ -116,15 +117,15 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       referenceLabels: {},
       companyName: 'Test Co',
     });
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
-    const mailService = { sendForCompany: jest.fn().mockResolvedValue({ message: 'ok' }) };
-    const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
+    const mailService = { sendForCompany: vi.fn().mockResolvedValue({ message: 'ok' }) };
+    const clientsService = { getClientById: vi.fn().mockResolvedValue(null) };
     const typeRegistry = new DocumentTypeRegistry();
     typeRegistry.register(buildQuoteDescriptor());
     const referenceRegistry = new EntityReferenceRegistry();
-    const queueDispatcher = { enqueueAction: jest.fn() };
+    const queueDispatcher = { enqueueAction: vi.fn() };
     const registry = new ActionRegistry();
     registerQuoteActions(registry, {
       clientsService: clientsService as never,
@@ -151,7 +152,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
   });
 
   it("the invoice's send NEVER calls MailService directly — it always goes through the company's chosen transport", async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'sending',
@@ -159,7 +160,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'sent',
@@ -167,16 +168,16 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('fake-transport');
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('fake-transport');
 
     const fakeTransport = {
-      send: jest.fn().mockResolvedValue({ message: 'delivered by the fake transport' }),
+      send: vi.fn().mockResolvedValue({ message: 'delivered by the fake transport' }),
     };
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('fake-transport', 'Fake', fakeTransport);
 
     const registry = new ActionRegistry();
-    registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
+    registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: vi.fn() } });
 
     const handler = registry.resolve('invoice', 'send');
     const result = await handler!({
@@ -194,7 +195,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
   });
 
   it('the quote (phase 1, "draft") persists "sending" and enqueues — never touches the transport registry either', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',
@@ -202,7 +203,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sending',
@@ -211,12 +212,12 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       updatedAt: new Date(),
     });
 
-    const mailService = { sendForCompany: jest.fn() };
-    const clientsService = { getClientById: jest.fn() };
+    const mailService = { sendForCompany: vi.fn() };
+    const clientsService = { getClientById: vi.fn() };
     const typeRegistry = new DocumentTypeRegistry();
     typeRegistry.register(buildQuoteDescriptor());
     const referenceRegistry = new EntityReferenceRegistry();
-    const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+    const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
     const registry = new ActionRegistry();
     registerQuoteActions(registry, {
       clientsService: clientsService as never,
@@ -242,8 +243,8 @@ describe('quote "send" and invoice "send" do not share a path', () => {
   });
 
   it('the invoice BLOCKS with a clear 501 when the company has configured NO transport — never a silent fallback to email', async () => {
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue(null);
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue(null);
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft',
@@ -256,10 +257,10 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     // Registering "email" here on purpose: even when a transport DOES exist in the registry, an
     // unconfigured company must still block — availability of a transport is not the same as a
     // company having CHOSEN one.
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
 
     const registry = new ActionRegistry();
-    registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
+    registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: vi.fn() } });
 
     const handler = registry.resolve('invoice', 'send');
     const action = handler!({
@@ -276,8 +277,8 @@ describe('quote "send" and invoice "send" do not share a path', () => {
   });
 
   it('the invoice BLOCKS just as clearly when it is configured for a transport nobody registered', async () => {
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('long-since-removed');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('long-since-removed');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft',
@@ -289,7 +290,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     const registry = new ActionRegistry();
     registerInvoiceActions(registry, {
       transportRegistry: new TransportRegistry(),
-      queueDispatcher: { enqueueAction: jest.fn() },
+      queueDispatcher: { enqueueAction: vi.fn() },
     });
 
     const handler = registry.resolve('invoice', 'send');
@@ -306,8 +307,8 @@ describe('quote "send" and invoice "send" do not share a path', () => {
   });
 
   it("only the quote's send declares a params-defaults resolver for a typed recipient — the invoice's send has none", () => {
-    const clientsService = { getClientById: jest.fn() };
-    const mailService = { sendForCompany: jest.fn() };
+    const clientsService = { getClientById: vi.fn() };
+    const mailService = { sendForCompany: vi.fn() };
 
     const registry = new ActionRegistry();
     registerQuoteActions(registry, {
@@ -315,11 +316,11 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       mailService: mailService as never,
       typeRegistry: new DocumentTypeRegistry(),
       referenceRegistry: new EntityReferenceRegistry(),
-      queueDispatcher: { enqueueAction: jest.fn() },
+      queueDispatcher: { enqueueAction: vi.fn() },
     });
     registerInvoiceActions(registry, {
       transportRegistry: new TransportRegistry(),
-      queueDispatcher: { enqueueAction: jest.fn() },
+      queueDispatcher: { enqueueAction: vi.fn() },
     });
 
     expect(registry.resolveParamsDefaults('quote', 'send')).toBeDefined();

@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { ConflictException } from '@nestjs/common';
 
 import { ClientsService } from '@/modules/clients/clients.service';
@@ -14,12 +15,12 @@ import { ActionRegistry } from './action-registry';
 import * as companyEmailTemplates from './company-email-templates';
 import { registerPurchaseOrderActions } from './purchase-order-actions';
 
-jest.mock('../persistence');
-jest.mock('../numbering/take-number');
-jest.mock('../archive/archive-on-send');
-jest.mock('../reporting/report-on-send');
-jest.mock('../rendering/render-instance-pdf');
-jest.mock('./company-email-templates');
+vi.mock('../persistence');
+vi.mock('../numbering/take-number');
+vi.mock('../archive/archive-on-send');
+vi.mock('../reporting/report-on-send');
+vi.mock('../rendering/render-instance-pdf');
+vi.mock('./company-email-templates');
 
 /**
  * Purchase orders & goods receipts ("bons de commande") — proves the purchase order's own GLUE (this file),
@@ -31,9 +32,9 @@ jest.mock('./company-email-templates');
 function buildDeps() {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildPurchaseOrderDescriptor());
-  const clientsService = { getClientById: jest.fn() } as unknown as ClientsService;
-  const mailService = { sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
-  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+  const clientsService = { getClientById: vi.fn() } as unknown as ClientsService;
+  const mailService = { sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
   const registry = new ActionRegistry();
   registerPurchaseOrderActions(registry, {
@@ -50,7 +51,7 @@ function buildDeps() {
 const FAKE_PDF = Buffer.from('%PDF-fake-purchase-order');
 
 function mockSuccessfulRender() {
-  (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+  (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
     pdf: FAKE_PDF,
     totals: {
       currency: 'EUR',
@@ -68,11 +69,11 @@ function mockSuccessfulRender() {
 }
 
 describe('registerPurchaseOrderActions', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('"save-draft" persists via the generic mechanism, exactly like every other type', async () => {
     const { registry } = buildDeps();
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'po-1',
       typeId: 'purchase-order',
       status: 'draft',
@@ -102,7 +103,7 @@ describe('registerPurchaseOrderActions', () => {
 
   it('the "send" recipient default resolves from the SUPPLIER field, not "client"', async () => {
     const { registry, clientsService } = buildDeps();
-    (clientsService.getClientById as jest.Mock).mockResolvedValue({
+    (clientsService.getClientById as Mock).mockResolvedValue({
       id: 'supplier-1',
       contactEmail: 'orders@supplier.example.com',
     });
@@ -122,7 +123,7 @@ describe('registerPurchaseOrderActions', () => {
 
   it('the "send" recipient default is empty when the supplier has no contact email on file', async () => {
     const { registry, clientsService } = buildDeps();
-    (clientsService.getClientById as jest.Mock).mockResolvedValue({ id: 'supplier-1', contactEmail: null });
+    (clientsService.getClientById as Mock).mockResolvedValue({ id: 'supplier-1', contactEmail: null });
 
     const resolver = registry.resolveParamsDefaults('purchase-order', 'send');
     const defaults = await resolver!({
@@ -138,8 +139,8 @@ describe('registerPurchaseOrderActions', () => {
   it('"send" carries the PDF as an attachment, via the SAME shared mechanism the quote uses', async () => {
     const { registry, mailService, queueDispatcher } = buildDeps();
     mockSuccessfulRender();
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'po-1',
       typeId: 'purchase-order',
       status: 'sending',
@@ -149,7 +150,7 @@ describe('registerPurchaseOrderActions', () => {
       number: 7,
       displayNumber: 'PURCHASE-ORDER-2026-0007',
     });
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'po-1',
       typeId: 'purchase-order',
       status: 'sent',
@@ -191,7 +192,7 @@ describe('registerPurchaseOrderActions', () => {
 
   it('"cancel-order" flips the status to "cancelled" and touches nothing else', async () => {
     const { registry } = buildDeps();
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'po-1',
       typeId: 'purchase-order',
       status: 'cancelled',
@@ -244,7 +245,7 @@ describe('registerPurchaseOrderActions', () => {
     // (persistence.ts) losing its second race: the first caller commits, the second finds the row
     // already moved on and gets the named ConflictException persistence.ts raises on `count === 0`.
     let calls = 0;
-    (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+    (persistence.updateDocumentStatus as Mock).mockImplementation(async () => {
       calls += 1;
       if (calls === 1) {
         return {

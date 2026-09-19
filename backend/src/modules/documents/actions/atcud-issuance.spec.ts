@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -8,22 +9,22 @@ import {
 } from './atcud-issuance';
 import { AtcudFormatIncompatibleError } from '../numbering/atcud';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    companyAtcudSeries: { findUnique: jest.fn() },
-    documentInstance: { update: jest.fn() },
+    company: { findUnique: vi.fn() },
+    companyAtcudSeries: { findUnique: vi.fn() },
+    documentInstance: { update: vi.fn() },
     // logger.service.ts persists every log call through this — see render-pdf.spec.ts's own header
     // for why every spec whose code path can reach `logger.error`/`logger.debug` mocks this too.
-    log: { create: jest.fn().mockResolvedValue({}) },
+    log: { create: vi.fn().mockResolvedValue({}) },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  companyAtcudSeries: { findUnique: jest.Mock };
-  documentInstance: { update: jest.Mock };
+  company: { findUnique: Mock };
+  companyAtcudSeries: { findUnique: Mock };
+  documentInstance: { update: Mock };
 };
 
 function mockCompany(country: string | null, numberFormats: Record<string, string> | null = null) {
@@ -33,7 +34,7 @@ function mockCompany(country: string | null, numberFormats: Record<string, strin
 const PT_DATE = new Date(2026, 8, 13); // 2026-09-13
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('ensureAtcudIssuable — the load-bearing preflight gate, before any number is spent', () => {

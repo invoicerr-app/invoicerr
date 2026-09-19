@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { ContributionRegistry } from './contributions/contribution-registry';
@@ -10,8 +12,8 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import * as schedulePersistence from './schedules/schedule.persistence';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./country-policy/country-policy');
-jest.mock('./schedules/schedule.persistence');
+vi.mock('./country-policy/country-policy');
+vi.mock('./schedules/schedule.persistence');
 
 /**
  * Proves DocumentsService's two NEW read surfaces (collectWidgets, listAvailableTypes) delegate
@@ -42,10 +44,10 @@ function buildService(types: DocumentTypeDescriptor[], contributionRegistry = ne
 }
 
 describe('DocumentsService.collectWidgets', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('delegates to the wired type/contribution registries and returns their widgets', async () => {
-    (schedulePersistence.listSchedules as jest.Mock).mockResolvedValue([]);
+    (schedulePersistence.listSchedules as Mock).mockResolvedValue([]);
     const contributionRegistry = new ContributionRegistry();
     contributionRegistry.register('invoice', 'dashboard', async () => [
       { id: 'w1', kind: 'metric', label: 'Pending', value: 2 },
@@ -80,10 +82,10 @@ describe('DocumentsService.collectWidgets', () => {
 });
 
 describe('DocumentsService.listAvailableTypes', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("returns the registered descriptors' id/label for every typeId the country policy allows", async () => {
-    (countryPolicy.resolveAvailableDocumentTypes as jest.Mock).mockResolvedValue({
+    (countryPolicy.resolveAvailableDocumentTypes as Mock).mockResolvedValue({
       typeIds: ['invoice'],
     });
     const service = buildService([descriptor({ id: 'invoice', label: 'Invoice' })]);
@@ -93,7 +95,7 @@ describe('DocumentsService.listAvailableTypes', () => {
   });
 
   it('passes the reason through untouched, and an empty types list, when the country has none declared', async () => {
-    (countryPolicy.resolveAvailableDocumentTypes as jest.Mock).mockResolvedValue({
+    (countryPolicy.resolveAvailableDocumentTypes as Mock).mockResolvedValue({
       typeIds: [],
       reason: 'No document types are declared for "DE"',
     });
@@ -104,7 +106,7 @@ describe('DocumentsService.listAvailableTypes', () => {
   });
 
   it('silently drops a typeId the country file names but this build never registered — defensive, not a crash', async () => {
-    (countryPolicy.resolveAvailableDocumentTypes as jest.Mock).mockResolvedValue({
+    (countryPolicy.resolveAvailableDocumentTypes as Mock).mockResolvedValue({
       typeIds: ['invoice', 'does-not-exist'],
     });
     const service = buildService([descriptor({ id: 'invoice', label: 'Invoice' })]);

@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ForbiddenException, Logger } from '@nestjs/common';
 
 import { DocumentsService } from '../../documents.service';
@@ -9,7 +11,7 @@ import * as markSendFailedModule from '../mark-send-failed';
 import { DocumentActionJobData } from '../queue.constants';
 import { DocumentActionProcessor } from './document-action.processor';
 
-jest.mock('../mark-send-failed');
+vi.mock('../mark-send-failed');
 
 /**
  * THE MUTATION TARGET #1: "the worker skips the country-policy gate" — a processor that resolved the
@@ -39,11 +41,11 @@ const JOB_DATA: DocumentActionJobData = {
 };
 
 describe('DocumentActionProcessor', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   describe('process()', () => {
     it('runs the job through DocumentsService.runAction — the SAME entry point the HTTP controller uses, all four gates included', async () => {
-      const runAction = jest.fn().mockResolvedValue({ changed: true, document: undefined });
+      const runAction = vi.fn().mockResolvedValue({ changed: true, document: undefined });
       const documentsService = { runAction } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService);
 
@@ -60,7 +62,7 @@ describe('DocumentActionProcessor', () => {
     });
 
     it('a country-policy-forbidden action (ForbiddenException from runAction) fails the job attempt — never silently succeeds', async () => {
-      const runAction = jest.fn().mockRejectedValue(new ForbiddenException('forbidden for this country'));
+      const runAction = vi.fn().mockRejectedValue(new ForbiddenException('forbidden for this country'));
       const documentsService = { runAction } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService);
 
@@ -69,7 +71,7 @@ describe('DocumentActionProcessor', () => {
 
     it('returns exactly what runAction returned — no extra transformation of the result', async () => {
       const actionResult = { changed: true, document: { id: 'doc-1', typeId: 'quote', status: 'sent' } };
-      const runAction = jest.fn().mockResolvedValue(actionResult);
+      const runAction = vi.fn().mockResolvedValue(actionResult);
       const documentsService = { runAction } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService);
 
@@ -79,10 +81,10 @@ describe('DocumentActionProcessor', () => {
 
   describe('process() — schedule job names', () => {
     it('a job named after the sweep runs DocumentScheduleSweepRunner.runSweep, never runAction', async () => {
-      const runAction = jest.fn();
+      const runAction = vi.fn();
       const documentsService = { runAction } as unknown as DocumentsService;
-      const runSweep = jest.fn().mockResolvedValue({ due: 2, enqueued: 2 });
-      const sweepRunner = { runSweep, runOccurrence: jest.fn() } as unknown as DocumentScheduleSweepRunner;
+      const runSweep = vi.fn().mockResolvedValue({ due: 2, enqueued: 2 });
+      const sweepRunner = { runSweep, runOccurrence: vi.fn() } as unknown as DocumentScheduleSweepRunner;
       const processor = new DocumentActionProcessor(documentsService, sweepRunner);
       const job = {
         id: 'sweep-1',
@@ -98,10 +100,10 @@ describe('DocumentActionProcessor', () => {
     });
 
     it('a job named after an occurrence runs DocumentScheduleSweepRunner.runOccurrence with its own data, never runAction directly', async () => {
-      const runAction = jest.fn();
+      const runAction = vi.fn();
       const documentsService = { runAction } as unknown as DocumentsService;
-      const runOccurrence = jest.fn().mockResolvedValue({ changed: true, document: undefined });
-      const sweepRunner = { runSweep: jest.fn(), runOccurrence } as unknown as DocumentScheduleSweepRunner;
+      const runOccurrence = vi.fn().mockResolvedValue({ changed: true, document: undefined });
+      const sweepRunner = { runSweep: vi.fn(), runOccurrence } as unknown as DocumentScheduleSweepRunner;
       const processor = new DocumentActionProcessor(documentsService, sweepRunner);
       const occurrenceData = {
         scheduleId: 'sched-1',
@@ -125,7 +127,7 @@ describe('DocumentActionProcessor', () => {
     });
 
     it('throws a named error for a schedule job when no sweepRunner was wired — never silently no-ops', async () => {
-      const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
+      const documentsService = { runAction: vi.fn() } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService); // no sweepRunner, like every pre-existing spec here
       const job = {
         id: 'sweep-1',
@@ -146,10 +148,10 @@ describe('DocumentActionProcessor', () => {
     };
 
     it('a job named after a report runs ReportingRunner.runReport, never runAction', async () => {
-      const runAction = jest.fn();
+      const runAction = vi.fn();
       const documentsService = { runAction } as unknown as DocumentsService;
-      const runReport = jest.fn().mockResolvedValue({ journaled: 1 });
-      const reportingRunner = { runReport, recordTerminalFailure: jest.fn() } as unknown as ReportingRunner;
+      const runReport = vi.fn().mockResolvedValue({ journaled: 1 });
+      const reportingRunner = { runReport, recordTerminalFailure: vi.fn() } as unknown as ReportingRunner;
       const processor = new DocumentActionProcessor(documentsService, undefined, undefined, reportingRunner);
       const job = {
         id: 'report-1',
@@ -165,9 +167,9 @@ describe('DocumentActionProcessor', () => {
     });
 
     it('a genuine declaration failure PROPAGATES out of process() — BullMQ must see this attempt as failed', async () => {
-      const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
-      const runReport = jest.fn().mockRejectedValue(new Error('NAV HTTP 500'));
-      const reportingRunner = { runReport, recordTerminalFailure: jest.fn() } as unknown as ReportingRunner;
+      const documentsService = { runAction: vi.fn() } as unknown as DocumentsService;
+      const runReport = vi.fn().mockRejectedValue(new Error('NAV HTTP 500'));
+      const reportingRunner = { runReport, recordTerminalFailure: vi.fn() } as unknown as ReportingRunner;
       const processor = new DocumentActionProcessor(documentsService, undefined, undefined, reportingRunner);
       const job = {
         id: 'report-1',
@@ -179,7 +181,7 @@ describe('DocumentActionProcessor', () => {
     });
 
     it('throws a named error for a report job when no reportingRunner was wired — never silently no-ops', async () => {
-      const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
+      const documentsService = { runAction: vi.fn() } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService); // no reportingRunner, like every pre-existing spec here
       const job = {
         id: 'report-1',
@@ -193,7 +195,7 @@ describe('DocumentActionProcessor', () => {
 
   describe('onFailed()', () => {
     it('does NOT mark "send_failed" while more retries remain (attemptsMade < attempts)', async () => {
-      const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
+      const documentsService = { runAction: vi.fn(), getType: vi.fn() } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService);
       const job = fakeJob(JOB_DATA, { attemptsMade: 1, attempts: 3 });
 
@@ -207,8 +209,8 @@ describe('DocumentActionProcessor', () => {
     // is the test that would catch it.
     it('marks "send_failed" once every attempt is exhausted (attemptsMade >= attempts)', async () => {
       const documentsService = {
-        runAction: jest.fn(),
-        getType: jest.fn().mockReturnValue({ id: 'quote' }),
+        runAction: vi.fn(),
+        getType: vi.fn().mockReturnValue({ id: 'quote' }),
       } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService);
       const job = fakeJob(JOB_DATA, { attemptsMade: 3, attempts: 3 });
@@ -234,15 +236,15 @@ describe('DocumentActionProcessor', () => {
     // an unhandled rejection rather than a clean assertion failure — see the mutation note below.
     it('never rejects even if markSendFailed itself throws — logs the error instead of taking the process down', async () => {
       const documentsService = {
-        runAction: jest.fn(),
-        getType: jest.fn().mockReturnValue({ id: 'quote' }),
+        runAction: vi.fn(),
+        getType: vi.fn().mockReturnValue({ id: 'quote' }),
       } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService);
       const job = fakeJob(JOB_DATA, { attemptsMade: 3, attempts: 3 });
-      const loggerErrorSpy = jest
+      const loggerErrorSpy = vi
         .spyOn((processor as unknown as { logger: Logger }).logger, 'error')
         .mockImplementation(() => undefined);
-      (markSendFailedModule.markSendFailed as jest.Mock).mockRejectedValue(
+      (markSendFailedModule.markSendFailed as Mock).mockRejectedValue(
         new Error('markSendFailed blew up unexpectedly'),
       );
 
@@ -255,7 +257,7 @@ describe('DocumentActionProcessor', () => {
     });
 
     it('is a no-op for an undefined job (BullMQ can hand this event no job at all)', async () => {
-      const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
+      const documentsService = { runAction: vi.fn() } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService);
 
       await expect(processor.onFailed(undefined, new Error('x'))).resolves.toBeUndefined();
@@ -266,7 +268,7 @@ describe('DocumentActionProcessor', () => {
       SCHEDULE_SWEEP_JOB_NAME,
       SCHEDULE_OCCURRENCE_JOB_NAME,
     ])('never calls markSendFailed for a "%s" job — its own failure is recorded elsewhere (DocumentScheduleSweepRunner)', async (jobName) => {
-      const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
+      const documentsService = { runAction: vi.fn(), getType: vi.fn() } as unknown as DocumentsService;
       const processor = new DocumentActionProcessor(documentsService);
       const job = {
         id: 'x',
@@ -300,9 +302,9 @@ describe('DocumentActionProcessor', () => {
       }
 
       it('never calls markSendFailed — a report job has no "send" action vocabulary at all', async () => {
-        const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
-        const recordTerminalFailure = jest.fn();
-        const reportingRunner = { runReport: jest.fn(), recordTerminalFailure } as unknown as ReportingRunner;
+        const documentsService = { runAction: vi.fn(), getType: vi.fn() } as unknown as DocumentsService;
+        const recordTerminalFailure = vi.fn();
+        const reportingRunner = { runReport: vi.fn(), recordTerminalFailure } as unknown as ReportingRunner;
         const processor = new DocumentActionProcessor(
           documentsService,
           undefined,
@@ -316,9 +318,9 @@ describe('DocumentActionProcessor', () => {
       });
 
       it('does NOT record a terminal failure while more retries remain', async () => {
-        const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
-        const recordTerminalFailure = jest.fn();
-        const reportingRunner = { runReport: jest.fn(), recordTerminalFailure } as unknown as ReportingRunner;
+        const documentsService = { runAction: vi.fn() } as unknown as DocumentsService;
+        const recordTerminalFailure = vi.fn();
+        const reportingRunner = { runReport: vi.fn(), recordTerminalFailure } as unknown as ReportingRunner;
         const processor = new DocumentActionProcessor(
           documentsService,
           undefined,
@@ -336,9 +338,9 @@ describe('DocumentActionProcessor', () => {
       // `ReportingRunner.recordTerminalFailure` (which journals `report:failed`, see
       // `reporting-runner.spec.ts`), never `markSendFailed`/the document's own status.
       it('records the terminal failure once every retry is exhausted, and NEVER touches markSendFailed', async () => {
-        const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
-        const recordTerminalFailure = jest.fn().mockResolvedValue(undefined);
-        const reportingRunner = { runReport: jest.fn(), recordTerminalFailure } as unknown as ReportingRunner;
+        const documentsService = { runAction: vi.fn(), getType: vi.fn() } as unknown as DocumentsService;
+        const recordTerminalFailure = vi.fn().mockResolvedValue(undefined);
+        const reportingRunner = { runReport: vi.fn(), recordTerminalFailure } as unknown as ReportingRunner;
         const processor = new DocumentActionProcessor(
           documentsService,
           undefined,
@@ -354,16 +356,16 @@ describe('DocumentActionProcessor', () => {
       });
 
       it('never rejects even if recordTerminalFailure itself throws (belt and suspenders)', async () => {
-        const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
-        const recordTerminalFailure = jest.fn().mockRejectedValue(new Error('journal write blew up'));
-        const reportingRunner = { runReport: jest.fn(), recordTerminalFailure } as unknown as ReportingRunner;
+        const documentsService = { runAction: vi.fn() } as unknown as DocumentsService;
+        const recordTerminalFailure = vi.fn().mockRejectedValue(new Error('journal write blew up'));
+        const reportingRunner = { runReport: vi.fn(), recordTerminalFailure } as unknown as ReportingRunner;
         const processor = new DocumentActionProcessor(
           documentsService,
           undefined,
           undefined,
           reportingRunner,
         );
-        const loggerErrorSpy = jest
+        const loggerErrorSpy = vi
           .spyOn((processor as unknown as { logger: Logger }).logger, 'error')
           .mockImplementation(() => undefined);
 

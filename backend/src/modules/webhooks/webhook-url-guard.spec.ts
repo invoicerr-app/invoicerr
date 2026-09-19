@@ -8,6 +8,9 @@
  * Removing the guard (or gutting any one of its checks) must turn one of these tests red — that is
  * the point of testing a security control this way rather than only asserting the happy path.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import * as dns from 'node:dns';
 
 import { WebhookUrlValidationError, assertPublicWebhookUrl } from './webhook-url-guard';
@@ -16,12 +19,12 @@ import { WebhookUrlValidationError, assertPublicWebhookUrl } from './webhook-url
 // see that file's own comment on why), so the mock must match that shape exactly: no `__esModule`/
 // `default` wrapper, or the guard's `dns.promises.lookup` call would see `undefined` and never reach
 // this mock at all.
-jest.mock('node:dns', () => ({ promises: { lookup: jest.fn() } }));
+vi.mock('node:dns', () => ({ promises: { lookup: vi.fn() } }));
 
-const lookup = dns.promises.lookup as unknown as jest.Mock;
+const lookup = dns.promises.lookup as unknown as Mock;
 
 describe('assertPublicWebhookUrl', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   describe('scheme validation', () => {
     it('rejects file:// (local filesystem, not a network fetch at all)', async () => {

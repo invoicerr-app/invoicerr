@@ -1,10 +1,12 @@
 /**
  * Real Prisma against whatever `DATABASE_URL` this test run resolves ("invoicerr_dev" in this repo's
- * own dev setup — jest never loads `.env.test`, same posture `company.service.spec.ts`'s own header
- * documents), `TransferService`/`TransferExpirySweepRunner` constructed directly with a fake
- * `MailService` — the same "construct the service directly, fake only the leaf mail transport" shape
- * `danger.service.spec.ts` uses.
+ * own dev setup — neither test runner loads `.env.test` on its own, same posture
+ * `company.service.spec.ts`'s own header documents), `TransferService`/`TransferExpirySweepRunner`
+ * constructed directly with a fake `MailService` — the same "construct the service directly, fake
+ * only the leaf mail transport" shape `danger.service.spec.ts` uses.
  */
+import { vi } from 'vitest';
+
 import { randomUUID } from 'node:crypto';
 
 import {
@@ -22,10 +24,14 @@ import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';
 
 import { TransferExpirySweepRunner } from './transfer-expiry-sweep-runner';
-import { OWNERSHIP_TRANSFER_SUBSCRIPTION_BLOCKED, TransferService } from './transfer.service';
+import {
+  looksLikeEmailAddress,
+  OWNERSHIP_TRANSFER_SUBSCRIPTION_BLOCKED,
+  TransferService,
+} from './transfer.service';
 
 function fakeMailService() {
-  return { sendForCompany: jest.fn().mockResolvedValue({ message: 'sent' }) };
+  return { sendForCompany: vi.fn().mockResolvedValue({ message: 'sent' }) };
 }
 
 function uniqueEmail(prefix: string): string {
@@ -144,7 +150,7 @@ describe('TransferService', () => {
       const mailGate = new Promise<void>((resolve) => {
         releaseMailSend = resolve;
       });
-      const mail = { sendForCompany: jest.fn().mockImplementation(() => mailGate.then(() => ({}))) };
+      const mail = { sendForCompany: vi.fn().mockImplementation(() => mailGate.then(() => ({}))) };
       const service = new TransferService(mail as never);
       const owner = await createUser();
       const company = await createCompany();
@@ -710,8 +716,6 @@ describe('TransferExpirySweepRunner', () => {
 
 describe('looksLikeEmailAddress', () => {
   // The recipient address is typed free-form; the check must stay linear whatever the input.
-  const { looksLikeEmailAddress } = require('./transfer.service') as typeof import('./transfer.service');
-
   it('accepts ordinary addresses and rejects the obvious malformations', () => {
     expect(looksLikeEmailAddress('owner@example.com')).toBe(true);
     expect(looksLikeEmailAddress('a.b+c@sub.example.co')).toBe(true);

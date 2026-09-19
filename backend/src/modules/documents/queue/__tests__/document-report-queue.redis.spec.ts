@@ -36,6 +36,8 @@ import { generateKeyPairSync } from 'node:crypto';
 import * as https from 'node:https';
 import type { AddressInfo } from 'node:net';
 
+import { vi } from 'vitest';
+
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Queue } from 'bullmq';
@@ -153,7 +155,7 @@ function startPtAtStub(): Promise<PtAtStub> {
 }
 
 describeWithRedis('document-report queue — real Redis, real Postgres', () => {
-  jest.setTimeout(60000);
+  vi.setConfig({ testTimeout: 60000, hookTimeout: 60000 });
 
   let moduleRef: TestingModule;
   let dispatcher: DocumentQueueDispatcher;

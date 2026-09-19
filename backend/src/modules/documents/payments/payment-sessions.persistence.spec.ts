@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import { PaymentCheckoutSessionStatus } from '../../../../prisma/generated/prisma/client';
@@ -14,28 +15,28 @@ import {
 
 /** Same manual-mock discipline as `bank-reconciliation/persistence.spec.ts` — a narrow, hand-rolled
  *  stand-in for exactly the Prisma delegate methods this file's own functions call, no more. */
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     paymentCheckoutSession: {
-      create: jest.fn(),
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
 
-const create = prisma.paymentCheckoutSession.create as jest.Mock;
-const findFirst = prisma.paymentCheckoutSession.findFirst as jest.Mock;
-const findUnique = prisma.paymentCheckoutSession.findUnique as jest.Mock;
-const update = prisma.paymentCheckoutSession.update as jest.Mock;
-const updateMany = prisma.paymentCheckoutSession.updateMany as jest.Mock;
+const create = prisma.paymentCheckoutSession.create as Mock;
+const findFirst = prisma.paymentCheckoutSession.findFirst as Mock;
+const findUnique = prisma.paymentCheckoutSession.findUnique as Mock;
+const update = prisma.paymentCheckoutSession.update as Mock;
+const updateMany = prisma.paymentCheckoutSession.updateMany as Mock;
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('createCheckoutSession', () => {

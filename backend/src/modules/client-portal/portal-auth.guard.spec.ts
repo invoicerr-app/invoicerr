@@ -1,10 +1,12 @@
+import { vi, type Mock } from 'vitest';
+
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 
 import { PortalAuthGuard } from './portal-auth.guard';
 import * as persistence from './portal-token.persistence';
 import { hashPortalToken } from './portal-token';
 
-jest.mock('./portal-token.persistence');
+vi.mock('./portal-token.persistence');
 
 function contextWithAuthHeader(header: string | undefined): ExecutionContext {
   const request: { headers: Record<string, string | undefined>; portal?: unknown } = {
@@ -31,7 +33,7 @@ const RECORD = {
 
 describe('PortalAuthGuard', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('401s with no Authorization header at all', async () => {
@@ -50,7 +52,7 @@ describe('PortalAuthGuard', () => {
   });
 
   it('401s on an UNKNOWN token — never resolvable to a portal identity', async () => {
-    (persistence.findPortalTokenByHash as jest.Mock).mockResolvedValue(null);
+    (persistence.findPortalTokenByHash as Mock).mockResolvedValue(null);
     const guard = new PortalAuthGuard();
     await expect(guard.canActivate(contextWithAuthHeader(`Bearer ${RAW_TOKEN}`))).rejects.toBeInstanceOf(
       UnauthorizedException,
@@ -58,7 +60,7 @@ describe('PortalAuthGuard', () => {
   });
 
   it('401s on an EXPIRED token — the exact same refusal as unknown', async () => {
-    (persistence.findPortalTokenByHash as jest.Mock).mockResolvedValue({
+    (persistence.findPortalTokenByHash as Mock).mockResolvedValue({
       ...RECORD,
       expiresAt: new Date(Date.now() - 1000),
     });
@@ -69,7 +71,7 @@ describe('PortalAuthGuard', () => {
   });
 
   it('401s on a REVOKED token — the exact same refusal as unknown/expired', async () => {
-    (persistence.findPortalTokenByHash as jest.Mock).mockResolvedValue({ ...RECORD, revokedAt: new Date() });
+    (persistence.findPortalTokenByHash as Mock).mockResolvedValue({ ...RECORD, revokedAt: new Date() });
     const guard = new PortalAuthGuard();
     await expect(guard.canActivate(contextWithAuthHeader(`Bearer ${RAW_TOKEN}`))).rejects.toBeInstanceOf(
       UnauthorizedException,
@@ -77,7 +79,7 @@ describe('PortalAuthGuard', () => {
   });
 
   it('resolves a valid token onto request.portal and touches lastUsedAt', async () => {
-    (persistence.findPortalTokenByHash as jest.Mock).mockResolvedValue(RECORD);
+    (persistence.findPortalTokenByHash as Mock).mockResolvedValue(RECORD);
     const guard = new PortalAuthGuard();
     const context = contextWithAuthHeader(`Bearer ${RAW_TOKEN}`);
 

@@ -6,6 +6,9 @@
  * (never mocked away), per-kind validation, and that `sendTest` propagates the REAL underlying error
  * rather than a generic one — never a real database.
  */
+
+import { vi, type Mock } from 'vitest';
+
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -18,28 +21,28 @@ import { ChannelCredentialsService } from '../channels/channels.service';
 import { CompanyMailSettingsService } from './company-mail-settings.service';
 import { resolveCompanyMailSettings } from './company-mail-settings.resolver';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     companyChannelConfig: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      upsert: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
-      deleteMany: jest.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   companyChannelConfig: {
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-    upsert: jest.Mock;
-    update: jest.Mock;
-    updateMany: jest.Mock;
-    deleteMany: jest.Mock;
+    findUnique: Mock;
+    findMany: Mock;
+    upsert: Mock;
+    update: Mock;
+    updateMany: Mock;
+    deleteMany: Mock;
   };
 };
 
@@ -72,12 +75,12 @@ function wireInMemoryStore() {
 }
 
 describe('CompanyMailSettingsService', () => {
-  let mailService: { sendForCompany: jest.Mock };
+  let mailService: { sendForCompany: Mock };
   let service: CompanyMailSettingsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    mailService = { sendForCompany: jest.fn() };
+    vi.clearAllMocks();
+    mailService = { sendForCompany: vi.fn() };
     service = new CompanyMailSettingsService(
       new ChannelCredentialsService(),
       mailService as unknown as MailService,

@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -23,10 +25,10 @@ import { TransportRegistry } from './transports/transport-registry';
  * `persistence.spec.ts`; this file only proves that THIS service resolves the right descriptor facts
  * and refuses the right things before ever calling it.
  */
-jest.mock('./persistence');
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('./persistence');
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { client: { findMany: jest.fn() } },
+  default: { client: { findMany: vi.fn() } },
 }));
 
 /** Shaped like the real `invoice`/`quote` descriptors: a `client` reference field (titleField) and
@@ -93,9 +95,9 @@ const EMPTY_PAGE = { items: [], total: 0, page: 1, pageSize: 25 };
 
 describe('DocumentsService.listDocuments', () => {
   beforeEach(() => {
-    (persistence.listDocumentsPage as jest.Mock).mockResolvedValue(EMPTY_PAGE);
+    (persistence.listDocumentsPage as Mock).mockResolvedValue(EMPTY_PAGE);
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('refuses clientId/dateFrom/dateTo/q without a typeId — none of them mean anything without one type’s own descriptor', async () => {
     const service = buildService(INVOICE_LIKE_DESCRIPTOR);
@@ -182,8 +184,8 @@ describe('DocumentsService.listDocuments', () => {
       expect.objectContaining({ dateFieldKey: 'issueDate', dateFrom: '2026-01-01', dateTo: '2026-01-31' }),
     );
 
-    jest.clearAllMocks();
-    (persistence.listDocumentsPage as jest.Mock).mockResolvedValue(EMPTY_PAGE);
+    vi.clearAllMocks();
+    (persistence.listDocumentsPage as Mock).mockResolvedValue(EMPTY_PAGE);
     const expenseService = buildService(EXPENSE_LIKE_DESCRIPTOR);
     await expenseService.listDocuments('company-1', 'expense', { ...DEFAULT_QUERY, dateFrom: '2026-01-01' });
     expect(persistence.listDocumentsPage).toHaveBeenCalledWith(
@@ -193,7 +195,7 @@ describe('DocumentsService.listDocuments', () => {
   });
 
   it('combines status + clientId + dateFrom/dateTo + q all at once, resolving every filter together', async () => {
-    (prisma.client.findMany as jest.Mock).mockResolvedValue([{ id: 'client-9' }]);
+    (prisma.client.findMany as Mock).mockResolvedValue([{ id: 'client-9' }]);
     const service = buildService(INVOICE_LIKE_DESCRIPTOR);
 
     await service.listDocuments('company-1', 'invoice', {
@@ -227,7 +229,7 @@ describe('DocumentsService.listDocuments', () => {
   });
 
   it('searches client NAMES (company-scoped, capped) when q is given on a client-bearing type', async () => {
-    (prisma.client.findMany as jest.Mock).mockResolvedValue([{ id: 'client-9' }, { id: 'client-10' }]);
+    (prisma.client.findMany as Mock).mockResolvedValue([{ id: 'client-9' }, { id: 'client-10' }]);
     const service = buildService(INVOICE_LIKE_DESCRIPTOR);
 
     await service.listDocuments('company-1', 'invoice', { ...DEFAULT_QUERY, q: 'acme' });
@@ -260,7 +262,7 @@ describe('DocumentsService.listDocuments', () => {
 
   it('returns exactly what persistence.listDocumentsPage resolves to, unmodified', async () => {
     const page = { items: [{ id: 'doc-1' }], total: 1, page: 1, pageSize: 25 };
-    (persistence.listDocumentsPage as jest.Mock).mockResolvedValue(page);
+    (persistence.listDocumentsPage as Mock).mockResolvedValue(page);
     const service = buildService(INVOICE_LIKE_DESCRIPTOR);
 
     await expect(service.listDocuments('company-1', 'invoice', DEFAULT_QUERY)).resolves.toEqual(page);

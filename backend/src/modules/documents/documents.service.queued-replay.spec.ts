@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import * as companyEmailTemplates from './actions/company-email-templates';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
@@ -13,12 +15,12 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import * as renderInstancePdf from './rendering/render-instance-pdf';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
-jest.mock('./rendering/render-instance-pdf');
-jest.mock('./actions/company-email-templates');
-jest.mock('./archive/archive-on-send');
-jest.mock('./numbering/take-number');
-jest.mock('./country-policy/country-policy');
+vi.mock('./persistence');
+vi.mock('./rendering/render-instance-pdf');
+vi.mock('./actions/company-email-templates');
+vi.mock('./archive/archive-on-send');
+vi.mock('./numbering/take-number');
+vi.mock('./country-policy/country-policy');
 
 /** Same wiring as documents.service.spec.ts's own `buildService` — reused rather than imported since
  *  that file doesn't export it. */
@@ -29,12 +31,12 @@ function buildService() {
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
-  const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
+  const clientsService = { getClientById: vi.fn().mockResolvedValue(null) };
   const mailService = {
-    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   };
   const referenceRegistry = new EntityReferenceRegistry();
-  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
   const actionRegistry = new ActionRegistry();
   registerQuoteActions(actionRegistry, {
@@ -74,7 +76,7 @@ const validQuoteData = {
  */
 describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted replay of an async "send")', () => {
   beforeEach(() => {
-    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
       pdf: Buffer.from('%PDF-fake'),
       totals: {
         currency: 'EUR',
@@ -88,12 +90,12 @@ describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted 
       referenceLabels: {},
       companyName: 'Test Co',
     });
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   function mockSendingQuote() {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sending',
@@ -103,7 +105,7 @@ describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted 
       number: 1,
       displayNumber: 'QUOTE-2026-0001',
     });
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sent',
@@ -117,7 +119,7 @@ describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted 
 
   it('an admitted replay (send, already "sending") delivers even though the country now forbids the action', async () => {
     mockSendingQuote();
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: false,
       reason: 'no longer permitted for this country',
     });
@@ -141,7 +143,7 @@ describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted 
 
   it('the SAME "sending" record, WITHOUT isQueuedReplay (a genuine second HTTP call): the country-policy gate still applies, named', async () => {
     mockSendingQuote();
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: false,
       reason: 'no longer permitted for this country',
     });
@@ -158,7 +160,7 @@ describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted 
   });
 
   it('isQueuedReplay:true on a FRESH draft (not "sending"): narrowly scoped — the country-policy gate still applies', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',
@@ -166,7 +168,7 @@ describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted 
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: false,
       reason: 'forbidden entirely',
     });
@@ -185,7 +187,7 @@ describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted 
   });
 
   it('isQueuedReplay:true on a "sending" record but a DIFFERENT action id ("save-draft"): narrowly scoped — the gate still applies', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sending',
@@ -193,7 +195,7 @@ describe('DocumentsService.runAction — isQueuedReplay (the worker\'s admitted 
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: false,
       reason: 'save-draft forbidden',
     });

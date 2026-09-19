@@ -6,19 +6,20 @@
  * now re-checked on every `authenticate()` call resolves `baseUrl` for real otherwise — see that
  * import's own comment for why the mock shape must match a namespace import exactly).
  */
+import { vi, type Mock, type MockedFunction } from 'vitest';
 import * as dns from 'node:dns';
 
 import { PdpClient, PdpApiError } from './pdp-client';
 
-jest.mock('node:dns', () => ({ promises: { lookup: jest.fn() } }));
+vi.mock('node:dns', () => ({ promises: { lookup: vi.fn() } }));
 
-const lookup = dns.promises.lookup as unknown as jest.Mock;
+const lookup = dns.promises.lookup as unknown as Mock;
 
 // ---------------------------------------------------------------------------
 // Mock fetch
 // ---------------------------------------------------------------------------
 
-const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+const mockFetch = vi.fn() as MockedFunction<typeof fetch>;
 global.fetch = mockFetch as unknown as typeof fetch;
 
 beforeEach(() => {

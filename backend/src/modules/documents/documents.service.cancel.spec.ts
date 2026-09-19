@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -13,8 +15,8 @@ import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
-jest.mock('./country-policy/country-policy');
+vi.mock('./persistence');
+vi.mock('./country-policy/country-policy');
 
 /**
  * Proves the WIRING: `DocumentsService#runAction('invoice', 'cancel', ...)`
@@ -26,7 +28,7 @@ jest.mock('./country-policy/country-policy');
  * isn't, and WHY) is pinned exhaustively in `correction-routes/cancel-policy.spec.ts` — this file
  * only proves DocumentsService respects it.
  */
-function buildService(webhooks?: { dispatch: jest.Mock }) {
+function buildService(webhooks?: { dispatch: Mock }) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildInvoiceDescriptor());
 
@@ -37,7 +39,7 @@ function buildService(webhooks?: { dispatch: jest.Mock }) {
   const actionRegistry = new ActionRegistry();
   registerInvoiceActions(actionRegistry, {
     transportRegistry,
-    queueDispatcher: { enqueueAction: jest.fn() },
+    queueDispatcher: { enqueueAction: vi.fn() },
     webhooks,
   });
 
@@ -76,18 +78,18 @@ function mockDocument(overrides: Partial<{ id: string; status: string }> = {}) {
     displayNumber: 'INV-2026-0005',
     ...overrides,
   };
-  (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(document);
+  (persistence.findOwnedDocument as Mock).mockResolvedValue(document);
   return document;
 }
 
 describe('DocumentsService.runAction("invoice", "cancel")', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   describe('the per-country gate (correction-routes/cancel-policy.ts, real catalog)', () => {
     it('FR: cancel succeeds from "sent" — a status-only write, no field rewritten, no renumbering', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
       mockDocument({ status: 'sent' });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'cancelled',
@@ -125,9 +127,9 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
     // point: FR is not the only country with an unrestricted local cancel.
     it('DE: also an unrestricted local cancel (no restrictedToStatuses), same as FR', async () => {
       for (const countryCode of ['DE']) {
-        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue(countryCode);
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(countryCode);
         mockDocument({ status: 'sent' });
-        (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        (persistence.updateDocumentStatus as Mock).mockResolvedValue({
           id: 'doc-1',
           typeId: 'invoice',
           status: 'cancelled',
@@ -146,7 +148,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
     });
 
     it('PL: refused with 403 — CANCEL_AND_REPLACE is "required" but has no real local mechanism (corrective invoices only)', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PL');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
       mockDocument({ status: 'sent' });
 
       const service = buildService();
@@ -167,7 +169,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
     // — kept as their own test (rather than folded into Belgium's) to document that fact honestly.
     it('ES and MX: also refused with 403 — both correction-routes files were removed by the prune, so this is now the generic "no file" refusal', async () => {
       for (const countryCode of ['ES', 'MX']) {
-        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue(countryCode);
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(countryCode);
         mockDocument({ status: 'sent' });
 
         const service = buildService();
@@ -181,7 +183,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
     });
 
     it('a country with no correction-routes file at all (e.g. Belgium) never sees cancel either — 403, named', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('BE');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('BE');
       mockDocument({ status: 'sent' });
 
       const service = buildService();
@@ -194,7 +196,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
     });
 
     it('IT: refused with 409 (not 403) from "sent" — the route is founded, just narrowed to "send_failed" (post-scarto only)', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('IT');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('IT');
       mockDocument({ status: 'sent' });
 
       const service = buildService();
@@ -209,9 +211,9 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
     });
 
     it('IT: cancel SUCCEEDS from "send_failed" — exactly the status its own data founds', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('IT');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('IT');
       mockDocument({ status: 'send_failed' });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'cancelled',
@@ -231,7 +233,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
 
   describe('the lifecycle (descriptors/invoice.descriptor.ts availableWhen — country-blind)', () => {
     beforeEach(() => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR'); // founded — isolates the STATUS gate.
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR'); // founded — isolates the STATUS gate.
     });
 
     it('a "draft" invoice cannot be cancelled — 409, nothing to cancel before issuance', async () => {
@@ -285,7 +287,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
 
   describe('DOCUMENT_CANCELLED webhook (schema.prisma WebhookEvent) — best-effort, fires once cancellation commits', () => {
     it('dispatches DOCUMENT_CANCELLED, carrying the row under the fixed "document" key, once "cancel" actually commits', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
       mockDocument({ status: 'sent' });
       const cancelled = {
         id: 'doc-1',
@@ -295,8 +297,8 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(cancelled);
-      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(cancelled);
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
 
       const service = buildService(webhooks);
       await service.runAction('company-1', 'invoice', 'cancel', {
@@ -317,9 +319,9 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
     });
 
     it('a webhook DISPATCH failure never undoes the cancellation already committed', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
       mockDocument({ status: 'sent' });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'cancelled',
@@ -327,7 +329,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('webhook endpoint down')) };
+      const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('webhook endpoint down')) };
 
       const service = buildService(webhooks);
       const result = await service.runAction('company-1', 'invoice', 'cancel', {
@@ -339,9 +341,9 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
     });
 
     it('no webhooks wired at all (undefined) — cancel still succeeds, no crash', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
       mockDocument({ status: 'sent' });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'cancelled',
@@ -361,14 +363,14 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
 
   describe('two concurrent "cancel" calls on the SAME invoice — the compare-and-swap this action now passes', () => {
     it('the loser gets a 409, never a second DOCUMENT_CANCELLED webhook', async () => {
-      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
       mockDocument({ status: 'sent' }); // BOTH concurrent calls read this same, still-"sent" snapshot.
 
       // `persistence.updateDocumentStatus` is mocked here, not the real `updateMany` — this proves the
       // ACTION propagates a 409 and never dispatches a second webhook, the same "compare-and-swap
       // primitive already proven in persistence.spec.ts" split every other caller in this batch holds.
       let calls = 0;
-      (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+      (persistence.updateDocumentStatus as Mock).mockImplementation(async () => {
         calls += 1;
         if (calls === 1) {
           return {
@@ -385,7 +387,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
             'another request already changed it concurrently.',
         );
       });
-      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
       const service = buildService(webhooks);
 
       const results = await Promise.allSettled([

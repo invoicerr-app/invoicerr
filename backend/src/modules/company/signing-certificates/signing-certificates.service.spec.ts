@@ -9,6 +9,9 @@
  *
  * Certs are generated in-memory with node-forge. No real certificate is ever committed or used.
  */
+
+import { vi, type Mock } from 'vitest';
+
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 import * as forge from 'node-forge';
@@ -18,24 +21,24 @@ import { encryptJson } from '@/utils/secret-crypto';
 import { ChannelEnvironment } from '../../../../prisma/generated/prisma/client';
 import { SigningCertificatesService } from './signing-certificates.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     companySigningCertificate: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      upsert: jest.fn(),
-      updateMany: jest.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   companySigningCertificate: {
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-    upsert: jest.Mock;
-    updateMany: jest.Mock;
+    findUnique: Mock;
+    findMany: Mock;
+    upsert: Mock;
+    updateMany: Mock;
   };
 };
 
@@ -144,7 +147,7 @@ describe('SigningCertificatesService', () => {
   let service: SigningCertificatesService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new SigningCertificatesService();
   });
 

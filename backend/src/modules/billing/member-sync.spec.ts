@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
@@ -9,27 +11,26 @@ import {
 } from './member-sync';
 import * as memberResolution from './member-resolution';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    userCompany: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn() },
+    userCompany: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn() },
     // `findUniqueOrThrow` backs `billing-customer.ts#loadCompanyBillingIdentity`, which
     // `ensureCompanyBillingMember` (this file's own, called for every `team`-customer sync below) reads.
-    company: { findUniqueOrThrow: jest.fn() },
+    company: { findUniqueOrThrow: vi.fn() },
   },
 }));
-jest.mock('./company-subscription.store');
-jest.mock('./member-resolution');
+vi.mock('./company-subscription.store');
+vi.mock('./member-resolution');
 
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
-const findUserCompany = prisma.userCompany.findUnique as jest.Mock;
-const findUser = prisma.user.findUnique as jest.Mock;
-const findCompany = prisma.company.findUniqueOrThrow as jest.Mock;
-const resolveOrCreate = memberResolution.resolveOrCreateMemberIdForUser as jest.Mock;
-const removeMember = memberResolution.removeMemberForUser as jest.Mock;
-const resolveOrCreateCompanyBillingMember =
-  memberResolution.resolveOrCreateCompanyBillingMemberId as jest.Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
+const findUserCompany = prisma.userCompany.findUnique as Mock;
+const findUser = prisma.user.findUnique as Mock;
+const findCompany = prisma.company.findUniqueOrThrow as Mock;
+const resolveOrCreate = memberResolution.resolveOrCreateMemberIdForUser as Mock;
+const removeMember = memberResolution.removeMemberForUser as Mock;
+const resolveOrCreateCompanyBillingMember = memberResolution.resolveOrCreateCompanyBillingMemberId as Mock;
 
 const COMPANY_ROW = { id: 'company-1', name: 'Acme Inc', email: 'contact@acme.test', billingEmail: null };
 
@@ -38,10 +39,10 @@ const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 function fakeClient(customerType = 'team'): MemberSyncClient {
   return {
     customers: {
-      getExternal: jest.fn().mockResolvedValue({ id: 'cus_1', type: customerType }),
-      members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+      getExternal: vi.fn().mockResolvedValue({ id: 'cus_1', type: customerType }),
+      members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
     },
-    members: { listMembers: jest.fn() },
+    members: { listMembers: vi.fn() },
   } as unknown as MemberSyncClient;
 }
 
@@ -56,7 +57,7 @@ describe('syncCompanyMemberOnMembershipChange', () => {
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     if (ORIGINAL_ENV === undefined) delete process.env[BILLING_FLAG_NAME];
     else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
   });
@@ -76,7 +77,7 @@ describe('syncCompanyMemberOnMembershipChange', () => {
 
     await syncCompanyMemberOnMembershipChange('company-1', 'user-1', client);
 
-    expect(client.customers.getExternal as jest.Mock).not.toHaveBeenCalled();
+    expect(client.customers.getExternal as Mock).not.toHaveBeenCalled();
   });
 
   it('is a no-op when the customer has not been promoted to team yet', async () => {
@@ -196,7 +197,7 @@ describe('syncCompanyMemberOnMembershipChange', () => {
 });
 
 describe('ensureCompanyBillingMember', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("resolves the company's billing identity and ensures its Polar member", async () => {
     findCompany.mockResolvedValue({ ...COMPANY_ROW, billingEmail: 'billing@acme.test' });

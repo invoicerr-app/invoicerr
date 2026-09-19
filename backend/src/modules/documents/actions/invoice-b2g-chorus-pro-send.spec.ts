@@ -1,6 +1,6 @@
 /**
  * The B2G FR path, END TO END, at the SERVICE level — the one thing `invoice-b2g-routing.spec.ts`
- * (bare `{ send: jest.fn() }` stub transports) and `transports/chorus-pro-transport.spec.ts` (the
+ * (bare `{ send: vi.fn() }` stub transports) and `transports/chorus-pro-transport.spec.ts` (the
  * transport in isolation) each prove HALF of: a FRENCH government client, on a company whose
  * "chorus-pro" channel IS connected, actually reaches the REAL `buildChorusProTransport` through the
  * REAL `resolveInvoiceTransport`/`resolveB2gInvoiceTransport` precedence machinery — preflight passes,
@@ -15,6 +15,8 @@
  * live PISTE round-trip (that is `chorus-pro/choruspro.live.spec.ts`'s job — proven live in
  * qualification 2026-09-14, see that file's own header).
  */
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
@@ -28,38 +30,56 @@ import { ActionRegistry } from './action-registry';
 import { registerInvoiceActions } from './invoice-actions';
 import * as taxLoadAndResolve from '../tax/load-and-resolve';
 
-jest.mock('../persistence');
-jest.mock('../transports/company-transport');
-jest.mock('../b2g-routing/b2g-routing');
-jest.mock('../numbering/take-number');
-jest.mock('../tax/load-and-resolve');
+vi.mock('../persistence');
+vi.mock('../transports/company-transport');
+vi.mock('../b2g-routing/b2g-routing');
+vi.mock('../numbering/take-number');
+vi.mock('../tax/load-and-resolve');
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    client: { findFirst: jest.fn() },
+    company: { findUnique: vi.fn() },
+    client: { findFirst: vi.fn() },
     // Read by THE PAYMENT MEANS GATE's own `listCompanyPaymentMethods` (real, unmocked here —
     // deliberately: see this file's own header, "does the WIRING... work", never a stubbed persistence
     // module) — `chorus-pro-transport.ts` refuses a deposit unless "bank_transfer" comes back enabled.
-    companyPaymentMethodConfig: { findUnique: jest.fn() },
+    companyPaymentMethodConfig: { findUnique: vi.fn() },
   },
 }));
 
-const mockDeposerFlux = jest.fn();
+// `mockDeposerFlux` — referenced INSIDE the `vi.mock(...)` factory below, but declared here in plain
+// module scope: `vi.mock()` calls are hoisted above every import (and above this declaration too),
+// so this only works because Vitest keeps Jest's own naming-convention exception — a factory MAY
+// reference an out-of-scope variable whose name starts with "mock" (case-insensitive); anything else
+// throws a hoisting `ReferenceError`. Confirmed under Vitest during this migration: `mockDeposerFlux`
+// resolves correctly, and renaming it to break the convention (`depositMock`) reproduces exactly that
+// ReferenceError. Prefer `vi.hoisted()` for a NEW file instead of relying on this convention — see the
+// migration recipe's own hoisting entry — but this rename is out of scope for a mechanical port.
+const mockDeposerFlux = vi.fn();
 
-jest.mock('../transports/chorus-pro/choruspro-client', () => {
-  const actual = jest.requireActual('../transports/chorus-pro/choruspro-client');
+vi.mock('../transports/chorus-pro/choruspro-client', async () => {
+  const actual = await vi.importActual('../transports/chorus-pro/choruspro-client');
   return {
     ...actual,
-    ChorusProClient: jest.fn().mockImplementation(() => ({ deposerFlux: mockDeposerFlux })),
+    // A `function` expression, NOT the original arrow function — production code does
+    // `new ChorusProClient(...)` (chorus-pro-transport.ts's own `buildClient`). Jest's mock functions
+    // never really invoke the implementation via `[[Construct]]` (they call it plainly and use its
+    // return value regardless), so an arrow-function implementation worked there; Vitest's mocks DO
+    // construct the real implementation, and an arrow function has no `[[Construct]]` at all —
+    // "TypeError: ... is not a constructor". Confirmed by hitting exactly that error during this
+    // migration before switching to `function`.
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new ChorusProClient(...)` under Vitest, see above.
+    ChorusProClient: vi.fn().mockImplementation(function () {
+      return { deposerFlux: mockDeposerFlux };
+    }),
   };
 });
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  client: { findFirst: jest.Mock };
-  companyPaymentMethodConfig: { findUnique: jest.Mock };
+  company: { findUnique: Mock };
+  client: { findFirst: Mock };
+  companyPaymentMethodConfig: { findUnique: Mock };
 };
 
 const FR_RULE = {
@@ -120,11 +140,11 @@ function sendingDocument(overrides: Record<string, unknown> = {}) {
 
 function buildRegistry() {
   // The REAL chorus-pro transport, wired the SAME way `documents-core.module.ts#buildTransportRegistry`
-  // wires it — never a bare `{ send: jest.fn() }` stub, unlike every OTHER transport in
+  // wires it — never a bare `{ send: vi.fn() }` stub, unlike every OTHER transport in
   // `invoice-b2g-routing.spec.ts`'s own registry: this file's whole point is proving the wiring past
   // the transport's own boundary, not just the precedence logic in front of it.
   const channelCredentials = {
-    resolveActive: jest.fn().mockResolvedValue(CONNECTED_CHORUS_PRO_CONFIG),
+    resolveActive: vi.fn().mockResolvedValue(CONNECTED_CHORUS_PRO_CONFIG),
   } as unknown as ChannelCredentialsService;
   // A STUBBED format provider — never the real `buildFacturxFormatProvider` (which needs a live
   // Puppeteer render + real Company/Client DB rows well beyond this test's own concern, see
@@ -136,7 +156,7 @@ function buildRegistry() {
     id: 'facturx',
     syntax: 'FACTURX',
     mime: 'application/pdf',
-    build: jest
+    build: vi
       .fn()
       .mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), validation: { valid: true, errors: [] } }),
   };
@@ -149,22 +169,22 @@ function buildRegistry() {
   );
 
   const registry = new ActionRegistry();
-  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
+  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: vi.fn() } });
   return registry;
 }
 
 describe('B2G FR, end to end at the service level — government client + connected chorus-pro channel', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
       applies: true,
       countryCode: 'FR',
       rule: FR_RULE,
       missingIdentifierSchemes: [],
     });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email'); // irrelevant — B2G overrides it
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email'); // irrelevant — B2G overrides it
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
@@ -205,8 +225,8 @@ describe('B2G FR, end to end at the service level — government client + connec
   });
 
   it('phase 1 (enqueue): the preflight PASSES — chorus-pro is registered AND connected, so B2G routing no longer refuses', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingDocument());
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
     const handler = buildRegistry().resolve('invoice', 'send');
 
     const result = await handler!({
@@ -230,8 +250,8 @@ describe('B2G FR, end to end at the service level — government client + connec
       httpStatus: 200,
       raw: {},
     });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument());
-    (persistence.updateDocumentStatus as jest.Mock).mockImplementation(
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingDocument());
+    (persistence.updateDocumentStatus as Mock).mockImplementation(
       (_companyId, _typeId, _documentId, status, _err, reference, providerId) =>
         Promise.resolve(sendingDocument({ status, transportRef: reference, channelProviderId: providerId })),
     );

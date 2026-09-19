@@ -10,6 +10,7 @@
  * (`tax/cross-border-formats.spec.ts`'s own "master proof" style), so the assertion is about the
  * BUILT DOCUMENT a buyer would actually receive, not merely about the in-memory sidecar keys.
  */
+import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -19,17 +20,17 @@ import { DocumentFormatParty } from '../formats/format-provider';
 import { resolveInvoiceCrossBorderTaxForCompany } from './load-and-resolve';
 import { UnresolvedBuyerCountryError } from './resolve-invoice-tax';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    client: { findFirst: jest.fn() },
+    company: { findUnique: vi.fn() },
+    client: { findFirst: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  client: { findFirst: jest.Mock };
+  company: { findUnique: Mock };
+  client: { findFirst: Mock };
 };
 
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();

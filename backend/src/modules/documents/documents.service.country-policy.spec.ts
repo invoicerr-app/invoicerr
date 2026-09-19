@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -13,8 +15,8 @@ import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
-jest.mock('./country-policy/country-policy');
+vi.mock('./persistence');
+vi.mock('./country-policy/country-policy');
 
 /**
  * Proves the COMPOSITION documents.service.ts's `runAction` now does: country policy × current
@@ -37,7 +39,7 @@ function buildService() {
   const actionRegistry = new ActionRegistry();
   registerInvoiceActions(actionRegistry, {
     transportRegistry,
-    queueDispatcher: { enqueueAction: jest.fn() },
+    queueDispatcher: { enqueueAction: vi.fn() },
   });
 
   const actionExtensionRegistry = new ActionExtensionRegistry();
@@ -63,10 +65,10 @@ const validInvoiceData = {
 };
 
 describe('DocumentsService.runAction — composed with the country policy', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('refuses an action the country policy forbids with 403 — even one that is "always" available and implemented', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: false,
       reason: 'No document action policy is declared for "ZZ".',
     });
@@ -81,11 +83,11 @@ describe('DocumentsService.runAction — composed with the country policy', () =
   });
 
   it('checks the country policy BEFORE the status check — a forbidden action is refused even on a status that would satisfy availableWhen', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: false,
       reason: 'forbidden for "ZZ"',
     });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft', // "send"'s own availableWhen — would otherwise pass.
@@ -104,8 +106,8 @@ describe('DocumentsService.runAction — composed with the country policy', () =
   });
 
   it("an action the country policy ALLOWS but that is unavailable for the record's current status is still refused — 409, not a policy bypass", async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft', // "record-payment" is only available for "sent".
@@ -124,8 +126,8 @@ describe('DocumentsService.runAction — composed with the country policy', () =
   });
 
   it('an action the country policy allows, available for the status, still 501s with no implementation registered', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'sent',
@@ -146,8 +148,8 @@ describe('DocumentsService.runAction — composed with the country policy', () =
   });
 
   it('an action the country policy allows, available, and implemented actually runs', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft',
@@ -167,11 +169,11 @@ describe('DocumentsService.runAction — composed with the country policy', () =
 
   describe("per-status country-policy narrowing (rule.statuses) — composed with the record's own status", () => {
     it("blocks with a 409 (not a 403) when the restriction excludes the record's current status", async () => {
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+      (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
         allowed: true,
         restrictedToStatuses: ['draft'],
       });
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sent', // outside the restriction, though "save-draft" itself allows "sent" too
@@ -195,11 +197,11 @@ describe('DocumentsService.runAction — composed with the country policy', () =
     });
 
     it('allows the exact same action at a status the restriction DOES cover', async () => {
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+      (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
         allowed: true,
         restrictedToStatuses: ['draft'],
       });
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -224,7 +226,7 @@ describe('DocumentsService.runAction — composed with the country policy', () =
       // (`evaluateCountryPolicyForActions`, country-policy.ts's own header on why), never one
       // `evaluateCountryPolicy` call per action — see this spec's own
       // `country-policy.spec.ts#evaluateCountryPolicyForActions` for the DECISION LOGIC itself.
-      (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+      (countryPolicy.evaluateCountryPolicyForActions as Mock).mockImplementation(
         async (_companyId: string, _typeId: string, actionIds: string[]) =>
           actionIds.map((actionId) =>
             actionId === 'send' ? { allowed: false, reason: 'forbidden for "ZZ"' } : { allowed: true },

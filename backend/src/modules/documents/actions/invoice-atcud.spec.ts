@@ -9,6 +9,7 @@
  * `DocumentsService.runAction`'s own gates entirely — the exact same style `send-divergence.spec.ts`
  * and `invoice-channel-mandate.spec.ts` already established for this module.
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
 import * as persistence from '../persistence';
@@ -22,33 +23,33 @@ import { registerInvoiceActions } from './invoice-actions';
 import * as taxLoadAndResolve from '../tax/load-and-resolve';
 import prisma from '@/prisma/prisma.service';
 
-jest.mock('../persistence');
-jest.mock('../transports/company-transport');
-jest.mock('../country-policy/country-policy');
-jest.mock('../b2g-routing/b2g-routing');
-jest.mock('../numbering/take-number');
-jest.mock('../tax/load-and-resolve');
+vi.mock('../persistence');
+vi.mock('../transports/company-transport');
+vi.mock('../country-policy/country-policy');
+vi.mock('../b2g-routing/b2g-routing');
+vi.mock('../numbering/take-number');
+vi.mock('../tax/load-and-resolve');
 // This file's own concern is the ATCUD gate, never the (unrelated) SELLER-country channel mandate —
 // see `invoice-channel-mandate.spec.ts` for that mechanism's own dedicated tests. Automocked
 // (`activeChannelMandateFor` returns `undefined`, i.e. "no mandate") so a REAL mandate fact for
 // whichever country a test happens to pick (e.g. FR, mandated from 2026-09-01 — see
 // `invoice-channel-mandate.spec.ts`'s own `FR_MANDATE`) can never interfere with a test that has
 // nothing to do with it.
-jest.mock('../transports/channel-policy/mandate');
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('../transports/channel-policy/mandate');
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    companyAtcudSeries: { findUnique: jest.fn() },
-    documentInstance: { update: jest.fn() },
-    log: { create: jest.fn().mockResolvedValue({}) },
+    company: { findUnique: vi.fn() },
+    companyAtcudSeries: { findUnique: vi.fn() },
+    documentInstance: { update: vi.fn() },
+    log: { create: vi.fn().mockResolvedValue({}) },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  companyAtcudSeries: { findUnique: jest.Mock };
-  documentInstance: { update: jest.Mock };
+  company: { findUnique: Mock };
+  companyAtcudSeries: { findUnique: Mock };
+  documentInstance: { update: Mock };
 };
 
 const documentData = {
@@ -71,9 +72,9 @@ function draftDocument() {
 }
 
 function buildRegistry(transportRegistry = new TransportRegistry()) {
-  transportRegistry.register('email', 'Email', { send: jest.fn() });
+  transportRegistry.register('email', 'Email', { send: vi.fn() });
   const registry = new ActionRegistry();
-  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
+  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: vi.fn() } });
   return registry;
 }
 
@@ -89,30 +90,30 @@ function sendAction() {
 }
 
 describe('invoice "send" — Portugal\'s ATCUD preflight and numbering-time attachment', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   beforeEach(() => {
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
-    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
       applies: false,
       missingIdentifierSchemes: [],
     });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
   });
 
   it('is a complete no-op for a non-Portuguese company — never reads a number format, never blocks', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       ...draftDocument(),
       status: 'sending',
       number: null,
       displayNumber: null,
     });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
       number: 1,
       displayNumber: 'INVOICE-2026-0001',
     });
@@ -126,7 +127,7 @@ describe('invoice "send" — Portugal\'s ATCUD preflight and numbering-time atta
   });
 
   it('BLOCKS at the preflight for a Portuguese company on an ATCUD-incompatible number format — never persisted, never numbered', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PT');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
     mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: null }); // shipped default: no "/"
 
     const action = sendAction();
@@ -138,7 +139,7 @@ describe('invoice "send" — Portugal\'s ATCUD preflight and numbering-time atta
   });
 
   it('BLOCKS at the preflight for a Portuguese company with a compatible format but no registered validation code', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PT');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
     mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: { invoice: 'FT {year}/{number:4}' } });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
 
@@ -152,7 +153,7 @@ describe('invoice "send" — Portugal\'s ATCUD preflight and numbering-time atta
   });
 
   it('numbers, THEN computes and persists the ATCUD, for a fully-configured Portuguese company', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PT');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
     mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: { invoice: 'FT {year}/{number:4}' } });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({
       id: 'series-1',
@@ -161,13 +162,13 @@ describe('invoice "send" — Portugal\'s ATCUD preflight and numbering-time atta
       seriesId: 'FT 2026',
       validationCode: 'JCVPTS0J',
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       ...draftDocument(),
       status: 'sending',
       number: null,
       displayNumber: null,
     });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
       number: 7,
       displayNumber: 'FT 2026/0007',
     });

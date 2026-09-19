@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { generateKeyPairSync } from 'node:crypto';
 import { FA3_FORM_CODE, KsefClient, KsefHttpClient, HttpRequest, HttpResponse } from './ksef-client';
 
@@ -16,7 +17,7 @@ const RSA_KEY = genRsaKey();
 /** Simple mock HTTP client that records requests and returns pre-configured responses. */
 function mockHttp(handler: (req: HttpRequest) => HttpResponse): KsefHttpClient {
   return {
-    request: jest.fn().mockImplementation(async (req: HttpRequest) => handler(req)),
+    request: vi.fn().mockImplementation(async (req: HttpRequest) => handler(req)),
   };
 }
 
@@ -73,7 +74,7 @@ describe('KsefClient', () => {
 
       expect(result.referenceNumber).toBe('20260628-AU-2FDC223000-C2BFC98A9C-4E');
       expect(result.authenticationToken.token).toContain('eyJ');
-      const body = (http.request as jest.Mock).mock.calls[0][0].body;
+      const body = (http.request as Mock).mock.calls[0][0].body;
       expect(body.contextIdentifier).toEqual({ type: 'Nip', value: '1234567890' });
       expect(body.challenge).toBe('20260628-CR-2FDC223000-C2BFC98A9C-4E');
       expect(typeof body.encryptedToken).toBe('string');
@@ -136,7 +137,7 @@ describe('KsefClient', () => {
 
       expect(result.accessToken.token).toBe('access-jwt');
       expect(result.refreshToken.token).toBe('refresh-jwt');
-      const req = (http.request as jest.Mock).mock.calls[0][0];
+      const req = (http.request as Mock).mock.calls[0][0];
       expect(req.body).toBeUndefined();
       expect(req.headers).toEqual({ Authorization: 'Bearer auth-token' });
     });
@@ -156,7 +157,7 @@ describe('KsefClient', () => {
       const result = await client.openOnlineSession('access-token', key);
 
       expect(result.referenceNumber).toBe('20260628-SN-ABCDEF1234-567890AB-CDEF');
-      const body = (http.request as jest.Mock).mock.calls[0][0].body;
+      const body = (http.request as Mock).mock.calls[0][0].body;
       // THE MUTATION TARGET: the session's own `formCode` must be the SAME version the invoice body
       // this transport actually deposits declares (`fa3-provider.ts`'s `Naglowek.KodFormularza`) — a
       // session opened under a version the payload does not match is accepted synchronously by KSeF
@@ -191,7 +192,7 @@ describe('KsefClient', () => {
       const result = await client.sendInvoice('session-ref', 'access-token', '<xml>test</xml>', key);
 
       expect(result.referenceNumber).toBe('20260628-IN-INV123456-ABCDEF01-23');
-      const body = (http.request as jest.Mock).mock.calls[0][0].body;
+      const body = (http.request as Mock).mock.calls[0][0].body;
       expect(typeof body.invoiceHash).toBe('string');
       expect(typeof body.encryptedInvoiceHash).toBe('string');
       expect(typeof body.encryptedInvoiceContent).toBe('string');
@@ -206,7 +207,7 @@ describe('KsefClient', () => {
       const client = new KsefClient(http, TEST_CONFIG);
       await client.closeSession('session-ref', 'access-token');
 
-      const req = (http.request as jest.Mock).mock.calls[0][0];
+      const req = (http.request as Mock).mock.calls[0][0];
       expect(req.method).toBe('POST');
       expect(req.path).toContain('/sessions/online/session-ref/close');
       expect(req.body).toBeUndefined();
@@ -320,7 +321,7 @@ describe('KsefClient', () => {
       expect(result.invoices[0].ksefNumber).toBe('5555555555-20250828-010080615740-E4');
       expect(result.invoices[0].buyer.identifier.value).toBe('7352765225');
 
-      const req = (http.request as jest.Mock).mock.calls[0][0];
+      const req = (http.request as Mock).mock.calls[0][0];
       expect(req.method).toBe('POST');
       expect(req.path).toContain('/invoices/query/metadata');
       expect(req.path).toContain('pageOffset=0');
@@ -344,7 +345,7 @@ describe('KsefClient', () => {
         dateRange: { dateType: 'PermanentStorage', from: '2025-08-28T00:00:00Z' },
       });
 
-      const req = (http.request as jest.Mock).mock.calls[0][0];
+      const req = (http.request as Mock).mock.calls[0][0];
       expect(req.path.endsWith('/invoices/query/metadata')).toBe(true);
     });
   });
@@ -361,7 +362,7 @@ describe('KsefClient', () => {
       );
 
       expect(result).toBe(xml);
-      const req = (http.request as jest.Mock).mock.calls[0][0];
+      const req = (http.request as Mock).mock.calls[0][0];
       expect(req.method).toBe('GET');
       expect(req.path).toContain('/invoices/ksef/5555555555-20250828-010080615740-E4');
       expect(req.headers).toEqual({ Authorization: 'Bearer access-token' });

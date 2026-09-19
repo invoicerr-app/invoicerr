@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
@@ -5,19 +7,19 @@ import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { MemberEmailSyncClient, syncPolarMemberEmailForUser } from './member-email-sync';
 import * as memberResolution from './member-resolution';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { userCompany: { findMany: jest.fn() } },
+  default: { userCompany: { findMany: vi.fn() } },
 }));
-jest.mock('./company-subscription.store');
-jest.mock('./member-resolution', () => ({
-  ...jest.requireActual('./member-resolution'),
-  resolveOrCreateMemberIdForUser: jest.fn(),
-}));
+vi.mock('./company-subscription.store');
+vi.mock('./member-resolution', async () => {
+  const actual = await vi.importActual('./member-resolution');
+  return { ...actual, resolveOrCreateMemberIdForUser: vi.fn() };
+});
 
-const findMemberships = prisma.userCompany.findMany as jest.Mock;
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
-const resolveOrCreate = memberResolution.resolveOrCreateMemberIdForUser as jest.Mock;
+const findMemberships = prisma.userCompany.findMany as Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
+const resolveOrCreate = memberResolution.resolveOrCreateMemberIdForUser as Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
@@ -28,15 +30,15 @@ function notFoundError(): unknown {
 function fakeClient(overrides: Partial<MemberEmailSyncClient> = {}): MemberEmailSyncClient {
   return {
     customers: {
-      getExternal: jest.fn().mockResolvedValue({ id: 'cus_1', type: 'team' }),
+      getExternal: vi.fn().mockResolvedValue({ id: 'cus_1', type: 'team' }),
       members: {
-        getExternal: jest.fn(),
-        createExternal: jest.fn(),
-        updateExternal: jest.fn().mockResolvedValue({ id: 'member-1' }),
-        delete: jest.fn(),
+        getExternal: vi.fn(),
+        createExternal: vi.fn(),
+        updateExternal: vi.fn().mockResolvedValue({ id: 'member-1' }),
+        delete: vi.fn(),
       },
     },
-    members: { listMembers: jest.fn() },
+    members: { listMembers: vi.fn() },
     ...overrides,
   } as unknown as MemberEmailSyncClient;
 }
@@ -47,7 +49,7 @@ describe('syncPolarMemberEmailForUser', () => {
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     if (ORIGINAL_ENV === undefined) delete process.env[BILLING_FLAG_NAME];
     else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
   });
@@ -93,12 +95,12 @@ describe('syncPolarMemberEmailForUser', () => {
     getOrCreate.mockResolvedValue({ polarSubscriptionId: 'sub_1' });
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_1', type: 'team' }),
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_1', type: 'team' }),
         members: {
-          getExternal: jest.fn(),
-          createExternal: jest.fn(),
-          updateExternal: jest.fn().mockRejectedValue(notFoundError()),
-          delete: jest.fn(),
+          getExternal: vi.fn(),
+          createExternal: vi.fn(),
+          updateExternal: vi.fn().mockRejectedValue(notFoundError()),
+          delete: vi.fn(),
         },
       } as unknown as MemberEmailSyncClient['customers'],
     });
@@ -127,12 +129,12 @@ describe('syncPolarMemberEmailForUser', () => {
     getOrCreate.mockResolvedValue({ polarSubscriptionId: 'sub_1' });
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_1', type: 'individual' }),
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_1', type: 'individual' }),
         members: {
-          getExternal: jest.fn(),
-          createExternal: jest.fn(),
-          updateExternal: jest.fn(),
-          delete: jest.fn(),
+          getExternal: vi.fn(),
+          createExternal: vi.fn(),
+          updateExternal: vi.fn(),
+          delete: vi.fn(),
         },
       } as unknown as MemberEmailSyncClient['customers'],
     });
@@ -157,12 +159,12 @@ describe('syncPolarMemberEmailForUser', () => {
     getOrCreate.mockResolvedValue({ polarSubscriptionId: 'sub_1' });
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockRejectedValue(new Error('polar down')),
+        getExternal: vi.fn().mockRejectedValue(new Error('polar down')),
         members: {
-          getExternal: jest.fn(),
-          createExternal: jest.fn(),
-          updateExternal: jest.fn(),
-          delete: jest.fn(),
+          getExternal: vi.fn(),
+          createExternal: vi.fn(),
+          updateExternal: vi.fn(),
+          delete: vi.fn(),
         },
       } as unknown as MemberEmailSyncClient['customers'],
     });

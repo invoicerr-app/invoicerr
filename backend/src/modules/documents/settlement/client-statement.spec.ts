@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
 import * as persistence from '../persistence';
@@ -14,16 +16,16 @@ import { resolveAgingBucket, resolveClientStatement } from './client-statement';
  * file never re-litigates rules that module already owns (currency-mismatch warnings, draft
  * exclusion, …).
  */
-jest.mock('../persistence');
-jest.mock('./payments');
-jest.mock('./credits', () => {
-  const actual = jest.requireActual('./credits');
-  return { ...actual, listCreditNotes: jest.fn() };
+vi.mock('../persistence');
+vi.mock('./payments');
+vi.mock('./credits', async () => {
+  const actual = await vi.importActual('./credits');
+  return { ...actual, listCreditNotes: vi.fn() };
 });
 
-const listDocuments = persistence.listDocuments as jest.Mock;
-const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as jest.Mock;
-const listCreditNotes = settlementCredits.listCreditNotes as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
+const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
+const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 
 // Two lines: 100 EUR net (20% VAT -> 120 gross, 12000 minor) and 50 EUR net (20% VAT -> 60 gross,
 // 6000 minor) — full gross 18000 minor, same fixture as credits.spec.ts, reused verbatim.

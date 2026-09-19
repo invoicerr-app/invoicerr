@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from '../actions/action-extensions';
@@ -17,36 +19,38 @@ import { ShareLinksService } from '../share-links/share-links.service';
 import { TransportRegistry } from '../transports/transport-registry';
 import { PublicDocumentsController } from './public-documents.controller';
 
-jest.mock('../persistence');
-jest.mock('../country-policy/country-policy');
-jest.mock('../rendering/render-instance-pdf');
+vi.mock('../persistence');
+vi.mock('../country-policy/country-policy');
+vi.mock('../rendering/render-instance-pdf');
 // `@thallesp/nestjs-better-auth`'s own package ships an ESM-only transitive dependency
-// (better-auth/dist/integrations/node.mjs) jest's ts-jest transform doesn't parse — mocked here,
-// the same way any other module boundary this suite doesn't need the REAL implementation of is
-// mocked, rather than widening jest.config.js's transformIgnorePatterns for one decorator whose
-// only job (see PublicDocumentsController's own header) is to set metadata AuthGuard reads.
-jest.mock('@thallesp/nestjs-better-auth', () => ({
+// (better-auth/dist/integrations/node.mjs) that the old ts-jest transform could not parse at all —
+// mocked here, the same way any other module boundary this suite doesn't need the REAL
+// implementation of is mocked, rather than widening the Jest config's own transformIgnorePatterns
+// for one decorator whose only job (see PublicDocumentsController's own header) is to set metadata
+// AuthGuard reads. Kept mocked under Vitest too, even though Vite's own resolver has no such parse
+// problem with ESM — no reason to pull in the real implementation now that it's no longer forced.
+vi.mock('@thallesp/nestjs-better-auth', () => ({
   Public: () => () => undefined,
 }));
 
 // The same in-memory `DocumentDownloadToken` fake as share-links.service.spec.ts — see that file's
-// own header for why this (not a bare per-method jest.fn()) is the right boundary to mock.
-jest.mock('@/prisma/prisma.service', () => {
+// own header for why this (not a bare per-method vi.fn()) is the right boundary to mock.
+vi.mock('@/prisma/prisma.service', () => {
   const rows: Array<Record<string, unknown>> = [];
   let nextId = 1;
   return {
     __esModule: true,
     default: {
       documentDownloadToken: {
-        create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           const row = { id: `token-${nextId++}`, createdAt: new Date(), revokedAt: null, ...data };
           rows.push(row);
           return row;
         }),
-        findUnique: jest.fn(async ({ where }: { where: { tokenHash: string } }) => {
+        findUnique: vi.fn(async ({ where }: { where: { tokenHash: string } }) => {
           return rows.find((r) => r.tokenHash === where.tokenHash) ?? null;
         }),
-        findFirst: jest.fn(
+        findFirst: vi.fn(
           async ({ where }: { where: { id: string; companyId: string; documentId: string } }) => {
             return (
               rows.find(
@@ -56,13 +60,13 @@ jest.mock('@/prisma/prisma.service', () => {
             );
           },
         ),
-        findMany: jest.fn(async () => []),
-        findUniqueOrThrow: jest.fn(async ({ where }: { where: { id: string } }) => {
+        findMany: vi.fn(async () => []),
+        findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
           const row = rows.find((r) => r.id === where.id);
           if (!row) throw new Error('not found');
           return row;
         }),
-        update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
           const row = rows.find((r) => r.id === where.id);
           Object.assign(row!, data);
           return row;
@@ -103,11 +107,11 @@ function buildControllers() {
     new ContributionRegistry(),
   );
   const shareLinksService = new ShareLinksService(documentsService);
-  const schedulesService = { list: jest.fn() };
+  const schedulesService = { list: vi.fn() };
   // This suite proves the PDF download path, entirely unrelated to
   // the SSE `events` route; a bare stub is enough, the same "unrelated dependency, minimal stub"
   // choice `schedulesService` above already makes.
-  const eventsBridge = { subscribeCompany: jest.fn() };
+  const eventsBridge = { subscribeCompany: vi.fn() };
 
   const documentsController = new DocumentsController(
     documentsService,
@@ -147,10 +151,10 @@ const SENT_INSTANCE = {
 
 describe('PublicDocumentsController — the public PDF is the SAME pipeline as the authenticated one', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_INSTANCE);
-    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+    vi.clearAllMocks();
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_INSTANCE);
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
       pdf: Buffer.from('%PDF-1.7 fake rendered bytes, deterministic for this test'),
       totals: {
         currency: 'EUR',
@@ -185,7 +189,7 @@ describe('PublicDocumentsController — the public PDF is the SAME pipeline as t
     // Both entry points reduced to the SAME single call — not two implementations that happen to
     // agree on THIS fixture's output.
     expect(renderInstancePdf.renderDocumentInstance).toHaveBeenCalledTimes(2);
-    for (const call of (renderInstancePdf.renderDocumentInstance as jest.Mock).mock.calls) {
+    for (const call of (renderInstancePdf.renderDocumentInstance as Mock).mock.calls) {
       expect(call[1]).toBe('company-1');
       expect(call[3]).toMatchObject({ id: 'doc-1' });
     }

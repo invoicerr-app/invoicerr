@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 import { decryptJson, encryptJson } from '@/utils/secret-crypto';
@@ -11,8 +13,8 @@ function fakePrisma(rows: { id: string; secret: string | null }[]): {
   const updates = new Map<string, string>();
   const prisma: WebhookSecretMigrationPrisma = {
     webhook: {
-      findMany: jest.fn().mockResolvedValue(rows),
-      update: jest.fn(async ({ where, data }) => {
+      findMany: vi.fn().mockResolvedValue(rows),
+      update: vi.fn(async ({ where, data }) => {
         updates.set(where.id, data.secret);
       }),
     },

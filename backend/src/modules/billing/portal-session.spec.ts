@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import {
   BILLING_NO_COMPANY_CUSTOMER_CODE,
   createCustomerPortalSession,
@@ -12,11 +14,11 @@ const COMPANY_BILLING = { email: 'billing@acme.test', name: 'Acme Inc' };
 function fakeClient(overrides: Partial<PortalSessionClient> = {}): PortalSessionClient {
   return {
     customers: {
-      getExternal: jest.fn(),
-      members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+      getExternal: vi.fn(),
+      members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
     },
-    members: { listMembers: jest.fn() },
-    customerSessions: { create: jest.fn() },
+    members: { listMembers: vi.fn() },
+    customerSessions: { create: vi.fn() },
     ...overrides,
   } as unknown as PortalSessionClient;
 }
@@ -27,12 +29,12 @@ async function* asPages(items: Array<{ id: string; email: string; externalId: st
 
 describe('createCustomerPortalSession', () => {
   it('opens a session by externalCustomerId for an individual customer — no memberId, no member lookup', async () => {
-    const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/abc' });
-    const listMembers = jest.fn();
+    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/abc' });
+    const listMembers = vi.fn();
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_1', type: 'individual' }),
-        members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_1', type: 'individual' }),
+        members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
       },
       members: { listMembers },
       customerSessions: { create },
@@ -54,12 +56,12 @@ describe('createCustomerPortalSession', () => {
   });
 
   it("opens a session for the COMPANY's own billing member — already known by its own sentinel externalId, never a user's", async () => {
-    const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team' });
-    const getExternalMember = jest.fn().mockResolvedValue({ id: 'member-company-billing' });
+    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team' });
+    const getExternalMember = vi.fn().mockResolvedValue({ id: 'member-company-billing' });
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_team', type: 'team' }),
-        members: { getExternal: getExternalMember, createExternal: jest.fn(), delete: jest.fn() },
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_team', type: 'team' }),
+        members: { getExternal: getExternalMember, createExternal: vi.fn(), delete: vi.fn() },
       },
       customerSessions: { create },
     });
@@ -86,19 +88,19 @@ describe('createCustomerPortalSession', () => {
   });
 
   it("falls back to matching by email (Polar's own auto-created owner member, minted from the company's own billing email) when no sentinel externalId match exists", async () => {
-    const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team2' });
-    const getExternalMember = jest
+    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team2' });
+    const getExternalMember = vi
       .fn()
       .mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 }));
-    const listMembers = jest
+    const listMembers = vi
       .fn()
       .mockResolvedValue(
         asPages([{ id: 'member-auto-owner', email: COMPANY_BILLING.email, externalId: null }]),
       );
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_team2', type: 'team' }),
-        members: { getExternal: getExternalMember, createExternal: jest.fn(), delete: jest.fn() },
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_team2', type: 'team' }),
+        members: { getExternal: getExternalMember, createExternal: vi.fn(), delete: vi.fn() },
       },
       members: { listMembers },
       customerSessions: { create },
@@ -110,17 +112,17 @@ describe('createCustomerPortalSession', () => {
   });
 
   it('creates a fresh company billing member, role billing_manager, when neither lookup matches', async () => {
-    const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team3' });
-    const getExternalMember = jest
+    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team3' });
+    const getExternalMember = vi
       .fn()
       .mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 }));
-    const createExternal = jest.fn().mockResolvedValue({ id: 'member-new' });
+    const createExternal = vi.fn().mockResolvedValue({ id: 'member-new' });
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_team3', type: 'team' }),
-        members: { getExternal: getExternalMember, createExternal, delete: jest.fn() },
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_team3', type: 'team' }),
+        members: { getExternal: getExternalMember, createExternal, delete: vi.fn() },
       },
-      members: { listMembers: jest.fn().mockResolvedValue(asPages([])) },
+      members: { listMembers: vi.fn().mockResolvedValue(asPages([])) },
       customerSessions: { create },
     });
 
@@ -141,8 +143,8 @@ describe('createCustomerPortalSession', () => {
   it('throws PolarCustomerNotFoundError when the company has no Polar customer yet', async () => {
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 })),
-        members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+        getExternal: vi.fn().mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 })),
+        members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
       },
     });
 
@@ -161,8 +163,8 @@ describe('createCustomerPortalSession', () => {
   it('re-throws any other Polar failure unchanged', async () => {
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockRejectedValue(new Error('polar is down')),
-        members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+        getExternal: vi.fn().mockRejectedValue(new Error('polar is down')),
+        members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
       },
     });
 
@@ -174,12 +176,12 @@ describe('createCustomerPortalSession', () => {
 
 describe('createLegacyCustomerPortalSession', () => {
   it("opens a session keyed by the CLICKING user's own id, not a company id", async () => {
-    const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/legacy' });
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_legacy', type: 'individual' });
+    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/legacy' });
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_legacy', type: 'individual' });
     const client = fakeClient({
       customers: {
         getExternal,
-        members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+        members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
       },
       customerSessions: { create },
     });
@@ -199,13 +201,13 @@ describe('createLegacyCustomerPortalSession', () => {
   });
 
   it("still resolves a member by the CLICKING user's own identity for a team legacy customer — unlike the company-scoped portal above", async () => {
-    const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/legacy-team' });
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_legacy_team', type: 'team' });
-    const getExternalMember = jest.fn().mockResolvedValue({ id: 'member-legacy-user' });
+    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/legacy-team' });
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_legacy_team', type: 'team' });
+    const getExternalMember = vi.fn().mockResolvedValue({ id: 'member-legacy-user' });
     const client = fakeClient({
       customers: {
         getExternal,
-        members: { getExternal: getExternalMember, createExternal: jest.fn(), delete: jest.fn() },
+        members: { getExternal: getExternalMember, createExternal: vi.fn(), delete: vi.fn() },
       },
       customerSessions: { create },
     });
@@ -222,8 +224,8 @@ describe('createLegacyCustomerPortalSession', () => {
   it('throws PolarCustomerNotFoundError (keyed by the user id) when no legacy customer exists', async () => {
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 })),
-        members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+        getExternal: vi.fn().mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 })),
+        members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
       },
     });
 

@@ -1,14 +1,17 @@
 /**
  * `BackupRunner` in isolation — persistence (`backup-runs.persistence.ts`) and both source walkers
- * are mocked wholesale, the same `jest.mock('./x')` discipline every other sweep runner in this
+ * are mocked wholesale, the same `vi.mock('./x')` discipline every other sweep runner in this
  * codebase already holds for its own persistence module (e.g.
  * `documents/conformity/conformity-sweep-runner.spec.ts`). `BackupDestination` is a hand-built fake,
  * never the real S3-backed class — this file's whole point is a runner that never reaches a real
  * network call; dedicated coverage for the S3 wiring itself lives in `backup-destination.spec.ts`.
  */
-jest.mock('./backup-runs.persistence');
-jest.mock('./sources/archive-source');
-jest.mock('./sources/inbound-source');
+
+import { vi, type Mock } from 'vitest';
+
+vi.mock('./backup-runs.persistence');
+vi.mock('./sources/archive-source');
+vi.mock('./sources/inbound-source');
 
 import { BackupDestination } from './backup-destination';
 import { finishBackupRun, startBackupRun } from './backup-runs.persistence';
@@ -17,10 +20,10 @@ import { listArchiveBackupSources } from './sources/archive-source';
 import { BackupSourceFile } from './sources/backup-source';
 import { listInboundBackupSources } from './sources/inbound-source';
 
-const mockStartBackupRun = startBackupRun as jest.Mock;
-const mockFinishBackupRun = finishBackupRun as jest.Mock;
-const mockListArchive = listArchiveBackupSources as jest.Mock;
-const mockListInbound = listInboundBackupSources as jest.Mock;
+const mockStartBackupRun = startBackupRun as Mock;
+const mockFinishBackupRun = finishBackupRun as Mock;
+const mockListArchive = listArchiveBackupSources as Mock;
+const mockListInbound = listInboundBackupSources as Mock;
 
 function fakeFile(key: string, size: number, bytes: string): BackupSourceFile {
   return { key, size, read: async () => Buffer.from(bytes) };
@@ -32,8 +35,8 @@ function fakeDestination(existingSizes: Record<string, number | null>): {
 } {
   const uploaded: Array<{ key: string; bytes: Buffer }> = [];
   const destination = {
-    existingSize: jest.fn(async (key: string) => existingSizes[key] ?? null),
-    upload: jest.fn(async (key: string, bytes: Buffer) => {
+    existingSize: vi.fn(async (key: string) => existingSizes[key] ?? null),
+    upload: vi.fn(async (key: string, bytes: Buffer) => {
       uploaded.push({ key, bytes });
     }),
   } as unknown as BackupDestination;
@@ -42,7 +45,7 @@ function fakeDestination(existingSizes: Record<string, number | null>): {
 
 describe('backup/BackupRunner', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockStartBackupRun.mockResolvedValue('run-1');
     mockFinishBackupRun.mockResolvedValue(undefined);
     mockListArchive.mockResolvedValue([]);
@@ -79,8 +82,8 @@ describe('backup/BackupRunner', () => {
   it('a single failing file is recorded in errors/filesFailed and never aborts the run', async () => {
     mockListArchive.mockResolvedValue([fakeFile('archive/broken', 1, 'x'), fakeFile('archive/ok', 1, 'y')]);
     const destination = {
-      existingSize: jest.fn().mockRejectedValueOnce(new Error('S3 hiccup')).mockResolvedValueOnce(null),
-      upload: jest.fn().mockResolvedValue(undefined),
+      existingSize: vi.fn().mockRejectedValueOnce(new Error('S3 hiccup')).mockResolvedValueOnce(null),
+      upload: vi.fn().mockResolvedValue(undefined),
     } as unknown as BackupDestination;
 
     const result = await new BackupRunner(destination).runSweep();

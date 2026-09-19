@@ -10,6 +10,7 @@
  * byte-for-byte unaffected by any of this (`fa3-kor.spec.ts` already proves the branching logic in
  * isolation; this file proves the full XML this provider actually emits from it).
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
@@ -20,11 +21,11 @@ import { DocumentFormatParty } from '../format-provider';
 import { validateXsd } from '../vendored/validate-xsd';
 import { fa3FormatProvider } from './fa3-provider';
 
-jest.mock('../../persistence');
-jest.mock('../../conformity/authority-events.persistence');
+vi.mock('../../persistence');
+vi.mock('../../conformity/authority-events.persistence');
 
-const findOwnedDocument = persistence.findOwnedDocument as jest.Mock;
-const listAuthorityEvents = authorityEventsPersistence.listAuthorityEvents as jest.Mock;
+const findOwnedDocument = persistence.findOwnedDocument as Mock;
+const listAuthorityEvents = authorityEventsPersistence.listAuthorityEvents as Mock;
 
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
 
@@ -152,7 +153,7 @@ const VALID_KSEF_NUMBER = '5260001246-20260901-010203-040506-AB';
 
 describe('fa3-provider — KOR (faktura korygująca) mode', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('data.correctsInvoiceId set, the original was cleared through KSeF: RodzajFaktury=KOR, the real XSD accepts it, and the choice+choice element names the ORIGINAL by its own KSeF number', async () => {

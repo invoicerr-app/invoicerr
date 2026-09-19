@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { ContributionRegistry } from './contributions/contribution-registry';
@@ -21,9 +23,9 @@ import { TransportRegistry } from './transports/transport-registry';
  * `documents.service.lifecycle.spec.ts` already holds for `./persistence` and
  * `./country-policy/country-policy`.
  */
-jest.mock('./persistence');
-jest.mock('./country-policy/country-policy');
-jest.mock('./numbering/take-number');
+vi.mock('./persistence');
+vi.mock('./country-policy/country-policy');
+vi.mock('./numbering/take-number');
 
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
@@ -92,7 +94,7 @@ function registerSendHandler(
     document: await persistence.upsertDocument(companyId, typeId, documentId, resultStatus, data),
     changed: true,
   }));
-  (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+  (persistence.upsertDocument as Mock).mockResolvedValue({
     id: 'doc-1',
     typeId: 'widget',
     status: resultStatus,
@@ -106,15 +108,15 @@ function registerSendHandler(
 
 describe('DocumentsService.runAction — numbering wiring', () => {
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('takes a number the first time a record enters `numbering.onEnterStatus` — null before, a real number after', async () => {
     const actionRegistry = new ActionRegistry();
     registerSendHandler(actionRegistry, 'sent', null); // handler's own write carries no number yet
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -124,7 +126,7 @@ describe('DocumentsService.runAction — numbering wiring', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
       number: 1,
       displayNumber: 'WIDGET-2026-0001',
     });
@@ -142,7 +144,7 @@ describe('DocumentsService.runAction — numbering wiring', () => {
       document: await persistence.upsertDocument(companyId, typeId, documentId, 'draft', data),
       changed: true,
     }));
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -174,7 +176,7 @@ describe('DocumentsService.runAction — numbering wiring', () => {
     // writes those columns (see persistence.ts) — which is exactly what this mock reproduces.
     registerSendHandler(actionRegistry, 'sent', 1);
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -198,7 +200,7 @@ describe('DocumentsService.runAction — numbering wiring', () => {
     const actionRegistry = new ActionRegistry();
     registerSendHandler(actionRegistry, 'sent', null);
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -220,7 +222,7 @@ describe('DocumentsService.runAction — numbering wiring', () => {
     const actionRegistry = new ActionRegistry();
     registerSendHandler(actionRegistry, 'sent', null);
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -230,7 +232,7 @@ describe('DocumentsService.runAction — numbering wiring', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const service = buildService(numberedWidgetDescriptor(), actionRegistry);
     const result = await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });

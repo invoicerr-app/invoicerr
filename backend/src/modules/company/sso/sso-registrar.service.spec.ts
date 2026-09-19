@@ -35,31 +35,34 @@
  * that a rejection propagates as "this one provider fails to build", never a crash — real DNS
  * resolution against `idp.acme.com` would make this spec flaky and network-dependent for no benefit.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { resetRegisteredCompanyProviders } from '@/lib/sso-registry';
 import { auth } from '@/lib/auth';
 import { assertPublicOutboundUrl } from '@/utils/outbound-url';
 import { SsoProviderResolved, SsoService } from './sso.service';
 import { SsoRegistrarService, buildCompanyProvider } from './sso-registrar.service';
 
-jest.mock('@/utils/outbound-url', () => ({
+vi.mock('@/utils/outbound-url', () => ({
   __esModule: true,
-  assertPublicOutboundUrl: jest.fn().mockResolvedValue(undefined),
+  assertPublicOutboundUrl: vi.fn().mockResolvedValue(undefined),
   OutboundUrlValidationError: class extends Error {},
 }));
 
-const mockedAssertPublicOutboundUrl = assertPublicOutboundUrl as jest.Mock;
+const mockedAssertPublicOutboundUrl = assertPublicOutboundUrl as Mock;
 
-jest.mock('@/lib/auth', () => {
-  // Built inside the factory rather than closed over: `jest.mock` is hoisted above the imports, so a
+vi.mock('@/lib/auth', () => {
+  // Built inside the factory rather than closed over: `vi.mock` is hoisted above the imports, so a
   // module-level const would still be in its temporal dead zone when the factory first runs.
   const context = {
     socialProviders: [] as unknown[],
-    logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+    logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
   };
   return { __esModule: true, auth: { $context: Promise.resolve(context) } };
 });
 
-jest.mock('better-auth/plugins', () => ({
+vi.mock('better-auth/plugins', () => ({
   __esModule: true,
   // Mirrors the real plugin's `init`: each accepted config becomes a provider keyed by its
   // `providerId`, PREPENDED to whatever the context already had. A config whose clientId is the
@@ -85,7 +88,7 @@ const DECLINED_CLIENT_ID = 'DECLINE-THIS-CONFIG';
 
 interface FakeContext {
   socialProviders: unknown[];
-  logger: { error: jest.Mock };
+  logger: { error: Mock };
 }
 
 const context = async (): Promise<FakeContext> => (await auth.$context) as unknown as FakeContext;
@@ -125,14 +128,14 @@ async function findProvider(entries: unknown[], providerId: string): Promise<{ i
 
 const fakeSso = (overrides: Partial<Record<keyof SsoService, unknown>> = {}) =>
   ({
-    listActiveRegistrations: jest.fn().mockResolvedValue([]),
-    resolveForRegistration: jest.fn().mockResolvedValue(resolved()),
+    listActiveRegistrations: vi.fn().mockResolvedValue([]),
+    resolveForRegistration: vi.fn().mockResolvedValue(resolved()),
     ...overrides,
   }) as unknown as SsoService;
 
 describe('buildCompanyProvider — better-auth constructs the provider, nothing here re-implements OAuth', () => {
   it('hands the library the stored configuration, under the per-company id', async () => {
-    const ctx = { socialProviders: [], logger: { error: jest.fn() } };
+    const ctx = { socialProviders: [], logger: { error: vi.fn() } };
 
     const built = await buildCompanyProvider(ctx as never, resolved());
 
@@ -150,7 +153,7 @@ describe('buildCompanyProvider — better-auth constructs the provider, nothing 
   });
 
   it('re-validates every stored endpoint through the shared outbound-URL guard before building', async () => {
-    const ctx = { socialProviders: [], logger: { error: jest.fn() } };
+    const ctx = { socialProviders: [], logger: { error: vi.fn() } };
 
     await buildCompanyProvider(
       ctx as never,
@@ -175,13 +178,13 @@ describe('buildCompanyProvider — better-auth constructs the provider, nothing 
     mockedAssertPublicOutboundUrl.mockRejectedValueOnce(
       new Error('outbound URL rejected: literal address is private/internal'),
     );
-    const ctx = { socialProviders: [], logger: { error: jest.fn() } };
+    const ctx = { socialProviders: [], logger: { error: vi.fn() } };
 
     await expect(buildCompanyProvider(ctx as never, resolved())).rejects.toThrow();
   });
 
   it('omits an absent client secret entirely rather than passing undefined for a public client', async () => {
-    const ctx = { socialProviders: [], logger: { error: jest.fn() } };
+    const ctx = { socialProviders: [], logger: { error: vi.fn() } };
 
     const built = await buildCompanyProvider(ctx as never, resolved({ clientSecret: undefined }));
 
@@ -194,7 +197,7 @@ describe('buildCompanyProvider — better-auth constructs the provider, nothing 
     // contributing nothing — so reading `[0]` of its result would hand back the first PRE-EXISTING
     // provider, and this company's sign-ins would silently run on the environment provider's
     // configuration. The pre-existing provider here is what makes that failure observable.
-    const ctx = { socialProviders: [{ id: 'pocketid' }], logger: { error: jest.fn() } };
+    const ctx = { socialProviders: [{ id: 'pocketid' }], logger: { error: vi.fn() } };
 
     const built = await buildCompanyProvider(ctx as never, resolved({ clientId: DECLINED_CLIENT_ID }));
 
@@ -202,7 +205,7 @@ describe('buildCompanyProvider — better-auth constructs the provider, nothing 
   });
 
   it("does not mutate the context it is given — registration is the caller's job", async () => {
-    const ctx = { socialProviders: [], logger: { error: jest.fn() } };
+    const ctx = { socialProviders: [], logger: { error: vi.fn() } };
     await buildCompanyProvider(ctx as never, resolved());
     expect(ctx.socialProviders).toHaveLength(0);
   });
@@ -210,7 +213,7 @@ describe('buildCompanyProvider — better-auth constructs the provider, nothing 
 
 describe('SsoRegistrarService', () => {
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     resetRegisteredCompanyProviders();
     (await context()).socialProviders.length = 0;
   });
@@ -269,7 +272,7 @@ describe('SsoRegistrarService', () => {
     it('re-registering forgets the previous build, so an edited configuration takes effect', async () => {
       // Otherwise a company that corrected its client secret would keep signing in against the old
       // one until the process restarted.
-      const resolveForRegistration = jest
+      const resolveForRegistration = vi
         .fn()
         .mockResolvedValueOnce(resolved({ clientId: 'first' }))
         .mockResolvedValue(resolved({ clientId: 'second' }));
@@ -289,7 +292,7 @@ describe('SsoRegistrarService', () => {
       // A thunk is awaited while better-auth walks the array looking for some OTHER provider, so a row
       // whose configuration cannot be resolved must not throw: it would take down sign-in for every
       // provider positioned behind it.
-      const sso = fakeSso({ resolveForRegistration: jest.fn().mockResolvedValue(null) });
+      const sso = fakeSso({ resolveForRegistration: vi.fn().mockResolvedValue(null) });
       const service = new SsoRegistrarService(sso);
       await service.register(COMPANY_ID);
 
@@ -304,7 +307,7 @@ describe('SsoRegistrarService', () => {
 
     it('does not throw when the stored configuration itself errors', async () => {
       const sso = fakeSso({
-        resolveForRegistration: jest.fn().mockRejectedValue(new Error('decrypt failed')),
+        resolveForRegistration: vi.fn().mockRejectedValue(new Error('decrypt failed')),
       });
       const service = new SsoRegistrarService(sso);
       await service.register(COMPANY_ID);
@@ -337,7 +340,7 @@ describe('SsoRegistrarService', () => {
     });
 
     it('forgets a failure so a fixed IdP or key is retried without a restart', async () => {
-      const resolveForRegistration = jest.fn().mockResolvedValueOnce(null).mockResolvedValue(resolved());
+      const resolveForRegistration = vi.fn().mockResolvedValueOnce(null).mockResolvedValue(resolved());
       const service = new SsoRegistrarService(fakeSso({ resolveForRegistration }));
       await service.register(COMPANY_ID);
 
@@ -388,7 +391,7 @@ describe('SsoRegistrarService', () => {
   describe('onModuleInit', () => {
     it('registers every active stored provider at boot', async () => {
       const sso = fakeSso({
-        listActiveRegistrations: jest.fn().mockResolvedValue([
+        listActiveRegistrations: vi.fn().mockResolvedValue([
           {
             companyId: 'a',
             providerId: 'c_a',
@@ -417,7 +420,7 @@ describe('SsoRegistrarService', () => {
 
     it('survives an unreachable database rather than taking the whole API down over SSO', async () => {
       const sso = fakeSso({
-        listActiveRegistrations: jest.fn().mockRejectedValue(new Error('connection refused')),
+        listActiveRegistrations: vi.fn().mockRejectedValue(new Error('connection refused')),
       });
       await expect(new SsoRegistrarService(sso).onModuleInit()).resolves.toBeUndefined();
     });
@@ -452,7 +455,7 @@ describe('SsoRegistrarService', () => {
         process.env.OIDC_ONLY = '1';
         delete process.env.OIDC_CLIENT_ID;
         const sso = fakeSso({
-          listActiveRegistrations: jest.fn().mockResolvedValue([
+          listActiveRegistrations: vi.fn().mockResolvedValue([
             {
               companyId: 'a',
               providerId: 'c_a',

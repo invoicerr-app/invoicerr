@@ -1,6 +1,6 @@
 /**
  * `ConformitySweepRunner` in isolation — the persistence layer (`authority-events.persistence.ts`)
- * is mocked wholesale (the same `jest.mock('./schedule.persistence')` discipline
+ * is mocked wholesale (the same `vi.mock('./schedule.persistence')` discipline
  * `schedule-sweep-runner.spec.ts` already holds for its own persistence module); the real Postgres/
  * Redis proof (concurrent sweeps, a real eligible document) is
  * `queue/__tests__/document-conformity-queue.redis.spec.ts`'s job. `DocumentQueueDispatcher` is a
@@ -18,6 +18,8 @@
  * `ConformitySweepRunner` that never reaches a real database — dedicated coverage for THAT function's
  * own dedup/retention/parent-linking logic lives in `archive/persistence.spec.ts`.
  */
+import { vi, type Mock } from 'vitest';
+
 import {
   createAuthorityEvents,
   findConformitySweepCandidates,
@@ -36,33 +38,33 @@ import * as persistence from '../persistence';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { DocumentQueueDispatcher } from '../queue/document-queue.dispatcher';
 
-jest.mock('./authority-events.persistence');
-jest.mock('../persistence');
-jest.mock('../archive/archive-verdict-on-terminal');
+vi.mock('./authority-events.persistence');
+vi.mock('../persistence');
+vi.mock('../archive/archive-verdict-on-terminal');
 
-const mockedFindCandidates = findConformitySweepCandidates as jest.Mock;
-const mockedCreateEvents = createAuthorityEvents as jest.Mock;
-const mockedJournalSynthetic = journalSyntheticEvent as jest.Mock;
-const mockedArchiveVerdict = archiveTerminalAuthorityVerdictIfAny as jest.Mock;
-const mockedMarkResolved = markConformityResolved as jest.Mock;
+const mockedFindCandidates = findConformitySweepCandidates as Mock;
+const mockedCreateEvents = createAuthorityEvents as Mock;
+const mockedJournalSynthetic = journalSyntheticEvent as Mock;
+const mockedArchiveVerdict = archiveTerminalAuthorityVerdictIfAny as Mock;
+const mockedMarkResolved = markConformityResolved as Mock;
 
 function buildPdpPoller(overrides: Partial<AuthorityStatusPoller> = {}): AuthorityStatusPoller {
   return {
     providerId: 'pdp',
     isTerminal: (code) => code === 'fr:202' || code === 'fr:213',
-    poll: jest.fn(),
+    poll: vi.fn(),
     ...overrides,
   };
 }
 
 describe('ConformitySweepRunner.runSweep', () => {
-  let enqueueConformityPoll: jest.Mock;
+  let enqueueConformityPoll: Mock;
   let dispatcher: DocumentQueueDispatcher;
   let registry: AuthorityStatusPollerRegistry;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    enqueueConformityPoll = jest.fn().mockResolvedValue(true);
+    vi.clearAllMocks();
+    enqueueConformityPoll = vi.fn().mockResolvedValue(true);
     dispatcher = { enqueueConformityPoll } as unknown as DocumentQueueDispatcher;
     registry = new AuthorityStatusPollerRegistry();
     registry.register(buildPdpPoller());
@@ -213,7 +215,7 @@ describe('ConformitySweepRunner.runPoll', () => {
   let registry: AuthorityStatusPollerRegistry;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     registry = new AuthorityStatusPollerRegistry();
     mockedArchiveVerdict.mockResolvedValue(undefined);
   });
@@ -223,7 +225,7 @@ describe('ConformitySweepRunner.runPoll', () => {
       { statusCode: 'fr:200', observedAt: new Date() },
       { statusCode: 'fr:202', observedAt: new Date() },
     ];
-    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(events) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(2);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -240,7 +242,7 @@ describe('ConformitySweepRunner.runPoll', () => {
 
   it('journals poll:blocked (never throws) when the channel has no connected credentials', async () => {
     registry.register(
-      buildPdpPoller({ poll: jest.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
+      buildPdpPoller({ poll: vi.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
     );
     mockedJournalSynthetic.mockResolvedValue(1);
 
@@ -259,7 +261,7 @@ describe('ConformitySweepRunner.runPoll', () => {
   });
 
   it('NEVER THROWS even for a totally unexpected failure (network error, malformed response, …)', async () => {
-    registry.register(buildPdpPoller({ poll: jest.fn().mockRejectedValue(new Error('ECONNRESET')) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockRejectedValue(new Error('ECONNRESET')) }));
     mockedJournalSynthetic.mockResolvedValue(1);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -289,7 +291,7 @@ describe('ConformitySweepRunner.runPoll', () => {
   // colliding with a PREVIOUS 'poll:blocked' row for the same document). `runPoll` must survive that
   // too, never propagate it.
   it('NEVER THROWS even when journaling poll:blocked itself fails', async () => {
-    const poller = buildPdpPoller({ poll: jest.fn().mockRejectedValue(new Error('ECONNRESET')) });
+    const poller = buildPdpPoller({ poll: vi.fn().mockRejectedValue(new Error('ECONNRESET')) });
     registry.register(poller);
     mockedJournalSynthetic.mockRejectedValue(new Error('db unreachable'));
 
@@ -310,7 +312,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
   let registry: AuthorityStatusPollerRegistry;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     registry = new AuthorityStatusPollerRegistry();
     mockedArchiveVerdict.mockResolvedValue(undefined);
   });
@@ -326,7 +328,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
         rawPayload: { raw: true },
       },
     ];
-    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(events) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(3);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -352,7 +354,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
 
   it('archives nothing at all when every observed event is non-terminal', async () => {
     const events = [{ statusCode: 'fr:200', statusText: 'Déposée', observedAt: new Date() }];
-    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(events) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(1);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -370,7 +372,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
     const events = [
       { statusCode: 'fr:213', statusText: 'Rejetée', reason: 'BR-01 missing', observedAt: new Date() },
     ];
-    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(events) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(1);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -391,7 +393,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
   // guarantee must not turn a successful poll into a failed one from `runPoll`'s own point of view.
   it('never lets an archiving failure affect the poll’s own result', async () => {
     const events = [{ statusCode: 'fr:202', observedAt: new Date() }];
-    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(events) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(1);
     mockedArchiveVerdict.mockRejectedValue(new Error('disk full'));
 
@@ -413,7 +415,7 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
   let registry: AuthorityStatusPollerRegistry;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     registry = new AuthorityStatusPollerRegistry();
     mockedArchiveVerdict.mockResolvedValue(undefined);
   });
@@ -423,7 +425,7 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
       { statusCode: 'fr:200', observedAt: new Date('2026-09-06T10:00:00Z') },
       { statusCode: 'fr:202', observedAt: new Date('2026-09-06T10:00:02Z') },
     ];
-    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(events) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(2);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -440,7 +442,7 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
   it('never marks the document resolved when every observed event is non-terminal', async () => {
     registry.register(
       buildPdpPoller({
-        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
     mockedCreateEvents.mockResolvedValue(1);
@@ -459,12 +461,12 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
   it('never lets a failure marking conformityResolvedAt affect the poll’s own result', async () => {
     registry.register(
       buildPdpPoller({
-        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:202', observedAt: new Date() }]),
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:202', observedAt: new Date() }]),
       }),
     );
     mockedCreateEvents.mockResolvedValue(1);
     // `mockRejectedValueOnce`, deliberately — a persistent `mockRejectedValue` here would leak into
-    // every LATER test in this file that never resets it (`jest.clearAllMocks()` clears call state,
+    // every LATER test in this file that never resets it (`vi.clearAllMocks()` clears call state,
     // never a configured implementation), silently poisoning unrelated 'gave-up' tests further down.
     mockedMarkResolved.mockRejectedValueOnce(new Error('db unreachable'));
 
@@ -483,19 +485,19 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
 describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () => {
   let dispatcher: DocumentQueueDispatcher;
   let registry: AuthorityStatusPollerRegistry;
-  let events: { publish: jest.Mock };
+  let events: { publish: Mock };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     dispatcher = {
-      enqueueConformityPoll: jest.fn().mockResolvedValue(true),
+      enqueueConformityPoll: vi.fn().mockResolvedValue(true),
     } as unknown as DocumentQueueDispatcher;
     // NO default poller registered here, deliberately: the `runPoll` tests below each register their
     // OWN poller (a specific `poll` mock per scenario) — registering one here too would collide with
     // `AuthorityStatusPollerRegistry.register`'s own "already registered" guard the moment they do.
     // The `runSweep` tests register the plain `buildPdpPoller()` themselves, right where they need it.
     registry = new AuthorityStatusPollerRegistry();
-    events = { publish: jest.fn().mockResolvedValue(undefined) };
+    events = { publish: vi.fn().mockResolvedValue(undefined) };
   });
 
   it('runSweep: publishes an authority-event nudge when a candidate genuinely gives up', async () => {
@@ -569,7 +571,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
         existingStatusCodes: ['fr:200'],
       },
     ]);
-    const enqueueConformityPoll = jest.fn().mockResolvedValue(true);
+    const enqueueConformityPoll = vi.fn().mockResolvedValue(true);
     dispatcher = { enqueueConformityPoll } as unknown as DocumentQueueDispatcher;
 
     const runner = new ConformitySweepRunner(
@@ -591,7 +593,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
 
   it('runPoll: publishes an authority-event nudge when new events are genuinely journaled', async () => {
     const pollEvents = [{ statusCode: 'fr:200', observedAt: new Date() }];
-    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(pollEvents) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(pollEvents) }));
     mockedCreateEvents.mockResolvedValue(1);
 
     const runner = new ConformitySweepRunner(
@@ -617,7 +619,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
   it('runPoll: never publishes when nothing new was journaled (a re-poll rediscovering known events)', async () => {
     registry.register(
       buildPdpPoller({
-        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
     mockedCreateEvents.mockResolvedValue(0);
@@ -641,7 +643,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
   it('runPoll: never publishes when the job data carries no typeId (nothing to invalidate a query for)', async () => {
     registry.register(
       buildPdpPoller({
-        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
     mockedCreateEvents.mockResolvedValue(1);
@@ -663,7 +665,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
 
   it('runPoll: publishes on a NEWLY-journaled poll:blocked verdict too', async () => {
     registry.register(
-      buildPdpPoller({ poll: jest.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
+      buildPdpPoller({ poll: vi.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
     );
     mockedJournalSynthetic.mockResolvedValue(1);
 
@@ -702,12 +704,12 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
 describe('ConformitySweepRunner — webhooks', () => {
   let dispatcher: DocumentQueueDispatcher;
   let registry: AuthorityStatusPollerRegistry;
-  const mockedFindOwnedDocument = persistence.findOwnedDocument as jest.Mock;
+  const mockedFindOwnedDocument = persistence.findOwnedDocument as Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     dispatcher = {
-      enqueueConformityPoll: jest.fn().mockResolvedValue(true),
+      enqueueConformityPoll: vi.fn().mockResolvedValue(true),
     } as unknown as DocumentQueueDispatcher;
     registry = new AuthorityStatusPollerRegistry();
     mockedFindOwnedDocument.mockResolvedValue({ id: 'doc-1', typeId: 'invoice', status: 'sent' });
@@ -728,7 +730,7 @@ describe('ConformitySweepRunner — webhooks', () => {
       },
     ]);
     mockedJournalSynthetic.mockResolvedValue(1);
-    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
 
     const runner = new ConformitySweepRunner(registry, dispatcher, undefined, webhooks);
     await runner.runSweep(new Date('2026-08-10T00:00:00Z'));
@@ -749,9 +751,9 @@ describe('ConformitySweepRunner — webhooks', () => {
       { statusCode: 'fr:200', observedAt: new Date('2026-08-10T00:00:00Z') },
       { statusCode: 'fr:202', observedAt: new Date('2026-08-10T00:05:00Z') },
     ];
-    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(pollEvents) }));
+    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(pollEvents) }));
     mockedCreateEvents.mockResolvedValue(2);
-    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
 
     const runner = new ConformitySweepRunner(registry, dispatcher, undefined, webhooks);
     await runner.runPoll({
@@ -771,11 +773,11 @@ describe('ConformitySweepRunner — webhooks', () => {
   it('runPoll: never dispatches when nothing new was journaled (a re-poll rediscovering known events)', async () => {
     registry.register(
       buildPdpPoller({
-        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
     mockedCreateEvents.mockResolvedValue(0);
-    const webhooks = { dispatch: jest.fn() };
+    const webhooks = { dispatch: vi.fn() };
 
     const runner = new ConformitySweepRunner(registry, dispatcher, undefined, webhooks);
     await runner.runPoll({
@@ -794,11 +796,11 @@ describe('ConformitySweepRunner — webhooks', () => {
   it('a dispatch failure NEVER propagates — runPoll still returns normally', async () => {
     registry.register(
       buildPdpPoller({
-        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
     mockedCreateEvents.mockResolvedValue(1);
-    const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+    const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
 
     const runner = new ConformitySweepRunner(registry, dispatcher, undefined, webhooks);
     await expect(

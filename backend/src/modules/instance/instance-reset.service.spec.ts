@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -89,7 +91,7 @@ let fakeTable: ReturnType<typeof fakeOtpTable>;
 let executedSql: string[] = [];
 let documentArchiveRows: { uri: string }[] = [];
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   get default() {
     return {
@@ -106,8 +108,8 @@ jest.mock('@/prisma/prisma.service', () => ({
     };
   },
 }));
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 import { logger } from '@/logger/logger.service';
@@ -154,11 +156,11 @@ function build() {
   fakeTable = fakeOtpTable();
   executedSql = [];
   documentArchiveRows = [];
-  const mailService = { sendMail: jest.fn().mockResolvedValue(undefined) };
+  const mailService = { sendMail: vi.fn().mockResolvedValue(undefined) };
   return { service: new InstanceResetService(mailService as never), mailService };
 }
 
-async function requestAndExtractOtp(service: InstanceResetService, mailService: { sendMail: jest.Mock }) {
+async function requestAndExtractOtp(service: InstanceResetService, mailService: { sendMail: Mock }) {
   await service.requestOtp(USER);
   const call = mailService.sendMail.mock.calls.at(-1)!;
   return (call[0].text as string).match(/is: (\d+)/)![1];

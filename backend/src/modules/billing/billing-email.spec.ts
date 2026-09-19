@@ -1,20 +1,22 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { getCompanyBillingEmail, setCompanyBillingEmail } from './billing-email';
 import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { company: { findUniqueOrThrow: jest.fn(), update: jest.fn() } },
+  default: { company: { findUniqueOrThrow: vi.fn(), update: vi.fn() } },
 }));
-jest.mock('./customer-sync');
+vi.mock('./customer-sync');
 
-const findUniqueOrThrow = prisma.company.findUniqueOrThrow as jest.Mock;
-const update = prisma.company.update as jest.Mock;
-const syncCustomer = syncPolarCustomerOnCompanyChange as jest.Mock;
+const findUniqueOrThrow = prisma.company.findUniqueOrThrow as Mock;
+const update = prisma.company.update as Mock;
+const syncCustomer = syncPolarCustomerOnCompanyChange as Mock;
 
 describe('getCompanyBillingEmail', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('returns the stored override alongside the contact email', async () => {
     findUniqueOrThrow.mockResolvedValue({ email: 'contact@acme.test', billingEmail: 'billing@acme.test' });
@@ -30,7 +32,7 @@ describe('getCompanyBillingEmail', () => {
 });
 
 describe('setCompanyBillingEmail', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('trims and stores a non-blank override', async () => {
     update.mockResolvedValue({ name: 'Acme', email: 'contact@acme.test', billingEmail: 'billing@acme.test' });

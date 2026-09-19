@@ -9,6 +9,8 @@
  * example numbers, also used by `company-lookup.live.spec.ts`) — never a fabricated one, so a VALID
  * verdict here is a genuine live confirmation, not a coincidence.
  */
+import { vi } from 'vitest';
+
 import { ViesProvider } from '../../company-lookup/providers/vies.provider';
 import { liveDescribe } from '../transports/live-gate';
 import { ViesVatValidationClient } from './vat-validation';
@@ -16,7 +18,9 @@ import { ViesVatValidationClient } from './vat-validation';
 const describeLive = liveDescribe('VIES_LIVE', []);
 
 describeLive('VIES live round-trip (no credentials — the public checkVatService)', () => {
-  jest.setTimeout(20000);
+  // The old single-number "set a timeout for everything in this file" call covered both tests and
+  // hooks at once; Vitest splits the two.
+  vi.setConfig({ testTimeout: 20000, hookTimeout: 20000 });
 
   it('a real, currently-registered EU VAT number comes back VALID', async () => {
     const client = new ViesVatValidationClient(new ViesProvider());

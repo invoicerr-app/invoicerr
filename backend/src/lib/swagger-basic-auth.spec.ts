@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import type { Request, Response } from 'express';
 
 import { createSwaggerBasicAuthMiddleware } from './swagger-basic-auth';
@@ -8,9 +10,9 @@ function fakeReq(path: string, authorization?: string): Request {
 
 function fakeRes(): Response {
   const res: Partial<Response> = {};
-  res.setHeader = jest.fn().mockReturnValue(res);
-  res.status = jest.fn().mockReturnValue(res);
-  res.send = jest.fn().mockReturnValue(res);
+  res.setHeader = vi.fn().mockReturnValue(res);
+  res.status = vi.fn().mockReturnValue(res);
+  res.send = vi.fn().mockReturnValue(res);
   return res as Response;
 }
 
@@ -19,7 +21,7 @@ function basicHeader(username: string, password: string): string {
 }
 
 describe('createSwaggerBasicAuthMiddleware', () => {
-  const next = jest.fn();
+  const next = vi.fn();
   const middleware = createSwaggerBasicAuthMiddleware('admin', 's3cret');
 
   afterEach(() => {

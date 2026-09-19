@@ -1,9 +1,10 @@
+import { vi } from 'vitest';
 import { TransportRegistry, UnknownTransportError } from './transport-registry';
 
 describe('TransportRegistry', () => {
   it('resolves a transport that was registered', () => {
     const registry = new TransportRegistry();
-    const transport = { send: jest.fn() };
+    const transport = { send: vi.fn() };
     registry.register('email', 'Email', transport);
 
     expect(registry.resolve('email')).toBe(transport);
@@ -11,8 +12,8 @@ describe('TransportRegistry', () => {
 
   it('lists every registered transport, id and label only — what a company chooses from', () => {
     const registry = new TransportRegistry();
-    registry.register('email', 'Email', { send: jest.fn() });
-    registry.register('acme-portal', 'Acme Portal', { send: jest.fn() });
+    registry.register('email', 'Email', { send: vi.fn() });
+    registry.register('acme-portal', 'Acme Portal', { send: vi.fn() });
 
     expect(registry.list()).toEqual([
       { id: 'email', label: 'Email' },
@@ -22,7 +23,7 @@ describe('TransportRegistry', () => {
 
   it('refuses an unknown transport cleanly, instead of returning undefined', () => {
     const registry = new TransportRegistry();
-    registry.register('email', 'Email', { send: jest.fn() });
+    registry.register('email', 'Email', { send: vi.fn() });
 
     expect(() => registry.resolve('fax')).toThrow(UnknownTransportError);
     expect(() => registry.resolve('fax')).toThrow(/Unknown transport "fax"/);
@@ -30,16 +31,14 @@ describe('TransportRegistry', () => {
 
   it('refuses registering the same id twice', () => {
     const registry = new TransportRegistry();
-    registry.register('email', 'Email', { send: jest.fn() });
+    registry.register('email', 'Email', { send: vi.fn() });
 
-    expect(() => registry.register('email', 'Email again', { send: jest.fn() })).toThrow(
-      /already registered/,
-    );
+    expect(() => registry.register('email', 'Email again', { send: vi.fn() })).toThrow(/already registered/);
   });
 
   it('has() reports presence without throwing', () => {
     const registry = new TransportRegistry();
-    registry.register('email', 'Email', { send: jest.fn() });
+    registry.register('email', 'Email', { send: vi.fn() });
 
     expect(registry.has('email')).toBe(true);
     expect(registry.has('fax')).toBe(false);
@@ -51,7 +50,7 @@ describe('TransportRegistry', () => {
   // transport a company can then choose.
   it('a third-party transport registers and resolves exactly like the built-in one', async () => {
     const registry = new TransportRegistry();
-    const thirdPartyTransport = { send: jest.fn().mockResolvedValue({ message: 'delivered via Acme' }) };
+    const thirdPartyTransport = { send: vi.fn().mockResolvedValue({ message: 'delivered via Acme' }) };
     registry.register('acme-portal', 'Acme Portal', thirdPartyTransport);
 
     const resolved = registry.resolve('acme-portal');

@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { createHmac } from 'node:crypto';
 
 import { PaymentWebhookVerificationError } from '../../provider';
@@ -17,7 +18,7 @@ function eventPayload(type: string, object: Record<string, unknown>): string {
 describe('StripeProvider.createCheckoutSession', () => {
   it('delegates to the injected checkout client with the resolved secret key', async () => {
     const checkoutClient = {
-      createSession: jest.fn().mockResolvedValue({ providerSessionId: 'cs_1', checkoutUrl: 'https://x' }),
+      createSession: vi.fn().mockResolvedValue({ providerSessionId: 'cs_1', checkoutUrl: 'https://x' }),
     };
     const provider = new StripeProvider(checkoutClient);
 
@@ -36,7 +37,7 @@ describe('StripeProvider.createCheckoutSession', () => {
   });
 
   it('refuses without a network call when credentials are incomplete', async () => {
-    const checkoutClient = { createSession: jest.fn() };
+    const checkoutClient = { createSession: vi.fn() };
     const provider = new StripeProvider(checkoutClient);
 
     await expect(
@@ -57,7 +58,7 @@ describe('StripeProvider.createCheckoutSession', () => {
 });
 
 describe('StripeProvider.parseWebhookEvent', () => {
-  const provider = new StripeProvider({ createSession: jest.fn() });
+  const provider = new StripeProvider({ createSession: vi.fn() });
 
   function headersFor(signature: string): Record<string, string> {
     return { 'stripe-signature': signature };

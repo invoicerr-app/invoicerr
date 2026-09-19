@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentSettlement } from './compute-settlement';
@@ -6,7 +8,7 @@ import { crossedIntoSettled, emitDocumentSettled } from './document-settled';
 /**
  * `crossedIntoSettled`/`emitDocumentSettled` — the deferred document-settled webhook. Pure crossing
  * logic proven with hand-built settlement fixtures (no Prisma, no real webhook dispatcher); the
- * dispatch itself proven with a bare `{ dispatch: jest.fn() }`, the same convention every other
+ * dispatch itself proven with a bare `{ dispatch: vi.fn() }`, the same convention every other
  * `DocumentWebhookEmitter` call site's own spec already holds.
  */
 
@@ -57,7 +59,7 @@ describe('emitDocumentSettled', () => {
   });
 
   it('dispatches DOCUMENT_SETTLED once, with the uniform payload contract plus the settlement fact', async () => {
-    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
     const after = settlement({ settled: true, paidMinor: 12000, outstandingMinor: 0 });
 
     await emitDocumentSettled(webhooks, 'company-1', 'invoice', document, after);
@@ -76,7 +78,7 @@ describe('emitDocumentSettled', () => {
   });
 
   it('a failing dispatch is caught, logged, and never propagated — the document is still settled', async () => {
-    const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('endpoint down')) };
+    const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('endpoint down')) };
 
     await expect(
       emitDocumentSettled(webhooks, 'company-1', 'invoice', document, settlement({ settled: true })),

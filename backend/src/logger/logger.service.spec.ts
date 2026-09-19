@@ -3,9 +3,12 @@
  * (`schema.prisma`'s own comment on the column, `@/lib/request-context.ts` for the read side). Real
  * `AsyncLocalStorage` (`runWithCompanyId`), mocked `prisma.log.create` only.
  */
-jest.mock('@/prisma/prisma.service', () => ({
+
+import { vi, type Mock } from 'vitest';
+
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { log: { create: jest.fn() } },
+  default: { log: { create: vi.fn() } },
 }));
 
 import prisma from '@/prisma/prisma.service';
@@ -13,7 +16,7 @@ import { runWithCompanyId } from '@/lib/request-context';
 
 import { logger } from './logger.service';
 
-const createLog = prisma.log.create as jest.Mock;
+const createLog = prisma.log.create as Mock;
 
 describe('LoggerService — companyId resolution', () => {
   beforeEach(() => {

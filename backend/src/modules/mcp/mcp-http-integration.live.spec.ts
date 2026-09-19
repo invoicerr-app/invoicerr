@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -19,7 +21,7 @@ import { liveDescribe } from '../documents/transports/live-gate';
  * no-op unless `MCP_HTTP_LIVE=1`, so a normal `npm test` (and CI's backend-jest job, which never
  * boots a live server) never depends on `npm run start:test` actually being up. Run explicitly:
  *
- *   MCP_HTTP_LIVE=1 npx jest src/modules/mcp/mcp-http-integration.live.spec.ts
+ *   MCP_HTTP_LIVE=1 npx vitest run src/modules/mcp/mcp-http-integration.live.spec.ts
  *
  * No credential env vars are required (`live-gate.ts`'s second parameter) — this hits our OWN test
  * backend, not a third-party API — but the flag keeps it from silently running (and depending on a
@@ -32,7 +34,7 @@ const TEST_EMAIL = 'john.doe@acme.org';
 const TEST_PASSWORD = 'Super_Secret_Password123!';
 
 describeLive('MCP endpoint — real HTTP round trip against the test backend', () => {
-  jest.setTimeout(30000);
+  vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
 
   let apiKey: string;
 

@@ -25,9 +25,9 @@ npm run start:dev              # watch mode, :3000
 npm run start:test             # loads .env.test (:4000, DB on :5433) — what e2e expects
 npm run build                  # nest build. Use this (or tsc -b) to verify, NOT tsc --noEmit
 npm run lint                   # biome check .   (lint:fix to autofix, format to format)
-npm test                       # jest, all *.spec.ts under src/
-npx jest src/modules/documents/tax/tax-matrix.spec.ts # a single file
-npm test -- -t "OSS destination rate"                 # a single test by name
+npm test                       # vitest run, all *.spec.ts under src/
+npx vitest run src/modules/documents/tax/tax-matrix.spec.ts # a single file
+npm test -- -t "OSS destination rate"                        # a single test by name
 npx prisma migrate dev                                # create + apply a migration
 ```
 
@@ -67,7 +67,7 @@ own narration comments). Run one leg standalone with `CYPRESS_scenario=<pair> np
 (needs :4000/:6284/:5433/:6379/:8025 up, per the E2E section above).
 
 ### CI (`.github/workflows/`)
-- `cypress.yml` ("Tests", on PR) — biome lint, i18n check, backend jest, a **queue-integration** job
+- `cypress.yml` ("Tests", on PR) — biome lint, i18n check, backend vitest, a **queue-integration** job
   (real Redis + Postgres, runs `modules/documents/queue/__tests__`), and the Cypress run.
 - `scenarios.yml` ("Business Scenarios", on PR) — matrix `fr-pl de-fr it-it pt-de it-pt pl-de` (the
   5-country prune, 2026-09-10, re-pointed fr-be/es-pt/mx-us/us-us onto kept-country pairs — see
@@ -219,7 +219,8 @@ other locales are Weblate-managed, `npm run i18n:check` gates PRs.
   skipped unless the flag is `1` **and** every credential var is set. A gated spec that passes with
   mocks proves nothing about the integration — see `documentation/docs/developer-guide/live-testing.md`
   before claiming a channel works.
-- Path alias `@/` → `src/` in both projects (backend also in the jest `moduleNameMapper`).
+- Path alias `@/` → `src/` in both projects (backend resolves it via `vite-tsconfig-paths` in
+  `vitest.config.ts`, reading the same `tsconfig.json` `paths` entry `nest build` already uses).
 - Comments in this codebase carry decisions and their rationale (why a guard exists, why a module is
   split). Preserve them when refactoring; match that density when adding non-obvious code.
 

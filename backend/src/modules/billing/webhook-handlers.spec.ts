@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -11,20 +13,20 @@ import {
   mapPolarSubscriptionStatus,
 } from './webhook-handlers';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    companySubscription: { update: jest.fn(), findFirst: jest.fn() },
-    company: { findUnique: jest.fn() },
+    companySubscription: { update: vi.fn(), findFirst: vi.fn() },
+    company: { findUnique: vi.fn() },
   },
 }));
-jest.mock('./company-subscription.store');
+vi.mock('./company-subscription.store');
 
-const update = prisma.companySubscription.update as jest.Mock;
-const findLegacyRow = prisma.companySubscription.findFirst as jest.Mock;
-const findCompany = prisma.company.findUnique as jest.Mock;
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
-const recomputeVanished = recomputeStatusForVanishedSubscription as jest.Mock;
+const update = prisma.companySubscription.update as Mock;
+const findLegacyRow = prisma.companySubscription.findFirst as Mock;
+const findCompany = prisma.company.findUnique as Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
+const recomputeVanished = recomputeStatusForVanishedSubscription as Mock;
 
 describe('mapPolarSubscriptionStatus', () => {
   it.each(['active', 'trialing'])('%s maps to ACTIVE', (status) => {
@@ -58,7 +60,7 @@ describe('applySubscriptionWebhook', () => {
     // opposite override this per-case.
     findCompany.mockResolvedValue({ id: 'company-1' });
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('lazily ensures the row exists, then writes status/ids/interval', async () => {
     getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
@@ -561,7 +563,7 @@ describe('handleSubscriptionPayload', () => {
   beforeEach(() => {
     findCompany.mockResolvedValue({ id: 'company-1' });
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('threads payload.data.seats through to applySubscriptionWebhook', async () => {
     getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });

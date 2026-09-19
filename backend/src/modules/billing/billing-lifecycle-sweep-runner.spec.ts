@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { Logger } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -11,30 +13,30 @@ import { ExportZipTooLargeError } from './export-zip.service';
 import { addDays, BLOCKED_DAYS, MIN_RETRIEVAL_DAYS, PAID_ZIP_GRACE_DAYS } from './lifecycle';
 import { reconcileCompanySeats } from './seat-reconcile';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    companySubscription: { update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
-    userCompany: { findFirst: jest.fn() },
-    company: { findUnique: jest.fn() },
+    companySubscription: { update: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
+    userCompany: { findFirst: vi.fn() },
+    company: { findUnique: vi.fn() },
   },
 }));
-jest.mock('./company-subscription.store');
-jest.mock('./customer-provisioning');
-jest.mock('./deletion');
-jest.mock('./seat-reconcile');
-jest.mock('./customer-sync');
+vi.mock('./company-subscription.store');
+vi.mock('./customer-provisioning');
+vi.mock('./deletion');
+vi.mock('./seat-reconcile');
+vi.mock('./customer-sync');
 
-const update = prisma.companySubscription.update as jest.Mock;
-const updateMany = prisma.companySubscription.updateMany as jest.Mock;
-const findSub = prisma.companySubscription.findUnique as jest.Mock;
-const findFirstOwner = prisma.userCompany.findFirst as jest.Mock;
-const findCompany = prisma.company.findUnique as jest.Mock;
-const listSubs = listAdvanceableCompanySubscriptions as jest.Mock;
-const deleteCompany = deleteCompanyPermanently as jest.Mock;
-const reconcileSeats = reconcileCompanySeats as jest.Mock;
-const syncCustomer = syncPolarCustomerOnCompanyChange as jest.Mock;
-const provisionCustomers = reconcileMissingCompanyCustomers as jest.Mock;
+const update = prisma.companySubscription.update as Mock;
+const updateMany = prisma.companySubscription.updateMany as Mock;
+const findSub = prisma.companySubscription.findUnique as Mock;
+const findFirstOwner = prisma.userCompany.findFirst as Mock;
+const findCompany = prisma.company.findUnique as Mock;
+const listSubs = listAdvanceableCompanySubscriptions as Mock;
+const deleteCompany = deleteCompanyPermanently as Mock;
+const reconcileSeats = reconcileCompanySeats as Mock;
+const syncCustomer = syncPolarCustomerOnCompanyChange as Mock;
+const provisionCustomers = reconcileMissingCompanyCustomers as Mock;
 
 /** Every test gets this NO-OP-shaped default — `runSweep` calls `reconcileMissingCompanyCustomers`
  *  unconditionally, company-WIDE, on every single tick (see that call's own comment in
@@ -52,14 +54,14 @@ const NO_CUSTOMERS_PROVISIONED = {
 
 function fakeExportService(zip: Buffer = Buffer.from('zip-bytes')) {
   return {
-    buildCompanyZip: jest.fn().mockResolvedValue(zip),
+    buildCompanyZip: vi.fn().mockResolvedValue(zip),
   } as unknown as import('./export-zip.service').BillingExportService;
 }
 
-function fakeMailService(overrides: { sendForCompany?: jest.Mock; sendMail?: jest.Mock } = {}) {
+function fakeMailService(overrides: { sendForCompany?: Mock; sendMail?: Mock } = {}) {
   return {
-    sendForCompany: overrides.sendForCompany ?? jest.fn().mockResolvedValue({ message: 'ok' }),
-    sendMail: overrides.sendMail ?? jest.fn().mockResolvedValue({ message: 'ok' }),
+    sendForCompany: overrides.sendForCompany ?? vi.fn().mockResolvedValue({ message: 'ok' }),
+    sendMail: overrides.sendMail ?? vi.fn().mockResolvedValue({ message: 'ok' }),
   } as unknown as import('@/mail/mail.service').MailService;
 }
 
@@ -118,7 +120,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     // (a concurrent write already moved the row) overrides this with `{ count: 0 }` explicitly.
     updateMany.mockResolvedValue({ count: 1 });
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('does nothing for a subscription still mid-trial', async () => {
     listSubs.mockResolvedValue([subRow({ status: 'TRIAL', trialEndsAt: addDays(NOW, 1) })]);
@@ -165,7 +167,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     listSubs.mockResolvedValue([sub]);
     mockUnchangedSnapshot(sub);
     findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-    const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+    const sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' });
     const exportService = fakeExportService();
     const runner = new BillingLifecycleSweepRunner(exportService, fakeMailService({ sendForCompany }));
 
@@ -195,7 +197,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       user: { email: 'proprietaire@example.com', locale: 'fr' },
       company: { language: 'de' }, // the OWNER's own locale wins over the company's fallback language.
     });
-    const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+    const sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' });
     const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendForCompany }));
 
     await runner.runSweep(NOW);
@@ -212,7 +214,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     // The fresh re-read disagrees with the snapshot this tick started from — a webhook already
     // reactivated the company.
     findSub.mockResolvedValue({ status: 'ACTIVE', lastPolarFactAt: null });
-    const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+    const sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' });
     const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendForCompany }));
 
     const result = await runner.runSweep(NOW);
@@ -231,7 +233,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     listSubs.mockResolvedValue([sub]);
     mockUnchangedSnapshot(sub);
     findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-    const sendForCompany = jest.fn().mockRejectedValue(new Error('no mail server configured'));
+    const sendForCompany = vi.fn().mockRejectedValue(new Error('no mail server configured'));
     const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendForCompany }));
 
     const result = await runner.runSweep(NOW);
@@ -267,9 +269,9 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     mockUnchangedSnapshot(sub);
     findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
     const exportService = {
-      buildCompanyZip: jest.fn().mockRejectedValue(new ExportZipTooLargeError('c1', 20 * 1024 * 1024)),
+      buildCompanyZip: vi.fn().mockRejectedValue(new ExportZipTooLargeError('c1', 20 * 1024 * 1024)),
     } as unknown as import('./export-zip.service').BillingExportService;
-    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const runner = new BillingLifecycleSweepRunner(exportService, fakeMailService());
 
     const result = await runner.runSweep(NOW);
@@ -299,14 +301,14 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         : { status: okSub.status, lastPolarFactAt: okSub.lastPolarFactAt },
     );
     findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-    const buildCompanyZip = jest
+    const buildCompanyZip = vi
       .fn()
       .mockImplementationOnce(() => Promise.reject(new Error('render exploded')))
       .mockImplementationOnce(() => Promise.resolve(Buffer.from('zip-bytes')));
     const exportService = {
       buildCompanyZip,
     } as unknown as import('./export-zip.service').BillingExportService;
-    const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+    const sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' });
     const runner = new BillingLifecycleSweepRunner(exportService, fakeMailService({ sendForCompany }));
 
     const result = await runner.runSweep(NOW);
@@ -548,8 +550,8 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       const blockedAt = addDays(NOW, -7);
       listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
       findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
-      const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+      const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
+      const sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' });
       const runner = new BillingLifecycleSweepRunner(
         fakeExportService(),
         fakeMailService({ sendMail, sendForCompany }),
@@ -576,7 +578,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         user: { email: 'owner@example.com', locale: null },
         company: { language: 'fr' },
       });
-      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+      const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
       const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendMail }));
 
       await runner.runSweep(NOW);
@@ -594,7 +596,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         subRow({ status: 'BLOCKED', blockedAt, billingWarningMilestonesSent: ['blocked_d7'] }),
       ]);
       findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+      const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
       const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendMail }));
 
       const result = await runner.runSweep(NOW);
@@ -607,7 +609,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       const blockedAt = addDays(NOW, -(BLOCKED_DAYS - 1));
       listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
       findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+      const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
       const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendMail }));
 
       const result = await runner.runSweep(NOW);
@@ -637,7 +639,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         }),
       ]);
       findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+      const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
       const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendMail }));
 
       const result = await runner.runSweep(NOW);
@@ -661,7 +663,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         }),
       ]);
       findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+      const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
       const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendMail }));
 
       const result = await runner.runSweep(NOW);
@@ -681,7 +683,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
           blockedAt: addDays(NOW, -14),
         }),
       ]);
-      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+      const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
       const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendMail }));
 
       const result = await runner.runSweep(NOW);
@@ -694,7 +696,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       const blockedAt = addDays(NOW, -(BLOCKED_DAYS - 1)); // both blocked_d7 and blocked_d1 due
       listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
       findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
-      const sendMail = jest
+      const sendMail = vi
         .fn()
         .mockRejectedValueOnce(new Error('mail down'))
         .mockResolvedValueOnce({ message: 'ok' });

@@ -6,9 +6,10 @@
  * (always 200, the raw body reaches the service unmodified once authenticated) — the service's OWN
  * journal/reconcile logic is `sdi-notifiche.service.spec.ts`'s job.
  */
+import { vi } from 'vitest';
 import { PassThrough } from 'node:stream';
 
-jest.mock('@thallesp/nestjs-better-auth', () => ({
+vi.mock('@thallesp/nestjs-better-auth', () => ({
   Public: () => () => undefined,
 }));
 
@@ -39,7 +40,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
   });
 
   it('reads the raw XML body and hands it to the service, verbatim, once authenticated', async () => {
-    const handleNotifica = jest.fn().mockResolvedValue({ journaled: true });
+    const handleNotifica = vi.fn().mockResolvedValue({ journaled: true });
     const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
 
     await controller.receiveNotifica(fakeRequest('<ricevutaConsegna/>'));
@@ -48,7 +49,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
   });
 
   it('answers cleanly (never throws) even when the service itself throws — 200 always, per this file’s own header', async () => {
-    const handleNotifica = jest.fn().mockRejectedValue(new Error('database unreachable'));
+    const handleNotifica = vi.fn().mockRejectedValue(new Error('database unreachable'));
     const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
 
     await expect(controller.receiveNotifica(fakeRequest('<ricevutaConsegna/>'))).resolves.toBeUndefined();
@@ -60,7 +61,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
   describe('authentication', () => {
     it('never reaches the service when SDI_NOTIFICHE_SHARED_SECRET is not configured at all — deny by default', async () => {
       delete process.env.SDI_NOTIFICHE_SHARED_SECRET;
-      const handleNotifica = jest.fn();
+      const handleNotifica = vi.fn();
       const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
 
       await controller.receiveNotifica(fakeRequest('<ricevutaConsegna/>'));
@@ -69,7 +70,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
     });
 
     it('never reaches the service when the header carries the wrong secret', async () => {
-      const handleNotifica = jest.fn();
+      const handleNotifica = vi.fn();
       const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
 
       await controller.receiveNotifica(
@@ -83,7 +84,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
     });
 
     it('never reaches the service when the header is absent entirely', async () => {
-      const handleNotifica = jest.fn();
+      const handleNotifica = vi.fn();
       const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
 
       await controller.receiveNotifica(fakeRequest('<ricevutaConsegna/>', { 'content-type': 'text/xml' }));
@@ -93,7 +94,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
 
     it('still answers 200 (resolves, never throws) on a rejected caller — never confirms the endpoint exists', async () => {
       delete process.env.SDI_NOTIFICHE_SHARED_SECRET;
-      const handleNotifica = jest.fn();
+      const handleNotifica = vi.fn();
       const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
 
       await expect(controller.receiveNotifica(fakeRequest('<ricevutaConsegna/>'))).resolves.toBeUndefined();
@@ -102,7 +103,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
 
   describe('Content-Type filtering', () => {
     it('never reaches the service (and never attempts to read the body) for an application/json request', async () => {
-      const handleNotifica = jest.fn();
+      const handleNotifica = vi.fn();
       const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
 
       await controller.receiveNotifica(
@@ -116,7 +117,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
     });
 
     it('accepts application/soap+xml (with a charset suffix), same as text/xml', async () => {
-      const handleNotifica = jest.fn().mockResolvedValue({ journaled: true });
+      const handleNotifica = vi.fn().mockResolvedValue({ journaled: true });
       const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
 
       await controller.receiveNotifica(
@@ -132,7 +133,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
 
   describe('body size cap', () => {
     it('rejects a body over the hard byte cap and never reaches the service', async () => {
-      const handleNotifica = jest.fn();
+      const handleNotifica = vi.fn();
       const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
       const oversized = 'a'.repeat(6 * 1024 * 1024); // over MAX_NOTIFICA_BODY_BYTES (5 MB)
 

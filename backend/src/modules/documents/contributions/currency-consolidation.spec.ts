@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { CurrencyRateLike } from '../../company/currency-rates/convert';
 import * as currencyRatesStore from '../../company/currency-rates/currency-rates.store';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
@@ -5,13 +7,13 @@ import { consolidateByCurrency, loadCurrencyContext } from './currency-consolida
 // Only the two DB-touching reads are mocked — `toCurrencyRateLikes` stays the REAL pure mapper
 // (same "mock only what touches Prisma" discipline invoice-contributions.spec.ts already applies to
 // settlement/credits.ts's own `listCreditNotes`).
-jest.mock('../../company/currency-rates/currency-rates.store', () => {
-  const actual = jest.requireActual('../../company/currency-rates/currency-rates.store');
-  return { ...actual, getReferenceCurrency: jest.fn(), listCurrencyRates: jest.fn() };
+vi.mock('../../company/currency-rates/currency-rates.store', async () => {
+  const actual = await vi.importActual('../../company/currency-rates/currency-rates.store');
+  return { ...actual, getReferenceCurrency: vi.fn(), listCurrencyRates: vi.fn() };
 });
 
-const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as jest.Mock;
-const listCurrencyRates = currencyRatesStore.listCurrencyRates as jest.Mock;
+const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as Mock;
+const listCurrencyRates = currencyRatesStore.listCurrencyRates as Mock;
 
 const now = new Date('2026-08-28T00:00:00.000Z');
 

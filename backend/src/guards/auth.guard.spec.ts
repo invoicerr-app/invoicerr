@@ -23,12 +23,14 @@
  * object for `auth.api.getSession`, whose own mock above ignores its argument entirely — an identity
  * stub changes nothing this file tests.
  */
-jest.mock('@/lib/auth', () => ({
-  auth: { api: { getSession: jest.fn().mockResolvedValue(null) } },
+import { vi } from 'vitest';
+
+vi.mock('@/lib/auth', () => ({
+  auth: { api: { getSession: vi.fn().mockResolvedValue(null) } },
 }));
 
-jest.mock('better-auth/node', () => ({
-  fromNodeHeaders: jest.fn((headers: unknown) => headers),
+vi.mock('better-auth/node', () => ({
+  fromNodeHeaders: vi.fn((headers: unknown) => headers),
 }));
 
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
@@ -43,7 +45,7 @@ import prisma from '@/prisma/prisma.service';
 
 function createContext(request: unknown, requiredScopes?: string[]): ExecutionContext {
   const reflector = {
-    getAllAndOverride: jest.fn((key: string) => (key === REQUIRES_SCOPE_KEY ? requiredScopes : undefined)),
+    getAllAndOverride: vi.fn((key: string) => (key === REQUIRES_SCOPE_KEY ? requiredScopes : undefined)),
   } as unknown as Reflector;
   const context = {
     switchToHttp: () => ({ getRequest: () => request }),

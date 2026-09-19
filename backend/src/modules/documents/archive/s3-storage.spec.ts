@@ -13,6 +13,7 @@
  * `this.config.forcePathStyle` there proves the env var actually reached the constructed client,
  * without needing to mock the `S3Client` constructor separately.
  */
+import { vi, type MockInstance } from 'vitest';
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -41,7 +42,7 @@ const ENV_KEYS = [
 
 describe('archive/s3-storage — S3-compatible implementation (SDK mocked, no real network)', () => {
   const originalEnv: Partial<Record<(typeof ENV_KEYS)[number], string>> = {};
-  let sendSpy: jest.SpyInstance;
+  let sendSpy: MockInstance;
 
   beforeEach(() => {
     for (const key of ENV_KEYS) originalEnv[key] = process.env[key];
@@ -52,7 +53,7 @@ describe('archive/s3-storage — S3-compatible implementation (SDK mocked, no re
     delete process.env.ARCHIVE_S3_ENDPOINT;
     delete process.env.ARCHIVE_S3_FORCE_PATH_STYLE;
 
-    sendSpy = jest.spyOn(S3Client.prototype, 'send');
+    sendSpy = vi.spyOn(S3Client.prototype, 'send');
   });
 
   afterEach(() => {

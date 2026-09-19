@@ -1,26 +1,28 @@
+import { vi, type Mock } from 'vitest';
+
 // Same mocking convention as `guards/auth.guard.spec.ts` (see that file's own header): `better-auth/
 // node` ships ESM-only and this project's Jest config doesn't transform it, so importing this module
 // for real would fail with "Cannot use import statement outside a module" before a single test runs.
 // The real `fromNodeHeaders` only reshapes a headers object for `auth.api.getSession`, whose own mock
 // below ignores its argument entirely — an identity stub changes nothing this file tests.
-jest.mock('better-auth/node', () => ({
-  fromNodeHeaders: jest.fn((headers: unknown) => headers),
+vi.mock('better-auth/node', () => ({
+  fromNodeHeaders: vi.fn((headers: unknown) => headers),
 }));
 
-const getSession = jest.fn();
-jest.mock('@/lib/auth', () => ({
+const getSession = vi.fn();
+vi.mock('@/lib/auth', () => ({
   auth: { api: { getSession: (...args: unknown[]) => getSession(...args) } },
 }));
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { user: { findUnique: jest.fn() } },
+  default: { user: { findUnique: vi.fn() } },
 }));
 
 import prisma from '@/prisma/prisma.service';
 import { resolveLegalDocumentLanguages } from './legal-request-language';
 
-const findUnique = prisma.user.findUnique as jest.Mock;
+const findUnique = prisma.user.findUnique as Mock;
 
 beforeEach(() => {
   getSession.mockReset().mockResolvedValue(null);

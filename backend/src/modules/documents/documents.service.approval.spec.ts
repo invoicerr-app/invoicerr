@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ForbiddenException } from '@nestjs/common';
 
 import * as companyEmailTemplates from './actions/company-email-templates';
@@ -18,22 +20,22 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import * as renderInstancePdf from './rendering/render-instance-pdf';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
-jest.mock('./rendering/render-instance-pdf');
-jest.mock('./actions/company-email-templates');
-jest.mock('./archive/archive-on-send');
-jest.mock('./numbering/take-number');
-jest.mock('./country-policy/country-policy');
+vi.mock('./persistence');
+vi.mock('./rendering/render-instance-pdf');
+vi.mock('./actions/company-email-templates');
+vi.mock('./archive/archive-on-send');
+vi.mock('./numbering/take-number');
+vi.mock('./country-policy/country-policy');
 // Only the I/O half (`resolveApprovalThresholdMinor`) is mocked here — `requiresApproval`, the actual
 // rule, is proven for real against its own branching logic in approval-gate.spec.ts. Keeping it real
 // in THIS file too means these tests prove `runAction`'s WIRING (the right role reaches the gate, the
 // threshold is fetched for the right action, the gate runs at the right moment relative to
 // persistence/enqueue), never a second, divergent copy of the rule itself — same discipline
 // documents.service.country-policy.spec.ts already holds for country policy.
-jest.mock('./approval/approval-gate', () => ({
-  ...jest.requireActual('./approval/approval-gate'),
-  resolveApprovalThresholdMinor: jest.fn(),
-}));
+vi.mock('./approval/approval-gate', async () => {
+  const actual = await vi.importActual('./approval/approval-gate');
+  return { ...actual, resolveApprovalThresholdMinor: vi.fn() };
+});
 
 /** Same wiring as documents.service.spec.ts's own `buildService` (quote type, real action
  *  registration) — reused rather than imported since that file doesn't export it; this file is about
@@ -45,12 +47,12 @@ function buildService() {
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
-  const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
+  const clientsService = { getClientById: vi.fn().mockResolvedValue(null) };
   const mailService = {
-    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   };
   const referenceRegistry = new EntityReferenceRegistry();
-  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
   const actionRegistry = new ActionRegistry();
   registerQuoteActions(actionRegistry, {
@@ -85,9 +87,9 @@ const validQuoteData = {
 
 describe('DocumentsService.runAction — the approval-threshold gate', () => {
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
-    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
       pdf: Buffer.from('%PDF-fake'),
       totals: {
         currency: 'EUR',
@@ -101,15 +103,15 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
       referenceLabels: {},
       companyName: 'Test Co',
     });
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   // A pre-existing "draft" quote, exactly like documents.service.spec.ts's own "phase 1" send test —
   // never a brand-new/undefined-status record, so only the approval gate itself is under test here,
   // not the "no currentStatus" edge case (covered by the descriptor/lifecycle specs instead).
   function mockDraftQuote() {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',
@@ -117,7 +119,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sending',
@@ -139,7 +141,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
 
   it('blocks a MEMBER sending a document whose gross exceeds the threshold — 403, named, nothing persisted or enqueued', async () => {
     mockDraftQuote();
-    (approvalGate.resolveApprovalThresholdMinor as jest.Mock).mockResolvedValue(1000); // 10.00 EUR < 19.80 EUR gross
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(1000); // 10.00 EUR < 19.80 EUR gross
     const { service, queueDispatcher } = buildService();
 
     const action = runSend(service, 'MEMBER');
@@ -154,7 +156,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
 
   it('lets a MEMBER send a document exactly at the threshold — the boundary a company chose to allow', async () => {
     mockDraftQuote();
-    (approvalGate.resolveApprovalThresholdMinor as jest.Mock).mockResolvedValue(1980);
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(1980);
     const { service } = buildService();
 
     const result = await runSend(service, 'MEMBER');
@@ -165,7 +167,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
 
   it('lets a MEMBER send a document under the threshold', async () => {
     mockDraftQuote();
-    (approvalGate.resolveApprovalThresholdMinor as jest.Mock).mockResolvedValue(2000);
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(2000);
     const { service } = buildService();
 
     const result = await runSend(service, 'MEMBER');
@@ -175,7 +177,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
 
   it('lets an OWNER send the same over-threshold document — their send IS the approval', async () => {
     mockDraftQuote();
-    (approvalGate.resolveApprovalThresholdMinor as jest.Mock).mockResolvedValue(1000);
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(1000);
     const { service } = buildService();
 
     const result = await runSend(service, 'OWNER');
@@ -185,7 +187,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
 
   it('lets an ADMIN send the same over-threshold document', async () => {
     mockDraftQuote();
-    (approvalGate.resolveApprovalThresholdMinor as jest.Mock).mockResolvedValue(1000);
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(1000);
     const { service } = buildService();
 
     const result = await runSend(service, 'ADMIN');
@@ -195,7 +197,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
 
   it('never gates when the company has no threshold configured (NULL) — even for a MEMBER over any amount', async () => {
     mockDraftQuote();
-    (approvalGate.resolveApprovalThresholdMinor as jest.Mock).mockResolvedValue(null);
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(null);
     const { service } = buildService();
 
     const result = await runSend(service, 'MEMBER');
@@ -205,7 +207,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
 
   it('never gates a caller with no role — the worker replaying an already-approved async send, or any other internal/API-key caller', async () => {
     mockDraftQuote();
-    (approvalGate.resolveApprovalThresholdMinor as jest.Mock).mockResolvedValue(1000);
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(1000);
     const { service } = buildService();
 
     const result = await runSend(service, undefined);
@@ -218,7 +220,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
   });
 
   it('never gates a non-"send" action, regardless of role or threshold', async () => {
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',
@@ -226,7 +228,7 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (approvalGate.resolveApprovalThresholdMinor as jest.Mock).mockResolvedValue(1);
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(1);
     const { service } = buildService();
 
     const result = await service.runAction(

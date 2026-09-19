@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import {
@@ -8,17 +9,25 @@ import {
   PDP_RECEPTION_TAKEN_IN_CHARGE_CODE,
 } from './pdp-reception';
 
-const mockPushLifecycleStatus = jest.fn();
-const mockAuthenticate = jest.fn();
+const mockPushLifecycleStatus = vi.fn();
+const mockAuthenticate = vi.fn();
 
-jest.mock('./pdp-client', () => {
-  const actual = jest.requireActual('./pdp-client');
+vi.mock('./pdp-client', async () => {
+  // `vi.importActual` is ASYNC (unlike Jest's synchronous `requireActual`) — the factory MUST be
+  // `async` and this MUST be `await`ed, or `...actual` spreads a Promise's own (empty) enumerable
+  // properties instead of the real module's exports, silently discarding every real export.
+  const actual = await vi.importActual('./pdp-client');
   return {
     ...actual,
-    PdpClient: jest.fn().mockImplementation(() => ({
-      authenticate: mockAuthenticate,
-      pushLifecycleStatus: mockPushLifecycleStatus,
-    })),
+    // A `function` expression, NOT an arrow function — production code does `new PdpClient(...)`
+    // (`pdp-reception.ts`'s own client builder). Jest's mocks never really `[[Construct]]` their
+    // implementation (they call it plainly and use the return value), so an arrow function "worked"
+    // there; Vitest's mocks DO construct it for real, and an arrow function has no `[[Construct]]` at
+    // all — "TypeError: ... is not a constructor".
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new PdpClient(...)` under Vitest, see above.
+    PdpClient: vi.fn().mockImplementation(function () {
+      return { authenticate: mockAuthenticate, pushLifecycleStatus: mockPushLifecycleStatus };
+    }),
   };
 });
 
@@ -30,12 +39,12 @@ const CONNECTED_CONFIG = {
   config: { baseUrl: 'https://api.superpdp.tech', clientId: 'id-1', clientSecret: 'secret-1' },
 };
 
-function buildChannelCredentials(resolveActive = jest.fn().mockResolvedValue(CONNECTED_CONFIG)) {
+function buildChannelCredentials(resolveActive = vi.fn().mockResolvedValue(CONNECTED_CONFIG)) {
   return { resolveActive } as unknown as ChannelCredentialsService;
 }
 
 describe('buildPdpReceptionStatusPusher', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('pushTakenInCharge pushes the "prise en charge" code', async () => {
     mockPushLifecycleStatus.mockResolvedValue(undefined);
@@ -85,7 +94,7 @@ describe('buildPdpReceptionStatusPusher', () => {
   });
 
   it('is a silent no-op (never even resolves a client) when PDP is not connected for this company', async () => {
-    const pusher = buildPdpReceptionStatusPusher(buildChannelCredentials(jest.fn().mockResolvedValue(null)));
+    const pusher = buildPdpReceptionStatusPusher(buildChannelCredentials(vi.fn().mockResolvedValue(null)));
 
     await pusher.pushApproved('company-1', '604667');
 
@@ -98,7 +107,7 @@ describe('buildPdpReceptionStatusPusher', () => {
 
     await pusher.pushApproved('company-1', 'not-a-number');
 
-    expect(channelCredentials.resolveActive as jest.Mock).not.toHaveBeenCalled();
+    expect(channelCredentials.resolveActive as Mock).not.toHaveBeenCalled();
     expect(mockPushLifecycleStatus).not.toHaveBeenCalled();
   });
 });

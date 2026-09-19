@@ -7,6 +7,9 @@
  * would prove nothing beyond "this service calls that function", which `logo-storage.spec.ts` already
  * covers more directly; wiring the two together for real is the thing THIS file needs to prove.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -17,15 +20,15 @@ import prisma from '@/prisma/prisma.service';
 
 import { BrandingService } from './branding.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn(), update: jest.fn() },
+    company: { findUnique: vi.fn(), update: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock; update: jest.Mock };
+  company: { findUnique: Mock; update: Mock };
 };
 
 const BASE_COMPANY = {
@@ -46,7 +49,7 @@ describe('BrandingService', () => {
   const originalEnv = process.env.DOCUMENTS_INBOUND_DIR;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new BrandingService();
     dir = mkdtempSync(join(tmpdir(), 'branding-service-test-'));
     process.env.DOCUMENTS_INBOUND_DIR = dir;

@@ -1,7 +1,8 @@
+import { vi, type Mock } from 'vitest';
 import * as storage from './storage';
 import { ArchiveStorageSharingBootCheckService } from './storage-sharing-boot-check.service';
 
-jest.mock('./storage');
+vi.mock('./storage');
 
 /**
  * THE MUTATION TARGET: `checkArchiveStorageSharing` (storage.ts) existed but was never actually
@@ -15,14 +16,14 @@ describe('ArchiveStorageSharingBootCheckService', () => {
   const originalRole = process.env.ROLE;
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     if (originalRole === undefined) delete process.env.ROLE;
     else process.env.ROLE = originalRole;
   });
 
   it('defaults to role "api" when ROLE is unset — mirrors entrypoint.sh\'s own default', () => {
     delete process.env.ROLE;
-    (storage.checkArchiveStorageSharing as jest.Mock).mockReturnValue({ shared: true, reason: 'ok' });
+    (storage.checkArchiveStorageSharing as Mock).mockReturnValue({ shared: true, reason: 'ok' });
     const service = new ArchiveStorageSharingBootCheckService();
 
     expect(() => service.onModuleInit()).not.toThrow();
@@ -32,7 +33,7 @@ describe('ArchiveStorageSharingBootCheckService', () => {
 
   it('reads ROLE=worker and passes it straight through', () => {
     process.env.ROLE = 'worker';
-    (storage.checkArchiveStorageSharing as jest.Mock).mockReturnValue({ shared: true, reason: 'ok' });
+    (storage.checkArchiveStorageSharing as Mock).mockReturnValue({ shared: true, reason: 'ok' });
     const service = new ArchiveStorageSharingBootCheckService();
 
     service.onModuleInit();
@@ -41,7 +42,7 @@ describe('ArchiveStorageSharingBootCheckService', () => {
   });
 
   it('a shared:false result never throws — logged as a warning, boot proceeds regardless', () => {
-    (storage.checkArchiveStorageSharing as jest.Mock).mockReturnValue({
+    (storage.checkArchiveStorageSharing as Mock).mockReturnValue({
       shared: false,
       reason: 'DOCUMENTS_ARCHIVE_DIR is not writable by this "api" process',
     });
@@ -51,7 +52,7 @@ describe('ArchiveStorageSharingBootCheckService', () => {
   });
 
   it('the underlying check itself throwing is swallowed too — a boot-time check must never take the process down', () => {
-    (storage.checkArchiveStorageSharing as jest.Mock).mockImplementation(() => {
+    (storage.checkArchiveStorageSharing as Mock).mockImplementation(() => {
       throw new Error('unexpected filesystem explosion');
     });
     const service = new ArchiveStorageSharingBootCheckService();
@@ -60,7 +61,7 @@ describe('ArchiveStorageSharingBootCheckService', () => {
   });
 
   it('a shared:true result resolves cleanly, without throwing', () => {
-    (storage.checkArchiveStorageSharing as jest.Mock).mockReturnValue({
+    (storage.checkArchiveStorageSharing as Mock).mockReturnValue({
       shared: true,
       reason: 'Confirmed readable from this role too: .archive-storage-witness-worker.json.',
     });

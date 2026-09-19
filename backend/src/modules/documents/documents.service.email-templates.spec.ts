@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -17,11 +19,11 @@ import { TransportRegistry } from './transports/transport-registry';
 // same discipline documents.service.spec.ts already applies to it, so these tests prove the service's
 // own resolution/validation rather than a re-implementation of Prisma. That module's OWN read/merge/
 // sanitize behaviour is proven separately, against an in-memory row, in company-email-templates.spec.ts.
-jest.mock('./actions/company-email-templates');
+vi.mock('./actions/company-email-templates');
 // `resolveCompanyName` is the one direct Prisma read these methods make.
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { company: { findUnique: jest.fn(async () => ({ name: 'Acme Corp' })) } },
+  default: { company: { findUnique: vi.fn(async () => ({ name: 'Acme Corp' })) } },
 }));
 
 function buildService() {
@@ -46,13 +48,13 @@ function buildService() {
   return { service };
 }
 
-const setTemplate = companyEmailTemplates.setCompanyDocumentEmailTemplate as jest.Mock;
-const clearTemplate = companyEmailTemplates.clearCompanyDocumentEmailTemplate as jest.Mock;
-const getTemplates = companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock;
+const setTemplate = companyEmailTemplates.setCompanyDocumentEmailTemplate as Mock;
+const clearTemplate = companyEmailTemplates.clearCompanyDocumentEmailTemplate as Mock;
+const getTemplates = companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock;
 
 describe('DocumentsService — per-document-type email templates', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     getTemplates.mockResolvedValue({});
     // The real setter returns what it stored (sanitized); the default here echoes the input, and the
     // tests that care about sanitization override it.

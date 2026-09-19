@@ -11,6 +11,9 @@
  * spec file running in the same Jest worker — a redirect-URI assertion must not depend on which other
  * spec happened to run first.
  */
+
+import { vi, type Mock } from 'vitest';
+
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 process.env.APP_URL = 'https://invoicerr.example.com';
 
@@ -27,7 +30,7 @@ import {
 // see `undefined` under this project's ts-jest config and never reach this mock at all. `lookup` is
 // what the SSRF guard on the four IdP endpoint fields (`@/utils/outbound-url.ts`, called from
 // `upsert`) uses — mocked here alongside `resolveTxt` (domain verification's own DNS need) rather than
-// in a second `jest.mock` call, since Jest only honours the LAST `jest.mock('node:dns', ...)` for a
+// in a second `vi.mock` call, since Vitest only honours the LAST `vi.mock('node:dns', ...)` for a
 // given module.
 import * as dns from 'node:dns';
 
@@ -36,60 +39,60 @@ import { encryptJson } from '@/utils/secret-crypto';
 import { OutboundUrlValidationError } from '@/utils/outbound-url';
 import { SsoService } from './sso.service';
 
-jest.mock('node:dns', () => ({ promises: { resolveTxt: jest.fn(), lookup: jest.fn() } }));
+vi.mock('node:dns', () => ({ promises: { resolveTxt: vi.fn(), lookup: vi.fn() } }));
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     companySsoProvider: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      upsert: jest.fn(),
-      deleteMany: jest.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
     },
     companySsoDomain: {
-      findUnique: jest.fn(),
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-      upsert: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      deleteMany: jest.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      deleteMany: vi.fn(),
     },
     // The interactive-transaction callback is exercised for real here (it receives the SAME mocked
     // client as `tx`, which is enough to prove the conflict-check-then-write sequence `verifyDomain`
     // relies on) rather than stubbed out to a no-op — a no-op would make the 409-conflict tests below
     // unable to prove anything.
-    $transaction: jest.fn(),
+    $transaction: vi.fn(),
     // The advisory-lock statement `verifyDomain` issues at the top of its transaction, tagged-template
     // style (`tx.$executeRaw\`...\``). Real Postgres returns the row count (0 for a bare SELECT); the
     // exact value is never inspected by production code, so resolving to anything at all is enough for
     // the mock — only its presence as a callable matters here.
-    $executeRaw: jest.fn().mockResolvedValue(0),
+    $executeRaw: vi.fn().mockResolvedValue(0),
   },
 }));
 
-const resolveTxt = dns.promises.resolveTxt as unknown as jest.Mock;
-const lookup = dns.promises.lookup as unknown as jest.Mock;
+const resolveTxt = dns.promises.resolveTxt as unknown as Mock;
+const lookup = dns.promises.lookup as unknown as Mock;
 
 const mockedPrisma = prisma as unknown as {
   companySsoProvider: {
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-    upsert: jest.Mock;
-    deleteMany: jest.Mock;
+    findUnique: Mock;
+    findMany: Mock;
+    upsert: Mock;
+    deleteMany: Mock;
   };
   companySsoDomain: {
-    findUnique: jest.Mock;
-    findFirst: jest.Mock;
-    findMany: jest.Mock;
-    upsert: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
-    deleteMany: jest.Mock;
+    findUnique: Mock;
+    findFirst: Mock;
+    findMany: Mock;
+    upsert: Mock;
+    create: Mock;
+    update: Mock;
+    deleteMany: Mock;
   };
-  $transaction: jest.Mock;
-  $executeRaw: jest.Mock;
+  $transaction: Mock;
+  $executeRaw: Mock;
 };
 
 const COMPANY_ID = 'clx3k2j1p0000qwer1234asdf';
@@ -136,7 +139,7 @@ describe('SsoService', () => {
   let service: SsoService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new SsoService();
     // Default: the transaction callback runs against the SAME mocked client — individual tests
     // override `companySsoDomain.findFirst`/`update` on `mockedPrisma` directly, and this makes those

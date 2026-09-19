@@ -13,6 +13,9 @@
  * real companies, each with their own real `Webhook` row subscribed to `CLIENT_CREATED`, prove the
  * fix end-to-end: creating a client for company A reaches ONLY company A's webhook.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { randomUUID } from 'node:crypto';
 
 import { ClientsService } from './clients.service';
@@ -23,13 +26,13 @@ import { WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/clie
 import prisma from '@/prisma/prisma.service';
 
 function fakeVatValidator(result: VatValidationResult): VatValidationPort {
-  return { validate: jest.fn().mockResolvedValue(result) };
+  return { validate: vi.fn().mockResolvedValue(result) };
 }
 
 describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookDispatcherService -> Prisma)', () => {
   let companyAId: string;
   let companyBId: string;
-  let send: jest.Mock;
+  let send: Mock;
   let dispatcher: WebhookDispatcherService;
 
   beforeAll(async () => {
@@ -97,7 +100,7 @@ describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookD
   beforeEach(() => {
     // Real `WebhookDispatcherService`, real Prisma tenant-scoping — only the actual outbound HTTP send
     // (`WebhooksService.send`) is stubbed, so this proves the query/payload, never a real network call.
-    send = jest.fn().mockResolvedValue([true]);
+    send = vi.fn().mockResolvedValue([true]);
     dispatcher = new WebhookDispatcherService({ send } as unknown as WebhooksService);
   });
 

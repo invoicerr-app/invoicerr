@@ -1,19 +1,21 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 // Same shape `account-lifecycle.spec.ts` already uses for a module that imports the shared `prisma`
 // singleton directly (never via Nest DI).
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { user: { update: jest.fn() } },
+  default: { user: { update: vi.fn() } },
 }));
 
 import prisma from '@/prisma/prisma.service';
 import { parseAccountLocaleInput, setUserLocale } from './preferences';
 
-const mockUserUpdate = (prisma as unknown as { user: { update: jest.Mock } }).user.update;
+const mockUserUpdate = (prisma as unknown as { user: { update: Mock } }).user.update;
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('parseAccountLocaleInput', () => {

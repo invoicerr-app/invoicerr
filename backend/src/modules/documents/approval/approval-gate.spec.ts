@@ -6,19 +6,21 @@
  * one bit of I/O this module has, proven against a mocked `prisma.company.findUnique` rather than a
  * re-implemented fake. `documents.service.approval.spec.ts` is the sibling file that proves
  * `runAction` actually WIRES this in — it mocks this module wholesale (except this file's own
- * `requiresApproval`, kept real via `jest.requireActual`) and is honest about only proving the
+ * `requiresApproval`, kept real via `vi.importActual`) and is honest about only proving the
  * CALLER's composition, not re-testing the rule itself.
  */
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { requiresApproval, resolveApprovalThresholdMinor } from './approval-gate';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { company: { findUnique: jest.fn() } },
+  default: { company: { findUnique: vi.fn() } },
 }));
 
-const findCompany = prisma.company.findUnique as jest.Mock;
+const findCompany = prisma.company.findUnique as Mock;
 
 describe('requiresApproval', () => {
   it('never gates when the company has no threshold configured (NULL) — any role, any amount', () => {
@@ -54,7 +56,7 @@ describe('requiresApproval', () => {
 });
 
 describe('resolveApprovalThresholdMinor', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('returns the configured threshold', async () => {
     findCompany.mockResolvedValue({ approvalThresholdMinor: 500_00 });

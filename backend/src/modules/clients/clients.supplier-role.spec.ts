@@ -3,8 +3,11 @@
  * DIRECTLY (never `ClientsModule` — see `clients.vat-validation.spec.ts`'s own header, "ClientsModule
  * not importable under ts-jest"), real Prisma.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { ClientsService } from './clients.service';
@@ -13,11 +16,11 @@ import { VatValidationPort } from '../documents/tax/vat-validation';
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 const fakeVatValidator: VatValidationPort = {
-  validate: jest.fn().mockResolvedValue({ status: 'UNAVAILABLE', checkedAt: new Date(), source: 'test' }),
+  validate: vi.fn().mockResolvedValue({ status: 'UNAVAILABLE', checkedAt: new Date(), source: 'test' }),
 };
 
 describe('ClientsService — Client.isSupplier', () => {

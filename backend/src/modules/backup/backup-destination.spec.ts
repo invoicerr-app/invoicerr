@@ -1,9 +1,12 @@
 /**
  * Unit coverage for `backup-destination.ts` — the AWS SDK is MOCKED throughout (no real network, no
- * MinIO container), the same `jest.spyOn(S3Client.prototype, 'send')` style
+ * MinIO container), the same `vi.spyOn(S3Client.prototype, 'send')` style
  * `documents/archive/s3-storage.spec.ts` already uses. See `backup-destination.live.spec.ts` for the
  * real round-trip against a real MinIO container.
  */
+
+import { vi, type MockInstance } from 'vitest';
+
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 import { BackupDestination } from './backup-destination';
@@ -18,7 +21,7 @@ const ENV_KEYS = [
 
 describe('backup/BackupDestination', () => {
   const originalEnv: Partial<Record<(typeof ENV_KEYS)[number], string>> = {};
-  let sendSpy: jest.SpyInstance;
+  let sendSpy: MockInstance;
 
   beforeEach(() => {
     for (const key of ENV_KEYS) originalEnv[key] = process.env[key];
@@ -28,7 +31,7 @@ describe('backup/BackupDestination', () => {
     process.env.BACKUP_S3_SECRET_ACCESS_KEY = 'sk';
     delete process.env.BACKUP_S3_PREFIX;
 
-    sendSpy = jest.spyOn(S3Client.prototype, 'send');
+    sendSpy = vi.spyOn(S3Client.prototype, 'send');
   });
 
   afterEach(() => {

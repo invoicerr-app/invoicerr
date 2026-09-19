@@ -2,25 +2,28 @@
  * ProjectsService in isolation — mocks `@/prisma/prisma.service` at its own entry point, the same
  * discipline articles.service.spec.ts already holds for its own sibling module.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
 import { ProjectsService } from './projects.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    project: { create: jest.fn(), findMany: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
-    client: { findFirst: jest.fn() },
-    company: { findUnique: jest.fn() },
+    project: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    client: { findFirst: vi.fn() },
+    company: { findUnique: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  project: { create: jest.Mock; findMany: jest.Mock; findFirst: jest.Mock; update: jest.Mock };
-  client: { findFirst: jest.Mock };
-  company: { findUnique: jest.Mock };
+  project: { create: Mock; findMany: Mock; findFirst: Mock; update: Mock };
+  client: { findFirst: Mock };
+  company: { findUnique: Mock };
 };
 
 function project(overrides: Partial<Record<string, unknown>> = {}) {
@@ -43,7 +46,7 @@ describe('ProjectsService', () => {
   let service: ProjectsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new ProjectsService();
     mockedPrisma.company.findUnique.mockResolvedValue({ currency: 'EUR' });
     mockedPrisma.client.findFirst.mockResolvedValue({ id: 'client-1', companyId: 'company-1' });

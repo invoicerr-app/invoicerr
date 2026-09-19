@@ -1,12 +1,14 @@
+import { vi, type Mock } from 'vitest';
+
 import { BillingCustomerProvisioningBootService } from './customer-provisioning-boot.service';
 import { reconcileMissingCompanyCustomers } from './customer-provisioning';
 
-jest.mock('./customer-provisioning');
+vi.mock('./customer-provisioning');
 
-const reconcile = reconcileMissingCompanyCustomers as jest.Mock;
+const reconcile = reconcileMissingCompanyCustomers as Mock;
 
 describe('BillingCustomerProvisioningBootService', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('runs the reconciliation once and never throws on success', async () => {
     reconcile.mockResolvedValue({

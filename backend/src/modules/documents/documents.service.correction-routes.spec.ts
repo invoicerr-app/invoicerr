@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException, NotFoundException, NotImplementedException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -13,8 +15,8 @@ import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
-jest.mock('./country-policy/country-policy');
+vi.mock('./persistence');
+vi.mock('./country-policy/country-policy');
 
 /**
  * Proves `DocumentsService#getCorrectionRoutes` composes its FOUR gates (type
@@ -47,7 +49,7 @@ function buildService() {
 }
 
 function mockDocument(overrides: Partial<{ status: string }> = {}) {
-  (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+  (persistence.findOwnedDocument as Mock).mockResolvedValue({
     id: 'doc-1',
     typeId: 'invoice',
     status: 'sent',
@@ -59,10 +61,10 @@ function mockDocument(overrides: Partial<{ status: string }> = {}) {
 }
 
 describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('gate 1 (404): a typeId nobody registered at all', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
     const { service } = buildService();
     await expect(service.getCorrectionRoutes('company-1', 'nonsense', 'doc-1')).rejects.toThrow(
       NotFoundException,
@@ -70,7 +72,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
   });
 
   it('gate 2 (501): a real, known type that is not "invoice"', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
     const { service } = buildService();
     await expect(service.getCorrectionRoutes('company-1', 'quote', 'doc-1')).rejects.toThrow(
       NotImplementedException,
@@ -83,8 +85,8 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
   });
 
   it('gate 3 (404): the invoice does not exist for this company', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new NotFoundException('nope'));
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (persistence.findOwnedDocument as Mock).mockRejectedValue(new NotFoundException('nope'));
     const { service } = buildService();
     await expect(service.getCorrectionRoutes('company-1', 'invoice', 'doc-1')).rejects.toThrow(
       NotFoundException,
@@ -92,7 +94,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
   });
 
   it('gate 4 (409): a "draft" invoice — nothing issued yet to correct', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
     mockDocument({ status: 'draft' });
     const { service } = buildService();
     await expect(service.getCorrectionRoutes('company-1', 'invoice', 'doc-1')).rejects.toThrow(
@@ -107,7 +109,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
     'sent',
     'send_failed',
   ])('gate 4 passes for a "%s" (issued) invoice — only "draft" is refused', async (status) => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
     mockDocument({ status });
     const { service } = buildService();
     const decision = await service.getCorrectionRoutes('company-1', 'invoice', 'doc-1');
@@ -115,7 +117,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
   });
 
   it('gate 5 (404, NAMED): the seller country has no correction-routes file at all', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('JP');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('JP');
     mockDocument({});
     const { service } = buildService();
     await expect(service.getCorrectionRoutes('company-1', 'invoice', 'doc-1')).rejects.toThrow(
@@ -127,7 +129,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
   });
 
   it('gate 5 (404, NAMED): an unresolved seller country (no code at all)', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue(undefined);
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(undefined);
     mockDocument({});
     const { service } = buildService();
     await expect(service.getCorrectionRoutes('company-1', 'invoice', 'doc-1')).rejects.toThrow(
@@ -136,7 +138,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
   });
 
   it('the happy path — FR seller: INTERNAL_CREDIT_NOTE is required and implemented; the buyer-composition limitation is always present', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
     mockDocument({});
     const { service } = buildService();
     const decision = await service.getCorrectionRoutes('company-1', 'invoice', 'doc-1');
@@ -160,7 +162,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
   });
 
   it('the happy path — PL seller: INTERNAL_CREDIT_NOTE is forbidden, the canonical FR/PL inversion, still surfaced (never hidden)', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PL');
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
     mockDocument({});
     const { service } = buildService();
     const decision = await service.getCorrectionRoutes('company-1', 'invoice', 'doc-1');

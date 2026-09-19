@@ -8,6 +8,7 @@
  * the two named mutation guards — that an empty `numeroFluxDepot` is NEVER a success and that an
  * artifact that failed the Factur-X/EN 16931 gate is NEVER deposited.
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -18,11 +19,11 @@ import { DocumentFormatProvider } from '../formats/format-provider';
 import { listCompanyPaymentMethods } from '../payment-methods/persistence';
 import { DocumentTransportContext } from './transport-registry';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    client: { findFirst: jest.fn() },
+    company: { findUnique: vi.fn() },
+    client: { findFirst: vi.fn() },
   },
 }));
 
@@ -31,27 +32,36 @@ jest.mock('@/prisma/prisma.service', () => ({
 // exercising the real `payment-methods/persistence.ts` DB reads through a fuller prisma mock): this
 // spec proves the TRANSPORT's own orchestration/gating, not `listCompanyPaymentMethods` itself, which
 // already has its own coverage (`payment-methods/persistence.spec.ts`).
-jest.mock('../payment-methods/persistence', () => ({
-  listCompanyPaymentMethods: jest.fn(),
+vi.mock('../payment-methods/persistence', () => ({
+  listCompanyPaymentMethods: vi.fn(),
 }));
 
-const mockDeposerFlux = jest.fn();
+const mockDeposerFlux = vi.fn();
 
-jest.mock('./chorus-pro/choruspro-client', () => {
-  const actual = jest.requireActual('./chorus-pro/choruspro-client');
+vi.mock('./chorus-pro/choruspro-client', async () => {
+  // `vi.importActual` is ASYNC (unlike Jest's synchronous `requireActual`) — the factory MUST be
+  // `async` and this MUST be `await`ed, or `...actual` spreads a Promise's own (empty) enumerable
+  // properties instead of the real module's exports, silently discarding every real export.
+  const actual = await vi.importActual('./chorus-pro/choruspro-client');
   return {
     ...actual,
-    ChorusProClient: jest.fn().mockImplementation(() => ({
-      deposerFlux: mockDeposerFlux,
-    })),
+    // A `function` expression, NOT an arrow function — production code does
+    // `new ChorusProClient(...)` (`chorus-pro-transport.ts`'s own `buildClient`). Jest's mocks never
+    // really `[[Construct]]` their implementation (they call it plainly and use the return value), so
+    // an arrow function "worked" there; Vitest's mocks DO construct it for real, and an arrow function
+    // has no `[[Construct]]` at all — "TypeError: ... is not a constructor".
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new ChorusProClient(...)` under Vitest, see above.
+    ChorusProClient: vi.fn().mockImplementation(function () {
+      return { deposerFlux: mockDeposerFlux };
+    }),
   };
 });
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  client: { findFirst: jest.Mock };
+  company: { findUnique: Mock };
+  client: { findFirst: Mock };
 };
-const mockedListCompanyPaymentMethods = listCompanyPaymentMethods as jest.Mock;
+const mockedListCompanyPaymentMethods = listCompanyPaymentMethods as Mock;
 
 /** THE PAYMENT MEANS GATE's own happy path: only "Bank transfer" configured and enabled — the ONE
  *  built-in method Chorus Pro's own strict allowlist accepts (`CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID`'s
@@ -73,9 +83,9 @@ const CONNECTED_CONFIG = {
   },
 };
 
-function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock }) {
+function buildDeps(overrides?: { resolveActive?: Mock; build?: Mock }) {
   const channelCredentials = {
-    resolveActive: overrides?.resolveActive ?? jest.fn().mockResolvedValue(CONNECTED_CONFIG),
+    resolveActive: overrides?.resolveActive ?? vi.fn().mockResolvedValue(CONNECTED_CONFIG),
   } as unknown as ChannelCredentialsService;
   const facturxFormatProvider: DocumentFormatProvider = {
     id: 'facturx',
@@ -83,7 +93,7 @@ function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock })
     mime: 'application/pdf',
     build:
       overrides?.build ??
-      jest.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
+      vi.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
   };
   return { channelCredentials, facturxFormatProvider };
 }
@@ -104,7 +114,7 @@ const CTX: DocumentTransportContext = {
 
 describe('buildChorusProTransport', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedListCompanyPaymentMethods.mockResolvedValue(BANK_TRANSFER_ONLY);
     mockedPrisma.company.findUnique.mockResolvedValue({
       id: 'company-1',
@@ -132,7 +142,7 @@ describe('buildChorusProTransport', () => {
 
   describe('preflight() — the PREFLIGHT gate, before anything is persisted or queued', () => {
     it('throws (named, for THIS channel) when no Chorus Pro channel is connected at all', async () => {
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
       const transport = buildChorusProTransport(deps);
 
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
@@ -141,7 +151,7 @@ describe('buildChorusProTransport', () => {
 
     it('throws when connected but the config is incomplete (missing technicalAccountPassword)', async () => {
       const deps = buildDeps({
-        resolveActive: jest.fn().mockResolvedValue({
+        resolveActive: vi.fn().mockResolvedValue({
           ...CONNECTED_CONFIG,
           config: {
             clientId: 'piste-id-1',
@@ -164,7 +174,7 @@ describe('buildChorusProTransport', () => {
 
   describe('send() — delivery', () => {
     it('blocks (never calls the network) when the channel is not connected — re-checked, not cached from preflight', async () => {
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
       const transport = buildChorusProTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(NotImplementedException);
@@ -334,7 +344,7 @@ describe('buildChorusProTransport', () => {
     // `send()` stops checking `buildResult.validation.valid` before depositing: an artifact that
     // failed the EN 16931 Schematron gate must NEVER reach `deposerFlux`, only be refused, named.
     it('MUTATION GUARD #2 — never deposits an artifact that failed the Factur-X/EN 16931 gate', async () => {
-      const build = jest.fn().mockResolvedValue({
+      const build = vi.fn().mockResolvedValue({
         bytes: new TextEncoder().encode('<invalid/>'),
         validation: { valid: false, errors: ['BR-CO-26: seller VAT missing'] },
       });

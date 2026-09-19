@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import * as currencyRatesStore from '../../company/currency-rates/currency-rates.store';
 import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
@@ -6,22 +8,27 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildInvoiceDashboardWidgetsWithConsolidation } from './invoice-contributions';
 import { MetricWidget } from './widgets';
 
-jest.mock('../persistence');
-jest.mock('../settlement/payments');
-jest.mock('../settlement/credits', () => {
-  const actual = jest.requireActual('../settlement/credits');
-  return { ...actual, listCreditNotes: jest.fn() };
+vi.mock('../persistence');
+vi.mock('../settlement/payments');
+// The factory is async — unlike Jest, Vitest's `importActual` returns a Promise (it re-runs the
+// real module through Vite's own SSR loader rather than Node's synchronous `require`), so this
+// mock factory must be `async` and the actual module must be `await`ed. See the migration recipe's
+// own "jest.requireActual" entry for why this is the single biggest semantic difference between the
+// two mocking APIs — nothing here polls or races on it, so there's no other change.
+vi.mock('../settlement/credits', async () => {
+  const actual = await vi.importActual('../settlement/credits');
+  return { ...actual, listCreditNotes: vi.fn() };
 });
-jest.mock('../../company/currency-rates/currency-rates.store', () => {
-  const actual = jest.requireActual('../../company/currency-rates/currency-rates.store');
-  return { ...actual, getReferenceCurrency: jest.fn(), listCurrencyRates: jest.fn() };
+vi.mock('../../company/currency-rates/currency-rates.store', async () => {
+  const actual = await vi.importActual('../../company/currency-rates/currency-rates.store');
+  return { ...actual, getReferenceCurrency: vi.fn(), listCurrencyRates: vi.fn() };
 });
 
-const listDocuments = persistence.listDocuments as jest.Mock;
-const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as jest.Mock;
-const listCreditNotes = settlementCredits.listCreditNotes as jest.Mock;
-const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as jest.Mock;
-const listCurrencyRates = currencyRatesStore.listCurrencyRates as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
+const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
+const listCreditNotes = settlementCredits.listCreditNotes as Mock;
+const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as Mock;
+const listCurrencyRates = currencyRatesStore.listCurrencyRates as Mock;
 
 function invoice(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -38,7 +45,7 @@ function invoice(
 
 describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
   beforeEach(() => {
-    jest.useFakeTimers().setSystemTime(new Date('2026-08-30'));
+    vi.useFakeTimers().setSystemTime(new Date('2026-08-30'));
     listDocuments.mockReset();
     sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
     listCreditNotes.mockReset().mockResolvedValue([]);
@@ -46,7 +53,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
     listCurrencyRates.mockReset();
   });
 
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('no referenceCurrency set: the per-currency pending totals are returned, no consolidated metric', async () => {
     listDocuments.mockResolvedValue([

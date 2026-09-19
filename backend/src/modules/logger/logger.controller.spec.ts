@@ -9,8 +9,11 @@
  * triggered (or, for a queue-worker log with no `userId` at all, nothing — even when it genuinely
  * belonged to THIS company). Filtering by `companyId` in the query itself fixes both.
  */
-jest.mock('@/logger/logger.service', () => ({
-  logger: { fetchLogs: jest.fn() },
+
+import { vi, type Mock } from 'vitest';
+
+vi.mock('@/logger/logger.service', () => ({
+  logger: { fetchLogs: vi.fn() },
 }));
 
 import { firstValueFrom } from 'rxjs';
@@ -18,7 +21,7 @@ import { firstValueFrom } from 'rxjs';
 import { LoggerController, clampStreamIntervalMs } from './logger.controller';
 import { logger } from '@/logger/logger.service';
 
-const mockedLogger = logger as unknown as { fetchLogs: jest.Mock };
+const mockedLogger = logger as unknown as { fetchLogs: Mock };
 
 describe('clampStreamIntervalMs', () => {
   it('floors an unbounded value — intervalMs=1 would otherwise be ~one query per millisecond', () => {
@@ -40,7 +43,7 @@ describe('LoggerController#streamLogs', () => {
   let controller: LoggerController;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     controller = new LoggerController();
   });
 

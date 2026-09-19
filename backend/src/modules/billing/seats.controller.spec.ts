@@ -7,19 +7,21 @@
  * There is no `ValidationPipe`/class-validator anywhere in this API (`billing.dto.ts`'s own header on
  * `MoveSeatDto`), so nothing else stands between an untyped caller (curl, a stale client) and Prisma.
  */
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 import { MoveSeatDto } from './billing.dto';
 import { getSeatsView, moveMemberSeat, SeatsView } from './seats-view';
 import { SeatsController } from './seats.controller';
 
-jest.mock('./seats-view');
+vi.mock('./seats-view');
 
-const getSeatsViewMock = getSeatsView as jest.Mock;
-const moveMemberSeatMock = moveMemberSeat as jest.Mock;
+const getSeatsViewMock = getSeatsView as Mock;
+const moveMemberSeatMock = moveMemberSeat as Mock;
 
 describe('SeatsController', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('getSeats delegates to getSeatsView for the active company', async () => {
     const view: SeatsView = { seats: 2, members: [], waiting: [] };

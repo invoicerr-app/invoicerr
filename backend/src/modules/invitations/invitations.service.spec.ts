@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InvitationsService } from '@/modules/invitations/invitations.service';
@@ -5,57 +7,57 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
 import { logger } from '@/logger/logger.service';
 
-jest.mock('@/logger/logger.service', () => ({
+vi.mock('@/logger/logger.service', () => ({
   logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
-jest.mock('@/modules/billing/member-sync');
+vi.mock('@/modules/billing/member-sync');
 // billing/seat-sync.ts's own header: called directly (never via DI) from the three places a
 // membership row is CREATED — `useInvitation` (an EXISTING user accepting an invitation) is one of
 // them. Mocked here so this file's own assertions never depend on the real transaction/lock
 // behavior (already covered in full by seat-sync.spec.ts); the default implementation below just
 // runs the caller's own callback against this file's already-mocked `prisma`, so `tx.*` calls inside
 // `useInvitation` land on the SAME mocks every other assertion here already reads.
-jest.mock('@/modules/billing/seat-sync');
+vi.mock('@/modules/billing/seat-sync');
 
-const seatReservation = withSeatReservation as jest.Mock;
+const seatReservation = withSeatReservation as Mock;
 
 describe('InvitationsService', () => {
   let service: InvitationsService;
   let prisma: {
     invitationCode: {
-      create: jest.Mock;
-      findUnique: jest.Mock;
-      updateMany: jest.Mock;
-      findUniqueOrThrow: jest.Mock;
+      create: Mock;
+      findUnique: Mock;
+      updateMany: Mock;
+      findUniqueOrThrow: Mock;
     };
     userCompany: {
-      findUnique: jest.Mock;
-      upsert: jest.Mock;
+      findUnique: Mock;
+      upsert: Mock;
     };
     user: {
-      count: jest.Mock;
+      count: Mock;
     };
   };
 
   beforeEach(() => {
     prisma = {
       invitationCode: {
-        create: jest.fn(),
-        findUnique: jest.fn(),
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-        findUniqueOrThrow: jest.fn(),
+        create: vi.fn(),
+        findUnique: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: vi.fn(),
       },
       userCompany: {
-        findUnique: jest.fn(),
-        upsert: jest.fn(),
+        findUnique: vi.fn(),
+        upsert: vi.fn(),
       },
       user: {
-        count: jest.fn(),
+        count: vi.fn(),
       },
     };
     service = new InvitationsService(prisma as unknown as PrismaService);

@@ -1,11 +1,13 @@
+import { vi, type Mock } from 'vitest';
+
 import * as persistence from '../persistence';
 import { resolveReceivedInvoiceReconciliation } from './resolve-received-invoice-reconciliation';
 import * as settings from './reconciliation-settings';
 import * as varianceAcceptance from './variance-acceptance';
 
-jest.mock('../persistence');
-jest.mock('./reconciliation-settings');
-jest.mock('./variance-acceptance');
+vi.mock('../persistence');
+vi.mock('./reconciliation-settings');
+vi.mock('./variance-acceptance');
 
 /**
  * Proves the WIRING (extraction, filtering, acceptance overlay) — never the engine's own math, which
@@ -13,13 +15,13 @@ jest.mock('./variance-acceptance');
  * engine again" split `actions/purchase-order-actions.spec.ts`'s own header documents.
  */
 describe('resolveReceivedInvoiceReconciliation', () => {
-  const findOwnedDocument = persistence.findOwnedDocument as jest.Mock;
-  const listDocuments = persistence.listDocuments as jest.Mock;
-  const getReconciliationSettings = settings.getReconciliationSettings as jest.Mock;
-  const getVarianceAcceptance = varianceAcceptance.getVarianceAcceptance as jest.Mock;
+  const findOwnedDocument = persistence.findOwnedDocument as Mock;
+  const listDocuments = persistence.listDocuments as Mock;
+  const getReconciliationSettings = settings.getReconciliationSettings as Mock;
+  const getVarianceAcceptance = varianceAcceptance.getVarianceAcceptance as Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     getReconciliationSettings.mockResolvedValue({ tolerancePercent: 2 });
     getVarianceAcceptance.mockReturnValue(null);
   });

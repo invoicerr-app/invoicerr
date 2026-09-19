@@ -9,15 +9,18 @@
  * env vars are required (this hits a public, keyless feed), so the second `liveDescribe` argument is
  * omitted entirely.
  *
- *   ECB_LIVE=1 npx jest ecb-rates-client.live --no-coverage
+ *   ECB_LIVE=1 npx vitest run src/modules/company/currency-rates/ecb-rates-client.live.spec.ts
  */
+
+import { vi } from 'vitest';
+
 import { liveDescribe } from '../../documents/transports/live-gate';
 import { fetchEcbDailyRates } from './ecb-rates-client';
 
 const describeLive = liveDescribe('ECB_LIVE');
 
 describeLive('ECB daily rates feed — live fetch', () => {
-  jest.setTimeout(15_000);
+  vi.setConfig({ testTimeout: 15_000, hookTimeout: 15_000 });
 
   it('returns a well-formed reference date and a plausible EUR -> USD rate', async () => {
     const { referenceDate, rates } = await fetchEcbDailyRates();

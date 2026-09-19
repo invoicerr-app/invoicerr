@@ -1,18 +1,20 @@
+import { vi, type Mock } from 'vitest';
+
 import { BILLING_FLAG_NAME } from '../modules/billing/billing-flag';
 import { getPendingAcceptanceSlugs, recordLegalAcceptance } from './legal-acceptance';
 import { LegalService } from './legal.service';
 
-jest.mock('./legal-acceptance');
+vi.mock('./legal-acceptance');
 
-const getPending = getPendingAcceptanceSlugs as jest.Mock;
-const record = recordLegalAcceptance as jest.Mock;
+const getPending = getPendingAcceptanceSlugs as Mock;
+const record = recordLegalAcceptance as Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
 afterEach(() => {
   if (ORIGINAL_ENV === undefined) delete process.env[BILLING_FLAG_NAME];
   else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('LegalService.listDocuments', () => {

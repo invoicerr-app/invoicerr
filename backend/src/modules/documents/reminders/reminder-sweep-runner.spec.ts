@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import * as nodemailer from 'nodemailer';
 
 import { MailService } from '@/mail/mail.service';
@@ -13,12 +15,25 @@ import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
 import { ReminderSweepRunner } from './reminder-sweep-runner';
 
+// A plain `vi.spyOn(nodemailer, 'createTransport')` (what this worked as under Jest, where a
+// namespace import is a mutable CJS-interop object) throws under Vitest — a real ES module
+// namespace object is frozen, and spyOn tries to redefine one of its properties ("Cannot redefine
+// property: createTransport"). Wholesale-mocking the export instead (real for everything else via
+// `importOriginal`, `createTransport` a plain `vi.fn()`) sidesteps that — same fix
+// `signatures.service.spec.ts` uses for the identical situation. The two tests in the "société →
+// instance → refus-nommé cascade" describe below configure it directly rather than spying on it
+// per test; every OTHER test in this file never constructs a real `MailService`/touches
+// `nodemailer` at all, so mocking this export file-wide changes nothing for them.
+vi.mock('nodemailer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('nodemailer')>();
+  return { ...actual, createTransport: vi.fn() };
+});
 // Only used by the "company → instance" cascade tests near the bottom of this file — every other
-// test here keeps using a bare fake `{ sendForCompany: jest.fn() }`, never touching this at all.
-jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
-  resolveCompanyMailSettings: jest.fn(),
+// test here keeps using a bare fake `{ sendForCompany: vi.fn() }`, never touching this at all.
+vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: vi.fn(),
 }));
-const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
 
 /**
  * Same mocking discipline as `settlement/client-statement.spec.ts` (this file's own model): `../persistence`
@@ -35,29 +50,29 @@ const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock
  * own header ("Reservation, not record-after-send") for why the order is claim-then-send, not
  * send-then-record.
  */
-jest.mock('../persistence');
-jest.mock('../settlement/payments');
-jest.mock('../settlement/credits', () => {
-  const actual = jest.requireActual('../settlement/credits');
-  return { ...actual, listCreditNotes: jest.fn() };
+vi.mock('../persistence');
+vi.mock('../settlement/payments');
+vi.mock('../settlement/credits', async () => {
+  const actual = await vi.importActual('../settlement/credits');
+  return { ...actual, listCreditNotes: vi.fn() };
 });
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findMany: jest.fn() },
-    client: { findFirst: jest.fn() },
-    documentReminder: { findMany: jest.fn(), create: jest.fn(), deleteMany: jest.fn() },
+    company: { findMany: vi.fn() },
+    client: { findFirst: vi.fn() },
+    documentReminder: { findMany: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
   },
 }));
 
-const listDocuments = persistence.listDocuments as jest.Mock;
-const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as jest.Mock;
-const listCreditNotes = settlementCredits.listCreditNotes as jest.Mock;
-const companyFindMany = prisma.company.findMany as jest.Mock;
-const clientFindFirst = prisma.client.findFirst as jest.Mock;
-const reminderFindMany = prisma.documentReminder.findMany as jest.Mock;
-const reminderCreate = prisma.documentReminder.create as jest.Mock;
-const reminderDeleteMany = prisma.documentReminder.deleteMany as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
+const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
+const listCreditNotes = settlementCredits.listCreditNotes as Mock;
+const companyFindMany = prisma.company.findMany as Mock;
+const clientFindFirst = prisma.client.findFirst as Mock;
+const reminderFindMany = prisma.documentReminder.findMany as Mock;
+const reminderCreate = prisma.documentReminder.create as Mock;
+const reminderDeleteMany = prisma.documentReminder.deleteMany as Mock;
 
 // One line, 100 EUR net, 20% VAT -> 120 EUR / 12000 minor gross — same fixture shape
 // `client-statement.spec.ts` already uses, kept minimal since this file's own focus is tier
@@ -91,12 +106,12 @@ const NOW = new Date('2026-06-08T00:00:00Z'); // exactly 7 days after the fixtur
 
 function buildMailService(): MailService {
   return {
-    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   } as unknown as MailService;
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   listDocuments.mockResolvedValue([]);
   sumPaidMinorByDocument.mockResolvedValue(new Map());
   listCreditNotes.mockResolvedValue([]);
@@ -128,7 +143,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
     expect(result).toEqual({ companiesProcessed: 1, remindersSent: 1, skipped: 0 });
     expect(mailService.sendForCompany).toHaveBeenCalledTimes(1);
-    const [sentCompanyId, sendArgs] = (mailService.sendForCompany as jest.Mock).mock.calls[0];
+    const [sentCompanyId, sendArgs] = (mailService.sendForCompany as Mock).mock.calls[0];
     expect(sentCompanyId).toBe('company-1');
     expect(sendArgs.to).toBe('client@example.com');
     expect(sendArgs.subject).toContain('INV-2026-0001');
@@ -150,7 +165,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const runner = new ReminderSweepRunner(mailService);
     await runner.runSweep(NOW);
 
-    const [, sendArgs] = (mailService.sendForCompany as jest.Mock).mock.calls[0];
+    const [, sendArgs] = (mailService.sendForCompany as Mock).mock.calls[0];
     expect(sendArgs.subject).toContain('Rappel de paiement');
     expect(sendArgs.text).toContain('Bonjour,');
   });
@@ -164,7 +179,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const runner = new ReminderSweepRunner(mailService);
     await runner.runSweep(NOW);
 
-    const [, sendArgs] = (mailService.sendForCompany as jest.Mock).mock.calls[0];
+    const [, sendArgs] = (mailService.sendForCompany as Mock).mock.calls[0];
     expect(sendArgs.subject).toContain('Zahlungserinnerung');
   });
 
@@ -177,7 +192,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const runner = new ReminderSweepRunner(mailService);
     await runner.runSweep(NOW);
 
-    const [, sendArgs] = (mailService.sendForCompany as jest.Mock).mock.calls[0];
+    const [, sendArgs] = (mailService.sendForCompany as Mock).mock.calls[0];
     expect(sendArgs.subject).toContain('Payment reminder');
   });
 
@@ -290,7 +305,7 @@ describe('ReminderSweepRunner.runSweep', () => {
       .mockResolvedValueOnce({ id: 'reminder-inv-1' })
       .mockResolvedValueOnce({ id: 'reminder-inv-2' });
     const mailService = {
-      sendForCompany: jest
+      sendForCompany: vi
         .fn()
         .mockRejectedValueOnce(new Error('SMTP timeout'))
         .mockResolvedValueOnce({ message: 'Email sent successfully' }),
@@ -323,12 +338,12 @@ describe('ReminderSweepRunner.runSweep', () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
     listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
     const mailService = {
-      sendForCompany: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+      sendForCompany: vi.fn().mockRejectedValue(new Error('SMTP timeout')),
     } as unknown as MailService;
     // Real implementation runs (it never throws — see logger.service.ts's own header), only spied on
     // to assert the call: a silently-failing reminder must leave a trace in the PERSISTED logger
     // (Settings -> Logs), not just whatever `this.logger` (raw Nest logger, console-only) already did.
-    const errorSpy = jest.spyOn(logger, 'error');
+    const errorSpy = vi.spyOn(logger, 'error');
 
     const runner = new ReminderSweepRunner(mailService);
     const result = await runner.runSweep(NOW);
@@ -388,7 +403,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
     reminderCreate.mockResolvedValue({ id: 'reminder-claim-1' });
     const mailService = {
-      sendForCompany: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+      sendForCompany: vi.fn().mockRejectedValue(new Error('SMTP timeout')),
     } as unknown as MailService;
 
     const runner = new ReminderSweepRunner(mailService);
@@ -412,9 +427,9 @@ describe('ReminderSweepRunner.runSweep', () => {
     reminderCreate.mockResolvedValue({ id: 'reminder-claim-1' });
     reminderDeleteMany.mockRejectedValue(new Error('connection reset by peer'));
     const mailService = {
-      sendForCompany: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+      sendForCompany: vi.fn().mockRejectedValue(new Error('SMTP timeout')),
     } as unknown as MailService;
-    const errorSpy = jest.spyOn(logger, 'error');
+    const errorSpy = vi.spyOn(logger, 'error');
 
     const runner = new ReminderSweepRunner(mailService);
     const result = await runner.runSweep(NOW);
@@ -515,7 +530,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const ORIGINAL_ENV = process.env;
 
     beforeEach(() => {
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
       mockedResolveCompanyMailSettings.mockReset();
       process.env = { ...ORIGINAL_ENV };
       delete process.env.MAIL_PROVIDER;
@@ -540,8 +555,8 @@ describe('ReminderSweepRunner.runSweep', () => {
         password: 'pass',
         fromAddress: 'billing@company.example.com',
       });
-      const sendMailMock = jest.fn().mockResolvedValue(undefined);
-      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
       const runner = new ReminderSweepRunner(new MailService());
       const result = await runner.runSweep(NOW);
@@ -557,8 +572,8 @@ describe('ReminderSweepRunner.runSweep', () => {
       listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
       process.env.SMTP_HOST = 'instance-smtp.example.com';
       mockedResolveCompanyMailSettings.mockResolvedValue(null);
-      const sendMailMock = jest.fn().mockResolvedValue(undefined);
-      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
       const runner = new ReminderSweepRunner(new MailService());
       const result = await runner.runSweep(NOW);

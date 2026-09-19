@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { CreateCheckoutSessionInput } from '../../provider';
 import { FakeMollieClient, RealMollieClient } from './mollie-client';
 
@@ -16,11 +17,11 @@ describe('RealMollieClient.createPayment', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('posts a JSON body with a two-decimal amount string and returns the payment id/checkout url', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
       json: async () => ({ id: 'tr_abc', _links: { checkout: { href: 'https://mollie.com/checkout/abc' } } }),
@@ -46,7 +47,7 @@ describe('RealMollieClient.createPayment', () => {
   });
 
   it('always sends exactly two decimals, even for a zero-decimal currency like JPY', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
       json: async () => ({ id: 'tr_jpy', _links: { checkout: { href: 'https://mollie.com/checkout/jpy' } } }),
@@ -61,7 +62,7 @@ describe('RealMollieClient.createPayment', () => {
   });
 
   it('throws with the provider-reported detail on a non-ok response — never invents a payment id', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({ detail: 'Missing authentication' }),
@@ -74,7 +75,7 @@ describe('RealMollieClient.createPayment', () => {
   });
 
   it('throws when the response has no usable id/checkout link even though it answered ok', async () => {
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValue({ ok: true, status: 201, json: async () => ({}) }) as unknown as typeof fetch;
 
@@ -90,11 +91,11 @@ describe('RealMollieClient.getPayment', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('GETs the payment with a bearer key and returns its status', async () => {
-    const fetchMock = jest
+    const fetchMock = vi
       .fn()
       .mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: 'paid' }) });
     global.fetch = fetchMock as unknown as typeof fetch;
@@ -109,7 +110,7 @@ describe('RealMollieClient.getPayment', () => {
   });
 
   it('throws on a 404 (payment id not owned by this API key) — never reports a fabricated status', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
       json: async () => ({ detail: 'No payment exists with token tr_foreign.' }),

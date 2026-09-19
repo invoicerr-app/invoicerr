@@ -9,6 +9,9 @@
  * (`process.env.CREDENTIALS_ENCRYPTION_KEY ??= '...'`): this is
  * `utils/secret-crypto.ts`'s real AES-256-GCM, exercised for real, never mocked away.
  */
+
+import { vi, type Mock } from 'vitest';
+
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 import { ServiceUnavailableException } from '@nestjs/common';
@@ -18,38 +21,38 @@ import { encryptJson } from '@/utils/secret-crypto';
 import { ChannelEnvironment } from '../../../../prisma/generated/prisma/client';
 import { ChannelCredentialsService } from './channels.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     companyChannelConfig: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      upsert: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
-      deleteMany: jest.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
-    company: { findUnique: jest.fn() },
+    company: { findUnique: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   companyChannelConfig: {
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-    upsert: jest.Mock;
-    update: jest.Mock;
-    updateMany: jest.Mock;
-    deleteMany: jest.Mock;
+    findUnique: Mock;
+    findMany: Mock;
+    upsert: Mock;
+    update: Mock;
+    updateMany: Mock;
+    deleteMany: Mock;
   };
-  company: { findUnique: jest.Mock };
+  company: { findUnique: Mock };
 };
 
 describe('ChannelCredentialsService', () => {
   let service: ChannelCredentialsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new ChannelCredentialsService();
   });
 

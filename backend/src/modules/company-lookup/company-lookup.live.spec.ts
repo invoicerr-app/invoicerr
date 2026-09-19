@@ -1,13 +1,16 @@
 /**
  * Live registry lookups — opt-in, real HTTP, no credentials.
  *
- *   COMPANY_LOOKUP_LIVE=1 npx jest company-lookup.live --no-coverage --runInBand
+ *   COMPANY_LOOKUP_LIVE=1 npx vitest run src/modules/company-lookup/company-lookup.live.spec.ts
  *
  * Skipped by default (CI and offline runs). Only the keyless registers are covered:
  * every credentialed provider (GB, IE, NL, CH, AU) needs its env vars and is exercised
  * by its unit test instead. Each case queries a well-known public entity, so a failure
  * means the registry changed its contract — not that the data moved.
  */
+
+import { vi } from 'vitest';
+
 import { CompanyLookupService } from './company-lookup.service';
 import { PeppolDirectoryProvider } from './providers/peppol-directory.provider';
 import { CompanyLookupRegistry } from './registry';
@@ -18,7 +21,7 @@ const describeLive = live ? describe : describe.skip;
 describeLive('company lookup — live registries', () => {
   const service = new CompanyLookupService(new CompanyLookupRegistry());
 
-  jest.setTimeout(30_000);
+  vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
   const cases: { country: string; value: string; expect: RegExp; source: string }[] = [
     // EDF's head-office SIRET — a branch SIRET is deliberately rejected (see fr.provider.ts).

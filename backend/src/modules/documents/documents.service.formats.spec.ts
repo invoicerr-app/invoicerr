@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import {
   BadRequestException,
   ConflictException,
@@ -21,19 +23,28 @@ import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
-jest.mock('./country-policy/country-policy');
+vi.mock('./persistence');
+vi.mock('./country-policy/country-policy');
 
 // This is the ONE spec in the module that reaches Prisma from `documents.service.ts` itself
 // (`downloadDocumentFormat`'s own company/client lookups, not extracted into a separately-mockable
 // module the way `renderInstancePdf` delegates to `rendering/render-instance-pdf.ts`) — mocked here
 // directly, the same "mock the module boundary, not a re-implementation of Prisma" discipline every
-// other `jest.mock` in this file already holds.
-jest.mock('@/prisma/prisma.service', () => ({
+// other `vi.mock` in this file already holds.
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { company: { findUnique: jest.fn() }, client: { findFirst: jest.fn() } },
+  default: { company: { findUnique: vi.fn() }, client: { findFirst: vi.fn() } },
 }));
-const prismaMock = jest.requireMock('@/prisma/prisma.service').default;
+
+// `vi.mock`'s factory result IS what `import prisma from '@/prisma/prisma.service'` resolves to
+// (hoisted before this file's own imports, same as `persistence`/`countryPolicy` below) — resolved
+// once, in `beforeAll`, rather than the synchronous require-the-mock helper Jest itself provided for
+// this (Vitest's own equivalent, `vi.importMock`, is async: it goes through Vite's SSR module loader,
+// not Node's `require`).
+let prismaMock: { company: { findUnique: Mock }; client: { findFirst: Mock } };
+beforeAll(async () => {
+  prismaMock = (await vi.importMock<{ default: typeof prismaMock }>('@/prisma/prisma.service')).default;
+});
 
 /**
  * Proves normalized-format downloads (EN 16931) at the SERVICE layer — the four gates
@@ -52,7 +63,7 @@ function buildService() {
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
-  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
   const transportRegistry = new TransportRegistry();
   const actionRegistry = new ActionRegistry();
   registerInvoiceActions(actionRegistry, { transportRegistry, queueDispatcher });
@@ -115,7 +126,7 @@ const BUYER_ROW = {
 function mockDocument(
   overrides: Partial<{ status: string; displayNumber: string | null; number: number | null; data: unknown }>,
 ) {
-  (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+  (persistence.findOwnedDocument as Mock).mockResolvedValue({
     id: 'doc-1',
     typeId: 'invoice',
     status: 'sent',
@@ -130,14 +141,14 @@ function mockDocument(
 
 describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked build+validate', () => {
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
     prismaMock.company.findUnique.mockResolvedValue(SELLER_ROW);
     prismaMock.client.findFirst.mockResolvedValue(BUYER_ROW);
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('gate 1 (403): the country policy refuses the action', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: false,
       reason: 'blocked for this country',
     });
@@ -178,7 +189,7 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     // Citing the rule — never a bare "invalid": a gate, not a report.
     try {
       await service.downloadDocumentFormat('company-1', 'invoice', 'doc-1', 'cii');
-      fail('expected a BadRequestException');
+      expect.unreachable('expected a BadRequestException');
     } catch (error) {
       const response = (error as BadRequestException).getResponse() as { errors: string[] };
       expect(response.errors.join(' ')).toContain('BR-S-02');
@@ -200,7 +211,7 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     );
     try {
       await service.downloadDocumentFormat('company-1', 'invoice', 'doc-1', 'cii');
-      fail('expected a BadRequestException');
+      expect.unreachable('expected a BadRequestException');
     } catch (error) {
       const response = (error as BadRequestException).getResponse() as { message: string };
       expect(response.message).toMatch(/seller's own country could not be determined/);

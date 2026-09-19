@@ -1,8 +1,10 @@
+import { vi, type Mock } from 'vitest';
+
 import * as bootReseed from './boot-reseed';
 import { BOOT_RESEED_MAX_ATTEMPTS, CountryPolicyBootReseedService } from './boot-reseed.service';
 
-jest.mock('@/prisma/prisma.service', () => ({ __esModule: true, default: {} }));
-jest.mock('./boot-reseed');
+vi.mock('@/prisma/prisma.service', () => ({ __esModule: true, default: {} }));
+vi.mock('./boot-reseed');
 
 const IN_SYNC_SUMMARY = {
   drift: { inSync: true, addedCountries: [], changedCountries: [], removedCountries: [] },
@@ -28,10 +30,10 @@ const RESEEDED_SUMMARY = {
  * own header already documents).
  */
 describe('CountryPolicyBootReseedService — bounded retry on a transient failure', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('a successful first attempt never retries at all', async () => {
-    (bootReseed.detectAndReseedCountryPolicyDrift as jest.Mock).mockResolvedValue(IN_SYNC_SUMMARY);
+    (bootReseed.detectAndReseedCountryPolicyDrift as Mock).mockResolvedValue(IN_SYNC_SUMMARY);
     const service = new CountryPolicyBootReseedService();
 
     await expect(service.onModuleInit()).resolves.toBeUndefined();
@@ -40,7 +42,7 @@ describe('CountryPolicyBootReseedService — bounded retry on a transient failur
   });
 
   it('a TRANSIENT failure on the first attempt self-heals on the second, within the SAME boot', async () => {
-    (bootReseed.detectAndReseedCountryPolicyDrift as jest.Mock)
+    (bootReseed.detectAndReseedCountryPolicyDrift as Mock)
       .mockRejectedValueOnce(new Error('P2028: transaction timeout'))
       .mockResolvedValueOnce(RESEEDED_SUMMARY);
     const service = new CountryPolicyBootReseedService();
@@ -51,9 +53,7 @@ describe('CountryPolicyBootReseedService — bounded retry on a transient failur
   });
 
   it(`exhausting all ${BOOT_RESEED_MAX_ATTEMPTS} attempts still resolves without throwing — never crashes the app on a boot-time DB hiccup`, async () => {
-    (bootReseed.detectAndReseedCountryPolicyDrift as jest.Mock).mockRejectedValue(
-      new Error('connection refused'),
-    );
+    (bootReseed.detectAndReseedCountryPolicyDrift as Mock).mockRejectedValue(new Error('connection refused'));
     const service = new CountryPolicyBootReseedService();
 
     await expect(service.onModuleInit()).resolves.toBeUndefined();

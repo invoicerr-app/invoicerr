@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { ExtractorNotReadyError, ReceivedDocumentExtractorRegistry } from './extractor';
 
 describe('ReceivedDocumentExtractorRegistry', () => {
@@ -6,7 +8,7 @@ describe('ReceivedDocumentExtractorRegistry', () => {
     const extractor = {
       id: 'stub',
       supports: (mime: string) => mime === 'application/pdf',
-      extract: jest.fn(),
+      extract: vi.fn(),
     };
     registry.register(extractor);
 
@@ -21,15 +23,15 @@ describe('ReceivedDocumentExtractorRegistry', () => {
 
   it('returns undefined when something IS registered but declares no support for this mime', () => {
     const registry = new ReceivedDocumentExtractorRegistry();
-    registry.register({ id: 'stub', supports: () => false, extract: jest.fn() });
+    registry.register({ id: 'stub', supports: () => false, extract: vi.fn() });
 
     expect(registry.resolveFor('application/pdf')).toBeUndefined();
   });
 
   it('resolves the FIRST matching extractor when more than one supports the same mime', () => {
     const registry = new ReceivedDocumentExtractorRegistry();
-    const first = { id: 'first', supports: () => true, extract: jest.fn() };
-    const second = { id: 'second', supports: () => true, extract: jest.fn() };
+    const first = { id: 'first', supports: () => true, extract: vi.fn() };
+    const second = { id: 'second', supports: () => true, extract: vi.fn() };
     registry.register(first);
     registry.register(second);
 
@@ -38,15 +40,15 @@ describe('ReceivedDocumentExtractorRegistry', () => {
 
   it('lists every registered extractor, id only', () => {
     const registry = new ReceivedDocumentExtractorRegistry();
-    registry.register({ id: 'a', supports: () => true, extract: jest.fn() });
-    registry.register({ id: 'b', supports: () => true, extract: jest.fn() });
+    registry.register({ id: 'a', supports: () => true, extract: vi.fn() });
+    registry.register({ id: 'b', supports: () => true, extract: vi.fn() });
 
     expect(registry.list()).toEqual([{ id: 'a' }, { id: 'b' }]);
   });
 
   it('has() reports presence by id without throwing', () => {
     const registry = new ReceivedDocumentExtractorRegistry();
-    registry.register({ id: 'stub', supports: () => true, extract: jest.fn() });
+    registry.register({ id: 'stub', supports: () => true, extract: vi.fn() });
 
     expect(registry.has('stub')).toBe(true);
     expect(registry.has('nope')).toBe(false);
@@ -54,9 +56,9 @@ describe('ReceivedDocumentExtractorRegistry', () => {
 
   it('refuses registering the same id twice', () => {
     const registry = new ReceivedDocumentExtractorRegistry();
-    registry.register({ id: 'stub', supports: () => true, extract: jest.fn() });
+    registry.register({ id: 'stub', supports: () => true, extract: vi.fn() });
 
-    expect(() => registry.register({ id: 'stub', supports: () => true, extract: jest.fn() })).toThrow(
+    expect(() => registry.register({ id: 'stub', supports: () => true, extract: vi.fn() })).toThrow(
       /already registered/,
     );
   });
@@ -70,7 +72,7 @@ describe('ReceivedDocumentExtractorRegistry', () => {
     const thirdParty = {
       id: 'acme-ocr',
       supports: (mime: string) => mime === 'application/pdf',
-      extract: jest.fn().mockResolvedValue({ fields: { supplier: 'Acme-read supplier' } }),
+      extract: vi.fn().mockResolvedValue({ fields: { supplier: 'Acme-read supplier' } }),
     };
     registry.register(thirdParty);
 

@@ -4,6 +4,7 @@
  * engineering constraints require. `imapflow-pec-inbox-port.spec.ts` covers the REAL adapter's own
  * (pure) mapping logic separately.
  */
+import { vi, type Mock } from 'vitest';
 import { PecInboundMessage, PecInboxPort } from './pec-inbox-port';
 import { PecInboxPollerService } from './pec-inbox-poller.service';
 import { HandlePecMessageResult, PecNotificheService } from './pec-notifiche.service';
@@ -12,10 +13,10 @@ function message(id: string): PecInboundMessage {
   return { id, from: 'sdi07@pec.fatturapa.it', attachments: [] };
 }
 
-function buildPort(messages: PecInboundMessage[]): PecInboxPort & { markSeen: jest.Mock } {
+function buildPort(messages: PecInboundMessage[]): PecInboxPort & { markSeen: Mock } {
   return {
-    fetchUnseen: jest.fn().mockResolvedValue(messages),
-    markSeen: jest.fn().mockResolvedValue(undefined),
+    fetchUnseen: vi.fn().mockResolvedValue(messages),
+    markSeen: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -23,8 +24,10 @@ describe('PecInboxPollerService.pollOnce', () => {
   it('feeds every fetched message to PecNotificheService, in order, then marks each one seen', async () => {
     const messages = [message('1'), message('2'), message('3')];
     const port = buildPort(messages);
-    const handleMessage = jest
-      .fn<Promise<HandlePecMessageResult>, [string, PecInboundMessage]>()
+    const handleMessage = vi
+      // Vitest's `vi.fn<T>()` generic takes ONE function-type parameter, not Jest's own two-tuple
+      // `fn<ReturnType, Args>()` shape.
+      .fn<(id: string, message: PecInboundMessage) => Promise<HandlePecMessageResult>>()
       .mockResolvedValue({ handled: true });
     const notifiche = { handleMessage } as unknown as PecNotificheService;
 
@@ -44,8 +47,10 @@ describe('PecInboxPollerService.pollOnce', () => {
   it('counts only messages PecNotificheService actually reports as handled', async () => {
     const messages = [message('1'), message('2')];
     const port = buildPort(messages);
-    const handleMessage = jest
-      .fn<Promise<HandlePecMessageResult>, [string, PecInboundMessage]>()
+    const handleMessage = vi
+      // Vitest's `vi.fn<T>()` generic takes ONE function-type parameter, not Jest's own two-tuple
+      // `fn<ReturnType, Args>()` shape.
+      .fn<(id: string, message: PecInboundMessage) => Promise<HandlePecMessageResult>>()
       .mockResolvedValueOnce({ handled: true, notificaType: 'RC' })
       .mockResolvedValueOnce({ handled: false });
     const notifiche = { handleMessage } as unknown as PecNotificheService;
@@ -58,7 +63,7 @@ describe('PecInboxPollerService.pollOnce', () => {
 
   it('an empty mailbox is a genuine, harmless no-op — never calls handleMessage or markSeen', async () => {
     const port = buildPort([]);
-    const handleMessage = jest.fn();
+    const handleMessage = vi.fn();
     const notifiche = { handleMessage } as unknown as PecNotificheService;
 
     const poller = new PecInboxPollerService(notifiche);
@@ -75,8 +80,8 @@ describe('PecInboxPollerService.pollOnce', () => {
     async () => {
       const messages = [message('1'), message('2'), message('3')];
       const port = buildPort(messages);
-      const handleMessage = jest
-        .fn<Promise<HandlePecMessageResult>, [string, PecInboundMessage]>()
+      const handleMessage = vi
+        .fn<(id: string, message: PecInboundMessage) => Promise<HandlePecMessageResult>>()
         .mockResolvedValueOnce({ handled: true })
         .mockRejectedValueOnce(new Error('database unreachable'))
         .mockResolvedValueOnce({ handled: true });

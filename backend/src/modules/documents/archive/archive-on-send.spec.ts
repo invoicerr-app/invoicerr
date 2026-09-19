@@ -1,25 +1,26 @@
+import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import { archiveDeliveredArtifactsIfAny } from './archive-on-send';
 import { createDocumentArchive } from './persistence';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    documentInstance: { update: jest.fn() },
+    documentInstance: { update: vi.fn() },
     // Read by `logger.error()` (logger.service.ts) whenever this module logs a failure — mocked out
     // so those (expected) failure-path tests below don't also spam a "log entry could not be
     // persisted" error of their own.
-    log: { create: jest.fn().mockResolvedValue({}) },
+    log: { create: vi.fn().mockResolvedValue({}) },
   },
 }));
-jest.mock('./persistence');
+vi.mock('./persistence');
 
-const updateDocument = prisma.documentInstance.update as jest.Mock;
-const createArchive = createDocumentArchive as jest.Mock;
+const updateDocument = prisma.documentInstance.update as Mock;
+const createArchive = createDocumentArchive as Mock;
 
 describe('archiveDeliveredArtifactsIfAny', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('does nothing at all when no artifacts were delivered (e.g. the credit note’s "send")', async () => {
     await archiveDeliveredArtifactsIfAny({ companyId: 'c', documentId: 'd', artifacts: undefined });

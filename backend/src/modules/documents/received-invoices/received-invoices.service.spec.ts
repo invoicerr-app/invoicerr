@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,7 +21,7 @@ import { ReceivedInvoicesService } from './received-invoices.service';
 import { persistInboundFile } from './storage';
 import { MAX_RECEIVED_INVOICE_BYTES } from './upload-validation';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 /** A minimal, real, valid CII XML — small enough to hand-write, big enough that extraction has real
  *  fields to find (this spec's own concern is the SERVICE's upload/dedup/download orchestration, not
@@ -76,14 +78,14 @@ describe('ReceivedInvoicesService', () => {
     dir = mkdtempSync(join(tmpdir(), 'received-invoices-service-test-'));
     process.env.DOCUMENTS_INBOUND_DIR = dir;
     service = new ReceivedInvoicesService();
-    (persistence.listDocuments as jest.Mock).mockResolvedValue([]);
+    (persistence.listDocuments as Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
     if (originalEnv === undefined) delete process.env.DOCUMENTS_INBOUND_DIR;
     else process.env.DOCUMENTS_INBOUND_DIR = originalEnv;
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('upload', () => {
@@ -138,7 +140,7 @@ describe('ReceivedInvoicesService', () => {
     it('refuses re-uploading the exact same file (same hash) already on an existing received-invoice, by name', async () => {
       const bytes = Buffer.from(MINIMAL_CII_XML, 'utf-8');
       const hash = computeArtifactHash(Buffer.from(MINIMAL_CII_XML, 'utf-8'));
-      (persistence.listDocuments as jest.Mock).mockResolvedValue([
+      (persistence.listDocuments as Mock).mockResolvedValue([
         {
           id: 'ri-existing',
           typeId: 'received-invoice',
@@ -161,7 +163,7 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a DIFFERENT file (different hash) is accepted even when another received-invoice exists', async () => {
-      (persistence.listDocuments as jest.Mock).mockResolvedValue([
+      (persistence.listDocuments as Mock).mockResolvedValue([
         {
           id: 'ri-existing',
           typeId: 'received-invoice',
@@ -238,7 +240,7 @@ describe('ReceivedInvoicesService', () => {
 
   /**
    * Supplier reconciliation "at upload", proven end-to-end through the REAL `upload()` pipeline: real
-   * Prisma for the Client/PartyIdentifier side (this file's own `jest.mock('../persistence')` only
+   * Prisma for the Client/PartyIdentifier side (this file's own `vi.mock('../persistence')` only
    * ever touched `DocumentInstance` reads/writes, never this) — see `supplier-reconciliation.spec.ts`
    * for the exhaustive matching-rule coverage (ambiguity, companyId scoping, name fallback); this
    * describe only proves the WIRING: a real VAT in a real deposit reaches a real Client and comes back
@@ -459,7 +461,7 @@ describe('ReceivedInvoicesService', () => {
       // rejects anything else as an invalid content hash before it ever becomes a filesystem path.
       const fileRef = 'a'.repeat(64);
       persistInboundFile('company-1', fileRef, 'application/pdf', new TextEncoder().encode('the pdf bytes'));
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'ri-1',
         typeId: 'received-invoice',
         status: 'received',
@@ -477,7 +479,7 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('404s, named, when the record has no fileRef at all', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'ri-1',
         typeId: 'received-invoice',
         status: 'received',
@@ -490,7 +492,7 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('404s, named, when the record has a fileRef but the bytes are no longer on disk', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'ri-1',
         typeId: 'received-invoice',
         status: 'received',

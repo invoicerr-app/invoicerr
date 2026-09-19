@@ -12,19 +12,20 @@
  *     asserting `not.toHaveBeenCalled()` — not merely "not called with THIS specific id" — is what
  *     makes that mutation bite).
  */
+import { vi, type Mock } from 'vitest';
 import * as persistence from '../../conformity/authority-events.persistence';
 import * as documentPersistence from '../../persistence';
 import { SDI_PROVIDER_ID, SdiNotificheService } from './sdi-notifiche.service';
 
-jest.mock('../../conformity/authority-events.persistence');
+vi.mock('../../conformity/authority-events.persistence');
 // Needed ONLY for the "webhooks" describe block below:
 // `dispatchDocumentAuthorityEventWebhook` (`queue/document-authority-webhook.ts`) re-fetches the row
 // via `findOwnedDocument` before dispatching `DOCUMENT_AUTHORITY_EVENT` — every test ABOVE that block
 // never configures a `webhookDispatcher`, so that fetch never runs for them.
-jest.mock('../../persistence');
+vi.mock('../../persistence');
 
-const mockedFindDocument = persistence.findDocumentByTransportRef as jest.Mock;
-const mockedCreateEvents = persistence.createAuthorityEvents as jest.Mock;
+const mockedFindDocument = persistence.findDocumentByTransportRef as Mock;
+const mockedCreateEvents = persistence.createAuthorityEvents as Mock;
 
 const RC_XML = (idSdI: string) => `<?xml version="1.0" encoding="UTF-8"?>
   <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -39,7 +40,7 @@ const RC_XML = (idSdI: string) => `<?xml version="1.0" encoding="UTF-8"?>
 
 describe('SdiNotificheService.handleNotifica', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('journals an RC notifica for a KNOWN IdentificativoSdI onto its own (companyId, documentId), never another', async () => {
@@ -85,17 +86,17 @@ describe('SdiNotificheService.handleNotifica', () => {
 // `webhookDispatcher` is this service's 2nd constructor arg — every test ABOVE this block constructs
 // the service with zero/one arg and must keep passing unchanged.
 describe('SdiNotificheService — webhooks', () => {
-  const mockedFindOwnedDocument = documentPersistence.findOwnedDocument as jest.Mock;
+  const mockedFindOwnedDocument = documentPersistence.findOwnedDocument as Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue({ id: 'doc-42', typeId: 'invoice', status: 'sent' });
   });
 
   it('dispatches DOCUMENT_AUTHORITY_EVENT for a genuinely journaled RC notifica', async () => {
     mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
     mockedCreateEvents.mockResolvedValue(1);
-    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
 
     const service = new SdiNotificheService(undefined, webhooks);
     await service.handleNotifica(RC_XML('123456789012'));
@@ -114,7 +115,7 @@ describe('SdiNotificheService — webhooks', () => {
 
   it('never dispatches for an unknown IdentificativoSdI — nothing was journaled', async () => {
     mockedFindDocument.mockResolvedValue(null);
-    const webhooks = { dispatch: jest.fn() };
+    const webhooks = { dispatch: vi.fn() };
 
     const service = new SdiNotificheService(undefined, webhooks);
     await service.handleNotifica(RC_XML('999999999999'));

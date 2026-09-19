@@ -13,8 +13,11 @@
  * `pickCompanyInput` (`company.service.ts`) is the fix: the single scalar allow-list both `createCompany`
  * and `editCompanyInfo` now write through.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { CompanyService, pickCompanyInput } from './company.service';
@@ -22,7 +25,7 @@ import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 describe('pickCompanyInput — pure allow-list function', () => {

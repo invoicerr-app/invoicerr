@@ -6,13 +6,15 @@
  * WHAT `syncDatabaseSchema` asks the seeds to do, not that a real `migrate deploy` succeeds (that is
  * `migration-fresh-schema.spec.ts`'s job, gated on a real throwaway Postgres).
  */
-jest.mock('child_process');
-jest.mock('./prisma.service', () => ({
+import { vi, type Mock } from 'vitest';
+
+vi.mock('child_process');
+vi.mock('./prisma.service', () => ({
   __esModule: true,
-  default: { $queryRawUnsafe: jest.fn() },
+  default: { $queryRawUnsafe: vi.fn() },
 }));
-jest.mock('../modules/documents/country-policy/seed');
-jest.mock('../modules/documents/country-identifiers/seed');
+vi.mock('../modules/documents/country-policy/seed');
+vi.mock('../modules/documents/country-identifiers/seed');
 
 import { execFileSync } from 'child_process';
 
@@ -21,14 +23,14 @@ import { seedCountryPolicies } from '../modules/documents/country-policy/seed';
 import { seedCountryIdentifierRequirements } from '../modules/documents/country-identifiers/seed';
 import { syncDatabaseSchema } from './sync-schema';
 
-const mockedExecFileSync = execFileSync as unknown as jest.Mock;
-const mockedQueryRawUnsafe = prisma.$queryRawUnsafe as unknown as jest.Mock;
-const mockedSeedCountryPolicies = seedCountryPolicies as jest.Mock;
-const mockedSeedCountryIdentifierRequirements = seedCountryIdentifierRequirements as jest.Mock;
+const mockedExecFileSync = execFileSync as unknown as Mock;
+const mockedQueryRawUnsafe = prisma.$queryRawUnsafe as unknown as Mock;
+const mockedSeedCountryPolicies = seedCountryPolicies as Mock;
+const mockedSeedCountryIdentifierRequirements = seedCountryIdentifierRequirements as Mock;
 
 describe('syncDatabaseSchema', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // `_prisma_migrations` already exists — `baselineIfNeeded()` short-circuits immediately, so the
     // only `$queryRawUnsafe` call this test needs to account for is that one existence check.
     mockedQueryRawUnsafe.mockResolvedValue([{ exists: '_prisma_migrations' }]);

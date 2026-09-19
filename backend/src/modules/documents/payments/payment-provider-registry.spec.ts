@@ -1,11 +1,12 @@
+import { vi } from 'vitest';
 import { PaymentProviderRegistry } from './payment-provider-registry';
 import { PaymentProvider } from './provider';
 
 function fakeProvider(id: string): PaymentProvider {
   return {
     id,
-    createCheckoutSession: jest.fn(),
-    parseWebhookEvent: jest.fn(),
+    createCheckoutSession: vi.fn(),
+    parseWebhookEvent: vi.fn(),
   };
 }
 

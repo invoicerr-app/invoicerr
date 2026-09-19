@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import {
   BillingCustomerClient,
   BillingEmailTakenError,
@@ -8,7 +10,7 @@ import {
 
 function fakeClient(overrides: Partial<BillingCustomerClient> = {}): BillingCustomerClient {
   return {
-    customers: { getExternal: jest.fn(), create: jest.fn() },
+    customers: { getExternal: vi.fn(), create: vi.fn() },
     ...overrides,
   } as unknown as BillingCustomerClient;
 }
@@ -68,13 +70,13 @@ describe('isResourceNotFoundError', () => {
 });
 
 describe('getOrCreatePolarCustomerForCompany', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   const company = { id: 'company-1', name: 'Acme SARL', email: 'contact@acme.test', billingEmail: null };
 
   it('returns the existing customer when one is already registered under this company', async () => {
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_1', type: 'individual' });
-    const create = jest.fn();
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_1', type: 'individual' });
+    const create = vi.fn();
     const client = fakeClient({ customers: { getExternal, create } });
 
     const result = await getOrCreatePolarCustomerForCompany(company, client);
@@ -84,8 +86,8 @@ describe('getOrCreatePolarCustomerForCompany', () => {
   });
 
   it('creates a fresh individual customer, external id = company id, when none exists yet', async () => {
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
     const client = fakeClient({ customers: { getExternal, create } });
 
     const result = await getOrCreatePolarCustomerForCompany(company, client);
@@ -100,8 +102,8 @@ describe('getOrCreatePolarCustomerForCompany', () => {
   });
 
   it('uses billingEmail over the contact email when creating', async () => {
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
     const client = fakeClient({ customers: { getExternal, create } });
 
     await getOrCreatePolarCustomerForCompany({ ...company, billingEmail: 'billing@acme.test' }, client);
@@ -110,8 +112,8 @@ describe('getOrCreatePolarCustomerForCompany', () => {
   });
 
   it('re-throws a non-404 getExternal failure without attempting to create', async () => {
-    const getExternal = jest.fn().mockRejectedValue(new Error('polar is down'));
-    const create = jest.fn();
+    const getExternal = vi.fn().mockRejectedValue(new Error('polar is down'));
+    const create = vi.fn();
     const client = fakeClient({ customers: { getExternal, create } });
 
     await expect(getOrCreatePolarCustomerForCompany(company, client)).rejects.toThrow('polar is down');
@@ -119,8 +121,8 @@ describe('getOrCreatePolarCustomerForCompany', () => {
   });
 
   it('throws a named BillingEmailTakenError when Polar refuses a duplicate email', async () => {
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn().mockRejectedValue(emailTakenError());
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn().mockRejectedValue(emailTakenError());
     const client = fakeClient({ customers: { getExternal, create } });
 
     const error = await getOrCreatePolarCustomerForCompany(company, client).catch((e) => e);
@@ -131,8 +133,8 @@ describe('getOrCreatePolarCustomerForCompany', () => {
   });
 
   it('re-throws any other create failure unchanged', async () => {
-    const getExternal = jest.fn().mockRejectedValue(notFoundError());
-    const create = jest.fn().mockRejectedValue(new Error('some other Polar failure'));
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn().mockRejectedValue(new Error('some other Polar failure'));
     const client = fakeClient({ customers: { getExternal, create } });
 
     await expect(getOrCreatePolarCustomerForCompany(company, client)).rejects.toThrow(

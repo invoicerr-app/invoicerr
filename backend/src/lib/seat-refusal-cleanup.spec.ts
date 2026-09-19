@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { NO_FREE_SEAT_CODE } from '@/modules/billing/seat-sync';
 
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
@@ -19,8 +21,8 @@ describe('isNoFreeSeatRefusal', () => {
 
 describe('deleteOrphanedUserAfterSeatRefusal', () => {
   it('deletes the account created before the refusal was known — the bug this closes: a real, company-less account left behind by a refused invitation seat', async () => {
-    const deleteUser = jest.fn().mockResolvedValue(undefined);
-    const onCleanupFailed = jest.fn();
+    const deleteUser = vi.fn().mockResolvedValue(undefined);
+    const onCleanupFailed = vi.fn();
 
     await deleteOrphanedUserAfterSeatRefusal('user-1', deleteUser, onCleanupFailed);
 
@@ -30,8 +32,8 @@ describe('deleteOrphanedUserAfterSeatRefusal', () => {
 
   it('reports a failed cleanup instead of throwing — the seat refusal itself must still reach the caller unshadowed', async () => {
     const cleanupError = new Error('row locked');
-    const deleteUser = jest.fn().mockRejectedValue(cleanupError);
-    const onCleanupFailed = jest.fn();
+    const deleteUser = vi.fn().mockRejectedValue(cleanupError);
+    const onCleanupFailed = vi.fn();
 
     await expect(
       deleteOrphanedUserAfterSeatRefusal('user-1', deleteUser, onCleanupFailed),

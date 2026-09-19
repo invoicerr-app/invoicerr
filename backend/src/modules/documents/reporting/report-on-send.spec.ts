@@ -4,17 +4,19 @@
  * "mock `country-policy/country-policy` wholesale" discipline `actions/invoice-channel-mandate.spec.ts`
  * already holds for the identical dependency.
  */
+import { vi, type Mock } from 'vitest';
+
 import * as authorityEventsPersistence from '../conformity/authority-events.persistence';
 import * as countryPolicy from '../country-policy/country-policy';
 import { REPORT_FAILED_STATUS_CODE } from './report-job';
 import { ReportingObligationCatalog } from './registry';
 import { reportOnSendIfObligated } from './report-on-send';
 
-jest.mock('../country-policy/country-policy');
-jest.mock('../conformity/authority-events.persistence');
+vi.mock('../country-policy/country-policy');
+vi.mock('../conformity/authority-events.persistence');
 
-const mockedResolveCountry = countryPolicy.resolveCompanyCountryCode as jest.Mock;
-const mockedJournalSynthetic = authorityEventsPersistence.journalSyntheticEvent as jest.Mock;
+const mockedResolveCountry = countryPolicy.resolveCompanyCountryCode as Mock;
+const mockedJournalSynthetic = authorityEventsPersistence.journalSyntheticEvent as Mock;
 
 const fixtureCatalog = new ReportingObligationCatalog([
   {
@@ -58,7 +60,7 @@ const frShapedCatalog = new ReportingObligationCatalog([
 
 describe('reportOnSendIfObligated', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedJournalSynthetic.mockResolvedValue(1);
   });
 
@@ -67,8 +69,8 @@ describe('reportOnSendIfObligated', () => {
   // on the fixture catalog is empty, and `enqueueReport` must never be called.
   it('a French invoice-seller: nothing is enqueued at all — "pays sans obligation, rien ne change"', async () => {
     mockedResolveCountry.mockResolvedValue('FR');
-    const enqueueReport = jest.fn().mockResolvedValue(true);
-    const enqueueAction = jest.fn();
+    const enqueueReport = vi.fn().mockResolvedValue(true);
+    const enqueueAction = vi.fn();
 
     await reportOnSendIfObligated(
       {
@@ -85,8 +87,8 @@ describe('reportOnSendIfObligated', () => {
 
   it('a Hungarian invoice-seller: a report job is enqueued for "nav", carrying the right ids', async () => {
     mockedResolveCountry.mockResolvedValue('HU');
-    const enqueueReport = jest.fn().mockResolvedValue(true);
-    const enqueueAction = jest.fn();
+    const enqueueReport = vi.fn().mockResolvedValue(true);
+    const enqueueAction = vi.fn();
 
     await reportOnSendIfObligated(
       {
@@ -113,14 +115,14 @@ describe('reportOnSendIfObligated', () => {
   // B2B-domestic French invoice (CGI art. 289 E).
   it('a French invoice-seller with a "transport"-discharged fact: nothing is enqueued — the transport already carries it', async () => {
     mockedResolveCountry.mockResolvedValue('FR');
-    const enqueueReport = jest.fn().mockResolvedValue(true);
+    const enqueueReport = vi.fn().mockResolvedValue(true);
 
     await reportOnSendIfObligated(
       {
         companyId: 'company-1',
         typeId: 'invoice',
         documentId: 'doc-1',
-        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+        queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
       },
       frShapedCatalog,
     );
@@ -134,7 +136,7 @@ describe('reportOnSendIfObligated', () => {
   // or international. Nothing enqueues until that classifier exists (see `registry.ts#obligationFor`).
   it('a French invoice-seller with only scope-restricted "provider" facts: nothing is enqueued either', async () => {
     mockedResolveCountry.mockResolvedValue('FR');
-    const enqueueReport = jest.fn().mockResolvedValue(true);
+    const enqueueReport = vi.fn().mockResolvedValue(true);
     const scopedOnlyCatalog = new ReportingObligationCatalog([
       {
         countryCode: 'FR',
@@ -147,7 +149,7 @@ describe('reportOnSendIfObligated', () => {
         companyId: 'company-1',
         typeId: 'invoice',
         documentId: 'doc-1',
-        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+        queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
       },
       scopedOnlyCatalog,
     );
@@ -157,14 +159,14 @@ describe('reportOnSendIfObligated', () => {
 
   it('a Hungarian seller but a document TYPE the fact does not apply to: nothing is enqueued', async () => {
     mockedResolveCountry.mockResolvedValue('HU');
-    const enqueueReport = jest.fn().mockResolvedValue(true);
+    const enqueueReport = vi.fn().mockResolvedValue(true);
 
     await reportOnSendIfObligated(
       {
         companyId: 'company-1',
         typeId: 'credit-note',
         documentId: 'doc-1',
-        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+        queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
       },
       fixtureCatalog,
     );
@@ -174,14 +176,14 @@ describe('reportOnSendIfObligated', () => {
 
   it('an unresolvable seller country: nothing is enqueued, never a guess', async () => {
     mockedResolveCountry.mockResolvedValue(undefined);
-    const enqueueReport = jest.fn().mockResolvedValue(true);
+    const enqueueReport = vi.fn().mockResolvedValue(true);
 
     await reportOnSendIfObligated(
       {
         companyId: 'company-1',
         typeId: 'invoice',
         documentId: 'doc-1',
-        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+        queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
       },
       fixtureCatalog,
     );
@@ -198,7 +200,7 @@ describe('reportOnSendIfObligated', () => {
           companyId: 'company-1',
           typeId: 'invoice',
           documentId: 'doc-1',
-          queueDispatcher: { enqueueAction: jest.fn() },
+          queueDispatcher: { enqueueAction: vi.fn() },
         },
         fixtureCatalog,
       ),
@@ -209,7 +211,7 @@ describe('reportOnSendIfObligated', () => {
   // throw past this function (mirrors `archiveDeliveredArtifactsIfAny`'s own guarantee).
   it('never throws even when enqueueReport itself rejects', async () => {
     mockedResolveCountry.mockResolvedValue('HU');
-    const enqueueReport = jest.fn().mockRejectedValue(new Error('Redis is down'));
+    const enqueueReport = vi.fn().mockRejectedValue(new Error('Redis is down'));
 
     await expect(
       reportOnSendIfObligated(
@@ -217,7 +219,7 @@ describe('reportOnSendIfObligated', () => {
           companyId: 'company-1',
           typeId: 'invoice',
           documentId: 'doc-1',
-          queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+          queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
         },
         fixtureCatalog,
       ),
@@ -231,14 +233,14 @@ describe('reportOnSendIfObligated', () => {
   // `list-declarations.ts`'s own `providerId: { in: declarationProviderIds() }` filter would exclude.
   it('journals REPORT_FAILED_STATUS_CODE under the obligation’s own providerId when enqueueReport itself rejects', async () => {
     mockedResolveCountry.mockResolvedValue('HU');
-    const enqueueReport = jest.fn().mockRejectedValue(new Error('Redis is down'));
+    const enqueueReport = vi.fn().mockRejectedValue(new Error('Redis is down'));
 
     await reportOnSendIfObligated(
       {
         companyId: 'company-1',
         typeId: 'invoice',
         documentId: 'doc-1',
-        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+        queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
       },
       fixtureCatalog,
     );
@@ -257,7 +259,7 @@ describe('reportOnSendIfObligated', () => {
   // guaranteed to succeed either, and that must not crash this function.
   it('never throws even when journaling the enqueue failure itself also fails', async () => {
     mockedResolveCountry.mockResolvedValue('HU');
-    const enqueueReport = jest.fn().mockRejectedValue(new Error('Redis is down'));
+    const enqueueReport = vi.fn().mockRejectedValue(new Error('Redis is down'));
     mockedJournalSynthetic.mockRejectedValue(new Error('db unreachable'));
 
     await expect(
@@ -266,7 +268,7 @@ describe('reportOnSendIfObligated', () => {
           companyId: 'company-1',
           typeId: 'invoice',
           documentId: 'doc-1',
-          queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+          queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
         },
         fixtureCatalog,
       ),
@@ -275,14 +277,14 @@ describe('reportOnSendIfObligated', () => {
 
   it('never journals anything when enqueueReport succeeds — only a genuine failure is worth a row', async () => {
     mockedResolveCountry.mockResolvedValue('HU');
-    const enqueueReport = jest.fn().mockResolvedValue(true);
+    const enqueueReport = vi.fn().mockResolvedValue(true);
 
     await reportOnSendIfObligated(
       {
         companyId: 'company-1',
         typeId: 'invoice',
         documentId: 'doc-1',
-        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+        queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
       },
       fixtureCatalog,
     );
@@ -292,7 +294,7 @@ describe('reportOnSendIfObligated', () => {
 
   it('never throws even when resolving the country itself rejects', async () => {
     mockedResolveCountry.mockRejectedValue(new Error('DB unreachable'));
-    const enqueueReport = jest.fn();
+    const enqueueReport = vi.fn();
 
     await expect(
       reportOnSendIfObligated(
@@ -300,7 +302,7 @@ describe('reportOnSendIfObligated', () => {
           companyId: 'company-1',
           typeId: 'invoice',
           documentId: 'doc-1',
-          queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+          queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
         },
         fixtureCatalog,
       ),

@@ -12,6 +12,8 @@
  * reading that field would get `undefined` and produce EMPTY results, failing every assertion here
  * that expects populated events.
  */
+import { vi } from 'vitest';
+
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { SuperPdpInvoice } from '../../transports/pdp/pdp-client';
@@ -22,17 +24,20 @@ import {
   PDP_REJECTED_STATUS_CODE,
 } from './pdp-status-poller';
 
-const mockGetInvoice = jest.fn();
-const mockAuthenticate = jest.fn();
+const mockGetInvoice = vi.fn();
+const mockAuthenticate = vi.fn();
 
-jest.mock('../../transports/pdp/pdp-client', () => {
-  const actual = jest.requireActual('../../transports/pdp/pdp-client');
+vi.mock('../../transports/pdp/pdp-client', async () => {
+  const actual = await vi.importActual('../../transports/pdp/pdp-client');
   return {
     ...actual,
-    PdpClient: jest.fn().mockImplementation(() => ({
-      authenticate: mockAuthenticate,
-      getInvoice: mockGetInvoice,
-    })),
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new PdpClient(...)` under Vitest (Jest's own mock never actually invoked [[Construct]], so an arrow function silently "worked" there).
+    PdpClient: vi.fn().mockImplementation(function () {
+      return {
+        authenticate: mockAuthenticate,
+        getInvoice: mockGetInvoice,
+      };
+    }),
   };
 });
 
@@ -44,7 +49,7 @@ const CONNECTED_CONFIG = {
   config: { baseUrl: 'https://api.superpdp.tech', clientId: 'id-1', clientSecret: 'secret-1' },
 };
 
-function buildChannelCredentials(resolveActive = jest.fn().mockResolvedValue(CONNECTED_CONFIG)) {
+function buildChannelCredentials(resolveActive = vi.fn().mockResolvedValue(CONNECTED_CONFIG)) {
   return { resolveActive } as unknown as ChannelCredentialsService;
 }
 
@@ -116,7 +121,7 @@ const REJECTED_INVOICE_397548: SuperPdpInvoice = {
 } as SuperPdpInvoice;
 
 describe('buildPdpStatusPoller', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('maps the REAL fr:200→201→202 lifecycle from events[] — the accepted path', async () => {
     mockGetInvoice.mockResolvedValue(ACCEPTED_INVOICE_397536);
@@ -173,7 +178,7 @@ describe('buildPdpStatusPoller', () => {
 
   it('throws ChannelNotConnectedError when PDP has no connected credentials for this company', async () => {
     const poller = buildPdpStatusPoller({
-      channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(null)),
+      channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(null)),
     });
     await expect(poller.poll('company-1', '397536')).rejects.toBeInstanceOf(ChannelNotConnectedError);
     expect(mockGetInvoice).not.toHaveBeenCalled(); // never even reaches the network call
@@ -182,7 +187,7 @@ describe('buildPdpStatusPoller', () => {
   it('throws ChannelNotConnectedError for an incomplete config too (e.g. missing clientSecret)', async () => {
     const incomplete = { ...CONNECTED_CONFIG, config: { baseUrl: 'https://api.superpdp.tech' } };
     const poller = buildPdpStatusPoller({
-      channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(incomplete)),
+      channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(incomplete)),
     });
     await expect(poller.poll('company-1', '397536')).rejects.toBeInstanceOf(ChannelNotConnectedError);
   });

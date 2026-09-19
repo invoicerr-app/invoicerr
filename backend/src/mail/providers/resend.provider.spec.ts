@@ -4,9 +4,12 @@
  * documented API expects (`resend.provider.ts`'s own header cites the source), the attachment
  * encoding, and that an HTTP error surfaces the REAL Resend error message rather than a generic one.
  */
+
+import { vi, type MockedFunction } from 'vitest';
+
 import { ResendMailProvider } from './resend.provider';
 
-const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+const mockFetch = vi.fn() as MockedFunction<typeof fetch>;
 global.fetch = mockFetch as unknown as typeof fetch;
 
 function okResponse(body: unknown = { id: 'email-id-1' }): Partial<Response> {

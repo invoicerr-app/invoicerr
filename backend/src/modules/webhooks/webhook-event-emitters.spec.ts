@@ -23,7 +23,7 @@ import { WebhookEvent } from '../../../prisma/generated/prisma/client';
  * allowed between them — catches every real call site through either name, with no per-file
  * allowlist to keep in sync.
  *
- * Deliberately excludes `*.spec.ts`: a test mocking `{ dispatch: jest.fn() }` and asserting it was
+ * Deliberately excludes `*.spec.ts`: a test mocking `{ dispatch: vi.fn() }` and asserting it was
  * called with `WebhookEvent.X` proves the CALLER passes that value, which the production file
  * itself already provides a real match for — counting the spec file too would let a value with
  * ONLY a test double (no production call site at all) slip past this guard.

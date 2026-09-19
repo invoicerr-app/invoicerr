@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadGatewayException, BadRequestException, ConflictException } from '@nestjs/common';
 import { NO_MAIL_SERVER_CONFIGURED_MESSAGE } from '@/mail/mail.service';
 import { PolarCancellationFailedError } from '@/modules/billing/deletion';
@@ -94,9 +96,9 @@ function fakeDangerOtpTable() {
  *  with what scope, without re-deriving Jest's own verbose `toHaveBeenCalledWith` per table. */
 function fakeScopedTable(deleteCalls: { table: string; where: unknown }[], name: string) {
   return {
-    count: jest.fn().mockResolvedValue(0),
-    findMany: jest.fn().mockResolvedValue([]),
-    deleteMany: jest.fn((args: { where: unknown }) => {
+    count: vi.fn().mockResolvedValue(0),
+    findMany: vi.fn().mockResolvedValue([]),
+    deleteMany: vi.fn((args: { where: unknown }) => {
       deleteCalls.push({ table: name, where: args.where });
       return Promise.resolve({ count: 0 });
     }),
@@ -107,8 +109,8 @@ let fakeTable: ReturnType<typeof fakeDangerOtpTable>;
 let deleteCalls: { table: string; where: unknown }[];
 let prismaMock: {
   dangerOtp: ReturnType<typeof fakeDangerOtpTable>;
-  company: { findUnique: jest.Mock };
-  documentArchive: ReturnType<typeof fakeScopedTable> & { findMany: jest.Mock };
+  company: { findUnique: Mock };
+  documentArchive: ReturnType<typeof fakeScopedTable> & { findMany: Mock };
   documentInstance: ReturnType<typeof fakeScopedTable>;
   documentSchedule: ReturnType<typeof fakeScopedTable>;
   documentNumberSequence: ReturnType<typeof fakeScopedTable>;
@@ -117,34 +119,34 @@ let prismaMock: {
   project: ReturnType<typeof fakeScopedTable>;
   timeEntry: ReturnType<typeof fakeScopedTable>;
   bankStatement: ReturnType<typeof fakeScopedTable>;
-  webhook: { deleteMany: jest.Mock };
-  mailTemplate: { deleteMany: jest.Mock };
-  $transaction: jest.Mock;
+  webhook: { deleteMany: Mock };
+  mailTemplate: { deleteMany: Mock };
+  $transaction: Mock;
 };
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   get default() {
     return prismaMock;
   },
 }));
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const deleteArchivedArtifacts = jest.fn().mockResolvedValue(undefined);
-jest.mock('@/modules/documents/archive/storage', () => ({
+const deleteArchivedArtifacts = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/modules/documents/archive/storage', () => ({
   deleteArchivedArtifacts: (...args: unknown[]) => deleteArchivedArtifacts(...args),
 }));
 
-const deleteInboundFilesForCompany = jest.fn();
-jest.mock('@/modules/documents/received-invoices/storage', () => ({
+const deleteInboundFilesForCompany = vi.fn();
+vi.mock('@/modules/documents/received-invoices/storage', () => ({
   deleteInboundFilesForCompany: (...args: unknown[]) => deleteInboundFilesForCompany(...args),
 }));
 
-const deleteCompanyPermanentlyNow = jest.fn().mockResolvedValue(undefined);
-jest.mock('@/modules/billing/deletion', () => {
-  const actual = jest.requireActual('@/modules/billing/deletion');
+const deleteCompanyPermanentlyNow = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/modules/billing/deletion', async () => {
+  const actual = await vi.importActual('@/modules/billing/deletion');
   return {
     ...actual,
     deleteCompanyPermanentlyNow: (...args: unknown[]) => deleteCompanyPermanentlyNow(...args),
@@ -159,8 +161,8 @@ function build() {
   deleteCalls = [];
   prismaMock = {
     dangerOtp: fakeTable,
-    company: { findUnique: jest.fn().mockResolvedValue({ name: 'Acme Corp' }) },
-    documentArchive: { ...fakeScopedTable(deleteCalls, 'documentArchive'), findMany: jest.fn() },
+    company: { findUnique: vi.fn().mockResolvedValue({ name: 'Acme Corp' }) },
+    documentArchive: { ...fakeScopedTable(deleteCalls, 'documentArchive'), findMany: vi.fn() },
     documentInstance: fakeScopedTable(deleteCalls, 'documentInstance'),
     documentSchedule: fakeScopedTable(deleteCalls, 'documentSchedule'),
     documentNumberSequence: fakeScopedTable(deleteCalls, 'documentNumberSequence'),
@@ -169,9 +171,9 @@ function build() {
     project: fakeScopedTable(deleteCalls, 'project'),
     timeEntry: fakeScopedTable(deleteCalls, 'timeEntry'),
     bankStatement: fakeScopedTable(deleteCalls, 'bankStatement'),
-    webhook: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-    mailTemplate: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-    $transaction: jest.fn((arg: unknown) =>
+    webhook: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    mailTemplate: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    $transaction: vi.fn((arg: unknown) =>
       typeof arg === 'function'
         ? (arg as (tx: unknown) => unknown)(prismaMock)
         : Promise.all(arg as Promise<unknown>[]),
@@ -189,8 +191,8 @@ function build() {
   deleteInboundFilesForCompany.mockClear();
   deleteCompanyPermanentlyNow.mockClear().mockResolvedValue(undefined);
 
-  const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
-  const exportService = { buildCompanyZip: jest.fn().mockResolvedValue(Buffer.from('zip-bytes')) };
+  const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
+  const exportService = { buildCompanyZip: vi.fn().mockResolvedValue(Buffer.from('zip-bytes')) };
   return {
     service: new DangerService(mailService as never, exportService as never),
     mailService,
@@ -200,7 +202,7 @@ function build() {
 
 async function requestAndExtractOtp(
   service: DangerService,
-  mailService: { sendForCompany: jest.Mock },
+  mailService: { sendForCompany: Mock },
   companyId: string,
 ) {
   await service.requestOtp(USER, companyId);
@@ -236,11 +238,9 @@ describe('DangerService — F-012: the OTP reaches the requester', () => {
     async () => {
       build();
       const mailService = {
-        sendForCompany: jest
-          .fn()
-          .mockRejectedValue(new BadRequestException(NO_MAIL_SERVER_CONFIGURED_MESSAGE)),
+        sendForCompany: vi.fn().mockRejectedValue(new BadRequestException(NO_MAIL_SERVER_CONFIGURED_MESSAGE)),
       };
-      const service = new DangerService(mailService as never, { buildCompanyZip: jest.fn() } as never);
+      const service = new DangerService(mailService as never, { buildCompanyZip: vi.fn() } as never);
 
       const action = service.requestOtp(USER, 'co-1');
 
@@ -251,8 +251,8 @@ describe('DangerService — F-012: the OTP reaches the requester', () => {
 
   it('collapses any OTHER provider error into the generic message — never the raw provider error', async () => {
     build();
-    const mailService = { sendForCompany: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
-    const service = new DangerService(mailService as never, { buildCompanyZip: jest.fn() } as never);
+    const mailService = { sendForCompany: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+    const service = new DangerService(mailService as never, { buildCompanyZip: vi.fn() } as never);
 
     await expect(service.requestOtp(USER, 'co-1')).rejects.toThrow(
       'Failed to send OTP email. Please check your SMTP configuration.',
@@ -285,7 +285,7 @@ describe('DangerService — mail language follows the acting user, English by de
 
   it("sends the deleteCompany data-export mail in the company's own language when the user has no locale", async () => {
     const { service, mailService } = build();
-    prismaMock.company.findUnique = jest.fn().mockResolvedValue({ name: 'Acme Corp', language: 'de' });
+    prismaMock.company.findUnique = vi.fn().mockResolvedValue({ name: 'Acme Corp', language: 'de' });
     const otp = await requestAndExtractOtp(service, mailService, 'co-1');
 
     await service.deleteCompany(USER, 'co-1', otp, 'Acme Corp');
@@ -554,7 +554,7 @@ describe('DangerService#deleteCompany — reuses the SaaS export + deletion path
   });
 
   it('self-hosted without billing: the exact same call, deleteCompanyPermanentlyNow itself skips Polar', async () => {
-    // `deleteCompanyPermanentlyNow` is mocked here (see this file's own `jest.mock` above) — its own
+    // `deleteCompanyPermanentlyNow` is mocked here (see this file's own `vi.mock` above) — its own
     // "no CompanySubscription row => never call Polar" behavior is proven directly by
     // `billing/deletion.spec.ts`. This test only proves `deleteCompany` calls it the SAME way
     // regardless of hosting mode — no self-hosted-specific branch exists in this service at all.

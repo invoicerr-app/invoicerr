@@ -1,9 +1,11 @@
+import { vi } from 'vitest';
+
 import { TransferController } from './transfer.controller';
 import { TransferService } from './transfer.service';
 
 describe('TransferController — delegation', () => {
   it('initiates against the active company and the caller identity, never a body-supplied one', async () => {
-    const initiateTransfer = jest.fn().mockResolvedValue({ message: 'ok' });
+    const initiateTransfer = vi.fn().mockResolvedValue({ message: 'ok' });
     const controller = new TransferController({ initiateTransfer } as unknown as TransferService);
     const user = { id: 'owner-1', email: 'owner@example.com' };
 
@@ -13,7 +15,7 @@ describe('TransferController — delegation', () => {
   });
 
   it('reads the current transfer for the active company', async () => {
-    const getCurrentTransfer = jest.fn().mockResolvedValue(null);
+    const getCurrentTransfer = vi.fn().mockResolvedValue(null);
     const controller = new TransferController({ getCurrentTransfer } as unknown as TransferService);
 
     const result = await controller.current('company-1');
@@ -23,7 +25,7 @@ describe('TransferController — delegation', () => {
   });
 
   it('cancels scoped to the active company', async () => {
-    const cancelTransfer = jest.fn().mockResolvedValue({ success: true });
+    const cancelTransfer = vi.fn().mockResolvedValue({ success: true });
     const controller = new TransferController({ cancelTransfer } as unknown as TransferService);
 
     await controller.cancel('company-1', 'transfer-1');

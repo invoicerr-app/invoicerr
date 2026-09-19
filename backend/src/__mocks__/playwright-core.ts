@@ -2,39 +2,38 @@
  * Manual mock for the small slice of `playwright-core` that `rendering/render-pdf.ts` actually
  * touches: `chromium.launch()`, and the `Browser`/`Page` methods it calls on what that returns.
  *
- * Lives under `backend/src/__mocks__/` (NOT a root-level `__mocks__/`) because this project's jest
+ * Lives under `backend/src/__mocks__/` (NOT a root-level `__mocks__/`) because this project's Jest
  * config sets `rootDir: "src"` — Jest looks for a node-module manual mock adjacent to each configured
  * `root`, and `src` is the only one here. Unlike a mock colocated next to a first-party module (which
- * needs an explicit `jest.mock('./local-module')` per spec), a manual mock for a `node_modules`
- * package like this one is wired in AUTOMATICALLY for every test in the project once this file exists
- * — confirmed by hand while writing `render-pdf.spec.ts`: an early draft of its "real render" smoke
- * check returned THIS mock's fake buffer with no `jest.mock('playwright-core')` call anywhere, and
- * only came back with a real PDF after an explicit `jest.unmock('playwright-core')`. `render-pdf.spec.ts`
- * still calls `jest.mock('playwright-core')` itself, for a reader's sake — it documents the dependency
- * at the call site instead of relying on this file's mere existence being obvious — but the mock would
- * be active either way, which is worth knowing before assuming some OTHER spec's `playwright-core`
- * import is exercising the real package.
+ * needs an explicit `vi.mock('./local-module')` per spec), a manual mock for a `node_modules`
+ * package like this one used to be wired in AUTOMATICALLY for every test in the project once this file
+ * existed, under Jest. Vitest has no equivalent auto-discovery for THIS project's own config (it looks
+ * under its own configured `root`, which here is `backend/`, not `backend/src/` — see
+ * `render-pdf.spec.ts`'s own header for the empirical confirmation), so that spec now wires this file
+ * in explicitly with `vi.mock('playwright-core', () => import('../../../__mocks__/playwright-core'))`
+ * rather than relying on this file's mere existence.
  *
  * Deliberately fakes a whole browser/page pair rather than stubbing `renderPdf` itself: the specs this
  * mock exists for (the launch mutex, the concurrency cap, "page closed but browser kept alive on
  * error") are all about how `render-pdf.ts` sequences calls onto `chromium`/`Browser`/`Page` — stubbing
  * `renderPdf` would test nothing.
  */
+import { vi, type Mock } from 'vitest';
 
 type MockPage = {
-  setContent: jest.Mock<Promise<void>, [string, unknown?]>;
-  pdf: jest.Mock<Promise<Buffer>, [unknown?]>;
-  close: jest.Mock<Promise<void>, []>;
+  setContent: Mock<(content: string, options?: unknown) => Promise<void>>;
+  pdf: Mock<(options?: unknown) => Promise<Buffer>>;
+  close: Mock<() => Promise<void>>;
 };
 
 type MockBrowser = {
-  isConnected: jest.Mock<boolean, []>;
-  newPage: jest.Mock<Promise<MockPage>, []>;
-  close: jest.Mock<Promise<void>, []>;
+  isConnected: Mock<() => boolean>;
+  newPage: Mock<() => Promise<MockPage>>;
+  close: Mock<() => Promise<void>>;
 };
 
 /** Every page/browser this mock has ever handed out, in creation order — specs read these directly
- *  instead of digging through jest's own `.mock.results`, so a spec reads as "the second page" rather
+ *  instead of digging through the mock's own `.mock.results`, so a spec reads as "the second page" rather
  *  than "the resolved value of the second call". */
 const pages: MockPage[] = [];
 const browsers: MockBrowser[] = [];
@@ -58,8 +57,8 @@ let nextPdfError: Error | null = null;
 
 function createPage(): MockPage {
   const page: MockPage = {
-    setContent: jest.fn().mockResolvedValue(undefined),
-    pdf: jest.fn().mockImplementation(async () => {
+    setContent: vi.fn().mockResolvedValue(undefined),
+    pdf: vi.fn().mockImplementation(async () => {
       if (nextPdfError) {
         const error = nextPdfError;
         nextPdfError = null;
@@ -70,7 +69,7 @@ function createPage(): MockPage {
       }
       return Buffer.from('%PDF-1.4 mock document');
     }),
-    close: jest.fn().mockImplementation(async () => {
+    close: vi.fn().mockImplementation(async () => {
       openPages--;
     }),
   };
@@ -80,31 +79,38 @@ function createPage(): MockPage {
 
 function createBrowser(connected = true): MockBrowser {
   const browser: MockBrowser = {
-    isConnected: jest.fn().mockReturnValue(connected),
-    newPage: jest.fn().mockImplementation(async () => {
+    isConnected: vi.fn().mockReturnValue(connected),
+    newPage: vi.fn().mockImplementation(async () => {
       openPages++;
       maxOpenPages = Math.max(maxOpenPages, openPages);
       return createPage();
     }),
-    close: jest.fn().mockResolvedValue(undefined),
+    close: vi.fn().mockResolvedValue(undefined),
   };
   browsers.push(browser);
   return browser;
 }
 
-export const chromium = {
-  launch: jest.fn().mockImplementation(async () => createBrowser(true)),
-  // Real `playwright-core` does NOT throw here when it has no managed browser to report (the common
-  // case in this test run — nothing under this repo's jest install ever runs `playwright-core
-  // install`) — measured directly, see `resolvePlaywrightManagedExecutablePath`'s own header in
-  // `render-pdf.ts`. It instead returns a COMPUTED path for a browser that was never downloaded, so
-  // the default here returns a path that does not exist on disk, matching that real mechanism and
-  // exercising the same "no match, fall through" behaviour the guard in `render-pdf.ts` is written to
-  // handle via `existsSync()`. A spec that needs the OTHER branch (an existing path, or a throw) calls
-  // `chromium.executablePath.mockReturnValue(...)` (or `.mockImplementation(...)`) itself, same as it
-  // would for `launch`.
-  executablePath: jest.fn().mockReturnValue('/mock/does-not-exist/chromium-1243/chrome-linux64/chrome'),
-};
+// Real `playwright-core` does NOT throw here when it has no managed browser to report (the common
+// case in this test run — nothing under this repo's test install ever runs `playwright-core install`)
+// — measured directly, see `resolvePlaywrightManagedExecutablePath`'s own header in `render-pdf.ts`.
+// It instead returns a COMPUTED path for a browser that was never downloaded, so the default here
+// returns a path that does not exist on disk, matching that real mechanism and exercising the same
+// "no match, fall through" behaviour the guard in `render-pdf.ts` is written to handle via
+// `existsSync()`. A spec that needs the OTHER branch (an existing path, or a throw) calls
+// `chromium.executablePath.mockReturnValue(...)` (or `.mockImplementation(...)`) itself, same as it
+// would for `launch`.
+const DEFAULT_EXECUTABLE_PATH = '/mock/does-not-exist/chromium-1243/chrome-linux64/chrome';
+
+function freshChromium() {
+  return {
+    launch: vi.fn().mockImplementation(async () => createBrowser(true)),
+    executablePath: vi.fn().mockReturnValue(DEFAULT_EXECUTABLE_PATH),
+  };
+}
+
+// Reassigned wholesale by `__mock.reset()` below — see that call's own comment.
+export let chromium = freshChromium();
 
 /**
  * Test-only controls, namespaced so they can never be mistaken for the real `playwright-core` API —
@@ -126,5 +132,27 @@ export const __mock = {
   /** The next (and only the next) `page.pdf()` call rejects with `error` instead of resolving. */
   failNextPdf(error: Error): void {
     nextPdfError = error;
+  },
+  /**
+   * Restores this whole mock to its just-loaded state: empty `pages`/`browsers`, zeroed counters, and
+   * a brand new `chromium` (fresh `vi.fn()`s, zero call history, the DEFAULT `executablePath`).
+   *
+   * Needed because — unlike Jest, where `jest.resetModules()` genuinely re-executed this file (a fresh
+   * manual mock, a fresh module top-level) on every `require('playwright-core')` after it —
+   * Vitest keeps a `vi.mock(id, factory)` factory's own produced module alive across
+   * `vi.resetModules()` calls (measured while converting this file: `resetModules()` correctly forces
+   * a fresh `render-pdf.ts`/`validate-schematron.ts` re-evaluation, since those are ordinary project
+   * modules, but this manual mock's OWN module-level `pages`/`browsers` arrays and `chromium.launch`'s
+   * call history kept accumulating test-to-test regardless). `render-pdf.spec.ts`'s own `beforeEach`
+   * calls this explicitly to restore the equivalent-to-Jest "every test starts from a clean mock" state.
+   */
+  reset(): void {
+    pages.length = 0;
+    browsers.length = 0;
+    openPages = 0;
+    maxOpenPages = 0;
+    pdfDelayMs = 0;
+    nextPdfError = null;
+    chromium = freshChromium();
   },
 };

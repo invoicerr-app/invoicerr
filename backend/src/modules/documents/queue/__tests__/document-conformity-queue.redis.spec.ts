@@ -56,6 +56,8 @@
  */
 import * as http from 'node:http';
 
+import { vi } from 'vitest';
+
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Queue } from 'bullmq';
@@ -178,7 +180,7 @@ function startPdpStub(): Promise<PdpStubServer> {
           new Promise<void>((resolveClose) => {
             // Node 18.2+: force-drop any lingering keep-alive socket a real backend's `fetch` may
             // still hold open — without this, `server.close()`'s own callback (which waits for every
-            // connection to end on its own) can hang well past this file's `jest.setTimeout`, failing
+            // connection to end on its own) can hang well past this file's own `hookTimeout`, failing
             // `afterAll` even though every `it()` above it already passed.
             server.closeAllConnections();
             server.close(() => resolveClose());
@@ -189,7 +191,7 @@ function startPdpStub(): Promise<PdpStubServer> {
 }
 
 describeWithRedis('document-conformity sweep — real Redis, real Postgres', () => {
-  jest.setTimeout(60000);
+  vi.setConfig({ testTimeout: 60000, hookTimeout: 60000 });
 
   let moduleRef: TestingModule;
   let sweepRunner: ConformitySweepRunner;

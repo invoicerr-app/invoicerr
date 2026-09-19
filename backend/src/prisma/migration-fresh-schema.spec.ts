@@ -36,7 +36,7 @@
  * condition keeps the intent — "did someone ask for this" — explicit rather than incidental.
  *
  * Run locally:
- *   cd backend && MIGRATION_FRESH_TESTS=1 npx jest migration-fresh-schema --forceExit
+ *   cd backend && MIGRATION_FRESH_TESTS=1 npx vitest run src/prisma/migration-fresh-schema.spec.ts
  *
  * (`--forceExit`: the throwaway database's own `pg.Client` connections close themselves in
  * `afterAll`, but Prisma's own migrate-deploy subprocess and this file's admin connection can leave
@@ -64,6 +64,9 @@
  * migrated database is not what this spec is testing in the first place (the whole point is a
  * database that has never seen a single migration).
  */
+
+import { vi } from 'vitest';
+
 import 'dotenv/config';
 
 import { execFileSync } from 'child_process';
@@ -77,9 +80,10 @@ const migrationFreshTestsEnabled = process.env.MIGRATION_FRESH_TESTS === '1';
 const describeGated = migrationFreshTestsEnabled ? describe : describe.skip;
 
 // `migrate deploy` alone takes ~10-20s against a cold throwaway database (schema + seed-free), on
-// top of CREATE DATABASE and two short-lived `pg` connections — generous headroom over jest's 5s
-// default so a slow CI runner doesn't turn a passing tripwire into a flaky one.
-jest.setTimeout(120_000);
+// top of CREATE DATABASE and two short-lived `pg` connections — generous headroom over the runner's
+// 5s default so a slow CI runner doesn't turn a passing tripwire into a flaky one. Vitest splits
+// Jest's single `setTimeout(ms)` (tests AND hooks) into two fields — both need the same budget here.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 // Resolves to the backend project root the same way `src/prisma/sync-schema.ts` does, so `npx prisma
 // migrate deploy` finds `prisma/schema.prisma` and `prisma/migrations/` as real siblings regardless

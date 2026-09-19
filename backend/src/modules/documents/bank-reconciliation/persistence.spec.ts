@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -16,33 +18,33 @@ import {
 
 /** Same manual-mock discipline as `archive/persistence.spec.ts` — a narrow, hand-rolled stand-in for
  *  exactly the Prisma delegate methods this file's own functions call, no more. */
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     bankStatement: {
-      create: jest.fn(),
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
     bankStatementLine: {
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-      groupBy: jest.fn(),
-      updateMany: jest.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      groupBy: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
 
-const createStatement = prisma.bankStatement.create as jest.Mock;
-const findFirstStatement = prisma.bankStatement.findFirst as jest.Mock;
-const findManyStatements = prisma.bankStatement.findMany as jest.Mock;
-const findFirstLine = prisma.bankStatementLine.findFirst as jest.Mock;
-const findManyLines = prisma.bankStatementLine.findMany as jest.Mock;
-const groupByLines = prisma.bankStatementLine.groupBy as jest.Mock;
-const updateManyLines = prisma.bankStatementLine.updateMany as jest.Mock;
+const createStatement = prisma.bankStatement.create as Mock;
+const findFirstStatement = prisma.bankStatement.findFirst as Mock;
+const findManyStatements = prisma.bankStatement.findMany as Mock;
+const findFirstLine = prisma.bankStatementLine.findFirst as Mock;
+const findManyLines = prisma.bankStatementLine.findMany as Mock;
+const groupByLines = prisma.bankStatementLine.groupBy as Mock;
+const updateManyLines = prisma.bankStatementLine.updateMany as Mock;
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('createBankStatement', () => {

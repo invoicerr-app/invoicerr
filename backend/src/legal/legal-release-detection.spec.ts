@@ -1,18 +1,20 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { detectAndRecordNewLegalReleases } from './legal-release-detection';
 import { currentContentHashOf, listLegalDocuments } from './legal-documents';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    legalDocumentRelease: { findUnique: jest.fn(), count: jest.fn(), create: jest.fn() },
+    legalDocumentRelease: { findUnique: vi.fn(), count: vi.fn(), create: vi.fn() },
   },
 }));
 
-const findUnique = prisma.legalDocumentRelease.findUnique as jest.Mock;
-const count = prisma.legalDocumentRelease.count as jest.Mock;
-const create = prisma.legalDocumentRelease.create as jest.Mock;
+const findUnique = prisma.legalDocumentRelease.findUnique as Mock;
+const count = prisma.legalDocumentRelease.count as Mock;
+const create = prisma.legalDocumentRelease.create as Mock;
 
 const docs = listLegalDocuments();
 const tosHash = currentContentHashOf('terms-of-service')!;

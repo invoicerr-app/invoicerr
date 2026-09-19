@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import { ConflictException, NotFoundException, NotImplementedException } from '@nestjs/common';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
@@ -13,25 +14,25 @@ import { PaymentWebhookVerificationError } from './provider';
  *  `DocumentsService`/`ChannelCredentialsService`/`PaymentProviderRegistry` are never constructed for
  *  real either: a bare object exposing only the methods this service actually calls, the exact same
  *  "mock the methods actually called, not the whole class" shape that file's own header documents. */
-jest.mock('./payment-sessions.persistence');
+vi.mock('./payment-sessions.persistence');
 
-const createCheckoutSession = persistence.createCheckoutSession as jest.Mock;
-const findPendingSessionForDocument = persistence.findPendingSessionForDocument as jest.Mock;
-const claimSessionForCompletion = persistence.claimSessionForCompletion as jest.Mock;
-const attachSessionPayment = persistence.attachSessionPayment as jest.Mock;
-const releaseSessionClaim = persistence.releaseSessionClaim as jest.Mock;
-const markSessionFailed = persistence.markSessionFailed as jest.Mock;
-const resolveCompanyPaymentProviderId = persistence.resolveCompanyPaymentProviderId as jest.Mock;
+const createCheckoutSession = persistence.createCheckoutSession as Mock;
+const findPendingSessionForDocument = persistence.findPendingSessionForDocument as Mock;
+const claimSessionForCompletion = persistence.claimSessionForCompletion as Mock;
+const attachSessionPayment = persistence.attachSessionPayment as Mock;
+const releaseSessionClaim = persistence.releaseSessionClaim as Mock;
+const markSessionFailed = persistence.markSessionFailed as Mock;
+const resolveCompanyPaymentProviderId = persistence.resolveCompanyPaymentProviderId as Mock;
 
 function buildService() {
   const documentsService = {
-    getDocument: jest.fn(),
-    getSettlement: jest.fn(),
-    runAction: jest.fn(),
+    getDocument: vi.fn(),
+    getSettlement: vi.fn(),
+    runAction: vi.fn(),
   };
-  const channelCredentials = { resolveActive: jest.fn() };
-  const provider = { id: 'stripe', createCheckoutSession: jest.fn(), parseWebhookEvent: jest.fn() };
-  const providerRegistry = { resolve: jest.fn().mockReturnValue(provider) };
+  const channelCredentials = { resolveActive: vi.fn() };
+  const provider = { id: 'stripe', createCheckoutSession: vi.fn(), parseWebhookEvent: vi.fn() };
+  const providerRegistry = { resolve: vi.fn().mockReturnValue(provider) };
 
   const service = new PaymentSessionsService(
     documentsService as unknown as DocumentsService,
@@ -42,7 +43,7 @@ function buildService() {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('PaymentSessionsService.createInvoiceCheckoutSession', () => {
@@ -200,7 +201,7 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession — provider selec
     findPendingSessionForDocument.mockResolvedValue(null);
     resolveCompanyPaymentProviderId.mockResolvedValue(null);
 
-    const stripeProvider = { id: 'stripe', createCheckoutSession: jest.fn(), parseWebhookEvent: jest.fn() };
+    const stripeProvider = { id: 'stripe', createCheckoutSession: vi.fn(), parseWebhookEvent: vi.fn() };
     stripeProvider.createCheckoutSession.mockResolvedValue({
       providerSessionId: 'cs_1',
       checkoutUrl: 'https://x',
@@ -229,7 +230,7 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession — provider selec
     findPendingSessionForDocument.mockResolvedValue(null);
     resolveCompanyPaymentProviderId.mockResolvedValue('mollie');
 
-    const mollieProvider = { id: 'mollie', createCheckoutSession: jest.fn(), parseWebhookEvent: jest.fn() };
+    const mollieProvider = { id: 'mollie', createCheckoutSession: vi.fn(), parseWebhookEvent: vi.fn() };
     mollieProvider.createCheckoutSession.mockResolvedValue({
       providerSessionId: 'tr_1',
       checkoutUrl: 'https://mollie.com/x',
@@ -260,8 +261,8 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession — provider selec
     channelCredentials.resolveActive.mockResolvedValue(null); // "paypal" chosen but never connected
     providerRegistry.resolve.mockReturnValue({
       id: 'paypal',
-      createCheckoutSession: jest.fn(),
-      parseWebhookEvent: jest.fn(),
+      createCheckoutSession: vi.fn(),
+      parseWebhookEvent: vi.fn(),
     });
 
     await expect(service.createInvoiceCheckoutSession('company-1', 'inv-1', INPUT)).rejects.toThrow(

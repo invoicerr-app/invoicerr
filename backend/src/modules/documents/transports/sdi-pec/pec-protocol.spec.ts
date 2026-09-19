@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -10,12 +11,12 @@ import {
   SDI_PEC_FIRST_SUBMISSION_ADDRESS,
 } from './pec-protocol';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { $queryRaw: jest.fn() },
+  default: { $queryRaw: vi.fn() },
 }));
 
-const mockedQueryRaw = prisma.$queryRaw as unknown as jest.Mock;
+const mockedQueryRaw = prisma.$queryRaw as unknown as Mock;
 
 /** A tiny in-memory stand-in for the real `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` — real
  *  enough to prove "the SAME idTrasmittente never gets the same value twice, two different ones never
@@ -23,7 +24,7 @@ const mockedQueryRaw = prisma.$queryRaw as unknown as jest.Mock;
  *  `numbering/sequence.live.spec.ts`'s own sibling coverage for the identical SQL shape). */
 function statefulSequenceMock() {
   const counters = new Map<string, number>();
-  return jest.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+  return vi.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
     const idTrasmittente = String(values[0]);
     const current = counters.get(idTrasmittente) ?? 1;
     counters.set(idTrasmittente, current + 1);
@@ -85,7 +86,7 @@ describe('pec-protocol — facts read from fatturapa.gov.it, encoded as pure fun
   // (see `pec-protocol.ts`'s own header, "Collision-free progressivo"). `nextPecProgressivo` replaces
   // it with a PERSISTENT COUNTER, which cannot collide with itself by construction.
   describe('nextPecProgressivo — a persistent, per-idTrasmittente counter, ≤5 alphanumeric characters', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('is exactly 5 characters, always', async () => {
       mockedQueryRaw.mockImplementation(statefulSequenceMock());
@@ -130,7 +131,7 @@ describe('pec-protocol — facts read from fatturapa.gov.it, encoded as pure fun
   });
 
   describe('buildPecAttachmentFilename', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('builds a filename that is always valid against PEC_ATTACHMENT_FILENAME_PATTERN', async () => {
       mockedQueryRaw.mockImplementation(statefulSequenceMock());

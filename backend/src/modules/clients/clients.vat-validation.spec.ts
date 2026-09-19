@@ -5,13 +5,16 @@
  * `beforeAll`/`afterAll` create/delete a real company+client), a FAKE `VatValidationPort` (the real
  * VIES round-trip is `vat-validation.live.spec.ts`, gated `VIES_LIVE=1`).
  */
+
+import { vi } from 'vitest';
+
 // `WebhookDispatcherService` → `WebhooksService` → `DiscordDriver` → `@teever/ez-hook` (a pure-ESM
 // package ts-jest cannot compile) — the known "ClientsModule not importable under
-// ts-jest" note. A FACTORY mock (never `jest.mock(path)` alone, which still has to load the REAL
+// ts-jest" note. A FACTORY mock (never `vi.mock(path)` alone, which still has to load the REAL
 // module to build its automock shape, hitting the same wall) avoids the chain entirely — `clients.
 // service.ts` only ever calls `.dispatch(...)` on it, which this stub happily provides.
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { ClientsService } from './clients.service';
@@ -20,11 +23,11 @@ import { VatValidationPort, VatValidationResult } from '../documents/tax/vat-val
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 function fakeVatValidator(result: VatValidationResult): VatValidationPort {
-  return { validate: jest.fn().mockResolvedValue(result) };
+  return { validate: vi.fn().mockResolvedValue(result) };
 }
 
 describe('ClientsService — C4 VAT validation, wired for real', () => {

@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
@@ -9,7 +11,7 @@ import { Reflector } from '@nestjs/core';
 // (confirmed by reading `node_modules/@thallesp/nestjs-better-auth/dist/index.mjs`:
 // `const AllowAnonymous = () => SetMetadata("PUBLIC", true);`) rather than a stub that sets nothing —
 // this spec's whole point is proving THIS file's `Public` forwards to that exact key.
-jest.mock('@thallesp/nestjs-better-auth', () => ({
+vi.mock('@thallesp/nestjs-better-auth', () => ({
   AllowAnonymous: () => SetMetadata('PUBLIC', true),
 }));
 

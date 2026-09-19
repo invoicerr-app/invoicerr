@@ -1,9 +1,11 @@
+import { vi, type Mock } from 'vitest';
+
 import { getDocumentTool } from './get-document.tool';
 import { ToolContext } from './types';
 
 describe('getDocumentTool', () => {
   function buildContext(
-    overrides: Partial<{ getDocument: jest.Mock; computeTotals: jest.Mock; getSettlement: jest.Mock }> = {},
+    overrides: Partial<{ getDocument: Mock; computeTotals: Mock; getSettlement: Mock }> = {},
     scopes: string[] | null = ['invoices:read'],
   ): ToolContext {
     return {
@@ -12,9 +14,9 @@ describe('getDocumentTool', () => {
       baseUrl: 'http://localhost:4000',
       services: {
         documentsService: {
-          getDocument: jest.fn().mockResolvedValue({ id: 'd1', typeId: 'invoice', status: 'sent', data: {} }),
-          computeTotals: jest.fn().mockResolvedValue({ netMinor: 1000, vatMinor: 200, grossMinor: 1200 }),
-          getSettlement: jest.fn().mockResolvedValue({ totals: {}, payments: [], credits: [], warnings: [] }),
+          getDocument: vi.fn().mockResolvedValue({ id: 'd1', typeId: 'invoice', status: 'sent', data: {} }),
+          computeTotals: vi.fn().mockResolvedValue({ netMinor: 1000, vatMinor: 200, grossMinor: 1200 }),
+          getSettlement: vi.fn().mockResolvedValue({ totals: {}, payments: [], credits: [], warnings: [] }),
           ...overrides,
         } as any,
         shareLinksService: {} as any,
@@ -25,7 +27,7 @@ describe('getDocumentTool', () => {
   }
 
   it('refuses a typeId this key holds no scope for, without ever calling DocumentsService', async () => {
-    const getDocument = jest.fn();
+    const getDocument = vi.fn();
     const ctx = buildContext({ getDocument }, ['clients:read']); // no invoices:*
 
     await expect(getDocumentTool.handler(ctx, { typeId: 'invoice', documentId: 'd1' })).rejects.toThrow(
@@ -35,7 +37,7 @@ describe('getDocumentTool', () => {
   });
 
   it('fetches the document and its totals for a non-invoice type, WITHOUT ever fetching a settlement', async () => {
-    const getSettlement = jest.fn();
+    const getSettlement = vi.fn();
     const ctx = buildContext({ getSettlement }, ['quotes:read']);
 
     const result = await getDocumentTool.handler(ctx, { typeId: 'quote', documentId: 'd1' });
@@ -45,9 +47,7 @@ describe('getDocumentTool', () => {
   });
 
   it('fetches the settlement TOO for an invoice', async () => {
-    const getSettlement = jest
-      .fn()
-      .mockResolvedValue({ totals: {}, payments: [], credits: [], warnings: [] });
+    const getSettlement = vi.fn().mockResolvedValue({ totals: {}, payments: [], credits: [], warnings: [] });
     const ctx = buildContext({ getSettlement });
 
     const result = await getDocumentTool.handler(ctx, { typeId: 'invoice', documentId: 'd1' });

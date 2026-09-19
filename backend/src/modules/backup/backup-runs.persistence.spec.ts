@@ -1,12 +1,15 @@
-/** Same `jest.mock('@/prisma/prisma.service', ...)` style every other thin persistence file in this
+/** Same `vi.mock('@/prisma/prisma.service', ...)` style every other thin persistence file in this
  *  codebase already uses (e.g. `documents/conformity/authority-events.persistence.spec.ts`). */
-jest.mock('@/prisma/prisma.service', () => ({
+
+import { vi, type Mock } from 'vitest';
+
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     backupRun: {
-      create: jest.fn(),
-      update: jest.fn(),
-      findFirst: jest.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -17,14 +20,14 @@ import { finishBackupRun, getLatestBackupRun, startBackupRun } from './backup-ru
 
 const mockedPrisma = prisma as unknown as {
   backupRun: {
-    create: jest.Mock;
-    update: jest.Mock;
-    findFirst: jest.Mock;
+    create: Mock;
+    update: Mock;
+    findFirst: Mock;
   };
 };
 
 describe('backup/backup-runs.persistence', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('startBackupRun creates a bare (RUNNING-default) row and returns its id', async () => {
     mockedPrisma.backupRun.create.mockResolvedValue({ id: 'run-1' });

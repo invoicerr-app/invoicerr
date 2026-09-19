@@ -7,36 +7,39 @@
  * `InvoiceStatusResponse` SHAPE this codebase's own `ksef-client.ts` declares — never a claim that
  * KSeF's real sandbox actually answers these exact numbers for this exact endpoint.
  */
+import { vi } from 'vitest';
+
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { InvoiceStatusResponse } from '../../transports/ksef/ksef-client';
 import { ChannelNotConnectedError } from '../authority-status-poller';
 import { __resetKsefAccessTokenCacheForTests, buildKsefStatusPoller } from './ksef-status-poller';
 
-const mockInvoiceStatus = jest.fn();
+const mockInvoiceStatus = vi.fn();
 /** `expiresAt` far enough in the future that the cache (this file's own subject) actually kicks in
  *  for two immediate, back-to-back polls in the same test. */
-const mockAuthenticate = jest
+const mockAuthenticate = vi
   .fn()
   .mockResolvedValue({ accessToken: 'fresh-access-token', expiresAt: Date.now() + 10 * 60 * 1000 });
 
-jest.mock('../../transports/ksef-transport', () => {
-  const actual = jest.requireActual('../../transports/ksef-transport');
+vi.mock('../../transports/ksef-transport', async () => {
+  const actual = await vi.importActual('../../transports/ksef-transport');
   return { ...actual, authenticate: (...args: unknown[]) => mockAuthenticate(...args) };
 });
 
-jest.mock('../../transports/ksef/ksef-client', () => {
-  const actual = jest.requireActual('../../transports/ksef/ksef-client');
+vi.mock('../../transports/ksef/ksef-client', async () => {
+  const actual = await vi.importActual('../../transports/ksef/ksef-client');
   return {
     ...actual,
-    KsefClient: jest.fn().mockImplementation(() => ({
-      invoiceStatus: mockInvoiceStatus,
-    })),
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new KsefClient(...)` under Vitest (Jest's own mock never actually invoked [[Construct]], so an arrow function silently "worked" there).
+    KsefClient: vi.fn().mockImplementation(function () {
+      return { invoiceStatus: mockInvoiceStatus };
+    }),
   };
 });
 
-jest.mock('../../transports/ksef/ksef-public-keys', () => ({
-  loadVendorizedKeys: jest.fn().mockReturnValue({
+vi.mock('../../transports/ksef/ksef-public-keys', () => ({
+  loadVendorizedKeys: vi.fn().mockReturnValue({
     tokenEncryptionKeyPem: 'PEM-token',
     symmetricKeyPem: 'PEM-symmetric',
   }),
@@ -50,7 +53,7 @@ const CONNECTED_CONFIG = {
   config: { nip: '5260001246', ksefToken: 'a-token' },
 };
 
-function buildChannelCredentials(resolveActive = jest.fn().mockResolvedValue(CONNECTED_CONFIG)) {
+function buildChannelCredentials(resolveActive = vi.fn().mockResolvedValue(CONNECTED_CONFIG)) {
   return { resolveActive } as unknown as ChannelCredentialsService;
 }
 
@@ -66,7 +69,7 @@ function syntheticStatus(code: number, description: string, details?: string[]):
 
 describe('buildKsefStatusPoller', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockAuthenticate.mockResolvedValue({
       accessToken: 'fresh-access-token',
       expiresAt: Date.now() + 10 * 60 * 1000,
@@ -142,7 +145,7 @@ describe('buildKsefStatusPoller', () => {
   // company has since REPLACED, for as long as that token's own TTL allows.
   it('re-authenticates when the same company/environment reconnects with a DIFFERENT KSeF token', async () => {
     mockInvoiceStatus.mockResolvedValue(syntheticStatus(100, 'processing'));
-    const resolveActive = jest
+    const resolveActive = vi
       .fn()
       .mockResolvedValueOnce({ ...CONNECTED_CONFIG, config: { nip: '5260001246', ksefToken: 'token-a' } })
       .mockResolvedValueOnce({ ...CONNECTED_CONFIG, config: { nip: '5260001246', ksefToken: 'token-b' } });
@@ -186,7 +189,7 @@ describe('buildKsefStatusPoller', () => {
 
   it('throws ChannelNotConnectedError when KSeF has no connected credentials for this company', async () => {
     const poller = buildKsefStatusPoller({
-      channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(null)),
+      channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(null)),
     });
     await expect(poller.poll('company-1', 'session-1|invoice-1')).rejects.toBeInstanceOf(
       ChannelNotConnectedError,

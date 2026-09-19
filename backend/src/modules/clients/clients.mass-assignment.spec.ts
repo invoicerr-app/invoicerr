@@ -11,8 +11,11 @@
  * (`findFirst({ where: { id, companyId } })`, 404 otherwise — untouched by this fix, and not what
  * this file is about); what was missing is that the WRITE itself trusted the same unchecked body.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { ClientsService } from './clients.service';
@@ -21,11 +24,11 @@ import { VatValidationPort } from '../documents/tax/vat-validation';
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 const fakeVatValidator: VatValidationPort = {
-  validate: jest.fn().mockResolvedValue({ status: 'UNAVAILABLE', checkedAt: new Date(), source: 'test' }),
+  validate: vi.fn().mockResolvedValue({ status: 'UNAVAILABLE', checkedAt: new Date(), source: 'test' }),
 };
 
 describe('ClientsService — mass-assignment allow-list on editClientsInfo', () => {

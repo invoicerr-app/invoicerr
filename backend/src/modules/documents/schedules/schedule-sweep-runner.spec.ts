@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { DocumentsService } from '../documents.service';
@@ -6,8 +8,8 @@ import { DocumentQueueDispatcher } from '../queue/document-queue.dispatcher';
 import { DocumentScheduleSweepRunner } from './schedule-sweep-runner';
 import * as schedulePersistence from './schedule.persistence';
 
-jest.mock('./schedule.persistence');
-jest.mock('../persistence');
+vi.mock('./schedule.persistence');
+vi.mock('../persistence');
 
 const SOURCE_DOCUMENT = {
   id: 'doc-1',
@@ -40,13 +42,13 @@ function schedule(
 }
 
 describe('DocumentScheduleSweepRunner.runSweep', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('enqueues one occurrence per due schedule and advances nextRunAt/lastRunAt by exactly one cadence step', async () => {
     const due = schedule();
-    (schedulePersistence.listDueSchedules as jest.Mock).mockResolvedValue([due]);
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SOURCE_DOCUMENT);
-    const enqueueScheduleOccurrence = jest.fn().mockResolvedValue(true);
+    (schedulePersistence.listDueSchedules as Mock).mockResolvedValue([due]);
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SOURCE_DOCUMENT);
+    const enqueueScheduleOccurrence = vi.fn().mockResolvedValue(true);
     const runner = new DocumentScheduleSweepRunner(
       {} as DocumentsService,
       { enqueueScheduleOccurrence } as unknown as DocumentQueueDispatcher,
@@ -87,9 +89,9 @@ describe('DocumentScheduleSweepRunner.runSweep', () => {
 
   it("merges the schedule's own params (e.g. thenSend) into the occurrence, without letting them override occurrenceDate", async () => {
     const due = schedule({ params: { thenSend: true, occurrenceDate: 'should-never-win' } });
-    (schedulePersistence.listDueSchedules as jest.Mock).mockResolvedValue([due]);
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SOURCE_DOCUMENT);
-    const enqueueScheduleOccurrence = jest.fn().mockResolvedValue(true);
+    (schedulePersistence.listDueSchedules as Mock).mockResolvedValue([due]);
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SOURCE_DOCUMENT);
+    const enqueueScheduleOccurrence = vi.fn().mockResolvedValue(true);
     const runner = new DocumentScheduleSweepRunner(
       {} as DocumentsService,
       { enqueueScheduleOccurrence } as unknown as DocumentQueueDispatcher,
@@ -103,9 +105,9 @@ describe('DocumentScheduleSweepRunner.runSweep', () => {
 
   it('still advances nextRunAt/lastRunAt even when the enqueue was a dedup no-op (a concurrent sweep got there first)', async () => {
     const due = schedule();
-    (schedulePersistence.listDueSchedules as jest.Mock).mockResolvedValue([due]);
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SOURCE_DOCUMENT);
-    const enqueueScheduleOccurrence = jest.fn().mockResolvedValue(false); // dedup hit
+    (schedulePersistence.listDueSchedules as Mock).mockResolvedValue([due]);
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SOURCE_DOCUMENT);
+    const enqueueScheduleOccurrence = vi.fn().mockResolvedValue(false); // dedup hit
     const runner = new DocumentScheduleSweepRunner(
       {} as DocumentsService,
       { enqueueScheduleOccurrence } as unknown as DocumentQueueDispatcher,
@@ -119,11 +121,11 @@ describe('DocumentScheduleSweepRunner.runSweep', () => {
 
   it('a source document that no longer exists records lastError and STILL advances nextRunAt — never wedges the schedule', async () => {
     const due = schedule();
-    (schedulePersistence.listDueSchedules as jest.Mock).mockResolvedValue([due]);
-    (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(
+    (schedulePersistence.listDueSchedules as Mock).mockResolvedValue([due]);
+    (persistence.findOwnedDocument as Mock).mockRejectedValue(
       new NotFoundException('Document "doc-1" not found for type "invoice".'),
     );
-    const enqueueScheduleOccurrence = jest.fn();
+    const enqueueScheduleOccurrence = vi.fn();
     const runner = new DocumentScheduleSweepRunner(
       {} as DocumentsService,
       { enqueueScheduleOccurrence } as unknown as DocumentQueueDispatcher,
@@ -144,8 +146,8 @@ describe('DocumentScheduleSweepRunner.runSweep', () => {
   });
 
   it('does nothing when no schedule is due', async () => {
-    (schedulePersistence.listDueSchedules as jest.Mock).mockResolvedValue([]);
-    const enqueueScheduleOccurrence = jest.fn();
+    (schedulePersistence.listDueSchedules as Mock).mockResolvedValue([]);
+    const enqueueScheduleOccurrence = vi.fn();
     const runner = new DocumentScheduleSweepRunner(
       {} as DocumentsService,
       { enqueueScheduleOccurrence } as unknown as DocumentQueueDispatcher,
@@ -160,7 +162,7 @@ describe('DocumentScheduleSweepRunner.runSweep', () => {
 });
 
 describe('DocumentScheduleSweepRunner.runOccurrence', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   const JOB_DATA = {
     scheduleId: 'sched-1',
@@ -173,7 +175,7 @@ describe('DocumentScheduleSweepRunner.runOccurrence', () => {
   };
 
   it('runs the action through DocumentsService.runAction — never a shortcut around the four gates', async () => {
-    const runAction = jest.fn().mockResolvedValue({ changed: true, document: { id: 'doc-2' } });
+    const runAction = vi.fn().mockResolvedValue({ changed: true, document: { id: 'doc-2' } });
     const runner = new DocumentScheduleSweepRunner(
       { runAction } as unknown as DocumentsService,
       {} as DocumentQueueDispatcher,
@@ -189,7 +191,7 @@ describe('DocumentScheduleSweepRunner.runOccurrence', () => {
   });
 
   it('on success, clears a stale lastError from a previous occurrence', async () => {
-    const runAction = jest.fn().mockResolvedValue({ changed: true, document: { id: 'doc-2' } });
+    const runAction = vi.fn().mockResolvedValue({ changed: true, document: { id: 'doc-2' } });
     const runner = new DocumentScheduleSweepRunner(
       { runAction } as unknown as DocumentsService,
       {} as DocumentQueueDispatcher,
@@ -205,7 +207,7 @@ describe('DocumentScheduleSweepRunner.runOccurrence', () => {
   // lastError, VISIBLE on screen, with the schedule left ENABLED — never a silent failure and never
   // an auto-disable (see DocumentSchedule.enabled's own schema comment).
   it('on failure, records lastError with the error message, re-throws, and never touches `enabled`', async () => {
-    const runAction = jest.fn().mockRejectedValue(new ForbiddenException('France forbids this action'));
+    const runAction = vi.fn().mockRejectedValue(new ForbiddenException('France forbids this action'));
     const runner = new DocumentScheduleSweepRunner(
       { runAction } as unknown as DocumentsService,
       {} as DocumentQueueDispatcher,
@@ -231,7 +233,7 @@ describe('DocumentScheduleSweepRunner.runOccurrence', () => {
     // "send"'s own two-phase re-enqueue and wedges the document at "sending" forever. This test
     // proves the chain goes through `runAction` directly, exactly like an HTTP-triggered click.
     it('thenSend:true calls runAction("send", ...) SYNCHRONOUSLY on the document the first action produced', async () => {
-      const runAction = jest
+      const runAction = vi
         .fn()
         .mockResolvedValueOnce({ changed: true, document: { id: 'doc-2', data: { client: 'c1' } } })
         .mockResolvedValueOnce({ changed: true, document: { id: 'doc-2', status: 'sending' } });
@@ -251,7 +253,7 @@ describe('DocumentScheduleSweepRunner.runOccurrence', () => {
     });
 
     it('thenSend is not set (the ordinary case) never calls "send" at all', async () => {
-      const runAction = jest.fn().mockResolvedValue({ changed: true, document: { id: 'doc-2', data: {} } });
+      const runAction = vi.fn().mockResolvedValue({ changed: true, document: { id: 'doc-2', data: {} } });
       const runner = new DocumentScheduleSweepRunner(
         { runAction } as unknown as DocumentsService,
         {} as DocumentQueueDispatcher,
@@ -263,7 +265,7 @@ describe('DocumentScheduleSweepRunner.runOccurrence', () => {
     });
 
     it('thenSend:true with no document in the result never calls "send" (nothing to send)', async () => {
-      const runAction = jest.fn().mockResolvedValue({ changed: true, document: undefined });
+      const runAction = vi.fn().mockResolvedValue({ changed: true, document: undefined });
       const runner = new DocumentScheduleSweepRunner(
         { runAction } as unknown as DocumentsService,
         {} as DocumentQueueDispatcher,
@@ -275,7 +277,7 @@ describe('DocumentScheduleSweepRunner.runOccurrence', () => {
     });
 
     it('a "send" failure (e.g. no transport configured) is caught the same way and lands on lastError', async () => {
-      const runAction = jest
+      const runAction = vi
         .fn()
         .mockResolvedValueOnce({ changed: true, document: { id: 'doc-2', data: {} } })
         .mockRejectedValueOnce(new Error('No transport is configured for this company'));

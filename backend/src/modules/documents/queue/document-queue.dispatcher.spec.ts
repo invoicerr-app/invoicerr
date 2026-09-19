@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { DocumentQueueDispatcher } from './document-queue.dispatcher';
 import { DocumentActionJobData } from './queue.constants';
 import { ScheduleOccurrenceJobData } from '../schedules/schedule-sweep';
@@ -11,8 +13,8 @@ import { ReportJobData } from '../reporting/report-job';
  */
 function fakeQueue() {
   return {
-    getJob: jest.fn(),
-    add: jest.fn().mockResolvedValue(undefined),
+    getJob: vi.fn(),
+    add: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -25,7 +27,7 @@ const INPUT: DocumentActionJobData = {
 };
 
 describe('DocumentQueueDispatcher.enqueueAction', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('adds the job under its deterministic jobId when nothing exists under it yet', async () => {
     const queue = fakeQueue();
@@ -46,7 +48,7 @@ describe('DocumentQueueDispatcher.enqueueAction', () => {
     'failed',
   ])('clears a TERMINAL (%s) job under the same id before adding a fresh one', async (state) => {
     const queue = fakeQueue();
-    const existing = { getState: jest.fn().mockResolvedValue(state), remove: jest.fn() };
+    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
     queue.getJob.mockResolvedValue(existing);
     const dispatcher = new DocumentQueueDispatcher(queue as never);
 
@@ -62,7 +64,7 @@ describe('DocumentQueueDispatcher.enqueueAction', () => {
     'delayed',
   ])('leaves a still IN-FLIGHT (%s) job alone — never enqueues a duplicate', async (state) => {
     const queue = fakeQueue();
-    const existing = { getState: jest.fn().mockResolvedValue(state), remove: jest.fn() };
+    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
     queue.getJob.mockResolvedValue(existing);
     const dispatcher = new DocumentQueueDispatcher(queue as never);
 
@@ -84,7 +86,7 @@ const OCCURRENCE_DATA: ScheduleOccurrenceJobData = {
 };
 
 describe('DocumentQueueDispatcher.enqueueScheduleOccurrence', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('enqueues under the given jobId, on the occurrence job name, when nothing exists under it yet', async () => {
     const queue = fakeQueue();
@@ -113,7 +115,7 @@ describe('DocumentQueueDispatcher.enqueueScheduleOccurrence', () => {
     'failed',
   ])('skips unconditionally when a job already exists under this id (%s) — never a duplicate occurrence', async (state) => {
     const queue = fakeQueue();
-    const existing = { getState: jest.fn().mockResolvedValue(state), remove: jest.fn() };
+    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
     queue.getJob.mockResolvedValue(existing);
     const dispatcher = new DocumentQueueDispatcher(queue as never);
 
@@ -133,7 +135,7 @@ const REPORT_DATA: ReportJobData = {
 };
 
 describe('DocumentQueueDispatcher.enqueueReport', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('enqueues under the deterministic "report-<providerId>-<documentId>" jobId when nothing exists yet', async () => {
     const queue = fakeQueue();
@@ -163,7 +165,7 @@ describe('DocumentQueueDispatcher.enqueueReport', () => {
     'delayed',
   ])('a job already existing under this id (%s) is left alone — never a duplicate declaration', async (state) => {
     const queue = fakeQueue();
-    const existing = { getState: jest.fn().mockResolvedValue(state), remove: jest.fn() };
+    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
     queue.getJob.mockResolvedValue(existing);
     const dispatcher = new DocumentQueueDispatcher(queue as never);
 
@@ -176,7 +178,7 @@ describe('DocumentQueueDispatcher.enqueueReport', () => {
 });
 
 describe('DocumentQueueDispatcher.registerScheduleSweepRepeatable', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('registers the ONE sweep job as a repeatable, under its fixed singleton jobId', async () => {
     const queue = fakeQueue();

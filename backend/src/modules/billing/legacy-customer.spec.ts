@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import {
   CompanyCustomerFactsClient,
@@ -11,7 +13,7 @@ function fakeClient(
   overrides: { customers?: Partial<CompanyCustomerFactsClient['customers']> } = {},
 ): CompanyCustomerFactsClient {
   return {
-    customers: { getExternal: jest.fn(), getState: jest.fn(), ...overrides.customers },
+    customers: { getExternal: vi.fn(), getState: vi.fn(), ...overrides.customers },
   } as unknown as CompanyCustomerFactsClient;
 }
 
@@ -48,9 +50,9 @@ describe('getCompanyCustomerFacts', () => {
   beforeEach(() => resetCompanyCustomerFactsCacheForTests());
 
   it('has a company customer and is not legacy when the company-scoped customer matches the stored id (no getState call needed)', async () => {
-    const getState = jest.fn();
+    const getState = vi.fn();
     const client = fakeClient({
-      customers: { getExternal: jest.fn().mockResolvedValue({ id: 'cus_company' }), getState },
+      customers: { getExternal: vi.fn().mockResolvedValue({ id: 'cus_company' }), getState },
     });
 
     const facts = await getCompanyCustomerFacts(sub({ polarCustomerId: 'cus_company' }), client, 0);
@@ -62,22 +64,22 @@ describe('getCompanyCustomerFacts', () => {
   it('has a company customer and flags legacy when the OLD customer (stored id, differing) still has an active subscription', async () => {
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_company' }),
-        getState: jest.fn().mockResolvedValue({ activeSubscriptions: [{ id: 'sub_old' }] }),
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_company' }),
+        getState: vi.fn().mockResolvedValue({ activeSubscriptions: [{ id: 'sub_old' }] }),
       },
     });
 
     const facts = await getCompanyCustomerFacts(sub({ polarCustomerId: 'cus_old_user_level' }), client, 0);
 
     expect(facts).toEqual({ hasCompanyCustomer: true, legacySubscription: true });
-    expect(client.customers.getState as jest.Mock).toHaveBeenCalledWith({ id: 'cus_old_user_level' });
+    expect(client.customers.getState as Mock).toHaveBeenCalledWith({ id: 'cus_old_user_level' });
   });
 
   it('has a company customer but is NOT legacy when the OLD customer still exists but has no active subscription (canceled)', async () => {
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_company' }),
-        getState: jest.fn().mockResolvedValue({ activeSubscriptions: [] }),
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_company' }),
+        getState: vi.fn().mockResolvedValue({ activeSubscriptions: [] }),
       },
     });
 
@@ -89,8 +91,8 @@ describe('getCompanyCustomerFacts', () => {
   it('has a company customer but is NOT legacy when the OLD customer itself was deleted (404) — the reported incident', async () => {
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockResolvedValue({ id: 'cus_company' }),
-        getState: jest.fn().mockRejectedValue(notFoundError()),
+        getExternal: vi.fn().mockResolvedValue({ id: 'cus_company' }),
+        getState: vi.fn().mockRejectedValue(notFoundError()),
       },
     });
 
@@ -102,8 +104,8 @@ describe('getCompanyCustomerFacts', () => {
   it('has no company customer and flags legacy when 404 on the company scope but the OLD customer still has an active subscription', async () => {
     const client = fakeClient({
       customers: {
-        getExternal: jest.fn().mockRejectedValue(notFoundError()),
-        getState: jest.fn().mockResolvedValue({ activeSubscriptions: [{ id: 'sub_old' }] }),
+        getExternal: vi.fn().mockRejectedValue(notFoundError()),
+        getState: vi.fn().mockResolvedValue({ activeSubscriptions: [{ id: 'sub_old' }] }),
       },
     });
 
@@ -113,7 +115,7 @@ describe('getCompanyCustomerFacts', () => {
   });
 
   it('has no company customer and is not legacy when 404 and no polarCustomerId at all (fresh trial)', async () => {
-    const client = fakeClient({ customers: { getExternal: jest.fn().mockRejectedValue(notFoundError()) } });
+    const client = fakeClient({ customers: { getExternal: vi.fn().mockRejectedValue(notFoundError()) } });
 
     const facts = await getCompanyCustomerFacts(sub({ polarCustomerId: null }), client, 0);
 
@@ -122,18 +124,18 @@ describe('getCompanyCustomerFacts', () => {
 
   it('defaults to the safer reading (no notice, no hidden button) on an unrelated Polar failure', async () => {
     const client = fakeClient({
-      customers: { getExternal: jest.fn().mockRejectedValue(new Error('polar is down')) },
+      customers: { getExternal: vi.fn().mockRejectedValue(new Error('polar is down')) },
     });
 
     const facts = await getCompanyCustomerFacts(sub({ polarCustomerId: 'cus_old' }), client, 0);
 
     expect(facts).toEqual({ hasCompanyCustomer: false, legacySubscription: false });
-    expect(client.customers.getState as jest.Mock).not.toHaveBeenCalled();
+    expect(client.customers.getState as Mock).not.toHaveBeenCalled();
   });
 
   it('caches the result for 5 minutes per company', async () => {
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_company' });
-    const client = fakeClient({ customers: { getExternal, getState: jest.fn() } });
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_company' });
+    const client = fakeClient({ customers: { getExternal, getState: vi.fn() } });
     const s = sub({ polarCustomerId: 'cus_company' });
 
     await getCompanyCustomerFacts(s, client, 0);
@@ -150,28 +152,28 @@ describe('hasLegacyPolarCustomer', () => {
 
   it('is true when a Polar customer exists at this user id', async () => {
     const client = fakeClient({
-      customers: { getExternal: jest.fn().mockResolvedValue({ id: 'cus_user' }) },
+      customers: { getExternal: vi.fn().mockResolvedValue({ id: 'cus_user' }) },
     });
 
     expect(await hasLegacyPolarCustomer('user-1', client, 0)).toBe(true);
   });
 
   it('is false on a 404', async () => {
-    const client = fakeClient({ customers: { getExternal: jest.fn().mockRejectedValue(notFoundError()) } });
+    const client = fakeClient({ customers: { getExternal: vi.fn().mockRejectedValue(notFoundError()) } });
 
     expect(await hasLegacyPolarCustomer('user-1', client, 0)).toBe(false);
   });
 
   it('is false (never throws) on an unrelated Polar failure', async () => {
     const client = fakeClient({
-      customers: { getExternal: jest.fn().mockRejectedValue(new Error('polar is down')) },
+      customers: { getExternal: vi.fn().mockRejectedValue(new Error('polar is down')) },
     });
 
     expect(await hasLegacyPolarCustomer('user-1', client, 0)).toBe(false);
   });
 
   it('caches the result for 5 minutes per user', async () => {
-    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_user' });
+    const getExternal = vi.fn().mockResolvedValue({ id: 'cus_user' });
     const client = fakeClient({ customers: { getExternal } });
 
     await hasLegacyPolarCustomer('user-1', client, 0);

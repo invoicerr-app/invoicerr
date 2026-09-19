@@ -14,6 +14,7 @@
  *  4. Every other failure mode (no client, failed XSD validation, oversized payload, a mail-transport
  *     rejection) is refused loudly, never silently.
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -25,19 +26,19 @@ import { buildSdiPecTransport, SDI_PEC_PROVIDER_ID } from './sdi-pec-transport';
 import { SDI_PEC_FIRST_SUBMISSION_ADDRESS } from './sdi-pec/pec-protocol';
 import { DocumentTransportContext } from './transport-registry';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    client: { findFirst: jest.fn() },
-    $queryRaw: jest.fn(),
+    company: { findUnique: vi.fn() },
+    client: { findFirst: vi.fn() },
+    $queryRaw: vi.fn(),
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  client: { findFirst: jest.Mock };
-  $queryRaw: jest.Mock;
+  company: { findUnique: Mock };
+  client: { findFirst: Mock };
+  $queryRaw: Mock;
 };
 
 /** `pec-protocol.ts#nextPecProgressivo`'s own persistent counter, backing `buildPecAttachmentFilename`
@@ -46,7 +47,7 @@ const mockedPrisma = prisma as unknown as {
  *  no test's own counter state leaks into another. */
 function statefulPecSequenceMock() {
   const counters = new Map<string, number>();
-  return jest.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+  return vi.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
     const idTrasmittente = String(values[0]);
     const current = counters.get(idTrasmittente) ?? 1;
     counters.set(idTrasmittente, current + 1);
@@ -70,9 +71,9 @@ const CONNECTED_CONFIG = {
   },
 };
 
-function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock; sendMail?: jest.Mock }) {
+function buildDeps(overrides?: { resolveActive?: Mock; build?: Mock; sendMail?: Mock }) {
   const channelCredentials = {
-    resolveActive: overrides?.resolveActive ?? jest.fn().mockResolvedValue(CONNECTED_CONFIG),
+    resolveActive: overrides?.resolveActive ?? vi.fn().mockResolvedValue(CONNECTED_CONFIG),
   } as unknown as ChannelCredentialsService;
   const fatturapaFormatProvider: DocumentFormatProvider = {
     id: 'fatturapa',
@@ -80,13 +81,13 @@ function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock; s
     mime: 'application/xml',
     build:
       overrides?.build ??
-      jest.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue({
         bytes: new TextEncoder().encode('<FatturaElettronica/>'),
         validation: { valid: true, errors: [] },
       }),
   };
   const mailService = {
-    sendMail: overrides?.sendMail ?? jest.fn().mockResolvedValue({ message: 'ok' }),
+    sendMail: overrides?.sendMail ?? vi.fn().mockResolvedValue({ message: 'ok' }),
   } as unknown as MailService;
   return { channelCredentials, fatturapaFormatProvider, mailService };
 }
@@ -107,7 +108,7 @@ const CTX: DocumentTransportContext = {
 
 describe('buildSdiPecTransport', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedPrisma.company.findUnique.mockResolvedValue({
       id: 'company-1',
       name: 'Rossi SRL',
@@ -131,7 +132,7 @@ describe('buildSdiPecTransport', () => {
 
   describe('preflight()', () => {
     it('throws (named, no AdE accreditation claimed) when no channel is connected at all', async () => {
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
       const transport = buildSdiPecTransport(deps);
 
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
@@ -141,7 +142,7 @@ describe('buildSdiPecTransport', () => {
 
     it('throws when connected but missing a required field (smtpHost)', async () => {
       const deps = buildDeps({
-        resolveActive: jest.fn().mockResolvedValue({
+        resolveActive: vi.fn().mockResolvedValue({
           ...CONNECTED_CONFIG,
           config: { ...CONNECTED_CONFIG.config, smtpHost: undefined },
         }),
@@ -162,7 +163,7 @@ describe('buildSdiPecTransport', () => {
       'builds the correct §2.2 filename, targets the published first-submission address (nothing ' +
         'learned yet), attaches the FatturaPA XML, and returns the filename as `reference`',
       async () => {
-        const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+        const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
         const deps = buildDeps({ sendMail });
         const transport = buildSdiPecTransport(deps);
 
@@ -215,9 +216,9 @@ describe('buildSdiPecTransport', () => {
       'targets the LEARNED reply address once one exists — never the fixed first-submission address ' +
         'again (the two-step addressing rule, pec-protocol.ts)',
       async () => {
-        const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+        const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
         const deps = buildDeps({
-          resolveActive: jest.fn().mockResolvedValue({
+          resolveActive: vi.fn().mockResolvedValue({
             ...CONNECTED_CONFIG,
             config: { ...CONNECTED_CONFIG.config, sdiReplyAddress: 'sdi07@pec.fatturapa.it' },
           }),
@@ -234,9 +235,9 @@ describe('buildSdiPecTransport', () => {
 
   describe('send() — a MALFORMED attachment name is refused before anything is sent', () => {
     it('an idTrasmittente that cannot produce a valid §2.2 filename fails loudly, never silently sanitized', async () => {
-      const sendMail = jest.fn();
+      const sendMail = vi.fn();
       const deps = buildDeps({
-        resolveActive: jest.fn().mockResolvedValue({
+        resolveActive: vi.fn().mockResolvedValue({
           ...CONNECTED_CONFIG,
           config: { ...CONNECTED_CONFIG.config, idTrasmittente: 'IT 0123 4567 890' },
         }),
@@ -252,8 +253,8 @@ describe('buildSdiPecTransport', () => {
 
   describe('send() — every other failure mode is loud, never silent', () => {
     it('blocks (never calls mailService) when the channel is not connected — re-checked, not cached from preflight', async () => {
-      const sendMail = jest.fn();
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null), sendMail });
+      const sendMail = vi.fn();
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null), sendMail });
       const transport = buildSdiPecTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(NotImplementedException);
@@ -262,7 +263,7 @@ describe('buildSdiPecTransport', () => {
 
     it('refuses when the invoice has no valid client on file', async () => {
       mockedPrisma.client.findFirst.mockResolvedValue(null);
-      const sendMail = jest.fn();
+      const sendMail = vi.fn();
       const deps = buildDeps({ sendMail });
       const transport = buildSdiPecTransport(deps);
 
@@ -271,8 +272,8 @@ describe('buildSdiPecTransport', () => {
     });
 
     it('never submits an artifact that failed XSD validation', async () => {
-      const sendMail = jest.fn();
-      const build = jest.fn().mockResolvedValue({
+      const sendMail = vi.fn();
+      const build = vi.fn().mockResolvedValue({
         bytes: new TextEncoder().encode('<invalid/>'),
         validation: { valid: false, errors: ['Data element missing'] },
       });
@@ -285,11 +286,9 @@ describe('buildSdiPecTransport', () => {
     });
 
     it("refuses a FatturaPA payload over this transport's own conservative size safety margin", async () => {
-      const sendMail = jest.fn();
+      const sendMail = vi.fn();
       const oversized = new Uint8Array(30 * 1024 * 1024); // 30 MB raw — well past the safety margin
-      const build = jest
-        .fn()
-        .mockResolvedValue({ bytes: oversized, validation: { valid: true, errors: [] } });
+      const build = vi.fn().mockResolvedValue({ bytes: oversized, validation: { valid: true, errors: [] } });
       const deps = buildDeps({ build, sendMail });
       const transport = buildSdiPecTransport(deps);
 
@@ -299,7 +298,7 @@ describe('buildSdiPecTransport', () => {
     });
 
     it('wraps a mail-transport rejection into a named BadRequestException — never swallowed', async () => {
-      const sendMail = jest.fn().mockRejectedValue(new Error('SMTP 550 mailbox unavailable'));
+      const sendMail = vi.fn().mockRejectedValue(new Error('SMTP 550 mailbox unavailable'));
       const deps = buildDeps({ sendMail });
       const transport = buildSdiPecTransport(deps);
 

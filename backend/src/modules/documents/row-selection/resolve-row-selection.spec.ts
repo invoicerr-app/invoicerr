@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
@@ -6,13 +8,13 @@ import * as persistence from '../persistence';
 import { listSourceRows, validateRowSelections } from './resolve-row-selection';
 import { ROW_ID_KEY } from './row-selection';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 /**
  * Exercises the REAL `validateRowSelections`/`listSourceRows` — nothing about the decision logic
  * itself is mocked, only the persistence boundary (`findOwnedDocument`), exactly the discipline
  * documents.service.credit-note.spec.ts and references/document-reference.provider.spec.ts already
- * hold `jest.mock('../persistence')` to. This is deliberate: a test that instead mocked
+ * hold `vi.mock('../persistence')` to. This is deliberate: a test that instead mocked
  * `validateRowSelections`/`listSourceRows` themselves would prove nothing about whether the row-still-
  * exists check actually runs — the exact false-green shape this repo has already found once (a mocked
  * test standing in for the very code it claimed to verify).
@@ -74,10 +76,10 @@ function buildRegistry(...types: DocumentTypeDescriptor[]): DocumentTypeRegistry
 }
 
 describe('validateRowSelections — the async, cross-document half', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('accepts a selection of rows that genuinely exist on the referenced source', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(
       invoiceDocument('invoice-1', [line('r1', 'Widget'), line('r2', 'Gadget')]),
     );
 
@@ -98,7 +100,7 @@ describe('validateRowSelections — the async, cross-document half', () => {
   // assertion below fail the moment that regression is introduced, rather than merely "some error
   // fires somewhere".
   it('a selected row that genuinely exists passes; the SAME id blocks once it is gone from the source', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValueOnce(
+    (persistence.findOwnedDocument as Mock).mockResolvedValueOnce(
       invoiceDocument('invoice-1', [line('r1', 'Widget')]),
     );
     const whileItExists = await validateRowSelections({
@@ -112,7 +114,7 @@ describe('validateRowSelections — the async, cross-document half', () => {
     // Same document id, same selected id — but the source no longer HAS that row (removed, or the
     // invoice was edited down to a different line). Nothing about the request changed except the
     // source's own current state.
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValueOnce(
+    (persistence.findOwnedDocument as Mock).mockResolvedValueOnce(
       invoiceDocument('invoice-1', [line('r2', 'Something else entirely')]),
     );
     const onceItIsGone = await validateRowSelections({
@@ -132,7 +134,7 @@ describe('validateRowSelections — the async, cross-document half', () => {
   });
 
   it('names exactly the missing row, and only that one, when a selection mixes valid and invalid ids', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(
       invoiceDocument('invoice-1', [line('r1', 'Widget')]),
     );
 
@@ -183,7 +185,7 @@ describe('validateRowSelections — the async, cross-document half', () => {
   });
 
   it('blocks with a clear message when the referenced document no longer exists', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new NotFoundException('gone'));
+    (persistence.findOwnedDocument as Mock).mockRejectedValue(new NotFoundException('gone'));
 
     const errors = await validateRowSelections({
       companyId: 'company-1',
@@ -198,7 +200,7 @@ describe('validateRowSelections — the async, cross-document half', () => {
   });
 
   it('re-throws an unrelated persistence error instead of turning it into a validation message', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new Error('db is down'));
+    (persistence.findOwnedDocument as Mock).mockRejectedValue(new Error('db is down'));
 
     await expect(
       validateRowSelections({
@@ -327,14 +329,14 @@ describe('validateRowSelections — the async, cross-document half', () => {
 });
 
 describe('listSourceRows — what a picker may currently offer', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   const correctedLinesField = creditNoteType.fields.find(
     (f) => f.key === 'correctedLines',
   ) as DocumentFieldDescriptor;
 
   it('lists every stamped row of the referenced source, stripping the internal id key from its data', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(
       invoiceDocument('invoice-1', [line('r1', 'Widget')]),
     );
 
@@ -354,7 +356,7 @@ describe('listSourceRows — what a picker may currently offer', () => {
   });
 
   it('excludes a row nobody has stamped an id onto yet — never a fabricated stand-in id', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(
       invoiceDocument('invoice-1', [{ description: 'Legacy, unsaved-since-this-kind-existed' }]),
     );
 
@@ -383,7 +385,7 @@ describe('listSourceRows — what a picker may currently offer', () => {
   });
 
   it('degrades to an empty list when the referenced document does not exist (or is not owned)', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new NotFoundException('gone'));
+    (persistence.findOwnedDocument as Mock).mockRejectedValue(new NotFoundException('gone'));
 
     const result = await listSourceRows({
       companyId: 'company-1',

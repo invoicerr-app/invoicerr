@@ -1,10 +1,11 @@
+import { vi, type Mock } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
 import { ActionRegistry } from './action-registry';
 import { registerRequestDepositAction } from './request-deposit';
 import * as persistence from '../persistence';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 /**
  * Direct coverage of the handler itself — the same style action-registry.spec.ts already uses
@@ -26,7 +27,7 @@ function mockQuote(overrides: {
   lines: Array<Record<string, unknown>>;
   notes?: string;
 }) {
-  (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+  (persistence.findOwnedDocument as Mock).mockResolvedValue({
     id: overrides.id ?? 'quote-1',
     typeId: 'quote',
     status: 'sent',
@@ -45,7 +46,7 @@ function mockQuote(overrides: {
 }
 
 describe('request-deposit', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("mono-rate quote: the deposit line reuses the quote's single VAT rate", async () => {
     mockQuote({
@@ -54,7 +55,7 @@ describe('request-deposit', () => {
         { description: 'B', quantity: 1, unitPrice: 50, vatRate: '20' },
       ],
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'invoice-1',
       typeId: 'invoice',
       status: 'draft',
@@ -104,7 +105,7 @@ describe('request-deposit', () => {
         { description: 'B', quantity: 1, unitPrice: 100, vatRate: '10' },
       ],
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'invoice-1',
       typeId: 'invoice',
       status: 'draft',
@@ -122,7 +123,7 @@ describe('request-deposit', () => {
       params: { percent: 50 },
     });
 
-    const [, , , , invoiceData] = (persistence.upsertDocument as jest.Mock).mock.calls[0];
+    const [, , , , invoiceData] = (persistence.upsertDocument as Mock).mock.calls[0];
     expect(invoiceData.lines[0]).not.toHaveProperty('vatRate');
     expect(result.message).toContain("multiple VAT rates on the quote — pick the deposit's rate yourself");
   });
@@ -132,7 +133,7 @@ describe('request-deposit', () => {
       currency: 'JPY',
       lines: [{ description: 'A', quantity: 1, unitPrice: 1000, vatRate: '10' }],
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'invoice-1',
       typeId: 'invoice',
       status: 'draft',
@@ -151,7 +152,7 @@ describe('request-deposit', () => {
     });
 
     // Quote gross: 1000 + 10% VAT = 1100 (JPY, 0 decimals, so major === minor). 50% of 1100 = 550.
-    const [, , , , invoiceData] = (persistence.upsertDocument as jest.Mock).mock.calls[0];
+    const [, , , , invoiceData] = (persistence.upsertDocument as Mock).mock.calls[0];
     expect(invoiceData.currency).toBe('JPY');
     expect(invoiceData.lines[0].unitPrice).toBe(550);
     expect(invoiceData.lines[0].vatRate).toBe('10'); // mono-rate here too

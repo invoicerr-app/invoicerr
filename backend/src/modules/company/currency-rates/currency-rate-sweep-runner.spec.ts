@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { CurrencyRateSweepRunner } from './currency-rate-sweep-runner';
@@ -7,26 +9,26 @@ import { fetchOpenErApiRates } from './open-er-api-rates-client';
 // Same "mock the prisma singleton default export" shape archive/persistence.spec.ts and
 // conformity/authority-events.persistence.spec.ts already use for a plain-function persistence file
 // — this runner talks to `prisma.currencyRate` directly, never through a service class.
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     currencyRate: {
-      findMany: jest.fn(),
-      createMany: jest.fn(),
+      findMany: vi.fn(),
+      createMany: vi.fn(),
     },
   },
 }));
 
-jest.mock('./ecb-rates-client');
-jest.mock('./open-er-api-rates-client');
+vi.mock('./ecb-rates-client');
+vi.mock('./open-er-api-rates-client');
 
-const findMany = prisma.currencyRate.findMany as jest.Mock;
-const createMany = prisma.currencyRate.createMany as jest.Mock;
-const fetchEcb = fetchEcbDailyRates as jest.Mock;
-const fetchOpenErApi = fetchOpenErApiRates as jest.Mock;
+const findMany = prisma.currencyRate.findMany as Mock;
+const createMany = prisma.currencyRate.createMany as Mock;
+const fetchEcb = fetchEcbDailyRates as Mock;
+const fetchOpenErApi = fetchOpenErApiRates as Mock;
 
 describe('CurrencyRateSweepRunner.runSweep', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('inserts one ecb-sourced row, with the right shape, for an existing company pair', async () => {
     fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map([['USD', 1.0812]]) });

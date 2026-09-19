@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import * as fs from 'node:fs';
 
 import type * as PlaywrightCoreMock from '../../../__mocks__/playwright-core';
@@ -7,20 +8,34 @@ import type * as PlaywrightCoreMock from '../../../__mocks__/playwright-core';
 // below would open a real connection attempt to a Postgres that doesn't exist in this test run, which
 // is exactly what left jest unable to exit cleanly before this mock was added. Same shape
 // `archive-on-send.spec.ts` already uses for the same reason.
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { log: { create: jest.fn().mockResolvedValue({}) } },
+  default: { log: { create: vi.fn().mockResolvedValue({}) } },
 }));
 
-// `playwright-core` is a `node_modules` package, so Jest actually wires up its manual mock
-// (`src/__mocks__/playwright-core.ts`, see that file's own header) automatically, project-wide, just
-// because it exists — this call is not strictly required, but documents that dependency at the call
-// site rather than relying on that file's mere existence being obvious to a reader. Either way, every
-// test below asserts on `chromium.launch`/`mock.pages`/`mock.browsers`, which only exist on the MOCK:
-// if the mock were ever NOT in effect, `require('playwright-core')` would return the real package and
-// those assertions would fail (or, worse, the test would try to launch a real browser) rather than
-// silently passing on nothing.
-jest.mock('playwright-core');
+// `playwright-core` is a `node_modules` package. Jest wired up its manual mock
+// (`src/__mocks__/playwright-core.ts`, see that file's own header) automatically project-wide, just
+// because it exists, using its own `rootDir: "src"` to find `<rootDir>/__mocks__`. Vitest's equivalent
+// auto-discovery looks under its OWN configured `root` instead (`vitest.config.ts` sets `root: './'`,
+// i.e. `backend/`, not `backend/src/`) — confirmed empirically by reading `@vitest/mocker`'s own
+// `findMockRedirect` (`join(root, '__mocks__', ...)`), so a bare `vi.mock('playwright-core')` here
+// would NOT find this project's mock file and would fall through to blind auto-mocking (every export
+// replaced with a bare `vi.fn()`, none of the stateful `chromium.launch`/`mock.pages`/`mock.browsers`
+// behavior every test below actually asserts on). Naming the real relative path explicitly sidesteps
+// that root mismatch entirely, without touching the shared `vitest.config.ts`.
+vi.mock('playwright-core', () => import('../../../__mocks__/playwright-core.js'));
+
+// `node:fs` is loaded here as a namespace import (`import * as fs`) specifically so individual specs
+// below can `vi.spyOn(fs, 'existsSync')` — but Vitest refuses to spy directly on a REAL ES module's
+// namespace object at all ("Cannot spy on export ... Module namespace is not configurable in ESM"),
+// which a bare Jest spy on the same export never hit (Jest's own CJS interop namespace was always a
+// plain, writable object). Pre-mocking the module with a spread of its own real implementation swaps
+// in a plain, configurable object in its place — every OTHER `fs` function keeps its real behavior,
+// and `existsSync` becomes spy-able exactly like it was under Jest.
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  return { ...actual };
+});
 
 const ENV_KEYS = ['CHROMIUM_EXECUTABLE_PATH', 'PUPPETEER_EXECUTABLE_PATH', 'PDF_RENDER_CONCURRENCY'] as const;
 const originalEnv: Partial<Record<(typeof ENV_KEYS)[number], string>> = {};
@@ -36,12 +51,24 @@ afterAll(() => {
   }
 });
 
-beforeEach(() => {
-  jest.resetModules();
-  // Undoes any `jest.spyOn(fs, ...)` a previous test installed — `fs` is a Node core module, not
+beforeEach(async () => {
+  vi.resetModules();
+  // Undoes any `vi.spyOn(fs, ...)` a previous test installed — `fs` is a Node core module, not
   // something `resetModules()` itself touches, so a spy left dangling here would leak into whichever
   // test runs next.
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
+  // `resetModules()` above does NOT reset the `playwright-core` manual mock's own state — see
+  // `__mock.reset()`'s own header for why (a `vi.mock(id, factory)` factory's produced module is not
+  // one of the modules `resetModules()` invalidates) — without this, `mock.pages`/`mock.browsers` and
+  // `chromium.launch`'s call history would keep accumulating across every test in this file.
+  //
+  // Reached via `import('playwright-core')` (the SAME specifier `render-pdf.ts` itself imports),
+  // never a plain relative import of the mock file's own path: measured directly while converting
+  // this file that the two resolve to genuinely DIFFERENT module instances under Vitest's mock
+  // redirection (`vi.mock('playwright-core', factory)` produces its own separate instance) — a
+  // relative import's `__mock.reset()` silently resets an instance nothing else ever reads from.
+  const playwrightCore = (await import('playwright-core')) as unknown as typeof PlaywrightCoreMock;
+  playwrightCore.__mock.reset();
   for (const key of ENV_KEYS) delete process.env[key];
   // `resolveChromiumExecutablePath` returns an env-var value straight away, with no filesystem check
   // at all — so a fake-but-present path is enough for every spec except the executable-RESOLUTION
@@ -51,19 +78,24 @@ beforeEach(() => {
 
 /**
  * Loads a fresh `render-pdf` module together with the (also fresh, thanks to `resetModules` above)
- * mocked `playwright-core` it will `require()` internally. Both `MAX_CONCURRENT_RENDERS` and the
+ * mocked `playwright-core` it will import internally. Both `MAX_CONCURRENT_RENDERS` and the
  * resolved Chromium path are read ONCE at module load, so the env vars for a given test must be set
  * BEFORE this is called, not just before `renderPdf()` is invoked.
  */
-function load() {
-  const { renderPdf } = require('./render-pdf') as typeof import('./render-pdf');
-  const playwrightCore = require('playwright-core') as typeof PlaywrightCoreMock;
+async function load() {
+  // A dynamic `import()`, not `require()`: Vitest's injected `require` shim resolves a relative
+  // specifier literally (no TypeScript-aware `./foo` -> `./foo.ts` fallback the way `import` gets),
+  // so `require('./render-pdf')` here would throw "Cannot find module" — and going through the same
+  // ESM import pipeline `vi.mock`/`resetModules()` themselves operate on is also what lets this
+  // actually observe a genuinely fresh, re-mocked `playwright-core` on every call.
+  const { renderPdf } = await import('./render-pdf.js');
+  const playwrightCore = (await import('playwright-core')) as unknown as typeof PlaywrightCoreMock;
   return { renderPdf, chromium: playwrightCore.chromium, mock: playwrightCore.__mock };
 }
 
 describe('renderPdf', () => {
   it('passes explicit, non-zero margins on every side — Playwright (unlike Puppeteer) defaults all four to zero', async () => {
-    const { renderPdf, mock } = load();
+    const { renderPdf, mock } = await load();
 
     await renderPdf('<html><body>hello</body></html>');
 
@@ -86,7 +118,7 @@ describe('renderPdf', () => {
   // `RenderPdfOptions.footerText`'s own header.
   describe('footerText — the "on every page" ATCUD mechanism', () => {
     it('is absent by default — byte-for-byte the SAME page.pdf() options every other document already got', async () => {
-      const { renderPdf, mock } = load();
+      const { renderPdf, mock } = await load();
 
       await renderPdf('<html><body>hello</body></html>');
 
@@ -98,7 +130,7 @@ describe('renderPdf', () => {
     });
 
     it('turns on a repeating footer, with the given text, and grows the bottom margin to fit it', async () => {
-      const { renderPdf, mock } = load();
+      const { renderPdf, mock } = await load();
 
       await renderPdf('<html><body>hello</body></html>', { footerText: 'ATCUD:JCVPTS0J-0007' });
 
@@ -112,7 +144,7 @@ describe('renderPdf', () => {
     });
 
     it('HTML-escapes the footer text — a company-typed validation code must never inject markup', async () => {
-      const { renderPdf, mock } = load();
+      const { renderPdf, mock } = await load();
 
       await renderPdf('<html></html>', { footerText: '<script>alert(1)</script>' });
 
@@ -123,7 +155,7 @@ describe('renderPdf', () => {
   });
 
   it('launches exactly one browser when two renders race to be the first', async () => {
-    const { renderPdf, chromium, mock } = load();
+    const { renderPdf, chromium, mock } = await load();
 
     const [pdfA, pdfB] = await Promise.all([renderPdf('<html>A</html>'), renderPdf('<html>B</html>')]);
 
@@ -136,7 +168,7 @@ describe('renderPdf', () => {
 
   it('never has more open pages than the configured concurrency cap', async () => {
     process.env.PDF_RENDER_CONCURRENCY = '2';
-    const { renderPdf, mock } = load();
+    const { renderPdf, mock } = await load();
     // Long enough that several of the 6 renders below are genuinely in flight together — with no
     // delay, each page could open and close before the next call's newPage() even runs, and the peak
     // would never actually reach the cap (proving the limiter never OVER-admits, but not that it
@@ -150,7 +182,7 @@ describe('renderPdf', () => {
   });
 
   it('closes the page even when page.pdf() throws, and never closes the shared browser', async () => {
-    const { renderPdf, mock } = load();
+    const { renderPdf, mock } = await load();
     mock.failNextPdf(new Error('boom'));
 
     await expect(renderPdf('<html></html>')).rejects.toThrow('PDF rendering failed: boom');
@@ -162,7 +194,7 @@ describe('renderPdf', () => {
   });
 
   it('relaunches a fresh browser once the shared one has disconnected', async () => {
-    const { renderPdf, chromium, mock } = load();
+    const { renderPdf, chromium, mock } = await load();
 
     await renderPdf('<html>first</html>');
     expect(mock.browsers).toHaveLength(1);
@@ -178,7 +210,7 @@ describe('renderPdf', () => {
     it('prefers CHROMIUM_EXECUTABLE_PATH over the legacy alias', async () => {
       process.env.CHROMIUM_EXECUTABLE_PATH = '/current/chromium';
       process.env.PUPPETEER_EXECUTABLE_PATH = '/legacy/chrome';
-      const { renderPdf, chromium } = load();
+      const { renderPdf, chromium } = await load();
 
       await renderPdf('<html></html>');
 
@@ -190,7 +222,7 @@ describe('renderPdf', () => {
     it('falls back to the legacy PUPPETEER_EXECUTABLE_PATH when CHROMIUM_EXECUTABLE_PATH is unset', async () => {
       delete process.env.CHROMIUM_EXECUTABLE_PATH;
       process.env.PUPPETEER_EXECUTABLE_PATH = '/legacy/chrome';
-      const { renderPdf, chromium } = load();
+      const { renderPdf, chromium } = await load();
 
       await renderPdf('<html></html>');
 
@@ -201,10 +233,8 @@ describe('renderPdf', () => {
 
     it('falls back to a conventional system path when neither env var is set', async () => {
       delete process.env.CHROMIUM_EXECUTABLE_PATH;
-      jest
-        .spyOn(fs, 'existsSync')
-        .mockImplementation((candidate) => candidate === '/usr/bin/chromium-browser');
-      const { renderPdf, chromium } = load();
+      vi.spyOn(fs, 'existsSync').mockImplementation((candidate) => candidate === '/usr/bin/chromium-browser');
+      const { renderPdf, chromium } = await load();
 
       await renderPdf('<html></html>');
 
@@ -215,8 +245,8 @@ describe('renderPdf', () => {
 
     it('throws a named, actionable error naming the env vars when no Chromium can be found anywhere', async () => {
       delete process.env.CHROMIUM_EXECUTABLE_PATH;
-      jest.spyOn(fs, 'existsSync').mockReturnValue(false);
-      const { renderPdf } = load();
+      vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+      const { renderPdf } = await load();
 
       let thrown: Error | undefined;
       try {
@@ -239,8 +269,8 @@ describe('renderPdf', () => {
       const managedPath = '/mock/ms-playwright/chromium-1243/chrome-linux64/chrome';
       // Only the managed path "exists" — conventional paths must still miss, so this spec proves the
       // managed-browser rule is what matched, not an accidental fall-through.
-      jest.spyOn(fs, 'existsSync').mockImplementation((candidate) => candidate === managedPath);
-      const { renderPdf, chromium } = load();
+      vi.spyOn(fs, 'existsSync').mockImplementation((candidate) => candidate === managedPath);
+      const { renderPdf, chromium } = await load();
       chromium.executablePath.mockReturnValue(managedPath);
 
       await renderPdf('<html></html>');
@@ -256,10 +286,8 @@ describe('renderPdf', () => {
       // a system Chrome but no playwright-core install must still resolve to that system browser
       // instead of trying to launch a file that was never downloaded.
       delete process.env.CHROMIUM_EXECUTABLE_PATH;
-      jest
-        .spyOn(fs, 'existsSync')
-        .mockImplementation((candidate) => candidate === '/usr/bin/chromium-browser');
-      const { renderPdf, chromium } = load();
+      vi.spyOn(fs, 'existsSync').mockImplementation((candidate) => candidate === '/usr/bin/chromium-browser');
+      const { renderPdf, chromium } = await load();
       chromium.executablePath.mockReturnValue('/mock/ms-playwright/chromium-1243/chrome-linux64/chrome');
 
       await renderPdf('<html></html>');
@@ -271,10 +299,8 @@ describe('renderPdf', () => {
 
     it('treats a throwing chromium.executablePath() as "no match" and falls through to the conventional system paths, rather than propagating — a secondary possibility, kept handled even though the common "not installed" case is the non-existent-path one above', async () => {
       delete process.env.CHROMIUM_EXECUTABLE_PATH;
-      jest
-        .spyOn(fs, 'existsSync')
-        .mockImplementation((candidate) => candidate === '/usr/bin/chromium-browser');
-      const { renderPdf, chromium } = load();
+      vi.spyOn(fs, 'existsSync').mockImplementation((candidate) => candidate === '/usr/bin/chromium-browser');
+      const { renderPdf, chromium } = await load();
       chromium.executablePath.mockImplementation(() => {
         throw new Error("Executable doesn't exist");
       });

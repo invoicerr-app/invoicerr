@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { listClientsTool } from './list-clients.tool';
 import { ToolContext } from './types';
 
@@ -5,7 +7,7 @@ import { ToolContext } from './types';
 // `avant-refonte-documents`) — only the ToolContext.services shape changed
 // (documentsService/shareLinksService replace quotesService/invoicesService/pdfLinksService).
 describe('listClientsTool', () => {
-  function buildContext(searchClients: jest.Mock): ToolContext {
+  function buildContext(searchClients: Mock): ToolContext {
     return {
       companyId: 'company1',
       scopes: ['clients:read'],
@@ -20,7 +22,7 @@ describe('listClientsTool', () => {
   }
 
   it('calls clientsService.searchClients with the active companyId and an empty query when none is given', async () => {
-    const searchClients = jest.fn().mockResolvedValue([]);
+    const searchClients = vi.fn().mockResolvedValue([]);
     const ctx = buildContext(searchClients);
 
     await listClientsTool.handler(ctx, {});
@@ -29,7 +31,7 @@ describe('listClientsTool', () => {
   });
 
   it('forwards a provided query', async () => {
-    const searchClients = jest.fn().mockResolvedValue([]);
+    const searchClients = vi.fn().mockResolvedValue([]);
     const ctx = buildContext(searchClients);
 
     await listClientsTool.handler(ctx, { query: 'Acme' });
@@ -38,7 +40,7 @@ describe('listClientsTool', () => {
   });
 
   it('maps clients to a compact disambiguation-friendly summary', async () => {
-    const searchClients = jest.fn().mockResolvedValue([
+    const searchClients = vi.fn().mockResolvedValue([
       {
         id: 'c1',
         name: 'Acme Corp',

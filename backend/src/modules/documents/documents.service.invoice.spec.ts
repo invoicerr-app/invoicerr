@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -23,18 +25,18 @@ import { computeDocumentTotals } from './totals/compute-totals';
 import * as companyTransport from './transports/company-transport';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
-jest.mock('./transports/company-transport');
+vi.mock('./persistence');
+vi.mock('./transports/company-transport');
 // "record-payment" (invoice-actions.ts) writes through settlement/payments.ts, which reaches Prisma
 // directly — mocked here the same reason `./numbering/take-number` already is just below: it bypasses
 // the mocked `./persistence` entirely, so a test that wants to observe or control it must mock this
 // module too, not assume `./persistence`'s mock covers it.
-jest.mock('./settlement/payments');
+vi.mock('./settlement/payments');
 // Same reason, same discipline, for CREDITS (item 8, credit matching) — `resolveCreditsForDocument`
 // (settlement/credits.ts) also reaches Prisma directly. Defaulted to "no credits" in `beforeEach`
 // below so every pre-existing test in this file keeps meaning exactly what it always did; the
 // dedicated credits describe block overrides it to prove the balance actually changes.
-jest.mock('./settlement/credits');
+vi.mock('./settlement/credits');
 // Cross-border tax — `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-
 // resolve.ts) ALSO reaches Prisma directly (the seller/buyer country + buyer VAT lookup), same
 // reason, same discipline as every mock above. Defaulted to a permissive PASS-THROUGH in
@@ -42,27 +44,27 @@ jest.mock('./settlement/credits');
 // function would otherwise resolve an unknown buyer country and block every "send" — a concern this
 // file does not test; that behaviour is proven directly in `tax/resolve-invoice-tax.spec.ts` and
 // `tax/cross-border-formats.spec.ts` instead).
-jest.mock('./tax/load-and-resolve');
+vi.mock('./tax/load-and-resolve');
 // See documents.service.spec.ts's own comment on this mock — the real invoice descriptor now
 // declares `numbering: { onEnterStatus: 'sent' }` too (invoice.descriptor.ts), and
 // `takeDocumentNumberForTransition` reaches Prisma directly, bypassing the mocked `./persistence`.
-jest.mock('./numbering/take-number');
+vi.mock('./numbering/take-number');
 // See documents.service.spec.ts's own comment on this mock — the real decision code is proven
 // elsewhere (country-policy/country-policy.spec.ts, documents.service.country-policy.spec.ts). The
 // default "allowed" is (re-)installed in `beforeEach` below, not just here, since
-// `afterEach(() => jest.resetAllMocks())` would otherwise wipe it after the first test.
-jest.mock('./country-policy/country-policy');
+// `afterEach(() => vi.resetAllMocks())` would otherwise wipe it after the first test.
+vi.mock('./country-policy/country-policy');
 // B2G routing (`b2g-routing/`) reaches Prisma directly too, same reason as every mock above.
 // Defaulted to `applies: false` in `beforeEach` below — every client in this file's own fixtures is
 // BUSINESS by construction (a bare id string, no real row), so this concern is unrelated to what this
 // file tests; see `actions/invoice-b2g-routing.spec.ts` for the dedicated B2G suite.
-jest.mock('./b2g-routing/b2g-routing');
+vi.mock('./b2g-routing/b2g-routing');
 // "record-payment" now resolves a dated exchange rate (`loadRatesSafely`,
 // currency-rates.store.ts) whenever the payment's own currency differs from the invoice's; that store
 // reaches Prisma directly too, same reason as every mock above. Defaulted to "no rates at all" in
 // `beforeEach` below (so the pre-existing "refuses a mismatched currency" test keeps meaning exactly
 // what it always did) — the dedicated currency-conversion describe block overrides it.
-jest.mock('../company/currency-rates/currency-rates.store');
+vi.mock('../company/currency-rates/currency-rates.store');
 
 /**
  * Same wiring discipline as documents.service.spec.ts's quote coverage, applied to the invoice — the
@@ -83,7 +85,7 @@ jest.mock('../company/currency-rates/currency-rates.store');
  */
 function buildService(
   transportRegistry: TransportRegistry = new TransportRegistry(),
-  webhooks?: { dispatch: jest.Mock },
+  webhooks?: { dispatch: Mock },
 ) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildInvoiceDescriptor());
@@ -93,7 +95,7 @@ function buildService(
 
   // "send" is asynchronous (actions/async-send.ts) — a fake dispatcher, no BullMQ,
   // no Nest, no Redis needed.
-  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
   const actionRegistry = new ActionRegistry();
   registerInvoiceActions(actionRegistry, { transportRegistry, queueDispatcher, webhooks });
@@ -132,44 +134,44 @@ const noDueDateInvoiceData = {
 
 describe('DocumentsService — the invoice type, the SECOND descriptor-only type', () => {
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
-    (settlementCredits.resolveCreditsForDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
+    (settlementCredits.resolveCreditsForDocument as Mock).mockResolvedValue({
       credits: [],
       warnings: [],
     });
-    (settlementCredits.toSettlementCreditInputs as jest.Mock).mockImplementation((credits) =>
+    (settlementCredits.toSettlementCreditInputs as Mock).mockImplementation((credits) =>
       credits.map((c: { id: string; amountMinor: number }) => ({ id: c.id, amountMinor: c.amountMinor })),
     );
     // `./settlement/payments` is mocked whole (see this file's own top-of-file
     // comment), so `toSettlementPaymentInputs` needs the SAME "mirror the real implementation" default
     // `toSettlementCreditInputs` just above already gets — every `listPayments` fixture below now
     // carries its own `documentAmountMinor` explicitly (see each one), same discipline as a real row.
-    (settlementPayments.toSettlementPaymentInputs as jest.Mock).mockImplementation(
+    (settlementPayments.toSettlementPaymentInputs as Mock).mockImplementation(
       (payments: { documentAmountMinor: number }[]) =>
         payments.map((p) => ({ amountMinor: p.documentAmountMinor })),
     );
     // No dated rate configured by default — a currency mismatch still refuses exactly as it did
     // before T3 (this module never invents a rate); the dedicated currency-conversion describe block
     // below overrides this to prove a payment WITH a configured rate actually converts.
-    (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([]);
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+    (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([]);
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
-    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
       applies: false,
       missingIdentifierSchemes: [],
     });
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('is registered', () => {
     expect(buildService().service.listTypes()).toEqual([{ id: 'invoice', label: 'Invoice' }]);
   });
 
   it('its fields validate: a complete invoice is accepted', async () => {
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft',
@@ -200,7 +202,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   // rendering of it is covered separately in rendering/render-html.spec.ts's own `hideWhenEmpty` block.
   it('persists an optional clientReference verbatim, and omitting it entirely still validates', async () => {
     const dataWithReference = { ...validInvoiceData, clientReference: 'PO-2026-00042' };
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft',
@@ -263,7 +265,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       ...validInvoiceData,
       lines: [{ ...validInvoiceData.lines[0], discountPercent: 50 }],
     };
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft',
@@ -303,7 +305,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   describe('"origin" — a MULTI-TARGET reference (quote OR invoice), unlike "client"', () => {
     it('accepts an origin pointing at a quote', async () => {
       const dataWithOrigin = { ...validInvoiceData, origin: { entity: 'quote', id: 'quote-doc-1' } };
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -322,7 +324,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
     it('accepts an origin pointing at ANOTHER invoice — the second declared target', async () => {
       const dataWithOrigin = { ...validInvoiceData, origin: { entity: 'invoice', id: 'invoice-doc-0' } };
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -376,7 +378,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   // a real implementation (see invoice.descriptor.ts's own header) — the live case this proves the
   // mechanism against must always be a genuinely unregistered action, never a stale example.
   it('blocks "export-accounting" — declared, no implementation registered — with a clear 501', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'sent',
@@ -396,7 +398,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   });
 
   it('refuses "record-payment" for a status outside its availableWhen list — 409, not a silent bypass', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft',
@@ -430,8 +432,8 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     };
 
     beforeEach(() => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sentInvoice);
-      (settlementPayments.recordPayment as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(sentInvoice);
+      (settlementPayments.recordPayment as Mock).mockResolvedValue({
         id: 'payment-1',
         documentId: 'doc-1',
         amountMinor: 0,
@@ -445,7 +447,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         note: null,
         createdAt: new Date('2026-08-30'),
       });
-      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([]);
+      (settlementPayments.listPayments as Mock).mockResolvedValue([]);
     });
 
     // validInvoiceData's own lines total 2 * 9.9 = 19.8 EUR net, +20% VAT = 23.76 EUR gross —
@@ -455,7 +457,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     const GROSS_MINOR = 2376;
 
     it('records a partial payment, converts to minor units with the DOCUMENT currency, and states the new balance', async () => {
-      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
         {
           id: 'payment-1',
           documentId: 'doc-1',
@@ -495,7 +497,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
     it("converts to minor units using the CURRENCY's OWN decimals — JPY has none, not two", async () => {
       const jpyInvoice = { ...sentInvoice, data: { ...validInvoiceData, currency: 'JPY' } };
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(jpyInvoice);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(jpyInvoice);
 
       const { service } = buildService();
       await service.runAction('company-1', 'invoice', 'record-payment', {
@@ -535,7 +537,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('an EXACT full payment settles the invoice — the result says so, never "outstanding"', async () => {
-      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
         {
           id: 'payment-1',
           documentId: 'doc-1',
@@ -559,11 +561,11 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     it('a PRE-EXISTING credit is folded into the balance THIS message states — never contradicting a follow-up read of the settlement screen', async () => {
       // The invoice (GROSS_MINOR = 2376) was already credited 2000 minor before this payment —
       // recording a further 376 must be exactly enough to settle it.
-      (settlementCredits.resolveCreditsForDocument as jest.Mock).mockResolvedValue({
+      (settlementCredits.resolveCreditsForDocument as Mock).mockResolvedValue({
         credits: [{ id: 'cn-1', displayNumber: null, amountMinor: 2000, currency: 'EUR' }],
         warnings: [],
       });
-      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
         {
           id: 'payment-1',
           documentId: 'doc-1',
@@ -594,11 +596,11 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     // ── currency conversion at a dated rate ────────────────────────────────────
     describe("a payment in a currency other than the invoice's own — converted at a DATED rate, never refused when one is configured", () => {
       it('converts at the exact resolved rate — PINNED to the exact minor-unit amount, never a loose toBeCloseTo', async () => {
-        (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([
+        (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([
           { from: 'USD', to: 'EUR', rate: 0.9, asOf: new Date('2026-08-01T00:00:00.000Z'), source: 'manual' },
         ]);
         // 10.00 USD (minor 1000) @ 0.9 -> major 10 * 0.9 = 9.00 EUR -> minor round(900) = 900. Exact.
-        (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+        (settlementPayments.listPayments as Mock).mockResolvedValue([
           {
             id: 'payment-1',
             documentId: 'doc-1',
@@ -634,7 +636,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       });
 
       it('refuses, exactly as before T3, when no dated rate is configured for the pair — no silent guess', async () => {
-        (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([]);
+        (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([]);
 
         const { service } = buildService();
         const action = service.runAction('company-1', 'invoice', 'record-payment', {
@@ -652,7 +654,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       });
 
       it('a rate for the WRONG pair (EUR→USD entered, USD→EUR needed) does not answer — still refused', async () => {
-        (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([
+        (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([
           { from: 'EUR', to: 'USD', rate: 1.1, asOf: new Date('2026-08-01'), source: 'manual' },
         ]);
 
@@ -669,7 +671,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
       // ── The "dated trap" — a UTC month-boundary payment, pinned exactly ────────────────────────────
       it("resolves the rate dated to PAIDAT, at a UTC month-boundary — 23:30 UTC the last day of the month must NOT roll into next month's rate", async () => {
-        (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([
+        (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([
           { from: 'USD', to: 'EUR', rate: 0.9, asOf: new Date('2026-08-01T00:00:00.000Z'), source: 'manual' },
           // Entered for the NEXT month, at UTC midnight exactly — not yet true 30 minutes earlier.
           {
@@ -680,7 +682,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
             source: 'manual',
           },
         ]);
-        (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+        (settlementPayments.listPayments as Mock).mockResolvedValue([
           {
             id: 'payment-1',
             documentId: 'doc-1',
@@ -711,8 +713,8 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     // ── DOCUMENT_SETTLED, exactly once ────────────────────
     describe('DOCUMENT_SETTLED — fires exactly once, at the write that makes the crossing happen', () => {
       it('a SINGLE partial payment leaves a remainder — zero DOCUMENT_SETTLED emissions', async () => {
-        const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
-        (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+        const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+        (settlementPayments.listPayments as Mock).mockResolvedValue([
           {
             id: 'payment-1',
             documentId: 'doc-1',
@@ -733,11 +735,11 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       });
 
       it('TWO payments — partial then final — dispatch DOCUMENT_SETTLED exactly ONCE, at the SECOND, never the first', async () => {
-        const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+        const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
         const { service } = buildService(new TransportRegistry(), webhooks);
 
         // Payment 1: 10.00 EUR of 23.76 EUR due — partial, must NOT cross into settled.
-        (settlementPayments.recordPayment as jest.Mock).mockResolvedValueOnce({
+        (settlementPayments.recordPayment as Mock).mockResolvedValueOnce({
           id: 'payment-1',
           documentId: 'doc-1',
           amountMinor: 1000,
@@ -751,7 +753,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
           note: null,
           createdAt: new Date('2026-08-30'),
         });
-        (settlementPayments.listPayments as jest.Mock).mockResolvedValueOnce([
+        (settlementPayments.listPayments as Mock).mockResolvedValueOnce([
           {
             id: 'payment-1',
             documentId: 'doc-1',
@@ -770,7 +772,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         expect(webhooks.dispatch).not.toHaveBeenCalled();
 
         // Payment 2: the remaining 13.76 EUR — completes it, CROSSES into settled.
-        (settlementPayments.recordPayment as jest.Mock).mockResolvedValueOnce({
+        (settlementPayments.recordPayment as Mock).mockResolvedValueOnce({
           id: 'payment-2',
           documentId: 'doc-1',
           amountMinor: GROSS_MINOR - 1000,
@@ -784,7 +786,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
           note: null,
           createdAt: new Date('2026-08-31'),
         });
-        (settlementPayments.listPayments as jest.Mock).mockResolvedValueOnce([
+        (settlementPayments.listPayments as Mock).mockResolvedValueOnce([
           {
             id: 'payment-1',
             documentId: 'doc-1',
@@ -825,10 +827,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       // alone"). This is the test that actually needs the `before` half: an invoice ALREADY settled
       // (an excess payment recorded on top of a complete one) must NOT re-fire.
       it('a payment recorded on an ALREADY-settled invoice (an excess on top) does NOT re-fire DOCUMENT_SETTLED', async () => {
-        const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+        const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
         const { service } = buildService(new TransportRegistry(), webhooks);
 
-        (settlementPayments.recordPayment as jest.Mock).mockResolvedValueOnce({
+        (settlementPayments.recordPayment as Mock).mockResolvedValueOnce({
           id: 'payment-extra',
           documentId: 'doc-1',
           amountMinor: 500,
@@ -844,7 +846,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         });
         // ALREADY fully paid (GROSS_MINOR) BEFORE this extra payment — the crossing already
         // happened at whichever earlier payment reached GROSS_MINOR; this one only adds an excess.
-        (settlementPayments.listPayments as jest.Mock).mockResolvedValueOnce([
+        (settlementPayments.listPayments as Mock).mockResolvedValueOnce([
           {
             id: 'payment-1',
             documentId: 'doc-1',
@@ -874,8 +876,8 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
   describe('"send" — reads the company\'s OWN transport configuration, not the quote\'s email mechanism', () => {
     it('blocks with a 501 when the company has not configured a transport', async () => {
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue(null);
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue(null);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -896,12 +898,12 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('phase 1: with a transport configured, persists "sending" and ENQUEUES — never calls the transport synchronously', async () => {
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
       const transportRegistry = new TransportRegistry();
-      const fakeTransport = { send: jest.fn() };
+      const fakeTransport = { send: vi.fn() };
       transportRegistry.register('email', 'Email', fakeTransport);
 
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -909,7 +911,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sending',
@@ -937,14 +939,14 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('phase 2 (the worker\'s replay, record already "sending"): delivers through the configured transport and marks the document "sent"', async () => {
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
       const transportRegistry = new TransportRegistry();
       const fakeTransport = {
-        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+        send: vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
       };
       transportRegistry.register('email', 'Email', fakeTransport);
 
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sending',
@@ -952,7 +954,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sent',
@@ -980,8 +982,8 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       // Re-resolved lazily inside `deliver()` (invoice-actions.ts's own comment on why) — a company
       // could reconfigure (or lose) its transport between the first "send" call and the worker's
       // later replay; this must refuse exactly as loudly as the preflight already does.
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue(null);
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue(null);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sending',
@@ -1019,14 +1021,14 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
    */
   describe('"send" — the DOCUMENT_SENT webhook', () => {
     it('phase 2: dispatches DOCUMENT_SENT, carrying the row under the FIXED "document" key, once the transport genuinely delivers', async () => {
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
       const transportRegistry = new TransportRegistry();
       const fakeTransport = {
-        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+        send: vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
       };
       transportRegistry.register('email', 'Email', fakeTransport);
 
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sending',
@@ -1034,7 +1036,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sent',
@@ -1043,7 +1045,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         updatedAt: new Date(),
       });
 
-      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
       const { service } = buildService(transportRegistry, webhooks);
       const result = await service.runAction('company-1', 'invoice', 'send', {
         documentId: 'doc-1',
@@ -1079,10 +1081,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     // (409) from `runAction`'s OWN gate BEFORE ever reaching `invoice-actions.ts`'s handler — the
     // webhook dispatch inside `runAsyncSendAction` never runs a second time.
     it('a redelivered job (status now "sent") is refused with a 409 BEFORE reaching the handler — the webhook never fires twice', async () => {
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
       const transportRegistry = new TransportRegistry();
       const fakeTransport = {
-        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+        send: vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
       };
       transportRegistry.register('email', 'Email', fakeTransport);
 
@@ -1095,7 +1097,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         updatedAt: new Date(),
       };
       const sentDocument = { ...sendingDocument, status: 'sent' };
-      (persistence.findOwnedDocument as jest.Mock)
+      (persistence.findOwnedDocument as Mock)
         // 1st `runAction` invocation (the job's FIRST delivery): `runAction`'s own gate reads
         // "sending" (call #1), then `runAsyncSendAction` re-reads it (call #2, async-send.ts's own
         // header explains why it re-reads rather than trusting the gate's copy).
@@ -1105,9 +1107,9 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         // reflects what the FIRST invocation already committed: "sent". Only ONE call happens this
         // time: `runAction`'s own gate throws before the handler (and its own second read) ever runs.
         .mockResolvedValueOnce(sentDocument);
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentDocument);
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(sentDocument);
 
-      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
       const { service } = buildService(transportRegistry, webhooks);
 
       const first = await service.runAction('company-1', 'invoice', 'send', {
@@ -1129,14 +1131,14 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('a webhook dispatch failure never turns "send" into a failure — the invoice stays "sent"', async () => {
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
       const transportRegistry = new TransportRegistry();
       const fakeTransport = {
-        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+        send: vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
       };
       transportRegistry.register('email', 'Email', fakeTransport);
 
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sending',
@@ -1144,7 +1146,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sent',
@@ -1153,7 +1155,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         updatedAt: new Date(),
       });
 
-      const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+      const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
       const { service } = buildService(transportRegistry, webhooks);
 
       const result = await service.runAction('company-1', 'invoice', 'send', {
@@ -1207,13 +1209,13 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     // describe cares about ever gets a chance to run.
     function buildEmailTransportRegistry(): TransportRegistry {
       const transportRegistry = new TransportRegistry();
-      transportRegistry.register('email', 'Email', { send: jest.fn() });
+      transportRegistry.register('email', 'Email', { send: vi.fn() });
       return transportRegistry;
     }
 
     beforeEach(() => {
-      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
         (_companyId: string, data: Record<string, unknown>) =>
           Promise.resolve(
             resolveInvoiceCrossBorderTax({
@@ -1227,7 +1229,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('THE DEFECT, closed: instance.data persisted at "sending" carries the RESOLVED rate (0%, AE) — computeDocumentTotals on the STORED data is 12 000.00 EUR, never 14 400.00 EUR', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -1235,7 +1237,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as jest.Mock).mockImplementation(
+      (persistence.upsertDocument as Mock).mockImplementation(
         async (_companyId, _typeId, _documentId, status, data) => ({
           id: 'doc-1',
           typeId: 'invoice',
@@ -1253,8 +1255,13 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       });
 
       expect(persistence.upsertDocument).toHaveBeenCalledTimes(1);
-      const [, , , persistedStatus, persistedData] = (persistence.upsertDocument as jest.Mock).mock
-        .calls[0] as [string, string, string, string, Record<string, unknown>];
+      const [, , , persistedStatus, persistedData] = (persistence.upsertDocument as Mock).mock.calls[0] as [
+        string,
+        string,
+        string,
+        string,
+        Record<string, unknown>,
+      ];
       expect(persistedStatus).toBe('sending');
 
       const persistedLine = (persistedData.lines as Record<string, unknown>[])[0];
@@ -1273,7 +1280,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       // Overrides this describe's own FR→DE mock — proving the domestic path independently of the
       // FR→DE fixture, same discipline resolve-invoice-tax.spec.ts's own domestic tests hold.
       const domesticData = validInvoiceData;
-      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
         (_companyId: string, data: Record<string, unknown>) =>
           Promise.resolve(
             resolveInvoiceCrossBorderTax({
@@ -1283,7 +1290,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
             }),
           ),
       );
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -1291,7 +1298,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as jest.Mock).mockImplementation(
+      (persistence.upsertDocument as Mock).mockImplementation(
         async (_companyId, _typeId, _documentId, status, data) => ({
           id: 'doc-1',
           typeId: 'invoice',
@@ -1326,7 +1333,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         buyerVat: { value: 'DE136695976', validationStatus: 'VALID' },
         data: frDeB2bInvoiceData,
       }).data;
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'send_failed', // NOT "sending" — a fresh phase-1 call, exactly like a first send
@@ -1336,7 +1343,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
-      (persistence.upsertDocument as jest.Mock).mockImplementation(
+      (persistence.upsertDocument as Mock).mockImplementation(
         async (_companyId, _typeId, _documentId, status, data) => ({
           id: 'doc-1',
           typeId: 'invoice',
@@ -1355,7 +1362,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         data: alreadyResolvedData,
       });
 
-      const [, , , , persistedData] = (persistence.upsertDocument as jest.Mock).mock.calls[0] as [
+      const [, , , , persistedData] = (persistence.upsertDocument as Mock).mock.calls[0] as [
         string,
         string,
         string,
@@ -1390,7 +1397,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('"save-draft" NEVER resolves cross-border tax — a draft stays exactly what the user typed', async () => {
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -1445,7 +1452,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     };
 
     beforeEach(() => {
-      (persistence.upsertDocument as jest.Mock).mockImplementation(
+      (persistence.upsertDocument as Mock).mockImplementation(
         async (_companyId, _typeId, _documentId, status, data) => ({
           id: 'doc-1',
           typeId: 'invoice',
@@ -1460,7 +1467,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('re-saving an EXISTING DRAFT (never issued) as a draft still never resolves cross-border tax', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'draft',
@@ -1486,7 +1493,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('re-editing a "sent" invoice back into a draft RE-RESOLVES the buyer country and persists the RESOLVED data', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sent',
@@ -1496,7 +1503,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
-      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
         (_companyId: string, data: Record<string, unknown>) =>
           Promise.resolve(
             resolveInvoiceCrossBorderTax({
@@ -1529,7 +1536,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('re-editing a "sent" invoice to a buyer whose country cannot be resolved is BLOCKED — named 400, nothing persisted', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'sent',
@@ -1539,7 +1546,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
-      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockRejectedValue(
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockRejectedValue(
         new UnresolvedBuyerCountryError('the buyer country could not be determined'),
       );
 
@@ -1558,7 +1565,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     it('a "send_failed" invoice (already numbered, never delivered) gets the SAME re-edit guard as "sent"', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
         status: 'send_failed',
@@ -1568,7 +1575,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
-      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockRejectedValue(
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockRejectedValue(
         new UnresolvedBuyerCountryError('the buyer country could not be determined'),
       );
 

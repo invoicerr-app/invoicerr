@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -9,27 +11,27 @@ import {
 } from './company-subscription.store';
 import { addDays, BLOCKED_DAYS, computeTrialWindow, TRIAL_DAYS } from './lifecycle';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     companySubscription: {
-      findUnique: jest.fn(),
-      upsert: jest.fn(),
-      findMany: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
 
-const findUnique = prisma.companySubscription.findUnique as jest.Mock;
-const upsert = prisma.companySubscription.upsert as jest.Mock;
-const findMany = prisma.companySubscription.findMany as jest.Mock;
-const update = prisma.companySubscription.update as jest.Mock;
-const updateMany = prisma.companySubscription.updateMany as jest.Mock;
+const findUnique = prisma.companySubscription.findUnique as Mock;
+const upsert = prisma.companySubscription.upsert as Mock;
+const findMany = prisma.companySubscription.findMany as Mock;
+const update = prisma.companySubscription.update as Mock;
+const updateMany = prisma.companySubscription.updateMany as Mock;
 
 describe('getOrCreateCompanySubscription', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('returns the existing row without ever calling upsert', async () => {
     const existing = { id: 'sub-1', companyId: 'company-1', status: 'ACTIVE' };
@@ -60,7 +62,7 @@ describe('getOrCreateCompanySubscription', () => {
 });
 
 describe('listAdvanceableCompanySubscriptions', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('excludes DELETED rows', async () => {
     findMany.mockResolvedValue([]);
@@ -70,7 +72,7 @@ describe('listAdvanceableCompanySubscriptions', () => {
 });
 
 describe('recomputeStatusForVanishedSubscription', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   const T0 = new Date('2026-09-15T00:00:00.000Z');
 
@@ -132,7 +134,7 @@ describe('recomputeStatusForVanishedSubscription', () => {
 });
 
 describe('reserveCheckoutWindow', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   const NOW = new Date('2026-09-17T12:00:00.000Z');
   const WINDOW_MS = 10 * 60 * 1000;
@@ -169,7 +171,7 @@ describe('reserveCheckoutWindow', () => {
 });
 
 describe('releaseCheckoutWindow', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('clears lastCheckoutStartedAt, matched by the exact timestamp this call reserved', async () => {
     const reservedAt = new Date('2026-09-17T12:00:00.000Z');

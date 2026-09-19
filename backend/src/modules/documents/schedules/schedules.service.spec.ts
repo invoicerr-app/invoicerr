@@ -1,10 +1,12 @@
+import { vi } from 'vitest';
+
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { DocumentsService } from '../documents.service';
 import { DocumentSchedulesService } from './schedules.service';
 import * as schedulePersistence from './schedule.persistence';
 
-jest.mock('./schedule.persistence');
+vi.mock('./schedule.persistence');
 
 const DESCRIPTOR = {
   id: 'invoice',
@@ -15,14 +17,14 @@ const DESCRIPTOR = {
 
 function buildDocumentsService(overrides: Partial<DocumentsService> = {}): DocumentsService {
   return {
-    getType: jest.fn().mockReturnValue(DESCRIPTOR),
-    getDocument: jest.fn().mockResolvedValue({ id: 'doc-1', typeId: 'invoice', status: 'draft' }),
+    getType: vi.fn().mockReturnValue(DESCRIPTOR),
+    getDocument: vi.fn().mockResolvedValue({ id: 'doc-1', typeId: 'invoice', status: 'draft' }),
     ...overrides,
   } as unknown as DocumentsService;
 }
 
 describe('DocumentSchedulesService.create', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('persists a schedule whose nextRunAt IS firstOccurrenceAt, UTC-midnight-normalized', async () => {
     const documentsService = buildDocumentsService();
@@ -83,7 +85,7 @@ describe('DocumentSchedulesService.create', () => {
 
   it('404s for an unknown document type (via DocumentsService.getType)', async () => {
     const documentsService = buildDocumentsService({
-      getType: jest.fn().mockImplementation(() => {
+      getType: vi.fn().mockImplementation(() => {
         throw new NotFoundException('Unknown document type "bogus".');
       }),
     });
@@ -144,7 +146,7 @@ describe('DocumentSchedulesService.create', () => {
 
   it('propagates the tenant-scoped 404 when the source document does not belong to this company', async () => {
     const documentsService = buildDocumentsService({
-      getDocument: jest.fn().mockRejectedValue(new NotFoundException('not found')),
+      getDocument: vi.fn().mockRejectedValue(new NotFoundException('not found')),
     });
     const service = new DocumentSchedulesService(documentsService);
 
@@ -161,7 +163,7 @@ describe('DocumentSchedulesService.create', () => {
 });
 
 describe('DocumentSchedulesService — list/setEnabled/remove delegate to schedule.persistence', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('list', async () => {
     const service = new DocumentSchedulesService(buildDocumentsService());

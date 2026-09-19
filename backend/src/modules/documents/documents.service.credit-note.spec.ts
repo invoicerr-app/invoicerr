@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -18,17 +20,17 @@ import * as settlementPayments from './settlement/payments';
 import { computeDocumentTotals } from './totals/compute-totals';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
+vi.mock('./persistence');
 // See documents.service.spec.ts's own comment on this mock — the real decision code is proven
 // elsewhere (country-policy/country-policy.spec.ts, documents.service.country-policy.spec.ts). The
 // default "allowed" is (re-)installed in `beforeEach` below, not just here, since
-// `afterEach(() => jest.resetAllMocks())` would otherwise wipe it after the first test.
-jest.mock('./country-policy/country-policy');
+// `afterEach(() => vi.resetAllMocks())` would otherwise wipe it after the first test.
+vi.mock('./country-policy/country-policy');
 // "send" (phase 2) now checks whether IT is the write that settles the invoice
 // it corrects (credit-note-actions.ts's `checkAndEmitInvoiceSettledFromCreditNote`), which reaches
 // Prisma directly through `listPayments`/`listCreditNotes` — same "mock what bypasses the mocked
 // ./persistence" discipline documents.service.invoice.spec.ts already holds for the identical
-// concern. PARTIAL mocks (`jest.requireActual` for everything else): `creditsForInvoiceFromNotes`/
+// concern. PARTIAL mocks (`vi.importActual` for everything else): `creditsForInvoiceFromNotes`/
 // `toSettlementCreditInputs`/`toSettlementPaymentInputs` are PURE, DB-free, and already proven by
 // their own spec files — re-mocking them here would mean hand-rolling a fake that has to agree with
 // the real arithmetic, which is exactly the kind of drift a partial mock avoids. Defaulted in
@@ -36,14 +38,14 @@ jest.mock('./country-policy/country-policy');
 // (none of which cares about settlement at all) keeps meaning exactly what it always did; the
 // dedicated "DOCUMENT_SETTLED" describe block overrides `listPayments`/`listCreditNotes` to prove the
 // crossing.
-jest.mock('./settlement/payments', () => ({
-  ...jest.requireActual('./settlement/payments'),
-  listPayments: jest.fn(),
-}));
-jest.mock('./settlement/credits', () => ({
-  ...jest.requireActual('./settlement/credits'),
-  listCreditNotes: jest.fn(),
-}));
+vi.mock('./settlement/payments', async () => {
+  const actual = await vi.importActual('./settlement/payments');
+  return { ...actual, listPayments: vi.fn() };
+});
+vi.mock('./settlement/credits', async () => {
+  const actual = await vi.importActual('./settlement/credits');
+  return { ...actual, listCreditNotes: vi.fn() };
+});
 
 /**
  * The THIRD document type written entirely as a descriptor (credit-note.descriptor.ts) — this is
@@ -65,7 +67,7 @@ jest.mock('./settlement/credits', () => ({
  * deliberately left webhook-less (no `CREDIT_NOTE_SENT` ever existed) gets one for free the moment
  * the vocabulary stops being per-type (credit-note-actions.ts's own header).
  */
-function buildService(webhooks?: { dispatch: jest.Mock }) {
+function buildService(webhooks?: { dispatch: Mock }) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildCreditNoteDescriptor());
   typeRegistry.register(buildInvoiceDescriptor());
@@ -76,7 +78,7 @@ function buildService(webhooks?: { dispatch: jest.Mock }) {
   // "send" is asynchronous (actions/async-send.ts) for every type that has one,
   // credit-note included — see credit-note.descriptor.ts's own header on why, even though this
   // type's own `deliver` does nothing at all. A fake dispatcher: no BullMQ, no Nest, no Redis.
-  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
   const actionRegistry = new ActionRegistry();
   registerCreditNoteActions(actionRegistry, { queueDispatcher, webhooks });
@@ -128,13 +130,13 @@ const validCreditNoteData = {
 
 describe('DocumentsService — the credit note type, the THIRD descriptor-only type', () => {
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
     // See this file's own top-of-file comment on the two partial mocks: no
     // payments, no OTHER credit notes, by default. A test that cares about settlement overrides these.
-    (settlementPayments.listPayments as jest.Mock).mockResolvedValue([]);
-    (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([]);
+    (settlementPayments.listPayments as Mock).mockResolvedValue([]);
+    (settlementCredits.listCreditNotes as Mock).mockResolvedValue([]);
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('is registered', () => {
     expect(buildService().service.listTypes()).toEqual(
@@ -156,10 +158,8 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     // async-send.ts's own re-read of the credit note ALL call `findOwnedDocument` — none of them
     // reads `.typeId` off what comes back, only `.status`/`.data`, so one fixture (status "draft")
     // serves every purpose here, exactly like the pre-existing coverage already relied on.
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
-      invoiceDocument('invoice-doc-1', ['line-1']),
-    );
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'cn-1',
       typeId: 'credit-note',
       status: 'sending',
@@ -194,11 +194,11 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
   });
 
   it('"send" (phase 2 — the worker\'s replay): "sending" -> "sent", nothing to deliver, never re-enqueued', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       ...invoiceDocument('invoice-doc-1', ['line-1']),
       status: 'sending',
     });
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'cn-1',
       typeId: 'credit-note',
       status: 'sent',
@@ -235,11 +235,11 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
   // `DOCUMENT_SENT` removes the need for a per-type event, so the credit note gets one for free the
   // moment `deps.webhooks` is passed — the SAME wiring invoice/quote already have, no new mechanism.
   it('"send" (phase 2) dispatches DOCUMENT_SENT — the type left webhook-less gets one for free', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       ...invoiceDocument('invoice-doc-1', ['line-1']),
       status: 'sending',
     });
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'cn-1',
       typeId: 'credit-note',
       status: 'sent',
@@ -248,7 +248,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       updatedAt: new Date(),
     });
 
-    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
     const { service } = buildService(webhooks);
     const result = await service.runAction('company-1', 'credit-note', 'send', {
       documentId: 'cn-1',
@@ -312,23 +312,23 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       // INVOICE (a DIFFERENT id, 'invoice-doc-1') needs the settled-friendly fixture above — the SAME
       // shared mock serves both, exactly like this file's own header already documents for the "send"
       // tests above (neither call site reads `.typeId`/`.id` off the fixture to pick a branch).
-      (persistence.findOwnedDocument as jest.Mock).mockImplementation((_companyId, typeId, id) =>
+      (persistence.findOwnedDocument as Mock).mockImplementation((_companyId, typeId, id) =>
         Promise.resolve(
           typeId === 'invoice' && id === 'invoice-doc-1'
             ? settledInvoiceDocument()
             : { ...settledInvoiceDocument(), id: 'cn-1', typeId: 'credit-note', status: 'sending' },
         ),
       );
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentCreditNoteRow);
-      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(sentCreditNoteRow);
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
         { id: 'payment-1', documentId: 'invoice-doc-1', documentAmountMinor: 10000, currency: 'EUR' },
       ]);
       // The DB now shows this note "sent" — `listCreditNotes` reads CURRENT state (see
       // credit-note-actions.ts's own header on why the crossing check excludes it for "before" rather
       // than snapshotting a moment earlier).
-      (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([sentCreditNoteRow]);
+      (settlementCredits.listCreditNotes as Mock).mockResolvedValue([sentCreditNoteRow]);
 
-      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
       const { service } = buildService(webhooks);
       const result = await service.runAction('company-1', 'credit-note', 'send', {
         documentId: 'cn-1',
@@ -358,19 +358,19 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     });
 
     it('the invoice still owes money after this credit note (only a PARTIAL correction) — zero DOCUMENT_SETTLED emissions', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockImplementation((_companyId, typeId, id) =>
+      (persistence.findOwnedDocument as Mock).mockImplementation((_companyId, typeId, id) =>
         Promise.resolve(
           typeId === 'invoice' && id === 'invoice-doc-1'
             ? settledInvoiceDocument()
             : { ...settledInvoiceDocument(), id: 'cn-1', typeId: 'credit-note', status: 'sending' },
         ),
       );
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentCreditNoteRow);
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(sentCreditNoteRow);
       // NOTHING paid at all — correcting line-1 (100 EUR) still leaves line-2 (100 EUR) owed.
-      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([]);
-      (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([sentCreditNoteRow]);
+      (settlementPayments.listPayments as Mock).mockResolvedValue([]);
+      (settlementCredits.listCreditNotes as Mock).mockResolvedValue([sentCreditNoteRow]);
 
-      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
       const { service } = buildService(webhooks);
       await service.runAction('company-1', 'credit-note', 'send', {
         documentId: 'cn-1',
@@ -382,21 +382,21 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     });
 
     it('the invoice was ALREADY settled before this credit note (an excess credit on top) — no NEW crossing, zero emissions', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockImplementation((_companyId, typeId, id) =>
+      (persistence.findOwnedDocument as Mock).mockImplementation((_companyId, typeId, id) =>
         Promise.resolve(
           typeId === 'invoice' && id === 'invoice-doc-1'
             ? settledInvoiceDocument()
             : { ...settledInvoiceDocument(), id: 'cn-1', typeId: 'credit-note', status: 'sending' },
         ),
       );
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentCreditNoteRow);
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(sentCreditNoteRow);
       // Already fully paid BEFORE this credit note — the crossing already happened at that payment.
-      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
         { id: 'payment-1', documentId: 'invoice-doc-1', documentAmountMinor: 20000, currency: 'EUR' },
       ]);
-      (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([sentCreditNoteRow]);
+      (settlementCredits.listCreditNotes as Mock).mockResolvedValue([sentCreditNoteRow]);
 
-      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
       const { service } = buildService(webhooks);
       await service.runAction('company-1', 'credit-note', 'send', {
         documentId: 'cn-1',
@@ -427,10 +427,8 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
   });
 
   it('a complete credit note, correcting a line that genuinely exists on the invoice, is persisted', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
-      invoiceDocument('invoice-doc-1', ['line-1']),
-    );
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'cn-1',
       typeId: 'credit-note',
       status: 'draft',
@@ -481,9 +479,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
   // mechanism but never actually called it from runAction would pass every test in that file while
   // failing this one.
   it('blocks saving a credit note whose corrected line no longer exists on the invoice — never a silent save', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
-      invoiceDocument('invoice-doc-1', ['line-1']),
-    );
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
 
     const dataWithGhostLine = { ...validCreditNoteData, correctedLines: ['a-line-that-was-removed'] };
 
@@ -494,7 +490,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
   });
 
   it('blocks, naming the invoice, when the invoice it references no longer exists at all', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(new NotFoundException('gone'));
+    (persistence.findOwnedDocument as Mock).mockRejectedValue(new NotFoundException('gone'));
 
     let caught: unknown;
     try {
@@ -524,7 +520,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
    */
   describe('"save-draft" — the credit note\'s own currency must match its invoice', () => {
     beforeEach(() => {
-      (persistence.upsertDocument as jest.Mock).mockImplementation(
+      (persistence.upsertDocument as Mock).mockImplementation(
         async (_companyId, _typeId, _documentId, status, data) => ({
           id: 'cn-1',
           typeId: 'credit-note',
@@ -537,9 +533,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     });
 
     it("accepts a credit note whose currency is IDENTICAL to its invoice's own", async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
-        invoiceDocument('invoice-doc-1', ['line-1']),
-      );
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
 
       const { service } = buildService();
       const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
@@ -559,9 +553,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     it("BLOCKS a credit note whose currency does NOT match its invoice's own — named 400, nothing persisted", async () => {
       // invoiceDocument() is always "EUR" (this file's own fixture) — declaring "USD" here is the
       // mismatch this guard exists to catch.
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
-        invoiceDocument('invoice-doc-1', ['line-1']),
-      );
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
       const mismatchedData = { ...validCreditNoteData, currency: 'USD' };
 
       let caught: unknown;
@@ -579,9 +571,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     });
 
     it('is enforced on a RE-EDIT too, not just at creation — an existing draft cannot be saved into a mismatch', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
-        invoiceDocument('invoice-doc-1', ['line-1']),
-      );
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
       const mismatchedData = { ...validCreditNoteData, currency: 'USD' };
 
       await expect(
@@ -596,7 +586,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     it('does not block when the invoice itself has no currency yet (a country-less-safe draft) — nothing to compare against', async () => {
       const currencyLessInvoice = invoiceDocument('invoice-doc-1', ['line-1']);
       delete (currencyLessInvoice.data as { currency?: string }).currency;
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(currencyLessInvoice);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(currencyLessInvoice);
 
       const { service } = buildService();
       const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
@@ -613,9 +603,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     // the REAL wired path (runAction -> credit-note-actions.ts's "send" registration), never just
     // the pure guard function's own unit behavior.
     it('"send" (phase 1) is ALSO guarded — a scripted client cannot bypass "save-draft" to sneak a mismatch straight to "send"', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
-        invoiceDocument('invoice-doc-1', ['line-1']),
-      );
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
       const mismatchedData = { ...validCreditNoteData, currency: 'USD' };
 
       let caught: unknown;
@@ -650,7 +638,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     };
 
     beforeEach(() => {
-      (persistence.upsertDocument as jest.Mock).mockImplementation(
+      (persistence.upsertDocument as Mock).mockImplementation(
         async (_companyId, _typeId, _documentId, status, data) => ({
           id: 'cn-free-1',
           typeId: 'credit-note',
@@ -707,9 +695,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     });
 
     it('refuses BOTH an invoice and free lines together — never two disagreeing sources of the same amount', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
-        invoiceDocument('invoice-doc-1', ['line-1']),
-      );
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
       const dataWithBoth = { ...validCreditNoteData, lines: freeCreditNoteData.lines };
 
       let caught: unknown;
@@ -740,7 +726,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
      */
     describe('country gate — a FREE credit note is not legal everywhere', () => {
       it('is BLOCKED for a Polish seller, naming the country', async () => {
-        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PL');
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
 
         let caught: unknown;
         try {
@@ -757,7 +743,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       });
 
       it('is ALLOWED for a French seller — France keeps its own CREDIT_NOTE route open', async () => {
-        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
 
         const { service } = buildService();
         const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
@@ -769,8 +755,8 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       });
 
       it('does not block a LINKED credit note for a Polish seller — the gate only ever looks at FREE ones', async () => {
-        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PL');
-        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(
           invoiceDocument('invoice-doc-1', ['line-1']),
         );
 
@@ -783,12 +769,12 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       });
 
       it('"send" (phase 1) is ALSO guarded — no bypass through the async preflight', async () => {
-        (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('PL');
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
         // runAction's own status-gate needs a CURRENT record to check "from draft" against before it
         // ever reaches the preflight — same shared fixture/comment as the currency guard's own
         // identical "send (phase 1)" bypass test above (`.status`, not `.typeId`, is all either call
         // site reads off it).
-        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(
           invoiceDocument('invoice-doc-1', ['line-1']),
         );
 

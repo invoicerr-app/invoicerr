@@ -4,20 +4,22 @@
  * grandfathers an unchanged legacy value, and never enforces an undeclared pattern" is proven
  * against the real branching logic.
  */
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
 import { assertIdentifierValueMatchesPattern } from './validate-identifier-value';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    countryIdentifierRequirement: { findUnique: jest.fn() },
+    countryIdentifierRequirement: { findUnique: vi.fn() },
   },
 }));
 
-const findRequirement = prisma.countryIdentifierRequirement.findUnique as jest.Mock;
+const findRequirement = prisma.countryIdentifierRequirement.findUnique as Mock;
 
 const IT_SDI_FACT = {
   pattern: '^[A-Za-z0-9]{7}$',
@@ -26,7 +28,7 @@ const IT_SDI_FACT = {
 };
 
 describe('assertIdentifierValueMatchesPattern', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   // The measured defect, reproduced directly against the real branching logic: a 3-character
   // IT_SDI value, which `fatturapa-provider.ts`'s own `/^[A-Za-z0-9]{7}$/` would also reject, must

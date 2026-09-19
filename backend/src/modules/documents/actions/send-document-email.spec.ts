@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import * as nodemailer from 'nodemailer';
 
 import { MailService } from '@/mail/mail.service';
@@ -12,17 +13,28 @@ import * as stock from '../stock/apply-stock-on-issuance';
 import * as companyEmailTemplates from './company-email-templates';
 import { sendDocumentInstanceEmail } from './send-document-email';
 
-jest.mock('../numbering/take-number');
-jest.mock('../rendering/render-instance-pdf');
-jest.mock('../stock/apply-stock-on-issuance');
-jest.mock('./company-email-templates');
+vi.mock('../numbering/take-number');
+vi.mock('../rendering/render-instance-pdf');
+vi.mock('../stock/apply-stock-on-issuance');
+vi.mock('./company-email-templates');
+// `nodemailer` is imported here as a namespace (`import * as nodemailer`) specifically so the tests
+// further down can `vi.spyOn(nodemailer, 'createTransport')` — but Vitest refuses to spy directly on a
+// REAL ES module's namespace object at all ("Cannot spy on export ... Module namespace is not
+// configurable in ESM"), which a bare Jest spy on the same export never hit (Jest's own CJS
+// interop namespace was always a plain, writable object). Pre-mocking the module with a spread of its
+// own real implementation swaps in a plain, configurable object in its place, so `createTransport`
+// becomes spy-able exactly like it was under Jest.
+vi.mock('nodemailer', async () => {
+  const actual = await vi.importActual<typeof import('nodemailer')>('nodemailer');
+  return { ...actual };
+});
 // Only used by the "company → instance" cascade tests near the bottom of this file — every other
 // test here keeps using a bare fake `mailService` object, never touching this at all.
-jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
-  resolveCompanyMailSettings: jest.fn(),
+vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: vi.fn(),
 }));
 
-const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
 
 /**
  * `sendDocumentInstanceEmail` in isolation — the shared core behind the quote's own "send"
@@ -37,7 +49,7 @@ function buildDeps() {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildQuoteDescriptor());
   const mailService = {
-    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   };
 
   return { typeRegistry, referenceRegistry: new EntityReferenceRegistry(), mailService };
@@ -46,7 +58,7 @@ function buildDeps() {
 const FAKE_PDF = Buffer.from('%PDF-fake-content');
 
 function mockSuccessfulRender(overrides: { language?: string } = {}) {
-  (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+  (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
     pdf: FAKE_PDF,
     totals: {
       currency: 'EUR',
@@ -68,12 +80,12 @@ function mockSuccessfulRender(overrides: { language?: string } = {}) {
 }
 
 describe('sendDocumentInstanceEmail', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('attaches the PDF the render engine produced, named after the FALLBACK when the document has no displayNumber', async () => {
     mockSuccessfulRender();
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const { typeRegistry, referenceRegistry, mailService } = buildDeps();
 
@@ -113,7 +125,7 @@ describe('sendDocumentInstanceEmail', () => {
 
   it('names the attachment after displayNumber when the document is ALREADY numbered', async () => {
     mockSuccessfulRender();
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
 
     const { typeRegistry, referenceRegistry, mailService } = buildDeps();
 
@@ -155,8 +167,8 @@ describe('sendDocumentInstanceEmail', () => {
   // declared `onEnterStatus` — a legitimate defensive case, not the routine one.
   it('pulls the number FORWARD (before composing the email) when the document is unnumbered at exactly its declared onEnterStatus', async () => {
     mockSuccessfulRender();
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
       number: 7,
       displayNumber: 'QUOTE-2026-0007',
     });
@@ -200,9 +212,9 @@ describe('sendDocumentInstanceEmail', () => {
   // try/catch (there is none to mock around) — so this test cannot pass for the wrong reason.
   it("a PDF failure never sends a bare email — the whole send fails with the render engine's own error", async () => {
     const renderError = new Error('PDF renderer unavailable: Chrome/Chromium could not be launched.');
-    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockRejectedValue(renderError);
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (renderInstancePdf.renderDocumentInstance as Mock).mockRejectedValue(renderError);
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const { typeRegistry, referenceRegistry, mailService } = buildDeps();
 
@@ -235,8 +247,8 @@ describe('sendDocumentInstanceEmail', () => {
   // fire HERE, tied to actually TAKING the number.
   it('decrements stock when it TAKES the number at issuance (the real async-send path)', async () => {
     mockSuccessfulRender();
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
       number: 7,
       displayNumber: 'QUOTE-2026-0007',
     });
@@ -273,7 +285,7 @@ describe('sendDocumentInstanceEmail', () => {
 
   it('does NOT decrement stock when the document is ALREADY numbered (a re-send is a stock no-op)', async () => {
     mockSuccessfulRender();
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
 
     const { typeRegistry, referenceRegistry, mailService } = buildDeps();
 
@@ -303,10 +315,10 @@ describe('sendDocumentInstanceEmail', () => {
 
   it("the company's OWN template override wins over the descriptor default", async () => {
     mockSuccessfulRender();
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({
       quote: { subject: 'OVERRIDDEN SUBJECT', body: 'OVERRIDDEN BODY' },
     });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const { typeRegistry, referenceRegistry, mailService } = buildDeps();
 
@@ -339,7 +351,7 @@ describe('sendDocumentInstanceEmail', () => {
   });
 
   it('sends BOTH parts when the template carries html, escaping interpolated values into the html one', async () => {
-    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
       pdf: FAKE_PDF,
       totals: {
         currency: 'EUR',
@@ -354,7 +366,7 @@ describe('sendDocumentInstanceEmail', () => {
       // A company name that is legitimate data and also happens to contain markup.
       companyName: 'Acme <Corp> & Co',
     });
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({
       quote: {
         subject: '{typeLabel} from {companyName}',
         body: 'Plain from {companyName}',
@@ -397,7 +409,7 @@ describe('sendDocumentInstanceEmail', () => {
 
   it('derives a text part rather than sending html alone, for a template that carries only html', async () => {
     mockSuccessfulRender();
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({
       quote: { subject: 'Quote {displayNumber}', body: '', html: '<p>Hello,</p><p>See attached.</p>' },
     });
 
@@ -440,8 +452,8 @@ describe('sendDocumentInstanceEmail', () => {
   // independently-resolved value (see send-document-email.ts's own comment on this call).
   it("sends the descriptor's FRENCH default when the render resolved the recipient's language to 'fr'", async () => {
     mockSuccessfulRender({ language: 'fr' });
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const { typeRegistry, referenceRegistry, mailService } = buildDeps();
 
@@ -482,10 +494,10 @@ describe('sendDocumentInstanceEmail', () => {
   // existing company override. See email-template.ts#resolveEmailTemplate's own header.
   it('a company override still wins even when the render resolved a non-English recipient language', async () => {
     mockSuccessfulRender({ language: 'it' });
-    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({
       quote: { subject: 'OVERRIDDEN SUBJECT', body: 'OVERRIDDEN BODY' },
     });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const { typeRegistry, referenceRegistry, mailService } = buildDeps();
 
@@ -517,7 +529,7 @@ describe('sendDocumentInstanceEmail', () => {
 
   // The two tests below use a REAL `MailService` (only `resolveCompanyMailSettings` and
   // `nodemailer.createTransport` are mocked, the exact same doubles `mail.service.spec.ts` uses for
-  // its own cascade coverage) rather than a fake `{ sendForCompany: jest.fn() }`: every OTHER test in
+  // its own cascade coverage) rather than a fake `{ sendForCompany: vi.fn() }`: every OTHER test in
   // this file already proves the ADDRESSING/composition logic against a fake, so this is the one place
   // that proves `sendDocumentInstanceEmail` genuinely reaches the right transport end-to-end, not just
   // that it calls a method with the right name.
@@ -525,7 +537,7 @@ describe('sendDocumentInstanceEmail', () => {
     const ORIGINAL_ENV = process.env;
 
     beforeEach(() => {
-      jest.restoreAllMocks(); // undoes any jest.spyOn(nodemailer, 'createTransport') from a prior test
+      vi.restoreAllMocks(); // undoes any vi.spyOn(nodemailer, 'createTransport') from a prior test
       mockedResolveCompanyMailSettings.mockReset();
       process.env = { ...ORIGINAL_ENV };
       delete process.env.MAIL_PROVIDER;
@@ -539,8 +551,8 @@ describe('sendDocumentInstanceEmail', () => {
 
     it("sends through THIS company's own SMTP server when Settings → Mail has one configured, never the instance's", async () => {
       mockSuccessfulRender();
-      (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-      (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+      (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+      (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
       process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
 
       mockedResolveCompanyMailSettings.mockResolvedValue({
@@ -552,8 +564,8 @@ describe('sendDocumentInstanceEmail', () => {
         password: 'pass',
         fromAddress: 'billing@company.example.com',
       });
-      const sendMailMock = jest.fn().mockResolvedValue(undefined);
-      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      vi.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
 
       const { typeRegistry, referenceRegistry } = buildDeps();
       const mailService = new MailService();
@@ -585,13 +597,13 @@ describe('sendDocumentInstanceEmail', () => {
 
     it("falls back to the instance's own mail server when this company has none configured", async () => {
       mockSuccessfulRender();
-      (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-      (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+      (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+      (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
       process.env.SMTP_HOST = 'instance-smtp.example.com';
       mockedResolveCompanyMailSettings.mockResolvedValue(null);
 
-      const sendMailMock = jest.fn().mockResolvedValue(undefined);
-      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      vi.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
 
       const { typeRegistry, referenceRegistry } = buildDeps();
       const mailService = new MailService();
@@ -625,8 +637,8 @@ describe('sendDocumentInstanceEmail', () => {
 
     it('refuses NAMED, and the send fails with that exact message, when neither company nor instance has anything configured', async () => {
       mockSuccessfulRender();
-      (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
-      (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+      (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+      (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
       mockedResolveCompanyMailSettings.mockResolvedValue(null);
 
       const { typeRegistry, referenceRegistry } = buildDeps();

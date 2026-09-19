@@ -1,15 +1,18 @@
+import { vi, type Mock } from 'vitest';
+
 import {
   buildExpenseDashboardWidgets,
   buildExpenseStatisticsWidgets,
   expenseAmount,
+  monthKey,
 } from './expense-contributions';
 import * as persistence from '../persistence';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget, TableWidget } from './widgets';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
-const listDocuments = persistence.listDocuments as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
 
 function expense(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -46,11 +49,11 @@ describe('buildExpenseDashboardWidgets', () => {
   const now = new Date('2026-08-30');
 
   beforeEach(() => {
-    jest.useFakeTimers().setSystemTime(now);
+    vi.useFakeTimers().setSystemTime(now);
     listDocuments.mockReset();
   });
 
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('sums only the CURRENT month, grouped by currency — a last-month expense is excluded', async () => {
     listDocuments.mockResolvedValue([
@@ -173,8 +176,6 @@ describe('buildExpenseStatisticsWidgets', () => {
 });
 
 describe('monthKey — one clock (UTC) on both sides of the comparison', () => {
-  const { monthKey } = require('./expense-contributions');
-
   it('a date-only string and a full ISO instant of the same UTC day land in the same month', () => {
     // The exact live failure of 2026-08-31 ~22:15 UTC (00:15 CEST, Sept 1 locally): the expense was
     // dated "2026-08-31" (UTC day) while "now" keyed through LOCAL getters said September — the

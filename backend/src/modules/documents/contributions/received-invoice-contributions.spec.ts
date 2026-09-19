@@ -1,11 +1,13 @@
+import { vi, type Mock } from 'vitest';
+
 import { buildReceivedInvoiceDashboardWidgets, grossAmount } from './received-invoice-contributions';
 import * as persistence from '../persistence';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget } from './widgets';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
-const listDocuments = persistence.listDocuments as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
 
 function receivedInvoice(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },

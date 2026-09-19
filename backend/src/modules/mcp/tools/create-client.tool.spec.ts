@@ -1,10 +1,12 @@
+import { vi, type Mock } from 'vitest';
+
 import { createClientTool } from './create-client.tool';
 import { ToolContext } from './types';
 
 // Adapted from the removed compliance engine's own `create_client.tool.spec.ts`
 // (git tag `avant-refonte-documents`) — only the ToolContext.services shape changed.
 describe('createClientTool', () => {
-  function buildContext(createClient: jest.Mock): ToolContext {
+  function buildContext(createClient: Mock): ToolContext {
     return {
       companyId: 'company1',
       scopes: ['clients:write'],
@@ -19,7 +21,7 @@ describe('createClientTool', () => {
   }
 
   it('creates the client as active regardless of input, scoped to the active company', async () => {
-    const createClient = jest.fn().mockResolvedValue({ id: 'c1', name: 'Acme' });
+    const createClient = vi.fn().mockResolvedValue({ id: 'c1', name: 'Acme' });
     const ctx = buildContext(createClient);
 
     await createClientTool.handler(ctx, {
@@ -41,7 +43,7 @@ describe('createClientTool', () => {
   });
 
   it('returns the created client id and name as structured content', async () => {
-    const createClient = jest.fn().mockResolvedValue({ id: 'c1', name: 'Acme' });
+    const createClient = vi.fn().mockResolvedValue({ id: 'c1', name: 'Acme' });
     const ctx = buildContext(createClient);
 
     const result = await createClientTool.handler(ctx, {

@@ -12,8 +12,11 @@
  * ts-jest" pattern every other spec in this directory already uses (see
  * `clients.vat-validation.spec.ts`'s own header for why).
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { ClientsService } from './clients.service';
@@ -22,10 +25,10 @@ import { VatValidationPort } from '../documents/tax/vat-validation';
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
-const fakeVatValidator: VatValidationPort = { validate: jest.fn() };
+const fakeVatValidator: VatValidationPort = { validate: vi.fn() };
 
 describe('ClientsService — contactEmail is optional', () => {
   let companyId: string;

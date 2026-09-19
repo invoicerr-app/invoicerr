@@ -1,26 +1,28 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
 /**
- * Prisma mocked with a small IN-MEMORY store (not bare jest.fn()s returning canned values) — the
+ * Prisma mocked with a small IN-MEMORY store (not bare vi.fn()s returning canned values) — the
  * same discipline `company-transport.spec.ts`/`channels.service.spec.ts` already hold for THIS exact
  * concern (an upsert followed by a re-read must see what the upsert just wrote), which a call-order-
  * dependent sequence of `mockResolvedValueOnce`s cannot express honestly once a function under test
  * calls the mocked client more than once (see `updateCompanyPaymentMethodConfig`'s own header: it
  * reads BEFORE writing, and the tests below read AGAIN afterward to assert what actually landed).
  */
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn(), update: jest.fn() },
-    companyPaymentMethodConfig: { findUnique: jest.fn(), upsert: jest.fn() },
+    company: { findUnique: vi.fn(), update: vi.fn() },
+    companyPaymentMethodConfig: { findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock; update: jest.Mock };
-  companyPaymentMethodConfig: { findUnique: jest.Mock; upsert: jest.Mock };
+  company: { findUnique: Mock; update: Mock };
+  companyPaymentMethodConfig: { findUnique: Mock; upsert: Mock };
 };
 
 interface FakeCompany {
@@ -66,7 +68,7 @@ function wireFakeStore(company: FakeCompany, rows: Map<string, FakeConfigRow>) {
   );
 }
 
-// Imported AFTER jest.mock so the module under test picks up the mocked client.
+// Imported AFTER vi.mock so the module under test picks up the mocked client.
 import {
   listCompanyPaymentMethods,
   resolveEnabledPaymentMethodPresentations,
@@ -78,7 +80,7 @@ describe('payment-methods/persistence', () => {
   let rows: Map<string, FakeConfigRow>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     company = { iban: null, bic: null };
     rows = new Map();
     wireFakeStore(company, rows);

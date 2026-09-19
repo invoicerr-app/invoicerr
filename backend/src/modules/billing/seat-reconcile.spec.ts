@@ -1,26 +1,28 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { reconcileCompanySeats, SeatReconcileClient } from './seat-reconcile';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { companySubscription: { update: jest.fn() } },
+  default: { companySubscription: { update: vi.fn() } },
 }));
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const update = prisma.companySubscription.update as jest.Mock;
+const update = prisma.companySubscription.update as Mock;
 
-function fakeClient(get: jest.Mock): SeatReconcileClient {
+function fakeClient(get: Mock): SeatReconcileClient {
   return { subscriptions: { get } };
 }
 
 describe('reconcileCompanySeats', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('returns null and never calls Polar when the company has no polarSubscriptionId yet', async () => {
-    const get = jest.fn();
+    const get = vi.fn();
     const client = fakeClient(get);
 
     const result = await reconcileCompanySeats(
@@ -33,7 +35,7 @@ describe('reconcileCompanySeats', () => {
   });
 
   it('does nothing when the counts already match', async () => {
-    const get = jest.fn().mockResolvedValue({ seats: 3 });
+    const get = vi.fn().mockResolvedValue({ seats: 3 });
     const client = fakeClient(get);
 
     const result = await reconcileCompanySeats(
@@ -46,7 +48,7 @@ describe('reconcileCompanySeats', () => {
   });
 
   it('overwrites the LOCAL row with what Polar reports when they differ — never the reverse', async () => {
-    const get = jest.fn().mockResolvedValue({ seats: 7 });
+    const get = vi.fn().mockResolvedValue({ seats: 7 });
     const client = fakeClient(get);
 
     const result = await reconcileCompanySeats(
@@ -62,12 +64,12 @@ describe('reconcileCompanySeats', () => {
     // Purely a type-level guarantee: `SeatReconcileClient` declares only `subscriptions.get`. Asserted
     // here as a runtime fact too — the fake above never defines `update`, and the function above never
     // calls it.
-    const client = fakeClient(jest.fn().mockResolvedValue({ seats: 1 }));
+    const client = fakeClient(vi.fn().mockResolvedValue({ seats: 1 }));
     expect((client.subscriptions as unknown as { update?: unknown }).update).toBeUndefined();
   });
 
   it('a null/undefined seats on the Polar response is left uncorrected, never written as 0', async () => {
-    const get = jest.fn().mockResolvedValue({ seats: null });
+    const get = vi.fn().mockResolvedValue({ seats: null });
     const client = fakeClient(get);
 
     const result = await reconcileCompanySeats(
@@ -80,7 +82,7 @@ describe('reconcileCompanySeats', () => {
   });
 
   it('propagates a Polar failure to its caller (the sweep runner decides how to isolate it)', async () => {
-    const get = jest.fn().mockRejectedValue(new Error('polar unreachable'));
+    const get = vi.fn().mockRejectedValue(new Error('polar unreachable'));
     const client = fakeClient(get);
 
     await expect(

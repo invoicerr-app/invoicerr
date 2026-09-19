@@ -18,6 +18,7 @@
  *     NEVER a success — using an injected mock `SdiHttpPort`, the seam the real `SdiCoopClient` also
  *     plugs into. The real wire is `sdi/sdicoop.live.spec.ts`, gated `SDI_LIVE=1`.
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -28,17 +29,17 @@ import { buildSdiTransport } from './sdi-transport';
 import { SdiHttpPort } from './sdi/sdi-client';
 import { DocumentTransportContext } from './transport-registry';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    client: { findFirst: jest.fn() },
+    company: { findUnique: vi.fn() },
+    client: { findFirst: vi.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  client: { findFirst: jest.Mock };
+  company: { findUnique: Mock };
+  client: { findFirst: Mock };
 };
 
 const CONNECTED_CONFIG = {
@@ -57,9 +58,9 @@ const CONNECTED_CONFIG = {
   },
 };
 
-function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock; httpPort?: SdiHttpPort }) {
+function buildDeps(overrides?: { resolveActive?: Mock; build?: Mock; httpPort?: SdiHttpPort }) {
   const channelCredentials = {
-    resolveActive: overrides?.resolveActive ?? jest.fn().mockResolvedValue(CONNECTED_CONFIG),
+    resolveActive: overrides?.resolveActive ?? vi.fn().mockResolvedValue(CONNECTED_CONFIG),
   } as unknown as ChannelCredentialsService;
   const fatturapaFormatProvider: DocumentFormatProvider = {
     id: 'fatturapa',
@@ -67,7 +68,7 @@ function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock; h
     mime: 'application/xml',
     build:
       overrides?.build ??
-      jest.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
+      vi.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
   };
   return { channelCredentials, fatturapaFormatProvider, httpPort: overrides?.httpPort };
 }
@@ -88,7 +89,7 @@ const CTX: DocumentTransportContext = {
 
 describe('buildSdiTransport', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedPrisma.company.findUnique.mockResolvedValue({
       id: 'company-1',
       name: 'Rossi SRL',
@@ -111,7 +112,7 @@ describe('buildSdiTransport', () => {
 
   describe('preflight() — the PREFLIGHT gate, before anything is persisted or queued', () => {
     it('throws (named, for THIS channel) when no SdI channel is connected at all', async () => {
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
       const transport = buildSdiTransport(deps);
 
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
@@ -120,7 +121,7 @@ describe('buildSdiTransport', () => {
 
     it('throws when connected but the config is incomplete (missing certificate)', async () => {
       const deps = buildDeps({
-        resolveActive: jest.fn().mockResolvedValue({
+        resolveActive: vi.fn().mockResolvedValue({
           ...CONNECTED_CONFIG,
           config: { idTrasmittente: 'IT01234567890', endpoint: 'https://127.0.0.1:1/ricevi_file' },
         }),
@@ -134,7 +135,7 @@ describe('buildSdiTransport', () => {
         "today's honest default: nobody holds real AdE accreditation yet",
       async () => {
         const deps = buildDeps({
-          resolveActive: jest.fn().mockResolvedValue({
+          resolveActive: vi.fn().mockResolvedValue({
             ...CONNECTED_CONFIG,
             config: { idTrasmittente: 'IT01234567890', certificate: 'base64-pfx-contents' },
           }),
@@ -171,10 +172,10 @@ describe('buildSdiTransport', () => {
 
   describe('send() — orchestration, with a mocked (future-accredited) SdiHttpPort', () => {
     it('blocks (never calls the port) when the channel is not connected — re-checked, not cached from preflight', async () => {
-      const submit = jest.fn();
+      const submit = vi.fn();
       const deps = buildDeps({
-        resolveActive: jest.fn().mockResolvedValue(null),
-        httpPort: { submit, getStatus: jest.fn(), sendEsito: jest.fn() },
+        resolveActive: vi.fn().mockResolvedValue(null),
+        httpPort: { submit, getStatus: vi.fn(), sendEsito: vi.fn() },
       });
       const transport = buildSdiTransport(deps);
 
@@ -184,20 +185,20 @@ describe('buildSdiTransport', () => {
 
     it('refuses when the invoice has no valid client on file', async () => {
       mockedPrisma.client.findFirst.mockResolvedValue(null);
-      const submit = jest.fn();
-      const deps = buildDeps({ httpPort: { submit, getStatus: jest.fn(), sendEsito: jest.fn() } });
+      const submit = vi.fn();
+      const deps = buildDeps({ httpPort: { submit, getStatus: vi.fn(), sendEsito: vi.fn() } });
       const transport = buildSdiTransport(deps);
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       expect(submit).not.toHaveBeenCalled();
     });
 
     it('never submits an artifact that failed XSD validation', async () => {
-      const submit = jest.fn();
-      const build = jest.fn().mockResolvedValue({
+      const submit = vi.fn();
+      const build = vi.fn().mockResolvedValue({
         bytes: new TextEncoder().encode('<invalid/>'),
         validation: { valid: false, errors: ['Data element missing'] },
       });
-      const deps = buildDeps({ build, httpPort: { submit, getStatus: jest.fn(), sendEsito: jest.fn() } });
+      const deps = buildDeps({ build, httpPort: { submit, getStatus: vi.fn(), sendEsito: vi.fn() } });
       const transport = buildSdiTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
@@ -206,10 +207,10 @@ describe('buildSdiTransport', () => {
     });
 
     it('succeeds and returns the idSdI as `reference` once (a mocked, future-accredited) SdI accepts the submission', async () => {
-      const submit = jest
+      const submit = vi
         .fn()
         .mockResolvedValue({ idSdI: 4242, idTrasmittente: 'IT01234567890', filename: 'x.xml' });
-      const deps = buildDeps({ httpPort: { submit, getStatus: jest.fn(), sendEsito: jest.fn() } });
+      const deps = buildDeps({ httpPort: { submit, getStatus: vi.fn(), sendEsito: vi.fn() } });
       const transport = buildSdiTransport(deps);
 
       const result = await transport.send(CTX);
@@ -229,10 +230,10 @@ describe('buildSdiTransport', () => {
     });
 
     it('treats an EMPTY idSdI as a FAILURE, never a success', async () => {
-      const submit = jest
+      const submit = vi
         .fn()
         .mockResolvedValue({ idSdI: undefined, idTrasmittente: 'IT01234567890', filename: 'x.xml' });
-      const deps = buildDeps({ httpPort: { submit, getStatus: jest.fn(), sendEsito: jest.fn() } });
+      const deps = buildDeps({ httpPort: { submit, getStatus: vi.fn(), sendEsito: vi.fn() } });
       const transport = buildSdiTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
@@ -240,8 +241,8 @@ describe('buildSdiTransport', () => {
     });
 
     it('wraps a network/protocol failure from the SdI port into a named BadRequestException — never swallowed', async () => {
-      const submit = jest.fn().mockRejectedValue(new Error('SOAP fault: certificate rejected'));
-      const deps = buildDeps({ httpPort: { submit, getStatus: jest.fn(), sendEsito: jest.fn() } });
+      const submit = vi.fn().mockRejectedValue(new Error('SOAP fault: certificate rejected'));
+      const deps = buildDeps({ httpPort: { submit, getStatus: vi.fn(), sendEsito: vi.fn() } });
       const transport = buildSdiTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(/SdI submission failed: SOAP fault/);

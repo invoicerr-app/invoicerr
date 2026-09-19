@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import { transitionsAvailableWhen } from '../descriptors/lifecycle';
@@ -5,7 +7,7 @@ import { DocumentActionTransition, DocumentTypeDescriptor } from '../descriptors
 import * as persistence from '../persistence';
 import { markSendFailed } from './mark-send-failed';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 const SEND_TRANSITIONS: DocumentActionTransition[] = [
   { from: ['draft', 'send_failed'], to: 'sending' },
@@ -43,12 +45,12 @@ function widgetDescriptor(): DocumentTypeDescriptor {
  * `runAction` applies to every synchronous handler.
  */
 describe('markSendFailed', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   const resolveDescriptor = () => widgetDescriptor();
 
   it('marks a "sending" record "send_failed", recording the error message', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sending',
@@ -56,7 +58,7 @@ describe('markSendFailed', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'send_failed',
@@ -91,7 +93,7 @@ describe('markSendFailed', () => {
   // report the loss (`ConflictException`, exactly what `persistence.ts`'s own `fromStatuses` guard
   // throws when the row already moved on) rather than by racing real timers.
   it('a ConflictException from the conditional write (record moved on between the check and the write) is swallowed, never rethrown', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sending',
@@ -99,7 +101,7 @@ describe('markSendFailed', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.updateDocumentStatus as jest.Mock).mockRejectedValue(
+    (persistence.updateDocumentStatus as Mock).mockRejectedValue(
       new ConflictException('Document "doc-1" is no longer in one of the expected statuses (sending).'),
     );
 
@@ -115,7 +117,7 @@ describe('markSendFailed', () => {
   });
 
   it('is idempotent: a record that already moved past "sending" (e.g. a genuine success won the race) is left alone', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sent',
@@ -136,7 +138,7 @@ describe('markSendFailed', () => {
   });
 
   it('throws (a loud, named bug) if the write it just made somehow lands outside the declared lifecycle', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sending',
@@ -146,7 +148,7 @@ describe('markSendFailed', () => {
     });
     // A broken persistence layer that wrote something else entirely — checkTransitionResult must
     // still catch it, the exact same discipline documents.service.ts's runAction already holds.
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -172,7 +174,7 @@ describe('markSendFailed', () => {
     // deletion of a document with a send in flight) must not escape as a throw — this handler runs
     // from `onFailed`, a BullMQ event handler where an escaped exception becomes an unhandled
     // rejection that kills the entire process (it did, twice, 2026-08-31).
-    (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(
+    (persistence.findOwnedDocument as Mock).mockRejectedValue(
       new NotFoundException('Document "doc-1" not found for type "widget".'),
     );
 
@@ -211,7 +213,7 @@ describe('markSendFailed', () => {
   // any of the early-return "nothing to mark" branches.
   describe('events — the SSE status nudge', () => {
     it('publishes "send_failed" AFTER the write and the lifecycle check both succeed', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sending',
@@ -219,7 +221,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'send_failed',
@@ -227,7 +229,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      const events = { publish: jest.fn().mockResolvedValue(undefined) };
+      const events = { publish: vi.fn().mockResolvedValue(undefined) };
 
       await markSendFailed(resolveDescriptor, {
         companyId: 'company-1',
@@ -247,7 +249,7 @@ describe('markSendFailed', () => {
     });
 
     it('never publishes for the idempotent "already moved on" branch — nothing was acquired here', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sent',
@@ -255,7 +257,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      const events = { publish: jest.fn() };
+      const events = { publish: vi.fn() };
 
       await markSendFailed(resolveDescriptor, {
         companyId: 'company-1',
@@ -270,7 +272,7 @@ describe('markSendFailed', () => {
     });
 
     it('never publishes when the write lands outside the declared lifecycle (the loud-bug branch throws first)', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sending',
@@ -278,7 +280,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'draft',
@@ -286,7 +288,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      const events = { publish: jest.fn() };
+      const events = { publish: vi.fn() };
 
       await expect(
         markSendFailed(resolveDescriptor, {
@@ -303,10 +305,10 @@ describe('markSendFailed', () => {
     });
 
     it('never publishes when the document no longer exists', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(
+      (persistence.findOwnedDocument as Mock).mockRejectedValue(
         new NotFoundException('Document "doc-1" not found for type "widget".'),
       );
-      const events = { publish: jest.fn() };
+      const events = { publish: vi.fn() };
 
       await markSendFailed(resolveDescriptor, {
         companyId: 'company-1',
@@ -321,7 +323,7 @@ describe('markSendFailed', () => {
     });
 
     it('never touches events at all when absent — every pre-existing caller keeps working unchanged', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sending',
@@ -329,7 +331,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'send_failed',
@@ -353,11 +355,11 @@ describe('markSendFailed', () => {
 
   // `DOCUMENT_SEND_FAILED`'s own orchestration, the SAME "publish only on a
   // genuinely acquired fact" gate `events` above holds, proven the identical way with a bare
-  // `jest.fn()` (the REAL-driver, REAL-HTTP proof lives in `mark-send-failed-webhook.spec.ts`, mirroring
+  // `vi.fn()` (the REAL-driver, REAL-HTTP proof lives in `mark-send-failed-webhook.spec.ts`, mirroring
   // `actions/async-send-webhook.spec.ts`'s own split for `DOCUMENT_SENT`).
   describe('webhooks — the DOCUMENT_SEND_FAILED webhook', () => {
     it('dispatches DOCUMENT_SEND_FAILED, carrying the error, AFTER the write and the lifecycle check both succeed', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sending',
@@ -365,7 +367,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'send_failed',
@@ -373,7 +375,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
 
       await markSendFailed(resolveDescriptor, {
         companyId: 'company-1',
@@ -396,7 +398,7 @@ describe('markSendFailed', () => {
     });
 
     it('never dispatches for the idempotent "already moved on" branch — nothing was acquired here', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sent',
@@ -404,7 +406,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      const webhooks = { dispatch: jest.fn() };
+      const webhooks = { dispatch: vi.fn() };
 
       await markSendFailed(resolveDescriptor, {
         companyId: 'company-1',
@@ -421,7 +423,7 @@ describe('markSendFailed', () => {
     // A dead webhook endpoint must never look like the write itself failed — the identical discipline
     // `async-send.ts`'s own DOCUMENT_SENT dispatch already holds.
     it('a dispatch failure NEVER propagates — markSendFailed still resolves', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sending',
@@ -429,7 +431,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'send_failed',
@@ -437,7 +439,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+      const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
 
       await expect(
         markSendFailed(resolveDescriptor, {
@@ -454,7 +456,7 @@ describe('markSendFailed', () => {
     });
 
     it('never touches webhooks at all when absent — every pre-existing caller keeps working unchanged', async () => {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'sending',
@@ -462,7 +464,7 @@ describe('markSendFailed', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'widget',
         status: 'send_failed',

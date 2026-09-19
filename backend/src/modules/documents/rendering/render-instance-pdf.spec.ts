@@ -14,6 +14,7 @@
  * fact must hold before either one produces anything), never the underlying resolution/encoding logic
  * a second time.
  */
+import { vi, type Mock, type MockedFunction } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -36,20 +37,20 @@ import {
 // that half's own coverage) is mocked at this boundary: this file's own job is only "does the gating
 // (`descriptor.usesPaymentMethods`, the amountMinor>0 guard) forward the right context", the exact
 // same split `sepaPaymentQrFor`'s own header already draws for its own underlying mechanism.
-jest.mock('../payment-methods/persistence');
-const mockedResolvePresentations = resolveEnabledPaymentMethodPresentations as jest.MockedFunction<
+vi.mock('../payment-methods/persistence');
+const mockedResolvePresentations = resolveEnabledPaymentMethodPresentations as MockedFunction<
   typeof resolveEnabledPaymentMethodPresentations
 >;
 
 // Needed ONLY by the dedicated `renderDocumentInstance` describe block further down — every test
 // ABOVE it never reaches these two boundaries at all (`legalMentionsFor`/`sepaPaymentQrFor` are pure
 // synchronous helpers, per this file's own header).
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { company: { findUnique: jest.fn() }, client: { findFirst: jest.fn() } },
+  default: { company: { findUnique: vi.fn() }, client: { findFirst: vi.fn() } },
 }));
-jest.mock('../company-custom-fields/persistence');
-const mockedResolveCustomFields = resolveDocumentCustomFieldDescriptors as jest.MockedFunction<
+vi.mock('../company-custom-fields/persistence');
+const mockedResolveCustomFields = resolveDocumentCustomFieldDescriptors as MockedFunction<
   typeof resolveDocumentCustomFieldDescriptors
 >;
 
@@ -272,7 +273,7 @@ describe('paymentMethodsFor', () => {
   const somePresentations: PaymentMethodPresentation[] = [{ id: 'cash', label: 'Cash', lines: [] }];
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedResolvePresentations.mockResolvedValue(somePresentations);
   });
 
@@ -335,7 +336,7 @@ describe('paymentMethodsFor', () => {
 describe('renderDocumentInstance — an unresolvable legal-mention placeholder becomes a named 400', () => {
   beforeEach(() => {
     mockedResolveCustomFields.mockResolvedValue([]);
-    (prisma.company.findUnique as jest.Mock).mockResolvedValue({
+    (prisma.company.findUnique as Mock).mockResolvedValue({
       name: 'Dupont Consulting',
       address: '12 Rue de la Paix',
       city: 'Paris',

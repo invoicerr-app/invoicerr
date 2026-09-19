@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
@@ -7,11 +9,20 @@ import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/comp
 import { PortalTokensService } from './portal-tokens.service';
 
 // Only used by the "company → instance" cascade tests near the bottom of this file — every other
-// test here keeps using a bare fake `{ sendForCompany: jest.fn() }`, never touching this at all.
-jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
-  resolveCompanyMailSettings: jest.fn(),
+// test here keeps using a bare fake `{ sendForCompany: vi.fn() }`, never touching this at all.
+vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: vi.fn(),
 }));
-const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
+
+// Wholesale mock, deliberately: nothing in this file ever calls the REAL `createTransport` (both
+// tests that need it below set their own `.mockReturnValue(...)` before exercising the SUT), and
+// under Vitest a real ESM module's namespace object is frozen — `vi.spyOn(nodemailer,
+// 'createTransport')` (what this file used under Jest, which could still monkey-patch the
+// CJS-transpiled exports object) throws "Cannot redefine property: createTransport" here, same
+// finding `mail.service.spec.ts` already documents. Mocking the module up front, then casting its
+// export to `Mock` at each call site, is the Vitest-shaped equivalent.
+vi.mock('nodemailer', () => ({ createTransport: vi.fn() }));
 
 /**
  * `@/prisma/prisma.service` mocked with a tiny IN-MEMORY table, the same "mock the module boundary,
@@ -19,7 +30,7 @@ const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock
  * lets `create` -> `list` -> `revoke` run as a REAL round trip through `portal-token.persistence.ts`,
  * only the database itself is fake.
  */
-jest.mock('@/prisma/prisma.service', () => {
+vi.mock('@/prisma/prisma.service', () => {
   const clients: Record<
     string,
     { id: string; companyId: string; name: string; contactEmail: string | null; language?: string | null }
@@ -65,20 +76,20 @@ jest.mock('@/prisma/prisma.service', () => {
     __esModule: true,
     default: {
       client: {
-        findFirst: jest.fn(async ({ where }: { where: { id: string; companyId: string } }) => {
+        findFirst: vi.fn(async ({ where }: { where: { id: string; companyId: string } }) => {
           const client = clients[where.id];
           return client && client.companyId === where.companyId ? client : null;
         }),
       },
       company: {
-        findUniqueOrThrow: jest.fn(async ({ where }: { where: { id: string } }) => {
+        findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
           const company = companies[where.id];
           if (!company) throw new Error(`no Company "${where.id}"`);
           return company;
         }),
       },
       clientPortalToken: {
-        create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           const row = {
             id: `token-${nextId++}`,
             createdAt: new Date(),
@@ -89,7 +100,7 @@ jest.mock('@/prisma/prisma.service', () => {
           rows.push(row);
           return row;
         }),
-        findFirst: jest.fn(
+        findFirst: vi.fn(
           async ({ where }: { where: { id: string; companyId: string; clientId: string } }) => {
             return (
               rows.find(
@@ -98,23 +109,23 @@ jest.mock('@/prisma/prisma.service', () => {
             );
           },
         ),
-        findMany: jest.fn(async ({ where }: { where: { companyId: string; clientId: string } }) => {
+        findMany: vi.fn(async ({ where }: { where: { companyId: string; clientId: string } }) => {
           return rows
             .filter((r) => r.companyId === where.companyId && r.clientId === where.clientId)
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         }),
-        findUniqueOrThrow: jest.fn(async ({ where }: { where: { id: string } }) => {
+        findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
           const row = rows.find((r) => r.id === where.id);
           if (!row) throw new Error(`no ClientPortalToken "${where.id}"`);
           return row;
         }),
-        update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
           const row = rows.find((r) => r.id === where.id);
           if (!row) throw new Error(`no ClientPortalToken "${where.id}"`);
           Object.assign(row, data);
           return row;
         }),
-        updateMany: jest.fn(
+        updateMany: vi.fn(
           async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
             let count = 0;
             for (const row of rows) {
@@ -136,23 +147,32 @@ jest.mock('@/prisma/prisma.service', () => {
   };
 });
 
-function buildService(sendForCompany: jest.Mock): PortalTokensService {
+// Just enough of the mocked module's `__rows` row shape for the two `vi.importMock` call sites below
+// to type-check — the factory above has the full shape, this is only what those two sites read.
+type MockedTokenRow = { tokenHash: string };
+
+function buildService(sendForCompany: Mock): PortalTokensService {
   return new PortalTokensService({ sendForCompany } as unknown as MailService);
 }
 
 describe('PortalTokensService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (jest.requireMock('@/prisma/prisma.service').__rows as unknown[]).length = 0;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    // `jest.requireMock` had no async requirement; its Vitest equivalent, `vi.importMock`, resolves
+    // the SAME cached manual-mock factory result (confirmed: `vi.mock('@/prisma/prisma.service', ...)`
+    // above registers a "manual" mock in Vitest's module registry, and `importMock` returns that
+    // registry entry's cached `resolve()` value rather than re-running or auto-mocking anything) —
+    // just wrapped in a Promise, so every call site needs `await`.
+    (await vi.importMock<{ __rows: MockedTokenRow[] }>('@/prisma/prisma.service')).__rows.length = 0;
   });
 
   it('404s inviting a client that does not belong to this company', async () => {
-    const service = buildService(jest.fn());
+    const service = buildService(vi.fn());
     await expect(service.create('other-company', 'client-1')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('mints a high-entropy token, persists ONLY its hash, and emails the invite', async () => {
-    const sendMail = jest.fn().mockResolvedValue(undefined);
+    const sendMail = vi.fn().mockResolvedValue(undefined);
     const service = buildService(sendMail);
 
     const result = await service.create('company-1', 'client-1');
@@ -166,7 +186,7 @@ describe('PortalTokensService', () => {
       expect.objectContaining({ to: 'client@example.com', subject: expect.stringContaining('Acme Corp') }),
     );
 
-    const rows = jest.requireMock('@/prisma/prisma.service').__rows;
+    const rows = (await vi.importMock<{ __rows: MockedTokenRow[] }>('@/prisma/prisma.service')).__rows;
     expect(rows).toHaveLength(1);
     expect(rows[0].tokenHash).not.toBe(result.token);
   });
@@ -176,7 +196,7 @@ describe('PortalTokensService', () => {
   // `resolveRecipientLanguage`) and threads it into `buildPortalInviteEmail`, not just that the pure
   // builder itself can translate (already proven by portal-invite-email.spec.ts).
   it("emails the invite in the CLIENT's own language when Client.language is set", async () => {
-    const sendMail = jest.fn().mockResolvedValue(undefined);
+    const sendMail = vi.fn().mockResolvedValue(undefined);
     const service = buildService(sendMail);
 
     await service.create('company-1', 'client-italian');
@@ -192,7 +212,7 @@ describe('PortalTokensService', () => {
   });
 
   it('falls back to English when neither the client nor the company set a language', async () => {
-    const sendMail = jest.fn().mockResolvedValue(undefined);
+    const sendMail = vi.fn().mockResolvedValue(undefined);
     const service = buildService(sendMail);
 
     // `client-1`/`company-1` (this file's own default fixtures) set no `language` at all.
@@ -205,7 +225,7 @@ describe('PortalTokensService', () => {
   });
 
   it('still creates a usable invite, unemailed, when the client has no contactEmail', async () => {
-    const sendMail = jest.fn();
+    const sendMail = vi.fn();
     const service = buildService(sendMail);
 
     const result = await service.create('company-1', 'client-no-email');
@@ -215,7 +235,7 @@ describe('PortalTokensService', () => {
   });
 
   it('never fails the create when the email send itself throws — the token is still returned', async () => {
-    const sendMail = jest.fn().mockRejectedValue(new Error('SMTP down'));
+    const sendMail = vi.fn().mockRejectedValue(new Error('SMTP down'));
     const service = buildService(sendMail);
 
     const result = await service.create('company-1', 'client-1');
@@ -228,12 +248,12 @@ describe('PortalTokensService', () => {
     'distinguishes "no email on file" from "send failed" via emailStatus — the frontend used to ' +
       'show the same message for both',
     async () => {
-      const failingMail = jest.fn().mockRejectedValue(new Error('SMTP down'));
+      const failingMail = vi.fn().mockRejectedValue(new Error('SMTP down'));
       const failed = await buildService(failingMail).create('company-1', 'client-1');
       expect(failed.emailed).toBe(false);
       expect(failed.emailStatus).toBe('send_failed');
 
-      const unreachedMail = jest.fn();
+      const unreachedMail = vi.fn();
       const noEmail = await buildService(unreachedMail).create('company-1', 'client-no-email');
       expect(noEmail.emailed).toBe(false);
       expect(noEmail.emailStatus).toBe('no_contact_email');
@@ -244,7 +264,7 @@ describe('PortalTokensService', () => {
   );
 
   it('lists what it created, then revoke turns it inactive — never deleted', async () => {
-    const service = buildService(jest.fn().mockResolvedValue(undefined));
+    const service = buildService(vi.fn().mockResolvedValue(undefined));
     const created = await service.create('company-1', 'client-1');
 
     const before = await service.list('company-1', 'client-1');
@@ -260,7 +280,7 @@ describe('PortalTokensService', () => {
   });
 
   it('404s revoking a token that belongs to a different client', async () => {
-    const service = buildService(jest.fn().mockResolvedValue(undefined));
+    const service = buildService(vi.fn().mockResolvedValue(undefined));
     const created = await service.create('company-1', 'client-1');
 
     await expect(service.revoke('company-1', 'client-no-email', created.id)).rejects.toBeInstanceOf(
@@ -269,7 +289,7 @@ describe('PortalTokensService', () => {
   });
 
   it('revokeAll deactivates every active invite for the client in one call', async () => {
-    const service = buildService(jest.fn().mockResolvedValue(undefined));
+    const service = buildService(vi.fn().mockResolvedValue(undefined));
     await service.create('company-1', 'client-1');
     await service.create('company-1', 'client-1');
 
@@ -287,7 +307,7 @@ describe('PortalTokensService', () => {
     const ORIGINAL_ENV = process.env;
 
     beforeEach(() => {
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
       mockedResolveCompanyMailSettings.mockReset();
       process.env = { ...ORIGINAL_ENV };
       delete process.env.MAIL_PROVIDER;
@@ -310,8 +330,8 @@ describe('PortalTokensService', () => {
         password: 'pass',
         fromAddress: 'billing@company.example.com',
       });
-      const sendMailMock = jest.fn().mockResolvedValue(undefined);
-      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
       const service = new PortalTokensService(new MailService());
       await service.create('company-1', 'client-1');
@@ -324,8 +344,8 @@ describe('PortalTokensService', () => {
     it('falls back to the instance mail server when this company has none configured', async () => {
       process.env.SMTP_HOST = 'instance-smtp.example.com';
       mockedResolveCompanyMailSettings.mockResolvedValue(null);
-      const sendMailMock = jest.fn().mockResolvedValue(undefined);
-      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
       const service = new PortalTokensService(new MailService());
       const result = await service.create('company-1', 'client-1');

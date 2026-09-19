@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import {
   buildQuoteDashboardWidgets,
   buildQuoteStatisticsWidgets,
@@ -7,9 +9,9 @@ import * as persistence from '../persistence';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget, ShortListWidget, TableWidget } from './widgets';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
-const listDocuments = persistence.listDocuments as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
 
 function quote(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },

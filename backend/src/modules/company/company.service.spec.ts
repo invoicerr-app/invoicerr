@@ -13,8 +13,11 @@
  * `editCompanyInfo` now writes only its explicit allow-list, and that `numberFormats` can only ever
  * be changed through the validated `updateNumberFormat` door.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { BadRequestException } from '@nestjs/common';
@@ -23,7 +26,7 @@ import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 async function createTestCompany(numberFormats?: Record<string, string>) {

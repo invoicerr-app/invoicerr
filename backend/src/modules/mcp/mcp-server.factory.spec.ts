@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
@@ -21,8 +23,8 @@ function fakeServices(): ToolContext['services'] {
   return {
     documentsService: {} as never,
     shareLinksService: {} as never,
-    clientsService: { searchClients: jest.fn().mockResolvedValue([]) } as never,
-    articlesService: { findAll: jest.fn().mockResolvedValue([]) } as never,
+    clientsService: { searchClients: vi.fn().mockResolvedValue([]) } as never,
+    articlesService: { findAll: vi.fn().mockResolvedValue([]) } as never,
   };
 }
 

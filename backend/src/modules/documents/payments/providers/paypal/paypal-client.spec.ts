@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { CreateCheckoutSessionInput } from '../../provider';
 import { FakePayPalClient, PayPalCredentials, RealPayPalClient } from './paypal-client';
 
@@ -21,7 +22,7 @@ function mockOAuthThenCall(
   oauthResponse: unknown,
   callResponse: { ok: boolean; status: number; json: () => unknown },
 ) {
-  const fetchMock = jest.fn();
+  const fetchMock = vi.fn();
   fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => oauthResponse });
   fetchMock.mockResolvedValueOnce(callResponse);
   global.fetch = fetchMock as unknown as typeof fetch;
@@ -32,11 +33,11 @@ describe('RealPayPalClient — OAuth token caching', () => {
   const originalFetch = global.fetch;
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('fetches a token via client_credentials Basic auth and reuses it on a second call', async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -75,7 +76,7 @@ describe('RealPayPalClient — OAuth token caching', () => {
   });
 
   it('renews the token once it has expired', async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -116,7 +117,7 @@ describe('RealPayPalClient — OAuth token caching', () => {
   });
 
   it('throws with the OAuth error description on a non-ok token response', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({ error_description: 'Client Authentication failed' }),
@@ -131,7 +132,7 @@ describe('RealPayPalClient.createOrder', () => {
   const originalFetch = global.fetch;
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('formats the amount to the CURRENCY-correct decimal count and returns the approve link', async () => {
@@ -193,7 +194,7 @@ describe('RealPayPalClient.captureOrder', () => {
   const originalFetch = global.fetch;
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('captures and returns the COMPLETED status', async () => {
@@ -231,7 +232,7 @@ describe('RealPayPalClient.verifyWebhookSignature', () => {
   const originalFetch = global.fetch;
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('posts every transmission header plus the webhookId and returns true on SUCCESS', async () => {

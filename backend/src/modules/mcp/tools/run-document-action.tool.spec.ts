@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from '../../documents/actions/action-extensions';
@@ -15,8 +17,8 @@ import { TransportRegistry } from '../../documents/transports/transport-registry
 import { runDocumentActionTool } from './run-document-action.tool';
 import { ToolContext } from './types';
 
-jest.mock('../../documents/persistence');
-jest.mock('../../documents/country-policy/country-policy');
+vi.mock('../../documents/persistence');
+vi.mock('../../documents/country-policy/country-policy');
 
 /**
  * Proves `run_document_action` reaches the REAL `DocumentsService.runAction`, unaltered — the exact
@@ -39,11 +41,11 @@ function buildDocumentsService(): DocumentsService {
 
   const actionRegistry = new ActionRegistry();
   registerQuoteActions(actionRegistry, {
-    clientsService: { getClientById: jest.fn().mockResolvedValue(null) } as never,
-    mailService: { sendForCompany: jest.fn() } as never,
+    clientsService: { getClientById: vi.fn().mockResolvedValue(null) } as never,
+    mailService: { sendForCompany: vi.fn() } as never,
     typeRegistry,
     referenceRegistry,
-    queueDispatcher: { enqueueAction: jest.fn() },
+    queueDispatcher: { enqueueAction: vi.fn() },
   });
 
   const actionExtensionRegistry = new ActionExtensionRegistry();
@@ -84,7 +86,7 @@ const validQuoteData = {
 };
 
 describe('runDocumentActionTool — the real four gates, via DocumentsService.runAction', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("refuses the call BEFORE ever reaching DocumentsService when this API key's scopes do not cover the type", async () => {
     const service = buildDocumentsService();
@@ -97,7 +99,7 @@ describe('runDocumentActionTool — the real four gates, via DocumentsService.ru
   });
 
   it("surfaces the country policy's own NAMED reason verbatim — the same 403 the app's own UI would hit", async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: false,
       reason: 'No document action policy is declared for "ZZ".',
     });
@@ -111,8 +113,8 @@ describe('runDocumentActionTool — the real four gates, via DocumentsService.ru
   });
 
   it("surfaces a NAMED 409 when the action is not available for the record's current status", async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sent', // "send" only accepts ['draft', 'send_failed'] -> 'sending'.
@@ -136,8 +138,8 @@ describe('runDocumentActionTool — the real four gates, via DocumentsService.ru
   });
 
   it('save-draft actually creates a new document instance — the real handler runs, not a stub', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'draft',

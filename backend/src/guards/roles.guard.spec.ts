@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 
 import { CompanyRole } from '../../prisma/generated/prisma/client';
@@ -17,7 +19,7 @@ function createContext(role: CompanyRole | null): ExecutionContext {
 describe('RolesGuard', () => {
   function createGuard(requiredRoles: CompanyRole[] | undefined) {
     const reflector = {
-      getAllAndOverride: jest.fn().mockReturnValue(requiredRoles),
+      getAllAndOverride: vi.fn().mockReturnValue(requiredRoles),
     } as unknown as Reflector;
     return new RolesGuard(reflector);
   }

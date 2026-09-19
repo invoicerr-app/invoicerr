@@ -7,7 +7,7 @@
  * passes THROUGH the existing driver/formatter pipeline — never a shortcut straight to `fetch`.
  *
  * `async-send.spec.ts`'s own "webhooks" describe block already proves the ORCHESTRATION (when
- * `runAsyncSendAction` calls `webhooks.dispatch`, with a bare `jest.fn()`) — this file proves the
+ * `runAsyncSendAction` calls `webhooks.dispatch`, with a bare `vi.fn()`) — this file proves the
  * OTHER half: that a REAL driver (`SlackDriver`, `modules/webhooks/drivers/slack.driver.ts`,
  * UNMOCKED) actually reaches the network and genuinely calls `formatPayloadForEvent`.
  *
@@ -28,6 +28,7 @@
  *    the webhook-EMISSION discipline under test is about — sidesteps that wall while keeping the
  *    formatter call, the HTTP POST, and the driver's own body shape entirely real.
  */
+import { vi, type Mock } from 'vitest';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -39,10 +40,10 @@ import * as reportOnSend from '../reporting/report-on-send';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { runAsyncSendAction } from './async-send';
 
-jest.mock('../persistence');
-jest.mock('../numbering/take-number');
-jest.mock('../archive/archive-on-send');
-jest.mock('../reporting/report-on-send');
+vi.mock('../persistence');
+vi.mock('../numbering/take-number');
+vi.mock('../archive/archive-on-send');
+vi.mock('../reporting/report-on-send');
 
 function startStubServer(
   handler: (req: http.IncomingMessage, res: http.ServerResponse) => void,
@@ -92,7 +93,7 @@ const sendingInvoice = {
 const sentInvoice = { ...sendingInvoice, status: 'sent' };
 
 describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('a successful send makes EXACTLY ONE POST reach the stub, carrying the formatted (not raw) payload', async () => {
     let requestCount = 0;
@@ -109,12 +110,12 @@ describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub',
     });
 
     try {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingInvoice);
-      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentInvoice);
-      (archiveOnSend.archiveDeliveredArtifactsIfAny as jest.Mock).mockResolvedValue(undefined);
-      (reportOnSend.reportOnSendIfObligated as jest.Mock).mockResolvedValue(undefined);
-      const queueDispatcher = { enqueueAction: jest.fn() };
-      const deliver = jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' });
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingInvoice);
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(sentInvoice);
+      (archiveOnSend.archiveDeliveredArtifactsIfAny as Mock).mockResolvedValue(undefined);
+      (reportOnSend.reportOnSendIfObligated as Mock).mockResolvedValue(undefined);
+      const queueDispatcher = { enqueueAction: vi.fn() };
+      const deliver = vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' });
 
       await runAsyncSendAction({
         companyId: 'company-1',
@@ -156,9 +157,9 @@ describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub',
     });
 
     try {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingInvoice);
-      const queueDispatcher = { enqueueAction: jest.fn() };
-      const deliver = jest.fn().mockRejectedValue(new Error('SMTP connection refused'));
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingInvoice);
+      const queueDispatcher = { enqueueAction: vi.fn() };
+      const deliver = vi.fn().mockRejectedValue(new Error('SMTP connection refused'));
 
       await expect(
         runAsyncSendAction({
@@ -188,9 +189,9 @@ describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub',
     });
 
     try {
-      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({ ...sendingInvoice, status: 'draft' });
-      (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingInvoice);
-      const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...sendingInvoice, status: 'draft' });
+      (persistence.upsertDocument as Mock).mockResolvedValue(sendingInvoice);
+      const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
       await runAsyncSendAction({
         companyId: 'company-1',
@@ -200,7 +201,7 @@ describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub',
         params: {},
         numberOnEnqueue: true,
         queueDispatcher,
-        deliver: jest.fn(),
+        deliver: vi.fn(),
         webhooks: realEmitter(url),
       });
 

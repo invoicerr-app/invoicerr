@@ -1,12 +1,14 @@
+import { vi, type Mock } from 'vitest';
+
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { LEGAL_ACCEPTANCE_REQUIRED_CODE, LegalAcceptanceGuard } from './legal-acceptance.guard';
 import { getPendingAcceptanceSlugs } from './legal-acceptance';
 
-jest.mock('./legal-acceptance');
+vi.mock('./legal-acceptance');
 
-const getPending = getPendingAcceptanceSlugs as jest.Mock;
+const getPending = getPendingAcceptanceSlugs as Mock;
 
 function buildContext(overrides: {
   method?: string;
@@ -40,7 +42,7 @@ function fakeReflector(): Reflector {
 }
 
 describe('LegalAcceptanceGuard', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('never checks the DB for a read-only request (GET/HEAD/OPTIONS) — looking is always allowed', async () => {
     const guard = new LegalAcceptanceGuard(fakeReflector());

@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -12,16 +14,16 @@ import {
   upsertDocument,
 } from './persistence';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     documentInstance: {
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
-      update: jest.fn(),
-      create: jest.fn(),
-      updateMany: jest.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+      update: vi.fn(),
+      create: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -30,17 +32,17 @@ jest.mock('@/prisma/prisma.service', () => ({
 // called, the same "mock the singleton, assert on it" approach this module's own `logger.warn` call
 // is meant to be caught by (see `conformity/pollers/chorus-pro-status-poller.spec.ts` for the same
 // pattern on `logger.error`).
-jest.mock('@/logger/logger.service', () => ({
-  logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-const findFirst = prisma.documentInstance.findFirst as jest.Mock;
-const findMany = prisma.documentInstance.findMany as jest.Mock;
-const count = prisma.documentInstance.count as jest.Mock;
-const update = prisma.documentInstance.update as jest.Mock;
-const create = prisma.documentInstance.create as jest.Mock;
-const updateMany = prisma.documentInstance.updateMany as jest.Mock;
-const loggerWarn = logger.warn as jest.Mock;
+const findFirst = prisma.documentInstance.findFirst as Mock;
+const findMany = prisma.documentInstance.findMany as Mock;
+const count = prisma.documentInstance.count as Mock;
+const update = prisma.documentInstance.update as Mock;
+const create = prisma.documentInstance.create as Mock;
+const updateMany = prisma.documentInstance.updateMany as Mock;
+const loggerWarn = logger.warn as Mock;
 
 describe('persistence — upsertDocument', () => {
   beforeEach(() => {

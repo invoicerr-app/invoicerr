@@ -14,7 +14,7 @@
  * is SKIPPED with a one-line stderr warning, the exact same "flag on, requirement missing" outcome
  * `liveDescribe` already gives for a missing credential.
  *
- *   LOCAL_OCR_LIVE=1 npx jest local-client.live --no-coverage --forceExit
+ *   LOCAL_OCR_LIVE=1 npx vitest run src/ocr-service/local-client.live.spec.ts
  *
  * VERIFIED, LIVE: a `docker build` of the `ocr-image` sources + `docker run` +
  * a real `POST /ocr` against a genuinely RASTERIZED (image-only, no text layer) invoice PDF, in BOTH

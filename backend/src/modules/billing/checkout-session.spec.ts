@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -16,28 +18,28 @@ import {
   reserveCheckoutWindow,
 } from './company-subscription.store';
 
-jest.mock('./billing-customer', () => ({
-  loadCompanyBillingIdentity: jest.fn(),
-  getOrCreatePolarCustomerForCompany: jest.fn(),
+vi.mock('./billing-customer', () => ({
+  loadCompanyBillingIdentity: vi.fn(),
+  getOrCreatePolarCustomerForCompany: vi.fn(),
 }));
-jest.mock('./company-subscription.store');
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('./company-subscription.store');
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUniqueOrThrow: jest.fn() },
-    partyIdentifier: { findFirst: jest.fn() },
+    company: { findUniqueOrThrow: vi.fn() },
+    partyIdentifier: { findFirst: vi.fn() },
   },
 }));
-jest.mock('@/logger/logger.service', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const loadIdentity = loadCompanyBillingIdentity as jest.Mock;
-const getOrCreateCustomer = getOrCreatePolarCustomerForCompany as jest.Mock;
-const getOrCreateSub = getOrCreateCompanySubscription as jest.Mock;
-const reserveWindow = reserveCheckoutWindow as jest.Mock;
-const releaseWindow = releaseCheckoutWindow as jest.Mock;
-const warn = logger.warn as jest.Mock;
+const loadIdentity = loadCompanyBillingIdentity as Mock;
+const getOrCreateCustomer = getOrCreatePolarCustomerForCompany as Mock;
+const getOrCreateSub = getOrCreateCompanySubscription as Mock;
+const reserveWindow = reserveCheckoutWindow as Mock;
+const releaseWindow = releaseCheckoutWindow as Mock;
+const warn = logger.warn as Mock;
 
 /** Shape of Polar's own `HTTPValidationError` (422) — same fixture convention
  *  `customer-provisioning.spec.ts` already uses for the sibling "email already exists" case. */
@@ -49,13 +51,13 @@ function taxIdInvalidError(): Error {
     ],
   });
 }
-const findCompany = prisma.company.findUniqueOrThrow as jest.Mock;
-const findVat = prisma.partyIdentifier.findFirst as jest.Mock;
+const findCompany = prisma.company.findUniqueOrThrow as Mock;
+const findVat = prisma.partyIdentifier.findFirst as Mock;
 
-function fakeClient(create = jest.fn()): CheckoutSessionClient {
+function fakeClient(create = vi.fn()): CheckoutSessionClient {
   return {
     checkouts: { create },
-    customers: { getExternal: jest.fn(), create: jest.fn() },
+    customers: { getExternal: vi.fn(), create: vi.fn() },
   } as unknown as CheckoutSessionClient;
 }
 
@@ -106,7 +108,7 @@ describe('createCheckoutSession', () => {
 
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('ensures the company customer exists first, then opens a checkout keyed by company id, prefilled with address and VAT number', async () => {
@@ -117,7 +119,7 @@ describe('createCheckoutSession', () => {
       billingEmail: null,
     });
     getOrCreateCustomer.mockResolvedValue({ id: 'cus_1', type: 'individual' });
-    const create = jest.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
+    const create = vi.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
     const client = fakeClient(create);
 
     const result = await createCheckoutSession(
@@ -171,7 +173,7 @@ describe('createCheckoutSession', () => {
     getOrCreateCustomer.mockResolvedValue({ id: 'cus_1', type: 'individual' });
     findCompany.mockResolvedValue({ ...COMPANY_ADDRESS_ROW, country: 'Nowhereland', countryCode: null });
     findVat.mockResolvedValue(null);
-    const create = jest.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
+    const create = vi.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
     const client = fakeClient(create);
 
     await createCheckoutSession(
@@ -197,7 +199,7 @@ describe('createCheckoutSession', () => {
       billingEmail: null,
     });
     getOrCreateCustomer.mockRejectedValue(new Error('BillingEmailTakenError'));
-    const create = jest.fn();
+    const create = vi.fn();
     const client = fakeClient(create);
 
     await expect(
@@ -216,7 +218,7 @@ describe('createCheckoutSession', () => {
 
   it('refuses a second checkout when an ACTIVE/trialing subscription already exists (SubscriptionAlreadyActiveError)', async () => {
     getOrCreateSub.mockResolvedValue({ status: 'ACTIVE', lastCheckoutStartedAt: null });
-    const create = jest.fn();
+    const create = vi.fn();
     const client = fakeClient(create);
 
     await expect(
@@ -236,7 +238,7 @@ describe('createCheckoutSession', () => {
 
   it('refuses a second checkout when reserveCheckoutWindow reports the window already held (CheckoutAlreadyInProgressError)', async () => {
     reserveWindow.mockResolvedValue(null);
-    const create = jest.fn();
+    const create = vi.fn();
     const client = fakeClient(create);
 
     await expect(
@@ -277,7 +279,7 @@ describe('createCheckoutSession', () => {
         billingEmail: null,
       });
       getOrCreateCustomer.mockResolvedValue({ id: 'cus_1', type: 'individual' });
-      const create = jest.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
+      const create = vi.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
       const client = fakeClient(create);
       const params = {
         companyId: 'company-1',
@@ -311,7 +313,7 @@ describe('createCheckoutSession', () => {
       billingEmail: null,
     });
     getOrCreateCustomer.mockResolvedValue({ id: 'cus_1', type: 'individual' });
-    const create = jest.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
+    const create = vi.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
     const client = fakeClient(create);
 
     await createCheckoutSession(
@@ -337,7 +339,7 @@ describe('createCheckoutSession', () => {
       billingEmail: null,
     });
     getOrCreateCustomer.mockResolvedValue({ id: 'cus_1', type: 'individual' });
-    const create = jest.fn().mockRejectedValue(new Error('Polar is down'));
+    const create = vi.fn().mockRejectedValue(new Error('Polar is down'));
     const client = fakeClient(create);
 
     await expect(
@@ -364,7 +366,7 @@ describe('createCheckoutSession', () => {
     });
     getOrCreateCustomer.mockResolvedValue({ id: 'cus_1', type: 'individual' });
     findVat.mockResolvedValue({ value: '982187676' }); // a SIREN, not a VAT number
-    const create = jest.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
+    const create = vi.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
     const client = fakeClient(create);
 
     const result = await createCheckoutSession(
@@ -390,7 +392,7 @@ describe('createCheckoutSession', () => {
     });
     getOrCreateCustomer.mockResolvedValue({ id: 'cus_1', type: 'individual' });
     findCompany.mockResolvedValue({ ...COMPANY_ADDRESS_ROW, exemptVat: true });
-    const create = jest.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
+    const create = vi.fn().mockResolvedValue({ url: 'https://sandbox.polar.sh/checkout/abc' });
     const client = fakeClient(create);
 
     await createCheckoutSession(
@@ -414,7 +416,7 @@ describe('createCheckoutSession', () => {
       billingEmail: null,
     });
     getOrCreateCustomer.mockResolvedValue({ id: 'cus_1', type: 'individual' });
-    const create = jest
+    const create = vi
       .fn()
       .mockRejectedValueOnce(taxIdInvalidError())
       .mockResolvedValueOnce({ url: 'https://sandbox.polar.sh/checkout/abc' });
@@ -462,7 +464,7 @@ describe('createCheckoutSession', () => {
       statusCode: 422,
       detail: [{ loc: ['body', 'email'], msg: 'A customer with this email address already exists.' }],
     });
-    const create = jest.fn().mockRejectedValue(otherError);
+    const create = vi.fn().mockRejectedValue(otherError);
     const client = fakeClient(create);
 
     await expect(

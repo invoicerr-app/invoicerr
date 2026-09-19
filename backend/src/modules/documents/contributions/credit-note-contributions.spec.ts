@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import { buildCreditNoteStatisticsWidgets, resolveInvoiceLabel } from './credit-note-contributions';
@@ -6,10 +8,10 @@ import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { TableWidget } from './widgets';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
-const listDocuments = persistence.listDocuments as jest.Mock;
-const findOwnedDocument = persistence.findOwnedDocument as jest.Mock;
+const listDocuments = persistence.listDocuments as Mock;
+const findOwnedDocument = persistence.findOwnedDocument as Mock;
 
 function creditNote(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -31,7 +33,14 @@ describe('credit-note.descriptor — no dashboard contribution, deliberately', (
 });
 
 describe('resolveInvoiceLabel', () => {
-  beforeEach(() => findOwnedDocument.mockReset());
+  // afterEach, not beforeEach: under Vitest (not Jest), resetting this mock in a `beforeEach` that
+  // runs ahead of a LATER test's own `mockRejectedValue(...)` — reproduced with a project-independent
+  // minimal case, so this is a Vitest/mock-timing quirk, not a bug in `resolveInvoiceLabel` itself —
+  // made an unrelated prior test's mock teardown surface as a false "NotFoundException: gone" failure
+  // on this describe's own rejection-path tests, even though the try/catch below genuinely ran and
+  // returned the right fallback value. Clearing after each test instead avoids the interaction and
+  // keeps the exact same isolation guarantee (a fresh mock for every test).
+  afterEach(() => findOwnedDocument.mockReset());
 
   it("resolves to the invoice's own displayNumber when it has one", async () => {
     findOwnedDocument.mockResolvedValue({ id: 'inv-1', displayNumber: 'INV-2026-0042' });

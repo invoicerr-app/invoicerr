@@ -6,8 +6,11 @@
  * identifiers (e.g. its own `IT_PA_CODE`, if it is itself a Pubblica Amministrazione) go through the
  * exact same catalog and the exact same refusal, not a second, parallel mechanism.
  */
-jest.mock('../webhooks/webhook-dispatcher.service', () => ({
-  WebhookDispatcherService: jest.fn(),
+
+import { vi } from 'vitest';
+
+vi.mock('../webhooks/webhook-dispatcher.service', () => ({
+  WebhookDispatcherService: vi.fn(),
 }));
 
 import { BadRequestException } from '@nestjs/common';
@@ -18,7 +21,7 @@ import { seedCountryIdentifierRequirements } from '../documents/country-identifi
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
-  dispatch: jest.fn().mockResolvedValue(undefined),
+  dispatch: vi.fn().mockResolvedValue(undefined),
 } as unknown as WebhookDispatcherService;
 
 async function createTestCompany() {

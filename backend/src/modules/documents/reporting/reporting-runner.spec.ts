@@ -6,6 +6,8 @@
  * Postgres/Redis proof (a genuine job traversing the queue) is
  * `queue/__tests__/document-report-queue.redis.spec.ts`'s job.
  */
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { createAuthorityEvents, journalSyntheticEvent } from '../conformity/authority-events.persistence';
@@ -19,22 +21,22 @@ import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
 import { InvalidDeclarationResultError, ReportingRunner } from './reporting-runner';
 
-jest.mock('../persistence');
-jest.mock('../conformity/authority-events.persistence');
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('../persistence');
+vi.mock('../conformity/authority-events.persistence');
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUniqueOrThrow: jest.fn() },
-    client: { findFirstOrThrow: jest.fn() },
+    company: { findUniqueOrThrow: vi.fn() },
+    client: { findFirstOrThrow: vi.fn() },
   },
 }));
 
-const mockedFindOwnedDocument = persistence.findOwnedDocument as jest.Mock;
-const mockedCreateAuthorityEvents = createAuthorityEvents as jest.Mock;
-const mockedJournalSynthetic = journalSyntheticEvent as jest.Mock;
+const mockedFindOwnedDocument = persistence.findOwnedDocument as Mock;
+const mockedCreateAuthorityEvents = createAuthorityEvents as Mock;
+const mockedJournalSynthetic = journalSyntheticEvent as Mock;
 const mockedPrisma = prisma as unknown as {
-  company: { findUniqueOrThrow: jest.Mock };
-  client: { findFirstOrThrow: jest.Mock };
+  company: { findUniqueOrThrow: Mock };
+  client: { findFirstOrThrow: Mock };
 };
 
 const JOB_DATA: ReportJobData = {
@@ -94,8 +96,8 @@ function buildRegistry(provider?: DeclarationProvider): DeclarationProviderRegis
 
 function buildRunner(
   provider?: DeclarationProvider,
-  events?: { publish: jest.Mock },
-  webhooks?: { dispatch: jest.Mock },
+  events?: { publish: Mock },
+  webhooks?: { dispatch: Mock },
 ): ReportingRunner {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildInvoiceDescriptor());
@@ -116,7 +118,7 @@ const SUCCESS_RESULT: DeclarationResult = {
 
 describe('ReportingRunner.runReport', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
     mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
     mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
@@ -132,7 +134,7 @@ describe('ReportingRunner.runReport', () => {
   });
 
   it('a real success journals the declaration event, carrying the authority result verbatim', async () => {
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare });
 
     const result = await runner.runReport(JOB_DATA);
@@ -151,7 +153,7 @@ describe('ReportingRunner.runReport', () => {
 
   // Credentials absent → `report:blocked`, journaled, NEVER a crash.
   it('missing credentials (ChannelNotConnectedError): journals report:blocked, never calls createAuthorityEvents', async () => {
-    const declare = jest.fn().mockRejectedValue(new ChannelNotConnectedError('nav'));
+    const declare = vi.fn().mockRejectedValue(new ChannelNotConnectedError('nav'));
     const runner = buildRunner({ providerId: 'nav', declare });
 
     const result = await runner.runReport(JOB_DATA);
@@ -172,7 +174,7 @@ describe('ReportingRunner.runReport', () => {
   // attempts/backoff is what actually retries a report job, and it can only do that if this method
   // still throws.
   it('a genuine, unexpected failure (not "not connected") PROPAGATES — never swallowed here', async () => {
-    const declare = jest.fn().mockRejectedValue(new Error('NAV HTTP 500'));
+    const declare = vi.fn().mockRejectedValue(new Error('NAV HTTP 500'));
     const runner = buildRunner({ providerId: 'nav', declare });
 
     await expect(runner.runReport(JOB_DATA)).rejects.toThrow('NAV HTTP 500');
@@ -182,7 +184,7 @@ describe('ReportingRunner.runReport', () => {
 
   // ⚖ "MARK/transactionId not empty" — the hard contract this whole mechanism refuses to relax.
   it('a provider returning an empty authorityId is REFUSED — never journaled as a success', async () => {
-    const declare = jest.fn().mockResolvedValue({ ...SUCCESS_RESULT, authorityId: '' });
+    const declare = vi.fn().mockResolvedValue({ ...SUCCESS_RESULT, authorityId: '' });
     const runner = buildRunner({ providerId: 'nav', declare });
 
     await expect(runner.runReport(JOB_DATA)).rejects.toThrow(InvalidDeclarationResultError);
@@ -190,7 +192,7 @@ describe('ReportingRunner.runReport', () => {
   });
 
   it('a provider returning an empty statusCode is REFUSED the same way', async () => {
-    const declare = jest.fn().mockResolvedValue({ ...SUCCESS_RESULT, statusCode: '' });
+    const declare = vi.fn().mockResolvedValue({ ...SUCCESS_RESULT, statusCode: '' });
     const runner = buildRunner({ providerId: 'nav', declare });
 
     await expect(runner.runReport(JOB_DATA)).rejects.toThrow(InvalidDeclarationResultError);
@@ -205,7 +207,7 @@ describe('ReportingRunner.runReport', () => {
   // "already done" shortcut that could itself drift from the real dedup mechanism.
   it("re-running the same successful declaration reflects the persistence layer's own dedup (1, then 0)", async () => {
     mockedCreateAuthorityEvents.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare });
 
     const first = await runner.runReport(JOB_DATA);
@@ -219,12 +221,12 @@ describe('ReportingRunner.runReport', () => {
 
 describe('ReportingRunner.recordTerminalFailure', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedJournalSynthetic.mockResolvedValue(1);
   });
 
   it("journals report:failed with the failure's own message", async () => {
-    const runner = buildRunner({ providerId: 'nav', declare: jest.fn() });
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn() });
     await runner.recordTerminalFailure(JOB_DATA, new Error('every retry exhausted'));
 
     expect(mockedJournalSynthetic).toHaveBeenCalledWith(
@@ -241,7 +243,7 @@ describe('ReportingRunner.recordTerminalFailure', () => {
   // holds.
   it('never throws even when the journal write itself fails', async () => {
     mockedJournalSynthetic.mockRejectedValue(new Error('DB unreachable'));
-    const runner = buildRunner({ providerId: 'nav', declare: jest.fn() });
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn() });
 
     await expect(runner.recordTerminalFailure(JOB_DATA, new Error('original'))).resolves.toBeUndefined();
   });
@@ -253,7 +255,7 @@ describe('ReportingRunner.recordTerminalFailure', () => {
 // publish only on a GENUINELY NEW journal row, never on a dedup no-op.
 describe('ReportingRunner — events', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
     mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
     mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
@@ -261,8 +263,8 @@ describe('ReportingRunner — events', () => {
 
   it('runReport: publishes an authority-event nudge on a genuine, newly-journaled success', async () => {
     mockedCreateAuthorityEvents.mockResolvedValue(1);
-    const events = { publish: jest.fn().mockResolvedValue(undefined) };
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const events = { publish: vi.fn().mockResolvedValue(undefined) };
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }, events);
 
     await runner.runReport(JOB_DATA);
@@ -276,8 +278,8 @@ describe('ReportingRunner — events', () => {
 
   it("runReport: never publishes when the persistence layer's own dedup journaled nothing new", async () => {
     mockedCreateAuthorityEvents.mockResolvedValue(0);
-    const events = { publish: jest.fn() };
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const events = { publish: vi.fn() };
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }, events);
 
     await runner.runReport(JOB_DATA);
@@ -287,8 +289,8 @@ describe('ReportingRunner — events', () => {
 
   it('runReport: publishes on a NEWLY-journaled report:blocked verdict too', async () => {
     mockedJournalSynthetic.mockResolvedValue(1);
-    const events = { publish: jest.fn().mockResolvedValue(undefined) };
-    const declare = jest.fn().mockRejectedValue(new ChannelNotConnectedError('nav'));
+    const events = { publish: vi.fn().mockResolvedValue(undefined) };
+    const declare = vi.fn().mockRejectedValue(new ChannelNotConnectedError('nav'));
     const runner = buildRunner({ providerId: 'nav', declare }, events);
 
     await runner.runReport(JOB_DATA);
@@ -301,8 +303,8 @@ describe('ReportingRunner — events', () => {
   });
 
   it('runReport: never publishes when a genuine failure propagates — nothing was journaled', async () => {
-    const events = { publish: jest.fn() };
-    const declare = jest.fn().mockRejectedValue(new Error('NAV HTTP 500'));
+    const events = { publish: vi.fn() };
+    const declare = vi.fn().mockRejectedValue(new Error('NAV HTTP 500'));
     const runner = buildRunner({ providerId: 'nav', declare }, events);
 
     await expect(runner.runReport(JOB_DATA)).rejects.toThrow('NAV HTTP 500');
@@ -312,8 +314,8 @@ describe('ReportingRunner — events', () => {
 
   it('recordTerminalFailure: publishes when report:failed is genuinely newly journaled', async () => {
     mockedJournalSynthetic.mockResolvedValue(1);
-    const events = { publish: jest.fn().mockResolvedValue(undefined) };
-    const runner = buildRunner({ providerId: 'nav', declare: jest.fn() }, events);
+    const events = { publish: vi.fn().mockResolvedValue(undefined) };
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn() }, events);
 
     await runner.recordTerminalFailure(JOB_DATA, new Error('every retry exhausted'));
 
@@ -326,8 +328,8 @@ describe('ReportingRunner — events', () => {
 
   it('recordTerminalFailure: never publishes when the journal write itself fails', async () => {
     mockedJournalSynthetic.mockRejectedValue(new Error('DB unreachable'));
-    const events = { publish: jest.fn() };
-    const runner = buildRunner({ providerId: 'nav', declare: jest.fn() }, events);
+    const events = { publish: vi.fn() };
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn() }, events);
 
     await runner.recordTerminalFailure(JOB_DATA, new Error('original'));
 
@@ -336,7 +338,7 @@ describe('ReportingRunner — events', () => {
 
   it('never touches events at all when absent — every pre-existing caller keeps working unchanged', async () => {
     mockedCreateAuthorityEvents.mockResolvedValue(1);
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }); // no events
     await expect(runner.runReport(JOB_DATA)).resolves.toEqual({ journaled: 1 });
   });
@@ -349,7 +351,7 @@ describe('ReportingRunner — events', () => {
 // must keep passing unchanged.
 describe('ReportingRunner — webhooks', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
     mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
     mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
@@ -357,8 +359,8 @@ describe('ReportingRunner — webhooks', () => {
 
   it('runReport: dispatches DOCUMENT_AUTHORITY_EVENT with providerId/statusCode on a genuine, newly-journaled success', async () => {
     mockedCreateAuthorityEvents.mockResolvedValue(1);
-    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }, undefined, webhooks);
 
     await runner.runReport(JOB_DATA);
@@ -377,8 +379,8 @@ describe('ReportingRunner — webhooks', () => {
 
   it("runReport: never dispatches when the persistence layer's own dedup journaled nothing new", async () => {
     mockedCreateAuthorityEvents.mockResolvedValue(0);
-    const webhooks = { dispatch: jest.fn() };
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const webhooks = { dispatch: vi.fn() };
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }, undefined, webhooks);
 
     await runner.runReport(JOB_DATA);
@@ -388,8 +390,8 @@ describe('ReportingRunner — webhooks', () => {
 
   it('recordTerminalFailure: dispatches DOCUMENT_AUTHORITY_EVENT (REPORT_FAILED_STATUS_CODE) when genuinely newly journaled', async () => {
     mockedJournalSynthetic.mockResolvedValue(1);
-    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
-    const runner = buildRunner({ providerId: 'nav', declare: jest.fn() }, undefined, webhooks);
+    const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn() }, undefined, webhooks);
 
     await runner.recordTerminalFailure(JOB_DATA, new Error('every retry exhausted'));
 
@@ -403,8 +405,8 @@ describe('ReportingRunner — webhooks', () => {
   // declaration itself failed.
   it('a dispatch failure NEVER propagates — runReport still resolves normally', async () => {
     mockedCreateAuthorityEvents.mockResolvedValue(1);
-    const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }, undefined, webhooks);
 
     await expect(runner.runReport(JOB_DATA)).resolves.toEqual({ journaled: 1 });
@@ -413,7 +415,7 @@ describe('ReportingRunner — webhooks', () => {
 
   it('never touches webhooks at all when absent — every pre-existing caller keeps working unchanged', async () => {
     mockedCreateAuthorityEvents.mockResolvedValue(1);
-    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }); // no webhooks
     await expect(runner.runReport(JOB_DATA)).resolves.toEqual({ journaled: 1 });
   });

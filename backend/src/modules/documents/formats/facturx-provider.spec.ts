@@ -7,6 +7,7 @@
  * reason that has nothing to do with this provider's own logic. Everything else — the semantic
  * bridge, the REAL vendored EN 16931 Schematron, the REAL Factur-X embed — runs for real.
  */
+import { vi, type Mock } from 'vitest';
 import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
 const { decodePDFRawStream } = require('pdf-lib/cjs/core');
 
@@ -19,7 +20,7 @@ import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schemat
 import { DocumentFormatParty } from './format-provider';
 import { buildFacturxFormatProvider } from './facturx-provider';
 
-jest.mock('../rendering/render-instance-pdf');
+vi.mock('../rendering/render-instance-pdf');
 
 /**
  * Regression guard for the gap this file's own header now documents as
@@ -102,8 +103,8 @@ async function fakeRealPdf(): Promise<Buffer> {
 
 describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts gates it', () => {
   beforeEach(async () => {
-    jest.clearAllMocks();
-    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+    vi.clearAllMocks();
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
       pdf: await fakeRealPdf(),
       totals: {
         currency: 'EUR',

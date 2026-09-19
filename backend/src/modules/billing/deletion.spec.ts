@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -7,23 +9,23 @@ import {
   PolarCancellationFailedError,
 } from './deletion';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    webhook: { deleteMany: jest.fn() },
-    company: { delete: jest.fn() },
-    companySubscription: { findUnique: jest.fn() },
-    $transaction: jest.fn(),
+    webhook: { deleteMany: vi.fn() },
+    company: { delete: vi.fn() },
+    companySubscription: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
-const findSub = prisma.companySubscription.findUnique as jest.Mock;
-const transaction = prisma.$transaction as jest.Mock;
+const findSub = prisma.companySubscription.findUnique as Mock;
+const transaction = prisma.$transaction as Mock;
 
 const NOW = new Date('2026-09-17T00:00:00.000Z');
 const DUE_AT = new Date('2026-09-16T00:00:00.000Z'); // already due as of NOW
 
-function fakeClient(revoke = jest.fn().mockResolvedValue({})): DeletionPolarClient {
+function fakeClient(revoke = vi.fn().mockResolvedValue({})): DeletionPolarClient {
   return { subscriptions: { revoke } };
 }
 
@@ -39,7 +41,7 @@ describe('deleteCompanyPermanently', () => {
     // callback form it uses now — the callback is invoked with `prisma` itself as `tx`, so a test's
     // `findSub`/`prisma.webhook.deleteMany`/`prisma.company.delete` mocks apply inside the
     // transaction exactly as they do outside it. Re-assigned every test: `resetAllMocks()` in
-    // `afterEach` below wipes a mock's IMPLEMENTATION, not just its call history, so a `jest.fn(impl)`
+    // `afterEach` below wipes a mock's IMPLEMENTATION, not just its call history, so a `vi.fn(impl)`
     // baked in once at module-mock time would silently stop dispatching after the FIRST test.
     transaction.mockImplementation((arg: unknown) =>
       typeof arg === 'function'
@@ -47,16 +49,16 @@ describe('deleteCompanyPermanently', () => {
         : Promise.all(arg as Promise<unknown>[]),
     );
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("deletes the company's Webhook rows and the Company row in one transaction, webhooks first", async () => {
     findSub.mockResolvedValue(dueRow()); // never paid — nothing to cancel
     const calls: string[] = [];
-    (prisma.webhook.deleteMany as jest.Mock).mockImplementation(() => {
+    (prisma.webhook.deleteMany as Mock).mockImplementation(() => {
       calls.push('webhook');
       return Promise.resolve({ count: 2 });
     });
-    (prisma.company.delete as jest.Mock).mockImplementation(() => {
+    (prisma.company.delete as Mock).mockImplementation(() => {
       calls.push('company');
       return Promise.resolve({});
     });
@@ -72,12 +74,12 @@ describe('deleteCompanyPermanently', () => {
 
   it("cancels a PAID company's Polar subscription (immediate revoke) BEFORE deleting it", async () => {
     findSub.mockResolvedValue(dueRow({ polarSubscriptionId: 'polar_sub_123' }));
-    const revoke = jest.fn().mockResolvedValue({});
+    const revoke = vi.fn().mockResolvedValue({});
     const order: string[] = [];
     revoke.mockImplementation(async () => {
       order.push('revoke');
     });
-    (prisma.company.delete as jest.Mock).mockImplementation(async () => {
+    (prisma.company.delete as Mock).mockImplementation(async () => {
       order.push('company-delete');
     });
 
@@ -89,7 +91,7 @@ describe('deleteCompanyPermanently', () => {
 
   it('never even calls Polar for a never-paid company (no polarSubscriptionId)', async () => {
     findSub.mockResolvedValue(dueRow({ polarSubscriptionId: null }));
-    const revoke = jest.fn();
+    const revoke = vi.fn();
 
     await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
 
@@ -98,7 +100,7 @@ describe('deleteCompanyPermanently', () => {
 
   it('never even calls Polar when the company has no CompanySubscription row at all', async () => {
     findSub.mockResolvedValue(null);
-    const revoke = jest.fn();
+    const revoke = vi.fn();
 
     const deleted = await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
 
@@ -109,7 +111,7 @@ describe('deleteCompanyPermanently', () => {
 
   it('REFUSES the deletion (named error) when the Polar cancellation fails — never a company deleted while still billed', async () => {
     findSub.mockResolvedValue(dueRow({ polarSubscriptionId: 'polar_sub_123' }));
-    const revoke = jest.fn().mockRejectedValue(new Error('polar is down'));
+    const revoke = vi.fn().mockRejectedValue(new Error('polar is down'));
 
     await expect(deleteCompanyPermanently('company-1', NOW, fakeClient(revoke))).rejects.toThrow(
       PolarCancellationFailedError,
@@ -121,7 +123,7 @@ describe('deleteCompanyPermanently', () => {
 
   it('the refusal error carries a named, machine-checkable code', async () => {
     findSub.mockResolvedValue(dueRow({ polarSubscriptionId: 'polar_sub_123' }));
-    const revoke = jest.fn().mockRejectedValue(new Error('polar is down'));
+    const revoke = vi.fn().mockRejectedValue(new Error('polar is down'));
 
     await expect(deleteCompanyPermanently('company-1', NOW, fakeClient(revoke))).rejects.toMatchObject({
       code: 'POLAR_CANCELLATION_FAILED',
@@ -131,7 +133,7 @@ describe('deleteCompanyPermanently', () => {
   describe('stale-read guard (race with a company that stopped being due)', () => {
     it('refuses to delete a row whose status is no longer ZIPPED (a webhook reactivated it since the sweep read it)', async () => {
       findSub.mockResolvedValue(dueRow({ status: 'ACTIVE' }));
-      const revoke = jest.fn();
+      const revoke = vi.fn();
 
       const deleted = await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
 
@@ -160,7 +162,7 @@ describe('deleteCompanyPermanently', () => {
         findSub
           .mockResolvedValueOnce(dueRow({ polarSubscriptionId: 'polar_sub_123' }))
           .mockResolvedValueOnce(dueRow({ status: 'ACTIVE' }));
-        const revoke = jest.fn().mockResolvedValue({});
+        const revoke = vi.fn().mockResolvedValue({});
 
         const deleted = await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
 
@@ -181,16 +183,16 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
         : Promise.all(arg as Promise<unknown>[]),
     );
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('deletes Webhook then Company, in one transaction — no CompanySubscription.status/deletionDueAt gate at all', async () => {
     findSub.mockResolvedValue({ polarSubscriptionId: null }); // never paid — nothing to cancel
     const calls: string[] = [];
-    (prisma.webhook.deleteMany as jest.Mock).mockImplementation(() => {
+    (prisma.webhook.deleteMany as Mock).mockImplementation(() => {
       calls.push('webhook');
       return Promise.resolve({ count: 0 });
     });
-    (prisma.company.delete as jest.Mock).mockImplementation(() => {
+    (prisma.company.delete as Mock).mockImplementation(() => {
       calls.push('company');
       return Promise.resolve({});
     });
@@ -206,10 +208,10 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
   it("cancels a PAID company's Polar subscription (immediate revoke) BEFORE deleting it", async () => {
     findSub.mockResolvedValue({ polarSubscriptionId: 'polar_sub_123' });
     const order: string[] = [];
-    const revoke = jest.fn().mockImplementation(async () => {
+    const revoke = vi.fn().mockImplementation(async () => {
       order.push('revoke');
     });
-    (prisma.company.delete as jest.Mock).mockImplementation(async () => {
+    (prisma.company.delete as Mock).mockImplementation(async () => {
       order.push('company-delete');
     });
 
@@ -221,7 +223,7 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
 
   it('never even calls Polar for a never-paid company, or one with no CompanySubscription row at all', async () => {
     findSub.mockResolvedValue(null);
-    const revoke = jest.fn();
+    const revoke = vi.fn();
 
     await deleteCompanyPermanentlyNow('company-1', fakeClient(revoke));
 
@@ -231,7 +233,7 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
 
   it('REFUSES the deletion (named error) when the Polar cancellation fails — never a company deleted while still billed', async () => {
     findSub.mockResolvedValue({ polarSubscriptionId: 'polar_sub_123' });
-    const revoke = jest.fn().mockRejectedValue(new Error('polar is down'));
+    const revoke = vi.fn().mockRejectedValue(new Error('polar is down'));
 
     await expect(deleteCompanyPermanentlyNow('company-1', fakeClient(revoke))).rejects.toThrow(
       PolarCancellationFailedError,

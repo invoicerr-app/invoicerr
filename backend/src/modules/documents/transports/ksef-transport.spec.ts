@@ -8,6 +8,7 @@
  * `ksef-crypto.spec.ts`/`ksef-client.spec.ts` are reprised unchanged and prove the crypto/client
  * pieces this transport composes; this file only proves the composition.
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -17,41 +18,52 @@ import { DocumentFormatProvider } from '../formats/format-provider';
 import { buildKsefTransport } from './ksef-transport';
 import { DocumentTransportContext } from './transport-registry';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    company: { findUnique: jest.fn() },
-    client: { findFirst: jest.fn() },
+    company: { findUnique: vi.fn() },
+    client: { findFirst: vi.fn() },
   },
 }));
 
-const mockAuthChallenge = jest.fn();
-const mockAuthKsefToken = jest.fn();
-const mockAuthStatus = jest.fn();
-const mockAuthRedeem = jest.fn();
-const mockOpenOnlineSession = jest.fn();
-const mockSendInvoice = jest.fn();
-const mockCloseSession = jest.fn();
+const mockAuthChallenge = vi.fn();
+const mockAuthKsefToken = vi.fn();
+const mockAuthStatus = vi.fn();
+const mockAuthRedeem = vi.fn();
+const mockOpenOnlineSession = vi.fn();
+const mockSendInvoice = vi.fn();
+const mockCloseSession = vi.fn();
 
-jest.mock('./ksef/ksef-client', () => {
-  const actual = jest.requireActual('./ksef/ksef-client');
+vi.mock('./ksef/ksef-client', async () => {
+  // `vi.importActual` is ASYNC (unlike Jest's synchronous `requireActual`) — the factory MUST be
+  // `async` and this MUST be `await`ed, or `...actual` spreads a Promise's own (empty) enumerable
+  // properties instead of the real module's exports, silently discarding every real export.
+  const actual = await vi.importActual('./ksef/ksef-client');
   return {
     ...actual,
-    KsefClient: jest.fn().mockImplementation(() => ({
-      authChallenge: mockAuthChallenge,
-      authKsefToken: mockAuthKsefToken,
-      authStatus: mockAuthStatus,
-      authRedeem: mockAuthRedeem,
-      openOnlineSession: mockOpenOnlineSession,
-      sendInvoice: mockSendInvoice,
-      closeSession: mockCloseSession,
-    })),
+    // A `function` expression, NOT an arrow function — production code does `new KsefClient(...)`
+    // (`ksef-transport.ts`'s own client builder). Jest's mocks never really `[[Construct]]` their
+    // implementation (they call it plainly and use the return value), so an arrow function "worked"
+    // there; Vitest's mocks DO construct it for real, and an arrow function has no `[[Construct]]` at
+    // all — "TypeError: ... is not a constructor".
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new KsefClient(...)` under Vitest, see above.
+    KsefClient: vi.fn().mockImplementation(function () {
+      return {
+        authChallenge: mockAuthChallenge,
+        authKsefToken: mockAuthKsefToken,
+        authStatus: mockAuthStatus,
+        authRedeem: mockAuthRedeem,
+        openOnlineSession: mockOpenOnlineSession,
+        sendInvoice: mockSendInvoice,
+        closeSession: mockCloseSession,
+      };
+    }),
   };
 });
 
 const mockedPrisma = prisma as unknown as {
-  company: { findUnique: jest.Mock };
-  client: { findFirst: jest.Mock };
+  company: { findUnique: Mock };
+  client: { findFirst: Mock };
 };
 
 const CONNECTED_CONFIG = {
@@ -62,9 +74,9 @@ const CONNECTED_CONFIG = {
   config: { nip: '5260001246', ksefToken: 'ksef-token-value' },
 };
 
-function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock }) {
+function buildDeps(overrides?: { resolveActive?: Mock; build?: Mock }) {
   const channelCredentials = {
-    resolveActive: overrides?.resolveActive ?? jest.fn().mockResolvedValue(CONNECTED_CONFIG),
+    resolveActive: overrides?.resolveActive ?? vi.fn().mockResolvedValue(CONNECTED_CONFIG),
   } as unknown as ChannelCredentialsService;
   const fa3FormatProvider: DocumentFormatProvider = {
     id: 'fa3',
@@ -72,7 +84,7 @@ function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock })
     mime: 'application/xml',
     build:
       overrides?.build ??
-      jest.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
+      vi.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
   };
   return { channelCredentials, fa3FormatProvider };
 }
@@ -120,7 +132,7 @@ function mockNominalKsefRoundTrip() {
 
 describe('buildKsefTransport', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedPrisma.company.findUnique.mockResolvedValue({
       id: 'company-1',
       name: 'Kowalski Consulting Sp. z o.o.',
@@ -143,7 +155,7 @@ describe('buildKsefTransport', () => {
 
   describe('preflight() — the PREFLIGHT gate, before anything is persisted or queued', () => {
     it('throws (named, for THIS channel) when no KSeF channel is connected at all', async () => {
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
       const transport = buildKsefTransport(deps);
 
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
@@ -152,7 +164,7 @@ describe('buildKsefTransport', () => {
 
     it('throws when connected but the config is incomplete (missing ksefToken)', async () => {
       const deps = buildDeps({
-        resolveActive: jest.fn().mockResolvedValue({ ...CONNECTED_CONFIG, config: { nip: '5260001246' } }),
+        resolveActive: vi.fn().mockResolvedValue({ ...CONNECTED_CONFIG, config: { nip: '5260001246' } }),
       });
       const transport = buildKsefTransport(deps);
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
@@ -168,7 +180,7 @@ describe('buildKsefTransport', () => {
 
   describe('send() — delivery', () => {
     it('blocks (never calls the network) when the channel is not connected — re-checked, not cached from preflight', async () => {
-      const deps = buildDeps({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
       const transport = buildKsefTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(NotImplementedException);
@@ -184,7 +196,7 @@ describe('buildKsefTransport', () => {
     });
 
     it('never submits an artifact that failed XSD validation', async () => {
-      const build = jest.fn().mockResolvedValue({
+      const build = vi.fn().mockResolvedValue({
         bytes: new TextEncoder().encode('<invalid/>'),
         validation: { valid: false, errors: ['NIP does not match required pattern'] },
       });

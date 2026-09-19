@@ -34,6 +34,9 @@
  *     WITH the code it excuses, so it survives any edit that does not touch the call itself, and the
  *     reason lives where a reader of that code actually sees it, not in a list in a different directory.
  */
+
+import { vi } from 'vitest';
+
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
@@ -41,9 +44,9 @@ import { runWithCompanyId } from '@/lib/request-context';
 
 import { logger } from '@/logger/logger.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { log: { create: jest.fn().mockResolvedValue({ id: 'log-1' }) } },
+  default: { log: { create: vi.fn().mockResolvedValue({ id: 'log-1' }) } },
 }));
 
 describe('LoggerService — the tripwire itself, exercised directly', () => {

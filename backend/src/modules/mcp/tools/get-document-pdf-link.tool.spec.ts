@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from '../../documents/actions/action-extensions';
@@ -16,9 +18,9 @@ import { TransportRegistry } from '../../documents/transports/transport-registry
 import { getDocumentPdfLinkTool } from './get-document-pdf-link.tool';
 import { ToolContext } from './types';
 
-jest.mock('../../documents/persistence');
-jest.mock('../../documents/country-policy/country-policy');
-jest.mock('../../documents/share-links/share-link.persistence');
+vi.mock('../../documents/persistence');
+vi.mock('../../documents/country-policy/country-policy');
+vi.mock('../../documents/share-links/share-link.persistence');
 
 /**
  * Proves `get_document_pdf_link` reaches the REAL `ShareLinksService.create` — the same instance the
@@ -67,7 +69,7 @@ function buildContext(
 }
 
 describe('getDocumentPdfLinkTool — the real gates, via ShareLinksService.create', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it("refuses the call BEFORE ever reaching ShareLinksService when this API key's scopes do not cover the type", async () => {
     const { shareLinksService } = buildServices();
@@ -79,8 +81,8 @@ describe('getDocumentPdfLinkTool — the real gates, via ShareLinksService.creat
   });
 
   it('refuses a DRAFT by saying so — a draft has no number and no legal existence to share yet', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'draft',
@@ -100,8 +102,8 @@ describe('getDocumentPdfLinkTool — the real gates, via ShareLinksService.creat
   });
 
   it("a numbered invoice gets a real, absolute download URL built from the CALLING request's own origin", async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'sent',
@@ -109,7 +111,7 @@ describe('getDocumentPdfLinkTool — the real gates, via ShareLinksService.creat
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (shareLinkPersistence.createShareLinkToken as jest.Mock).mockResolvedValue({
+    (shareLinkPersistence.createShareLinkToken as Mock).mockResolvedValue({
       id: 'token-row-1',
       tokenHash: 'irrelevant',
       typeId: 'invoice',

@@ -2,6 +2,9 @@
  * Provider unit tests — identifier checks and response mapping.
  * Every HTTP call is mocked with a payload captured from the real registry.
  */
+
+import { vi } from 'vitest';
+
 import { AustraliaAbrProvider, isValidAbn, unwrapJsonp } from './au.provider';
 import { BrazilCnpjProvider, isValidCnpj } from './br.provider';
 import { ColombiaRuesProvider } from './co.provider';
@@ -23,7 +26,7 @@ import { VietnamTaxCodeProvider } from './vn.provider';
 import { ViesProvider, parseViesAddress } from './vies.provider';
 
 function mockJson(payload: unknown, init: Partial<Response> = {}) {
-  return jest.spyOn(global, 'fetch').mockResolvedValue({
+  return vi.spyOn(global, 'fetch').mockResolvedValue({
     ok: true,
     status: 200,
     statusText: 'OK',
@@ -33,7 +36,7 @@ function mockJson(payload: unknown, init: Partial<Response> = {}) {
   } as Response);
 }
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe('identifier checks', () => {
   it('validates SIREN with the Luhn checksum', () => {
@@ -522,7 +525,7 @@ describe('AustraliaAbrProvider', () => {
 
   it('reports an unregistered GUID as a configuration problem', async () => {
     process.env.ABR_GUID = 'bad-guid';
-    jest.spyOn(global, 'fetch').mockResolvedValue({
+    vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       status: 200,
       text: async () =>

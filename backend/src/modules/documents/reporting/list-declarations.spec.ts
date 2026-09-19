@@ -5,26 +5,28 @@
  * `conformity/authority-events.persistence.spec.ts` already does; mocks `country-policy/country-policy`
  * the same way `report-on-send.spec.ts` already does for the identical dependency.
  */
+import { vi, type Mock } from 'vitest';
+
 import * as countryPolicy from '../country-policy/country-policy';
 import { CountryReportingObligationFile } from './schema';
 import { ReportingObligationCatalog } from './registry';
 import prisma from '@/prisma/prisma.service';
 import { declarationProviderIds, listDeclarations } from './list-declarations';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    documentAuthorityEvent: { findMany: jest.fn(), count: jest.fn() },
+    documentAuthorityEvent: { findMany: vi.fn(), count: vi.fn() },
   },
 }));
 
-jest.mock('../country-policy/country-policy');
+vi.mock('../country-policy/country-policy');
 
 const mockedPrisma = prisma as unknown as {
-  documentAuthorityEvent: { findMany: jest.Mock; count: jest.Mock };
+  documentAuthorityEvent: { findMany: Mock; count: Mock };
 };
 
-const mockedResolveCountry = countryPolicy.resolveCompanyCountryCode as jest.Mock;
+const mockedResolveCountry = countryPolicy.resolveCompanyCountryCode as Mock;
 
 const fixtureFiles: CountryReportingObligationFile[] = [
   {
@@ -83,7 +85,7 @@ describe('declarationProviderIds', () => {
 });
 
 describe('listDeclarations', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('scopes the query to the caller’s OWN companyId — never another tenant’s', async () => {
     mockedPrisma.documentAuthorityEvent.findMany.mockResolvedValue([]);

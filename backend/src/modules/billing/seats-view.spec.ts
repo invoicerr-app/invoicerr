@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -6,21 +8,21 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
 import { ensureSeatIndexesAssigned, getSeatsView, moveMemberSeat, SEAT_TAKEN_CODE } from './seats-view';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     userCompany: {
-      findMany: jest.fn(),
+      findMany: vi.fn(),
     },
-    $transaction: jest.fn(),
+    $transaction: vi.fn(),
   },
 }));
-jest.mock('./company-subscription.store');
+vi.mock('./company-subscription.store');
 
-const findMany = prisma.userCompany.findMany as jest.Mock;
-const transaction = prisma.$transaction as jest.Mock;
-const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
-const lockRow = lockCompanySubscriptionRow as jest.Mock;
+const findMany = prisma.userCompany.findMany as Mock;
+const transaction = prisma.$transaction as Mock;
+const getOrCreate = getOrCreateCompanySubscription as Mock;
+const lockRow = lockCompanySubscriptionRow as Mock;
 
 function row(
   id: string,
@@ -57,13 +59,13 @@ function fakeTx(
 ) {
   return {
     companySubscription: {
-      findUniqueOrThrow: jest.fn().mockResolvedValue(overrides.sub ?? { seats: 1 }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(overrides.sub ?? { seats: 1 }),
     },
     userCompany: {
-      findMany: jest.fn().mockResolvedValue(overrides.rows ?? []),
-      findUnique: jest.fn().mockResolvedValue(overrides.findUniqueMember ?? null),
-      findFirst: jest.fn().mockResolvedValue(overrides.findFirstMember ?? null),
-      update: jest.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue(overrides.rows ?? []),
+      findUnique: vi.fn().mockResolvedValue(overrides.findUniqueMember ?? null),
+      findFirst: vi.fn().mockResolvedValue(overrides.findFirstMember ?? null),
+      update: vi.fn().mockResolvedValue({}),
     },
   };
 }
@@ -77,7 +79,7 @@ function stubTransaction(overrides: Parameters<typeof fakeTx>[0] = {}) {
 }
 
 describe('ensureSeatIndexesAssigned', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('does nothing when every seated member already has a desk', async () => {
     getOrCreate.mockResolvedValue({});
@@ -194,7 +196,7 @@ describe('ensureSeatIndexesAssigned', () => {
 });
 
 describe('getSeatsView', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('splits members into seated (by desk order) and waiting (newest first)', async () => {
     getOrCreate.mockResolvedValue({ seats: 2 });
@@ -215,7 +217,7 @@ describe('getSeatsView', () => {
 });
 
 describe('moveMemberSeat', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('refuses a non-positive-integer seatIndex without ever opening a transaction', async () => {
     await expect(moveMemberSeat('c1', 'u1', 0)).rejects.toBeInstanceOf(BadRequestException);

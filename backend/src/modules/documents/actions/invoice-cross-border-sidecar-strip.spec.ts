@@ -7,6 +7,7 @@
  * handler strip a caller-supplied sidecar before persistence/preflight, and never strip the SAME
  * sidecar on a worker replay — is exercised in isolation from every one of those other mechanisms.
  */
+import { vi, type Mock } from 'vitest';
 import * as persistence from '../persistence';
 import * as countryPolicy from '../country-policy/country-policy';
 import * as mandate from '../transports/channel-policy/mandate';
@@ -18,13 +19,13 @@ import * as companyTransport from '../transports/company-transport';
 import { ActionRegistry } from './action-registry';
 import { registerInvoiceActions } from './invoice-actions';
 
-jest.mock('../persistence');
-jest.mock('../transports/company-transport');
-jest.mock('../country-policy/country-policy');
-jest.mock('../transports/channel-policy/mandate');
-jest.mock('../b2g-routing/b2g-routing');
-jest.mock('../numbering/take-number');
-jest.mock('../tax/load-and-resolve');
+vi.mock('../persistence');
+vi.mock('../transports/company-transport');
+vi.mock('../country-policy/country-policy');
+vi.mock('../transports/channel-policy/mandate');
+vi.mock('../b2g-routing/b2g-routing');
+vi.mock('../numbering/take-number');
+vi.mock('../tax/load-and-resolve');
 
 // A domestic invoice — a client posting a cross-border sidecar directly is exactly the case that must
 // never be honored: nothing about this data legitimately involves the tax engine at all.
@@ -72,19 +73,19 @@ function sendingDocument() {
 function buildRegistry() {
   const registry = new ActionRegistry();
   const transportRegistry = new TransportRegistry();
-  transportRegistry.register('email', 'Email', { send: jest.fn().mockResolvedValue({ message: 'Sent.' }) });
-  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
+  transportRegistry.register('email', 'Email', { send: vi.fn().mockResolvedValue({ message: 'Sent.' }) });
+  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: vi.fn() } });
   return registry;
 }
 
 describe('invoice "send" — the __crossBorder* sidecar strip', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   beforeEach(() => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(null);
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue(null);
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
       applies: false,
       missingIdentifierSchemes: [],
     });
@@ -92,16 +93,16 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
     // never the tax engine's own domestic/cross-border decision (that is resolve-invoice-tax.spec.ts's
     // job). A domestic-STANDARD invoice's real resolver returns `data` UNCHANGED (the exact behavior
     // this test double stands in for) — see `tax/resolve-invoice-tax.ts`'s own header.
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
   });
 
   it('phase 1 (fresh submission): strips both sidecars BEFORE the tax preflight ever sees them, and persists the cleaned data — never the fabricated mention/category', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({ ...draftDocument(), status: 'sending' });
-    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    (persistence.upsertDocument as Mock).mockResolvedValue({ ...draftDocument(), status: 'sending' });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const handler = buildRegistry().resolve('invoice', 'send');
     await handler!({
@@ -114,8 +115,8 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
     });
 
     // The tax engine's own preflight call never even sees the caller's fabricated sidecars.
-    const [, dataHandedToPreflight] = (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock)
-      .mock.calls[0];
+    const [, dataHandedToPreflight] = (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mock
+      .calls[0];
     expect(dataHandedToPreflight).not.toHaveProperty('__crossBorderMentions');
     expect((dataHandedToPreflight.lines as Record<string, unknown>[])[0]).not.toHaveProperty(
       '__crossBorderCategory',
@@ -126,10 +127,7 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
 
     // Nor does the persisted "sending" write — the mention can never reach the printed PDF or the
     // transmitted XML (both read straight off the persisted document's own `data`).
-    const persistedData = (persistence.upsertDocument as jest.Mock).mock.calls[0][4] as Record<
-      string,
-      unknown
-    >;
+    const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4] as Record<string, unknown>;
     expect(persistedData).not.toHaveProperty('__crossBorderMentions');
     expect((persistedData.lines as Record<string, unknown>[])[0]).not.toHaveProperty('__crossBorderCategory');
 
@@ -142,8 +140,8 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
   });
 
   it('phase 2 (the worker replaying an already-"sending" record): never strips — the SAME sidecars this preflight itself wrote earlier must survive the replay untouched', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument());
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingDocument());
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       ...sendingDocument(),
       status: 'sent',
     });
@@ -162,9 +160,8 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
     // the tax engine on this path — it must receive the SAME sidecars unchanged, since a genuine
     // worker replay is re-submitting what THIS SAME preflight already resolved and persisted, never a
     // fresh caller-supplied body.
-    const [, dataHandedToDeliverResolve] = (
-      taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock
-    ).mock.calls[0];
+    const [, dataHandedToDeliverResolve] = (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock)
+      .mock.calls[0];
     expect(dataHandedToDeliverResolve).toHaveProperty('__crossBorderMentions');
     expect((dataHandedToDeliverResolve.lines as Record<string, unknown>[])[0]).toHaveProperty(
       '__crossBorderCategory',

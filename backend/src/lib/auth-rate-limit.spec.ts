@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import type { Request, Response } from 'express';
 
 import { AUTH_RATE_LIMIT_RULES, createAuthRateLimitMiddleware } from './auth-rate-limit';
@@ -8,13 +10,13 @@ function fakeReq(path: string, ip = '203.0.113.9', method = 'POST'): Request {
 
 function fakeRes(): Response {
   const res: Partial<Response> = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
+  res.status = vi.fn().mockReturnValue(res);
+  res.json = vi.fn().mockReturnValue(res);
   return res as Response;
 }
 
 describe('createAuthRateLimitMiddleware', () => {
-  const next = jest.fn();
+  const next = vi.fn();
 
   afterEach(() => {
     next.mockClear();

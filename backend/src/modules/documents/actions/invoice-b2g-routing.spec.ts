@@ -14,6 +14,7 @@
  * "MUTATION GUARD" below are the two named mutations: #1, precedence ignored (the
  * company's own choice wins); #2, a government client of an uncovered country silently sends as B2B.
  */
+import { vi, type Mock } from 'vitest';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import * as persistence from '../persistence';
@@ -27,13 +28,13 @@ import { ActionRegistry } from './action-registry';
 import { registerInvoiceActions } from './invoice-actions';
 import * as taxLoadAndResolve from '../tax/load-and-resolve';
 
-jest.mock('../persistence');
-jest.mock('../transports/company-transport');
-jest.mock('../country-policy/country-policy');
-jest.mock('../transports/channel-policy/mandate');
-jest.mock('../b2g-routing/b2g-routing');
-jest.mock('../numbering/take-number');
-jest.mock('../tax/load-and-resolve');
+vi.mock('../persistence');
+vi.mock('../transports/company-transport');
+vi.mock('../country-policy/country-policy');
+vi.mock('../transports/channel-policy/mandate');
+vi.mock('../b2g-routing/b2g-routing');
+vi.mock('../numbering/take-number');
+vi.mock('../tax/load-and-resolve');
 
 const IT_RULE_READY = {
   countryCode: 'IT',
@@ -115,21 +116,21 @@ function sendingDocument(data: Record<string, unknown> = documentData) {
 
 function buildRegistry(transportRegistry = new TransportRegistry()) {
   const registry = new ActionRegistry();
-  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
+  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: vi.fn() } });
   return registry;
 }
 
 function mockB2g(decision: Partial<B2gClientRoutingDecision>) {
-  (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+  (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
     missingIdentifierSchemes: [],
     ...decision,
   });
 }
 
 describe('invoice "send" — B2G routing (client government) takes precedence over everything else', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
   beforeEach(() => {
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
@@ -137,14 +138,14 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
 
   it('a BUSINESS client (applies: false) is completely unaffected — regression: existing behavior unchanged', async () => {
     mockB2g({ applies: false });
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue(undefined);
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(undefined);
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingDocument());
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(undefined);
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue(undefined);
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const result = await handler!({
@@ -161,11 +162,11 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
 
   it('a GOVERNMENT client whose country cannot be resolved BLOCKS, naming the client, never a silent B2B send', async () => {
     mockB2g({ applies: true, clientCountryRaw: 'Nowhereland' });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const action = handler!({
@@ -187,11 +188,11 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
   // makes this expect a NotImplementedException that never comes, or a `sending` result instead.
   it('a GOVERNMENT client of a country with NO B2G rule declared BLOCKS, naming the country — never falls back to B2B', async () => {
     mockB2g({ applies: true, countryCode: 'ZZ' });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const action = handler!({
@@ -214,11 +215,11 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
       rule: IT_RULE_READY,
       missingIdentifierSchemes: ['IT_PA_CODE'],
     });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('sdi', 'SdI (Italy)', { send: jest.fn() });
+    transportRegistry.register('sdi', 'SdI (Italy)', { send: vi.fn() });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const action = handler!({
@@ -239,9 +240,9 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
 
   it("a missing REQUIRED DOCUMENT FIELD (DE's Leitweg-ID) blocks BEFORE the transport-availability check even runs", async () => {
     mockB2g({ applies: true, countryCode: 'DE', rule: DE_RULE_UNIMPLEMENTED });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     const dataWithoutBuyerReference = { ...documentData }; // no `buyerReference` at all
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument(dataWithoutBuyerReference));
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument(dataWithoutBuyerReference));
 
     // No transport registered at all — proves the FIELD check fires first regardless: if the block
     // reached the transport-resolution step, it would name "zre-ozgre", not the field.
@@ -264,12 +265,12 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
   it('DE: once the Leitweg-ID is filled in, the block becomes the NAMED, honest "channel not available" refusal — never a silent email fallback', async () => {
     mockB2g({ applies: true, countryCode: 'DE', rule: DE_RULE_UNIMPLEMENTED });
     // The company chose "email" (a working, IMPLEMENTED transport) — B2G still refuses to use it.
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     const dataWithBuyerReference = { ...documentData, buyerReference: 'LEITWEG-04011000-1234567890-06' };
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument(dataWithBuyerReference));
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument(dataWithBuyerReference));
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() }); // exists, but is NOT the B2G channel
+    transportRegistry.register('email', 'Email', { send: vi.fn() }); // exists, but is NOT the B2G channel
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const action = handler!({
@@ -299,8 +300,8 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
     mockB2g({ applies: true, countryCode: 'FR', rule: FR_RULE_UNIMPLEMENTED, missingIdentifierSchemes: [] });
     // This company's OWN country mandates "pdp" — irrelevant: the recipient's B2G regime
     // wins, so `activeChannelMandateFor` must never even be called.
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue({
+    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+    (mandate.activeChannelMandateFor as Mock).mockReturnValue({
       providerId: 'pdp',
       mandatedFrom: '2026-09-01',
       provenance: {
@@ -309,13 +310,13 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
         sourceCheckedAt: '2026-08-27',
       },
     });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('pdp');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('pdp');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('pdp', 'PDP', {
-      send: jest.fn(),
-      preflight: jest.fn().mockResolvedValue(undefined),
+      send: vi.fn(),
+      preflight: vi.fn().mockResolvedValue(undefined),
     });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
@@ -339,14 +340,14 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
   it("a channel the B2G rule names but is IMPLEMENTED and CONNECTED overrides the company's own DIFFERENT free choice", async () => {
     mockB2g({ applies: true, countryCode: 'IT', rule: IT_RULE_READY, missingIdentifierSchemes: [] });
     // The company itself chose "email" — B2G still forces "sdi".
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingDocument());
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
-    const sdiSend = jest.fn();
-    const sdiPreflight = jest.fn().mockResolvedValue(undefined);
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
+    const sdiSend = vi.fn();
+    const sdiPreflight = vi.fn().mockResolvedValue(undefined);
     transportRegistry.register('sdi', 'SdI (Italy)', { send: sdiSend, preflight: sdiPreflight });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
@@ -365,15 +366,13 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
 
   it('when the B2G-forced channel IS chosen but its OWN preflight refuses, the refusal folds in the B2G context, not a bare error', async () => {
     mockB2g({ applies: true, countryCode: 'IT', rule: IT_RULE_READY, missingIdentifierSchemes: [] });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('sdi');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('sdi');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('sdi', 'SdI (Italy)', {
-      send: jest.fn(),
-      preflight: jest
-        .fn()
-        .mockRejectedValue(new NotImplementedException('SdI credentials are not connected.')),
+      send: vi.fn(),
+      preflight: vi.fn().mockRejectedValue(new NotImplementedException('SdI credentials are not connected.')),
     });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
@@ -393,11 +392,11 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
 
   it("deliver() (the worker's replay, phase 2) ALSO respects B2G routing — never trusts a value cached from the preflight", async () => {
     mockB2g({ applies: true, countryCode: 'IT', rule: IT_RULE_READY, missingIdentifierSchemes: [] });
-    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument());
+    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingDocument());
 
     const transportRegistry = new TransportRegistry();
-    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    transportRegistry.register('email', 'Email', { send: vi.fn() });
     const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
     const action = handler!({

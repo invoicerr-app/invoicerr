@@ -5,32 +5,35 @@
  * clear) — this proves the upsert validation (length + shape), the tenant-scoped delete, and the
  * plain list/response shape.
  */
+
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { AtcudSeriesService } from './atcud-series.service';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     companyAtcudSeries: {
-      findMany: jest.fn(),
-      upsert: jest.fn(),
-      deleteMany: jest.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
     },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   companyAtcudSeries: {
-    findMany: jest.Mock;
-    upsert: jest.Mock;
-    deleteMany: jest.Mock;
+    findMany: Mock;
+    upsert: Mock;
+    deleteMany: Mock;
   };
 };
 
 const COMPANY_ID = 'company-1';
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 describe('AtcudSeriesService.listForCompany', () => {
   it('returns every row for this company, validation code included in full (not a secret)', async () => {

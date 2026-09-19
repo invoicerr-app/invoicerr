@@ -1,9 +1,12 @@
 /**
  * Local half exercised against a real temp directory (same style
  * `documents/archive/storage.spec.ts` already uses); S3 half against a mocked SDK
- * (`jest.spyOn(S3Client.prototype, 'send')`, same style `documents/archive/s3-storage.spec.ts`
+ * (`vi.spyOn(S3Client.prototype, 'send')`, same style `documents/archive/s3-storage.spec.ts`
  * already uses).
  */
+
+import { vi } from 'vitest';
+
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -69,7 +72,7 @@ describe('backup/sources/archive-source', () => {
     process.env.ARCHIVE_S3_ACCESS_KEY_ID = 'ak';
     process.env.ARCHIVE_S3_SECRET_ACCESS_KEY = 'sk';
 
-    const sendSpy = jest.spyOn(S3Client.prototype, 'send').mockResolvedValue({
+    const sendSpy = vi.spyOn(S3Client.prototype, 'send').mockResolvedValue({
       Contents: [{ Key: 'doc-2/hash-2/pdf.pdf', Size: 42 }],
       IsTruncated: false,
     } as never);
@@ -88,7 +91,7 @@ describe('backup/sources/archive-source', () => {
     process.env.ARCHIVE_S3_REGION = 'us-east-1';
     process.env.ARCHIVE_S3_ACCESS_KEY_ID = 'ak';
     process.env.ARCHIVE_S3_SECRET_ACCESS_KEY = 'sk';
-    const sendSpy = jest.spyOn(S3Client.prototype, 'send').mockResolvedValue({
+    const sendSpy = vi.spyOn(S3Client.prototype, 'send').mockResolvedValue({
       Contents: [{ Key: 'doc-3/hash-3/pdf.pdf', Size: 1 }],
       IsTruncated: false,
     } as never);

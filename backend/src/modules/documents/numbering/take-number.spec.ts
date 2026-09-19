@@ -1,19 +1,21 @@
+import { vi, type Mock } from 'vitest';
+
 import prisma from '@/prisma/prisma.service';
 
 import { takeDocumentNumberForTransition } from './take-number';
 import * as sequence from './sequence';
 
-jest.mock('@/prisma/prisma.service', () => ({
+vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { company: { findUnique: jest.fn() } },
+  default: { company: { findUnique: vi.fn() } },
 }));
-jest.mock('./sequence');
+vi.mock('./sequence');
 
-const findCompany = prisma.company.findUnique as jest.Mock;
-const takeDocumentNumber = sequence.takeDocumentNumber as jest.Mock;
+const findCompany = prisma.company.findUnique as Mock;
+const takeDocumentNumber = sequence.takeDocumentNumber as Mock;
 
 describe('takeDocumentNumberForTransition', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('uses the default pattern for the type when the company has no numberFormats at all', async () => {
     findCompany.mockResolvedValue({ numberFormats: null });

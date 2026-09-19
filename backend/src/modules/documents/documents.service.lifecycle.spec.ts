@@ -1,3 +1,5 @@
+import { vi, type Mock } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -13,11 +15,11 @@ import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
-jest.mock('./persistence');
+vi.mock('./persistence');
 // See documents.service.spec.ts's own comment on this mock — the real decision code is proven
 // separately (country-policy/country-policy.spec.ts). Reinstalled to "allowed" in beforeEach since
-// `afterEach(() => jest.resetAllMocks())` wipes it after the first test.
-jest.mock('./country-policy/country-policy');
+// `afterEach(() => vi.resetAllMocks())` wipes it after the first test.
+vi.mock('./country-policy/country-policy');
 
 /**
  * Proves documents.service.ts's runAction ENFORCES the lifecycle a descriptor declares — the request-
@@ -80,9 +82,9 @@ function buildService(actionRegistry: ActionRegistry) {
 
 describe('DocumentsService.runAction — lifecycle enforcement', () => {
   beforeEach(() => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
   });
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('accepts a handler that persists exactly the declared transition target', async () => {
     const actionRegistry = new ActionRegistry();
@@ -91,7 +93,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       changed: true,
     }));
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -99,7 +101,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sent',
@@ -128,7 +130,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       changed: true,
     }));
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -136,7 +138,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'archived',
@@ -162,7 +164,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       changed: true,
     }));
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sent',
@@ -170,7 +172,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sent',
@@ -196,7 +198,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       changed: true,
     }));
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sent',
@@ -204,7 +206,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -229,7 +231,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       changed: true,
     }));
 
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -245,11 +247,11 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
   });
 
   it('a country-policy per-status restriction blocks the action at a status it does not cover — 409, not 403', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: true,
       restrictedToStatuses: ['draft'],
     });
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'sent', // outside the country's own restriction
@@ -269,7 +271,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
   });
 
   it('the SAME country-policy restriction allows the action at a status it DOES cover', async () => {
-    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
       allowed: true,
       restrictedToStatuses: ['draft'],
     });
@@ -279,7 +281,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       changed: true,
     }));
 
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft', // covered by the restriction this time
@@ -287,7 +289,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'widget',
       status: 'draft',
@@ -310,7 +312,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       // `describeTypeForCompany` decides every action in ONE batched call — see country-policy.ts's
       // own header on `evaluateCountryPolicyForActions` for why it, not `evaluateCountryPolicy`, is
       // what that method actually calls.
-      (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+      (countryPolicy.evaluateCountryPolicyForActions as Mock).mockImplementation(
         async (_companyId: string, _typeId: string, actionIds: string[]) =>
           actionIds.map((actionId) =>
             actionId === 'annotate' ? { allowed: true, restrictedToStatuses: ['draft'] } : { allowed: true },
@@ -336,7 +338,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
     });
 
     it('an "always"-available action restricted by the country STAYS offered for a brand-new, never-saved record', async () => {
-      (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+      (countryPolicy.evaluateCountryPolicyForActions as Mock).mockImplementation(
         async (_companyId: string, _typeId: string, actionIds: string[]) =>
           actionIds.map((actionId) =>
             actionId === 'save-draft'

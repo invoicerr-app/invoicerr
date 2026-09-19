@@ -1,10 +1,11 @@
+import { vi, type Mock } from 'vitest';
 import { ConflictException } from '@nestjs/common';
 
 import * as persistence from '../persistence';
 import { ActionRegistry } from './action-registry';
 import { registerGoodsReceiptActions } from './goods-receipt-actions';
 
-jest.mock('../persistence');
+vi.mock('../persistence');
 
 /**
  * Purchase orders & goods receipts, second pass (three-way match) — proves
@@ -13,10 +14,10 @@ jest.mock('../persistence');
  * not re-proven here, only that this file actually registers them under the right id).
  */
 describe('registerGoodsReceiptActions', () => {
-  // The mocked `persistence` module's `jest.fn()`s otherwise accumulate call counts ACROSS tests in
+  // The mocked `persistence` module's `vi.fn()`s otherwise accumulate call counts ACROSS tests in
   // this file (no `clearMocks`/`resetMocks` in the jest config) — the concurrency test below counts
   // calls, so a leftover call from an earlier test would read as a phantom duplicate write.
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   function buildRegistry() {
     const registry = new ActionRegistry();
@@ -41,7 +42,7 @@ describe('registerGoodsReceiptActions', () => {
     });
 
     it('flips the status to "recorded" via a plain status-only write, no data rewrite', async () => {
-      const updateDocumentStatus = persistence.updateDocumentStatus as jest.Mock;
+      const updateDocumentStatus = persistence.updateDocumentStatus as Mock;
       updateDocumentStatus.mockResolvedValue({ id: 'gr1', status: 'recorded' });
 
       const registry = buildRegistry();
@@ -70,7 +71,7 @@ describe('registerGoodsReceiptActions', () => {
 
     it('two concurrent "record" calls on the same draft: the loser gets the 409 persistence.ts raises on a lost compare-and-swap', async () => {
       let calls = 0;
-      (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+      (persistence.updateDocumentStatus as Mock).mockImplementation(async () => {
         calls += 1;
         if (calls === 1) return { id: 'gr1', status: 'recorded' };
         throw new ConflictException('Document "gr1" is no longer in one of the expected statuses.');

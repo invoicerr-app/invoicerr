@@ -34,6 +34,8 @@
  * so this never touches `DocumentNumberSequence` either — the numbering-pulled-forward behavior has
  * its own, offline coverage in send-document-email.spec.ts.
  */
+import { vi } from 'vitest';
+
 import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -75,7 +77,11 @@ async function fetchMailpitMessage(id: string): Promise<MailpitMessageDetail> {
 }
 
 describeLive('document "send" — real SMTP delivery to Mailpit, with the PDF actually attached', () => {
-  jest.setTimeout(30_000);
+  // The old single-number "set a timeout for everything in this file" call covered both tests AND
+  // hooks at once; Vitest splits the two, so both need setting explicitly to keep the same "everything
+  // in this file gets N ms" budget (the real Puppeteer render + real SMTP round-trip this file drives
+  // easily needs it).
+  vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
   let companyId: string;
 
