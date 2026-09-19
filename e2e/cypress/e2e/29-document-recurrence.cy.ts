@@ -38,7 +38,9 @@ const SWEEP_WAIT = 18000;
 function waitForDuplicate(beforeCount: number, attemptsLeft = 20): Cypress.Chainable<{ id: string }[]> {
 	return cy
 		.request({ url: `${api}/api/documents?typeId=invoice` })
-		.its("body")
+		// GET /api/documents is now a paged `{ items, total, page, pageSize }` — never a bare
+		// array (documents.controller.ts's own "List document instances").
+		.its("body.items")
 		.then((docs: { id: string }[]) => {
 			if (docs.length > beforeCount || attemptsLeft <= 0) return cy.wrap(docs);
 			cy.wait(1000);
@@ -107,7 +109,7 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 				sourceInvoiceId = invoiceId;
 				cy.visit("/documents/invoice");
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 }).should("exist");
-				return cy.request({ url: `${api}/api/documents?typeId=invoice` }).its("body");
+				return cy.request({ url: `${api}/api/documents?typeId=invoice` }).its("body.items");
 			})
 			.then((before: { id: string }[]) => {
 				beforeCount = before.length;
@@ -159,7 +161,7 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 					.find('[data-cy^="document-list-row-"]')
 					.should("have.length", beforeCount + 1);
 			})
-			.then(() => cy.request({ url: `${api}/api/documents?typeId=invoice` }).its("body"))
+			.then(() => cy.request({ url: `${api}/api/documents?typeId=invoice` }).its("body.items"))
 			.then((after: { id: string; data: Record<string, unknown> }[]) => {
 				expect(after, "un seul duplicata est apparu").to.have.length(beforeCount + 1);
 				const duplicate = after.find((doc) => doc.id !== sourceInvoiceId);
@@ -191,14 +193,14 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 		cy.get("@scheduleRow").find('[data-cy^="document-schedule-disabled-"]').should("exist");
 
 		cy.request({ url: `${api}/api/documents?typeId=invoice` })
-			.its("body")
+			.its("body.items")
 			.then((afterDisable: unknown[]) => {
 				const countAfterDisable = afterDisable.length;
 				// A NEGATIVE assertion ("nothing more appears") has nothing to positively probe —
 				// wait the full delay, then check once.
 				cy.wait(SWEEP_WAIT);
 				cy.request({ url: `${api}/api/documents?typeId=invoice` })
-					.its("body")
+					.its("body.items")
 					.should((stillSame: unknown[]) => {
 						expect(stillSame, "aucun duplicata après désactivation").to.have.length(countAfterDisable);
 					});

@@ -113,7 +113,9 @@ describe("Installment billing — N invoices whose sum equals the quote's own gr
 					cy.request({ url: `${api}/api/documents?typeId=invoice` })
 						.its("body")
 						.then((body) => {
-							const invoices = (Array.isArray(body) ? body : (body.documents ?? [])) as {
+							// GET /api/documents is now a paged `{ items, total, page, pageSize }` — never a
+							// bare array (documents.controller.ts's own "List document instances").
+							const invoices = (Array.isArray(body) ? body : (body.items ?? [])) as {
 								id: string;
 								data: { origin?: { id?: string }; dueDate?: string };
 							}[];

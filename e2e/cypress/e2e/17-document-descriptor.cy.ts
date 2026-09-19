@@ -21,7 +21,21 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-type Field = { key: string; kind: string; label: string; required?: boolean; fields?: Field[] };
+type Field = {
+	key: string;
+	kind: string;
+	label: string;
+	required?: boolean;
+	// A field can also be required CONDITIONALLY on a sibling — see descriptors/types.ts's own
+	// header on these two. Only `requiredIfAbsent` matters to this file's own generic filler below:
+	// filling it unconditionally is always safe (its base schema stays optional either way), whereas
+	// `requiredIfPresent` only turns on once ITS OWN sibling is filled, which this generic walker
+	// never does unless that sibling is itself `required` — so a `requiredIfPresent` field never
+	// actually blocks "Continue" here and needs no special handling.
+	requiredIfAbsent?: string;
+	requiredIfPresent?: string;
+	fields?: Field[];
+};
 type TypeSummary = { id: string; label: string };
 type Descriptor = {
 	id: string;
@@ -194,7 +208,12 @@ function walkWizardCheckingFields(fields: Field[], seen: Set<string>, guard = 0)
 				cy.get(sel).scrollIntoView().should("be.visible");
 				cy.get(`[data-cy="document-field-${f.key}-unsupported"]`).should("not.exist");
 			}
-			if (f.required) fillFieldMinimal(f);
+			// `requiredIfAbsent` (e.g. credit-note's own "reason", required only once "invoice" is
+			// left empty — which this generic walker never fills unless IT is `required`) would
+			// otherwise block "Continue" forever on whichever step declares it: filling it
+			// unconditionally costs nothing (its base schema stays optional either way) and keeps
+			// this walker honest about every way a field can become blocking.
+			if (f.required || f.requiredIfAbsent) fillFieldMinimal(f);
 		}
 		cy.get("body").then(($after) => {
 			if ($after.find('[data-cy="document-create-dialog-continue"]').length > 0) {
@@ -215,7 +234,9 @@ function advanceWizardToLastStep(fields: Field[], guard = 0) {
 	if (guard > 6) return;
 	cy.get("body").then(($body) => {
 		for (const f of fields) {
-			if (!f.required) continue;
+			// Same "requiredIfAbsent also blocks Continue" reasoning as `walkWizardCheckingFields`'s
+			// own comment above — filling it unconditionally is always valid.
+			if (!f.required && !f.requiredIfAbsent) continue;
 			if ($body.find(`[data-cy="document-field-${f.key}"]`).length > 0) fillFieldMinimal(f);
 		}
 		cy.get("body").then(($after) => {
@@ -231,12 +252,14 @@ describe("A document is a descriptor, and the screen follows it", () => {
 	before(() => {
 		cy.resetAndSeed();
 
-		// Prerequisite records for two REQUIRED 'reference' fields the wizard's own "Details" step
-		// would otherwise block on with nothing to pick: credit-note's "invoice" (and, downstream,
-		// its "correctedLines" 'rowSelection') and goods-receipt's "purchaseOrder", both resolved
-		// against the ONE client `resetAndSeed` already creates ("supplier" is the same client
-		// entity under a different label — see 66-purchase-orders.cy.ts's own comment). Not read
-		// for their own content — the coverage test below only needs them to EXIST.
+		// Prerequisite records for goods-receipt's own REQUIRED "purchaseOrder" 'reference' field,
+		// which the wizard's own "Lines" step would otherwise block on with nothing to pick — resolved
+		// against the ONE client `resetAndSeed` already creates ("supplier" is the same client entity
+		// under a different label — see 66-purchase-orders.cy.ts's own comment). The seeded invoice is
+		// no longer load-bearing for credit-note's own "invoice" (optional since it gained a FREE
+		// mode — see credit-note.descriptor.ts), but leaving one around costs nothing and still lets
+		// "correctedLines" resolve real rows if a future test picks "invoice" by hand. Not read for
+		// their own content — the coverage test below only needs them to EXIST.
 		cy.request<{ id: string }[]>({ url: `${api}/api/documents/references/client/search` })
 			.its("body")
 			.then((clients) => {

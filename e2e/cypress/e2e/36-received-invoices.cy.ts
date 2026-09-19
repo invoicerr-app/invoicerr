@@ -83,9 +83,14 @@ interface ReceivedInvoiceInstance {
 }
 
 function listReceivedInvoices() {
+	// GET /api/documents is now a paged `{ items, total, page, pageSize }` — never a bare
+	// array (documents.controller.ts's own "List document instances"). `.its("body.items")` loses
+	// the element type through Cypress's own dotted-path typing, so this unwraps via `.then` instead
+	// to keep every `.find`/`.filter` callback below typed.
 	return cy
-		.request<ReceivedInvoiceInstance[]>({ url: `${api}/api/documents?typeId=received-invoice` })
-		.its("body");
+		.request<{ items: ReceivedInvoiceInstance[] }>({ url: `${api}/api/documents?typeId=received-invoice` })
+		.its("body")
+		.then((body) => body.items);
 }
 
 function uploadAndOpenForm(fixturePath: string) {
