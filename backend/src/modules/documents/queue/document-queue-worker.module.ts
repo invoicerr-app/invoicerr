@@ -3,6 +3,7 @@ import { Module, OnApplicationBootstrap } from '@nestjs/common';
 import { MailService } from '@/mail/mail.service';
 
 import { CurrencyRateSweepRunner } from '../../company/currency-rates/currency-rate-sweep-runner';
+import { LogPurgeSweepRunner } from '../../../logger/log-purge-sweep-runner';
 import { DocumentsCoreModule } from '../documents-core.module';
 import { ReminderSweepRunner } from '../reminders/reminder-sweep-runner';
 import { DocumentQueueDispatcher } from './document-queue.dispatcher';
@@ -56,10 +57,23 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
  * from `process.env.MAIL_PROVIDER` in its constructor, holds no other state) — the identical
  * "resolved by Nest the same way a plain class always is, no factory needed" posture every other
  * leaf provider on this page already holds.
+ *
+ * `LogPurgeSweepRunner` (the `Log` table's own age-based purge) is provided directly HERE for the
+ * exact same "zero Nest dependencies" reason `CurrencyRateSweepRunner` is, even though the class
+ * itself lives under `src/logger/`, not anywhere under `modules/documents/` — `Log` is not a
+ * "documents" concept at all; it rides this queue purely because it is the one always-on, cross-
+ * cutting queue every deployment topology already has, the same opportunistic placement
+ * `CurrencyRateSweepRunner` itself gets away with despite living under `modules/company/`.
  */
 @Module({
   imports: [DocumentsCoreModule],
-  providers: [DocumentActionProcessor, CurrencyRateSweepRunner, MailService, ReminderSweepRunner],
+  providers: [
+    DocumentActionProcessor,
+    CurrencyRateSweepRunner,
+    MailService,
+    ReminderSweepRunner,
+    LogPurgeSweepRunner,
+  ],
 })
 export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
   constructor(private readonly queueDispatcher: DocumentQueueDispatcher) {}
@@ -78,5 +92,8 @@ export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
     // PDP reception sweep — same idempotent-registration guarantee, same reasoning: see
     // `registerPdpReceptionSweepRepeatable`'s own header (document-queue.dispatcher.ts).
     await this.queueDispatcher.registerPdpReceptionSweepRepeatable();
+    // Log purge sweep — same idempotent-registration guarantee, same reasoning: see
+    // `registerLogPurgeSweepRepeatable`'s own header (document-queue.dispatcher.ts).
+    await this.queueDispatcher.registerLogPurgeSweepRepeatable();
   }
 }

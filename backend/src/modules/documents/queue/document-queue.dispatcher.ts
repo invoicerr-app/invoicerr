@@ -28,6 +28,11 @@ import {
   readReceptionSweepIntervalMs,
 } from '../conformity/reception-sweep';
 import {
+  LOG_PURGE_SWEEP_JOB_ID,
+  LOG_PURGE_SWEEP_JOB_NAME,
+  readLogPurgeSweepIntervalMs,
+} from '../../../logger/log-purge-sweep';
+import {
   CURRENCY_RATE_SWEEP_JOB_ID,
   CURRENCY_RATE_SWEEP_JOB_NAME,
   readCurrencyRateSweepIntervalMs,
@@ -250,6 +255,28 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     this.logger.log(
       `Registered the PDP-reception sweep repeatable (every ${readReceptionSweepIntervalMs()}ms).`,
     );
+  }
+
+  /**
+   * Registers the ONE `Log`-table purge sweep repeatable — same idempotent-registration guarantee as
+   * every sibling repeatable above (BullMQ dedups a repeatable definition by its own key across the
+   * whole cluster), same `attempts: 1` reasoning (a pass that itself throws is a real bug worth
+   * surfacing loudly now, never silently retried moments later — the next tick,
+   * `readLogPurgeSweepIntervalMs()` away, is already the natural retry). `Log` is not a "documents"
+   * concept — this lives on the SAME queue as every other cross-cutting system sweep here (currency
+   * rates, dunning reminders) purely because it, too, is a zero-Nest-dependency leaf provider with
+   * nowhere more specific to live; see `document-queue-worker.module.ts`'s own header on that
+   * precedent.
+   */
+  async registerLogPurgeSweepRepeatable(): Promise<void> {
+    await this.queue.add(LOG_PURGE_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
+      jobId: LOG_PURGE_SWEEP_JOB_ID,
+      repeat: { every: readLogPurgeSweepIntervalMs() },
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
+    this.logger.log(`Registered the Log purge sweep repeatable (every ${readLogPurgeSweepIntervalMs()}ms).`);
   }
 
   /**

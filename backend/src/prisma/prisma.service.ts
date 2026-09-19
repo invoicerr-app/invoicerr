@@ -3,8 +3,15 @@ import 'dotenv/config';
 import { Injectable } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../prisma/generated/prisma/client';
+import { buildDatabasePoolConfig } from './database-pool-config';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL as string });
+// `buildDatabasePoolConfig` — see that file's own header — is what stands between this pool and pg's
+// own silent defaults (`max: 10`, no `connectionTimeoutMillis` at all, i.e. no timeout). Bare
+// `{ connectionString }` was the ENTIRE config here before: fine for a serverless Postgres provider
+// fronted by its own connection pooler, wrong the moment the database behind DATABASE_URL is a
+// traditional managed instance with no pooler at all — every one of these `max` connections then
+// becomes a real backend process on the database server.
+const adapter = new PrismaPg(buildDatabasePoolConfig(process.env.DATABASE_URL as string));
 
 /**
  * The bare Prisma client.

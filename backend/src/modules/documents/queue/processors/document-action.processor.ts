@@ -62,6 +62,8 @@ import {
   RunCurrencyRateSweepResult,
 } from '../../../company/currency-rates/currency-rate-sweep-runner';
 import { CURRENCY_RATE_SWEEP_JOB_NAME } from '../../../company/currency-rates/currency-rate-sweep';
+import { LOG_PURGE_SWEEP_JOB_NAME } from '../../../../logger/log-purge-sweep';
+import { LogPurgeSweepRunner, RunLogPurgeSweepResult } from '../../../../logger/log-purge-sweep-runner';
 import {
   CONFORMITY_POLL_JOB_NAME,
   CONFORMITY_SWEEP_JOB_NAME,
@@ -139,6 +141,12 @@ export class DocumentActionProcessor extends WorkerHost {
     // this processor without one and never sends a reception-sweep-named job; production wiring
     // (documents-core.module.ts, via `DocumentsCoreModule`'s own export) always provides a real one.
     @Optional() private readonly receptionSweepRunner?: PdpReceptionSweepRunner,
+    // The `Log` table's own age-based purge — same `@Optional()` reasoning again: every EXISTING spec
+    // in this file constructs this processor without one and never sends a log-purge-sweep-named job;
+    // production wiring (document-queue-worker.module.ts) always provides a real one. `Log` is not a
+    // "documents" concept — see `LogPurgeSweepRunner`'s own header for why it still rides this same
+    // queue.
+    @Optional() private readonly logPurgeSweepRunner?: LogPurgeSweepRunner,
   ) {
     super();
   }
@@ -152,6 +160,7 @@ export class DocumentActionProcessor extends WorkerHost {
     | RunCurrencyRateSweepResult
     | RunReminderSweepResult
     | RunReceptionSweepResult
+    | RunLogPurgeSweepResult
     | { journaled: number }
   > {
     if (job.name === SCHEDULE_SWEEP_JOB_NAME) {
@@ -194,6 +203,11 @@ export class DocumentActionProcessor extends WorkerHost {
     if (job.name === RECEPTION_SWEEP_JOB_NAME) {
       this.logger.log(`Running the PDP-reception sweep (job ${job.id})`);
       return this.requireReceptionSweepRunner().runSweep();
+    }
+
+    if (job.name === LOG_PURGE_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the Log purge sweep (job ${job.id})`);
+      return this.requireLogPurgeSweepRunner().runSweep();
     }
 
     if (job.name === DOCUMENT_REPORT_JOB_NAME) {
@@ -302,6 +316,15 @@ export class DocumentActionProcessor extends WorkerHost {
     return this.receptionSweepRunner;
   }
 
+  private requireLogPurgeSweepRunner(): LogPurgeSweepRunner {
+    if (!this.logPurgeSweepRunner) {
+      // Unreachable in production (document-queue-worker.module.ts always provides one) — a loud,
+      // named failure rather than a silent no-op if this is ever wired without it.
+      throw new Error('DocumentActionProcessor received a log-purge job but has no LogPurgeSweepRunner.');
+    }
+    return this.logPurgeSweepRunner;
+  }
+
   /**
    * Fires after EVERY failed attempt, not only the last one — `job.attemptsMade` (already
    * incremented for this attempt by BullMQ before the event fires) compared against the job's own
@@ -375,7 +398,13 @@ export class DocumentActionProcessor extends WorkerHost {
       // list/import failure is caught and counted in its own `failed`, never rethrown: see that
       // runner's own header), and this job's data (`{}`, no `documentId`/`actionId`) shares nothing
       // with `markSendFailed`'s vocabulary either.
-      job.name === RECEPTION_SWEEP_JOB_NAME
+      job.name === RECEPTION_SWEEP_JOB_NAME ||
+      // Same skip, different reason to reach it — `LogPurgeSweepRunner.runSweep` DOES let a genuine
+      // failure propagate (only a single company's own batch is caught — see that class's own header),
+      // but this job's data (`{}`, no `documentId`/`actionId`) shares nothing with `markSendFailed`'s
+      // vocabulary either way; `attempts: 1` plus the next scheduled tick is this sweep's own retry,
+      // identical to every sibling repeatable above.
+      job.name === LOG_PURGE_SWEEP_JOB_NAME
     )
       return;
 

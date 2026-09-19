@@ -196,3 +196,23 @@ describe('DocumentQueueDispatcher.registerScheduleSweepRepeatable', () => {
     );
   });
 });
+
+describe('DocumentQueueDispatcher.registerLogPurgeSweepRepeatable', () => {
+  afterEach(() => vi.resetAllMocks());
+
+  it('registers the ONE Log-purge sweep job as a repeatable, under its fixed singleton jobId', async () => {
+    const queue = fakeQueue();
+    const dispatcher = new DocumentQueueDispatcher(queue as never);
+
+    await dispatcher.registerLogPurgeSweepRepeatable();
+
+    expect(queue.add).toHaveBeenCalledWith(
+      'log-purge-sweep',
+      {},
+      expect.objectContaining({
+        jobId: 'log-purge-sweep-singleton',
+        repeat: { every: expect.any(Number) },
+      }),
+    );
+  });
+});

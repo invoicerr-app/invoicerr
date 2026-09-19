@@ -40,6 +40,29 @@ serviceAccount:
 # ===================================================================================================
 api:
   replicaCount: 1
+  # DATABASE_POOL_MAX (backend/src/prisma/database-pool-config.ts) — this pod's OWN per-process
+  # connection pool ceiling, NOT a fleet-wide budget: at a `replicaCount` of 3 (the production
+  # topology this default was sized against — the chart's own SHIPPED default `replicaCount` above
+  # stays 1, for a small/dev install) x this value, that is how many simultaneous connections the api
+  # tier alone can open against Postgres. Left at the backend's own implicit default (10, unset here)
+  # instead, 3 api replicas + 15 worker replicas (see `worker.databasePoolMax` below) would already
+  # open up to 18 x 10 = 180 connections at peak — comfortably past a stock, untuned Postgres's own
+  # compiled-in `max_connections = 100`, before counting migrations, an operator's own psql session,
+  # or monitoring. This matters MUCH more than it would have on a serverless provider that fronts
+  # every connection with its own pooler (Neon, this chart's own previous default) — against a
+  # traditional managed instance with NO pooler at all, every one of these `max` connections is a real
+  # backend process on the database server. 5 here (api tier at 3 replicas: 3 x 5 = 15 connections)
+  # plus 3 on `worker` (worker tier at 15 replicas: 15 x 3 = 45) totals 60 — comfortably under even a
+  # small/entry-level managed instance's own connection ceiling, leaving real headroom for anything
+  # outside this chart's own pods. Sized larger than the worker's own default DELIBERATELY: the api
+  # pod fields a BURST of concurrent short HTTP requests (this figure roughly tracks
+  # `PDF_RENDER_CONCURRENCY`'s own default of 4, plus one, for the synchronous PDF renders this role
+  # alone performs), while a worker's own BullMQ `Worker` runs at `concurrency: 1` everywhere in this
+  # codebase (no `@Processor()` here overrides it) and is normally running exactly ONE job's own
+  # queries at a time. Raise or lower this against your OWN instance's real `SHOW max_connections;`
+  # and your OWN chosen `replicaCount`s, never against this comment's numbers alone — they assume a
+  # 3 api / 15 worker topology, not whatever `replicaCount`s you actually set.
+  databasePoolMax: 5
   # OBSERVED on a real `kind` install, 2026-09-17: the api pod's own first boot (running Prisma
   # migrations, syncing policy/B2G-routing rows, THEN starting nginx) hit the previous 512Mi
   # limit and was OOMKilled once before settling — and rendering a PDF (playwright-core driving the
@@ -88,6 +111,20 @@ api:
 # ===================================================================================================
 worker:
   replicaCount: 1
+  # DATABASE_POOL_MAX (backend/src/prisma/database-pool-config.ts) — this pod's OWN per-process
+  # connection pool ceiling. See `api.databasePoolMax` above for the full "why this matters at all"
+  # account and the 3+15-replica math it is based on. Smaller than the api tier's own default on
+  # purpose: this codebase's BullMQ `Worker` runs at `concurrency: 1` everywhere (no `@Processor()`
+  # overrides it), so one worker pod is normally running exactly ONE job's own queries at a time — a
+  # small pool comfortably covers whatever a single job's own concurrent async work needs (e.g. a
+  # `Promise.all` of a couple of independent reads) without ever queueing on the pool itself, while
+  # still leaving room for an incidental repeatable-sweep tick landing on the SAME pod at the same
+  # moment as an ordinary action job. At a `replicaCount` of 15 (the topology this default was sized
+  # against — the chart's own shipped default `replicaCount` above stays 1), the worker TIER alone
+  # opens up to 15 x this value connections — 45 at the default of 3, well within
+  # the 60-connection combined budget `api.databasePoolMax`'s own comment sizes against a small
+  # managed instance.
+  databasePoolMax: 3
   # OBSERVED on a real `kind` install, 2026-09-17: the worker was OOMKilled (exit 137) the FIRST time
   # it actually ran a "send" action — this is the process that renders the invoice PDF
   # (playwright-core + the base image's bundled Chromium, see CLAUDE.md "pdf-renderer-needs-chromium")

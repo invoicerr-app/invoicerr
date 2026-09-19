@@ -81,6 +81,11 @@ spec:
             # InstanceController (HTTP), never on the worker.
             - name: INSTANCE_OPERATOR_EMAILS
               value: {{ .Values.app.instanceOperatorEmails | quote }}
+            # This pod's own per-process Postgres connection pool ceiling — see
+            # values.yaml#api.databasePoolMax's own header for the full "why this differs from the
+            # worker's own value, and from the backend's own single-container default" account.
+            - name: DATABASE_POOL_MAX
+              value: {{ .Values.api.databasePoolMax | quote }}
 
             # BETTER_AUTH_SECRET — REQUIRED. Signs every session cookie/JWT; the backend refuses to
             # boot in production without it.

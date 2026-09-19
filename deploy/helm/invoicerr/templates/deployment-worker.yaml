@@ -85,6 +85,11 @@ spec:
           env:
             - name: ROLE
               value: "worker"
+            # This pod's own per-process Postgres connection pool ceiling — see
+            # values.yaml#worker.databasePoolMax's own header for the full "why this differs from the
+            # api pod's own value, and from the backend's own single-container default" account.
+            - name: DATABASE_POOL_MAX
+              value: {{ .Values.worker.databasePoolMax | quote }}
 
             - name: BETTER_AUTH_SECRET
               valueFrom:
