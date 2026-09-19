@@ -613,8 +613,10 @@ function buildEntityReferenceRegistry(
  * imports this Core module gets it" reason — `WebhookDispatcherService` needs to resolve in a
  * dedicated worker process (`WORKER_INLINE=false`) exactly as much as in the API, since that is where
  * the "sent" write (and therefore the webhook it announces) actually happens under that topology.
- * `WebhooksModule` itself imports nothing of its own any more (the in-app plugin mechanism it used to
- * pull in for the inbound plugin-webhook receiver was removed 2026-09-17), so this adds no cycle.
+ * `WebhooksModule` now imports `WebhooksCoreModule` (its own `BullModule.forRoot`/`registerQueue` for
+ * `Q_WEBHOOK_DELIVERY` — see that module's own header for why outbound delivery moved off this
+ * request/job's own critical path onto a queue) — still no cycle back into this module, since neither
+ * depends on anything `DocumentsCoreModule` provides.
  */
 @Module({
   imports: [ClientsModule, ArticlesModule, DocumentQueueModule, CompanyModule, WebhooksModule],

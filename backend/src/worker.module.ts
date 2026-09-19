@@ -7,6 +7,7 @@ import { BillingQueueWorkerModule } from './modules/billing/billing-queue-worker
 import { isBillingEnabled } from './modules/billing/billing-flag';
 import { TransferQueueWorkerModule } from './modules/company/transfer/transfer-queue-worker.module';
 import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
+import { WebhooksQueueWorkerModule } from './modules/webhooks/queue/webhooks-queue-worker.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 /**
@@ -40,6 +41,10 @@ import { PrismaModule } from './prisma/prisma.module';
  * dedicated workers existed. `BillingQueueWorkerModule` is still gated on `isBillingEnabled()` — the
  * same "invisible and inert without its flag" contract `app.module.ts`'s own `billingEnabled` already
  * holds; `TransferQueueWorkerModule` has no such flag (transfer works in self-hosted mode too).
+ *
+ * `WebhooksQueueWorkerModule` — same shape again: outbound-webhook delivery used to happen inline, in
+ * whichever request or job dispatched the event, so a dedicated worker process never touched it either.
+ * No flag (webhooks work in self-hosted mode too, same posture as `TransferQueueWorkerModule`).
  */
 @Module({
   imports: [
@@ -49,6 +54,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ...(isBackupEnabled() ? [BackupQueueWorkerModule] : []),
     ...(isBillingEnabled() ? [BillingQueueWorkerModule] : []),
     TransferQueueWorkerModule,
+    WebhooksQueueWorkerModule,
   ],
 })
 export class WorkerModule {}

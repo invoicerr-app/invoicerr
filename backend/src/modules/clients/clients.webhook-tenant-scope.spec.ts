@@ -1,17 +1,27 @@
 /**
- * `ClientsService.createClient` → `WebhookDispatcherService.dispatch(CLIENT_CREATED, ...)`, wired for
- * real, against a REAL database — the same "ClientsService constructed directly, real Prisma"
- * discipline `clients.vat-validation.spec.ts` already holds (see that file's own header for why:
- * `WebhooksModule`/`WebhooksService` drag in `@teever/ez-hook`, a pure-ESM package ts-jest cannot
- * compile — `WebhookDispatcherService` itself does not, so it is used here UN-mocked, only its own
- * `WebhooksService` dependency is a bare `{ send }` stub, avoiding that chain without avoiding the
- * dispatcher's own tenant-scoping logic).
+ * `ClientsService.createClient` → `WebhookDispatcherService.dispatch(CLIENT_CREATED, ...)` →
+ * `WebhookDeliveryService.deliver` → Prisma, wired for real, against a REAL database — the same
+ * "ClientsService constructed directly, real Prisma" discipline `clients.vat-validation.spec.ts`
+ * already holds (see that file's own header for why: `WebhooksModule`/`WebhooksService` drag in
+ * `@teever/ez-hook`, a pure-ESM package the test compiler cannot import "as a module" —
+ * `WebhookDispatcherService`/`WebhookDeliveryService` themselves do not, so both are used here
+ * UN-mocked, only `WebhooksService` itself is a bare `{ send }` stub, avoiding that chain without
+ * avoiding either class's own real logic).
  *
  * The defect this reproduces: the four `CLIENT_*` emitters in `clients.service.ts` used to omit
  * `companyId` entirely, so `WebhookDispatcherService.dispatch` fell through to an UNSCOPED
  * `prisma.webhook.findMany` — every company's webhook for that event, not just the client's own. Two
- * real companies, each with their own real `Webhook` row subscribed to `CLIENT_CREATED`, prove the
- * fix end-to-end: creating a client for company A reaches ONLY company A's webhook.
+ * real companies, each with their own real `Webhook` row subscribed to `CLIENT_CREATED`, prove the fix
+ * end-to-end: creating a client for company A reaches ONLY company A's webhook.
+ *
+ * Outbound delivery moved onto its own queue since this test was first written (see
+ * `webhook-dispatcher.service.ts`'s own header) — `dispatch()` now queries the REAL `Webhook` table
+ * itself (scoped by companyId) to decide how many jobs to create, one per subscriber, so the tenant
+ * proof now has two legs instead of one: (1) `dispatch()`'s own real Prisma query enqueues EXACTLY ONE
+ * job, for company A's own webhook id, never company B's; and (2) replaying that exact job's data
+ * through the real `WebhookDeliveryService` — the class that re-fetches that ONE row fresh at delivery
+ * time — still reaches only company A's row. Splitting the proof this way follows the queue boundary
+ * honestly rather than mocking it away.
  */
 
 import { vi, type Mock } from 'vitest';
@@ -19,6 +29,7 @@ import { vi, type Mock } from 'vitest';
 import { randomUUID } from 'node:crypto';
 
 import { ClientsService } from './clients.service';
+import { WebhookDeliveryService } from '../webhooks/webhook-delivery.service';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { VatValidationPort, VatValidationResult } from '../documents/tax/vat-validation';
@@ -29,11 +40,13 @@ function fakeVatValidator(result: VatValidationResult): VatValidationPort {
   return { validate: vi.fn().mockResolvedValue(result) };
 }
 
-describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookDispatcherService -> Prisma)', () => {
+describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookDispatcherService -> queue -> WebhookDeliveryService -> Prisma)', () => {
   let companyAId: string;
   let companyBId: string;
   let send: Mock;
+  let queueAdd: Mock;
   let dispatcher: WebhookDispatcherService;
+  let delivery: WebhookDeliveryService;
 
   beforeAll(async () => {
     const suffix = randomUUID();
@@ -98,13 +111,17 @@ describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookD
   });
 
   beforeEach(() => {
-    // Real `WebhookDispatcherService`, real Prisma tenant-scoping — only the actual outbound HTTP send
-    // (`WebhooksService.send`) is stubbed, so this proves the query/payload, never a real network call.
+    // Real `WebhookDispatcherService` against a fake `Queue` (only `.add` is ever called) — proves the
+    // ENQUEUE carries the right companyId without needing real Redis. Real `WebhookDeliveryService`
+    // against a real Prisma — only the actual outbound HTTP send (`WebhooksService.send`) is stubbed —
+    // proves the DELIVERY side's own query/payload once replayed, never a real network call.
     send = vi.fn().mockResolvedValue([true]);
-    dispatcher = new WebhookDispatcherService({ send } as unknown as WebhooksService);
+    queueAdd = vi.fn().mockResolvedValue(undefined);
+    dispatcher = new WebhookDispatcherService({ add: queueAdd } as never);
+    delivery = new WebhookDeliveryService({ send } as unknown as WebhooksService);
   });
 
-  it("carries the new client's own companyId and reaches only that company's own webhook", async () => {
+  it("enqueues a job carrying the new client's own companyId, and reaches only that company's own webhook once delivered", async () => {
     const validator = fakeVatValidator({ status: 'VALID', checkedAt: new Date(), source: 'eu-vies' });
     const service = new ClientsService(dispatcher, validator);
 
@@ -119,20 +136,32 @@ describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookD
       isActive: true,
     } as never);
 
-    expect(send).toHaveBeenCalledTimes(1);
-    const [webhooksSent, event, payload] = send.mock.calls[0] as [
-      Array<{ companyId: string; url: string }>,
-      WebhookEvent,
-      { companyId?: string; client?: { companyId: string } },
+    // Leg 1 — `dispatch()` itself already queried the REAL `Webhook` table (scoped by companyId) to
+    // decide how many jobs to create: exactly ONE, for company A's own row — company B's, despite
+    // subscribing to the identical event, was never even considered. The enqueued job's own data
+    // carries company A's id, never company B's, and never nothing.
+    expect(queueAdd).toHaveBeenCalledTimes(1);
+    const [, jobData] = queueAdd.mock.calls[0] as [
+      string,
+      {
+        companyId: string;
+        webhookId: string;
+        event: WebhookEvent;
+        payload: { companyId?: string; client?: { companyId: string } };
+      },
     ];
+    expect(jobData.companyId).toBe(companyAId);
+    expect(jobData.event).toBe(WebhookEvent.CLIENT_CREATED);
+    expect(jobData.payload.companyId).toBe(companyAId);
+    expect(jobData.payload.client?.companyId).toBe(companyAId);
+    expect(jobData.payload.client).toMatchObject({ id: client.id });
 
-    expect(event).toBe(WebhookEvent.CLIENT_CREATED);
-    expect(payload.companyId).toBe(companyAId);
-    expect(payload.client?.companyId).toBe(companyAId);
-    expect(payload.client).toMatchObject({ id: client.id });
+    // Leg 2 — replaying that EXACT job through the real delivery path (what
+    // `queue/webhook-delivery.processor.ts` does in production) reaches company A's webhook only.
+    await delivery.deliver(jobData.companyId, jobData.webhookId, jobData.event, jobData.payload);
 
-    // THE tenant-scoping proof: exactly company A's own webhook reached `send` — company B's, despite
-    // subscribing to the identical event, never does.
+    expect(send).toHaveBeenCalledTimes(1);
+    const [webhooksSent] = send.mock.calls[0] as [Array<{ companyId: string; url: string }>];
     expect(webhooksSent).toHaveLength(1);
     expect(webhooksSent[0]).toMatchObject({ companyId: companyAId, url: 'https://a.example.com/hook' });
   });

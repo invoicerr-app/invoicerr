@@ -43,6 +43,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { SireneModule } from './modules/sirene/sirene.module';
 import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { WebhooksQueueWorkerModule } from './modules/webhooks/queue/webhooks-queue-worker.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
@@ -221,6 +222,12 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     McpModule,
     OcrExtractorModule,
     WebhooksModule,
+    // Same `workerInline` gate as `DocumentsQueueWorkerModule`/`BillingQueueWorkerModule`/
+    // `TransferQueueWorkerModule` above, never conditioned on a feature flag (webhooks work in
+    // self-hosted mode too) — see `webhooks-core.module.ts`'s own header for the defect this closes:
+    // outbound webhook delivery used to run inline wherever `dispatch()` was called, so a dedicated
+    // worker process never touched it regardless of how many were running.
+    ...(workerInline ? [WebhooksQueueWorkerModule] : []),
     InvitationsModule,
     // Company ownership transfer — always imported (self-hosted-friendly, same posture as
     // InvitationsModule/LegalModule right above), never conditioned on `billingEnabled` — see

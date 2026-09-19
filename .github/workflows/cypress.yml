@@ -254,7 +254,14 @@ jobs:
       # pre-refonte compliance queue's own specs used), so it self-skips in the offline
       # backend-tests job and only executes here.
       #
-      # One step, all five specs in this directory (Jest is gone, and with it the split this job used
+      # `modules/webhooks/queue/__tests__` rides along in this SAME step (added when outbound webhook
+      # delivery moved off the request path onto its own queue): it needs the identical real
+      # Redis/Postgres this job already provisions, gates on the SAME `DOCUMENTS_QUEUE_REDIS_TESTS`
+      # flag (reusing the one "run the real-infra queue specs" convention rather than inventing a
+      # second flag — see that spec's own header), and its own local HTTP receivers need nothing this
+      # job does not already set below (`ALLOW_PRIVATE_WEBHOOK_URLS`/`ALLOW_PRIVATE_OUTBOUND_URLS`).
+      #
+      # One step, all specs across both directories (Jest is gone, and with it the split this job used
       # to run during the migration — four specs on Vitest, `document-events-bridge.redis.spec.ts`
       # still on Jest because its own `--testPathPattern` could not match "everything in this
       # directory" without also trying, and failing, to load the Vitest-only ones). `--no-file-
@@ -262,7 +269,7 @@ jobs:
       # race. No `--forceExit` equivalent is needed: BullMQ/ioredis keep connections open past the
       # last assertion, but Vitest's own `run` mode exits cleanly on its own once a run finishes —
       # confirmed during the migration.
-      - name: Run document-action queue integration specs
+      - name: Run document-action and webhook-delivery queue integration specs
         env:
           SMTP_HOST: localhost
           SMTP_PORT: 1025
@@ -287,7 +294,11 @@ jobs:
           # so that file's own copy of this flag never reaches it. TEST-ONLY — see `.env.example`'s
           # own entry for why this must never be set on a real deployment.
           ALLOW_PRIVATE_OUTBOUND_URLS: '1'
-        run: cd backend && npx vitest run --no-file-parallelism modules/documents/queue/__tests__
+          # The webhook-delivery queue's own real receivers (`modules/webhooks/queue/__tests__`) are
+          # ALSO on 127.0.0.1 — same SSRF guard, same TEST-ONLY escape hatch, just the webhook-specific
+          # name (`webhook-url-guard.ts` wraps `assertPublicOutboundUrl` under this flag's own check).
+          ALLOW_PRIVATE_WEBHOOK_URLS: '1'
+        run: cd backend && npx vitest run --no-file-parallelism modules/documents/queue/__tests__ modules/webhooks/queue/__tests__
 
       # The migration-vs-schema enum tripwire: deploys the FULL migration chain on
       # its own disposable database (never `invoicerr_test`, the one this job already migrated above)
