@@ -34,6 +34,7 @@ import { LegalModule } from './legal/legal.module';
 import { MailService } from './mail/mail.service';
 import { McpModule } from './modules/mcp/mcp.module';
 import { TransferModule } from './modules/company/transfer/transfer.module';
+import { TransferQueueWorkerModule } from './modules/company/transfer/transfer-queue-worker.module';
 import { Module } from '@nestjs/common';
 import { OcrExtractorModule } from './plugins';
 import { ReceivedInvoicesModule } from './modules/documents/received-invoices/received-invoices.module';
@@ -44,8 +45,11 @@ import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { createLibRedisClient } from './lib/redis-connection';
 import { auth } from './lib/auth';
 import { BillingModule } from './modules/billing/billing.module';
+import { BillingQueueWorkerModule } from './modules/billing/billing-queue-worker.module';
 import { CompanyWriteGuard } from './modules/billing/company-write.guard';
 import { isBillingEnabled } from './modules/billing/billing-flag';
 import { LegalAcceptanceGuard } from './legal/legal-acceptance.guard';
@@ -96,7 +100,23 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // it, `ThrottlerGuard` below is a global `APP_GUARD`); `PublicSignaturesController`'s own two
     // anonymous routes narrow it further with their own `@Throttle()` overrides. `ttl` is
     // MILLISECONDS in this major version (v5+), never seconds — 60_000 = one minute.
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
+    //
+    // `storage`: a Redis-backed `ThrottlerStorage`, NEVER this package's own in-memory
+    // default — three API replicas behind a load balancer would otherwise each keep their own
+    // counter, so "120 requests/minute" silently becomes "120/minute PER REPLICA", and which replica
+    // a request lands on decides whether it is throttled. `@nest-lab/throttler-storage-redis` is the
+    // maintained companion package for exactly this (a single atomic Lua-scripted `INCR`+expiry+block
+    // round trip against `ThrottlerStorage`'s own interface) — deliberately NOT a hand-rolled Lua
+    // script here: this package already replicates `ThrottlerStorageService`'s own sliding
+    // hit-decay/block semantics exactly, which a bespoke fixed-window counter (the shape
+    // `lib/auth-rate-limit.ts`'s OWN, much simpler store uses) would not. `createLibRedisClient()`
+    // opens its own dedicated connection — a plain, stateless `ioredis` instance, cheap to open a
+    // second time — rather than sharing one with anything the documents module owns, keeping this
+    // global, always-on module free of any dependency on `DocumentQueueModule` ever being imported.
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }],
+      storage: new ThrottlerStorageRedisService(createLibRedisClient()),
+    }),
     ScheduleModule.forRoot(),
     AuthModule.forRoot({
       auth,
@@ -193,6 +213,11 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // consuming the backup-sweep repeatable too, never the API — see `backup-queue-worker.module.ts`'s
     // own header.
     ...(backupEnabled && workerInline ? [BackupQueueWorkerModule] : []),
+    // Same `workerInline` gate, ANDed with `billingEnabled`: BEFORE this split,
+    // `BillingLifecycleProcessor`/its repeatable lived inside `BillingModule` itself with no
+    // `workerInline` gate at all, so a scaled deployment (`WORKER_INLINE=false`, dedicated workers)
+    // would never consume `Q_BILLING_LIFECYCLE` — see `billing-core.module.ts`'s own header.
+    ...(billingEnabled && workerInline ? [BillingQueueWorkerModule] : []),
     McpModule,
     OcrExtractorModule,
     WebhooksModule,
@@ -201,6 +226,10 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // InvitationsModule/LegalModule right above), never conditioned on `billingEnabled` — see
     // `transfer.module.ts`'s own header.
     TransferModule,
+    // Same `workerInline` gate as `DocumentsQueueWorkerModule`/`BillingQueueWorkerModule`
+    // above, never conditioned on `billingEnabled` (transfer has no such flag) — see
+    // `transfer-core.module.ts`'s own header for the defect this closes.
+    ...(workerInline ? [TransferQueueWorkerModule] : []),
     // Terms of Service / Privacy Policy / DPA / Legal Notice / Cookies — always imported (see this
     // module's own header for why, unlike BillingModule right above, this one is never conditioned on
     // `billingEnabled`).

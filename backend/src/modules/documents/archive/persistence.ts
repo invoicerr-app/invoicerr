@@ -291,6 +291,40 @@ export async function listDocumentArchives(
   return rows.map(toResult);
 }
 
+/**
+ * Looks for a human-readable, already-final PDF among the artifacts this document's most recent
+ * DELIVERY archive actually preserved — used by `documents.service.ts#renderInstancePdf` to skip the
+ * Chromium render entirely whenever one already exists, rather than re-rendering (and, if configured,
+ * re-signing) bytes that were already produced and archived at send time.
+ *
+ * Matches ONLY `role: 'pdf'` (`send-document-email.ts`'s own archived artifact for the "email"
+ * transport) — the SAME `rendering/render-instance-pdf.ts` composition `renderInstancePdf` itself
+ * runs, PAdES-signed if that was configured AT SEND TIME (`renderInstancePdf`'s own header), so those
+ * bytes are byte-for-byte what a fresh render would produce today for an unedited, already-sent
+ * document. Deliberately does NOT match "pdp"/"chorus-pro"'s own `role: 'facturx'` artifact even
+ * though ITS mime is also `application/pdf` (a Factur-X file is a real, renderable PDF/A-3): that
+ * artifact is what was actually DEPOSITED at the authority, built by a pipeline that never applies
+ * this company's PAdES signature — serving it here would silently change what "GET .../pdf" has
+ * always meant for exactly the companies who configured signing. `null` for a document with no
+ * DELIVERY archive at all (a draft, a document whose archiving attempt itself failed —
+ * `lastArchiveError`), for one delivered through "ksef"/"sdi" (their own archived artifact is XML,
+ * never a PDF), and for the credit note's transport-less "send" (nothing archived at all) — the
+ * caller falls back to rendering fresh in every one of those cases, exactly as it always has.
+ */
+export async function findArchivedPdfArtifact(companyId: string, documentId: string): Promise<Buffer | null> {
+  const archive = await prisma.documentArchive.findFirst({
+    where: { companyId, documentId, kind: DocumentArchiveKind.DELIVERY },
+    orderBy: { archivedAt: 'desc' },
+  });
+  if (!archive) return null;
+
+  const metas = (archive.artifacts ?? []) as unknown as StoredArtifactMeta[];
+  const pdfMeta = metas.find((meta) => meta.role === 'pdf' && meta.mime === 'application/pdf');
+  if (!pdfMeta) return null;
+
+  return readArchivedArtifact(archive.uri, pdfMeta.role, pdfMeta.mime);
+}
+
 /** 404 (never null) for an id that does not exist or belongs to another company/document — the same
  *  discipline as `documents/persistence.ts#findOwnedDocument`. */
 export async function findOwnedArchive(

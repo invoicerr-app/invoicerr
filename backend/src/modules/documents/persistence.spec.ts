@@ -7,6 +7,7 @@ import prisma from '@/prisma/prisma.service';
 
 import {
   claimDocumentTransition,
+  confirmDelivery,
   DOCUMENT_LIST_DATE_FILTER_READ_CAP,
   findOwnedDocument,
   listDocumentsPage,
@@ -364,6 +365,69 @@ describe('persistence — claimDocumentTransition', () => {
         'sending',
       ),
     ).resolves.toBe(0);
+  });
+});
+
+// THE CROSS-PROCESS DELIVERY-CONFIRMATION WRITE — see `DocumentInstance.deliveryConfirmedAt`'s own
+// schema comment and `actions/async-send.ts`'s own header ("The delivery guarantee") for the full
+// mechanism this closes: called once `deliver()` has genuinely succeeded, BEFORE the "sending" ->
+// "sent" write is ever attempted, so a retry — on ANY process — can tell "already delivered" apart
+// from "never actually tried yet" without trusting anything held in memory.
+describe('persistence — confirmDelivery', () => {
+  beforeEach(() => {
+    findFirst.mockReset();
+    update.mockReset();
+  });
+
+  it('writes deliveryConfirmedAt (a fresh Date) plus the transportRef/channelProviderId deliver() returned, unconditionally by id', async () => {
+    findFirst.mockResolvedValue({
+      id: 'doc-1',
+      companyId: 'company-1',
+      typeId: 'invoice',
+      status: 'sending',
+    });
+    update.mockResolvedValue({
+      id: 'doc-1',
+      status: 'sending',
+      deliveryConfirmedAt: new Date(),
+      transportRef: 'ref-1',
+      channelProviderId: 'pdp',
+    });
+
+    await confirmDelivery('company-1', 'invoice', 'doc-1', 'ref-1', 'pdp');
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'doc-1' },
+      data: {
+        deliveryConfirmedAt: expect.any(Date),
+        transportRef: 'ref-1',
+        channelProviderId: 'pdp',
+      },
+    });
+  });
+
+  // The "email" transport has neither — see `DocumentTransportResult.reference`'s own header — and
+  // `deliveryConfirmedAt` must still be recorded: the guarantee this write provides has nothing to do
+  // with whether a transport hands back a reference at all.
+  it('still writes deliveryConfirmedAt with no transportRef/channelProviderId at all, for a transport that has neither (e.g. email)', async () => {
+    findFirst.mockResolvedValue({ id: 'doc-1', companyId: 'company-1', typeId: 'quote', status: 'sending' });
+    update.mockResolvedValue({ id: 'doc-1', status: 'sending', deliveryConfirmedAt: new Date() });
+
+    await confirmDelivery('company-1', 'quote', 'doc-1');
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'doc-1' },
+      data: { deliveryConfirmedAt: expect.any(Date) },
+    });
+  });
+
+  it('404s via findOwnedDocument for a document that does not belong to this company/type — never writes blind', async () => {
+    findFirst.mockResolvedValue(null);
+
+    await expect(confirmDelivery('company-1', 'invoice', 'doc-x', 'ref-1', 'pdp')).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(update).not.toHaveBeenCalled();
   });
 });
 

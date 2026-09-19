@@ -853,7 +853,11 @@ export class DocumentsController {
   @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Get a document instance as PDF',
-    description: 'Renders a document instance as a PDF file.',
+    description:
+      'Serves the document as a PDF — straight from its own send-time archive when one exists ' +
+      '(documents.service.ts#renderInstancePdf), never re-rendering (no Chromium launched) in that ' +
+      'case; a document with nothing archived yet (a draft, or one delivered through a channel with ' +
+      'no plain-PDF artifact) renders fresh.',
   })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })

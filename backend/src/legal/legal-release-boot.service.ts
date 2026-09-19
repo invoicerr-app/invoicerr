@@ -12,12 +12,24 @@
  * users the busiest instance has", which no other boot step in this codebase accepts (see
  * `billing-lifecycle-sweep-runner.ts` for the closest precedent, itself a QUEUE tick, never boot
  * itself). Fired with its own `.catch` and its own completion log line instead.
+ *
+ * CROSS-REPLICA MUTUAL EXCLUSION: the pass is now wrapped in `withLegalReleaseNotifyLock`
+ * (`legal-release-lock.ts`) so at most ONE replica of a rolling deploy actually runs it at a time — see
+ * that file's own header for the full guarantee (still at-least-once per user, same as always; the
+ * lock removes the DUPLICATE sends a rolling deploy used to guarantee, not the retry-on-failure
+ * behaviour that guarantee depends on). Every OTHER replica's own attempt around the same boot simply
+ * observes the lock held and skips — it does NOT retry in a loop waiting for it, because
+ * `notifyUsersOfLegalReleases` itself already re-derives "what changed, who still needs telling" from
+ * the database on every call, so the NEXT replica that boots (or, for a single long-lived replica,
+ * never — there is no periodic re-check outside boot) picks up anything still pending once the lock is
+ * free again.
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import { isBillingEnabled } from '../modules/billing/billing-flag';
 import { MailService } from '@/mail/mail.service';
 import { LegalReleaseDetectionSummary, detectAndRecordNewLegalReleases } from './legal-release-detection';
+import { createLegalReleaseLockRedisClient, withLegalReleaseNotifyLock } from './legal-release-lock';
 import { notifyUsersOfLegalReleases } from './legal-release-notify';
 
 @Injectable()
@@ -55,9 +67,19 @@ export class LegalReleaseBootService implements OnModuleInit {
     }
 
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
-    // Deliberately not awaited — see this file's own header.
-    void notifyUsersOfLegalReleases(this.mailService, appUrl)
+    // Deliberately not awaited — see this file's own header. The Redis client backing the lock is
+    // opened here and quit once this ONE pass settles — this is a single boot-time cycle, not a
+    // connection this service needs to hold open for the rest of the process's life.
+    const lockClient = createLegalReleaseLockRedisClient();
+    void withLegalReleaseNotifyLock(lockClient, () => notifyUsersOfLegalReleases(this.mailService, appUrl))
       .then((result) => {
+        if (!result) {
+          this.logger.log(
+            'Legal document change notification: skipped — another replica already holds the ' +
+              'cluster-wide lock for this pass.',
+          );
+          return;
+        }
         this.logger.log(
           `Legal document change notification: ${result.releasesProcessed} release(s) processed, ` +
             `${result.usersNotified} user(s) emailed, ${result.usersFailed} failed (retried next boot).`,
@@ -67,6 +89,9 @@ export class LegalReleaseBootService implements OnModuleInit {
         this.logger.error('Legal document change notification pass failed outright — retried next boot', {
           error: error instanceof Error ? error.message : String(error),
         });
+      })
+      .finally(() => {
+        lockClient.disconnect();
       });
   }
 

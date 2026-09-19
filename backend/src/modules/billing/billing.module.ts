@@ -1,90 +1,43 @@
 /**
- * Everything hosted-billing needs, wired as ONE module — imported into `app.module.ts` ONLY when
- * `isBillingEnabled()` reads `true` at process boot (a conditional entry in that file's own `imports`
- * array, the exact same `...(condition ? [Module] : [])` shape `WORKER_INLINE`/`envOidcProvider`
- * already use there). With the flag off, this module is never instantiated: its controller (so
- * `GET /api/billing/status` 404s, Nest's own default for an unknown route), its BullMQ queue/
- * repeatable job, and its processor all simply do not exist for the lifetime of the process — the
+ * The HTTP half of hosted billing — imported into `app.module.ts` ONLY when `isBillingEnabled()` reads
+ * `true` at process boot (a conditional entry in that file's own `imports` array, the exact same
+ * `...(condition ? [Module] : [])` shape `WORKER_INLINE`/`envOidcProvider` already use there). With the
+ * flag off, this module is never instantiated: its controllers (so `GET /api/billing/status` 404s,
+ * Nest's own default for an unknown route) simply do not exist for the lifetime of the process — the
  * "invisible and inert" guarantee holds structurally, not by a runtime check inside this file.
  *
- * Imports `DocumentsCoreModule` (never the full `DocumentsModule`, which also carries the documents
- * HTTP controller and SSE bridge this feature has no use for) for `DocumentsService` alone —
- * `BillingExportService`'s own dependency, the same "Core, not the whole HTTP module" placement
- * `PaymentsModule`/`BankReconciliationModule`/`ClientPortalModule` already hold, each for the exact
- * same reason (see their own module headers).
+ * SPLIT from the queue's own providers/consumer (`billing-core.module.ts`/
+ * `billing-queue-worker.module.ts`): this module used to ALSO carry `BullModule.forRoot`/
+ * `registerQueue`, `BillingLifecycleSweepRunner`/`BillingExportService` and
+ * `BillingLifecycleProcessor` directly, and being imported ONLY by `AppModule` (never
+ * `worker.module.ts`) meant the billing-lifecycle sweep always ran on an API replica, competing with
+ * request serving, while the target topology's dedicated workers never touched it — see
+ * `billing-core.module.ts`'s own header for the full account. This module now imports
+ * `BillingCoreModule` for what its OWN controllers need (nothing, today — see below) and to keep the
+ * providers graph connected for anything added later; the actual queue wiring lives there instead.
  *
- * `MailService` is provided directly here — a leaf, empty-constructor provider (see
- * `document-queue-worker.module.ts`'s own header for why every OTHER module that needs it just lists
- * it in its own `providers` too, rather than relying on `DocumentsCoreModule`'s unexported instance).
+ * `BillingCustomerProvisioningBootService` stays HERE, not in Core: its own header calls out that its
+ * best-effort sync is meant to run "once … only in the api role" — Core is imported by BOTH the API
+ * (via this module) and a dedicated worker, so a provider that should run ONLY on the API belongs on
+ * the API-only side of the split, exactly the way `documents-core.module.ts`'s own boot-reseed
+ * services are kept out of anything the worker alone would import.
  */
-import { BullModule, InjectQueue } from '@nestjs/bullmq';
-import { Module, OnApplicationBootstrap } from '@nestjs/common';
-import { Queue } from 'bullmq';
+import { Module } from '@nestjs/common';
 
-import { redisConnection } from '../documents/queue/redis.config';
-import { DocumentsCoreModule } from '../documents/documents-core.module';
+import { BillingCoreModule } from './billing-core.module';
 import { BillingController } from './billing.controller';
-import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
 import { BillingCustomerProvisioningBootService } from './customer-provisioning-boot.service';
-import { BillingExportService } from './export-zip.service';
 import { PolarWebhookController } from './polar-webhook.controller';
 import { SeatsController } from './seats.controller';
-import { BillingLifecycleProcessor } from './queue/billing-lifecycle.processor';
-import {
-  BILLING_BULL_CONFIG_KEY,
-  BILLING_LIFECYCLE_SWEEP_JOB_ID,
-  BILLING_LIFECYCLE_SWEEP_JOB_NAME,
-  Q_BILLING_LIFECYCLE,
-  readBillingLifecycleSweepIntervalMs,
-} from './queue/billing-queue.constants';
-import { MailService } from '@/mail/mail.service';
 
 @Module({
-  imports: [
-    DocumentsCoreModule,
-    // Its own `connection`, under its OWN `configKey` (rather than relying on `DocumentQueueModule`'s
-    // own global, UNNAMED `BullModule.forRoot()`) so this module stays genuinely self-contained —
-    // provable/testable on its own, never dependent on import ORDER with the documents module
-    // elsewhere in the graph. See `BILLING_BULL_CONFIG_KEY`'s own comment for why an unnamed
-    // `forRoot()` here would NOT actually have achieved that.
-    BullModule.forRoot(BILLING_BULL_CONFIG_KEY, { connection: redisConnection() }),
-    BullModule.registerQueue({ configKey: BILLING_BULL_CONFIG_KEY, name: Q_BILLING_LIFECYCLE }),
-  ],
+  imports: [BillingCoreModule],
   controllers: [BillingController, PolarWebhookController, SeatsController],
   providers: [
-    MailService,
-    BillingExportService,
-    BillingLifecycleSweepRunner,
-    BillingLifecycleProcessor,
     // `OnModuleInit` — runs the Polar customer-provisioning boot sync (`customer-provisioning.ts`'s own
-    // header) once, only in this (API-role) process — see that service's own header.
+    // header) once, only in this (API-role) process — see this file's own header on why it stays here
+    // rather than moving to `BillingCoreModule`.
     BillingCustomerProvisioningBootService,
   ],
 })
-export class BillingModule implements OnApplicationBootstrap {
-  constructor(@InjectQueue(Q_BILLING_LIFECYCLE) private readonly queue: Queue) {}
-
-  /**
-   * Registers the ONE repeatable sweep job — idempotent (BullMQ dedups a repeatable definition by its
-   * own key across the whole cluster), same `attempts: 1` reasoning every sibling sweep in this
-   * codebase already documents: a pass that itself throws is a real bug worth surfacing loudly now,
-   * never silently retried moments later — the next tick, `readBillingLifecycleSweepIntervalMs()`
-   * away, is already the natural retry. Note `runSweep` itself additionally never lets one bad
-   * SUBSCRIPTION sink the whole pass (`billing-lifecycle-sweep-runner.ts`'s own header) — this
-   * `attempts: 1` is about the PASS as a whole failing outright (a DB outage reading the initial
-   * list), not about one company's own hiccup.
-   */
-  async onApplicationBootstrap(): Promise<void> {
-    await this.queue.add(
-      BILLING_LIFECYCLE_SWEEP_JOB_NAME,
-      {},
-      {
-        jobId: BILLING_LIFECYCLE_SWEEP_JOB_ID,
-        repeat: { every: readBillingLifecycleSweepIntervalMs() },
-        attempts: 1,
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
-  }
-}
+export class BillingModule {}

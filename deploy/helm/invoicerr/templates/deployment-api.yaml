@@ -70,6 +70,12 @@ spec:
               value: {{ .Values.app.appUrl | quote }}
             - name: CORS_ORIGINS
               value: {{ .Values.app.corsOrigins | quote }}
+            # TRUST_PROXY_HOPS (backend/src/lib/trust-proxy.ts) — API-role only: it feeds Express's
+            # own `trust proxy` setting, which only the api pod's HTTP-serving nginx+Nest process
+            # reads at all. See `values.yaml#app.trustProxyHops`'s own comment for why this chart's
+            # default (2) differs from the backend's own single-container default (1).
+            - name: TRUST_PROXY_HOPS
+              value: {{ .Values.app.trustProxyHops | quote }}
             # Instance-operator allowlist (backend/src/lib/instance-operators.ts) — API-role only,
             # like the rest of this file's env: the instance-reset routes it gates live on
             # InstanceController (HTTP), never on the worker.
@@ -154,6 +160,33 @@ spec:
                   key: ARCHIVE_S3_SECRET_ACCESS_KEY
             {{- end }}
 
+            # Inbound-file store (received-invoice uploads, expense attachments, company logos) — see
+            # values.yaml's own `documents.inbound` header for why this defaults to "local" (the
+            # opposite default from ARCHIVE_STORAGE above) and what dropping the shared PVC actually
+            # requires. Read by backend/src/modules/documents/received-invoices/storage.ts.
+            - name: INBOUND_STORAGE
+              value: {{ .Values.documents.inbound.storage | quote }}
+            {{- if eq .Values.documents.inbound.storage "s3" }}
+            - name: INBOUND_S3_BUCKET
+              value: {{ .Values.documents.inbound.s3.bucket | quote }}
+            - name: INBOUND_S3_ENDPOINT
+              value: {{ .Values.documents.inbound.s3.endpoint | quote }}
+            - name: INBOUND_S3_REGION
+              value: {{ .Values.documents.inbound.s3.region | quote }}
+            - name: INBOUND_S3_FORCE_PATH_STYLE
+              value: {{ .Values.documents.inbound.s3.forcePathStyle | quote }}
+            - name: INBOUND_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: INBOUND_S3_ACCESS_KEY_ID
+            - name: INBOUND_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: INBOUND_S3_SECRET_ACCESS_KEY
+            {{- end }}
+
             # Instance file backup — a SECOND, dedicated bucket, entirely separate from ARCHIVE_S3_*
             # above (see values.yaml's own `backup` header). OFF (nothing rendered here) with an empty
             # `backup.s3.bucket` — read by backend/src/modules/backup. `WORKER_INLINE=false` above
@@ -182,13 +215,24 @@ spec:
                 secretKeyRef:
                   name: {{ include "invoicerr.secretName" . }}
                   key: BACKUP_S3_SECRET_ACCESS_KEY
+            # A key of its own — deliberately NOT CREDENTIALS_ENCRYPTION_KEY, see
+            # backend/src/modules/backup/backup-crypto.ts's own header for why. `optional: true` like
+            # that key above: a missing/invalid value never crashes the pod, it fails every backup
+            # SWEEP loudly instead (a FAILED run, visible on GET /api/backup/status) — backups exist
+            # for disaster recovery, so this module refuses to either upload plaintext or go silently
+            # inert the way a missing CREDENTIALS_ENCRYPTION_KEY does for channel credentials.
+            - name: BACKUP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_ENCRYPTION_KEY
+                  optional: true
             {{- end }}
 
-            # DOCUMENTS_INBOUND_DIR has no S3 backend today (received-invoices/storage.ts is
-            # local-disk only) — always set, always mounted, regardless of archive.storage. See
-            # values.yaml's own `documents` header.
+            {{- if eq .Values.documents.inbound.storage "local" }}
             - name: DOCUMENTS_INBOUND_DIR
               value: "/data/documents-inbound"
+            {{- end }}
             {{- if eq .Values.archive.storage "local" }}
             - name: DOCUMENTS_ARCHIVE_DIR
               value: "/data/documents-archive"
@@ -206,7 +250,7 @@ spec:
           envFrom:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.documents.persistence.enabled }}
+          {{- if and .Values.documents.persistence.enabled (eq (include "invoicerr.documentsVolumeNeeded" .) "true") }}
           volumeMounts:
             - name: documents-data
               mountPath: /data
@@ -217,7 +261,7 @@ spec:
             {{- toYaml .Values.api.livenessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
-      {{- if .Values.documents.persistence.enabled }}
+      {{- if and .Values.documents.persistence.enabled (eq (include "invoicerr.documentsVolumeNeeded" .) "true") }}
       volumes:
         - name: documents-data
           persistentVolumeClaim:

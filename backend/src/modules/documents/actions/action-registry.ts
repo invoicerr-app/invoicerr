@@ -60,6 +60,11 @@ export interface DocumentInstanceResult {
    *  `NrKSeFN` marker, per art. 106j ust. 2 pkt 2a's own exception for exactly this case) — the same
    *  "absent ≠ unset, only that this result didn't carry it" convention `transportRef` above holds. */
   channelProviderId?: string | null;
+  /** See `DocumentInstance.deliveryConfirmedAt`'s own schema comment — non-null means `deliver()`
+   *  (`actions/async-send.ts`) already genuinely succeeded for this document's current "sending"
+   *  episode, durably, across processes. Same "absent ≠ unset, only that this result didn't carry it"
+   *  convention `transportRef`/`channelProviderId` above already hold. */
+  deliveryConfirmedAt?: Date | null;
 }
 
 /**

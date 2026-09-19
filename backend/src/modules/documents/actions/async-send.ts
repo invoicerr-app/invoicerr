@@ -8,6 +8,44 @@
  *
  *   draft/send_failed --[send]--> sending --[send, replayed by the worker]--> sent | send_failed
  *
+ * ## The delivery guarantee: AT-MOST-ONCE delivery, AT-LEAST-ONCE bookkeeping
+ *
+ * `deliver()` reaches a real, external system this process does not transactionally control (an SMTP
+ * relay, superpdp, KSeF, SdI, Chorus Pro) — nothing here can make "call `deliver()`" and "record that
+ * it happened" a single atomic step, so a genuine exactly-once guarantee across that boundary does not
+ * exist to be built. Given that choice, this file picks AT-MOST-ONCE for the call to `deliver()`
+ * itself (never risk a second real email/deposit) and leaves the bookkeeping AFTER it AT-LEAST-ONCE
+ * (safe to retry indefinitely, because it changes nothing outside this database): a duplicate invoice
+ * in a client's inbox or a duplicate deposit at a tax authority is expensive and, in France/Italy,
+ * a compliance problem; a document that is genuinely "sent" but briefly still LOOKS "sending" (or, in
+ * the narrow case below, briefly shows "send_failed") because a status write is still being retried
+ * costs nothing but a stale badge.
+ *
+ * The mechanism: `persistence.ts#confirmDelivery` writes a durable, cross-process fact —
+ * `DocumentInstance.deliveryConfirmedAt` — the INSTANT `deliver()` returns success, strictly BEFORE
+ * the "sending" -> "sent" write is ever attempted (see that column's own schema comment, and
+ * `confirmDeliveryWithRetry` below). Phase 2 checks this fact FIRST, before ever calling `deliver()`:
+ * non-null means some earlier attempt — this process or a completely different one, sharing nothing
+ * but the same Postgres row — already delivered, so this call skips straight to finishing whatever
+ * write never completed, no matter how many times "send" is replayed after that. This is what makes
+ * the remaining "sending" -> "sent" write safe to retry FOREVER: once `deliveryConfirmedAt` is set,
+ * no code path in this file ever calls `deliver()` again for this document, so retrying the status
+ * write can never turn into a second delivery. Only the confirmation write itself sits in the
+ * remaining risk window — see `confirmDeliveryWithRetry`'s own header for exactly how narrow that is
+ * and why it is accepted rather than hidden.
+ *
+ * None of the transports wired today (`transports/email-transport.ts`, `pdp-transport.ts`,
+ * `ksef-transport.ts`, `sdi-transport.ts`, `chorus-pro-transport.ts`) accept a caller-supplied
+ * idempotency key that the RECEIVING system could use to recognize and collapse a genuine duplicate
+ * submission on its own side — every reference `deliver()` gets back (a PDP deposit id, a KSeF session
+ * ref, an SdI `idSdI`) is assigned BY that system, never sent TO it. That is the one guarantee this
+ * file cannot provide by itself: if the confirmation write above fails on every one of its own bounded
+ * retries (the whole local Postgres primary unreachable for that entire window, not merely a blip), a
+ * subsequent attempt has nothing durable to check and could still call `deliver()` a second time.
+ * Closing that residual gap needs the OTHER side to deduplicate, which needs a real, per-authority
+ * protocol answer (does PDP/KSeF/SdI/Chorus Pro accept a client-chosen submission id at all?) that is
+ * not established anywhere in this codebase today — a follow-up, not something to guess at here.
+ *
  * `runAsyncSendAction` is called from the SAME registered "send" handler on BOTH ends of that arrow
  * — `documents.service.ts`'s `runAction` has no other way to reach an action's implementation, so the
  * API's own synchronous call and the worker's replayed one are, by construction, THE SAME CODE PATH:
@@ -35,11 +73,16 @@
  *    client retrying after a timeout, an API-key integration) passes the exact same gate and reaches
  *    this exact branch too. A hidden-in-the-frontend action is a UI courtesy, not a server-side
  *    guarantee — this branch runs `deliver()` for whichever caller wins the in-process claim just
- *    below (`inFlightDeliveries`), and refuses every other one with a named, loud `ConflictException`
- *    rather than silently delivering twice. A thrown error from `deliver()` itself still propagates
- *    UNCAUGHT — never caught and turned into "send_failed" here, so BullMQ's own retry/backoff gets
- *    to run first. Only queue/mark-send-failed.ts, once every retry is exhausted, records
- *    "send_failed" — see that file's own header for why that is a deliberately SEPARATE path.
+ *    below (`inFlightDeliveries`) AND the database claim (`claimDocumentTransition`), and refuses
+ *    every other one with a named, loud `ConflictException` rather than silently delivering twice.
+ *    But a caller that reaches this branch with `deliveryConfirmedAt` ALREADY set (see the guarantee
+ *    above) never calls `deliver()` at all, no matter which of those it is — that is what makes a
+ *    replay landing on a DIFFERENT process, after `deliver()` already succeeded once, safe. A thrown
+ *    error from `deliver()` itself still propagates UNCAUGHT — never caught and turned into
+ *    "send_failed" here, so BullMQ's own retry/backoff gets to run first. Only
+ *    queue/mark-send-failed.ts, once every retry is exhausted, records "send_failed" — see that file's
+ *    own header for why that is a deliberately SEPARATE path, and for the one case where it can fire
+ *    even though delivery genuinely already succeeded.
  *
  * `deliver` is the only thing that genuinely varies by type: the quote's unconditional email
  * (quote-actions.ts), the invoice's company-configured transport (invoice-actions.ts), or
@@ -59,6 +102,7 @@ import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import {
   claimDocumentTransition,
+  confirmDelivery,
   findOwnedDocument,
   updateDocumentStatus,
   upsertDocument,
@@ -79,8 +123,59 @@ import { reportOnSendIfObligated } from '../reporting/report-on-send';
  * deployment (`WORKER_INLINE=false`, `docker-compose.scale.yml`, or either role replicated by a Helm
  * chart) runs the API and worker as SEPARATE processes, each holding its OWN `Set`, blind to the
  * other's claim, but every one of them shares the SAME `DocumentInstance` row.
+ *
+ * Together with `claimDocumentTransition` just below it, this pair only ever protects against TWO
+ * CALLERS RACING TO START A DELIVERY — a genuinely concurrent double-click, a second tab, a second
+ * worker picking up the exact same moment. Neither says anything about a caller that shows up AFTER
+ * `deliver()` has already finished (successfully) once — that is what `deliveryConfirmedAt` (this
+ * file's own header, and `confirmDeliveryWithRetry` below) exists for.
  */
 const inFlightDeliveries = new Set<string>();
+
+/**
+ * Bounded, fast, LOCAL retries around the ONE write that turns "a real email/deposit just went out"
+ * into a durable, cross-process fact (`persistence.ts#confirmDelivery`) — see this file's own header,
+ * "The delivery guarantee". `deliver()` has already run by the time this is ever called: there is no
+ * external side effect left to protect by holding this up, only a small, dependency-free Postgres
+ * `UPDATE` standing between "delivered" and "durably KNOWN to be delivered". A handful of short, local
+ * retries turn an ordinary transient blip — the exact "DB hiccup right after a successful delivery"
+ * scenario this whole mechanism exists for — into a non-event, without extending a stuck job
+ * indefinitely: BullMQ's own job-level `attempts` (default 3, `document-queue.dispatcher.ts`) is what
+ * eventually gives up, this is only what stops "flaky for one write" from ALSO being "risks a second
+ * delivery". If every attempt here still fails, the error is left to propagate uncaught — exactly like
+ * a `deliver()` failure itself — so BullMQ's retry/backoff gets a chance to run the whole action again
+ * (which will see `deliveryConfirmedAt` still unset and, correctly, call `deliver()` — the one
+ * remaining risk window this file's own header names and does not hide).
+ */
+async function confirmDeliveryWithRetry(
+  companyId: string,
+  typeId: string,
+  documentId: string,
+  transportRef: string | undefined,
+  channelProviderId: string | undefined,
+): Promise<void> {
+  const maxAttempts = 3;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await confirmDelivery(companyId, typeId, documentId, transportRef, channelProviderId);
+      return;
+    } catch (error) {
+      if (attempt >= maxAttempts) throw error;
+      logger.warn('confirmDelivery write failed — retrying locally before giving up', {
+        category: 'documents',
+        details: {
+          companyId,
+          typeId,
+          documentId,
+          attempt,
+          maxAttempts,
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+    }
+  }
+}
 
 export interface AsyncSendDeliverContext {
   companyId: string;
@@ -273,48 +368,93 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     }
 
     let delivered: Awaited<ReturnType<AsyncSendDeliver>>;
-    try {
-      delivered = await deliver({
+    if (existing.deliveryConfirmedAt) {
+      // RESUMING an interrupted delivery — see this file's own header, "The delivery guarantee".
+      // `existing.deliveryConfirmedAt` (read fresh, off the SAME row this call's own claim just
+      // re-acquired) already proves `deliver()` genuinely succeeded in an EARLIER attempt — this
+      // process's own, or a completely different one sharing nothing but that row. Never call
+      // `deliver()` again: finish whatever write never completed, using exactly what was already
+      // durably recorded (`persistence.ts#confirmDelivery`) rather than inventing a fresh
+      // reference/providerId from a delivery that never happened on THIS call.
+      delivered = {
+        message: 'Delivery already completed by an earlier attempt — finishing the pending update.',
+        reference: existing.transportRef ?? undefined,
+        providerId: existing.channelProviderId ?? undefined,
+        // No artifacts to hand `archiveDeliveredArtifactsIfAny` below — whatever could be archived
+        // already was, by the attempt that set `deliveryConfirmedAt` in the first place (archiving
+        // now runs right after confirming delivery, BEFORE the "sent" write — see below).
+        artifacts: undefined,
+      };
+    } else {
+      try {
+        delivered = await deliver({
+          companyId,
+          typeId,
+          documentId,
+          document: existing,
+          data,
+          params,
+        });
+      } catch (error) {
+        // Released ONLY here, on a `deliver()` failure — releasing immediately (rather than after some
+        // cooldown) is what lets a legitimate BullMQ retry — a genuinely failed attempt, e.g. a
+        // transient network error the transport itself surfaced — proceed right away instead of being
+        // wrongly told "already delivering" by its own predecessor's still-held claim.
+        inFlightDeliveries.delete(claimKey);
+        throw error;
+      }
+
+      // THE GUARANTEE ITSELF — see this file's own header, "The delivery guarantee". Recorded
+      // DURABLY and BEFORE the "sending" -> "sent" write below is ever attempted: from this instant
+      // on, NOTHING in this file may call `deliver()` again for this document, on any process, no
+      // matter how many times "send" is replayed afterward. `confirmDeliveryWithRetry` absorbs a
+      // handful of transient failures on its own (see its own header) before letting one propagate.
+      //
+      // THE ONE REMAINING RISK WINDOW, if it still throws after those internal retries — see this
+      // file's own header for why it exists and why closing it needs a per-transport idempotency key
+      // this codebase does not have today: `deliver()` already succeeded and durable confirmation
+      // could not be written despite its own bounded retries. Deliberately left UNCAUGHT here, never
+      // turned into a release of `inFlightDeliveries` the way the `deliver()` failure just above is —
+      // that omission IS the fallback: it leaves this file relying on exactly the guarantee it had
+      // BEFORE `deliveryConfirmedAt` existed (the claim stays HELD), so at least a retry landing on
+      // THIS SAME process fails loud instead of silently calling `deliver()` again. A retry landing on
+      // a DIFFERENT process is the residual gap named above, not something reachable from here.
+      await confirmDeliveryWithRetry(
         companyId,
         typeId,
         documentId,
-        document: existing,
-        data,
-        params,
-      });
-    } catch (error) {
-      // Released ONLY here, on a `deliver()` failure — releasing immediately (rather than after some
-      // cooldown) is what lets a legitimate BullMQ retry — a genuinely failed attempt, e.g. a
-      // transient network error the transport itself surfaced — proceed right away instead of being
-      // wrongly told "already delivering" by its own predecessor's still-held claim.
-      inFlightDeliveries.delete(claimKey);
-      throw error;
+        delivered.reference,
+        delivered.providerId,
+      );
+
+      // Legal archiving — moved here, BEFORE the "sent" write, specifically so it can never be skipped
+      // by that write failing: `deliver()`'s own artifacts only ever exist on THIS branch (a resumed
+      // completion above has none to give it), so archiving them any later than this would risk losing
+      // them for good the moment the next write throws. `archiveDeliveredArtifactsIfAny` NEVER throws
+      // (see its own header) — a storage/DB problem here must never undo a delivery that already
+      // happened; it is instead recorded on the document itself (`lastArchiveError`) and logged
+      // loudly, never silently.
+      await archiveDeliveredArtifactsIfAny({ companyId, documentId, artifacts: delivered.artifacts });
     }
-    const { message, reference, providerId, artifacts } = delivered;
-    // The claim is deliberately STILL HELD here, across this write: `deliver()` already succeeded
-    // (a real deposit/email may already be out), so if THIS write itself throws (a DB hiccup — see
-    // this file's own header, "(a)"), the honest state is "we do not know whether this was recorded",
-    // never "safe to blindly call deliver() again". Leaving the claim held makes a same-process retry
-    // fail loud (another `ConflictException`, eventually `send_failed` once BullMQ's own attempts are
-    // exhausted) rather than risking a second real submission — the claim is only ever cleared by this
-    // process ending (nothing to leak: the process is gone) or, once genuinely delivered, by the
-    // record leaving "sending" for good, the one status this guard applies to at all.
-    const sent = await updateDocumentStatus(
-      companyId,
-      typeId,
-      documentId,
-      'sent',
-      null,
-      reference,
-      providerId,
-    );
-    inFlightDeliveries.delete(claimKey);
+
+    const { message, reference, providerId } = delivered;
+    let sent: DocumentInstanceResult;
+    try {
+      sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent', null, reference, providerId);
+    } finally {
+      // Safe to release UNCONDITIONALLY here, success or failure: by this point `deliveryConfirmedAt`
+      // is already durably set (either just now, above, or by an earlier attempt this very call
+      // resumed from) — holding the claim through a FAILED status write no longer buys anything, since
+      // a retry on ANY process will see that fact and skip `deliver()` regardless of whether THIS
+      // process remembers ever trying. See this file's own header, "The delivery guarantee".
+      inFlightDeliveries.delete(claimKey);
+    }
 
     // The fact is ACQUIRED right above (Postgres already holds
-    // "sent"); publishing right after, before archive/reporting, is what lets a browser's own SSE
+    // "sent"); publishing right after, before reporting, is what lets a browser's own SSE
     // connection move a screen straight from "sending" to "sent" without a manual reload. Never
-    // reached if `deliver()` or `updateDocumentStatus` above threw — see `RunAsyncSendInput.events`'s
-    // own header for why a failed write must never publish.
+    // reached if `deliver()`, `confirmDeliveryWithRetry`, or `updateDocumentStatus` above threw — see
+    // `RunAsyncSendInput.events`'s own header for why a failed write must never publish.
     await events?.publish(companyId, { documentId, typeId, kind: 'sent' });
 
     // The fix for what 085919bf left undone, now GENERIC rather than
@@ -354,19 +494,15 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       }
     }
 
-    // Legal archiving — archived ONLY once delivery has genuinely succeeded
-    // (this line runs after `sent` is already persisted, never before): archiving a delivery that
-    // could still fail would be a lie about what was actually conserved. `archiveDeliveredArtifactsIfAny`
-    // NEVER throws (see its own header) — a storage/DB problem here must never undo a delivery that
-    // already happened (the email already left, the deposit was already accepted); it is instead
-    // recorded on the document itself (`lastArchiveError`) and logged loudly, never silently.
-    await archiveDeliveredArtifactsIfAny({ companyId, documentId, artifacts });
+    // Legal archiving now runs EARLIER — right after `confirmDeliveryWithRetry`, before the "sent"
+    // write above could ever throw and skip it. See that call site's own comment for why (and this
+    // file's own header, "The delivery guarantee").
 
     // A separate concept ("declaration"), never a transport: Hungary/NAV and Greece/myDATA
     // require the SELLER to declare the invoice's data to its tax authority AFTER issuance,
     // regardless of the channel that just delivered it — see `reporting/report-on-send.ts`'s own
-    // header. Runs generically, for every type/transport, exactly like the archive call just above;
-    // NEVER throws, and enqueues nothing for a seller whose country has no such obligation.
+    // header. Runs generically, for every type/transport, NEVER throws (like archiving above), and
+    // enqueues nothing for a seller whose country has no such obligation.
     await reportOnSendIfObligated({ companyId, typeId, documentId, queueDispatcher });
 
     return { document: sent, changed: true, message };

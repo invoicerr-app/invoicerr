@@ -579,10 +579,13 @@ describe('runAsyncSendAction', () => {
       );
     });
 
-    // Legal archiving — archiving runs AFTER "sent" is persisted, fed EXACTLY
-    // what `deliver()` handed back, never before and never invented. See `archive/archive-on-send.ts`
-    // for why this call itself can never throw or undo a delivery that already succeeded.
-    it('archives the artifacts deliver() returned, AFTER "sent" is persisted, never before', async () => {
+    // Legal archiving — archiving now runs BEFORE "sent" is persisted, fed EXACTLY
+    // what `deliver()` handed back, never invented. Deliberately reordered ahead of the status write
+    // (see async-send.ts's own header, "The delivery guarantee"): the status write can now fail and be
+    // retried indefinitely without ever losing the artifacts, because archiving already happened. See
+    // `archive/archive-on-send.ts` for why this call itself can never throw or undo a delivery that
+    // already succeeded.
+    it('archives the artifacts deliver() returned, right after confirming delivery, BEFORE "sent" is persisted', async () => {
       const callOrder: string[] = [];
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -591,6 +594,9 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+      });
+      (persistence.confirmDelivery as Mock).mockImplementation(async () => {
+        callOrder.push('confirmDelivery');
       });
       (persistence.updateDocumentStatus as Mock).mockImplementation(async () => {
         callOrder.push('updateDocumentStatus');
@@ -605,7 +611,11 @@ describe('runAsyncSendAction', () => {
 
       await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver });
 
-      expect(callOrder).toEqual(['updateDocumentStatus', 'archiveDeliveredArtifactsIfAny']);
+      expect(callOrder).toEqual([
+        'confirmDelivery',
+        'archiveDeliveredArtifactsIfAny',
+        'updateDocumentStatus',
+      ]);
       expect(archiveOnSend.archiveDeliveredArtifactsIfAny).toHaveBeenCalledWith({
         companyId: 'company-1',
         documentId: 'doc-1',
@@ -642,10 +652,10 @@ describe('runAsyncSendAction', () => {
     });
 
     // A NEW concept ("declaration"), never a transport — see `reporting/report-on-send.ts`'s
-    // own header. Runs AFTER archiving (same "after the fact is settled" ordering), generically for every
-    // type/transport — this test proves the WIRING (call order + arguments), never the obligation
-    // decision itself (that is `reporting/report-on-send.spec.ts`'s job).
-    it('calls reportOnSendIfObligated AFTER archiving, with the right (companyId, typeId, documentId)', async () => {
+    // own header. Runs AFTER the "sent" write (same "after the fact is settled" ordering), generically
+    // for every type/transport — this test proves the WIRING (call order + arguments), never the
+    // obligation decision itself (that is `reporting/report-on-send.spec.ts`'s job).
+    it('calls reportOnSendIfObligated AFTER "sent" is persisted, with the right (companyId, typeId, documentId)', async () => {
       const callOrder: string[] = [];
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -670,9 +680,11 @@ describe('runAsyncSendAction', () => {
 
       await runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver });
 
+      // Archiving now happens BEFORE the "sent" write (see async-send.ts's own header, "The delivery
+      // guarantee") — reporting still runs last, after the fact is fully settled.
       expect(callOrder).toEqual([
-        'updateDocumentStatus',
         'archiveDeliveredArtifactsIfAny',
+        'updateDocumentStatus',
         'reportOnSendIfObligated',
       ]);
       expect(reportOnSend.reportOnSendIfObligated).toHaveBeenCalledWith({
@@ -919,6 +931,266 @@ describe('runAsyncSendAction', () => {
     });
   });
 
+  // THE CROSS-PROCESS DELIVERY-CONFIRMATION GUARANTEE — see async-send.ts's own header, "The delivery
+  // guarantee". `inFlightDeliveries` above only ever proved a SINGLE process cannot deliver twice;
+  // these tests prove the guarantee that survives a retry landing on a completely different one, with
+  // no in-memory history of the first attempt at all.
+  describe('confirmDelivery — the durable, cross-process fact that survives a "sent" write failing', () => {
+    function sendingInvoice(id = 'doc-1') {
+      return {
+        id,
+        typeId: 'invoice',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+
+    it('confirms delivery durably (with the reference/providerId deliver() returned) BEFORE the "sent" write, then archives, then writes "sent"', async () => {
+      const callOrder: string[] = [];
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingInvoice());
+      (persistence.confirmDelivery as Mock).mockImplementation(async () => {
+        callOrder.push('confirmDelivery');
+      });
+      (archiveOnSend.archiveDeliveredArtifactsIfAny as Mock).mockImplementation(async () => {
+        callOrder.push('archiveDeliveredArtifactsIfAny');
+      });
+      (persistence.updateDocumentStatus as Mock).mockImplementation(async () => {
+        callOrder.push('updateDocumentStatus');
+        return { id: 'doc-1', status: 'sent' };
+      });
+      const deliver = vi.fn().mockResolvedValue({
+        message: 'Deposited.',
+        reference: 'ref-1',
+        providerId: 'pdp',
+      });
+
+      await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver,
+      });
+
+      expect(persistence.confirmDelivery).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'ref-1',
+        'pdp',
+      );
+      expect(callOrder).toEqual([
+        'confirmDelivery',
+        'archiveDeliveredArtifactsIfAny',
+        'updateDocumentStatus',
+      ]);
+    });
+
+    // THE EXACT SCENARIO FROM THIS FILE'S OWN HEADER, proven end to end: `deliver()` succeeds, the
+    // SUBSEQUENT write fails, and a retry arrives on a process that shares NOTHING with the first —
+    // no `inFlightDeliveries` entry (a brand-new module instance, via `vi.resetModules()`), no
+    // in-memory record of ever having called `deliver()`. The only thing the retry has is what the
+    // first attempt left in the (simulated) database: `deliveryConfirmedAt`/`transportRef`/
+    // `channelProviderId`, durably written by `confirmDelivery` before its own process's "sent" write
+    // ever failed. A test exercising only one process would prove exactly the thing that already
+    // worked (the in-process `Set`) — this one proves the guarantee that did not exist before.
+    it('a delivery that succeeds, then a "sent" write that fails, then a retry on a FRESH process (no shared memory) never calls deliver() again', async () => {
+      const documentId = 'doc-cross-process';
+
+      // --- "Process A" ---------------------------------------------------------------------------
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingInvoice(documentId));
+      (persistence.confirmDelivery as Mock).mockResolvedValue(undefined);
+      (persistence.updateDocumentStatus as Mock).mockRejectedValue(new Error('DB hiccup'));
+      const deliverProcessA = vi.fn().mockResolvedValue({
+        message: 'Deposited — deposit id ref-1.',
+        reference: 'ref-1',
+        providerId: 'pdp',
+      });
+
+      await expect(
+        runAsyncSendAction({
+          ...baseInput,
+          typeId: 'invoice',
+          documentId,
+          queueDispatcher: { enqueueAction: vi.fn() },
+          deliver: deliverProcessA,
+        }),
+      ).rejects.toThrow('DB hiccup');
+
+      expect(deliverProcessA).toHaveBeenCalledTimes(1);
+      expect(persistence.confirmDelivery).toHaveBeenCalledTimes(1);
+      expect(persistence.confirmDelivery).toHaveBeenLastCalledWith(
+        'company-1',
+        'invoice',
+        documentId,
+        'ref-1',
+        'pdp',
+      );
+      // The status write threw, so this call's own error propagates — but its `finally` (async-send.ts)
+      // already released the in-process claim before doing so: by the time "process B" runs below,
+      // `inFlightDeliveries` holds NOTHING for this document, in THIS process or any other — exactly
+      // what a genuinely separate process's own, never-touched Set would also show. The guarantee
+      // below is therefore proven against the SAME condition a real second process would present, not
+      // a contrived one.
+
+      // --- "Process B" — a completely fresh top-level module instance (`vi.resetModules()` forces
+      // `async-send.ts` itself, never mocked, to be re-evaluated from scratch: a brand-new
+      // `inFlightDeliveries` Set that has NEVER held this — or any — key). `../persistence` stays the
+      // SAME automocked object (vitest keeps a mocked module's own identity across a module-registry
+      // reset — confirmed by `rendering/render-pdf.spec.ts`'s own comment on the identical behavior),
+      // which is exactly right here: it is what lets this test reconfigure `findOwnedDocument` to
+      // return PRECISELY what process A's own `confirmDelivery` call durably left in the (simulated)
+      // database, the one and only channel a real second process would ever learn that fact through.
+      vi.resetModules();
+      const { runAsyncSendAction: runOnFreshProcess } = await import('./async-send.js');
+
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        ...sendingInvoice(documentId),
+        deliveryConfirmedAt: new Date(),
+        transportRef: 'ref-1',
+        channelProviderId: 'pdp',
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: documentId,
+        status: 'sent',
+        transportRef: 'ref-1',
+        channelProviderId: 'pdp',
+      });
+      // What the ORIGINAL bug would call a second time — a real second deposit. Must never run.
+      const deliverProcessB = vi.fn();
+
+      const result = await runOnFreshProcess({
+        ...baseInput,
+        typeId: 'invoice',
+        documentId,
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver: deliverProcessB,
+      });
+
+      expect(deliverProcessB).not.toHaveBeenCalled();
+      // Still exactly the ONE call from process A — process B never durably "confirms" anything new,
+      // because it never called `deliver()` in the first place.
+      expect(persistence.confirmDelivery).toHaveBeenCalledTimes(1);
+      expect(persistence.updateDocumentStatus).toHaveBeenLastCalledWith(
+        'company-1',
+        'invoice',
+        documentId,
+        'sent',
+        null,
+        'ref-1',
+        'pdp',
+      );
+      expect(result.document).toMatchObject({ status: 'sent' });
+    });
+
+    // THE ACCEPTED RESIDUAL WINDOW — see async-send.ts's own header. When `confirmDelivery` itself
+    // cannot be written despite its own bounded internal retries, this file falls back to exactly the
+    // guarantee it had BEFORE `deliveryConfirmedAt` existed: the in-process claim stays held, so at
+    // least a retry landing on THIS SAME process is refused loudly instead of silently delivering
+    // again.
+    it('falls back to the same-process claim when confirmDelivery itself exhausts its own retries — a same-process retry is still refused, never silently re-delivers', async () => {
+      // A DEDICATED documentId — this test deliberately leaves its own in-process claim held (that is
+      // exactly the fallback behavior under test), which must never leak into any OTHER test in this
+      // file sharing the ordinary "company-1"/"invoice"/"doc-1" triple.
+      const documentId = 'doc-confirm-exhausted';
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingInvoice(documentId));
+      (persistence.confirmDelivery as Mock).mockRejectedValue(new Error('Postgres unreachable'));
+      const deliver = vi
+        .fn()
+        .mockResolvedValue({ message: 'Deposited.', reference: 'ref-1', providerId: 'pdp' });
+
+      await expect(
+        runAsyncSendAction({
+          ...baseInput,
+          typeId: 'invoice',
+          documentId,
+          queueDispatcher: { enqueueAction: vi.fn() },
+          deliver,
+        }),
+      ).rejects.toThrow('Postgres unreachable');
+
+      // confirmDelivery's own internal retry loop (3 attempts) tried more than once before giving up.
+      expect((persistence.confirmDelivery as Mock).mock.calls.length).toBeGreaterThan(1);
+      expect(deliver).toHaveBeenCalledTimes(1);
+
+      // The claim was deliberately left held (never released on this failure path) — an immediate
+      // same-process retry is refused rather than calling `deliver()` a second time.
+      await expect(
+        runAsyncSendAction({
+          ...baseInput,
+          typeId: 'invoice',
+          documentId,
+          queueDispatcher: { enqueueAction: vi.fn() },
+          deliver,
+        }),
+      ).rejects.toThrow(/already being delivered/);
+      expect(deliver).toHaveBeenCalledTimes(1); // still just the one real attempt
+    });
+
+    it('confirmDelivery transparently retries a transient failure and still calls deliver() only once', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingInvoice());
+      (persistence.confirmDelivery as Mock)
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce(undefined);
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
+      const deliver = vi
+        .fn()
+        .mockResolvedValue({ message: 'Deposited.', reference: 'ref-1', providerId: 'pdp' });
+
+      const result = await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver,
+      });
+
+      expect(deliver).toHaveBeenCalledTimes(1);
+      expect(persistence.confirmDelivery).toHaveBeenCalledTimes(2);
+      expect(result.document).toMatchObject({ status: 'sent' });
+    });
+
+    it('a "send_failed" retry that ALREADY carries deliveryConfirmedAt (every BullMQ attempt spent on the final write alone) still never calls deliver() again', async () => {
+      // Phase 1 re-entry from "send_failed" is out of this function's own "already sending" branch —
+      // this test targets phase 2 directly, the branch that actually decides whether to call
+      // `deliver()`, with a record that carries the durable mark from a past, genuinely successful
+      // delivery (see schema.prisma's own comment: never cleared by a later "send_failed"/"sending"
+      // cycle).
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        ...sendingInvoice(),
+        deliveryConfirmedAt: new Date('2026-01-01T00:00:00Z'),
+        transportRef: 'ref-old',
+        channelProviderId: 'pdp',
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        status: 'sent',
+        transportRef: 'ref-old',
+        channelProviderId: 'pdp',
+      });
+      const deliver = vi.fn();
+
+      await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver,
+      });
+
+      expect(deliver).not.toHaveBeenCalled();
+      expect(persistence.confirmDelivery).not.toHaveBeenCalled();
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'sent',
+        null,
+        'ref-old',
+        'pdp',
+      );
+    });
+  });
+
   // The worker→API SSE bridge (`queue/document-events-publisher.ts`).
   // `events` is OPTIONAL (see `RunAsyncSendInput.events`'s own header) — every test ABOVE this block
   // omits it and must keep passing unchanged; these are the DEDICATED tests for the publish behavior
@@ -1018,7 +1290,7 @@ describe('runAsyncSendAction', () => {
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
     });
 
-    it('phase 2: publishes "sent" AFTER updateDocumentStatus persists it, BEFORE archiving', async () => {
+    it('phase 2: archives BEFORE updateDocumentStatus, then publishes "sent" right after the status write', async () => {
       const callOrder: string[] = [];
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -1050,7 +1322,10 @@ describe('runAsyncSendAction', () => {
         typeId: 'quote',
         kind: 'sent',
       });
-      expect(callOrder).toEqual(['updateDocumentStatus', 'publish', 'archiveDeliveredArtifactsIfAny']);
+      // Archiving moved ahead of the "sent" write (this file's own header, "The delivery guarantee")
+      // so it can never be skipped by that write failing; the SSE nudge still only fires once "sent"
+      // is genuinely acquired.
+      expect(callOrder).toEqual(['archiveDeliveredArtifactsIfAny', 'updateDocumentStatus', 'publish']);
     });
 
     it('phase 2: never publishes when deliver() throws — an unacquired "sent" is never announced', async () => {
@@ -1106,7 +1381,7 @@ describe('runAsyncSendAction', () => {
   // before, never on a failed delivery, and NEVER let a dispatch failure undo (or even surface past)
   // an already-successful send.
   describe('webhooks — the generic "sent" webhook', () => {
-    it('dispatches DOCUMENT_SENT AFTER updateDocumentStatus persists "sent" and AFTER the SSE publish, BEFORE archiving', async () => {
+    it('dispatches DOCUMENT_SENT AFTER updateDocumentStatus persists "sent" and AFTER the SSE publish (archiving already happened, earlier)', async () => {
       const callOrder: string[] = [];
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -1153,11 +1428,13 @@ describe('runAsyncSendAction', () => {
         webhooks,
       });
 
+      // Archiving now runs BEFORE the "sent" write (this file's own header, "The delivery guarantee")
+      // — everything downstream of "sent" keeps its own relative order unchanged.
       expect(callOrder).toEqual([
+        'archiveDeliveredArtifactsIfAny',
         'updateDocumentStatus',
         'publish',
         'webhooks.dispatch',
-        'archiveDeliveredArtifactsIfAny',
       ]);
       expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
       // Generic by construction: `document` is a FIXED key (never `{ invoice: sent }`) — a

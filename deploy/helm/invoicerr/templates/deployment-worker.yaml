@@ -154,6 +154,33 @@ spec:
                   key: ARCHIVE_S3_SECRET_ACCESS_KEY
             {{- end }}
 
+            # Inbound-file store (received-invoice uploads, expense attachments, company logos) — a
+            # queued "receive"/OCR-fallback import archived by THIS process must be readable by the api
+            # process afterwards, same reasoning ARCHIVE_STORAGE above already gives. See values.yaml's
+            # own `documents.inbound` header. Reaches both Deployments identically.
+            - name: INBOUND_STORAGE
+              value: {{ .Values.documents.inbound.storage | quote }}
+            {{- if eq .Values.documents.inbound.storage "s3" }}
+            - name: INBOUND_S3_BUCKET
+              value: {{ .Values.documents.inbound.s3.bucket | quote }}
+            - name: INBOUND_S3_ENDPOINT
+              value: {{ .Values.documents.inbound.s3.endpoint | quote }}
+            - name: INBOUND_S3_REGION
+              value: {{ .Values.documents.inbound.s3.region | quote }}
+            - name: INBOUND_S3_FORCE_PATH_STYLE
+              value: {{ .Values.documents.inbound.s3.forcePathStyle | quote }}
+            - name: INBOUND_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: INBOUND_S3_ACCESS_KEY_ID
+            - name: INBOUND_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: INBOUND_S3_SECRET_ACCESS_KEY
+            {{- end }}
+
             # Instance file backup — a SECOND, dedicated bucket, entirely separate from ARCHIVE_S3_*
             # above (see values.yaml's own `backup` header). OFF (nothing rendered here) with an empty
             # `backup.s3.bucket` — read by backend/src/modules/backup.
@@ -180,10 +207,26 @@ spec:
                 secretKeyRef:
                   name: {{ include "invoicerr.secretName" . }}
                   key: BACKUP_S3_SECRET_ACCESS_KEY
+            # A key of its own — deliberately NOT CREDENTIALS_ENCRYPTION_KEY, see
+            # backend/src/modules/backup/backup-crypto.ts's own header for why. `optional: true` like
+            # that key above: a missing/invalid value never crashes the pod, it fails every backup
+            # SWEEP loudly instead (a FAILED run, visible on GET /api/backup/status) — backups exist
+            # for disaster recovery, so this module refuses to either upload plaintext or go silently
+            # inert the way a missing CREDENTIALS_ENCRYPTION_KEY does for channel credentials. This is
+            # the pod that actually RUNS the sweep (`WORKER_INLINE` — see this chart's own topology
+            # notes), so this is where a missing key actually matters operationally.
+            - name: BACKUP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_ENCRYPTION_KEY
+                  optional: true
             {{- end }}
 
+            {{- if eq .Values.documents.inbound.storage "local" }}
             - name: DOCUMENTS_INBOUND_DIR
               value: "/data/documents-inbound"
+            {{- end }}
             {{- if eq .Values.archive.storage "local" }}
             - name: DOCUMENTS_ARCHIVE_DIR
               value: "/data/documents-archive"
@@ -201,7 +244,7 @@ spec:
           envFrom:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.documents.persistence.enabled }}
+          {{- if and .Values.documents.persistence.enabled (eq (include "invoicerr.documentsVolumeNeeded" .) "true") }}
           volumeMounts:
             - name: documents-data
               mountPath: /data
@@ -212,7 +255,7 @@ spec:
             {{- toYaml .Values.worker.livenessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
-      {{- if .Values.documents.persistence.enabled }}
+      {{- if and .Values.documents.persistence.enabled (eq (include "invoicerr.documentsVolumeNeeded" .) "true") }}
       volumes:
         - name: documents-data
           persistentVolumeClaim:

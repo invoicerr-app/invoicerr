@@ -3,6 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 
 import { BackupQueueWorkerModule } from './modules/backup/backup-queue-worker.module';
 import { isBackupEnabled } from './modules/backup/backup.constants';
+import { BillingQueueWorkerModule } from './modules/billing/billing-queue-worker.module';
+import { isBillingEnabled } from './modules/billing/billing-flag';
+import { TransferQueueWorkerModule } from './modules/company/transfer/transfer-queue-worker.module';
 import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -28,6 +31,15 @@ import { PrismaModule } from './prisma/prisma.module';
  * every repeatable, backup-sweep included. Still gated on `isBackupEnabled()`
  * (`BACKUP_S3_BUCKET` set) — a worker process booted with no destination bucket configured must stay
  * exactly as inert about backups as the API process is (`app.module.ts`'s own `backupEnabled` gate).
+ *
+ * `BillingQueueWorkerModule` / `TransferQueueWorkerModule` — the SAME "always import here,
+ * `app.module.ts` gates its own inline copy on `workerInline`" shape as `DocumentsQueueWorkerModule`/
+ * `BackupQueueWorkerModule` above. BEFORE this split, `BillingModule`/`TransferModule` were imported
+ * ONLY by `AppModule` — a dedicated worker process had NO WAY to consume `Q_BILLING_LIFECYCLE` or
+ * `Q_COMPANY_TRANSFER` at all, so both sweeps always ran on an API replica regardless of how many
+ * dedicated workers existed. `BillingQueueWorkerModule` is still gated on `isBillingEnabled()` — the
+ * same "invisible and inert without its flag" contract `app.module.ts`'s own `billingEnabled` already
+ * holds; `TransferQueueWorkerModule` has no such flag (transfer works in self-hosted mode too).
  */
 @Module({
   imports: [
@@ -35,6 +47,8 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     DocumentsQueueWorkerModule,
     ...(isBackupEnabled() ? [BackupQueueWorkerModule] : []),
+    ...(isBillingEnabled() ? [BillingQueueWorkerModule] : []),
+    TransferQueueWorkerModule,
   ],
 })
 export class WorkerModule {}

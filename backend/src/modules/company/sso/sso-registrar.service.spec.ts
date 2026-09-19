@@ -41,6 +41,7 @@ import { vi, type Mock } from 'vitest';
 import { resetRegisteredCompanyProviders } from '@/lib/sso-registry';
 import { auth } from '@/lib/auth';
 import { assertPublicOutboundUrl } from '@/utils/outbound-url';
+import { SsoRegistrySync, SsoRegistrySyncMessage } from './sso-registry-sync';
 import { SsoProviderResolved, SsoService } from './sso.service';
 import { SsoRegistrarService, buildCompanyProvider } from './sso-registrar.service';
 
@@ -483,6 +484,147 @@ describe('SsoRegistrarService', () => {
 
         await expect(new SsoRegistrarService(fakeSso()).onModuleInit()).resolves.toBeUndefined();
       });
+    });
+  });
+
+  /**
+   * The actual defect and its fix. A bare `new SsoRegistrarService(fakeSso())` (every case
+   * above) never constructs a `sync`, standing in for the pre-fix codebase entirely — that this
+   * codebase's own default now behaves exactly like production BEFORE the fix is the point: the fix
+   * is additive, not a behaviour change for a caller that supplies nothing.
+   *
+   * `fakeBus()` below is a tiny, in-memory, synchronous stand-in for two ioredis connections pointed
+   * at the same Redis (`publish` on one instance calls every `onMessage` handler registered on ANY
+   * instance sharing the same bus) — the "second module instance sharing a fake shared backend" shape
+   * used elsewhere in this fix (`lib/auth-rate-limit.spec.ts`'s own `fakeSharedStore`) to simulate two
+   * replicas without a real network.
+   */
+  describe('cross-replica sync', () => {
+    function fakeBus(): { forReplica: () => SsoRegistrySync } {
+      const handlers: Array<(message: SsoRegistrySyncMessage) => void> = [];
+      return {
+        forReplica: () => ({
+          async publish(message) {
+            for (const handler of handlers) handler(message);
+          },
+          async onMessage(handler) {
+            handlers.push(handler);
+          },
+        }),
+      };
+    }
+
+    /**
+     * `onModuleInit`'s own subscription handler applies an incoming message via `void
+     * this.applyRemoteChange(message)` — deliberately fire-and-forget, matching what a REAL ioredis
+     * 'message' event handler must be (nothing is ever waiting on it; `publish()` on the wire only
+     * ever confirms delivery TO Redis, never that a subscriber finished reacting). `fakeBus#publish`
+     * mirrors that same non-blocking shape, so a test that calls `register()`/`unregister()` and
+     * immediately inspects `auth.$context` must give the other replica's fire-and-forget handler a
+     * chance to actually finish its own two awaited steps first — a `setImmediate` round trip drains
+     * every microtask queued so far (unlike a bare extra `await`, which only guarantees ONE more tick,
+     * not "however many this handler's own chain needs").
+     */
+    function flush(): Promise<void> {
+      return new Promise((resolve) => setImmediate(resolve));
+    }
+
+    it(
+      'a register() on replica A is applied on replica B too — without B ever restarting — closing the ' +
+        'exact gap named in this file\'s own header ("a write served by one process does not register ' +
+        'the provider in another\'s memory until that one restarts")',
+      async () => {
+        const bus = fakeBus();
+        const replicaA = new SsoRegistrarService(fakeSso(), bus.forReplica());
+        const replicaB = new SsoRegistrarService(fakeSso(), bus.forReplica());
+        // Both replicas subscribe, exactly as `onModuleInit` does in production — with no stored rows,
+        // so this isolates the SYNC path from the boot-time reseed path.
+        await replicaA.onModuleInit();
+        await replicaB.onModuleInit();
+        (await context()).socialProviders.length = 0; // the OIDC_ONLY assertion above needs nothing.
+
+        await replicaA.register(COMPANY_ID);
+        await flush();
+
+        // Replica B never called `.register()` itself — its own copy of the (shared, in this test
+        // process) `auth.$context.socialProviders` array was updated purely by RECEIVING replica A's
+        // published change.
+        const entries = (await context()).socialProviders;
+        expect((await findProvider(entries, PROVIDER_ID))?.id).toBe(PROVIDER_ID);
+      },
+    );
+
+    it('an unregister() on replica A removes the entry on replica B too', async () => {
+      const bus = fakeBus();
+      const replicaA = new SsoRegistrarService(fakeSso(), bus.forReplica());
+      const replicaB = new SsoRegistrarService(fakeSso(), bus.forReplica());
+      await replicaA.onModuleInit();
+      await replicaB.onModuleInit();
+      (await context()).socialProviders.length = 0;
+      await replicaA.register(COMPANY_ID);
+      await flush();
+
+      await replicaA.unregister(COMPANY_ID);
+      await flush();
+
+      const entries = (await context()).socialProviders;
+      expect(await findProvider(entries, PROVIDER_ID)).toBeUndefined();
+    });
+
+    it(
+      're-registering on replica A never leaves a stale duplicate on replica B — even though a ' +
+        "replica's own publish echoes back to its OWN subscription too (Redis pub/sub delivers a " +
+        "publish to every subscriber, the publisher's own connection included), so replica A's local " +
+        'call and its self-echoed remote apply race each other on the SAME array',
+      async () => {
+        const bus = fakeBus();
+        const replicaA = new SsoRegistrarService(fakeSso(), bus.forReplica());
+        const replicaB = new SsoRegistrarService(fakeSso(), bus.forReplica());
+        await replicaA.onModuleInit();
+        await replicaB.onModuleInit();
+        (await context()).socialProviders.length = 0;
+
+        await replicaA.register(COMPANY_ID);
+        await flush();
+        await flush();
+        await replicaA.register(COMPANY_ID); // an edited configuration, re-saved.
+        await flush();
+        await flush();
+
+        // Never stacked — exactly one entry, on the ONE array both replicas share in this test
+        // (see this describe block's own header on why `auth.$context` is process-global here).
+        const entries = (await context()).socialProviders;
+        expect(entries).toHaveLength(1);
+        expect((await findProvider(entries, PROVIDER_ID))?.id).toBe(PROVIDER_ID);
+      },
+    );
+
+    it('never publishes when no sync was supplied — the default, every other case in this file', async () => {
+      // Guards against a regression where `register`/`unregister` might call `this.sync.publish`
+      // unconditionally instead of `this.sync?.publish` — which would throw on `undefined` and break
+      // every single test above this describe block instead of merely this one.
+      await expect(new SsoRegistrarService(fakeSso()).register(COMPANY_ID)).resolves.toBeUndefined();
+      await expect(new SsoRegistrarService(fakeSso()).unregister(COMPANY_ID)).resolves.toBeUndefined();
+    });
+
+    it('a publish failure never propagates out of register()/unregister() — the local write already succeeded', async () => {
+      // Even though the REAL `SsoRegistrySyncService#publish` already never rejects on its own (it
+      // logs and swallows internally), `register`/`unregister` guard a second time — a customer's
+      // "save my SSO settings" request must not fail merely because telling OTHER replicas hiccupped.
+      // A rejecting fake proves that second guard exists, not just the concrete class's own.
+      const failingSync: SsoRegistrySync = {
+        publish: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')),
+        onMessage: vi.fn().mockResolvedValue(undefined),
+      };
+      const service = new SsoRegistrarService(fakeSso(), failingSync);
+
+      await expect(service.register(COMPANY_ID)).resolves.toBeUndefined();
+      // The local registration itself was NOT skipped — only the announcement failed.
+      expect((await findProvider((await context()).socialProviders, PROVIDER_ID))?.id).toBe(PROVIDER_ID);
+
+      await expect(service.unregister(COMPANY_ID)).resolves.toBeUndefined();
+      expect(await findProvider((await context()).socialProviders, PROVIDER_ID)).toBeUndefined();
+      expect(failingSync.publish).toHaveBeenCalledTimes(2);
     });
   });
 });

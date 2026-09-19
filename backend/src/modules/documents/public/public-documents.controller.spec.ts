@@ -72,6 +72,14 @@ vi.mock('@/prisma/prisma.service', () => {
           return row;
         }),
       },
+      // `DocumentsService.renderInstancePdf` now checks for an already-archived PDF BEFORE ever
+      // rendering (`archive/persistence.ts#findArchivedPdfArtifact`) — `findFirst` resolving `null`
+      // means "no archive at all", which is exactly this fixture's own document (never actually
+      // sent), and keeps this test's real subject (both controllers funnel through the SAME
+      // `renderInstancePdf` call) unchanged: it still falls through to the mocked render below.
+      documentArchive: {
+        findFirst: vi.fn(async () => null),
+      },
     },
   };
 });

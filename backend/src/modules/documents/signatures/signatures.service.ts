@@ -219,6 +219,12 @@ export class SignaturesService {
    * first — freezes those bytes to durable storage, and serves that SAME frozen copy forever after,
    * which is what actually makes "what the signer saw" and "what gets sealed by verifyAndSign" the
    * same artifact rather than two independent facts that happen to usually agree.
+   *
+   * That ONE render call is itself `documentsService.renderInstancePdf` — which now serves an
+   * already-archived PDF instead of launching Chromium whenever the underlying document already has
+   * one (e.g. a quote that was already emailed before a signature was separately requested for it).
+   * No behavior change here: this method still freezes whatever `renderInstancePdf` hands back,
+   * archived or freshly rendered, exactly once.
    */
   async getPublicDocument(token: string): Promise<PublicSignatureDocument> {
     const row = await this.resolveActiveOrThrow(token);

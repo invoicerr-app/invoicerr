@@ -1493,15 +1493,17 @@ model DocumentInstance {
   // (`transports/pdp-transport.ts`) or superpdp's own invoice id. Generic on this table (like
   // `lastActionError` above) rather than a PDP-specific column: any future transport that hands back
   // a reference gets the same slot, no schema change. Absent for the "email" transport (nothing to
-  // record) and for every type with no transport at all (quote/credit-note) — set ONLY by
-  // `actions/async-send.ts`'s phase-2 delivery, on the SAME write that moves the record to "sent",
-  // never touched by an ordinary `upsertDocument` write the way `lastActionError` is (there is
-  // nothing stale to clear: a reference is only ever written once delivery actually succeeds).
+  // record) and for every type with no transport at all (quote/credit-note) — set by
+  // `persistence.ts#confirmDelivery`, the moment delivery genuinely succeeds
+  // (`actions/async-send.ts`'s phase-2), DELIBERATELY BEFORE the write that moves the record to
+  // "sent" (see `deliveryConfirmedAt` below for why that ordering is load-bearing) — never touched by
+  // an ordinary `upsertDocument` write the way `lastActionError` is (there is nothing stale to clear:
+  // a reference is only ever written once delivery actually succeeds).
   transportRef String?
 
   // The registered transport ("pdp"/"ksef"/"sdi"/…, `transports/transport-registry.ts` ids) that
   // ACTUALLY delivered this document — set on the SAME write as `transportRef` above, for the exact
-  // same reason and by the exact same caller (`actions/async-send.ts`'s phase-2 delivery). Needed
+  // same reason and by the exact same caller (`persistence.ts#confirmDelivery`). Needed
   // because `Company.invoiceTransportId` is the company's CURRENT choice, which can change after this
   // document was sent — the post-deposit conformity poll (`conformity/`) must poll the
   // channel this document actually went through, never whatever the company happens to have
@@ -1512,6 +1514,25 @@ model DocumentInstance {
   // SOAP notifiche, nothing to poll, see `conformity/pollers/`'s own header) is simply never selected,
   // no matter what this column holds.
   channelProviderId String?
+
+  // THE CROSS-PROCESS, POST-DELIVERY GUARANTEE — set by `persistence.ts#confirmDelivery`, in the
+  // SAME write as `transportRef`/`channelProviderId` above, the instant `deliver()`
+  // (`actions/async-send.ts`) has genuinely returned success, and BEFORE the record is ever moved to
+  // "sent". Exists to close a gap the in-process/in-memory guard (`async-send.ts`'s own
+  // `inFlightDeliveries` Set) cannot: that Set only ever protects a single process, so once the API
+  // and a BullMQ worker (or several replicas of either) run separately, a retry that lands on a
+  // process with no memory of the first attempt would otherwise re-read a "sending" row, see nothing
+  // to stop it, and call `deliver()` a SECOND time — a real second email or authority deposit, not a
+  // theoretical one. This column is the durable fact a retry checks FIRST: non-null means "delivery
+  // already happened for this 'sending' episode", so `async-send.ts`'s phase-2 skips `deliver()`
+  // entirely and only finishes whatever write never completed — see that file's own header for the
+  // full guarantee this makes possible (an unbounded number of safe status-write retries once
+  // delivery itself is durably confirmed). Never cleared once set — not by `upsertDocument`'s
+  // ordinary `lastActionError` reset, not by a later "send_failed" — a "send_failed" → "sending" retry
+  // (a human clicking Retry after every BullMQ attempt was spent on the FINAL write alone) must still
+  // see it and still refuse to call `deliver()` again. Null for every document whose delivery has
+  // never yet succeeded, and forever for any type with no "send" action at all.
+  deliveryConfirmedAt DateTime?
 
   // See DocumentAuthorityEvent below (conformity/) — the post-deposit conformity journal:
   // every event the ISSUING PLATFORM itself reported for this document (fr:200/201/202/213 for PDP,

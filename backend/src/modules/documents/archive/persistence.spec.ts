@@ -10,6 +10,7 @@ import { computeContentHash } from './hashing';
 import {
   createAuthorityVerdictArchive,
   createDocumentArchive,
+  findArchivedPdfArtifact,
   findOwnedArchive,
   listDocumentArchives,
   verifyDocumentArchive,
@@ -179,6 +180,78 @@ describe('archive/persistence', () => {
 
       expect(createArchive).toHaveBeenCalledTimes(2);
       expect(first.id).not.toBe(second.id);
+    });
+  });
+
+  // Serves `documents.service.ts#renderInstancePdf` — the read half of "an already-sent document's
+  // PDF download skips Chromium entirely". Deliberately exercises the REAL `createDocumentArchive` ->
+  // real disk write -> `findArchivedPdfArtifact` -> real disk read round trip (only `documentArchive`
+  // itself is mocked, standing in for the row a real "send" would have committed) — a mocked
+  // `readArchivedArtifact` would prove the wiring but nothing about the bytes actually surviving a
+  // real write/read cycle unchanged, which is the one property that matters here.
+  describe('findArchivedPdfArtifact', () => {
+    it('reads back, byte-for-byte off real disk, the "pdf" artifact a send-time archive wrote', async () => {
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-1', ...data }));
+
+      const pdfBytes = new TextEncoder().encode('%PDF-1.7 exactly what was emailed');
+      const written = await createDocumentArchive(
+        {
+          companyId: 'company-1',
+          documentId: 'doc-1',
+          artifacts: [{ role: 'pdf', mime: 'application/pdf', bytes: pdfBytes }],
+        },
+        FR_CATALOG,
+      );
+      // What a real `documentArchive.findFirst` (kind DELIVERY, most recent) would hand back — the
+      // SAME row `createDocumentArchive` just wrote, `uri` included, pointing at the real bytes on
+      // disk under this test's own temp `DOCUMENTS_ARCHIVE_DIR`.
+      findFirstArchive.mockResolvedValue({
+        id: 'archive-1',
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        uri: written.uri,
+        artifacts: written.artifacts,
+      });
+
+      const served = await findArchivedPdfArtifact('company-1', 'doc-1');
+
+      expect(served).not.toBeNull();
+      expect(Buffer.from(served!)).toEqual(Buffer.from(pdfBytes));
+    });
+
+    it('returns null when the archive exists but carries no plain-PDF artifact (pdp/chorus-pro\'s own "facturx" role, ksef\'s "fa3", sdi\'s "fatturapa")', async () => {
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-1', ...data }));
+
+      // A Factur-X file's OWN mime is also `application/pdf` (a real, renderable PDF/A-3) — this
+      // proves the match is on `role: 'pdf'`, never mime alone (see this function's own header for
+      // why: that artifact was never PAdES-signed the way "email"'s own archived PDF was).
+      const written = await createDocumentArchive(
+        {
+          companyId: 'company-1',
+          documentId: 'doc-1',
+          artifacts: [
+            { role: 'facturx', mime: 'application/pdf', bytes: new TextEncoder().encode('hybrid pdf/a-3') },
+          ],
+        },
+        FR_CATALOG,
+      );
+      findFirstArchive.mockResolvedValue({
+        id: 'archive-1',
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        uri: written.uri,
+        artifacts: written.artifacts,
+      });
+
+      await expect(findArchivedPdfArtifact('company-1', 'doc-1')).resolves.toBeNull();
+    });
+
+    it('returns null when this document has no DELIVERY archive at all (a draft, or an archiving failure)', async () => {
+      findFirstArchive.mockResolvedValue(null);
+
+      await expect(findArchivedPdfArtifact('company-1', 'doc-1')).resolves.toBeNull();
     });
   });
 

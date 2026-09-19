@@ -6,60 +6,31 @@
  *
  * Always imported (`app.module.ts`, unconditionally, alongside `InvitationsModule`/`LegalModule`) —
  * unlike `BillingModule`, this feature works in self-hosted mode too (`transfer.service.ts`'s own
- * subscription gate is itself a no-op there, see `isBillingEnabled()`). Own dedicated BullMQ queue
- * (`queue/transfer-queue.constants.ts`) rather than joining the documents module's — see that file's
- * own header for why.
+ * subscription gate is itself a no-op there, see `isBillingEnabled()`).
  *
- * `MailService` is provided directly here (plain, empty-constructor leaf provider) — the same "every
- * module that needs it just lists it in its own providers" convention `billing.module.ts`/
- * `danger.module.ts`/`documents-core.module.ts` each independently document.
+ * SPLIT from the queue's own providers/consumer (`transfer-core.module.ts`/
+ * `transfer-queue-worker.module.ts`): this module used to ALSO carry `BullModule.forRoot`/
+ * `registerQueue`, `TransferExpirySweepRunner` and `TransferExpiryProcessor` directly, and being
+ * imported ONLY by `AppModule` (never `worker.module.ts`) meant the expiry sweep always ran on an API
+ * replica — see `transfer-core.module.ts`'s own header for the full account. This is now the HTTP-only
+ * half; the queue wiring lives there instead.
+ *
+ * `MailService` is provided directly here too (plain, empty-constructor leaf provider) — `TransferService`'s
+ * own dependency, the same "every module that needs it just lists it in its own providers" convention
+ * `billing.module.ts`/`danger.module.ts`/`documents-core.module.ts` each independently document.
  */
-import { BullModule, InjectQueue } from '@nestjs/bullmq';
-import { Module, OnApplicationBootstrap } from '@nestjs/common';
-import { Queue } from 'bullmq';
+import { Module } from '@nestjs/common';
 
 import { MailService } from '@/mail/mail.service';
 
-import { redisConnection } from '../../documents/queue/redis.config';
 import { AccountTransfersController } from './account-transfers.controller';
-import { TransferExpiryProcessor } from './queue/transfer-expiry.processor';
-import {
-  Q_COMPANY_TRANSFER,
-  readTransferExpirySweepIntervalMs,
-  TRANSFER_BULL_CONFIG_KEY,
-  TRANSFER_EXPIRY_SWEEP_JOB_ID,
-  TRANSFER_EXPIRY_SWEEP_JOB_NAME,
-} from './queue/transfer-queue.constants';
 import { TransferController } from './transfer.controller';
-import { TransferExpirySweepRunner } from './transfer-expiry-sweep-runner';
+import { TransferCoreModule } from './transfer-core.module';
 import { TransferService } from './transfer.service';
 
 @Module({
-  imports: [
-    BullModule.forRoot(TRANSFER_BULL_CONFIG_KEY, { connection: redisConnection() }),
-    BullModule.registerQueue({ configKey: TRANSFER_BULL_CONFIG_KEY, name: Q_COMPANY_TRANSFER }),
-  ],
+  imports: [TransferCoreModule],
   controllers: [TransferController, AccountTransfersController],
-  providers: [MailService, TransferService, TransferExpirySweepRunner, TransferExpiryProcessor],
+  providers: [MailService, TransferService],
 })
-export class TransferModule implements OnApplicationBootstrap {
-  constructor(@InjectQueue(Q_COMPANY_TRANSFER) private readonly queue: Queue) {}
-
-  /** Idempotent registration — BullMQ dedups a repeatable definition by its own key across the whole
-   *  cluster, same `attempts: 1` reasoning every sibling sweep in this codebase documents: a pass that
-   *  itself throws is a real bug worth surfacing loudly now, not silently retried moments later — the
-   *  next tick, `readTransferExpirySweepIntervalMs()` away, is already the natural retry. */
-  async onApplicationBootstrap(): Promise<void> {
-    await this.queue.add(
-      TRANSFER_EXPIRY_SWEEP_JOB_NAME,
-      {},
-      {
-        jobId: TRANSFER_EXPIRY_SWEEP_JOB_ID,
-        repeat: { every: readTransferExpirySweepIntervalMs() },
-        attempts: 1,
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
-  }
-}
+export class TransferModule {}

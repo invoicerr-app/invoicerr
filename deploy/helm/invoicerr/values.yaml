@@ -167,8 +167,26 @@ worker:
 #   REDIS_PASSWORD                  Optional — only if the bundled or external Redis requires auth.
 #   ARCHIVE_S3_ACCESS_KEY_ID        REQUIRED when archive.storage=s3 (the default — see below).
 #   ARCHIVE_S3_SECRET_ACCESS_KEY    REQUIRED when archive.storage=s3.
+#   INBOUND_S3_ACCESS_KEY_ID        REQUIRED when documents.inbound.storage=s3 (opt-in — see below).
+#   INBOUND_S3_SECRET_ACCESS_KEY    REQUIRED when documents.inbound.storage=s3.
 #   BACKUP_S3_ACCESS_KEY_ID         REQUIRED when backup.s3.bucket is set (off by default — see below).
 #   BACKUP_S3_SECRET_ACCESS_KEY     REQUIRED when backup.s3.bucket is set.
+#   BACKUP_ENCRYPTION_KEY           Strongly recommended whenever backup.s3.bucket is set. AES-256-GCM
+#                                    key encrypting every backup artifact BEFORE it leaves the pod —
+#                                    see backend/src/modules/backup/backup-crypto.ts. Deliberately a
+#                                    DIFFERENT key from CREDENTIALS_ENCRYPTION_KEY (different blast
+#                                    radius and lifetime — that file's own header explains why).
+#                                    `openssl rand -hex 32`. Left unset, this does NOT disable backups
+#                                    and does NOT upload them in the clear: every sweep FAILS loudly
+#                                    instead (a FAILED run, visible on GET /api/backup/status) until a
+#                                    key is set — backups exist for disaster recovery, so this module
+#                                    refuses to go silently inert. Store this key OUTSIDE this chart's
+#                                    own Secret too (a password manager, a separate vault) — an
+#                                    operator restoring a backup onto a brand new instance, after
+#                                    losing the one THIS Secret lived on, needs it independently of
+#                                    everything else here. LOSING THIS KEY LOSES EVERY BACKUP ENCRYPTED
+#                                    WITH IT, PERMANENTLY — see
+#                                    documentation/docs/user-guide/backups.md's "Restoring" section.
 existingSecret: ""
 
 # generateSecret — OFF by default. Turn on ONLY for a disposable local/kind install. Loudly UNSAFE
@@ -185,8 +203,11 @@ generateSecret:
   redisPassword: ""
   archiveS3AccessKeyId: ""
   archiveS3SecretAccessKey: ""
+  inboundS3AccessKeyId: ""
+  inboundS3SecretAccessKey: ""
   backupS3AccessKeyId: ""
   backupS3SecretAccessKey: ""
+  backupEncryptionKey: ""
 
 # ===================================================================================================
 # Application-level settings wired as plain env vars (non-secret).
@@ -203,6 +224,15 @@ app:
   # alike (not masked there). Left empty (the default), NO instance operator exists and both stay
   # unavailable/refused — see backend/src/lib/instance-operators.ts.
   instanceOperatorEmails: ""
+  # TRUST_PROXY_HOPS (backend/src/lib/trust-proxy.ts) — how many HTTP-aware reverse-proxy hops sit in
+  # front of the api pod's own in-container nginx when resolving a request's real client IP. Default
+  # `2` here, NOT the backend's own single-container default of `1`: this chart's `ingress.yaml` is
+  # enabled by default (`ingress.enabled: true` below) and sits IN FRONT of that same in-container
+  # nginx — a real second HTTP-aware hop docker-compose.yml's own topology never has. Set this to `1`
+  # if you disable `ingress.enabled` and expose the `api` Service directly with nothing else in front
+  # of nginx, or raise it further if you put ANOTHER load balancer/CDN in front of the Ingress itself.
+  # Getting this wrong is silent — see `trust-proxy.ts`'s own header for what breaks in each direction.
+  trustProxyHops: "2"
   # Escape hatch for anything this chart doesn't wire explicitly (mail provider, OIDC, …) — see
   # .env.example / docker-compose.yml in the repo root for the full variable list. Same shape Helm
   # uses everywhere: a list of `{name, value}` or `{name, valueFrom}` entries, appended to both the
@@ -247,6 +277,12 @@ archive:
 # the app reads back from, and it never touches the database (Postgres has its own backup story).
 # OFF by default: an empty `bucket` is what `isBackupEnabled()` reads as "module disabled" — no
 # route, no queue, nothing rendered into either Deployment's env below.
+#
+# Every artifact is encrypted with AES-256-GCM BEFORE it ever leaves the pod (`backup-crypto.ts`) —
+# holding `BACKUP_S3_*` credentials is not enough to read a backup, only `BACKUP_ENCRYPTION_KEY`
+# (existingSecret's own header above) is. Set that key when you set `bucket` below; see this chart's
+# `existingSecret` header for what happens if you don't (backups fail loudly, they are never uploaded
+# in the clear).
 # ===================================================================================================
 backup:
   s3:
@@ -262,16 +298,52 @@ backup:
     schedule: "0 3 * * *"
 
 # ===================================================================================================
-# Local, on-disk shared storage — mounted at /data on BOTH api and worker.
-#   - ALWAYS used for DOCUMENTS_INBOUND_DIR: uploaded received-invoice files have no S3 backend today
-#     (backend/src/modules/documents/received-invoices/storage.ts is local-disk only, content-hash
-#     addressed, company-scoped) — this volume exists regardless of archive.storage.
-#   - ADDITIONALLY used for DOCUMENTS_ARCHIVE_DIR when archive.storage=local.
-# See the `archive` block's own comment above for why ReadWriteOnce silently breaks beyond a single
-# replica: point storageClassName at a ReadWriteMany-capable class (NFS, EFS, Azure Files,
-# Longhorn, ...) for any real multi-replica install, or accept this stays a single-node/dev setup.
+# Received-invoice / attachment / logo inbound store (backend/src/modules/documents/received-invoices/
+# storage.ts) — the SECOND half of what used to make the `documents` PVC below unconditional. `local`
+# (DOCUMENTS_INBOUND_DIR on the pod's own filesystem) has the EXACT SAME ReadWriteOnce-at-replicaCount-1
+# caveat `archive.storage=local` documents above, for the same reason: a file uploaded on worker
+# replica B is simply not on the disk api replica A reads back from, unless every pod mounts the SAME
+# ReadWriteMany volume. `local` is still the DEFAULT here (unlike `archive.storage`, which defaults to
+# `s3`) — an operator with no object storage at all (a single-container self-hosted install) must keep
+# working exactly as before with zero configuration; opt into `s3` once real multi-replica scaling is
+# the goal. Existing local files do NOT migrate themselves when you switch this later — see
+# `received-invoices/storage.ts`'s own header for exactly what that means and why (no per-file uri is
+# persisted anywhere for this store, unlike the archive's own `DocumentArchive.uri` column).
+#
+# THIS is the setting that decides whether the `documents` PVC below can be dropped entirely: with
+# `archive.storage=s3` (the default) AND `documents.inbound.storage=s3`, NOTHING reads or writes
+# `/data` any more on either Deployment, and the PVC/volume/mounts stop being rendered altogether
+# (see templates/_helpers.tpl#invoicerr.documentsVolumeNeeded) — this is the ONLY combination that lets
+# api and worker actually scale to more than one node/replica on ReadWriteOnce block storage, which is
+# the entire point of this block existing. Any other combination (either one still `local`) keeps the
+# PVC and its mounts exactly as before.
 # ===================================================================================================
 documents:
+  inbound:
+    # "local" or "s3" — read by backend/src/modules/documents/received-invoices/storage.ts via
+    # INBOUND_STORAGE. Default "local" — see this block's own header for why that default differs
+    # from `archive.storage`'s.
+    storage: local
+    s3:
+      bucket: "invoicerr-inbound"
+      # Same shape as `archive.s3` above — a Scaleway Object Storage example, any S3-compatible
+      # endpoint works identically (AWS S3, MinIO, Backblaze B2, ...). Use a DIFFERENT bucket from
+      # `archive.s3.bucket`: this store's own `deleteAllInboundObjectsS3` (instance reset) and backup
+      # source enumeration both treat `INBOUND_S3_BUCKET` as dedicated to inbound files alone.
+      #   endpoint: https://s3.fr-par.scw.cloud
+      #   region:   fr-par
+      endpoint: "https://s3.fr-par.scw.cloud"
+      region: "fr-par"
+      forcePathStyle: false
+  # ===================================================================================================
+  # Local, on-disk shared storage — mounted at /data on BOTH api and worker, ONLY when at least one of
+  # `archive.storage` / `documents.inbound.storage` is still "local" (see this block's own header
+  # above) AND `persistence.enabled` is true. See the `archive` block's own comment for why
+  # ReadWriteOnce silently breaks beyond a single replica: point storageClassName at a
+  # ReadWriteMany-capable class (NFS, EFS, Azure Files, Longhorn, ...) for a multi-replica install that
+  # still needs local mode for one of the two stores, or move BOTH to `s3` and drop this volume
+  # entirely instead.
+  # ===================================================================================================
   persistence:
     enabled: true
     accessMode: ReadWriteOnce

@@ -5,8 +5,10 @@ import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { skipBodyParserFor } from './lib/body-parser-auth-skip';
-import { createAuthRateLimitMiddleware } from './lib/auth-rate-limit';
+import { createAuthRateLimitMiddleware, createRedisAuthRateLimitCounterStore } from './lib/auth-rate-limit';
 import { devOnlyOrigins } from './lib/dev-origins';
+import { createLibRedisClient } from './lib/redis-connection';
+import { resolveTrustProxyHops } from './lib/trust-proxy';
 import { auth } from './lib/auth';
 
 /**
@@ -36,18 +38,27 @@ import { auth } from './lib/auth';
  */
 export async function createApp(module: Type<unknown> = AppModule): Promise<INestApplication> {
   const app = await NestFactory.create(module, { bodyParser: false });
-  // SECURITY_AUDIT.md finding #1: nginx (nginx.conf) is the only hop in front of this process
-  // (same container, proxying over loopback — see entrypoint.sh) and now OVERWRITES
-  // X-Forwarded-For with the real client IP it saw ($remote_addr) rather than appending to
-  // whatever a client sent. `trust proxy: 1` tells Express "trust exactly one hop" so
-  // `req.ip` reads that header instead of always resolving to the loopback peer address
-  // (127.0.0.1, since nginx and this process share a container) — otherwise both the global
-  // `ThrottlerGuard` (app.module.ts, keys on `req.ip` by default) and better-auth's own
-  // request-IP reader end up sharing one instance-wide bucket / a spoofable IP, defeating
-  // per-IP rate limiting (e.g. login brute-force). Must be `1`, not `true`: `true` would trust
-  // an arbitrary number of forwarded hops, which is exactly the "trust whatever the client
-  // claims" bug this fixes.
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  // SECURITY_AUDIT.md finding #1: nginx (nginx.conf) proxies to this process over loopback (same
+  // container, see entrypoint.sh) and APPENDS its own directly-observed peer address to whatever
+  // `X-Forwarded-For` it received (`$proxy_add_x_forwarded_for`, never overwriting it) — so the
+  // header grows by exactly one entry per real HTTP-aware hop in front of this container.
+  // `trust proxy: <n>` tells Express "trust exactly n hops counting back from nginx's own entry",
+  // which is what lets `req.ip` resolve to the actual client instead of always the loopback peer
+  // (127.0.0.1) or, with more than one hop in front and this left at a stale `1`, to whichever
+  // load balancer/CDN sits closest — the bug named "the client IP collapses behind a second proxy
+  // hop": with a load balancer added and this still hardcoded to `1`, EVERY request would appear
+  // to come from the balancer, and the global `ThrottlerGuard` (app.module.ts) plus
+  // `lib/auth-rate-limit.ts` would each share one instance-wide bucket regardless of who is
+  // actually calling.
+  //
+  // `resolveTrustProxyHops()` (`lib/trust-proxy.ts`) reads this from `TRUST_PROXY_HOPS`, defaulting
+  // to `1` — today's only shipped topology (docker-compose.yml, nginx is the sole hop) — so an
+  // operator who sets nothing keeps EXACTLY the previous hardcoded behaviour. A self-hosted
+  // operator fronting this with their own reverse proxy/CDN, or the Helm chart's own Ingress
+  // (`deploy/helm/invoicerr/values.yaml#app.trustProxyHops`, defaults to `2` there), raises this by
+  // one per real hop added — see `lib/trust-proxy.ts`'s own header for why the count must be
+  // EXACT, never just "big enough".
+  app.getHttpAdapter().getInstance().set('trust proxy', resolveTrustProxyHops());
   app.enableCors({
     credentials: true,
     // `devOnlyOrigins()` is `[]` in production — see that function's own header for the vulnerability
@@ -122,7 +133,19 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   // it forwards straight to Express, so it runs before `NestApplication.init()` ever wires up
   // better-auth's own middleware — see `lib/auth-rate-limit.ts`'s own header for the full account of
   // what this closes and why it does not merely duplicate better-auth's own internal limiter.
-  app.use(createAuthRateLimitMiddleware(authBasePath));
+  // A Redis-backed counter store, never the default in-process `Map` — three API replicas
+  // must share ONE budget per (rule, ip), not one each. See `auth-rate-limit.ts`'s own "COUNTER
+  // STORAGE" header section for why this middleware cannot simply reuse `ThrottlerModule.forRoot`'s
+  // own Redis storage below (it runs outside Nest's guard pipeline entirely). `createLibRedisClient`
+  // opens its own connection rather than sharing one with the throttler's own client — a plain,
+  // stateless `ioredis` instance costs nothing extra to open a second time, and keeps this middleware
+  // (registered here, as a raw `app.use()`, before Nest's own DI container exists yet) from depending
+  // on anything Nest constructs.
+  app.use(
+    createAuthRateLimitMiddleware(authBasePath, {
+      store: createRedisAuthRateLimitCounterStore(createLibRedisClient()),
+    }),
+  );
 
   app.use(
     skipBodyParserFor(

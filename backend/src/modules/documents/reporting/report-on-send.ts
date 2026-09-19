@@ -1,8 +1,9 @@
 /**
  * The hook point of declarative reporting onto `actions/async-send.ts`'s own "sent" write —
- * called right after `archiveDeliveredArtifactsIfAny` (never before it, and never before "sent" is
- * persisted): the SAME "after the fact is settled, never before" principle that file's own header
- * documents at length, applied to a genuinely DIFFERENT concept.
+ * called last, after BOTH `archiveDeliveredArtifactsIfAny` (which now runs BEFORE the "sent" write
+ * itself — see that file's own header, "The delivery guarantee") and the "sent" write have already
+ * happened, never before either: the SAME "after the fact is settled, never before" principle that
+ * file's own header documents at length, applied to a genuinely DIFFERENT concept.
  *
  * ## Why this is architecturally a COUSIN of archiving, never a transport
  *

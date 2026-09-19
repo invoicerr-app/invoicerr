@@ -160,6 +160,41 @@ export async function updateDocumentStatus(
 }
 
 /**
+ * THE CROSS-PROCESS DELIVERY-CONFIRMATION WRITE — see `DocumentInstance.deliveryConfirmedAt`'s own
+ * schema comment for the full guarantee. Called from `actions/async-send.ts`'s phase-2, ONCE,
+ * immediately after `deliver()` has genuinely returned success and BEFORE that same code ever
+ * attempts the "sending" -> "sent" write — never conditional on the row's current status (unlike
+ * `updateManyConditionally`'s callers above): by the time this runs, the caller already holds BOTH
+ * the in-process claim and the database claim (`claimDocumentTransition`), so there is no concurrent
+ * writer left to race against, only the risk that THIS write itself throws (a transient DB hiccup) —
+ * exactly the case `actions/async-send.ts`'s own bounded local retry around this call exists for.
+ *
+ * A plain, unconditional `update` by id: safe to call more than once with the same values (an
+ * internal retry that actually succeeded on a prior attempt despite the caller observing a network
+ * timeout would simply re-write the identical fact), and there is nothing to clear on a later
+ * ordinary write the way `lastActionError` needs clearing — once delivery has genuinely happened, it
+ * stays true forever, through any number of subsequent "send_failed"/"sending" cycles for the SAME
+ * document (see the schema comment's own "never cleared" paragraph).
+ */
+export async function confirmDelivery(
+  companyId: string,
+  typeId: string,
+  id: string,
+  transportRef?: string,
+  channelProviderId?: string,
+): Promise<DocumentInstanceResult> {
+  await findOwnedDocument(companyId, typeId, id);
+  return prisma.documentInstance.update({
+    where: { id },
+    data: {
+      deliveryConfirmedAt: new Date(),
+      ...(transportRef !== undefined ? { transportRef } : {}),
+      ...(channelProviderId !== undefined ? { channelProviderId } : {}),
+    },
+  });
+}
+
+/**
  * Atomically claims `id` for a status transition ACROSS PROCESSES — the database-level guarantee
  * `actions/async-send.ts`'s own in-process `Set` cannot provide once the API and a BullMQ worker run
  * as separate processes (`WORKER_INLINE=false`) or either one is horizontally replicated (a Helm

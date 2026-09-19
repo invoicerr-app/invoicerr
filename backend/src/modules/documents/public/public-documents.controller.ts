@@ -36,9 +36,11 @@ export class PublicDocumentsController {
     summary: 'Download a shared document PDF — no session required',
     description:
       'Resolves `token` by its hash (never logged, never stored in the clear — see ' +
-      'share-links/share-link-token.ts) and, if it is still valid, renders EXACTLY the same PDF the ' +
-      'authenticated GET /api/documents/:id/pdf would (byte-for-byte the same rendering + PAdES ' +
-      'signing pipeline — documents.service.ts#renderInstancePdf — never a second implementation). ' +
+      'share-links/share-link-token.ts) and, if it is still valid, serves EXACTLY the same PDF the ' +
+      'authenticated GET /api/documents/:id/pdf would — documents.service.ts#renderInstancePdf, never ' +
+      'a second implementation, and never a second Chromium launch on THIS route either: an ' +
+      'already-sent document is served straight from its own send-time archive; only a document with ' +
+      'nothing archived yet renders fresh (still the same rendering + PAdES signing pipeline). ' +
       'An unknown token, an EXPIRED one, and a REVOKED one all answer the exact same 404, with the ' +
       'exact same body: this endpoint never lets a caller distinguish "this link once existed" from ' +
       '"this link was never real". No company data beyond the PDF itself is ever exposed here.',

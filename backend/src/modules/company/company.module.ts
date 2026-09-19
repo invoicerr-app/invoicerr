@@ -18,6 +18,8 @@ import { SigningCertificatesService } from './signing-certificates/signing-certi
 import { SsoController } from './sso/sso.controller';
 import { SsoLookupController } from './sso/sso-lookup.controller';
 import { SsoRegistrarService } from './sso/sso-registrar.service';
+import { SSO_REGISTRY_SYNC } from './sso/sso-registry-sync';
+import { SsoRegistrySyncService } from './sso/sso-registry-sync.service';
 import { SsoService } from './sso/sso.service';
 
 @Module({
@@ -47,6 +49,12 @@ import { SsoService } from './sso/sso.service';
     // (`OnModuleInit`) and on every write — see sso-registrar.service.ts's own header for why
     // post-boot insertion into `auth.$context.socialProviders` is visible immediately.
     SsoRegistrarService,
+    // Cross-replica pub/sub for that same registration — see sso-registry-sync.service.ts's
+    // own header. `SsoRegistrarService` injects it BY TOKEN (`SSO_REGISTRY_SYNC`,
+    // sso-registry-sync.ts's own comment on why), so both the concrete class AND the token alias are
+    // provided here.
+    SsoRegistrySyncService,
+    { provide: SSO_REGISTRY_SYNC, useExisting: SsoRegistrySyncService },
     // Plain, empty-constructor leaf provider (see mail.service.ts's own header) — listed here the
     // same way plugins.module.ts/danger.module.ts/documents-core.module.ts each independently list
     // it in their OWN providers array; a second instance costs nothing.

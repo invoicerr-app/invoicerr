@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject, Logger, Optional, OnModuleInit } from '@nestjs/common';
 import { genericOAuth } from 'better-auth/plugins';
 
 import { auth } from '@/lib/auth';
@@ -15,6 +15,7 @@ import {
   markCompanyProviderUnregistered,
   registeredCompanyProviderCount,
 } from '@/lib/sso-registry';
+import { SSO_REGISTRY_SYNC, SsoRegistrySync, SsoRegistrySyncMessage } from './sso-registry-sync';
 import { SsoProviderResolved, SsoService } from './sso.service';
 
 /**
@@ -40,6 +41,23 @@ interface ProviderThunk {
 interface AuthContextLike {
   socialProviders: ProviderEntry[];
   logger: { error: (message: string, ...args: unknown[]) => void };
+}
+
+/**
+ * Removes the entry (if any) tagged with `providerId` from `entries`, IN PLACE. Matches both shapes
+ * an entry can take: our own tagged thunk (identified WITHOUT calling it, so removal never triggers a
+ * discovery fetch) and an already-built provider object. A standalone function, not a private method,
+ * specifically so it never has an `await` of its own — `registerProviderId`/`unregisterProviderId`
+ * both call this synchronously, with no yield point between the removal and whatever they do next; see
+ * `registerProviderId`'s own header for why that matters.
+ */
+function removeProviderEntry(entries: ProviderEntry[], providerId: string): void {
+  const index = entries.findIndex((entry) =>
+    typeof entry === 'function' ? entry.providerId === providerId : entry.id === providerId,
+  );
+  if (index >= 0) {
+    entries.splice(index, 1);
+  }
 }
 
 /**
@@ -150,6 +168,21 @@ export async function buildCompanyProvider(
  * provider, so a broken row would otherwise break unrelated sign-ins. On failure it logs and returns a
  * sentinel whose id is the empty string — which can never equal a real provider id, so the walk simply
  * continues — and forgets its memo so a later attempt retries once the IdP or the key is fixed.
+ *
+ * CROSS-REPLICA SYNC: `register`/`unregister` mutate `auth.$context.socialProviders` — an
+ * object that exists ONLY in the memory of whichever API process actually runs this code. Before this
+ * fix, a write served by replica A therefore never reached replica B's own copy of that array until B
+ * happened to restart (the ONLY thing that re-runs `onModuleInit`'s own boot loop) — a customer could
+ * configure SSO, get balanced to a different replica on their very next sign-in attempt, and find the
+ * provider simply does not exist there. `sync` (optional — see the constructor's own comment) closes
+ * that gap the same way the worker→API document-events bridge already does for a different problem
+ * (`documents/queue/document-events-publisher.ts`/`document-events-bridge.ts`): `register`/`unregister`
+ * PUBLISH the change after applying it locally, and `onModuleInit` additionally SUBSCRIBES so this
+ * process re-applies whatever change any OTHER replica just made — typically within a Redis pub/sub
+ * round trip (single-digit milliseconds), not "at the next restart". The existing boot-time loop from
+ * the stored rows is UNCHANGED and still runs first — this sync is additive, not a replacement: a
+ * replica that boots between two Redis publishes (or missed one outright, pub/sub has no replay) is
+ * still fully correct once it reaches that loop, and stays eventually-consistent afterwards via sync.
  */
 @Injectable()
 export class SsoRegistrarService implements OnModuleInit {
@@ -158,7 +191,19 @@ export class SsoRegistrarService implements OnModuleInit {
   /** Memoised builds, keyed by provider id. Cleared per-entry on failure so a retry is possible. */
   private readonly built = new Map<string, Promise<ProviderLike | null>>();
 
-  constructor(private readonly sso: SsoService) {}
+  /**
+   * `sync` is injected BY TOKEN (`SSO_REGISTRY_SYNC`, `sso-registry-sync.ts`), typed as the bare
+   * interface — see that token's own comment for why. `@Optional()` because Nest DI is not the only
+   * caller: every existing unit test in `sso-registrar.service.spec.ts` constructs this class with
+   * plain `new SsoRegistrarService(fakeSso())`, one argument, which bypasses Nest's container (and
+   * therefore `@Inject`) entirely — `@Optional()` documents that the REAL wiring
+   * (`company.module.ts`, which always provides the token) is not the only supported shape, not that
+   * production itself might run without it.
+   */
+  constructor(
+    private readonly sso: SsoService,
+    @Optional() @Inject(SSO_REGISTRY_SYNC) private readonly sync?: SsoRegistrySync,
+  ) {}
 
   /**
    * Register every stored provider at boot, then refuse to boot an instance nobody could log into.
@@ -189,6 +234,17 @@ export class SsoRegistrarService implements OnModuleInit {
       envProviderRegistered: resolveEnvOidcProvider().registered,
       companyProviderCount: registeredCompanyProviderCount(),
     });
+
+    // Hear about every OTHER replica's own register/unregister from now on — see this class's own
+    // "CROSS-REPLICA SYNC" header section. Subscribed AFTER the boot loop above, deliberately: this
+    // process is already correct from the stored rows by the time it starts listening, so there is no
+    // window where an incoming sync message could race an in-progress boot registration of the SAME
+    // provider.
+    if (this.sync) {
+      await this.sync.onMessage((message) => {
+        void this.applyRemoteChange(message);
+      });
+    }
   }
 
   /** Register (or re-register) one company's provider, after an upsert. */
@@ -198,11 +254,34 @@ export class SsoRegistrarService implements OnModuleInit {
     // and the memoised build of the previous configuration must not outlive it.
     await this.unregisterProviderId(providerId);
     await this.registerProviderId(providerId);
+    await this.publishSyncChange(companyId, 'register');
   }
 
   /** Remove one company's provider, after a delete or a deactivation. */
   async unregister(companyId: string): Promise<void> {
     await this.unregisterProviderId(companyProviderId(companyId));
+    await this.publishSyncChange(companyId, 'unregister');
+  }
+
+  /**
+   * Announces a change AFTER it is already applied locally — this replica is correct regardless of
+   * whether the announcement itself is ever delivered. `SsoRegistrySyncService#publish`'s own real
+   * implementation already never rejects (it logs and swallows), but this call site guards a second
+   * time anyway: `register`/`unregister` run straight from `sso.controller.ts` after the company's
+   * own write already committed to Postgres, and nothing about the `SsoRegistrySync` INTERFACE
+   * promises a caller that no implementation will ever reject — a customer's "save my SSO settings"
+   * request must not fail merely because telling OTHER replicas about it hiccupped.
+   */
+  private async publishSyncChange(companyId: string, action: 'register' | 'unregister'): Promise<void> {
+    if (!this.sync) return;
+    try {
+      await this.sync.publish({ companyId, action });
+    } catch (error) {
+      this.logger.warn(
+        `Could not publish an SSO registry sync for company ${companyId} — other replicas will only ` +
+          `pick this up at their own next boot: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -210,13 +289,45 @@ export class SsoRegistrarService implements OnModuleInit {
   // ---------------------------------------------------------------------------
 
   /**
+   * Applies a change ANOTHER replica already made and already announced — never re-publishes (that
+   * would echo forever across every replica). Reuses the exact same `registerProviderId`/
+   * `unregisterProviderId` internals `register`/`unregister` themselves call, so a remote "register"
+   * gets the identical drop-then-insert treatment a local one does (an edited configuration arriving
+   * as a remote sync must replace the old entry, not stack a stale one beside it).
+   */
+  private async applyRemoteChange(message: SsoRegistrySyncMessage): Promise<void> {
+    const providerId = companyProviderId(message.companyId);
+    if (message.action === 'register') {
+      await this.unregisterProviderId(providerId);
+      await this.registerProviderId(providerId);
+    } else {
+      await this.unregisterProviderId(providerId);
+    }
+  }
+
+  /**
    * Awaited rather than fire-and-forget: `register()` must not return before the provider is actually
    * in the array, or a caller that immediately unregisters (an upsert that deactivates) could splice
    * the array before the insertion lands and leave a stale entry resolvable forever.
+   *
+   * Removes any PRE-EXISTING entry for this same `providerId` itself, synchronously, right before
+   * inserting — never relies solely on a caller having already called `unregisterProviderId` first.
+   * `register()`/`applyRemoteChange()` still do call it first (for the OTHER visible effect that has:
+   * forgetting the previous memoised build below), but with `sync` wired in a SECOND, independent
+   * `SsoRegistrarService`-driven mutation can now be in flight for the exact same provider at the
+   * exact same time within ONE process — a replica's own publish echoes back to its OWN subscription
+   * (Redis pub/sub delivers a publish to every subscriber, the publisher's own connection included),
+   * so `register()`'s direct local call and the resulting self-echoed `applyRemoteChange` race each
+   * other. Without this self-check, two overlapping "remove-then-insert" sequences can each find
+   * NOTHING to remove (the other has not inserted yet) and then both insert — two stacked entries for
+   * one provider, silently, until the next full unregister/re-register cycle. Doing the removal here
+   * too, with no `await` between it and the `unshift` below, closes that window: whichever of the two
+   * overlapping calls reaches this point LAST always removes what the other just inserted first.
    */
   private async registerProviderId(providerId: string): Promise<void> {
     const thunk = this.makeThunk(providerId);
     const ctx = await this.context();
+    removeProviderEntry(ctx.socialProviders, providerId);
     // `unshift`, not `push`: position decides who wins a lookup, and a company's own provider must
     // never be shadowed by an entry registered earlier.
     ctx.socialProviders.unshift(thunk);
@@ -225,14 +336,7 @@ export class SsoRegistrarService implements OnModuleInit {
 
   private async unregisterProviderId(providerId: string): Promise<void> {
     const ctx = await this.context();
-    // Matches both shapes an entry can take: our own tagged thunk (identified WITHOUT calling it, so
-    // removal never triggers a discovery fetch) and an already-built provider object.
-    const index = ctx.socialProviders.findIndex((entry) =>
-      typeof entry === 'function' ? entry.providerId === providerId : entry.id === providerId,
-    );
-    if (index >= 0) {
-      ctx.socialProviders.splice(index, 1);
-    }
+    removeProviderEntry(ctx.socialProviders, providerId);
     this.built.delete(providerId);
     markCompanyProviderUnregistered(providerId);
   }

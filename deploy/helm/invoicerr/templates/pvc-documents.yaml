@@ -1,9 +1,12 @@
 {{/*
 Shared local storage for /data, mounted on BOTH api and worker — see values.yaml's own `documents`
-header for what it's for (always DOCUMENTS_INBOUND_DIR, additionally DOCUMENTS_ARCHIVE_DIR when
-archive.storage=local) and its ReadWriteOnce-at-replicaCount-1 caveat.
+header for what it's for (DOCUMENTS_INBOUND_DIR when documents.inbound.storage=local,
+DOCUMENTS_ARCHIVE_DIR when archive.storage=local) and its ReadWriteOnce-at-replicaCount-1 caveat.
+Rendered only when BOTH `persistence.enabled` is true AND at least one of those two stores still
+needs local disk (`invoicerr.documentsVolumeNeeded`, templates/_helpers.tpl) — once both move to
+`s3`, nothing reads or writes `/data` any more and this PVC would just be dead weight.
 */}}
-{{- if .Values.documents.persistence.enabled }}
+{{- if and .Values.documents.persistence.enabled (eq (include "invoicerr.documentsVolumeNeeded" .) "true") }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

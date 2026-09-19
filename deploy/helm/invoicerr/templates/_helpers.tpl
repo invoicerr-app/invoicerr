@@ -122,3 +122,21 @@ OCR engine base URL — the bundled ocr Deployment's own Service, reachable only
 {{- define "invoicerr.ocrServiceUrl" -}}
 {{- printf "http://%s:%v" (include "invoicerr.componentFullname" (dict "context" . "component" "ocr")) .Values.ocr.service.port -}}
 {{- end -}}
+
+{{/*
+Whether the shared `/data` PVC (templates/pvc-documents.yaml) is actually needed by anything.
+`local` is possible for EITHER `archive.storage` (DOCUMENTS_ARCHIVE_DIR) OR `documents.inbound.storage`
+(DOCUMENTS_INBOUND_DIR) independently — the volume is only truly dead weight once BOTH have moved to
+S3-compatible object storage, which is also the one combination that actually allows scaling api/worker
+beyond a single node (see values.yaml's own `documents` header for the full reasoning). Returns the
+literal string "true" or "false" — always compared with `eq (include ...) "true"` at every call site
+(pvc-documents.yaml, deployment-api.yaml, deployment-worker.yaml) rather than duplicating this
+`and`/`eq` pair three times and risking one of them drifting from the other two.
+*/}}
+{{- define "invoicerr.documentsVolumeNeeded" -}}
+{{- if and (eq .Values.archive.storage "s3") (eq .Values.documents.inbound.storage "s3") -}}
+false
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}

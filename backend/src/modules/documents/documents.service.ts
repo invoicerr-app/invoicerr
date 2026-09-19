@@ -25,6 +25,7 @@ import prisma from '@/prisma/prisma.service';
 import {
   ArchiveVerificationResult,
   DocumentArchiveResult,
+  findArchivedPdfArtifact,
   listDocumentArchives,
   verifyDocumentArchive,
 } from './archive/persistence';
@@ -1441,9 +1442,23 @@ export class DocumentsService implements OnModuleInit {
    * this "GET .../pdf" download are always byte-for-byte the same pipeline. This method supplies the
    * MERGED descriptor (native fields + third-party extension actions) — see that function's own
    * header for why the send paths deliberately do not.
+   *
+   * NEVER renders (no Chromium launched at all) when the document already carries an archived PDF —
+   * see `archive/persistence.ts#findArchivedPdfArtifact`'s own header for exactly which documents
+   * qualify and why those bytes are safe to serve as-is. Every API replica otherwise holds its own
+   * browser purely to answer this route (and the two public/portal ones that share this method — see
+   * their own controllers); this is what takes it out of the request path for the common case (an
+   * already-sent, email-delivered document) without changing the response contract at all — still a
+   * synchronous 200 with the same bytes, never a 202/polling handoff. A draft, a document delivered
+   * through a channel with no plain-PDF artifact (pdp/ksef/sdi/chorus-pro), or one whose archiving
+   * itself failed all fall through to the render below exactly as before.
    */
   async renderInstancePdf(companyId: string, typeId: string, id: string): Promise<Buffer> {
     const instance = await findOwnedDocument(companyId, typeId, id);
+
+    const archived = await findArchivedPdfArtifact(companyId, id);
+    if (archived) return archived;
+
     const descriptor = this.mergedDescriptor(typeId);
     const { pdf } = await renderDocumentInstance(
       { referenceRegistry: this.referenceRegistry },
