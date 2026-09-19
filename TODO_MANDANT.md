@@ -71,8 +71,20 @@ in its absence: everything is properly gated.
       and in the generated PDF. **The released line `1.4.6` is affected and is running on self-hosted
       instances today; this branch is not** — the module it targets was rewritten, and the new payment
       configuration is immune by construction because there is no per-row identifier left to forge.
-      The decision is yours: patch the released line separately, or ship this branch as the fix. A
-      disclosure clock started the day it was reported.
+      **Decided 2026-09-19: no patch release for `1.4.6`.** The fix ships with v2, expected within a
+      month. What that decision leaves you to do, and it is time-sensitive because a researcher is
+      waiting on an answer:
+
+      1. **Reply to the reporter.** They disclosed privately and correctly, and they are entitled to
+         know when the fix lands. Silence is how a private disclosure becomes a public one.
+      2. **Set the advisory's patched version to v2** and publish it when v2 ships, not before — that
+         is what turns the advisory from an open report into a closed one, and what credits the
+         reporter.
+      3. **Decide whether self-hosted instances on `1.4.6` are told anything in the meantime.** They
+         are exposed for the next month with no patch coming. The attack needs an account inside one
+         of the instance's companies, so an instance where every company is run by people who already
+         trust each other is not really at risk — an instance with outside members is. That
+         distinction is worth stating publicly rather than leaving each operator to guess.
 
 ## 5. Small, no credentials needed
 
