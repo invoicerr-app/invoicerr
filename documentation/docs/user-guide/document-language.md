@@ -24,11 +24,13 @@ Português. **Automatic** means "use the fallback below" rather than a language 
 
 1. The client's own **Document language**, if they have one set.
 2. Otherwise, your company's **Default document language**.
-3. Otherwise, English.
+3. Otherwise, the instance's own default — see **Self-hosting a fallback for every company** below.
+4. Otherwise, English.
 
 An unrecognised or unset value at any step simply falls through to the next one — nothing is ever
 rejected or blocked because of it, and a document you never touch this setting for renders exactly
-as it always has, in English.
+as it always has, in English (or in the self-hosted instance's own default, once one is set — see
+below).
 
 ## What changes with the language
 
@@ -50,6 +52,21 @@ as it always has, in English.
   recipient's language. That mention prints in the language the law wrote it in even when the
   document's own language is set to something else, because the exact wording, not a translation of
   its meaning, is what the law requires.
+
+## Self-hosting a fallback for every company
+
+If you self-host Invoicerr, the `DEFAULT_LOCALE` environment variable sets a fallback for the whole
+instance — used only when NEITHER a client NOR its company has set a language of their own. This is
+for a deployment that mostly serves one market: a French association running its own Invoicerr, for
+example, would otherwise see every never-configured document (and every account-holder email — a
+danger-zone confirmation, a data export, an ownership transfer, an email-change confirmation — for a
+user who hasn't picked their own language either) in English, purely because nobody happened to fill
+in the per-client/per-company field yet.
+
+Set it to one of `en`, `fr`, `it`, `pl`, `de`, or `pt` (see [Docker Installation](./docker-installation.md)
+for where to set it). It never overrides a client's, a company's, or a user's own choice — it only
+fills the gap below them. Left unset, or set to anything else, nothing changes: every document and
+email still renders in English exactly as before.
 
 ## First use
 

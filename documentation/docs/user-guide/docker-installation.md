@@ -102,6 +102,7 @@ These are set under the `invoicerr` service's `environment` key.
 | `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db` |
 | `APP_URL` | Full public URL of the frontend (e.g. `https://invoicerr.example.com`). Required for email templates and links. |
 | `JWT_SECRET` | Optional but recommended for JWT authentication. Any random string. If unset, a default secret is used, which can cause issues with Docker deployments. |
+| `DEFAULT_LOCALE` | Optional. Instance-wide fallback language (`en`, `fr`, `it`, `pl`, `de`, or `pt`) for any document or system email whose client/company/user never set one of their own — see [Document Language](./document-language.md) for the full cascade. Left unset, everything renders in English exactly as before. |
 
 Make sure port 80 is available on your host machine, or change the port mapping.
 

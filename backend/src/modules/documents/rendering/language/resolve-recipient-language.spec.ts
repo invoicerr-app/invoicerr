@@ -1,3 +1,4 @@
+import { __resetDefaultLocaleForTests } from './default-locale';
 import { resolveRecipientLanguage } from './resolve-recipient-language';
 
 describe('resolveRecipientLanguage', () => {
@@ -36,5 +37,40 @@ describe('resolveRecipientLanguage', () => {
     for (const code of ['en', 'fr', 'it', 'pl', 'de', 'pt']) {
       expect(resolveRecipientLanguage(code, undefined)).toBe(code);
     }
+  });
+
+  describe('DEFAULT_LOCALE — the instance-wide step between the company default and English', () => {
+    const ORIGINAL_ENV = process.env.DEFAULT_LOCALE;
+
+    beforeEach(() => __resetDefaultLocaleForTests());
+
+    afterAll(() => {
+      process.env.DEFAULT_LOCALE = ORIGINAL_ENV;
+      __resetDefaultLocaleForTests();
+    });
+
+    it('is used only when neither the client nor the company has a usable language', () => {
+      process.env.DEFAULT_LOCALE = 'fr';
+      expect(resolveRecipientLanguage(undefined, undefined)).toBe('fr');
+    });
+
+    it('never overrides a client language that is actually set', () => {
+      process.env.DEFAULT_LOCALE = 'fr';
+      expect(resolveRecipientLanguage('pt', undefined)).toBe('pt');
+    });
+
+    it('never overrides a company language that is actually set', () => {
+      process.env.DEFAULT_LOCALE = 'fr';
+      expect(resolveRecipientLanguage(undefined, 'de')).toBe('de');
+    });
+
+    it('falls through to English when unset', () => {
+      delete process.env.DEFAULT_LOCALE;
+      expect(resolveRecipientLanguage(undefined, undefined)).toBe('en');
+    });
+
+    // An unsupported DEFAULT_LOCALE value (e.g. "zz") also falls through to English here — covered by
+    // `default-locale.spec.ts` instead, which mocks `logger` so the warning that path fires does not
+    // reach `logger.service.ts`'s own real `prisma.log.create` in a plain unit test.
   });
 });

@@ -7,7 +7,7 @@ language: de
 Entwurf — noch nicht anwaltlich geprüft.
 :::
 
-Dieser Auftragsverarbeitungsvertrag („**AVV**") ergänzt die
+Dieser Auftragsverarbeitungsvertrag („**AVV**“) ergänzt die
 [Allgemeinen Geschäftsbedingungen (AGB)](./terms-of-service.md) für das **gehostete Angebot** von
 Invoicerr und setzt **Artikel 28 DSGVO** um. **Er gilt nicht für die selbst gehostete Software** —
 siehe die eigene Anwendungsbereichsklausel der Allgemeinen Geschäftsbedingungen (AGB) sowie die
@@ -16,11 +16,11 @@ niemals Daten, sodass es keine Verarbeitung gibt, die dieser AVV regeln könnte.
 
 ## 1. Parteien und Anwendungsbereich
 
-**Sie** („**der Kunde**") sind der **Verantwortliche** für die personenbezogenen Daten, die in den
+**Sie** („**der Kunde**“) sind der **Verantwortliche** für die personenbezogenen Daten, die in den
 Dokumenten enthalten sind, die Sie über den Dienst erstellen oder erhalten — insbesondere Namen,
 Adressen und andere Angaben Ihrer eigenen Kunden und Kontakte auf einer Rechnung, einem Angebot oder
-einem verwandten Beleg („**personenbezogene Daten des Kunden**"). **Wir** („**der
-Auftragsverarbeiter**", definiert wie in Abschnitt 1.1 der Allgemeinen Geschäftsbedingungen (AGB))
+einem verwandten Beleg („**personenbezogene Daten des Kunden**“). **Wir** („**der
+Auftragsverarbeiter**“, definiert wie in Abschnitt 1.1 der Allgemeinen Geschäftsbedingungen (AGB))
 verarbeiten personenbezogene Daten des Kunden **ausschließlich auf Ihre dokumentierten Anweisungen
 hin**, wie in diesem AVV beschrieben. Dies ist genau die Zweiteilung, die die Allgemeinen
 Geschäftsbedingungen (AGB), Abschnitt 15.1, bereits festlegen; dieser AVV liefert die Einzelheiten,
@@ -28,8 +28,8 @@ die Artikel 28 Abs. 3 DSGVO dafür verlangt.
 
 ## 2. Begriffsbestimmungen
 
-„Personenbezogene Daten", „Verarbeitung", „betroffene Person", „Verantwortlicher",
-„Auftragsverarbeiter" und „Verletzung des Schutzes personenbezogener Daten" haben die Bedeutung, die
+„Personenbezogene Daten“, „Verarbeitung“, „betroffene Person“, „Verantwortlicher“,
+„Auftragsverarbeiter“ und „Verletzung des Schutzes personenbezogener Daten“ haben die Bedeutung, die
 ihnen in **Artikel 4 DSGVO** zugewiesen wird.
 
 ## 3. Gegenstand, Dauer, Art und Zweck
@@ -170,7 +170,7 @@ direkt nutzen; andernfalls leisten wir angemessene Unterstützung.
 
 Am Ende des Abonnements Ihres Unternehmens regeln die Allgemeinen Geschäftsbedingungen (AGB),
 Abschnitt 13, was mit Ihren Daten geschieht, und dieser AVV übernimmt denselben Mechanismus wie die
-„Rückgabe"-Hälfte von Artikel 28 Abs. 3 lit. g DSGVO:
+„Rückgabe“-Hälfte von Artikel 28 Abs. 3 lit. g DSGVO:
 
 - **Rückgabe**: Das in Abschnitt 13.2 der Allgemeinen Geschäftsbedingungen (AGB) beschriebene
   ZIP-Archiv — das für jedes von Ihrem Unternehmen gehaltene Dokument dessen gespeicherte Daten und,

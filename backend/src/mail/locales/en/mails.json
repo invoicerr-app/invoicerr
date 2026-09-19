@@ -122,5 +122,31 @@
   },
   "billingZipExport": {
     "body": "Your Invoicerr subscription has been blocked for 14 days. Attached is a full export of your company's documents. If you do not act, this data will be permanently deleted."
+  },
+  "reminders": {
+    "tier7": {
+      "subject": "Payment reminder — invoice {displayNumber}",
+      "body_one": "Hello,\n\nThis is a friendly reminder that invoice {displayNumber}, for {amountOutstanding}, was due on {dueDate} and is now {{count}} day overdue.\n\nPlease arrange payment at your earliest convenience. If you have already paid, please disregard this message.\n\nThank you,\n{companyName}",
+      "body": "Hello,\n\nThis is a friendly reminder that invoice {displayNumber}, for {amountOutstanding}, was due on {dueDate} and is now {{count}} days overdue.\n\nPlease arrange payment at your earliest convenience. If you have already paid, please disregard this message.\n\nThank you,\n{companyName}"
+    },
+    "tier14": {
+      "subject": "Second reminder — invoice {displayNumber} is overdue",
+      "body_one": "Hello,\n\nInvoice {displayNumber}, for {amountOutstanding}, was due on {dueDate} and is now {{count}} day overdue. This is our second reminder — please settle it as soon as possible.\n\nIf you are experiencing difficulty paying, please contact us so we can find a solution together.\n\n{companyName}",
+      "body": "Hello,\n\nInvoice {displayNumber}, for {amountOutstanding}, was due on {dueDate} and is now {{count}} days overdue. This is our second reminder — please settle it as soon as possible.\n\nIf you are experiencing difficulty paying, please contact us so we can find a solution together.\n\n{companyName}"
+    },
+    "tier30": {
+      "subject": "URGENT — invoice {displayNumber} is significantly overdue",
+      "body_one": "Hello,\n\nInvoice {displayNumber}, for {amountOutstanding}, was due on {dueDate} and is now {{count}} day overdue. Despite our previous reminders, it remains unpaid.\n\nPlease settle this invoice IMMEDIATELY to avoid further action. Contact us urgently if there is a dispute, or a difficulty we are not yet aware of.\n\n{companyName}",
+      "body": "Hello,\n\nInvoice {displayNumber}, for {amountOutstanding}, was due on {dueDate} and is now {{count}} days overdue. Despite our previous reminders, it remains unpaid.\n\nPlease settle this invoice IMMEDIATELY to avoid further action. Contact us urgently if there is a dispute, or a difficulty we are not yet aware of.\n\n{companyName}"
+    }
+  },
+  "portalInvite": {
+    "subject": "{companyName} — access your client portal",
+    "introText": "{companyName} has invited you to their client portal, where you can review your invoices, quotes and account balance, and respond to any quote awaiting your decision.",
+    "openPortalIntro": "Open your portal:",
+    "buttonLabel": "Open your portal",
+    "privacyNotice": "Keep this link private — anyone who has it can view your account.",
+    "signOffText": "Best regards,\n{companyName}",
+    "signOffHtml": "Best regards,<br>{companyName}"
   }
 }

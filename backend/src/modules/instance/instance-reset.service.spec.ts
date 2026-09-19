@@ -111,11 +111,18 @@ jest.mock('@/logger/logger.service', () => ({
 }));
 
 import { logger } from '@/logger/logger.service';
+import { __resetDefaultLocaleForTests } from '@/modules/documents/rendering/language/default-locale';
 
 // Imported AFTER the mocks above so the module under test picks up the mocked `prisma`/`logger`.
 import { InstanceResetService, RESET_INSTANCE_CONFIRMATION_WORD } from './instance-reset.service';
 
-const USER = { id: 'u1', email: 'ops@example.test' } as never;
+const USER = { id: 'u1', email: 'ops@example.test', locale: null } as never;
+
+/** `USER` with an explicit `User.locale` — a fresh object rather than mutating `USER` itself, since
+ *  every OTHER test in this file relies on `USER` carrying no locale of its own. */
+function operatorWithLocale(locale: string) {
+  return { ...(USER as Record<string, unknown>), locale } as never;
+}
 
 // Every test that reaches a SUCCESSFUL `service.reset(...)` call hits real filesystem code
 // (`inboundRoot()`/`archiveRoot()`'s own `rmSync`/`mkdirSync`) — set at the OUTER scope (applies to
@@ -167,16 +174,43 @@ describe('InstanceResetService — OTP', () => {
     expect(options.to).toBe('ops@example.test');
   });
 
-  /** This mail is deliberately always English — see the service's own comment on why an instance
-   *  operator has no per-recipient language to resolve yet (`DEFAULT_LOCALE` is a future setting). */
-  it('is always sent in English, regardless of the operator', async () => {
-    const { service, mailService } = build();
-    await service.requestOtp(USER);
+  describe('language — resolveUserLanguage(user.locale, null), then DEFAULT_LOCALE, then English', () => {
+    const ORIGINAL_DEFAULT_LOCALE = process.env.DEFAULT_LOCALE;
 
-    const [options] = mailService.sendMail.mock.calls[0];
-    expect(options.subject).toBe('Instance reset confirmation code');
-    expect(options.text).toContain('ENTIRE Invoicerr instance');
-    expect(options.text).toContain('INSTANCE_OPERATOR_EMAILS');
+    beforeEach(() => __resetDefaultLocaleForTests());
+
+    afterAll(() => {
+      process.env.DEFAULT_LOCALE = ORIGINAL_DEFAULT_LOCALE;
+      __resetDefaultLocaleForTests();
+    });
+
+    it("uses the operator's own account locale when they have one set", async () => {
+      const { service, mailService } = build();
+      await service.requestOtp(operatorWithLocale('fr'));
+
+      const [options] = mailService.sendMail.mock.calls[0];
+      expect(options.subject).toBe("Code de confirmation de réinitialisation de l'instance");
+    });
+
+    it('falls back to the instance DEFAULT_LOCALE when the operator has none', async () => {
+      process.env.DEFAULT_LOCALE = 'it';
+      const { service, mailService } = build();
+      await service.requestOtp(USER); // no `locale` of its own
+
+      const [options] = mailService.sendMail.mock.calls[0];
+      expect(options.subject).toBe("Codice di conferma per il ripristino dell'istanza");
+    });
+
+    it('falls back to English when neither the operator nor the instance has a language set', async () => {
+      delete process.env.DEFAULT_LOCALE;
+      const { service, mailService } = build();
+      await service.requestOtp(USER);
+
+      const [options] = mailService.sendMail.mock.calls[0];
+      expect(options.subject).toBe('Instance reset confirmation code');
+      expect(options.text).toContain('ENTIRE Invoicerr instance');
+      expect(options.text).toContain('INSTANCE_OPERATOR_EMAILS');
+    });
   });
 
   it('is a CSPRNG 8-digit code, stored hashed — never in the clear', async () => {

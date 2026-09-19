@@ -121,5 +121,31 @@
   },
   "billingZipExport": {
     "body": "L'abbonamento Invoicerr della tua azienda è bloccato da 14 giorni. In allegato trovi un'esportazione completa dei documenti della tua azienda. Se non agisci, questi dati saranno eliminati definitivamente."
+  },
+  "reminders": {
+    "tier7": {
+      "subject": "Sollecito di pagamento — fattura {displayNumber}",
+      "body_one": "Salve,\n\nQuesto è un cortese promemoria: la fattura {displayNumber}, per un importo di {amountOutstanding}, era scaduta il {dueDate} ed è ora in ritardo di {{count}} giorno.\n\nLa preghiamo di provvedere al pagamento il prima possibile. Se ha già effettuato il pagamento, ignori pure questo messaggio.\n\nGrazie,\n{companyName}",
+      "body": "Salve,\n\nQuesto è un cortese promemoria: la fattura {displayNumber}, per un importo di {amountOutstanding}, era scaduta il {dueDate} ed è ora in ritardo di {{count}} giorni.\n\nLa preghiamo di provvedere al pagamento il prima possibile. Se ha già effettuato il pagamento, ignori pure questo messaggio.\n\nGrazie,\n{companyName}"
+    },
+    "tier14": {
+      "subject": "Secondo sollecito — la fattura {displayNumber} è scaduta",
+      "body_one": "Salve,\n\nLa fattura {displayNumber}, per un importo di {amountOutstanding}, era scaduta il {dueDate} ed è ora in ritardo di {{count}} giorno. Questo è il nostro secondo sollecito — la preghiamo di saldarla il prima possibile.\n\nSe sta riscontrando difficoltà di pagamento, la preghiamo di contattarci per trovare insieme una soluzione.\n\n{companyName}",
+      "body": "Salve,\n\nLa fattura {displayNumber}, per un importo di {amountOutstanding}, era scaduta il {dueDate} ed è ora in ritardo di {{count}} giorni. Questo è il nostro secondo sollecito — la preghiamo di saldarla il prima possibile.\n\nSe sta riscontrando difficoltà di pagamento, la preghiamo di contattarci per trovare insieme una soluzione.\n\n{companyName}"
+    },
+    "tier30": {
+      "subject": "URGENTE — la fattura {displayNumber} è gravemente scaduta",
+      "body_one": "Salve,\n\nLa fattura {displayNumber}, per un importo di {amountOutstanding}, era scaduta il {dueDate} ed è ora in ritardo di {{count}} giorno. Nonostante i solleciti precedenti, risulta ancora non pagata.\n\nLa invitiamo a saldare IMMEDIATAMENTE questa fattura per evitare ulteriori azioni. Ci contatti con urgenza in caso di contestazione o di una difficoltà di cui non siamo ancora a conoscenza.\n\n{companyName}",
+      "body": "Salve,\n\nLa fattura {displayNumber}, per un importo di {amountOutstanding}, era scaduta il {dueDate} ed è ora in ritardo di {{count}} giorni. Nonostante i solleciti precedenti, risulta ancora non pagata.\n\nLa invitiamo a saldare IMMEDIATAMENTE questa fattura per evitare ulteriori azioni. Ci contatti con urgenza in caso di contestazione o di una difficoltà di cui non siamo ancora a conoscenza.\n\n{companyName}"
+    }
+  },
+  "portalInvite": {
+    "subject": "{companyName} — accedi al tuo portale clienti",
+    "introText": "{companyName} ti ha invitato/a al proprio portale clienti, dove puoi consultare le tue fatture, i preventivi e il saldo del conto, e rispondere a qualsiasi preventivo in attesa della tua decisione.",
+    "openPortalIntro": "Accedi al tuo portale:",
+    "buttonLabel": "Accedi al portale",
+    "privacyNotice": "Mantieni questo link riservato — chiunque lo possieda può visualizzare il tuo account.",
+    "signOffText": "Cordiali saluti,\n{companyName}",
+    "signOffHtml": "Cordiali saluti,<br>{companyName}"
   }
 }

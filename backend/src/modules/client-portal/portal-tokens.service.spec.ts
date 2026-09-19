@@ -22,7 +22,7 @@ const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock
 jest.mock('@/prisma/prisma.service', () => {
   const clients: Record<
     string,
-    { id: string; companyId: string; name: string; contactEmail: string | null }
+    { id: string; companyId: string; name: string; contactEmail: string | null; language?: string | null }
   > = {
     'client-1': {
       id: 'client-1',
@@ -36,8 +36,17 @@ jest.mock('@/prisma/prisma.service', () => {
       name: 'No Email Client',
       contactEmail: null,
     },
+    // Multilingual client-facing mail (step 4 of the multilingual-mail plan) — a client with its own
+    // `Client.language`, distinct from `company-1`'s (which never sets one below).
+    'client-italian': {
+      id: 'client-italian',
+      companyId: 'company-1',
+      name: 'Cliente Italiano',
+      contactEmail: 'cliente@example.it',
+      language: 'it',
+    },
   };
-  const companies: Record<string, { id: string; name: string }> = {
+  const companies: Record<string, { id: string; name: string; language?: string | null }> = {
     'company-1': { id: 'company-1', name: 'Acme Corp' },
   };
   const rows: Array<{
@@ -160,6 +169,39 @@ describe('PortalTokensService', () => {
     const rows = jest.requireMock('@/prisma/prisma.service').__rows;
     expect(rows).toHaveLength(1);
     expect(rows[0].tokenHash).not.toBe(result.token);
+  });
+
+  // Multilingual client-facing mail (step 4 of the multilingual-mail plan) — proves the SERVICE
+  // resolves `client.language` (falling back to `company.language`, per
+  // `resolveRecipientLanguage`) and threads it into `buildPortalInviteEmail`, not just that the pure
+  // builder itself can translate (already proven by portal-invite-email.spec.ts).
+  it("emails the invite in the CLIENT's own language when Client.language is set", async () => {
+    const sendMail = jest.fn().mockResolvedValue(undefined);
+    const service = buildService(sendMail);
+
+    await service.create('company-1', 'client-italian');
+
+    expect(sendMail).toHaveBeenCalledWith(
+      'company-1',
+      expect.objectContaining({
+        to: 'cliente@example.it',
+        subject: expect.stringContaining('accedi al tuo portale clienti'),
+        text: expect.stringContaining('Salve,'),
+      }),
+    );
+  });
+
+  it('falls back to English when neither the client nor the company set a language', async () => {
+    const sendMail = jest.fn().mockResolvedValue(undefined);
+    const service = buildService(sendMail);
+
+    // `client-1`/`company-1` (this file's own default fixtures) set no `language` at all.
+    await service.create('company-1', 'client-1');
+
+    expect(sendMail).toHaveBeenCalledWith(
+      'company-1',
+      expect.objectContaining({ subject: expect.stringContaining('access your client portal') }),
+    );
   });
 
   it('still creates a usable invite, unemailed, when the client has no contactEmail', async () => {

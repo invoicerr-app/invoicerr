@@ -121,5 +121,31 @@
   },
   "billingZipExport": {
     "body": "Subskrypcja Invoicerr Twojej firmy jest zablokowana od 14 dni. W załączniku znajdziesz pełny eksport dokumentów Twojej firmy. Jeśli nie podejmiesz działania, te dane zostaną trwale usunięte."
+  },
+  "reminders": {
+    "tier7": {
+      "subject": "Przypomnienie o płatności — faktura {displayNumber}",
+      "body_one": "Dzień dobry,\n\nUprzejmie przypominamy, że faktura {displayNumber} na kwotę {amountOutstanding} miała termin płatności {dueDate} i jest obecnie przeterminowana o {{count}} dzień.\n\nProsimy o dokonanie płatności możliwie najszybciej. Jeśli płatność została już zrealizowana, prosimy zignorować tę wiadomość.\n\nDziękujemy,\n{companyName}",
+      "body": "Dzień dobry,\n\nUprzejmie przypominamy, że faktura {displayNumber} na kwotę {amountOutstanding} miała termin płatności {dueDate} i jest obecnie przeterminowana o {{count}} dni.\n\nProsimy o dokonanie płatności możliwie najszybciej. Jeśli płatność została już zrealizowana, prosimy zignorować tę wiadomość.\n\nDziękujemy,\n{companyName}"
+    },
+    "tier14": {
+      "subject": "Drugie przypomnienie — faktura {displayNumber} jest przeterminowana",
+      "body_one": "Dzień dobry,\n\nFaktura {displayNumber} na kwotę {amountOutstanding} miała termin płatności {dueDate} i jest obecnie przeterminowana o {{count}} dzień. To nasze drugie przypomnienie — prosimy o jak najszybsze uregulowanie należności.\n\nJeśli napotykają Państwo trudności z płatnością, prosimy o kontakt, abyśmy mogli wspólnie znaleźć rozwiązanie.\n\n{companyName}",
+      "body": "Dzień dobry,\n\nFaktura {displayNumber} na kwotę {amountOutstanding} miała termin płatności {dueDate} i jest obecnie przeterminowana o {{count}} dni. To nasze drugie przypomnienie — prosimy o jak najszybsze uregulowanie należności.\n\nJeśli napotykają Państwo trudności z płatnością, prosimy o kontakt, abyśmy mogli wspólnie znaleźć rozwiązanie.\n\n{companyName}"
+    },
+    "tier30": {
+      "subject": "PILNE — faktura {displayNumber} jest znacznie przeterminowana",
+      "body_one": "Dzień dobry,\n\nFaktura {displayNumber} na kwotę {amountOutstanding} miała termin płatności {dueDate} i jest obecnie przeterminowana o {{count}} dzień. Pomimo naszych wcześniejszych przypomnień nadal pozostaje nieopłacona.\n\nProsimy o NATYCHMIASTOWE uregulowanie tej faktury, aby uniknąć dalszych działań. Prosimy o pilny kontakt w przypadku sporu lub trudności, o której jeszcze nie wiemy.\n\n{companyName}",
+      "body": "Dzień dobry,\n\nFaktura {displayNumber} na kwotę {amountOutstanding} miała termin płatności {dueDate} i jest obecnie przeterminowana o {{count}} dni. Pomimo naszych wcześniejszych przypomnień nadal pozostaje nieopłacona.\n\nProsimy o NATYCHMIASTOWE uregulowanie tej faktury, aby uniknąć dalszych działań. Prosimy o pilny kontakt w przypadku sporu lub trudności, o której jeszcze nie wiemy.\n\n{companyName}"
+    }
+  },
+  "portalInvite": {
+    "subject": "{companyName} — dostęp do portalu klienta",
+    "introText": "{companyName} zaprosiła Cię do swojego portalu klienta, w którym możesz przeglądać swoje faktury, oferty i saldo konta oraz odpowiadać na dowolną ofertę oczekującą na Twoją decyzję.",
+    "openPortalIntro": "Otwórz swój portal:",
+    "buttonLabel": "Otwórz portal",
+    "privacyNotice": "Zachowaj ten link w tajemnicy — każdy, kto go posiada, może przeglądać Twoje konto.",
+    "signOffText": "Z poważaniem,\n{companyName}",
+    "signOffHtml": "Z poważaniem,<br>{companyName}"
   }
 }

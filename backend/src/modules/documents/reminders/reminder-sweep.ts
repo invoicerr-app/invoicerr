@@ -1,3 +1,7 @@
+import { mailT } from '@/mail/i18n';
+
+import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from '../rendering/language/supported-languages';
+
 /**
  * The dunning-reminder sweep's own PURE decisions — split from reminder-sweep-runner.ts (the
  * Prisma/BullMQ/mail-touching half) for the exact reason `conformity-sweep.ts`/`currency-rate-sweep.ts`
@@ -136,50 +140,64 @@ export interface ReminderEmailContent {
 }
 
 /**
- * One escalating subject/body per tier — THE one place this feature's copy lives (this file's own
- * header: backend-generated email content, not a frontend screen, so it does NOT go through `t()`/
- * `locales/en/translation.json`, which only covers the SPA's own strings). A plain switch over the
- * SAME `tierDaysOverdue` value `selectDueReminderTier` returns and `DocumentReminder.tier` stores —
- * never a second, independent "tone" enum that could drift out of sync with `REMINDER_TIERS` above.
+ * One escalating subject/body per tier — THE one place this feature's copy lives. Multilingual since
+ * the client-facing-mail pass (step 4 of the multilingual-mail plan): this is BACKEND-generated email
+ * content sent to a CLIENT, so it goes through the backend's own `mails` i18next catalog (`mail/i18n.ts`,
+ * `mail/locales/*\/mails.json`) — a completely different catalog from the frontend's own `t()`/
+ * `locales/en/translation.json`, which covers only the SPA's own strings and has no bearing here. A
+ * plain switch over the SAME `tierDaysOverdue` value `selectDueReminderTier` returns and
+ * `DocumentReminder.tier` stores — never a second, independent "tone" enum that could drift out of
+ * sync with `REMINDER_TIERS` above — is what still decides which catalog KEY applies; the switch's own
+ * three cases exist only to pick that key and to keep the `default` throw below (an unreachable-in-
+ * production but loud guard against this file's own tier set and the catalog ever drifting apart),
+ * never to hold the prose itself any more.
+ *
+ * `language` is the CALLER's job to resolve (`resolve-recipient-language.ts#resolveRecipientLanguage`,
+ * against the invoice's own client and its company) — this function stays pure, exactly like the rest
+ * of this file's own header promises, and is never the one deciding whose language a reminder goes out
+ * in. Defaults to `DEFAULT_RENDER_LANGUAGE` ('en') so every pre-existing two-argument call (every test
+ * written before this feature, and any future caller with no resolved language in hand yet) keeps
+ * producing byte-for-byte the same English copy it always has — the same "widen, never force" posture
+ * `resolveSystemEmailTemplate`'s own `language` parameter already holds.
+ *
+ * The day count itself is NOT a manually-built "day(s)" string any more: `{{count}}` is i18next's own
+ * CLDR-plural interpolation (`mail/i18n.ts`'s own header on why `{{ }}` is reserved for it), fed
+ * `daysOverdue` directly — one `_one`/default pair per tier, same convention every other counted mail
+ * in this catalog already uses (`billingWarning.blockedZip.subject_one`/`subject`). The other four
+ * facts (`displayNumber`, `amountOutstanding`, `dueDate`, `companyName`) are plain, PLAIN-TEXT values
+ * (this email has no html part — see `ReminderEmailContent`), so they stay OUTSIDE i18next's own
+ * interpolation, as literal `{token}`s substituted by hand AFTER translation — the same "manual token
+ * for a value, `{{var}}` only for a CLDR count" split `mail/system-email-templates.ts`'s own header
+ * documents, chosen here specifically because i18next's default HTML-escaping (`i18n.ts`'s own
+ * `interpolation` config) would otherwise mangle a plain-text `&` into `&amp;` for no reason at all.
  */
-export function buildReminderEmail(tierDaysOverdue: number, ctx: ReminderEmailContext): ReminderEmailContent {
+export function buildReminderEmail(
+  tierDaysOverdue: number,
+  ctx: ReminderEmailContext,
+  language: RenderLanguage = DEFAULT_RENDER_LANGUAGE,
+): ReminderEmailContent {
   const { displayNumber, amountOutstanding, dueDate, daysOverdue, companyName } = ctx;
+  const t = mailT(language);
+
+  const fillTokens = (raw: string): string =>
+    raw
+      .replaceAll('{displayNumber}', displayNumber)
+      .replaceAll('{amountOutstanding}', amountOutstanding)
+      .replaceAll('{dueDate}', dueDate)
+      .replaceAll('{companyName}', companyName);
+
+  const buildFromCatalog = (tierKey: 'tier7' | 'tier14' | 'tier30'): ReminderEmailContent => ({
+    subject: fillTokens(t(`reminders.${tierKey}.subject`)),
+    text: fillTokens(t(`reminders.${tierKey}.body`, { count: daysOverdue })),
+  });
 
   switch (tierDaysOverdue) {
     case 7:
-      return {
-        subject: `Payment reminder — invoice ${displayNumber}`,
-        text:
-          `Hello,\n\n` +
-          `This is a friendly reminder that invoice ${displayNumber}, for ${amountOutstanding}, was due ` +
-          `on ${dueDate} and is now ${daysOverdue} day(s) overdue.\n\n` +
-          `Please arrange payment at your earliest convenience. If you have already paid, please ` +
-          `disregard this message.\n\n` +
-          `Thank you,\n${companyName}`,
-      };
+      return buildFromCatalog('tier7');
     case 14:
-      return {
-        subject: `Second reminder — invoice ${displayNumber} is overdue`,
-        text:
-          `Hello,\n\n` +
-          `Invoice ${displayNumber}, for ${amountOutstanding}, was due on ${dueDate} and is now ` +
-          `${daysOverdue} day(s) overdue. This is our second reminder — please settle it as soon as ` +
-          `possible.\n\n` +
-          `If you are experiencing difficulty paying, please contact us so we can find a solution ` +
-          `together.\n\n` +
-          `${companyName}`,
-      };
+      return buildFromCatalog('tier14');
     case 30:
-      return {
-        subject: `URGENT — invoice ${displayNumber} is significantly overdue`,
-        text:
-          `Hello,\n\n` +
-          `Invoice ${displayNumber}, for ${amountOutstanding}, was due on ${dueDate} and is now ` +
-          `${daysOverdue} day(s) overdue. Despite our previous reminders, it remains unpaid.\n\n` +
-          `Please settle this invoice IMMEDIATELY to avoid further action. Contact us urgently if there ` +
-          `is a dispute, or a difficulty we are not yet aware of.\n\n` +
-          `${companyName}`,
-      };
+      return buildFromCatalog('tier30');
     default:
       // Unreachable in production — `tierDaysOverdue` only ever comes from `selectDueReminderTier`,
       // which only ever returns a value present in `REMINDER_TIERS` above. A loud, named failure

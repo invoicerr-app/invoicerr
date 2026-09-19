@@ -121,5 +121,31 @@
   },
   "billingZipExport": {
     "body": "Das Invoicerr-Abonnement Ihres Unternehmens ist seit 14 Tagen blockiert. Im Anhang finden Sie einen vollständigen Export der Dokumente Ihres Unternehmens. Wenn Sie nicht handeln, werden diese Daten endgültig gelöscht."
+  },
+  "reminders": {
+    "tier7": {
+      "subject": "Zahlungserinnerung — Rechnung {displayNumber}",
+      "body_one": "Hallo,\n\ndies ist eine freundliche Erinnerung, dass Rechnung {displayNumber} über {amountOutstanding} am {dueDate} fällig war und nun seit {{count}} Tag überfällig ist.\n\nBitte veranlassen Sie die Zahlung schnellstmöglich. Sollten Sie bereits bezahlt haben, betrachten Sie diese Nachricht bitte als gegenstandslos.\n\nVielen Dank,\n{companyName}",
+      "body": "Hallo,\n\ndies ist eine freundliche Erinnerung, dass Rechnung {displayNumber} über {amountOutstanding} am {dueDate} fällig war und nun seit {{count}} Tagen überfällig ist.\n\nBitte veranlassen Sie die Zahlung schnellstmöglich. Sollten Sie bereits bezahlt haben, betrachten Sie diese Nachricht bitte als gegenstandslos.\n\nVielen Dank,\n{companyName}"
+    },
+    "tier14": {
+      "subject": "Zweite Mahnung — Rechnung {displayNumber} ist überfällig",
+      "body_one": "Hallo,\n\nRechnung {displayNumber} über {amountOutstanding} war am {dueDate} fällig und ist nun seit {{count}} Tag überfällig. Dies ist unsere zweite Mahnung — bitte begleichen Sie den Betrag so bald wie möglich.\n\nFalls Sie Zahlungsschwierigkeiten haben, kontaktieren Sie uns bitte, damit wir gemeinsam eine Lösung finden können.\n\n{companyName}",
+      "body": "Hallo,\n\nRechnung {displayNumber} über {amountOutstanding} war am {dueDate} fällig und ist nun seit {{count}} Tagen überfällig. Dies ist unsere zweite Mahnung — bitte begleichen Sie den Betrag so bald wie möglich.\n\nFalls Sie Zahlungsschwierigkeiten haben, kontaktieren Sie uns bitte, damit wir gemeinsam eine Lösung finden können.\n\n{companyName}"
+    },
+    "tier30": {
+      "subject": "DRINGEND — Rechnung {displayNumber} ist erheblich überfällig",
+      "body_one": "Hallo,\n\nRechnung {displayNumber} über {amountOutstanding} war am {dueDate} fällig und ist nun seit {{count}} Tag überfällig. Trotz unserer vorherigen Mahnungen ist sie weiterhin unbezahlt.\n\nBitte begleichen Sie diese Rechnung UMGEHEND, um weitere Schritte zu vermeiden. Kontaktieren Sie uns dringend, falls es einen Streitfall oder eine uns noch nicht bekannte Schwierigkeit gibt.\n\n{companyName}",
+      "body": "Hallo,\n\nRechnung {displayNumber} über {amountOutstanding} war am {dueDate} fällig und ist nun seit {{count}} Tagen überfällig. Trotz unserer vorherigen Mahnungen ist sie weiterhin unbezahlt.\n\nBitte begleichen Sie diese Rechnung UMGEHEND, um weitere Schritte zu vermeiden. Kontaktieren Sie uns dringend, falls es einen Streitfall oder eine uns noch nicht bekannte Schwierigkeit gibt.\n\n{companyName}"
+    }
+  },
+  "portalInvite": {
+    "subject": "{companyName} — Zugang zu Ihrem Kundenportal",
+    "introText": "{companyName} hat Sie zu ihrem Kundenportal eingeladen, in dem Sie Ihre Rechnungen, Angebote und Ihren Kontostand einsehen sowie auf jedes Angebot, das auf Ihre Entscheidung wartet, reagieren können.",
+    "openPortalIntro": "Öffnen Sie Ihr Portal:",
+    "buttonLabel": "Portal öffnen",
+    "privacyNotice": "Bewahren Sie diesen Link vertraulich auf — jeder, der ihn kennt, kann auf Ihr Konto zugreifen.",
+    "signOffText": "Mit freundlichen Grüßen,\n{companyName}",
+    "signOffHtml": "Mit freundlichen Grüßen,<br>{companyName}"
   }
 }

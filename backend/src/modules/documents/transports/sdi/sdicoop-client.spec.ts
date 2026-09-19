@@ -119,10 +119,13 @@ async function startStubServer(
       // proves `SdiCoopClient` actually PRESENTS its configured pfx, not merely that plain TLS works.
       requestCert: true,
       // Lenient by default (inspect `authorized` ourselves rather than hard-failing the socket) — the
-      // WRONG-passphrase test below asks for `true` (a REAL AdE server's likely posture) specifically
-      // BECAUSE a lenient server would otherwise still complete the handshake (Node silently sends no
-      // client cert at all when pfx decryption fails, rather than throwing) and this test would prove
-      // nothing.
+      // WRONG-passphrase test below asks for `true` (a REAL AdE server's likely posture) anyway, purely
+      // to exercise the realistic case; the actual, empirically-confirmed Node behavior a wrong
+      // passphrase triggers is a SYNCHRONOUS throw ("mac verify failure") while parsing `pfx` for a
+      // genuinely fresh connection, regardless of server leniency — see `postSoap`'s own `agent: false`
+      // comment (`sdicoop-client.ts`) for the one case that throw does NOT happen: an already-pooled,
+      // already-authenticated socket to the same host:port, reused instead of ever parsing this call's
+      // own `pfx` at all.
       rejectUnauthorized: opts.rejectUnauthorized ?? false,
       ca: [clientCertPem],
     },
@@ -344,13 +347,43 @@ describe('SdiCoopClient — mTLS against a local stub server', () => {
   });
 
   it(
+    'a WRONG passphrase against the SAME host:port a previous call just authenticated against ' +
+      'still fails — never silently rides that earlier, pooled, already-authenticated socket',
+    async () => {
+      // Reproduces, on this exact stub, the scenario the previous test leaves behind: `stub` already
+      // has one successfully-authenticated connection to it (the test immediately above). Without
+      // `agent: false` on `postSoap`'s own `https.request()` call, Node's default `https.globalAgent`
+      // pools sockets by host/port ALONE — this second call, with a wrong passphrase, would silently
+      // reuse that already-open, already-authenticated socket and appear to succeed, presenting the
+      // FIRST call's own certificate instead of ever attempting to parse this one's `pfx`. Empirically
+      // confirmed against this codebase's own Node runtime before this test was written — see
+      // `sdicoop-client.ts#postSoap`'s own `agent: false` comment for the full mechanism, and
+      // `pt-at-client.spec.ts`'s own identical sequential (success, then wrong-passphrase, same stub)
+      // proof for the sibling channel this exact defect was first found in.
+      stub.setResponse(200, RESPOSTA_XML('111111111111'));
+      const client = new SdiCoopClient({ endpoint: stub.url, ca: stub.serverCertPem });
+
+      await expect(
+        client.submit({
+          idTrasmittente: 'IT01234567890',
+          xmlBytes: Buffer.from('<FatturaElettronica/>', 'utf-8'),
+          filename: 'IT01234567890_0000000002.xml',
+          certificate: clientPfxBase64,
+          certificatePassword: 'definitely-the-wrong-password',
+        }),
+      ).rejects.toThrow(/SdI SOAP request failed:.*mac verify failure/i);
+    },
+  );
+
+  it(
     'fails (named, never a silent success) with the WRONG passphrase, against a STRICT server ' +
       '(rejectUnauthorized: true — the realistic posture for a real AdE endpoint)',
     async () => {
-      // A LENIENT server (the shared `stub` above) would still complete the handshake even with a
-      // wrong passphrase — Node silently sends NO client certificate at all when pfx decryption fails,
-      // rather than throwing, so a lenient server proves nothing here. A dedicated strict server is
-      // started for this one test.
+      // A dedicated, FRESH strict server (never a `postSoap` client of this suite has connected to
+      // before) — this test's own job is the realistic-server-posture case; the pooled-socket case
+      // (the shared `stub` above, already authenticated by an earlier test) is what the dedicated
+      // "SAME host:port a previous call just authenticated against" test right above this one proves
+      // instead — see that test's own header.
       const strictStub = await startStubServer(clientCert.certPem, { rejectUnauthorized: true });
       strictStub.setResponse(200, RESPOSTA_XML('987654321098'));
       try {

@@ -6,8 +6,8 @@ import { runWithCompanyId } from '@/lib/request-context';
 import { logger } from '@/logger/logger.service';
 import { mailT } from '@/mail/i18n';
 import { MailService } from '@/mail/mail.service';
-import { DEFAULT_RENDER_LANGUAGE } from '@/modules/documents/rendering/language/supported-languages';
 import { deleteArchivedArtifacts } from '@/modules/documents/archive/storage';
+import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import { inboundRoot } from '@/modules/documents/received-invoices/storage';
 import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
 import prisma from '@/prisma/prisma.service';
@@ -44,6 +44,7 @@ export class InstanceResetService {
     const { minted } = await mintInstanceResetOtp(user.email, hashOtpCode(code));
 
     if (!minted) {
+      // INSTANCE-LEVEL-LOG: an instance-wide OTP request has no company to scope this warning to.
       logger.warn(
         'Instance-reset OTP request refused — this operator is permanently locked out after too ' +
           'many failed attempts',
@@ -61,18 +62,20 @@ export class InstanceResetService {
       // all already proves they are an instance operator, not merely a member of whichever company
       // happens to be active in their session right now.
       //
-      // Language: fixed to `DEFAULT_RENDER_LANGUAGE` ('en') for now — an instance operator is not a
-      // tenant with a `Client.language`/`Company.language` to resolve, and this repository has no
-      // per-operator locale setting yet. A future `DEFAULT_LOCALE` instance setting is the intended
-      // injection point (see `system-email-templates.ts`'s own billing-warning header for the sibling
-      // case); until it lands, every operator-facing mail keeps shipping in English, unchanged.
-      const t = mailT(DEFAULT_RENDER_LANGUAGE);
+      // Language: the operator's own `User.locale`, via `resolveUserLanguage` — the SAME resolver
+      // every other authenticated-user mail in this codebase uses (`danger.service.ts`,
+      // `account-lifecycle.ts`). The second argument is `null`, never a company id: an instance
+      // operator acts outside any one company's scope here (this action reaches every company on the
+      // deployment at once), so there is no `Company.language` to fall back to before the instance's
+      // own `DEFAULT_LOCALE` — the cascade is operator locale → DEFAULT_LOCALE → English.
+      const t = mailT(resolveUserLanguage(user.locale, null));
       await this.mailService.sendMail({
         to: user.email,
         subject: t('instanceResetOtp.subject'),
         text: t('instanceResetOtp.body', { code, minutes: OTP_EXPIRATION_MINUTES }),
       });
     } catch (error) {
+      // INSTANCE-LEVEL-LOG: same instance-wide OTP flow as above — no company scope applies.
       logger.error('Failed to send instance-reset OTP email', {
         category: 'instance',
         companyId: null,
@@ -83,6 +86,7 @@ export class InstanceResetService {
       );
     }
 
+    // INSTANCE-LEVEL-LOG: same instance-wide OTP flow as above — no company scope applies.
     logger.info('Instance-reset OTP sent', {
       category: 'instance',
       companyId: null,
@@ -136,6 +140,7 @@ export class InstanceResetService {
     try {
       await this.verifyAndConsumeOtp(user.email, otp);
     } catch (error) {
+      // INSTANCE-LEVEL-LOG: instance reset is cross-tenant by construction — no single company applies.
       logger.warn('Invalid or expired OTP for instance reset', {
         category: 'instance',
         companyId: null,
@@ -175,6 +180,7 @@ export class InstanceResetService {
       // Truncating the `session` table above already signs out every session on this instance — better
       // -auth resolves a session by looking the cookie's id up in that table, and that lookup now
       // fails for all of them, the same way it would for a session whose row was deleted any other way.
+      // INSTANCE-LEVEL-LOG: instance reset touches every company on the deployment at once.
       logger.info('Instance reset — every company, user and document on this deployment was wiped', {
         category: 'instance',
         companyId: null,

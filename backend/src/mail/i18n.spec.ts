@@ -1,3 +1,5 @@
+import { __resetDefaultLocaleForTests } from '@/modules/documents/rendering/language/default-locale';
+
 import { mailT } from './i18n';
 
 describe('mailT — language resolution and fallback', () => {
@@ -109,4 +111,44 @@ describe('mailT — missing key falls back to English', () => {
     const t = mailT('en');
     expect(t('demo.englishOnly')).toBe(ENGLISH_TEXT);
   });
+});
+
+describe('mailT — DEFAULT_LOCALE, the instance-wide fallback below an unresolved language', () => {
+  // Covers the direct-call sites that reach `mailT` WITHOUT going through `resolveRecipientLanguage`/
+  // `resolveUserLanguage` first (e.g. `CompanyMailSettingsService#sendTest`'s own optional `language`
+  // parameter, unresolved when omitted) — see `i18n.ts`'s own header for why the fallback lives here
+  // too, not only in the two resolvers. An already-RESOLVED language (what every OTHER call site
+  // passes) never reaches this fallback at all, since it is already one of
+  // `SUPPORTED_RENDER_LANGUAGES`.
+  const ORIGINAL_ENV = process.env.DEFAULT_LOCALE;
+
+  beforeEach(() => __resetDefaultLocaleForTests());
+
+  afterAll(() => {
+    process.env.DEFAULT_LOCALE = ORIGINAL_ENV;
+    __resetDefaultLocaleForTests();
+  });
+
+  it('resolves an unset language to DEFAULT_LOCALE when the instance has set one', () => {
+    process.env.DEFAULT_LOCALE = 'fr';
+    const t = mailT(undefined);
+    expect(t('demo.greeting', { name: 'Monde' })).toBe('Bonjour, Monde !');
+  });
+
+  it('never overrides an explicit, supported language with DEFAULT_LOCALE', () => {
+    process.env.DEFAULT_LOCALE = 'fr';
+    const t = mailT('pt');
+    expect(t('demo.greeting', { name: 'Mundo' })).toBe('Olá, Mundo!');
+  });
+
+  it('falls back to English when DEFAULT_LOCALE is unset', () => {
+    delete process.env.DEFAULT_LOCALE;
+    const t = mailT(undefined);
+    expect(t('demo.greeting', { name: 'World' })).toBe('Hello, World!');
+  });
+
+  // An unsupported DEFAULT_LOCALE value is covered by `default-locale.spec.ts`, which mocks `logger`
+  // so the warning that path fires does not reach `logger.service.ts`'s own real `prisma.log.create`
+  // in a plain unit test — see that spec's own header, and `resolve-recipient-language.spec.ts`'s
+  // identical note.
 });

@@ -138,6 +138,49 @@ describe('ReminderSweepRunner.runSweep', () => {
     });
   });
 
+  // Multilingual client-facing mail (step 4 of the multilingual-mail plan) — proves the runner
+  // actually RESOLVES a recipient language and threads it into `buildReminderEmail`, not just that
+  // the pure builder itself can translate (already proven by reminder-sweep.spec.ts).
+  it("sends the reminder in the CLIENT's own language, even when the company's default differs", async () => {
+    companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp', language: 'en' }]);
+    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com', language: 'fr' });
+
+    const mailService = buildMailService();
+    const runner = new ReminderSweepRunner(mailService);
+    await runner.runSweep(NOW);
+
+    const [, sendArgs] = (mailService.sendForCompany as jest.Mock).mock.calls[0];
+    expect(sendArgs.subject).toContain('Rappel de paiement');
+    expect(sendArgs.text).toContain('Bonjour,');
+  });
+
+  it("falls back to the COMPANY's own language when the client never set one", async () => {
+    companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp', language: 'de' }]);
+    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com', language: null });
+
+    const mailService = buildMailService();
+    const runner = new ReminderSweepRunner(mailService);
+    await runner.runSweep(NOW);
+
+    const [, sendArgs] = (mailService.sendForCompany as jest.Mock).mock.calls[0];
+    expect(sendArgs.subject).toContain('Zahlungserinnerung');
+  });
+
+  it('falls back all the way to English when NEITHER the client nor the company set a language', async () => {
+    companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]); // no `language` at all
+    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com' }); // no `language` at all
+
+    const mailService = buildMailService();
+    const runner = new ReminderSweepRunner(mailService);
+    await runner.runSweep(NOW);
+
+    const [, sendArgs] = (mailService.sendForCompany as jest.Mock).mock.calls[0];
+    expect(sendArgs.subject).toContain('Payment reminder');
+  });
+
   it('does NOT send anything for a company that has not opted in — findMany already filters it out', async () => {
     // The runner's own query is `where: { remindersEnabled: true }` — a disabled company never even
     // reaches `listDocuments` at all, proven here by `companyFindMany` simply returning nothing.

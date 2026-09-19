@@ -2,20 +2,26 @@
  * `pt-at-client.ts`'s own wire-level pieces — proves the STRUCTURE this client builds (the
  * WS-Security header's four fields exist, are base64-well-formed, and actually decrypt back to what
  * was encrypted; the right endpoint is picked per environment; a `RegisterInvoiceResponse` parses
- * into the right `CodigoResposta`/`Mensagem`/`DataOperacao`). This NEVER asserts AT itself accepts any
- * of it — see `pt-at-client.ts`'s own header, "implemented to the documented AT contract, awaiting
+ * into the right `CodigoResposta`/`Mensagem`/`DataOperacao`) PLUS, in the "mTLS" describe block below,
+ * a REAL `node:https` handshake against a local self-signed stub — see that block's own header for
+ * exactly what that proves and does not. Neither proves AT itself accepts any of it — see
+ * `pt-at-client.ts`'s own header, "implemented to the documented AT contract, awaiting
  * accreditation": a live round-trip (`pt-declaration-provider.live.spec.ts`, gated `PT_AT_LIVE=1`) is
  * the only thing that could prove that.
  */
+import * as forge from 'node-forge';
 import {
   privateDecrypt,
   generateKeyPairSync,
   createDecipheriv,
   constants as cryptoConstants,
 } from 'node:crypto';
+import * as https from 'node:https';
+import type { AddressInfo } from 'node:net';
 
 import {
   AT_CODIGO_RESPOSTA_MEANINGS,
+  buildPtAtClient,
   buildPtAtEnvelope,
   buildPtAtSecurityFields,
   describePtAtCodigoResposta,
@@ -233,5 +239,224 @@ describe('parsePtAtRegisterInvoiceResponse — RegisterInvoiceResponse (Aspetos 
 
   it('malformed XML is refused, named', () => {
     expect(() => parsePtAtRegisterInvoiceResponse('<not-xml')).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mTLS — REAL node:https handshake against a local self-signed stub.
+//
+// This is the ONE thing this file's own standing "no real AT certificate exists, so mTLS is not
+// wired" caveat could be tested despite — never by fabricating one AT would accept (impossible from
+// this machine), but by proving the WIRING: that `buildPtAtClient`'s configured PKCS#12 really reaches
+// the TLS handshake, that a missing/wrong certificate really fails, and that a bad passphrase really
+// fails loudly. What this can NEVER prove is that the real AT accepts OUR specific production
+// certificate — see `pt-at-client.ts`'s own header, "mTLS" bullet, for that line drawn explicitly.
+//
+// Certs are generated in-memory with `node-forge`, the exact shape
+// `transports/sdi/sdicoop-client.spec.ts#generateSelfSignedCert`/`buildClientPfx` already use for the
+// identical "no real certificate is ever committed" reasoning — never openssl-on-disk, so there is no
+// throwaway file to clean up and no dependency on an `openssl` binary being present in CI.
+// ---------------------------------------------------------------------------
+
+interface GeneratedCert {
+  certPem: string;
+  keyPem: string;
+  cert: forge.pki.Certificate;
+  keys: forge.pki.rsa.KeyPair;
+}
+
+function generateSelfSignedCert(commonName: string, opts: { subjectAltIp?: string } = {}): GeneratedCert {
+  // 2048, not 1024: a REAL TLS handshake is negotiated below — modern OpenSSL's default security
+  // level rejects a 1024-bit key for a live handshake ("ee key too small"), the same discovery
+  // `sdicoop-client.spec.ts`'s own `generateSelfSignedCert` already documents.
+  const keys = forge.pki.rsa.generateKeyPair(2048);
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = keys.publicKey;
+  cert.serialNumber = '01';
+  cert.validity.notBefore = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  cert.validity.notAfter = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+  const attrs = [
+    { name: 'commonName', value: commonName },
+    { name: 'countryName', value: 'PT' },
+  ];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs);
+  if (opts.subjectAltIp) {
+    // The SERVER cert needs a subjectAltName matching the address the client connects to (127.0.0.1)
+    // — Node's TLS client checks SAN/IP, not just commonName, even against a self-signed cert it
+    // otherwise trusts via `ca`. Type 7 = iPAddress (RFC 5280 GeneralName).
+    cert.setExtensions([{ name: 'subjectAltName', altNames: [{ type: 7, ip: opts.subjectAltIp }] }]);
+  }
+  cert.sign(keys.privateKey, forge.md.sha256.create());
+  return {
+    certPem: forge.pki.certificateToPem(cert),
+    keyPem: forge.pki.privateKeyToPem(keys.privateKey),
+    cert,
+    keys,
+  };
+}
+
+/** Builds a PKCS#12 (.pfx) bundle, base64-encoded — the exact shape a real "pt-at" channel's own
+ *  `clientCertificateBase64` carries. */
+function buildClientPfx(clientCert: GeneratedCert, password: string): string {
+  const p12Asn1 = forge.pkcs12.toPkcs12Asn1(clientCert.keys.privateKey, [clientCert.cert], password);
+  const p12Der = forge.asn1.toDer(p12Asn1).getBytes();
+  return Buffer.from(p12Der, 'binary').toString('base64');
+}
+
+interface StubServer {
+  url: string;
+  serverCertPem: string;
+  close(): Promise<void>;
+  /** The last request's peer certificate CN, and whether Node itself verified it against the `ca` this
+   *  server was configured with — set by the handler right before it responds. `undefined` when the
+   *  TLS handshake never reached the request handler at all (the no-certificate case). */
+  lastPeer: { authorized: boolean; commonName: string | undefined } | undefined;
+  setResponse(status: number, body: string): void;
+}
+
+/** A local, self-signed, mTLS-REQUIRING HTTPS server standing in for the AT `fatcorews` endpoint.
+ *  `requestCert: true, rejectUnauthorized: true` — exactly the posture this task's own brief asks for,
+ *  and the realistic posture for a real government endpoint (a LENIENT server would still complete
+ *  the handshake with no/a wrong certificate, proving nothing about either failure mode below). */
+async function startStubServer(clientCertPem: string): Promise<StubServer> {
+  const server0 = generateSelfSignedCert('Test AT fatcorews Stub', { subjectAltIp: '127.0.0.1' });
+  let responseStatus = 200;
+  let responseBody = '';
+  const state: StubServer = {
+    url: '',
+    serverCertPem: server0.certPem,
+    lastPeer: undefined,
+    close: () => Promise.resolve(),
+    setResponse(status: number, body: string) {
+      responseStatus = status;
+      responseBody = body;
+    },
+  };
+
+  const server = https.createServer(
+    {
+      key: server0.keyPem,
+      cert: server0.certPem,
+      requestCert: true,
+      rejectUnauthorized: true,
+      ca: [clientCertPem],
+    },
+    (req, res) => {
+      const socket = req.socket as unknown as {
+        authorized?: boolean;
+        getPeerCertificate: () => { subject?: { CN?: string } };
+      };
+      state.lastPeer = {
+        authorized: socket.authorized === true,
+        commonName: socket.getPeerCertificate()?.subject?.CN,
+      };
+      res.statusCode = responseStatus;
+      res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+      res.end(responseBody);
+    },
+  );
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as AddressInfo).port;
+  state.url = `https://127.0.0.1:${port}/fatcorews/ws/`;
+  state.close = () => new Promise<void>((resolve) => server.close(() => resolve()));
+  return state;
+}
+
+const REGISTER_INVOICE_RESPONSE_XML = (codigoResposta: number) =>
+  '<RegisterInvoiceResponse xmlns="http://factemi.at.min_financas.pt/documents">' +
+  `<CodigoResposta>${codigoResposta}</CodigoResposta>` +
+  '<Mensagem>Operação efetuada com sucesso.</Mensagem>' +
+  '<DataOperacao>2026-09-19T10:00:00</DataOperacao></RegisterInvoiceResponse>';
+
+describe('buildPtAtClient — mTLS against a local stub server (node:https, requestCert+rejectUnauthorized)', () => {
+  const CLIENT_CN = 'Test Invoicerr Subutilizador';
+  const CLIENT_PFX_PASSWORD = 'test-pfx-password-not-real';
+  let clientCert: GeneratedCert;
+  let clientPfxBase64: string;
+  let stub: StubServer;
+
+  beforeAll(async () => {
+    clientCert = generateSelfSignedCert(CLIENT_CN);
+    clientPfxBase64 = buildClientPfx(clientCert, CLIENT_PFX_PASSWORD);
+    stub = await startStubServer(clientCert.certPem);
+  });
+
+  afterAll(async () => {
+    await stub.close();
+  });
+
+  function credentialsWith(overrides: Partial<PtAtCredentials>): PtAtCredentials {
+    return {
+      username: '599999993/37',
+      password: 'correct horse battery staple',
+      authPublicKeyPem: AT_PUBLIC_KEY_PEM,
+      clientCertificateBase64: clientPfxBase64,
+      clientCertificatePassword: CLIENT_PFX_PASSWORD,
+      ...overrides,
+    };
+  }
+
+  it('1. a request carrying the correct PKCS#12 and passphrase completes, and the server SEES the client certificate', async () => {
+    stub.setResponse(200, REGISTER_INVOICE_RESPONSE_XML(0));
+    const client = buildPtAtClient(credentialsWith({}), stub.url, { ca: stub.serverCertPem });
+
+    const result = await client.registerInvoice({ 'doc:TaxRegistrationNumber': '222222222' });
+
+    expect(result.codigoResposta).toBe(0);
+    // THE proof this is genuine mTLS, not merely "some TLS handshake succeeded": the server verified
+    // the presented certificate against the exact `ca` it was configured with, AND that certificate's
+    // own CN is the one this test built — never a coincidental pass.
+    expect(stub.lastPeer?.authorized).toBe(true);
+    expect(stub.lastPeer?.commonName).toBe(CLIENT_CN);
+  });
+
+  it('2. a request with NO certificate is rejected at the TLS layer, with a clear error naming the cause — never a generic socket hang-up', async () => {
+    // No `clientCertificateBase64` at all — `buildPtAtClient` then presents no `pfx`, so the strict
+    // stub server (`rejectUnauthorized: true`) refuses the TLS handshake itself, before the request
+    // handler (and therefore `stub.lastPeer`) is ever reached.
+    const client = buildPtAtClient(
+      credentialsWith({ clientCertificateBase64: undefined, clientCertificatePassword: undefined }),
+      stub.url,
+      { ca: stub.serverCertPem },
+    );
+
+    await expect(client.registerInvoice({ 'doc:TaxRegistrationNumber': '222222222' })).rejects.toThrow(
+      // OpenSSL's own TLS alert for "no client certificate presented to a server that required one" —
+      // e.g. "certificate required" (TLS 1.3) — surfaced verbatim inside this client's own
+      // "AT mTLS/HTTPS request failed: …" wrapper (`postPtAtSoap`'s `req.on('error', …)`), never
+      // collapsed into an undiagnosable bare "socket hang up".
+      /AT mTLS\/HTTPS request failed:.*certificate/i,
+    );
+  });
+
+  it('3. a wrong passphrase throws synchronously at agent construction, and is caught with an error naming the cause', async () => {
+    // The WRONG passphrase against the client's OWN correct PKCS#12 — Node parses `pfx`/`passphrase`
+    // into a TLS secure context SYNCHRONOUSLY as part of `https.request()` itself (see
+    // `postPtAtSoap`'s own header comment), throwing "mac verify failure" before any socket is even
+    // opened — proven here by pointing at the SAME strict stub the other two cases use and observing
+    // the identical, immediate failure regardless of whether the stub is even reachable.
+    const client = buildPtAtClient(
+      credentialsWith({ clientCertificatePassword: 'definitely-the-wrong-password' }),
+      stub.url,
+      { ca: stub.serverCertPem },
+    );
+
+    await expect(client.registerInvoice({ 'doc:TaxRegistrationNumber': '222222222' })).rejects.toThrow(
+      /AT mTLS\/HTTPS request failed:.*mac verify failure/i,
+    );
+  });
+
+  it('4. a genuinely corrupt PKCS#12 archive fails the exact same synchronous way as a wrong passphrase', async () => {
+    const client = buildPtAtClient(
+      credentialsWith({ clientCertificateBase64: Buffer.from('not a pkcs12 archive').toString('base64') }),
+      stub.url,
+      { ca: stub.serverCertPem },
+    );
+
+    await expect(client.registerInvoice({ 'doc:TaxRegistrationNumber': '222222222' })).rejects.toThrow(
+      /AT mTLS\/HTTPS request failed:/,
+    );
   });
 });

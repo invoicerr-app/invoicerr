@@ -1,3 +1,4 @@
+import { resolveDefaultLocale } from './default-locale';
 import { DEFAULT_RENDER_LANGUAGE, isSupportedRenderLanguage, RenderLanguage } from './supported-languages';
 
 function normalize(value: string | null | undefined): string | undefined {
@@ -18,7 +19,10 @@ function normalize(value: string | null | undefined): string | undefined {
  *  2. `companyLanguage` (`Company.language`) — the same fallback `resolveRecipientLanguage` already
  *     uses for a client with no language of its own, reused here so a user who never set a personal
  *     preference still lands on their company's language rather than jumping straight to English.
- *  3. `DEFAULT_RENDER_LANGUAGE` ('en').
+ *  3. `DEFAULT_LOCALE` (`resolveDefaultLocale`) — the same instance-wide env var
+ *     `resolveRecipientLanguage` consults at the same position in its own chain, for a user who set no
+ *     personal locale in a company that itself never set one either. See that function's own header.
+ *  4. `DEFAULT_RENDER_LANGUAGE` ('en').
  *
  * Case-insensitive and whitespace-tolerant on the way in, same as `resolveRecipientLanguage` — the
  * return value is always one of the six canonical lowercase codes `supported-languages.ts` names.
@@ -33,5 +37,5 @@ export function resolveUserLanguage(
   const company = normalize(companyLanguage);
   if (isSupportedRenderLanguage(company)) return company;
 
-  return DEFAULT_RENDER_LANGUAGE;
+  return resolveDefaultLocale() ?? DEFAULT_RENDER_LANGUAGE;
 }

@@ -121,5 +121,31 @@
   },
   "billingZipExport": {
     "body": "A subscrição Invoicerr da sua empresa está bloqueada há 14 dias. Em anexo encontra uma exportação completa dos documentos da sua empresa. Se não agir, estes dados serão eliminados permanentemente."
+  },
+  "reminders": {
+    "tier7": {
+      "subject": "Lembrete de pagamento — fatura {displayNumber}",
+      "body_one": "Olá,\n\nEste é um lembrete simpático de que a fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dia.\n\nPor favor, efetue o pagamento o mais brevemente possível. Se já tiver efetuado o pagamento, ignore esta mensagem.\n\nObrigado,\n{companyName}",
+      "body": "Olá,\n\nEste é um lembrete simpático de que a fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dias.\n\nPor favor, efetue o pagamento o mais brevemente possível. Se já tiver efetuado o pagamento, ignore esta mensagem.\n\nObrigado,\n{companyName}"
+    },
+    "tier14": {
+      "subject": "Segundo lembrete — a fatura {displayNumber} está em atraso",
+      "body_one": "Olá,\n\nA fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dia. Este é o nosso segundo lembrete — por favor, regularize o pagamento o mais brevemente possível.\n\nSe está com dificuldades em efetuar o pagamento, contacte-nos para encontrarmos uma solução em conjunto.\n\n{companyName}",
+      "body": "Olá,\n\nA fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dias. Este é o nosso segundo lembrete — por favor, regularize o pagamento o mais brevemente possível.\n\nSe está com dificuldades em efetuar o pagamento, contacte-nos para encontrarmos uma solução em conjunto.\n\n{companyName}"
+    },
+    "tier30": {
+      "subject": "URGENTE — a fatura {displayNumber} está significativamente em atraso",
+      "body_one": "Olá,\n\nA fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dia. Apesar dos lembretes anteriores, continua por pagar.\n\nPor favor, regularize esta fatura IMEDIATAMENTE para evitar outras medidas. Contacte-nos com urgência caso exista alguma contestação ou dificuldade da qual ainda não tenhamos conhecimento.\n\n{companyName}",
+      "body": "Olá,\n\nA fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dias. Apesar dos lembretes anteriores, continua por pagar.\n\nPor favor, regularize esta fatura IMEDIATAMENTE para evitar outras medidas. Contacte-nos com urgência caso exista alguma contestação ou dificuldade da qual ainda não tenhamos conhecimento.\n\n{companyName}"
+    }
+  },
+  "portalInvite": {
+    "subject": "{companyName} — aceda ao seu portal de cliente",
+    "introText": "{companyName} convidou-o(a) para o seu portal de cliente, onde pode consultar as suas faturas, orçamentos e saldo de conta, e responder a qualquer orçamento que aguarde a sua decisão.",
+    "openPortalIntro": "Aceda ao seu portal:",
+    "buttonLabel": "Aceder ao portal",
+    "privacyNotice": "Mantenha este link confidencial — qualquer pessoa que o possua pode consultar a sua conta.",
+    "signOffText": "Com os melhores cumprimentos,\n{companyName}",
+    "signOffHtml": "Com os melhores cumprimentos,<br>{companyName}"
   }
 }

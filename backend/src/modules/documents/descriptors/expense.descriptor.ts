@@ -93,6 +93,36 @@ export function buildExpenseDescriptor(): DocumentTypeDescriptor {
       subject: '{typeLabel} {displayNumber}',
       body: 'Please find attached {typeLabel} {displayNumber} from {companyName}.',
     },
+    // Per-recipient document language — see types.ts's own comment on `emailTranslations`, and
+    // credit-note.descriptor.ts's own comment on why this is its OWN block rather than
+    // `standardDocumentEmailTranslations()`: this type's own English wording above (no
+    // `{recipientName}`, no `{totalGross}` — see the comment above `email`) is not word-for-word
+    // identical to the quote's/invoice's own, so it is translated on its own here. Reachable today
+    // only through a company's own `documentEmailTemplates` preview/override screen (this type has no
+    // "send" action at all — see this file's own header), kept anyway for the same "no hole where a
+    // future sender would expect a default" reasoning `email` above already states.
+    emailTranslations: {
+      fr: {
+        subject: '{typeLabel} {displayNumber}',
+        body: 'Veuillez trouver ci-joint {typeLabel} {displayNumber} de {companyName}.',
+      },
+      it: {
+        subject: '{typeLabel} {displayNumber}',
+        body: 'In allegato {typeLabel} {displayNumber} da {companyName}.',
+      },
+      pl: {
+        subject: '{typeLabel} {displayNumber}',
+        body: 'W załączeniu {typeLabel} {displayNumber} od {companyName}.',
+      },
+      de: {
+        subject: '{typeLabel} {displayNumber}',
+        body: 'Anbei {typeLabel} {displayNumber} von {companyName}.',
+      },
+      pt: {
+        subject: '{typeLabel} {displayNumber}',
+        body: 'Segue em anexo {typeLabel} {displayNumber} de {companyName}.',
+      },
+    },
     // See contributions/expense-contributions.ts for the implementation — the SECOND real
     // contribution written for this mechanism, calqued on invoice-contributions.ts. Both locations:
     // a "this month" metric on the dashboard, a fully detailed table on statistics.

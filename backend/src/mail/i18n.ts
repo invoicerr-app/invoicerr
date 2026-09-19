@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import * as i18next from 'i18next';
 import type { i18n as I18nInstance, TFunction } from 'i18next';
 
+import { resolveDefaultLocale } from '@/modules/documents/rendering/language/default-locale';
 import {
   DEFAULT_RENDER_LANGUAGE,
   isSupportedRenderLanguage,
@@ -103,12 +104,23 @@ function normalize(value: string | null | undefined): string | undefined {
  * two different languages by re-resolving mid-build.
  *
  * An unsupported/unset input (an unset company/client language field, or a stray value from before
- * this feature existed) resolves to `DEFAULT_RENDER_LANGUAGE` ('en') — the exact posture
- * `resolveRecipientLanguage` already takes for documents, so a mail and the document it is ABOUT never
- * disagree about which language a recipient with no explicit preference sees.
+ * this feature existed) falls back to `DEFAULT_LOCALE` (`resolveDefaultLocale`, an instance-wide env
+ * var) when that names a language this catalog carries, else `DEFAULT_RENDER_LANGUAGE` ('en') — the
+ * exact two-step tail `resolveRecipientLanguage`/`resolveUserLanguage` already apply for documents, so
+ * a mail and the document it is ABOUT never disagree about which language a recipient with no explicit
+ * preference sees.
+ *
+ * This fallback belongs here too, not only in the two resolvers above them, because not every caller
+ * of `mailT` goes through one: `CompanyMailSettingsService#sendTest`'s own `language` parameter is
+ * optional and reaches `mailT` unresolved when omitted. Consulting `DEFAULT_LOCALE` again here for an
+ * ALREADY-resolved value (the overwhelming majority of calls) is a no-op — `resolved` from either
+ * resolver is always one of `SUPPORTED_RENDER_LANGUAGES` already, so `isSupportedRenderLanguage`
+ * below is true before this fallback is ever reached.
  */
 export function mailT(language: string | null | undefined): TFunction {
   const normalized = normalize(language);
-  const resolved = isSupportedRenderLanguage(normalized) ? normalized : DEFAULT_RENDER_LANGUAGE;
+  const resolved = isSupportedRenderLanguage(normalized)
+    ? normalized
+    : (resolveDefaultLocale() ?? DEFAULT_RENDER_LANGUAGE);
   return getInstance().getFixedT(resolved, MAILS_NAMESPACE);
 }

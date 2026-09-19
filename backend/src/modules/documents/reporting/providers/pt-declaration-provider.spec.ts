@@ -1,12 +1,25 @@
 /**
- * `buildPtAtDeclarationProvider` against a REAL local HTTP stub standing in for the AT webservice —
- * never an in-process mock of the HTTP layer, so this proves the FULL flow (WS-Security header
- * construction → HTTP POST → response parsing → `DeclarationResult` shaping), with the stub itself
- * independently RE-DECRYPTING the Nonce/Password/Created fields server-side — proving the stub checks
- * the cryptography, not just that the client is internally consistent with itself — never that AT
- * itself accepts any of this, see `pt-at-client.ts`'s own header.
+ * `buildPtAtDeclarationProvider` against a REAL local HTTPS stub standing in for the AT webservice —
+ * never an in-process mock of the HTTP layer, so this proves the FULL flow (mTLS handshake →
+ * WS-Security header construction → HTTPS POST → response parsing → `DeclarationResult` shaping),
+ * with the stub itself independently RE-DECRYPTING the Nonce/Password/Created fields server-side —
+ * proving the stub checks the cryptography, not just that the client is internally consistent with
+ * itself — never that AT itself accepts any of this, see `pt-at-client.ts`'s own header.
+ *
+ * The stub is `https`, requiring and verifying a client certificate (`requestCert: true,
+ * rejectUnauthorized: true`) — since `pt-at-client.ts#buildPtAtClient` presents ITS OWN
+ * `pfx`/`passphrase` on the raw TLS connection now (see that file's own "mTLS" header section), a
+ * fixture PKCS#12 has to be a REAL one here too, not the placeholder base64 string this file used
+ * before that wiring existed — a genuinely corrupt/placeholder archive now fails synchronously at
+ * `https.request()` itself, before ever reaching this stub. The cert-building helpers below are the
+ * exact shape `pt-at-client.spec.ts`'s own mTLS suite already uses (node-forge, in-memory,
+ * never committed) — duplicated rather than imported, matching this file's existing
+ * `decryptField`/`unpadPkcs1v15` duplication just below: this stub plays a genuinely different actor
+ * (AT itself, receiving and verifying a certificate) from that file's own client-side round-trip
+ * helpers.
  */
-import * as http from 'node:http';
+import * as forge from 'node-forge';
+import * as https from 'node:https';
 import {
   createDecipheriv,
   generateKeyPairSync,
@@ -27,12 +40,56 @@ const { publicKey: AT_PUBLIC_KEY_PEM, privateKey: AT_PRIVATE_KEY_PEM } = generat
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
 });
 
+interface GeneratedCert {
+  certPem: string;
+  keyPem: string;
+  cert: forge.pki.Certificate;
+  keys: forge.pki.rsa.KeyPair;
+}
+
+/** Same shape as `pt-at-client.spec.ts`'s own `generateSelfSignedCert` — see this file's own header on
+ *  why it is duplicated here rather than imported. */
+function generateSelfSignedCert(commonName: string, opts: { subjectAltIp?: string } = {}): GeneratedCert {
+  const keys = forge.pki.rsa.generateKeyPair(2048);
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = keys.publicKey;
+  cert.serialNumber = '01';
+  cert.validity.notBefore = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  cert.validity.notAfter = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+  const attrs = [
+    { name: 'commonName', value: commonName },
+    { name: 'countryName', value: 'PT' },
+  ];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs);
+  if (opts.subjectAltIp) {
+    cert.setExtensions([{ name: 'subjectAltName', altNames: [{ type: 7, ip: opts.subjectAltIp }] }]);
+  }
+  cert.sign(keys.privateKey, forge.md.sha256.create());
+  return {
+    certPem: forge.pki.certificateToPem(cert),
+    keyPem: forge.pki.privateKeyToPem(keys.privateKey),
+    cert,
+    keys,
+  };
+}
+
+function buildClientPfx(clientCert: GeneratedCert, password: string): string {
+  const p12Asn1 = forge.pkcs12.toPkcs12Asn1(clientCert.keys.privateKey, [clientCert.cert], password);
+  const p12Der = forge.asn1.toDer(p12Asn1).getBytes();
+  return Buffer.from(p12Der, 'binary').toString('base64');
+}
+
+const CLIENT_PFX_PASSWORD = 'test-pfx-password-not-real';
+const CLIENT_CERT = generateSelfSignedCert('Test Invoicerr Subutilizador');
+const SERVER_CERT = generateSelfSignedCert('Test AT fatcorews Stub', { subjectAltIp: '127.0.0.1' });
+
 const CREDENTIALS = {
   username: '222222222/1',
   password: 'S3cretPFPassw0rd!',
   authPublicKeyPem: AT_PUBLIC_KEY_PEM,
-  clientCertificateBase64: 'ZmFrZS1jZXJ0',
-  clientCertificatePassword: 'fake-passphrase',
+  clientCertificateBase64: buildClientPfx(CLIENT_CERT, CLIENT_PFX_PASSWORD),
+  clientCertificatePassword: CLIENT_PFX_PASSWORD,
 };
 
 const FIXTURE_INVOICE: DeclaredInvoice = {
@@ -77,6 +134,10 @@ const FIXTURE_INVOICE: DeclaredInvoice = {
 
 interface PtAtStub {
   baseUrl: string;
+  /** `SERVER_CERT.certPem` — passed as `caPem` on the config `channelCredentialsFor` builds, so
+   *  `buildPtAtClient`'s own `PtAtClientOptions.ca` trusts this self-signed stub without weakening
+   *  `rejectUnauthorized` (see `PtAtCredentials.caPem`'s own comment in `pt-at-client.ts`). */
+  serverCertPem: string;
   close: () => Promise<void>;
   lastBody?: string;
   /** Set by the request handler once it has independently decrypted the WS-Security fields — see
@@ -112,66 +173,77 @@ function unpadPkcs1v15(padded: Buffer): Buffer {
   return padded.subarray(i + 1);
 }
 
-/** A real local server standing in for the AT `fatcorews` endpoint — decrypts the WS-Security fields
- *  with the matching AT private key (mirroring what a real AT server would do with its own private
- *  half of `authPublicKeyPem`) and returns a canned `RegisterInvoiceResponse` per `scenario`. */
+/** A real local HTTPS server standing in for the AT `fatcorews` endpoint — REQUIRES and verifies the
+ *  client's own mTLS certificate (`requestCert: true, rejectUnauthorized: true`, `ca: [CLIENT_CERT]`
+ *  — see this file's own header), then decrypts the WS-Security fields with the matching AT private
+ *  key (mirroring what a real AT server would do with its own private half of `authPublicKeyPem`) and
+ *  returns a canned `RegisterInvoiceResponse` per `scenario`. */
 function startPtAtStub(scenario: StubScenario = 'success'): Promise<PtAtStub> {
   return new Promise((resolvePromise, reject) => {
     const state: { lastBody?: string; lastDecrypted?: PtAtStub['lastDecrypted'] } = {};
-    const server = http.createServer((req, res) => {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        state.lastBody = body;
-        try {
-          const { doc } = parseXml(body);
-          const username = textOf(firstByLocalName(doc, 'Username')) ?? '';
-          const nonceB64 = (textOf(firstByLocalName(doc, 'Nonce')) ?? '').replace(/\s+/g, '');
-          const passwordB64 = textOf(firstByLocalName(doc, 'Password')) ?? '';
-          const createdB64 = textOf(firstByLocalName(doc, 'Created')) ?? '';
+    const server = https.createServer(
+      {
+        key: SERVER_CERT.keyPem,
+        cert: SERVER_CERT.certPem,
+        requestCert: true,
+        rejectUnauthorized: true,
+        ca: [CLIENT_CERT.certPem],
+      },
+      (req, res) => {
+        let body = '';
+        req.on('data', (chunk) => (body += chunk));
+        req.on('end', () => {
+          state.lastBody = body;
+          try {
+            const { doc } = parseXml(body);
+            const username = textOf(firstByLocalName(doc, 'Username')) ?? '';
+            const nonceB64 = (textOf(firstByLocalName(doc, 'Nonce')) ?? '').replace(/\s+/g, '');
+            const passwordB64 = textOf(firstByLocalName(doc, 'Password')) ?? '';
+            const createdB64 = textOf(firstByLocalName(doc, 'Created')) ?? '';
 
-          const symmetricKey = unpadPkcs1v15(
-            privateDecrypt(
-              { key: AT_PRIVATE_KEY_PEM, padding: cryptoConstants.RSA_NO_PADDING },
-              Buffer.from(nonceB64, 'base64'),
-            ),
-          );
-          state.lastDecrypted = {
-            username,
-            password: decryptField(passwordB64, symmetricKey),
-            created: decryptField(createdB64, symmetricKey),
-          };
-        } catch {
-          // Left undefined — a test asserting `lastDecrypted` would then fail loudly, which is the
-          // point: a broken WS-Security construction must never pass silently.
-        }
+            const symmetricKey = unpadPkcs1v15(
+              privateDecrypt(
+                { key: AT_PRIVATE_KEY_PEM, padding: cryptoConstants.RSA_NO_PADDING },
+                Buffer.from(nonceB64, 'base64'),
+              ),
+            );
+            state.lastDecrypted = {
+              username,
+              password: decryptField(passwordB64, symmetricKey),
+              created: decryptField(createdB64, symmetricKey),
+            };
+          } catch {
+            // Left undefined — a test asserting `lastDecrypted` would then fail loudly, which is the
+            // point: a broken WS-Security construction must never pass silently.
+          }
 
-        res.writeHead(200, { 'content-type': 'text/xml; charset=utf-8' });
-        if (scenario === 'business-rejection') {
+          res.writeHead(200, { 'content-type': 'text/xml; charset=utf-8' });
+          if (scenario === 'business-rejection') {
+            res.end(
+              '<RegisterInvoiceResponse xmlns="http://factemi.at.min_financas.pt/documents">' +
+                '<CodigoResposta>-7</CodigoResposta>' +
+                '<Mensagem>Documento inválido por valores anómalos.</Mensagem>' +
+                '<DataOperacao>2026-09-11T10:00:00</DataOperacao></RegisterInvoiceResponse>',
+            );
+            return;
+          }
+          if (scenario === 'auth-rejection') {
+            res.end(
+              '<RegisterInvoiceResponse xmlns="http://factemi.at.min_financas.pt/documents">' +
+                '<CodigoResposta>99</CodigoResposta>' +
+                '<Mensagem>Erro na validação da senha (Senha errada, acesso suspenso, etc.).</Mensagem>' +
+                '<DataOperacao>2026-09-11T10:00:00</DataOperacao></RegisterInvoiceResponse>',
+            );
+            return;
+          }
           res.end(
             '<RegisterInvoiceResponse xmlns="http://factemi.at.min_financas.pt/documents">' +
-              '<CodigoResposta>-7</CodigoResposta>' +
-              '<Mensagem>Documento inválido por valores anómalos.</Mensagem>' +
+              '<CodigoResposta>0</CodigoResposta><Mensagem>Operação efetuada com sucesso.</Mensagem>' +
               '<DataOperacao>2026-09-11T10:00:00</DataOperacao></RegisterInvoiceResponse>',
           );
-          return;
-        }
-        if (scenario === 'auth-rejection') {
-          res.end(
-            '<RegisterInvoiceResponse xmlns="http://factemi.at.min_financas.pt/documents">' +
-              '<CodigoResposta>99</CodigoResposta>' +
-              '<Mensagem>Erro na validação da senha (Senha errada, acesso suspenso, etc.).</Mensagem>' +
-              '<DataOperacao>2026-09-11T10:00:00</DataOperacao></RegisterInvoiceResponse>',
-          );
-          return;
-        }
-        res.end(
-          '<RegisterInvoiceResponse xmlns="http://factemi.at.min_financas.pt/documents">' +
-            '<CodigoResposta>0</CodigoResposta><Mensagem>Operação efetuada com sucesso.</Mensagem>' +
-            '<DataOperacao>2026-09-11T10:00:00</DataOperacao></RegisterInvoiceResponse>',
-        );
-      });
-    });
+        });
+      },
+    );
     server.on('error', reject);
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();
@@ -180,7 +252,8 @@ function startPtAtStub(scenario: StubScenario = 'success'): Promise<PtAtStub> {
         return;
       }
       resolvePromise({
-        baseUrl: `http://127.0.0.1:${address.port}/`,
+        baseUrl: `https://127.0.0.1:${address.port}/`,
+        serverCertPem: SERVER_CERT.certPem,
         close: () =>
           new Promise<void>((r) => {
             server.closeAllConnections();
@@ -197,8 +270,11 @@ function startPtAtStub(scenario: StubScenario = 'success'): Promise<PtAtStub> {
   });
 }
 
+/** Builds the mocked `ChannelCredentialsService` a `declare()` call resolves against — `stub.baseUrl`
+ *  and `stub.serverCertPem` (the latter as `caPem`, a TEST-ONLY field, see `PtAtStub`'s own comment)
+ *  are what actually let this spec's own self-signed stub be reached at all. */
 function channelCredentialsFor(
-  baseUrl: string,
+  stub: Pick<PtAtStub, 'baseUrl' | 'serverCertPem'>,
   overrides: Record<string, unknown> = {},
 ): ChannelCredentialsService {
   return {
@@ -207,7 +283,7 @@ function channelCredentialsFor(
       channel: 'PT_AT',
       environment: 'TEST',
       isActive: true,
-      config: { ...CREDENTIALS, baseUrl, ...overrides },
+      config: { ...CREDENTIALS, baseUrl: stub.baseUrl, caPem: stub.serverCertPem, ...overrides },
     }),
   } as unknown as ChannelCredentialsService;
 }
@@ -222,7 +298,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
   it('declares successfully: ACCEPTED, with a non-empty SYNTHESIZED authorityId (never mistaken for an AT-minted one)', async () => {
     stub = await startPtAtStub('success');
     const provider = buildPtAtDeclarationProvider({
-      channelCredentials: channelCredentialsFor(stub.baseUrl),
+      channelCredentials: channelCredentialsFor(stub),
     });
 
     const result = await provider.declare('company-1', FIXTURE_INVOICE);
@@ -239,7 +315,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
   it('the outgoing WS-Security header genuinely round-trips: the stub independently decrypts the real password/username', async () => {
     stub = await startPtAtStub('success');
     const provider = buildPtAtDeclarationProvider({
-      channelCredentials: channelCredentialsFor(stub.baseUrl),
+      channelCredentials: channelCredentialsFor(stub),
     });
 
     await provider.declare('company-1', FIXTURE_INVOICE);
@@ -256,7 +332,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
   it('a document-level rejection (CodigoResposta -7) returns REJECTED with the AT message as reason — never thrown', async () => {
     stub = await startPtAtStub('business-rejection');
     const provider = buildPtAtDeclarationProvider({
-      channelCredentials: channelCredentialsFor(stub.baseUrl),
+      channelCredentials: channelCredentialsFor(stub),
     });
 
     const result = await provider.declare('company-1', FIXTURE_INVOICE);
@@ -270,7 +346,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
   it('an authentication-layer rejection (CodigoResposta 99) propagates as a named PtAtApiError, never a silent success', async () => {
     stub = await startPtAtStub('auth-rejection');
     const provider = buildPtAtDeclarationProvider({
-      channelCredentials: channelCredentialsFor(stub.baseUrl),
+      channelCredentials: channelCredentialsFor(stub),
     });
 
     await expect(provider.declare('company-1', FIXTURE_INVOICE)).rejects.toThrow(PtAtApiError);

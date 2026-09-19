@@ -64,9 +64,10 @@ completeness, not because they fall within the scope Article 28 targets.
   is restricted to what is needed to operate and support the Service, as described in the Privacy
   Policy, Section 7, and the Data Processing Agreement, Section 9.
 - **Contractual safeguards with sub-processors.** Every sub-processor is bound, by contract, to
-  data-protection obligations materially equivalent to this DPA (GDPR Art. 28(4)) — see the Data
-  Processing Agreement, Section 7 — and, where a sub-processor may process data outside the EEA, to
-  the European Commission's Standard Contractual Clauses or another GDPR Chapter V safeguard.
+  data-protection obligations materially equivalent to the Data Processing Agreement (GDPR Art.
+  28(4)) — see the Data Processing Agreement, Section 7 — and, where a sub-processor may process data
+  outside the EEA, to the European Commission's Standard Contractual Clauses or another GDPR Chapter V
+  safeguard.
 - **No standing or automated access for a foreign authority.** We do not grant any government,
   authority, or third party standing, automated, or backdoor access to the infrastructure or database
   described in Section 1. Any request for Your Data from a public authority would need to be made
@@ -101,3 +102,7 @@ Questions about this page can be sent to **contact@invoicerr.app**.
   themselves (`backend/src/modules/documents/archive/`) are not independently encrypted at the
   application level beyond the storage provider's own infrastructure, so this page does not claim
   that they are.
+- **2026-09-19** — Editorial fix: Section 2's sub-processor bullet read "equivalent to this DPA" — a
+  copy-paste artifact from the Data Processing Agreement's own Section 7 wording, where "this"
+  correctly refers to itself. On this page the referent was wrong; reworded to name the Data
+  Processing Agreement explicitly. No legal meaning changed.

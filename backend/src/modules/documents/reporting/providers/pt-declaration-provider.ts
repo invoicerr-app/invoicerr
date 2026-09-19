@@ -68,6 +68,7 @@ export function extractPtAtCredentials(resolved: ResolvedChannelConfig): PtAtCre
     clientCertificateBase64,
     clientCertificatePassword,
     baseUrl,
+    caPem,
   } = resolved.config;
   if (typeof username !== 'string' || !username) return null;
   if (typeof password !== 'string' || !password) return null;
@@ -81,6 +82,9 @@ export function extractPtAtCredentials(resolved: ResolvedChannelConfig): PtAtCre
     clientCertificateBase64,
     clientCertificatePassword,
     baseUrl: typeof baseUrl === 'string' && baseUrl.trim() ? baseUrl.trim() : undefined,
+    // Test-only escape hatch — see `PtAtCredentials.caPem`'s own comment (`pt-at-client.ts`); a real
+    // "pt-at" channel config never carries this.
+    caPem: typeof caPem === 'string' && caPem.trim() ? caPem.trim() : undefined,
   };
 }
 
@@ -286,7 +290,10 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
       }
 
       const baseUrl = resolvePtAtBaseUrl(resolved.environment, credentials.baseUrl);
-      const client = buildPtAtClient(credentials, baseUrl);
+      // `credentials.caPem` is undefined for every real "pt-at" channel — see its own comment in
+      // `pt-at-client.ts` — so this is a no-op (Node's system trust store) outside of
+      // `pt-declaration-provider.spec.ts`'s own local mTLS stub.
+      const client = buildPtAtClient(credentials, baseUrl, { ca: credentials.caPem });
       const requestFields = buildPtAtInvoiceRequestFields(invoice);
 
       // A POSITIVE CodigoResposta (an authentication-layer rejection) is thrown by the client itself

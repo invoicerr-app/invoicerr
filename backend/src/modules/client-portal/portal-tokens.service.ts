@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
+import { resolveRecipientLanguage } from '@/modules/documents/rendering/language/resolve-recipient-language';
+import { RenderLanguage } from '@/modules/documents/rendering/language/supported-languages';
 import prisma from '@/prisma/prisma.service';
 
 import { buildPortalInviteEmail } from './portal-invite-email';
@@ -103,7 +105,9 @@ export class PortalTokensService {
     const client = await this.findOwnedClientOrThrow(companyId, clientId);
     const company = await prisma.company.findUniqueOrThrow({
       where: { id: companyId },
-      select: { name: true },
+      // `language` — the FALLBACK step of this invite's own recipient-language resolution below, for
+      // a client who never set their own `Client.language`.
+      select: { name: true, language: true },
     });
 
     const { token, tokenHash } = generatePortalToken();
@@ -111,7 +115,19 @@ export class PortalTokensService {
     const record = await createPortalToken({ companyId, clientId, tokenHash, expiresAt });
 
     const path = `/portal/${token}`;
-    const emailStatus = await this.tryEmailInvite(companyId, client.contactEmail, company.name, path);
+    // Per-recipient document language — the SAME resolution order a document's own PDF/send-email
+    // uses (`rendering/language/resolve-recipient-language.ts`): the invited client's own
+    // `Client.language` wins when set, else this company's own `Company.language`, else the shared
+    // default. `findOwnedClientOrThrow` returns the full `Client` row (no `select`), so `client.language`
+    // is already in hand here.
+    const language = resolveRecipientLanguage(client.language, company.language);
+    const emailStatus = await this.tryEmailInvite(
+      companyId,
+      client.contactEmail,
+      company.name,
+      path,
+      language,
+    );
 
     return {
       id: record.id,
@@ -161,9 +177,10 @@ export class PortalTokensService {
     contactEmail: string | null,
     companyName: string,
     path: string,
+    language: RenderLanguage,
   ): Promise<PortalInviteEmailStatus> {
     if (!contactEmail) return 'no_contact_email';
-    const parts = buildPortalInviteEmail({ companyName, portalUrl: this.buildPortalUrl(path) });
+    const parts = buildPortalInviteEmail({ companyName, portalUrl: this.buildPortalUrl(path), language });
     try {
       // The company → instance → named refusal cascade (`MailService#sendForCompany`) — a company with
       // its own mail server sends its portal invites through it, never the instance's, exactly like a

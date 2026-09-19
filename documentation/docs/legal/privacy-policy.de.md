@@ -20,8 +20,8 @@ Folgende betrifft ausschließlich den gehosteten Dienst.
 
 Der Verantwortliche für die in Abschnitt 3 beschriebenen Konto- und Abrechnungsdaten ist **Roméo
 Chevrier, Einzelunternehmer (entrepreneur individuel)**, eingetragen unter **SIREN 982 187 676 (SIRET
-982 187 676 00019)**, mit Sitz in **4 rue du Puits, 26120 Montélier, France** („**wir**", „**uns**",
-„**der Anbieter**"). Kontakt: **contact@invoicerr.app**.
+982 187 676 00019)**, mit Sitz in **4 rue du Puits, 26120 Montélier, France** („**wir**“, „**uns**“,
+„**der Anbieter**“). Kontakt: **contact@invoicerr.app**.
 
 Angesichts der Art und des Umfangs unserer Verarbeitung sind wir nach **Artikel 37 DSGVO** nicht
 verpflichtet, einen Datenschutzbeauftragten zu benennen. Nutzen Sie für Fragen oder Anträge im Rahmen
@@ -123,7 +123,7 @@ Daten selbst gespeichert werden.)
   ein kostenpflichtiges Abonnement hatte, wird **frühestens 180 Tage** nach Versand dieses Archivs
   gelöscht (Abschnitt 13.3, zweiter Punkt — die Konstante `PAID_ZIP_GRACE_DAYS` derselben Datei). Beide
   Fristen entsprechen dem Mindestzeitraum für den Datenabruf, den Artikel 25 Abs. 2 lit. g der
-  Verordnung (EU) 2023/2854 (der „Data Act") vorschreibt, bevor wir Ihre Daten löschen dürfen, sobald
+  Verordnung (EU) 2023/2854 (der „Data Act“) vorschreibt, bevor wir Ihre Daten löschen dürfen, sobald
   Sie den Dienst nicht mehr nutzen.
 - **Anwendungsprotokolle** sowie Verbindungs- und Sicherheitsdaten werden nur so lange aufbewahrt, wie
   es für den in Abschnitt 3 genannten Sicherheits- und Diagnosezweck erforderlich ist, und werden

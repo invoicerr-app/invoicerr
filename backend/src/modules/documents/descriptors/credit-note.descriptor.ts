@@ -176,6 +176,48 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         '{totalGross}.\n\n' +
         'Best regards,\n{companyName}',
     },
+    // Per-recipient document language — see types.ts's own comment on `emailTranslations`. NOT
+    // `standardDocumentEmailTranslations()`: that block's own header says it exists BECAUSE the
+    // quote's and the invoice's own English wording is word-for-word identical, and this type's own
+    // `email` above is not — it opens straight into "Please find attached...", with no
+    // "Dear {recipientName}," greeting (this type has no field targeting the "client" entity, see the
+    // comment above `email`), so each translation below is its own, standing next to its own English
+    // default the same way the invoice's own `email`/`emailTranslations` pair does.
+    emailTranslations: {
+      fr: {
+        subject: '{typeLabel} {displayNumber} de {companyName}',
+        body:
+          'Veuillez trouver ci-joint {typeLabel} {displayNumber} de {companyName}, pour un montant ' +
+          'total de {totalGross}.\n\n' +
+          'Cordialement,\n{companyName}',
+      },
+      it: {
+        subject: '{typeLabel} {displayNumber} da {companyName}',
+        body:
+          'In allegato {typeLabel} {displayNumber} da {companyName}, per un totale di {totalGross}.\n\n' +
+          'Cordiali saluti,\n{companyName}',
+      },
+      pl: {
+        subject: '{typeLabel} {displayNumber} od {companyName}',
+        body:
+          'W załączeniu {typeLabel} {displayNumber} od {companyName}, na łączną kwotę {totalGross}.\n\n' +
+          'Z poważaniem,\n{companyName}',
+      },
+      de: {
+        subject: '{typeLabel} {displayNumber} von {companyName}',
+        body:
+          'anbei erhalten Sie {typeLabel} {displayNumber} von {companyName} über einen Gesamtbetrag ' +
+          'von {totalGross}.\n\n' +
+          'Mit freundlichen Grüßen,\n{companyName}',
+      },
+      pt: {
+        subject: '{typeLabel} {displayNumber} de {companyName}',
+        body:
+          'Segue em anexo {typeLabel} {displayNumber} de {companyName}, no valor total de ' +
+          '{totalGross}.\n\n' +
+          'Com os melhores cumprimentos,\n{companyName}',
+      },
+    },
     // See contributions/credit-note-contributions.ts for the implementation, and its own header for
     // why 'statistics' ONLY — deliberately no 'dashboard' entry here: a credit note is rare, and a
     // dashboard widget that is empty nearly every time someone looks is noise, not information.

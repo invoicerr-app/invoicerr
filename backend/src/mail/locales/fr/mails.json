@@ -121,5 +121,31 @@
   },
   "billingZipExport": {
     "body": "L'abonnement Invoicerr de votre société est bloqué depuis 14 jours. Vous trouverez ci-joint un export complet des documents de votre société. Si vous n'agissez pas, ces données seront définitivement supprimées."
+  },
+  "reminders": {
+    "tier7": {
+      "subject": "Rappel de paiement — facture {displayNumber}",
+      "body_one": "Bonjour,\n\nCeci est un rappel amical : la facture {displayNumber}, d'un montant de {amountOutstanding}, était due le {dueDate} et est désormais en retard de {{count}} jour.\n\nMerci de procéder au paiement dans les meilleurs délais. Si vous avez déjà réglé cette facture, veuillez ignorer ce message.\n\nCordialement,\n{companyName}",
+      "body": "Bonjour,\n\nCeci est un rappel amical : la facture {displayNumber}, d'un montant de {amountOutstanding}, était due le {dueDate} et est désormais en retard de {{count}} jours.\n\nMerci de procéder au paiement dans les meilleurs délais. Si vous avez déjà réglé cette facture, veuillez ignorer ce message.\n\nCordialement,\n{companyName}"
+    },
+    "tier14": {
+      "subject": "Second rappel — la facture {displayNumber} est en retard",
+      "body_one": "Bonjour,\n\nLa facture {displayNumber}, d'un montant de {amountOutstanding}, était due le {dueDate} et est désormais en retard de {{count}} jour. Il s'agit de notre second rappel — merci de la régler dès que possible.\n\nSi vous rencontrez des difficultés de paiement, contactez-nous afin que nous trouvions ensemble une solution.\n\n{companyName}",
+      "body": "Bonjour,\n\nLa facture {displayNumber}, d'un montant de {amountOutstanding}, était due le {dueDate} et est désormais en retard de {{count}} jours. Il s'agit de notre second rappel — merci de la régler dès que possible.\n\nSi vous rencontrez des difficultés de paiement, contactez-nous afin que nous trouvions ensemble une solution.\n\n{companyName}"
+    },
+    "tier30": {
+      "subject": "URGENT — la facture {displayNumber} est fortement en retard",
+      "body_one": "Bonjour,\n\nLa facture {displayNumber}, d'un montant de {amountOutstanding}, était due le {dueDate} et est désormais en retard de {{count}} jour. Malgré nos précédents rappels, elle reste impayée.\n\nMerci de régler cette facture IMMÉDIATEMENT afin d'éviter toute action complémentaire. Contactez-nous en urgence en cas de litige ou de difficulté dont nous n'aurions pas encore connaissance.\n\n{companyName}",
+      "body": "Bonjour,\n\nLa facture {displayNumber}, d'un montant de {amountOutstanding}, était due le {dueDate} et est désormais en retard de {{count}} jours. Malgré nos précédents rappels, elle reste impayée.\n\nMerci de régler cette facture IMMÉDIATEMENT afin d'éviter toute action complémentaire. Contactez-nous en urgence en cas de litige ou de difficulté dont nous n'aurions pas encore connaissance.\n\n{companyName}"
+    }
+  },
+  "portalInvite": {
+    "subject": "{companyName} — accédez à votre portail client",
+    "introText": "{companyName} vous a invité(e) à accéder à son portail client, où vous pouvez consulter vos factures, devis et solde de compte, et répondre à tout devis en attente de votre décision.",
+    "openPortalIntro": "Accédez à votre portail :",
+    "buttonLabel": "Accéder à mon portail",
+    "privacyNotice": "Conservez ce lien confidentiel — toute personne qui le possède peut consulter votre compte.",
+    "signOffText": "Cordialement,\n{companyName}",
+    "signOffHtml": "Cordialement,<br>{companyName}"
   }
 }

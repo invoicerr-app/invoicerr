@@ -35,6 +35,11 @@ services:
       # - RESEND_API_KEY="your_resend_api_key" # https://resend.com/api-keys
       # - MAIL_FROM="user-from@example.com" # Sender address, falls back to SMTP_FROM/SMTP_USER if unset
 
+      # Optional: instance-wide fallback language (en/fr/it/pl/de/pt) for any document or system email
+      # whose client/company/user never chose one of their own — see the Document Language page in the
+      # docs. Left unset, everything renders in English exactly as before.
+      # - DEFAULT_LOCALE=fr
+
       # OIDC. Endpoints come EITHER from discovery OR from the manual variables, never both:
       # OIDC_DISCOVERY_URL is checked first, and when it is set the three manual endpoints are not
       # read at all. Pick one option; the other stays commented so a copy-paste cannot silently set

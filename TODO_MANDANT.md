@@ -58,7 +58,14 @@ in its absence: everything is properly gated.
 
 ## 5. Small, no credentials needed
 
-- [ ] Weblate: check that it has correctly picked up the new i18n keys.
+- [ ] **Weblate: create the second component, `backend-mails`.** The application's system e-mails are
+      now translated through their own i18next catalog, which Weblate does not know about yet — only
+      the frontend component exists today. Settings: file mask `backend/src/mail/locales/*/mails.json`,
+      monolingual base file `backend/src/mail/locales/en/mails.json`, file format "i18next JSON v4"
+      (the catalog uses `{{variable}}` interpolation and the `_one` / `_other` / `_many` plural
+      suffixes, which that format understands and the plain-JSON one does not). Six languages:
+      English, French, Italian, Polish, German, Portuguese.
+- [ ] Weblate: check that it has correctly picked up the new i18n keys on the existing component.
 - [ ] (Optional) GitHub `live-tests` environment with a *required reviewer*, so that no live run
       goes out without validation.
 

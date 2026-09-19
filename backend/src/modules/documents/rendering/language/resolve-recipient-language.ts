@@ -1,3 +1,4 @@
+import { resolveDefaultLocale } from './default-locale';
 import { DEFAULT_RENDER_LANGUAGE, isSupportedRenderLanguage, RenderLanguage } from './supported-languages';
 
 function normalize(value: string | null | undefined): string | undefined {
@@ -38,8 +39,14 @@ function normalize(value: string | null | undefined): string | undefined {
  *  2. `companyLanguage` (`Company.language`) — the company's own default, used for every client who
  *     has not set one. Strictly a FALLBACK, never consulted when the client's own choice is usable:
  *     this is what keeps a company with clients in several languages from being flattened to one.
- *  3. `DEFAULT_RENDER_LANGUAGE` ('en') — every hardcoded string in this render layer predates this
- *     feature and was already English, so an all-default document is byte-for-byte what it always was.
+ *  3. `DEFAULT_LOCALE` (`resolveDefaultLocale`, an instance-wide env var) — set by whoever deployed
+ *     this instance, for the case where NEITHER the client NOR the company ever chose a language. A
+ *     self-hosted instance serving one linguistic market by construction (a French association, a
+ *     Polish accounting firm) should not fall straight to English just because nobody happened to fill
+ *     in a per-client/per-company field — see that function's own header for validation and logging.
+ *  4. `DEFAULT_RENDER_LANGUAGE` ('en') — every hardcoded string in this render layer predates this
+ *     feature and was already English, so a deployment that never sets `DEFAULT_LOCALE` either renders
+ *     a byte-for-byte identical all-default document to what it always did.
  *
  * Case-insensitive and whitespace-tolerant on the way in (`normalize`), but the return value is always
  * one of the six canonical lowercase codes `pdf-chrome-strings.ts`/`email-defaults.ts` index by.
@@ -54,5 +61,5 @@ export function resolveRecipientLanguage(
   const company = normalize(companyLanguage);
   if (isSupportedRenderLanguage(company)) return company;
 
-  return DEFAULT_RENDER_LANGUAGE;
+  return resolveDefaultLocale() ?? DEFAULT_RENDER_LANGUAGE;
 }

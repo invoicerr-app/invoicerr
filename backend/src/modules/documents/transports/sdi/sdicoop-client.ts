@@ -267,6 +267,21 @@ function postSoap(
           pfx: mtls.pfx,
           passphrase: mtls.passphrase,
           ca: config.ca,
+          // Never Node's keep-alive `https.globalAgent`: this worker process handles EVERY company's
+          // own SdI submissions, and that agent pools sockets by host/port alone — it can hand THIS
+          // request an already-established, already-authenticated connection from an EARLIER company's
+          // own successful call to the same SdI endpoint, silently presenting that other company's
+          // client certificate instead of (or regardless of) this call's own `pfx`/`passphrase`.
+          // Empirically confirmed on this codebase's own Node runtime (mirrors the discovery behind
+          // `pt-at-client.ts#postPtAtSoap`'s own identical `agent: false`, and the shared root cause
+          // `sdicoop-client.spec.ts`'s own wrong-passphrase test was too narrowly scoped to catch —
+          // see that test's own updated header): a request with a WRONG passphrase against a host the
+          // agent already holds an authenticated pooled socket for returns 200 under the FIRST
+          // request's own certificate, never even attempting to parse the second one's `pfx`. A
+          // low-volume SOAP call to a government endpoint must never silently ride a different
+          // company's TLS identity — `agent: false` forces a fresh handshake, with THIS call's own
+          // certificate, on every single request.
+          agent: false,
           timeout: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
           headers: {
             'Content-Type': 'text/xml; charset=utf-8',

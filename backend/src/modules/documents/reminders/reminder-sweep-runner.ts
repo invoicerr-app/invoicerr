@@ -70,6 +70,7 @@ import { decimalsFor, fromMinor } from '@/utils/financial';
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listDocuments } from '../persistence';
+import { resolveRecipientLanguage } from '../rendering/language/resolve-recipient-language';
 import { computeSettlement } from '../settlement/compute-settlement';
 import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
 import { sumPaidMinorByDocument } from '../settlement/payments';
@@ -118,11 +119,14 @@ export class ReminderSweepRunner {
    * per-company/opted-in-list) that make this true.
    */
   async runSweep(now: Date = new Date()): Promise<RunReminderSweepResult> {
-    let companies: { id: string; name: string }[];
+    let companies: { id: string; name: string; language: string | null }[];
     try {
       companies = await prisma.company.findMany({
         where: { remindersEnabled: true },
-        select: { id: true, name: true },
+        // `language` — the FALLBACK step of a reminder's own recipient-language resolution (see
+        // `runForCompany`'s own use of `resolveRecipientLanguage`, and that function's own header for
+        // why the client's choice always wins when it has one).
+        select: { id: true, name: true, language: true },
       });
     } catch (error) {
       this.logger.error(
@@ -141,7 +145,9 @@ export class ReminderSweepRunner {
         // Wrapped in `runWithCompanyId` — this sweep has no request of its own, and `runForCompany`
         // below (and the `mailService.sendForCompany` it calls) both write `Log` rows that need a
         // company to be scoped correctly.
-        result = await runWithCompanyId(company.id, () => this.runForCompany(company.id, company.name, now));
+        result = await runWithCompanyId(company.id, () =>
+          this.runForCompany(company.id, company.name, company.language, now),
+        );
       } catch (error) {
         // A whole company's own query blowing up (a transient DB hiccup, a data anomaly this
         // function's inner try/catches didn't anticipate) must not cost every OTHER opted-in
@@ -174,6 +180,7 @@ export class ReminderSweepRunner {
   private async runForCompany(
     companyId: string,
     companyName: string,
+    companyLanguage: string | null,
     now: Date,
   ): Promise<CompanyReminderResult> {
     const invoices = (await listDocuments(companyId, 'invoice', REMINDER_SWEEP_INVOICE_READ_LIMIT)).filter(
@@ -232,8 +239,8 @@ export class ReminderSweepRunner {
         continue;
       }
 
-      const recipient = await resolveClientContactEmail(companyId, data.client);
-      if (!recipient) {
+      const client = await resolveClientContact(companyId, data.client);
+      if (!client?.contactEmail) {
         this.logger.warn(
           `Reminder sweep: invoice ${invoice.id} (tier ${tier}) has no resolvable client contact ` +
             'email — skipping.',
@@ -241,17 +248,28 @@ export class ReminderSweepRunner {
         skipped++;
         continue;
       }
+      const recipient = client.contactEmail;
 
       const currency = typeof data.currency === 'string' ? data.currency : '';
       const decimals = decimalsFor(currency);
       const amountOutstanding = `${fromMinor(settlement.outstandingMinor, currency).toFixed(decimals)} ${currency}`;
-      const email = buildReminderEmail(tier, {
-        displayNumber: invoice.displayNumber ?? invoice.id,
-        amountOutstanding,
-        dueDate: dueDate ?? '',
-        daysOverdue,
-        companyName,
-      });
+      // Per-recipient document language — the SAME resolution order a document's own PDF/send-email
+      // uses (`rendering/language/resolve-recipient-language.ts`): the client's own `Client.language`
+      // wins when set, else this company's own `Company.language`, else the shared default. A dunning
+      // reminder is exactly the kind of mail a client with no English at all must be able to read and
+      // act on without help, so this is not a cosmetic nicety.
+      const language = resolveRecipientLanguage(client.language, companyLanguage);
+      const email = buildReminderEmail(
+        tier,
+        {
+          displayNumber: invoice.displayNumber ?? invoice.id,
+          amountOutstanding,
+          dueDate: dueDate ?? '',
+          daysOverdue,
+          companyName,
+        },
+        language,
+      );
 
       // Reserve BEFORE sending — see this file's own header ("Reservation, not record-after-send") for
       // why the order matters: a write failure can now only ever happen before the email goes out,
@@ -402,24 +420,30 @@ async function findSentTiersByDocument(documentIds: string[]): Promise<Map<strin
 }
 
 /**
- * The invoice's own client contact email, resolved straight from `data.client` (the reference field
- * every invoice descriptor already carries) via `prisma.client` DIRECTLY — never `ClientsService`
- * (unlike `transports/email-transport.ts`'s own resolution): `ReminderSweepRunner` is a leaf provider
- * with exactly one Nest dependency (`MailService`), the same "no reason to drag a whole module's worth
- * of DI in" posture `currency-rate-sweep-runner.ts`'s own header holds for staying a plain `prisma`
- * singleton consumer — see `document-queue-worker.module.ts`'s own header on why that runner needs no
- * home in `DocumentsCoreModule` at all. Tenant-scoped (`companyId` in the `where`), the same
- * "never trust a raw id without scoping it" discipline every other cross-tenant-safe query in this
- * module already holds — a corrupted/foreign `data.client` value simply resolves to `null` here,
- * never another company's client.
+ * The invoice's own client — its contact email AND its own `language`, resolved straight from
+ * `data.client` (the reference field every invoice descriptor already carries) via `prisma.client`
+ * DIRECTLY — never `ClientsService` (unlike `transports/email-transport.ts`'s own resolution):
+ * `ReminderSweepRunner` is a leaf provider with exactly one Nest dependency (`MailService`), the same
+ * "no reason to drag a whole module's worth of DI in" posture `currency-rate-sweep-runner.ts`'s own
+ * header holds for staying a plain `prisma` singleton consumer — see `document-queue-worker.module.ts`'s
+ * own header on why that runner needs no home in `DocumentsCoreModule` at all. Tenant-scoped
+ * (`companyId` in the `where`), the same "never trust a raw id without scoping it" discipline every
+ * other cross-tenant-safe query in this module already holds — a corrupted/foreign `data.client` value
+ * simply resolves to `null` here, never another company's client.
+ *
+ * `language` is fetched alongside `contactEmail` in the SAME query (never a second round trip) — see
+ * `runForCompany`'s own call site for why both are needed together: a reminder's recipient language
+ * resolves from this same client row's own `Client.language`, falling back to the company's.
  */
-async function resolveClientContactEmail(companyId: string, clientIdValue: unknown): Promise<string | null> {
+async function resolveClientContact(
+  companyId: string,
+  clientIdValue: unknown,
+): Promise<{ contactEmail: string | null; language: string | null } | null> {
   const clientId = typeof clientIdValue === 'string' ? clientIdValue : null;
   if (!clientId) return null;
 
-  const client = await prisma.client.findFirst({
+  return prisma.client.findFirst({
     where: { id: clientId, companyId },
-    select: { contactEmail: true },
+    select: { contactEmail: true, language: true },
   });
-  return client?.contactEmail ?? null;
 }

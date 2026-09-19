@@ -9,6 +9,9 @@
  * below is either VERIFIED against the primary manuals (cited, quoted) or explicitly marked
  * EXTRAPOLATED/⚠ UNVERIFIED. A green `pt-at-client.spec.ts` proves the STRUCTURE this file builds,
  * never that AT accepts it — see `documentation/docs/developer-guide/live-testing.md`'s own standing warning about mocked-green ≠ live.
+ * The mTLS transport itself (2026-09-19) is the one piece of this file proven against a REAL
+ * `node:https` handshake rather than only structurally — see the "mTLS" bullet under "EXTRAPOLATED /
+ * not wired" below for exactly what that does and does not settle.
  *
  * ## Sources actually read for this file (2026-09-11), both from the OFFICIAL `info.portaldasfinancas.gov.pt` domain
  *
@@ -115,22 +118,33 @@
  *  - The exact SOAPAction HTTP header (if any) and whether the binding is document/literal or RPC —
  *    the WSDL that would settle this (`Fatcorews.wsdl`) 404's from this environment (see above); no
  *    SOAPAction header is sent at all, rather than a guessed value.
- *  - **mTLS is a REAL, quoted requirement this client does NOT establish over the wire.** Aspetos
- *    Genéricos §2.1: "A comunicação de dados apenas será estabelecida se o programa de faturação
- *    enviar o Certificado Digital correspondente" — an AT-signed X.509 client certificate (§2.3, CSR
- *    process) is mandatory for the HTTPS connection itself, on top of the WS-Security header. This
- *    client uses the plain global `fetch()` (a channel that needs no mTLS of its own has no reason to
- *    reach for `node:https` directly) rather than `node:https` with a `pfx`/`passphrase`
- *    secure context (the pattern `transports/sdi/sdicoop-client.ts#postSoap` already establishes in
- *    this codebase for a channel that DOES need it) — a real production call would fail the TLS
- *    handshake before ever reaching the WS-Security layer this client builds. Named here,
- *    not silently omitted: wiring the certificate is straightforward (same `pfx`/`passphrase` shape
- *    SdI already uses) once a real AT-issued PKCS#12 exists to test it against — building it blind,
- *    with no certificate to hold it against and no way to structurally test it beyond "does
- *    `https.request` accept these options", would trade a named gap for an UNTESTED one, which this
- *    codebase's own standing discipline treats as strictly worse, not better.
+ *  - **mTLS — WIRED (2026-09-19), proven only against a local self-signed stub.** Aspetos Genéricos
+ *    §2.1: "A comunicação de dados apenas será estabelecida se o programa de faturação enviar o
+ *    Certificado Digital correspondente" — an AT-signed X.509 client certificate (§2.3, CSR process)
+ *    is mandatory for the HTTPS connection itself, on top of the WS-Security header. This client now
+ *    uses `node:https` with a `pfx`/`passphrase` secure context (`postPtAtSoap` below), mirroring the
+ *    pattern `transports/sdi/sdicoop-client.ts#postSoap` already establishes in this codebase for a
+ *    channel with the identical requirement — same reason for the single try/catch around the whole
+ *    request (see `postPtAtSoap`'s own comment): Node parses `pfx`/`passphrase` into a TLS secure
+ *    context SYNCHRONOUSLY, so a wrong passphrase or a corrupt PKCS#12 throws immediately rather than
+ *    surfacing as a request error.
+ *
+ *    What is actually PROVEN, by `pt-at-client.spec.ts`'s own mTLS suite, against a throwaway
+ *    self-signed PKCS#12 and a local `node:https` server with `requestCert: true,
+ *    rejectUnauthorized: true`: the certificate really reaches the TLS handshake (the stub server
+ *    SEES it via `getPeerCertificate()`), a request with no certificate is really refused at the TLS
+ *    layer (not merely at some later, application-level check), and a wrong passphrase really throws
+ *    synchronously and is caught with a message naming the cause ("mac verify failure").
+ *
+ *    What remains UNPROVABLE from this machine, and always will be without one: whether the REAL AT
+ *    endpoint accepts OUR specific production certificate/CSR chain — a self-signed local stub can
+ *    prove the wiring is correct, never that AT's own PKI will honor a given cert. Only a live
+ *    round-trip (`pt-declaration-provider.live.spec.ts`, gated `PT_AT_LIVE=1`) could settle that, and
+ *    it still cannot run today for the credential reasons that spec's own header states.
  */
 import { createCipheriv, publicEncrypt, randomBytes, constants as cryptoConstants } from 'node:crypto';
+import * as https from 'node:https';
+import { URL } from 'node:url';
 
 import { create } from 'xmlbuilder2';
 
@@ -158,14 +172,25 @@ export interface PtAtCredentials {
    *  task's own brief is explicit on this point). Used to encrypt the Nonce's own AES key. */
   authPublicKeyPem: string;
   /** The AT-signed X.509 client certificate (PKCS#12/.pfx, base64) issued during "adesão ao envio de
-   *  dados" (§2.3) — read but, per this file's own header, NOT wired into an actual mTLS connection
-   *  yet. Kept on the credential shape now so the eventual wiring is a client-internals change only,
-   *  never a channel-config/schema one. */
+   *  dados" (§2.3) — presented on the TLS connection itself by `postPtAtSoap` below (native
+   *  `pfx`/`passphrase`, same as `transports/sdi/sdicoop-client.ts`). Optional on the TYPE only so a
+   *  structural test can build a client without one; `extractPtAtCredentials`
+   *  (`pt-declaration-provider.ts`) refuses to resolve a real channel config missing it. */
   clientCertificateBase64?: string;
+  /** Never logged — decrypts the PKCS#12 above. See `postPtAtSoap`'s own header on why a wrong value
+   *  here throws SYNCHRONOUSLY rather than surfacing as a request error. */
   clientCertificatePassword?: string;
   /** OPTIONAL override of the fixed per-environment host, purely so a jest spec can point this client
    *  at a local stub instead of the real AT host. */
   baseUrl?: string;
+  /** OPTIONAL — pins a specific CA (PEM) for this client's OWN HTTPS connection instead of Node's
+   *  system trust store. Same "test escape hatch, never a production credential" bracket as `baseUrl`
+   *  immediately above: both documented AT endpoints chain to a publicly trusted CA, so a real "pt-at"
+   *  channel config never sets this — it exists purely so a jest spec's local mTLS stub (a self-signed
+   *  server certificate) is trusted without weakening `rejectUnauthorized`. Threaded through by
+   *  `pt-declaration-provider.ts#buildPtAtDeclarationProvider` into `buildPtAtClient`'s own
+   *  `PtAtClientOptions.ca`. */
+  caPem?: string;
 }
 
 /** `AT_CODIGO_RESPOSTA_MEANINGS` — every value transcribed VERBATIM from Aspetos Específicos
@@ -372,9 +397,102 @@ export function parsePtAtRegisterInvoiceResponse(xml: string): PtAtRegisterInvoi
 }
 
 // ---------------------------------------------------------------------------
-// HTTP transport — plain `fetch()`; see this file's own header for why the REAL endpoint's mTLS
-// requirement is deliberately NOT wired here yet.
+// HTTPS transport — node:https, native pfx/passphrase mTLS (no SOAP library), the SAME shape
+// `transports/sdi/sdicoop-client.ts#postSoap` already establishes for SdI. See this file's own header
+// for what is proven end-to-end vs what a local stub can never prove.
 // ---------------------------------------------------------------------------
+
+export interface PtAtClientOptions {
+  /** Pin a specific CA (PEM) instead of Node's system trust store — mirrors
+   *  `transports/sdi/sdicoop-client.ts#SdiCoopClientConfig.ca`'s own comment: real AT traffic needs
+   *  none of this (both documented endpoints chain to a publicly trusted CA); this exists purely so
+   *  `pt-at-client.spec.ts`'s local mTLS stub can be trusted without weakening `rejectUnauthorized`. */
+  ca?: string | Buffer;
+  timeoutMs?: number;
+}
+
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+/**
+ * POSTs the SOAP envelope over `node:https` with the client's PKCS#12 certificate presented on the
+ * TLS connection itself (Aspetos Genéricos §2.1/§2.3 — see this file's own header). The ENTIRE
+ * request lifecycle is wrapped in ONE try/catch for the exact reason
+ * `transports/sdi/sdicoop-client.ts#postSoap`'s own comment documents: Node parses `pfx`/`passphrase`
+ * into a TLS secure context SYNCHRONOUSLY, as part of `https.request()` itself — a wrong passphrase or
+ * a corrupt PKCS#12 throws SYNCHRONOUSLY ("mac verify failure"), it never surfaces as an async request
+ * 'error' event the way a DNS/connection failure does. Verified empirically against this codebase's
+ * own Node runtime before relying on it here (`pt-at-client.spec.ts`'s own "wrong passphrase" case).
+ */
+function postPtAtSoap(
+  baseUrl: string,
+  body: string,
+  mtls: { pfx?: Buffer; passphrase?: string },
+  options: PtAtClientOptions,
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    let url: URL;
+    try {
+      url = new URL(baseUrl);
+    } catch (err) {
+      reject(new Error(`AT endpoint is not a valid URL: ${(err as Error).message}`));
+      return;
+    }
+
+    try {
+      const payload = Buffer.from(body, 'utf-8');
+      const req = https.request(
+        {
+          hostname: url.hostname,
+          port: url.port ? Number(url.port) : 443,
+          path: `${url.pathname}${url.search}` || '/',
+          method: 'POST',
+          pfx: mtls.pfx,
+          passphrase: mtls.passphrase,
+          ca: options.ca,
+          // Never Node's keep-alive `https.globalAgent`: that agent pools sockets by host/port and can
+          // hand a later request an ALREADY-ESTABLISHED connection from an earlier one — silently
+          // bypassing this exact request's own `pfx`/`passphrase` entirely (discovered running
+          // `pt-at-client.spec.ts`'s own wrong-passphrase case: it reused the previous test's
+          // successfully-authenticated socket and "succeeded" with a certificate it never actually
+          // presented). `agent: false` forces a fresh TLS handshake, with THIS call's own certificate,
+          // on every single request — the honest cost (no connection reuse) for a low-volume SOAP call
+          // that must never silently ride on a stale identity.
+          agent: false,
+          timeout: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+          headers: {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'Content-Length': payload.length,
+          },
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          res.on('end', () => {
+            resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf-8') });
+          });
+          res.on('error', (err) => reject(new Error(`AT response stream error: ${err.message}`)));
+        },
+      );
+
+      req.on('timeout', () => {
+        req.destroy(new Error(`AT request timed out after ${options.timeoutMs ?? DEFAULT_TIMEOUT_MS}ms`));
+      });
+      // The ASYNC half of the same "certificate problem" case: the PKCS#12 itself parsed fine, but the
+      // server refused the resulting handshake outright (e.g. no client certificate presented at all)
+      // — Node reports THIS as a socket/TLS error here, never as a synchronous throw, because nothing
+      // about parsing `pfx`/`passphrase` failed; only the remote peer's own verdict on the handshake did.
+      req.on('error', (err) => {
+        reject(new Error(`AT mTLS/HTTPS request failed: ${err.message}`));
+      });
+
+      req.write(payload);
+      req.end();
+    } catch (err) {
+      // The SYNCHRONOUS half — see this function's own header comment above.
+      reject(new Error(`AT mTLS/HTTPS request failed: ${(err as Error).message}`));
+    }
+  });
+}
 
 export interface PtAtClient {
   /** POSTs one `RegisterInvoiceRequest` and returns the parsed result. Throws `PtAtApiError` for a
@@ -384,20 +502,31 @@ export interface PtAtClient {
   registerInvoice(requestFields: Record<string, unknown>): Promise<PtAtRegisterInvoiceResult>;
 }
 
-export function buildPtAtClient(credentials: PtAtCredentials, baseUrl: string): PtAtClient {
+export function buildPtAtClient(
+  credentials: PtAtCredentials,
+  baseUrl: string,
+  options: PtAtClientOptions = {},
+): PtAtClient {
   return {
     async registerInvoice(requestFields) {
-      const body = buildPtAtEnvelope(credentials, requestFields);
-      const res = await fetch(baseUrl, {
-        method: 'POST',
-        headers: { 'content-type': 'text/xml; charset=utf-8' },
-        body,
-      });
-      const text = await res.text();
-      if (!res.ok) {
-        throw new Error(`AT returned HTTP ${res.status} calling ${baseUrl}: ${text.slice(0, 500)}`);
+      const requestBody = buildPtAtEnvelope(credentials, requestFields);
+      // `clientCertificateBase64` is optional on `PtAtCredentials`'s own type (see that field's
+      // comment) purely so structural, non-transport tests can build a client without one; a real
+      // `declare()` call always has it — `extractPtAtCredentials` (`pt-declaration-provider.ts`)
+      // refuses to resolve a channel config missing it.
+      const pfx = credentials.clientCertificateBase64
+        ? Buffer.from(credentials.clientCertificateBase64, 'base64')
+        : undefined;
+      const { status, body: responseText } = await postPtAtSoap(
+        baseUrl,
+        requestBody,
+        { pfx, passphrase: credentials.clientCertificatePassword },
+        options,
+      );
+      if (status < 200 || status >= 300) {
+        throw new Error(`AT returned HTTP ${status} calling ${baseUrl}: ${responseText.slice(0, 500)}`);
       }
-      const result = parsePtAtRegisterInvoiceResponse(text);
+      const result = parsePtAtRegisterInvoiceResponse(responseText);
       if (result.codigoResposta > 0) {
         throw new PtAtApiError(result.codigoResposta, result.mensagem);
       }

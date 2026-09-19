@@ -488,6 +488,87 @@ describe('describeSendablePlaceholders — what VALIDATION checks against', () =
   });
 });
 
+/**
+ * Multilingual client-facing mail (step 4 of the multilingual-mail plan, gap 3) — credit-note and
+ * expense used to declare an `email` default with NO `emailTranslations` at all, so a company's own
+ * French/Italian/Polish/German/Portuguese client always got the English wording for those two types,
+ * even though the quote/invoice/purchase-order already resolved per recipient
+ * (`standard-email-translations.ts`). This proves both types now carry their OWN translated defaults
+ * (word-for-word identical to the shared block they deliberately do NOT reuse — see each descriptor's
+ * own comment above `emailTranslations` for why) and that `resolveEmailTemplate` actually picks them.
+ */
+describe('credit-note and expense own emailTranslations — gap 3 of the multilingual-mail plan', () => {
+  const NON_ENGLISH_LANGUAGES = ['fr', 'it', 'pl', 'de', 'pt'] as const;
+
+  it.each([
+    ['credit-note', buildCreditNoteDescriptor()],
+    ['expense', buildExpenseDescriptor()],
+  ] as const)('%s declares its own translated default for every non-English supported language', (_name, descriptor) => {
+    for (const language of NON_ENGLISH_LANGUAGES) {
+      const translated = descriptor.emailTranslations?.[language];
+      expect(translated).toBeDefined();
+      // Genuinely translated — never the English default surviving under a language key by accident.
+      expect(translated).not.toEqual(descriptor.email);
+    }
+  });
+
+  it.each([
+    ['credit-note', buildCreditNoteDescriptor()],
+    ['expense', buildExpenseDescriptor()],
+  ] as const)('%s renders warning-free in every non-English supported language', (_name, descriptor) => {
+    for (const language of NON_ENGLISH_LANGUAGES) {
+      const { warnings } = renderEmailTemplate(
+        resolveEmailTemplate(descriptor, {}, language),
+        describeSendablePlaceholders({ descriptor, companyName: 'Acme' }),
+      );
+      expect(warnings).toEqual([]);
+    }
+  });
+
+  it('a credit note e-mail for a German client is genuinely German, distinct from the English default', () => {
+    const descriptor = buildCreditNoteDescriptor();
+    const parts = describeSendablePlaceholders({ descriptor, companyName: 'Acme GmbH' });
+
+    const english = renderEmailTemplate(resolveEmailTemplate(descriptor, {}, 'en'), parts);
+    const german = renderEmailTemplate(resolveEmailTemplate(descriptor, {}, 'de'), parts);
+
+    expect(german.subject).toContain('von Acme GmbH');
+    expect(german.body).toContain('Mit freundlichen Grüßen');
+    expect(german.body).toContain('Acme GmbH');
+    // This type has no field targeting the "client" entity (see the descriptor's own header), so a
+    // translation that invented a `{recipientName}` greeting would show up right here as a warning —
+    // the empty array below is what proves the German block never added one.
+    expect(german.warnings).toEqual([]);
+    expect(german.subject).not.toBe(english.subject);
+    expect(german.body).not.toBe(english.body);
+  });
+
+  it('an expense e-mail for a Polish client is genuinely Polish, distinct from the English default', () => {
+    const descriptor = buildExpenseDescriptor();
+    const parts = describeSendablePlaceholders({ descriptor, companyName: 'Acme Sp. z o.o.' });
+
+    const english = renderEmailTemplate(resolveEmailTemplate(descriptor, {}, 'en'), parts);
+    const polish = renderEmailTemplate(resolveEmailTemplate(descriptor, {}, 'pl'), parts);
+
+    expect(polish.body).toContain('W załączeniu');
+    expect(polish.body).toContain('Acme Sp. z o.o.');
+    expect(polish.warnings).toEqual([]);
+    // Only the BODY differs — expense's own `{typeLabel} {displayNumber}` subject carries no
+    // greeting/company text to translate at all, in English or in any of its translations, so an
+    // identical subject across languages is the correct outcome here, not a missed translation.
+    expect(polish.subject).toBe(english.subject);
+    expect(polish.body).not.toBe(english.body);
+  });
+
+  it('falls back to the English default when the language is unsupported or unset — never a blocked send', () => {
+    const descriptor = buildCreditNoteDescriptor();
+
+    expect(resolveEmailTemplate(descriptor, {})).toEqual(descriptor.email);
+    expect(resolveEmailTemplate(descriptor, {}, 'en')).toEqual(descriptor.email);
+    expect(resolveEmailTemplate(descriptor, null, undefined)).toEqual(descriptor.email);
+  });
+});
+
 describe('resolveEmailTemplateSource', () => {
   const descriptor: DocumentTypeDescriptor = {
     id: 'quote',
