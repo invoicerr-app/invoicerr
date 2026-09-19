@@ -103,13 +103,12 @@ that carry Customer Personal Data:
 - **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
   is received (support correspondence only; never the Customer Personal Data contained in the documents
   you create through the Service).
-- **Scaleway SAS** — infrastructure hosting for the Service: the Kubernetes cluster it runs on and the
-  object storage that holds archived documents, including those carrying Customer Personal Data.
-  **The Service and Customer Data are hosted in the European Union**, in Scaleway's Paris (France)
-  region.
-- **Neon, LLC** (a Databricks, Inc. affiliate) — the managed PostgreSQL database in which the documents
-  you create, and the Customer Personal Data they contain, are stored. The Company's database runs in
-  Neon's EU region (AWS Europe, Frankfurt).
+- **Scaleway SAS** — infrastructure hosting for the Service: the Kubernetes cluster it runs on, the
+  managed PostgreSQL database in which the documents you create — and the Customer Personal Data they
+  contain — are stored, and the object storage that holds archived documents, including those carrying
+  Customer Personal Data. **The Service and Customer Data, including the database, are hosted in the
+  European Union**, in Scaleway's Paris (France) region, with the database reached over Scaleway's own
+  private network rather than the public internet.
 
 **OCR (optical character recognition) runs on infrastructure we operate; no document is sent to a
 third-party OCR provider.**
@@ -246,3 +245,11 @@ this document; they create no separate or additional rights.
   (`POST /api/companies/export`) rather than an email request. Updated every Terms of Service
   cross-reference to match that document's 2026-09-19 renumbering (Section 13.1→15.1, 18.1→20.1,
   Section 10→12, Section 11→13, 11.2→13.2, Sections 15/18.2→17/20.2).
+- **2026-09-19** — Owner decision: the managed PostgreSQL database moves from Neon (AWS Europe,
+  Frankfurt) to **Scaleway SAS**'s own managed database offering, in the same Paris (France) region
+  already used for the Kubernetes infrastructure and object storage, reached over Scaleway's private
+  network rather than the public internet. Section 7's separate Scaleway and Neon bullets are merged
+  into one: **Neon, LLC** (a Databricks, Inc. affiliate) is no longer a sub-processor, which also
+  removes that affiliate's US parent from the processing chain for Customer Personal Data. No other
+  section changed: Section 13 (International Transfers) already only cross-refers to the Privacy
+  Policy, Section 5, where the corresponding statement is updated.

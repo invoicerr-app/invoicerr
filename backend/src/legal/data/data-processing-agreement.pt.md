@@ -109,12 +109,12 @@ tratamento de documentos que contenham Dados Pessoais do Cliente:
   enviada para **contact@invoicerr.app** (apenas correspondência de apoio ao cliente; nunca os Dados
   Pessoais do Cliente contidos nos documentos criados através do Serviço).
 - **Scaleway SAS** — alojamento da infraestrutura do Serviço: o cluster Kubernetes onde este é
-  executado e o armazenamento de objetos (object storage) que contém os documentos arquivados,
-  incluindo os que contêm Dados Pessoais do Cliente. **O Serviço e os Dados do Cliente estão alojados
-  na União Europeia**, na região de Paris (França) da Scaleway.
-- **Neon, LLC** (uma afiliada da Databricks, Inc.) — a base de dados PostgreSQL gerida na qual são
-  armazenados os documentos criados e os Dados Pessoais do Cliente neles contidos. A base de dados da
-  Empresa é executada na região da UE da Neon (AWS Europa, Frankfurt).
+  executado, a base de dados PostgreSQL gerida na qual são armazenados os documentos criados — e os
+  Dados Pessoais do Cliente neles contidos —, e o armazenamento de objetos (object storage) que contém
+  os documentos arquivados, incluindo os que contêm Dados Pessoais do Cliente. **O Serviço e os Dados
+  do Cliente, incluindo a base de dados, estão alojados na União Europeia**, na região de Paris
+  (França) da Scaleway, sendo a base de dados acedida através da rede privada própria da Scaleway e
+  não através da internet pública.
 
 **O OCR (reconhecimento ótico de caracteres) é executado em infraestrutura que operamos; nenhum
 documento é enviado a um fornecedor de OCR terceiro.**

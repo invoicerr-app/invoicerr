@@ -300,15 +300,14 @@ décrite à la Section 13.3.
 ## 14. Hébergement et Sous-traitants
 
 14.1. **Le Service et les Données Client sont hébergés au sein de l'Union européenne**, chez
-**Scaleway SAS** (infrastructure Kubernetes et stockage objet des documents, région de Paris, France) et
-**Neon, LLC** (une société affiliée à Databricks, Inc. ; base de données PostgreSQL managée, région UE).
+**Scaleway SAS** (infrastructure Kubernetes, base de données PostgreSQL managée et stockage objet des
+documents — région de Paris, France).
 
 14.2. Nous recourons aux sous-traitants suivants dans le cadre du Service :
 
-   - **Scaleway SAS** — infrastructure Kubernetes et stockage objet pour le Service et ses documents
-     archivés (région de Paris, France).
-   - **Neon, LLC** (société affiliée à Databricks, Inc.) — hébergement de la base de données PostgreSQL
-     managée du Service (région UE).
+   - **Scaleway SAS** — infrastructure Kubernetes, base de données PostgreSQL managée et stockage objet
+     pour le Service et ses documents archivés (région de Paris, France), la base de données étant
+     accessible via le réseau privé propre de Scaleway plutôt que par l'internet public.
    - **Polar Software Inc.** — traitement des paiements et facturation de votre abonnement (Section 7).
    - **Resend** — envoi des e-mails transactionnels du Service.
    - Les **plateformes nationales de facturation électronique et plateformes gouvernementales que vous

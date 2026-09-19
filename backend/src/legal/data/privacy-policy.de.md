@@ -78,13 +78,12 @@ die jeweils im Rahmen ihrer eigenen Datenverarbeitungsbedingungen beauftragt wur
   Support-Korrespondenz empfangen wird (ausschließlich Support-Korrespondenz; Google sieht niemals die
   Daten, die in den über den Dienst erstellten Dokumenten enthalten sind).
 - **Scaleway SAS** — Infrastruktur-Hosting für den Dienst: der Kubernetes-Cluster, auf dem er läuft,
-  sowie der Objektspeicher, in dem archivierte Dokumente vorgehalten werden. **Der Dienst und die
-  Kundendaten werden in der Europäischen Union gehostet**, in der Region Paris (Frankreich) von
-  Scaleway.
-- **Neon, LLC** (ein mit Databricks, Inc. verbundenes Unternehmen) — die verwaltete PostgreSQL-
-  Datenbank, in der die in Abschnitt 3 beschriebenen Unternehmens- und Kontodaten sowie die von Ihnen
-  über den Dienst erstellten Dokumente gespeichert werden. Die Datenbank des Unternehmens läuft in der
-  EU-Region von Neon (AWS Europa, Frankfurt).
+  die verwaltete PostgreSQL-Datenbank, in der die in Abschnitt 3 beschriebenen Unternehmens- und
+  Kontodaten sowie die von Ihnen über den Dienst erstellten Dokumente gespeichert werden, sowie der
+  Objektspeicher, in dem archivierte Dokumente vorgehalten werden. **Der Dienst und die Kundendaten,
+  einschließlich der Datenbank, werden in der Europäischen Union gehostet**, in der Region Paris
+  (Frankreich) von Scaleway, wobei die Datenbank über das eigene private Netzwerk von Scaleway und
+  nicht über das öffentliche Internet erreicht wird.
 
 **OCR (optische Zeichenerkennung) läuft auf von uns betriebener Infrastruktur; kein Dokument wird an
 einen externen OCR-Anbieter gesendet.**
@@ -101,17 +100,18 @@ in Bezug auf die personenbezogenen Daten in diesen Dokumenten wird im Auftragsve
 
 ## 5. Internationale Datenübermittlungen
 
-Einige der oben genannten Unterauftragsverarbeiter (Polar, Resend, Cloudflare, Google LLC,
-Neon/Databricks) können Daten außerhalb des Europäischen Wirtschaftsraums verarbeiten, unter anderem
-in den Vereinigten Staaten. In diesem Fall stützt sich die Übermittlung auf die vom jeweiligen
-Anbieter selbst getroffenen geeigneten Garantien nach Kapitel V der DSGVO (etwa die
-Standardvertragsklauseln der Europäischen Kommission). Dieser Abschnitt ist eine allgemeine Aussage
-und keine Zusicherung zur aktuellen Zertifizierung eines einzelnen Anbieters — wenden Sie sich an
-contact@invoicerr.app, um den konkreten Mechanismus zu erfahren, auf den sich ein bestimmter Anbieter
-derzeit stützt. (Die eigene Datenbankinfrastruktur von Neon, LLC für unser Konto läuft in der EU —
-siehe Abschnitt 4; hier geht es um die Zuständigkeit des betreibenden Unternehmens selbst — dessen
-Muttergesellschaft, Databricks, Inc., ein US-amerikanisches Unternehmen ist — nicht darum, wo die
-Daten selbst gespeichert werden.)
+Einige der oben genannten Unterauftragsverarbeiter (Polar, Resend, Cloudflare, Google LLC) können Daten
+außerhalb des Europäischen Wirtschaftsraums verarbeiten, unter anderem in den Vereinigten Staaten. In
+diesem Fall stützt sich die Übermittlung auf die vom jeweiligen Anbieter selbst getroffenen geeigneten
+Garantien nach Kapitel V der DSGVO (etwa die Standardvertragsklauseln der Europäischen Kommission).
+Dieser Abschnitt ist eine allgemeine Aussage und keine Zusicherung zur aktuellen Zertifizierung eines
+einzelnen Anbieters — wenden Sie sich an contact@invoicerr.app, um den konkreten Mechanismus zu
+erfahren, auf den sich ein bestimmter Anbieter derzeit stützt. **Scaleway SAS gehört nicht zu dieser
+Liste**: Es handelt sich um ein französisches Unternehmen, das zusätzlich zu der bereits in Abschnitt 4
+beschriebenen Kubernetes-Infrastruktur und dem Objektspeicher auch die verwaltete PostgreSQL-Datenbank
+des Unternehmens hostet, und zwar vollständig innerhalb seiner Region Paris (Frankreich) — kein Glied
+der Kette, die die von Ihnen erstellten Dokumente oder die Konto- und Datenbankdaten Ihres Unternehmens
+speichert, betrifft ein Unternehmen außerhalb der EU.
 
 ## 6. Aufbewahrung
 

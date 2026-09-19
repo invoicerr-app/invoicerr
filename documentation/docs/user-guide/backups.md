@@ -19,9 +19,9 @@ Copied, when enabled:
 
 Not covered:
 
-- **The database.** Postgres has its own backup story (continuous/point-in-time backups on a
-  managed provider like Neon, or your own `pg_dump`/WAL archiving on a self-managed instance) —
-  this feature never touches it.
+- **The database.** Postgres has its own backup story (automated backups and snapshots on a managed
+  provider like Scaleway, or your own `pg_dump`/WAL archiving on a self-managed instance) — this
+  feature never touches it.
 - **Restoring.** This feature only ever writes to the backup bucket; there is no "restore" button
   or command. Recovering from it is an operator action against the bucket directly (e.g.
   `aws s3 sync s3://<backup-bucket>/ ./restored/`, or your S3-compatible provider's own mirroring

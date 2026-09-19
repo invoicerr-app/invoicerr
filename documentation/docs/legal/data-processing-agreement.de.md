@@ -114,13 +114,12 @@ die Verarbeitung von Dokumenten relevant sind, die personenbezogene Daten des Ku
   personenbezogenen Daten des Kunden, die in den über den Dienst erstellten Dokumenten enthalten
   sind).
 - **Scaleway SAS** — Infrastruktur-Hosting für den Dienst: der Kubernetes-Cluster, auf dem er läuft,
-  sowie der Objektspeicher, in dem archivierte Dokumente vorgehalten werden, einschließlich solcher,
-  die personenbezogene Daten des Kunden enthalten. **Der Dienst und die Kundendaten werden in der
-  Europäischen Union gehostet**, in der Region Paris (Frankreich) von Scaleway.
-- **Neon, LLC** (ein mit Databricks, Inc. verbundenes Unternehmen) — die verwaltete PostgreSQL-
-  Datenbank, in der die von Ihnen erstellten Dokumente und die darin enthaltenen personenbezogenen
-  Daten des Kunden gespeichert werden. Die Datenbank des Unternehmens läuft in der EU-Region von Neon
-  (AWS Europa, Frankfurt).
+  die verwaltete PostgreSQL-Datenbank, in der die von Ihnen erstellten Dokumente — und die darin
+  enthaltenen personenbezogenen Daten des Kunden — gespeichert werden, sowie der Objektspeicher, in dem
+  archivierte Dokumente vorgehalten werden, einschließlich solcher, die personenbezogene Daten des
+  Kunden enthalten. **Der Dienst und die Kundendaten, einschließlich der Datenbank, werden in der
+  Europäischen Union gehostet**, in der Region Paris (Frankreich) von Scaleway, wobei die Datenbank
+  über das eigene private Netzwerk von Scaleway und nicht über das öffentliche Internet erreicht wird.
 
 **OCR (optische Zeichenerkennung) läuft auf von uns betriebener Infrastruktur; kein Dokument wird an
 einen externen OCR-Anbieter gesendet.**

@@ -110,13 +110,12 @@ traitement des documents comportant des Données Personnelles Client :
   **contact@invoicerr.app** (correspondance de support uniquement ; jamais les Données Personnelles
   Client contenues dans les documents que vous créez au moyen du Service).
 - **Scaleway SAS** — hébergement de l'infrastructure du Service : le cluster Kubernetes sur lequel il
-  fonctionne et le stockage objet qui conserve les documents archivés, y compris ceux comportant des
-  Données Personnelles Client. **Le Service et les Données Client sont hébergés au sein de l'Union
-  européenne**, dans la région de Paris (France) de Scaleway.
-- **Neon, LLC** (société affiliée à Databricks, Inc.) — la base de données PostgreSQL managée dans
-  laquelle sont stockés les documents que vous créez et les Données Personnelles Client qu'ils
-  contiennent. La base de données de la Société fonctionne dans la région UE de Neon (AWS Europe,
-  Francfort).
+  fonctionne, la base de données PostgreSQL managée dans laquelle sont stockés les documents que vous
+  créez — et les Données Personnelles Client qu'ils contiennent —, et le stockage objet qui conserve
+  les documents archivés, y compris ceux comportant des Données Personnelles Client. **Le Service et
+  les Données Client, y compris la base de données, sont hébergés au sein de l'Union européenne**,
+  dans la région de Paris (France) de Scaleway, la base de données étant accessible via le réseau
+  privé propre de Scaleway plutôt que par l'internet public.
 
 **L'OCR (reconnaissance optique de caractères) fonctionne sur une infrastructure que nous exploitons ;
 aucun document n'est envoyé à un fournisseur d'OCR tiers.**

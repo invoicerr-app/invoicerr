@@ -33,9 +33,9 @@ publication director within the meaning of LCEN art. 6-III.
 
 **Scaleway SAS** — a *société par actions simplifiée* registered under SIREN **433 115 904** (RCS
 Paris), with registered office at **8 rue de la Ville-l'Évêque, 75008 Paris, France**, as required by
-LCEN art. 6-I-2. Scaleway operates the Kubernetes cluster and the object storage the Service
-(**my.invoicerr.app**) runs on, in its Paris region. Contact: same postal address; see Scaleway's own
-published legal notice (scaleway.com) for their support channels.
+LCEN art. 6-I-2. Scaleway operates the Kubernetes cluster, the managed PostgreSQL database, and the
+object storage the Service (**my.invoicerr.app**) runs on, in its Paris region. Contact: same postal
+address; see Scaleway's own published legal notice (scaleway.com) for their support channels.
 
 The **public website** at **invoicerr.app**, the **documentation site** at **docs.invoicerr.app** —
 where this notice is itself published — and the **source code repository** at
@@ -110,6 +110,11 @@ this document; they create no separate or additional rights.
   the Service now lives at **my.invoicerr.app**. Section 3 now names `invoicerr.app` as a second
   GitHub Pages-hosted site alongside `docs.invoicerr.app`, and states explicitly that the Scaleway-hosted
   Service runs at `my.invoicerr.app`.
+- **2026-09-19** — Owner decision: the managed PostgreSQL database moves from Neon to **Scaleway SAS**,
+  the same entity and Paris region already disclosed here as the Service's host. Section 3 now lists
+  the managed PostgreSQL database alongside the Kubernetes cluster and object storage Scaleway operates
+  for the Service — this section never named Neon (LCEN art. 6-I-2 only requires disclosing the host of
+  the site/content itself), so this is a completeness addition, not a correction.
 - **2026-09-19** — Owner decision, on counsel's advice: this document is now translated into French in
   full (loi Toubon art. 2). New Section 8 ("Governing Language") states that the English text is the
   one that governs whenever a translation reads differently — the same clause added to the other four

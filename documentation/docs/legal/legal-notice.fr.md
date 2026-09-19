@@ -31,10 +31,10 @@ directeur de la publication au sens de l'article 6-III de la LCEN.
 
 **Scaleway SAS** — *société par actions simplifiée* immatriculée sous le numéro SIREN **433 115 904**
 (RCS Paris), dont le siège social est situé **8 rue de la Ville-l'Évêque, 75008 Paris, France**,
-conformément aux exigences de l'article 6-I-2 de la LCEN. Scaleway exploite le cluster Kubernetes et le
-stockage objet sur lesquels fonctionne le Service (**my.invoicerr.app**), dans sa région de Paris.
-Contact : même adresse postale ; voir les mentions légales propres de Scaleway (scaleway.com) pour leurs
-canaux de support.
+conformément aux exigences de l'article 6-I-2 de la LCEN. Scaleway exploite le cluster Kubernetes, la
+base de données PostgreSQL managée et le stockage objet sur lesquels fonctionne le Service
+(**my.invoicerr.app**), dans sa région de Paris. Contact : même adresse postale ; voir les mentions
+légales propres de Scaleway (scaleway.com) pour leurs canaux de support.
 
 Le **site public** à l'adresse **invoicerr.app**, le **site de documentation** à l'adresse
 **docs.invoicerr.app** — sur lequel les présentes mentions sont elles-mêmes publiées — et le **dépôt de

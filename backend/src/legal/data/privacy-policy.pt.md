@@ -75,12 +75,11 @@ vinculado pelos seus próprios termos de tratamento de dados:
   enviada para **contact@invoicerr.app** (apenas correspondência de apoio ao cliente; a Google nunca vê
   os dados contidos nos documentos que cria através do Serviço).
 - **Scaleway SAS** — alojamento da infraestrutura do Serviço: o cluster Kubernetes onde este é
-  executado e o armazenamento de objetos (object storage) que contém os documentos arquivados. **O
-  Serviço e os Dados do Cliente estão alojados na União Europeia**, na região de Paris (França) da
-  Scaleway.
-- **Neon, LLC** (uma afiliada da Databricks, Inc.) — a base de dados PostgreSQL gerida que armazena os
-  dados da Empresa e da conta descritos na Secção 3, bem como os documentos que cria através do
-  Serviço. A base de dados da Empresa é executada na região da UE da Neon (AWS Europa, Frankfurt).
+  executado, a base de dados PostgreSQL gerida que armazena os dados da Empresa e da conta descritos na
+  Secção 3, bem como os documentos que cria através do Serviço, e o armazenamento de objetos (object
+  storage) que contém os documentos arquivados. **O Serviço e os Dados do Cliente, incluindo a base de
+  dados, estão alojados na União Europeia**, na região de Paris (França) da Scaleway, sendo a base de
+  dados acedida através da rede privada própria da Scaleway e não através da internet pública.
 
 **O OCR (reconhecimento ótico de caracteres) é executado em infraestrutura que operamos; nenhum
 documento é enviado a um fornecedor de OCR terceiro.**
@@ -96,16 +95,17 @@ dirigida ao responsável pelo tratamento.
 
 ## 5. Transferências Internacionais
 
-Alguns dos subcontratantes acima (Polar, Resend, Cloudflare, Google LLC, Neon/Databricks) podem tratar
-dados fora do Espaço Económico Europeu, incluindo nos Estados Unidos. Nesses casos, a transferência
-baseia-se nas garantias adequadas próprias desse prestador ao abrigo do Capítulo V do RGPD (tais como
-as Cláusulas Contratuais-Tipo da Comissão Europeia). Esta secção é uma declaração de caráter geral, e
-não uma afirmação sobre a certificação atual de qualquer prestador em concreto — escreva para
+Alguns dos subcontratantes acima (Polar, Resend, Cloudflare, Google LLC) podem tratar dados fora do
+Espaço Económico Europeu, incluindo nos Estados Unidos. Nesses casos, a transferência baseia-se nas
+garantias adequadas próprias desse prestador ao abrigo do Capítulo V do RGPD (tais como as Cláusulas
+Contratuais-Tipo da Comissão Europeia). Esta secção é uma declaração de caráter geral, e não uma
+afirmação sobre a certificação atual de qualquer prestador em concreto — escreva para
 contact@invoicerr.app para saber qual o mecanismo específico em que um determinado prestador se baseia
-atualmente. (A própria infraestrutura de base de dados da Neon, LLC para a nossa conta é executada na
-UE — ver Secção 4; o que está aqui em causa é a jurisdição da própria entidade operadora — a sua
-empresa-mãe, a Databricks, Inc., é uma empresa dos EUA — e não o local onde os dados em si são
-armazenados.)
+atualmente. **A Scaleway SAS não consta desta lista**: é uma empresa francesa que aloja a base de dados
+PostgreSQL gerida da Empresa, além da infraestrutura Kubernetes e do armazenamento de objetos já
+descritos na Secção 4, inteiramente dentro da sua região de Paris (França) — nenhum elo da cadeia que
+armazena os documentos que cria, ou os dados de conta e de base de dados da sua Empresa, envolve uma
+entidade fora da UE.
 
 ## 6. Conservação
 

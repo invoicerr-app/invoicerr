@@ -70,12 +70,12 @@ own data-processing terms:
 - **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
   is received (support correspondence only; Google never sees the data contained in the documents you
   create through the Service).
-- **Scaleway SAS** — infrastructure hosting for the Service: the Kubernetes cluster it runs on and the
-  object storage that holds archived documents. **The Service and Customer Data are hosted in the
-  European Union**, in Scaleway's Paris (France) region.
-- **Neon, LLC** (a Databricks, Inc. affiliate) — the managed PostgreSQL database that stores the
-  Company and account data described in Section 3, and the documents you create through the Service.
-  The Company's database runs in Neon's EU region (AWS Europe, Frankfurt).
+- **Scaleway SAS** — infrastructure hosting for the Service: the Kubernetes cluster it runs on, the
+  managed PostgreSQL database that stores the Company and account data described in Section 3 and the
+  documents you create through the Service, and the object storage that holds archived documents.
+  **The Service and Customer Data, including the database, are hosted in the European Union**, in
+  Scaleway's Paris (France) region, with the database reached over Scaleway's own private network
+  rather than the public internet.
 
 **OCR (optical character recognition) runs on infrastructure we operate; no document is sent to a
 third-party OCR provider.**
@@ -90,14 +90,16 @@ not in this controller-facing Policy.
 
 ## 5. International Transfers
 
-Some of the sub-processors above (Polar, Resend, Cloudflare, Google LLC, Neon/Databricks) may process
-data outside the European Economic Area, including in the United States. Where that is the case, the transfer relies on that
-provider's own appropriate safeguards under GDPR Chapter V (such as the European Commission's Standard
-Contractual Clauses). This section is a general statement, not a representation about any individual
-provider's current certification — write to contact@invoicerr.app for the specific mechanism a given
-provider relies on today. (Neon, LLC's own database infrastructure for our account runs in the EU —
-see Section 4; the point here is the operating entity's own jurisdiction — its parent, Databricks,
-Inc., is a US company — not where the data itself is stored.)
+Some of the sub-processors above (Polar, Resend, Cloudflare, Google LLC) may process data outside the
+European Economic Area, including in the United States. Where that is the case, the transfer relies on
+that provider's own appropriate safeguards under GDPR Chapter V (such as the European Commission's
+Standard Contractual Clauses). This section is a general statement, not a representation about any
+individual provider's current certification — write to contact@invoicerr.app for the specific mechanism
+a given provider relies on today. **Scaleway SAS is not in this list**: it is a French company that
+hosts the Company's managed PostgreSQL database, in addition to the Kubernetes infrastructure and
+object storage already described in Section 4, entirely within its Paris (France) region — no part of
+the chain that stores the documents you create, or your Company's account and database records,
+involves a non-EU entity.
 
 ## 6. Retention
 
@@ -268,3 +270,11 @@ this document; they create no separate or additional rights.
   end-of-subscription exports. Updated every Terms of Service cross-reference to match that document's
   2026-09-19 renumbering (Sections 13.1→15.1, 12.3→14.3, 11→13, 11.3→13.3, 13.3→15.3, 11.2→13.2,
   18.1→20.1).
+- **2026-09-19** — Owner decision: the managed PostgreSQL database moves from Neon (AWS Europe,
+  Frankfurt) to **Scaleway SAS**'s own managed database offering, in the same Paris (France) region
+  already used for the Kubernetes infrastructure and object storage, reached over Scaleway's private
+  network rather than the public internet. Section 4's separate Scaleway and Neon bullets are merged
+  into one: **Neon, LLC** (a Databricks, Inc. affiliate) is no longer a sub-processor. Section 5's
+  US-based-provider list drops Neon/Databricks accordingly and now states explicitly that no part of
+  the chain storing your documents or your Company's account and database records involves a non-EU
+  entity — the one non-EU exposure that list previously carried for that data.

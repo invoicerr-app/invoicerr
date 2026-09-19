@@ -12,9 +12,10 @@ Ingress.
 
 :::info Reference deployment
 This guide follows the setup this project actually runs in production: **Scaleway Kubernetes
-Kapsule** (Paris), **Scaleway Object Storage** for the legal document archive, and **Neon**
-(managed serverless Postgres). Any conformant Kubernetes cluster, S3-compatible store, and Postgres
-instance work the same way — swap the provider-specific values where noted.
+Kapsule** (Paris), **Scaleway Object Storage** for the legal document archive, and **Scaleway
+Managed Database for PostgreSQL** (Paris) for the database — one provider, one region, for every
+piece of it. Any conformant Kubernetes cluster, S3-compatible store, and Postgres instance work the
+same way — swap the provider-specific values where noted.
 :::
 
 ## Prerequisites
@@ -100,34 +101,51 @@ Scaleway Object Storage's own Object Lock support against its docs — check
 [Scaleway's Object Storage documentation](https://www.scaleway.com/en/docs/object-storage/) before
 relying on it for a compliance requirement.
 
-## 3. Create the database — Neon
+## 3. Create the database — Scaleway Managed Database for PostgreSQL
 
-[Neon](https://neon.tech) is a managed, serverless Postgres. Create a project in the
-**Frankfurt (`aws-eu-central-1`)** region — the closest EU region Neon offers today (Neon also has
-a London region, geographically nearer to Paris, but the UK is not an EU member state; Frankfurt is
-the correct choice if "hosted in the EU" needs to be literally true, not just "hosted in Europe").
+[Scaleway's Managed Database for PostgreSQL and MySQL](https://www.scaleway.com/en/database/) is a
+traditional, fixed-size managed Postgres — you pick a node size, not a request-based scaler. From
+the [Scaleway Console](https://console.scaleway.com/): **Managed Databases → PostgreSQL and MySQL →
+Create a Database Instance**, region **Paris (`fr-par`)** — the same region as the cluster and the
+archive bucket, so every piece of the Service sits in one place.
 
-Neon gives you **two** connection strings for the same database:
+This chart's reference deployment attaches the Database Instance to the same **Private Network** as
+the Kapsule cluster, so the `api`/`worker` pods reach it over Scaleway's own network rather than the
+public internet — see Scaleway's own "Connecting Managed Databases to Kubernetes clusters" guide for
+the exact steps, which vary slightly by Console version. If you skip this, use the Database
+Instance's **Manage allowed IPs** setting to restrict its public endpoint instead of leaving it open
+to the internet.
 
-- **Pooled** (hostname contains `-pooler`) — set this as `DATABASE_URL`. It goes through Neon's
-  built-in PgBouncer, which is what you want for a replicated app with several short-lived
-  connections from each `api`/`worker` pod.
-- **Direct/unpooled** (no `-pooler` in the hostname) — set this as `DATABASE_URL_UNPOOLED`
-  (optional, api pod and the `catalogs-release` hook Job only). Prisma Migrate takes a
-  session-level advisory lock that does not reliably survive PgBouncer's transaction-mode pooling,
-  so `backend/src/prisma/sync-schema.ts` uses this URL — falling back to `DATABASE_URL` when it is
-  unset — for the one-off `prisma migrate deploy`/`db push` it runs at api-pod boot, and the
-  `catalogs-release` Job (see "Updating" below) does the same for its own `migrate deploy` step. The
-  long-lived Nest process's own runtime queries always use the pooled `DATABASE_URL`, on Neon or
-  anywhere else.
+The Console's **Connection Details** panel gives you a **single** endpoint — hostname, port,
+database name, user, password. Unlike this chart's previous reference provider (Neon, a serverless
+Postgres that fronted every connection with its own PgBouncer), Scaleway does not put a
+transaction-mode pooler in front of a Database Instance: the one connection string you get back
+already is a direct connection. Build it from those values and append `?sslmode=require`.
 
-Both strings need `?sslmode=require`. Neon's own dashboard shows both, ready to copy, under
-**Connection Details**.
+### About `DATABASE_URL_UNPOOLED`
 
-**Backups**: Neon takes continuous, automatic backups (point-in-time restore) and supports instant
-database branching for a pre-migration safety net — see
-[Neon's backup/restore docs](https://neon.tech/docs/introduction/branching). No `pg_dump` CronJob
-is required for a Neon-backed install; this chart does not ship one (an optional
+The chart also accepts an optional `DATABASE_URL_UNPOOLED` (api pod and the `catalogs-release` hook
+Job only): `backend/src/prisma/sync-schema.ts` prefers it — falling back to `DATABASE_URL` when
+unset — for the one-off `prisma migrate deploy`/`db push` it runs at api-pod boot, and the
+`catalogs-release` Job does the same for its own `migrate deploy` step. It exists because Prisma
+Migrate takes a session-level advisory lock that does not reliably survive a **transaction-mode
+connection pooler** sitting in front of the database — Neon fronted every connection with exactly
+that, so migrations needed a separate, unpooled string to bypass it.
+
+Scaleway's Managed Database does not front your connection with a transaction-mode pooler at all —
+the single endpoint above is already the direct connection Prisma Migrate needs. There is nothing
+left for `DATABASE_URL_UNPOOLED` to point to that would differ from `DATABASE_URL`: **leave it
+unset**. The chart's own fallback to `DATABASE_URL` when it is unset (`deployment-api.yaml` and the
+`catalogs-release` Job) already does the right thing without it — it is not a variable this
+deployment needs to satisfy.
+
+**Backups**: Scaleway takes automated backups of a Database Instance and also lets you trigger
+on-demand snapshots — see
+[Scaleway's own backup documentation](https://www.scaleway.com/en/docs/managed-databases-for-postgresql-and-mysql/how-to/manage-backups/)
+for the schedule, retention, and point-in-time-restore granularity your plan actually gets; this
+guide did not independently verify those specifics, so check that page before relying on a
+particular recovery point for a compliance requirement. No `pg_dump` CronJob is required for a
+Scaleway-backed install; this chart does not ship one (an optional
 scheduled-`pg_dump`-to-object-storage CronJob is reasonable to add later for an extra, provider-
 independent copy — it is not part of this chart today).
 
@@ -144,11 +162,14 @@ once that is set.
 kubectl create secret generic invoicerr-secrets \
   --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
   --from-literal=CREDENTIALS_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=DATABASE_URL="postgresql://<user>:<password>@<endpoint>-pooler.eu-central-1.aws.neon.tech/<db>?sslmode=require" \
-  --from-literal=DATABASE_URL_UNPOOLED="postgresql://<user>:<password>@<endpoint>.eu-central-1.aws.neon.tech/<db>?sslmode=require" \
+  --from-literal=DATABASE_URL="postgresql://<user>:<password>@<endpoint>:<port>/<db>?sslmode=require" \
   --from-literal=ARCHIVE_S3_ACCESS_KEY_ID="<scaleway access key>" \
   --from-literal=ARCHIVE_S3_SECRET_ACCESS_KEY="<scaleway secret key>"
 ```
+
+`<endpoint>`, `<port>`, and `<db>` come from the Database Instance's own **Connection Details** panel
+(step 3). `DATABASE_URL_UNPOOLED` is deliberately omitted — see "About `DATABASE_URL_UNPOOLED`" in
+step 3 for why it has nothing to point to on this provider.
 
 Never commit these values. For a real operation, prefer a secrets manager
 (`sealed-secrets`, `external-secrets`, your CI/CD's own vault integration) that renders this exact
@@ -165,7 +186,7 @@ image:
 existingSecret: invoicerr-secrets
 
 postgresql:
-  enabled: false # Neon is external — see step 3
+  enabled: false # Scaleway Managed Database is external — see step 3
 
 archive:
   storage: s3

@@ -22,15 +22,17 @@ by reference. It does not apply to the self-hosted software, which never sends a
 
 The infrastructure that processes the Service's own data — your Company's account data and Your Data
 (the documents, business records, and configuration you create through the Service) — is located
-exclusively in **France** and, more broadly, the **European Union**:
+exclusively in **France**:
 
 | Component | Provider | Jurisdiction |
 | --- | --- | --- |
-| Application/Kubernetes infrastructure and document object storage | Scaleway SAS | France (Paris region) |
-| Managed PostgreSQL database | Neon, LLC (a Databricks, Inc. affiliate) | European Union (AWS Europe, Frankfurt) |
+| Application/Kubernetes infrastructure, managed PostgreSQL database, and document object storage | Scaleway SAS | France (Paris region) |
 
-Neither the Service's own infrastructure nor Your Data is hosted, mirrored, or backed up outside
-France/the EU. Where a sub-processor named in the [Privacy Policy](./privacy-policy.md), Section 4,
+Every component above sits with a single provider, in a single region, reached over Scaleway's own
+private network rather than the public internet — the database is no longer a separate hop to a
+different provider or country. Neither the Service's own infrastructure nor Your Data is hosted,
+mirrored, or backed up outside France/the EU. Where a sub-processor named in the
+[Privacy Policy](./privacy-policy.md), Section 4,
 and the [Data Processing Agreement](./data-processing-agreement.md), Section 7 (Polar for
 subscription billing, Resend for transactional email, Cloudflare and Google LLC for inbound support
 correspondence) is a non-EU entity or may process data outside the EEA, that processing is limited to
@@ -49,8 +51,8 @@ completeness, not because they fall within the scope Article 28 targets.
 ## 2. Measures Against Unlawful International Access
 
 - **Data residency by design.** The Service's own database and document storage are hosted only in
-  France and the EU (Section 1 above) — a choice, not a default, that by itself keeps the data
-  outside the reach of any access request that does not go through an EU or French legal channel.
+  France, with a single provider (Section 1 above) — a choice, not a default, that by itself keeps the
+  data outside the reach of any access request that does not go through an EU or French legal channel.
 - **Encryption in transit.** All traffic to and from the Service is encrypted end-to-end over TLS,
   terminated at the ingress with a certificate issued and renewed automatically (cert-manager /
   Let's Encrypt) — see `deploy/helm/invoicerr/templates/ingress.yaml`.
@@ -106,3 +108,11 @@ Questions about this page can be sent to **contact@invoicerr.app**.
   copy-paste artifact from the Data Processing Agreement's own Section 7 wording, where "this"
   correctly refers to itself. On this page the referent was wrong; reworded to name the Data
   Processing Agreement explicitly. No legal meaning changed.
+- **2026-09-19** — Owner decision: the managed PostgreSQL database moves from Neon (a Databricks, Inc.
+  affiliate; AWS Europe, Frankfurt) to **Scaleway SAS**'s own managed database offering, in the same
+  Paris (France) region already used for the Kubernetes infrastructure and object storage, reached over
+  Scaleway's private network rather than the public internet. Section 1's table collapses to a single
+  row and a single provider: the jurisdictions sentence and Section 2's "Data residency by design"
+  bullet now state **France** alone rather than "France and, more broadly, the EU" — a hedge this page
+  needed only because the database used to sit in a different EU country under a different provider.
+  This removes the one non-French, non-Scaleway hop the Service's own infrastructure had.

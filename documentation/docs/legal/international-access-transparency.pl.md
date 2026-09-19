@@ -21,15 +21,17 @@ self-hosted, które nigdy nie przesyła nam żadnych danych.
 
 Infrastruktura przetwarzająca własne dane Usługi — dane konta Twojej Firmy oraz Twoje Dane (dokumenty,
 dane biznesowe i konfigurację tworzone przez Ciebie za pośrednictwem Usługi) — znajduje się wyłącznie we
-**Francji** oraz, szerzej, w **Unii Europejskiej**:
+**Francji**:
 
 | Komponent | Dostawca | Jurysdykcja |
 | --- | --- | --- |
-| Infrastruktura aplikacyjna/Kubernetes oraz obiektowa pamięć masowa dokumentów | Scaleway SAS | Francja (region Paryża) |
-| Zarządzana baza danych PostgreSQL | Neon, LLC (podmiot powiązany z Databricks, Inc.) | Unia Europejska (AWS Europe, Frankfurt) |
+| Infrastruktura aplikacyjna/Kubernetes, zarządzana baza danych PostgreSQL oraz obiektowa pamięć masowa dokumentów | Scaleway SAS | Francja (region Paryża) |
 
-Ani własna infrastruktura Usługi, ani Twoje Dane nie są hostowane, replikowane (mirror) ani
-archiwizowane (backup) poza Francją/UE. W zakresie, w jakim dalszy podmiot przetwarzający wskazany w
+Każdy z powyższych komponentów znajduje się u jednego dostawcy, w jednym regionie, dostępnym poprzez
+własną sieć prywatną Scaleway, a nie poprzez publiczny internet — baza danych nie jest już odrębnym
+ogniwem u innego dostawcy ani w innym kraju. Ani własna infrastruktura Usługi, ani Twoje Dane nie są
+hostowane, replikowane (mirror) ani archiwizowane (backup) poza Francją/UE. W zakresie, w jakim dalszy
+podmiot przetwarzający wskazany w
 [Polityce Prywatności](./privacy-policy.md), sekcja 4, oraz w
 [Umowie Powierzenia Przetwarzania Danych](./data-processing-agreement.md), sekcja 7 (Polar w zakresie
 rozliczeń subskrypcji, Resend w zakresie transakcyjnej poczty e-mail, Cloudflare i Google LLC w zakresie
@@ -51,9 +53,9 @@ tu wymienione dla kompletności, a nie dlatego, że mieszczą się w zakresie ob
 ## 2. Środki przeciwko bezprawnemu dostępowi międzynarodowemu
 
 - **Rezydencja danych uwzględniona już w fazie projektowania.** Własna baza danych i przechowywanie
-  dokumentów Usługi są hostowane wyłącznie we Francji i w UE (sekcja 1 powyżej) — jest to świadomy
-  wybór, a nie ustawienie domyślne, który sam w sobie utrzymuje dane poza zasięgiem jakiegokolwiek
-  żądania dostępu, które nie przebiega odpowiednią drogą prawną UE lub Francji.
+  dokumentów Usługi są hostowane wyłącznie we Francji, u jednego dostawcy (sekcja 1 powyżej) — jest to
+  świadomy wybór, a nie ustawienie domyślne, który sam w sobie utrzymuje dane poza zasięgiem
+  jakiegokolwiek żądania dostępu, które nie przebiega odpowiednią drogą prawną UE lub Francji.
 - **Szyfrowanie podczas przesyłania.** Cały ruch do i z Usługi jest szyfrowany end-to-end za pomocą TLS,
   z zakończeniem na poziomie ingress przy użyciu certyfikatu wystawianego i odnawianego automatycznie
   (cert-manager / Let's Encrypt) — zob. `deploy/helm/invoicerr/templates/ingress.yaml`.

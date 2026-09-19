@@ -20,15 +20,17 @@ referência. Não se aplica ao software autoalojado, que nunca nos envia quaisqu
 
 A infraestrutura que trata os dados próprios do Serviço — os dados de conta da sua Empresa e os Seus
 Dados (os documentos, registos comerciais e configurações que cria através do Serviço) — está localizada
-exclusivamente em **França** e, mais amplamente, na **União Europeia**:
+exclusivamente em **França**:
 
 | Componente | Fornecedor | Jurisdição |
 | --- | --- | --- |
-| Infraestrutura aplicacional/Kubernetes e armazenamento de objetos dos documentos | Scaleway SAS | França (região de Paris) |
-| Base de dados PostgreSQL gerida | Neon, LLC (uma afiliada da Databricks, Inc.) | União Europeia (AWS Europe, Frankfurt) |
+| Infraestrutura aplicacional/Kubernetes, base de dados PostgreSQL gerida e armazenamento de objetos dos documentos | Scaleway SAS | França (região de Paris) |
 
-Nem a infraestrutura própria do Serviço nem os Seus Dados são alojados, replicados (mirror) ou objeto de
-cópia de segurança fora de França/da UE. Sempre que um subcontratante identificado na
+Cada um dos componentes acima está junto de um único fornecedor, numa única região, acedido através da
+rede privada própria da Scaleway e não através da internet pública — a base de dados deixou de ser um
+elo separado junto de outro fornecedor ou noutro país. Nem a infraestrutura própria do Serviço nem os
+Seus Dados são alojados, replicados (mirror) ou objeto de cópia de segurança fora de França/da UE.
+Sempre que um subcontratante identificado na
 [Política de Privacidade](./privacy-policy.md), Secção 4, e no
 [Acordo de Tratamento de Dados](./data-processing-agreement.md), Secção 7 (Polar para a faturação da
 subscrição, Resend para o correio eletrónico transacional, Cloudflare e Google LLC para a correspondência
@@ -49,9 +51,9 @@ uma questão de exaustividade, e não por se enquadrarem no âmbito visado pelo 
 ## 2. Medidas Contra o Acesso Internacional Ilícito
 
 - **Residência dos dados desde a conceção.** A base de dados e o armazenamento de documentos próprios do
-  Serviço estão alojados apenas em França e na UE (Secção 1, acima) — uma escolha, e não uma
-  predefinição, que por si só mantém os dados fora do alcance de qualquer pedido de acesso que não passe
-  por uma via jurídica da UE ou francesa.
+  Serviço estão alojados apenas em França, junto de um único fornecedor (Secção 1, acima) — uma
+  escolha, e não uma predefinição, que por si só mantém os dados fora do alcance de qualquer pedido de
+  acesso que não passe por uma via jurídica da UE ou francesa.
 - **Encriptação em trânsito.** Todo o tráfego de e para o Serviço é encriptado de ponta a ponta através
   de TLS, com terminação ao nível do ingress mediante um certificado emitido e renovado automaticamente
   (cert-manager / Let's Encrypt) — ver `deploy/helm/invoicerr/templates/ingress.yaml`.

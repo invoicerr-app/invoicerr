@@ -111,13 +111,12 @@ istotnych dla przetwarzania dokumentów zawierających Dane Osobowe Klienta:
 - **Google LLC (Gmail)** — skrzynka pocztowa, do której trafia korespondencja pomocy technicznej
   wysyłana na adres **contact@invoicerr.app** (wyłącznie korespondencja pomocy technicznej; nigdy
   Dane Osobowe Klienta zawarte w dokumentach tworzonych przez Ciebie za pośrednictwem Usługi).
-- **Scaleway SAS** — hosting infrastruktury Usługi: klaster Kubernetes, na którym działa, oraz
-  magazyn obiektowy przechowujący zarchiwizowane dokumenty, w tym te zawierające Dane Osobowe
-  Klienta. **Usługa oraz Dane Klienta są hostowane w Unii Europejskiej**, w regionie Scaleway w
-  Paryżu (Francja).
-- **Neon, LLC** (podmiot powiązany z Databricks, Inc.) — zarządzana baza danych PostgreSQL, w
-  której przechowywane są tworzone przez Ciebie dokumenty oraz zawarte w nich Dane Osobowe
-  Klienta. Baza danych Firmy działa w regionie UE Neon (AWS Europe, Frankfurt).
+- **Scaleway SAS** — hosting infrastruktury Usługi: klaster Kubernetes, na którym działa, zarządzana
+  baza danych PostgreSQL, w której przechowywane są tworzone przez Ciebie dokumenty — oraz zawarte w
+  nich Dane Osobowe Klienta —, oraz magazyn obiektowy przechowujący zarchiwizowane dokumenty, w tym te
+  zawierające Dane Osobowe Klienta. **Usługa oraz Dane Klienta, w tym baza danych, są hostowane w Unii
+  Europejskiej**, w regionie Scaleway w Paryżu (Francja), przy czym baza danych jest dostępna poprzez
+  własną sieć prywatną Scaleway, a nie poprzez publiczny internet.
 
 **OCR (optyczne rozpoznawanie znaków) działa na infrastrukturze, którą sami obsługujemy; żaden
 dokument nie jest wysyłany do zewnętrznego dostawcy usług OCR.**

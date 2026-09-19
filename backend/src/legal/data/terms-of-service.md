@@ -272,15 +272,14 @@ the underlying data, beyond the deletion described in Section 13.3.
 ## 14. Hosting and Subprocessors
 
 14.1. **The Service and Customer Data are hosted in the European Union**, with **Scaleway SAS**
-(Kubernetes infrastructure and document object storage, Paris region, France) and **Neon, LLC**
-(a Databricks, Inc. affiliate; managed PostgreSQL database, EU region).
+(Kubernetes infrastructure, managed PostgreSQL database, and document object storage — Paris region,
+France).
 
 14.2. We use the following subprocessors in connection with the Service:
 
-   - **Scaleway SAS** — Kubernetes infrastructure and object storage for the Service and its archived
-     documents (Paris region, France).
-   - **Neon, LLC** (a Databricks, Inc. affiliate) — managed PostgreSQL database hosting for the Service
-     (EU region).
+   - **Scaleway SAS** — Kubernetes infrastructure, managed PostgreSQL database, and object storage for
+     the Service and its archived documents (Paris region, France), the database reached over
+     Scaleway's own private network rather than the public internet.
    - **Polar Software Inc.** — payment processing and billing for your subscription (Section 7).
    - **Resend** — delivery of transactional email sent by the Service.
    - The **national e-invoicing and government platforms you choose to connect** (for example, the
@@ -498,3 +497,9 @@ this document; they create no separate or additional rights.
   (Miscellaneous), 20→22 (Contact), 21→23 (Governing Language). Every internal cross-reference in this
   document, and every "Terms of Service, Section X" cross-reference in the Privacy Policy, Data
   Processing Agreement, Legal Notice, and Cookies & Acceptable Use Policy, was updated to match.
+- **2026-09-19** — Owner decision: the managed PostgreSQL database moves from Neon (AWS Europe,
+  Frankfurt) to **Scaleway SAS**'s own managed database offering, in the same Paris (France) region
+  already used for the Kubernetes infrastructure and object storage, reached over Scaleway's private
+  network rather than the public internet. Section 14.1 and 14.2's separate Scaleway and Neon entries
+  are merged into one: **Neon, LLC** (a Databricks, Inc. affiliate) is no longer a subprocessor. No
+  section renumbering.

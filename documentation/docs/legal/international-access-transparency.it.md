@@ -21,15 +21,17 @@ riferimento. Non si applica al software self-hosted, che non ci invia mai alcun 
 
 L'infrastruttura che tratta i dati propri del Servizio — i dati di account della Sua Azienda e i Suoi
 Dati (i documenti, i dati commerciali e le configurazioni che crea tramite il Servizio) — si trova
-esclusivamente in **Francia** e, più in generale, nell'**Unione europea**:
+esclusivamente in **Francia**:
 
 | Componente | Fornitore | Giurisdizione |
 | --- | --- | --- |
-| Infrastruttura applicativa/Kubernetes e storage a oggetti dei documenti | Scaleway SAS | Francia (regione di Parigi) |
-| Database PostgreSQL gestito | Neon, LLC (società affiliata a Databricks, Inc.) | Unione europea (AWS Europe, Francoforte) |
+| Infrastruttura applicativa/Kubernetes, database PostgreSQL gestito e storage a oggetti dei documenti | Scaleway SAS | Francia (regione di Parigi) |
 
-Né l'infrastruttura propria del Servizio né i Suoi Dati sono ospitati, replicati (mirror) o sottoposti a
-backup al di fuori di Francia/UE. Laddove un sub-responsabile del trattamento indicato
+Ogni componente sopra indicato si trova presso un unico fornitore, in un'unica regione, raggiungibile
+tramite la rete privata propria di Scaleway anziché tramite l'internet pubblico — il database non è più
+un passaggio distinto verso un altro fornitore o un altro paese. Né l'infrastruttura propria del
+Servizio né i Suoi Dati sono ospitati, replicati (mirror) o sottoposti a backup al di fuori di
+Francia/UE. Laddove un sub-responsabile del trattamento indicato
 nell'[Informativa sulla Privacy](./privacy-policy.md), Sezione 4, e nell'
 [Accordo sul Trattamento dei Dati](./data-processing-agreement.md), Sezione 7 (Polar per la fatturazione
 dell'abbonamento, Resend per le e-mail transazionali, Cloudflare e Google LLC per la corrispondenza di
@@ -50,9 +52,9 @@ nell'ambito di applicazione dell'articolo 28.
 ## 2. Misure contro l'accesso internazionale illecito
 
 - **Residenza dei dati fin dalla progettazione.** Il database e l'archiviazione dei documenti propri
-  del Servizio sono ospitati esclusivamente in Francia e nell'UE (Sezione 1 sopra) — una scelta, non
-  un'impostazione predefinita, che di per sé tiene i dati fuori dalla portata di qualsiasi richiesta di
-  accesso che non segua un canale legale dell'UE o francese.
+  del Servizio sono ospitati esclusivamente in Francia, presso un unico fornitore (Sezione 1 sopra) —
+  una scelta, non un'impostazione predefinita, che di per sé tiene i dati fuori dalla portata di
+  qualsiasi richiesta di accesso che non segua un canale legale dell'UE o francese.
 - **Cifratura in transito.** Tutto il traffico da e verso il Servizio è cifrato end-to-end tramite TLS,
   con terminazione a livello di ingress mediante un certificato emesso e rinnovato automaticamente
   (cert-manager / Let's Encrypt) — vedere `deploy/helm/invoicerr/templates/ingress.yaml`.

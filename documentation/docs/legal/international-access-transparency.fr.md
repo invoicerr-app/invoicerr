@@ -21,15 +21,17 @@ référence. Elle ne s'applique pas au logiciel auto-hébergé, qui ne nous envo
 
 L'infrastructure qui traite les propres données du Service — les données de compte de votre Société et
 Vos Données (les documents, données commerciales et paramètres que vous créez au moyen du Service) —
-est située exclusivement en **France** et, plus largement, dans l'**Union européenne** :
+est située exclusivement en **France** :
 
 | Composant | Fournisseur | Juridiction |
 | --- | --- | --- |
-| Infrastructure applicative/Kubernetes et stockage objet des documents | Scaleway SAS | France (région de Paris) |
-| Base de données PostgreSQL managée | Neon, LLC (société affiliée à Databricks, Inc.) | Union européenne (AWS Europe, Francfort) |
+| Infrastructure applicative/Kubernetes, base de données PostgreSQL managée et stockage objet des documents | Scaleway SAS | France (région de Paris) |
 
-Ni l'infrastructure propre du Service ni Vos Données ne sont hébergées, dupliquées ou sauvegardées en
-dehors de la France/de l'UE. Lorsqu'un sous-traitant nommé dans la
+Chaque composant ci-dessus relève d'un fournisseur unique, dans une région unique, accessible via le
+réseau privé propre de Scaleway plutôt que par l'internet public — la base de données n'est plus un
+maillon distinct chez un autre fournisseur ou dans un autre pays. Ni l'infrastructure propre du Service
+ni Vos Données ne sont hébergées, dupliquées ou sauvegardées en dehors de la France/de l'UE. Lorsqu'un
+sous-traitant nommé dans la
 [Politique de Confidentialité](./privacy-policy.md), Section 4, et l'
 [Accord de Traitement des Données](./data-processing-agreement.md), Section 7 (Polar pour la
 facturation de l'abonnement, Resend pour les e-mails transactionnels, Cloudflare et Google LLC pour la
@@ -52,9 +54,9 @@ visé par l'article 28.
 ## 2. Mesures contre l'Accès International Illicite
 
 - **Localisation des données dès la conception.** La base de données et le stockage documentaire
-  propres au Service ne sont hébergés qu'en France et dans l'UE (Section 1 ci-dessus) — un choix, et
-  non une configuration par défaut, qui à lui seul place les données hors de portée de toute demande
-  d'accès ne passant pas par une voie légale de l'UE ou française.
+  propres au Service ne sont hébergés qu'en France, chez un fournisseur unique (Section 1 ci-dessus) —
+  un choix, et non une configuration par défaut, qui à lui seul place les données hors de portée de
+  toute demande d'accès ne passant pas par une voie légale de l'UE ou française.
 - **Chiffrement en transit.** L'ensemble du trafic à destination et en provenance du Service est
   chiffré de bout en bout via TLS, avec terminaison au niveau de l'ingress au moyen d'un certificat émis
   et renouvelé automatiquement (cert-manager / Let's Encrypt) — voir

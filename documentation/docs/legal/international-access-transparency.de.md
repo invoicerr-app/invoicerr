@@ -22,16 +22,17 @@ Bezug. Sie gilt nicht für die selbst gehostete Software, die uns niemals Daten 
 
 Die Infrastruktur, die die eigenen Daten des Dienstes verarbeitet — die Kontodaten Ihres Unternehmens
 und Ihre Daten (die Dokumente, Geschäftsunterlagen und Konfigurationen, die Sie über den Dienst
-erstellen) — befindet sich ausschließlich in **Frankreich** und, allgemeiner, in der
-**Europäischen Union**:
+erstellen) — befindet sich ausschließlich in **Frankreich**:
 
 | Komponente | Anbieter | Rechtsordnung |
 | --- | --- | --- |
-| Anwendungs-/Kubernetes-Infrastruktur und Objektspeicher für Dokumente | Scaleway SAS | Frankreich (Region Paris) |
-| Verwaltete PostgreSQL-Datenbank | Neon, LLC (ein mit Databricks, Inc. verbundenes Unternehmen) | Europäische Union (AWS Europe, Frankfurt) |
+| Anwendungs-/Kubernetes-Infrastruktur, verwaltete PostgreSQL-Datenbank und Objektspeicher für Dokumente | Scaleway SAS | Frankreich (Region Paris) |
 
-Weder die eigene Infrastruktur des Dienstes noch Ihre Daten werden außerhalb Frankreichs/der EU
-gehostet, gespiegelt oder gesichert. Soweit ein in der
+Jede der oben genannten Komponenten liegt bei einem einzigen Anbieter, in einer einzigen Region, die
+über das eigene private Netzwerk von Scaleway erreicht wird, statt über das öffentliche Internet — die
+Datenbank ist kein separater Sprung mehr zu einem anderen Anbieter oder in ein anderes Land. Weder die
+eigene Infrastruktur des Dienstes noch Ihre Daten werden außerhalb Frankreichs/der EU gehostet,
+gespiegelt oder gesichert. Soweit ein in der
 [Datenschutzerklärung](./privacy-policy.md), Abschnitt 4, und im
 [Auftragsverarbeitungsvertrag (AVV)](./data-processing-agreement.md), Abschnitt 7, genannter
 Unterauftragsverarbeiter (Polar für die Abonnementabrechnung, Resend für transaktionale E-Mails,
@@ -54,9 +55,10 @@ den von Artikel 28 erfassten Anwendungsbereich fielen.
 ## 2. Maßnahmen gegen unrechtmäßigen internationalen Zugriff
 
 - **Datenresidenz durch Technikgestaltung.** Die eigene Datenbank und der Dokumentenspeicher des
-  Dienstes werden ausschließlich in Frankreich und der EU gehostet (Abschnitt 1 oben) — eine bewusste
-  Entscheidung, keine Standardeinstellung, die die Daten allein dadurch außerhalb der Reichweite jeder
-  Zugriffsanfrage hält, die nicht über einen Rechtsweg der EU oder Frankreichs erfolgt.
+  Dienstes werden ausschließlich in Frankreich, bei einem einzigen Anbieter, gehostet (Abschnitt 1
+  oben) — eine bewusste Entscheidung, keine Standardeinstellung, die die Daten allein dadurch außerhalb
+  der Reichweite jeder Zugriffsanfrage hält, die nicht über einen Rechtsweg der EU oder Frankreichs
+  erfolgt.
 - **Verschlüsselung bei der Übertragung.** Der gesamte Datenverkehr zum und vom Dienst wird durchgehend
   über TLS verschlüsselt und am Ingress mit einem automatisch ausgestellten und erneuerten Zertifikat
   (cert-manager / Let's Encrypt) terminiert — siehe `deploy/helm/invoicerr/templates/ingress.yaml`.
