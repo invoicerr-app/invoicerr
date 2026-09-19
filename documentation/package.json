@@ -29,7 +29,11 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "@fontsource/space-mono": "^5.3.0",
+    "lucide-react": "^0.523.0"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.10.1",

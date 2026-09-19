@@ -1,8 +1,28 @@
 .features {
-  display: flex;
-  align-items: center;
-  padding: 4rem 0;
+  padding: 3.5rem 0 4.5rem;
   width: 100%;
+}
+
+/* A real CSS grid rather than Infima's `row`/`col--4` (which is a flex percentage split with no
+   built-in breakpoint — at phone width three 33%-wide cards would cram unreadably without actually
+   overflowing). Three columns down to one gives every card a sane minimum width at each size while
+   staying within the container's own gutter, so the page never scrolls sideways. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media screen and (max-width: 996px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .featureCard {
@@ -13,41 +33,53 @@
   border: 1px solid var(--ifm-color-emphasis-200);
   border-radius: var(--ifm-card-border-radius, 12px);
   background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.featureCardLink {
   color: inherit;
   text-decoration: none;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.featureCardLink:hover {
+.featureCard:hover {
+  color: inherit;
   text-decoration: none;
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   border-color: var(--ifm-color-primary);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
 }
 
-.featureEmoji {
-  font-size: 2.25rem;
-  line-height: 1;
-  margin-bottom: 1rem;
+/* Icon tile: reuses the identity's own soft-fill badge pair (index.css's --accent/--accent-
+   foreground, mapped here as --ifm-color-primary-contrast-background/-foreground — see custom.css's
+   own header comment on that pair) instead of a new colour. An icon glyph only needs WCAG's 3:1
+   non-text floor; this pairing was already computed well past that for text (≥4.5:1 — custom.css),
+   so it clears the icon's lower bar with margin in both themes: light 11.1:1, dark 11.8:1 (OKLCH →
+   linear-sRGB → relative-luminance, same pipeline as every other ratio in this repo's CSS comments,
+   verified in scratchpad rather than eyeballed). */
+.featureIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 1.1rem;
+  border-radius: var(--ifm-card-border-radius, 12px);
+  background: var(--ifm-color-primary-contrast-background);
+  color: var(--ifm-color-primary-contrast-foreground);
+}
+
+.featureIconGlyph {
+  width: 1.375rem;
+  height: 1.375rem;
 }
 
 .featureTitle {
   margin-bottom: 0.5rem;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
 }
 
 .featureDescription {
   margin-bottom: 0;
+  font-size: 0.95rem;
   color: var(--ifm-color-emphasis-700);
-}
-
-/* Add vertical spacing when cards wrap on smaller screens */
-.features :global(.col) {
-  margin-bottom: 2rem;
 }
