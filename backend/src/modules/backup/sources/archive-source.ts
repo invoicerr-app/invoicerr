@@ -19,8 +19,9 @@
  * PRIMARY archive bucket — this is the ONLY file in this whole module that ever talks to that bucket;
  * every other file only ever talks to `BACKUP_S3_*`, the destination.
  */
-import { Dirent, readdirSync, readFileSync, statSync } from 'node:fs';
+import { createReadStream, Dirent, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import type { Readable } from 'node:stream';
 
 import { GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
@@ -64,7 +65,7 @@ function listLocalArchiveSources(): BackupSourceFile[] {
       files.push({
         key: toObjectKey(relative(root, full)),
         size,
-        read: async () => readFileSync(full),
+        read: async () => createReadStream(full),
       });
     }
   };
@@ -91,9 +92,12 @@ async function listS3ArchiveSources(): Promise<BackupSourceFile[]> {
         size: object.Size,
         read: async () => {
           const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-          if (!result.Body) return Buffer.alloc(0);
-          const bytes = await result.Body.transformToByteArray();
-          return Buffer.from(bytes);
+          // `result.Body` is already a Node `Readable` at runtime (the SDK's own stream mixin) — no
+          // `transformToByteArray()`/`Buffer.from` here any more: that helper reads the ENTIRE object
+          // into memory before returning, exactly what streaming this file into
+          // `backup-destination.ts#upload` exists to avoid.
+          if (!result.Body) throw new Error(`GetObject ${key} returned no body`);
+          return result.Body as Readable;
         },
       });
     }

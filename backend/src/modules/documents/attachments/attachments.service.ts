@@ -90,7 +90,7 @@ export class AttachmentsService {
     }
 
     const fileRef = computeArtifactHash(bytes);
-    persistInboundFile(companyId, fileRef, input.mime, bytes);
+    await persistInboundFile(companyId, fileRef, input.mime, bytes);
 
     return { fileRef, fileName: input.fileName, mime: input.mime };
   }
@@ -103,7 +103,7 @@ export class AttachmentsService {
    *  caller always already has it (it is part of the SAME `{ fileRef, fileName, mime }` value the
    *  field itself stores — see field-kinds.ts's own 'file' validator). */
   async download(companyId: string, fileRef: string, mime: string): Promise<{ bytes: Buffer; mime: string }> {
-    const bytes = readInboundFile(companyId, fileRef, mime);
+    const bytes = await readInboundFile(companyId, fileRef, mime);
     if (!bytes) {
       throw new NotFoundException(`No attachment (SHA-256 ${fileRef}) found for this company.`);
     }

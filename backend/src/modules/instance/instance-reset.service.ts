@@ -1,5 +1,3 @@
-import { mkdirSync, rmSync } from 'node:fs';
-
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { runWithCompanyId } from '@/lib/request-context';
@@ -8,7 +6,7 @@ import { mailT } from '@/mail/i18n';
 import { MailService } from '@/mail/mail.service';
 import { deleteArchivedArtifacts } from '@/modules/documents/archive/storage';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
-import { inboundRoot } from '@/modules/documents/received-invoices/storage';
+import { wipeAllInboundFiles } from '@/modules/documents/received-invoices/storage';
 import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
 import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';
@@ -167,15 +165,14 @@ export class InstanceResetService {
 
       await Promise.all(archives.map(({ uri }) => deleteArchivedArtifacts(uri)));
 
-      // Received-invoice uploads, expense attachments and company logos all share ONE local,
-      // content-addressed root (`received-invoices/storage.ts`'s own header) with no per-file DB
-      // tracking and no S3 backend of its own — wiping the whole root, obtained from that module's own
-      // exported resolver (never a hardcoded path), IS the storage abstraction's bulk-delete
-      // primitive; nothing else in this codebase needs a narrower one. Recreated empty immediately
-      // after so the next upload does not have to `mkdirSync` its way past a missing root.
-      const root = inboundRoot();
-      rmSync(root, { recursive: true, force: true });
-      mkdirSync(root, { recursive: true });
+      // Received-invoice uploads, expense attachments and company logos all share ONE content-
+      // addressed store (`received-invoices/storage.ts`'s own header) with no per-file DB tracking —
+      // `wipeAllInboundFiles` IS that store's own bulk-delete primitive (local: wipes and recreates
+      // `inboundRoot()`; `INBOUND_STORAGE=s3`: wipes the whole configured bucket instead — see that
+      // function's own header), dispatching on `INBOUND_STORAGE` exactly like `deleteArchivedArtifacts`
+      // above dispatches on each archive's own uri scheme. Nothing else in this codebase needs a
+      // narrower (per-company) primitive here — an INSTANCE reset wipes every company at once.
+      await wipeAllInboundFiles();
 
       // Truncating the `session` table above already signs out every session on this instance — better
       // -auth resolves a session by looking the cookie's id up in that table, and that lookup now

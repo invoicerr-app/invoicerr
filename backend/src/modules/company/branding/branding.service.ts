@@ -134,7 +134,7 @@ export class BrandingService {
     // multipart at the wire — see that module's header) — the multer buffer is re-encoded here, once,
     // losslessly; the mime/empty/size refusals it already throws (named, exactly like
     // `AttachmentsService#upload`) are not duplicated a second time in this layer.
-    const logoId = storeLogo(companyId, { mime: dto.mime, base64: dto.bytes.toString('base64') });
+    const logoId = await storeLogo(companyId, { mime: dto.mime, base64: dto.bytes.toString('base64') });
     const updated = await prisma.company.update({
       where: { id: companyId },
       data: { brandingLogoId: logoId },
@@ -158,7 +158,7 @@ export class BrandingService {
    *  settings screen's own `<img>` and (via `logoDataUriFor`) the real PDF pipeline read from. */
   async getLogoBytes(companyId: string): Promise<{ bytes: Buffer; mime: string }> {
     const company = await this.findCompanyOrThrow(companyId);
-    const logo = readLogo(companyId, company.brandingLogoId);
+    const logo = await readLogo(companyId, company.brandingLogoId);
     if (!logo) {
       throw new NotFoundException('This company has no branding logo uploaded.');
     }
@@ -187,7 +187,7 @@ export class BrandingService {
       branding: {
         accentColor: company.brandingAccentColor,
         font: company.brandingFont,
-        logoDataUri: logoDataUriFor(companyId, company.brandingLogoId),
+        logoDataUri: await logoDataUriFor(companyId, company.brandingLogoId),
       },
     });
   }

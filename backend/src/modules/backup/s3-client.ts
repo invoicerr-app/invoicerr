@@ -8,6 +8,10 @@
  * shared `S3Client` instance between the two: different credentials, and very often a different
  * endpoint/provider entirely (the whole point of a separate backup destination is surviving the loss
  * of whatever holds the primary one).
+ *
+ * A third prefix, `INBOUND_S3`, was added alongside `documents/received-invoices/s3-storage.ts`'s own
+ * S3 mode — read-only here too (the PRIMARY inbound-file bucket, when `INBOUND_STORAGE=s3` — see
+ * `sources/inbound-source.ts`), same "own client, own credentials" isolation from `BACKUP_S3_*`.
  */
 import { S3Client } from '@aws-sdk/client-s3';
 
@@ -31,7 +35,7 @@ function isTruthyFlag(value: string | undefined): boolean {
  * `_FORCE_PATH_STYLE` is read as a flag (never required) since most providers, AWS included, default
  * to virtual-hosted-style addressing fine.
  */
-export function buildS3ClientFromEnv(envPrefix: 'ARCHIVE_S3' | 'BACKUP_S3'): S3Client {
+export function buildS3ClientFromEnv(envPrefix: 'ARCHIVE_S3' | 'BACKUP_S3' | 'INBOUND_S3'): S3Client {
   return new S3Client({
     region: requireEnv(`${envPrefix}_REGION`),
     endpoint: process.env[`${envPrefix}_ENDPOINT`] || undefined,

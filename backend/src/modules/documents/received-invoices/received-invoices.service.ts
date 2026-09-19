@@ -111,7 +111,7 @@ export class ReceivedInvoicesService {
       );
     }
 
-    persistInboundFile(companyId, fileRef, input.mime, bytes);
+    await persistInboundFile(companyId, fileRef, input.mime, bytes);
 
     const structural = await extractReceivedInvoiceFields(bytes, input.mime, fileName);
     // OCR fallback — tried ONLY when `structural` found nothing at all AND this deposit is
@@ -166,7 +166,7 @@ export class ReceivedInvoicesService {
       throw new NotFoundException(`Document "${documentId}" has no original file attached.`);
     }
 
-    const bytes = readInboundFile(companyId, fileRef, mime);
+    const bytes = await readInboundFile(companyId, fileRef, mime);
     if (!bytes) {
       throw new NotFoundException(
         `Document "${documentId}" references a file (SHA-256 ${fileRef}) that is no longer on disk.`,

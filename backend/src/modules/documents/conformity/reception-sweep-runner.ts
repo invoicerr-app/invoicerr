@@ -193,7 +193,7 @@ export class PdpReceptionSweepRunner {
       Number(pdpInboundId),
     );
     const fileRef = computeArtifactHash(bytes);
-    persistInboundFile(companyId, fileRef, mime, bytes);
+    await persistInboundFile(companyId, fileRef, mime, bytes);
 
     // Supplier reconciliation "at import" — the exact same call, at the exact same point in the flow,
     // `received-invoices.service.ts#upload` already makes for a human-driven upload (VAT first, exact

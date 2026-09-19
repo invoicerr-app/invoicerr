@@ -288,7 +288,7 @@ export class DangerService {
       });
     }
     try {
-      deleteInboundFilesForCompany(companyId);
+      await deleteInboundFilesForCompany(companyId);
     } catch (error) {
       logger.error("Company data reset: could not delete this company's inbound files", {
         category: 'danger',

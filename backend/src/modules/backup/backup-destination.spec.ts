@@ -2,13 +2,17 @@
  * Unit coverage for `backup-destination.ts` — the AWS SDK is MOCKED throughout (no real network, no
  * MinIO container), the same `vi.spyOn(S3Client.prototype, 'send')` style
  * `documents/archive/s3-storage.spec.ts` already uses. See `backup-destination.live.spec.ts` for the
- * real round-trip against a real MinIO container.
+ * real round-trip against a real MinIO container — including the one thing this mocked suite CANNOT
+ * prove: that what actually reaches the wire decrypts back with only the key and the bytes.
  */
 
 import { vi, type MockInstance } from 'vitest';
 
+import { Readable } from 'node:stream';
+
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
+import { BACKUP_ENCRYPTION_OVERHEAD_BYTES, createBackupDecryptStream } from './backup-crypto';
 import { BackupDestination } from './backup-destination';
 
 const ENV_KEYS = [
@@ -17,7 +21,14 @@ const ENV_KEYS = [
   'BACKUP_S3_REGION',
   'BACKUP_S3_ACCESS_KEY_ID',
   'BACKUP_S3_SECRET_ACCESS_KEY',
+  'BACKUP_ENCRYPTION_KEY',
 ] as const;
+
+async function drain(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks);
+}
 
 describe('backup/BackupDestination', () => {
   const originalEnv: Partial<Record<(typeof ENV_KEYS)[number], string>> = {};
@@ -29,6 +40,7 @@ describe('backup/BackupDestination', () => {
     process.env.BACKUP_S3_REGION = 'us-east-1';
     process.env.BACKUP_S3_ACCESS_KEY_ID = 'ak';
     process.env.BACKUP_S3_SECRET_ACCESS_KEY = 'sk';
+    process.env.BACKUP_ENCRYPTION_KEY = '2'.repeat(64); // 64 hex chars — decodes to exactly 32 bytes
     delete process.env.BACKUP_S3_PREFIX;
 
     sendSpy = vi.spyOn(S3Client.prototype, 'send');
@@ -79,19 +91,40 @@ describe('backup/BackupDestination', () => {
   });
 
   describe('upload', () => {
-    it('PUTs the exact bytes under the (prefixed) key', async () => {
+    it('never sends the plaintext — what reaches PutObjectCommand is the encrypted envelope', async () => {
       sendSpy.mockResolvedValue({});
-      const bytes = Buffer.from('hello');
+      const plaintext = Buffer.from('hello');
 
-      await new BackupDestination().upload('archive/doc-1/hash/pdf.pdf', bytes);
+      // A small enough body that @aws-sdk/lib-storage's `Upload` takes its single-PUT path rather
+      // than multipart — see `backup-destination.ts`'s own header on why `Upload` is used at all.
+      await new BackupDestination().upload('archive/doc-1/hash/pdf.pdf', Readable.from(plaintext));
 
-      expect(sendSpy).toHaveBeenCalledWith(expect.any(PutObjectCommand));
-      const command = sendSpy.mock.calls[0][0] as PutObjectCommand;
-      expect(command.input).toEqual({
-        Bucket: 'backup-bucket',
-        Key: 'archive/doc-1/hash/pdf.pdf',
-        Body: bytes,
-      });
+      const putCall = sendSpy.mock.calls
+        .map((call) => call[0])
+        .find((cmd) => cmd instanceof PutObjectCommand);
+      expect(putCall).toBeDefined();
+      const command = putCall as PutObjectCommand;
+      expect(command.input.Bucket).toBe('backup-bucket');
+      expect(command.input.Key).toBe('archive/doc-1/hash/pdf.pdf');
+
+      const ciphertext = command.input.Body as Buffer;
+      expect(ciphertext).not.toEqual(plaintext);
+      expect(ciphertext.length).toBe(plaintext.length + BACKUP_ENCRYPTION_OVERHEAD_BYTES);
+
+      // Proves the bytes that were actually about to leave the process decrypt back correctly —
+      // never a round-trip through the SAME in-memory `Buffer`/stream object under test.
+      const decrypted = await drain(Readable.from(ciphertext).pipe(createBackupDecryptStream()));
+      expect(decrypted).toEqual(plaintext);
+    });
+
+    it('fails loud BEFORE a single byte reaches the network when BACKUP_ENCRYPTION_KEY is missing', async () => {
+      delete process.env.BACKUP_ENCRYPTION_KEY;
+      sendSpy.mockResolvedValue({});
+
+      await expect(
+        new BackupDestination().upload('archive/doc-1/hash/pdf.pdf', Readable.from(Buffer.from('hello'))),
+      ).rejects.toThrow('BACKUP_ENCRYPTION_KEY');
+      expect(sendSpy).not.toHaveBeenCalled();
     });
   });
 

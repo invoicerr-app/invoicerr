@@ -10,10 +10,17 @@ import { vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Readable } from 'node:stream';
 
 import { S3Client } from '@aws-sdk/client-s3';
 
 import { listArchiveBackupSources } from './archive-source';
+
+async function drain(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks);
+}
 
 const ENV_KEYS = [
   'DOCUMENTS_ARCHIVE_DIR',
@@ -51,7 +58,8 @@ describe('backup/sources/archive-source', () => {
     expect(files).toHaveLength(1);
     expect(files[0].key).toBe('archive/doc-1/hash-1/pdf.pdf');
     expect(files[0].size).toBe('pdf bytes'.length);
-    await expect(files[0].read()).resolves.toEqual(Buffer.from('pdf bytes'));
+    // A fresh READ STREAM, never a whole-file Buffer — see `backup-source.ts`'s own header.
+    await expect(files[0].read().then(drain)).resolves.toEqual(Buffer.from('pdf bytes'));
   });
 
   it('skips checkArchiveStorageSharing witness files — bookkeeping, not a document artifact', async () => {

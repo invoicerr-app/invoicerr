@@ -400,7 +400,7 @@ export async function renderDocumentInstance(
     branding: {
       accentColor: company.brandingAccentColor,
       font: company.brandingFont,
-      logoDataUri: logoDataUriFor(companyId, company.brandingLogoId),
+      logoDataUri: await logoDataUriFor(companyId, company.brandingLogoId),
     },
   });
 

@@ -13,9 +13,13 @@
  * uploads, enriched-expense attachments, company logos — see `sources/inbound-source.ts`'s own header
  * for why those three are indistinguishable at this layer and backed up together) — to a bucket an
  * operator controls independently of whatever backs the primary store. This is disaster-recovery
- * insurance, never a second source of truth the application itself ever reads back from — nothing in
- * this module offers a restore path; that is an operator's own `aws s3 sync`/`mc mirror` against the
- * bucket directly.
+ * insurance, never a second source of truth the application itself ever reads back from — this SWEEP
+ * never restores anything automatically; getting objects back out of the bucket is still an
+ * operator's own `aws s3 sync`/`mc mirror`. What this module DOES provide is the other half of that:
+ * every object it writes is encrypted (`backup-crypto.ts`), and the same file ships the standalone
+ * decrypt CLI (`backup-crypto-cli.ts`) an operator runs against whatever they pulled out of the
+ * bucket — see `documentation/docs/user-guide/backups.md`'s "Restoring" section for the full
+ * procedure.
  *
  * No database dump lives here, deliberately: Postgres has its own backup story, entirely outside this
  * module's scope — this sweeps FILES only.
@@ -37,12 +41,24 @@
  * transient S3 hiccup silently stops EVERY other file from ever being backed up that day — worse than
  * a partial, honestly-reported run. `status` only ever turns `FAILED` when the sweep could not even
  * START (source enumeration itself threw, e.g. the `ARCHIVE_S3_*` credentials this run also needs to
- * READ from are broken) — a run that reached the per-file loop at all is `COMPLETED`, however many of
- * those files ended up in `errors`; the caller reads `filesFailed`/`errors` for the real signal.
+ * READ from are broken — OR `BACKUP_ENCRYPTION_KEY` itself is missing/invalid, checked before either,
+ * see below) — a run that reached the per-file loop at all is `COMPLETED`, however many of those files
+ * ended up in `errors`; the caller reads `filesFailed`/`errors` for the real signal.
+ *
+ * ## Encryption key checked FIRST, before a single source is even listed
+ * `isBackupEncryptionAvailable()` (`backup-crypto.ts`) gates the whole sweep, the same "fail loud
+ * before doing any real work" shape source-enumeration failure already has below. This is deliberate,
+ * not incidental: every file this sweep would otherwise upload gets encrypted with the SAME key
+ * (`BACKUP_ENCRYPTION_KEY`), so a missing/invalid key is not a per-file problem the existing
+ * one-failure-never-aborts policy should absorb — it would just mean the SAME error, once per file,
+ * drowning out any REAL per-file failure that happened to occur in the same run. One clear FAILED run
+ * with one named error is the loud, honest signal; `backup-crypto.ts`'s own header explains why a
+ * missing key fails the run rather than silently disabling the module or uploading in the clear.
  */
 import { Injectable } from '@nestjs/common';
 
 import { BackupRunStatus } from '../../../prisma/generated/prisma/client';
+import { BACKUP_ENCRYPTION_OVERHEAD_BYTES, isBackupEncryptionAvailable } from './backup-crypto';
 import { BackupDestination } from './backup-destination';
 import { BackupRunError, finishBackupRun, startBackupRun } from './backup-runs.persistence';
 import { listArchiveBackupSources } from './sources/archive-source';
@@ -67,9 +83,20 @@ export class BackupRunner {
   async runSweep(): Promise<RunBackupSweepResult> {
     const runId = await startBackupRun();
 
+    if (!isBackupEncryptionAvailable()) {
+      // See this file's own header ("Encryption key checked FIRST") and `backup-crypto.ts`'s header
+      // for why this is checked before enumerating a single source, and why it fails the run rather
+      // than uploading in the clear or silently disabling the module.
+      return this.fail(
+        runId,
+        new Error('BACKUP_ENCRYPTION_KEY is missing or invalid — refusing to upload backups in the clear.'),
+        '(backup encryption key)',
+      );
+    }
+
     let sources: BackupSourceFile[];
     try {
-      sources = [...(await listArchiveBackupSources()), ...listInboundBackupSources()];
+      sources = [...(await listArchiveBackupSources()), ...(await listInboundBackupSources())];
     } catch (error) {
       // Enumerating the sources themselves failed before a single file was even attempted — a single
       // named error, rather than a run silently reporting zero files scanned with no explanation. See
@@ -85,14 +112,20 @@ export class BackupRunner {
     for (const file of sources) {
       try {
         const existingSize = await this.destination.existingSize(file.key);
-        if (existingSize === file.size) {
+        // The destination holds the ENCRYPTED artifact — always `BACKUP_ENCRYPTION_OVERHEAD_BYTES`
+        // (the fixed IV+tag envelope, `backup-crypto.ts`) larger than the source's own plaintext
+        // size. Comparing against the raw `file.size` here would re-upload every single file on every
+        // single run, forever, since the destination size could then never equal it.
+        if (existingSize === file.size + BACKUP_ENCRYPTION_OVERHEAD_BYTES) {
           filesSkipped += 1;
           continue;
         }
-        const bytes = await file.read();
-        await this.destination.upload(file.key, bytes);
+        const stream = await file.read();
+        await this.destination.upload(file.key, stream);
         filesUploaded += 1;
-        bytesUploaded += BigInt(bytes.length);
+        // The source's own plaintext size, known up front from listing — never measured from the
+        // (streamed, never fully buffered) upload itself.
+        bytesUploaded += BigInt(file.size);
       } catch (error) {
         errors.push({ key: file.key, message: describeError(error) });
       }
@@ -112,7 +145,11 @@ export class BackupRunner {
     return result;
   }
 
-  private async fail(runId: string, error: unknown): Promise<RunBackupSweepResult> {
+  private async fail(
+    runId: string,
+    error: unknown,
+    key = '(enumerating backup sources)',
+  ): Promise<RunBackupSweepResult> {
     const result: RunBackupSweepResult = {
       runId,
       status: 'FAILED',
@@ -121,7 +158,7 @@ export class BackupRunner {
       filesSkipped: 0,
       filesFailed: 1,
       bytesUploaded: 0n,
-      errors: [{ key: '(enumerating backup sources)', message: describeError(error) }],
+      errors: [{ key, message: describeError(error) }],
     };
     await finishBackupRun(runId, result);
     return result;

@@ -33,8 +33,11 @@ export interface UploadLogoInput {
 
 /** Stores a logo, content-addressed under this company. Returns the SHA-256 to store in
  *  `Company.brandingLogoId` — refuses (named, exactly like `AttachmentsService#upload`) an empty
- *  file, a disallowed mime, or a file over `MAX_ATTACHMENT_BYTES`. */
-export function uploadLogo(companyId: string, input: UploadLogoInput): string {
+ *  file, a disallowed mime, or a file over `MAX_ATTACHMENT_BYTES`. `async` because
+ *  `persistInboundFile` (`received-invoices/storage.ts`) is — `INBOUND_STORAGE=s3` genuinely awaits a
+ *  network call; every validation throw above stays a REJECTED promise for this same reason (never a
+ *  synchronous throw), so callers must `await`/`.catch()` this exactly like any other async method. */
+export async function uploadLogo(companyId: string, input: UploadLogoInput): Promise<string> {
   if (!ALLOWED_LOGO_MIMES.includes(input.mime)) {
     throw new BadRequestException(
       `Unsupported logo file type "${input.mime}" — allowed: ${ALLOWED_LOGO_MIMES.join(', ')}.`,
@@ -52,7 +55,7 @@ export function uploadLogo(companyId: string, input: UploadLogoInput): string {
   }
 
   const fileRef = computeArtifactHash(bytes);
-  persistInboundFile(companyId, fileRef, input.mime, bytes);
+  await persistInboundFile(companyId, fileRef, input.mime, bytes);
   return fileRef;
 }
 
@@ -60,13 +63,13 @@ export function uploadLogo(companyId: string, input: UploadLogoInput): string {
  *  of the three allowed mimes for this company (never uploaded, or a stale id left over from another
  *  company — tenant isolation is the SAME company-scoped path `persistInboundFile` already enforces,
  *  never a cross-tenant lookup by hash alone). */
-export function readLogo(
+export async function readLogo(
   companyId: string | null | undefined,
   logoId: string | null | undefined,
-): { bytes: Buffer; mime: string } | null {
+): Promise<{ bytes: Buffer; mime: string } | null> {
   if (!companyId || !logoId) return null;
   for (const mime of ALLOWED_LOGO_MIMES) {
-    const bytes = readInboundFile(companyId, logoId, mime);
+    const bytes = await readInboundFile(companyId, logoId, mime);
     if (bytes) return { bytes, mime };
   }
   return null;
@@ -77,11 +80,11 @@ export function readLogo(
  *  real render pipeline (`render-instance-pdf.ts`) and the settings-screen preview
  *  (`company/branding/branding.service.ts#preview`), so the preview can never show a logo the actual
  *  PDF wouldn't. */
-export function logoDataUriFor(
+export async function logoDataUriFor(
   companyId: string | null | undefined,
   logoId: string | null | undefined,
-): string | null {
-  const logo = readLogo(companyId, logoId);
+): Promise<string | null> {
+  const logo = await readLogo(companyId, logoId);
   if (!logo) return null;
   return `data:${logo.mime};base64,${logo.bytes.toString('base64')}`;
 }

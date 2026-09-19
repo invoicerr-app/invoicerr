@@ -1,13 +1,29 @@
 /**
  * The ONE place this module writes to the destination bucket (`BACKUP_S3_*`) — a cheap HEAD-based
- * size check `backup-runner.ts` builds its incremental diff on, then a PUT when one is actually
+ * size check `backup-runner.ts` builds its incremental diff on, then an upload when one is actually
  * needed. Mirrors `documents/archive/s3-storage.ts`'s own HEAD/PUT shape, but this module never needs
  * READ/DELETE against its OWN destination: a backup is written once and left alone — restoring from
- * it is an operator's own `aws s3 sync`/`mc mirror`, not a feature this codebase provides.
+ * it is an operator's own download + `backup-crypto-cli.ts decrypt` (see
+ * `documentation/docs/user-guide/backups.md`'s "Restoring" section), not a feature this application
+ * exposes over its own API.
+ *
+ * `upload()` never sends the plaintext: every artifact is piped through
+ * `createBackupEncryptStream()` (`backup-crypto.ts`) first, and through `@aws-sdk/lib-storage`'s
+ * `Upload` rather than a single `PutObjectCommand` — the multipart uploader that already ships with
+ * this SDK family, chosen over hand-rolling `CreateMultipartUpload`/`UploadPart`/`CompleteMultipartUpload`
+ * ourselves: it accepts a `Readable` of UNKNOWN total length (a `PutObjectCommand` body stream needs a
+ * `ContentLength` known up front, which an encrypted stream piped straight from disk/S3 does not have
+ * without buffering it first to measure it) and buffers only `partSize × queueSize` at a time (5 MiB ×
+ * 4 by default = ~20 MiB), never the whole artifact — the entire reason this module stopped reading
+ * each source file into one in-memory `Buffer` before uploading it.
  */
-import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import type { Readable } from 'node:stream';
+
+import { HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { Injectable } from '@nestjs/common';
 
+import { createBackupEncryptStream } from './backup-crypto';
 import { backupS3Bucket, backupS3Prefix } from './backup.constants';
 import { buildS3ClientFromEnv } from './s3-client';
 
@@ -64,9 +80,25 @@ export class BackupDestination {
     }
   }
 
-  async upload(key: string, bytes: Buffer): Promise<void> {
-    await this.getClient().send(
-      new PutObjectCommand({ Bucket: requireBucket(), Key: this.objectKey(key), Body: bytes }),
-    );
+  /**
+   * Encrypts `source` (see `backup-crypto.ts`'s own header for why `BACKUP_ENCRYPTION_KEY`, a key
+   * separate from `CREDENTIALS_ENCRYPTION_KEY`, and why a missing/invalid key throws HERE — before a
+   * single byte reaches the network — rather than uploading in the clear) and streams the result to
+   * the destination as a multipart upload. Never reads `source` or the ciphertext fully into memory:
+   * `createBackupEncryptStream()` only ever holds the one chunk it was just handed, and `Upload` only
+   * ever holds `partSize × queueSize` bytes (see this file's own header).
+   */
+  async upload(key: string, source: Readable): Promise<void> {
+    const encrypted = createBackupEncryptStream();
+    // `Readable#pipe` does NOT forward a source error to its destination — without this, a read
+    // error partway through the source file (disk I/O failure, a dropped S3 GetObject) would leave
+    // `Upload` waiting on a body stream that silently stalls instead of ever rejecting.
+    source.on('error', (err) => encrypted.destroy(err));
+
+    const upload = new Upload({
+      client: this.getClient(),
+      params: { Bucket: requireBucket(), Key: this.objectKey(key), Body: source.pipe(encrypted) },
+    });
+    await upload.done();
   }
 }

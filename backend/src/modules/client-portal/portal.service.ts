@@ -100,7 +100,7 @@ export class PortalService {
       clientId,
       clientName: client.name,
       companyName: company.name,
-      companyLogo: logoDataUriFor(companyId, company.brandingLogoId),
+      companyLogo: await logoDataUriFor(companyId, company.brandingLogoId),
     };
   }
 
