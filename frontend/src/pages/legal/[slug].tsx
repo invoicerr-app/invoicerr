@@ -9,8 +9,9 @@ import { useLegalDocuments } from "@/hooks/queries"
 import { LEGAL_CONTENT_CLASSNAME, LegalMarkdown } from "@/lib/legal-markdown"
 
 /**
- * Public `/legal/:slug` — one of the five documents `GET /api/legal/documents` serves (Terms of
- * Service, Privacy Policy, Data Processing Agreement, Legal Notice, Cookies & Acceptable Use).
+ * Public `/legal/:slug` — one of the six documents `GET /api/legal/documents` serves (Terms of
+ * Service, Privacy Policy, Data Processing Agreement, Legal Notice, Cookies & Acceptable Use,
+ * International Access Transparency).
  * Reachable with no session, on every instance (self-hosted included — this route never depends on
  * `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`, unlike the sign-up checkbox these same documents also
  * back). Shares `PublicPageShell` with the client portal and the signature page — the one frame every

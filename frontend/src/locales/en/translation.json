@@ -4957,7 +4957,8 @@
       "privacy": "Privacy",
       "dpa": "DPA",
       "legalNotice": "Legal notice",
-      "cookies": "Cookies"
+      "cookies": "Cookies",
+      "internationalAccess": "International access"
     },
     "document": {
       "notFound": "This document could not be found.",

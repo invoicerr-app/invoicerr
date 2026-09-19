@@ -6,6 +6,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { BillingBanner } from "@/components/billing-banner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LegalLinks } from "@/components/legal-links"
 import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onboarding"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
@@ -98,6 +99,21 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
                 <section className="h-full overflow-y-auto overflow-x-hidden">
                   <Outlet />
                 </section>
+                {/* Signed-in users had no route back to the terms they accepted (or any other legal
+                    document) once past the sign-in/sign-up screens — those are the only other place
+                    `<LegalLinks/>` renders. A thin, permanent line here (a flex sibling of `header`
+                    above, outside the scrolling section) beats a settings tab or an account-page
+                    entry: it never depends on a signed-in person thinking to go looking, it reaches
+                    every screen without an extra click, and — unlike a version tucked inside the
+                    Outlet's own scroll container above — it can never end up scrolled out of view
+                    with the page content. `overflow-hidden` on this row's own flex parent plus
+                    `min-h-0`/auto-shrink on the scrolling section above (its `overflow-y-auto`
+                    already gives it that) means adding this row shrinks the scrollable area by
+                    exactly its own height instead of pushing the app shell taller than the
+                    viewport — the same mechanism that already lets `header` coexist with it. */}
+                <footer className="shrink-0 border-t px-4 py-2">
+                  <LegalLinks />
+                </footer>
               </section>
             </main>
           </section>
