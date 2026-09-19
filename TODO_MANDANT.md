@@ -47,8 +47,14 @@ in its absence: everything is properly gated.
 
 ## 4. Administrative
 
-- [ ] **Open the PR to `main`** — the branch is ~870 commits ahead. No secret is required for the
-      PR CI to pass.
+- [ ] **PRIMARY — review and resolve the code-review and security threads on PR #401.** Two Opus
+      agents posted 126 inline threads (26 `[SECURITY][severity][SEC-NN]`, index in comment
+      `#issuecomment-5705237990`; 100 `[REVIEW][severity]`, index in `#issuecomment-5705289952`).
+      Every one of them has a reply naming the commit that fixed it, the proof, and what is left.
+      **Only you validate them**: 25 were resolved on your standing instruction (18 `[REVIEW][minor]`
+      and the 7 `[SECURITY][low]`); the other 101 are deliberately left open so you can read the
+      diff and resolve them yourself. Nothing should be merged into `main` before that pass.
+- [x] **Open the PR to `main`** — done: PR #401.
 
 ## 5. Small, no credentials needed
 
