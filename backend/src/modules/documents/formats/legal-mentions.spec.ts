@@ -65,6 +65,16 @@ describe.each([
   ['CII', ciiFormatProvider] as const,
   ['UBL', ublFormatProvider] as const,
 ])('legal mentions on a French invoice — %s, judged by the real vendored Schematron', (label, provider) => {
+  // Every `it` below that calls `provider.build` pays for a real XML generation plus a real run of
+  // the vendored EN 16931 Schematron (node-schematron, XSLT-based) — the same per-call cost
+  // `formats/providers.spec.ts`'s own sibling tests already budget 30_000ms for. Measured directly:
+  // on an otherwise-idle box the CII variant alone runs 2.4s-4.7s (the two-build "frozen at issue
+  // date" case, doing it twice, is the heaviest at ~4.7s); pinned to 2 cores with `--maxWorkers=2`
+  // (this repo's own CI figure — see vitest.config.ts's own comment on why) the same test measurably
+  // clears 5000ms, which is exactly the shape of the 2026-09 CI timeouts this budget exists to fix.
+  // 30_000 is not a tighter guess at "how long this really takes" — it is the existing headroom the
+  // rest of this test family already carries for identical work; this file simply never got it when
+  // it was written, unlike its siblings.
   it('carries the three mentions (PMT/PMD/AAB) and still validates — BR-CL-08 accepts the subject codes', async () => {
     const document = documentFor('2026-08-30');
     const result = await provider.build(descriptor, document, FRENCH_SELLER, BUYER);
@@ -87,7 +97,7 @@ describe.each([
     expect(xml).toContain('frais de recouvrement');
     expect(xml).toMatch(/40\s?€/);
     expect(xml).toContain('Escompte pour paiement anticipé');
-  });
+  }, 30_000);
 
   it('an invoice issued 2026-06-30 prints 12,15 % — an invoice issued 2026-07-02 prints 12,40 % (frozen at issue date)', async () => {
     const firstHalf = await provider.build(descriptor, documentFor('2026-06-30'), FRENCH_SELLER, BUYER);
@@ -103,7 +113,7 @@ describe.each([
 
     expect(firstHalf.validation.valid).toBe(true);
     expect(secondHalf.validation.valid).toBe(true);
-  });
+  }, 30_000);
 
   it('a seller in a country with no mentions file (Germany) gets none of the three codes — existing behaviour untouched', async () => {
     const result = await provider.build(descriptor, documentFor('2026-08-30'), GERMAN_SELLER, BUYER);
@@ -114,7 +124,7 @@ describe.each([
       expect(xml).not.toContain(`<ram:SubjectCode>${code}</ram:SubjectCode>`);
       expect(xml).not.toContain(`#${code}#`);
     }
-  });
+  }, 30_000);
 
   it('(point 2, reprised) the amounts in the mention-carrying document are still compute-totals’ own, never a re-sum', async () => {
     const data = dataFor('2026-08-30');
@@ -122,7 +132,7 @@ describe.each([
     const result = await provider.build(descriptor, documentFor('2026-08-30'), FRENCH_SELLER, BUYER);
     const xml = Buffer.from(result.bytes).toString('utf-8');
     expect(xml).toContain((totals.grossMinor / 100).toFixed(2));
-  });
+  }, 30_000);
 
   // REGRESSION — Peppol BIS rule R002: `peppol-post-process.ts#mergePeppolNotesInObject` collapses the three
   // mentions into ONE `cbc:Note`, but ONLY on the Peppol BIS bridge — see that file's own header,
@@ -145,7 +155,7 @@ describe.each([
     expect(xml).toContain('frais de recouvrement');
     expect(xml).toContain("l'an");
     expect(xml).toContain('Escompte pour paiement anticipé : néant');
-  });
+  }, 30_000);
 
   // THE MUTATION TARGET: an issue date before `lateFeeRate`'s own earliest catalog value used to mean
   // the XML shipped with the literal, un-interpolated "{lateFeeRate}" token baked into BT-22 — see

@@ -74,6 +74,14 @@ beforeEach(() => {
 });
 
 describe('resolveInvoiceCrossBorderTaxForCompany — Company.exemptVat actually reaches a domestic invoice', () => {
+  // Both tests below go on to build a real CII through `ciiFormatProvider.build` and judge it with
+  // the real vendored EN 16931 Schematron (this file's own header) — the same per-call cost
+  // `formats/providers.spec.ts`'s sibling tests already budget 30_000ms for. Measured directly: on an
+  // otherwise-idle box each runs 2.3s-3.0s; pinned to 2 cores with `--maxWorkers=2` (this repo's own
+  // CI figure) that measurably clears 5000ms — the 2026-09 CI timeout this budget exists to fix.
+  // 30_000 restores the headroom the rest of this test family already has; this file simply never got
+  // it when it was written. The two multi-tenancy tests further down never call the format provider,
+  // so the default budget is left untouched for them.
   it('exemptVat: true → the resolved data is 0%, category E, art. 293 B mention (never the engine called directly)', async () => {
     mockedPrisma.company.findUnique.mockResolvedValue(frCompanyRow(true));
     mockedPrisma.client.findFirst.mockResolvedValue(frClientRow());
@@ -107,7 +115,7 @@ describe('resolveInvoiceCrossBorderTaxForCompany — Company.exemptVat actually 
     // Totals actually reflect 0% VAT, not the originally-typed 20%.
     expect(xml).toMatch(/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/);
     expect(xml).toMatch(/<ram:GrandTotalAmount>1000\.00<\/ram:GrandTotalAmount>/);
-  });
+  }, 30_000);
 
   it('exemptVat: false (the ordinary case) — same object reference, standard 20% rate, NO exemption mention anywhere', async () => {
     mockedPrisma.company.findUnique.mockResolvedValue(frCompanyRow(false));
@@ -132,7 +140,7 @@ describe('resolveInvoiceCrossBorderTaxForCompany — Company.exemptVat actually 
     const xml = Buffer.from(build.bytes).toString('utf-8');
     expect(xml).toMatch(/<ram:RateApplicablePercent>20<\/ram:RateApplicablePercent>/);
     expect(xml).not.toContain('293 B');
-  });
+  }, 30_000);
 });
 
 /**

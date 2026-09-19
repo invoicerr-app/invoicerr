@@ -106,12 +106,27 @@ function renderScreen() {
   )
 }
 
+/** `findBy*`'s own default (1000ms) is tight for this specific query, not because anything here
+ *  waits on a real timer or an unresolved request — `requestOtp` flips `otpModalOpen` synchronously,
+ *  BEFORE the OTP POST even fires (see that handler's own comment in the component), and Radix's
+ *  `Presence` mounts the dialog via `useLayoutEffect`, not an animation-frame callback, so there is
+ *  no genuine async gate between the click and this input existing. What IS real is the synchronous
+ *  render/commit cost of the whole page this dialog lives on (this section plus
+ *  `TransferCompanySection` and `InstanceResetSection`, each with their own i18n interpolation and
+ *  Tailwind `cn()` merges) — CPU-bound work whose wall-clock cost scales with host contention, not
+ *  with anything this test could await instead. Reproduced locally by pinning the test runner to 2
+ *  cores and loading them with `yes`: click-to-input-visible grew from ~3ms idle to ~980ms under
+ *  contention, i.e. genuinely on the edge of the default budget on a busy shared CI runner. Widening
+ *  the wait (never the assertion) is the correct fix for that; `instance-reset.section.spec.tsx`
+ *  carries the identical comment for its own sibling case. */
+const DIALOG_MOUNT_TIMEOUT_MS = 5000
+
 /** Opens the OTP modal for the "reset company data" action and fills both fields the confirm button
  *  requires — the fixed `RESET` keyword ("delete company" instead asks for the company's own name,
  *  unrelated to what this file tests). */
 async function openResetModalAndFillForm() {
   fireEvent.click(await screen.findByTestId("danger-reset-company-data-button"))
-  await screen.findByTestId("danger-otp-input")
+  await screen.findByTestId("danger-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })
   fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "12345678" } })
   fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "RESET" } })
 }
@@ -237,7 +252,7 @@ describe("<DangerZoneSettings> — delete company: OTP + company name transport"
 
     renderScreen()
     fireEvent.click(await screen.findByTestId("danger-delete-company-button"))
-    await screen.findByTestId("danger-otp-input")
+    await screen.findByTestId("danger-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })
     fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "87654321" } })
     // The company's own name (from the session, "Acme Corp") is the confirmation keyword here —
     // see `confirmKeyword`'s own comment in the component for why it differs from the fixed "RESET"
@@ -256,7 +271,7 @@ describe("<DangerZoneSettings> — delete company: OTP + company name transport"
 
     renderScreen()
     fireEvent.click(await screen.findByTestId("danger-delete-company-button"))
-    await screen.findByTestId("danger-otp-input")
+    await screen.findByTestId("danger-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })
     fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "87654321" } })
     fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "not the name" } })
 
@@ -274,7 +289,7 @@ describe("<DangerZoneSettings> — delete company: OTP + company name transport"
 
     renderScreen()
     fireEvent.click(await screen.findByTestId("danger-delete-company-button"))
-    await screen.findByTestId("danger-otp-input")
+    await screen.findByTestId("danger-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })
     fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "87654321" } })
     fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "Acme Corp" } })
     fireEvent.click(screen.getByTestId("danger-modal-confirm"))
@@ -293,7 +308,7 @@ describe("<DangerZoneSettings> — delete company: OTP + company name transport"
 
     renderScreen()
     fireEvent.click(await screen.findByTestId("danger-delete-company-button"))
-    await screen.findByTestId("danger-otp-input")
+    await screen.findByTestId("danger-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })
     fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "87654321" } })
     fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "Acme Corp" } })
     fireEvent.click(screen.getByTestId("danger-modal-confirm"))

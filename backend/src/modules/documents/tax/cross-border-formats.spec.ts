@@ -56,6 +56,13 @@ const DE_BUYER_B2C: DocumentFormatParty = {
   partyIdentifiers: [],
 };
 
+// Every `it` in this file resolves cross-border tax AND then runs a real CII build through the
+// vendored EN 16931 Schematron (this file's own header) — the same per-call cost
+// `formats/providers.spec.ts`'s sibling tests already budget 30_000ms for. Measured directly: on an
+// otherwise-idle box each of these runs 2.0s-2.9s; pinned to 2 cores with `--maxWorkers=2` (this
+// repo's own CI figure) that measurably clears 5000ms — the 2026-09 CI timeout this budget exists to
+// fix. 30_000 restores the headroom the rest of this test family already has; this file simply never
+// got it when it was written.
 describe('FR→DE B2B, valid VAT: reverse charge, judged by real EN 16931 Schematron', () => {
   it('the downloaded CII carries 0%, category AE, and the art. 196 mention in BG-1', async () => {
     const rawData = {
@@ -98,7 +105,7 @@ describe('FR→DE B2B, valid VAT: reverse charge, judged by real EN 16931 Schema
     // Totals actually reflect the resolved 0% treatment, not the originally-typed 20%.
     expect(xml).toMatch(/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/);
     expect(xml).toMatch(/<ram:GrandTotalAmount>12000\.00<\/ram:GrandTotalAmount>/);
-  });
+  }, 30_000);
 });
 
 // The OSS branch — FR→DE B2C GOODS used to be a hard,
@@ -156,7 +163,7 @@ describe('FR→DE B2C GOODS: OSS charges DE’s real standard rate, judged by re
     // (which would have been 200.00 tax / 1200.00 total) and never a block.
     expect(xml).toMatch(/<ram:TaxTotalAmount currencyID="EUR">190\.00<\/ram:TaxTotalAmount>/);
     expect(xml).toMatch(/<ram:GrandTotalAmount>1190\.00<\/ram:GrandTotalAmount>/);
-  });
+  }, 30_000);
 });
 
 describe('FR→US B2B export of goods: category G, judged by real EN 16931 Schematron', () => {
@@ -196,7 +203,7 @@ describe('FR→US B2B export of goods: category G, judged by real EN 16931 Schem
     expect(xml).toContain('Export — zero-rated, Art. 146 Directive 2006/112/EC');
     expect(xml).toMatch(/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/);
     expect(xml).toMatch(/<ram:GrandTotalAmount>1000\.00<\/ram:GrandTotalAmount>/);
-  });
+  }, 30_000);
 });
 
 describe('a pure-domestic FR send is untouched by any of this', () => {
@@ -222,5 +229,5 @@ describe('a pure-domestic FR send is untouched by any of this', () => {
     const xml = Buffer.from(result.bytes).toString('utf-8');
     expect(xml).toMatch(/<ram:CategoryCode>S<\/ram:CategoryCode>/);
     expect(xml).toMatch(/<ram:RateApplicablePercent>20<\/ram:RateApplicablePercent>/);
-  });
+  }, 30_000);
 });

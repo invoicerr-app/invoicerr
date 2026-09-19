@@ -87,6 +87,14 @@ const EXPECTED_LINES = [
 ];
 
 describe('received-invoices/extraction — proven against OUR OWN outbound artifacts', () => {
+  // The three tests below build a real CII/UBL artifact through the REAL vendored EN 16931
+  // Schematron (this file's own header) before ever getting to extraction — the same per-call cost
+  // `formats/providers.spec.ts`'s sibling tests already budget 30_000ms for (the heavier Factur-X
+  // round-trip further down already carries its own, larger 60_000 budget with its own measurement
+  // comment). Measured directly: on an otherwise-idle box the CII-backed ones run 3.5s-3.8s; pinned
+  // to 2 cores with `--maxWorkers=2` (this repo's own CI figure) that measurably clears 5000ms — the
+  // 2026-09 CI timeout this budget exists to fix. 30_000 restores the headroom the rest of this test
+  // family already has; this file simply never got it for these three when it was written.
   it('CII: every field extracted matches the hand-computed fixture exactly', async () => {
     const built = await ciiFormatProvider.build(descriptor, DOCUMENT, SELLER, BUYER);
     expect(built.validation.valid).toBe(true); // sanity: this IS a real, EN 16931-valid CII document
@@ -112,7 +120,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       grossAmount: 16320,
       lines: EXPECTED_LINES,
     });
-  });
+  }, 30_000);
 
   it('UBL: every field extracted matches the hand-computed fixture exactly', async () => {
     const built = await ublFormatProvider.build(descriptor, DOCUMENT, SELLER, BUYER);
@@ -140,7 +148,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       grossAmount: 16320,
       lines: EXPECTED_LINES,
     });
-  });
+  }, 30_000);
 
   it('mime/dialect detection also works from a .xml filename alone (no explicit XML mime)', async () => {
     const built = await ciiFormatProvider.build(descriptor, DOCUMENT, SELLER, BUYER);
@@ -154,7 +162,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
 
     expect(result.syntax).toBe('CII');
     expect(result.fields.supplierNumber).toBe('INV-2026-0001');
-  });
+  }, 30_000);
 
   describe('Factur-X — the embedded CII is found and extracted out of a real PDF/A-3', () => {
     async function fakeRealPdf(): Promise<Buffer> {

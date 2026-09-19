@@ -57,9 +57,16 @@ function renderSection() {
   )
 }
 
+/** Same reasoning as `danger.settings.spec.tsx`'s own comment on this constant: `openModal` flips
+ *  `otpModalOpen` synchronously, before the OTP POST even fires, and Radix mounts the dialog via
+ *  `useLayoutEffect` — nothing here actually waits on a timer or an unresolved request. The default
+ *  `findBy*` budget (1000ms) is just tight for the synchronous render/commit cost of this page under
+ *  CPU contention (a loaded shared CI runner), reproduced locally the same way. */
+const DIALOG_MOUNT_TIMEOUT_MS = 5000
+
 async function openModalAndFillForm() {
   fireEvent.click(await screen.findByTestId("instance-reset-button"))
-  await screen.findByTestId("instance-reset-otp-input")
+  await screen.findByTestId("instance-reset-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })
   fireEvent.change(screen.getByTestId("instance-reset-otp-input"), { target: { value: "12345678" } })
   fireEvent.change(screen.getByTestId("instance-reset-confirm-input"), {
     target: { value: "RESET INSTANCE" },
@@ -132,7 +139,7 @@ describe("<InstanceResetSection>", () => {
 
     renderSection()
     fireEvent.click(await screen.findByTestId("instance-reset-button"))
-    await screen.findByTestId("instance-reset-otp-input")
+    await screen.findByTestId("instance-reset-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })
     fireEvent.change(screen.getByTestId("instance-reset-otp-input"), { target: { value: "12345678" } })
     fireEvent.change(screen.getByTestId("instance-reset-confirm-input"), { target: { value: "RESET" } })
 
