@@ -153,7 +153,7 @@ export function ReferenceField({ field, name }: FieldRendererProps) {
               footerAction={
                 QuickCreateComponent
                   ? {
-                      label: t("documents.form.reference.createNew", "+ Create new {{label}}", {
+                      label: t("documents.form.reference.createNew", "Create new {{label}}", {
                         label: field.label,
                       }),
                       onClick: () => setQuickCreateOpen(true),

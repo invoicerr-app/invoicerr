@@ -4509,7 +4509,7 @@
       "reference": {
         "searchPlaceholder": "Search...",
         "noResults": "No matches",
-        "createNew": "+ Create new {{label}}"
+        "createNew": "Create new {{label}}"
       },
       "array": {
         "addRow": "Add row",
