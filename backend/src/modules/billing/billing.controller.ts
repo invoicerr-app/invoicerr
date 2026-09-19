@@ -18,6 +18,7 @@ import { BadRequestException, Body, ConflictException, Controller, Get, Post, Pu
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { LegalGateExempt } from '@/legal/legal-gate-exempt.decorator';
 import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
@@ -97,6 +98,9 @@ export class BillingController {
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('billing:write')
   @BillingGateExempt()
+  // Deliberately carries NO `@LegalGateExempt()`: starting or renewing a paid subscription grows the
+  // relationship rather than ending it, so a pending re-acceptance gates it exactly like any other
+  // write — unlike `openPortal`/`openLegacyPortal` below, this is not part of the termination path.
   @ApiOperation({
     summary: 'Start a Polar checkout session for the active company',
     description:
@@ -142,6 +146,12 @@ export class BillingController {
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('billing:write')
   @BillingGateExempt()
+  // This IS the in-product cancellation flow the Terms commit to keeping open (Polar's own portal is
+  // where "cancel at any time" actually happens) — an OWNER/ADMIN with a pending legal re-acceptance
+  // must still be able to reach it. `@BillingGateExempt()` above answers a DIFFERENT guard (a
+  // BLOCKED/ZIPPED subscription); this one answers `LegalAcceptanceGuard`, and both are needed for the
+  // same reason each exists at all: the one way out of a state must not be the state's own hostage.
+  @LegalGateExempt()
   @ApiOperation({
     summary: "Open a Polar customer-portal session under THIS COMPANY's own billing identity",
     description:
@@ -180,6 +190,8 @@ export class BillingController {
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('billing:write')
   @BillingGateExempt()
+  // Same reasoning as `openPortal` above — this is the legacy half of the same cancellation flow.
+  @LegalGateExempt()
   @ApiOperation({
     summary: "Open a Polar customer-portal session for the CALLING user's own PRE-MIGRATION customer",
     description:

@@ -5,6 +5,7 @@ import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { LegalGateExempt } from '@/legal/legal-gate-exempt.decorator';
 import { Roles } from '@/decorators/roles.decorator';
 
 interface OtpConfirmationBody {
@@ -23,6 +24,11 @@ export class DangerController {
   constructor(private readonly dangerService: DangerService) {}
 
   @Post('otp')
+  // Shared prerequisite for BOTH actions below: minting it is never itself destructive, and refusing
+  // it to a caller with a pending re-acceptance would only ever block `deleteCompany` indirectly —
+  // `resetCompanyData` stays refused at its OWN route regardless of an OTP the caller holds, since that
+  // route carries no exemption of its own (see its comment).
+  @LegalGateExempt()
   @ApiOperation({
     summary: 'Request OTP for dangerous actions',
     description: 'Sends a one-time passcode to the user email to authorize destructive operations.',
@@ -64,6 +70,9 @@ export class DangerController {
   })
   @ApiResponse({ status: 201, description: 'Company data reset' })
   @ApiResponse({ status: 409, description: 'Refused — a document is still under legal retention' })
+  // Deliberately carries NO `@LegalGateExempt()`: this wipes company data while the subscription and
+  // the relationship both CONTINUE — it is not a way to leave, it is an ordinary destructive write, and
+  // a pending re-acceptance gates it exactly like any other write that changes what the account holds.
   async resetCompanyData(
     @User() user: CurrentUser,
     @ActiveCompany() companyId: string,
@@ -97,6 +106,11 @@ export class DangerController {
     },
   })
   @ApiResponse({ status: 201, description: 'Company deleted' })
+  // The termination path itself: an OWNER who has not accepted an updated legal document must still
+  // be able to end the relationship rather than being forced to agree in order to leave — see
+  // `legal-acceptance.guard.ts`'s own header for the write-gate/termination split this decorator
+  // belongs to.
+  @LegalGateExempt()
   async deleteCompany(
     @User() user: CurrentUser,
     @ActiveCompany() companyId: string,

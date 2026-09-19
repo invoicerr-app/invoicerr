@@ -7,6 +7,7 @@ import { CompaniesService } from './companies.service';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CurrentUser } from '@/types/user';
 import { EditCompanyDto } from '@/modules/company/dto/company.dto';
+import { LegalGateExempt } from '@/legal/legal-gate-exempt.decorator';
 import { RequestWithUser } from '@/types/request';
 import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
@@ -45,6 +46,11 @@ export class CompaniesController {
 
   @Delete('leave')
   @RequiresScope('company:write')
+  // A member with a pending legal re-acceptance has exactly one self-service way to end their
+  // relationship with THIS company (the OWNER-only company-deletion path in `danger.controller.ts` is
+  // closed to them by role, never by this check) — refusing it until they accept terms they are
+  // trying to walk away from would turn "you must agree or leave" into "you must agree, full stop".
+  @LegalGateExempt()
   @ApiOperation({
     summary: 'Leave the active company',
     description:
@@ -91,6 +97,13 @@ export class CompaniesController {
   @Post('export')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('company:write')
+  // A POST by HTTP method, but the one write this route performs (bumping the cooldown timestamp
+  // `claimExportSlot` reads — `companies.service.ts`) is incidental bookkeeping for what the route
+  // fundamentally IS: reading the company's own data back out. `LegalAcceptanceGuard` withholds writes
+  // that change what the account holds, never the ability to get a copy of it — this is the one export
+  // mechanism the product offers (the same archive the billing lifecycle sweep already mails
+  // automatically), so a pending re-acceptance must never be the reason a caller cannot retrieve it.
+  @LegalGateExempt()
   @ApiOperation({
     summary: 'Export everything the active company holds',
     description:

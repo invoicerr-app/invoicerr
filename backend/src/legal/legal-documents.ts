@@ -1,5 +1,5 @@
 /**
- * Loads and parses the five legal documents this repo ships (`documentation/docs/legal/*.md`,
+ * Loads and parses the six legal documents this repo ships (`documentation/docs/legal/*.md`,
  * mirrored — see `scripts/sync-legal-docs.ts` and `docs-sync.spec.ts` — onto `./data/*.md`, embedded
  * into the API at build time via `nest-cli.json`'s `**\/*.md` asset rule). Framework-agnostic: no
  * Prisma, no Nest — `legal.service.ts` (HTTP) and `legal-acceptance.ts` (called from both Nest and
@@ -66,8 +66,9 @@ export interface LegalDocument {
 
 /**
  * The two documents the sign-up checkbox ("I accept the Terms of Service and the Privacy Policy")
- * and the sign-in re-acceptance interstitial track. The other three (Data Processing Agreement,
- * Legal Notice, Cookies & Acceptable Use) are reference material — reachable at
+ * and the sign-in re-acceptance interstitial track. The other four (Data Processing Agreement,
+ * Legal Notice, Cookies & Acceptable Use, International Access Transparency) are reference material —
+ * reachable at
  * `GET /api/legal/documents` like every document, but accepting them is never required: nothing in
  * the product asks a User to tick a DPA or a legal notice, the same way `terms-of-service.md`'s own
  * Section 9.1 treats the DPA's subject-matter as something the Terms already fold in for the

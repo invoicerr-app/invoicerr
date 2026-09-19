@@ -101,4 +101,28 @@ describe('LegalAcceptanceGuard', () => {
       guard.canActivate(buildContext({ method: 'DELETE', userId: 'api-key-user' })),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it(
+    'the refusal names the actual document title (never the raw slug), and states that reading, ' +
+      'exporting and leaving/closing the account all remain available — this is a write gate, not a ' +
+      'lockout, and the response has to say so for itself',
+    async () => {
+      getPending.mockResolvedValue(['terms-of-service']);
+      const guard = new LegalAcceptanceGuard(fakeReflector());
+
+      const action = guard.canActivate(buildContext({ method: 'POST', userId: 'user-1' }));
+      const error = await action.catch((e) => e);
+      const body = error.getResponse();
+
+      expect(body).toMatchObject({
+        code: LEGAL_ACCEPTANCE_REQUIRED_CODE,
+        pending: ['terms-of-service'],
+        readOnly: true,
+      });
+      expect(body.message).toContain('Terms of Service');
+      expect(body.message).not.toContain('terms-of-service');
+      expect(body.message.toLowerCase()).toContain('export');
+      expect(body.message.toLowerCase()).toContain('close your account');
+    },
+  );
 });
