@@ -1,0 +1,156 @@
+/** What an action implementation receives and must return. */
+export interface ActionContext {
+  companyId: string;
+  typeId: string;
+  /** Absent for an action that creates a new record (e.g. the first "save draft"). */
+  documentId?: string;
+  data: Record<string, unknown>;
+  /**
+   * The action's OWN inputs, already validated against its descriptor's `params` (see
+   * DocumentActionDescriptor.params) — always an object, empty when the action declares no params
+   * or the caller sent none. A distinct namespace from `data`: `data` is the document's own field
+   * values, `params` is this one operation's arguments (e.g. "send"'s `recipient`).
+   */
+  params: Record<string, unknown>;
+  /**
+   * The record's status BEFORE this action runs — undefined for a never-saved record (no
+   * `documentId`), the same "absent means never saved" convention `documentId` itself already
+   * holds. `documents.service.ts#runAction` already reads this row to gate `availableWhen`/the
+   * country policy's own per-status narrowing; handed to the handler too rather than re-fetched a
+   * second time — the `invoice.save-draft` guard is the first handler that
+   * actually needs it (deciding whether THIS call is a genuine draft edit or a re-edit of an
+   * already-issued record, see invoice-actions.ts's own comment), every other handler is free to
+   * keep ignoring it exactly as before.
+   */
+  currentStatus?: string;
+}
+
+export interface DocumentInstanceResult {
+  id: string;
+  typeId: string;
+  status: string;
+  data: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+  /** See `DocumentInstance`'s own schema comment and numbering/ — null until this type's own
+   *  declared `numbering.onEnterStatus` is first reached (or forever, for a type that never declares
+   *  `numbering` at all), never cleared or reassigned afterward. */
+  number?: number | null;
+  displayNumber?: string | null;
+  /** See `DocumentInstance.atcud`'s own schema comment — Portugal's ATCUD, frozen the same moment
+   *  `displayNumber` above is (`actions/atcud-issuance.ts`). Null/undefined for every document that is
+   *  not a numbered Portuguese invoice, exactly like `displayNumber` itself is absent before numbering. */
+  atcud?: string | null;
+  /** See `DocumentInstance.lastActionError`'s own schema comment — the error from the most recent
+   *  FAILED asynchronous action (queue/mark-send-failed.ts), or null/undefined once cleared by any
+   *  later write. Absent from a result that never re-reads this column (most action handlers don't
+   *  need to) — never assume its absence means "no error", only that this particular result didn't
+   *  carry it. */
+  lastActionError?: string | null;
+  /** See `DocumentInstance.transportRef`'s own schema comment — the identifier a TRANSPORT handed
+   *  back on successful delivery (e.g. a PDP deposit id), or null/undefined for a document no
+   *  transport has ever reported one for. Same "absent ≠ no reference, only that this result didn't
+   *  carry it" convention `lastActionError` above already holds. */
+  transportRef?: string | null;
+  /** See `DocumentInstance.channelProviderId`'s own schema comment — the transport ("ksef"/"pdp"/…)
+   *  that ACTUALLY delivered this document, or null/undefined for one email delivered (no concept of
+   *  a channel) or never sent at all. Read by `formats/national/fa3-kor.ts` to tell "sent through KSeF
+   *  but not yet CLEARED" (refuse — see that file's own header) apart from "genuinely never went
+   *  through KSeF at all" (the corrected invoice's own KOR falls back to the FA(3) schema's own
+   *  `NrKSeFN` marker, per art. 106j ust. 2 pkt 2a's own exception for exactly this case) — the same
+   *  "absent ≠ unset, only that this result didn't carry it" convention `transportRef` above holds. */
+  channelProviderId?: string | null;
+  /** See `DocumentInstance.deliveryConfirmedAt`'s own schema comment — non-null means `deliver()`
+   *  (`actions/async-send.ts`) already genuinely succeeded for this document's current "sending"
+   *  episode, durably, across processes. Same "absent ≠ unset, only that this result didn't carry it"
+   *  convention `transportRef`/`channelProviderId` above already hold. */
+  deliveryConfirmedAt?: Date | null;
+}
+
+/**
+ * What running an action hands back to the frontend — deliberately generic so a handler never has
+ * to lie about a document it didn't touch, and the frontend never has to guess what happened:
+ *  - `document`: the instance in its state after the action ran. Undefined for an action that has
+ *    no document effect at all (every core action today sets one, but the shape doesn't assume it).
+ *  - `changed`: whether the frontend's cached view (the list, the currently-open record) is now
+ *    stale and should be refetched/reloaded.
+ *  - `message`: an optional human-facing outcome string — plain data, the same convention as
+ *    DocumentTypeDescriptor.label (not an i18n key); the frontend shows it as-is, falling back to a
+ *    generic translated message when absent.
+ */
+export interface ActionResult {
+  document?: DocumentInstanceResult;
+  changed: boolean;
+  message?: string;
+  /**
+   * The `DocumentPayment` this call just inserted, when it inserted one — set only by
+   * "record-payment" (`invoice-actions.ts`), undefined for every other action. Exists so a caller that
+   * needs to know EXACTLY which payment resulted never has to guess: before this field existed,
+   * `bank-reconciliation.service.ts#reconcileLine` and `payment-sessions.service.ts#handleWebhookEvent`
+   * each worked it out by diffing `listPayments`/`getSettlement` before and after the call and taking
+   * the row that was new — safe for one call in isolation, but NOT atomic against a second call
+   * crediting the SAME invoice at (or near) the same time: two bank-statement lines, or a webhook
+   * delivery racing a hand-entered payment, could each pick up the OTHER's new row. The money was
+   * always right either way (each call posts its own amount) — what could silently corrupt was the
+   * audit trail of which source produced which payment. The handler already holds this id the moment
+   * `settlement/payments.ts#recordPayment` returns; handing it back here removes the guess entirely.
+   */
+  createdPaymentId?: string;
+}
+
+export type ActionHandler = (ctx: ActionContext) => Promise<ActionResult>;
+
+/**
+ * Computes DEFAULT VALUES for an action's own `params`, given the current document context — e.g.
+ * "send" pre-filling `recipient` from the quote's `client` field. Optional and separate from
+ * `ActionHandler`: an action can be fully usable with no defaults resolver at all (the user just
+ * types the parameter in), the same way `params` itself is optional.
+ */
+export type ActionParamsDefaultsResolver = (ctx: ActionContext) => Promise<Record<string, unknown>>;
+
+/**
+ * Registry mapping (typeId, actionId) -> implementation. This is deliberately separate from
+ * DocumentTypeRegistry: a descriptor DECLARES an action (id, label, when it is offered, its params);
+ * this registry is where CODE gets attached to that id — both the handler that actually runs it, and
+ * optionally a resolver that pre-fills its params. An action can be declared with no implementation
+ * registered at all — DocumentsService.runAction treats that as "blocked, and says so" (501), never
+ * as a silent no-op. That is the intended state for "convert-to-invoice" until an invoicing pipeline
+ * exists to back it (see quote.descriptor.ts).
+ */
+export class ActionRegistry {
+  private readonly handlers = new Map<string, ActionHandler>();
+  private readonly paramsDefaultsResolvers = new Map<string, ActionParamsDefaultsResolver>();
+
+  private key(typeId: string, actionId: string): string {
+    return `${typeId}::${actionId}`;
+  }
+
+  register(typeId: string, actionId: string, handler: ActionHandler): void {
+    const key = this.key(typeId, actionId);
+    if (this.handlers.has(key)) {
+      throw new Error(`Action "${actionId}" is already registered for document type "${typeId}".`);
+    }
+    this.handlers.set(key, handler);
+  }
+
+  /** Undefined means "declared but not implemented" — never thrown, the caller decides what that means. */
+  resolve(typeId: string, actionId: string): ActionHandler | undefined {
+    return this.handlers.get(this.key(typeId, actionId));
+  }
+
+  registerParamsDefaults(typeId: string, actionId: string, resolver: ActionParamsDefaultsResolver): void {
+    const key = this.key(typeId, actionId);
+    if (this.paramsDefaultsResolvers.has(key)) {
+      throw new Error(
+        `Params-defaults resolver for "${actionId}" is already registered for type "${typeId}".`,
+      );
+    }
+    this.paramsDefaultsResolvers.set(key, resolver);
+  }
+
+  /** Undefined means "no defaults resolver registered" — a perfectly normal state, not an error: the
+   *  action's params form just opens empty. */
+  resolveParamsDefaults(typeId: string, actionId: string): ActionParamsDefaultsResolver | undefined {
+    return this.paramsDefaultsResolvers.get(this.key(typeId, actionId));
+  }
+}

@@ -1,11 +1,316 @@
-name: Cypress Tests
+name: Tests
 
+# `pull_request` alone means a long-lived branch that opens no PR -- this repository's own
+# feat/compliance-engine-v2 ran 860 commits that way -- gets NO lint, NO i18n check, NO backend
+# suite, NO queue integration and NO Cypress run. A suite that never runs is a suite everyone
+# believes is green. The `push` trigger below is deliberately unfiltered, unlike scenarios.yml's:
+# these jobs guard the whole tree, not one catalog, so there is no subset of paths that can break
+# them and no subset that cannot.
+# A branch under review is tested once, by its `pull_request` run — a bare `push:` trigger used to
+# start the exact same hour of Cypress a second time for every commit pushed to that branch. The
+# `push:` trigger is kept only for the long-lived branches, which have no PR of their own.
 on:
   pull_request:
+  push:
+    branches: [main, dev]
+
+# None of the seven jobs below pushes a package, comments on a PR, or otherwise calls the GitHub API
+# for anything beyond the checkout every job already does — `actions/upload-artifact`/`actions/cache`
+# authenticate through their own runtime token, not GITHUB_TOKEN permissions, so this is the whole ask.
+permissions:
+  contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Biome is the only linter/formatter (eslint+prettier removed). biome ci = check without writes.
+      - name: Lint backend (biome ci)
+        run: cd backend && npx --yes @biomejs/biome@2.5.2 ci .
+
+      - name: Lint frontend (biome ci)
+        run: cd frontend && npx --yes @biomejs/biome@2.5.2 ci .
+
+      # The frontend unit tests (vitest + testing-library) ride along in this job rather than
+      # claiming a runner of their own: they take seconds, and this is already the "static checks on
+      # both projects" job. `npm ci` is needed here — the biome steps above deliberately use npx and
+      # install nothing, but vitest and jsdom have to come from the lockfile.
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Run frontend unit tests (vitest)
+        run: cd frontend && npm test
+
+  i18n-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check i18n catalogs (used keys must exist in EN)
+        run: node frontend/scripts/i18n-check.mjs
+
+      # Same guard, same algorithm (backend/scripts/i18n-check.mjs is a parameterized copy of the
+      # frontend's own script — see that file's own header for why a copy and not a shared import),
+      # pointed at the mail catalog (`src/mail/locales/*/mails.json`) instead of the frontend's
+      # `translation.json`. No `npm ci` needed: the script only uses Node's own `fs`/`path`/`url`.
+      - name: Check backend mail i18n catalogs (used keys must exist in EN)
+        run: node backend/scripts/i18n-check.mjs
+
+  # The e2e project was never typechecked by anything: no script, no CI step, and `tsc --noEmit`
+  # could not even run to completion (71 errors, all of them specs colliding in one global scope --
+  # see e2e/tsconfig.json's own comment). A type error in a Cypress spec was therefore only ever
+  # found by running that spec. This job is cheap and needs no stack at all.
+  e2e-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install e2e dependencies
+        run: cd e2e && npm ci
+
+      - name: Typecheck the Cypress specs
+        run: cd e2e && npm run typecheck
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    # This job used to run with no database at all, on the assumption that `npm test` is a unit
+    # suite. It is not, entirely: 13 spec files -- received-invoices, supplier reconciliation, the
+    # client and company services, the identifier-pattern guards, the Portuguese AT provider, and
+    # others -- reach a REAL Prisma connection, and several say so in their own headers
+    # ("real Prisma for the Client/PartyIdentifier side"). They passed on every developer machine
+    # because a database happens to be running there, and could only ever have failed here. The
+    # first run of this workflow on a branch proved it: 13 suites, 58 tests, every one of them a
+    # PrismaClientKnownRequestError rather than an assertion.
+    #
+    # So the job gets the database those specs actually need -- the same Postgres service, the same
+    # `migrate deploy` and `db seed` its sibling `queue-integration` already provisions for the same
+    # reason. The alternative, gating each spec on a reachable database, would make them skip in CI:
+    # green, and proving nothing, which is the failure mode this repository already refuses for the
+    # live-gated channel specs.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoicerr_test?schema=public
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoicerr_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        # 22, not 20, and that floor is the test runner's own: vitest 5 declares
+        # `engines: ^22.12.0 || ^24.0.0 || >=26.0.0`, so it refuses to start on 20. The backend
+        # RUNTIME is fine on 20 (NestJS 12 asks for 20.19+), which is why the other jobs here still
+        # run 20 and why cypress-run, which boots the real server, was unaffected — only the two jobs
+        # that invoke vitest need this. 22 also happens to be the Node the production image ships
+        # (`node:22-bullseye`), so these two now test on the version the product actually runs.
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        # PDF rendering runs on `playwright-core`, which — unlike the `puppeteer` it replaced —
+        # bundles no browser and downloads nothing on install, so there is no multi-hundred-MB fetch
+        # to skip here any more. `render-pdf.spec.ts` does exercise the module in this job, but only
+        # against its jest manual mock (src/__mocks__/playwright-core.ts) — no real Chromium is ever
+        # launched here, so unlike `cypress-run` below, this job needs no browser-provisioning step of
+        # its own. `cypress-run` (and `scenarios.yml`'s job) DO render real PDFs — the e2e/scenario
+        # specs actually send a document — and provision a matched Chromium explicitly
+        # (`npx playwright-core install chromium`) before booting the backend; see that job's own step.
+        run: cd backend && npm ci
+
+      - name: Generate Prisma client
+        run: cd backend && npx prisma generate
+
+      # The schema the DB-touching specs above expect. `migrate deploy` never runs the seed hook, and
+      # the country-policy table being empty makes every document action 403 -- the same gotcha
+      # `queue-integration` and `scenarios.yml` both already document at their own seed step.
+      - name: Apply migrations and seed reference data
+        run: cd backend && npx prisma migrate deploy && npx prisma db seed
+
+      # Vitest is the sole runner now (the Jest -> Vitest migration that used to split this into two
+      # steps -- one runner each, coordinated by `vitest-migrated.json` -- is over; every spec
+      # converted, Jest removed). `--maxWorkers=2`, overriding package.json's/vitest.config.ts's own
+      # 4: that figure suits a developer machine with cores to spare; a GitHub runner has far fewer,
+      # so four workers contend for them and every CPU-bound test slows down together. Measured on
+      # this very job (Jest, pre-Vitest): the whole suite took 458s here against 102s locally -- 4.5x
+      # -- and `extraction.spec.ts`, which builds a real Factur-X PDF and runs the full EN 16931
+      # Schematron over it, blew a 30s per-test budget it clears in 4s locally. Fewer workers each
+      # getting a real core is the fix; raising that test's timeout again would only have moved the
+      # next failure somewhere else.
+      - name: Run backend tests (Vitest)
+        run: cd backend && npx vitest run --maxWorkers=2
+
+  queue-integration:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoicerr_test?schema=public
+      REDIS_URL: redis://localhost:6379
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoicerr_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - "8025:8025"
+          - "1025:1025"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        # 22, not 20, and that floor is the test runner's own: vitest 5 declares
+        # `engines: ^22.12.0 || ^24.0.0 || >=26.0.0`, so it refuses to start on 20. The backend
+        # RUNTIME is fine on 20 (NestJS 12 asks for 20.19+), which is why the other jobs here still
+        # run 20 and why cypress-run, which boots the real server, was unaffected — only the two jobs
+        # that invoke vitest need this. 22 also happens to be the Node the production image ships
+        # (`node:22-bullseye`), so these two now test on the version the product actually runs.
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        # PDF rendering runs on `playwright-core`, which — unlike the `puppeteer` it replaced —
+        # bundles no browser and downloads nothing on install, so there is no multi-hundred-MB fetch
+        # to skip here any more. `render-pdf.spec.ts` does exercise the module in this job, but only
+        # against its jest manual mock (src/__mocks__/playwright-core.ts) — no real Chromium is ever
+        # launched here, so unlike `cypress-run` below, this job needs no browser-provisioning step of
+        # its own. `cypress-run` (and `scenarios.yml`'s job) DO render real PDFs — the e2e/scenario
+        # specs actually send a document — and provision a matched Chromium explicitly
+        # (`npx playwright-core install chromium`) before booting the backend; see that job's own step.
+        run: cd backend && npm ci
+
+      - name: Generate Prisma client
+        run: cd backend && npx prisma generate
+
+      # Apply the full migration chain to the empty CI Postgres — the same path production runs via
+      # syncDatabaseSchema() (prisma migrate deploy). The integration specs below create their own
+      # document/company fixtures against this schema.
+      - name: Apply migrations (empty dev DB)
+        run: cd backend && npx prisma migrate deploy
+
+      # `migrate deploy` does NOT run the seed hook (only `migrate dev`/`migrate reset`/`db seed`
+      # do) — without this, the document country-action policy table stays EMPTY and every "send"
+      # below 403s before ever reaching the queue (country-policy.ts blocks everything for a country
+      # with no rows). Same gotcha the cypress-run job's own install step already documents.
+      - name: Seed reference data (country policy, ...)
+        run: cd backend && npx prisma db seed
+
+      # The document-action queue's real end-to-end proof: enqueue -> a REAL BullMQ
+      # worker consumes -> the email genuinely lands in Mailpit -> the document reaches "sent"; a
+      # forced failure (SMTP pointed nowhere) exhausts retries and lands on "send_failed" with the
+      # error recorded, then a re-`send` succeeds. Self-gated on REDIS_URL (same pattern the
+      # pre-refonte compliance queue's own specs used), so it self-skips in the offline
+      # backend-tests job and only executes here.
+      #
+      # One step, all five specs in this directory (Jest is gone, and with it the split this job used
+      # to run during the migration — four specs on Vitest, `document-events-bridge.redis.spec.ts`
+      # still on Jest because its own `--testPathPattern` could not match "everything in this
+      # directory" without also trying, and failing, to load the Vitest-only ones). `--no-file-
+      # parallelism` because every spec here shares one Redis/Postgres/Mailpit and would otherwise
+      # race. No `--forceExit` equivalent is needed: BullMQ/ioredis keep connections open past the
+      # last assertion, but Vitest's own `run` mode exits cleanly on its own once a run finishes —
+      # confirmed during the migration.
+      - name: Run document-action queue integration specs
+        env:
+          SMTP_HOST: localhost
+          SMTP_PORT: 1025
+          SMTP_SECURE: 'false'
+          SMTP_FROM: queue-integration@invoicerr.test
+          # The redis specs gate on this flag EXPLICITLY (not merely on REDIS_URL) so a bare local
+          # `npx vitest run` — which runs spec files in parallel workers sharing one queue/DB — skips
+          # them instead of failing on pure test-run topology. Removing this line makes this job skip
+          # everything it exists to run, silently. See the specs' own headers.
+          DOCUMENTS_QUEUE_REDIS_TESTS: '1'
+          # `document-conformity-queue.redis.spec.ts` connects a REAL "pdp" channel (its own encrypted
+          # `CompanyChannelConfig` row, pointing at a local HTTP stub it starts itself) — without this,
+          # `isEncryptionAvailable()` is false and that spec's own `upsertChannelConfig` call throws
+          # before it ever gets to enqueue anything. A throwaway key for this job's own disposable
+          # Postgres container, never a production secret — same reasoning `.env.test`'s own copy
+          # documents at length.
+          CREDENTIALS_ENCRYPTION_KEY: e2896d60a5fe20415931030ea7eadb3352f2698948ba29948a9f2e04b8840e6d
+          # That same "pdp" channel's `baseUrl` IS the local HTTP stub above (127.0.0.1) — the shared
+          # outbound-URL SSRF guard (`@/utils/outbound-url.ts`) rejects a private/loopback target by
+          # default, and this job (unlike `cypress-run`/`cypress-run-saas` below, which load
+          # `backend/.env.test` via `npm run start:test`) invokes vitest directly with no dotenv step,
+          # so that file's own copy of this flag never reaches it. TEST-ONLY — see `.env.example`'s
+          # own entry for why this must never be set on a real deployment.
+          ALLOW_PRIVATE_OUTBOUND_URLS: '1'
+        run: cd backend && npx vitest run --no-file-parallelism modules/documents/queue/__tests__
+
+      # The migration-vs-schema enum tripwire: deploys the FULL migration chain on
+      # its own disposable database (never `invoicerr_test`, the one this job already migrated above)
+      # and compares the resulting `pg_enum` against the generated client's enum exports, for every
+      # enum either side has. Rides along in THIS job rather than getting one of its own because it
+      # needs the exact same thing this job already provisions — a real Postgres whose user can
+      # CREATE DATABASE (the default postgres:16 image's initial role is a superuser) — and nothing
+      # else (no Redis, no Mailpit, no encryption key). Self-gated on `MIGRATION_FRESH_TESTS=1`; see
+      # `src/prisma/migration-fresh-schema.spec.ts`'s own header.
+      - name: Run migration-vs-schema enum tripwire (fresh disposable Postgres database)
+        env:
+          MIGRATION_FRESH_TESTS: '1'
+        run: cd backend && npx vitest run prisma/migration-fresh-schema.spec.ts
+
   cypress-run:
     runs-on: ubuntu-latest
+    env:
+      # `npm run start:test` loads backend/.env.test, which pins REDIS_URL to 6399 -- the port the
+      # LOCAL dev container publishes. Nothing listens there on a runner, and the backend refuses to
+      # boot without Redis, so without this override the whole job dies waiting on /api/health. That
+      # is exactly what killed every Business Scenarios leg from 2026-08-29 until 486aab6a; the same
+      # trap sat here, unfired only because this workflow had not run on a branch since.
+      REDIS_URL: redis://localhost:6379
     services:
       postgres-test:
         image: postgres:16
@@ -24,6 +329,19 @@ jobs:
         ports:
           - "8025:8025"
           - "1025:1025"
+      # The backend requires Redis (BullMQ) to boot at all — the document-action
+      # queue's own DocumentQueueRedisRequiredGuard fails the whole boot loudly without it, and
+      # WORKER_INLINE defaults to true, so the inline document-action processor connects at startup
+      # too. Without this service the Nest app fails to boot and every e2e times out on a hung /api.
+      # redisConnection() defaults to localhost:6379, so no backend env change is needed.
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v3
@@ -39,6 +357,36 @@ jobs:
           npm ci
           DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma generate
           DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma migrate deploy
+          # `migrate deploy` does NOT run the seed hook (only `migrate dev`/`migrate reset`/`db seed`
+          # do — see prisma.config.ts) — without this, the document country-action policy table stays
+          # EMPTY and every document action 403s in every spec below (country-policy.ts blocks
+          # everything for a country with no rows). `npm run start:test` doesn't call
+          # syncDatabaseSchema() either (production-only, see main.ts), so nothing else seeds it here.
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma db seed
+
+      # This job renders REAL PDFs (documents.controller -> render-instance-pdf -> render-pdf.ts),
+      # exercised by the e2e specs that send a document — e.g. 23-document-email.cy.ts. Unlike the
+      # Docker image, this runner has no browser baked in by us, and depending on it to already have
+      # one is not a guarantee: `actions/runner-images` documents that `ubuntu-latest` currently ships
+      # Google Chrome and Chromium but names no install path for either, so the `/usr/bin/google-chrome*`
+      # entries render-pdf.ts falls back to work today by Debian packaging convention only, not by any
+      # contract this workflow controls, and `chromium` itself is commonly a snap on newer Ubuntu (not
+      # at `/usr/bin/chromium` at all). Provisioning playwright-core's own matched Chromium here makes
+      # this deterministic instead of lucky — render-pdf.ts's own resolution chain then picks it up via
+      # `chromium.executablePath()` with no env var needed (see that file's own comment for why that
+      # rule exists and why it is checked before the conventional system paths).
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        # `install chromium` only — NOT `--with-deps`, which asks for sudo and apt-installs system
+        # libraries this runner already ships. If a real shared-library gap ever surfaces here, the
+        # browser launch fails with a distinct missing-library error and THAT is the signal to add
+        # `--with-deps`, rather than paying its cost on every run pre-emptively.
+        run: cd backend && npx playwright-core install chromium
 
       - name: Install frontend dependencies
         run: |
@@ -52,18 +400,28 @@ jobs:
 
       - name: Wait for DB
         run: |
-          npx wait-on tcp:5433 --timeout 60
-          npx wait-on tcp:8025 --timeout 60
-          npx wait-on tcp:1025 --timeout 60
+          npx wait-on tcp:5433 --timeout 60000
+          npx wait-on tcp:8025 --timeout 60000
+          npx wait-on tcp:1025 --timeout 60000
+          npx wait-on tcp:6379 --timeout 60000
 
       - name: Run backend, frontend & tests
         run: |
           mkdir -p $GITHUB_WORKSPACE/logs
           npm install -D dotenv-cli
-          (cd $GITHUB_WORKSPACE/backend && npx dotenv -e .env.test -- node node_modules/.bin/prisma migrate dev 2>&1)
+          # The schema is already applied: the install step ran `prisma migrate deploy`
+          # against this same database. `migrate dev` used to run again here — it is a
+          # developer-machine command that can prompt or fail without a TTY as soon as
+          # the migrations drift from schema.prisma.
           (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
           (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
-          (cd $GITHUB_WORKSPACE/e2e && npm run e2e:run)
+          # wait-on above only checked the DB/mail/Redis ports were open, not that the
+          # Nest app itself finished booting — a slow boot or a startup crash used to
+          # go unnoticed until 15 Cypress specs failed with confusing auth errors.
+          npx wait-on http-get://localhost:4000/api/health --timeout 120000
+          # Firefox, not Electron: the Electron renderer crashes on a Radix select inside a dialog
+          # (see e2e/cypress.config.ts's own analysis). The same specs pass on Firefox.
+          (cd $GITHUB_WORKSPACE/e2e && npm run e2e:run -- --browser firefox)
 
       - name: Upload backend logs
         if: always()
@@ -77,6 +435,131 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-videos-screenshots
+          path: |
+            ${{ github.workspace }}/e2e/cypress/videos
+            ${{ github.workspace }}/e2e/cypress/screenshots
+
+  # The hosted-billing seat model (76-seats.cy.ts) and the SaaS-mode legal-acceptance flow
+  # (75-legal-acceptance.cy.ts) both self-detect `saasMode` and skip their own SaaS-only tests when
+  # it is false (`this.skip()`) — which every OTHER job in this workflow triggers, since none of them
+  # sets `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`. Eight tests between the two files therefore
+  # never ran in CI at all: Mocha reports a skipped test as "pending", never as failing, so a job full
+  # of nothing but pending SaaS tests was, and would stay, green — indistinguishable from a job that
+  # actually exercised the seat/NO_FREE_SEAT/legal-acceptance flows. This job is the dedicated SaaS
+  # lane those two specs' own headers ask for: same stack as `cypress-run` above, with billing turned
+  # on and `CYPRESS_expectSaas=1` (see both specs' own `before()` hooks) so a misconfiguration that
+  # left billing off would fail the job outright instead of quietly reporting pending again.
+  #
+  # The Polar credentials below are throwaway, non-functional strings, not real sandbox secrets:
+  # `billing-customer.ts`'s own header records that a company's Polar customer is created LAZILY, on
+  # its first real checkout, never at signup or company creation — and neither spec this job runs ever
+  # starts one (`76-seats.cy.ts`'s own header: seat quantity is read via `cy.task`, standing in for a
+  # webhook, never pushed to Polar). `polar-env.ts#assertPolarEnvConfiguredForBoot` only checks these
+  # vars are non-blank at boot; nothing in either spec's path calls the real Polar API.
+  cypress-run-saas:
+    runs-on: ubuntu-latest
+    env:
+      REDIS_URL: redis://localhost:6379
+      WARNING__ENABLE_BILLING_FOR_USERS__WARNING: "true"
+      POLAR_ACCESS_TOKEN: e2e-saas-lane-dummy-token
+      POLAR_WEBHOOK_SECRET: whsec_e2e_saas_lane_dummy_secret
+      POLAR_ORGANIZATION_ID: e2e-saas-lane-dummy-org
+      POLAR_PRODUCT_ID_MONTHLY: e2e-saas-lane-dummy-monthly
+      POLAR_PRODUCT_ID_YEARLY: e2e-saas-lane-dummy-yearly
+      POLAR_SERVER: sandbox
+    services:
+      postgres-test:
+        image: postgres:16
+        env:
+          POSTGRES_USER: invoicerr
+          POSTGRES_PASSWORD: invoicerr
+          POSTGRES_DB: invoicerr_db
+        ports:
+          - "5433:5432"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - "8025:8025"
+          - "1025:1025"
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma generate
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma migrate deploy
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma db seed
+
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        run: cd backend && npx playwright-core install chromium
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Install e2e dependencies
+        run: |
+          cd e2e
+          npm ci
+
+      - name: Wait for DB
+        run: |
+          npx wait-on tcp:5433 --timeout 60000
+          npx wait-on tcp:8025 --timeout 60000
+          npx wait-on tcp:1025 --timeout 60000
+          npx wait-on tcp:6379 --timeout 60000
+
+      - name: Run backend, frontend & the SaaS-only specs
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/logs
+          npm install -D dotenv-cli
+          (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
+          (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
+          npx wait-on http-get://localhost:4000/api/health --timeout 120000
+          # Same Firefox-over-Electron reasoning as `cypress-run` above. `CYPRESS_expectSaas=1` makes
+          # both specs' own `before()` hook fail the run instead of silently skipping if `saasMode`
+          # somehow still resolves false with the flag set.
+          (cd $GITHUB_WORKSPACE/e2e && CYPRESS_expectSaas=1 npx cypress run --browser firefox --spec "cypress/e2e/{75,76}-*.cy.ts")
+
+      - name: Upload backend logs (SaaS lane)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs-saas
+          path: ${{ github.workspace }}/logs/backend.log
+
+      - name: Upload Cypress videos and screenshots (SaaS lane)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos-screenshots-saas
           path: |
             ${{ github.workspace }}/e2e/cypress/videos
             ${{ github.workspace }}/e2e/cypress/screenshots

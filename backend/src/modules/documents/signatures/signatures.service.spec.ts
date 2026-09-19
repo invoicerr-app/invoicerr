@@ -1,0 +1,827 @@
+import { vi, type Mock } from 'vitest';
+
+import { BadRequestException, ConflictException } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
+
+import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
+
+import { MailService, NO_MAIL_SERVER_CONFIGURED_MESSAGE } from '@/mail/mail.service';
+import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
+
+import { computeContentHash } from '../archive/hashing';
+import * as archiveStorage from '../archive/storage';
+import * as persistence from '../persistence';
+import { hashSignatureToken } from './signature-token';
+import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
+import { SignaturesService } from './signatures.service';
+
+// A plain `vi.spyOn(nodemailer, 'createTransport')` (what this worked as under Jest, where a
+// namespace import is a mutable CJS-interop object) throws under Vitest — a real ES module
+// namespace object is frozen, and spyOn tries to redefine one of its properties ("Cannot redefine
+// property: createTransport"). Wholesale-mocking the export instead (real for everything else via
+// `importOriginal`, `createTransport` a plain `vi.fn()`) sidesteps that: the three tests in the
+// "société → instance → refus-nommé cascade" describe below configure it directly rather than
+// spying on it per test. Every OTHER test in this file never constructs a real `MailService`/
+// touches `nodemailer` at all, so mocking this export file-wide changes nothing for them.
+vi.mock('nodemailer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('nodemailer')>();
+  return { ...actual, createTransport: vi.fn() };
+});
+
+vi.mock('../persistence');
+// `archive/storage.ts` itself is unit-tested on its own (archive/storage.spec.ts) — mocked here with
+// a tiny in-memory map keyed by the SAME content-addressed uri the real module would compute, so
+// tests below can prove "the second read returns exactly what the first write persisted" without
+// touching the filesystem at all — the identical "mock the module boundary with a faithful fake, not
+// a bare vi.fn() per method" discipline this file's own `@/prisma/prisma.service` mock documents.
+vi.mock('../archive/storage');
+const archivedFiles = new Map<string, Buffer>();
+(archiveStorage.persistArtifacts as Mock).mockImplementation(
+  async (documentId: string, artifacts: Array<{ role: string; mime: string; bytes: Uint8Array }>) => {
+    const contentHash = computeContentHash(artifacts);
+    const uri = `file:///fake-archive/${documentId}/${contentHash}`;
+    archivedFiles.set(uri, Buffer.from(artifacts[0].bytes));
+    return { uri, contentHash };
+  },
+);
+(archiveStorage.readArchivedArtifact as Mock).mockImplementation(async (uri: string) => {
+  return archivedFiles.get(uri) ?? null;
+});
+// Only used by the "company → instance" cascade tests near the bottom of this file — every other
+// test here keeps using a bare fake `{ sendForCompany: vi.fn() }`, never touching this at all.
+vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: vi.fn(),
+}));
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
+
+/**
+ * `@/prisma/prisma.service` is mocked with a tiny IN-MEMORY table (not a bare `vi.fn()` per
+ * method) — the same "mock the module boundary, not a re-implementation of Prisma" discipline
+ * `share-links.service.spec.ts` already documents for the identical situation. This is what lets a
+ * real round trip (mint -> fail x5 -> locked, or request -> otp -> sign) exercise the ACTUAL
+ * `signature.persistence.ts` module, only the database itself is fake — including its atomic
+ * `updateMany`-with-a-guard-condition semantics, which is exactly the part a hand-wired
+ * `vi.fn().mockResolvedValue(...)` per call could never actually prove.
+ */
+vi.mock('@/prisma/prisma.service', () => {
+  const rows: Array<Record<string, any>> = [];
+  let nextId = 1;
+
+  function matches(row: Record<string, any>, where: Record<string, any>): boolean {
+    return Object.entries(where).every(([key, condition]) => {
+      const value = row[key];
+      if (condition !== null && typeof condition === 'object' && !(condition instanceof Date)) {
+        if ('lt' in condition) return value < condition.lt;
+        if ('gte' in condition) return value >= condition.gte;
+        throw new Error(`Unsupported where condition for "${key}": ${JSON.stringify(condition)}`);
+      }
+      return value === condition;
+    });
+  }
+
+  function applyData(row: Record<string, any>, data: Record<string, any>): void {
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== null && typeof value === 'object' && 'increment' in value) {
+        row[key] = (row[key] ?? 0) + value.increment;
+      } else {
+        row[key] = value;
+      }
+    }
+    row.updatedAt = new Date();
+  }
+
+  const signature = {
+    create: vi.fn(async ({ data }: { data: Record<string, any> }) => {
+      const row = {
+        id: `sig-${nextId++}`,
+        otpCodeHash: null,
+        otpExpiresAt: null,
+        otpFailedAttempts: 0,
+        otpResendCount: 0,
+        lockedAt: null,
+        signedAt: null,
+        isActive: true,
+        // Real Prisma returns SQL NULL (=== `null`) for an unset nullable column, never `undefined` —
+        // load-bearing here: `freezeDocumentPdfSnapshot`'s guard is `where: { documentPdfUri: null }`,
+        // and this fake's own `matches()` uses `===`, so an `undefined` default would silently never
+        // match that guard and break the freeze this mock exists to prove.
+        documentPdfUri: null,
+        documentPdfHash: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+      };
+      rows.push(row);
+      return { ...row };
+    }),
+    findUnique: vi.fn(async ({ where }: { where: Record<string, any> }) => {
+      const row = rows.find((r) => matches(r, where));
+      return row ? { ...row } : null;
+    }),
+    findUniqueOrThrow: vi.fn(async ({ where }: { where: Record<string, any> }) => {
+      const row = rows.find((r) => matches(r, where));
+      if (!row) throw new Error(`no Signature "${JSON.stringify(where)}"`);
+      return { ...row };
+    }),
+    findFirst: vi.fn(async ({ where }: { where: Record<string, any> }) => {
+      const row = rows.find((r) => matches(r, where));
+      return row ? { ...row } : null;
+    }),
+    updateMany: vi.fn(async ({ where, data }: { where: Record<string, any>; data: Record<string, any> }) => {
+      const matched = rows.filter((r) => matches(r, where));
+      for (const row of matched) applyData(row, data);
+      return { count: matched.length };
+    }),
+    update: vi.fn(async ({ where, data }: { where: Record<string, any>; data: Record<string, any> }) => {
+      const row = rows.find((r) => matches(r, where));
+      if (!row) throw new Error(`no Signature "${JSON.stringify(where)}"`);
+      applyData(row, data);
+      return { ...row };
+    }),
+  };
+
+  // A company that HAS customised both system emails — stored in the single-brace vocabulary the shared
+  // engine interpolates (`actions/email-template.ts`), and html, which is the only thing
+  // `MailTemplate.body` has ever held. Individual tests below override this to prove the no-row-at-all
+  // path (the shipped default applies) and the unknown-placeholder path; it is exported so `beforeEach`
+  // can REINSTATE it, because `vi.clearAllMocks()` clears recorded calls but NOT implementations — an
+  // overriding test would otherwise silently poison every test that runs after it.
+  const defaultMailTemplateFindFirst = async ({ where }: { where: { type: string } }) =>
+    where.type === 'SIGNATURE_REQUEST'
+      ? {
+          subject: 'Please sign {signatureNumber}',
+          body: '<p>Open <a href="{signatureUrl}">here</a> to sign.</p>',
+        }
+      : { subject: 'Your code', body: '<p>Code: {otpCode}</p>' };
+
+  return {
+    __esModule: true,
+    default: {
+      signature,
+      mailTemplate: { findFirst: vi.fn(defaultMailTemplateFindFirst) },
+      // No company language set by default — `resolveRecipientLanguage`'s own fallback chain then
+      // lands on English, the exact behavior every pre-existing test in this file already expects.
+      company: { findUnique: vi.fn().mockResolvedValue({ language: null }) },
+    },
+    __rows: rows,
+    __defaultMailTemplateFindFirst: defaultMailTemplateFindFirst,
+  };
+});
+
+const SENT_QUOTE = {
+  id: 'quote-1',
+  typeId: 'quote',
+  status: 'sent',
+  data: { client: 'client-1' },
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  displayNumber: 'QUOTE-2026-0001',
+};
+
+function buildService(
+  webhooks: { dispatch: Mock } = { dispatch: vi.fn().mockResolvedValue(undefined) },
+  documentsService: { renderInstancePdf: Mock } = {
+    renderInstancePdf: vi.fn().mockResolvedValue(Buffer.from('%PDF-1.7 fake rendered bytes')),
+  },
+) {
+  const clientsService = {
+    getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+  };
+  const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
+  const service = new SignaturesService(
+    clientsService as any,
+    mailService as any,
+    webhooks as any,
+    documentsService as any,
+  );
+  return { service, clientsService, mailService, webhooks, documentsService };
+}
+
+// Resolved once, in `beforeAll` — the same "vi.importMock, not Jest's synchronous require-the-mock
+// helper" reasoning `documents.service.formats.spec.ts`'s own header documents for the identical
+// situation. Every requireMock('@/prisma/prisma.service') call site below (the `rows()` helper, the
+// `beforeEach` template-reinstatement, and the language-cascade tests near the bottom of this file)
+// becomes a read of this single, already-resolved reference instead.
+let mockedPrismaModule: {
+  default: {
+    signature: Record<string, Mock>;
+    mailTemplate: { findFirst: Mock };
+    company: { findUnique: Mock };
+  };
+  __rows: Array<Record<string, any>>;
+  __defaultMailTemplateFindFirst: (args: {
+    where: { type: string };
+  }) => Promise<{ subject: string; body: string }>;
+};
+beforeAll(async () => {
+  mockedPrismaModule = await vi.importMock('@/prisma/prisma.service');
+});
+
+function rows(): Array<Record<string, any>> {
+  return mockedPrismaModule.__rows;
+}
+
+describe('SignaturesService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    rows().length = 0;
+    archivedFiles.clear();
+    // See the mock factory's own comment: implementations survive `clearAllMocks`, so the stored-template
+    // fixture is put back deliberately before every test.
+    const mock = mockedPrismaModule;
+    mock.default.mailTemplate.findFirst.mockImplementation(mock.__defaultMailTemplateFindFirst);
+    mock.default.company.findUnique.mockResolvedValue({ language: null });
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(SENT_QUOTE);
+    (persistence.updateDocumentStatus as Mock).mockImplementation(
+      async (_companyId: string, _typeId: string, id: string, status: string) => ({
+        ...SENT_QUOTE,
+        id,
+        status,
+      }),
+    );
+  });
+
+  describe("requestSignature — the action handler's own effect", () => {
+    it('mints a high-entropy token, persists ONLY its hash, and emails the RAW token in a URL', async () => {
+      const { service, mailService } = buildService();
+
+      const result = await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      expect(result.message).toContain('client@example.com');
+      expect(rows()).toHaveLength(1);
+      // >= 32 bytes of entropy hex-encoded -> >= 64 hex chars (signature-token.ts's own TOKEN_BYTES).
+      const sentMail = mailService.sendForCompany.mock.calls[0][1];
+      const urlMatch = /\/signature\/([0-9a-f]{64,})/.exec(sentMail.html);
+      expect(urlMatch).not.toBeNull();
+      const rawToken = urlMatch![1];
+
+      // The row NEVER carries the raw token, only its hash — and the hash is not merely present, it
+      // is the SAME hash `resolveActiveOrThrow` would compute from that raw token.
+      expect(rows()[0].tokenHash).not.toBe(rawToken);
+      expect(rows()[0].tokenHash).toBe(hashSignatureToken(rawToken));
+      expect(rows()[0]).not.toHaveProperty('token');
+      expect(JSON.stringify(rows())).not.toContain(rawToken);
+    });
+
+    it('refuses when the client has no contact email on file', async () => {
+      const { service, clientsService } = buildService();
+      clientsService.getClientById.mockResolvedValue({ contactEmail: null });
+
+      await expect(service.requestSignature('company-1', 'quote', 'quote-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(rows()).toHaveLength(0);
+    });
+
+    it('deactivates a previously active signature for the same document before creating a fresh one', async () => {
+      const { service } = buildService();
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+      const firstToken = rows()[0].tokenHash;
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      expect(rows()).toHaveLength(2);
+      const first = rows().find((r) => r.tokenHash === firstToken)!;
+      expect(first.isActive).toBe(false);
+      expect(rows()[1].isActive).toBe(true);
+    });
+  });
+
+  describe('the public flow — resolve / otp / sign', () => {
+    async function requestAndGetToken(service: SignaturesService, mailService: { sendForCompany: Mock }) {
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+      const html = mailService.sendForCompany.mock.calls[0][1].html as string;
+      return /\/signature\/([0-9a-f]{64,})/.exec(html)![1];
+    }
+
+    it('resolves a fresh, valid signature request to its document type and display number', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+
+      const view = await service.resolvePublicSignature(token);
+      expect(view).toEqual({ typeId: 'quote', displayNumber: 'QUOTE-2026-0001' });
+    });
+
+    it('an unknown token gives the SAME generic refusal everywhere', async () => {
+      const { service } = buildService();
+      await expect(service.resolvePublicSignature('deadbeef'.repeat(8))).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+      await expect(service.requestOtp('deadbeef'.repeat(8))).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+      await expect(service.verifyAndSign('deadbeef'.repeat(8), '00000000')).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+      await expect(service.getPublicDocument('deadbeef'.repeat(8))).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+    });
+
+    describe('getPublicDocument — the frozen "what was reviewed" snapshot', () => {
+      it('renders once, freezes the bytes, and serves that SAME copy on every later call', async () => {
+        const { service, mailService, documentsService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+
+        const first = await service.getPublicDocument(token);
+        const second = await service.getPublicDocument(token);
+
+        expect(documentsService.renderInstancePdf).toHaveBeenCalledTimes(1);
+        expect(second.bytes.equals(first.bytes)).toBe(true);
+        expect(rows()[0].documentPdfUri).toEqual(expect.any(String));
+        expect(rows()[0].documentPdfHash).toMatch(/^[0-9a-f]{64}$/);
+      });
+
+      it('an already-signed token can no longer fetch the document — same generic refusal', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        await service.getPublicDocument(token); // the reviewer opened it before verifying the OTP
+
+        mailService.sendForCompany.mockClear();
+        await service.requestOtp(token);
+        const code = /(\d{4})-(\d{4})/
+          .exec(mailService.sendForCompany.mock.calls[0][1].html)!
+          .slice(1, 3)
+          .join('');
+        await service.verifyAndSign(token, code);
+
+        await expect(service.getPublicDocument(token)).rejects.toThrow(
+          'This signature request is invalid, expired, or already used.',
+        );
+      });
+
+      it('a snapshot missing from storage is re-rendered rather than served as a 500', async () => {
+        const { service, mailService, documentsService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        await service.getPublicDocument(token);
+        archivedFiles.clear(); // simulate an operator having wiped the archive store by hand
+
+        const result = await service.getPublicDocument(token);
+
+        expect(result.bytes).toBeInstanceOf(Buffer);
+        expect(documentsService.renderInstancePdf).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('requestOtp mints a code, emails it, and stores ONLY its hash — never the code in the clear', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      mailService.sendForCompany.mockClear();
+
+      await service.requestOtp(token);
+
+      expect(mailService.sendForCompany).toHaveBeenCalledTimes(1);
+      const html = mailService.sendForCompany.mock.calls[0][1].html as string;
+      const codeMatch = /(\d{4}-\d{4})/.exec(html);
+      expect(codeMatch).not.toBeNull();
+      const displayedCode = codeMatch![1].replace('-', '');
+
+      expect(rows()[0].otpCodeHash).not.toBe(displayedCode);
+      expect(rows()[0].otpCodeHash).toMatch(/^[0-9a-f]{64}$/);
+      expect(JSON.stringify(rows())).not.toContain(displayedCode);
+    });
+
+    it('the OTP window is exactly OTP_WINDOW_MS from the mint', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      const before = Date.now();
+      await service.requestOtp(token);
+      const after = Date.now();
+
+      const expiresAt = new Date(rows()[0].otpExpiresAt).getTime();
+      expect(expiresAt).toBeGreaterThanOrEqual(before + OTP_WINDOW_MS);
+      expect(expiresAt).toBeLessThanOrEqual(after + OTP_WINDOW_MS);
+    });
+
+    it('mints a code at most MAX_OTP_MINTS times, ever — a further mint is refused distinctly', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+
+      for (let i = 0; i < MAX_OTP_MINTS; i++) {
+        await service.requestOtp(token);
+      }
+      expect(rows()[0].otpResendCount).toBe(MAX_OTP_MINTS);
+
+      await expect(service.requestOtp(token)).rejects.toThrow(
+        'The maximum number of verification codes has already been sent for this request.',
+      );
+      // The resend-cap refusal is DISTINCT wording from the generic block message — never conflated.
+      await expect(service.requestOtp(token)).rejects.not.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+      expect(rows()[0].otpResendCount).toBe(MAX_OTP_MINTS);
+    });
+
+    async function mintedCode(
+      service: SignaturesService,
+      mailService: { sendForCompany: Mock },
+      token: string,
+    ) {
+      mailService.sendForCompany.mockClear();
+      await service.requestOtp(token);
+      const html = mailService.sendForCompany.mock.calls[0][1].html as string;
+      return /(\d{4})-(\d{4})/.exec(html)!.slice(1, 3).join('');
+    }
+
+    it('signs on the correct code, flips the document to "signed", and dispatches DOCUMENT_SIGNED', async () => {
+      const { service, mailService, webhooks } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      const code = await mintedCode(service, mailService, token);
+
+      const result = await service.verifyAndSign(token, code);
+
+      expect(result.message).toBe('Document signed.');
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'quote-1',
+        'signed',
+      );
+      expect(rows()[0].signedAt).not.toBeNull();
+      expect(rows()[0].isActive).toBe(false); // a signed row can never be replayed
+      expect(webhooks.dispatch).toHaveBeenCalledWith(
+        WebhookEvent.DOCUMENT_SIGNED,
+        expect.objectContaining({ documentId: 'quote-1', typeId: 'quote', companyId: 'company-1' }),
+      );
+    });
+
+    it('a second "sign" call with the SAME already-consumed code fails generically — no replay', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      const code = await mintedCode(service, mailService, token);
+
+      await service.verifyAndSign(token, code);
+      await expect(service.verifyAndSign(token, code)).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+    });
+
+    it('a wrong code fails generically and does not sign', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      await mintedCode(service, mailService, token);
+
+      await expect(service.verifyAndSign(token, '00000000')).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it('an EXPIRED code fails generically, even though it was the right one at mint time', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      const code = await mintedCode(service, mailService, token);
+      rows()[0].otpExpiresAt = new Date(Date.now() - 1000); // simulate the window having elapsed
+
+      await expect(service.verifyAndSign(token, code)).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+    });
+
+    it('a code submitted before any OTP was ever minted fails generically (never a distinct hint)', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+
+      await expect(service.verifyAndSign(token, '12345678')).rejects.toThrow(
+        'This signature request is invalid, expired, or already used.',
+      );
+    });
+
+    it('stores the OTP hashed — never the plaintext code — at every step', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      const code = await mintedCode(service, mailService, token);
+
+      expect(rows()[0].otpCodeHash).not.toBe(code);
+      await service.verifyAndSign(token, code);
+      expect(JSON.stringify(rows())).not.toContain(code);
+    });
+
+    describe('the lifetime lock — the actual guarantee', () => {
+      it(`locks PERMANENTLY at exactly MAX_FAILED_ATTEMPTS (${MAX_FAILED_ATTEMPTS}) wrong attempts`, async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        await mintedCode(service, mailService, token);
+
+        for (let i = 0; i < MAX_FAILED_ATTEMPTS; i++) {
+          await expect(service.verifyAndSign(token, '00000000')).rejects.toThrow(
+            'This signature request is invalid, expired, or already used.',
+          );
+        }
+
+        expect(rows()[0].otpFailedAttempts).toBe(MAX_FAILED_ATTEMPTS);
+        expect(rows()[0].lockedAt).not.toBeNull();
+        expect(rows()[0].isActive).toBe(false);
+      });
+
+      it('a 6th attempt fails even with the CORRECT code — the lock is not merely "no more guesses left"', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+
+        for (let i = 0; i < MAX_FAILED_ATTEMPTS; i++) {
+          await expect(service.verifyAndSign(token, '00000000')).rejects.toThrow(BadRequestException);
+        }
+
+        // The correct code, submitted one attempt too late, still refuses — and the document was
+        // never signed.
+        await expect(service.verifyAndSign(token, code)).rejects.toThrow(
+          'This signature request is invalid, expired, or already used.',
+        );
+        expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+      });
+
+      it('re-arming the OTP (a fresh mint) does NOT reset the lifetime failed-attempt counter', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        await mintedCode(service, mailService, token);
+
+        await expect(service.verifyAndSign(token, '00000000')).rejects.toThrow(BadRequestException);
+        await expect(service.verifyAndSign(token, '11111111')).rejects.toThrow(BadRequestException);
+        expect(rows()[0].otpFailedAttempts).toBe(2);
+
+        // A second mint (well within MAX_OTP_MINTS) narrows the CURRENT code's window but must not
+        // touch the counter above.
+        await mintedCode(service, mailService, token);
+        expect(rows()[0].otpFailedAttempts).toBe(2);
+
+        // The remaining budget is 5 - 2 = 3, not reset to 5 — three more wrong guesses lock it.
+        await expect(service.verifyAndSign(token, '00000000')).rejects.toThrow(BadRequestException);
+        await expect(service.verifyAndSign(token, '00000000')).rejects.toThrow(BadRequestException);
+        expect(rows()[0].lockedAt).toBeNull();
+        await expect(service.verifyAndSign(token, '00000000')).rejects.toThrow(BadRequestException);
+        expect(rows()[0].otpFailedAttempts).toBe(MAX_FAILED_ATTEMPTS);
+        expect(rows()[0].lockedAt).not.toBeNull();
+      });
+    });
+
+    it('refuses (409) to sign a document this same flow did not itself leave "sent"', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      const code = await mintedCode(service, mailService, token);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...SENT_QUOTE, status: 'draft' });
+
+      await expect(service.verifyAndSign(token, code)).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('sends BOTH an html and a text part — never an html-only message', async () => {
+      const { service, mailService } = buildService();
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.html).toContain('<a href=');
+      // The company's stored template is html only; the text part is DERIVED from it — and carries the
+      // LINK ITSELF, not merely the word "here": the href lives in an attribute, so a plain tag-strip
+      // would hand a text-only reader a signature request with nothing to open.
+      expect(sent.text).toMatch(/Open here \(.*\/signature\/[0-9a-f]{64,}\) to sign\./);
+      expect(sent.subject).toBe('Please sign QUOTE-2026-0001');
+    });
+
+    it('falls back to the SHIPPED default when the company has no stored template — never a refusal', async () => {
+      const { service, mailService } = buildService();
+      const prisma = mockedPrismaModule.default;
+      // A company whose rows were never created, or were deleted by the app reset: no longer a failure.
+      prisma.mailTemplate.findFirst.mockResolvedValue(null);
+
+      await expect(service.requestSignature('company-1', 'quote', 'quote-1')).resolves.toMatchObject({
+        message: expect.stringContaining('client@example.com'),
+      });
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Please sign document #QUOTE-2026-0001');
+      expect(sent.html).toContain('Document Signature Required');
+      expect(sent.html).toMatch(/\/signature\/[0-9a-f]{64,}/);
+      expect(sent.text).toMatch(/\/signature\/[0-9a-f]{64,}/);
+    });
+
+    it("uses the CLIENT's own language for the shipped default — never a company override, which is never translated", async () => {
+      const clientsService = {
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com', language: 'fr' }),
+      };
+      const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
+      const prisma = mockedPrismaModule.default;
+      prisma.mailTemplate.findFirst.mockResolvedValue(null); // no override — the shipped default applies
+      const service = new SignaturesService(
+        clientsService as any,
+        mailService as any,
+        { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: vi.fn() } as any,
+      );
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Veuillez signer le document n° QUOTE-2026-0001');
+      expect(sent.html).toContain('Signature de document requise');
+    });
+
+    it("falls back to the COMPANY's own language when the client has none", async () => {
+      const clientsService = {
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+      };
+      const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
+      const prisma = mockedPrismaModule.default;
+      prisma.mailTemplate.findFirst.mockResolvedValue(null);
+      prisma.company.findUnique.mockResolvedValue({ language: 'de' });
+      const service = new SignaturesService(
+        clientsService as any,
+        mailService as any,
+        { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: vi.fn() } as any,
+      );
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Bitte unterschreiben Sie Dokument Nr. QUOTE-2026-0001');
+    });
+
+    it('threads the SAME client language into a re-armed OTP mail, resolved fresh from the client', async () => {
+      const clientsService = {
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com', language: 'it' }),
+      };
+      const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
+      const prisma = mockedPrismaModule.default;
+      prisma.mailTemplate.findFirst.mockResolvedValue(null);
+      const service = new SignaturesService(
+        clientsService as any,
+        mailService as any,
+        { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: vi.fn() } as any,
+      );
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+      const token = /\/signature\/([0-9a-f]{64,})/.exec(mailService.sendForCompany.mock.calls[0][1].html)![1];
+      mailService.sendForCompany.mockClear();
+
+      await service.requestOtp(token);
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Il tuo codice di verifica');
+    });
+
+    it('still delivers the OTP on the shipped default, carrying the display-form code in both parts', async () => {
+      const { service, mailService } = buildService();
+      const prisma = mockedPrismaModule.default;
+      prisma.mailTemplate.findFirst.mockResolvedValue(null);
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+      const token = /\/signature\/([0-9a-f]{64,})/.exec(mailService.sendForCompany.mock.calls[0][1].html)![1];
+      mailService.sendForCompany.mockClear();
+
+      await service.requestOtp(token);
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Your verification code');
+      expect(sent.html).toMatch(/\d{4}-\d{4}/);
+      expect(sent.text).toMatch(/\d{4}-\d{4}/);
+      // Still only ever the DISPLAY form that travels; what is stored stays a hash.
+      expect(rows()[0].otpCodeHash).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("a typo in a company's own template is WARNED about, never thrown — the email still goes out", async () => {
+      const { service, mailService } = buildService();
+      const prisma = mockedPrismaModule.default;
+      prisma.mailTemplate.findFirst.mockResolvedValue({
+        subject: 'Sign {SIGNATURE_NUMBER}',
+        body: '<p>Open {{SIGNATURE_URL}}</p>',
+      });
+
+      await expect(service.requestSignature('company-1', 'quote', 'quote-1')).resolves.toBeDefined();
+
+      // Both tokens belong to the retired vocabulary, so neither resolves — and BOTH are left exactly as
+      // written rather than silently blanked, which is the whole point: a signature request that cannot
+      // be interpolated still reaches its recipient, visibly imperfect instead of invisibly broken.
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Sign {SIGNATURE_NUMBER}');
+      expect(sent.html).toContain('{SIGNATURE_URL}');
+      expect(mailService.sendForCompany).toHaveBeenCalledTimes(1);
+    });
+
+    it('still signs even when the DOCUMENT_SIGNED webhook dispatch fails — the sign itself must not roll back', async () => {
+      const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('webhook endpoint down')) };
+      const { service, mailService } = buildService(webhooks);
+      const token = await requestAndGetToken(service, mailService);
+      const code = await mintedCode(service, mailService, token);
+
+      const result = await service.verifyAndSign(token, code);
+      expect(result.message).toBe('Document signed.');
+      expect(rows()[0].signedAt).not.toBeNull();
+    });
+  });
+
+  // The two tests below use a REAL `MailService` (only `resolveCompanyMailSettings` and
+  // `nodemailer.createTransport` are mocked, the same doubles `mail.service.spec.ts` itself uses) —
+  // every test above already proves the signature-request/OTP email's own CONTENT against a fake
+  // `sendForCompany`; this is the one place proving it genuinely reaches the right transport.
+  describe('signature-request and OTP emails go through the société → instance → refus-nommé cascade', () => {
+    const ORIGINAL_ENV = process.env;
+
+    beforeEach(() => {
+      vi.restoreAllMocks();
+      mockedResolveCompanyMailSettings.mockReset();
+      process.env = { ...ORIGINAL_ENV };
+      delete process.env.MAIL_PROVIDER;
+      delete process.env.RESEND_API_KEY;
+      delete process.env.SMTP_HOST;
+    });
+
+    afterAll(() => {
+      process.env = ORIGINAL_ENV;
+    });
+
+    it("sends the signature request through THIS company's own SMTP server when Settings → Mail has one configured", async () => {
+      process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
+      mockedResolveCompanyMailSettings.mockResolvedValue({
+        kind: 'smtp',
+        host: 'company-smtp.example.com',
+        port: 587,
+        secure: false,
+        username: 'user',
+        password: 'pass',
+        fromAddress: 'billing@company.example.com',
+      });
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const clientsService = {
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+      };
+      const service = new SignaturesService(
+        clientsService as any,
+        new MailService(),
+        { dispatch: vi.fn() } as any,
+        { renderInstancePdf: vi.fn() } as any,
+      );
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'company-smtp.example.com' }),
+      );
+    });
+
+    it('falls back to the instance mail server when this company has none configured', async () => {
+      process.env.SMTP_HOST = 'instance-smtp.example.com';
+      mockedResolveCompanyMailSettings.mockResolvedValue(null);
+      const sendMailMock = vi.fn().mockResolvedValue(undefined);
+      (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const clientsService = {
+        getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+      };
+      const service = new SignaturesService(
+        clientsService as any,
+        new MailService(),
+        { dispatch: vi.fn() } as any,
+        { renderInstancePdf: vi.fn() } as any,
+      );
+
+      const result = await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      expect(result.message).toContain('client@example.com');
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'instance-smtp.example.com' }),
+      );
+    });
+
+    it(
+      'requestOtp rethrows the NAMED "no mail server configured" refusal VERBATIM — never the ' +
+        'generic "check your SMTP configuration" wrapper — when neither company nor instance has ' +
+        'anything configured',
+      async () => {
+        // First, a WORKING mail setup so `requestSignature` itself succeeds and hands back a real,
+        // usable token — this test is about `requestOtp`'s own failure mode, not about getting a token.
+        process.env.SMTP_HOST = 'instance-smtp.example.com';
+        mockedResolveCompanyMailSettings.mockResolvedValue(null);
+        const sendMailMock = vi.fn().mockResolvedValue(undefined);
+        (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
+
+        const clientsService = {
+          getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+        };
+        const service = new SignaturesService(
+          clientsService as any,
+          new MailService(),
+          { dispatch: vi.fn() } as any,
+          { renderInstancePdf: vi.fn() } as any,
+        );
+        await service.requestSignature('company-1', 'quote', 'quote-1');
+        // `resolveActiveOrThrow` compares HASHES, so requesting the OTP below needs the RAW token —
+        // recovered from the signature-request email itself, the same way every other public-flow test
+        // in this file already does.
+        const rawToken = /\/signature\/([0-9a-f]{64,})/.exec(sendMailMock.mock.calls[0][0].html)![1];
+
+        // NOW remove every mail server, company AND instance, before requesting the OTP.
+        delete process.env.SMTP_HOST;
+        mockedResolveCompanyMailSettings.mockResolvedValue(null);
+
+        const action = service.requestOtp(rawToken);
+
+        await expect(action).rejects.toBeInstanceOf(BadRequestException);
+        await expect(action).rejects.toThrow(NO_MAIL_SERVER_CONFIGURED_MESSAGE);
+      },
+    );
+  });
+});

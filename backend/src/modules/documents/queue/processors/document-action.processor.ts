@@ -1,0 +1,425 @@
+/**
+ * The document-action queue's ONLY processor — one generic worker for every declared action, not one
+ * processor per business need ("a generic mechanism, not an ad hoc job"). Lives in
+ * its OWN module (document-queue-worker.module.ts), gated by WORKER_INLINE, so a scaled deployment can
+ * run it in a dedicated process without the API also consuming (see that module's own header).
+ *
+ * `process()` replays the job through `DocumentsService.runAction` — the EXACT SAME entry point the
+ * HTTP controller calls (documents.controller.ts) — never a shortcut straight to `ActionRegistry`.
+ * THIS is what makes "an action forbidden by the country policy must be refused in the worker too"
+ * true by construction: `runAction` is where all four gates live (country policy 403, status 409,
+ * implementation 501, data validation 400), and this processor has no other way to run an action.
+ * Mutating this call to bypass `runAction` (e.g. calling the registry directly) is exactly the
+ * mutation document-action.processor.spec.ts proves against.
+ *
+ * ## Recurring documents — TWO more job names, same queue, same class
+ *
+ * `Q_DOCUMENT_ACTION` also carries the ONE sweep repeatable
+ * (schedules/schedule-sweep.ts's `SCHEDULE_SWEEP_JOB_NAME`) and every OCCURRENCE job it dispatches
+ * (`SCHEDULE_OCCURRENCE_JOB_NAME`) — "never a second queue" (queue.constants.ts's own header). BullMQ
+ * gives a queue exactly ONE consuming `Worker`; a SECOND `@Processor(Q_DOCUMENT_ACTION)` class would
+ * not partition jobs by name, it would just compete with this one for EVERY job, including ordinary
+ * "run" ones — so branching on `job.name`, right here, is the only safe way to add these two without
+ * risking an ordinary action job landing on code that doesn't expect its shape. The pre-existing "run"
+ * branch below is untouched by this addition — same lines, same behavior, same tests.
+ *
+ * `sweepRunner` is `@Optional()`: every EXISTING spec in this file (and the real Redis integration
+ * spec, queue/__tests__/document-action-queue.redis.spec.ts) constructs this processor with only a
+ * `DocumentsService` and never sends a schedule-named job — Nest injects `undefined` for an omitted
+ * optional dependency rather than throwing, so none of that had to change. Production
+ * wiring (documents-core.module.ts) always provides a real one.
+ *
+ * Automatic ECB exchange rates add a FOURTH job name the same way: ONE
+ * more repeatable (`currency-rates/currency-rate-sweep.ts`'s `CURRENCY_RATE_SWEEP_JOB_NAME`),
+ * routed to `CurrencyRateSweepRunner`, `@Optional()`-injected for the identical reason and provided
+ * for real by `document-queue-worker.module.ts` (not `documents-core.module.ts` — that runner has no
+ * Nest dependencies of its own, so it needs no home in the Core module at all; see that worker
+ * module's own header).
+ *
+ * Automatic dunning reminders add a FIFTH job name, same shape again: ONE
+ * more repeatable (`reminders/reminder-sweep.ts`'s `REMINDER_SWEEP_JOB_NAME`), routed to
+ * `ReminderSweepRunner`, `@Optional()`-injected for the identical reason and provided for real by
+ * `document-queue-worker.module.ts` (not `documents-core.module.ts` — same rationale as
+ * `CurrencyRateSweepRunner`: that runner's only Nest dependency, `MailService`, is a plain leaf
+ * provider with no reason to live in the Core module either).
+ *
+ * PDP reception (inbound e-invoices) adds a SIXTH job name — ONE more repeatable
+ * (`conformity/reception-sweep.ts`'s `RECEPTION_SWEEP_JOB_NAME`), routed to `PdpReceptionSweepRunner`,
+ * `@Optional()`-injected for the identical reason. UNLIKE `CurrencyRateSweepRunner`/
+ * `ReminderSweepRunner`, this one DOES need `ChannelCredentialsService`/`DocumentsService` — the same
+ * shape `ConformitySweepRunner` already has — so it is provided by `documents-core.module.ts`, not
+ * this worker module, for the identical reason that file's own header gives for `ConformitySweepRunner`.
+ */
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
+import { Inject, Logger, Optional } from '@nestjs/common';
+import { Job } from 'bullmq';
+
+import { runWithCompanyId } from '@/lib/request-context';
+
+import { ActionResult } from '../../actions/action-registry';
+import {
+  CurrencyRateSweepRunner,
+  RunCurrencyRateSweepResult,
+} from '../../../company/currency-rates/currency-rate-sweep-runner';
+import { CURRENCY_RATE_SWEEP_JOB_NAME } from '../../../company/currency-rates/currency-rate-sweep';
+import {
+  CONFORMITY_POLL_JOB_NAME,
+  CONFORMITY_SWEEP_JOB_NAME,
+  ConformityPollJobData,
+} from '../../conformity/conformity-sweep';
+import { ConformitySweepRunner, RunConformitySweepResult } from '../../conformity/conformity-sweep-runner';
+import { RECEPTION_SWEEP_JOB_NAME } from '../../conformity/reception-sweep';
+import { PdpReceptionSweepRunner, RunReceptionSweepResult } from '../../conformity/reception-sweep-runner';
+import { DocumentsService } from '../../documents.service';
+import { REMINDER_SWEEP_JOB_NAME } from '../../reminders/reminder-sweep';
+import { ReminderSweepRunner, RunReminderSweepResult } from '../../reminders/reminder-sweep-runner';
+import { DOCUMENT_REPORT_JOB_NAME, ReportJobData } from '../../reporting/report-job';
+import { ReportingRunner } from '../../reporting/reporting-runner';
+import { DocumentScheduleSweepRunner, RunSweepResult } from '../../schedules/schedule-sweep-runner';
+import {
+  SCHEDULE_OCCURRENCE_JOB_NAME,
+  SCHEDULE_SWEEP_JOB_NAME,
+  ScheduleOccurrenceJobData,
+} from '../../schedules/schedule-sweep';
+import { DocumentEventsPublisher } from '../document-events-publisher';
+import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../document-webhooks';
+import { markSendFailed } from '../mark-send-failed';
+import { DocumentActionJobData, Q_DOCUMENT_ACTION } from '../queue.constants';
+
+@Processor(Q_DOCUMENT_ACTION)
+export class DocumentActionProcessor extends WorkerHost {
+  private readonly logger = new Logger(DocumentActionProcessor.name);
+
+  constructor(
+    private readonly documentsService: DocumentsService,
+    @Optional() private readonly sweepRunner?: DocumentScheduleSweepRunner,
+    // Same `@Optional()` reasoning as `sweepRunner` above — every EXISTING spec in this file (and
+    // the ordinary-action real-Redis integration spec) constructs this processor without one and
+    // never sends a conformity-named job; production wiring (documents-core.module.ts) always
+    // provides a real one.
+    @Optional() private readonly conformitySweepRunner?: ConformitySweepRunner,
+    // Same `@Optional()` reasoning again — declarative reporting (`reporting/`) is a
+    // ONE-SHOT job, not a repeatable sweep, but the shape is identical: every EXISTING spec in this
+    // file constructs this processor without one and never sends a report-named job; production
+    // wiring (documents-core.module.ts) always provides a real one.
+    @Optional() private readonly reportingRunner?: ReportingRunner,
+    // The SSE status nudge — a DIFFERENT reason to be `@Optional()` than the three above:
+    // this is a SIDE CHANNEL (see `mark-send-failed.ts`'s own `MarkSendFailedInput.events` header), not
+    // a whole job kind this processor would otherwise be unable to handle. A missing publisher only
+    // means the "send_failed" SSE nudge doesn't fire — the WRITE itself (already correct, already
+    // tested above `onFailed`) is entirely unaffected, and the ~60s polling fallback still catches it.
+    // Every EXISTING spec in this file constructs the processor without one; production wiring
+    // (`documents-core.module.ts`, via the `@Global()` `DocumentQueueModule`) always provides a real
+    // one — this is the SAME concrete class `ACTION_REGISTRY`'s own factory injects for `async-send.ts`'s
+    // side of this mechanism, never a second implementation.
+    @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
+    // The `DOCUMENT_SEND_FAILED` webhook's own emitter (see
+    // `mark-send-failed.ts`'s own `MarkSendFailedInput.webhooks` header). `@Optional()` for the same
+    // reason `eventsPublisher` above is: every EXISTING spec in this file constructs the processor
+    // without one. Injected by the `DOCUMENT_WEBHOOK_EMITTER` token (`documents-core.module.ts`
+    // provides it with `useExisting: WebhookDispatcherService`, visible here because
+    // `DocumentsCoreModule` exports it and `DocumentsQueueWorkerModule` — this processor's own
+    // providing module — imports `DocumentsCoreModule`), never the concrete `WebhookDispatcherService`
+    // class directly — see that token's own header (`queue/document-webhooks.ts`) for why: the
+    // concrete class drags `webhooks.service.ts` → `drivers/discord.driver.ts` → `@teever/ez-hook`
+    // into every file that imports it, breaking THIS class's own spec (and the four
+    // `queue/__tests__/*.redis.spec.ts` integration suites that import it) under ts-jest.
+    @Optional() @Inject(DOCUMENT_WEBHOOK_EMITTER) private readonly webhookDispatcher?: DocumentWebhookEmitter,
+    // Automatic ECB exchange rates — same `@Optional()` reasoning as
+    // `conformitySweepRunner`/`reportingRunner` above: every EXISTING spec in this file constructs
+    // this processor without one and never sends a currency-rate-sweep-named job; production wiring
+    // (document-queue-worker.module.ts) always provides a real one.
+    @Optional() private readonly currencyRateSweepRunner?: CurrencyRateSweepRunner,
+    // Automatic dunning reminders — same `@Optional()` reasoning again:
+    // every EXISTING spec in this file constructs this processor without one and never sends a
+    // reminder-sweep-named job; production wiring (document-queue-worker.module.ts) always provides
+    // a real one.
+    @Optional() private readonly reminderSweepRunner?: ReminderSweepRunner,
+    // PDP reception — same `@Optional()` reasoning again: every EXISTING spec in this file constructs
+    // this processor without one and never sends a reception-sweep-named job; production wiring
+    // (documents-core.module.ts, via `DocumentsCoreModule`'s own export) always provides a real one.
+    @Optional() private readonly receptionSweepRunner?: PdpReceptionSweepRunner,
+  ) {
+    super();
+  }
+
+  async process(
+    job: Job<DocumentActionJobData>,
+  ): Promise<
+    | ActionResult
+    | RunSweepResult
+    | RunConformitySweepResult
+    | RunCurrencyRateSweepResult
+    | RunReminderSweepResult
+    | RunReceptionSweepResult
+    | { journaled: number }
+  > {
+    if (job.name === SCHEDULE_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the document-schedule sweep (job ${job.id})`);
+      return this.requireSweepRunner().runSweep();
+    }
+
+    if (job.name === SCHEDULE_OCCURRENCE_JOB_NAME) {
+      const occurrence = job.data as unknown as ScheduleOccurrenceJobData;
+      this.logger.log(
+        `Running scheduled occurrence for schedule ${occurrence.scheduleId} ` +
+          `(${occurrence.typeId}/${occurrence.actionId}, job ${job.id})`,
+      );
+      return this.requireSweepRunner().runOccurrence(occurrence);
+    }
+
+    if (job.name === CONFORMITY_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the document-conformity sweep (job ${job.id})`);
+      return this.requireConformitySweepRunner().runSweep();
+    }
+
+    if (job.name === CONFORMITY_POLL_JOB_NAME) {
+      const poll = job.data as unknown as ConformityPollJobData;
+      this.logger.log(
+        `Running conformity poll for document ${poll.documentId} ("${poll.providerId}", job ${job.id})`,
+      );
+      return this.requireConformitySweepRunner().runPoll(poll);
+    }
+
+    if (job.name === CURRENCY_RATE_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the currency-rate sweep (job ${job.id})`);
+      return this.requireCurrencyRateSweepRunner().runSweep();
+    }
+
+    if (job.name === REMINDER_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the dunning-reminder sweep (job ${job.id})`);
+      return this.requireReminderSweepRunner().runSweep();
+    }
+
+    if (job.name === RECEPTION_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the PDP-reception sweep (job ${job.id})`);
+      return this.requireReceptionSweepRunner().runSweep();
+    }
+
+    if (job.name === DOCUMENT_REPORT_JOB_NAME) {
+      const report = job.data as unknown as ReportJobData;
+      this.logger.log(
+        `Running declarative report for document ${report.documentId} ("${report.providerId}", job ${job.id})`,
+      );
+      // No try/catch here, deliberately — see `reporting-runner.ts#runReport`'s own header: it
+      // handles `ChannelNotConnectedError` inline (journals `report:blocked`, never retried) but
+      // lets any OTHER failure propagate, exactly like the ordinary "run" branch below, so BullMQ's
+      // own `attempts`/backoff (`DocumentQueueDispatcher.enqueueReport`) gets to run. Only once every
+      // retry is exhausted does `onFailed` below journal `report:failed`.
+      return this.requireReportingRunner().runReport(report);
+    }
+
+    const { companyId, typeId, documentId, actionId, payload } = job.data;
+    this.logger.log(`Running "${actionId}" on ${typeId}/${documentId} (job ${job.id}, company ${companyId})`);
+
+    // No try/catch here: a thrown error (a forbidden action, a transient delivery failure inside the
+    // action's own handler, ...) must propagate so BullMQ records this ATTEMPT as failed and applies
+    // its own retry/backoff — swallowing it here would silently turn every failure into a single,
+    // un-retried attempt. THE MUTATION TARGET #2 ("the job's failure gets persisted as 'sent' anyway")
+    // lives in the action handler itself (actions/async-send.ts) and in `onFailed` below, not in this
+    // method.
+    // `role` stays `undefined` (this queue never carries one — see `DocumentsService.runAction`'s own
+    // header on that parameter) and `isQueuedReplay: true` is threaded through as the SIXTH argument:
+    // this "run" branch is reached ONLY via `queue.constants.ts#enqueueAction`'s own `'run'` job name,
+    // which `actions/async-send.ts` is the ONLY caller of, always for the SAME action it just admitted
+    // moments (or, after a backoff, hours) earlier — `runAction` itself narrows this flag down to the
+    // one shape it actually changes anything for (`actionId === 'send'` AND the record already
+    // "sending"), so passing it unconditionally here is safe for every job this branch ever sees.
+    //
+    // Wrapped in `runWithCompanyId` — this worker has no HTTP request of its own to carry a company
+    // context (`CompanyContextInterceptor`, `@/lib/request-context.ts`'s own header), so every `Log`
+    // write `runAction` and whatever it calls make (an action handler, a transport, the mail service, a
+    // render) would otherwise resolve to no company at all.
+    return runWithCompanyId(companyId, () =>
+      this.documentsService.runAction(
+        companyId,
+        typeId,
+        actionId,
+        { documentId, data: payload.data, params: payload.params },
+        undefined,
+        true,
+      ),
+    );
+  }
+
+  private requireSweepRunner(): DocumentScheduleSweepRunner {
+    if (!this.sweepRunner) {
+      // Unreachable in production (documents-core.module.ts always provides one) — a loud, named
+      // failure rather than a silent no-op if this is ever wired without it.
+      throw new Error(
+        'DocumentActionProcessor received a schedule job but has no DocumentScheduleSweepRunner.',
+      );
+    }
+    return this.sweepRunner;
+  }
+
+  private requireConformitySweepRunner(): ConformitySweepRunner {
+    if (!this.conformitySweepRunner) {
+      // Unreachable in production (documents-core.module.ts always provides one) — a loud, named
+      // failure rather than a silent no-op if this is ever wired without it.
+      throw new Error('DocumentActionProcessor received a conformity job but has no ConformitySweepRunner.');
+    }
+    return this.conformitySweepRunner;
+  }
+
+  private requireReportingRunner(): ReportingRunner {
+    if (!this.reportingRunner) {
+      // Unreachable in production (documents-core.module.ts always provides one) — a loud, named
+      // failure rather than a silent no-op if this is ever wired without it.
+      throw new Error('DocumentActionProcessor received a report job but has no ReportingRunner.');
+    }
+    return this.reportingRunner;
+  }
+
+  private requireCurrencyRateSweepRunner(): CurrencyRateSweepRunner {
+    if (!this.currencyRateSweepRunner) {
+      // Unreachable in production (document-queue-worker.module.ts always provides one) — a loud,
+      // named failure rather than a silent no-op if this is ever wired without it.
+      throw new Error(
+        'DocumentActionProcessor received a currency-rate-sweep job but has no CurrencyRateSweepRunner.',
+      );
+    }
+    return this.currencyRateSweepRunner;
+  }
+
+  private requireReminderSweepRunner(): ReminderSweepRunner {
+    if (!this.reminderSweepRunner) {
+      // Unreachable in production (document-queue-worker.module.ts always provides one) — a loud,
+      // named failure rather than a silent no-op if this is ever wired without it.
+      throw new Error(
+        'DocumentActionProcessor received a reminder-sweep job but has no ReminderSweepRunner.',
+      );
+    }
+    return this.reminderSweepRunner;
+  }
+
+  private requireReceptionSweepRunner(): PdpReceptionSweepRunner {
+    if (!this.receptionSweepRunner) {
+      // Unreachable in production (documents-core.module.ts always provides one) — a loud, named
+      // failure rather than a silent no-op if this is ever wired without it.
+      throw new Error('DocumentActionProcessor received a reception job but has no PdpReceptionSweepRunner.');
+    }
+    return this.receptionSweepRunner;
+  }
+
+  /**
+   * Fires after EVERY failed attempt, not only the last one — `job.attemptsMade` (already
+   * incremented for this attempt by BullMQ before the event fires) compared against the job's own
+   * configured `attempts` (document-queue.dispatcher.ts) is what tells "one more retry is coming"
+   * apart from "this was the terminal failure". Only the terminal case calls `markSendFailed` — an
+   * earlier attempt failing is exactly what BullMQ's backoff is FOR, not something this record's
+   * status should reflect yet (it stays "sending" through every retry).
+   *
+   * Schedule-named jobs (sweep/occurrence) are explicitly skipped here: an occurrence's own failure
+   * is ALREADY recorded, on every attempt, by `DocumentScheduleSweepRunner.runOccurrence` itself
+   * (schedule-sweep-runner.ts) — `markSendFailed` targets a "send" action's own document/status
+   * vocabulary, which an occurrence job's `documentId` (the schedule's SOURCE document, not
+   * necessarily the one the action even changes) does not share, and calling it would be a harmless
+   * but confusing no-op at best.
+   */
+  @OnWorkerEvent('failed')
+  async onFailed(job: Job<DocumentActionJobData> | undefined, error: Error): Promise<void> {
+    if (!job) return;
+
+    // A report job's own vocabulary is neither a "send" action's (no `actionId` at all — see
+    // `ReportJobData`) nor a schedule/conformity job's (which, unlike a report, is either skipped
+    // entirely below or never reaches `onFailed` in the first place): a dedicated branch, run BEFORE
+    // the generic skip-list, terminal-only (an earlier, still-retryable attempt is exactly what
+    // BullMQ's own backoff is for — the SAME "attemptsMade < attempts, log and return" gate every
+    // other branch here already applies). `recordTerminalFailure` never throws on its own (see its
+    // own header) — this try/catch is the second, unconditional belt, the identical discipline this
+    // method's own header already documents for `markSendFailed` below (a listener that throws kills
+    // the whole worker process).
+    if (job.name === DOCUMENT_REPORT_JOB_NAME) {
+      const attempts = job.opts?.attempts ?? 1;
+      if (job.attemptsMade < attempts) {
+        this.logger.warn(
+          `Report job ${job.id} failed (attempt ${job.attemptsMade}/${attempts}) — BullMQ will retry: ${error.message}`,
+        );
+        return;
+      }
+      try {
+        await this.requireReportingRunner().recordTerminalFailure(
+          job.data as unknown as ReportJobData,
+          error,
+        );
+      } catch (recordError) {
+        this.logger.error(
+          `recordTerminalFailure itself failed for report job ${job.id} — original failure: ` +
+            `${error.message}; recording failure: ` +
+            `${recordError instanceof Error ? recordError.message : String(recordError)}`,
+        );
+      }
+      return;
+    }
+
+    if (
+      job.name === SCHEDULE_SWEEP_JOB_NAME ||
+      job.name === SCHEDULE_OCCURRENCE_JOB_NAME ||
+      // Same reasoning — a conformity job's `documentId`/outcome vocabulary is not a "send" action's,
+      // and `runPoll` itself never throws in the first place (it journals `poll:blocked` instead —
+      // see conformity-sweep-runner.ts's own header), so reaching this branch for one at all would
+      // already mean something unexpected happened above `runPoll`'s own try/catch.
+      job.name === CONFORMITY_SWEEP_JOB_NAME ||
+      job.name === CONFORMITY_POLL_JOB_NAME ||
+      // Same reasoning again — `CurrencyRateSweepRunner.runSweep` never throws either (a failed ECB
+      // fetch is reported as `{ ok: false }`, never rethrown: see its own header), and this job's
+      // data (`{}`, no `documentId`/`actionId`) shares nothing with `markSendFailed`'s vocabulary.
+      job.name === CURRENCY_RATE_SWEEP_JOB_NAME ||
+      // Same reasoning once more — `ReminderSweepRunner.runSweep` never throws either (a per-invoice
+      // send/record failure is caught and counted in its own `skipped`, never rethrown: see that
+      // runner's own header), and this job's data (`{}`, no `documentId`/`actionId`) shares nothing
+      // with `markSendFailed`'s vocabulary either.
+      job.name === REMINDER_SWEEP_JOB_NAME ||
+      // Same reasoning again — `PdpReceptionSweepRunner.runSweep` never throws either (a per-company
+      // list/import failure is caught and counted in its own `failed`, never rethrown: see that
+      // runner's own header), and this job's data (`{}`, no `documentId`/`actionId`) shares nothing
+      // with `markSendFailed`'s vocabulary either.
+      job.name === RECEPTION_SWEEP_JOB_NAME
+    )
+      return;
+
+    const attempts = job.opts?.attempts ?? 1;
+    if (job.attemptsMade < attempts) {
+      this.logger.warn(
+        `Job ${job.id} failed (attempt ${job.attemptsMade}/${attempts}) — BullMQ will retry: ${error.message}`,
+      );
+      return;
+    }
+
+    this.logger.error(
+      `Job ${job.id} failed permanently after ${job.attemptsMade} attempt(s): ${error.message}`,
+    );
+    const { companyId, typeId, documentId, actionId } = job.data;
+    // `@OnWorkerEvent` handlers are event listeners, not a BullMQ-retried job attempt: anything they
+    // throw becomes an UNHANDLED REJECTION, which kills the entire Node process — this is not
+    // theoretical, it is exactly what happened here twice on 2026-08-31 (a document deleted while its
+    // failed send's terminal-failure job was still in flight took down two whole e2e backends).
+    // `markSendFailed` already has its own belt for the specific "document no longer exists" case
+    // (mark-send-failed.ts), but this try/catch is the second, unconditional one: whatever reason
+    // markSendFailed might still fail for, this handler must never let it escape — log every bit of
+    // context (both the original job failure and this marking failure) and stop, never rethrow.
+    try {
+      // Wrapped in `runWithCompanyId` — see the "run" branch's own comment above for why: this event
+      // listener has no request/job context of its own either, and `markSendFailed` itself writes a
+      // `Log` row (via `checkTransitionResult`'s own failure path) that needs one.
+      await runWithCompanyId(companyId, () =>
+        markSendFailed((id) => this.documentsService.getType(id), {
+          companyId,
+          typeId,
+          documentId,
+          actionId,
+          error,
+          events: this.eventsPublisher,
+          webhooks: this.webhookDispatcher,
+        }),
+      );
+    } catch (markError) {
+      this.logger.error(
+        `markSendFailed itself failed for job ${job.id} (${typeId}/${documentId}, action "${actionId}") — ` +
+          `original failure: ${error.message}; marking failure: ` +
+          `${markError instanceof Error ? markError.message : String(markError)}`,
+      );
+    }
+  }
+}

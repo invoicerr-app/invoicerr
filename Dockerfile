@@ -1,4 +1,8 @@
 FROM --platform=$BUILDPLATFORM node:22-bullseye AS backend-builder
+# PDF rendering uses `playwright-core` (not the full `playwright` package), which — unlike the
+# `puppeteer` it replaced — bundles no browser at all and downloads nothing on `npm ci`, so there is
+# no equivalent of puppeteer's old ~750MB postinstall fetch to skip here. The runtime stage still
+# points the app at the Chromium already present in the base image (CHROMIUM_EXECUTABLE_PATH below).
 
 WORKDIR /app
 
@@ -26,8 +30,11 @@ RUN npm run build
 
 FROM ghcr.io/invoicerr-app/server-image:latest
 
-ENV PLUGIN_DIR=/usr/share/nginx/plugins
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# `playwright-core` ships no browser of its own — this points it at the Chromium already baked into
+# the base image (`ghcr.io/invoicerr-app/server-image`), the same binary the old PUPPETEER_EXECUTABLE_PATH
+# used to name (render-pdf.ts still honours that variable too, as a backward-compatibility alias, for
+# self-hosted operators whose own env/compose files still set it).
+ENV CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NODE_ENV=production
 
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
@@ -36,6 +43,15 @@ COPY --from=backend-builder /app/dist /usr/share/nginx/backend
 COPY --from=backend-builder /app/node_modules /usr/share/nginx/backend/node_modules
 COPY --from=backend-builder /app/package*.json /usr/share/nginx/backend/
 COPY --from=backend-builder /app/prisma /usr/share/nginx/backend/prisma
+# `backend/scripts/*.ts` (e.g. release-catalogs.ts, run as `npm run catalogs:release`) are raw
+# TypeScript, run via `tsx` — never compiled by `nest build` (outside tsconfig's own `include`).
+# `tsx` is present (a devDependency, but `npm ci` above installs it before NODE_ENV=production is
+# ever set, and the whole node_modules tree above is copied as-is). Their own imports reach into
+# `../src/...` with no file extension, same as `prisma/seed.ts` already does: the COPY just above
+# put `dist/src/**` (this stage's OWN compiled output) at `.../backend/src/**` in THIS image, so an
+# extensionless `../src/prisma/whatever` resolves to real, already-compiled `.js` here — nothing
+# extra to ship for that half, just this one line for the scripts themselves.
+COPY --from=backend-builder /app/scripts /usr/share/nginx/backend/scripts
 COPY --from=backend-builder /app/package.json /usr/share/nginx/
 COPY --from=backend-builder /app/prisma.config.ts /usr/share/nginx/backend
 COPY --from=backend-builder /app/prisma.config.ts /usr/share/nginx/backend/prisma
@@ -48,6 +64,28 @@ EXPOSE 80
 
 RUN chmod +x /usr/share/nginx/entrypoint.sh
 
-ENV BETTER_AUTH_URL="http://localhost:3000"
+# Which commit this image was built from — deliberately the LAST thing in the file.
+# `GIT_REVISION` changes on every build, so anything placed after an instruction that consumes it is
+# rebuilt every time; keeping these at the very end leaves every expensive layer above cacheable.
+#
+# Without this, "what is actually running in production?" has no answer that does not go through the
+# registry API: `docker image inspect` on the deployed container shows the tag and the digest but
+# nothing tying either to a commit, and a moving branch tag (`:compliance-engine-v2`) points at a
+# different commit every build. Measured 2026-09-14 on the live deployment: the running image's
+# commit could only be GUESSED, by correlating the image's build timestamp with the git log to
+# within two minutes — and reading it from GHCR needed a token scope we did not have. A label costs
+# nothing and turns that guess into a fact.
+#
+# The value is also exposed as an env var so it can be read from INSIDE the container (a shell, a
+# future health endpoint) without a Docker socket — the label alone is only visible to whoever can
+# inspect the image.
+ARG GIT_REVISION=unknown
+ARG GIT_REF_NAME=unknown
+LABEL org.opencontainers.image.revision=$GIT_REVISION \
+      org.opencontainers.image.version=$GIT_REF_NAME \
+      org.opencontainers.image.source=https://github.com/invoicerr-app/invoicerr \
+      org.opencontainers.image.title=invoicerr
+ENV INVOICERR_REVISION=$GIT_REVISION \
+    INVOICERR_REF_NAME=$GIT_REF_NAME
 
 CMD ["/usr/share/nginx/entrypoint.sh"]

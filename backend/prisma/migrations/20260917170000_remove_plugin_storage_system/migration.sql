@@ -1,0 +1,21 @@
+-- Removal of the in-app, DB-backed, Settings-configurable plugin mechanism (owner decision,
+-- 2026-09-17): a company/instance-level S3 (or local-disk) storage provider a tenant admin could
+-- point at their own bucket is not a product this app offers any more. Periodic backup of every
+-- document is now an INSTANCE-level concern instead (backend/src/modules/backup/), never a
+-- per-deployment toggle.
+--
+-- Every row this table ever actually held was one of two categories: `STORAGE` (`s3`/`local`, wired
+-- to `utils/storage-upload.ts`, which itself had no real call site -- neither
+-- `uploadSignedQuotePdf` nor `uploadPaidInvoicePdf` was ever invoked anywhere in this codebase) and
+-- `SIGNING` (dead since quote e-signature was removed). `OCR`, the enum's third member, never had a
+-- `Plugin` row at all -- see `backend/src/plugins/index.ts`'s own header. So this is additive-
+-- destructive in the sense CLAUDE.md describes for other catalogs, but not in the sense of losing
+-- live configuration: there is no migration path FROM a `Plugin` row TO anything, because nothing
+-- downstream of this table was ever reachable from a real document flow.
+--
+-- Unlike removing one VALUE from a live enum (`WebhookEvent`'s own purge migrations, which had to
+-- rebuild the whole type because Postgres cannot cheaply DROP a value), dropping a whole TABLE and
+-- the ENUM TYPE that only that table ever used is a plain, cheap operation -- no rebuild dance
+-- needed.
+DROP TABLE "Plugin";
+DROP TYPE "PluginType";

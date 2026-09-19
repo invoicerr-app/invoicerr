@@ -1,143 +1,253 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
-
-import { Button, buttonVariants } from "@/components/ui/button"
-import { ExternalLink } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
-import { useForm } from "react-hook-form"
+import { Copy, ExternalLink, KeyRound, Trash2 } from "lucide-react"
 import { useState } from "react"
+import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
+
+import { Badge } from "@/components/ui/badge"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { MultiSelect } from "@/components/ui/multi-select"
+import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
+import { copyToClipboard } from "@/lib/clipboard"
+import { cn } from "@/lib/utils"
+
+import {
+  SettingsFormFooter,
+  SettingsList,
+  SettingsListRow,
+  SettingsListSkeleton,
+  SettingsPage,
+  SettingsRowMenu,
+  SettingsSection,
+  useSavedFlash,
+} from "./settings-section"
 
 interface ApiKey {
-    id: string
-    name: string
-    keyPrefix: string
-    createdAt: string
-    lastUsedAt: string | null
+  id: string
+  name: string
+  keyPrefix: string
+  scopes: string[]
+  createdAt: string
+  lastUsedAt: string | null
 }
 
 export default function ApiKeysSettings() {
-    const { t } = useTranslation()
-    const { data: apiKeys, mutate } = useGet<ApiKey[]>('/api/api-keys')
-    const { trigger: createApiKey, loading: creating } = usePost('/api/api-keys')
+  const { t } = useTranslation()
+  const { data: apiKeys, mutate } = useGet<ApiKey[]>("/api/api-keys")
+  const { trigger: createApiKey, loading: creating } = usePost("/api/api-keys")
+  const { data: options } = useGet<{ scopes: string[] }>("/api/api-keys/options")
+  const [saved, flash] = useSavedFlash()
 
-    const [createdKey, setCreatedKey] = useState<string | null>(null)
+  const [createdKey, setCreatedKey] = useState<string | null>(null)
+  const [multiResetKey, setMultiResetKey] = useState(0)
 
-    const form = useForm<{ name: string }>({
-        defaultValues: { name: '' }
-    })
+  const form = useForm<{ name: string; scopes: string[] }>({
+    defaultValues: { name: "", scopes: [] },
+  })
 
-    const handleCreate = form.handleSubmit(async (values) => {
-        if (!values.name?.trim()) return
-        try {
-            const res = await createApiKey(values) as any
-            if (res?.key) {
-                setCreatedKey(res.key)
-                form.reset({ name: '' })
-                mutate()
-            }
-        } catch (e) {
-            console.error('Error creating API key:', e)
-        }
-    })
-
-    const handleDelete = async (id: string) => {
-        try {
-            const backendUrl = import.meta.env.VITE_BACKEND_URL || ''
-            const res = await authenticatedFetch(`${backendUrl}/api/api-keys/${id}`, { method: 'DELETE' })
-            if (!res.ok) return
-            mutate()
-        } catch { }
+  const handleCreate = form.handleSubmit(async (values) => {
+    if (!values.name?.trim()) return
+    try {
+      const res = (await createApiKey(values)) as any
+      if (res?.key) {
+        setCreatedKey(res.key)
+        form.reset({ name: "", scopes: [] })
+        // force remount of MultiSelect so it picks up cleared value
+        setMultiResetKey((k) => k + 1)
+        flash()
+        mutate()
+      }
+    } catch (e) {
+      console.error("Error creating API key:", e)
     }
+  })
 
-    return (
-        <div className="h-full">
-            <div className="mb-4 flex items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold">{t("settings.apiKeys.title")}</h1>
-                    <p className="text-muted-foreground">{t("settings.apiKeys.description")}</p>
-                </div>
-                <a
-                    href={`${import.meta.env.VITE_BACKEND_URL || ""}/api/docs`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    {t("settings.apiKeys.swaggerLink")}
-                </a>
+  const handleDelete = async (id: string) => {
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
+      const res = await authenticatedFetch(`${backendUrl}/api/api-keys/${id}`, { method: "DELETE" })
+      if (!res.ok) return
+      mutate()
+    } catch {}
+  }
+
+  const handleCopy = async () => {
+    if (!createdKey) return
+    // The key stays visible in the panel above either way — this is the only chance to grab it
+    // (`createdKeyNotice`), so a failed copy gets its own toast rather than silently doing nothing.
+    if (await copyToClipboard(createdKey)) {
+      toast.success(t("settings.apiKeys.messages.copied"))
+    } else {
+      toast.error(t("settings.apiKeys.messages.copyFailed"))
+    }
+  }
+
+  return (
+    <SettingsPage
+      title={t("settings.apiKeys.title")}
+      description={t("settings.apiKeys.description")}
+      actions={
+        <a
+          href={`${import.meta.env.VITE_BACKEND_URL || ""}/api/docs`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+        >
+          <ExternalLink />
+          {t("settings.apiKeys.swaggerLink")}
+        </a>
+      }
+    >
+      {createdKey && (
+        <SettingsSection
+          tone="warning"
+          title={t("settings.apiKeys.createdKeyTitle")}
+          dataCy="api-key-created"
+        >
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2 rounded-md bg-muted p-2">
+              <code className="min-w-0 flex-1 break-all font-mono text-sm">{createdKey}</code>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("settings.common.copy")}
+                tooltip={t("settings.common.copy")}
+                onClick={handleCopy}
+              >
+                <Copy />
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">{t("settings.apiKeys.createdKeyNotice")}</p>
+          </div>
+        </SettingsSection>
+      )}
 
-            {createdKey && (
-                <Card className="mb-4">
-                    <CardContent>
-                        <CardTitle>{t('settings.apiKeys.createdKeyTitle')}</CardTitle>
-                        <CardDescription>
-                            <div className="break-all font-mono bg-muted p-2 rounded">{createdKey}</div>
-                            <div className="text-sm text-muted-foreground mt-2">{t('settings.apiKeys.createdKeyNotice')}</div>
-                        </CardDescription>
-                    </CardContent>
-                </Card>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-4 pr-2 overflow-hidden">
-                    {apiKeys?.map((key) => (
-                        <Card key={key.id} className="w-full">
-                            <CardHeader className="w-full">
-                                <CardTitle className="text-sm flex items-center gap-2">
-                                    <span className="font-medium">{key.name}</span>
-                                    <span className="font-mono text-xs text-muted-foreground">{key.keyPrefix}…</span>
-                                </CardTitle>
-                                <CardDescription>
-                                    {key.lastUsedAt
-                                        ? t('settings.apiKeys.card.lastUsed', { date: new Date(key.lastUsedAt).toLocaleString() })
-                                        : t('settings.apiKeys.card.neverUsed')}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Button variant="destructive" size="sm" onClick={() => handleDelete(key.id)}>
-                                    {t('settings.apiKeys.card.revoke')}
-                                </Button>
-                            </CardContent>
-                        </Card>
+      <SettingsSection
+        title={t("settings.apiKeys.list.title")}
+        aside={apiKeys && apiKeys.length > 0 && <Badge variant="secondary">{apiKeys.length}</Badge>}
+        dataCy="api-keys-list-section"
+      >
+        {!apiKeys ? (
+          <SettingsListSkeleton rows={2} />
+        ) : apiKeys.length === 0 ? (
+          <EmptyState
+            icon={KeyRound}
+            size="sm"
+            title={t("settings.apiKeys.list.empty")}
+            data-cy="api-keys-empty"
+          />
+        ) : (
+          <SettingsList>
+            {apiKeys.map((key) => (
+              <SettingsListRow
+                key={key.id}
+                dataCy={`api-key-row-${key.id}`}
+                title={key.name}
+                meta={
+                  <span className="font-mono tabular-nums">
+                    {key.keyPrefix}… ·{" "}
+                    {key.lastUsedAt
+                      ? t("settings.apiKeys.card.lastUsed", {
+                          date: new Date(key.lastUsedAt).toLocaleString(),
+                        })
+                      : t("settings.apiKeys.card.neverUsed")}
+                  </span>
+                }
+                menu={
+                  <SettingsRowMenu
+                    dataCy={`api-key-menu-${key.id}`}
+                    items={[
+                      {
+                        label: t("settings.apiKeys.card.revoke"),
+                        icon: Trash2,
+                        destructive: true,
+                        dataCy: `api-key-revoke-${key.id}`,
+                        onSelect: () => handleDelete(key.id),
+                      },
+                    ]}
+                  />
+                }
+              >
+                {key.scopes.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {key.scopes.map((scope) => (
+                      <Badge key={scope} variant="outline" className="font-mono text-[10px]">
+                        {scope}
+                      </Badge>
                     ))}
-                </div>
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">
+                    {t("settings.apiKeys.card.noScopes")}
+                  </span>
+                )}
+              </SettingsListRow>
+            ))}
+          </SettingsList>
+        )}
+      </SettingsSection>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t("settings.apiKeys.create.title")}</CardTitle>
-                        <CardDescription>{t("settings.apiKeys.create.description")}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Form {...form}>
-                            <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); handleCreate(); }}>
-                                <FormField
-                                    name="name"
-                                    control={form.control}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>{t("settings.apiKeys.create.name")}</FormLabel>
-                                            <FormControl>
-                                                <Input {...field} placeholder={t("settings.apiKeys.create.namePlaceholder")} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+      <Form {...form}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleCreate()
+          }}
+        >
+          <SettingsSection
+            title={t("settings.apiKeys.create.title")}
+            description={t("settings.apiKeys.create.description")}
+            dataCy="api-key-create-section"
+            contentClassName="grid gap-4 sm:grid-cols-2"
+            footer={
+              <SettingsFormFooter saved={saved}>
+                <Button type="submit" loading={creating}>
+                  {t("settings.apiKeys.create.button")}
+                </Button>
+              </SettingsFormFooter>
+            }
+          >
+            <FormField
+              name="name"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.apiKeys.create.name")}</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder={t("settings.apiKeys.create.namePlaceholder")} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                                <div className="flex justify-end">
-                                    <Button type="submit" disabled={creating}>{t("settings.apiKeys.create.button")}</Button>
-                                </div>
-                            </form>
-                        </Form>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
-    )
+            <FormField
+              name="scopes"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.apiKeys.create.scopes")}</FormLabel>
+                  <FormControl>
+                    <MultiSelect
+                      key={multiResetKey}
+                      defaultValue={field.value || []}
+                      options={(options?.scopes || []).map((scope) => ({ label: scope, value: scope }))}
+                      onValueChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+        </form>
+      </Form>
+    </SettingsPage>
+  )
 }

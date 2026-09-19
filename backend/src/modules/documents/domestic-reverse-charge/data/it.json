@@ -1,0 +1,120 @@
+{
+  "countryCode": "IT",
+  "categories": [
+    {
+      "key": "investment-gold",
+      "label": "Gold and semi-finished gold products of at least 325‰ purity",
+      "legalRef": "DPR 633/1972 art. 17 comma 5, primo periodo",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "In deroga al primo comma, per le cessioni imponibili di oro da investimento di cui all'articolo 10, numero 11), nonché per le cessioni di materiale d'oro e per quelle di prodotti semilavorati, come definiti nell' articolo 1, comma 1, lettera c), numero 3, del decreto del Presidente della Repubblica 30 maggio 2002, n. 150 , di purezza pari o superiore a 325 millesimi, al pagamento dell'imposta è tenuto il cessionario, se soggetto passivo d'imposta nel territorio dello Stato.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Retrieved curl -sL -A \"Mozilla/5.0 ...\" \"https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633!vig=~art17\" (HTTP 200; this article renders as raw text, no JS wall). Condition NOT modeled: the buyer must itself be 'soggetto passivo d'imposta nel territorio dello Stato' (a taxable person established in Italy) — a buyer-status test this catalog does not evaluate. Shares the `investment-gold` key with DE (§ 13b Abs. 2 Nr. 9) and FR (CGI art. 283, 2 quater) — all three rest on the same ≥325‰ gold/semi-finished-gold threshold, itself derived from Directive 2006/112/EC art. 198(2)."
+    },
+    {
+      "key": "construction-subcontracting",
+      "label": "Construction/renovation labour supplied by a subcontractor in the building sector",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a) alle prestazioni di servizi diversi da quelli di cui alla lettera a-ter), compresa la prestazione di manodopera, rese nel settore edile da soggetti subappaltatori nei confronti delle imprese che svolgono l'attività di costruzione o ristrutturazione di immobili ovvero nei confronti dell'appaltatore principale o di un altro subappaltatore. La disposizione non si applica alle prestazioni di servizi rese nei confronti di un contraente generale a cui venga affidata dal committente la totalità dei lavori;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `investment-gold` above. A trailing inline footnote-reference number, '(126)', immediately follows the quoted semicolon in Normattiva's own rendering — confirmed against the raw HTML as bare text with no surrounding markup, Normattiva's own amendment-history apparatus, not part of the enacted wording, and stripped here (see this catalog's own commit for the exact retrieval). The 'contraente generale' carve-out in the quote's own second sentence is the exact carve-out this repository's task brief called out by name: a general contractor entrusted with the WHOLE of the works is excluded — a buyer-role distinction this catalog does not evaluate (see `schema.ts`'s own header on what a bare category list can and cannot express). Shares the `construction-subcontracting` key with DE (§ 13b Abs. 2 Nr. 4), FR (CGI art. 283, 2 nonies) and PT (CIVA art. 2.º n.º 1 alínea j)) — all four rest on the same underlying category (construction work performed by a subcontractor), itself derived from Directive 2006/112/EC art. 199(1)(a); exact scope (labour only vs. materials, which trades count as 'construction') differs by country and is NOT normalized by this shared key."
+    },
+    {
+      "key": "it-building-transfer-under-option",
+      "label": "Sale of a building under the seller's own option for VAT taxation",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a-bis)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a-bis) alle cessioni di fabbricati o di porzioni di fabbricato di cui ai numeri 8-bis) e 8-ter) del primo comma dell'articolo 10 per le quali nel relativo atto il cedente abbia espressamente manifestato l'opzione per l'imposizione;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `investment-gold` above. Condition NOT modeled: the deed itself must record the seller's express option for taxation (an exempt sale under art. 10 n. 8-bis/8-ter otherwise, per that article — not itself retrieved here). No equivalent found in FR/DE/PT's own retrieved text; kept as an Italy-only key rather than forced under a shared one."
+    },
+    {
+      "key": "it-building-services",
+      "label": "Cleaning, demolition, plant installation and completion services on buildings",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a-ter)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a-ter) alle prestazioni di servizi di pulizia, di demolizione, di installazione di impianti e di completamento relative ad edifici;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `investment-gold` above. Deliberately NOT given the same key as DE's own § 13b Abs. 2 Nr. 8 ('Reinigen von Gebäuden') even though both are building-related and both are already cited under `reverseCharge`/`franchise` sourcing conventions elsewhere in this codebase: this Italian lettera covers FOUR distinct kinds of work (cleaning, demolition, plant installation, completion), while the German Nummer covers only cleaning — sharing a key would assert an equivalence the retrieved texts do not support (see `schema.ts`'s own header on this exact risk)."
+    },
+    {
+      "key": "it-consortium-public-works",
+      "label": "Services by a consortium member to its own consortium for a public-works contract",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a-quater)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a-quater) alle prestazioni di servizi rese dalle imprese consorziate nei confronti del consorzio di appartenenza che, ai sensi delle lettere b), c) ed e) del comma 1 dell'articolo 34 del codice di cui al decreto legislativo 12 aprile 2006, n. 163 , e successive modificazioni, si è reso aggiudicatario di una commessa nei confronti di un ente pubblico al quale il predetto consorzio è tenuto ad emettere fattura ai sensi del comma 1 dell'articolo 17-ter del presente decreto. L'efficacia della disposizione di cui al periodo precedente è subordinata al rilascio, da parte del Consiglio dell'Unione europea, dell'autorizzazione di una misura di deroga ai sensi dell' articolo 395 della direttiva 2006/112/CE del Consiglio, del 28 novembre 2006 , e successive modificazioni;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `investment-gold` above. The quoted text's OWN second sentence conditions this category's effectiveness on an EU Council derogation authorisation under Directive 2006/112/EC art. 395 — this catalog records the category as enacted in the statute; whether that Council authorisation is currently in force is NOT checked here (resolution would need the Council's own implementing decision, not this article). Narrow and Italy-specific; no shared key."
+    },
+    {
+      "key": "it-logistics-subcontracting",
+      "label": "Subcontracted services to freight-transport and logistics companies",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a-quinquies)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a-quinquies) alle prestazioni di servizi, diverse da quelle di cui alle lettere da a) ad a-quater), effettuate tramite contratti di appalto, subappalto, affidamento a soggetti consorziati o rapporti negoziali comunque denominati, rese nei confronti di imprese che svolgono attività di trasporto e movimentazione di merci e prestazione di servizi di logistica. La disposizione del periodo precedente non si applica alle operazioni effettuate nei confronti di amministrazioni pubbliche e di altri enti e società di cui all'articolo 17-ter del presente decreto;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `investment-gold` above; trailing inline footnote-reference apparatus ('((...))', '(244)', '((247))' in Normattiva's own rendering, confirmed against the raw HTML's own <div class=\"ins-akn\"> insertion markers) stripped for the same reason as `construction-subcontracting`'s own note. Carve-out NOT modeled: the second sentence excludes supplies to public administrations/entities under art. 17-ter — a buyer-type test this catalog does not evaluate."
+    },
+    {
+      "key": "it-mobile-network-terminal-equipment",
+      "label": "Mobile telecom terminal equipment subject to the government concession tax",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. b)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "b) alle cessioni di apparecchiature terminali per il servizio pubblico radiomobile terrestre di comunicazioni soggette alla tassa sulle concessioni governative di cui all'articolo 21 della tariffa annessa al decreto del Presidente della Repubblica 26 ottobre 1972, n. 641 , come sostituita, da ultimo, dal decreto del Ministro delle finanze 28 dicembre 1995, pubblicato nella Gazzetta Ufficiale n. 303 del 30 dicembre 1995;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "validUntil": "2026-12-31",
+      "notes": "Same retrieval as `investment-gold` above. SUNSET, now structured as `validUntil` above (2026-09-16 re-retrieval, same normattiva.it URL, HTTP 200): DPR 633/1972 art. 17 comma 8 itself — 'Le disposizioni di cui al sesto comma, lettere b), c), d-bis), d-ter) e d-quater), del presente articolo si applicano alle operazioni effettuate fino al 31 dicembre 2026.' — counted from the article's own comma sequence (1: imposta dovuta dai soggetti…; …5: In deroga al primo comma, per le cessioni imponibili di oro…; 6: Le disposizioni di cui al quinto comma si applicano anche: a)…d-quinquies); 7: Le disposizioni del quinto comma si applicano alle ulteriori operazioni…; 8: the sunset sentence quoted above). `validUntil` is INCLUSIVE (see `schema.ts`'s own doc comment) — 'fino al 31 dicembre 2026' reads the same way in Italian. The EU-law basis for this date (Article 199a of Directive 2006/112/EC, most likely as last extended by Directive (EU) 2022/890 to 31 December 2026) was NOT independently re-verified this wave: EUR-Lex serves every CELEX URL tried behind an AWS WAF JavaScript challenge curl cannot pass (HTTP 202, empty body, `awswaf.com` challenge script) — recorded here rather than guessed at; a future check needs either a browser-capable fetch or a mirror. Kept distinct from `it-consumer-electronics-preretail` (lett. c) below): this lettera covers mobile-network TERMINAL equipment under an old telecoms-concession tax cross-reference, a narrower and textually separate object from lett. c)'s consumer electronics."
+    },
+    {
+      "key": "it-consumer-electronics-preretail",
+      "label": "Game consoles, tablets, laptops and integrated circuits, before retail installation",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. c)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "c) alle cessioni di console da gioco, tablet PC e laptop, nonché alle cessioni di dispositivi a circuito integrato, quali microprocessori e unità centrali di elaborazione, effettuate prima della loro installazione in prodotti destinati al consumatore finale;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "validUntil": "2026-12-31",
+      "notes": "Same retrieval as `investment-gold` above; same DPR 633/1972 art. 17 comma 8 sunset as `it-mobile-network-terminal-equipment` above — see that category's own `notes` for the exact quoted sentence, the comma count that identifies it as comma 8, and why the underlying EU-law basis (Directive 2006/112/EC art. 199a) was not independently re-verified this wave (EUR-Lex WAF-blocked to curl). Does NOT include mobile phones — those sit under `it-mobile-network-terminal-equipment` (lett. b), a separate, older provision — unlike Germany's own § 13b Abs. 2 Nr. 10, which lists 'Mobilfunkgeräte' (mobile phones) together with tablets/consoles/integrated circuits in ONE Nummer. Given that scope difference, this fact does NOT share a key with DE's Nr.10-derived category; each country's own file keeps its own boundary."
+    },
+    {
+      "key": "greenhouse-gas-and-energy-certificates",
+      "label": "Transfer of greenhouse-gas emission units and gas/electricity certificates",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. d-bis) e d-ter)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "d-bis) ai trasferimenti di quote di emissioni di gas a effetto serra definite all' articolo 3 della direttiva 2003/87/CE del Parlamento europeo e del Consiglio, del 13 ottobre 2003 , e successive modificazioni, trasferibili ai sensi dell'articolo 12 della medesima direttiva 2003/87/CE , e successive modificazioni; d-ter) ai trasferimenti di altre unità che possono essere utilizzate dai gestori per conformarsi alla citata direttiva 2003/87/CE e di certificati relativi al gas e all'energia elettrica;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "validUntil": "2026-12-31",
+      "notes": "Same retrieval as `investment-gold` above; same DPR 633/1972 art. 17 comma 8 sunset as `it-mobile-network-terminal-equipment` above — see that category's own `notes` for the exact quoted sentence and citation trail. Two distinct lettere combined into one fact because they were both amendments extending the SAME original mechanism (d-bis added the base GHG-quota case, d-ter its own extension to other compliance units and gas/electricity certificates) and are read together on the statute's own page — contrast `tax/tax-engine.ts`'s own `LOCALIZED_MENTION.exportGoods`/`intraComm` for Italy, which are correctly kept SEPARATE because those rest on two different STATUTES, not two adjacent lettere of the same comma. `it-` prefix omitted deliberately: this key is shared with DE (§ 13b Abs. 2 Nr. 6), FR (CGI art. 283, 2 septies) and PT (CIVA art. 2.º n.º 1 alínea l), GHG allowances only — PT's own retrieved text does not extend to gas/electricity certificates the way IT/DE/FR's do; see PT's own fact for that narrower scope)."
+    },
+    {
+      "key": "gas-and-electricity-to-reseller",
+      "label": "Supply of gas or electricity to a taxable reseller",
+      "legalRef": "DPR 633/1972 art. 17 comma 6 lett. d-quater)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "d-quater) alle cessioni di gas e di energia elettrica a un soggetto passivo-rivenditore ai sensi dell'articolo 7-bis, comma 3, lettera a);",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "validUntil": "2026-12-31",
+      "notes": "Same retrieval as `investment-gold` above; same DPR 633/1972 art. 17 comma 8 sunset as `it-mobile-network-terminal-equipment` above — see that category's own `notes` for the exact quoted sentence and citation trail. The referenced 'soggetto passivo-rivenditore' qualification (art. 7-bis comma 3 lett. a) — a reseller-status test) is NOT itself retrieved or modeled here. Shares the `gas-and-electricity-to-reseller` key with DE (§ 13b Abs. 2 Nr. 5 Buchst. b) and FR (CGI art. 283, 2 quinquies, second sentence) — all three condition the reverse charge on the BUYER being a reseller, a buyer-status test this catalog's category list does not itself evaluate."
+    }
+  ],
+  "notes": "Retrieved curl -sL -A \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36\" \"https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633!vig=~art17\" — HTTP 200, this article DOES come down as raw text (no JavaScript wall for it, unlike some others on normattiva.it). DPR 633/1972 is repealed 2027-01-01 (renumbered into a new Testo Unico) — every citation in this file carries that end date implicitly; a re-check after that date must find the renumbered article, not assume this one still exists. SUNSET quoted verbatim: 'Le disposizioni di cui al sesto comma, lettere b), c), d-bis), d-ter) e d-quater), del presente articolo si applicano alle operazioni effettuate fino al 31 dicembre 2026.' — this sentence is itself comma 8 (counted from the article's own comma sequence: 1 imposta dovuta…; …5 In deroga al primo comma, per le cessioni imponibili di oro…; 6 Le disposizioni di cui al quinto comma si applicano anche: a)…d-quinquies); 7 Le disposizioni del quinto comma si applicano alle ulteriori operazioni…; 8 this sunset sentence), re-confirmed by normattiva.it's own header on the same page: 'Testo in vigore dal: 2-8-2025 al: 31-12-2026'. Since 2026-09-16 this is a STRUCTURED field, `validUntil: '2026-12-31'` (INCLUSIVE — see `schema.ts`'s own doc comment) on each of the four affected category facts below, not merely prose. The EU-law basis for the date itself (Directive 2006/112/EC art. 199a, most likely as last extended to 31 December 2026 by Directive (EU) 2022/890) was NOT independently re-verified this wave: every EUR-Lex CELEX URL tried (32022L0890, 02006L0112 consolidated) returns HTTP 202 with an empty body behind an AWS WAF JavaScript challenge (`awswaf.com`) that curl cannot pass — recorded here rather than guessed at from training-data recall; a future check needs a browser-capable fetch. This affects `it-mobile-network-terminal-equipment`, `it-consumer-electronics-preretail`, `greenhouse-gas-and-energy-certificates` and `gas-and-electricity-to-reseller` above; comma 5's gold case and comma 6 lett. a/a-bis/a-ter/a-quater/a-quinquies carry no `validUntil` — no such sunset in the retrieved text. Comma 6 lett. d) was 'ABROGATA DAL D.LGS. 11 FEBBRAIO 2016, N. 24' (repealed) and lett. d-quinquies) likewise repealed by the same decree — neither is modeled here, correctly: a repealed lettera is not a live category. DELIBERATELY NOT MODELED: Italy's own domestic reverse charge for scrap metal and waste ('rottami', 'cascami', recovered materials) lives in DPR 633/1972 art. 74 commi 7-8, a DIFFERENT article from the one every category in this file is drawn from — art. 74 was not retrieved for this wave, so no `waste-and-scrap-materials` fact is declared for Italy even though FR/DE/PT each have one; adding it means reading art. 74 on its own primary source first, not inferring it from the shared key's existence elsewhere in this catalog. Also deliberately not modeled: buyer-status conditions (the buyer being a taxable person, having a VAT registration, not being a public body under art. 17-ter) and the exact category thresholds/derogation windows named in each category's own `notes` above — see this catalog's own `schema.ts` header and DESIGN.md (in this catalog's own directory) for why."
+}

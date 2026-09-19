@@ -5,29 +5,39 @@ import { components, hooks, utils } from '@generouted/react-router/client'
 
 export type Path =
   | `/`
+  | `/account`
+  | `/account/danger`
+  | `/account/preferences`
+  | `/account/security`
+  | `/account/transfers`
   | `/articles`
   | `/auth/sign-in`
   | `/auth/sign-out`
   | `/auth/sign-up`
+  | `/bank-reconciliation`
   | `/clients`
   | `/dashboard`
-  | `/invoices`
-  | `/invoices/pdf/:id`
+  | `/declarations`
+  | `/documents`
+  | `/documents/:typeId`
+  | `/documents/:typeId/:id`
+  | `/legal/:slug`
+  | `/legal/accept`
   | `/payment-methods`
-  | `/payments`
-  | `/payments/pdf/:id`
-  | `/quotes`
-  | `/quotes/pdf/:id`
+  | `/portal`
+  | `/portal/:token`
   | `/settings/:tab?`
-  | `/signature/:id`
-  | `/stats`
+  | `/signature/:token`
+  | `/statistics`
+  | `/time-tracking`
 
 export type Params = {
-  '/invoices/pdf/:id': { id: string }
-  '/payments/pdf/:id': { id: string }
-  '/quotes/pdf/:id': { id: string }
+  '/documents/:typeId': { typeId: string }
+  '/documents/:typeId/:id': { typeId: string; id: string }
+  '/legal/:slug': { slug: string }
+  '/portal/:token': { token: string }
   '/settings/:tab?': { tab?: string }
-  '/signature/:id': { id: string }
+  '/signature/:token': { token: string }
 }
 
 export type ModalPath = never

@@ -1,0 +1,72 @@
+{
+  "countryCode": "FR",
+  "categories": [
+    {
+      "key": "construction-subcontracting",
+      "label": "Construction, repair, cleaning, maintenance, transformation or demolition works on real property, performed by a subcontractor",
+      "legalRef": "CGI art. 283, 2 nonies",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2 nonies. Pour les travaux de construction, y compris ceux de réparation, de nettoyage, d'entretien, de transformation et de démolition effectués en relation avec un bien immobilier par une entreprise sous-traitante, au sens de l'article 1er de la loi n° 75-1334 du 31 décembre 1975 relative à la sous-traitance, pour le compte d'un preneur assujetti, la taxe est acquittée par le preneur.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Retrieved curl -A \"Mozilla/5.0\" https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf (HTTP 200, 15 302 264 bytes), pdftotext -layout — codes.droit.org is already this codebase's own established Légifrance mirror for FR provenance (built from the official Légifrance API, per the PDF's own front matter; already cited this way in `correction-routes/data/fr.json`, `country-policy/data/fr.json`, `tax/tax-systems/data/fr.json`, `mentions/data/fr.json`, `vat-rates/data/fr.json` and others), edition '2026-09-01' per the PDF's own header. This wave's own task brief said Légifrance itself is Cloudflare-walled (confirmed again here: legifrance.gouv.fr returns HTTP 403 with a 'Just a moment...' Cloudflare challenge page for every article URL tried) and that an earlier attempt at codes.droit.org used an INVENTED path and 404'd — the real path, found from the site's own index page (https://codes.droit.org/, listing every code's real PDF filename), is the one used here. Condition NOT modeled: the buyer ('preneur') must itself be an 'assujetti' (taxable person) — a buyer-status test this catalog does not evaluate. Shares the `construction-subcontracting` key with IT (DPR 633/1972 art. 17 comma 6 lett. a), DE (§ 13b Abs. 2 Nr. 4) and PT (CIVA art. 2.º n.º 1 alínea j))."
+    },
+    {
+      "key": "investment-gold",
+      "label": "Gold and semi-finished gold products of at least 325‰ purity",
+      "legalRef": "CGI art. 283, 2 quater",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2 quater. Pour les livraisons à un autre assujetti d'or sous forme de matière première ou de produits semi-ouvrés d'une pureté égale ou supérieure à 325 millièmes, la taxe est acquittée par le destinataire. Toutefois, le vendeur est solidairement tenu au paiement de la taxe.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `construction-subcontracting` above. Shares the `investment-gold` key with IT (DPR 633/1972 art. 17 comma 5) and DE (§ 13b Abs. 2 Nr. 9)."
+    },
+    {
+      "key": "waste-and-scrap-materials",
+      "label": "Processing supplies and services on new industrial waste and recovered materials",
+      "legalRef": "CGI art. 283, 2 sexies",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2 sexies. Pour les livraisons et les prestations de façon portant sur des déchets neufs d'industrie et des matières de récupération, la taxe est acquittée par le destinataire ou le preneur qui dispose d'un numéro d'identification à la taxe sur la valeur ajoutée en France.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `construction-subcontracting` above. Condition NOT modeled: the buyer must hold a French VAT identification number — a buyer-status test this catalog does not evaluate. Shares the `waste-and-scrap-materials` key with DE (§ 13b Abs. 2 Nr. 7) and PT (CIVA art. 2.º n.º 1 alínea i)) — Italy has no equivalent under DPR 633/1972 art. 17 (see `data/it.json`'s own file-level notes)."
+    },
+    {
+      "key": "greenhouse-gas-and-energy-certificates",
+      "label": "Transfer of greenhouse-gas emission quotas and gas/electricity guarantee-of-origin or production certificates",
+      "legalRef": "CGI art. 283, 2 septies",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2 septies. Pour les transferts de quotas autorisant les exploitants à émettre des gaz à effet de serre, au sens de l'article 3 de la directive 2003/87/ CE du Parlement européen et du Conseil du 13 octobre 2003 établissant un système d'échange de quotas d'émission de gaz à effet de serre dans la Communauté et modifiant la directive 96/61/ CE du Conseil, et d'autres unités pouvant être utilisées par les opérateurs en vue de se conformer à cette directive, la taxe est acquittée par l'assujetti bénéficiaire du transfert. Pour les transferts de certificats de garanties d'origine mentionnées aux articles L. 311-20, L. 311-22, L. 445-3, L. 445-15, L. 446-18, L. 446-22-1, L. 821-3, L. 824-1 et L. 824-2 du code de l'énergie et de certificats de production mentionnés à l'article L. 446-31 dudit code, la taxe est acquittée par l'assujetti bénéficiaire du transfert.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `construction-subcontracting` above. Shares the `greenhouse-gas-and-energy-certificates` key with IT (DPR 633/1972 art. 17 comma 6 lett. d-bis/d-ter), DE (§ 13b Abs. 2 Nr. 6) and PT (CIVA art. 2.º n.º 1 alínea l) — PT's own scope is narrower, GHG allowances only; see PT's own fact)."
+    },
+    {
+      "key": "gas-and-electricity-to-reseller",
+      "label": "Supply of natural gas or electricity to a buyer holding a French VAT number, including from a French-established supplier",
+      "legalRef": "CGI art. 283, 2 quinquies, second sentence",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Pour les livraisons de gaz naturel ou d'électricité mentionnées au b du même III, ainsi que pour les services définis au 13° de l'article 259 B qui leur sont directement liés, la taxe est acquittée par l'acquéreur qui dispose d'un numéro d'identification à la taxe sur la valeur ajoutée en France, y compris lorsque son fournisseur est établi en France.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `construction-subcontracting` above. This is the SECOND sentence of 2 quinquies; the FIRST sentence ('Pour les livraisons mentionnées au III de l'article 258, la taxe est acquittée par l'acquéreur ... lorsque son fournisseur est établi hors de France') is a genuinely cross-border case (an explicit 'établi hors de France' condition on the supplier) and is NOT modeled here for the same reason DE's own § 13b Abs. 2 Nr. 1/Nr. 5 Buchst. a) and PL are excluded — see `data/de.json`'s own file-level notes. This second sentence is the one that explicitly says 'y compris lorsque son fournisseur est établi en France' (including when the supplier is established in France), which is what makes it a genuinely DOMESTIC case. Condition NOT modeled: the buyer must hold a French VAT identification number. Shares the `gas-and-electricity-to-reseller` key with IT (DPR 633/1972 art. 17 comma 6 lett. d-quater) and DE (§ 13b Abs. 2 Nr. 5 Buchst. b)."
+    },
+    {
+      "key": "telecommunications-services",
+      "label": "Electronic communications services",
+      "legalRef": "CGI art. 283, 2 octies",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2 octies. Pour les services de communications électroniques, à l'exclusion de ceux soumis à la taxe mentionnée à l'article L. 453-1 du code des impositions sur les biens et services, la taxe est acquittée par l'acquéreur qui dispose d'un numéro d'identification à la taxe sur la valeur ajoutée en France.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `construction-subcontracting` above. Excludes services subject to the tax mentioned at Code des impositions sur les biens et services art. L. 453-1 — that carve-out is NOT itself retrieved or modeled here. Condition NOT modeled: the buyer must hold a French VAT identification number. Shares the `telecommunications-services` key with DE (§ 13b Abs. 2 Nr. 12)."
+    }
+  ],
+  "notes": "Retrieved curl -A \"Mozilla/5.0\" https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf (HTTP 200, 15 302 264 bytes, edition 2026-09-01), pdftotext -layout, 2026-09-13. This wave's own task brief said France was 'not established' as of the brief's own writing and listed three failed FR retrieval routes (a Cloudflare-walled Légifrance permalink, an INVENTED codes.droit.org path that 404'd, and a BOFiP page that returned HTTP 200 with a page shell but no article text) — none of those routes was repeated: the real codes.droit.org path was found from that site's own index page rather than guessed, and the retrieved body was checked to actually carry CGI art. 283's full numbered-paragraph text (not a shell) before anything was quoted from it. DELIBERATELY EXCLUDED: CGI art. 283, 1 and 2 (the general reverse-charge rule for a supply made by a trader established OUTSIDE France — genuinely cross-border, already the CROSS-BORDER branch's own territory), 2 bis (intra-Community acquisitions — cross-border by definition), 2 ter (art. 258 D I 2° deliveries — not itself retrieved, so its domestic/cross-border character was not established either way and it is left out rather than guessed), 2 decies (a ministerial emergency-decree POWER to add further categories, not itself a category), and 3/4/4 bis/4 ter/5 (liability for VAT WRONGLY invoiced or for a fraudulent chain — a different legal concept, 'who owes tax because of a billing error or a fraud they knew about', not 'the buyer is liable by the nature of the transaction'). DELIBERATELY NOT MODELED, for every category above: buyer-status conditions ('assujetti', holding a French VAT number) named in each category's own text, and the CGI art. 1er of the 1975 sous-traitance law's own definition of 'entreprise sous-traitante' behind `construction-subcontracting`."
+}

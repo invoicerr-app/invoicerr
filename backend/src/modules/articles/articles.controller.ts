@@ -1,30 +1,51 @@
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import {
-  ArticlesService,
-  CreateArticleDto,
-  EditArticleDto,
-} from './articles.service';
+import { ArticlesService, CreateArticleDto, EditArticleDto } from './articles.service';
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { Roles } from '@/decorators/roles.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('articles')
 @Controller('articles')
 export class ArticlesController {
-  constructor(private readonly articlesService: ArticlesService) { }
+  constructor(private readonly articlesService: ArticlesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List articles', description: 'Returns all active catalog articles for the company.' })
+  @RequiresScope('articles:read')
+  @ApiOperation({
+    summary: 'List articles',
+    description: 'Returns all active catalog articles for the company.',
+  })
   @ApiResponse({ status: 200, description: 'Articles retrieved' })
-  async findAll() {
-    return this.articlesService.findAll();
+  async findAll(@ActiveCompany() companyId: string) {
+    return this.articlesService.findAll(companyId);
+  }
+
+  // Basic stock management ("gestion de stock basique") — declared BEFORE `GET :id` so Nest's route
+  // matching never treats the literal segment "low-stock" as an `:id` value (Nest matches routes in
+  // declaration order within a controller).
+  @Get('low-stock')
+  @RequiresScope('articles:read')
+  @ApiOperation({
+    summary: 'List low-stock articles',
+    description:
+      'Returns the active, stock-tracked catalog articles currently at or under their own alert threshold.',
+  })
+  @ApiResponse({ status: 200, description: 'Low-stock articles retrieved' })
+  async findLowStock(@ActiveCompany() companyId: string) {
+    const articles = await this.articlesService.findLowStock(companyId);
+    return { count: articles.length, articles };
   }
 
   @Get(':id')
+  @RequiresScope('articles:read')
   @ApiOperation({ summary: 'Get an article', description: 'Returns a single catalog article by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Article ID' })
   @ApiResponse({ status: 200, description: 'Article retrieved' })
   @ApiResponse({ status: 404, description: 'Article not found' })
-  async findOne(@Param('id') id: string) {
-    const article = await this.articlesService.findOne(id);
+  async findOne(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    const article = await this.articlesService.findOne(companyId, id);
     if (!article) {
       return { message: 'Not found' };
     }
@@ -32,25 +53,32 @@ export class ArticlesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create an article', description: 'Adds a new reusable catalog article (product or service).' })
+  @RequiresScope('articles:write')
+  @ApiOperation({
+    summary: 'Create an article',
+    description: 'Adds a new reusable catalog article (product or service).',
+  })
   @ApiResponse({ status: 201, description: 'Article created' })
-  async create(@Body() dto: CreateArticleDto) {
-    return this.articlesService.create(dto);
+  async create(@ActiveCompany() companyId: string, @Body() dto: CreateArticleDto) {
+    return this.articlesService.create(companyId, dto);
   }
 
   @Patch(':id')
+  @RequiresScope('articles:write')
   @ApiOperation({ summary: 'Update an article', description: 'Updates an existing catalog article by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Article ID' })
   @ApiResponse({ status: 200, description: 'Article updated' })
-  async update(@Param('id') id: string, @Body() dto: EditArticleDto) {
-    return this.articlesService.update(id, dto);
+  async update(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() dto: EditArticleDto) {
+    return this.articlesService.update(companyId, id, dto);
   }
 
   @Delete(':id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('articles:write')
   @ApiOperation({ summary: 'Delete an article', description: 'Soft-deletes a catalog article by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Article ID' })
   @ApiResponse({ status: 200, description: 'Article deleted' })
-  async remove(@Param('id') id: string) {
-    return this.articlesService.softDelete(id);
+  async remove(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.articlesService.softDelete(companyId, id);
   }
 }

@@ -1,0 +1,64 @@
+{{/*
+DEV/KIND-ONLY bundled Postgres — rendered ONLY when postgresql.enabled=true. Single replica, no HA,
+no backups, no point-in-time recovery. Production default is an external, managed Postgres
+(Neon.tech, decided by the product owner) via existingSecret's DATABASE_URL — see values.yaml's own
+postgresql.* header. Never use this for anything but a local kind/minikube proof.
+*/}}
+{{- if .Values.postgresql.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "postgres") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "postgres") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    # Same reasoning as the bundled Redis Deployment: one replica, one RWO PVC — Recreate avoids two
+    # Postgres processes racing over the same data directory during a rollout.
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "postgres") | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgresql.auth.password | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.auth.database | quote }}
+          {{- if .Values.postgresql.persistence.enabled }}
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          {{- end }}
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgresql.auth.username | quote }}]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgresql.auth.username | quote }}]
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+      {{- if .Values.postgresql.persistence.enabled }}
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: {{ include "invoicerr.componentFullname" (dict "context" . "component" "postgres") }}
+      {{- end }}
+{{- end }}

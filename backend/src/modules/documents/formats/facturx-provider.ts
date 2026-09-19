@@ -1,0 +1,196 @@
+/**
+ * Factur-X (EN 16931 CII embedded in a PDF/A-3) — reuse of an existing embedder, not a new design.
+ *
+ * The recipe: `buildEuInvoiceForDocument` (shared with `cii-provider.ts`/
+ * `ubl-provider.ts`) produces the SAME semantic `EuInvoice`; `@e-invoice-eu/core` (already a
+ * dependency — no new one added) embeds it into the SAME human-readable PDF a company downloads
+ * (`rendering/render-instance-pdf.ts`) via `service.generate(euInvoice, { format:
+ * 'Factur-X-EN16931', pdf: {...} })` — a trivial embedder call, no bespoke PDF/A-3 code here.
+ *
+ * "Never an unvalidated CII embedded": before ever calling the Factur-X embedder, this provider
+ * builds the PLAIN CII string the exact same way `cii-provider.ts` does (same post-processing,
+ * same structural + Schematron gate) and refuses to proceed to the PDF step at all if THAT gate
+ * fails — returning the failing CII bytes/errors instead, exactly `cii-provider.ts`'s own failure
+ * shape. The Factur-X embedder call that follows asks `@e-invoice-eu/core` to regenerate CII
+ * internally from the SAME `euInvoice` input (there is no API to hand it a pre-built XML string
+ * instead — the library takes the semantic model, not text), so the embedded copy is a
+ * deterministic function of content already proven valid.
+ *
+ * ONE GAP THIS USED TO DOCUMENT AS "bounded but unreached" REACHED, LIVE, BY MANDATORY LEGAL
+ * MENTIONS: the multi-note packing fix
+ * (`semantic/cii-post-process.ts#splitCiiIncludedNotes`) applies to the plain CII STRING this
+ * provider validates above, but that fix is string-based and has no way to reach the library's own
+ * INTERNAL regeneration during the embed call below — invisible as long as this bridge only ever
+ * emitted at most one note, but a French seller now carries three statutory
+ * mentions PLUS the user's own note. A real superpdp deposit surfaced this exactly as it would in
+ * production: `fr:213`, still citing every mention "absente", with the platform's own XML-schema
+ * error underneath ("Element 'ram:Content' must occur exactly 1 times") — see
+ * `pdp/pdp.live.spec.ts`'s own header for the full round-trip. FIXED by passing
+ * `splitCiiIncludedNotesInObject` as `postProcessor` on the embed call below — `@e-invoice-eu/core`'s
+ * own, PUBLIC extension point (`InvoiceServiceOptions.postProcessor`, called on the intermediate JS
+ * object right before XML rendering), which is exactly what closes this without a second, divergent
+ * regeneration or a hand-rolled CII serializer. See that function's own header for the object shape
+ * this mutates and how it was verified against the vendored dependency directly.
+ *
+ * A SECOND, independent gap of the exact same shape, closed the SAME way: BT-23
+ * (`semantic/business-process.ts`). The plain CII gate above gets its BT-23 fix from
+ * `applyFrenchBusinessProcess` on the rendered STRING; the embed call's own internal regeneration
+ * never sees that string either, so `applyFrenchBusinessProcessInObject` is chained into the SAME
+ * `postProcessor` below, right after `splitCiiIncludedNotesInObject` — one call, two independent
+ * fixes, both no-ops when nothing applies (no French seller with an active content requirement, no
+ * multi-note packing to split).
+ *
+ * `FacturxProviderDeps.businessProcessCodeOverride` — a THIRD, unrelated BT-23 concern, deliberately
+ * NOT part of the two fixes above: those two exist to make the SAME derived value survive both the
+ * plain-CII string and the Factur-X object regeneration; this override REPLACES the derived value
+ * outright, for the ONE caller (Chorus Pro's own dedicated instance, `documents-core.module.ts`) whose
+ * destination platform reuses this exact wire element for its OWN, unrelated "Cadre de facturation"
+ * concept — see `SemanticInvoiceInput.businessProcessCodeOverride`'s own header for the full sourcing
+ * and the 2026-09-14 rejection this closes. `buildEuInvoiceForDocument` writes it onto `euInvoice`
+ * BEFORE either `service.generate()` call below runs, so both the plain-CII gate and the Factur-X
+ * embed already see the OVERRIDDEN value — `applyFrenchBusinessProcess`/`applyFrenchBusinessProcessInObject`
+ * read `businessProcessCode` off `euInvoice['ubl:Invoice']['cbc:ProfileID']` (below), never re-derive
+ * it, so they stay correct, unmodified, for this case too.
+ *
+ * `FacturxProviderDeps.legalIdOverride` — a FOURTH, unrelated concern (BT-29/BT-30/BT-46/BT-47), same
+ * SAME Chorus Pro-only instance, same "replaces a derived value outright" shape: `build-semantic-
+ * invoice.ts#toSiren` reduces a French SIRET to its own SIREN by default (proven correct for PDP),
+ * but Chorus Pro routes a deposit to a STRUCTURE identified by the FULL SIRET, not the company-level
+ * SIREN — see `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing (another slice
+ * of the SAME 2026-09-14 rejection this businessProcessCodeOverride paragraph already closes, just
+ * above). Threaded straight into `buildEuInvoiceForDocument`'s own `legalIdOverride` alongside
+ * `businessProcessCodeOverride` below — no separate plumbing needed, `sellerLegalId`/`buyerLegalId`
+ * are computed ONCE in `build-semantic-invoice.ts` and reused everywhere else that identifier appears
+ * (`cac:PartyIdentification`, `cbc:EndpointID`), so this one override point is sufficient.
+ */
+import { DocumentInstanceResult } from '../actions/action-registry';
+import { DocumentTypeDescriptor } from '../descriptors/types';
+import { EntityReferenceRegistry } from '../references/reference-registry';
+import { renderDocumentInstance } from '../rendering/render-instance-pdf';
+import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
+import { applyFrenchBusinessProcess, applyFrenchBusinessProcessInObject } from './semantic/business-process';
+import { splitCiiIncludedNotes, splitCiiIncludedNotesInObject } from './semantic/cii-post-process';
+import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
+import { validateStructural } from './structural-check';
+import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schematron';
+
+export interface FacturxProviderDeps {
+  referenceRegistry: EntityReferenceRegistry;
+  /**
+   * BT-23 override, threaded straight into `buildEuInvoiceForDocument`'s own
+   * `businessProcessCodeOverride` — see `SemanticInvoiceInput.businessProcessCodeOverride`'s own
+   * header for the full sourcing (AIFE's Chorus Pro EDI annex) and why this needs to be a per-INSTANCE
+   * config rather than a per-country rule. `undefined` for every consumer except Chorus Pro's own
+   * dedicated instance (`documents-core.module.ts`) — every other Factur-X build (PDP, the generic
+   * format registry) is byte-for-byte unaffected.
+   */
+  businessProcessCodeOverride?: string;
+  /**
+   * BT-29/BT-30/BT-46/BT-47 override, threaded straight into `buildEuInvoiceForDocument`'s own
+   * `legalIdOverride` — see `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing
+   * (a real Chorus Pro rejection, AIFE's Chorus Pro EDI annex S2.13, and the 24 official Factur-X
+   * examples) and why this needs to be a per-INSTANCE config, the SAME reasoning
+   * `businessProcessCodeOverride` above already holds. `undefined` for every consumer except Chorus
+   * Pro's own dedicated instance (`documents-core.module.ts`) — every other Factur-X build (PDP, the
+   * generic format registry) keeps the SIREN-reducing default, unaffected.
+   */
+  legalIdOverride?: 'full';
+}
+
+/**
+ * `buildFacturxFormatProvider` is a FACTORY (unlike `ciiFormatProvider`/`ublFormatProvider`, plain
+ * objects) because embedding needs the human PDF, which needs `EntityReferenceRegistry` to resolve
+ * reference-field labels — the same dependency `transports/email-transport.ts`'s own factory
+ * (`buildEmailTransport`) already takes for an identical reason. `documents-core.module.ts`'s
+ * `buildFormatProviderRegistry` is the one caller.
+ */
+export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentFormatProvider {
+  async function build(
+    descriptor: DocumentTypeDescriptor,
+    // Widened past the interface's own `Pick<...>` to also require `createdAt` — allowed by
+    // TypeScript's bivariant method-parameter checking (see `format-provider.ts`'s own interface:
+    // `build` is declared with method shorthand, not as an arrow-typed property), and always
+    // satisfied in practice: `documents.service.ts#downloadDocumentFormat` — the one caller reaching
+    // a provider through the registry — always passes a FULL `DocumentInstanceResult`, which has it.
+    document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status' | 'createdAt'>,
+    company: DocumentFormatParty,
+    client: DocumentFormatParty,
+    companyId?: string,
+  ): Promise<DocumentFormatBuildResult> {
+    if (!companyId) {
+      // Unreachable through `documents.service.ts` (it always passes its own `companyId` — see
+      // this file's header) — never trusted alone, same defensive posture the rest of this module
+      // holds for structurally-guaranteed-but-not-type-enforced invariants.
+      throw new Error('facturxFormatProvider.build() requires a companyId to render the embedded PDF.');
+    }
+
+    const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
+      businessProcessCodeOverride: deps.businessProcessCodeOverride,
+      legalIdOverride: deps.legalIdOverride,
+    });
+    const service = newEuInvoiceService();
+    // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved
+    // a BT-23 code (see `business-process.ts`'s own header) — `undefined` for every other seller.
+    const businessProcessCode = euInvoice['ubl:Invoice']['cbc:ProfileID'];
+
+    // 1) The SAME CII `cii-provider.ts` produces, gated the SAME way — see this file's own header.
+    const rawCii = (await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string;
+    let cii = splitCiiIncludedNotes(rawCii);
+    // Belt-and-suspenders reuse of `applyFrenchBusinessProcess` — see `cii-provider.ts`'s own,
+    // identical comment for why this is safe to run even though the object-level `cbc:ProfileID`
+    // above already reaches this same rendered string.
+    if (businessProcessCode) cii = applyFrenchBusinessProcess(cii, businessProcessCode);
+
+    const structural = validateStructural(cii, 'cii');
+    if (!structural.valid) {
+      return {
+        bytes: new TextEncoder().encode(cii),
+        validation: { valid: false, errors: structural.errors },
+      };
+    }
+
+    const schematron = validateSchematron(cii, EN16931_CII_SCH);
+    if (!schematron.valid) {
+      return {
+        bytes: new TextEncoder().encode(cii),
+        validation: { valid: false, errors: schematron.errors.map((e) => `${e.id}: ${e.message}`) },
+      };
+    }
+
+    // 2) ONLY once the CII gate passed: render the SAME human PDF a company downloads, and embed.
+    const { pdf } = await renderDocumentInstance(
+      { referenceRegistry: deps.referenceRegistry },
+      companyId,
+      descriptor,
+      document,
+    );
+
+    const embedded = (await service.generate(euInvoice, {
+      format: 'Factur-X-EN16931',
+      pdf: {
+        buffer: pdf,
+        filename: `${document.displayNumber ?? document.id}.pdf`,
+        mimetype: 'application/pdf',
+      },
+      lang: 'en',
+      // See this file's own header, "ONE GAP THIS USED TO DOCUMENT [...] REACHED, LIVE" — without
+      // this, a seller with more than one BG-1 note (any French seller) gets
+      // an embedded CII with several `ram:Content` under one `ram:IncludedNote`, invalid per the
+      // UN/CEFACT schema, exactly what a real superpdp deposit rejected. Chained with
+      // `applyFrenchBusinessProcessInObject` (BT-23) — the same
+      // public `postProcessor` extension point fixing a SECOND, independent defect the library's
+      // internal CII regeneration would otherwise carry into the embedded copy: the plain CII gate
+      // above already got its BT-23 fix from `applyFrenchBusinessProcess` on the STRING, which this
+      // regeneration never sees (see `business-process.ts`'s own header).
+      postProcessor: async (data) => {
+        const cii = data as Record<string, unknown>;
+        splitCiiIncludedNotesInObject(cii);
+        if (businessProcessCode) applyFrenchBusinessProcessInObject(cii, businessProcessCode);
+      },
+    })) as Uint8Array;
+
+    return { bytes: embedded, validation: { valid: true, errors: [] } };
+  }
+
+  return { id: 'facturx', syntax: 'FACTURX', mime: 'application/pdf', build };
+}

@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Self-hosted fonts (identity "Lagune", decision 2026-09-15) — no Google Fonts runtime call, so the
+   PWA works offline and no font request leaks to a third party. Inter/Space Grotesk ship as variable
+   fonts (one file covers the whole weight axis); Space Mono only ships static 400/700 — italics are
+   never used in this app (numbers and codes only), so neither is imported. */
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource-variable/space-grotesk/index.css";
+@import "@fontsource/space-mono/400.css";
+@import "@fontsource/space-mono/700.css";
+
 @plugin 'tailwind-scrollbar';
 
 @custom-variant dark (&:is(.dark *));
@@ -10,6 +19,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, 'SFMono-Regular', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -25,9 +37,38 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  /* Soft pair (light fill + saturated-but-readable text) for badge-weight destructive content —
+     distinct from --destructive/--destructive-foreground above, which stay the solid, full-strength
+     pair for buttons and other high-emphasis destructive controls. */
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
+  /* For a destructive SURFACE composited at partial opacity over the page background — button.tsx's
+     `dark:bg-destructive/60` — never for destructive as plain text. --destructive-foreground flips to
+     dark ink in the dark theme because --destructive itself lightens there (see that block's own
+     comment); at only 60% opacity the composite stays dark enough that dark ink fails AA (measured
+     ~2.9-3.1:1, scratchpad) while light text keeps 6.1-6.5:1. So this token is deliberately the SAME
+     near-white value in both themes — do not add a `.dark` override for it. */
+  --color-destructive-solid-foreground: var(--destructive-solid-foreground);
+  /* success/warning/info: the three semantic tones the shadcn default palette never had (only
+     "destructive" existed — see AUDIT.md §1). Each is a soft-fill/saturated-text pair, same recipe as
+     --success below, so a badge only ever needs `bg-<tone> text-<tone>-foreground`. Green is reserved
+     for --success anywhere in this app (identity decision 2026-09-15) — never introduce a second green. */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  /* The scrim behind a modal/sheet/alert-dialog — a structural dimming layer, not content, so it
+     stays plain black at the same opacity in both themes (a themed scrim would either wash out in
+     dark mode or barely darken anything in light mode). Named rather than left as a literal
+     half-opacity black utility class, so it still reads as a deliberate token, not a stray stock
+     palette color. */
+  --color-overlay: var(--overlay);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -43,78 +84,141 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Identity "Lagune" (direction C, decision 2026-09-15) — source of truth is the reviewed proposal
+   itself (`.C-light`/`.C-dark` blocks, scratchpad/identity-proposals.html), copied here verbatim for
+   background/foreground/primary/…/sidebar tokens and chart-1..5. --success and --destructive-soft
+   were already sketched there as a preview of the badge system; --warning and --info are new here,
+   following the exact same soft-fill/saturated-text recipe — same lightness/chroma magnitudes as
+   --success, hue rotated to amber (~70) and teal (~210, kept off the 230 hue primary itself uses so
+   an "info" badge never reads as a mistaken primary button) — verified ≥9.3:1 fill-to-text contrast
+   and ≥10.6:1 text-on-card contrast in both themes, with the same OKLCH-to-sRGB-to-WCAG pipeline the
+   proposal used. */
 :root {
+  /* Tells the browser which theme to draw NATIVE form-control chrome in (checkbox/radio unchecked
+     box, native <select>, scrollbar fallback…) — without it Chromium/Firefox always default to their
+     light native widget regardless of our own `.dark` class, which is exactly why unstyled
+     `<input type="checkbox">`s (time-entry-list.tsx, row-selection-field.tsx) rendered as plain white
+     boxes in both themes (owner report, "Lagune" redesign). `accent-color` below only tints the
+     CHECKED fill; the unchecked box and the OS-drawn tick both come from `color-scheme`. */
+  color-scheme: light;
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(0.975 0.005 230);
+  --foreground: oklch(0.200 0.030 230);
+  --card: oklch(0.995 0.003 230);
+  --card-foreground: oklch(0.200 0.030 230);
+  --popover: oklch(0.995 0.003 230);
+  --popover-foreground: oklch(0.200 0.030 230);
+  --primary: oklch(0.640 0.130 230);
+  --primary-foreground: oklch(0.180 0.028 230);
+  --secondary: oklch(0.940 0.012 230);
+  --secondary-foreground: oklch(0.280 0.030 230);
+  --muted: oklch(0.940 0.008 230);
+  --muted-foreground: oklch(0.470 0.020 230);
+  --accent: oklch(0.910 0.030 230);
+  --accent-foreground: oklch(0.280 0.050 230);
+  /* Owner feedback on the Lagune tokens (6e604b2f): "le rouge est trop sombre". Raised L 0.530→0.570
+     (still short of the 0.58 floor floated as a starting point — 0.575 already lands text-destructive
+     on background at 4.66:1, and 0.58 with the same C/H drops that to 4.47:1, under AA), nudged H
+     27→24 (cooler, less orange), kept destructive-foreground as the near-white ink since the light
+     base stays dark enough for it. Computed OKLCH→sRGB→WCAG (scratchpad script, not eyeballed):
+     destructive/-foreground 4.81:1, destructive vs background 4.66:1, text-destructive vs card 4.93:1
+     — all ≥4.5:1. destructive-soft/-soft-foreground only had their hue realigned to 24 (8.90:1,
+     untouched otherwise: the badge fill was never the "too dark" complaint). */
+  --destructive: oklch(0.570 0.220 24);
+  --destructive-foreground: oklch(0.990 0.010 24);
+  --destructive-soft: oklch(0.930 0.060 24);
+  --destructive-soft-foreground: oklch(0.350 0.160 24);
+  /* Same near-white ink as --destructive-foreground here, but NOT redefined in .dark below — see
+     --color-destructive-solid-foreground's own comment on why. */
+  --destructive-solid-foreground: oklch(0.990 0.010 24);
+  --success: oklch(0.920 0.060 145);
+  --success-foreground: oklch(0.300 0.110 145);
+  --warning: oklch(0.920 0.070 70);
+  --warning-foreground: oklch(0.320 0.130 55);
+  --info: oklch(0.920 0.045 210);
+  --info-foreground: oklch(0.300 0.080 225);
+  --border: oklch(0.890 0.010 230);
+  --input: oklch(0.890 0.010 230);
+  --ring: oklch(0.760 0.121 230);
+  /* Not redefined in .dark — see --color-overlay's own comment on why it stays constant. */
+  --overlay: oklch(0 0 0 / 50%);
+  --chart-1: oklch(0.640 0.130 230);
+  --chart-2: oklch(0.650 0.110 230);
+  --chart-3: oklch(0.350 0.059 230);
+  --chart-4: oklch(0.780 0.119 230);
+  --chart-5: oklch(0.550 0.020 230);
+  --sidebar: oklch(0.965 0.006 230);
+  --sidebar-foreground: oklch(0.200 0.030 230);
+  --sidebar-primary: oklch(0.640 0.130 230);
+  --sidebar-primary-foreground: oklch(0.180 0.028 230);
+  --sidebar-accent: oklch(0.910 0.030 230);
+  --sidebar-accent-foreground: oklch(0.280 0.050 230);
+  --sidebar-border: oklch(0.890 0.010 230);
+  --sidebar-ring: oklch(0.760 0.121 230);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  color-scheme: dark;
+  --background: oklch(0.175 0.014 230);
+  --foreground: oklch(0.950 0.006 230);
+  --card: oklch(0.225 0.016 230);
+  --card-foreground: oklch(0.950 0.006 230);
+  --popover: oklch(0.225 0.016 230);
+  --popover-foreground: oklch(0.950 0.006 230);
+  --primary: oklch(0.760 0.136 230);
+  --primary-foreground: oklch(0.160 0.024 230);
+  --secondary: oklch(0.270 0.018 230);
+  --secondary-foreground: oklch(0.920 0.008 230);
+  --muted: oklch(0.270 0.014 230);
+  --muted-foreground: oklch(0.680 0.020 230);
+  --accent: oklch(0.320 0.045 230);
+  --accent-foreground: oklch(0.930 0.012 230);
+  /* Same owner feedback as the :root block above, dark side. Here the old value failed AA outright as
+     plain text (text-destructive vs background was only 3.54:1, vs card 3.19:1 — "too dark" was
+     right), so L had to move further: 0.550→0.680 (inside the 0.68-0.72 range floated, at its low end
+     to stay in sRGB gamut at C 0.200 — 0.21+ clips). At that L the base color is now light, so
+     destructive-foreground FLIPS from near-white to dark ink (oklch 0.160 0.030 24) — the same
+     light-base/dark-ink pairing --primary-foreground already uses in this theme — because near-white
+     text on a light-L=0.68 red no longer clears AA (would sit under 4:1). Computed:
+     destructive/-foreground 6.17:1, destructive vs background 5.99:1, text-destructive vs card 5.40:1.
+     Known residual: components/ui/multi-select.tsx's destructive tag and the dark:bg-destructive/60
+     used by badge.tsx/button.tsx composite this color differently (full solid vs. 60%-over-background)
+     — out of scope here (index.css only), flagged for whoever next touches those files. */
+  --destructive: oklch(0.680 0.200 24);
+  --destructive-foreground: oklch(0.160 0.030 24);
+  --destructive-soft: oklch(0.280 0.070 24);
+  --destructive-soft-foreground: oklch(0.850 0.130 24);
+  --success: oklch(0.280 0.060 145);
+  --success-foreground: oklch(0.850 0.130 145);
+  --warning: oklch(0.280 0.070 55);
+  --warning-foreground: oklch(0.850 0.140 80);
+  --info: oklch(0.280 0.050 225);
+  --info-foreground: oklch(0.850 0.090 210);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.760 0.114 230);
+  --chart-1: oklch(0.760 0.136 230);
+  --chart-2: oklch(0.600 0.102 230);
+  --chart-3: oklch(0.850 0.079 230);
+  --chart-4: oklch(0.450 0.076 230);
+  --chart-5: oklch(0.680 0.020 230);
+  --sidebar: oklch(0.200 0.016 230);
+  --sidebar-foreground: oklch(0.950 0.006 230);
+  --sidebar-primary: oklch(0.760 0.136 230);
+  --sidebar-primary-foreground: oklch(0.160 0.024 230);
+  --sidebar-accent: oklch(0.320 0.045 230);
+  --sidebar-accent-foreground: oklch(0.930 0.012 230);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.760 0.114 230);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50 scrollbar scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-neutral-100 dark:scrollbar-thumb-neutral-700 dark:scrollbar-track-neutral-900;
+    /* thumb/track ride --border/--muted rather than the stock neutral scale, so the scrollbar tints
+       with the Lagune azure hue like everything else instead of a flat, theme-independent grey — one
+       pair of classes works for both themes since those two tokens already redefine themselves
+       under .dark. */
+    @apply border-border outline-ring/50 scrollbar scrollbar-thin scrollbar-thumb-border scrollbar-track-muted;
   }
   *::-webkit-scrollbar-thumb {
     @apply rounded-xl;
@@ -123,35 +227,265 @@
     @apply overflow-hidden;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
-  button, a {
+  button,
+  a {
     @apply cursor-pointer;
   }
-  :root {
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+  /* Space Grotesk for every heading level — Inter stays the body/UI face (better-typography: at most
+     three families, paired for contrast, not similarity). Sizes are unchanged here: they stay set
+     per-component (see AUDIT.md §1 — a full type-scale pass is a later, screen-by-screen lot). */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
   }
- 
+  /* Dead weight, kept as-is: these two blocks are shadowed by the unlayered :root/.dark above (v4
+     resolves unlayered rules before @layer ones regardless of source order — see
+     tailwind-v4-shadcn skill, error #8), so they have had zero effect since the file was generated.
+     Updated to the same Lagune values anyway rather than removed, since neither block is in scope for
+     this lot and deleting "unreachable" CSS is its own review to do deliberately, not as a drive-by. */
+  :root {
+    --sidebar: oklch(0.965 0.006 230);
+    --sidebar-foreground: oklch(0.200 0.030 230);
+    --sidebar-primary: oklch(0.640 0.130 230);
+    --sidebar-primary-foreground: oklch(0.180 0.028 230);
+    --sidebar-accent: oklch(0.910 0.030 230);
+    --sidebar-accent-foreground: oklch(0.280 0.050 230);
+    --sidebar-border: oklch(0.890 0.010 230);
+    --sidebar-ring: oklch(0.760 0.121 230);
+  }
+
   .dark {
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar: oklch(0.200 0.016 230);
+    --sidebar-foreground: oklch(0.950 0.006 230);
+    --sidebar-primary: oklch(0.760 0.136 230);
+    --sidebar-primary-foreground: oklch(0.160 0.024 230);
+    --sidebar-accent: oklch(0.320 0.045 230);
+    --sidebar-accent-foreground: oklch(0.930 0.012 230);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.439 0 0);
+    --sidebar-ring: oklch(0.760 0.114 230);
+  }
+
+  /* Collapses every CSS animation/transition to near-instant rather than hiding them outright — a
+     loading spinner stays a visible, static-looking circle instead of disappearing, which would read
+     as "nothing is happening" rather than "no motion, still loading". Elements already gated by
+     Tailwind's `motion-reduce:` variant (the loading spinner's own `animate-spin`) additionally drop
+     the animation entirely; this rule is the app-wide floor for everything else. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
+/* Monetary/numeric cells (identity "Lagune": Space Mono for figures). Tailwind's own `tabular-nums`
+   utility only sets font-variant-numeric — this also switches the face, so a price column digits
+   stay a fixed width AND read in the mono face the identity reserves for numbers. Named after the
+   identity proposal own `td.amount` demo class, for continuity with that source of truth. */
+@utility amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
 
 button:disabled {
   @apply !cursor-not-allowed;
+}
+
+.markdown-notes-preview h1,
+.markdown-notes-preview h2,
+.markdown-notes-preview h3,
+.markdown-notes-preview h4 {
+  margin: 12px 0 6px;
+  line-height: 1.3;
+}
+
+.markdown-notes-preview h1:first-child,
+.markdown-notes-preview h2:first-child,
+.markdown-notes-preview h3:first-child,
+.markdown-notes-preview h4:first-child {
+  margin-top: 0;
+}
+
+.markdown-notes-preview p {
+  margin: 0 0 8px;
+}
+
+.markdown-notes-preview p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-notes-preview ul,
+.markdown-notes-preview ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.markdown-notes-preview li {
+  margin: 2px 0;
+}
+
+.markdown-notes-preview a {
+  color: var(--primary);
+  text-decoration: underline;
+  word-break: break-word;
+}
+
+.markdown-notes-preview code {
+  font-family: monospace;
+  background-color: var(--muted);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.markdown-notes-preview pre {
+  font-family: monospace;
+  background-color: var(--muted);
+  padding: 8px;
+  border-radius: 4px;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  margin: 0 0 8px;
+}
+
+.markdown-notes-preview pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-notes-preview blockquote {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 3px solid var(--primary);
+  color: var(--muted-foreground);
+}
+
+.markdown-notes-preview hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+}
+
+/* The TipTap-rendered content of `components/ui/rich-text-editor.tsx` — StarterKit's own nodes
+   (paragraph, heading, list, blockquote, link…) with no library CSS of their own, so this repo's
+   Tailwind preflight resets them all to flat, unstyled text. Same properties as
+   `.markdown-notes-preview` above (same 8px paragraph rhythm, same `var(--primary)`/`var(--muted)`/
+   `var(--muted-foreground)`/`var(--border)` tokens), so the two rich-content surfaces this app has
+   stay visually consistent, in both themes, without either one hard-coding a color. */
+.rich-text-editor .ProseMirror {
+  outline: none;
+  min-height: 160px;
+  padding: 12px;
+}
+
+.rich-text-editor .ProseMirror p {
+  margin: 0 0 8px;
+}
+
+.rich-text-editor .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-editor .ProseMirror h1,
+.rich-text-editor .ProseMirror h2,
+.rich-text-editor .ProseMirror h3 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 16px 0 8px;
+}
+
+.rich-text-editor .ProseMirror h1:first-child,
+.rich-text-editor .ProseMirror h2:first-child,
+.rich-text-editor .ProseMirror h3:first-child {
+  margin-top: 0;
+}
+
+.rich-text-editor .ProseMirror h1 {
+  font-size: 1.5em;
+}
+
+.rich-text-editor .ProseMirror h2 {
+  font-size: 1.25em;
+}
+
+.rich-text-editor .ProseMirror h3 {
+  font-size: 1.1em;
+}
+
+.rich-text-editor .ProseMirror ul,
+.rich-text-editor .ProseMirror ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.rich-text-editor .ProseMirror ul {
+  list-style: disc;
+}
+
+.rich-text-editor .ProseMirror ol {
+  list-style: decimal;
+}
+
+.rich-text-editor .ProseMirror li {
+  margin: 2px 0;
+}
+
+.rich-text-editor .ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+  word-break: break-word;
+}
+
+.rich-text-editor .ProseMirror blockquote {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 3px solid var(--primary);
+  color: var(--muted-foreground);
+}
+
+.rich-text-editor .ProseMirror code {
+  font-family: monospace;
+  background-color: var(--muted);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.rich-text-editor .ProseMirror pre {
+  font-family: monospace;
+  background-color: var(--muted);
+  padding: 8px;
+  border-radius: 4px;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  margin: 0 0 8px;
+}
+
+.rich-text-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+
+.rich-text-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+}
+
+/* TipTap's Placeholder extension marks the empty first paragraph this way and carries the text in
+   `data-placeholder` — CSS is how that extension has always expected its host to render it. */
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted-foreground);
+  pointer-events: none;
 }

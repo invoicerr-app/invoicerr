@@ -13,6 +13,11 @@ env:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    # Read-only: this job only computes tag/cache variables and reads the release list via `gh
+    # release view` (GH_TOKEN below) — it never pushes an image or a package, so it needs neither
+    # `packages: write` (that's `build`/`merge`, which actually push to GHCR) nor any other scope.
+    permissions:
+      contents: read
     outputs:
       repo-name-lower: ${{ steps.set-vars.outputs.repo-name-lower }}
       image-tag: ${{ steps.set-vars.outputs.image-tag }}
@@ -92,6 +97,12 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
+          # Stamps the commit into the image (Dockerfile's own trailing LABEL/ENV block explains why).
+          # `github.sha` is the exact commit this run checked out, so the deployed image always names
+          # its own source — a branch tag like `:compliance-engine-v2` moves, a revision does not.
+          build-args: |
+            GIT_REVISION=${{ github.sha }}
+            GIT_REF_NAME=${{ github.ref_name }}
           outputs: type=image,name=${{ needs.prepare.outputs.registry-image }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ needs.prepare.outputs.cache-ref }}-${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ needs.prepare.outputs.cache-ref }}-${{ matrix.platform }}

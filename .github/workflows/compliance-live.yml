@@ -1,0 +1,148 @@
+name: Compliance live tests
+
+# Live (real-API) e-invoicing round-trips. SKIPPED by default everywhere — each spec self-gates on
+# its <CHANNEL>_LIVE flag AND the presence of its credential env vars (see live-gate.ts /
+# documentation/docs/developer-guide/live-testing.md).
+#
+# NOT run on pull_request: GitHub does NOT expose repository secrets to workflows triggered by PRs from
+# forks, so live secrets would be empty there. Run it manually (workflow_dispatch) or on a schedule.
+#
+# Secrets live in: repo Settings → Secrets and variables → Actions → "New repository secret".
+# (GitLab equivalent: Settings → CI/CD → Variables. Forgejo/Gitea: Settings → Actions → Secrets.)
+# A channel with no secrets set is silently skipped — fill them in channel by channel.
+#
+# CRON CAVEAT: GitHub only fires `schedule` triggers from the repository's DEFAULT branch (main).
+# While this workflow lives on a feature branch, the nightly cron below is inert — use the
+# "Run workflow" button (workflow_dispatch) instead, targeting that branch explicitly. The cron
+# starts firing automatically once this file is merged to main. See
+# documentation/docs/developer-guide/live-testing.md for the full
+# list of repo secrets needed for a completely green (real round-trip) run — with none of them set,
+# every creds-gated spec below self-skips, so nothing in this job actually runs (the Peppol channel,
+# whose peppol.sh leg used to be the one creds-free spec here, was removed from the product
+# 2026-09-15 — see live-testing.md/credentials-guide.md for the current channel list).
+
+on:
+  workflow_dispatch:        # manual button in the Actions tab
+  schedule:
+    - cron: '0 3 * * *'     # nightly 03:00 UTC — only fires from the default branch (main); see cron caveat above
+
+# Every step below only checks out this repo, runs jest, and reads secrets already scoped to this
+# job's own env block — nothing here pushes a package, comments on a PR, or otherwise needs the
+# GITHUB_TOKEN for anything beyond cloning. `contents: read` is the whole ask.
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    # Optional: a GitHub Environment named "live-tests" lets you require a reviewer before each run.
+    environment: live-tests
+    # Real Postgres only. pdp-conformity.live.spec.ts, sequence.live.spec.ts and send-quote.live.spec.ts
+    # create real Company/DocumentInstance rows through the `prisma` singleton (never a mocked client) —
+    # every other spec in this job is provider-level (no DB) and simply ignores this service. No Redis
+    # service: none of the spec files `npx jest live` below actually matches instantiates a BullMQ/ioredis
+    # connection or boots a Nest module that would (verified file-by-file, 2026-09-13) — it used to be
+    # needed by a queue-driven pipeline spec that no longer exists in this codebase (see below).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoicerr_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # *_LIVE / *_ENV / *_CHANNEL are constants set here, NOT secrets — only credentials are secrets.
+      # Flags ON — the per-spec credential gate decides what actually runs.
+      KSEF_LIVE: '1'
+      PDP_LIVE: '1'
+      SDI_LIVE: '1'
+      TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
+      CHORUSPRO_LIVE: '1'     # FR B2G (PISTE OAuth2) — see its own block below
+      STRIPE_LIVE: '1'        # Online payment — see its own block below
+      MOLLIE_LIVE: '1'        # Online payment — see its own block below
+      PAYPAL_LIVE: '1'        # Online payment — see its own block below
+
+      # --- Real Postgres for the specs that touch the `prisma` singleton directly (see the
+      # `services:` comment above for which ones and why) — a fresh, empty, freshly-migrated DB is
+      # enough; those specs create and clean up their own rows.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoicerr_test?schema=public
+
+      # --- TSA (RFC 3161) — e.g. https://freetsa.org/tsr ---
+      TSA_URL: ${{ secrets.TSA_URL }}
+
+      # --- PL KSeF ---
+      KSEF_AUTH_TOKEN:   ${{ secrets.KSEF_AUTH_TOKEN }}
+      KSEF_NIP:          ${{ secrets.KSEF_NIP }}
+
+      # --- FR PDP (superpdp) ---
+      PDP_BASE_URL:      ${{ secrets.PDP_BASE_URL }}
+      PDP_CLIENT_ID:     ${{ secrets.PDP_CLIENT_ID }}
+      PDP_CLIENT_SECRET: ${{ secrets.PDP_CLIENT_SECRET }}
+
+      # --- FR B2G — Chorus Pro (PISTE OAuth2) ---
+      # Still-live, still-wired channel (transports/chorus-pro/) — moved here from the now-deleted
+      # national-portals-live job, since its own live spec is matched by THIS job's `npx jest live`
+      # pattern already and only needed its flag/creds actually declared somewhere to ever fire.
+      # HONEST STATUS (see choruspro.live.spec.ts's own header): skipped, always, today — this repo
+      # holds no PISTE account of any kind. CHORUSPRO_TECH_LOGIN/PASSWORD are read too but are NOT part
+      # of the gate's required list: the spec runs the OAuth half alone and skips only the deposit half
+      # when the technical-account pair is absent.
+      CHORUSPRO_CLIENT_ID: ${{ secrets.CHORUSPRO_CLIENT_ID }}
+      CHORUSPRO_CLIENT_SECRET: ${{ secrets.CHORUSPRO_CLIENT_SECRET }}
+      CHORUSPRO_TECH_LOGIN: ${{ secrets.CHORUSPRO_TECH_LOGIN }}
+      CHORUSPRO_TECH_PASSWORD: ${{ secrets.CHORUSPRO_TECH_PASSWORD }}
+      CHORUSPRO_ENVIRONMENT: 'SANDBOX'
+
+      # --- IT SdI (SDI_CERTIFICATE is the PFX encoded base64, passed directly — no file) ---
+      SDI_ID_TRASMITTENTE: ${{ secrets.SDI_ID_TRASMITTENTE }}
+      SDI_ENDPOINT:        ${{ secrets.SDI_ENDPOINT }}
+      SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
+      SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
+
+      # --- Online payment — Stripe → Mollie → PayPal (2026-09-15). All
+      # three self-skip with no secrets set, same as every other row here; none has ever run for real
+      # in this repo (see live-testing.md's own table).
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      MOLLIE_API_KEY:    ${{ secrets.MOLLIE_API_KEY }}
+      PAYPAL_CLIENT_ID:     ${{ secrets.PAYPAL_CLIENT_ID }}
+      PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+      PAYPAL_WEBHOOK_ID:    ${{ secrets.PAYPAL_WEBHOOK_ID }}
+      PAYPAL_ENVIRONMENT: 'sandbox'
+
+      # Encryption key for any credential-store round-trip the specs may touch.
+      CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Generate Prisma client
+        run: cd backend && npx prisma generate
+
+      # Apply the full migration chain to the empty CI Postgres — same as cypress.yml's
+      # queue-integration job. pdp-conformity.live.spec.ts, sequence.live.spec.ts and
+      # send-quote.live.spec.ts create their own Company/DocumentInstance fixtures against this
+      # schema and clean them up themselves (afterAll, or inline once done with them).
+      - name: Apply migrations (empty dev DB)
+        run: cd backend && npx prisma migrate deploy
+
+      # --forceExit: a real Prisma connection pool — used directly by several specs above, never
+      # mocked — is an open handle jest would otherwise warn about; harmless once the job's own
+      # container teardown reclaims it, but forceExit keeps this step from hanging on it.
+      - name: Run gated live specs
+        run: cd backend && npx jest live --no-coverage --ci --forceExit

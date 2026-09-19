@@ -2,6 +2,8 @@ import { execFileSync } from 'child_process';
 import { join } from 'path';
 
 import prisma from './prisma.service';
+import { seedCountryPolicies } from '../modules/documents/country-policy/seed';
+import { seedCountryIdentifierRequirements } from '../modules/documents/country-identifiers/seed';
 
 /**
  * Every self-hosted instance has been running on `prisma db push` since
@@ -52,6 +54,30 @@ const V1_4_4A_BASELINE_MIGRATIONS = [
 // (entrypoint.sh `cd`s into backend/src before starting node).
 const BACKEND_ROOT = join(__dirname, '..', '..');
 const SCHEMA_PATH = join(BACKEND_ROOT, 'prisma', 'schema.prisma');
+// Frozen full schema as it shipped in v1.4.4a. Only used to level a legacy
+// `db push`-era instance (which may be *below* v1.4.4a) up to the exact
+// v1.4.4a state before we baseline the v1.4.4a migrations as applied — see
+// baselineIfNeeded(). Never pushed against an already-migrated DB.
+const V1_4_4A_SCHEMA_PATH = join(BACKEND_ROOT, 'prisma', 'schema-v1.4.4a.prisma');
+
+/**
+ * `DATABASE_URL_UNPOOLED` — Neon's own name for the direct (non-PgBouncer) connection string
+ * (https://neon.com/docs/guides/prisma: pooled = `...-pooler.<region>.aws.neon.tech`, direct drops
+ * the `-pooler` segment). `prisma.service.ts`'s runtime client always uses the POOLED `DATABASE_URL`
+ * — many short-lived connections from replicated api/worker pods is exactly what a pooler is for.
+ * `migrate deploy`/`db push` are the opposite: a handful of DDL statements per deploy, but Prisma
+ * Migrate takes a session-level advisory lock that PgBouncer's transaction-mode pooling does not
+ * reliably preserve across statements — so these two CLI subprocesses get the DIRECT URL instead,
+ * by overriding just THEIR OWN env (never `process.env` itself): `prisma.config.ts`'s
+ * `datasource.url` resolves `env('DATABASE_URL')` at the time the CLI subprocess reads it, so this
+ * override is invisible to the long-lived Nest process's own `PrismaPg` adapter (already
+ * constructed, pooled, in `prisma.service.ts` before `syncDatabaseSchema()` ever runs).
+ * Unset on a non-pooled setup (plain `docker-compose.yml` Postgres, or self-hosted) — falls back to
+ * `DATABASE_URL` and behaves exactly as before this variable existed.
+ */
+function directDatabaseUrlEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, DATABASE_URL: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL };
+}
 
 function runPrisma(args: string[]): void {
   // `prisma.config.ts`'s `migrations.path` is resolved relative to the
@@ -61,6 +87,7 @@ function runPrisma(args: string[]): void {
   execFileSync('npx', ['prisma', ...args, '--schema', SCHEMA_PATH], {
     stdio: 'inherit',
     cwd: BACKEND_ROOT,
+    env: directDatabaseUrlEnv(),
   });
 }
 
@@ -90,6 +117,19 @@ async function databaseHasExistingData(): Promise<boolean> {
  * live (V1_4_4A_BASELINE_MIGRATIONS) as already applied, then let
  * `migrate deploy` actually run everything newer — for real, backfills
  * included.
+ *
+ * Before baselining, we level the schema up to v1.4.4a with a one-off
+ * `db push` against the frozen v1.4.4a schema. A legacy instance may be
+ * running a version *below* v1.4.4a, so its DB can be a subset of v1.4.4a;
+ * marking the 23 v1.4.4a migrations "applied" on such a DB would otherwise
+ * be a lie (their changes aren't all there) and cause drift. The push only
+ * adds what's missing (their descriptions are still non-NULL — the
+ * NULL-clearing migration is post-v1.4.4a), and this whole branch is gated
+ * on `!migrationsTableExists()`, so it never runs against a DB already on
+ * the migrate-deploy system (where pushing back to v1.4.4a would drop every
+ * newer table/column). This used to live in entrypoint.sh but ran
+ * unconditionally there, wrongly converging already-migrated instances back
+ * down to v1.4.4a on every boot.
  */
 async function baselineIfNeeded(): Promise<void> {
   if (await migrationsTableExists()) {
@@ -102,8 +142,15 @@ async function baselineIfNeeded(): Promise<void> {
   }
 
   console.log(
-    '[sync-schema] Existing database with no migration history detected — baselining migrations confirmed already live as applied.',
+    '[sync-schema] Legacy db-push instance detected — leveling schema up to v1.4.4a before baselining.',
   );
+  execFileSync('npx', ['prisma', 'db', 'push', '--accept-data-loss', '--schema', V1_4_4A_SCHEMA_PATH], {
+    stdio: 'inherit',
+    cwd: BACKEND_ROOT,
+    env: directDatabaseUrlEnv(),
+  });
+
+  console.log('[sync-schema] Baselining migrations confirmed already live as applied.');
 
   for (const migration of V1_4_4A_BASELINE_MIGRATIONS) {
     console.log(`[sync-schema] Resolving ${migration} as applied...`);
@@ -115,4 +162,37 @@ export async function syncDatabaseSchema(): Promise<void> {
   await baselineIfNeeded();
   console.log('[sync-schema] Running migrate deploy...');
   runPrisma(['migrate', 'deploy']);
+
+  // The document country-action policy (backend/src/modules/documents/country-policy/) is read from
+  // its JSON files and seeded here on every production boot — a self-hosted instance that pulls a
+  // new image with an updated fr.json/us.json gets the update on its next restart, the same way
+  // `prisma migrate dev`/`db seed` already re-seeds it for dev and CI (see prisma.config.ts).
+  // Idempotent (seedCountryPolicies' own doc comment): safe to run on every boot, never just once.
+  //
+  // `purgeRemovedCountries: false` — DELIBERATELY, even though this runs once per boot rather than
+  // per-replica like `boot-reseed.ts`'s own online path. This function has no way to tell "this
+  // instance's image genuinely dropped a country" apart from "this is an OLD replica, mid-rolling-
+  // deployment, whose own image just hasn't caught up to the newer one that already seeded that
+  // country" — the exact race `seedCountryPolicies`'s own `purgeRemovedCountries` doc comment names.
+  // A self-hosted single-instance deploy restarting on a new image is indistinguishable, from in
+  // here, from one replica of a multi-replica rolling upgrade — so this path only ever ADDS/UPDATES
+  // rows for the countries its OWN catalog still names, never deletes a whole country's rows. A
+  // country genuinely removed from `data/*.json` is purged only by the explicit, single-run
+  // `npm run catalogs:release` (`backend/scripts/release-catalogs.ts`) — see that file's own header,
+  // and run it once per deployment that actually drops a country, never automatically.
+  console.log('[sync-schema] Seeding document country-action policy (no whole-country purge)...');
+  const summary = await seedCountryPolicies(prisma, undefined, false);
+  console.log(
+    `[sync-schema] Document country policy: ${summary.upserted} upserted, ${summary.deleted} deleted (stale).`,
+  );
+
+  // Same reasoning, same idempotency, same "never purge a whole country here" rule, for the
+  // SEPARATE country identifier-requirements catalog (backend/src/modules/documents/country-identifiers/)
+  // — see that seed's own header.
+  console.log('[sync-schema] Seeding country identifier requirements (no whole-country purge)...');
+  const identifierSummary = await seedCountryIdentifierRequirements(prisma, undefined, false);
+  console.log(
+    `[sync-schema] Country identifier requirements: ${identifierSummary.upserted} upserted, ` +
+      `${identifierSummary.deleted} deleted (stale).`,
+  );
 }

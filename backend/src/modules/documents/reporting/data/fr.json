@@ -1,0 +1,40 @@
+{
+  "countryCode": "FR",
+  "facts": [
+    {
+      "providerId": "pdp",
+      "appliesTo": "invoice",
+      "dischargedBy": "transport",
+      "scope": [{ "transactions": "b2b-domestic" }],
+      "periodicity": "None — discharged continuously, as a legal side effect of the PDP transport's own delivery of each invoice; never a separate periodic act, and never triggered by this catalog's own send-time hook (report-on-send.ts excludes every 'transport'-discharged fact — see registry.ts#obligationFor's own header).",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Code général des impôts, art. 289 E : « Les données des factures électroniques émises en application du I de l'article 289 bis sont transmises à l'administration par la plateforme agréée choisie par l'assujetti. » — texte consolidé en vigueur, issu de la LOI n° 2026-103 du 19 février 2026, art. 123, lu directement à la source primaire (codes.droit.org, PDF officiel du Code général des impôts, 15 Mo, HTTP 200, extrait via pdftotext -layout). Légifrance and the JORF were retried the same day and, from this environment, returned either a Cloudflare wall (\"Just a moment...\") or an empty JavaScript shell — never the text itself.",
+        "sourceCheckedAt": "2026-09-16"
+      },
+      "notes": "Art. 289 bis I mandates e-invoicing through an accredited platform (PDP) between two VAT-liable persons established in France ('B2B domestic') — the scope this fact covers. Art. 289 E (quoted above) then puts the duty to TRANSMIT that invoice's data to the tax administration on the PDP itself, never on the issuing company — exactly what `dischargedBy: \"transport\"` expresses: this catalog has nothing to enqueue for a B2B-domestic French invoice, because the transport that already carries it (transports/pdp-transport.ts, proven live end to end on 2026-08-29) is itself the party the law makes responsible on the administration side. `providerId` names a `transports/transport-registry.ts` id here (\"pdp\"), never a `DeclarationProviderRegistry` one — see schema.ts's own header on this deliberate field reuse. `applicableFrom` is deliberately omitted: art. 289 bis's own size-tiered rollout (large/mid companies first, small/micro a year later) is fixed by décret n° 2022-1299 as later modified, and by LOI n° 2026-103's own art. 123 transitional provisions — neither was readable in brut text from this environment on 2026-09-16 (a Légifrance JORFTEXT/LODA id for the décret, and a guessed codes.droit.org codified-article path, were both tried; the former returned only Légifrance's own navigation shell, the latter 404'd) — so no date is asserted, honestly, rather than guessed from secondary commentary."
+    },
+    {
+      "providerId": "fr-ereporting",
+      "appliesTo": "invoice",
+      "dischargedBy": "provider",
+      "scope": [{ "transactions": "b2c" }, { "transactions": "international" }],
+      "periodicity": "Periodic, aggregated declaration (CGI art. 290 II/III) — never a real-time, per-invoice call; this catalog's own send-time trigger (report-on-send.ts) excludes every SCOPED fact for exactly this reason (no per-invoice B2B/B2C/domestic/export classifier exists yet in this codebase — see registry.ts#obligationFor's own header). The exact frequency (daily/10-day/monthly) is not sourced in brut text from this environment.",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "CGI art. 290 I/II/III, read in brut (codes.droit.org, official CGI PDF, pdftotext -layout, 2026-09-16), confirms a periodic obligation — separate from 289 bis/289 E above — owed by the assujetti itself, to communicate to the administration the data of B2C-domestic, export, and intra-EU operations: « Les assujettis [...] communiquent à l'administration [...] les données relatives aux opérations suivantes » (the [...] are the researcher's own, marking genuinely elided text within the same brut extraction, never an invented quote). What is NOT yet settled, and blocks this fact from being `legal`: (1) the applicability calendar by company size (décret n° 2022-1299 as modified, and LOI n° 2026-103 art. 123's own transitional provisions) — Légifrance/JORF (Cloudflare wall), BOFiP (empty JS shell), and economie.gouv.fr (403) were all retried on 2026-09-16 with no brut text obtained; (2) the exact I/II/III sub-paragraph text beyond the fragment quoted above. To settle: find a working brut route into Légifrance's LODA/JORF for this décret and its later modifying texts, or a mirror serving the JORF publication as plain text/PDF the way codes.droit.org does for the codified CGI. `providerId: \"fr-ereporting\"` is a deliberately UNREGISTERED placeholder — no `DeclarationProvider` implements it (`documents-core.module.ts` only ever registers `pt-at`) — named here only so the obligation stays visible as DATA (company/channels settings screen, a future declarations UI) rather than absent from the catalog entirely, the same 'named before it's wired' convention `b2g-routing/data/pt.json`'s `fe-ap` and France's own pre-wiring `chorus-pro` already used."
+      }
+    },
+    {
+      "providerId": "fr-ereporting",
+      "appliesTo": "invoice",
+      "dischargedBy": "provider",
+      "scope": [{ "transactions": "payments" }],
+      "periodicity": "Periodic, aggregated declaration (CGI art. 290 A) — same 'never per invoice' posture as the B2C/international fact above; frequency not sourced in brut text from this environment.",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "CGI art. 290 A, per today's reading of the consolidated CGI text (codes.droit.org PDF, 2026-09-16), establishes a THIRD, separate obligation — payment-data ('TVA à l'encaissement') reporting, owed by the assujetti already covered by art. 289 bis or art. 290 above — distinct from both the invoice-data transmission (289 E, discharged by the PDP) and the operation-data communication (290, the fact above). What is NOT settled: this research pass captured only that characterization, never art. 290 A's own verbatim wording (unlike 289 E/290 above), nor its applicability calendar — the same Légifrance/BOFiP/economie.gouv.fr blockers logged on the other two facts applied here too, retried on 2026-09-16. To settle: read art. 290 A's own text in brut (the same codes.droit.org CGI PDF already has it — a targeted re-read was not done this pass) and confirm the calendar the same way the other two facts need. `providerId` is the SAME unregistered 'fr-ereporting' placeholder as the fact above — one conceptual French e-reporting obligation, several CGI articles, no implemented provider for either slice yet."
+      }
+    }
+  ]
+}

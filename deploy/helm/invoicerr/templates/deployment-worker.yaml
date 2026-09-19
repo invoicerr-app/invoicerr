@@ -1,0 +1,275 @@
+{{/*
+worker Deployment — ROLE=worker: only the BullMQ document-action queue consumer
+(DocumentsQueueWorkerModule via a Nest application context, backend/src/worker.ts). No nginx, no
+migrations, no HTTP API — just a tiny built-in health server on :3001. Independently replicated from
+api (see values.yaml's worker.replicaCount).
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "worker") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "worker") | nindent 4 }}
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "worker") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "worker") | nindent 8 }}
+      {{- with .Values.worker.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "invoicerr.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # docker-compose.scale.yml's worker service holds a real `depends_on: invoicerr: condition:
+      # service_healthy` — a Kubernetes Deployment has no native equivalent (two Deployments start
+      # independently, with nothing like Compose's healthcheck-gated startup order). Without this,
+      # the worker boots at the same time as a BRAND NEW api pod and loses the race on first
+      # install: `DocumentsCoreModule`'s own boot-reseed services (`B2gRoutingBootUpsertService`,
+      # `CountryPolicyBootReseedService`, `CountryIdentifierRequirementsBootReseedService` — every
+      # process that imports the module, worker included, runs them on `OnModuleInit`) query/upsert
+      # their own tables before Redis/queue wiring, and those queries fail outright (Prisma P2021,
+      # table does not exist) until the api pod's `sync-schema.ts` has actually run `migrate deploy`
+      # — OBSERVED on a real `kind` install, 2026-09-17: the worker pod crash-looped 3 times with
+      # exactly that class of error (at the time, `P2021 the table public.Plugin does not exist` —
+      # the in-app plugin mechanism that table backed was removed the same day, but the underlying
+      # boot race is unrelated to which table hits it first) before the api pod's migration
+      # finished, then recovered on its own once kubelet's backoff happened to retry after that
+      # moment. It IS self-healing (kubelet keeps restarting it, and every later request just
+      # requeues), but it wastes the first minute of every fresh install on confusing
+      # CrashLoopBackOff noise — this initContainer polls the api Service's own `/api/health` (only
+      # 200 once nginx has started, i.e. once migrations are done — see deployment-api.yaml's own
+      # readinessProbe comment) so the worker container itself never even starts until that is true.
+      initContainers:
+        # Same Redis race deployment-api.yaml's own `wait-for-redis` initContainer documents — the
+        # worker needs Redis directly too (BullMQ), not merely as a side effect of waiting for api.
+        - name: wait-for-redis
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for {{ include "invoicerr.redisHost" . }}:{{ include "invoicerr.redisPort" . }}...";
+              until nc -z -w 2 "{{ include "invoicerr.redisHost" . }}" "{{ include "invoicerr.redisPort" . }}"; do
+                echo "redis not reachable yet — retrying in 3s...";
+                sleep 3;
+              done;
+              echo "redis is reachable.";
+        - name: wait-for-api
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for {{ include "invoicerr.componentFullname" (dict "context" . "component" "api") }}:{{ .Values.api.service.port }}/api/health (Prisma migrations run in the api pod only)...";
+              until wget -q -T 3 -O /dev/null "http://{{ include "invoicerr.componentFullname" (dict "context" . "component" "api") }}:{{ .Values.api.service.port }}/api/health"; do
+                echo "api not ready yet — retrying in 3s...";
+                sleep 3;
+              done;
+              echo "api is healthy — migrations have run. Starting the worker.";
+      containers:
+        - name: invoicerr-worker
+          image: "{{ .Values.image.repository }}{{ if .Values.image.tag }}:{{ .Values.image.tag }}{{ end }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: health
+              containerPort: 3001
+          env:
+            - name: ROLE
+              value: "worker"
+
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BETTER_AUTH_SECRET
+            # MUST be byte-for-byte the same value the api Deployment uses — reading both from the
+            # SAME Secret key is exactly what guarantees that. This is the process that actually
+            # decrypts a company's channel credentials to run a queued "send"; a worker without this
+            # key, or with a different one, cannot decrypt them.
+            - name: CREDENTIALS_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: CREDENTIALS_ENCRYPTION_KEY
+                  optional: true
+
+            {{- if .Values.postgresql.enabled }}
+            - name: DATABASE_URL
+              value: {{ include "invoicerr.bundledDatabaseUrl" . | quote }}
+            {{- else }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: DATABASE_URL
+            {{- end }}
+            {{/* No DATABASE_URL_UNPOOLED here: the worker never runs migrations, so it never needs
+                 Neon's direct connection string — see values.yaml's own note and
+                 deployment-api.yaml's own comment on the same key. */}}
+
+            - name: REDIS_HOST
+              value: {{ include "invoicerr.redisHost" . | quote }}
+            - name: REDIS_PORT
+              value: {{ include "invoicerr.redisPort" . | quote }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: REDIS_PASSWORD
+                  optional: true
+
+            # A queued "send" archived by THIS process must be readable by the api process afterwards
+            # (a verify/download call) — same reasoning docker-compose.scale.yml's own shared-volume
+            # comment gives, via a shared S3 bucket instead of a shared volume now. Reaches both
+            # Deployments identically.
+            - name: ARCHIVE_STORAGE
+              value: {{ .Values.archive.storage | quote }}
+            {{- if eq .Values.archive.storage "s3" }}
+            - name: ARCHIVE_S3_BUCKET
+              value: {{ .Values.archive.s3.bucket | quote }}
+            - name: ARCHIVE_S3_ENDPOINT
+              value: {{ .Values.archive.s3.endpoint | quote }}
+            - name: ARCHIVE_S3_REGION
+              value: {{ .Values.archive.s3.region | quote }}
+            - name: ARCHIVE_S3_FORCE_PATH_STYLE
+              value: {{ .Values.archive.s3.forcePathStyle | quote }}
+            - name: ARCHIVE_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: ARCHIVE_S3_ACCESS_KEY_ID
+            - name: ARCHIVE_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: ARCHIVE_S3_SECRET_ACCESS_KEY
+            {{- end }}
+
+            # Inbound-file store (received-invoice uploads, expense attachments, company logos) — a
+            # queued "receive"/OCR-fallback import archived by THIS process must be readable by the api
+            # process afterwards, same reasoning ARCHIVE_STORAGE above already gives. See values.yaml's
+            # own `documents.inbound` header. Reaches both Deployments identically.
+            - name: INBOUND_STORAGE
+              value: {{ .Values.documents.inbound.storage | quote }}
+            {{- if eq .Values.documents.inbound.storage "s3" }}
+            - name: INBOUND_S3_BUCKET
+              value: {{ .Values.documents.inbound.s3.bucket | quote }}
+            - name: INBOUND_S3_ENDPOINT
+              value: {{ .Values.documents.inbound.s3.endpoint | quote }}
+            - name: INBOUND_S3_REGION
+              value: {{ .Values.documents.inbound.s3.region | quote }}
+            - name: INBOUND_S3_FORCE_PATH_STYLE
+              value: {{ .Values.documents.inbound.s3.forcePathStyle | quote }}
+            - name: INBOUND_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: INBOUND_S3_ACCESS_KEY_ID
+            - name: INBOUND_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: INBOUND_S3_SECRET_ACCESS_KEY
+            {{- end }}
+
+            # Instance file backup — a SECOND, dedicated bucket, entirely separate from ARCHIVE_S3_*
+            # above (see values.yaml's own `backup` header). OFF (nothing rendered here) with an empty
+            # `backup.s3.bucket` — read by backend/src/modules/backup.
+            {{- if .Values.backup.s3.bucket }}
+            - name: BACKUP_S3_BUCKET
+              value: {{ .Values.backup.s3.bucket | quote }}
+            - name: BACKUP_S3_ENDPOINT
+              value: {{ .Values.backup.s3.endpoint | quote }}
+            - name: BACKUP_S3_REGION
+              value: {{ .Values.backup.s3.region | quote }}
+            - name: BACKUP_S3_FORCE_PATH_STYLE
+              value: {{ .Values.backup.s3.forcePathStyle | quote }}
+            - name: BACKUP_S3_PREFIX
+              value: {{ .Values.backup.s3.prefix | quote }}
+            - name: BACKUP_S3_SCHEDULE
+              value: {{ .Values.backup.s3.schedule | quote }}
+            - name: BACKUP_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_S3_ACCESS_KEY_ID
+            - name: BACKUP_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_S3_SECRET_ACCESS_KEY
+            # A key of its own — deliberately NOT CREDENTIALS_ENCRYPTION_KEY, see
+            # backend/src/modules/backup/backup-crypto.ts's own header for why. `optional: true` like
+            # that key above: a missing/invalid value never crashes the pod, it fails every backup
+            # SWEEP loudly instead (a FAILED run, visible on GET /api/backup/status) — backups exist
+            # for disaster recovery, so this module refuses to either upload plaintext or go silently
+            # inert the way a missing CREDENTIALS_ENCRYPTION_KEY does for channel credentials. This is
+            # the pod that actually RUNS the sweep (`WORKER_INLINE` — see this chart's own topology
+            # notes), so this is where a missing key actually matters operationally.
+            - name: BACKUP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BACKUP_ENCRYPTION_KEY
+                  optional: true
+            {{- end }}
+
+            {{- if eq .Values.documents.inbound.storage "local" }}
+            - name: DOCUMENTS_INBOUND_DIR
+              value: "/data/documents-inbound"
+            {{- end }}
+            {{- if eq .Values.archive.storage "local" }}
+            - name: DOCUMENTS_ARCHIVE_DIR
+              value: "/data/documents-archive"
+            {{- end }}
+
+            {{- if .Values.ocr.enabled }}
+            - name: OCR_SERVICE_URL
+              value: {{ include "invoicerr.ocrServiceUrl" . | quote }}
+            {{- end }}
+
+            {{- with .Values.app.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.app.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if and .Values.documents.persistence.enabled (eq (include "invoicerr.documentsVolumeNeeded" .) "true") }}
+          volumeMounts:
+            - name: documents-data
+              mountPath: /data
+          {{- end }}
+          readinessProbe:
+            {{- toYaml .Values.worker.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.worker.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+      {{- if and .Values.documents.persistence.enabled (eq (include "invoicerr.documentsVolumeNeeded" .) "true") }}
+      volumes:
+        - name: documents-data
+          persistentVolumeClaim:
+            claimName: {{ include "invoicerr.componentFullname" (dict "context" . "component" "documents") }}
+      {{- end }}
+      {{- with .Values.worker.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -3,7 +3,7 @@ import { SireneController } from '@/modules/sirene/sirene.controller';
 import { SireneService } from '@/modules/sirene/sirene.service';
 
 @Module({
-    controllers: [SireneController],
-    providers: [SireneService],
+  controllers: [SireneController],
+  providers: [SireneService],
 })
-export class SireneModule { }
+export class SireneModule {}

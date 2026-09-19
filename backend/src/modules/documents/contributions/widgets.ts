@@ -1,0 +1,148 @@
+import { WidgetLocation } from '../descriptors/types';
+
+/**
+ * The WIDGET vocabulary a document type's contribution renders into — the aggregation-screen
+ * counterpart to DocumentFieldDescriptor's field KINDS (descriptors/field-kinds.ts): a small, closed
+ * set of SHAPES the frontend knows how to draw, never anything that names a document type. A
+ * contribution returns instances of this union; the frontend looks a widget up by `kind`, exactly
+ * the way DocumentField looks a field up by `field.kind`.
+ *
+ * Deliberately small at first — only the four shapes actually asked for (a number, a curve, a short
+ * list, a detailed table) — because an unused fifth shape would be exactly the kind of speculative
+ * vocabulary this codebase avoids elsewhere (see invoice.descriptor.ts's "deliberately NOT added"
+ * section for the same discipline applied to fields). Add a new `kind` only once a real contribution
+ * needs it, on both sides (this file, and the matching renderer in
+ * frontend/src/components/widgets/widget-renderers/).
+ */
+export interface WidgetBase {
+  /** Stable within one collectWidgets() response — used as the React key and, for a "shortList"
+   *  item, `id` plays the same role one level down. Not guaranteed unique ACROSS locations or
+   *  companies, only within one response. */
+  id: string;
+  /** Human-facing, plain data — same convention as DocumentTypeDescriptor.label, not an i18n key: a
+   *  plugin's widget can be labelled in any language. */
+  label: string;
+  /** Plain-English caveats about THIS widget's own numbers — same convention as
+   *  DocumentTotals.warnings/CreditsForDocument.warnings (documents/totals, documents/settlement):
+   *  never thrown, always shown. Introduced for currency consolidation
+   *  (contributions/currency-consolidation.ts) — a converted metric names the rate(s) it used here
+   *  ("USD→EUR @ 1.0842 (manual, 2026-08-15)"), and a currency missing a rate is named here on the
+   *  ordinary per-currency widgets when no consolidated one could be built at all. Optional and
+   *  absent on every widget that has nothing to caveat — the common case, unaffected. */
+  warnings?: string[];
+}
+
+/** A single number and its label — "Pending invoices: 4", "This month's expenses: 128.00 EUR". */
+export interface MetricWidget extends WidgetBase {
+  kind: 'metric';
+  value: number;
+  /** Optional plain-text suffix — a currency code, a unit — shown after `value`. For an ORDINARY
+   *  metric this is never a computed currency conversion, only a label for whatever `value` already
+   *  is — the one declared exception is `approx: true` below. */
+  unit?: string;
+  /** Marks `value` as a currency-converted APPROXIMATION rather than an original, exact document
+   *  amount (contributions/currency-consolidation.ts's consolidated totals are the only producer of
+   *  this today) — the renderer (metric-widget.tsx) prefixes it with "≈". A widget carrying this MUST
+   *  also carry `warnings` naming every rate it used (this module's own header on "a conversion is
+   *  information, never a replacement"); never set on its own. Absent (falsy) on every ordinary,
+   *  un-converted metric — unchanged. */
+  approx?: boolean;
+  /** The SAME figure for the period immediately preceding the one `value` covers — last month's
+   *  total next to this month's — so a reader sees a direction, not just a number. Only meaningful
+   *  on a per-period FLOW ("issued this month", "expenses this month"); a stock ("pending total",
+   *  a count of everything) has no previous period and leaves it absent. The frontend renders the
+   *  difference as a chip with an arrow; it never invents one when this is missing. */
+  previousValue?: number;
+}
+
+export interface TimeSeriesPoint {
+  /** Plain text — e.g. "Jan 26" — not a machine-parseable date, since nothing downstream needs to
+   *  re-derive one; the contribution already chose the bucketing (month, week, ...). */
+  label: string;
+  value: number;
+}
+
+/** A curve over time — "Invoices issued per month". */
+export interface TimeSeriesWidget extends WidgetBase {
+  kind: 'timeSeries';
+  points: TimeSeriesPoint[];
+  unit?: string;
+}
+
+export interface ShortListItem {
+  /** Stable id of the underlying record (e.g. a document instance id) — lets the frontend key rows
+   *  without inventing an index, and gives a future "click through" something real to navigate to. */
+  id: string;
+  primary: string;
+  /** Optional second line — e.g. a due date, a status. */
+  secondary?: string;
+  /** The record's own status id (`DocumentInstance.status`), so the dashboard row can carry the
+   *  same status badge every document list already shows for it — one status, one look, whichever
+   *  screen it is read on. Plain data, never a closed set (see document-status-badge.tsx). */
+  status?: string;
+  /** ISO date (YYYY-MM-DD) by which the record was expected to be settled. Lets a reader flag the
+   *  row as overdue against today's date; absent on a record that has no such deadline. */
+  dueDate?: string;
+  /** The record's own figure in its OWN currency — the amount a list row right-aligns in the mono
+   *  face. Structured (not folded into `primary`) so the frontend can format and align it without
+   *  parsing a string back into a number. Never a converted or summed figure. */
+  amount?: { value: number; currency: string };
+}
+
+/** A short, unpaginated list — "Pending invoices": the handful a dashboard glance needs, not the
+ *  paginated table a Statistics screen wants (see TableWidget for that). */
+export interface ShortListWidget extends WidgetBase {
+  kind: 'shortList';
+  items: ShortListItem[];
+  /** The document type every item is an instance of, when they all are one — the one fact a reader
+   *  needs to open an item (`/documents/<typeId>/<item.id>`). Declared by the contribution that
+   *  built the list (it knows), never inferred by the frontend from the widget id's prefix, which is
+   *  a naming convention and not a contract. Absent on a list whose items are not documents. */
+  documentTypeId?: string;
+}
+
+export interface TableColumn {
+  key: string;
+  label: string;
+}
+
+/** A fully detailed table — the "statistics, all of it, ultra-detailed" shape. `rows` are plain
+ *  key/value records keyed by `columns[].key`; a contribution decides its own columns, the same way
+ *  a document type decides its own fields — this widget never infers columns from anywhere else. */
+export interface TableWidget extends WidgetBase {
+  kind: 'table';
+  columns: TableColumn[];
+  rows: Record<string, string | number>[];
+}
+
+/**
+ * Emitted ONLY by collectWidgets() itself (contributions/collect-widgets.ts) — never returned by a
+ * real contribution handler — when a document type DECLARES a contribution for a location but no
+ * handler is REGISTERED for it. `kind: 'unimplemented'` is deliberately a value the frontend's widget
+ * renderer registry never registers a component for (see
+ * frontend/src/components/widgets/widget-renderers/index.ts's own comment): this makes a missing
+ * implementation fall through the exact same "unknown widget kind -> explicit marker" path a
+ * genuinely foreign `kind` would, the same way DocumentField never special-cases "no renderer" versus
+ * "renderer not written yet" — both cases are, and must stay, VISIBLE, never a silent gap that reads
+ * as "nothing to show here".
+ */
+export interface UnimplementedContributionWidget extends WidgetBase {
+  kind: 'unimplemented';
+  typeId: string;
+  location: WidgetLocation;
+}
+
+export type Widget =
+  | MetricWidget
+  | TimeSeriesWidget
+  | ShortListWidget
+  | TableWidget
+  | UnimplementedContributionWidget;
+
+export function unimplementedContributionWidget(
+  typeId: string,
+  location: WidgetLocation,
+  label: string,
+): UnimplementedContributionWidget {
+  return { id: `${typeId}:${location}:unimplemented`, kind: 'unimplemented', label, typeId, location };
+}

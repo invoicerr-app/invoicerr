@@ -1,180 +1,358 @@
-import { AlertTriangle, Database, Loader2, RotateCcw } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AlertTriangle, Lock, RotateCcw, Trash2 } from "lucide-react"
+import type React from "react"
+import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { useNavigate } from "react-router"
+import { toast } from "sonner"
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type React from "react"
-import { toast } from "sonner"
-import { useNavigate } from "react-router"
-import { usePost } from "@/hooks/use-fetch"
-import { useState } from "react"
-import { useTranslation } from "react-i18next"
+import { afterCompanyGone } from "@/lib/after-company-gone"
+import { useCompanies } from "@/hooks/queries"
+import { useGet, usePost } from "@/hooks/use-fetch"
+import { SettingsPage, SettingsSection } from "./settings-section"
+import InstanceResetSection from "./instance-reset.section"
+import TransferCompanySection from "./transfer-company.section"
+
+/** A fixed keyword typed exactly, uppercase — the same "type to confirm" convention every host of a
+ *  truly irreversible action uses, kept English/untranslated because it is a literal string the user
+ *  re-types (translating it would make the very act of matching it depend on the viewer's locale). */
+const RESET_COMPANY_DATA_KEYWORD = "RESET"
+
+type DangerAction = "reset-company-data" | "delete-company"
+
+interface CompanyDataResetPreflight {
+  blocked: boolean
+  retainedDocuments: number
+  retentionUntil: string | null
+  counts: {
+    documents: number
+    clients: number
+    articles: number
+    projects: number
+    timeEntries: number
+    bankStatements: number
+    archives: number
+  }
+}
+
+/** The confirm step's own OTP failures stay deliberately generic no matter the cause (wrong code,
+ *  expired, or already locked — the backend folds all three into the same message on purpose, so a
+ *  caller here can never narrow down a guess). The ONE outcome the backend does surface distinctly is
+ *  the permanent lockout on the REQUEST step itself (five failed confirmations, for good) — matched on
+ *  the response text since that refusal carries no separate error code, only this one stable phrase. */
+function isOtpLockedError(error: unknown): boolean {
+  return error instanceof Error && /locked/i.test(error.message)
+}
 
 export default function DangerZoneSettings() {
-    const { t } = useTranslation()
-    const [currentAction, setCurrentAction] = useState<"app" | "all" | null>(null)
-    const [otp, setOtp] = useState("")
-    const { trigger: sendOTP, loading: isLoadingOtp } = usePost("/api/danger/otp")
-    const { trigger: sendAction } = usePost(`/api/danger/reset/${currentAction}?otp=${otp}`)
-    const [otpModalOpen, setOtpModalOpen] = useState(false)
+  const { t } = useTranslation()
+  const [currentAction, setCurrentAction] = useState<DangerAction | null>(null)
+  const [otp, setOtp] = useState("")
+  const [confirmText, setConfirmText] = useState("")
+  const { trigger: sendOTP, loading: isLoadingOtp, lastError: lastOtpError } = usePost("/api/danger/otp")
+  // Read BEFORE the OTP flow ever starts (see this endpoint's own backend description) — the screen
+  // must show a document-retention refusal up front, never only after the owner has already typed a
+  // confirmation code. Never touches an OTP itself; a plain GET, refetched (`mutate`) after a
+  // successful reset so the counts/blocked state shown here never lag behind what the company
+  // actually holds.
+  const {
+    data: preflight,
+    loading: preflightLoading,
+    mutate: refetchPreflight,
+  } = useGet<CompanyDataResetPreflight>("/api/danger/reset/company-data/preflight")
+  // The OTP travels in the request BODY only, via `sendAction({ otp, ... })` below — never appended
+  // here as a query string. A confirmation code is a bearer secret for the duration of its own
+  // window, and a query string lands in nginx access logs and browser history exactly like a
+  // password would (see `danger.controller.ts`'s own comment on its `@Body` for the backend side).
+  const actionEndpoint =
+    currentAction === "delete-company" ? "/api/danger/delete-company" : "/api/danger/reset/company-data"
+  const { trigger: sendAction } = usePost(actionEndpoint)
+  const [otpModalOpen, setOtpModalOpen] = useState(false)
 
-    const navigate = useNavigate()
+  const navigate = useNavigate()
+  const { companies, activeCompanyId, refetch: refetchSession } = useCompanies()
 
-    const requestOtp = (action: "app" | "all") => {
-        setCurrentAction(action)
-        setOtpModalOpen(true)
+  // Deleting the company asks for the company's OWN name — the strongest confirmation this screen
+  // can ask for, and now checked AGAIN by the backend itself (`DangerService#deleteCompany`), not
+  // merely a client-side friction. "Reset company data" keeps every company/account/member row, so a
+  // fixed keyword is enough friction for that lesser action. Falls back to the same fixed keyword if
+  // the active company's name isn't resolved yet (a slow session fetch, never a normal steady state)
+  // rather than leaving the field impossible to satisfy.
+  const activeCompanyName = companies.find((c) => c.id === activeCompanyId)?.name
+  const confirmKeyword = useMemo(() => {
+    if (currentAction === "delete-company" && activeCompanyName) return activeCompanyName
+    return RESET_COMPANY_DATA_KEYWORD
+  }, [currentAction, activeCompanyName])
+
+  const requestOtp = (action: DangerAction) => {
+    setCurrentAction(action)
+    setOtpModalOpen(true)
+    setOtp("")
+    setConfirmText("")
+    sendOTP()
+      .then((result) => {
+        // `usePost`'s own `trigger` never rejects — it swallows HTTP/network failures and resolves
+        // `null`, stashing the real error on `lastError` instead (see that hook's own doc comment).
+        // Re-throwing here routes a failed request into the `.catch` below, the same way
+        // `executeReset` already has to for the confirm step.
+        if (!result) {
+          throw lastOtpError.current ?? new Error(t("settings.dangerZone.messages.unexpectedError"))
+        }
+        toast.success(t("settings.dangerZone.messages.otpSentSuccess"))
+      })
+      .catch((error) => {
+        if (isOtpLockedError(error)) {
+          toast.error(t("settings.dangerZone.messages.otpLockedTitle"), {
+            description: t("settings.dangerZone.messages.otpLockedDescription"),
+          })
+          return
+        }
+        toast.error(t("settings.dangerZone.messages.otpSentError"), {
+          description:
+            error instanceof Error ? error.message : t("settings.dangerZone.messages.unexpectedError"),
+        })
+      })
+  }
+
+  const executeReset = () => {
+    if (!currentAction || !otp || confirmText !== confirmKeyword) return
+
+    // "Delete company" sends the typed name ALONG WITH the OTP — the backend validates it against
+    // the company's own current name a second time (see `DangerService#deleteCompany`'s own header
+    // on why the OTP alone is not proof of which company is being destroyed).
+    const payload = currentAction === "delete-company" ? { otp, companyName: confirmText } : { otp }
+
+    sendAction(payload)
+      .then((d) => {
+        if (!d) {
+          throw new Error(t("settings.dangerZone.messages.actionFailed"))
+        }
+        toast.success(t("settings.dangerZone.messages.actionSuccess"))
+        setOtpModalOpen(false)
         setOtp("")
-        sendOTP()
-            .then(() => {
-                toast.success(t("settings.dangerZone.messages.otpSentSuccess"))
-            })
-            .catch((error) => {
-                toast.error(t("settings.dangerZone.messages.otpSentError"), {
-                    description: error instanceof Error ? error.message : t("settings.dangerZone.messages.unexpectedError"),
-                })
-            })
-    }
+        setConfirmText("")
+        if (currentAction === "delete-company") {
+          // The company row (and this user's own membership row on it) is gone — re-fetch the
+          // session so `activeCompanyId`/`companies` reflect the backend's own fallback (the
+          // `customSession` plugin already recomputes both: another remaining company, or `null`
+          // when this was the last one) before handing off to `afterCompanyGone`. A plain SPA
+          // `navigate("/dashboard")` here used to leave the screen showing the just-deleted
+          // company: every OTHER company-scoped query (info, seats, branding…) stays cached under
+          // the old company since none of them key on companyId, so only a hard reload — what
+          // `afterCompanyGone` does — actually lands the user on whatever is active now, or on the
+          // create-company dialog if nothing is.
+          refetchSession().finally(() => afterCompanyGone())
+        } else {
+          refetchPreflight()
+          navigate("/dashboard")
+        }
+        setCurrentAction(null)
+      })
+      .catch((error) => {
+        toast.error(t("settings.dangerZone.messages.actionError"), {
+          description:
+            error instanceof Error ? error.message : t("settings.dangerZone.messages.unexpectedError"),
+        })
+      })
+  }
 
-    const executeReset = () => {
-        if (!currentAction || !otp) return
+  const formatOtp = (value: string) => {
+    const cleaned = value.replace(/\D/g, "").slice(0, 8)
+    if (cleaned.length <= 4) return cleaned
+    return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
+  }
 
-        sendAction({ otp })
-            .then((d) => {
-                if (!d) {
-                    throw new Error(t("settings.dangerZone.messages.actionFailed"))
-                }
-                toast.success(t("settings.dangerZone.messages.actionSuccess"))
-                setOtpModalOpen(false)
-                setOtp("")
-                setCurrentAction(null)
-                if (currentAction === "all") {
-                    navigate("/auth/log-out")
-                } else {
-                    navigate("/dashboard")
-                }
-            })
-            .catch((error) => {
-                toast.error(t("settings.dangerZone.messages.actionError"), {
-                    description: error instanceof Error ? error.message : t("settings.dangerZone.messages.unexpectedError"),
-                })
-            })
-    }
+  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setOtp(formatOtp(e.target.value))
+  }
 
-    const formatOtp = (value: string) => {
-        const cleaned = value.replace(/\D/g, "").slice(0, 8)
-        if (cleaned.length <= 4) return cleaned
-        return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
-    }
+  const canConfirm = otp.length === 9 && confirmText === confirmKeyword
+  const resetBlocked = preflight?.blocked ?? false
+  const retentionDate = preflight?.retentionUntil
+    ? new Date(preflight.retentionUntil).toLocaleDateString()
+    : null
 
-    const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setOtp(formatOtp(e.target.value))
-    }
+  return (
+    <SettingsPage title={t("settings.dangerZone.title")} description={t("settings.dangerZone.description")}>
+      <p className="text-sm text-muted-foreground text-pretty">{t("settings.dangerZone.intro")}</p>
 
-    return (
-        <div>
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold">{t("settings.dangerZone.title")}</h1>
-                <p className="text-muted-foreground">{t("settings.dangerZone.description")}</p>
+      <TransferCompanySection />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Lower severity: reset company data. Warning tone, not destructive — see delete-company
+            below for the fully destructive level (the two severities `SettingsSection`'s own `tone`
+            keeps). */}
+        <SettingsSection
+          tone="warning"
+          dataCy="danger-reset-company-data-card"
+          title={
+            <>
+              <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
+              {t("settings.dangerZone.resetCompanyData.title")}
+            </>
+          }
+          description={t("settings.dangerZone.resetCompanyData.description")}
+          footer={
+            <Button
+              variant="outline"
+              className="w-full border-warning-foreground/30 text-warning-foreground hover:bg-warning"
+              onClick={() => requestOtp("reset-company-data")}
+              loading={isLoadingOtp}
+              disabled={resetBlocked || preflightLoading}
+              data-cy="danger-reset-company-data-button"
+            >
+              {t("settings.dangerZone.resetCompanyData.button")}
+            </Button>
+          }
+        >
+          <div className="grid gap-3">
+            <p className="text-sm text-muted-foreground text-pretty">
+              {t("settings.dangerZone.resetCompanyData.detail")}
+            </p>
+            {preflight && !resetBlocked && (
+              <p className="text-xs text-muted-foreground text-pretty" data-cy="danger-reset-counts">
+                {t("settings.dangerZone.resetCompanyData.countsSummary", {
+                  documents: preflight.counts.documents,
+                  clients: preflight.counts.clients,
+                  articles: preflight.counts.articles,
+                  projects: preflight.counts.projects,
+                  timeEntries: preflight.counts.timeEntries,
+                  bankStatements: preflight.counts.bankStatements,
+                  archives: preflight.counts.archives,
+                })}
+              </p>
+            )}
+            {resetBlocked && (
+              <Alert variant="destructive" data-cy="danger-retention-blocked-alert">
+                <Lock aria-hidden="true" />
+                <AlertTitle>{t("settings.dangerZone.resetCompanyData.retentionBlockedTitle")}</AlertTitle>
+                <AlertDescription>
+                  {t("settings.dangerZone.resetCompanyData.retentionBlockedDescription", {
+                    count: preflight?.retainedDocuments ?? 0,
+                    date: retentionDate,
+                  })}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </SettingsSection>
+
+        <SettingsSection
+          tone="destructive"
+          dataCy="danger-delete-company-card"
+          title={
+            <>
+              <Trash2 className="size-4 shrink-0" aria-hidden="true" />
+              {t("settings.dangerZone.deleteCompany.title")}
+            </>
+          }
+          description={t("settings.dangerZone.deleteCompany.description")}
+          footer={
+            <Button
+              variant="outline"
+              className="w-full border-destructive/30 text-destructive hover:bg-destructive-soft"
+              onClick={() => requestOtp("delete-company")}
+              loading={isLoadingOtp}
+              data-cy="danger-delete-company-button"
+            >
+              {t("settings.dangerZone.deleteCompany.button")}
+            </Button>
+          }
+        >
+          <p className="text-sm text-muted-foreground text-pretty">
+            {t("settings.dangerZone.deleteCompany.detail")}
+          </p>
+        </SettingsSection>
+      </div>
+
+      <InstanceResetSection />
+
+      <Dialog open={otpModalOpen} onOpenChange={setOtpModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-warning-foreground" aria-hidden="true" />
+              {t("settings.dangerZone.modal.title")}
+            </DialogTitle>
+            <DialogDescription>{t("settings.dangerZone.modal.description")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            {currentAction && (
+              <div className="rounded-lg bg-muted p-3">
+                <p className="text-sm font-medium text-foreground">
+                  {currentAction === "reset-company-data"
+                    ? t("settings.dangerZone.modal.warningResetCompanyData")
+                    : t("settings.dangerZone.modal.warningDeleteCompany")}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {currentAction === "reset-company-data"
+                    ? t("settings.dangerZone.modal.warningResetCompanyDataDescription")
+                    : t("settings.dangerZone.modal.warningDeleteCompanyDescription")}
+                </p>
+              </div>
+            )}
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="otp">{t("settings.dangerZone.modal.otpLabel")}</Label>
+              <Input
+                id="otp"
+                value={otp}
+                onChange={handleOtpChange}
+                placeholder={t("settings.dangerZone.modal.otpPlaceholder")}
+                className="text-center text-lg font-mono tracking-wider"
+                maxLength={9}
+                data-cy="danger-otp-input"
+              />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-                <Card className="border-orange-200 dark:border-orange-900/50">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400 text-lg">
-                            <RotateCcw className="h-4 w-4" />
-                            {t("settings.dangerZone.resetApp.title")}
-                        </CardTitle>
-                        <CardDescription className="text-sm">{t("settings.dangerZone.resetApp.description")}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <Button
-                            variant="outline"
-                            className="w-full border-orange-200 text-orange-600 hover:bg-orange-50 dark:border-orange-900/50 dark:text-orange-400 dark:hover:bg-orange-950/50 bg-transparent"
-                            onClick={() => requestOtp("app")}
-                            loading={isLoadingOtp}
-                        >
-                            {t("settings.dangerZone.resetApp.button")}
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-red-200 dark:border-red-900/50">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400 text-lg">
-                            <Database className="h-4 w-4" />
-                            {t("settings.dangerZone.resetDatabase.title")}
-                        </CardTitle>
-                        <CardDescription className="text-sm">{t("settings.dangerZone.resetDatabase.description")}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <Button
-                            variant="outline"
-                            className="w-full border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/50 bg-transparent"
-                            onClick={() => requestOtp("all")}
-                            disabled={isLoadingOtp}
-                        >
-                            {isLoadingOtp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                            {t("settings.dangerZone.resetDatabase.button")}
-                        </Button>
-                    </CardContent>
-                </Card>
+            {/* Type-to-confirm: the irreversible button below stays disabled until this matches the
+                keyword EXACTLY (case-sensitive) — the same friction GitHub-style repo deletion uses,
+                so a reflexive click on the OTP dialog can never fire the actual reset. */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="danger-confirm-text">
+                {t("settings.dangerZone.modal.confirmLabel", "Type {{keyword}} to confirm", {
+                  keyword: confirmKeyword,
+                })}
+              </Label>
+              <Input
+                id="danger-confirm-text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={confirmKeyword}
+                autoComplete="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-cy="danger-confirm-input"
+              />
             </div>
-
-            <Dialog open={otpModalOpen} onOpenChange={setOtpModalOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-amber-500" />
-                            {t("settings.dangerZone.modal.title")}
-                        </DialogTitle>
-                        <DialogDescription>{t("settings.dangerZone.modal.description")}</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="otp">{t("settings.dangerZone.modal.otpLabel")}</Label>
-                            <Input
-                                id="otp"
-                                value={otp}
-                                onChange={handleOtpChange}
-                                placeholder={t("settings.dangerZone.modal.otpPlaceholder")}
-                                className="text-center text-lg font-mono tracking-wider"
-                                maxLength={9}
-                            />
-                        </div>
-                        {currentAction && (
-                            <div className="bg-muted p-3 rounded-lg">
-                                <p className="text-sm font-medium">
-                                    {currentAction === "app"
-                                        ? t("settings.dangerZone.modal.warningApp")
-                                        : t("settings.dangerZone.modal.warningDatabase")}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {currentAction === "app"
-                                        ? t("settings.dangerZone.modal.warningAppDescription")
-                                        : t("settings.dangerZone.modal.warningDatabaseDescription")}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setOtpModalOpen(false)}>
-                            {t("settings.dangerZone.modal.cancel")}
-                        </Button>
-                        <Button variant="destructive" onClick={executeReset} disabled={otp.length !== 9}>
-                            {t("settings.dangerZone.modal.confirm")}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
-    )
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOtpModalOpen(false)} data-cy="danger-modal-cancel">
+              {t("settings.dangerZone.modal.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={executeReset}
+              disabled={!canConfirm}
+              data-cy="danger-modal-confirm"
+            >
+              {t("settings.dangerZone.modal.confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </SettingsPage>
+  )
 }

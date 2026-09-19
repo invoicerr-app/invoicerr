@@ -1,0 +1,118 @@
+---
+title: Cookies & Acceptable Use
+sidebar_position: 5
+version: 2026-09-19
+effectiveDate: 2026-09-19
+---
+
+:::warning Draft
+Draft — not yet reviewed by counsel.
+:::
+
+This page covers two topics for the **hosted offering** of Invoicerr: the cookie the Service sets, and
+the acceptable-use rules that apply to your account. Neither applies to the self-hosted software.
+
+## Part A — Cookies
+
+### 1. What We Set
+
+The Service sets exactly **one** cookie: the authentication session cookie (`better-auth.session_token`)
+created when you sign in, used **solely** to keep you signed in and to associate your requests with
+your account and active Company. It is set by our own domain, read by no one else, and carries no
+tracking or advertising purpose. **We set no analytics, advertising, or other third-party tracking
+cookie.**
+
+### 2. No Consent Banner
+
+Because the only cookie this Service sets is strictly necessary for it to function, it is exempt from
+the prior-consent requirement that applies to non-essential cookies under the ePrivacy rules the CNIL
+enforces alongside the GDPR — which is why no cookie-consent banner is shown. This is a statement about
+what the Service technically sets today; it is not legal advice about your own use of cookies elsewhere.
+
+### 3. Changing This
+
+If a future version of the Service ever adds a cookie or similar technology that is not strictly
+necessary, this page — and the consent flow the ePrivacy rules would then require — will be updated
+before that happens.
+
+## Part B — Acceptable Use
+
+### 4. Permitted Use
+
+You may use the Service to create, manage, and transmit your own business documents, within the scope
+of your subscription, as described in the Terms of Service.
+
+### 5. Prohibited Uses
+
+You must not use the Service to:
+
+- act unlawfully, or to create or transmit a document you know to be fraudulent or deceptive;
+- attempt to breach, probe, or disrupt the Service's security or infrastructure, including
+  unauthorized penetration testing or denial-of-service activity;
+- circumvent or interfere with the hosted Service's own access controls or rate limits, beyond the
+  rights the software's open-source license already grants you over the source code itself (Terms of
+  Service, Section 11.1);
+- send spam or unsolicited bulk communications through the Service's outbound email or transmission
+  features;
+- resell or sublicense access to the hosted Service to a third party without our written consent;
+- upload malware, or content that infringes a third party's intellectual property or other rights.
+
+### 6. Enforcement
+
+A violation of this Part B may lead to suspension or termination of your access, without prejudice to
+the suspension and termination provisions of the Terms of Service, Section 13.
+
+### 7. Availability
+
+Availability figures we may publish are **indicative only** and do not constitute a contractual
+service level — the same best-effort basis the Terms of Service, Section 16.1 already describes.
+
+## Part C — Public Websites
+
+### 8. No Cookies, No Analytics
+
+Our public marketing website at **invoicerr.app** and our documentation site at **docs.invoicerr.app**
+are both static sites served by **GitHub Pages** (GitHub, Inc. — see Privacy Policy, Section 10).
+**Neither sets a cookie or loads analytics, advertising, or tracking scripts of any kind.**
+docs.invoicerr.app's on-page search index runs entirely in your browser; invoicerr.app's dark/light
+theme choice is remembered only in your browser's `localStorage`, never in a cookie. GitHub's own
+technical access logs for either site (visitor IP address and request headers, needed to serve the
+page — and, for invoicerr.app, the one client-side call to `api.github.com` for the GitHub star count)
+are described in the Privacy Policy, Section 10, not here.
+
+## Part D — Governing Language
+
+### 9. English Version Prevails
+
+This document is drafted and executed in English. Where we provide a translation into another
+language for your convenience and understanding, that translation is not a substitute for the English
+text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
+translated version, **the English version prevails** and is the version that governs the rights and
+obligations of the parties. Translations are provided in good faith to help each audience understand
+this document; they create no separate or additional rights.
+
+---
+
+### Changelog
+
+- **2026-09-16** — Initial draft.
+- **2026-09-17** — Updated Terms of Service cross-references to match that document's 2026-09-17
+  renumbering (11.1→9.1, 7→11, 10.1→14.1). No other change: this page's cookie disclosure and
+  acceptable-use list already matched the `legal-tos-privacy` skill's cookie and AUP checklists, and
+  is now also the document the Terms of Service, Section 5 incorporates by reference as its own
+  Acceptable Use Policy.
+- **2026-09-17** — GitHub added as hosting provider for the documentation website. New Part C
+  ("Documentation Website") states that docs.invoicerr.app (GitHub Pages) sets no cookie and loads no
+  analytics — verified against `documentation/docusaurus.config.ts`'s plugin list, which carries only
+  a local, in-browser search index (`@easyops-cn/docusaurus-search-local`) and no analytics/tracking
+  plugin.
+- **2026-09-19** — Owner decision: the public website moved to **GitHub Pages** at **invoicerr.app**.
+  Part C renamed "Public Websites" and now covers both sites: invoicerr.app is a static marketing page
+  with no cookie and no analytics/tracking script, its theme choice kept only in `localStorage`.
+- **2026-09-19** — Owner decision, on counsel's advice: this document is now translated into French in
+  full (loi Toubon art. 2). New Part D ("Governing Language") states that the English text is the one
+  that governs whenever a translation reads differently — the same clause added to the other four
+  documents. No other fact changed.
+- **2026-09-19** — Updated Terms of Service cross-references to match that document's 2026-09-19
+  renumbering, done to make room for its new EU Data Act sections (9.1→11.1, Section 11→13,
+  14.1→16.1). No fact in this page itself changed.

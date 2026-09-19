@@ -1,0 +1,306 @@
+{
+  "countryCode": "DE",
+  "documentTypes": [
+    "quote",
+    "invoice",
+    "credit-note",
+    "expense",
+    "received-invoice",
+    "purchase-order",
+    "goods-receipt"
+  ],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act — same reasoning as fr.json/us.json for this same action: no text identified that would specifically govern this act under German law. To be revisited if the product were ever to give legal effect to the very fact of saving a draft."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1. Read directly on 2026-09-03 on eur-lex.europa.eu (consolidated version). This is a European REGULATION, directly applicable in all member states WITHOUT national transposition (unlike a directive) — the same legal basis therefore applies, verbatim and without national variation, to Germany, Italy, Poland, and Spain (see their own quote.send below and in it.json/pl.json/es.json). A quote is not an invoice (see invoice.send further below, based on German tax law specific to the invoice): it is this general regime of non-discrimination of electronic writing, not a VAT text, that grounds sending a quote electronically — same architecture as fr.json's own quote.send (code civil art. 1366, a general text on evidence, not a tax text)."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Converting an accepted quote into an invoice is a product convenience; no text identified imposes or prohibits this precise mechanism under German law (the only legal constraint would bear on the resulting invoice, not on the act of conversion). To be confirmed by a dedicated review if a specific traceability rule were ever to attach to it."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Requesting a deposit on a quote, in the form of a draft deposit invoice, is a product convenience of the same nature as 'convert-to-invoice' above; no text identified governs this precise mechanism under German law (the only legal constraint would bear on the deposit invoice itself once issued, not on the creation of this draft). To be confirmed by a dedicated review if a specific rule were ever to attach to the deposit request itself."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-installments",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Generating a billing schedule from an accepted quote (several draft invoices, one per installment) is a product convenience of the same nature as 'request-deposit' above; no text identified governs this precise mechanism under German law (the only legal constraint would bear on the invoices that result once issued, not on the creation of these drafts). To be confirmed by a dedicated review if a specific rule were ever to attach to the generation of a schedule itself."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Duplicating a quote into a new draft is a pure product convenience; no text identified governs it under German law. To be confirmed by a dedicated review before extending this mechanism to a document type whose duplication would carry a legal stake."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Generating a public, unauthenticated link to a quote's PDF is a product convenience — a quote is not even a tax document (see invoice.send below, specific to the invoice). No text identified that would specifically govern the act of SHARING a link to a document already communicated to its recipient; the link itself remains subject to the token security discipline (share-links/share-links.service.ts). To be confirmed by a dedicated review if a text specific to electronic invoicing were ever to govern this sharing."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-signature",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Asking a customer to electronically sign a quote (link + OTP code by email — signatures/signatures.service.ts) is a product convenience of the same order as 'duplicate' above — signing a quote is not a legally governed act (unlike the invoice, see invoice.send above), it is a mark of commercial acceptance. The mechanism stays at the lowest eIDAS level (SIMPLE electronic signature), never a certificate, so no German text on the advanced/qualified electronic signature (Vertrauensdienstegesetz/eIDAS) applies here. To be confirmed by a dedicated review if a specific text were ever to specifically govern the electronic acceptance of a quote."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Die Berichtigung muss durch ein Dokument erfolgen, das SPEZIFISCH UND EINDEUTIG AUF DIE RECHNUNG BEZOGEN ist [...] EINE NEUE RECHNUNGSNUMMER FÜR DIESES DOKUMENT IST NICHT ERFORDERLICH.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "REUSES the citation already read by correction-routes/data/de.json (route CORRECTIVE_INVOICE, required) — § 31 Abs. 5 UStDV; UStAE 14.11 Abs. 1 S. 2, 4, 5, 11 and Abs. 2 S. 1, checked on 2026-08-29 (date preserved as-is: this text was not re-verified by THIS task, only reused where it settles exactly the same fact). This text settles exactly the question asked here: a German invoice already issued is NEVER corrected by rewriting it — the correction is made through a SEPARATE DOCUMENT that specifically refers to it (and does not even need its own invoice number) — never through a new draft save on the same document. The `statuses: [\"draft\"]` field applies this principle by refusing to re-save as a draft an invoice already 'sent' — same mechanics as fr.json's own invoice.save-draft (CGI art. 289 I.5) and pl.json/it.json/es.json/mx.json below, each sourced to its own national text but settling the SAME fact: the immutability of the ISSUED invoice."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Eine Rechnung kann als elektronische Rechnung oder vorbehaltlich des Absatzes 2 als sonstige Rechnung übermittelt werden. [...] Die Übermittlung einer elektronischen Rechnung oder einer sonstigen Rechnung in einem elektronischen Format bedarf der Zustimmung des Empfängers, soweit keine Verpflichtung nach Absatz 2 Satz 2 Nummer 1 besteht.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "§ 14 Abs. 1 Satz 2 and Satz 5 UStG. Read directly on 2026-09-03 on gesetze-im-internet.de (the official portal of the federal Ministry of Justice, consolidated text) — reconfirmed by a second, independent reading of the entirety of Absatz 1 the same day. This text explicitly authorizes the ELECTRONIC transmission of a German invoice, exactly the equivalent of section VI of art. 289 CGI for France. NUANCE NOT MODELED HERE, to be aware of (same limitation as fr.json's own invoice.send): Satz 5 conditions electronic transmission on the RECIPIENT'S CONSENT, except where a structured electronic invoicing obligation already applies (Absatz 2 Satz 2 Nummer 1 — the German B2B mandate for structured electronic invoicing, being rolled out since 2025-01-01, Wachstumschancengesetz); this rule verifies neither that consent nor the applicability of the mandate, it only authorizes the ACT of sending within the tool. What would settle the exact timetable and thresholds of the structured mandate: follow the Wachstumschancengesetz and the implementing BMF-Schreiben — out of scope for this rule, which covers only the general admissibility of electronic sending."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Duplicating an invoice into a new draft (the root of the recurrence mechanism) is the same pure product convenience as quote.duplicate above — the new document is born 'draft' and re-enters the normal issuance circuit in full, so no text identified governs the act of duplication itself under German law. The tax question (UStG § 14 et seq.) bears on the ISSUED INVOICE that will result, not on this initial draft. To be confirmed by a dedicated review if a specific rule were ever to attach to the automated creation of invoice drafts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording a payment is an internal accounting entry; no specific text identified that would govern the very fact of declaring it in this tool (German accounting obligations — GoBD — bear on the keeping of the accounts themselves, not on this mechanism). The resulting balance is a PROJECTION displayed on screen, never a document status — see invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "EN 16931 is a European TECHNICAL STANDARD (directive 2014/55/EU) — this is not in itself a German legal obligation for THIS company to produce it. The format actually mandated nationally in Germany (XRechnung/ZUGFeRD, under the B2B mandate being rolled out since 2025-01-01 — see the invoice.send note above) is a DISTINCT subject (imposed channel/format), out of scope for this rule which only builds the voluntary standardized FORMAT, same distinction as fr.json/us.json for the same action. This rule therefore authorizes the voluntary DOWNLOAD of an EN 16931 export (a product convenience) without asserting that it is legally required IN THIS PRECISE FORM. What would settle the structured mandate itself: follow the Wachstumschancengesetz and the implementing BMF-Schreiben."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporting an invoice to an accounting tool is a product convenience; no specific text identified that would govern the very fact of offering this export. This action has in any case no registered implementation to date (see invoice-actions.ts) — the actual blocking comes from the 501, not from this rule."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Generating a public, unauthenticated link to an invoice's PDF is a product convenience of the same order as 'download-xml' just above: no text identified imposes or prohibits specifically the sharing of a link to an invoice already communicated to its legitimate recipient. Link security is a technical guarantee documented in share-links/share-links.service.ts, not a distinct legal requirement to source here. To be confirmed by a dedicated review if the structured B2B mandate (see invoice.send above) were ever to specifically govern this mode of making available."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a credit-note draft is an internal product operation. The legal regime of a German credit note (see credit-note.send below) concerns the CONTENT and tax status of the document, not the act of saving a draft — same distinction as fr.json/us.json for this same action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Ein Belegaustausch ist NUR für die in § 17 Abs. 4 UStG bezeichneten Fälle vorgeschrieben. Ein Beleg [...] KANN, MUSS ABER NICHT als umsatzsteuerliche Rechnung ausgestellt werden.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "REUSES the citation already read by correction-routes/data/de.json (route CREDIT_NOTE, allowed) — UStAE 14.11 Abs. 4 S. 1; UStAE 17.1 Abs. 3a S. 4-5, checked on 2026-08-29 (date preserved: reused, not re-verified by this task). Unlike fr.json/us.json (which leave credit-note.send unverified, judging that the tool's SEND — an internal status change, without transmission — is not in itself the legal act of issuing a credit note), this rule is here promoted to 'legal' because the precise fact needed — France/the US did not yet have a citation specific to the credit note at the time fr.json/us.json were written, Germany has one via correction-routes — is EXACTLY the one this citation settles: issuing a document that reduces the amount of a German invoice (a credit note/Gutschrift in the broad sense, NOT the self-billing Gutschrift of § 14 Abs. 2 Satz 6, which is a distinct mechanism) is an open OPTION, never a general obligation, except for the narrow case of § 17 Abs. 4 UStG (allocation of consideration across transactions at different rates) which this product mechanism does not model."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Same reasoning as invoice.share-link above, applied to the credit note: no text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient. To be confirmed by the same dedicated review."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording an expense is a management entry internal to the tool. German accounting obligations (GoBD, retention of supporting documents) bear on the company's own bookkeeping, not on this recording mechanism within the tool. To be confirmed by a dedicated review if this core were ever to produce enforceable accounting documents from this data."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Deleting a wrongly entered expense; no text identified specifically governs the deletion of such an entry before any accounting closing. To be confirmed by a dedicated review if this core were ever to distinguish a \"closed\" state for an expense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording (or correcting) the fields of a received invoice is an internal management operation — this tool only records a fact that has already occurred, never issues anything. The `statuses` field restricts re-writing the fields to the 'received' status only: once approved or rejected, the review decision must no longer be silently undoable (same mechanics as `invoice.save-draft` above). Not researched here (out of scope): Germany has its own timetable for the mandate on the RECEIPT of structured B2B electronic invoices (Wachstumschancengesetz, 2025-01-01) — this mandate bears on the receiving channel/format, not on this internal approval workflow, and was not verified by this task against its primary source."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marking a received invoice as approved is an internal company review decision; no text identified specifically governs this act."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marking a received invoice as rejected (dispute, supplier error) is an internal company review decision; no text identified specifically governs this act."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording that this company paid a supplier is an internal bookkeeping entry, the mirror of `invoice.record-payment` above but on the buyer side of a purchase — no text identified specifically governs the ACT of recording it in this tool (as opposed to the underlying payment/input-VAT-deduction facts, which exist and produce their own legal effects regardless of whether this screen tracks them). Not independently researched for Germany beyond the reasoning already applied to `received-invoice.approve`/`reject` above (2026-09-16)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Deleting a received-invoice record before any approval/rejection decision is a product convenience, of the same nature as `expense.delete` above; no text identified governs it. The descriptor already restricts this action to the 'received' status alone."
+      }
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a purchase-order draft is an internal product operation, unrelated to VAT or invoicing — same reasoning as quote.save-draft above (see its own note for the research conducted on the applicable codes): no text identified that would specifically govern the saving of such a draft. A purchase order moreover commits less than a quote (it does not constitute an offer of sale, only a purchase intent of the issuing company itself), which makes the existence of a text targeting it all the less likely. Research not specifically conducted for this type/action (2026-09-15) — to be revisited if a real need requires it."
+      }
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1 — the SAME text, at the same verification date, as quote.send above (see its own note: a European REGULATION applies directly, without national variation, in all member states). A purchase order is neither an invoice nor a quote, but an electronic document like any other with regard to this text: it is this same general regime of non-discrimination of electronic writing that grounds its sending by email, never a text specific to invoicing or VAT (none exists for this type — see purchase-order.descriptor.ts's own header)."
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "cancel-order",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Canceling a purchase order sent to a supplier is a purely commercial act (the company withdraws its own order), never the correction of a tax document already transmitted — this is NOT a correction route within the meaning of correction-routes/ (CANCEL_AND_REPLACE and the other routes of that module concern only a tax document ALREADY ISSUED to a third party whose correction the law governs, which a purchase order is not — see purchase-order-actions.ts's own header). The contractual consequences of such a cancellation toward the supplier fall under general contract law, outside the scope of this rule (which only says whether THIS TOOL can record the entry, never whether the cancellation is enforceable against the supplier). No dedicated research conducted for this type/action (2026-09-15) — to be revisited if a real need requires it."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a goods-receipt draft is an internal, purely documentary operation (what this company's warehouse has recorded as received) — same reasoning as purchase-order.save-draft above: no text identified that would specifically govern the saving of such a draft, this document not being transmitted to anyone (see goods-receipt.descriptor.ts's own header). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need requires it."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "record",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Finalizing a goods receipt (status 'recorded') is an internal management act — closing out what the warehouse has recorded as received against a purchase order, to feed a 3-way matching check itself internal to the tool, never transmitted to a third party nor declared to any authority. No text identified that would target this act specifically. Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need requires it."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Restricted by the descriptor itself to the 'draft' status (goods-receipt.descriptor.ts): once recorded ('recorded'), a goods receipt is part of the matching trail that a received invoice may already have been compared against, and its deletion is in any case no longer offered by the screen. Before that, deleting a wrongly entered draft is the same internal operation, without a recipient, as purchase-order.save-draft/received-invoice.delete above (see their own notes for the tension, not settled here either, over the obligations to retain a supporting document — LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22 — which target the RECEIVED INVOICE, never by name an internal goods receipt). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need requires it."
+      }
+    }
+  ],
+  "notes": "Germany — research from 2026-09-03. The internal-to-the-product acts follow the same reasoning already held by fr.json/us.json for the same actions (no distinct research required, same categories of facts). The heavy legal lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on gesetze-im-internet.de (the official portal of the German federal Ministry of Justice) for § 14 Abs. 1 UStG (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of the citations already read on 2026-08-29 by correction-routes/data/de.json for the immutability of the issued invoice (invoice.save-draft, CORRECTIVE_INVOICE) and for the credit note (credit-note.send, CREDIT_NOTE) — each valid only for the exact fact it settles in this file, never stretched beyond that."
+}

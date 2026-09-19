@@ -1,0 +1,24 @@
+{
+  "countryCode": "PL",
+  "overlays": [
+    {
+      "typeId": "invoice",
+      "operations": [
+        {
+          "op": "add",
+          "path": "",
+          "field": {
+            "key": "correctionReason",
+            "kind": "text",
+            "label": "Correction reason",
+            "required": false,
+            "requiredIfPresent": "correctsInvoiceId",
+            "hideWhenEmpty": true,
+            "helpText": "Why this invoice corrects the one above (\"przyczyna korekty\") — carried onto the KSeF submission as FA(3)'s own PrzyczynaKorekty element (formats/national/fa3-provider.ts) once a corrected invoice is set."
+          }
+        }
+      ]
+    }
+  ],
+  "notes": "Poland's own field overlay — a SINGLE addition, `correctionReason`, conditionally required (`requiredIfPresent: \"correctsInvoiceId\"` — descriptors/types.ts) rather than unconditionally: `correctsInvoiceId` (invoice.descriptor.ts trunk field) is what actually flags an invoice as a correction, so an ORDINARY Polish invoice (the overwhelming majority) never has to carry a reason at all — only once `correctsInvoiceId` is set does this field become mandatory on THIS screen. IMPORTANT PROVENANCE NUANCE, read before assuming this is a legal citation: the reason is legally OPTIONAL, not mandatory. Art. 106j ust. 2 (the faktura korygująca's own MANDATORY content list) does not list a reason at all — verbatim: \"2. Faktura korygująca powinna zawierać: ... 2a) numer identyfikujący w Krajowym Systemie e-Faktur fakturę, której dotyczy faktura korygująca ...; 3) dane zawarte w fakturze ...; 5) jeżeli korekta wpływa na zmianę podstawy opodatkowania lub kwoty podatku należnego – odpowiednio kwotę korekty ...; 6) w przypadkach innych niż wskazane w pkt 5 – prawidłową treść korygowanych pozycji.\" The reason lives ONE paragraph down, in the file's own OPTIONAL list: \"2a. Faktura korygująca może zawierać: 1) wyrazy \\\"FAKTURA KORYGUJĄCA\\\" albo \\\"KOREKTA\\\"; 2) przyczynę korekty.\" (\"może\" = may/can, not \"powinna\"/\"musi\") — ustawa o VAT z 11 marca 2004 r., tekst jednolity Dz.U. 2025 poz. 775, art. 106j ust. 2 i 2a (isap.sejm.gov.pl, checked 2026-09-16, raw consolidated text — same source correction-routes/data/pl.json's own AUTHORITY_ANNULMENT citation already reads). Requiring it here is therefore a PRODUCT decision (a correction naming no reason at all is a poor audit trail, and the Ministry's own FA(3) schema still exposes PrzyczynaKorekty as an element worth filling even though the underlying statute never forces it), not a legal `kind: 'legal'`-grade fact the way `correction-routes/data/pl.json`'s own CORRECTIVE_INVOICE route citation is — this file's own schema (`country-fields/schema.ts`) does not require field-overlay operations to carry provenance at all (see that file's own header: 'add/modify/remove this field' is a structural/product fact, not itself a new legal claim), which is exactly the case here. The FIELD's own server-side enforcement (never trusted from the screen alone) needs NO bespoke code at all: `requiredIfPresent` is read generically by `descriptors/validate.ts#validateAgainstDescriptor`, which `documents.service.ts#runAction` already runs, against the MERGED descriptor, for every action on this type (save-draft included) — a Polish invoice with `correctsInvoiceId` set and no `correctionReason` is refused (400, naming the field) before any handler ever sees it, proven end to end by `43-correction-routes.cy.ts`'s own Poland describe block."
+}

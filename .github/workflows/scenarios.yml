@@ -1,0 +1,167 @@
+name: Business Scenarios
+
+# These six legs used to run on `pull_request` ONLY. On a long-lived branch that opens no PR — this
+# repository's own `feat/compliance-engine-v2` ran 800+ commits that way — that means they do not run
+# at all, and a suite that never runs is a suite everyone believes is green. Three of the six were in
+# fact red for weeks (2026-09-13): two because a country gained a `country-identifiers` catalog and
+# the legs still asserted its absence, two because a country gained a `vat-rates` catalog and the
+# legs still typed the DESTINATION country's rate, which the document validator now refuses.
+#
+# Both causes share a shape: a per-country DATA file landed and invalidated a leg's expectations.
+# So the `push` trigger below is deliberately PATH-FILTERED on exactly what has ever broken them —
+# the catalogs, the tax engine that composes them, and the spec and fixture themselves — rather than
+# firing six full-stack jobs on every push. `pull_request` stays unfiltered: a PR runs them all.
+# Same de-duplication as cypress.yml: a branch under review runs the matrix once, on its
+# `pull_request` event; the `push:` trigger only covers the long-lived branches.
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'backend/src/modules/documents/**/data/**'
+      - 'backend/src/modules/documents/tax/**'
+      - 'backend/src/modules/documents/descriptors/**'
+      - 'e2e/cypress/e2e/scenarios/**'
+      - 'e2e/cypress/fixtures/scenarios.ts'
+      - '.github/workflows/scenarios.yml'
+
+# The one job below only checks out this repo, runs the scenario spec, and uploads its own logs/videos
+# (through `actions/upload-artifact`'s own runtime token, not a GITHUB_TOKEN permission) — nothing
+# here needs more than read access to the repository.
+permissions:
+  contents: read
+
+jobs:
+  scenario:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # 5-country prune (2026-09-10) — fr-be/es-pt/mx-us/us-us re-pointed onto kept-country pairs
+      # (fr-pl/pt-de/it-pt/pl-de); de-fr and it-it are unchanged. See
+      # e2e/cypress/fixtures/scenarios.ts's own header for the full mapping and rationale.
+      matrix:
+        scenario: [fr-pl, de-fr, it-it, pt-de, it-pt, pl-de]
+    services:
+      postgres-test:
+        image: postgres:16
+        env:
+          POSTGRES_USER: invoicerr
+          POSTGRES_PASSWORD: invoicerr
+          POSTGRES_DB: invoicerr_db
+        ports:
+          - "5433:5432"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - "8025:8025"
+          - "1025:1025"
+      # The backend requires Redis (BullMQ) to boot — WORKER_INLINE defaults to true, so the inline
+      # compliance processors + registerRepeatables() connect at startup. Without it the Nest app
+      # fails to boot and the scenario times out on a hung /api, which is exactly what happened here
+      # for weeks: `redisConnection()` defaults to localhost:6379, but `npm run start:test` loads
+      # backend/.env.test, which pins REDIS_URL to 6399 — the port the LOCAL dev container publishes
+      # (ead8542e). On a runner nothing listens there, so every one of the six legs died before
+      # running a single assertion. cypress.yml never hit this because its own job sets REDIS_URL
+      # explicitly; this job inherited the file's value instead. Hence the job-level override below.
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-retries 10
+
+    env:
+      # Overrides backend/.env.test's own REDIS_URL, which points at the local dev container's 6399.
+      # The service above publishes 6379 — see that service's own comment for the full account.
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma generate
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma migrate deploy
+          # See the same step in cypress.yml: `migrate deploy` never runs the seed hook, and
+          # `npm run start:test` doesn't call syncDatabaseSchema() (production-only) either — without
+          # this, the document country-action policy table stays empty and every document action
+          # 403s for the whole scenario.
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma db seed
+
+      # See the same step in cypress.yml's `cypress-run` job: `full-lifecycle.cy.ts` sends real
+      # documents, so this job renders real PDFs and needs a real Chromium — `ubuntu-latest` shipping
+      # Google Chrome/Chromium is not a guaranteed install path (`actions/runner-images` documents no
+      # path for either, and `chromium` is commonly a snap on newer Ubuntu), so this provisions
+      # playwright-core's own matched browser explicitly rather than relying on that convention holding.
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        # `install chromium` only — NOT `--with-deps` (sudo + apt system libraries this runner already
+        # has); see cypress.yml's own step for why.
+        run: cd backend && npx playwright-core install chromium
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Install e2e dependencies
+        run: |
+          cd e2e
+          npm ci
+
+      - name: Wait for DB
+        run: |
+          npx wait-on tcp:5433 --timeout 60000
+          npx wait-on tcp:8025 --timeout 60000
+          npx wait-on tcp:1025 --timeout 60000
+          npx wait-on tcp:6379 --timeout 60000
+
+      - name: Run backend, frontend & scenario
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/logs
+          npm install -D dotenv-cli
+          # The schema is already applied: the install step ran `prisma migrate deploy`
+          # against this same database. `migrate dev` used to run again here — it is a
+          # developer-machine command that can prompt or fail without a TTY as soon as
+          # the migrations drift from schema.prisma.
+          (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend-${{ matrix.scenario }}.log 2>&1 &)
+          (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
+          # wait-on above only checked the DB/mail/Redis ports were open, not that the
+          # Nest app itself finished booting — a slow boot or a startup crash used to
+          # go unnoticed until the scenario failed with a confusing auth error.
+          npx wait-on http-get://localhost:4000/api/health --timeout 120000
+          (cd $GITHUB_WORKSPACE/e2e && CYPRESS_scenario=${{ matrix.scenario }} npx cypress run --browser firefox --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts")
+
+      - name: Upload backend logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs-${{ matrix.scenario }}
+          path: ${{ github.workspace }}/logs/backend-${{ matrix.scenario }}.log
+
+      - name: Upload Cypress videos and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-${{ matrix.scenario }}-artifacts
+          path: |
+            ${{ github.workspace }}/e2e/cypress/videos
+            ${{ github.workspace }}/e2e/cypress/screenshots

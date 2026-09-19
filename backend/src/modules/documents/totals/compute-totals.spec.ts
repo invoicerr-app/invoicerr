@@ -1,0 +1,552 @@
+import { computeDocumentTotals } from './compute-totals';
+import type { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
+
+/**
+ * Helper to build a minimal descriptor with the structure needed for these tests.
+ */
+function buildTestDescriptor(
+  options: {
+    currencyField?: boolean;
+    arrayField?:
+      | boolean
+      | {
+          moneyKey?: string;
+          numberKey?: string;
+          vatRateKey?: string;
+        };
+  } = {},
+): DocumentTypeDescriptor {
+  const fields: DocumentFieldDescriptor[] = [];
+
+  if (options.currencyField !== false) {
+    fields.push({
+      key: 'currency',
+      kind: 'select',
+      label: 'Currency',
+      options: [],
+    });
+  }
+
+  if (options.arrayField !== false) {
+    const arrayFieldConfig = typeof options.arrayField === 'object' ? options.arrayField : {};
+    const moneyKey = arrayFieldConfig?.moneyKey ?? 'unitPrice';
+    const numberKey = arrayFieldConfig?.numberKey ?? 'quantity';
+    const vatRateKey = arrayFieldConfig?.vatRateKey ?? 'vatRate';
+
+    fields.push({
+      key: 'lines',
+      kind: 'array',
+      label: 'Lines',
+      fields: [
+        { key: 'description', kind: 'text', label: 'Description' },
+        { key: numberKey, kind: 'number', label: 'Quantity' },
+        { key: moneyKey, kind: 'money', label: 'Unit Price' },
+        {
+          key: vatRateKey,
+          kind: 'select',
+          label: 'VAT Rate',
+          options: [
+            { value: '0', label: '0%' },
+            { value: '5.5', label: '5.5%' },
+            { value: '20', label: '20%' },
+          ],
+        },
+      ],
+    });
+  }
+
+  return {
+    id: 'test-type',
+    label: 'Test Type',
+    fields,
+    actions: [],
+  };
+}
+
+describe('computeDocumentTotals', () => {
+  it('calculates net/vat/gross for two lines at 20%', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [
+        { description: 'Item 1', quantity: 1, unitPrice: 100, vatRate: '20' },
+        { description: 'Item 2', quantity: 1, unitPrice: 100, vatRate: '20' },
+      ],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.netMinor).toBe(20000); // 100 + 100 = 200 EUR = 20000 cents
+    expect(result.vatMinor).toBe(4000); // 20% of 20000 = 4000 cents
+    expect(result.grossMinor).toBe(24000);
+    expect(result.currency).toBe('EUR');
+    expect(result.vatBreakdown).toHaveLength(1);
+    expect(result.vatBreakdown[0]).toEqual({
+      ratePercent: 20,
+      baseMinor: 20000,
+      vatMinor: 4000,
+    });
+  });
+
+  it('handles mixed VAT rates with correct breakdown', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [
+        { description: 'Item 20%', quantity: 1, unitPrice: 100, vatRate: '20' },
+        { description: 'Item 5.5%', quantity: 1, unitPrice: 100, vatRate: '5.5' },
+      ],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.netMinor).toBe(20000);
+    // 20% of 10000 cents = 2000 cents
+    // 5.5% of 10000 cents = 550 cents
+    // Total VAT = 2000 + 550 = 2550 cents
+    expect(result.vatMinor).toBe(2550);
+    expect(result.grossMinor).toBe(22550);
+    expect(result.vatBreakdown).toHaveLength(2);
+    expect(result.vatBreakdown[0]).toEqual({
+      ratePercent: 5.5,
+      baseMinor: 10000,
+      vatMinor: 550,
+    });
+    expect(result.vatBreakdown[1]).toEqual({
+      ratePercent: 20,
+      baseMinor: 10000,
+      vatMinor: 2000,
+    });
+  });
+
+  it('demonstrates VAT rounding per aggregated base vs per line', () => {
+    // This is the critical test: 3 lines at 0.01 EUR each (1 cent) at 20% VAT
+    // Per line: round(1 * 0.20) = round(0.2) = 0 cents each → total 0
+    // Per base (aggregated): 3 cents × 0.20 = round(0.6) = 1 cent
+    // We calculate per base, so should get 1 cent
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [
+        { description: 'Item 1', quantity: 1, unitPrice: 0.01, vatRate: '20' },
+        { description: 'Item 2', quantity: 1, unitPrice: 0.01, vatRate: '20' },
+        { description: 'Item 3', quantity: 1, unitPrice: 0.01, vatRate: '20' },
+      ],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    // 0.01 EUR each = 1 cent each = 3 cents total
+    expect(result.netMinor).toBe(3);
+    // VAT: round(3 * 20 / 100) = round(0.6) = 1 cent (this is why we aggregate!)
+    expect(result.vatMinor).toBe(1);
+    expect(result.grossMinor).toBe(4);
+    // The breakdown shows the aggregated base
+    expect(result.vatBreakdown[0]).toEqual({
+      ratePercent: 20,
+      baseMinor: 3,
+      vatMinor: 1,
+    });
+  });
+
+  it('counts lines without VAT rate in net only', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [
+        { description: 'Item with VAT', quantity: 1, unitPrice: 100, vatRate: '20' },
+        { description: 'Item no VAT', quantity: 1, unitPrice: 100, vatRate: null },
+      ],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    // Net: 100 EUR with rate + 100 EUR without rate = 200 EUR = 20000 cents
+    expect(result.netMinor).toBe(20000);
+    // VAT: only on the first line (100 EUR at 20% = 2000 cents)
+    expect(result.vatMinor).toBe(2000);
+    expect(result.grossMinor).toBe(22000);
+    // Warnings
+    expect(result.warnings).toContainEqual(expect.stringContaining('line 2 has no usable VAT rate'));
+    // Only one VAT breakdown entry
+    expect(result.vatBreakdown).toHaveLength(1);
+    expect(result.vatBreakdown[0].ratePercent).toBe(20);
+    expect(result.vatBreakdown[0].baseMinor).toBe(10000); // Only the 100 EUR with rate
+  });
+
+  it('a non-numeric but PRESENT quantity is counted as 1 AND warned — never a silent guess', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'x', quantity: 'two', unitPrice: 100, vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.lines[0].netMinor).toBe(10000); // quantity treated as 1, exactly as before this fix
+    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric quantity'));
+  });
+
+  it('a non-numeric but PRESENT unit price is counted as 0 AND warned — never a silent guess', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'x', quantity: 2, unitPrice: 'free', vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.lines[0].netMinor).toBe(0);
+    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric unit price'));
+  });
+
+  it('an ABSENT quantity/unit price still defaults silently — a draft in progress, not a data problem', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'x', vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.lines[0].netMinor).toBe(0); // quantity 1 * unitPrice 0
+    expect(result.warnings).not.toContainEqual(expect.stringContaining('non-numeric'));
+  });
+
+  it('a NaN quantity is never silently propagated into the arithmetic (typeof NaN === "number")', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'x', quantity: NaN, unitPrice: 100, vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(Number.isNaN(result.lines[0].netMinor)).toBe(false);
+    expect(result.lines[0].netMinor).toBe(10000); // NaN rejected, quantity falls back to 1
+    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric quantity'));
+  });
+
+  it('a line shape with NO vat-like select field at all (e.g. purchase-order.descriptor.ts) never warns — net === gross', () => {
+    // Hand-built, not `buildTestDescriptor()`: that helper always adds a `vatRate` select subfield —
+    // this test is exactly for the type that has none at all (see compute-totals.ts's own header on
+    // `extractVatRate`, purchase orders & goods receipts).
+    const descriptor: DocumentTypeDescriptor = {
+      id: 'test-type',
+      label: 'Test Type',
+      fields: [
+        { key: 'currency', kind: 'select', label: 'Currency', options: [] },
+        {
+          key: 'lines',
+          kind: 'array',
+          label: 'Lines',
+          fields: [
+            { key: 'description', kind: 'text', label: 'Description' },
+            { key: 'quantity', kind: 'number', label: 'Quantity' },
+            { key: 'unitPrice', kind: 'money', label: 'Unit Price' },
+          ],
+        },
+      ],
+      actions: [],
+    };
+    const data = {
+      currency: 'EUR',
+      lines: [
+        { description: 'Widgets', quantity: 2, unitPrice: 50 },
+        { description: 'Gadgets', quantity: 1, unitPrice: 100 },
+      ],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.netMinor).toBe(20000);
+    expect(result.vatMinor).toBe(0);
+    expect(result.grossMinor).toBe(20000);
+    expect(result.vatBreakdown).toEqual([]);
+  });
+
+  it('handles missing currency with null and warning', () => {
+    const descriptor = buildTestDescriptor({ currencyField: false });
+    const data = {
+      lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.currency).toBeNull();
+    expect(result.warnings).toContainEqual(expect.stringContaining('Document currency not found'));
+    // Should still calculate using default 2 decimals (100 EUR = 10000 cents)
+    expect(result.netMinor).toBe(10000);
+    expect(result.vatMinor).toBe(2000);
+  });
+
+  it('handles JPY (0 decimals) correctly', () => {
+    // 1000 yen × 2 at 10% VAT
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'JPY',
+      lines: [{ description: 'Item', quantity: 2, unitPrice: 1000, vatRate: '10' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    // JPY has 0 decimals, so 1000 JPY = 1000 (in minor = major)
+    // Net = 1000 × 2 = 2000
+    expect(result.netMinor).toBe(2000);
+    // VAT = 2000 × 10% = 200
+    expect(result.vatMinor).toBe(200);
+    expect(result.grossMinor).toBe(2200);
+  });
+
+  it('returns zero totals when descriptor has no array fields', () => {
+    const descriptor = buildTestDescriptor({ arrayField: false });
+    const data = { currency: 'EUR' };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.netMinor).toBe(0);
+    expect(result.vatMinor).toBe(0);
+    expect(result.grossMinor).toBe(0);
+    expect(result.lines).toHaveLength(0);
+    expect(result.vatBreakdown).toHaveLength(0);
+  });
+
+  it('defaults quantity to 1 when missing', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'Item', quantity: undefined, unitPrice: 50, vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    // 50 EUR × 1 = 50 EUR = 5000 cents
+    expect(result.netMinor).toBe(5000);
+    expect(result.vatMinor).toBe(1000); // 20% of 5000
+  });
+
+  describe('per-line discount — applied BEFORE VAT (the discounted net is the taxable base)', () => {
+    // A descriptor whose lines carry a `discountPercent` subfield too — mirrors the real quote/
+    // invoice descriptors (descriptors/quote.descriptor.ts, invoice.descriptor.ts), not reusing
+    // `buildTestDescriptor` (every OTHER test above deliberately keeps a descriptor with no discount
+    // field at all, to prove the "absent = unaffected" case for free).
+    function buildDiscountDescriptor(): DocumentTypeDescriptor {
+      return {
+        id: 'test-type',
+        label: 'Test Type',
+        fields: [
+          { key: 'currency', kind: 'select', label: 'Currency', options: [] },
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [
+              { key: 'description', kind: 'text', label: 'Description' },
+              { key: 'quantity', kind: 'number', label: 'Quantity' },
+              { key: 'unitPrice', kind: 'money', label: 'Unit Price' },
+              {
+                key: 'vatRate',
+                kind: 'select',
+                label: 'VAT Rate',
+                options: [
+                  { value: '0', label: '0%' },
+                  { value: '5.5', label: '5.5%' },
+                  { value: '20', label: '20%' },
+                ],
+              },
+              { key: 'discountPercent', kind: 'number', label: 'Discount %', min: 0, max: 100 },
+            ],
+          },
+        ],
+        actions: [],
+      };
+    }
+
+    it('a 50% discount on a single line — hand-computed: 100 EUR line, 20% VAT', () => {
+      const descriptor = buildDiscountDescriptor();
+      const data = {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20', discountPercent: 50 }],
+      };
+
+      const result = computeDocumentTotals(descriptor, data);
+
+      // Net BEFORE discount: 100 EUR = 10000 cents. Discounted: 10000 * (1 - 50/100) = 5000 cents.
+      // VAT is computed on the DISCOUNTED base: 5000 * 20% = 1000 cents. Gross: 6000 cents.
+      // A discount applied AFTER VAT instead (mutation #1) would tax the full 10000 first (2000
+      // cents of VAT) and only discount the 12000-cent result by 50%, landing on 6000 gross too by
+      // coincidence at exactly 50% — which is why the NET/VAT split below, not just the gross, is
+      // what actually catches that mutation.
+      expect(result.netMinor).toBe(5000);
+      expect(result.vatMinor).toBe(1000);
+      expect(result.grossMinor).toBe(6000);
+      expect(result.vatBreakdown).toEqual([{ ratePercent: 20, baseMinor: 5000, vatMinor: 1000 }]);
+    });
+
+    it('0% discount and no discount field at all produce identical totals', () => {
+      const descriptor = buildDiscountDescriptor();
+      const withZero = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 3, unitPrice: 10, vatRate: '20', discountPercent: 0 }],
+      });
+      const withoutField = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 3, unitPrice: 10, vatRate: '20' }],
+      });
+
+      expect(withZero.netMinor).toBe(3000); // 10 EUR × 3 = 3000 cents, unaffected either way
+      expect(withZero).toEqual(withoutField);
+    });
+
+    it('a 100% discount makes the line free — netMinor is 0, never negative', () => {
+      const descriptor = buildDiscountDescriptor();
+      const data = {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 2, unitPrice: 50, vatRate: '20', discountPercent: 100 }],
+      };
+
+      const result = computeDocumentTotals(descriptor, data);
+
+      expect(result.lines[0].netMinor).toBe(0);
+      expect(result.netMinor).toBe(0);
+      expect(result.vatMinor).toBe(0);
+      expect(result.grossMinor).toBe(0);
+      expect(result.netMinor).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  // THE MUTATION TARGET: `vat-rates/registry.ts#vatRateFieldOptions` now stores each rate's own
+  // stable catalog id as the field's value (e.g. "it-esente"), never a bare percentage — and MOST
+  // real callers of `computeDocumentTotals` (accounting-export, reminders, bank-reconciliation,
+  // settlement…) reuse the bare, country-BLIND `INVOICE_DESCRIPTOR` singleton, whose own `vatRate`
+  // field declares `options: []` — never the per-company view that would carry those options at all.
+  // `Number("it-esente")` is `NaN`; without a fix this would have counted every such line in NET
+  // ONLY, silently dropping its VAT — proven here against the REAL shipped catalog id, not a
+  // synthetic one, so this only ever tests what a real Italian invoice line actually stores.
+  describe('a VAT-rate value that is a real catalog id (vat-rates/registry.ts), not a bare percentage', () => {
+    it('resolves "it-esente" (0%, EXEMPT) to a real, non-null 0% rate — even with an EMPTY options array on the field', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Consulenza medica', quantity: 1, unitPrice: 100, vatRate: 'it-esente' }],
+      });
+
+      expect(result.lines[0].vatRatePercent).toBe(0);
+      expect(result.warnings).toEqual([]);
+      expect(result.netMinor).toBe(10000);
+      expect(result.vatMinor).toBe(0);
+      expect(result.grossMinor).toBe(10000);
+    });
+
+    it('resolves "it-non-imponibile" (also 0%, but a DIFFERENT regime/id) the same way — both Italian 0% ids compute identically, never confused with a missing rate', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Esportazione', quantity: 1, unitPrice: 100, vatRate: 'it-non-imponibile' }],
+      });
+
+      expect(result.lines[0].vatRatePercent).toBe(0);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('resolves a NON-zero real catalog id (fr-standard, 20%) to its own percentage too — not only the zero-rate ids', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Conseil', quantity: 1, unitPrice: 100, vatRate: 'fr-standard' }],
+      });
+
+      expect(result.lines[0].vatRatePercent).toBe(20);
+      expect(result.vatMinor).toBe(2000);
+    });
+
+    it('a value that matches NO real catalog id still falls back to plain numeric parsing — legacy documents unaffected', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20' }],
+      });
+
+      expect(result.lines[0].vatRatePercent).toBe(20);
+      expect(result.warnings).toEqual([]);
+    });
+  });
+
+  // `DocumentTotals.showVat` — a display flag, never an input to the arithmetic above: the same
+  // net/vat/gross figures come out whether or not this flag ends up true.
+  describe('showVat', () => {
+    it('is true for an ordinary document with a positive VAT rate', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20' }],
+      });
+
+      expect(result.showVat).toBe(true);
+    });
+
+    it('stays true for a MIXED document — a real 20% line next to a 0% one still needs its breakdown', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [
+          { description: 'Export', quantity: 1, unitPrice: 100, vatRate: '0' },
+          { description: 'Domestic', quantity: 1, unitPrice: 100, vatRate: '20' },
+        ],
+      });
+
+      expect(result.showVat).toBe(true);
+      expect(result.vatBreakdown).toEqual([
+        { ratePercent: 0, baseMinor: 10000, vatMinor: 0 },
+        { ratePercent: 20, baseMinor: 10000, vatMinor: 2000 },
+      ]);
+    });
+
+    it('is false when every line resolves to exactly 0% — an all-exempt/all-reverse-charge document, no `sellerExemptVat` needed', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Autoliquidation', quantity: 1, unitPrice: 100, vatRate: '0' }],
+      });
+
+      expect(result.showVat).toBe(false);
+      // The 0% row itself is still computed honestly — hiding it on screen/PDF is a rendering
+      // decision (render-html.ts), never something this function itself drops.
+      expect(result.vatBreakdown).toEqual([{ ratePercent: 0, baseMinor: 10000, vatMinor: 0 }]);
+    });
+
+    it('is false for a VAT-exempt seller even though the line still carries a stray positive rate — a draft not yet resolved by the tax engine', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(
+        descriptor,
+        { currency: 'EUR', lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20' }] },
+        { sellerExemptVat: true },
+      );
+
+      expect(result.showVat).toBe(false);
+      // Never an arithmetic override: the honest (not-yet-resolved) VAT amount is still computed —
+      // only the DISPLAY flag reacts to `sellerExemptVat`, exactly as this option's own header states.
+      expect(result.vatMinor).toBe(2000);
+      expect(result.grossMinor).toBe(12000);
+    });
+
+    it('is false for a VAT-exempt seller on an otherwise VAT-free document too — both conditions agree', () => {
+      const descriptor = buildTestDescriptor();
+      const result = computeDocumentTotals(
+        descriptor,
+        { currency: 'EUR', lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '0' }] },
+        { sellerExemptVat: true },
+      );
+
+      expect(result.showVat).toBe(false);
+    });
+
+    it('is false when the document type has no line array at all (nothing to break down)', () => {
+      const descriptor = buildTestDescriptor({ arrayField: false });
+      const result = computeDocumentTotals(descriptor, { currency: 'EUR' });
+
+      expect(result.showVat).toBe(false);
+    });
+  });
+});

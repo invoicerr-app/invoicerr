@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { LogDetailsDialog } from "./__components/log-details-dialog"
 import { LogsFilters } from "./__components/logs-filters"
 import { LogsTable } from "./__components/logs-table"
-import { Spinner } from "@/components/ui/spinner"
+import { SettingsListSkeleton, SettingsPage, SettingsSection } from "./settings-section"
 import { useSse } from "@/hooks/use-fetch"
 
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "FATAL"
@@ -22,6 +23,7 @@ export type Log = {
 }
 
 export function LogsSettings() {
+  const { t } = useTranslation()
   const [logs, setLogs] = useState<Log[]>([])
   const [filteredLogs, setFilteredLogs] = useState<Log[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,11 +41,11 @@ export function LogsSettings() {
     applyFilters()
   }, [logs, levelFilter, categoryFilter, searchQuery, dateRange])
 
-  const { data: sseData, loading: sseLoading, error: sseError } = useSse<Log[]>('/api/logs?intervalMs=1000')
+  const { data: sseData, loading: sseLoading, error: sseError } = useSse<Log[]>("/api/logs?intervalMs=1000")
 
   useEffect(() => {
     if (sseError) {
-      console.error('SSE logs error', sseError)
+      console.error("SSE logs error", sseError)
       setLoading(false)
       return
     }
@@ -101,37 +103,39 @@ export function LogsSettings() {
 
   const categories = Array.from(new Set(logs.map((log) => log.category)))
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner className="h-8 w-8" />
-      </div>
-    )
-  }
-
   return (
-    <div className="p-6 space-y-4">
-      <LogsFilters
-        levelFilter={levelFilter}
-        setLevelFilter={setLevelFilter}
-        categoryFilter={categoryFilter}
-        setCategoryFilter={setCategoryFilter}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        dateRange={dateRange}
-        setDateRange={setDateRange}
-        categories={categories}
-        totalLogs={logs.length}
-        filteredCount={filteredLogs.length}
-        onRefresh={() => {
-          setLogs([])
-          setLoading(true)
-        }}
-      />
+    <SettingsPage
+      title={t("settings.logs.title")}
+      description={t("settings.logs.description")}
+      dataCy="logs-settings"
+    >
+      {loading ? (
+        <SettingsListSkeleton rows={6} />
+      ) : (
+        <SettingsSection contentClassName="grid gap-4" dataCy="logs-section">
+          <LogsFilters
+            levelFilter={levelFilter}
+            setLevelFilter={setLevelFilter}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            categories={categories}
+            totalLogs={logs.length}
+            filteredCount={filteredLogs.length}
+            onRefresh={() => {
+              setLogs([])
+              setLoading(true)
+            }}
+          />
 
-      <LogsTable logs={filteredLogs} onSelectLog={setSelectedLog} />
+          <LogsTable logs={filteredLogs} onSelectLog={setSelectedLog} />
 
-      <LogDetailsDialog log={selectedLog} onClose={() => setSelectedLog(null)} />
-    </div>
+          <LogDetailsDialog log={selectedLog} onClose={() => setSelectedLog(null)} />
+        </SettingsSection>
+      )}
+    </SettingsPage>
   )
 }

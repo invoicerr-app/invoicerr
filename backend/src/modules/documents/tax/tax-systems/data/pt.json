@@ -1,0 +1,11 @@
+{
+  "countryCode": "PT",
+  "kind": "VAT",
+  "standardRate": 23,
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "Para as restantes importações, transmissões de bens e prestações de serviços, a taxa de 23%.",
+    "sourceCheckedAt": "2026-09-04"
+  },
+  "notes": "PROVENANCE REPLACED (2026-09-13), rate unchanged (23%): this entry used to cite the HTTP JSON response body of the European Commission's Taxes in Europe Database (TEDB, DG TAXUD) — an official but non-statutory source, consulted 2026-09-01. The repository now holds the statute itself, quoted verbatim by vat-rates/data/pt.json's own 'pt-standard' entry: Código do IVA (CIVA), art. 18.º n.º 1 alínea c), read live on 2026-09-04 at https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva18.aspx (see that file's entry and its own notes for the full retrieval method — curl against a static HTML page served by the Autoridade Tributária e Aduaneira, not a fetch-summary; that entry's own file-level notes also cover Madeira/Azores' distinct regional rates, which stay unmodeled here exactly as before). The `sourceText` and `sourceCheckedAt` above are copied byte-for-byte from that entry — `sourceCheckedAt` is therefore 2026-09-04, the date vat-rates/data/pt.json's own reading was made, not the date of this swap — never retyped or translated. Both citations agree on the same figure (23%); nothing about the rate changed, only which source is cited — a statute a reader can check beats a reproduced JSON payload. Consumer note (unchanged from the prior citation): this table exists to unblock `documents/tax/tax-engine.ts#ossDestinationVat` (per `resolve-invoice-tax.ts`'s own header, \"OSS with no destination rate table\"), which reads only `dest.standardRate` — never `reducedRates` — and `DocumentLine` (`documents/tax/types.ts`) carries no per-line product category a reduced rate could even be selected against; that is why reducedRates are still deliberately not modeled here."
+}

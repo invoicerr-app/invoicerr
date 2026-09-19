@@ -1,20 +1,105 @@
 name: Verify Docker Build (PR)
 
+# `pull_request` covers the normal case. `workflow_dispatch` exists for the case this repository
+# actually hits: a long-lived branch that deliberately has no PR open yet still needs a real image
+# to deploy somewhere and exercise. Without it the only way to get an image out of a branch was to
+# open a pull request, which is a poor reason to open one.
+# Building the branch image on every PR synchronisation duplicated the manual `workflow_dispatch`
+# run that deployments actually use (the image is pulled by hand on the dev instance), and each
+# build is a multi-arch job of several minutes. It now runs only when explicitly dispatched.
 on:
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to publish (defaults to the sanitised branch name)'
+        required: false
+        type: string
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set variables
+        id: vars
+        # `INPUT_TAG` below: `inputs.tag` is workflow_dispatch-only, already gated behind repo write
+        # access, so a hostile value here would require that access anyway — hardened regardless, as
+        # cheap CI hygiene. Passed via `env:` rather than interpolated directly into the script
+        # (`TAG="${{ inputs.tag }}"`), which GitHub substitutes BEFORE bash ever sees the line: a value
+        # containing shell metacharacters would execute in the job's own context. `env:` hands it to
+        # bash as an ordinary environment variable instead, which is never re-parsed as shell syntax.
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          REPO_NAME_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          IMAGE="${{ env.REGISTRY }}/${REPO_NAME_LOWER}"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # A dispatch always runs on a ref of this repository, so pushing is always allowed.
+            # The default tag is the branch name with every character a Docker tag rejects turned
+            # into a dash -- `feat/compliance-engine-v2` is not a legal tag, `feat-compliance-engine-v2` is.
+            TAG="$INPUT_TAG"
+            if [[ -z "$TAG" ]]; then
+              TAG=$(echo "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9_.-' '-' | sed 's/-*$//')
+            fi
+            echo "push=true" >> $GITHUB_OUTPUT
+          else
+            TAG="test-pr-${{ github.event.pull_request.number }}"
+            # A fork's PR gets no registry write: GITHUB_TOKEN is read-only there, so the image is
+            # built (which is the check that matters) and not pushed.
+            if [[ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
+              echo "push=true" >> $GITHUB_OUTPUT
+            else
+              echo "push=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "cache_scope=$TAG" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image (no push)
+      - name: Log in to GHCR
+        if: steps.vars.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false
           platforms: linux/amd64
+          # Same stamping as docker-publish.yml — a PR image is the one most likely to be deployed
+          # somewhere and later wondered about, so it needs the revision at least as much.
+          build-args: |
+            GIT_REVISION=${{ github.sha }}
+            GIT_REF_NAME=${{ github.ref_name }}
+          push: ${{ steps.vars.outputs.push }}
+          tags: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          cache-from: type=gha,scope=${{ steps.vars.outputs.cache_scope }}
+          cache-to: type=gha,mode=max,scope=${{ steps.vars.outputs.cache_scope }}
+
+      - name: Publish pull command
+        if: steps.vars.outputs.push == 'true'
+        run: |
+          {
+            echo "### Pull this build"
+            echo ""
+            echo '```'
+            echo "docker pull ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "docker pull ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"

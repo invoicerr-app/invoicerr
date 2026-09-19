@@ -1,0 +1,151 @@
+{
+  "demo": {
+    "greeting": "Hallo, {{name}}!",
+    "itemCount": "{{count}} Artikel",
+    "itemCount_one": "{{count}} Artikel"
+  },
+  "layout": {
+    "greeting": "Hallo,",
+    "signOffText": "Mit freundlichen Grüßen,\nDas Invoicerr-Team",
+    "signOffHtml": "Mit freundlichen Grüßen,<br>Das Invoicerr-Team",
+    "sentFrom": "Diese E-Mail wurde gesendet von {appUrl}"
+  },
+  "signatureRequest": {
+    "subject": "Bitte unterschreiben Sie Dokument Nr. {signatureNumber}",
+    "intro": "Sie wurden gebeten, das folgende Dokument zu unterschreiben:",
+    "documentLine": "Dokument: {signatureNumber}",
+    "signatureIdLine": "Signatur-ID: {signatureId}",
+    "reviewLinkIntro": "Öffnen Sie diesen Link, um das Dokument zu prüfen und zu unterschreiben:",
+    "contactText": "Bei Fragen kontaktieren Sie uns bitte.",
+    "title": "Dokumentsignatur erforderlich",
+    "documentLabel": "Dokument:",
+    "signatureIdLabel": "Signatur-ID:",
+    "clickBelow": "Klicken Sie auf die Schaltfläche unten, um das Dokument zu prüfen und zu unterschreiben:",
+    "buttonLabel": "Dokument unterschreiben",
+    "contactHtml": "Bei Fragen zögern Sie bitte nicht, uns zu kontaktieren."
+  },
+  "verificationCode": {
+    "subject": "Ihr Bestätigungscode",
+    "codeIntroText": "Hier ist Ihr Bestätigungscode: {otpCode}",
+    "codeIntroHtml": "Hier ist Ihr Bestätigungscode:",
+    "expiryText": "Dieser Code läuft in Kürze ab. Geben Sie ihn in der Anwendung ein, um die Überprüfung abzuschließen.",
+    "expiryHtml": "Dieser Code läuft in Kürze ab. Bitte geben Sie ihn in der Anwendung ein, um die Überprüfung abzuschließen.",
+    "ignoreNotice": "Wenn Sie diesen Code nicht angefordert haben, ignorieren Sie bitte diese E-Mail."
+  },
+  "billingWarning": {
+    "manageLine": "Verwalten Sie Ihr Abonnement: {settingsUrl}",
+    "ctaLabel": "Abonnement verwalten",
+    "blockedZip": {
+      "subject_one": "Handlung erforderlich: Ihre Invoicerr-Daten werden in {{count}} Tag archiviert",
+      "subject": "Handlung erforderlich: Ihre Invoicerr-Daten werden in {{count}} Tagen archiviert",
+      "heading": "Handlung erforderlich",
+      "introText_one": "Das Invoicerr-Abonnement Ihres Unternehmens ist nicht aktiv. In {{count}} Tag werden dessen Dokumente in eine Zip-Datei exportiert, und das Konto bleibt schreibgeschützt, bis Sie das Abonnement erneuern.",
+      "introText": "Das Invoicerr-Abonnement Ihres Unternehmens ist nicht aktiv. In {{count}} Tagen werden dessen Dokumente in eine Zip-Datei exportiert, und das Konto bleibt schreibgeschützt, bis Sie das Abonnement erneuern.",
+      "introHtml_one": "Das Invoicerr-Abonnement Ihres Unternehmens ist nicht aktiv. In <strong>{{count}} Tag</strong> werden dessen Dokumente in eine Zip-Datei exportiert, und das Konto bleibt schreibgeschützt, bis Sie das Abonnement erneuern.",
+      "introHtml": "Das Invoicerr-Abonnement Ihres Unternehmens ist nicht aktiv. In <strong>{{count}} Tagen</strong> werden dessen Dokumente in eine Zip-Datei exportiert, und das Konto bleibt schreibgeschützt, bis Sie das Abonnement erneuern."
+    },
+    "deletion": {
+      "subject_one": "Letzte Mahnung: Ihr Invoicerr-Unternehmen wird in {{count}} Tag endgültig gelöscht",
+      "subject": "Letzte Mahnung: Ihr Invoicerr-Unternehmen wird in {{count}} Tagen endgültig gelöscht",
+      "heading": "Letzte Mahnung",
+      "textBody_one": "In {{count}} Tag werden Ihr Unternehmen und alle darin enthaltenen Dokumente ENDGÜLTIG AUS Invoicerr GELÖSCHT. Dies kann nicht rückgängig gemacht werden. Erneuern Sie Ihr Abonnement vorher, um Ihre Daten zu behalten.",
+      "textBody": "In {{count}} Tagen werden Ihr Unternehmen und alle darin enthaltenen Dokumente ENDGÜLTIG AUS Invoicerr GELÖSCHT. Dies kann nicht rückgängig gemacht werden. Erneuern Sie Ihr Abonnement vorher, um Ihre Daten zu behalten.",
+      "htmlBody_one": "In <strong>{{count}} Tag</strong> werden Ihr Unternehmen und alle darin enthaltenen Dokumente <strong>endgültig gelöscht</strong>. Dies kann nicht rückgängig gemacht werden. Erneuern Sie Ihr Abonnement vorher, um Ihre Daten zu behalten.",
+      "htmlBody": "In <strong>{{count}} Tagen</strong> werden Ihr Unternehmen und alle darin enthaltenen Dokumente <strong>endgültig gelöscht</strong>. Dies kann nicht rückgängig gemacht werden. Erneuern Sie Ihr Abonnement vorher, um Ihre Daten zu behalten."
+    }
+  },
+  "legalChanged": {
+    "subjectSingular": "Aktualisiertes Rechtsdokument: {title}",
+    "subjectPlural": "Aktualisierte Rechtsdokumente: {titles}",
+    "titlesTwo": "{first} und {second}",
+    "titlesMany": "{first}, {second} und {count} weitere",
+    "heading_one": "Aktualisiertes Rechtsdokument",
+    "heading": "Aktualisierte Rechtsdokumente",
+    "introText_one": "Wir haben das folgende Rechtsdokument aktualisiert. Die neue Version finden Sie hier:",
+    "introText": "Wir haben die folgenden Rechtsdokumente aktualisiert. Die neuen Versionen finden Sie hier:",
+    "introHtml_one": "Wir haben das folgende Rechtsdokument aktualisiert:",
+    "introHtml": "Wir haben die folgenden Rechtsdokumente aktualisiert:",
+    "acceptNotice": "Sie werden bei Ihrer nächsten Anmeldung gebeten, die Änderungen zu akzeptieren:",
+    "acceptButton": "Prüfen und akzeptieren"
+  },
+  "ownershipTransfer": {
+    "request": {
+      "subject": "{fromName} möchte Ihnen das Eigentum an „{companyName}“ übertragen",
+      "textIntro": "{fromName} hat beantragt, das Eigentum an seinem/ihrem Unternehmen „{companyName}“ auf Invoicerr auf Ihr Konto zu übertragen. Durch Annahme werden Sie EIGENTÜMER dieses Unternehmens; {fromName} wird Administrator.",
+      "expiryNotice": "Diese Anfrage läuft in 7 Tagen ab.",
+      "reviewLinkIntro": "Prüfen und akzeptieren Sie die Anfrage hier:",
+      "ignoreNotice": "Falls Sie dies nicht erwartet haben, können Sie diese E-Mail einfach ignorieren — es ändert sich nichts, bis Sie zustimmen.",
+      "heading": "Anfrage zur Eigentumsübertragung",
+      "htmlIntro": "<strong>{fromName}</strong> hat beantragt, das Eigentum an seinem/ihrem Unternehmen <strong>„{companyName}“</strong> auf Invoicerr auf Ihr Konto zu übertragen. Durch Annahme werden Sie EIGENTÜMER dieses Unternehmens; {fromName} wird Administrator.",
+      "buttonLabel": "Anfrage prüfen"
+    },
+    "finalized": {
+      "subjectNewOwner": "Sie sind jetzt Eigentümer von „{companyName}“",
+      "subjectFormerOwner": "Das Eigentum an „{companyName}“ wurde übertragen",
+      "bodyLineNewOwner": "Sie sind jetzt EIGENTÜMER von „{companyName}“ auf Invoicerr.",
+      "bodyLineFormerOwner": "Sie sind nicht mehr Eigentümer von „{companyName}“ — der neue Eigentümer hat die Übertragung akzeptiert. Sie bleiben Administrator dieses Unternehmens.",
+      "heading": "Eigentumsübertragung abgeschlossen"
+    },
+    "ended": {
+      "subjectExpired": "Eigentumsübertragung von „{companyName}“ abgelaufen",
+      "subjectCanceled": "Eigentumsübertragung von „{companyName}“ storniert",
+      "bodyExpired": "Ihre Anfrage zur Eigentumsübertragung von „{companyName}“ an {toEmail} ist unbeantwortet abgelaufen. Sie bleiben Eigentümer dieses Unternehmens.",
+      "bodyCanceled": "Ihre Anfrage zur Eigentumsübertragung von „{companyName}“ an {toEmail} wurde storniert. Sie bleiben Eigentümer dieses Unternehmens.",
+      "heading": "Eigentumsübertragung beendet"
+    }
+  },
+  "dataExport": {
+    "subject": "Export Ihrer Unternehmensdaten"
+  },
+  "dangerOtp": {
+    "subject": "OTP-Code gesendet",
+    "body": "Ihr Bestätigungscode für eine destruktive Aktion auf Invoicerr lautet: {{code}}. Er ist {{minutes}} Minuten gültig. Falls Sie dies nicht angefordert haben, ignorieren Sie diese Nachricht."
+  },
+  "dangerDeleteCompany": {
+    "body": "Sie sind dabei, „{{companyName}}“ endgültig aus Invoicerr zu löschen. Im Anhang finden Sie einen vollständigen Export aller darin enthaltenen Daten — dies ist Ihre letzte Kopie. Nach Abschluss der Löschung ist nichts mehr wiederherstellbar."
+  },
+  "instanceResetOtp": {
+    "subject": "Bestätigungscode für die Zurücksetzung der Instanz",
+    "body": "Ihr Bestätigungscode zum Zurücksetzen der GESAMTEN Invoicerr-Instanz — aller Unternehmen, Benutzer und Dokumente — lautet: {{code}}. Er ist {{minutes}} Minuten gültig. Falls Sie dies nicht angefordert haben, ignorieren Sie diese Nachricht und erwägen Sie, Ihre Adresse aus INSTANCE_OPERATOR_EMAILS zu entfernen."
+  },
+  "changeEmail": {
+    "subject": "Bestätigen Sie Ihre E-Mail-Adresse",
+    "textIntro": "Klicken Sie auf den folgenden Link, um diese E-Mail-Adresse für Ihr Invoicerr-Konto zu bestätigen:",
+    "htmlIntro": "Klicken Sie auf die Schaltfläche unten, um diese E-Mail-Adresse für Ihr Invoicerr-Konto zu bestätigen:",
+    "ignoreNotice": "Falls Sie dies nicht angefordert haben, können Sie diese Nachricht gefahrlos ignorieren — die E-Mail-Adresse Ihres Kontos ändert sich erst, wenn der obige Link geöffnet wird.",
+    "buttonLabel": "E-Mail bestätigen"
+  },
+  "mailSettingsTest": {
+    "subject": "Invoicerr — Test-E-Mail",
+    "body": "Dies ist eine Test-E-Mail zur Bestätigung, dass die Konfiguration Ihres Mailservers funktioniert."
+  },
+  "billingZipExport": {
+    "body": "Das Invoicerr-Abonnement Ihres Unternehmens ist seit 14 Tagen blockiert. Im Anhang finden Sie einen vollständigen Export der Dokumente Ihres Unternehmens. Wenn Sie nicht handeln, werden diese Daten endgültig gelöscht."
+  },
+  "reminders": {
+    "tier7": {
+      "subject": "Zahlungserinnerung — Rechnung {displayNumber}",
+      "body_one": "Hallo,\n\ndies ist eine freundliche Erinnerung, dass Rechnung {displayNumber} über {amountOutstanding} am {dueDate} fällig war und nun seit {{count}} Tag überfällig ist.\n\nBitte veranlassen Sie die Zahlung schnellstmöglich. Sollten Sie bereits bezahlt haben, betrachten Sie diese Nachricht bitte als gegenstandslos.\n\nVielen Dank,\n{companyName}",
+      "body": "Hallo,\n\ndies ist eine freundliche Erinnerung, dass Rechnung {displayNumber} über {amountOutstanding} am {dueDate} fällig war und nun seit {{count}} Tagen überfällig ist.\n\nBitte veranlassen Sie die Zahlung schnellstmöglich. Sollten Sie bereits bezahlt haben, betrachten Sie diese Nachricht bitte als gegenstandslos.\n\nVielen Dank,\n{companyName}"
+    },
+    "tier14": {
+      "subject": "Zweite Mahnung — Rechnung {displayNumber} ist überfällig",
+      "body_one": "Hallo,\n\nRechnung {displayNumber} über {amountOutstanding} war am {dueDate} fällig und ist nun seit {{count}} Tag überfällig. Dies ist unsere zweite Mahnung — bitte begleichen Sie den Betrag so bald wie möglich.\n\nFalls Sie Zahlungsschwierigkeiten haben, kontaktieren Sie uns bitte, damit wir gemeinsam eine Lösung finden können.\n\n{companyName}",
+      "body": "Hallo,\n\nRechnung {displayNumber} über {amountOutstanding} war am {dueDate} fällig und ist nun seit {{count}} Tagen überfällig. Dies ist unsere zweite Mahnung — bitte begleichen Sie den Betrag so bald wie möglich.\n\nFalls Sie Zahlungsschwierigkeiten haben, kontaktieren Sie uns bitte, damit wir gemeinsam eine Lösung finden können.\n\n{companyName}"
+    },
+    "tier30": {
+      "subject": "DRINGEND — Rechnung {displayNumber} ist erheblich überfällig",
+      "body_one": "Hallo,\n\nRechnung {displayNumber} über {amountOutstanding} war am {dueDate} fällig und ist nun seit {{count}} Tag überfällig. Trotz unserer vorherigen Mahnungen ist sie weiterhin unbezahlt.\n\nBitte begleichen Sie diese Rechnung UMGEHEND, um weitere Schritte zu vermeiden. Kontaktieren Sie uns dringend, falls es einen Streitfall oder eine uns noch nicht bekannte Schwierigkeit gibt.\n\n{companyName}",
+      "body": "Hallo,\n\nRechnung {displayNumber} über {amountOutstanding} war am {dueDate} fällig und ist nun seit {{count}} Tagen überfällig. Trotz unserer vorherigen Mahnungen ist sie weiterhin unbezahlt.\n\nBitte begleichen Sie diese Rechnung UMGEHEND, um weitere Schritte zu vermeiden. Kontaktieren Sie uns dringend, falls es einen Streitfall oder eine uns noch nicht bekannte Schwierigkeit gibt.\n\n{companyName}"
+    }
+  },
+  "portalInvite": {
+    "subject": "{companyName} — Zugang zu Ihrem Kundenportal",
+    "introText": "{companyName} hat Sie zu ihrem Kundenportal eingeladen, in dem Sie Ihre Rechnungen, Angebote und Ihren Kontostand einsehen sowie auf jedes Angebot, das auf Ihre Entscheidung wartet, reagieren können.",
+    "openPortalIntro": "Öffnen Sie Ihr Portal:",
+    "buttonLabel": "Portal öffnen",
+    "privacyNotice": "Bewahren Sie diesen Link vertraulich auf — jeder, der ihn kennt, kann auf Ihr Konto zugreifen.",
+    "signOffText": "Mit freundlichen Grüßen,\n{companyName}",
+    "signOffHtml": "Mit freundlichen Grüßen,<br>{companyName}"
+  }
+}

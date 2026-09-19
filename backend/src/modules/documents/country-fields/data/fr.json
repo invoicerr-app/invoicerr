@@ -1,0 +1,23 @@
+{
+  "countryCode": "FR",
+  "overlays": [
+    {
+      "typeId": "invoice",
+      "operations": [
+        {
+          "op": "add",
+          "path": "lines",
+          "field": {
+            "key": "supplyType",
+            "kind": "select",
+            "label": "Supply type",
+            "required": false,
+            "options": [{ "value": "GOODS", "label": "Goods" }, { "value": "SERVICES", "label": "Services" }],
+            "helpText": "Whether this line is a delivery of goods or a supply of services — used to derive BT-23 (\"cadre de facturation\") on a French invoice. Optional: leave unset if unsure."
+          }
+        }
+      ]
+    }
+  ],
+  "notes": "France's FIRST real field-overlay file — see this directory's own `data/all.ts` header for why it shipped empty until now. Adds `supplyType` as an OPTIONAL 'select' subfield of `invoice.lines`, consumed by `formats/semantic/business-process.ts#resolveFrenchBusinessProcessCode` (via `formats/shared-build.ts#extractLines`) to derive BT-23's own goods/services/mixed category (CGI ann. II art. 242 nonies A, I, 8° bis — see `content-requirements/data/fr.json` for the sourced, dated citation and the date this becomes binding). A LINE subfield, not a document-level field: BT-23's own category genuinely depends on what each line actually contains (a mixed invoice derives 'mixte' automatically the moment both values appear across its lines), which a single document-wide toggle could not express without asking the user to pre-summarize their own invoice. Deliberately OPTIONAL — a French invoice with no line declaring this still builds (M1, the value that asserts nothing false about the content, per `business-process.ts`'s own documented default); this field only lets a seller be MORE precise (B1/S1) when they choose to say so, never forces a new required field onto an existing workflow. Labels are plain data (see `descriptors/types.ts`'s own comment on `DocumentTypeDescriptor.label`: the frontend renders `field.label`/`option.label` directly, never through `t()`), so this needed no i18n locale entry — consistent with every other field label already in `invoice.descriptor.ts`."
+}

@@ -1,257 +1,395 @@
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Edit, Eye, Mail, MapPin, Phone, Plus, Search, Trash2, User, Users } from "lucide-react"
+import { FileText, Pencil, Plus, SearchX, Trash2, UserRoundCheck, Users } from "lucide-react"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router"
 
 import BetterPagination from "@/components/pagination"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { EmptyState } from "@/components/ui/empty-state"
+import { useClient, useClients } from "@/hooks/queries"
+import { usePageHeader } from "@/hooks/use-page-header"
 import type { Client } from "@/types"
+
+import {
+  FilterChip,
+  FilterChipGroup,
+  FilterChipSkeleton,
+  ListRow,
+  ListRowMenu,
+  ListSearch,
+  ListSkeleton,
+} from "../_shared/data-list"
+import { ClientBadges } from "./_components/client-badges"
 import { ClientDeleteDialog } from "./_components/client-delete"
+import { clientDisplayName } from "./_components/client-display"
+import { ClientPortalAccessDialog } from "./_components/client-portal-access"
+import { ClientStatementDialog } from "./_components/client-statement"
 import { ClientUpsert } from "./_components/client-upsert"
 import { ClientViewDialog } from "./_components/client-view"
-import { Input } from "@/components/ui/input"
-import { useClients } from "@/hooks/queries"
-import { usePageHeader } from "@/hooks/use-page-header"
-import { useState } from "react"
-import { useTranslation } from "react-i18next"
 
 type ActiveFilter = "active" | "inactive" | undefined
+// The ONE role this filter recognizes today is "supplier" (Client.isSupplier) — a toggle, not a
+// full role enum, since that is the only role that exists; a future role extends this the same way.
+type RoleFilter = "supplier" | undefined
+
+interface ClientRowProps {
+  client: Client
+  onView: (client: Client) => void
+  onEdit: (client: Client) => void
+  onStatement: (client: Client) => void
+  onPortalAccess: (client: Client) => void
+  onDelete: (client: Client) => void
+}
+
+/**
+ * One client as a row: name + badges, then e-mail · phone · city. "Edit" is the one contextual
+ * button (the most frequent action on a client record); everything else — statement, portal
+ * access, delete — sits in the "more" menu, delete last and in the destructive tone. The old row
+ * showed five icon buttons at equal weight, delete included, with hover colours invented per icon.
+ */
+function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDelete }: ClientRowProps) {
+  const { t } = useTranslation()
+  const email = client.contactEmail
+  // `data-cy` selectors below key off the email for readability in specs — but the email is optional
+  // now, so a client without one falls back to its own id rather than every email-less row rendering
+  // the literal string "undefined" (and colliding with every OTHER email-less row on the same page).
+  const rowKey = email?.trim() || client.id
+  const meta = [
+    client.contactEmail,
+    client.contactPhone,
+    [client.city, client.countryCode].filter(Boolean).join(", "),
+  ]
+    .map((value) => value?.trim())
+    .filter((value): value is string => !!value)
+
+  return (
+    <ListRow
+      dataCy={`client-row-${rowKey}`}
+      onOpen={() => onView(client)}
+      identity={
+        <>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h3 className="min-w-0 break-words font-medium text-foreground">
+              {/* A real button, the one control a keyboard or screen-reader user can reach to open
+                  the record (the row's own onClick is invisible to both). */}
+              <button
+                type="button"
+                className="rounded-sm text-left outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onView(client)
+                }}
+                data-cy={`view-client-button-${rowKey}`}
+              >
+                {clientDisplayName(client)}
+              </button>
+            </h3>
+            <ClientBadges client={client} />
+          </div>
+          {meta.length > 0 && (
+            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:text-sm">
+              {meta.map((value) => (
+                <span key={value} className="truncate">
+                  {value}
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      }
+      primary={
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={() => onEdit(client)}
+          dataCy={`edit-client-button-${rowKey}`}
+        >
+          <Pencil aria-hidden="true" />
+          {t("clients.list.tooltips.edit")}
+        </Button>
+      }
+      menu={
+        <ListRowMenu
+          label={t("clients.list.rowMenu")}
+          dataCy={`client-row-menu-${rowKey}`}
+          contentDataCy={`client-row-menu-content-${rowKey}`}
+        >
+          <DropdownMenuItem
+            onSelect={() => onStatement(client)}
+            data-cy={`statement-client-button-${rowKey}`}
+          >
+            <FileText aria-hidden="true" />
+            {t("clients.list.tooltips.statement")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => onPortalAccess(client)}
+            data-cy={`portal-access-client-button-${rowKey}`}
+          >
+            <UserRoundCheck aria-hidden="true" />
+            {t("clients.list.tooltips.portalAccess")}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => onDelete(client)}
+            data-cy={`delete-client-button-${rowKey}`}
+          >
+            <Trash2 aria-hidden="true" />
+            {t("clients.list.tooltips.delete")}
+          </DropdownMenuItem>
+        </ListRowMenu>
+      }
+    />
+  )
+}
 
 export default function Clients() {
-    const { t } = useTranslation()
-    const [page, setPage] = useState(1)
-    const { data: clients } = useClients(page)
+  const { t } = useTranslation()
+  const [page, setPage] = useState(1)
+  const { data: clients, isLoading } = useClients(page)
+  const [searchParams, setSearchParams] = useSearchParams()
 
-    const [createClientDialog, setCreateClientDialog] = useState<boolean>(false)
-    const [editClientDialog, setEditClientDialog] = useState<Client | null>(null)
-    const [viewClientDialog, setViewClientDialog] = useState<Client | null>(null)
-    const [deleteClientDialog, setDeleteClientDialog] = useState<Client | null>(null)
+  const [createClientDialog, setCreateClientDialog] = useState<boolean>(false)
+  const [editClientDialog, setEditClientDialog] = useState<Client | null>(null)
+  const [viewClientDialog, setViewClientDialog] = useState<Client | null>(null)
+  const [deleteClientDialog, setDeleteClientDialog] = useState<Client | null>(null)
+  const [statementClientDialog, setStatementClientDialog] = useState<Client | null>(null)
+  const [portalAccessClientDialog, setPortalAccessClientDialog] = useState<Client | null>(null)
 
-    const [searchTerm, setSearchTerm] = useState("")
-    const [activeFilter, setActiveFilter] = useState<ActiveFilter>(undefined)
-
-    const filteredClients =
-        clients?.clients.filter(
-            (client) =>
-                (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    client.contactFirstname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    client.contactLastname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    client.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                (!activeFilter ||
-                    (activeFilter === "active" && client.isActive) ||
-                    (activeFilter === "inactive" && !client.isActive)),
-        ) || []
-
-    const activeCounts = {
-        active: clients?.clients.filter((c) => c.isActive).length || 0,
-        inactive: clients?.clients.filter((c) => !c.isActive).length || 0,
-    }
-
-    function handleAddClick() {
-        setCreateClientDialog(true)
-    }
-
-    function handleEdit(client: Client) {
-        setEditClientDialog(client)
-    }
-
-    function handleView(client: Client) {
-        setViewClientDialog(client)
-    }
-
-    function handleDelete(client: Client) {
-        setDeleteClientDialog(client)
-    }
-
-    usePageHeader(t("sidebar.navigation.clients"))
-
-    const emptyState = (
-        <div className="text-center py-12">
-            <Users className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-foreground">
-                {searchTerm ? t("clients.emptyState.noResults") : t("clients.emptyState.noClients")}
-            </h3>
-            <p className="mt-1 text-sm text-primary">
-                {searchTerm ? t("clients.emptyState.tryDifferentSearch") : t("clients.emptyState.startAdding")}
-            </p>
-            {!searchTerm && (
-                <div className="mt-6">
-                    <Button onClick={handleAddClick}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("clients.actions.addNew")}
-                    </Button>
-                </div>
-            )}
-        </div>
+  // "?view=<id>" — the duplicate-detection wizard's own "view existing client" link
+  // (client-upsert.tsx's DuplicateWarning), opened in a fresh tab that has no local state to hand the
+  // dialog directly. Fetched by id (never assumed to be on THIS page's own paginated slice — the
+  // match could be on any page), and the param is cleared once consumed so closing/reopening the
+  // dialog later never re-triggers this.
+  const viewParamId = searchParams.get("view") || undefined
+  const { data: viewParamClient } = useClient(viewParamId)
+  useEffect(() => {
+    if (!viewParamId || !viewParamClient) return
+    setViewClientDialog(viewParamClient)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete("view")
+        return next
+      },
+      { replace: true },
     )
+  }, [viewParamId, viewParamClient, setSearchParams])
 
-    return (
-        <div className="max-w-7xl mx-auto space-y-6 p-6">
+  const [searchTerm, setSearchTerm] = useState("")
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>(undefined)
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(undefined)
 
-            <Card className="gap-0">
-                <CardHeader className="border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
-                    <div className="relative w-full sm:w-fit sm:flex-1 sm:max-w-sm">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <Input
-                            placeholder={t("clients.search.placeholder")}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 w-full"
-                        />
-                    </div>
-                    <div className="flex items-center gap-2 sm:ml-auto">
-                        <div className="flex items-center gap-2">
-                            <Badge
-                                onClick={() => setActiveFilter(activeFilter === "active" ? undefined : "active")}
-                                variant="outline"
-                                className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${activeFilter === "active"
-                                    ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
-                                    : "bg-green-50 text-green-700/70 hover:bg-green-100"
-                                    }`}
-                            >
-                                {t("clients.stats.active")} ({activeCounts.active})
-                            </Badge>
-                            <Badge
-                                onClick={() => setActiveFilter(activeFilter === "inactive" ? undefined : "inactive")}
-                                variant="outline"
-                                className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${activeFilter === "inactive"
-                                    ? "bg-gray-500 text-white font-semibold shadow-sm scale-105"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                    }`}
-                            >
-                                {t("clients.stats.inactive")} ({activeCounts.inactive})
-                            </Badge>
-                        </div>
-                        <Button onClick={handleAddClick}>
-                            <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                            <span className="hidden md:inline-flex">{t("clients.actions.addNew")}</span>
-                        </Button>
-                    </div>
-                </CardHeader>
+  const allClients = useMemo(() => clients?.clients ?? [], [clients])
 
-                <CardContent className="p-0">
-                    {filteredClients.length === 0 ? (
-                        emptyState
-                    ) : (
-                        <div className="divide-y">
-                            {filteredClients.map((client, index) => (
-                                <div key={index} className="p-4 sm:p-6">
-                                    <div className="flex flex-row sm:items-center sm:justify-between gap-4">
-                                        <div className="flex flex-row items-center gap-4 w-full">
-                                            <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                                                <User className="h-5 w-5 text-blue-600" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <h3 className="font-medium text-foreground break-words">{client.name || client.contactFirstname + " " + client.contactLastname}</h3>
-                                                    <span
-                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${client.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                                                            } w-fit`}
-                                                        data-cy={client.isActive ? `client-status-active-${client.contactEmail}` : `client-status-inactive-${client.contactEmail}`}
-                                                    >
-                                                        {client.isActive ? t("clients.list.status.active") : t("clients.list.status.inactive")}
-                                                    </span>
-                                                    <span
-                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${client.type === 'INDIVIDUAL' ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"
-                                                            } w-fit ml-2`}
-                                                    >
-                                                        {client.type === 'INDIVIDUAL' ? t("clients.upsert.fields.type.individual") : t("clients.upsert.fields.type.company")}
-                                                    </span>
-                                                </div>
-                                                <div className="mt-2 flex flex-col lg:flex-row flex-wrap gap-2 text-sm text-primary">
-                                                    <div className="flex items-center space-x-1">
-                                                        <Mail className="h-4 w-4" />
-                                                        <span>{client.contactEmail || "-"}</span>
-                                                    </div>
-                                                    {client.contactPhone && (
-                                                        <div className="flex items-center space-x-1">
-                                                            <Phone className="h-4 w-4" />
-                                                            <span>{client.contactPhone || "-"}</span>
-                                                        </div>
-                                                    )}
-                                                    {client.city && (
-                                                        <div className="flex items-center space-x-1">
-                                                            <MapPin className="h-4 w-4" />
-                                                            <span>{client.city}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-0 w-fit flex flex-col lg:flex-row space-x-2 justify-center items-center lg:justify-end">
-                                            <Button
-                                                tooltip={t("clients.list.tooltips.view")}
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleView(client)}
-                                                className="text-gray-600 hover:text-blue-600 mr-2"
-                                                dataCy={`view-client-button-${client.contactEmail}`}
-                                            >
-                                                <Eye className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                tooltip={t("clients.list.tooltips.edit")}
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleEdit(client)}
-                                                className="text-gray-600 hover:text-green-600 mr-2"
-                                                dataCy={`edit-client-button-${client.contactEmail}`}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                tooltip={t("clients.list.tooltips.delete")}
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleDelete(client)}
-                                                className="text-gray-600 hover:text-red-600 mr-2"
-                                                dataCy={`delete-client-button-${client.contactEmail}`}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-
-                <CardFooter>
-                    {filteredClients.length > 0 && (
-                        <BetterPagination pageCount={clients?.pageCount || 1} page={page} setPage={setPage} />
-                    )}
-                </CardFooter>
-            </Card>
-
-            <ClientUpsert
-                open={createClientDialog}
-                onOpenChange={(open) => {
-                    setCreateClientDialog(open)
-                }}
-            />
-
-            <ClientUpsert
-                open={!!editClientDialog}
-                client={editClientDialog}
-                onOpenChange={(open) => {
-                    if (!open) setEditClientDialog(null)
-                }}
-            />
-
-            <ClientViewDialog
-                client={viewClientDialog}
-                onOpenChange={(open) => {
-                    if (!open) setViewClientDialog(null)
-                }}
-            />
-
-            <ClientDeleteDialog
-                client={deleteClientDialog}
-                onOpenChange={(open) => {
-                    if (!open) setDeleteClientDialog(null)
-                }}
-            />
-        </div>
+  const filteredClients = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+    return allClients.filter(
+      (client) =>
+        (!term ||
+          client.name.toLowerCase().includes(term) ||
+          client.contactFirstname?.toLowerCase().includes(term) ||
+          client.contactLastname?.toLowerCase().includes(term) ||
+          client.contactEmail?.toLowerCase().includes(term)) &&
+        (!activeFilter ||
+          (activeFilter === "active" && client.isActive) ||
+          (activeFilter === "inactive" && !client.isActive)) &&
+        (!roleFilter || (roleFilter === "supplier" && client.isSupplier)),
     )
+  }, [allClients, searchTerm, activeFilter, roleFilter])
+
+  const counts = {
+    active: allClients.filter((c) => c.isActive).length,
+    inactive: allClients.filter((c) => !c.isActive).length,
+    suppliers: allClients.filter((c) => c.isSupplier).length,
+  }
+  const hasActiveFilter = !!searchTerm || !!activeFilter || !!roleFilter
+
+  const clearFilters = () => {
+    setSearchTerm("")
+    setActiveFilter(undefined)
+    setRoleFilter(undefined)
+  }
+
+  usePageHeader(t("sidebar.navigation.clients"))
+
+  // The view dialog's own "Edit" hands off to the edit dialog — the view closes first so the two
+  // never stack.
+  const editFromView = (client: Client) => {
+    setViewClientDialog(null)
+    setEditClientDialog(client)
+  }
+  const statementFromView = (client: Client) => {
+    setViewClientDialog(null)
+    setStatementClientDialog(client)
+  }
+
+  let body: ReactNode
+  if (isLoading) {
+    body = <ListSkeleton dataCy="clients-skeleton" />
+  } else if (filteredClients.length === 0) {
+    // `secondary` on the empty-state CTA: the header's "Add client" stays the page's one filled button.
+    body = hasActiveFilter ? (
+      <EmptyState
+        icon={SearchX}
+        title={t("clients.emptyState.noResults")}
+        description={t("clients.emptyState.tryDifferentSearch")}
+        action={
+          <Button variant="outline" onClick={clearFilters}>
+            {t("common.emptyState.clearFilters")}
+          </Button>
+        }
+        data-cy="clients-empty"
+      />
+    ) : (
+      <EmptyState
+        icon={Users}
+        title={t("clients.emptyState.noClients")}
+        description={t("clients.emptyState.startAdding")}
+        action={
+          <Button variant="secondary" onClick={() => setCreateClientDialog(true)}>
+            <Plus aria-hidden="true" />
+            {t("clients.actions.addNew")}
+          </Button>
+        }
+        data-cy="clients-empty"
+      />
+    )
+  } else {
+    body = (
+      <div className="divide-y" data-cy="clients-list">
+        {filteredClients.map((client) => (
+          <ClientRow
+            key={client.id}
+            client={client}
+            onView={setViewClientDialog}
+            onEdit={setEditClientDialog}
+            onStatement={setStatementClientDialog}
+            onPortalAccess={setPortalAccessClientDialog}
+            onDelete={setDeleteClientDialog}
+          />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-6">
+      <Card className="gap-0">
+        <CardHeader className="gap-3 border-b">
+          <div className="flex items-center gap-2">
+            <ListSearch
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder={t("clients.search.placeholder")}
+              dataCy="clients-search"
+              className="flex-1 sm:max-w-xs"
+            />
+            <Button
+              onClick={() => setCreateClientDialog(true)}
+              aria-label={t("clients.actions.addNew")}
+              className="ml-auto"
+              dataCy="client-add-button"
+            >
+              <Plus aria-hidden="true" />
+              <span className="hidden md:inline">{t("clients.actions.addNew")}</span>
+            </Button>
+          </div>
+
+          {isLoading && <FilterChipSkeleton />}
+
+          {allClients.length > 0 && (
+            <FilterChipGroup label={t("clients.list.filters.ariaLabel")} dataCy="clients-filters">
+              <FilterChip
+                label={t("clients.list.filters.all")}
+                count={allClients.length}
+                active={!activeFilter && !roleFilter}
+                onClick={() => {
+                  setActiveFilter(undefined)
+                  setRoleFilter(undefined)
+                }}
+                dataCy="clients-filter-all"
+              />
+              {/* Active/Inactive are a STATE (dot), Suppliers a category (no dot) — see FilterChip. */}
+              <FilterChip
+                label={t("clients.stats.active")}
+                count={counts.active}
+                tone="success"
+                active={activeFilter === "active"}
+                onClick={() => setActiveFilter(activeFilter === "active" ? undefined : "active")}
+                dataCy="clients-filter-active"
+              />
+              <FilterChip
+                label={t("clients.stats.inactive")}
+                count={counts.inactive}
+                tone="muted"
+                active={activeFilter === "inactive"}
+                onClick={() => setActiveFilter(activeFilter === "inactive" ? undefined : "inactive")}
+                dataCy="clients-filter-inactive"
+              />
+              <FilterChip
+                label={t("clients.stats.suppliers")}
+                count={counts.suppliers}
+                active={roleFilter === "supplier"}
+                onClick={() => setRoleFilter(roleFilter === "supplier" ? undefined : "supplier")}
+                dataCy="clients-filter-supplier"
+              />
+            </FilterChipGroup>
+          )}
+        </CardHeader>
+
+        <CardContent className="p-0">{body}</CardContent>
+
+        {!isLoading && filteredClients.length > 0 && (clients?.pageCount ?? 1) > 1 && (
+          <div className="border-t p-4">
+            <BetterPagination pageCount={clients?.pageCount || 1} page={page} setPage={setPage} />
+          </div>
+        )}
+      </Card>
+
+      <ClientUpsert open={createClientDialog} onOpenChange={setCreateClientDialog} />
+
+      <ClientUpsert
+        open={!!editClientDialog}
+        client={editClientDialog}
+        onOpenChange={(open) => {
+          if (!open) setEditClientDialog(null)
+        }}
+      />
+
+      <ClientViewDialog
+        client={viewClientDialog}
+        onOpenChange={(open) => {
+          if (!open) setViewClientDialog(null)
+        }}
+        onEdit={editFromView}
+        onStatement={statementFromView}
+      />
+
+      <ClientDeleteDialog
+        client={deleteClientDialog}
+        onOpenChange={(open) => {
+          if (!open) setDeleteClientDialog(null)
+        }}
+      />
+
+      <ClientStatementDialog
+        client={statementClientDialog}
+        onOpenChange={(open) => {
+          if (!open) setStatementClientDialog(null)
+        }}
+      />
+
+      <ClientPortalAccessDialog
+        client={portalAccessClientDialog}
+        onOpenChange={(open) => {
+          if (!open) setPortalAccessClientDialog(null)
+        }}
+      />
+    </div>
+  )
 }
