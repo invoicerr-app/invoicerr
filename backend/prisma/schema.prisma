@@ -474,6 +474,14 @@ model Company {
   // sending it IS the approval (there is deliberately no separate "approve" action or actor to record).
   approvalThresholdMinor Int?
 
+  // Self-service full data export (`POST /api/companies/export`, `companies.service.ts#exportCompanyData`)
+  // — the data-portability right lets a company pull everything it holds on its own, without writing to
+  // support first, and this stamps the last time it actually did. `null` means "never" (every existing
+  // company before this column existed, and any company that has not asked yet). The ONLY reader is the
+  // route's own cooldown check — a CAS `updateMany` claims the slot atomically before the expensive
+  // Chromium-per-document build even starts, so two racing requests can never both build at once.
+  lastSelfServiceExportAt DateTime?
+
   createdAt               DateTime                     @default(now())
   emailTemplates          MailTemplate[]
   webhooks                Webhook[]
@@ -555,9 +563,9 @@ model CompanySubscription {
   // "how long ago did we warn them" against.
   zipSentAt     DateTime?
   // When the real, cascading deletion (`deletion.ts`) may run — computed once, when `zipSentAt` is
-  // stamped: `zipSentAt` itself (never-paid — no grace) or `zipSentAt + 180 days` (this company once
-  // had a real `polarSubscriptionId` — see lifecycle.ts's header for why that field alone is what
-  // distinguishes the two cycles here, with no separate boolean).
+  // stamped: `zipSentAt + 30 days` (never-paid — the statutory floor, `lifecycle.ts#MIN_RETRIEVAL_DAYS`)
+  // or `zipSentAt + 180 days` (this company once had a real `polarSubscriptionId` — see lifecycle.ts's
+  // header for why that field alone is what distinguishes the two cycles here, with no separate boolean).
   deletionDueAt DateTime?
 
   // Polar's own ids for this company's paying customer/subscription — `null` until a checkout
@@ -1182,6 +1190,17 @@ model User {
   email         String
   emailVerified Boolean       @default(false)
   image         String?
+  // Personal display + mail-language preference (product decision: language moves from a
+  // browser-only setting to an account one). Set either at sign-up — the browser's detected
+  // language, best-effort — or deliberately via `PATCH /api/auth-extended/preferences`. Nullable:
+  // unset falls back to `Company.language` and then 'en' (`resolve-user-language.ts`), the same
+  // three-step chain `Client.language` already resolves through for a document's recipient. Free
+  // text, never a Prisma enum — same permissive-write/validated-read split as `Client.language`/
+  // `Company.language` above: nothing here stops an unsupported value from being stored, only
+  // `isSupportedRenderLanguage` ever picks one up. The one path that DOES reject an unsupported
+  // value outright is the preferences endpoint itself, precisely because that one is a deliberate
+  // choice from a fixed dropdown rather than raw storage.
+  locale        String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   sessions      Session[]

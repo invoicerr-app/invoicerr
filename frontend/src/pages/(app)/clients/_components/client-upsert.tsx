@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
+import { getDefaultLanguageForCountry } from "@/lib/country-default-language"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, TriangleAlert } from "lucide-react"
@@ -709,11 +710,22 @@ function ContactStep({
   isEditing,
   clientId,
   onOpenPortalAccess,
+  languageSuggested,
+  onLanguageManuallyChanged,
 }: {
   form: UseFormReturn<FieldValues>
   isEditing: boolean
   clientId?: string
   onOpenPortalAccess: () => void
+  /** True while the value currently in `language` is this wizard's own country-based SUGGESTION
+   *  (see the effect that computes it in `ClientUpsert`), never once the user has picked one
+   *  themselves — only ever true outside `isEditing`, see that effect's own guard. */
+  languageSuggested: boolean
+  /** Fired the moment the user picks a value here BY HAND (including explicitly picking back
+   *  "Automatic") — the one signal that permanently retires the country-based suggestion for the
+   *  rest of this wizard session (`Client.language` is decided by that country ONLY until a human
+   *  says otherwise; see `country-default-language.ts`'s own header). */
+  onLanguageManuallyChanged: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -756,11 +768,19 @@ function ContactStep({
                 <FormControl>
                   <DocumentLanguageSelect
                     value={field.value}
-                    onChange={(value) => field.onChange(value)}
+                    onChange={(value) => {
+                      onLanguageManuallyChanged()
+                      field.onChange(value)
+                    }}
                     data-cy="client-language-select"
                   />
                 </FormControl>
                 <FormDescription>{t("clients.upsert.fields.language.description")}</FormDescription>
+                {languageSuggested && (
+                  <p className="text-xs text-muted-foreground" data-cy="client-language-suggested-hint">
+                    {t("clients.upsert.fields.language.suggested")}
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -880,6 +900,18 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   // See `SteppedDialog`'s own `onSubmit` prop comment further down — the escape hatch that lets the
   // last line of defense below jump to whichever step actually shows the field it just rejected.
   const dialogRef = useRef<SteppedDialogHandle>(null)
+
+  // Country → `language` suggestion (see `country-default-language.ts` and the effect that reads
+  // it, further down). A plain ref, not state: it must never itself trigger a re-render, only
+  // stand as a permanent "the user already decided" latch once the language field is touched by
+  // hand — the same shape `requiredIdentifiersRef` below uses for the same reason. `languageAutoFilled`
+  // IS state, since it drives whether the "this is a suggestion" hint renders.
+  const languageTouchedRef = useRef(false)
+  const [languageAutoFilled, setLanguageAutoFilled] = useState(false)
+  const resetLanguageSuggestionState = () => {
+    languageTouchedRef.current = false
+    setLanguageAutoFilled(false)
+  }
 
   const saveErrorMessage = t("clients.upsert.messages.saveError", "Failed to save client")
   const { trigger: createClient, loading: createLoading } = useMutationWithToast(
@@ -1069,6 +1101,12 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   const clientType = form.watch("type")
 
   useEffect(() => {
+    // Every reset below opens a fresh wizard session — the "has the user touched language by
+    // hand yet" latch belongs to THIS session only (an editing session never sets it in the first
+    // place, see the suggestion effect's own `isEditing` guard, but a stale `true` surviving from a
+    // PREVIOUS create session on the same mounted dialog must not silently block the next one).
+    languageTouchedRef.current = false
+    setLanguageAutoFilled(false)
     if (isEditing && client) {
       // Parse Peppol endpoint from partyIdentifiers (format: 'schemeId:value')
       const peppolEntry = (client.partyIdentifiers || []).find((pi) => pi.scheme === "PEPPOL_ENDPOINT")
@@ -1151,6 +1189,21 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   useCountryToCurrency(form)
 
   const countryCodeValue = form.watch("countryCode")
+
+  // Owner decision: `Client.language` is pre-filled from the country ONLY at creation, and ONLY
+  // until the user picks one themselves — never guessed again later, and never touched at all while
+  // editing an existing client (see `country-default-language.ts`'s header and `Client.language`'s
+  // own schema comment for why guessing this at SEND time was rejected outright). Re-runs on every
+  // country change while untouched — including clearing a now-stale earlier suggestion back to
+  // "Automatic" when the newly picked country has none of its own researched default.
+  useEffect(() => {
+    if (isEditing) return
+    if (languageTouchedRef.current) return
+    const suggestion = getDefaultLanguageForCountry(countryCodeValue)
+    form.setValue("language", suggestion ?? null)
+    setLanguageAutoFilled(!!suggestion)
+  }, [countryCodeValue, isEditing, form])
+
   const clientTypeWatch = form.watch("type")
   const clientKindWatch = form.watch("kind")
   const isGovernment = clientKindWatch === "GOVERNMENT"
@@ -1268,6 +1321,11 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       }
       onOpenChange(false)
       form.reset()
+      // `client`/`isEditing` don't themselves change across a create→create run (the prop stays
+      // `null` both times), so the reset effect above never re-fires on its own — without this, a
+      // language touched by hand for THIS client would wrongly suppress the suggestion for the
+      // NEXT one opened in the same mounted dialog.
+      resetLanguageSuggestionState()
     })
   }
 
@@ -1342,6 +1400,11 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           isEditing={isEditing}
           clientId={client?.id}
           onOpenPortalAccess={() => setPortalAccessOpen(true)}
+          languageSuggested={languageAutoFilled}
+          onLanguageManuallyChanged={() => {
+            languageTouchedRef.current = true
+            setLanguageAutoFilled(false)
+          }}
         />
       ),
     },
@@ -1410,7 +1473,10 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           // A safety reset on every CLOSE (never on open, guarded by `!next`) — `SteppedDialog` itself
           // only calls this once it has decided closing is fine (not dirty, or the user confirmed
           // discarding), so by the time this runs there is nothing left to protect.
-          if (!next) form.reset()
+          if (!next) {
+            form.reset()
+            resetLanguageSuggestionState()
+          }
           onOpenChange(next)
         }}
         title={t(`clients.upsert.title.${isEditing ? "edit" : "create"}`)}

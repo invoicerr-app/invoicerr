@@ -29,7 +29,7 @@ type SignupFormData = {
 }
 
 export default function SignupPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [errors, setErrors] = useState<Partial<Record<keyof SignupFormData, string[]>>>({})
   const [loading, setLoading] = useState(false)
@@ -154,6 +154,11 @@ export default function SignupPage() {
       // @ts-expect-error additional fields
       firstname: data.firstname,
       lastname: data.lastname,
+      // Best-effort account language, straight off this browser's currently resolved i18next
+      // language (`lib/i18n.ts`) — never a choice this person actually made, so the backend
+      // (`lib/auth.ts`'s sign-up hook) silently stores `null` instead if it isn't one of the
+      // languages the document/mail render layer carries strings for.
+      locale: i18n.resolvedLanguage,
       // Not a better-auth `user.additionalFields` (this is never persisted as a column) — read
       // straight off the raw request body by `lib/auth.ts`'s sign-up hook
       // (`acceptLegalFromEndpointContext`). Sent unconditionally; the backend only ever ACTS on it in

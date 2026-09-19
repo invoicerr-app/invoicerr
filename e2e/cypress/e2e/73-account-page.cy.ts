@@ -21,7 +21,7 @@ const OWNER_EMAIL = "john.doe@acme.org";
 const OWNER_PASSWORD = "Super_Secret_Password123!";
 
 interface SessionBody {
-	user?: { email?: string; firstname?: string; lastname?: string };
+	user?: { email?: string; firstname?: string; lastname?: string; locale?: string | null };
 }
 
 function getSession() {
@@ -187,5 +187,52 @@ describe("Personal account page (/account)", () => {
 	it("(7) /settings/account no longer exists — falls back to the company tab", () => {
 		cy.visit("/settings/account");
 		cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("be.visible");
+	});
+
+	it("(8) changing the language in Preferences persists to the account, verified via the session API", () => {
+		cy.visit("/account/preferences");
+
+		cy.intercept("PATCH", `${api}/api/auth-extended/preferences`).as("updatePreferences");
+		cy.openSelect(
+			'[data-cy="account-preferences-language-select"]',
+			'[data-cy="account-preferences-language-option-fr"]',
+		);
+
+		cy.wait("@updatePreferences", { timeout: 10000 }).then((interception) => {
+			expect(
+				interception.response?.statusCode,
+				"PATCH /api/auth-extended/preferences must succeed",
+			).to.eq(200);
+		});
+
+		getSession().then((session) => {
+			expect(session.user?.locale, "la préférence de langue est bien persistée côté serveur").to.eq("fr");
+		});
+	});
+
+	it("(9) the account's own language survives a reload, and even applies with an empty localStorage (a fresh device)", () => {
+		// Test isolation clears localStorage/cookies between specs, so this `beforeEach`'s `cy.login()`
+		// already lands on an otherwise-fresh browser — nothing here has EVER written the previous
+		// test's "fr" choice to THIS browser's storage. Seeing it applied anyway is the actual proof
+		// that the language now comes from the account (`session.user.locale`, set by test (8)), not
+		// merely from a `localStorage` value that happened to survive.
+		cy.visit("/dashboard");
+		cy.get("html", { timeout: 10000 }).should("have.attr", "lang", "fr");
+
+		cy.reload();
+		cy.get("html", { timeout: 10000 }).should("have.attr", "lang", "fr");
+
+		// Back to the seeded baseline — every other spec in this run assumes an English UI.
+		cy.request({
+			method: "PATCH",
+			url: `${api}/api/auth-extended/preferences`,
+			body: { locale: null },
+		})
+			.its("status")
+			.should("eq", 200);
+		getSession().then((session) => {
+			expect(session.user?.locale, "la préférence est bien réinitialisée pour les specs suivantes").to.be
+				.null;
+		});
 	});
 });

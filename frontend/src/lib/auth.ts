@@ -8,5 +8,9 @@ export const authClient = createAuthClient({
   additionalFields: {
     firstname: "",
     lastname: "",
+    // The account's own language preference (`User.locale` — backend `lib/auth.ts`'s own
+    // additionalFields entry). Declared here purely for typing: it's what lets `signUp.email({
+    // locale: ... })` and `session.user.locale` type-check without an `@ts-expect-error`.
+    locale: "",
   },
 })

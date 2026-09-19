@@ -12,6 +12,7 @@ import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
 import { Sidebar } from "@/components/sidebar"
 import { WaitingForSeatScreen } from "@/components/waiting-for-seat-screen"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
+import { useApplyAccountLocale } from "@/hooks/use-apply-account-locale"
 import { ApiError } from "@/hooks/use-api-query"
 import { useLegalStatus, useSeats } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
@@ -66,12 +67,19 @@ const SeatCheckErrorScreen = ({ onRetry }: { onRetry: () => void }) => {
   )
 }
 
-const AuthenticatedLayout = () => {
+const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null }) => {
   // Mounted exactly ONCE, for the whole authenticated app: opens
   // the SSE connection (documents.controller.ts's `events` route) the moment a session exists, and
   // invalidates whichever document queries a status/conformity change concerns, regardless of which
   // screen the user currently has open. See that hook's own header for the full reasoning.
   useDocumentEventsSse()
+
+  // The account's own language preference wins over whatever this browser had already guessed —
+  // mounted here, once, so it applies to every authenticated screen regardless of which one this
+  // session happens to land on first (`use-apply-account-locale.ts`'s own header for the full
+  // reasoning; the Preferences screen also calls it directly, for the case where THAT screen is all
+  // that's under test/rendered on its own).
+  useApplyAccountLocale(accountLocale)
 
   return (
     <OnboardingDialogProvider>
@@ -227,7 +235,8 @@ const Layout = () => {
     return <WaitingForSeatScreen ownerName={owner ? `${owner.firstname} ${owner.lastname}` : null} />
   }
 
-  return <AuthenticatedLayout />
+  const accountLocale = (session as { user?: { locale?: string | null } } | null)?.user?.locale
+  return <AuthenticatedLayout accountLocale={accountLocale} />
 }
 
 export default Layout
