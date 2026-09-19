@@ -9,6 +9,7 @@ export type Path =
   | `/account/danger`
   | `/account/preferences`
   | `/account/security`
+  | `/account/transfers`
   | `/articles`
   | `/auth/sign-in`
   | `/auth/sign-out`

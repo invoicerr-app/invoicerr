@@ -1,7 +1,7 @@
 import { User } from '@/decorators/user.decorator';
 import { DangerService } from '@/modules/danger/danger.service';
 import { CurrentUser } from '@/types/user';
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
@@ -9,6 +9,11 @@ import { Roles } from '@/decorators/roles.decorator';
 
 interface OtpConfirmationBody {
   otp: string;
+}
+
+interface DeleteCompanyBody {
+  otp: string;
+  companyName: string;
 }
 
 @ApiTags('danger')
@@ -27,11 +32,25 @@ export class DangerController {
     return this.dangerService.requestOtp(user, companyId);
   }
 
-  @Post('reset/app')
+  @Get('reset/company-data/preflight')
   @ApiOperation({
-    summary: 'Reset app data',
+    summary: 'Preview a company-data reset',
     description:
-      'Deletes all documents (invoices, quotes, payments) for the active company while preserving its configuration.',
+      'Reports what "Reset company data" would delete, and whether it is currently refused because ' +
+      'a document is still under legal retention. Read-only — never touches an OTP.',
+  })
+  @ApiResponse({ status: 200, description: 'Preflight result' })
+  async getCompanyDataResetPreflight(@ActiveCompany() companyId: string) {
+    return this.dangerService.getCompanyDataResetPreflight(companyId);
+  }
+
+  @Post('reset/company-data')
+  @ApiOperation({
+    summary: 'Reset company data',
+    description:
+      'Deletes every document, client, article, project, time entry, bank statement/reconciliation, ' +
+      'archived file and attachment for the active company, while keeping the company itself, its ' +
+      'members, its subscription, its channels and its e-mail templates.',
   })
   // A confirmation code is a bearer secret for the duration of its own window: a query string lands in
   // nginx access logs and browser history the exact same way a password would, which is why this is a
@@ -43,8 +62,9 @@ export class DangerController {
       properties: { otp: { type: 'string', description: 'One-time passcode sent via POST /danger/otp' } },
     },
   })
-  @ApiResponse({ status: 201, description: 'App data reset' })
-  async resetApp(
+  @ApiResponse({ status: 201, description: 'Company data reset' })
+  @ApiResponse({ status: 409, description: 'Refused — a document is still under legal retention' })
+  async resetCompanyData(
     @User() user: CurrentUser,
     @ActiveCompany() companyId: string,
     @Body() body: OtpConfirmationBody,
@@ -52,32 +72,42 @@ export class DangerController {
     if (!body?.otp) {
       throw new BadRequestException('OTP is required for this action');
     }
-    return this.dangerService.resetApp(user, companyId, body.otp);
+    return this.dangerService.resetCompanyData(user, companyId, body.otp);
   }
 
-  @Post('reset/all')
+  @Post('delete-company')
   @ApiOperation({
-    summary: 'Reset everything',
+    summary: 'Delete company',
     description:
-      'Deletes all data including documents, clients, and configuration for the active company. The company returns to its initial state.',
+      'Permanently deletes the active company and everything scoped to it — members, documents, ' +
+      'channels, subscription, every setting. A full data export is mailed to the requesting OWNER ' +
+      'first. Irreversible.',
   })
-  // See `resetApp`'s own comment: the OTP travels in the body, never the query string.
+  // See `resetCompanyData`'s own comment: the OTP travels in the body, never the query string. The
+  // company's own exact name is a second, independent confirmation — see `DangerService#deleteCompany`'s
+  // own header for why.
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['otp'],
-      properties: { otp: { type: 'string', description: 'One-time passcode sent via POST /danger/otp' } },
+      required: ['otp', 'companyName'],
+      properties: {
+        otp: { type: 'string', description: 'One-time passcode sent via POST /danger/otp' },
+        companyName: { type: 'string', description: "The company's own exact, current name" },
+      },
     },
   })
-  @ApiResponse({ status: 201, description: 'Everything reset' })
-  async resetAll(
+  @ApiResponse({ status: 201, description: 'Company deleted' })
+  async deleteCompany(
     @User() user: CurrentUser,
     @ActiveCompany() companyId: string,
-    @Body() body: OtpConfirmationBody,
+    @Body() body: DeleteCompanyBody,
   ) {
     if (!body?.otp) {
       throw new BadRequestException('OTP is required for this action');
     }
-    return this.dangerService.resetAll(user, companyId, body.otp);
+    if (!body?.companyName) {
+      throw new BadRequestException('Company name is required for this action');
+    }
+    return this.dangerService.deleteCompany(user, companyId, body.otp, body.companyName);
   }
 }

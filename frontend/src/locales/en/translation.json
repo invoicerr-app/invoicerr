@@ -2261,17 +2261,20 @@
       "title": "Danger Zone",
       "description": "Irreversible and destructive actions",
       "intro": "Each action below asks for a verification code sent to your e-mail before anything is touched. Nothing here can be undone.",
-      "resetApp": {
-        "title": "Reset Application Data",
-        "description": "Remove all quotes, invoices, and clients but keep your account",
-        "detail": "Your account, this company and its settings stay. Every document, client, article and payment is deleted.",
-        "button": "Reset App Data"
+      "resetCompanyData": {
+        "title": "Reset Company Data",
+        "description": "Remove every document, client and article but keep your company",
+        "detail": "This company, its settings, members, subscription, channels and e-mail templates stay. Every document (invoices, quotes, credit notes, expenses, received invoices…), client, article, project, time entry, bank statement/reconciliation, archived file and attachment is permanently deleted.",
+        "countsSummary": "Will delete: {{documents}} document(s), {{clients}} client(s), {{articles}} article(s), {{projects}} project(s), {{timeEntries}} time entries, {{bankStatements}} bank statement(s), {{archives}} archived file(s).",
+        "button": "Reset Company Data",
+        "retentionBlockedTitle": "Blocked by legal retention",
+        "retentionBlockedDescription": "{{count}} document(s) issued by this company must still be kept until {{date}} under the archiving law of their own country. Resetting is refused until then."
       },
-      "resetDatabase": {
-        "title": "Reset Everything",
-        "description": "Permanently delete this company and all associated data",
-        "detail": "This company, its members, its documents and every setting are deleted, and you are signed out.",
-        "button": "Reset Database"
+      "deleteCompany": {
+        "title": "Delete Company",
+        "description": "Permanently delete this company and everything scoped to it",
+        "detail": "This company, its members, its subscription, its documents and every setting are deleted, forever. A full export of everything this company held is e-mailed to you first, as your last copy.",
+        "button": "Delete Company"
       },
       "modal": {
         "title": "Confirm Dangerous Action",
@@ -2279,10 +2282,10 @@
         "otpLabel": "Verification Code",
         "otpPlaceholder": "0000-0000",
         "confirmLabel": "Type {{keyword}} to confirm",
-        "warningApp": "This will reset all your application data",
-        "warningAppDescription": "All quotes, invoices, and clients will be permanently deleted",
-        "warningDatabase": "This will delete this company entirely",
-        "warningDatabaseDescription": "This company and all its data will be permanently deleted",
+        "warningResetCompanyData": "This will reset this company's data",
+        "warningResetCompanyDataDescription": "Every document, client, article, project, time entry, bank statement, archived file and attachment will be permanently deleted",
+        "warningDeleteCompany": "This will delete this company entirely",
+        "warningDeleteCompanyDescription": "This company and all its data will be permanently deleted",
         "cancel": "Cancel",
         "confirm": "Confirm Action"
       },
@@ -2294,6 +2297,72 @@
         "actionSuccess": "Action completed successfully",
         "actionError": "Failed to complete action",
         "actionFailed": "Action failed",
+        "unexpectedError": "An unexpected error occurred"
+      }
+    },
+    "transferCompany": {
+      "title": "Transfer ownership",
+      "description": "Hand the owner role of this company to another Invoicerr account. You become an admin once they accept — this cannot be undone by you alone.",
+      "current": {
+        "recipientLabel": "To",
+        "requestedAt": "Requested",
+        "expiresAt": "Expires",
+        "cancel": "Cancel transfer"
+      },
+      "form": {
+        "emailLabel": "Recipient's email",
+        "emailPlaceholder": "owner@example.com",
+        "emailHint": "They must already have an Invoicerr account.",
+        "submit": "Transfer ownership"
+      },
+      "otpDialog": {
+        "title": "Confirm ownership transfer",
+        "description": "Enter the verification code sent to your email to send the request to {{email}}.",
+        "otpLabel": "Verification code",
+        "otpPlaceholder": "0000-0000",
+        "cancel": "Cancel",
+        "confirm": "Send request"
+      },
+      "cancelDialog": {
+        "title": "Cancel this transfer?",
+        "description": "The recipient will no longer be able to accept it. You can start a new one at any time.",
+        "confirm": "Cancel transfer",
+        "cancel": "Keep it"
+      },
+      "messages": {
+        "invalidEmail": "Enter a valid email address",
+        "otpSentError": "Failed to send verification code",
+        "initiateSuccess": "If an account exists for this address, a transfer request has been sent to it.",
+        "initiateError": "Failed to start the transfer",
+        "cancelSuccess": "Transfer canceled",
+        "cancelError": "Failed to cancel the transfer"
+      }
+    },
+    "instanceReset": {
+      "title": "Reset instance",
+      "description": "Permanently delete every company, user and document on this deployment",
+      "badge": "Instance operator",
+      "counts": "{{companies}} companies, {{users}} users, {{documents}} documents on this deployment",
+      "detail": "This is not scoped to your company — it deletes every company, every user and every document on this entire deployment, then signs everyone out. There is no undo.",
+      "button": "Reset instance",
+      "modal": {
+        "title": "Confirm instance reset",
+        "description": "Enter the verification code sent to your email, then type {{keyword}} to confirm.",
+        "otpLabel": "Verification code",
+        "otpPlaceholder": "0000-0000",
+        "confirmLabel": "Type {{keyword}} to confirm",
+        "warning": "This deletes EVERY company on this deployment",
+        "warningDescription": "Every company, user, document and stored file is permanently deleted. Everyone is signed out.",
+        "cancel": "Cancel",
+        "confirm": "Reset instance"
+      },
+      "messages": {
+        "otpSentSuccess": "Verification code sent to your email",
+        "otpSentError": "Failed to send verification code",
+        "otpLockedTitle": "Locked out",
+        "otpLockedDescription": "Too many failed attempts. This action is locked for your account and can no longer be confirmed by a one-time code.",
+        "actionSuccess": "Instance reset successfully",
+        "actionError": "Failed to reset the instance",
         "unexpectedError": "An unexpected error occurred"
       }
     },
@@ -3075,6 +3144,42 @@
           "description": "Transfer ownership to another member, or delete the company, before deleting your account.",
           "link": "Go to Members"
         }
+      }
+    },
+    "transfers": {
+      "pending": {
+        "title": "Ownership transfer requests",
+        "description": "Companies offering to make you their owner",
+        "empty": {
+          "title": "No pending requests",
+          "description": "When an owner transfers a company to your account, it shows up here."
+        }
+      },
+      "history": {
+        "title": "History"
+      },
+      "status": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "expired": "Expired",
+        "canceled": "Canceled"
+      },
+      "list": {
+        "from": "From {{name}} ({{email}})",
+        "expiresAt": "Expires",
+        "createdAt": "Requested",
+        "accept": "Accept"
+      },
+      "confirm": {
+        "title": "Accept this transfer?",
+        "description": "You will become the OWNER of \"{{company}}\". The current owner becomes an admin.",
+        "confirm": "Accept and become owner",
+        "cancel": "Cancel"
+      },
+      "messages": {
+        "acceptSuccess": "You are now the owner of \"{{company}}\"",
+        "acceptError": "Failed to accept the transfer",
+        "legalAcceptanceRequired": "Please review and accept our updated legal documents first."
       }
     }
   },
@@ -4825,6 +4930,34 @@
       "documentsTabsLabel": "Documents to review",
       "button": "I accept — continue",
       "error": "Could not save your acceptance — please try again."
+    }
+  },
+  "brand": {
+    "causeDays": {
+      "zero-discrimination-day": {
+        "label": "Zero Discrimination Day",
+        "description": "A UN day, observed 1 March, promoting equality and speaking out against discrimination of any kind."
+      },
+      "international-womens-day": {
+        "label": "International Women's Day",
+        "description": "A UN day, observed 8 March, celebrating women's achievements and calling for gender equality."
+      },
+      "elimination-of-racial-discrimination-day": {
+        "label": "International Day for the Elimination of Racial Discrimination",
+        "description": "A UN day, observed 21 March, marking the 1960 Sharpeville massacre and calling for an end to racism."
+      },
+      "earth-day": {
+        "label": "Earth Day",
+        "description": "Observed 22 April in over 190 countries in support of environmental protection."
+      },
+      "pride-month": {
+        "label": "Pride Month",
+        "description": "Observed throughout June, marking the 1969 Stonewall riots and celebrating LGBTQ+ identity and rights."
+      },
+      "international-day-of-persons-with-disabilities": {
+        "label": "International Day of Persons with Disabilities",
+        "description": "A UN day, observed 3 December, promoting the rights and well-being of persons with disabilities."
+      }
     }
   }
 }

@@ -45,6 +45,13 @@ export {
   type LegalStatusView,
 } from "./use-legal"
 export {
+  useInstancePreflight,
+  useRequestInstanceResetOtp,
+  useConfirmInstanceReset,
+  type InstancePreflightView,
+  type ConfirmInstanceResetInput,
+} from "./use-instance"
+export {
   useDocumentTypesList,
   useAvailableDocumentTypes,
   useDocumentType,
@@ -188,3 +195,14 @@ export {
   type SeatMemberView,
   type MoveSeatVariables,
 } from "./use-seats"
+export {
+  useCurrentCompanyTransfer,
+  useRequestTransferOtp,
+  useInitiateTransfer,
+  useCancelCompanyTransfer,
+  useReceivedTransfers,
+  useAcceptCompanyTransfer,
+  type OwnershipTransferStatus,
+  type OwnershipTransferView,
+  type InitiateTransferInput,
+} from "./use-company-transfer"

@@ -6,6 +6,9 @@ import {
   buildBlockedZipWarningEmail,
   buildDeletionWarningEmail,
   buildLegalDocumentChangedEmail,
+  buildOwnershipTransferEndedEmail,
+  buildOwnershipTransferFinalizedEmail,
+  buildOwnershipTransferRequestEmail,
   describeSystemEmailVocabulary,
   resolveSystemEmailTemplate,
   SYSTEM_EMAIL_DEFAULTS,
@@ -234,5 +237,55 @@ describe('buildLegalDocumentChangedEmail', () => {
     });
 
     expect(email.subject).toBe('Updated legal documents: Privacy Policy and Legal Notice');
+  });
+});
+
+/**
+ * Unlike every template above (mailed to a company's own owner about their own account), these three
+ * reach a DIFFERENT, unrelated user's inbox carrying values the INITIATING owner controls — their
+ * company's own name, their own display name. The HTML part must escape them: an unescaped `<script>`/
+ * `<img onerror>` planted in a company name would otherwise execute in the recipient's mail client the
+ * moment they open a transfer request they never asked for.
+ */
+describe('ownership transfer emails — HTML-escape attacker-reachable values', () => {
+  const PAYLOAD = '<img src=x onerror=alert(1)>Acme "Corp" & Sons';
+  const ESCAPED = '&lt;img src=x onerror=alert(1)&gt;Acme &quot;Corp&quot; &amp; Sons';
+
+  it('buildOwnershipTransferRequestEmail escapes companyName and fromName in the HTML part only', () => {
+    const email = buildOwnershipTransferRequestEmail({
+      appUrl: APP_URL,
+      companyName: PAYLOAD,
+      fromName: PAYLOAD,
+    });
+
+    expect(email.html).not.toContain(PAYLOAD);
+    expect(email.html).toContain(ESCAPED);
+    // The plain-text part never renders HTML — raw is correct there, never escaped into entities.
+    expect(email.text).toContain(PAYLOAD);
+  });
+
+  it('buildOwnershipTransferFinalizedEmail escapes companyName in the HTML part only', () => {
+    const email = buildOwnershipTransferFinalizedEmail({
+      appUrl: APP_URL,
+      companyName: PAYLOAD,
+      forNewOwner: true,
+    });
+
+    expect(email.html).not.toContain(PAYLOAD);
+    expect(email.html).toContain(ESCAPED);
+    expect(email.text).toContain(PAYLOAD);
+  });
+
+  it('buildOwnershipTransferEndedEmail escapes companyName and toEmail in the HTML part only', () => {
+    const email = buildOwnershipTransferEndedEmail({
+      appUrl: APP_URL,
+      companyName: PAYLOAD,
+      toEmail: PAYLOAD,
+      reason: 'expired',
+    });
+
+    expect(email.html).not.toContain(PAYLOAD);
+    expect(email.html).toContain(ESCAPED);
+    expect(email.text).toContain(PAYLOAD);
   });
 });

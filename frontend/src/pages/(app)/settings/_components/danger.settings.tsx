@@ -1,10 +1,11 @@
-import { AlertTriangle, Database, RotateCcw } from "lucide-react"
+import { AlertTriangle, Lock, RotateCcw, Trash2 } from "lucide-react"
 import type React from "react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Dialog,
   DialogContent,
@@ -18,13 +19,32 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCompanies } from "@/hooks/queries"
-import { usePost } from "@/hooks/use-fetch"
+import { useGet, usePost } from "@/hooks/use-fetch"
 import { SettingsPage, SettingsSection } from "./settings-section"
+import InstanceResetSection from "./instance-reset.section"
+import TransferCompanySection from "./transfer-company.section"
 
 /** A fixed keyword typed exactly, uppercase — the same "type to confirm" convention every host of a
  *  truly irreversible action uses, kept English/untranslated because it is a literal string the user
  *  re-types (translating it would make the very act of matching it depend on the viewer's locale). */
-const RESET_APP_KEYWORD = "RESET"
+const RESET_COMPANY_DATA_KEYWORD = "RESET"
+
+type DangerAction = "reset-company-data" | "delete-company"
+
+interface CompanyDataResetPreflight {
+  blocked: boolean
+  retainedDocuments: number
+  retentionUntil: string | null
+  counts: {
+    documents: number
+    clients: number
+    articles: number
+    projects: number
+    timeEntries: number
+    bankStatements: number
+    archives: number
+  }
+}
 
 /** The confirm step's own OTP failures stay deliberately generic no matter the cause (wrong code,
  *  expired, or already locked — the backend folds all three into the same message on purpose, so a
@@ -37,33 +57,45 @@ function isOtpLockedError(error: unknown): boolean {
 
 export default function DangerZoneSettings() {
   const { t } = useTranslation()
-  const [currentAction, setCurrentAction] = useState<"app" | "all" | null>(null)
+  const [currentAction, setCurrentAction] = useState<DangerAction | null>(null)
   const [otp, setOtp] = useState("")
   const [confirmText, setConfirmText] = useState("")
   const { trigger: sendOTP, loading: isLoadingOtp, lastError: lastOtpError } = usePost("/api/danger/otp")
-  // The OTP travels in the request BODY only, via `sendAction({ otp })` below — never appended here
-  // as a query string. A confirmation code is a bearer secret for the duration of its own window,
-  // and a query string lands in nginx access logs and browser history exactly like a password would
-  // (see `danger.controller.ts`'s own comment on its `@Body` for the backend side of this).
-  const { trigger: sendAction } = usePost(`/api/danger/reset/${currentAction}`)
+  // Read BEFORE the OTP flow ever starts (see this endpoint's own backend description) — the screen
+  // must show a document-retention refusal up front, never only after the owner has already typed a
+  // confirmation code. Never touches an OTP itself; a plain GET, refetched (`mutate`) after a
+  // successful reset so the counts/blocked state shown here never lag behind what the company
+  // actually holds.
+  const {
+    data: preflight,
+    loading: preflightLoading,
+    mutate: refetchPreflight,
+  } = useGet<CompanyDataResetPreflight>("/api/danger/reset/company-data/preflight")
+  // The OTP travels in the request BODY only, via `sendAction({ otp, ... })` below — never appended
+  // here as a query string. A confirmation code is a bearer secret for the duration of its own
+  // window, and a query string lands in nginx access logs and browser history exactly like a
+  // password would (see `danger.controller.ts`'s own comment on its `@Body` for the backend side).
+  const actionEndpoint =
+    currentAction === "delete-company" ? "/api/danger/delete-company" : "/api/danger/reset/company-data"
+  const { trigger: sendAction } = usePost(actionEndpoint)
   const [otpModalOpen, setOtpModalOpen] = useState(false)
 
   const navigate = useNavigate()
-  const { companies, activeCompanyId } = useCompanies()
+  const { companies, activeCompanyId, refetch: refetchSession } = useCompanies()
 
-  // Deleting the company (`all`) asks for the company's OWN name — the strongest confirmation this
-  // screen can ask for without a new endpoint (see this file's own header on why: nothing here is
-  // allowed to invent one). `resetApp` keeps every company/account/member row, so a fixed keyword is
-  // enough friction for that lesser action. Falls back to the same fixed keyword if the active
-  // company's name isn't resolved yet (a slow session fetch, never a normal steady state) rather than
-  // leaving the field impossible to satisfy.
+  // Deleting the company asks for the company's OWN name — the strongest confirmation this screen
+  // can ask for, and now checked AGAIN by the backend itself (`DangerService#deleteCompany`), not
+  // merely a client-side friction. "Reset company data" keeps every company/account/member row, so a
+  // fixed keyword is enough friction for that lesser action. Falls back to the same fixed keyword if
+  // the active company's name isn't resolved yet (a slow session fetch, never a normal steady state)
+  // rather than leaving the field impossible to satisfy.
   const activeCompanyName = companies.find((c) => c.id === activeCompanyId)?.name
   const confirmKeyword = useMemo(() => {
-    if (currentAction === "all" && activeCompanyName) return activeCompanyName
-    return RESET_APP_KEYWORD
+    if (currentAction === "delete-company" && activeCompanyName) return activeCompanyName
+    return RESET_COMPANY_DATA_KEYWORD
   }, [currentAction, activeCompanyName])
 
-  const requestOtp = (action: "app" | "all") => {
+  const requestOtp = (action: DangerAction) => {
     setCurrentAction(action)
     setOtpModalOpen(true)
     setOtp("")
@@ -96,7 +128,12 @@ export default function DangerZoneSettings() {
   const executeReset = () => {
     if (!currentAction || !otp || confirmText !== confirmKeyword) return
 
-    sendAction({ otp })
+    // "Delete company" sends the typed name ALONG WITH the OTP — the backend validates it against
+    // the company's own current name a second time (see `DangerService#deleteCompany`'s own header
+    // on why the OTP alone is not proof of which company is being destroyed).
+    const payload = currentAction === "delete-company" ? { otp, companyName: confirmText } : { otp }
+
+    sendAction(payload)
       .then((d) => {
         if (!d) {
           throw new Error(t("settings.dangerZone.messages.actionFailed"))
@@ -105,12 +142,19 @@ export default function DangerZoneSettings() {
         setOtpModalOpen(false)
         setOtp("")
         setConfirmText("")
-        setCurrentAction(null)
-        if (currentAction === "all") {
-          navigate("/auth/log-out")
+        if (currentAction === "delete-company") {
+          // The company row (and this user's own membership row on it) is gone — re-fetch the
+          // session so `activeCompanyId`/`companies` reflect the backend's own fallback (the
+          // `customSession` plugin already recomputes both: another remaining company, or `null`
+          // when this was the last one). The sidebar's own "no company left" effect
+          // (`sidebar.tsx`) picks that up and opens onboarding on its own — nothing here decides
+          // that; this screen only makes sure the session is no longer stale before navigating.
+          refetchSession().finally(() => navigate("/dashboard"))
         } else {
+          refetchPreflight()
           navigate("/dashboard")
         }
+        setCurrentAction(null)
       })
       .catch((error) => {
         toast.error(t("settings.dangerZone.messages.actionError"), {
@@ -131,68 +175,105 @@ export default function DangerZoneSettings() {
   }
 
   const canConfirm = otp.length === 9 && confirmText === confirmKeyword
+  const resetBlocked = preflight?.blocked ?? false
+  const retentionDate = preflight?.retentionUntil
+    ? new Date(preflight.retentionUntil).toLocaleDateString()
+    : null
 
   return (
     <SettingsPage title={t("settings.dangerZone.title")} description={t("settings.dangerZone.description")}>
       <p className="text-sm text-muted-foreground text-pretty">{t("settings.dangerZone.intro")}</p>
 
+      <TransferCompanySection />
+
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Lower severity: reset app data. Warning tone, not destructive — see resetDatabase below
-            for the fully destructive level (the two severities `SettingsSection`'s own `tone` keeps). */}
+        {/* Lower severity: reset company data. Warning tone, not destructive — see delete-company
+            below for the fully destructive level (the two severities `SettingsSection`'s own `tone`
+            keeps). */}
         <SettingsSection
           tone="warning"
-          dataCy="danger-reset-app-card"
+          dataCy="danger-reset-company-data-card"
           title={
             <>
               <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
-              {t("settings.dangerZone.resetApp.title")}
+              {t("settings.dangerZone.resetCompanyData.title")}
             </>
           }
-          description={t("settings.dangerZone.resetApp.description")}
+          description={t("settings.dangerZone.resetCompanyData.description")}
           footer={
             <Button
               variant="outline"
               className="w-full border-warning-foreground/30 text-warning-foreground hover:bg-warning"
-              onClick={() => requestOtp("app")}
+              onClick={() => requestOtp("reset-company-data")}
               loading={isLoadingOtp}
-              data-cy="danger-reset-app-button"
+              disabled={resetBlocked || preflightLoading}
+              data-cy="danger-reset-company-data-button"
             >
-              {t("settings.dangerZone.resetApp.button")}
+              {t("settings.dangerZone.resetCompanyData.button")}
             </Button>
           }
         >
-          <p className="text-sm text-muted-foreground text-pretty">
-            {t("settings.dangerZone.resetApp.detail")}
-          </p>
+          <div className="grid gap-3">
+            <p className="text-sm text-muted-foreground text-pretty">
+              {t("settings.dangerZone.resetCompanyData.detail")}
+            </p>
+            {preflight && !resetBlocked && (
+              <p className="text-xs text-muted-foreground text-pretty" data-cy="danger-reset-counts">
+                {t("settings.dangerZone.resetCompanyData.countsSummary", {
+                  documents: preflight.counts.documents,
+                  clients: preflight.counts.clients,
+                  articles: preflight.counts.articles,
+                  projects: preflight.counts.projects,
+                  timeEntries: preflight.counts.timeEntries,
+                  bankStatements: preflight.counts.bankStatements,
+                  archives: preflight.counts.archives,
+                })}
+              </p>
+            )}
+            {resetBlocked && (
+              <Alert variant="destructive" data-cy="danger-retention-blocked-alert">
+                <Lock aria-hidden="true" />
+                <AlertTitle>{t("settings.dangerZone.resetCompanyData.retentionBlockedTitle")}</AlertTitle>
+                <AlertDescription>
+                  {t("settings.dangerZone.resetCompanyData.retentionBlockedDescription", {
+                    count: preflight?.retainedDocuments ?? 0,
+                    date: retentionDate,
+                  })}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         </SettingsSection>
 
         <SettingsSection
           tone="destructive"
-          dataCy="danger-reset-database-card"
+          dataCy="danger-delete-company-card"
           title={
             <>
-              <Database className="size-4 shrink-0" aria-hidden="true" />
-              {t("settings.dangerZone.resetDatabase.title")}
+              <Trash2 className="size-4 shrink-0" aria-hidden="true" />
+              {t("settings.dangerZone.deleteCompany.title")}
             </>
           }
-          description={t("settings.dangerZone.resetDatabase.description")}
+          description={t("settings.dangerZone.deleteCompany.description")}
           footer={
             <Button
               variant="outline"
               className="w-full border-destructive/30 text-destructive hover:bg-destructive-soft"
-              onClick={() => requestOtp("all")}
+              onClick={() => requestOtp("delete-company")}
               loading={isLoadingOtp}
-              data-cy="danger-reset-database-button"
+              data-cy="danger-delete-company-button"
             >
-              {t("settings.dangerZone.resetDatabase.button")}
+              {t("settings.dangerZone.deleteCompany.button")}
             </Button>
           }
         >
           <p className="text-sm text-muted-foreground text-pretty">
-            {t("settings.dangerZone.resetDatabase.detail")}
+            {t("settings.dangerZone.deleteCompany.detail")}
           </p>
         </SettingsSection>
       </div>
+
+      <InstanceResetSection />
 
       <Dialog open={otpModalOpen} onOpenChange={setOtpModalOpen}>
         <DialogContent className="sm:max-w-md">
@@ -207,14 +288,14 @@ export default function DangerZoneSettings() {
             {currentAction && (
               <div className="rounded-lg bg-muted p-3">
                 <p className="text-sm font-medium text-foreground">
-                  {currentAction === "app"
-                    ? t("settings.dangerZone.modal.warningApp")
-                    : t("settings.dangerZone.modal.warningDatabase")}
+                  {currentAction === "reset-company-data"
+                    ? t("settings.dangerZone.modal.warningResetCompanyData")
+                    : t("settings.dangerZone.modal.warningDeleteCompany")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {currentAction === "app"
-                    ? t("settings.dangerZone.modal.warningAppDescription")
-                    : t("settings.dangerZone.modal.warningDatabaseDescription")}
+                  {currentAction === "reset-company-data"
+                    ? t("settings.dangerZone.modal.warningResetCompanyDataDescription")
+                    : t("settings.dangerZone.modal.warningDeleteCompanyDescription")}
                 </p>
               </div>
             )}

@@ -76,7 +76,13 @@ export function Sidebar() {
       !hasAutoOpenedOnboarding.current &&
       !companiesLoading &&
       companies.length === 0 &&
-      location.pathname !== "/settings/company"
+      location.pathname !== "/settings/company" &&
+      // A recipient of a pending company-ownership transfer can be a brand-new account with zero
+      // companies of their own — that is the whole point of "attaches them if they weren't a member
+      // yet" (`transfer.service.ts#acceptTransfer`). The onboarding dialog is not dismissable
+      // (`onboarding.tsx`'s own `onInteractOutside`/`onEscapeKeyDown` both no-op), so auto-opening it
+      // here would permanently block that screen's own Accept button behind it.
+      location.pathname !== "/account/transfers"
     ) {
       hasAutoOpenedOnboarding.current = true
       setOnboardingOpen(true)

@@ -149,3 +149,39 @@ export async function deleteCompanyPermanently(
     return true;
   });
 }
+
+/**
+ * Manual, OWNER-INITIATED deletion — "Delete company" in the danger zone (`danger/danger.service.ts`).
+ * Unlike `deleteCompanyPermanently` above, this is never driven by `CompanySubscription.status`/
+ * `deletionDueAt`: an OWNER who cleared the OTP challenge AND retyped the company's own exact name
+ * already IS the "due" signal there is to have — gating this on `status === 'ZIPPED'` the same way
+ * would make a company that never entered the billing lifecycle at all (self-hosted, no
+ * `CompanySubscription` row, or a paying company that has simply never missed a payment) unable to
+ * ever delete itself. The two non-negotiable disciplines `deleteCompanyPermanently` enforces stay
+ * exactly as strict here: a PAID company's Polar subscription is revoked FIRST, and the whole
+ * deletion is refused if that call fails (`PolarCancellationFailedError`) — never a company deleted
+ * while still actively billed; `Webhook` is deleted explicitly before `Company` (see this file's own
+ * header on why that one relation alone needs it).
+ */
+export async function deleteCompanyPermanentlyNow(
+  companyId: string,
+  client: DeletionPolarClient = getPolarClient() as unknown as DeletionPolarClient,
+): Promise<void> {
+  const sub = await prisma.companySubscription.findUnique({
+    where: { companyId },
+    select: { polarSubscriptionId: true },
+  });
+
+  if (sub?.polarSubscriptionId) {
+    try {
+      await client.subscriptions.revoke({ id: sub.polarSubscriptionId });
+    } catch (error) {
+      throw new PolarCancellationFailedError(companyId, error);
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.webhook.deleteMany({ where: { companyId } });
+    await tx.company.delete({ where: { id: companyId } });
+  });
+}

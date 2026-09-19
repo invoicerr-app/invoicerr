@@ -522,6 +522,9 @@ model Company {
   // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`, which is what keeps an existing company from ever
   // being retroactively enrolled the day that flag first flips to true (see that store's own header).
   subscription            CompanySubscription?
+  // Ownership transfer requests targeting this company (product decision 2026-09-17,
+  // `modules/company/transfer/`) — see CompanyOwnershipTransfer below for the full state machine.
+  ownershipTransfers      CompanyOwnershipTransfer[]
 }
 
 // Hosted-billing offer (product decision 2026-09-15) — ONE row per company, created lazily. See
@@ -1112,6 +1115,63 @@ model InvitationCode {
   @@map("invitation_code")
 }
 
+enum CompanyOwnershipTransferStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELED
+}
+
+// A company's OWNER handing off the OWNER role to another user's account (product decision
+// 2026-09-17, `modules/company/transfer/`) — a free-typed destination email, never an autocomplete
+// over existing members (see `transfer.service.ts`'s own header on the anti-enumeration discipline
+// this implies: the same generic response is returned whether or not an account exists for that
+// email, and no row here is EVER created for an email that doesn't resolve to one — unlike
+// `InvitationCode` above, which can mint a code for an email nobody has signed up with yet).
+//
+// PENDING until the destination user explicitly accepts (`POST /account/transfers/:id/accept`) or the
+// 7-day window lapses (`transfer-expiry-sweep-runner.ts`, a BullMQ repeatable — never a Nest cron, see
+// CLAUDE.md's own "Working with the owner" convention every sweep in this codebase already follows).
+// `acceptedAt`/`canceledAt` are mutually exclusive with reaching EXPIRED — exactly one of the three
+// terminal branches is ever taken from PENDING, enforced in `transfer.service.ts`, not by the schema.
+model CompanyOwnershipTransfer {
+  id String @id @default(cuid())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  status CompanyOwnershipTransferStatus @default(PENDING)
+
+  // The OWNER who started this transfer — recorded explicitly (never re-derived from the company's
+  // CURRENT owner list at finalize time) because `changeMemberRole`/a second, concurrent transfer
+  // could otherwise have moved ownership around in between; this is who steps down to ADMIN when the
+  // transfer completes, whoever else may also hold OWNER by then.
+  fromUser   User   @relation("CompanyOwnershipTransferFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  fromUserId String
+
+  // The destination address as TYPED by the OWNER — kept verbatim (lower-cased/trimmed) purely for
+  // display on the initiator's own pending-transfer card; never re-queried to resolve `toUser` (that
+  // resolution happens exactly once, at creation, in `transfer.service.ts#initiateTransfer`).
+  toEmail String
+
+  // The EXISTING account `toEmail` resolved to at creation time — see this model's own header on why
+  // a row is never created without one. `POST /account/transfers/:id/accept` requires the caller to
+  // be signed in as exactly this user.
+  toUser   User   @relation("CompanyOwnershipTransferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  toUserId String
+
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  canceledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([toUserId])
+  @@map("company_ownership_transfer")
+}
+
 // ======= BETTER AUTH INTEGRATION ======= //
 
 model User {
@@ -1132,6 +1192,13 @@ model User {
   // Invitation relations
   createdInvitations InvitationCode[] @relation("CreatedInvitations")
   usedInvitation     InvitationCode?  @relation("UsedInvitation")
+
+  // Ownership transfer relations (product decision 2026-09-17, `modules/company/transfer/`) — split
+  // both directions the same way InvitationCode splits created/used above: one user can both HAND OFF
+  // a company (fromUser) and RECEIVE one (toUser), sometimes at once, so a single unnamed relation
+  // could not tell the two apart.
+  ownershipTransfersInitiated CompanyOwnershipTransfer[] @relation("CompanyOwnershipTransferFrom")
+  ownershipTransfersReceived  CompanyOwnershipTransfer[] @relation("CompanyOwnershipTransferTo")
 
   // Legal document acceptances (Terms of Service, Privacy Policy — see backend/src/legal/) — SaaS
   // mode only (`billing-flag.ts#isBillingEnabled`); empty on every self-hosted instance.
@@ -2314,6 +2381,29 @@ model DangerOtp {
   updatedAt DateTime @updatedAt
 }
 
+// Instance-wide reset's own OTP challenge (`modules/instance/instance-reset.service.ts`) — the SAME
+// hardening `DangerOtp` above documents (CSPRNG code, hashed storage, timing-safe compare, a
+// permanent lifetime lock after too many failed attempts), keyed by the REQUESTING OPERATOR's e-mail
+// rather than a `companyId`: an instance operator is an `INSTANCE_OPERATOR_EMAILS` allowlist entry
+// (`lib/instance-operators.ts`), never a row this schema owns a relation to — this challenge must
+// keep working for an email the allowlist names even if no `User` row has ever signed up with it, and
+// must survive that operator's own `User` row being wiped by the very reset it is authorising. One
+// row PER OPERATOR (never a single instance-wide singleton) so one operator's own 5-guess lockout can
+// never block a DIFFERENT operator's own, independent attempt.
+model InstanceResetOtp {
+  id    String @id @default(cuid())
+  email String @unique
+
+  codeHash  String
+  expiresAt DateTime
+
+  failedAttempts Int       @default(0)
+  lockedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // The client portal — a long-lived, revocable, hashed-random-token
 // credential scoped to ONE (company, client) pair, generalizing DocumentDownloadToken's "one
 // document's own public link" shape to "one client's own account" (every document the descriptors'
@@ -3030,4 +3120,5 @@ model BackupRun {
 
   @@index([startedAt])
 }
+
 // ======= END OF INSTANCE FILE BACKUP ======= //

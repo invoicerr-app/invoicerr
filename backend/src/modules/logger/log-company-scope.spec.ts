@@ -83,7 +83,20 @@ describe('LoggerService — the tripwire itself, exercised directly', () => {
  *  sweep never flags). Keyed `relativePath:line` so an entry stays valid across an unrelated edit
  *  elsewhere in the same file, and goes stale (caught by the "entry no longer resolves" check below) the
  *  moment the reviewed line itself moves or is deleted. */
-const REVIEWED_INSTANCE_LEVEL_CALL_SITES = new Set<string>([]);
+const REVIEWED_INSTANCE_LEVEL_CALL_SITES = new Set<string>([
+  // instance-reset.service.ts — every one of these five is the "reset the ENTIRE instance" flow
+  // (modules/instance/**): genuinely cross-tenant by construction, reached only via
+  // InstanceOperatorGuard (never @ActiveCompany()), and the caller may well have some UNRELATED
+  // company active in their own session at the time (an instance operator is also, ordinarily, a
+  // member of at least one company) — that company must never be the one these lines attribute
+  // anything to. The `reset()` method's own two calls (136, 175) additionally run inside an explicit
+  // `runWithCompanyId(null, ...)` for the exact same reason — see that method's own doc comment.
+  'modules/instance/instance-reset.service.ts:48', // requestOtp — permanent-lockout refusal
+  'modules/instance/instance-reset.service.ts:73', // requestOtp — OTP e-mail send failure
+  'modules/instance/instance-reset.service.ts:83', // requestOtp — OTP sent successfully
+  'modules/instance/instance-reset.service.ts:136', // reset — invalid/expired OTP refusal
+  'modules/instance/instance-reset.service.ts:175', // reset — the wipe itself completed
+]);
 
 const BACKEND_SRC = resolve(__dirname, '..', '..');
 const COMPANY_ID_NULL_NEAR_LOGGER_RE = /\blogger\.(?:info|warn|error|debug)\(/;

@@ -196,6 +196,13 @@ app:
   appUrl: "https://invoicerr.example.com"
   # Comma-separated list of allowed CORS origins.
   corsOrigins: "https://invoicerr.example.com"
+  # Comma-separated, case-insensitive list of e-mail addresses trusted with INSTANCE-WIDE actions —
+  # today, resetting the whole deployment (every company, user and document, from
+  # Settings > Danger Zone), masked and refused entirely on a hosted (SaaS) deployment regardless of
+  # this value; and GET /api/backup/status, which requires a real operator on self-hosted AND SaaS
+  # alike (not masked there). Left empty (the default), NO instance operator exists and both stay
+  # unavailable/refused — see backend/src/lib/instance-operators.ts.
+  instanceOperatorEmails: ""
   # Escape hatch for anything this chart doesn't wire explicitly (mail provider, OIDC, …) — see
   # .env.example / docker-compose.yml in the repo root for the full variable list. Same shape Helm
   # uses everywhere: a list of `{name, value}` or `{name, valueFrom}` entries, appended to both the

@@ -314,3 +314,132 @@ export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmail
       `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
   };
 }
+
+/**
+ * Company ownership transfer (product decision 2026-09-17, `modules/company/transfer/`) — three
+ * moments, three functions below, all sent through the COMPANY's own send cascade
+ * (`MailService#sendForCompany`, never `sendMail`): unlike the billing warnings/legal-document-changed
+ * emails above (deliberately instance-authored, addressed to a specific OWNER about THEIR OWN
+ * subscription/account), a transfer is one company's own business action toward a named recipient —
+ * the same posture `danger.service.ts`'s own OTP mail already takes for this company's OWNER. The
+ * cascade's own fallback (company's mail server, else the instance's, else a named refusal) is what
+ * keeps the recipient's address reachable even for a company with no mail server configured.
+ */
+function transferAccountUrl(appUrl: string): string {
+  return `${appUrl}/account/transfers`;
+}
+
+/** Minimal HTML-entity escaping — needed HERE and nowhere else in this file: every template ABOVE
+ *  this line mails a company's own OWNER about their own account/subscription (self-directed, so a
+ *  value they control reaching their own inbox is not a cross-user concern). A transfer request is
+ *  the first system email in this codebase whose HTML reaches a DIFFERENT, unrelated user's inbox
+ *  carrying values the INITIATING owner controls (`companyName`, their own display name) — without
+ *  escaping, a company renamed to include a `<script>`/`<img onerror>` payload would inject into the
+ *  recipient's mail client the moment they open a transfer request they never asked for. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Sent to the RECIPIENT the moment an OWNER initiates a transfer — the recipient may not be a member
+ *  of `companyName` at all yet, so this is their entire notice that the request exists. */
+export function buildOwnershipTransferRequestEmail(params: {
+  appUrl: string;
+  companyName: string;
+  fromName: string;
+}): { subject: string; text: string; html: string } {
+  const { appUrl, companyName, fromName } = params;
+  const url = transferAccountUrl(appUrl);
+  return {
+    subject: `${fromName} wants to transfer ownership of "${companyName}" to you`,
+    text:
+      'Hello,\n\n' +
+      `${fromName} has requested to transfer ownership of their company "${companyName}" on ` +
+      'Invoicerr to your account. Accepting makes you the OWNER of that company; ' +
+      `${fromName} becomes an admin.\n\n` +
+      'This request expires in 7 days. Review and accept it here:\n' +
+      `${url}\n\n` +
+      "If you weren't expecting this, you can simply ignore this email — nothing changes until you " +
+      'accept.\n\n' +
+      'Best regards,\nThe Invoicerr Team\n\n' +
+      `This email was sent from ${appUrl}`,
+    html:
+      '<h2>Ownership transfer request</h2>' +
+      `<p>Hello,</p><p><strong>${escapeHtml(fromName)}</strong> has requested to transfer ownership ` +
+      `of their company <strong>"${escapeHtml(companyName)}"</strong> on Invoicerr to your account. ` +
+      `Accepting makes you the OWNER of that company; ${escapeHtml(fromName)} becomes an admin.</p>` +
+      '<p>This request expires in 7 days.</p>' +
+      `<p><a href="${url}" style="background: #007bff; color: white; padding: 12px 24px; ` +
+      'text-decoration: none; border-radius: 6px; display: inline-block;">Review request</a></p>' +
+      "<p>If you weren't expecting this, you can simply ignore this email — nothing changes until " +
+      'you accept.</p>' +
+      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
+      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+  };
+}
+
+/** Sent to BOTH parties once a transfer is finalized — `forNewOwner` picks which of the two mirrored
+ *  messages this particular recipient gets (their own new role reads very differently: gaining OWNER
+ *  vs. stepping down to admin). */
+export function buildOwnershipTransferFinalizedEmail(params: {
+  appUrl: string;
+  companyName: string;
+  forNewOwner: boolean;
+}): { subject: string; text: string; html: string } {
+  const { appUrl, companyName, forNewOwner } = params;
+  const subject = forNewOwner
+    ? `You are now the owner of "${companyName}"`
+    : `Ownership of "${companyName}" has been transferred`;
+  const bodyLine = forNewOwner
+    ? `You are now the OWNER of "${companyName}" on Invoicerr.`
+    : `You are no longer the owner of "${companyName}" — the new owner has accepted the transfer. ` +
+      'You remain an admin of this company.';
+  return {
+    subject,
+    text:
+      'Hello,\n\n' +
+      `${bodyLine}\n\n` +
+      'Best regards,\nThe Invoicerr Team\n\n' +
+      `This email was sent from ${appUrl}`,
+    html:
+      '<h2>Ownership transfer complete</h2>' +
+      // `bodyLine` above is reused verbatim for the TEXT part — the HTML part re-derives its own
+      // escaped copy here rather than sharing that string (see `escapeHtml`'s own header on why the
+      // three previous templates never needed this).
+      `<p>Hello,</p><p>${escapeHtml(bodyLine)}</p>` +
+      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
+      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+  };
+}
+
+/** Sent to the INITIATING owner when a transfer never completes — expired unanswered (the 7-day
+ *  sweep) or was canceled by that same owner (a receipt of their own action, the same "confirm what
+ *  just happened" courtesy a cancel of anything else in this app gets via its own success toast). */
+export function buildOwnershipTransferEndedEmail(params: {
+  appUrl: string;
+  companyName: string;
+  toEmail: string;
+  reason: 'expired' | 'canceled';
+}): { subject: string; text: string; html: string } {
+  const { appUrl, companyName, toEmail, reason } = params;
+  const verb = reason === 'expired' ? 'expired, unanswered,' : 'was canceled';
+  return {
+    subject: `Ownership transfer of "${companyName}" ${reason === 'expired' ? 'expired' : 'canceled'}`,
+    text:
+      'Hello,\n\n' +
+      `Your request to transfer ownership of "${companyName}" to ${toEmail} ${verb}. You are still ` +
+      'the owner of this company.\n\n' +
+      'Best regards,\nThe Invoicerr Team\n\n' +
+      `This email was sent from ${appUrl}`,
+    html:
+      '<h2>Ownership transfer ended</h2>' +
+      `<p>Hello,</p><p>Your request to transfer ownership of "${escapeHtml(companyName)}" to ` +
+      `${escapeHtml(toEmail)} ${verb}. You are still the owner of this company.</p>` +
+      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
+      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+  };
+}

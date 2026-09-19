@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -10,9 +11,10 @@ import { authClient } from "@/lib/auth"
 
 import DangerZoneSettings from "@/pages/(app)/settings/_components/danger.settings"
 
-/** Same fetch-boundary mocking convention as `client-upsert.spec.tsx` — the hook under test here
- *  (`usePost`, `@/hooks/use-fetch`) goes through the SAME global `fetch`, so intercepting it (rather
- *  than the hook itself) is what actually proves where the OTP travels on the wire. */
+/** Same fetch-boundary mocking convention as `client-upsert.spec.tsx` — the hooks under test here
+ *  (`usePost`/`useGet`, `@/hooks/use-fetch`) go through the SAME global `fetch`, so intercepting it
+ *  (rather than the hooks themselves) is what actually proves where the OTP travels on the wire and
+ *  what the preflight read returns. */
 function jsonResponse(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -27,19 +29,58 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 type FetchHandler = (url: URL, init?: RequestInit) => { status?: number; body: unknown }
 
+// `<DangerZoneSettings>` also mounts `<TransferCompanySection>` (product decision 2026-09-17), which
+// fires this GET on every render regardless of what a given test actually exercises — defaulted here,
+// once, rather than repeated in every `installFetchMock` call below, none of which cares about
+// ownership transfer at all.
+const DEFAULT_HANDLERS: Record<string, FetchHandler> = {
+  "GET /api/companies/transfer": () => ({ body: null }),
+}
+
 function installFetchMock(handlers: Record<string, FetchHandler>) {
+  const merged = { ...DEFAULT_HANDLERS, ...handlers }
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input.toString()
     const url = new URL(raw, "http://localhost")
     const method = (init?.method ?? "GET").toUpperCase()
     const key = `${method} ${url.pathname}`
-    const handler = handlers[key]
+    const handler = merged[key]
     if (!handler) throw new Error(`Unmocked fetch in test: ${key}${url.search}`)
     const { status = 200, body } = handler(url, init)
     return jsonResponse(body, status)
   })
   vi.stubGlobal("fetch", fn)
   return fn
+}
+
+const OPEN_PREFLIGHT = {
+  blocked: false,
+  retainedDocuments: 0,
+  retentionUntil: null,
+  counts: {
+    documents: 3,
+    clients: 2,
+    articles: 1,
+    projects: 0,
+    timeEntries: 0,
+    bankStatements: 0,
+    archives: 0,
+  },
+}
+
+const BLOCKED_PREFLIGHT = {
+  blocked: true,
+  retainedDocuments: 2,
+  retentionUntil: "2030-01-01T00:00:00.000Z",
+  counts: {
+    documents: 5,
+    clients: 2,
+    articles: 1,
+    projects: 0,
+    timeEntries: 0,
+    bankStatements: 0,
+    archives: 5,
+  },
 }
 
 const SESSION = {
@@ -49,43 +90,90 @@ const SESSION = {
 }
 
 function renderScreen() {
+  // `<TransferCompanySection>` (mounted inside `<DangerZoneSettings>`) reads through
+  // `useApiQuery`/TanStack Query — a fresh, no-retry client per render so a mocked 4xx/5xx in one
+  // test can't linger and retry into the next.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter>
-      <DangerZoneSettings />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <DangerZoneSettings />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
-/** Opens the OTP modal for the "reset app data" action and fills both fields the confirm button
- *  requires — the fixed `RESET` keyword (the "all"/database action instead asks for the company's
- *  own name, unrelated to what this file tests). */
-async function openModalAndFillForm() {
-  fireEvent.click(await screen.findByTestId("danger-reset-app-button"))
+/** Opens the OTP modal for the "reset company data" action and fills both fields the confirm button
+ *  requires — the fixed `RESET` keyword ("delete company" instead asks for the company's own name,
+ *  unrelated to what this file tests). */
+async function openResetModalAndFillForm() {
+  fireEvent.click(await screen.findByTestId("danger-reset-company-data-button"))
   await screen.findByTestId("danger-otp-input")
   fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "12345678" } })
   fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "RESET" } })
 }
 
-describe("<DangerZoneSettings> — OTP transport", () => {
+describe("<DangerZoneSettings> — company-data reset preflight", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(authClient.useSession).mockReturnValue({ data: SESSION, isPending: false } as never)
+    vi.mocked(authClient.useSession).mockReturnValue({
+      data: SESSION,
+      isPending: false,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    } as never)
   })
 
-  it("confirms a reset with the OTP in the request BODY, never in the URL", async () => {
+  it("enables the reset button and shows the counts once the preflight reports nothing retained", async () => {
+    installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: OPEN_PREFLIGHT }),
+    })
+
+    renderScreen()
+
+    const button = await screen.findByTestId("danger-reset-company-data-button")
+    await waitFor(() => expect(button).not.toBeDisabled())
+    expect(await screen.findByTestId("danger-reset-counts")).toHaveTextContent("3")
+    expect(screen.queryByTestId("danger-retention-blocked-alert")).not.toBeInTheDocument()
+  })
+
+  it("disables the reset button and shows the retention refusal BEFORE any OTP is requested", async () => {
+    installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: BLOCKED_PREFLIGHT }),
+    })
+
+    renderScreen()
+
+    const button = await screen.findByTestId("danger-reset-company-data-button")
+    await waitFor(() => expect(button).toBeDisabled())
+    expect(await screen.findByTestId("danger-retention-blocked-alert")).toHaveTextContent("2")
+  })
+})
+
+describe("<DangerZoneSettings> — reset company data: OTP transport", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(authClient.useSession).mockReturnValue({
+      data: SESSION,
+      isPending: false,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    } as never)
+  })
+
+  it("confirms a reset with the OTP in the request BODY, against the company-data endpoint, never a query string", async () => {
     let capturedUrl: URL | undefined
     let capturedBody: unknown
     installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: OPEN_PREFLIGHT }),
       "POST /api/danger/otp": () => ({ body: { message: "OTP sent successfully" } }),
-      "POST /api/danger/reset/app": (url, init) => {
+      "POST /api/danger/reset/company-data": (url, init) => {
         capturedUrl = url
         capturedBody = init?.body ? JSON.parse(init.body as string) : undefined
-        return { body: { message: "Application reset successfully" } }
+        return { body: { message: "Company data reset successfully" } }
       },
     })
 
     renderScreen()
-    await openModalAndFillForm()
+    await openResetModalAndFillForm()
     fireEvent.click(screen.getByTestId("danger-modal-confirm"))
 
     await waitFor(() => expect(capturedBody).toEqual({ otp: "1234-5678" }))
@@ -97,6 +185,7 @@ describe("<DangerZoneSettings> — OTP transport", () => {
 
   it("shows a translated, distinct message once the backend reports this company permanently locked out", async () => {
     installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: OPEN_PREFLIGHT }),
       "POST /api/danger/otp": () => ({
         status: 400,
         body: {
@@ -109,7 +198,7 @@ describe("<DangerZoneSettings> — OTP transport", () => {
     })
 
     renderScreen()
-    fireEvent.click(await screen.findByTestId("danger-reset-app-button"))
+    fireEvent.click(await screen.findByTestId("danger-reset-company-data-button"))
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Locked out", {
@@ -119,5 +208,74 @@ describe("<DangerZoneSettings> — OTP transport", () => {
     )
     // Not the generic fallback path — the raw, untranslated backend string never reaches the toast.
     expect(toast.error).not.toHaveBeenCalledWith("Failed to send verification code", expect.anything())
+  })
+})
+
+describe("<DangerZoneSettings> — delete company: OTP + company name transport", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(authClient.useSession).mockReturnValue({
+      data: SESSION,
+      isPending: false,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    } as never)
+  })
+
+  it("sends BOTH the OTP and the typed company name in the request body", async () => {
+    let capturedBody: unknown
+    installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: OPEN_PREFLIGHT }),
+      "POST /api/danger/otp": () => ({ body: { message: "OTP sent successfully" } }),
+      "POST /api/danger/delete-company": (_url, init) => {
+        capturedBody = init?.body ? JSON.parse(init.body as string) : undefined
+        return { body: { message: "Company deleted successfully" } }
+      },
+    })
+
+    renderScreen()
+    fireEvent.click(await screen.findByTestId("danger-delete-company-button"))
+    await screen.findByTestId("danger-otp-input")
+    fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "87654321" } })
+    // The company's own name (from the session, "Acme Corp") is the confirmation keyword here —
+    // see `confirmKeyword`'s own comment in the component for why it differs from the fixed "RESET"
+    // keyword the lesser "reset company data" action uses.
+    fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "Acme Corp" } })
+    fireEvent.click(screen.getByTestId("danger-modal-confirm"))
+
+    await waitFor(() => expect(capturedBody).toEqual({ otp: "8765-4321", companyName: "Acme Corp" }))
+  })
+
+  it("keeps the confirm button disabled until the typed text matches the company's own name exactly", async () => {
+    installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: OPEN_PREFLIGHT }),
+      "POST /api/danger/otp": () => ({ body: { message: "OTP sent successfully" } }),
+    })
+
+    renderScreen()
+    fireEvent.click(await screen.findByTestId("danger-delete-company-button"))
+    await screen.findByTestId("danger-otp-input")
+    fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "87654321" } })
+    fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "not the name" } })
+
+    expect(screen.getByTestId("danger-modal-confirm")).toBeDisabled()
+  })
+
+  it("re-fetches the session after a successful deletion, so a stale activeCompanyId never lingers", async () => {
+    const refetch = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(authClient.useSession).mockReturnValue({ data: SESSION, isPending: false, refetch } as never)
+    installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: OPEN_PREFLIGHT }),
+      "POST /api/danger/otp": () => ({ body: { message: "OTP sent successfully" } }),
+      "POST /api/danger/delete-company": () => ({ body: { message: "Company deleted successfully" } }),
+    })
+
+    renderScreen()
+    fireEvent.click(await screen.findByTestId("danger-delete-company-button"))
+    await screen.findByTestId("danger-otp-input")
+    fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "87654321" } })
+    fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "Acme Corp" } })
+    fireEvent.click(screen.getByTestId("danger-modal-confirm"))
+
+    await waitFor(() => expect(refetch).toHaveBeenCalled())
   })
 })

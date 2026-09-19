@@ -165,3 +165,35 @@ priority over SMTP whenever both are present in the environment.
 
 </TabItem>
 </Tabs>
+
+## Instance operators
+
+Most actions in Invoicerr are scoped to one company. A small number of actions are **instance-wide**
+instead — they act across every company on this deployment at once. Today there is exactly one:
+resetting the whole instance (Settings → Danger Zone → "Reset instance"), which permanently deletes
+every company, user and document, then signs everyone out.
+
+Nobody can do this by default. Set `INSTANCE_OPERATOR_EMAILS` to a comma-separated (case-insensitive)
+list of e-mail addresses to name who can:
+
+```yaml
+- INSTANCE_OPERATOR_EMAILS=you@example.com,co-admin@example.com
+```
+
+Leaving it unset means no instance operator exists at all — the reset screen never appears, and the
+underlying API routes refuse every caller.
+
+The instance-reset feature itself is unavailable entirely on a hosted (SaaS) deployment, regardless
+of this variable — the screen and its routes are hidden as if they did not exist, not merely
+forbidden.
+
+The SAME `INSTANCE_OPERATOR_EMAILS` list is also used by one other, unrelated route:
+`GET /api/backup/status` (instance file-backup status), which used to trust any company's OWNER and
+now requires a real instance operator instead — on self-hosted **and** on a hosted deployment alike
+(unlike the reset feature, backup status is not hidden on SaaS).
+
+:::danger
+An instance reset is irreversible and cannot be scoped to "just one company" — it takes down every
+company on the deployment. It still requires a fresh e-mailed confirmation code and typing
+"RESET INSTANCE" exactly, but there is no undo once it runs.
+:::

@@ -28,10 +28,12 @@ import { PublicDocumentsModule } from './modules/documents/public/public-documen
 import { SdiNotificheModule } from './modules/documents/transports/sdi/sdi-notifiche.module';
 import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
 import { HealthModule } from './modules/health/health.module';
+import { InstanceModule } from './modules/instance/instance.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { LegalModule } from './legal/legal.module';
 import { MailService } from './mail/mail.service';
 import { McpModule } from './modules/mcp/mcp.module';
+import { TransferModule } from './modules/company/transfer/transfer.module';
 import { Module } from '@nestjs/common';
 import { OcrExtractorModule } from './plugins';
 import { ReceivedInvoicesModule } from './modules/documents/received-invoices/received-invoices.module';
@@ -114,6 +116,12 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     SireneModule,
     CompanyLookupModule,
     DangerModule,
+    // Instance-wide, cross-tenant actions (today: wiping the whole deployment) — always imported,
+    // unlike BillingModule/BackupModule right below: the SaaS refusal AND the
+    // INSTANCE_OPERATOR_EMAILS allowlist are both enforced dynamically, per request, by
+    // InstanceOperatorGuard — see that guard's own header — so there is no build-time flag this
+    // module itself needs gating on.
+    InstanceModule,
     // Registered BEFORE `DocumentsModule` deliberately — NOT for DI (Nest resolves the module graph
     // regardless of array order; both this module and `DocumentsModule` import the shared
     // `DocumentsCoreModule` independently, instantiated once either way), but for HTTP ROUTE
@@ -189,6 +197,10 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     OcrExtractorModule,
     WebhooksModule,
     InvitationsModule,
+    // Company ownership transfer — always imported (self-hosted-friendly, same posture as
+    // InvitationsModule/LegalModule right above), never conditioned on `billingEnabled` — see
+    // `transfer.module.ts`'s own header.
+    TransferModule,
     // Terms of Service / Privacy Policy / DPA / Legal Notice / Cookies — always imported (see this
     // module's own header for why, unlike BillingModule right above, this one is never conditioned on
     // `billingEnabled`).

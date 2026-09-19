@@ -74,4 +74,11 @@ export const queryKeys = {
     documents: () => ["legal", "documents"] as const,
     status: () => ["legal", "status"] as const,
   },
+  instance: {
+    preflight: () => ["instance", "preflight"] as const,
+  },
+  companyTransfer: {
+    current: () => ["companyTransfer", "current"] as const,
+    received: () => ["companyTransfer", "received"] as const,
+  },
 } as const

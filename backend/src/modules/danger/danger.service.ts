@@ -1,10 +1,20 @@
 import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';
-import { BadRequestException, HttpException, Injectable, NotImplementedException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  Injectable,
+} from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 
 import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
+import { deleteArchivedArtifacts } from '@/modules/documents/archive/storage';
+import { deleteInboundFilesForCompany } from '@/modules/documents/received-invoices/storage';
+import { BillingExportService } from '@/modules/billing/export-zip.service';
+import { deleteCompanyPermanentlyNow, PolarCancellationFailedError } from '@/modules/billing/deletion';
 import {
   clearDangerOtp,
   findDangerOtp,
@@ -19,9 +29,41 @@ const OTP_EXPIRATION_MINUTES = 10;
  *  MESSAGE` documents, so a caller can never learn from the response alone which of those it hit. */
 const GENERIC_OTP_FAILURE_MESSAGE = 'Invalid or expired OTP';
 
+/** The one code a caller can rely on to mean "this company still has documents under legal
+ *  retention" — mirrors `billing/write-gate.ts#COMPANY_BLOCKED`'s own "a named code, not just a
+ *  message to string-match" convention. */
+export const RETENTION_BLOCKED = 'RETENTION_BLOCKED';
+
+export interface CompanyDataResetCounts {
+  documents: number;
+  clients: number;
+  articles: number;
+  projects: number;
+  timeEntries: number;
+  bankStatements: number;
+  archives: number;
+}
+
+export interface CompanyDataResetPreflight {
+  blocked: boolean;
+  /** How many DISTINCT documents still have at least one archive under legal retention — never a
+   *  raw archive-ROW count: a single document can carry more than one archive (a re-send after
+   *  "send_failed" archives again, and a terminal authority verdict archives a second time on top of
+   *  its own delivery — see `DocumentArchive`'s own header), which would double-count the same
+   *  document and overstate what is actually blocking the reset. */
+  retainedDocuments: number;
+  /** The LATEST `retentionUntil` among every retained archive — the date the screen shows the owner
+   *  as "come back after this". `null` only when `blocked` is `false`. */
+  retentionUntil: string | null;
+  counts: CompanyDataResetCounts;
+}
+
 @Injectable()
 export class DangerService {
-  constructor(private readonly mailService: MailService) {}
+  constructor(
+    private readonly mailService: MailService,
+    private readonly exportService: BillingExportService,
+  ) {}
 
   async requestOtp(user: CurrentUser, companyId: string) {
     const code = generateOtpCode();
@@ -46,7 +88,7 @@ export class DangerService {
 
     try {
       // The company → instance → named refusal cascade (`MailService#sendForCompany`) — this route is
-      // OWNER-only and gated by the SAME active-company resolution `resetApp`/`resetAll` below already
+      // OWNER-only and gated by the SAME active-company resolution the reset actions below already
       // require (`RolesGuard` only ever sets `request.role` from the session's `activeRole`, which is
       // itself derived from `activeCompanyId` — see `guards/auth.guard.ts` — so an OWNER reaching this
       // handler at all already has an active company), so this OTP goes out through THAT company's own
@@ -104,52 +146,262 @@ export class DangerService {
     await clearDangerOtp(companyId);
   }
 
-  async resetApp(user: CurrentUser, companyId: string, otp: string) {
-    try {
-      await this.verifyAndConsumeOtp(companyId, otp);
-    } catch (error) {
-      logger.warn('Invalid or expired OTP for resetApp', {
-        category: 'danger',
-        details: { userId: user.id },
-      });
-      throw error;
-    }
-
-    // Reset everything for this company only, but the user data
-    await prisma.company.deleteMany({ where: { id: companyId } });
-    await prisma.mailTemplate.deleteMany({ where: { companyId } });
-    await prisma.client.deleteMany({ where: { companyId } });
-
-    logger.info('Application reset successfully', {
-      category: 'danger',
-      details: { userId: user.id, companyId },
+  /**
+   * What a company would lose (and what blocks it) if "Reset company data" ran RIGHT NOW — read by
+   * `GET /danger/reset/company-data/preflight`, called by the settings screen BEFORE the OTP flow
+   * even starts, so a company under legal retention sees why it cannot reset before it ever types a
+   * confirmation code. `resetCompanyData` below calls this AGAIN, after the OTP is spent, as the real
+   * enforcement — this method only ever REPORTS the fact, never blocks anything on its own.
+   */
+  async getCompanyDataResetPreflight(companyId: string): Promise<CompanyDataResetPreflight> {
+    const retainedArchives = await prisma.documentArchive.findMany({
+      where: { companyId, retentionUntil: { gt: new Date() } },
+      select: { documentId: true, retentionUntil: true },
+      orderBy: { retentionUntil: 'desc' },
     });
-    return { message: 'Application reset successfully' };
+    const retainedDocumentIds = new Set(retainedArchives.map((archive) => archive.documentId));
+
+    const [documents, clients, articles, projects, timeEntries, bankStatements, archives] = await Promise.all(
+      [
+        prisma.documentInstance.count({ where: { companyId } }),
+        prisma.client.count({ where: { companyId } }),
+        prisma.article.count({ where: { companyId } }),
+        prisma.project.count({ where: { companyId } }),
+        prisma.timeEntry.count({ where: { companyId } }),
+        prisma.bankStatement.count({ where: { companyId } }),
+        prisma.documentArchive.count({ where: { companyId } }),
+      ],
+    );
+
+    return {
+      blocked: retainedDocumentIds.size > 0,
+      retainedDocuments: retainedDocumentIds.size,
+      // Rows are ordered `retentionUntil desc` above, so the first one is the LATEST date — the one
+      // the owner actually needs to wait out (the shortest-lived retained document is not the blocker).
+      retentionUntil: retainedArchives[0]?.retentionUntil?.toISOString() ?? null,
+      counts: { documents, clients, articles, projects, timeEntries, bankStatements, archives },
+    };
   }
 
-  async resetAll(user: CurrentUser, companyId: string, otp: string) {
+  /**
+   * "Reset company data" — deletes every document (every type: invoices, quotes, credit notes,
+   * expenses, received invoices — all one `DocumentInstance` table, see CLAUDE.md's own "the
+   * documents module" section), client, article, project, time entry, bank statement/reconciliation,
+   * archived file and uploaded attachment this company holds. Deliberately KEEPS the company row
+   * itself, its members, its subscription, its channel connections and its e-mail templates — every
+   * COMPANY-scoped table this method does NOT touch above is a deliberate "this is configuration, not
+   * exploitation data" call, not an oversight.
+   *
+   * Refuses outright (409, `RETENTION_BLOCKED`) while any archived document is still inside its own
+   * legal retention window (`archive/retention/` — the country-is-data catalog `DocumentArchive.
+   * retentionUntil` was resolved from at archiving time) — deleting the DATABASE row that proves a
+   * legally-retained document ever existed would defeat the retention obligation even if the archived
+   * BYTES themselves survived on disk.
+   */
+  async resetCompanyData(user: CurrentUser, companyId: string, otp: string) {
     try {
       await this.verifyAndConsumeOtp(companyId, otp);
     } catch (error) {
-      logger.warn('Invalid or expired OTP for resetAll', {
+      logger.warn('Invalid or expired OTP for resetCompanyData', {
         category: 'danger',
         details: { userId: user.id },
       });
       throw error;
     }
 
-    // F-011: this method never deleted anything — it cleared the OTP and returned
-    // "All data reset successfully". A destructive operation the user explicitly confirmed must
-    // not report success it did not perform: they would believe their data gone. Until the reset is
-    // actually implemented, fail loudly rather than lie. The OTP is already consumed above (by
-    // `verifyAndConsumeOtp`), matching the original behavior of never leaving it replayable even though
-    // the reset itself is not implemented yet.
-    logger.error('resetAll called but not implemented — refusing to report success', {
+    const preflight = await this.getCompanyDataResetPreflight(companyId);
+    if (preflight.blocked) {
+      // Defense in depth, not the primary guard — the SCREEN already disables this action once
+      // `GET .../preflight` reports `blocked` (see danger.settings.tsx), so reaching this branch means
+      // either a genuine race (implausible: retention windows run for years, not the seconds between
+      // the screen's own preflight read and this call) or a caller bypassing the UI entirely. Either
+      // way the OTP above is already spent — a legitimate retry simply requests a fresh one.
+      logger.warn('Company data reset refused — documents still under legal retention', {
+        category: 'danger',
+        details: { userId: user.id, companyId, retainedDocuments: preflight.retainedDocuments },
+      });
+      throw new ConflictException({
+        message:
+          `${preflight.retainedDocuments} document(s) are still under legal retention until ` +
+          `${preflight.retentionUntil} — refusing to reset. Nothing was deleted.`,
+        code: RETENTION_BLOCKED,
+        retainedDocuments: preflight.retainedDocuments,
+        retentionUntil: preflight.retentionUntil,
+      });
+    }
+
+    // Read BEFORE the transaction: once `documentInstance.deleteMany` runs, the FK cascade
+    // (`DocumentArchive.document`, `onDelete: Cascade`) removes these rows too, taking their own
+    // `uri` column with them — this is the last moment the bytes each row points at are still
+    // reachable at all.
+    const archives = await prisma.documentArchive.findMany({ where: { companyId }, select: { uri: true } });
+
+    await prisma.$transaction(async (tx) => {
+      // `DocumentSchedule.sourceDocumentId` is a plain string, never a `@relation` (schema.prisma's
+      // own header on that model explains why) — it does NOT cascade when its source document is
+      // deleted below, so a schedule left behind would keep trying to replay a document that no
+      // longer exists. Deleted first, deliberately, though nothing here strictly depends on the order.
+      await tx.documentSchedule.deleteMany({ where: { companyId } });
+      // Cascades (real `ON DELETE CASCADE`, not merely a Prisma-level convenience — every one of
+      // these relations is declared `onDelete: Cascade` in schema.prisma): DocumentPayment,
+      // DocumentReminder, DocumentArchive, DocumentAuthorityEvent, DocumentDownloadToken, Signature,
+      // PaymentCheckoutSession. TimeEntry.documentId and BankStatementLine.reconciledDocumentId/
+      // reconciledPaymentId are `onDelete: SetNull` instead (a time entry or a bank line is a fact
+      // about real work/money, kept even once the document it was attached to is gone) — both tables
+      // are deleted explicitly below anyway, per this action's own scope.
+      await tx.documentInstance.deleteMany({ where: { companyId } });
+      // The per-(company, type) "next number" counter — left in place, numbering would silently
+      // resume from wherever it last stopped despite every document that ever took a number now being
+      // gone; reset alongside the documents themselves so a fresh start is actually fresh.
+      await tx.documentNumberSequence.deleteMany({ where: { companyId } });
+      await tx.timeEntry.deleteMany({ where: { companyId } });
+      await tx.project.deleteMany({ where: { companyId } });
+      // Cascades BankStatementLine (`onDelete: Cascade` on `BankStatementLine.statement`).
+      await tx.bankStatement.deleteMany({ where: { companyId } });
+      // Cascades Project (already deleted above; a no-op by the time this runs), ClientPortalToken,
+      // and this client's own `PartyIdentifier` rows (the company's OWN identifiers use a separate,
+      // `clientId`-less row — see that model's own header — and are never touched here).
+      await tx.client.deleteMany({ where: { companyId } });
+      await tx.article.deleteMany({ where: { companyId } });
+    });
+
+    // File cleanup runs AFTER the transaction commits, deliberately: the database is the source of
+    // truth for whether this company's data is gone, and a storage hiccup here must never roll back
+    // rows that were correctly deleted, nor make a fully-successful reset look like it failed. Every
+    // failure below is logged and swallowed — best effort, exactly like `export-zip.service.ts`'s own
+    // temp-file cleanup.
+    for (const { uri } of archives) {
+      await deleteArchivedArtifacts(uri).catch((error) => {
+        logger.error('Company data reset: could not delete an archived artifact from storage', {
+          category: 'danger',
+          details: { companyId, uri, error: error instanceof Error ? error.message : String(error) },
+        });
+      });
+    }
+    try {
+      deleteInboundFilesForCompany(companyId);
+    } catch (error) {
+      logger.error("Company data reset: could not delete this company's inbound files", {
+        category: 'danger',
+        details: { companyId, error: error instanceof Error ? error.message : String(error) },
+      });
+    }
+
+    logger.info('Company data reset successfully', {
+      category: 'danger',
+      details: { userId: user.id, companyId, counts: preflight.counts },
+    });
+    return { message: 'Company data reset successfully' };
+  }
+
+  /**
+   * "Delete company" — the irreversible one. Reuses the exact same SaaS path a company already goes
+   * through when its own billing lifecycle deletes it (`billing/billing-lifecycle-sweep-runner.ts`):
+   * mail the OWNER a full data export FIRST (`BillingExportService`, this company's last copy), then
+   * cancel any live Polar subscription and delete the `Company` row (`billing/deletion.ts#
+   * deleteCompanyPermanentlyNow`) — refusing outright, at every step, rather than deleting anything
+   * while the export or the cancellation could not be confirmed. On a self-hosted instance with no
+   * billing configured, `deleteCompanyPermanentlyNow` finds no `CompanySubscription` row at all and
+   * simply never calls Polar — the SAME code path, not a separate one.
+   *
+   * The typed `companyName` is a SECOND, independent proof on top of the OTP: the OTP proves "you
+   * received the code we mailed to you"; retyping the company's own exact name proves "you know which
+   * company you are about to permanently destroy" — a wrong OTP already refuses via the generic
+   * message above, so a wrong name gets its own, equally loud refusal rather than being silently
+   * accepted because a valid code happened to be in hand.
+   */
+  async deleteCompany(user: CurrentUser, companyId: string, otp: string, companyName: string) {
+    try {
+      await this.verifyAndConsumeOtp(companyId, otp);
+    } catch (error) {
+      logger.warn('Invalid or expired OTP for deleteCompany', {
+        category: 'danger',
+        details: { userId: user.id },
+      });
+      throw error;
+    }
+
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } });
+    if (!company) {
+      throw new BadRequestException('This company no longer exists.');
+    }
+    if (companyName !== company.name) {
+      logger.warn('Company deletion refused — typed company name did not match', {
+        category: 'danger',
+        details: { userId: user.id, companyId },
+      });
+      throw new BadRequestException('Company name does not match — nothing was deleted.');
+    }
+
+    let zip: Buffer;
+    try {
+      zip = await this.exportService.buildCompanyZip(companyId);
+    } catch (error) {
+      logger.error('Company deletion refused — could not build the data export', {
+        category: 'danger',
+        details: {
+          userId: user.id,
+          companyId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      throw new BadRequestException(
+        'Could not build your data export — deletion refused. Nothing was deleted; try again shortly.',
+      );
+    }
+
+    try {
+      // To the ACTING user's own inbox, not "the oldest OWNER" the automated sweep addresses (see
+      // `billing-lifecycle-sweep-runner.ts#findOldestOwnerEmail`) — this call has a real, already-
+      // authenticated OWNER in hand, so the same F-012 "the export reaches the person requesting it"
+      // discipline `requestOtp` above already holds applies here too.
+      await this.mailService.sendForCompany(companyId, {
+        to: user.email,
+        subject: 'Your company data export',
+        text:
+          `You are about to permanently delete "${company.name}" from Invoicerr. Attached is a full ` +
+          'export of everything it held — this is your last copy. Once deletion completes, none of ' +
+          'it is recoverable.',
+        attachments: [{ filename: 'invoicerr-export.zip', content: zip, contentType: 'application/zip' }],
+      });
+    } catch (error) {
+      if (error instanceof HttpException) throw error; // e.g. NO_MAIL_SERVER_CONFIGURED_MESSAGE, already named
+      logger.error('Company deletion refused — could not email the data export', {
+        category: 'danger',
+        details: {
+          userId: user.id,
+          companyId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      throw new BadRequestException(
+        'Could not email your data export — deletion refused. Nothing was deleted.',
+      );
+    }
+
+    try {
+      await deleteCompanyPermanentlyNow(companyId);
+    } catch (error) {
+      if (error instanceof PolarCancellationFailedError) {
+        logger.error("Company deletion refused — this company's Polar subscription could not be cancelled", {
+          category: 'danger',
+          details: { userId: user.id, companyId, error: error.message },
+        });
+        throw new BadGatewayException(
+          "Could not cancel this company's subscription — deletion refused. Nothing was deleted; try again shortly.",
+        );
+      }
+      throw error;
+    }
+
+    // `companyId` omitted, deliberately — it defers to the ambient request context (see
+    // `logger.service.ts#LogOptions.companyId`'s own header), which already holds this exact id: the
+    // ROW is gone by this point, but the fact "this id used to name a company, now deleted" is still
+    // an honest, expected shape for `Log.companyId` to carry (its own schema comment says as much).
+    logger.info('Company permanently deleted', {
       category: 'danger',
       details: { userId: user.id, companyId },
     });
-    throw new NotImplementedException(
-      'Full reset is not implemented yet. Nothing was deleted. Use "Reset app data" to clear documents for this company.',
-    );
+    return { message: 'Company deleted successfully' };
   }
 }

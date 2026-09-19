@@ -12,7 +12,7 @@
  * The hash ITSELF is still what makes a re-upload of the EXACT SAME file idempotent (same path,
  * overwritten with byte-identical content) — company scoping adds isolation, not extra dedup logic.
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
 /** Root of the inbound-file store. `DOCUMENTS_INBOUND_DIR` if set (tests repoint it under
@@ -101,4 +101,17 @@ export function readInboundFile(companyId: string, sha256: string, mime: string)
   } catch {
     return null;
   }
+}
+
+/** Deletes every inbound file this company has ever stored in ONE call — received-invoice deposits
+ *  AND expense attachments alike, since both go through this exact same content-hash-addressed store
+ *  (see this file's own header) under the SAME `<root>/<companyId>` directory. Used only by
+ *  `danger/danger.service.ts#resetCompanyData` ("reset this company's data" keeps the company but
+ *  wipes everything it uploaded); nothing else in this codebase ever deletes a company's own files.
+ *  `force: true` makes a company that never uploaded anything (no directory to remove) a silent
+ *  no-op rather than an error — the same "a missing artifact is a fact, not a failure" posture
+ *  `archive/storage.ts`'s own delete/read functions already hold. */
+export function deleteInboundFilesForCompany(companyId: string): void {
+  const root = resolve(inboundRoot(), companyId);
+  rmSync(root, { recursive: true, force: true });
 }

@@ -1,15 +1,7 @@
-/**
- * F-011 / F-012 — an operation must not report success it did not perform, and the code
- * authorising a destructive action must reach the person requesting it.
- *
- * Also covers the OTP hardening this service used to be missing relative to
- * `documents/signatures/otp.ts` (the model this now reuses instead of a second, home-grown scheme):
- * per-company scoping (one company's mint must never affect another's), a lifetime failed-attempt
- * lock, and the code never being readable back in the clear once stored.
- */
-import { BadRequestException, NotImplementedException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException } from '@nestjs/common';
 import { NO_MAIL_SERVER_CONFIGURED_MESSAGE } from '@/mail/mail.service';
-import { DangerService } from './danger.service';
+import { PolarCancellationFailedError } from '@/modules/billing/deletion';
+import { DangerService, RETENTION_BLOCKED } from './danger.service';
 
 /** A minimal, in-memory stand-in for `prisma.dangerOtp` — just enough of Prisma's own API surface
  *  (`findUnique`, `upsert`, `updateMany`, `findUniqueOrThrow`, `deleteMany`) for
@@ -95,29 +87,115 @@ function fakeDangerOtpTable() {
   };
 }
 
+/** Every company-scoped table `resetCompanyData` touches, defaulted to "nothing to count, nothing to
+ *  delete" — a test overrides only the ONE mock its own scenario cares about. `count`/`findMany`
+ *  default to empty results (never blocked, nothing to report); `deleteMany` records its own calls
+ *  in `deleteCalls` (table name + `where`) so a test can assert exactly which tables were touched and
+ *  with what scope, without re-deriving Jest's own verbose `toHaveBeenCalledWith` per table. */
+function fakeScopedTable(deleteCalls: { table: string; where: unknown }[], name: string) {
+  return {
+    count: jest.fn().mockResolvedValue(0),
+    findMany: jest.fn().mockResolvedValue([]),
+    deleteMany: jest.fn((args: { where: unknown }) => {
+      deleteCalls.push({ table: name, where: args.where });
+      return Promise.resolve({ count: 0 });
+    }),
+  };
+}
+
 let fakeTable: ReturnType<typeof fakeDangerOtpTable>;
+let deleteCalls: { table: string; where: unknown }[];
+let prismaMock: {
+  dangerOtp: ReturnType<typeof fakeDangerOtpTable>;
+  company: { findUnique: jest.Mock };
+  documentArchive: ReturnType<typeof fakeScopedTable> & { findMany: jest.Mock };
+  documentInstance: ReturnType<typeof fakeScopedTable>;
+  documentSchedule: ReturnType<typeof fakeScopedTable>;
+  documentNumberSequence: ReturnType<typeof fakeScopedTable>;
+  client: ReturnType<typeof fakeScopedTable>;
+  article: ReturnType<typeof fakeScopedTable>;
+  project: ReturnType<typeof fakeScopedTable>;
+  timeEntry: ReturnType<typeof fakeScopedTable>;
+  bankStatement: ReturnType<typeof fakeScopedTable>;
+  webhook: { deleteMany: jest.Mock };
+  mailTemplate: { deleteMany: jest.Mock };
+  $transaction: jest.Mock;
+};
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   get default() {
-    return {
-      dangerOtp: fakeTable,
-      company: { deleteMany: jest.fn() },
-      mailTemplate: { deleteMany: jest.fn() },
-      client: { deleteMany: jest.fn() },
-    };
+    return prismaMock;
   },
 }));
 jest.mock('@/logger/logger.service', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-const USER = { id: 'u1', email: 'requester@example.test' } as never;
+const deleteArchivedArtifacts = jest.fn().mockResolvedValue(undefined);
+jest.mock('@/modules/documents/archive/storage', () => ({
+  deleteArchivedArtifacts: (...args: unknown[]) => deleteArchivedArtifacts(...args),
+}));
+
+const deleteInboundFilesForCompany = jest.fn();
+jest.mock('@/modules/documents/received-invoices/storage', () => ({
+  deleteInboundFilesForCompany: (...args: unknown[]) => deleteInboundFilesForCompany(...args),
+}));
+
+const deleteCompanyPermanentlyNow = jest.fn().mockResolvedValue(undefined);
+jest.mock('@/modules/billing/deletion', () => {
+  const actual = jest.requireActual('@/modules/billing/deletion');
+  return {
+    ...actual,
+    deleteCompanyPermanentlyNow: (...args: unknown[]) => deleteCompanyPermanentlyNow(...args),
+  };
+});
+
+const USER_EMAIL = 'requester@example.test';
+const USER = { id: 'u1', email: USER_EMAIL } as never;
 
 function build() {
   fakeTable = fakeDangerOtpTable();
+  deleteCalls = [];
+  prismaMock = {
+    dangerOtp: fakeTable,
+    company: { findUnique: jest.fn().mockResolvedValue({ name: 'Acme Corp' }) },
+    documentArchive: { ...fakeScopedTable(deleteCalls, 'documentArchive'), findMany: jest.fn() },
+    documentInstance: fakeScopedTable(deleteCalls, 'documentInstance'),
+    documentSchedule: fakeScopedTable(deleteCalls, 'documentSchedule'),
+    documentNumberSequence: fakeScopedTable(deleteCalls, 'documentNumberSequence'),
+    client: fakeScopedTable(deleteCalls, 'client'),
+    article: fakeScopedTable(deleteCalls, 'article'),
+    project: fakeScopedTable(deleteCalls, 'project'),
+    timeEntry: fakeScopedTable(deleteCalls, 'timeEntry'),
+    bankStatement: fakeScopedTable(deleteCalls, 'bankStatement'),
+    webhook: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    mailTemplate: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    $transaction: jest.fn((arg: unknown) =>
+      typeof arg === 'function'
+        ? (arg as (tx: unknown) => unknown)(prismaMock)
+        : Promise.all(arg as Promise<unknown>[]),
+    ),
+  };
+  // `documentArchive.findMany` answers TWO different queries in `resetCompanyData` — the retention
+  // check (`where.retentionUntil` set) and the pre-transaction "collect every uri to delete"
+  // read (`where` is just `{ companyId }`) — a single mock tells them apart by that shape, exactly
+  // once, rather than every test having to know the call ORDER.
+  prismaMock.documentArchive.findMany.mockImplementation((args: { where: { retentionUntil?: unknown } }) =>
+    Promise.resolve(args.where.retentionUntil ? [] : []),
+  );
+
+  deleteArchivedArtifacts.mockClear().mockResolvedValue(undefined);
+  deleteInboundFilesForCompany.mockClear();
+  deleteCompanyPermanentlyNow.mockClear().mockResolvedValue(undefined);
+
   const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
-  return { service: new DangerService(mailService as never), mailService };
+  const exportService = { buildCompanyZip: jest.fn().mockResolvedValue(Buffer.from('zip-bytes')) };
+  return {
+    service: new DangerService(mailService as never, exportService as never),
+    mailService,
+    exportService,
+  };
 }
 
 async function requestAndExtractOtp(
@@ -141,7 +219,6 @@ describe('DangerService — F-012: the OTP reaches the requester', () => {
     expect(companyId).toBe('co-1');
     expect(to).toBe('requester@example.test');
     expect(to).not.toBe(process.env.SMTP_FROM);
-    // The body must not announce a delivery that did not happen.
     expect(text).not.toContain('was sent to');
   });
 
@@ -157,13 +234,13 @@ describe('DangerService — F-012: the OTP reaches the requester', () => {
     'rethrows the NAMED "no mail server configured" refusal VERBATIM — never the generic ' +
       '"check your SMTP configuration" wrapper',
     async () => {
+      build();
       const mailService = {
         sendForCompany: jest
           .fn()
           .mockRejectedValue(new BadRequestException(NO_MAIL_SERVER_CONFIGURED_MESSAGE)),
       };
-      fakeTable = fakeDangerOtpTable();
-      const service = new DangerService(mailService as never);
+      const service = new DangerService(mailService as never, { buildCompanyZip: jest.fn() } as never);
 
       const action = service.requestOtp(USER, 'co-1');
 
@@ -173,9 +250,9 @@ describe('DangerService — F-012: the OTP reaches the requester', () => {
   );
 
   it('collapses any OTHER provider error into the generic message — never the raw provider error', async () => {
+    build();
     const mailService = { sendForCompany: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
-    fakeTable = fakeDangerOtpTable();
-    const service = new DangerService(mailService as never);
+    const service = new DangerService(mailService as never, { buildCompanyZip: jest.fn() } as never);
 
     await expect(service.requestOtp(USER, 'co-1')).rejects.toThrow(
       'Failed to send OTP email. Please check your SMTP configuration.',
@@ -206,7 +283,9 @@ describe('DangerService — OTP hardening', () => {
 
     // Company A's own code, verified against company A, must still work — it was never overwritten
     // by company B's own mint (the exact cross-tenant collision the old process-wide singleton had).
-    await expect(service.resetAll(USER, 'company-a', codeA)).rejects.toBeInstanceOf(NotImplementedException);
+    await expect(service.resetCompanyData(USER, 'company-a', codeA)).resolves.toMatchObject({
+      message: expect.any(String),
+    });
   });
 
   it("refuses company B's OTP when checked against company A — no cross-tenant replay", async () => {
@@ -214,7 +293,9 @@ describe('DangerService — OTP hardening', () => {
     await requestAndExtractOtp(service, mailService, 'company-a');
     const codeB = await requestAndExtractOtp(service, mailService, 'company-b');
 
-    await expect(service.resetAll(USER, 'company-a', codeB)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.resetCompanyData(USER, 'company-a', codeB)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('locks the company out permanently after MAX_FAILED_ATTEMPTS wrong guesses', async () => {
@@ -223,7 +304,9 @@ describe('DangerService — OTP hardening', () => {
 
     // Five wrong guesses (MAX_FAILED_ATTEMPTS, documents/signatures/otp.ts) exhaust the lifetime budget.
     for (let i = 0; i < 5; i++) {
-      await expect(service.resetAll(USER, 'co-1', '00000000')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.resetCompanyData(USER, 'co-1', '00000000')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     }
 
     expect(fakeTable.rows.get('co-1')!.lockedAt).not.toBeNull();
@@ -235,31 +318,215 @@ describe('DangerService — OTP hardening', () => {
   it('does not count a SUCCESSFUL verification toward the failed-attempt budget', async () => {
     const { service, mailService } = build();
     const code = await requestAndExtractOtp(service, mailService, 'co-1');
-    await service.resetAll(USER, 'co-1', code).catch(() => undefined); // NotImplementedException, but consumes the code
+    await service.resetCompanyData(USER, 'co-1', code);
 
     expect(fakeTable.rows.has('co-1')).toBe(false); // cleared, not locked
   });
 });
 
-describe('DangerService — F-011: resetAll does not claim a deletion it never performs', () => {
-  it('throws NotImplementedException instead of returning success', async () => {
+describe('DangerService#resetCompanyData — retention block', () => {
+  it('refuses (409, RETENTION_BLOCKED) while a document is still under legal retention — nothing deleted', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    const future = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    prismaMock.documentArchive.findMany.mockImplementation((args: { where: { retentionUntil?: unknown } }) =>
+      Promise.resolve(
+        args.where.retentionUntil
+          ? [{ documentId: 'doc-1', retentionUntil: future }]
+          : [{ uri: 'file:///should-never-be-read' }],
+      ),
+    );
+
+    const err = await service.resetCompanyData(USER, 'co-1', otp).catch((e) => e);
+
+    expect(err).toBeInstanceOf(ConflictException);
+    expect(err.getResponse()).toMatchObject({ code: RETENTION_BLOCKED, retainedDocuments: 1 });
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('counts DISTINCT documents, not archive rows — a re-sent document with two retained archives counts once', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    const future = new Date(Date.now() + 1000 * 60 * 60);
+    prismaMock.documentArchive.findMany.mockImplementation((args: { where: { retentionUntil?: unknown } }) =>
+      Promise.resolve(
+        args.where.retentionUntil
+          ? [
+              { documentId: 'doc-1', retentionUntil: future },
+              { documentId: 'doc-1', retentionUntil: future },
+            ]
+          : [],
+      ),
+    );
+
+    const err = await service.resetCompanyData(USER, 'co-1', otp).catch((e) => e);
+    expect(err.getResponse()).toMatchObject({ retainedDocuments: 1 });
+  });
+});
+
+describe('DangerService#resetCompanyData — scoped deletion, config kept', () => {
+  it('deletes every operational table scoped to THIS company, in one transaction', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'target-co');
+
+    await service.resetCompanyData(USER, 'target-co', otp);
+
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    const touchedTables = deleteCalls.map((c) => c.table).sort();
+    expect(touchedTables).toEqual(
+      [
+        'article',
+        'bankStatement',
+        'client',
+        'documentInstance',
+        'documentNumberSequence',
+        'documentSchedule',
+        'project',
+        'timeEntry',
+      ].sort(),
+    );
+    for (const call of deleteCalls) {
+      expect(call.where).toEqual({ companyId: 'target-co' });
+    }
+  });
+
+  it("never touches another company's rows — resetting company A leaves company B's scope untouched", async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'company-a');
+
+    await service.resetCompanyData(USER, 'company-a', otp);
+
+    for (const call of deleteCalls) {
+      expect((call.where as { companyId: string }).companyId).toBe('company-a');
+      expect((call.where as { companyId: string }).companyId).not.toBe('company-b');
+    }
+  });
+
+  it('never deletes Webhook, MailTemplate, or the Company row itself — configuration survives', async () => {
     const { service, mailService } = build();
     const otp = await requestAndExtractOtp(service, mailService, 'co-1');
 
-    await expect(service.resetAll(USER, 'co-1', otp)).rejects.toBeInstanceOf(NotImplementedException);
+    await service.resetCompanyData(USER, 'co-1', otp);
+
+    expect(prismaMock.webhook.deleteMany).not.toHaveBeenCalled();
+    expect(prismaMock.mailTemplate.deleteMany).not.toHaveBeenCalled();
+    expect(deleteCalls.some((c) => c.table === 'company')).toBe(false);
   });
 
-  it('still rejects an invalid code before anything else', async () => {
-    const { service } = build();
-    await expect(service.resetAll(USER, 'co-1', '00000000')).rejects.toBeInstanceOf(BadRequestException);
+  it('deletes every archived artifact and every inbound file AFTER the transaction commits', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    prismaMock.documentArchive.findMany.mockImplementation((args: { where: { retentionUntil?: unknown } }) =>
+      Promise.resolve(args.where.retentionUntil ? [] : [{ uri: 'file:///a' }, { uri: 'file:///b' }]),
+    );
+
+    await service.resetCompanyData(USER, 'co-1', otp);
+
+    expect(deleteArchivedArtifacts).toHaveBeenCalledWith('file:///a');
+    expect(deleteArchivedArtifacts).toHaveBeenCalledWith('file:///b');
+    expect(deleteInboundFilesForCompany).toHaveBeenCalledWith('co-1');
   });
 
-  it('consumes the code: a second use of the same OTP is refused', async () => {
+  it('a storage failure is logged, not thrown — the DB reset already succeeded and must be reported as such', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    prismaMock.documentArchive.findMany.mockImplementation((args: { where: { retentionUntil?: unknown } }) =>
+      Promise.resolve(args.where.retentionUntil ? [] : [{ uri: 'file:///a' }]),
+    );
+    deleteArchivedArtifacts.mockRejectedValueOnce(new Error('disk full'));
+
+    await expect(service.resetCompanyData(USER, 'co-1', otp)).resolves.toMatchObject({
+      message: expect.any(String),
+    });
+  });
+});
+
+describe('DangerService#deleteCompany — reuses the SaaS export + deletion path', () => {
+  it('builds the export, e-mails it to the ACTING user, then deletes the company — in that order', async () => {
+    const { service, mailService, exportService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    const order: string[] = [];
+    exportService.buildCompanyZip.mockImplementation(async () => {
+      order.push('export');
+      return Buffer.from('zip');
+    });
+    mailService.sendForCompany.mockImplementation(async () => {
+      order.push('mail');
+    });
+    deleteCompanyPermanentlyNow.mockImplementation(async () => {
+      order.push('delete');
+    });
+
+    const result = await service.deleteCompany(USER, 'co-1', otp, 'Acme Corp');
+
+    expect(order).toEqual(['export', 'mail', 'delete']);
+    expect(exportService.buildCompanyZip).toHaveBeenCalledWith('co-1');
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'co-1',
+      expect.objectContaining({
+        to: USER_EMAIL,
+        attachments: [expect.objectContaining({ filename: 'invoicerr-export.zip' })],
+      }),
+    );
+    expect(deleteCompanyPermanentlyNow).toHaveBeenCalledWith('co-1');
+    expect(result).toMatchObject({ message: expect.any(String) });
+  });
+
+  it('refuses when the typed company name does not match — nothing exported, nothing deleted', async () => {
+    const { service, mailService, exportService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+
+    await expect(service.deleteCompany(USER, 'co-1', otp, 'Wrong Name Inc')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(exportService.buildCompanyZip).not.toHaveBeenCalled();
+    expect(deleteCompanyPermanentlyNow).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the export cannot be built — nothing is deleted without a last copy', async () => {
+    const { service, mailService, exportService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    exportService.buildCompanyZip.mockRejectedValue(new Error('export too large'));
+
+    await expect(service.deleteCompany(USER, 'co-1', otp, 'Acme Corp')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(deleteCompanyPermanentlyNow).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the export cannot be e-mailed — nothing is deleted without confirming delivery', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    mailService.sendForCompany.mockRejectedValue(new Error('SMTP timeout'));
+
+    await expect(service.deleteCompany(USER, 'co-1', otp, 'Acme Corp')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(deleteCompanyPermanentlyNow).not.toHaveBeenCalled();
+  });
+
+  it('refuses (never deletes) when the Polar subscription cannot be cancelled', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    deleteCompanyPermanentlyNow.mockRejectedValue(
+      new PolarCancellationFailedError('co-1', new Error('down')),
+    );
+
+    await expect(service.deleteCompany(USER, 'co-1', otp, 'Acme Corp')).rejects.toBeInstanceOf(
+      BadGatewayException,
+    );
+  });
+
+  it('self-hosted without billing: the exact same call, deleteCompanyPermanentlyNow itself skips Polar', async () => {
+    // `deleteCompanyPermanentlyNow` is mocked here (see this file's own `jest.mock` above) — its own
+    // "no CompanySubscription row => never call Polar" behavior is proven directly by
+    // `billing/deletion.spec.ts`. This test only proves `deleteCompany` calls it the SAME way
+    // regardless of hosting mode — no self-hosted-specific branch exists in this service at all.
     const { service, mailService } = build();
     const otp = await requestAndExtractOtp(service, mailService, 'co-1');
 
-    await expect(service.resetAll(USER, 'co-1', otp)).rejects.toBeInstanceOf(NotImplementedException);
-    // resetAll clears the OTP before throwing, so replaying it must now fail the code check.
-    await expect(service.resetAll(USER, 'co-1', otp)).rejects.toBeInstanceOf(BadRequestException);
+    await service.deleteCompany(USER, 'co-1', otp, 'Acme Corp');
+
+    expect(deleteCompanyPermanentlyNow).toHaveBeenCalledTimes(1);
   });
 });

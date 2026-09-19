@@ -70,6 +70,11 @@ spec:
               value: {{ .Values.app.appUrl | quote }}
             - name: CORS_ORIGINS
               value: {{ .Values.app.corsOrigins | quote }}
+            # Instance-operator allowlist (backend/src/lib/instance-operators.ts) — API-role only,
+            # like the rest of this file's env: the instance-reset routes it gates live on
+            # InstanceController (HTTP), never on the worker.
+            - name: INSTANCE_OPERATOR_EMAILS
+              value: {{ .Values.app.instanceOperatorEmails | quote }}
 
             # BETTER_AUTH_SECRET — REQUIRED. Signs every session cookie/JWT; the backend refuses to
             # boot in production without it.
