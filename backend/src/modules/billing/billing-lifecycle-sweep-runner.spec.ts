@@ -8,7 +8,7 @@ import { reconcileMissingCompanyCustomers } from './customer-provisioning';
 import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 import { deleteCompanyPermanently } from './deletion';
 import { ExportZipTooLargeError } from './export-zip.service';
-import { addDays, BLOCKED_DAYS, PAID_ZIP_GRACE_DAYS } from './lifecycle';
+import { addDays, BLOCKED_DAYS, MIN_RETRIEVAL_DAYS, PAID_ZIP_GRACE_DAYS } from './lifecycle';
 import { reconcileCompanySeats } from './seat-reconcile';
 
 jest.mock('@/prisma/prisma.service', () => ({
@@ -182,7 +182,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     );
     expect(updateMany).toHaveBeenCalledWith({
       where: { companyId: 'c1', status: 'BLOCKED', lastPolarFactAt: null },
-      data: { status: 'ZIPPED', zipSentAt: NOW, deletionDueAt: NOW },
+      data: { status: 'ZIPPED', zipSentAt: NOW, deletionDueAt: addDays(NOW, MIN_RETRIEVAL_DAYS) },
     });
   });
 
@@ -609,12 +609,36 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       );
     });
 
-    it('a never-paid company approaching immediate ZIPPED→deleted never gets a zipped warning (no real grace window)', async () => {
+    it('sends the zipped_d1 deletion warning for a never-paid company nearing its own 30-day floor too', async () => {
+      const zipSentAt = addDays(NOW, -(MIN_RETRIEVAL_DAYS - 1));
+      const deletionDueAt = addDays(zipSentAt, MIN_RETRIEVAL_DAYS);
+      listSubs.mockResolvedValue([
+        subRow({
+          status: 'ZIPPED',
+          zipSentAt,
+          deletionDueAt,
+          blockedAt: addDays(zipSentAt, -14),
+          billingWarningMilestonesSent: ['blocked_d7', 'blocked_d1', 'zipped_d7'],
+        }),
+      ]);
+      findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
+      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendMail }));
+
+      const result = await runner.runSweep(NOW);
+
+      expect(result.warningsSent).toBe(1);
+      expect(sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({ subject: expect.stringMatching(/permanently deleted/i) }),
+      );
+    });
+
+    it('a row somehow written with a sub-7-day window (should not happen) never gets a zipped warning', async () => {
       listSubs.mockResolvedValue([
         subRow({
           status: 'ZIPPED',
           zipSentAt: NOW,
-          deletionDueAt: NOW, // no grace — matches the never-paid cycle exactly
+          deletionDueAt: NOW, // defensive case — see lifecycle.ts's own `hasRealZippedGraceWindow` comment
           blockedAt: addDays(NOW, -14),
         }),
       ]);

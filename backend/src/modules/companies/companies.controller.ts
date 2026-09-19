@@ -1,5 +1,6 @@
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, Res } from '@nestjs/common';
+import { Response } from 'express';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompaniesService } from './companies.service';
@@ -85,6 +86,43 @@ export class CompaniesController {
     @Body() body: { role: CompanyRole },
   ) {
     return this.companiesService.changeMemberRole(companyId, userId, body.role);
+  }
+
+  @Post('export')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
+  @ApiOperation({
+    summary: 'Export everything the active company holds',
+    description:
+      'Self-service full data export (every document the company holds, its stored fields plus a ' +
+      'rendered PDF where one can be produced) — the same archive the hosted-billing lifecycle sweep ' +
+      'already mails an OWNER automatically, available on demand instead of waiting for that or ' +
+      'writing to support. OWNER/ADMIN only, rate-limited per company (see the 429 response below). ' +
+      'A small export streams back directly; a large one is emailed to the caller instead.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Zip streamed directly',
+    schema: { type: 'string', format: 'binary' },
+  })
+  @ApiResponse({ status: 202, description: 'Export built and emailed to the caller instead' })
+  @ApiResponse({ status: 429, description: 'Rate-limited — retry after the window named in the response' })
+  async exportData(
+    @ActiveCompany() companyId: string,
+    @User() user: CurrentUser,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.companiesService.exportCompanyData(companyId, user.email);
+    if (result.mode === 'stream') {
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="invoicerr-export.zip"');
+      res.status(200).send(result.zip);
+      return;
+    }
+    res.status(202).json({
+      message: `Your export was too large to download directly — it was emailed to ${result.to}.`,
+      deliveredTo: result.to,
+    });
   }
 
   @Delete('members/:userId')

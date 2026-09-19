@@ -13,6 +13,7 @@ import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
 import { fromMinor, toMinor } from "@/components/documents/totals-calculator"
 import CurrencyRatesSettings from "./currency-rates.settings"
+import DataExportSettings from "./data-export.settings"
 import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import {
@@ -1449,6 +1450,9 @@ export default function CompanySettings() {
 
         <div className="mt-2">
           <CurrencyRatesSettings />
+        </div>
+        <div className="mt-2">
+          <DataExportSettings />
         </div>
       </Form>
     </SettingsPage>

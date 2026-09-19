@@ -1,5 +1,6 @@
 import {
   BLOCKED_DAYS,
+  MIN_RETRIEVAL_DAYS,
   PAID_ZIP_GRACE_DAYS,
   TRIAL_DAYS,
   addDays,
@@ -83,12 +84,12 @@ describe('computeLifecycleTransition — blocked, never-paid cycle (polarSubscri
     expect(computeLifecycleTransition(sub, new Date(zipDueAt.getTime() - 1))).toEqual({ type: 'none' });
   });
 
-  it('sends the zip exactly at the 14-day mark, with an IMMEDIATE deletionDueAt (no grace)', () => {
+  it('sends the zip exactly at the 14-day mark, with a 30-day deletionDueAt (the statutory floor)', () => {
     const sub = facts({ status: 'BLOCKED', blockedAt, polarSubscriptionId: null });
     expect(computeLifecycleTransition(sub, zipDueAt)).toEqual({
       type: 'send_zip_and_enter_zipped',
       zipSentAt: zipDueAt,
-      deletionDueAt: zipDueAt,
+      deletionDueAt: addDays(zipDueAt, MIN_RETRIEVAL_DAYS),
     });
   });
 
@@ -112,17 +113,18 @@ describe('computeLifecycleTransition — blocked, paid-then-stopped cycle (polar
   });
 });
 
-describe('computeLifecycleTransition — zipped, never-paid cycle (deletionDueAt == zipSentAt)', () => {
-  it('does not delete before deletionDueAt (defensive — should not normally be reachable)', () => {
-    const zipSentAt = T0;
-    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt: zipSentAt, polarSubscriptionId: null });
-    expect(computeLifecycleTransition(sub, new Date(zipSentAt.getTime() - 1))).toEqual({ type: 'none' });
+describe('computeLifecycleTransition — zipped, never-paid cycle (30-day statutory floor)', () => {
+  const zipSentAt = T0;
+  const deletionDueAt = addDays(zipSentAt, MIN_RETRIEVAL_DAYS);
+
+  it('does nothing one millisecond before the 30-day mark', () => {
+    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt, polarSubscriptionId: null });
+    expect(computeLifecycleTransition(sub, new Date(deletionDueAt.getTime() - 1))).toEqual({ type: 'none' });
   });
 
-  it('deletes on the very next tick (deletionDueAt == zipSentAt)', () => {
-    const zipSentAt = T0;
-    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt: zipSentAt, polarSubscriptionId: null });
-    expect(computeLifecycleTransition(sub, zipSentAt)).toEqual({ type: 'delete_company' });
+  it('deletes exactly at the 30-day mark', () => {
+    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt, polarSubscriptionId: null });
+    expect(computeLifecycleTransition(sub, deletionDueAt)).toEqual({ type: 'delete_company' });
   });
 });
 
@@ -208,9 +210,20 @@ describe('computeDueBillingWarnings — OWNER warning-email milestones', () => {
     ).toEqual(['zipped_d7', 'zipped_d1']);
   });
 
-  it('a never-paid company (deletionDueAt == zipSentAt, no 7-day grace at all) never owes a ZIPPED warning', () => {
+  it('a never-paid company also gets zipped_d7/zipped_d1, counted off its own 30-day floor', () => {
     const zipSentAt = T0;
-    const deletionDueAt = T0; // no grace — deletionDueAt was set to zipSentAt itself
+    const deletionDueAt = addDays(zipSentAt, MIN_RETRIEVAL_DAYS);
+    expect(
+      computeDueBillingWarnings(
+        { status: 'ZIPPED', blockedAt: null, zipSentAt, deletionDueAt },
+        deletionDueAt,
+      ),
+    ).toEqual(['zipped_d7', 'zipped_d1']);
+  });
+
+  it('a row somehow written with a sub-7-day window (should not happen) never owes a ZIPPED warning', () => {
+    const zipSentAt = T0;
+    const deletionDueAt = addDays(zipSentAt, 3); // defensive case — see hasRealZippedGraceWindow's own comment
     expect(
       computeDueBillingWarnings(
         { status: 'ZIPPED', blockedAt: null, zipSentAt, deletionDueAt },

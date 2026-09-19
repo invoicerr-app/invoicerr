@@ -1,11 +1,43 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
 import { EditCompanyDto } from '@/modules/company/dto/company.dto';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
+import {
+  BillingExportService,
+  ExportZipTimedOutError,
+  ExportZipTooLargeError,
+} from '@/modules/billing/export-zip.service';
+import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+
+/** How long a company must wait between two self-service exports (`exportCompanyData` below) —
+ *  building one means rendering EVERY document the company holds through Chromium
+ *  (`export-zip.service.ts`'s own header), up to its own 5-minute cap: long enough that a double
+ *  click or an impatient retry loop cannot force back-to-back full rebuilds, short enough that an
+ *  OWNER who genuinely needs a second copy is never blocked for long. */
+export const SELF_SERVICE_EXPORT_COOLDOWN_MINUTES = 15;
+
+/** Above this many compressed bytes, the export is emailed instead of streamed back in the HTTP
+ *  response (`exportCompanyData` below) — a large zip built through a slow upstream proxy risks the
+ *  connection dying mid-download with nothing to resume from, while a small one is nicer served
+ *  straight to the browser: no inbox to go check, no attachment size limit to worry about. */
+export const SELF_SERVICE_EXPORT_STREAM_THRESHOLD_BYTES = 5 * 1024 * 1024; // 5 MiB
+
+/** Named so the frontend can branch on it without string-matching the message — same convention as
+ *  `LAST_OWNER_CANNOT_LEAVE_CODE` above. */
+export const SELF_SERVICE_EXPORT_RATE_LIMITED_CODE = 'SELF_SERVICE_EXPORT_RATE_LIMITED';
+
+export type ExportCompanyDataResult = { mode: 'stream'; zip: Buffer } | { mode: 'emailed'; to: string };
 
 /** Named so the frontend can branch on it without string-matching the (English, translated-nowhere)
  *  message — same convention as `write-gate.ts#COMPANY_BLOCKED` and `account-lifecycle.ts`'s own
@@ -18,7 +50,11 @@ export const LAST_OWNER_CANNOT_LEAVE_CODE = 'LAST_OWNER_CANNOT_LEAVE';
 
 @Injectable()
 export class CompaniesService {
-  constructor(private readonly companyService: CompanyService) {}
+  constructor(
+    private readonly companyService: CompanyService,
+    private readonly exportService: BillingExportService,
+    private readonly mailService: MailService,
+  ) {}
 
   async createCompany(userId: string, dto: EditCompanyDto) {
     return this.companyService.createCompany(userId, dto);
@@ -148,6 +184,108 @@ export class CompaniesService {
     logger.info('Member left company', { category: 'companies', details: { companyId, userId } });
 
     return { success: true };
+  }
+
+  /**
+   * The self-service counterpart of the export the billing lifecycle sweep already mails an OWNER
+   * automatically once a subscription is blocked (`billing-lifecycle-sweep-runner.ts#sendZipToOwner`)
+   * and `danger.service.ts#deleteCompany` sends before an irreversible delete — a company must not
+   * have to write to support just to get a copy of everything it holds. Reuses
+   * `BillingExportService.buildCompanyZip` verbatim (same bounds, same per-document PDF-or-JSON
+   * fallback) rather than a second export path that could drift from the one already proven by the
+   * billing sweep's own tests.
+   *
+   * Rate-limited with a compare-and-set `updateMany` claimed BEFORE the expensive build even starts —
+   * the same CAS discipline `billing-lifecycle-sweep-runner.ts#applyOne` already uses against a
+   * concurrent WEBHOOK, reused here against a concurrent REQUEST (a double click, e.g.): two calls
+   * racing each other can never both pass, because the second one's `WHERE` no longer matches once the
+   * first has already written `now`. The slot is spent even if the build itself later fails — building
+   * is the costly step this cooldown exists to bound, not the delivery that follows it, so a company
+   * whose build failed still has to wait out the same window before hammering it again.
+   */
+  async exportCompanyData(companyId: string, requestedByEmail: string): Promise<ExportCompanyDataResult> {
+    await this.claimExportSlot(companyId);
+
+    let zip: Buffer;
+    try {
+      zip = await this.exportService.buildCompanyZip(companyId);
+    } catch (error) {
+      if (error instanceof ExportZipTooLargeError || error instanceof ExportZipTimedOutError) {
+        logger.error('Self-service export refused — exceeded its size/time bound', {
+          category: 'companies',
+          details: { companyId, error: error.message },
+        });
+        throw new BadRequestException(
+          'Your company has too much data to export this way right now — contact support for a ' +
+            'manual export.',
+        );
+      }
+      throw error;
+    }
+
+    if (zip.length <= SELF_SERVICE_EXPORT_STREAM_THRESHOLD_BYTES) {
+      return { mode: 'stream', zip };
+    }
+
+    try {
+      // To the REQUESTING user's own inbox, not "the oldest OWNER" the automated sweep addresses
+      // (`billing-lifecycle-sweep-runner.ts#findOldestOwnerEmail`) — this call has a real,
+      // already-authenticated caller in hand, the same choice `danger.service.ts#deleteCompany`
+      // already makes for its own export mail.
+      await this.mailService.sendForCompany(companyId, {
+        to: requestedByEmail,
+        subject: 'Your company data export',
+        text:
+          'Attached is a full export of everything your company holds on Invoicerr, as you just ' +
+          'requested.',
+        attachments: [{ filename: 'invoicerr-export.zip', content: zip, contentType: 'application/zip' }],
+      });
+    } catch (error) {
+      if (error instanceof HttpException) throw error; // e.g. the "no mail server configured" refusal
+      logger.error('Self-service export was built but could not be emailed', {
+        category: 'companies',
+        details: { companyId, error: error instanceof Error ? error.message : String(error) },
+      });
+      throw new BadRequestException('Your export was built but could not be emailed — try again shortly.');
+    }
+
+    return { mode: 'emailed', to: requestedByEmail };
+  }
+
+  /** Atomically claims this company's export slot, or refuses with 429 when the cooldown has not
+   *  elapsed yet — see `exportCompanyData`'s own header for why this runs BEFORE the build. */
+  private async claimExportSlot(companyId: string): Promise<void> {
+    const now = new Date();
+    const cooldownStartedAt = new Date(now.getTime() - SELF_SERVICE_EXPORT_COOLDOWN_MINUTES * 60_000);
+
+    const claimed = await prisma.company.updateMany({
+      where: {
+        id: companyId,
+        OR: [{ lastSelfServiceExportAt: null }, { lastSelfServiceExportAt: { lt: cooldownStartedAt } }],
+      },
+      data: { lastSelfServiceExportAt: now },
+    });
+    if (claimed.count > 0) return;
+
+    const current = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { lastSelfServiceExportAt: true },
+    });
+    const retryAt = current?.lastSelfServiceExportAt
+      ? new Date(current.lastSelfServiceExportAt.getTime() + SELF_SERVICE_EXPORT_COOLDOWN_MINUTES * 60_000)
+      : now;
+    const retryAfterSeconds = Math.max(1, Math.ceil((retryAt.getTime() - now.getTime()) / 1000));
+
+    throw new HttpException(
+      {
+        message:
+          `You can only export your company's full data once every ` +
+          `${SELF_SERVICE_EXPORT_COOLDOWN_MINUTES} minutes — try again shortly.`,
+        code: SELF_SERVICE_EXPORT_RATE_LIMITED_CODE,
+        retryAfterSeconds,
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   private async ownerCount(companyId: string): Promise<number> {

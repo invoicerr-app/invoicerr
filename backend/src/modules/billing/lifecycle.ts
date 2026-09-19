@@ -8,7 +8,7 @@
  *
  *  1. NEVER-PAID: `trial` (14 days, EVERYTHING allowed except actually sending — see
  *     `send-gate.ts#assertCanSend`) --[trialEndsAt reached]--> `blocked` (14 days, read-only, every
- *     action refused) --[14 days elapse]--> zip sent, `zipped` --[next sweep tick]--> deleted.
+ *     action refused) --[14 days elapse]--> zip sent, `zipped` --[30 days elapse]--> deleted.
  *  2. PAID-THEN-STOPPED: `active` --[Polar webhook reports the subscription stopped renewing]-->
  *     `past_due` --[the very next sweep tick, no separate grace window of its own — see below]-->
  *     `blocked` (14 days) --[14 days elapse]--> zip sent, `zipped` --[180 days elapse]--> deleted.
@@ -53,9 +53,14 @@ export interface CompanySubscriptionLifecycleFacts {
 
 export const TRIAL_DAYS = 14;
 export const BLOCKED_DAYS = 14;
-/** Grace period between a PAID company's zip being sent and its real deletion. A never-paid company
- *  gets none (see `LifecycleAction`'s own `send_zip_and_enter_zipped` case below) — deliberate, see
- *  this file's own header. */
+/** Floor on how soon ANY company — paid or not — may be permanently deleted once its archive has been
+ *  emailed out: a company must stay able to retrieve what it was sent for at least this long before
+ *  erasure, and that minimum does not turn on whether the company ever paid. A never-paid company gets
+ *  exactly this many days, never zero; a paid-then-stopped one still gets the much longer
+ *  `PAID_ZIP_GRACE_DAYS` below (a product choice, well past this floor, not the floor itself). */
+export const MIN_RETRIEVAL_DAYS = 30;
+/** Grace period between a PAID company's zip being sent and its real deletion — see
+ *  `MIN_RETRIEVAL_DAYS` above for the shorter floor a never-paid company gets instead. */
 export const PAID_ZIP_GRACE_DAYS = 180;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -103,7 +108,10 @@ export function computeLifecycleTransition(
       if (sub.blockedAt === null) return { type: 'none' };
       const zipDueAt = addDays(sub.blockedAt, BLOCKED_DAYS);
       if (now.getTime() < zipDueAt.getTime()) return { type: 'none' };
-      const deletionDueAt = sub.polarSubscriptionId !== null ? addDays(now, PAID_ZIP_GRACE_DAYS) : now;
+      const deletionDueAt =
+        sub.polarSubscriptionId !== null
+          ? addDays(now, PAID_ZIP_GRACE_DAYS)
+          : addDays(now, MIN_RETRIEVAL_DAYS);
       return { type: 'send_zip_and_enter_zipped', zipSentAt: now, deletionDueAt };
     }
 
@@ -175,13 +183,10 @@ export function computeTrialWindow(startedAt: Date): { trialStartedAt: Date; tri
  *  - `blocked_d7`/`blocked_d1`: 7 and 1 day(s) before `BLOCKED`'s own `send_zip_and_enter_zipped`
  *    transition (day 7 and day 13 of the 14-day BLOCKED window).
  *  - `zipped_d7`/`zipped_d1`: 7 and 1 day(s) before `ZIPPED`'s own `delete_company` transition,
- *    counted back from `deletionDueAt` directly (rather than re-deriving it) since that field is
- *    already the one fact that correctly distinguishes the never-paid (no grace at all — see
- *    `deletionDueAt`'s own comment above) from the paid-then-stopped (180-day grace) cycle: a
- *    never-paid company's `deletionDueAt` equals its own `zipSentAt`, so `zipped_d7`/`zipped_d1` never
- *    become due for it (there is no 7-or-1-day window to warn inside), which is correct — it was
- *    already warned twice, at `blocked_d7`/`blocked_d1`, and the zip mail itself doubles as its own
- *    final notice.
+ *    counted back from `deletionDueAt` directly (rather than re-deriving it) — `deletionDueAt` is
+ *    already the one fact that correctly distinguishes the never-paid (`MIN_RETRIEVAL_DAYS`, 30 days)
+ *    from the paid-then-stopped (`PAID_ZIP_GRACE_DAYS`, 180 days) cycle, so both get their own
+ *    milestones computed the exact same way with no extra branching here.
  */
 export type BillingWarningMilestone = 'blocked_d7' | 'blocked_d1' | 'zipped_d7' | 'zipped_d1';
 
@@ -200,10 +205,12 @@ export interface BillingWarningFacts {
  * Pure, and — like `computeLifecycleTransition` above — never reads the clock itself.
  *
  * `zipped_d7`/`zipped_d1` additionally require a REAL grace window (`deletionDueAt` at least 7 days
- * after `zipSentAt`) — a never-paid company's `deletionDueAt` equals its own `zipSentAt` (no grace at
- * all, see this file's own header), so without this guard both would read as trivially "due" the
- * instant ZIPPED is entered, moments before `delete_company` fires on the very next tick — a warning
- * promising "N days left" when there are none is worse than no warning at all.
+ * after `zipSentAt`) — both cycles legitimately clear this today (`MIN_RETRIEVAL_DAYS` and
+ * `PAID_ZIP_GRACE_DAYS` are each well past a week), so this guard is a defensive invariant rather than
+ * the thing telling the two cycles apart: without it, a row somehow written with a shorter window
+ * would read both milestones as trivially "due" the instant ZIPPED is entered, moments before
+ * `delete_company` fires — a warning promising "N days left" when there are none left is worse than no
+ * warning at all.
  */
 export function computeDueBillingWarnings(sub: BillingWarningFacts, now: Date): BillingWarningMilestone[] {
   const due: BillingWarningMilestone[] = [];

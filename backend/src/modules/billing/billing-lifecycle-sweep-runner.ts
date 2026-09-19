@@ -14,6 +14,7 @@ import { runWithCompanyId } from '@/lib/request-context';
 
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { buildBlockedZipWarningEmail, buildDeletionWarningEmail } from '@/mail/system-email-templates';
+import { mailT } from '@/mail/i18n';
 import { BillingExportService, ExportZipTimedOutError, ExportZipTooLargeError } from './export-zip.service';
 import { computeDueBillingWarnings, computeLifecycleTransition } from './lifecycle';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
@@ -23,6 +24,16 @@ import { deleteCompanyPermanently } from './deletion';
 import { reconcileCompanySeats } from './seat-reconcile';
 import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
+import { DEFAULT_RENDER_LANGUAGE } from '@/modules/documents/rendering/language/supported-languages';
+
+/**
+ * Every mail this runner sends is instance-authored, addressed to a specific OWNER about their own
+ * subscription (`system-email-templates.ts`'s own header on why that is deliberate) — fixed to English
+ * for now, exactly like it always has been. The intended injection point for a future per-operator
+ * `DEFAULT_LOCALE` instance setting: when that setting exists, it replaces this constant, and nothing
+ * else in this file changes.
+ */
+const BILLING_MAIL_LANGUAGE = DEFAULT_RENDER_LANGUAGE;
 
 export interface RunBillingLifecycleSweepResult {
   processed: number;
@@ -292,12 +303,11 @@ export class BillingLifecycleSweepRunner {
 
     try {
       const zip = await this.exportService.buildCompanyZip(companyId);
+      const t = mailT(BILLING_MAIL_LANGUAGE);
       await this.mailService.sendForCompany(companyId, {
         to: ownerMembership,
-        subject: 'Your company data export',
-        text:
-          'Your Invoicerr subscription has been blocked for 14 days. Attached is a full export of ' +
-          "your company's documents. If you do not act, this data will be permanently deleted.",
+        subject: t('dataExport.subject'),
+        text: t('billingZipExport.body'),
         attachments: [{ filename: 'invoicerr-export.zip', content: zip, contentType: 'application/zip' }],
       });
       return true;
@@ -363,8 +373,8 @@ export class BillingLifecycleSweepRunner {
     for (const milestone of due) {
       const daysRemaining = milestone.endsWith('_d7') ? 7 : 1;
       const email = milestone.startsWith('blocked_')
-        ? buildBlockedZipWarningEmail({ appUrl, daysRemaining })
-        : buildDeletionWarningEmail({ appUrl, daysRemaining });
+        ? buildBlockedZipWarningEmail({ appUrl, daysRemaining, language: BILLING_MAIL_LANGUAGE })
+        : buildDeletionWarningEmail({ appUrl, daysRemaining, language: BILLING_MAIL_LANGUAGE });
 
       try {
         await this.mailService.sendMail({
