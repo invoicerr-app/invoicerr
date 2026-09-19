@@ -200,15 +200,19 @@ describe('Authentication E2E', () => {
                 // The sign-in page's own email field fires a real request on blur
                 // (`onBlur={(e) => lookupSso(e.target.value)}`, sign-in.tsx) that can insert an
                 // SSO button above the form once it resolves. Moving straight on to `.type()` the
-                // password — a fresh `cy.get()`, but one whose own focus-in is what fires that
-                // blur — raced that request landing mid-command: "subject is no longer attached to
+                // password raced that request landing mid-command: "subject is no longer attached to
                 // the DOM" (run 34973167392, intermittent). Force the blur ourselves and wait the
-                // request out before touching password.
+                // request out before touching password — but as a SEPARATE, freshly-queried command
+                // rather than chained onto `.type()`: Cypress's own attachment check runs when a
+                // command hands its subject to the NEXT one in the same chain, so `.type(...).blur()`
+                // is exactly the shape that throws "tried to continue the command chain" the moment
+                // anything (even an unrelated re-render this same page triggers on its own, e.g. its
+                // health-check effect resolving) touches the DOM in that window. Re-querying for
+                // `.blur()` sidesteps that: it re-resolves the element instead of reusing a subject
+                // that may have gone stale while the request was still in flight.
                 cy.intercept('GET', '**/api/sso/lookup*').as('ssoLookupOnReLogin');
-                cy.get('[data-cy="auth-email-input"]', { timeout: 5000 })
-                    .clear()
-                    .type(VALID_CODE_EMAIL)
-                    .blur();
+                cy.get('[data-cy="auth-email-input"]', { timeout: 5000 }).clear().type(VALID_CODE_EMAIL);
+                cy.get('[data-cy="auth-email-input"]').blur();
                 cy.wait('@ssoLookupOnReLogin');
                 cy.get('[data-cy="auth-password-input"]').type('Super_Secret_Password123!');
                 cy.get('[data-cy="auth-submit-btn"]').click();
