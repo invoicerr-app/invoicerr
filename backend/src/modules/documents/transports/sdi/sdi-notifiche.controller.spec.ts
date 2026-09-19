@@ -45,7 +45,9 @@ describe('SdiNotificheController.receiveNotifica', () => {
 
     await controller.receiveNotifica(fakeRequest('<ricevutaConsegna/>'));
 
-    expect(handleNotifica).toHaveBeenCalledWith('<ricevutaConsegna/>');
+    // `undefined` as the 2nd arg — this is the LEGACY (un-tokened) route, see `receiveNotificaForToken`'s
+    // own describe block below for the primary, token-scoped route's own contract.
+    expect(handleNotifica).toHaveBeenCalledWith('<ricevutaConsegna/>', undefined);
   });
 
   it('answers cleanly (never throws) even when the service itself throws — 200 always, per this file’s own header', async () => {
@@ -127,7 +129,7 @@ describe('SdiNotificheController.receiveNotifica', () => {
         }),
       );
 
-      expect(handleNotifica).toHaveBeenCalledWith('<ricevutaConsegna/>');
+      expect(handleNotifica).toHaveBeenCalledWith('<ricevutaConsegna/>', undefined);
     });
   });
 
@@ -140,5 +142,44 @@ describe('SdiNotificheController.receiveNotifica', () => {
       await expect(controller.receiveNotifica(fakeRequest(oversized))).resolves.toBeUndefined();
       expect(handleNotifica).not.toHaveBeenCalled();
     });
+  });
+});
+
+// THE PRIMARY, RECOMMENDED route — see this file's own header, "Two routes, one handler". Every
+// control already proven above (secret, content-type, body cap) is shared code (`handle()`) — these
+// tests only prove the ONE thing this route adds: the path token reaches the service as the 2nd arg.
+describe('SdiNotificheController.receiveNotificaForToken', () => {
+  const originalSecret = process.env.SDI_NOTIFICHE_SHARED_SECRET;
+
+  beforeEach(() => {
+    process.env.SDI_NOTIFICHE_SHARED_SECRET = SHARED_SECRET;
+  });
+
+  afterAll(() => {
+    process.env.SDI_NOTIFICHE_SHARED_SECRET = originalSecret;
+  });
+
+  it('hands the raw XML body AND the path token to the service, once authenticated', async () => {
+    const handleNotifica = vi.fn().mockResolvedValue({ journaled: true });
+    const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
+
+    await controller.receiveNotificaForToken(fakeRequest('<ricevutaConsegna/>'), 'company-42-token');
+
+    expect(handleNotifica).toHaveBeenCalledWith('<ricevutaConsegna/>', 'company-42-token');
+  });
+
+  it('still enforces the shared-secret gate BEFORE ever looking at the token', async () => {
+    const handleNotifica = vi.fn();
+    const controller = new SdiNotificheController({ handleNotifica } as unknown as SdiNotificheService);
+
+    await controller.receiveNotificaForToken(
+      fakeRequest('<ricevutaConsegna/>', {
+        'content-type': 'text/xml',
+        'x-sdi-notifica-secret': 'not-the-right-secret',
+      }),
+      'company-42-token',
+    );
+
+    expect(handleNotifica).not.toHaveBeenCalled();
   });
 });

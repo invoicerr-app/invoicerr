@@ -12,6 +12,21 @@
  * HMAC-verification comment describes for its OWN (JSON, `rawBody`-captured) case, adapted for a
  * content type that never reaches that capture in the first place.
  *
+ * ## Two routes, one handler — `notifiche` (legacy) and `notifiche/:token` (per-company)
+ *
+ * `sdi-notifiche.service.ts`'s own header has the full "why": resolving a document by
+ * `IdentificativoSdI` alone, with no notion of which tenant is asking, let any caller past the shared
+ * secret below forge an authority event onto a DIFFERENT company's document. `:token` is the fix —
+ * `CompanyChannelConfig.pushToken`, a per-(company, provider, environment) value a company pastes
+ * into the reception-endpoint field AdE's own Sistema di Accreditamento already asks for at SDICoop
+ * channel setup ("service endpoints for reception", `documentation/docs/developer-guide/credentials-guide.md` §4) — so the URL
+ * a company registers becomes `.../public/sdi/notifiche/<their own token>`, and the service scopes
+ * its lookup to exactly that company. The bare `notifiche` route (no token) stays mounted, unchanged
+ * in shape, for a company that already registered THAT URL before this fix shipped — see
+ * `sdi-notifiche.service.ts#resolveDocumentLegacy` for the content-based check it now runs instead of
+ * a blind lookup. Both routes share every other control on this file (the secret, the content-type
+ * gate, the body cap) — only WHICH document the notifica is allowed to resolve to differs.
+ *
  * ## Why this route checks a shared secret BEFORE touching the body at all
  *
  * `@Public()` used to mean "no check whatsoever" here: `sdi-notifiche.service.ts`'s own
@@ -41,7 +56,7 @@
  */
 import { timingSafeEqual } from 'node:crypto';
 
-import { Controller, HttpCode, Post, Req } from '@nestjs/common';
+import { Controller, HttpCode, Param, Post, Req } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { Request } from 'express';
 
@@ -123,6 +138,20 @@ export class SdiNotificheController {
   constructor(private readonly sdiNotificheService: SdiNotificheService) {}
 
   /**
+   * `POST /public/sdi/notifiche/:token` — the RECOMMENDED route: `token` is a company's own
+   * `CompanyChannelConfig.pushToken`, pasted into AdE's own accreditation portal as this channel's
+   * reception endpoint (see this file's own header). Everything else is identical to the legacy route
+   * below — same secret, same content-type gate, same body cap — only the resolved document's tenant
+   * scope differs (`sdi-notifiche.service.ts#resolveDocumentForToken`).
+   */
+  @Public()
+  @Post('notifiche/:token')
+  @HttpCode(200)
+  async receiveNotificaForToken(@Req() req: Request, @Param('token') token: string): Promise<void> {
+    await this.handle(req, token);
+  }
+
+  /**
    * `TrasmissioneFatture`'s six one-way operations (RicevutaConsegna/NotificaMancataConsegna/
    * NotificaScarto/NotificaEsito/NotificaDecorrenzaTermini/AttestazioneTrasmissioneFattura) all land
    * on this SAME endpoint — the SOAP root element itself (parsed by `sdi-notifiche.ts#parseSdiNotifica`)
@@ -134,11 +163,21 @@ export class SdiNotificheController {
    * deliberately never allowed to answer anything else, including to something that failed
    * authentication: a 401/403 would confirm to a prober that the endpoint exists and is listening for
    * exactly this shape at all).
+   *
+   * The LEGACY route — kept mounted, unchanged in shape, for a company that registered THIS URL with
+   * AdE before the `:token` route above existed (see this file's own header). Never removed and never
+   * gated behind "has anyone migrated yet": SdI must keep being answered 200 either way, and this
+   * route's own reduced trust now lives in `sdi-notifiche.service.ts#resolveDocumentLegacy`, not here.
    */
   @Public()
   @Post('notifiche')
   @HttpCode(200)
   async receiveNotifica(@Req() req: Request): Promise<void> {
+    await this.handle(req, undefined);
+  }
+
+  /** Shared by both routes above — see each route's own header for what `token` changes. */
+  private async handle(req: Request, token: string | undefined): Promise<void> {
     if (!isAuthenticated(req)) {
       logger.warn('SdI notifica: rejected — missing or mismatched shared secret', {
         category: 'documents',
@@ -166,7 +205,7 @@ export class SdiNotificheController {
     }
 
     try {
-      await this.sdiNotificheService.handleNotifica(rawXml);
+      await this.sdiNotificheService.handleNotifica(rawXml, token);
     } catch (err) {
       // A genuine infrastructure failure (e.g. the database unreachable) — logged loudly, but this
       // route still answers 200: see this file's own header on why SdI must never be driven to retry

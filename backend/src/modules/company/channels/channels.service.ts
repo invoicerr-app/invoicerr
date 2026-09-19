@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -39,6 +41,11 @@ export interface ChannelConfigStatus {
   channel: string;
   environment: ChannelEnvironment;
   isActive: boolean;
+  /** See `CompanyChannelConfig.pushToken`'s own schema comment. Not a secret in the sense `config`
+   *  above is — exposing it here is the point: a settings screen needs to show it so the company can
+   *  paste it into a callback URL it registers with a foreign authority. `undefined`/`null` for a row
+   *  that predates this column, or for a provider whose transport never needed one. */
+  pushToken?: string | null;
 }
 
 /**
@@ -94,6 +101,14 @@ export interface UpsertChannelConfigBody {
 function toChannelEnvironment(value: string | undefined): ChannelEnvironment {
   if (value === ChannelEnvironment.PROD) return ChannelEnvironment.PROD;
   return ChannelEnvironment.TEST;
+}
+
+/** 256 random bits, hex-encoded — the same entropy budget `share-link-token.ts#generateShareLinkToken`
+ *  uses for its own high-entropy value, kept in the clear here for the reason `pushToken`'s own schema
+ *  comment gives (never the confidentiality boundary, only a scoping label; must stay legible so it
+ *  can be shown back to the company that needs to re-paste it into a portal). */
+function generatePushToken(): string {
+  return randomBytes(32).toString('hex');
 }
 
 /**
@@ -307,6 +322,7 @@ export class ChannelCredentialsService {
       channel: row.channel,
       environment: row.environment,
       isActive: row.isActive,
+      pushToken: row.pushToken,
     }));
   }
 
@@ -395,7 +411,18 @@ export class ChannelCredentialsService {
 
     const row = await prisma.companyChannelConfig.upsert({
       where: { companyId_providerId_environment: { companyId, providerId, environment } },
-      create: { companyId, channel, providerId, environment, config: encrypted, isActive },
+      // `pushToken` ONLY on `create` — see that column's own schema comment on why an ordinary
+      // update (a credential rotation, a re-save) must never regenerate it: a URL already registered
+      // with a foreign authority would silently stop resolving to this company the moment it changed.
+      create: {
+        companyId,
+        channel,
+        providerId,
+        environment,
+        config: encrypted,
+        isActive,
+        pushToken: generatePushToken(),
+      },
       update: { config: encrypted, isActive },
     });
 
@@ -413,7 +440,28 @@ export class ChannelCredentialsService {
       channel: row.channel,
       environment: row.environment,
       isActive: row.isActive,
+      pushToken: row.pushToken,
     };
+  }
+
+  /**
+   * Resolve which company owns `token` for `providerId` — the scoping half of the "public path
+   * token" design (`CompanyChannelConfig.pushToken`'s own header): a `@Public()` push endpoint
+   * (`sdi-notifiche.controller.ts`) that cannot authenticate its caller as a specific tenant can
+   * still refuse to act on behalf of ANY company it doesn't have a matching, ACTIVE row for. `null`
+   * for an unknown token, a token belonging to a DIFFERENT provider, or an inactive/disconnected row
+   * — every one of those is "this caller does not speak for a connected channel", never distinguished
+   * further (the same "unknown token = null, not an error" discipline `share-links.service.ts
+   * #resolvePublicToken` already holds for its own public, unauthenticated caller).
+   */
+  async resolvePushToken(
+    providerId: string,
+    token: string,
+  ): Promise<{ companyId: string; environment: ChannelEnvironment } | null> {
+    if (!token) return null;
+    const row = await prisma.companyChannelConfig.findUnique({ where: { pushToken: token } });
+    if (!row || row.providerId !== providerId || !row.isActive) return null;
+    return { companyId: row.companyId, environment: row.environment };
   }
 
   /** Disconnects a channel — removes EVERY environment's row for this (company, provider): a

@@ -2695,6 +2695,26 @@ model CompanyChannelConfig {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
+  // A per-row opaque identifier a company can embed in a PUBLIC callback URL it registers with a
+  // foreign authority that only supports declaring ONE fixed reception endpoint per registration
+  // (SdI's own SDICoop accreditation — `documents/transports/sdi/sdi-notifiche.controller.ts`'s own
+  // header: "can a company register a distinct URL per company with this authority" is answered
+  // there, and this column is the "yes" half of that answer). Generated once, in `upsertChannelConfig`'s
+  // `create` branch ONLY — an ordinary credential update never touches it, because the URL a company
+  // pastes into a third-party accreditation portal must keep resolving to the SAME company for as
+  // long as this row exists, including across a later credential rotation. Stored in the CLEAR,
+  // deliberately, unlike `config` above: this value is a SCOPING label a caller presents to say which
+  // company a request is for, never itself the boundary that decides whether a request is trusted at
+  // all — that boundary is a separate, per-endpoint shared secret this column plays no part in
+  // (`SDI_NOTIFICHE_SHARED_SECRET`). Hashing it here would cost the one thing it actually needs:
+  // being shown back to the company whenever it must be re-pasted into a portal, possibly long after
+  // it was first generated — unlike a bearer share-link token, nothing is lost by keeping it legible.
+  // Still 256 random bits regardless, so it is never a matter of guessing it. Null for every row
+  // created before this column existed, and for any provider that never needed a public per-company
+  // callback in the first place (most of them) — nothing backfills it; it is generated the next time
+  // that row is reconnected.
+  pushToken String? @unique
+
   @@unique([companyId, providerId, environment])
   @@index([companyId])
 }
