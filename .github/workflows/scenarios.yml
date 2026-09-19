@@ -11,9 +11,12 @@ name: Business Scenarios
 # So the `push` trigger below is deliberately PATH-FILTERED on exactly what has ever broken them —
 # the catalogs, the tax engine that composes them, and the spec and fixture themselves — rather than
 # firing six full-stack jobs on every push. `pull_request` stays unfiltered: a PR runs them all.
+# Same de-duplication as cypress.yml: a branch under review runs the matrix once, on its
+# `pull_request` event; the `push:` trigger only covers the long-lived branches.
 on:
   pull_request:
   push:
+    branches: [main, dev]
     paths:
       - 'backend/src/modules/documents/**/data/**'
       - 'backend/src/modules/documents/tax/**'

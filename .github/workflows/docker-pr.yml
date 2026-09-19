@@ -4,9 +4,10 @@ name: Verify Docker Build (PR)
 # actually hits: a long-lived branch that deliberately has no PR open yet still needs a real image
 # to deploy somewhere and exercise. Without it the only way to get an image out of a branch was to
 # open a pull request, which is a poor reason to open one.
+# Building the branch image on every PR synchronisation duplicated the manual `workflow_dispatch`
+# run that deployments actually use (the image is pulled by hand on the dev instance), and each
+# build is a multi-arch job of several minutes. It now runs only when explicitly dispatched.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       tag:

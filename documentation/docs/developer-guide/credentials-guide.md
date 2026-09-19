@@ -15,7 +15,8 @@ sidebar_position: 11
 ## Read this first — you almost certainly need *zero* of these to ship
 
 - **The pull-request CI is green with no secrets at all.** The gating workflows
-  (`Tests`, `Business Scenarios`, `Verify Docker Build`) run entirely offline and mocked.
+  (`Tests`, `Business Scenarios`) run entirely offline and mocked; the branch image
+  (`Verify Docker Build`) is built on demand only.
   Nothing in this guide is required to merge.
 - These credentials only feed **`.github/workflows/compliance-live.yml`** — a **separate,
   opt-in** workflow that runs the real external round-trips. It fires **only** on the manual
