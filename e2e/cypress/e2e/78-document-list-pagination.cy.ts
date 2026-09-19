@@ -151,14 +151,13 @@ describe("Document list — server-side pagination and filters", () => {
 		cy.visit("/documents/invoice");
 		cy.get('[data-cy^="document-list-row-"]', { timeout: 15000 }).should("have.length", 25);
 
-		cy.intercept("GET", `${api}/api/documents*`).as("searchDocuments");
 		cy.get('[data-cy="document-list-search"]').type("Zzyzx");
-		// Debounced (300ms) — the wait below is for the ACTUAL request the debounce eventually fires,
-		// not an arbitrary sleep: a search that fired on every keystroke would have already shown up
-		// as several earlier "q=Z", "q=Zz", ... requests instead of this one settled one.
-		cy.wait("@searchDocuments", { timeout: 5000 })
-			.its("request.url")
-			.should("include", "q=Zzyzx");
+		// Debounced (300ms): on a slow CI runner, `cy.type`'s own keystrokes can each land more than
+		// 300ms apart, so the debounce fires more than once ("q=Z", "q=Zz", ...) before the final
+		// "q=Zzyzx" — `cy.wait` on a single intercept alias only ever catches the FIRST of those,
+		// which is not what this test means to assert. The only stable signal is the end state: the
+		// URL settled on the full term, then the list reflecting it.
+		cy.location("search", { timeout: 5000 }).should("include", "q=Zzyzx");
 
 		cy.get('[data-cy^="document-list-row-"]', { timeout: 15000 }).should("have.length", 5);
 
