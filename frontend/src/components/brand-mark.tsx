@@ -1,9 +1,16 @@
-import { useId, type ComponentPropsWithoutRef } from "react"
+import { useId } from "react"
+import { useTranslation } from "react-i18next"
 
+import { activeCauseDay } from "@/brand/cause-days"
 import { cn } from "@/lib/utils"
 
-interface BrandMarkProps extends Omit<ComponentPropsWithoutRef<"svg">, "viewBox" | "fill" | "children"> {
+interface BrandMarkProps {
   className?: string
+  /** Radix `Slot`-style hooks (`BrandWordmark` sets `"brand-mark"`) — the one passthrough attribute
+   * every current caller actually uses, kept narrow (rather than the old `ComponentPropsWithoutRef<"svg">`)
+   * because this can now render either an inline `<svg>` or an `<a>`/`<img>` pair, and only their
+   * common HTML attributes are safe to forward to both. */
+  "data-slot"?: string
 }
 
 /**
@@ -19,11 +26,44 @@ interface BrandMarkProps extends Omit<ComponentPropsWithoutRef<"svg">, "viewBox"
  * `useId()` namespaces the clip-path ids: this renders inline (not as an `<img src>`), so two
  * instances on one page (e.g. `PublicPageShell`'s header + footer, both via `BrandWordmark`) would
  * otherwise collide on the same `id` and silently clip nothing for the second one.
+ *
+ * On the calendar days `activeCauseDay` names (International Women's Day, Pride Month...) the mark
+ * itself becomes the day's evidence instead of a banner or a settings toggle: the exact same
+ * geometry, refilled with that cause's own colours (`brand/causes/<variant>.svg` — a static file
+ * here, not inlined, because those colours are fixed regardless of theme and don't need
+ * `currentColor`). It is a pure function of the reader's own local calendar (no user preference
+ * exists for this, and none was asked for) so every visitor sees the same cause on the same local
+ * day without needing to be told why. The name and one-sentence description come from
+ * `brand.causeDays.<id>` in `translation.json` (Weblate-managed, unlike this file's own English-only
+ * comments) so the hover text is localized like every other user-facing string; the link + `title`
+ * carry both instead of a tooltip component, since this has to work identically in every context
+ * `BrandMark` is used (sidebar, footer, auth screens) without risking a link nested inside one of
+ * those callers' own `<a>`.
  */
 export function BrandMark({ className, ...props }: BrandMarkProps) {
   const uid = useId()
   const clipA = `brand-mark-a-${uid}`
   const clipB = `brand-mark-b-${uid}`
+  const { t } = useTranslation()
+
+  const cause = activeCauseDay(new Date())
+  if (cause) {
+    const label = t(`brand.causeDays.${cause.id}.label`)
+    const description = t(`brand.causeDays.${cause.id}.description`)
+    return (
+      <a
+        href={cause.source}
+        target="_blank"
+        rel="noreferrer"
+        title={`${label} — ${description}`}
+        className={cn("inline-flex shrink-0", className)}
+        {...props}
+      >
+        <img src={`/brand/causes/${cause.variant}.svg`} alt={label} className="size-full" />
+      </a>
+    )
+  }
+
   return (
     <svg
       viewBox="0 0 512 512"

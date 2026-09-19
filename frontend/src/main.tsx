@@ -3,6 +3,7 @@ import "./lib/i18n"
 
 import { QueryClientProvider } from "@tanstack/react-query"
 import { Routes } from "@generouted/react-router"
+import { CauseDayFavicon } from "@/brand/cause-day-favicon"
 import { ThemeProvider } from "./components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { createRoot } from "react-dom/client"
@@ -50,6 +51,7 @@ async function bootstrap() {
   createRoot(document.getElementById("root")!).render(
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <QueryClientProvider client={queryClient}>
+        <CauseDayFavicon />
         <Routes />
         <Toaster richColors position="top-right" />
       </QueryClientProvider>
