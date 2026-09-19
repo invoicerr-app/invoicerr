@@ -24,6 +24,8 @@ including the e-invoicing rules of the country you bill from.
   national transmission channels.
 - A legal archive per issued document, with the retention duration and its starting point taken from
   the country's own rule.
+- Encrypted, scheduled backups of every archived document and uploaded file to a separate bucket,
+  with a key the storage provider never holds.
 - Sign-in by e-mail/password, OIDC/SSO (instance-wide or per company) or API key; multi-company,
   role-based access; webhooks, a REST API, an MCP server and a plugin system.
 - 18 interface languages, per-recipient document language, multi-currency with rate history.
@@ -237,13 +239,17 @@ built for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
 
 3. Open `http://localhost` and create the first account.
 
-The reference compose file with every option — OIDC, OCR, mail providers, object storage — is
+The reference compose file with every option — OIDC, OCR, mail providers — is
 [`docker-compose.yml`](./docker-compose.yml); [`docker-compose.scale.yml`](./docker-compose.scale.yml)
 adds dedicated queue workers. Every variable is documented, with its default and the source file that
 default lives in, in [`backend/.env.example`](./backend/.env.example).
 
-For more than one host, use the Helm chart in [`deploy/helm/invoicerr/`](./deploy/helm/invoicerr) —
-see the [Kubernetes guide](https://docs.invoicerr.app/docs/user-guide/kubernetes).
+For more than one host, use the Helm chart in [`deploy/helm/invoicerr/`](./deploy/helm/invoicerr). The
+API and worker scale safely as independent Deployments — three API replicas behind a load balancer and
+fifteen workers — once the legal archive and uploaded files move to S3-compatible object storage
+instead of local disk, which is what makes running on more than one machine possible at all. The
+[Kubernetes guide](https://docs.invoicerr.app/docs/user-guide/kubernetes)'s own reference deployment
+runs entirely on one French provider, in Paris: cluster, object storage and managed database.
 
 ### Updating
 
@@ -268,6 +274,7 @@ npm run catalogs:release    # from the backend workspace — /usr/share/nginx/ba
 | [Introduction](https://docs.invoicerr.app/docs/user-guide/introduction) | What Invoicerr is, and the first steps in it |
 | [Docker installation](https://docs.invoicerr.app/docs/user-guide/docker-installation) | The full compose reference and every environment variable |
 | [Kubernetes deployment](https://docs.invoicerr.app/docs/user-guide/kubernetes) | The Helm chart, its two roles, storage and ingress |
+| [Instance backups](https://docs.invoicerr.app/docs/user-guide/backups) | Encrypted backups to a separate bucket, and how to restore one |
 | [User guide](https://docs.invoicerr.app/docs/user-guide/overview) | Every screen: documents, clients, portal, settings |
 | [Developer guide](https://docs.invoicerr.app/docs/developer-guide/architecture) | Architecture, document types, catalogues, local setup |
 | [API reference](https://docs.invoicerr.app/docs/developer-guide/api-reference) | The REST API and its authentication |
@@ -279,7 +286,7 @@ npm run catalogs:release    # from the backend workspace — /usr/share/nginx/ba
 
 | Area | Stack |
 | --- | --- |
-| Backend | NestJS 11, TypeScript 5.7, Swagger/OpenAPI |
+| Backend | NestJS 12, TypeScript 5.7, Swagger/OpenAPI |
 | Database | PostgreSQL (Prisma 7 — no other engine: the schema hardcodes the `postgres` provider) |
 | Queue | BullMQ 5 on Redis (required to boot; inline worker or dedicated processes) |
 | Auth | better-auth 1.7 — e-mail/password, OIDC/SSO, API keys |
@@ -287,7 +294,7 @@ npm run catalogs:release    # from the backend workspace — /usr/share/nginx/ba
 | PDF | playwright-core 1.63 (headless Chromium), pdf-lib, `@signpdf` for PAdES |
 | E-invoice XML | `@e-invoice-eu/core`, `@digitalia/fatturapa`, node-schematron, xmllint-wasm |
 | OCR | [ghcr.io/invoicerr-app/ocr-image](https://github.com/invoicerr-app/ocr-image) — ocrmypdf + Tesseract, self-hosted, opt-in |
-| Tests | Jest (backend), Vitest (frontend), Cypress 15 (end-to-end and per-country scenarios) |
+| Tests | Vitest (backend and frontend), Cypress 15 (end-to-end and per-country scenarios) |
 | Tooling | Biome 2.5 (lint and format), Docker, Helm 3, GitHub Actions |
 | Documentation | Docusaurus 3.10 |
 | Hosted billing | Polar (hidden unless the instance explicitly enables it; self-hosting stays free) |

@@ -49,3 +49,6 @@ e2e/demo-videos/
 
 # Launch video workspace (generated, not part of the product)
 brag-output/
+
+# Liste personnelle du mandant — suivie hors dépôt
+TODO_MANDANT.md
