@@ -1,5 +1,9 @@
 /**
- * Boot-time guard against known-insecure auth secrets — SECURITY_AUDIT.md finding #3 (Haute).
+ * Boot-time guard against known-insecure auth secrets — high severity: this secret signs every
+ * session cookie/JWT, and the two known-bad values it catches are published in this very
+ * repository's own `docker-compose.yml`, so leaving one in place is an outright authentication
+ * bypass (forge a valid session for any user, no password needed) that requires no exploit beyond
+ * reading a public example file.
  *
  * `docker-compose.yml` used to ship non-empty, PUBLIC (committed) example values for both
  * `JWT_SECRET` ("your_jwt_secret") and `BETTER_AUTH_SECRET` ("your_better_auth_secret"). Neither
@@ -150,8 +154,8 @@ export function insecureSecretMessage(finding: InsecureSecretFinding): string {
   return (
     `[secret-guard] Refusing to boot: ${base} This signs every session cookie/JWT — set a real ` +
     `BETTER_AUTH_SECRET (generate one with \`openssl rand -hex 32\`); the docker-compose example ` +
-    'value is public (committed to the repository) and must never be used as-is. See ' +
-    'SECURITY_AUDIT.md finding #3.'
+    'value is public (committed to the repository) and must never be used as-is — anyone who has ' +
+    'read this repository can forge a valid session for any user with it.'
   );
 }
 

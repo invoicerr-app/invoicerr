@@ -38,7 +38,7 @@ import { auth } from './lib/auth';
  */
 export async function createApp(module: Type<unknown> = AppModule): Promise<INestApplication> {
   const app = await NestFactory.create(module, { bodyParser: false });
-  // SECURITY_AUDIT.md finding #1: nginx (nginx.conf) proxies to this process over loopback (same
+  // Exact hop count matters here: nginx (nginx.conf) proxies to this process over loopback (same
   // container, see entrypoint.sh) and APPENDS its own directly-observed peer address to whatever
   // `X-Forwarded-For` it received (`$proxy_add_x_forwarded_for`, never overwriting it) — so the
   // header grows by exactly one entry per real HTTP-aware hop in front of this container.

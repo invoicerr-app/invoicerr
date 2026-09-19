@@ -41,8 +41,10 @@ export class WebhooksService {
   ];
 
   /**
-   * SECURITY_AUDIT.md finding #2 (SSRF) — reject a webhook URL that is not a public http(s)
-   * endpoint. Called from create/update below, before the row is ever persisted; `send()` re-runs
+   * SSRF guard: reject a webhook URL that is not a public http(s) endpoint — a URL supplied by a
+   * tenant but dereferenced by this server's own network would otherwise be an SSRF primitive
+   * against internal infrastructure. Called from create/update below, before the row is ever
+   * persisted; `send()` re-runs
    * `assertPublicWebhookUrl` itself right before each dispatch (DNS rebinding — see that function's
    * own header). The client only ever sees the one generic message: neither the internal `reason`
    * nor the rejected URL is echoed back or logged, since either would hand an attacker a live oracle

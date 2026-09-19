@@ -1,6 +1,6 @@
 /**
- * SECURITY_AUDIT.md finding #2 (SSRF), correctif item 3 — the send-time half that URL validation
- * alone cannot cover: a webhook endpoint that passed `webhook-url-guard.ts` at request time could
+ * SSRF hardening — the send-time half that URL validation alone cannot cover: a webhook endpoint
+ * that passed `webhook-url-guard.ts` at request time could
  * still answer with a 30x pointing at an internal address, and following it would land the exact
  * same SSRF the guard was built to stop. Every driver that owns its own `fetch()` call must set
  * `redirect: 'manual'` (never follow) and a bounded timeout — this file is what turns "someone

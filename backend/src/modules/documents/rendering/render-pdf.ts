@@ -168,15 +168,14 @@ function resolvePlaywrightManagedExecutablePath(): string | null {
 }
 
 /**
- * Bounds how many renders run at once — recorded finding in this repo's own security audit
- * (`SECURITY_AUDIT.md`, "no dedicated rate-limit on expensive operations"): PDF rendering shares ONE
- * browser process for the whole instance, and every render holds a real Chromium page (a renderer
- * process plus its own memory) open for the duration of `page.pdf()`. With no cap, a single
- * authenticated account — well within the normal global request throttle — can already push well
- * over a hundred concurrent renders, and because the browser is shared, a spike from one company
- * degrades PDF rendering for every other company on the same instance (self-host or SaaS). Rather
- * than rejecting a caller outright once the cap is hit, `acquireRenderSlot` queues them: a burst is
- * throttled to this many renders in flight, not failed.
+ * Bounds how many renders run at once: with no dedicated rate limit on this expensive operation, PDF
+ * rendering shares ONE browser process for the whole instance, and every render holds a real
+ * Chromium page (a renderer process plus its own memory) open for the duration of `page.pdf()`. With
+ * no cap, a single authenticated account — well within the normal global request throttle — can
+ * already push well over a hundred concurrent renders, and because the browser is shared, a spike
+ * from one company degrades PDF rendering for every other company on the same instance (self-host or
+ * SaaS). Rather than rejecting a caller outright once the cap is hit, `acquireRenderSlot` queues
+ * them: a burst is throttled to this many renders in flight, not failed.
  *
  * Configurable via `PDF_RENDER_CONCURRENCY` for an operator who genuinely has the memory (and the
  * volume) to raise it, or who wants it lower on a constrained box. Garbage or non-positive input

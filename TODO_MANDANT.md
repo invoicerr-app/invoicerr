@@ -47,31 +47,32 @@ in its absence: everything is properly gated.
 
 ## 4. Administrative
 
-- [ ] **PRIMARY — review and resolve the code-review and security threads on PR #401.** Every one of
-      them already has a reply naming the commit that fixed it, the proof, and what is left. **Only
-      you validate them**: the minor and low-severity ones were resolved on your standing instruction,
-      the rest are deliberately left open so you can read the diff and resolve them yourself. Nothing
-      should be merged into `main` before that pass.
+- [ ] **A fresh security and code review, once every feature is in — before the merge, never after.**
+      Owner decision, 2026-09-19: the previous review was removed rather than worked through. It had
+      been posted against a branch that has since moved a very long way — the whole test suite changed
+      runner, the web framework went up a major version, the storage layer gained an object-storage
+      mode, and seven scaling defects were fixed — so a large part of it described code that no longer
+      exists. Reviewing a moving target is how a review becomes a formality.
 
-      Counted on 2026-09-19: **148 threads in total, 79 still open.** A suggested order, because they
-      are not equally urgent and two of them are of a different nature from all the others.
+      What was removed: 257 inline comments on the pull request, archived outside the repository
+      before deletion so the record of what was found and how it was fixed is not lost, plus the
+      written security-audit report itself, whose central claim ("no cross-tenant identifier access")
+      an external researcher later disproved on the released line. The only comments left on the pull
+      request are the automated code-scanning ones, which this interface does not let us delete and
+      which the next scan supersedes anyway.
 
-      1. **The two remaining security threads.** One high severity: the log stream is cross-tenant,
-         because a role restriction is not a tenant restriction. One medium: nine production
-         dependency alerts on the backend, six of them high. These two are the only security threads
-         left open out of the twenty-six originally posted.
-      2. **The eleven blocking threads that are product defects**, in the backend and the frontend.
-         The heaviest are a document that stays publicly re-sendable while it is already being sent,
-         a delivery step that is not idempotent under the queue's at-least-once redelivery, an
-         unauthenticated cross-tenant write on the Italian notification endpoint, and two Italian and
-         Portuguese catalogs that make it impossible to issue an exempt or zero-rate domestic line.
-      3. **The ten blocking threads that are test-quality defects**, all in the end-to-end suite.
-         These describe tests that cannot fail, tests that never run in continuous integration while
-         being counted as green, and a global exception handler that swallows every application
-         error. None of them breaks the product; all of them mean a guarantee you believe you have is
-         not actually proven.
-      4. **The fifty-six important ones**, last.
+      **Nothing goes into `main` before the new review.** Two things should be fed into it rather than
+      rediscovered: the external advisory described below, and the fact that the backend was already
+      swept for that advisory's whole defect class on 2026-09-19 with no finding.
 - [x] **Open the PR to `main`** — done: PR #401.
+- [ ] **Decide what to do about the external security advisory** (GHSA-g76v-ff9h-j6r2, reported
+      privately on 2026-09-19, medium severity). A member with the lowest role could attach another
+      company's payment method to their own invoice and read its bank details back, in the interface
+      and in the generated PDF. **The released line `1.4.6` is affected and is running on self-hosted
+      instances today; this branch is not** — the module it targets was rewritten, and the new payment
+      configuration is immune by construction because there is no per-row identifier left to forge.
+      The decision is yours: patch the released line separately, or ship this branch as the fix. A
+      disclosure clock started the day it was reported.
 
 ## 5. Small, no credentials needed
 
@@ -88,9 +89,16 @@ in its absence: everything is properly gated.
 
 ## 6. Before the first paying customer
 
-- [ ] Off-site encrypted backups of the database and `documents/` (daily `pg_dump` + object
-      storage, restore tested once), and an uptime alert on `/api/health` — self-hosting on the
-      owner's own servers is fine until then.
+- [x] **Off-site encrypted backups** — shipped 2026-09-19. Every artifact is encrypted before it
+      leaves the process, with a key the storage provider never holds, so a leaked access key yields
+      ciphertext rather than your customers' documents. The restore was proven without circular
+      reasoning: an independent client downloads the object and decrypts it with nothing but the key
+      and the bytes, and the operator tool runs as its own process with no dependency on a live
+      instance. The manual database dump is covered by the same procedure. **Losing the key loses
+      every backup, permanently** — decide where that key lives before you rely on this.
+- [ ] Set `BACKUP_ENCRYPTION_KEY` and the backup bucket on the production instance, and store that
+      key somewhere that survives the loss of the server it protects.
+- [ ] An uptime alert on `/api/health` — self-hosting on your own servers is fine until then.
 
 ---
 

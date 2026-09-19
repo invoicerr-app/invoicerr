@@ -1,7 +1,7 @@
 /**
- * SECURITY_AUDIT.md finding #2 (SSRF via outbound webhook URL) — the guard's own decision logic.
- * `webhooks.service.spec.ts` proves the guard is actually CALLED at create/update/send; this file
- * proves what it decides: scheme filtering, every literal-IP private range named in the finding, and
+ * SSRF via an outbound webhook URL — the guard's own decision logic. `webhooks.service.spec.ts`
+ * proves the guard is actually CALLED at create/update/send; this file proves what it decides: scheme
+ * filtering, every private/loopback/link-local IP range a webhook target must not resolve to, and
  * real DNS resolution (mocked at `node:dns`) including the "reject if ANY resolved address is
  * private" and "re-resolve on every call" properties the anti-rebinding defense relies on.
  *

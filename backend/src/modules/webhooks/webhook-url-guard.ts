@@ -10,7 +10,8 @@ export { ResolvedOutboundUrl };
 export { OutboundUrlValidationError as WebhookUrlValidationError };
 
 /**
- * SSRF guard for outbound webhook URLs — SECURITY_AUDIT.md finding #2 ("Haute").
+ * SSRF guard for outbound webhook URLs — high severity: left unguarded, this is a direct path to an
+ * authenticated SSRF primitive against this server's own infrastructure (see below).
  *
  * A webhook `url` is set by an OWNER/ADMIN of a tenant (or a compromised account, or — in a
  * multi-tenant SaaS deployment — another tenant entirely), yet the HTTP request it triggers is
@@ -56,7 +57,8 @@ const WEBHOOK_URL_POLICY: OutboundUrlPolicy = {
  * `assertPublicOutboundUrl` STILL runs (file:, gopher:… stay rejected); only the private/loopback/
  * link-local blocking is skipped, so the e2e webhook-delivery suite (42-webhooks) can point a webhook
  * at its own in-process localhost receiver. `start:test` sets it via .env.test; jest does not load
- * .env.test, and production must never define it. See SECURITY_AUDIT.md #2.
+ * .env.test, and production must never define it — doing so would silently reopen the exact SSRF
+ * path this guard exists to close.
  */
 export async function assertPublicWebhookUrl(rawUrl: string): Promise<ResolvedOutboundUrl | null> {
   return assertPublicOutboundUrl(rawUrl, {

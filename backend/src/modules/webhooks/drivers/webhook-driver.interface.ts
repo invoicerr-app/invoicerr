@@ -16,8 +16,8 @@ export interface WebhookDriver {
 }
 
 /**
- * Outbound-fetch hardening shared by every driver that owns its own `fetch()` call —
- * SECURITY_AUDIT.md finding #2 (SSRF). The target URL is validated before the send is ever attempted
+ * Outbound-fetch hardening shared by every driver that owns its own `fetch()` call — closes the SSRF
+ * path URL validation alone cannot cover. The target URL is validated before the send is ever attempted
  * (`webhook-url-guard.ts`, re-run in `webhooks.service.ts#send` right before each dispatch), but a
  * malicious or compromised endpoint could otherwise answer with a 30x that redirects the *same*
  * request to an internal address and bypass that check entirely — so redirects are never followed

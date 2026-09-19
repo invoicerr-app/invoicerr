@@ -1,10 +1,13 @@
 /**
- * SECURITY_AUDIT.md finding #2 (SSRF via outbound webhook URL) — the SERVICE-level half of the
- * fix. `webhook-url-guard.spec.ts` owns the guard's own decision logic (schemes, literal IPs, DNS
- * resolution, rebinding); this file proves `WebhooksService` actually calls it at the two points the
- * finding named: create/update (before the row is ever persisted) and send (right before every
- * dispatch, so a webhook already sitting in the database — e.g. one written before this fix existed —
- * cannot slip a request out). Only `@/prisma/prisma.service` is mocked, the same discipline
+ * SSRF via an outbound webhook URL — the SERVICE-level half of the guard. A webhook `url` is set by
+ * a tenant (an OWNER/ADMIN, or a compromised account, or in a multi-tenant deployment another tenant
+ * entirely), yet the HTTP request it triggers is fired by this server's own network — unvalidated,
+ * it is a live SSRF primitive against internal infrastructure. `webhook-url-guard.spec.ts` owns the
+ * guard's own decision logic (schemes, literal IPs, DNS resolution, rebinding); this file proves
+ * `WebhooksService` actually calls it at the two points that matter: create/update (before the row
+ * is ever persisted) and send (right before every dispatch, so a webhook already sitting in the
+ * database — e.g. one written before this guard existed — cannot slip a request out). Only
+ * `@/prisma/prisma.service` is mocked, the same discipline
  * `channels.service.spec.ts` already established for this kind of service-in-isolation test.
  *
  * Every case here uses a LITERAL IP (never a hostname) so it never touches DNS — that keeps this

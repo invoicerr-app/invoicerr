@@ -8,10 +8,12 @@ import { buildSwaggerDocument } from './swagger-document';
 import { createApp } from './create-app';
 
 async function bootstrap() {
-  // SECURITY_AUDIT.md finding #3: refuse to boot on a known-placeholder or empty auth secret
-  // (docker-compose.yml's example `JWT_SECRET`/`BETTER_AUTH_SECRET` values are public). Must run
-  // before anything else touches `lib/auth.ts` — see secret-guard.ts's own header for why this is
-  // gated to production only.
+  // Refuse to boot on a known-placeholder or empty auth secret: docker-compose.yml's example
+  // `JWT_SECRET`/`BETTER_AUTH_SECRET` values are public and committed, so a copy-pasted, unmodified
+  // compose file would otherwise boot silently with a session/cookie-signing secret anyone can read
+  // on GitHub — a full authentication bypass (forge a valid session for any user, no password
+  // needed). Must run before anything else touches `lib/auth.ts` — see secret-guard.ts's own header
+  // for why this is gated to production only.
   assertSecretsConfiguredForBoot();
   // Hosted billing (product decision 2026-09-15): refuse to boot with
   // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set but no real Polar credentials — a no-op when the
