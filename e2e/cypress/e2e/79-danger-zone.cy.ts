@@ -240,6 +240,13 @@ describe('Danger zone ⚠ — reset company data vs delete company, through the 
 
         cy.url({ timeout: 20000 }).should('include', '/dashboard');
 
+        // The SCREEN itself must have switched, not merely the URL — a stale company switcher still
+        // reading "Globex Corporation" here, while the API/session below already fell back to Acme
+        // Corp, is exactly the bug a soft SPA navigate used to leave behind: every company-scoped
+        // query stayed cached under the just-deleted company, never invalidated, until a manual
+        // refresh. A real page load is what this asserts actually happened.
+        cy.get('[data-cy="sidebar-company-button"]', { timeout: 15000 }).should('contain.text', 'Acme Corp');
+
         // No `GET /companies/:id` exists on this API to 404 against directly — the real, checkable
         // fact a caller who once belonged to this company can observe is that switching INTO it is
         // refused (403, "not a member") now that both the Company row and this user's own UserCompany

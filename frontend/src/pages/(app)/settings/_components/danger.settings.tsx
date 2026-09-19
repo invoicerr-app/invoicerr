@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { afterCompanyGone } from "@/lib/after-company-gone"
 import { useCompanies } from "@/hooks/queries"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { SettingsPage, SettingsSection } from "./settings-section"
@@ -146,10 +147,13 @@ export default function DangerZoneSettings() {
           // The company row (and this user's own membership row on it) is gone — re-fetch the
           // session so `activeCompanyId`/`companies` reflect the backend's own fallback (the
           // `customSession` plugin already recomputes both: another remaining company, or `null`
-          // when this was the last one). The sidebar's own "no company left" effect
-          // (`sidebar.tsx`) picks that up and opens onboarding on its own — nothing here decides
-          // that; this screen only makes sure the session is no longer stale before navigating.
-          refetchSession().finally(() => navigate("/dashboard"))
+          // when this was the last one) before handing off to `afterCompanyGone`. A plain SPA
+          // `navigate("/dashboard")` here used to leave the screen showing the just-deleted
+          // company: every OTHER company-scoped query (info, seats, branding…) stays cached under
+          // the old company since none of them key on companyId, so only a hard reload — what
+          // `afterCompanyGone` does — actually lands the user on whatever is active now, or on the
+          // create-company dialog if nothing is.
+          refetchSession().finally(() => afterCompanyGone())
         } else {
           refetchPreflight()
           navigate("/dashboard")

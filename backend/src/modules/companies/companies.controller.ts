@@ -42,6 +42,19 @@ export class CompaniesController {
     return this.companiesService.switchActiveCompany(user.id, req.session.id, body.companyId);
   }
 
+  @Delete('leave')
+  @RequiresScope('company:write')
+  @ApiOperation({
+    summary: 'Leave the active company',
+    description:
+      "Removes the caller's own membership from the active company. Refused for the company's last " +
+      'remaining owner — ownership must be transferred to another member first.',
+  })
+  @ApiResponse({ status: 200, description: 'Left the company' })
+  async leave(@ActiveCompany() companyId: string, @User() user: CurrentUser) {
+    return this.companiesService.leaveCompany(companyId, user.id);
+  }
+
   @Get('members')
   @RequiresScope('company:read')
   @ApiOperation({ summary: 'List the active company members' })

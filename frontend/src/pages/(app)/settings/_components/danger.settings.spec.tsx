@@ -9,6 +9,9 @@ import { toast } from "sonner"
 vi.mock("@/lib/auth", () => ({ authClient: { useSession: vi.fn() } }))
 import { authClient } from "@/lib/auth"
 
+vi.mock("@/lib/after-company-gone", () => ({ afterCompanyGone: vi.fn() }))
+import { afterCompanyGone } from "@/lib/after-company-gone"
+
 import DangerZoneSettings from "@/pages/(app)/settings/_components/danger.settings"
 
 /** Same fetch-boundary mocking convention as `client-upsert.spec.tsx` — the hooks under test here
@@ -277,5 +280,27 @@ describe("<DangerZoneSettings> — delete company: OTP + company name transport"
     fireEvent.click(screen.getByTestId("danger-modal-confirm"))
 
     await waitFor(() => expect(refetch).toHaveBeenCalled())
+  })
+
+  it("hands off to afterCompanyGone (a hard reload) once the session refetch settles, never a plain SPA navigate", async () => {
+    const refetch = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(authClient.useSession).mockReturnValue({ data: SESSION, isPending: false, refetch } as never)
+    installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: OPEN_PREFLIGHT }),
+      "POST /api/danger/otp": () => ({ body: { message: "OTP sent successfully" } }),
+      "POST /api/danger/delete-company": () => ({ body: { message: "Company deleted successfully" } }),
+    })
+
+    renderScreen()
+    fireEvent.click(await screen.findByTestId("danger-delete-company-button"))
+    await screen.findByTestId("danger-otp-input")
+    fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "87654321" } })
+    fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "Acme Corp" } })
+    fireEvent.click(screen.getByTestId("danger-modal-confirm"))
+
+    // The exact regression this proves: the screen no longer merely calls the SPA router's
+    // `navigate("/dashboard")` (which would leave every other company-scoped query cached under
+    // the just-deleted company) — it hands off to the shared hard-reload helper instead.
+    await waitFor(() => expect(afterCompanyGone).toHaveBeenCalled())
   })
 })
