@@ -827,6 +827,18 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// status), so this works identically for "sent" and for the two Italian legs' "send_failed". A single
 			// re-download after "sent" is enough to prove the path works for every leg; 35 already proves
 			// a SECOND, post-edit re-render for the one leg that specifically needs it.
+			//
+			// `document-downloads.ts#openBlob` hands EVERY download (this one and the XML one further
+			// below) to `window.open(objectUrl, "_blank")`. Stubbed from BEFORE this first click — never
+			// installed only ahead of the second — so neither download ever spawns a real tab, and each
+			// click's own hand-off is asserted right after that click's own network wait, with the stub's
+			// history cleared immediately after (`resetHistory`, right below). A single "calledOnce" read
+			// at the very END of both downloads, over the accumulated total, would conflate the two
+			// independent async chains (PDF's `fetch → blob() → open`, XML's own) into one count and make
+			// the outcome depend on an ordering neither chain guarantees — exactly the false-green shape a
+			// real CI run hit here (the PDF click's own hand-off landing inside what was meant to count
+			// only the XML click's).
+			cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
 			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/pdf` }).as("pdfDownload");
 			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-pdf-button-${id}"]`, { timeout: 10000 }).click();
@@ -848,6 +860,13 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 				expect(pdfStart, "the body actually starts with the PDF magic bytes").to.eq("%PDF");
 				expect(res.body.length, "not a near-empty error stub").to.be.greaterThan(1000);
 			});
+			// The PDF CLICK's own hand-off, proven the same way the XML click's is proven below — this is
+			// what makes the "calledOnce" assertion after the XML download actually mean "the XML click's
+			// own result", rather than silently accepting the PDF's own (already-proven-here) call in its
+			// place. `resetHistory` clears the count so the assertion after the XML click starts from
+			// zero regardless of how long THIS click's own `openBlob` took to run.
+			cy.get("@windowOpen").should("have.been.calledOnce");
+			cy.get("@windowOpen").invoke("resetHistory");
 
 			if (scenarioId === "it-it") {
 				// DOMESTIC (seller country === buyer country): `resolve-invoice-tax.ts` never calls the
@@ -870,13 +889,10 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 
 			// Every OTHER leg is genuinely cross-border — download the CII export and read the RESOLVED
 			// treatment (never the typed vatRate, which `resolve-invoice-tax.ts` always overwrites for a
-			// cross-border line — see that file's own header, "the engine DECIDES").
-			// `document-downloads.ts#openBlob` hands the downloaded XML to `window.open(objectUrl,
-			// "_blank")` — stubbed so this run never actually spawns a real new tab/window, but the stub
-			// is asserted below (`@windowOpen`) rather than left as a bare side-effect-suppressor: it is
-			// the only proof in this test that the click's OWN result (not just the network request) was
-			// actually handed off to the browser.
-			cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
+			// cross-border line — see that file's own header, "the engine DECIDES"). `@windowOpen` is
+			// already installed and freshly reset above (see that comment) — this download reuses it
+			// rather than re-stubbing, so its own count below cannot be satisfied by the PDF download's
+			// already-proven, already-cleared call.
 			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/formats/cii` }).as("cii");
 			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-xml-button-${id}"]`, { timeout: 10000 }).click();
@@ -1028,7 +1044,10 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			});
 			// `openBlob` (document-downloads.ts) only reaches `window.open` after the fetch above
 			// resolves and the blob URL is built — every branch above returns 200, so every leg's own
-			// click genuinely results in a hand-off to the browser, not just a network request.
+			// click genuinely results in a hand-off to the browser, not just a network request. Counts
+			// only since the reset right after the PDF click's own proof above, so this is the XML click's
+			// own hand-off — never the PDF's, whichever of the two independent async chains happens to
+			// finish first.
 			cy.get("@windowOpen").should("have.been.calledOnce");
 		});
 	});
