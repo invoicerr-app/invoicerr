@@ -1,8 +1,8 @@
 ---
 title: Legal Notice
 sidebar_position: 4
-version: 2026-09-17
-effectiveDate: 2026-09-17
+version: 2026-09-19
+effectiveDate: 2026-09-19
 ---
 
 :::warning Draft
@@ -33,18 +33,19 @@ publication director within the meaning of LCEN art. 6-III.
 
 **Scaleway SAS** — a *société par actions simplifiée* registered under SIREN **433 115 904** (RCS
 Paris), with registered office at **8 rue de la Ville-l'Évêque, 75008 Paris, France**, as required by
-LCEN art. 6-I-2. Scaleway operates the Kubernetes cluster and the object storage the Service runs on,
-in its Paris region. Contact: same postal address; see Scaleway's own published legal notice
-(scaleway.com) for their support channels.
+LCEN art. 6-I-2. Scaleway operates the Kubernetes cluster and the object storage the Service
+(**my.invoicerr.app**) runs on, in its Paris region. Contact: same postal address; see Scaleway's own
+published legal notice (scaleway.com) for their support channels.
 
-The **documentation site** at **docs.invoicerr.app** — where this notice is itself published — and the
-**source code repository** at **github.com/invoicerr-app/invoicerr** (public issues, discussions where
-enabled, and the GitHub Actions workflows that build and publish the Service's container images to the
-GitHub Container Registry) are hosted by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San Francisco,
-CA 94107, USA, a wholly-owned subsidiary of Microsoft Corporation, via its GitHub Pages, GitHub
-Actions, and GitHub Container Registry services. GitHub, Inc. does not host the hosted Service itself
-(Scaleway SAS, above) and never receives or stores the account, billing, or document data created
-through it — see Privacy Policy, Section 10.
+The **public website** at **invoicerr.app**, the **documentation site** at **docs.invoicerr.app** —
+where this notice is itself published — and the **source code repository** at
+**github.com/invoicerr-app/invoicerr** (public issues, discussions where enabled, and the GitHub
+Actions workflows that build and publish the Service's container images to the GitHub Container
+Registry) are hosted by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, a
+wholly-owned subsidiary of Microsoft Corporation, via its GitHub Pages, GitHub Actions, and GitHub
+Container Registry services. GitHub, Inc. does not host the hosted Service itself
+(**my.invoicerr.app**, Scaleway SAS, above) and never receives or stores the account, billing, or
+document data created through it — see Privacy Policy, Section 10.
 
 ## 4. Intellectual Property
 
@@ -94,7 +95,9 @@ this Agreement.
 - **2026-09-17** — GitHub added as hosting provider for the documentation website. Section 3 gained
   **GitHub, Inc.** (address, Microsoft parent) as host of **docs.invoicerr.app** — the site this very
   notice is published on — and of the public source repository, via GitHub Pages / Actions / Container
-  Registry. **Not** described as hosting `invoicerr.app` as a separate public website: no landing page
-  distinct from the Scaleway-hosted app exists in this repository (`frontend/src/pages/index.tsx`, the
-  route served at that domain, only redirects to sign-in or the dashboard) — flagged for the owner
-  rather than assumed; see the task's own report.
+  Registry. At the time, `invoicerr.app` was believed to be the Ingress host for the Scaleway-hosted
+  Service itself, with no distinct landing page — superseded by the entry below.
+- **2026-09-19** — Owner decision: the public website moved to **GitHub Pages** at **invoicerr.app**;
+  the Service now lives at **my.invoicerr.app**. Section 3 now names `invoicerr.app` as a second
+  GitHub Pages-hosted site alongside `docs.invoicerr.app`, and states explicitly that the Scaleway-hosted
+  Service runs at `my.invoicerr.app`.

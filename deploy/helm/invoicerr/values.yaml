@@ -354,7 +354,7 @@ ingress:
   className: nginx
   # cert-manager ClusterIssuer name.
   clusterIssuer: letsencrypt
-  host: invoicerr.app
+  host: my.invoicerr.app
   tls:
     enabled: true
   annotations: {}

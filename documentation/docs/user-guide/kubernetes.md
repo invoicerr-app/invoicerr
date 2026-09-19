@@ -176,14 +176,14 @@ archive:
     forcePathStyle: false
 
 app:
-  appUrl: "https://invoicerr.app"
-  corsOrigins: "https://invoicerr.app"
+  appUrl: "https://my.invoicerr.app"
+  corsOrigins: "https://my.invoicerr.app"
 
 ingress:
   enabled: true
   className: nginx
   clusterIssuer: letsencrypt
-  host: invoicerr.app
+  host: my.invoicerr.app
 ```
 
 ```bash
@@ -209,9 +209,9 @@ curl http://localhost:8080/api/health
 # {"status":"ok","database":"up"}
 ```
 
-Once `invoicerr.app` resolves to the Ingress's external IP (`kubectl get ingress`) and
+Once `my.invoicerr.app` resolves to the Ingress's external IP (`kubectl get ingress`) and
 cert-manager has issued the certificate (`kubectl get certificate`), the app is reachable at
-`https://invoicerr.app`.
+`https://my.invoicerr.app`.
 
 ## Updating
 

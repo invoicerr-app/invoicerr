@@ -1,8 +1,8 @@
 ---
 title: Privacy Policy
 sidebar_position: 2
-version: 2026-09-17
-effectiveDate: 2026-09-17
+version: 2026-09-19
+effectiveDate: 2026-09-19
 ---
 
 :::warning Draft
@@ -143,15 +143,27 @@ banner is shown for it.
 
 ## 10. Websites We Operate
 
-Separately from the Service itself, we publish a public documentation website at
-**docs.invoicerr.app**, built with Docusaurus and served by **GitHub Pages** — a hosting service
-operated by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, a
-wholly-owned subsidiary of Microsoft Corporation. Visiting that site sends your IP address and
-standard HTTP request headers to GitHub so it can serve the page; that is GitHub's own technical
-access log, which we do not receive and do not control. **No account, billing, or other Service data
-described in Section 3 ever transits through, or is stored on, that documentation site.** It sets no
-cookie and loads no analytics, advertising, or tracking script — its on-page search runs entirely in
-your browser (see the [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md)).
+The Service itself runs at **my.invoicerr.app**, hosted by Scaleway as described in Section 4.
+Separately from the Service, we publish two public, static websites, both served by **GitHub
+Pages** — a hosting service operated by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San
+Francisco, CA 94107, USA, a wholly-owned subsidiary of Microsoft Corporation:
+
+- **invoicerr.app** — our public marketing website. It sets no cookie and loads no analytics,
+  advertising, or tracking script of any kind. The dark/light theme you pick is remembered only in
+  your browser's `localStorage`, a purely local preference that never reaches us and carries no
+  personal data. The page does make one call from **your own browser** to `api.github.com` (GitHub's
+  public API) to display our current GitHub star count; that request is made directly by your
+  browser, not routed through us, so GitHub sees the visitor's IP address the same way it would for
+  any direct visit to github.com — see
+  [GitHub's Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
+- **docs.invoicerr.app** — our documentation website, built with Docusaurus. It sets no cookie and
+  loads no analytics, advertising, or tracking script — its on-page search runs entirely in your
+  browser (see the [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md)).
+
+Visiting either site sends your IP address and standard HTTP request headers to GitHub so it can
+serve the page; that is GitHub's own technical access log, which we do not receive and do not
+control. **No account, billing, or other Service data described in Section 3 ever transits through,
+or is stored on, either site.**
 
 Our source code is also published on GitHub, at
 [github.com/invoicerr-app/invoicerr](https://github.com/invoicerr-app/invoicerr). Issues and
@@ -216,9 +228,14 @@ or by post to the address in Section 1.
   DPF membership including the UK Extension) as the GitHub Pages host of **docs.invoicerr.app** and of
   our public source repository, with the same "receives only visitor IP/request headers, no Service
   data, no cookie, no analytics" scoping already given to Cloudflare/Google for support email in
-  Section 4. **Deliberately did not** describe `invoicerr.app` itself as a GitHub Pages-hosted site: this
-  repository has no landing page distinct from the app — `frontend/src/pages/index.tsx` (the route
-  served at that domain) only redirects to `/auth/sign-in` or `/dashboard`, and
-  `deploy/helm/invoicerr/values.yaml` / `kubernetes.md` show `invoicerr.app` is the Ingress host for the
-  Scaleway-hosted Service already named in Section 4 — the same domain, not a second site. Flagged for
-  the owner rather than assumed; see the task's own report.
+  Section 4. At the time, `invoicerr.app` itself was believed to be the Ingress host for the
+  Scaleway-hosted Service (same domain as the app, not a second site) — superseded by the entry below.
+- **2026-09-19** — Owner decision: the public website moved to **GitHub Pages** at **invoicerr.app**;
+  the Service now lives at **my.invoicerr.app**. The 2026-09-17 entry above assumed `invoicerr.app` was
+  the app's own Ingress host — that was correct at the time but is no longer the current setup.
+  Section 10 rewritten to describe **invoicerr.app** as a second static, GitHub Pages-hosted site
+  (public repository `invoicerr-app/landing`): no cookie, no analytics or tracking script, a
+  theme preference kept only in `localStorage` (no personal data), and one client-side call to
+  `api.github.com` for the GitHub star count — made by the visitor's own browser, so GitHub, not us,
+  sees that visitor's IP address for that call, per GitHub's own Privacy Statement (now linked). The
+  Service's own address is stated explicitly as **my.invoicerr.app** at the top of Section 10.

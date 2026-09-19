@@ -1,8 +1,8 @@
 ---
 title: Cookies & Acceptable Use
 sidebar_position: 5
-version: 2026-09-17
-effectiveDate: 2026-09-17
+version: 2026-09-19
+effectiveDate: 2026-09-19
 ---
 
 :::warning Draft
@@ -67,15 +67,18 @@ the suspension and termination provisions of the Terms of Service, Section 11.
 Availability figures we may publish are **indicative only** and do not constitute a contractual
 service level — the same best-effort basis the Terms of Service, Section 14.1 already describes.
 
-## Part C — Documentation Website
+## Part C — Public Websites
 
 ### 8. No Cookies, No Analytics
 
-Our public documentation site at **docs.invoicerr.app** is a static site built with Docusaurus and
-served by **GitHub Pages** (GitHub, Inc. — see Privacy Policy, Section 10). It sets no cookie of its
-own and loads no analytics, advertising, or tracking script of any kind; its on-page search index runs
-entirely in your browser. GitHub's own technical access logs for that site (visitor IP address and
-request headers, needed to serve the page) are described in the Privacy Policy, Section 10, not here.
+Our public marketing website at **invoicerr.app** and our documentation site at **docs.invoicerr.app**
+are both static sites served by **GitHub Pages** (GitHub, Inc. — see Privacy Policy, Section 10).
+**Neither sets a cookie or loads analytics, advertising, or tracking scripts of any kind.**
+docs.invoicerr.app's on-page search index runs entirely in your browser; invoicerr.app's dark/light
+theme choice is remembered only in your browser's `localStorage`, never in a cookie. GitHub's own
+technical access logs for either site (visitor IP address and request headers, needed to serve the
+page — and, for invoicerr.app, the one client-side call to `api.github.com` for the GitHub star count)
+are described in the Privacy Policy, Section 10, not here.
 
 ---
 
@@ -92,3 +95,6 @@ request headers, needed to serve the page) are described in the Privacy Policy, 
   analytics — verified against `documentation/docusaurus.config.ts`'s plugin list, which carries only
   a local, in-browser search index (`@easyops-cn/docusaurus-search-local`) and no analytics/tracking
   plugin.
+- **2026-09-19** — Owner decision: the public website moved to **GitHub Pages** at **invoicerr.app**.
+  Part C renamed "Public Websites" and now covers both sites: invoicerr.app is a static marketing page
+  with no cookie and no analytics/tracking script, its theme choice kept only in `localStorage`.
