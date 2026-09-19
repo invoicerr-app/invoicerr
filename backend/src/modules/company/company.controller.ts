@@ -10,6 +10,7 @@ import { CurrentUser } from '@/types/user';
 
 import { SetCompanyMailSettingsDto } from '@/modules/company/mail-settings/company-mail-settings.dto';
 import { CompanyMailSettingsService } from '@/modules/company/mail-settings/company-mail-settings.service';
+import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('company')
@@ -235,6 +236,9 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Test email sent' })
   @ApiResponse({ status: 400, description: 'The real send failure — see the message' })
   async testMailSettings(@ActiveCompany() companyId: string, @User() user: CurrentUser) {
-    return this.companyMailSettingsService.sendTest(companyId, user.email);
+    // The requester's own language, no company-language fallback (`resolveRecipientLanguage`'s own
+    // second step is for a document's recipient, not the OWNER/ADMIN clicking a settings button).
+    const language = resolveUserLanguage(user.locale, undefined);
+    return this.companyMailSettingsService.sendTest(companyId, user.email, language);
   }
 }

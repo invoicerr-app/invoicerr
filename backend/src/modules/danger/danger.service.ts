@@ -1,4 +1,5 @@
 import { MailService } from '@/mail/mail.service';
+import { mailT } from '@/mail/i18n';
 import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';
 import {
@@ -9,6 +10,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
+import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 
 import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
 import { deleteArchivedArtifacts } from '@/modules/documents/archive/storage';
@@ -93,13 +95,20 @@ export class DangerService {
       // itself derived from `activeCompanyId` — see `guards/auth.guard.ts` — so an OWNER reaching this
       // handler at all already has an active company), so this OTP goes out through THAT company's own
       // mail server when it has one, never the instance's.
+      //
+      // Language: the ACTING user's own preference (`resolveUserLanguage`), never `resolveRecipientLanguage`
+      // — this mail is addressed to the person confirming their own destructive action, not to a
+      // document's external recipient. No company-language fallback here: this route is not on the
+      // document-render path, and adding a second query just to widen a fallback that only matters for
+      // a user with no personal preference AND no client-facing document context is not worth it.
+      const t = mailT(resolveUserLanguage(user.locale, undefined));
       await this.mailService.sendForCompany(companyId, {
         // F-012: this used to send to SMTP_FROM/SMTP_USER — the instance's own technical mailbox,
         // not the person authorising the destructive action. Anyone able to read that mailbox could
         // authorise; the requester could not.
         to: user.email,
-        subject: 'OTP Code Sent',
-        text: `Your confirmation code for a destructive action on Invoicerr is: ${code}. It is valid for ${OTP_EXPIRATION_MINUTES} minutes. If you did not request this, ignore this message.`,
+        subject: t('dangerOtp.subject'),
+        text: t('dangerOtp.body', { code, minutes: OTP_EXPIRATION_MINUTES }),
       });
     } catch (error) {
       // `sendForCompany`'s own named refusal (no mail server configured anywhere) is a
@@ -321,7 +330,10 @@ export class DangerService {
       throw error;
     }
 
-    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } });
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true, language: true },
+    });
     if (!company) {
       throw new BadRequestException('This company no longer exists.');
     }
@@ -355,13 +367,18 @@ export class DangerService {
       // `billing-lifecycle-sweep-runner.ts#findOldestOwnerEmail`) — this call has a real, already-
       // authenticated OWNER in hand, so the same F-012 "the export reaches the person requesting it"
       // discipline `requestOtp` above already holds applies here too.
+      //
+      // Language: the ACTING user's own preference, falling back to this company's own language (free
+      // here — `company` was already fetched above for its `name`) rather than straight to English,
+      // the same two-step chain `resolveUserLanguage` documents for a user with no personal choice.
+      const t = mailT(resolveUserLanguage(user.locale, company.language));
       await this.mailService.sendForCompany(companyId, {
         to: user.email,
-        subject: 'Your company data export',
-        text:
-          `You are about to permanently delete "${company.name}" from Invoicerr. Attached is a full ` +
-          'export of everything it held — this is your last copy. Once deletion completes, none of ' +
-          'it is recoverable.',
+        subject: t('dataExport.subject'),
+        text: t('dangerDeleteCompany.body', {
+          companyName: company.name,
+          interpolation: { escapeValue: false },
+        }),
         attachments: [{ filename: 'invoicerr-export.zip', content: zip, contentType: 'application/zip' }],
       });
     } catch (error) {

@@ -4,7 +4,9 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { runWithCompanyId } from '@/lib/request-context';
 import { logger } from '@/logger/logger.service';
+import { mailT } from '@/mail/i18n';
 import { MailService } from '@/mail/mail.service';
+import { DEFAULT_RENDER_LANGUAGE } from '@/modules/documents/rendering/language/supported-languages';
 import { deleteArchivedArtifacts } from '@/modules/documents/archive/storage';
 import { inboundRoot } from '@/modules/documents/received-invoices/storage';
 import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
@@ -58,14 +60,17 @@ export class InstanceResetService {
       // wipe is not scoped to any one company's own mail server, and the caller reaching this route at
       // all already proves they are an instance operator, not merely a member of whichever company
       // happens to be active in their session right now.
+      //
+      // Language: fixed to `DEFAULT_RENDER_LANGUAGE` ('en') for now — an instance operator is not a
+      // tenant with a `Client.language`/`Company.language` to resolve, and this repository has no
+      // per-operator locale setting yet. A future `DEFAULT_LOCALE` instance setting is the intended
+      // injection point (see `system-email-templates.ts`'s own billing-warning header for the sibling
+      // case); until it lands, every operator-facing mail keeps shipping in English, unchanged.
+      const t = mailT(DEFAULT_RENDER_LANGUAGE);
       await this.mailService.sendMail({
         to: user.email,
-        subject: 'Instance reset confirmation code',
-        text:
-          `Your confirmation code to reset this ENTIRE Invoicerr instance — every company, user and ` +
-          `document — is: ${code}. It is valid for ${OTP_EXPIRATION_MINUTES} minutes. If you did not ` +
-          `request this, ignore this message and consider removing your address from ` +
-          `INSTANCE_OPERATOR_EMAILS.`,
+        subject: t('instanceResetOtp.subject'),
+        text: t('instanceResetOtp.body', { code, minutes: OTP_EXPIRATION_MINUTES }),
       });
     } catch (error) {
       logger.error('Failed to send instance-reset OTP email', {

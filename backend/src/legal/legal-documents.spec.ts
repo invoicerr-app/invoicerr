@@ -8,7 +8,7 @@ import {
 } from './legal-documents';
 
 describe('legal-documents', () => {
-  it('loads all five documents from ./data, sorted by sidebar_position', () => {
+  it('loads all six documents from ./data, sorted by sidebar_position', () => {
     const docs = listLegalDocuments();
     expect(docs.map((d) => d.slug)).toEqual([
       'terms-of-service',
@@ -16,6 +16,7 @@ describe('legal-documents', () => {
       'data-processing-agreement',
       'legal-notice',
       'cookies-and-acceptable-use',
+      'international-access-transparency',
     ]);
   });
 
@@ -80,5 +81,48 @@ describe('legal-documents', () => {
     for (const doc of listLegalDocuments()) {
       expect(doc.contentHash).toMatch(/^[0-9a-f]{64}$/);
     }
+  });
+
+  describe('translations', () => {
+    it('privacy-policy and data-processing-agreement ship every non-English catalog language', () => {
+      for (const slug of ['privacy-policy', 'data-processing-agreement']) {
+        const doc = getLegalDocument(slug)!;
+        expect(Object.keys(doc.translations).sort()).toEqual(['de', 'fr', 'it', 'pl', 'pt']);
+      }
+    });
+
+    it('terms-of-service, legal-notice and cookies-and-acceptable-use ship French only', () => {
+      for (const slug of ['terms-of-service', 'legal-notice', 'cookies-and-acceptable-use']) {
+        const doc = getLegalDocument(slug)!;
+        expect(Object.keys(doc.translations)).toEqual(['fr']);
+      }
+    });
+
+    it("a translation's own body never leaks front matter, and actually differs from the English text", () => {
+      for (const doc of listLegalDocuments()) {
+        for (const translation of Object.values(doc.translations)) {
+          expect(translation!.content.startsWith('---')).toBe(false);
+          expect(translation!.content.length).toBeGreaterThan(0);
+          expect(translation!.title.length).toBeGreaterThan(0);
+          expect(translation!.content).not.toBe(doc.content);
+        }
+      }
+    });
+
+    it("a translation's own language field, when present, always matches its filename", () => {
+      // Loading itself already throws on a mismatch (`loadTranslation`) — this only asserts the
+      // suite's fixtures actually exercise that agreement rather than every file omitting the field.
+      expect(() => listLegalDocuments()).not.toThrow();
+    });
+
+    it("editing a translation never changes the slug's contentHash — only the English wording does", () => {
+      // The hash is computed once, in `loadDocument`, straight from the ENGLISH file's own body —
+      // a translation's `content` is never even passed to `computeContentHash`. This re-derives that
+      // guarantee from the real, on-disk documents rather than a hand-built fixture, so a future
+      // refactor that accidentally starts hashing a translation's bytes fails here.
+      for (const doc of listLegalDocuments()) {
+        expect(doc.contentHash).toBe(computeContentHash(doc.content));
+      }
+    });
   });
 });

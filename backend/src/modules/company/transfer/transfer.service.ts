@@ -31,6 +31,7 @@ import {
 import { isBillingEnabled } from '@/modules/billing/billing-flag';
 import { getOrCreateCompanySubscription } from '@/modules/billing/company-subscription.store';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
+import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';
 
@@ -157,7 +158,7 @@ export class TransferService {
     // side-channel worth closing.
     const toUser = await prisma.user.findFirst({
       where: { email: { equals: toEmail, mode: 'insensitive' } },
-      select: { id: true, email: true },
+      select: { id: true, email: true, locale: true },
     });
     if (!toUser) {
       logger.info('Ownership transfer requested for an email with no account — nothing created', {
@@ -170,7 +171,7 @@ export class TransferService {
 
     const company = await prisma.company.findUniqueOrThrow({
       where: { id: companyId },
-      select: { name: true },
+      select: { name: true, language: true },
     });
     const expiresAt = new Date(Date.now() + TRANSFER_WINDOW_MS);
 
@@ -200,6 +201,12 @@ export class TransferService {
       appUrl: appUrl(),
       companyName: company.name,
       fromName: `${fromUser.firstname} ${fromUser.lastname}`.trim() || fromUser.email,
+      // The RECIPIENT's own preference — never the initiator's, since it is their inbox this lands
+      // in — falling back to the transferred company's language rather than straight to English.
+      // Both values are already in hand from the same "account exists" branch that decides whether
+      // to send at all, so resolving a language adds no new query and therefore no new timing tell
+      // between the two branches this file's own header promises are indistinguishable.
+      language: resolveUserLanguage(toUser.locale, company.language),
     });
     // Never awaited, deliberately: this file's own header promises the SAME response, in the SAME
     // approximate time, whether or not `toEmail` resolves to an account — a real network round-trip to
@@ -268,10 +275,13 @@ export class TransferService {
     }
 
     try {
-      const company = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } });
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { name: true, language: true },
+      });
       const fromUser = await prisma.user.findUnique({
         where: { id: transfer.fromUserId },
-        select: { email: true },
+        select: { email: true, locale: true },
       });
       if (company && fromUser) {
         const email = buildOwnershipTransferEndedEmail({
@@ -279,6 +289,8 @@ export class TransferService {
           companyName: company.name,
           toEmail: transfer.toEmail,
           reason: 'canceled',
+          // The canceling OWNER's own receipt — their preference, falling back to their own company's.
+          language: resolveUserLanguage(fromUser.locale, company.language),
         });
         await this.mailService.sendForCompany(companyId, {
           to: fromUser.email,
@@ -377,26 +389,30 @@ export class TransferService {
     try {
       const company = await prisma.company.findUnique({
         where: { id: transfer.companyId },
-        select: { name: true },
+        select: { name: true, language: true },
       });
       const fromUser = await prisma.user.findUnique({
         where: { id: transfer.fromUserId },
-        select: { email: true },
+        select: { email: true, locale: true },
       });
       const toUser = await prisma.user.findUnique({
         where: { id: transfer.toUserId },
-        select: { email: true },
+        select: { email: true, locale: true },
       });
       if (company && fromUser && toUser) {
         const forNewOwner = buildOwnershipTransferFinalizedEmail({
           appUrl: appUrl(),
           companyName: company.name,
           forNewOwner: true,
+          // Each party reads this in THEIR OWN language, never the other's — the new owner's mail is
+          // never gated on what language the former owner happens to prefer, and vice versa below.
+          language: resolveUserLanguage(toUser.locale, company.language),
         });
         const forFormerOwner = buildOwnershipTransferFinalizedEmail({
           appUrl: appUrl(),
           companyName: company.name,
           forNewOwner: false,
+          language: resolveUserLanguage(fromUser.locale, company.language),
         });
         await this.mailService.sendForCompany(transfer.companyId, {
           to: toUser.email,

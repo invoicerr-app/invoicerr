@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import { isBillingEnabled } from '../modules/billing/billing-flag';
 import { AcceptanceMeta, getPendingAcceptanceSlugs, recordLegalAcceptance } from './legal-acceptance';
-import { LegalDocument, REQUIRED_ACCEPTANCE_SLUGS, listLegalDocuments } from './legal-documents';
+import { LegalDocumentView, resolveLegalDocumentView } from './legal-document-view';
+import { REQUIRED_ACCEPTANCE_SLUGS, listLegalDocuments } from './legal-documents';
+import { DEFAULT_LEGAL_DOCUMENT_LANGUAGE } from './legal-languages';
 
 export interface LegalDocumentsView {
   /** Mirrors `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` — the frontend's own signal for whether the
@@ -10,7 +12,7 @@ export interface LegalDocumentsView {
    *  the server-side flag, the same reasoning `use-billing.ts`'s own header gives for
    *  `GET /api/billing/status`). */
   saasMode: boolean;
-  documents: LegalDocument[];
+  documents: LegalDocumentView[];
 }
 
 export interface LegalStatusView {
@@ -20,8 +22,23 @@ export interface LegalStatusView {
 
 @Injectable()
 export class LegalService {
-  listDocuments(): LegalDocumentsView {
-    return { saasMode: isBillingEnabled(), documents: listLegalDocuments() };
+  /**
+   * `preferredLanguages` — built by `legal-request-language.ts` from the caller's `?lang=`, account
+   * locale, and `Accept-Language` header, in that priority order — is resolved PER DOCUMENT
+   * (`resolveLegalDocumentView`): two documents can, and often do, come back in different languages
+   * for the same caller (a French-preferring visitor gets `terms-of-service` in French but
+   * `legal-notice` in English, since only the former ships a French translation today). Defaults to
+   * `['en']` so every existing caller that has no notion of a preferred language (this service's own
+   * spec, anything else that reads it as a plain function) keeps getting exactly the English text it
+   * always did.
+   */
+  listDocuments(
+    preferredLanguages: readonly string[] = [DEFAULT_LEGAL_DOCUMENT_LANGUAGE],
+  ): LegalDocumentsView {
+    return {
+      saasMode: isBillingEnabled(),
+      documents: listLegalDocuments().map((doc) => resolveLegalDocumentView(doc, preferredLanguages)),
+    };
   }
 
   /** Always the empty/false shape outside SaaS mode — see `getPendingAcceptanceSlugs`'s own header

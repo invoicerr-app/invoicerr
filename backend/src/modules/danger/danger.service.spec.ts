@@ -260,6 +260,42 @@ describe('DangerService — F-012: the OTP reaches the requester', () => {
   });
 });
 
+describe('DangerService — mail language follows the acting user, English by default', () => {
+  it('sends the OTP mail in English when the user has no locale', async () => {
+    const { service, mailService } = build();
+    await service.requestOtp(USER, 'co-1');
+    const { subject, text } = mailService.sendForCompany.mock.calls[0][1];
+    expect(subject).toBe('OTP Code Sent');
+    expect(text).toContain('confirmation code for a destructive action');
+  });
+
+  it("sends the OTP mail in the user's own locale when set", async () => {
+    const { service, mailService } = build();
+    await service.requestOtp({ id: 'u1', email: USER_EMAIL, locale: 'fr' } as never, 'co-1');
+    const { subject, text } = mailService.sendForCompany.mock.calls[0][1];
+    expect(subject).toBe('Code de confirmation envoyé');
+    expect(text).toContain('action destructrice');
+  });
+
+  it('falls back to English for a locale this catalog does not carry', async () => {
+    const { service, mailService } = build();
+    await service.requestOtp({ id: 'u1', email: USER_EMAIL, locale: 'es' } as never, 'co-1');
+    expect(mailService.sendForCompany.mock.calls[0][1].subject).toBe('OTP Code Sent');
+  });
+
+  it("sends the deleteCompany data-export mail in the company's own language when the user has no locale", async () => {
+    const { service, mailService } = build();
+    prismaMock.company.findUnique = jest.fn().mockResolvedValue({ name: 'Acme Corp', language: 'de' });
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+
+    await service.deleteCompany(USER, 'co-1', otp, 'Acme Corp');
+
+    const zipCall = mailService.sendForCompany.mock.calls.find((c) => c[1].attachments)!;
+    expect(zipCall[1].subject).toBe('Export Ihrer Unternehmensdaten');
+    expect(zipCall[1].text).toContain('Acme Corp');
+  });
+});
+
 describe('DangerService — OTP hardening', () => {
   it('never stores the code in the clear — the persisted row only ever carries a hash', async () => {
     const { service, mailService } = build();

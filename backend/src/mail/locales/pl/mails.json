@@ -1,0 +1,125 @@
+{
+  "demo": {
+    "greeting": "Cześć, {{name}}!",
+    "itemCount": "{{count}} przedmiotów",
+    "itemCount_one": "{{count}} przedmiot"
+  },
+  "layout": {
+    "greeting": "Dzień dobry,",
+    "signOffText": "Z poważaniem,\nZespół Invoicerr",
+    "signOffHtml": "Z poważaniem,<br>Zespół Invoicerr",
+    "sentFrom": "Ta wiadomość została wysłana z {appUrl}"
+  },
+  "signatureRequest": {
+    "subject": "Prosimy o podpisanie dokumentu nr {signatureNumber}",
+    "intro": "Zostałeś/-aś poproszony/-a o podpisanie następującego dokumentu:",
+    "documentLine": "Dokument: {signatureNumber}",
+    "signatureIdLine": "Identyfikator podpisu: {signatureId}",
+    "reviewLinkIntro": "Otwórz ten link, aby sprawdzić i podpisać dokument:",
+    "contactText": "W razie pytań prosimy o kontakt.",
+    "title": "Wymagany podpis dokumentu",
+    "documentLabel": "Dokument:",
+    "signatureIdLabel": "Identyfikator podpisu:",
+    "clickBelow": "Kliknij poniższy przycisk, aby sprawdzić i podpisać dokument:",
+    "buttonLabel": "Podpisz dokument",
+    "contactHtml": "W razie jakichkolwiek pytań prosimy o kontakt."
+  },
+  "verificationCode": {
+    "subject": "Twój kod weryfikacyjny",
+    "codeIntroText": "Oto Twój kod weryfikacyjny: {otpCode}",
+    "codeIntroHtml": "Oto Twój kod weryfikacyjny:",
+    "expiryText": "Ten kod wkrótce wygaśnie. Wprowadź go w aplikacji, aby zakończyć weryfikację.",
+    "expiryHtml": "Ten kod wkrótce wygaśnie. Prosimy wprowadzić go w aplikacji, aby zakończyć weryfikację.",
+    "ignoreNotice": "Jeśli nie prosiłeś/-aś o ten kod, zignoruj tę wiadomość."
+  },
+  "billingWarning": {
+    "manageLine": "Zarządzaj subskrypcją: {settingsUrl}",
+    "ctaLabel": "Zarządzaj subskrypcją",
+    "blockedZip": {
+      "subject_one": "Wymagane działanie: Twoje dane Invoicerr zostaną zarchiwizowane za {{count}} dzień",
+      "subject": "Wymagane działanie: Twoje dane Invoicerr zostaną zarchiwizowane za {{count}} dni",
+      "heading": "Wymagane działanie",
+      "introText_one": "Subskrypcja Invoicerr Twojej firmy jest nieaktywna — za {{count}} dzień jej dokumenty zostaną wyeksportowane do pliku zip, a konto pozostanie tylko do odczytu do czasu wznowienia subskrypcji.",
+      "introText": "Subskrypcja Invoicerr Twojej firmy jest nieaktywna — za {{count}} dni jej dokumenty zostaną wyeksportowane do pliku zip, a konto pozostanie tylko do odczytu do czasu wznowienia subskrypcji.",
+      "introHtml_one": "Subskrypcja Invoicerr Twojej firmy jest nieaktywna — za <strong>{{count}} dzień</strong> jej dokumenty zostaną wyeksportowane do pliku zip, a konto pozostanie tylko do odczytu do czasu wznowienia subskrypcji.",
+      "introHtml": "Subskrypcja Invoicerr Twojej firmy jest nieaktywna — za <strong>{{count}} dni</strong> jej dokumenty zostaną wyeksportowane do pliku zip, a konto pozostanie tylko do odczytu do czasu wznowienia subskrypcji."
+    },
+    "deletion": {
+      "subject_one": "Ostateczne powiadomienie: Twoja firma Invoicerr zostanie trwale usunięta za {{count}} dzień",
+      "subject": "Ostateczne powiadomienie: Twoja firma Invoicerr zostanie trwale usunięta za {{count}} dni",
+      "heading": "Ostateczne powiadomienie",
+      "textBody_one": "Za {{count}} dzień Twoja firma i wszystkie zawarte w niej dokumenty zostaną TRWALE USUNIĘTE z Invoicerr. Tej operacji nie można cofnąć. Wznów subskrypcję przed tym terminem, aby zachować swoje dane.",
+      "textBody": "Za {{count}} dni Twoja firma i wszystkie zawarte w niej dokumenty zostaną TRWALE USUNIĘTE z Invoicerr. Tej operacji nie można cofnąć. Wznów subskrypcję przed tym terminem, aby zachować swoje dane.",
+      "htmlBody_one": "Za <strong>{{count}} dzień</strong> Twoja firma i wszystkie zawarte w niej dokumenty zostaną <strong>trwale usunięte</strong> z Invoicerr. Tej operacji nie można cofnąć. Wznów subskrypcję przed tym terminem, aby zachować swoje dane.",
+      "htmlBody": "Za <strong>{{count}} dni</strong> Twoja firma i wszystkie zawarte w niej dokumenty zostaną <strong>trwale usunięte</strong> z Invoicerr. Tej operacji nie można cofnąć. Wznów subskrypcję przed tym terminem, aby zachować swoje dane."
+    }
+  },
+  "legalChanged": {
+    "subjectSingular": "Zaktualizowano dokument prawny: {title}",
+    "subjectPlural": "Zaktualizowano dokumenty prawne: {titles}",
+    "titlesTwo": "{first} i {second}",
+    "titlesMany": "{first}, {second} i jeszcze {count}",
+    "heading_one": "Zaktualizowano dokument prawny",
+    "heading": "Zaktualizowano dokumenty prawne",
+    "introText_one": "Zaktualizowaliśmy następujący dokument prawny. Nową wersję możesz sprawdzić tutaj:",
+    "introText": "Zaktualizowaliśmy następujące dokumenty prawne. Nowe wersje możesz sprawdzić tutaj:",
+    "introHtml_one": "Zaktualizowaliśmy następujący dokument prawny:",
+    "introHtml": "Zaktualizowaliśmy następujące dokumenty prawne:",
+    "acceptNotice": "Przy następnym logowaniu zostaniesz poproszony/-a o zaakceptowanie zmian:",
+    "acceptButton": "Sprawdź i zaakceptuj"
+  },
+  "ownershipTransfer": {
+    "request": {
+      "subject": "{fromName} chce przekazać Ci własność \"{companyName}\"",
+      "textIntro": "{fromName} złożył/-a wniosek o przekazanie własności swojej firmy \"{companyName}\" w Invoicerr na Twoje konto. Po zaakceptowaniu staniesz się WŁAŚCICIELEM tej firmy; {fromName} zostanie administratorem.",
+      "expiryNotice": "Ten wniosek wygasa za 7 dni.",
+      "reviewLinkIntro": "Sprawdź i zaakceptuj wniosek tutaj:",
+      "ignoreNotice": "Jeśli nie spodziewałeś/-aś się tej wiadomości, możesz ją po prostu zignorować — nic się nie zmieni, dopóki nie zaakceptujesz wniosku.",
+      "heading": "Wniosek o przekazanie własności",
+      "htmlIntro": "<strong>{fromName}</strong> złożył/-a wniosek o przekazanie własności swojej firmy <strong>\"{companyName}\"</strong> w Invoicerr na Twoje konto. Po zaakceptowaniu staniesz się WŁAŚCICIELEM tej firmy; {fromName} zostanie administratorem.",
+      "buttonLabel": "Sprawdź wniosek"
+    },
+    "finalized": {
+      "subjectNewOwner": "Jesteś teraz właścicielem/-ką \"{companyName}\"",
+      "subjectFormerOwner": "Własność \"{companyName}\" została przekazana",
+      "bodyLineNewOwner": "Jesteś teraz WŁAŚCICIELEM/-KĄ \"{companyName}\" w Invoicerr.",
+      "bodyLineFormerOwner": "Nie jesteś już właścicielem/-ką \"{companyName}\" — nowy właściciel zaakceptował przekazanie. Pozostajesz administratorem tej firmy.",
+      "heading": "Przekazanie własności zakończone"
+    },
+    "ended": {
+      "subjectExpired": "Transfer własności \"{companyName}\" wygasł",
+      "subjectCanceled": "Transfer własności \"{companyName}\" został anulowany",
+      "bodyExpired": "Twój wniosek o przekazanie własności \"{companyName}\" na adres {toEmail} wygasł bez odpowiedzi. Nadal jesteś właścicielem/-ką tej firmy.",
+      "bodyCanceled": "Twój wniosek o przekazanie własności \"{companyName}\" na adres {toEmail} został anulowany. Nadal jesteś właścicielem/-ką tej firmy.",
+      "heading": "Transfer własności zakończony"
+    }
+  },
+  "dataExport": {
+    "subject": "Eksport danych Twojej firmy"
+  },
+  "dangerOtp": {
+    "subject": "Wysłano kod OTP",
+    "body": "Twój kod potwierdzający dla działania nieodwracalnego w Invoicerr to: {{code}}. Jest ważny przez {{minutes}} minut. Jeśli to nie Ty poprosiłeś/-aś o ten kod, zignoruj tę wiadomość."
+  },
+  "dangerDeleteCompany": {
+    "body": "Zamierzasz trwale usunąć \"{{companyName}}\" z Invoicerr. W załączniku znajdziesz pełny eksport wszystkich jej danych — to Twoja ostatnia kopia. Po zakończeniu usuwania odzyskanie danych nie będzie możliwe."
+  },
+  "instanceResetOtp": {
+    "subject": "Kod potwierdzający zresetowanie instancji",
+    "body": "Twój kod potwierdzający zresetowanie CAŁEJ instancji Invoicerr — wszystkich firm, użytkowników i dokumentów — to: {{code}}. Jest ważny przez {{minutes}} minut. Jeśli to nie Ty poprosiłeś/-aś o ten kod, zignoruj tę wiadomość i rozważ usunięcie swojego adresu z INSTANCE_OPERATOR_EMAILS."
+  },
+  "changeEmail": {
+    "subject": "Potwierdź swój adres e-mail",
+    "textIntro": "Kliknij poniższy link, aby potwierdzić ten adres e-mail dla swojego konta Invoicerr:",
+    "htmlIntro": "Kliknij poniższy przycisk, aby potwierdzić ten adres e-mail dla swojego konta Invoicerr:",
+    "ignoreNotice": "Jeśli to nie Ty złożyłeś/-aś ten wniosek, możesz bezpiecznie zignorować tę wiadomość — adres e-mail Twojego konta nie zmieni się, dopóki powyższy link nie zostanie otwarty.",
+    "buttonLabel": "Potwierdź adres e-mail"
+  },
+  "mailSettingsTest": {
+    "subject": "Invoicerr — wiadomość testowa",
+    "body": "To jest wiadomość testowa potwierdzająca, że konfiguracja Twojego serwera pocztowego działa poprawnie."
+  },
+  "billingZipExport": {
+    "body": "Subskrypcja Invoicerr Twojej firmy jest zablokowana od 14 dni. W załączniku znajdziesz pełny eksport dokumentów Twojej firmy. Jeśli nie podejmiesz działania, te dane zostaną trwale usunięte."
+  }
+}

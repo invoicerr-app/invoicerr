@@ -63,6 +63,13 @@ jobs:
       - name: Check i18n catalogs (used keys must exist in EN)
         run: node frontend/scripts/i18n-check.mjs
 
+      # Same guard, same algorithm (backend/scripts/i18n-check.mjs is a parameterized copy of the
+      # frontend's own script — see that file's own header for why a copy and not a shared import),
+      # pointed at the mail catalog (`src/mail/locales/*/mails.json`) instead of the frontend's
+      # `translation.json`. No `npm ci` needed: the script only uses Node's own `fs`/`path`/`url`.
+      - name: Check backend mail i18n catalogs (used keys must exist in EN)
+        run: node backend/scripts/i18n-check.mjs
+
   # The e2e project was never typechecked by anything: no script, no CI step, and `tsc --noEmit`
   # could not even run to completion (71 errors, all of them specs colliding in one global scope --
   # see e2e/tsconfig.json's own comment). A type error in a Cypress spec was therefore only ever

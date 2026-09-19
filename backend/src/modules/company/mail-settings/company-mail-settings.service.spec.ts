@@ -224,5 +224,23 @@ describe('CompanyMailSettingsService', () => {
         expect.objectContaining({ to: 'me@example.com' }),
       );
     });
+
+    it('defaults to English when no language is given', async () => {
+      mailService.sendForCompany.mockResolvedValue({ message: 'ok' });
+      await service.sendTest('company-1', 'me@example.com');
+      expect(mailService.sendForCompany).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ subject: 'Invoicerr — test email' }),
+      );
+    });
+
+    it("uses the requester's own language when given", async () => {
+      mailService.sendForCompany.mockResolvedValue({ message: 'ok' });
+      await service.sendTest('company-1', 'me@example.com', 'pt');
+      expect(mailService.sendForCompany).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ subject: 'Invoicerr — e-mail de teste' }),
+      );
+    });
   });
 });

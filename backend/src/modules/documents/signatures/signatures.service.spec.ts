@@ -146,6 +146,9 @@ jest.mock('@/prisma/prisma.service', () => {
     default: {
       signature,
       mailTemplate: { findFirst: jest.fn(defaultMailTemplateFindFirst) },
+      // No company language set by default — `resolveRecipientLanguage`'s own fallback chain then
+      // lands on English, the exact behavior every pre-existing test in this file already expects.
+      company: { findUnique: jest.fn().mockResolvedValue({ language: null }) },
     },
     __rows: rows,
     __defaultMailTemplateFindFirst: defaultMailTemplateFindFirst,
@@ -194,6 +197,7 @@ describe('SignaturesService', () => {
     // fixture is put back deliberately before every test.
     const mock = jest.requireMock('@/prisma/prisma.service');
     mock.default.mailTemplate.findFirst.mockImplementation(mock.__defaultMailTemplateFindFirst);
+    mock.default.company.findUnique.mockResolvedValue({ language: null });
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_QUOTE);
     (persistence.updateDocumentStatus as jest.Mock).mockImplementation(
       async (_companyId: string, _typeId: string, id: string, status: string) => ({
@@ -559,6 +563,72 @@ describe('SignaturesService', () => {
       expect(sent.html).toContain('Document Signature Required');
       expect(sent.html).toMatch(/\/signature\/[0-9a-f]{64,}/);
       expect(sent.text).toMatch(/\/signature\/[0-9a-f]{64,}/);
+    });
+
+    it("uses the CLIENT's own language for the shipped default — never a company override, which is never translated", async () => {
+      const clientsService = {
+        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com', language: 'fr' }),
+      };
+      const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
+      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      prisma.mailTemplate.findFirst.mockResolvedValue(null); // no override — the shipped default applies
+      const service = new SignaturesService(
+        clientsService as any,
+        mailService as any,
+        { dispatch: jest.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: jest.fn() } as any,
+      );
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Veuillez signer le document n° QUOTE-2026-0001');
+      expect(sent.html).toContain('Signature de document requise');
+    });
+
+    it("falls back to the COMPANY's own language when the client has none", async () => {
+      const clientsService = {
+        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+      };
+      const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
+      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      prisma.mailTemplate.findFirst.mockResolvedValue(null);
+      prisma.company.findUnique.mockResolvedValue({ language: 'de' });
+      const service = new SignaturesService(
+        clientsService as any,
+        mailService as any,
+        { dispatch: jest.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: jest.fn() } as any,
+      );
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Bitte unterschreiben Sie Dokument Nr. QUOTE-2026-0001');
+    });
+
+    it('threads the SAME client language into a re-armed OTP mail, resolved fresh from the client', async () => {
+      const clientsService = {
+        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com', language: 'it' }),
+      };
+      const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
+      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      prisma.mailTemplate.findFirst.mockResolvedValue(null);
+      const service = new SignaturesService(
+        clientsService as any,
+        mailService as any,
+        { dispatch: jest.fn().mockResolvedValue(undefined) } as any,
+        { renderInstancePdf: jest.fn() } as any,
+      );
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+      const token = /\/signature\/([0-9a-f]{64,})/.exec(mailService.sendForCompany.mock.calls[0][1].html)![1];
+      mailService.sendForCompany.mockClear();
+
+      await service.requestOtp(token);
+
+      const sent = mailService.sendForCompany.mock.calls[0][1];
+      expect(sent.subject).toBe('Il tuo codice di verifica');
     });
 
     it('still delivers the OTP on the shipped default, carrying the display-form code in both parts', async () => {

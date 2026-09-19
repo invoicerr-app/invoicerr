@@ -17,6 +17,8 @@ import {
 } from '@/mail/system-email-templates';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import { resolveRecipientLanguage } from '@/modules/documents/rendering/language/resolve-recipient-language';
+import { RenderLanguage } from '@/modules/documents/rendering/language/supported-languages';
 
 import { DocumentEmailTemplate } from '../descriptors/types';
 import {
@@ -130,7 +132,10 @@ const DOCUMENT_SNAPSHOT_MIME = 'application/pdf';
 export const CLIENT_CONTACT_LOOKUP = Symbol('CLIENT_CONTACT_LOOKUP');
 
 export interface ClientContactLookup {
-  getClientById(companyId: string, id: string): Promise<{ contactEmail?: string | null } | null>;
+  getClientById(
+    companyId: string,
+    id: string,
+  ): Promise<{ contactEmail?: string | null; language?: string | null } | null>;
 }
 
 @Injectable()
@@ -186,6 +191,10 @@ export class SignaturesService {
       signatureId: signature.id,
       token,
       recipient: client.contactEmail,
+      // Same `Client.language` → `Company.language` → 'en' chain the document's own send email
+      // already resolves (`rendering/render-instance-pdf.ts`) — the client who receives a "sign this"
+      // link now reads it in the SAME language their quote itself was rendered in.
+      language: resolveRecipientLanguage(client.language, await this.resolveCompanyLanguage(companyId)),
       displayNumber: document.displayNumber ?? document.id,
     });
 
@@ -392,9 +401,14 @@ export class SignaturesService {
     token: string;
     recipient: string;
     displayNumber: string;
+    language: RenderLanguage;
   }): Promise<void> {
     const appUrl = process.env.APP_URL || '';
-    const template = await this.resolveSystemTemplate(MailTemplateType.SIGNATURE_REQUEST, input.companyId);
+    const template = await this.resolveSystemTemplate(
+      MailTemplateType.SIGNATURE_REQUEST,
+      input.companyId,
+      input.language,
+    );
     const parts = buildSignatureRequestEmailParts({
       appUrl,
       signatureUrl: `${appUrl}/signature/${input.token}`,
@@ -419,8 +433,6 @@ export class SignaturesService {
    *  `requestSignature`) so a re-armed OTP, long after the initial request, still reaches the right
    *  inbox even if the underlying `Client` row's own `contactEmail` changed in the meantime. */
   private async sendOtpEmail(row: SignatureRecord, code: string): Promise<void> {
-    const template = await this.resolveSystemTemplate(MailTemplateType.VERIFICATION_CODE, row.companyId);
-
     const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId);
     const data = (document.data ?? {}) as Record<string, unknown>;
     const clientId = typeof data.client === 'string' ? data.client : undefined;
@@ -428,6 +440,19 @@ export class SignaturesService {
     if (!client?.contactEmail) {
       throw new BadRequestException('Signature request has no reachable recipient.');
     }
+
+    // Resolved fresh from THIS client (not threaded through from `requestSignature`, same reason the
+    // recipient email itself is re-resolved here — see this method's own header) — a client's
+    // language can change between the initial request and a re-armed OTP just as its contact email can.
+    const language = resolveRecipientLanguage(
+      client.language,
+      await this.resolveCompanyLanguage(row.companyId),
+    );
+    const template = await this.resolveSystemTemplate(
+      MailTemplateType.VERIFICATION_CODE,
+      row.companyId,
+      language,
+    );
 
     const parts = buildOtpEmailParts({
       appUrl: process.env.APP_URL || '',
@@ -445,12 +470,20 @@ export class SignaturesService {
   private async resolveSystemTemplate(
     family: SystemEmailFamily,
     companyId: string,
+    language: RenderLanguage,
   ): Promise<DocumentEmailTemplate> {
     const override = await prisma.mailTemplate.findFirst({
       where: { type: family, companyId },
       select: { subject: true, body: true },
     });
-    return resolveSystemEmailTemplate(family, override);
+    return resolveSystemEmailTemplate(family, override, language);
+  }
+
+  /** This company's own `Company.language` — the fallback step of `resolveRecipientLanguage`'s chain,
+   *  used the same way `render-instance-pdf.ts` uses it for a document's own recipient language. */
+  private async resolveCompanyLanguage(companyId: string): Promise<string | null> {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { language: true } });
+    return company?.language ?? null;
   }
 
   /**

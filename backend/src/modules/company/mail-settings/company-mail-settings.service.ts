@@ -11,7 +11,9 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+import { mailT } from '@/mail/i18n';
 import { MailService } from '@/mail/mail.service';
+import { RenderLanguage } from '@/modules/documents/rendering/language/supported-languages';
 
 import { SetCompanyMailSettingsDto } from './company-mail-settings.dto';
 import {
@@ -68,13 +70,22 @@ export class CompanyMailSettingsService {
    * (`MailService#sendForCompany`), and re-throws whatever it raised — the REAL provider error (a bad
    * SMTP password, an invalid Resend key, the named "no mail server configured" refusal, ...) rather
    * than a generic "check your configuration" string, which would defeat the point of a test button.
+   *
+   * `language` — the REQUESTER's own preference (`resolveUserLanguage`, resolved by the controller,
+   * which is where the authenticated `CurrentUser` lives) — defaults to English (`mailT(undefined)`)
+   * when omitted, matching this mail's behavior before it had a language at all.
    */
-  async sendTest(companyId: string, toEmail: string): Promise<{ message: string }> {
+  async sendTest(
+    companyId: string,
+    toEmail: string,
+    language?: RenderLanguage,
+  ): Promise<{ message: string }> {
+    const t = mailT(language);
     try {
       return await this.mailService.sendForCompany(companyId, {
         to: toEmail,
-        subject: 'Invoicerr — test email',
-        text: 'This is a test email confirming your mail server configuration works.',
+        subject: t('mailSettingsTest.subject'),
+        text: t('mailSettingsTest.body'),
       });
     } catch (error) {
       if (error instanceof HttpException) throw error;

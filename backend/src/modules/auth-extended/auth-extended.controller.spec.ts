@@ -12,19 +12,31 @@
  * "never reached better-auth" assertion possible, which is the point — a refusal that still called
  * `setPassword` first would not be a refusal.
  */
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 
 import { auth } from '@/lib/auth';
+import { CurrentUser } from '@/types/user';
 import { AuthExtendedController } from './auth-extended.controller';
+import { setUserLocale } from './preferences';
 
 jest.mock('@/lib/auth', () => ({
   __esModule: true,
   auth: { api: { setPassword: jest.fn().mockResolvedValue({}) } },
 }));
 
+// `preferences.ts` reaches through to the shared `prisma` singleton — mocked at THAT boundary
+// (`preferences.spec.ts` covers `setUserLocale`/`parseAccountLocaleInput` on their own), so this file
+// only has to prove the controller wires the two together correctly.
+jest.mock('./preferences', () => {
+  const actual = jest.requireActual('./preferences');
+  return { ...actual, setUserLocale: jest.fn() };
+});
+
 const setPasswordApi = (auth as unknown as { api: { setPassword: jest.Mock } }).api.setPassword;
+const mockSetUserLocale = setUserLocale as jest.Mock;
 const request = { headers: {} } as unknown as Request;
+const currentUser = { id: 'user-1' } as CurrentUser;
 
 const LONG_ENOUGH = 'a-long-enough-password';
 
@@ -100,5 +112,54 @@ describe('AuthExtendedController#setPassword', () => {
       );
       expect(setPasswordApi).not.toHaveBeenCalled();
     });
+  });
+});
+
+/**
+ * `PATCH /api/auth-extended/preferences` — `locale` is the account's own "Mon compte" language
+ * preference, exposed to the rest of the app through the session (`User.locale`, an additionalField
+ * on better-auth's `user` config — see `lib/auth.ts`'s own `customSession`, which passes `user`
+ * through untouched, so a field this endpoint just wrote is exactly what the NEXT `get-session` call
+ * (and thus `CurrentUser`/`@User()` everywhere else) reads back).
+ */
+describe('AuthExtendedController#updatePreferences', () => {
+  let controller: AuthExtendedController;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    controller = new AuthExtendedController();
+  });
+
+  it('persists a supported locale and echoes back what was actually written', async () => {
+    mockSetUserLocale.mockResolvedValue('fr');
+
+    await expect(controller.updatePreferences(currentUser, { locale: 'FR' })).resolves.toEqual({
+      success: true,
+      locale: 'fr',
+    });
+    // Normalized (lowercased) BEFORE reaching the write — the write never has to know about casing.
+    expect(mockSetUserLocale).toHaveBeenCalledWith('user-1', 'fr');
+  });
+
+  it('accepts null to clear the preference', async () => {
+    mockSetUserLocale.mockResolvedValue(null);
+
+    await expect(controller.updatePreferences(currentUser, { locale: null })).resolves.toEqual({
+      success: true,
+      locale: null,
+    });
+    expect(mockSetUserLocale).toHaveBeenCalledWith('user-1', null);
+  });
+
+  it('rejects an unsupported locale with a 400, and never reaches the write', async () => {
+    await expect(controller.updatePreferences(currentUser, { locale: 'es' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(mockSetUserLocale).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body with no `locale` key at all with a 400 — never a silent no-op', async () => {
+    await expect(controller.updatePreferences(currentUser, {})).rejects.toBeInstanceOf(BadRequestException);
+    expect(mockSetUserLocale).not.toHaveBeenCalled();
   });
 });

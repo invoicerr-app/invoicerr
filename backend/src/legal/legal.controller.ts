@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '@thallesp/nestjs-better-auth';
 
 import { User } from '@/decorators/user.decorator';
@@ -8,6 +8,7 @@ import { CurrentUser } from '@/types/user';
 
 import { AcceptLegalDto, parseAcceptLegalSlugs } from './legal.dto';
 import { LegalGateExempt } from './legal-gate-exempt.decorator';
+import { resolveLegalDocumentLanguages } from './legal-request-language';
 import { LegalService } from './legal.service';
 
 @ApiTags('legal')
@@ -23,12 +24,26 @@ export class LegalController {
       'Public, always reachable (even on a self-hosted instance — this route never 404s the way ' +
       'BillingModule does). Terms of Service, Privacy Policy, Data Processing Agreement, Legal ' +
       'Notice, and Cookies & Acceptable Use, each with its current version, effective date, and raw ' +
-      'markdown content. `saasMode` is the one field the frontend actually branches on: whether the ' +
-      'sign-up screen must show the acceptance checkbox at all.',
+      'markdown content resolved into a language (`legal-request-language.ts`): the `lang` query ' +
+      "param when given and supported, else the caller's own account locale when signed in, else " +
+      "this request's own `Accept-Language` header, else English — resolved separately per document, " +
+      'since not every document ships every language. `saasMode` is the one field the frontend ' +
+      'actually branches on: whether the sign-up screen must show the acceptance checkbox at all.',
+  })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    type: String,
+    description:
+      "Explicit language override (e.g. the frontend's own per-document language selector) — " +
+      'outranks the account locale and `Accept-Language`. Silently ignored if not one of the ' +
+      'languages this catalog carries at all; a document with no translation into it still falls ' +
+      'back to English.',
   })
   @ApiResponse({ status: 200, description: 'Documents retrieved' })
-  documents() {
-    return this.legalService.listDocuments();
+  async documents(@Req() request: RequestWithUser, @Query('lang') lang?: string) {
+    const preferredLanguages = await resolveLegalDocumentLanguages(request, lang);
+    return this.legalService.listDocuments(preferredLanguages);
   }
 
   @Get('status')

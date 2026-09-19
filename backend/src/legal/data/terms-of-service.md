@@ -1,8 +1,8 @@
 ---
 title: Terms of Service
 sidebar_position: 1
-version: 2026-09-17
-effectiveDate: 2026-09-17
+version: 2026-09-19
+effectiveDate: 2026-09-19
 ---
 
 :::warning Draft
@@ -47,7 +47,7 @@ obligations under this Agreement in full.
 ## 2. Definitions
 
 - **"Agreement"** — these Terms, together with the Privacy Policy, the Data Processing Agreement, and
-  the Cookies & Acceptable Use Policy, each incorporated by reference as described in Section 19.2.
+  the Cookies & Acceptable Use Policy, each incorporated by reference as described in Section 21.2.
 - **"Service"** — the hosted Invoicerr application, made available as software-as-a-service under
   these Terms.
 - **"Company"** — a workspace/tenant created within the Service (matching the term used in the
@@ -72,7 +72,7 @@ this includes transmission to e-invoicing platforms or government portals (e.g. 
 Chorus Pro) and any outgoing email the Service sends on your behalf.
 
 3.3. If no paid subscription is activated before the trial ends, your Company enters the read-only
-suspension described in Section 11.
+suspension described in Section 13.
 
 ## 4. Account Registration and Security
 
@@ -128,77 +128,154 @@ billing mechanics apply a change sooner.
 
 7.4. This Agreement covers only your subscription to the Service. It does **not** cover any means you
 connect to collect payment from **your own** customers on the invoices **you** issue through the
-Service (e.g. a Stripe, Mollie, or PayPal account) — see Section 12.3.
+Service (e.g. a Stripe, Mollie, or PayPal account) — see Section 14.3.
+
+7.5. **No switching fees, disclosed in advance.** Before you subscribe, we tell you plainly, in these
+Terms and on our pricing page: the Fees you will pay (Section 6.3); that we charge no
+early-termination penalty (Section 12.2); and that we charge no fee, of any kind, to switch away from
+the Service (Section 9.6).
 
 ## 8. Data Ownership and Portability
 
 8.1. **You retain all rights, title, and interest in Your Data.** We claim no ownership over it and
-use it solely to provide the Service to you, as described in Section 13.
+use it solely to provide the Service to you, as described in Section 15.
 
 8.2. You can export your accounting ledger (invoices, credit notes, and payments) to CSV at any time
-from within the Service. A full export of Your Data — the stored fields and, where renderable, a PDF
-copy of every document — is generated automatically and sent to your Owner when your Company reaches
-end-of-subscription (Section 11.2). Outside of that automatic export, you may request a full export
-of Your Data at any time by writing to **contact@invoicerr.app**; we will provide it within a
-reasonable time.
+from within the Service. You can also generate a full export of Your Data — the stored fields and,
+where renderable, a PDF copy of every document — **self-service, at any time during your
+subscription**, either from within the Service or by calling `POST /api/companies/export` (see
+Section 10 for the API). The same export is generated automatically and sent to your Owner when your
+Company reaches end-of-subscription (Section 13.2). If you are unable to use either of those paths,
+write to **contact@invoicerr.app** and we will provide the export within a reasonable time.
 
-## 9. Intellectual Property
+## 9. Switching to a Different Provider (EU Data Act)
 
-9.1. The Invoicerr software is distributed under its open-source license, as published in the
+9.1. **Right to switch.** At any time during your subscription, and without needing to cancel first,
+you may extract Your Data through the self-service export described in Section 8.2, the API
+described in Section 10, and the per-document PDF or EN 16931 XML (UBL/CII) downloads available from
+within the Service, in order to move to a different data processing service or to your own
+on-premises IT infrastructure ("**switching**"). We impose no pre-commercial, commercial, technical,
+contractual, or organizational obstacle to switching, in accordance with Regulation (EU) 2023/2854
+(the "**EU Data Act**"), Article 23.
+
+9.2. **Notice and transitional period.** If you notify us of your intention to switch (by writing to
+**contact@invoicerr.app** or through the in-product cancellation flow), we keep your subscription and
+every function of the Service fully available for at least thirty (30) calendar days from that notice
+(the "**Transitional Period**"). During the Transitional Period we will: (a) provide you and any third
+party you authorize with reasonable assistance in the switching process; (b) act with due diligence to
+maintain business continuity and keep providing the Service; (c) give you clear information about any
+known risk to that continuity that falls within our own responsibility; and (d) maintain the same
+level of security described in Section 15.3 throughout, including for data in transit. You may extend
+the Transitional Period once, for a duration you consider more appropriate, by telling us before it
+ends. If completing the switch within thirty (30) days is technically impossible on our side, we will
+tell you why within fourteen (14) working days of your request and propose an alternative period of no
+more than seven (7) months, during which the Service continues to be provided without interruption.
+
+9.3. **Exportable Data.** "Exportable Data" means Your Data as defined in Section 2 — every document,
+client, article, project, time entry, bank statement/reconciliation, and attachment your Company
+holds — together with the metadata the Service generates about it (status, dates, totals, settlement,
+archive and authority-event history). It does not include the Invoicerr software itself, our
+compliance catalogs, our own analytics, or any other asset protected by our intellectual property
+rights or constituting our trade secret; none of the latter is needed to reconstitute Your Data at a
+different provider.
+
+9.4. **End of the switching process.** Once you confirm a switch is complete, or, if you did not want
+to switch but asked us to erase Your Data at the end of the Transitional Period, once that period
+ends, we treat this Agreement as terminated and confirm that to you by email — without prejudice to
+Section 12 (cancellation) or Section 13 (suspension, archive and deletion), which continue to describe
+what happens to Your Data next.
+
+9.5. **Data-retrieval window and erasure.** Following the Transitional Period (or its extension), you
+have at least thirty (30) calendar days to retrieve a copy of your Exportable Data (the "**Retrieval
+Window**") — see Section 13.2-13.3 for the exact timing, which is never shorter than thirty (30) days
+for any Company, including one that never held a paid subscription. We permanently erase your
+Exportable Data and any associated digital assets only after the Retrieval Window ends (or a later
+date you and we agree on), and only once any switching process you started has completed successfully.
+
+9.6. **No switching fees.** We do not charge, and have never charged, any switching fee — including
+for the extraction of Your Data to a different provider or to your own infrastructure — beyond our
+ordinary subscription Fees (Section 6). There is no early-termination penalty (Section 12.2). This
+applies throughout the period Regulation (EU) 2023/2854, Article 29 allows a reduced fee (11 January
+2024 to 12 January 2027) and beyond, once such fees become entirely prohibited.
+
+## 10. Interoperability and Data Formats
+
+10.1. Our REST API — documented at
+[docs.invoicerr.app/docs/developer-guide/api-reference](https://docs.invoicerr.app/docs/developer-guide/api-reference),
+which also links to the machine-readable OpenAPI (Swagger) specification for the exact schema of every
+request and response — is available to every subscriber at no extra charge, and lets independent
+software read and write Your Data to switch it to a different provider or use it alongside the
+Service.
+
+10.2. Exportable Data can be extracted as: a structured CSV ledger (Section 8.2); a JSON export of
+every document's stored fields plus a PDF or, for an invoice, an EN 16931-compliant XML file (UBL or
+CII syntax) generated on demand; and the API's own JSON responses. Each is a structured, commonly
+used, machine-readable format within the meaning of Regulation (EU) 2023/2854, Article 30(5).
+
+10.3. We are not aware of any EU harmonised standard or common specification for cloud invoicing
+interoperability having been published in the Union's central interoperability standards register as
+of the effective date of these Terms; if one is published, we will bring the Service into compliance
+with it within the twelve (12)-month period Article 30(3) allows.
+
+## 11. Intellectual Property
+
+11.1. The Invoicerr software is distributed under its open-source license, as published in the
 `LICENSE` file at the root of the repository. Nothing in these Terms restricts the rights that
 license already grants you over the software itself.
 
-9.2. The Invoicerr name and any logo or mark displayed within the hosted Service belong to the
+11.2. The Invoicerr name and any logo or mark displayed within the hosted Service belong to the
 Provider. These Terms grant you no right in that name or those marks beyond what is needed to
 identify and use the Service you subscribe to.
 
-9.3. Subject to these Terms and payment of the applicable Fees, we grant you a limited,
+11.3. Subject to these Terms and payment of the applicable Fees, we grant you a limited,
 non-exclusive, non-transferable right to access and use the hosted Service, for your own internal
 business purposes, for the number of Seats you hold.
 
-## 10. Term, Cancellation and Termination by You
+## 12. Term, Cancellation and Termination by You
 
-10.1. Your subscription runs for the billing cycle you selected (monthly or annual) and renews
+12.1. Your subscription runs for the billing cycle you selected (monthly or annual) and renews
 automatically at the end of each cycle unless cancelled.
 
-10.2. **You may cancel at any time.** Cancellation takes effect at the **end of the period you have
+12.2. **You may cancel at any time.** Cancellation takes effect at the **end of the period you have
 already paid for** (the end of the current month or year) — access to paid features continues until
 then. **No refund and no proration** is given for the unused portion of a cancelled period.
 
-## 11. Suspension for Non-Payment, End of Subscription, Data Archive and Deletion
+## 13. Suspension for Non-Payment, End of Subscription, Data Archive and Deletion
 
-11.1. **Read-only suspension.** A Company enters a **fourteen (14)-day, read-only suspension** when
+13.1. **Read-only suspension.** A Company enters a **fourteen (14)-day, read-only suspension** when
 either: (a) its free trial ends without a paid subscription being activated, or (b) a paid
 subscription ends — through cancellation taking effect, non-renewal, or an unresolved payment
 failure. During this period, Your Data remains stored but every write action — including sending or
 issuing a document — is disabled.
 
-11.2. **Data archive.** At the end of the 14-day read-only suspension, we generate an archive (a zip
+13.2. **Data archive.** At the end of the 14-day read-only suspension, we generate an archive (a zip
 file) containing, for every document your Company holds, its stored data and, where the document can
 be rendered, a copy of it, and we email that archive to the Company's **Owner**. This is your
 opportunity to retain a copy of your records before deletion.
 
-11.3. **Deletion.**
+13.3. **Deletion.**
    - If the Company never had a paid subscription (i.e. its trial expired unconverted), its account
-     and all associated data are permanently deleted once the archive has been sent.
+     and all associated data are permanently deleted **no earlier than thirty (30) calendar days**
+     after the archive is sent — the same minimum Retrieval Window every Company gets, paid or not
+     (Section 9.5).
    - If the Company had, at any point, an active paid subscription, its account and data are
      permanently deleted **no earlier than one hundred eighty (180) days after the archive is sent**,
      giving you a further window to reactivate your subscription before deletion.
 
-11.4. **Transfer of legal retention responsibility.** Once the archive described in Section 11.2 has
+13.4. **Transfer of legal retention responsibility.** Once the archive described in Section 13.2 has
 been sent to your Owner, **responsibility for retaining your invoices and related documents for any
 statutory retention period** (for example, ten (10) years for invoices under French law, or such
 other period applicable under the law of the relevant country) **transfers to you**. From that point,
 we are no longer a depositary of those records and undertake no obligation to retain the archive, or
-the underlying data, beyond the deletion described in Section 11.3.
+the underlying data, beyond the deletion described in Section 13.3.
 
-## 12. Hosting and Subprocessors
+## 14. Hosting and Subprocessors
 
-12.1. **The Service and Customer Data are hosted in the European Union**, with **Scaleway SAS**
+14.1. **The Service and Customer Data are hosted in the European Union**, with **Scaleway SAS**
 (Kubernetes infrastructure and document object storage, Paris region, France) and **Neon, LLC**
 (a Databricks, Inc. affiliate; managed PostgreSQL database, EU region).
 
-12.2. We use the following subprocessors in connection with the Service:
+14.2. We use the following subprocessors in connection with the Service:
 
    - **Scaleway SAS** — Kubernetes infrastructure and object storage for the Service and its archived
      documents (Paris region, France).
@@ -211,64 +288,73 @@ the underlying data, beyond the deletion described in Section 11.3.
      — these act on your explicit instruction, under credentials and mandates you provide, to transmit
      the documents you send.
 
-12.3. **Stripe, Mollie, and PayPal**, where you connect them so your own customers can pay the invoices
+14.3. **Stripe, Mollie, and PayPal**, where you connect them so your own customers can pay the invoices
 you issue, are **your own accounts** — held, controlled, and contracted for by you, not by us. We
 never hold or process funds on those invoices; we only read the payment status you make available to
 reconcile your records.
 
-## 13. Data Protection (GDPR) and Security
+14.4. **International access transparency.** In accordance with Regulation (EU) 2023/2854, Article 28,
+we publish and keep up to date, at
+[International Access Transparency](./international-access-transparency.md),
+(a) the jurisdictions the ICT infrastructure used to process the Service's data is subject to — today,
+exclusively France and the European Union (Section 14.1) — and (b) a general description of the
+technical, organizational, and contractual measures we take to prevent unlawful international access
+to, or transfer of, the non-personal data we hold in the Union. That page is incorporated into this
+Agreement by reference.
+
+## 15. Data Protection (GDPR) and Security
 
 This section summarizes your and our obligations regarding personal data; the full detail is set out
 in our [Privacy Policy](./privacy-policy.md) and [Data Processing Agreement](./data-processing-agreement.md),
 both incorporated into this Agreement by reference.
 
-13.1. **Roles.** For personal data contained in the documents you create or receive through the
+15.1. **Roles.** For personal data contained in the documents you create or receive through the
 Service (e.g. your customers' or contacts' names and contact details), **you are the data controller
 and we act as your processor**, acting only on your documented instructions. For the account data of
 your own users (Owner and Seat holders) needed to operate your subscription — authentication, support,
 and billing — **we act as data controller**.
 
-13.2. **Processing summary (GDPR Article 28).** As your processor, we: process personal data only on
+15.2. **Processing summary (GDPR Article 28).** As your processor, we: process personal data only on
 your documented instructions, including with respect to international transfers, unless required
 otherwise by law; ensure persons authorized to process the data are bound by confidentiality;
-implement the security measures described in Section 13.3; only engage a further subprocessor listed
-in Section 12.2, or notified to you with an opportunity to object; assist you, insofar as reasonably
+implement the security measures described in Section 15.3; only engage a further subprocessor listed
+in Section 14.2, or notified to you with an opportunity to object; assist you, insofar as reasonably
 possible, in responding to data-subject requests and in your own compliance obligations; notify you
 without undue delay after becoming aware of a personal data breach; and, at the end of the provision
 of the Service, make Your Data available to you and delete it, in each case as described in
-Section 11.
+Section 13.
 
-13.3. **Security.** Credentials and tokens used to connect to third-party channels and platforms are
+15.3. **Security.** Credentials and tokens used to connect to third-party channels and platforms are
 encrypted at rest (AES-256-GCM); all traffic to and from the Service is encrypted in transit (TLS).
 
-## 14. Service Availability and Disclaimer of Warranties
+## 16. Service Availability and Disclaimer of Warranties
 
-14.1. We operate the Service on a **best-effort basis**. We do not commit to a numeric uptime
+16.1. We operate the Service on a **best-effort basis**. We do not commit to a numeric uptime
 guarantee or service level. Planned maintenance is announced in advance where reasonably possible.
 
-14.2. The Service helps you apply the compliance rules, tax treatments, and formats relevant to the
+16.2. The Service helps you apply the compliance rules, tax treatments, and formats relevant to the
 countries you operate in, but **you remain solely responsible for the tax and legal compliance of the
 documents you issue**. The Service is a tool, not a guarantee of compliance, and does not replace your
 own accountant's or counsel's advice.
 
-14.3. To the fullest extent permitted by applicable law, the Service is provided **"as is" and "as
+16.3. To the fullest extent permitted by applicable law, the Service is provided **"as is" and "as
 available"**, without warranties of any kind, whether express or implied, including any implied
 warranty that the Service will meet your particular requirements or that it will be uninterrupted,
 timely, secure, or error-free. This disclaimer does not affect any statutory warranty that applicable
 law does not allow us to exclude.
 
-## 15. Limitation of Liability
+## 17. Limitation of Liability
 
-15.1. To the fullest extent permitted by law: (a) neither party is liable for indirect, incidental, or
+17.1. To the fullest extent permitted by law: (a) neither party is liable for indirect, incidental, or
 consequential damages, including loss of profit, revenue, or data; and (b) our total liability **to
 you** arising out of or relating to this Agreement is capped at the **Fees you actually paid us for
 the Service in the twelve (12) months preceding the event giving rise to the claim**.
 
-15.2. Nothing in this Agreement limits or excludes either party's liability for its own gross
+17.2. Nothing in this Agreement limits or excludes either party's liability for its own gross
 negligence, willful misconduct (*dol*), or death or personal injury, or any other liability that
 applicable law does not permit to be limited or excluded.
 
-## 16. Indemnification
+## 18. Indemnification
 
 You agree to indemnify and hold the Provider harmless from any third-party claim, liability, damage,
 or expense (including reasonable legal fees) arising out of: (a) your breach of this Agreement;
@@ -276,48 +362,57 @@ or expense (including reasonable legal fees) arising out of: (a) your breach of 
 violates applicable law or infringes a third party's rights — except to the extent the claim results
 from our own breach of this Agreement, gross negligence, or willful misconduct.
 
-## 17. Force Majeure
+## 19. Force Majeure
 
 Neither party is liable for a failure or delay in performing its obligations under this Agreement
 (other than a payment obligation) to the extent that failure or delay results from an event of force
 majeure within the meaning of **article 1218 of the French Civil Code**, for as long as that event
 persists.
 
-## 18. Changes to These Terms and Governing Law
+## 20. Changes to These Terms and Governing Law
 
-18.1. We may update these Terms from time to time. We will give you **at least thirty (30) days'
+20.1. We may update these Terms from time to time. We will give you **at least thirty (30) days'
 notice by email** before a change takes effect. If you do not agree with a change, you may cancel your
-subscription, under Section 10, before it takes effect.
+subscription, under Section 12, before it takes effect.
 
-18.2. These Terms are governed by **French law**. Any dispute arising out of or relating to these
+20.2. These Terms are governed by **French law**. Any dispute arising out of or relating to these
 Terms shall be submitted to the exclusive jurisdiction of **the Commercial Court of Romans-sur-Isère
 (Tribunal de commerce de Romans-sur-Isère), the court of the Provider's registered office**, subject
 to any mandatory rule of law that provides otherwise.
 
-## 19. Miscellaneous
+## 21. Miscellaneous
 
-19.1. **Severability.** If any provision of this Agreement is held invalid or unenforceable, the
+21.1. **Severability.** If any provision of this Agreement is held invalid or unenforceable, the
 remaining provisions remain in full force and effect, and the invalid or unenforceable provision is
 replaced by one that reflects, as closely as possible, its intended commercial effect.
 
-19.2. **Entire agreement.** This Agreement — these Terms together with the Privacy Policy, the Data
+21.2. **Entire agreement.** This Agreement — these Terms together with the Privacy Policy, the Data
 Processing Agreement, and the Cookies & Acceptable Use Policy — is the entire agreement between you
 and us regarding the Service, and supersedes any prior agreement or understanding on the same subject.
 
-19.3. **No waiver.** A failure to enforce any provision of this Agreement is not a waiver of the right
+21.3. **No waiver.** A failure to enforce any provision of this Agreement is not a waiver of the right
 to enforce it later.
 
-19.4. **Assignment.** You may not assign or transfer this Agreement without our prior written
+21.4. **Assignment.** You may not assign or transfer this Agreement without our prior written
 consent. We may assign this Agreement without your consent to a transferee company under Section 1.4,
 or in connection with a merger, acquisition, or sale of substantially all of the Provider's assets
 relating to the Service.
 
-19.5. **Notices.** We give you notice under this Agreement by email to your account's registered
+21.5. **Notices.** We give you notice under this Agreement by email to your account's registered
 address. You give us notice by writing to **contact@invoicerr.app**.
 
-## 20. Contact
+## 22. Contact
 
 Questions about these Terms can be sent to **contact@invoicerr.app**.
+
+## 23. Governing Language
+
+This document is drafted and executed in English. Where we provide a translation into another
+language for your convenience and understanding, that translation is not a substitute for the English
+text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
+translated version, **the English version prevails** and is the version that governs the rights and
+obligations of the parties. Translations are provided in good faith to help each audience understand
+this document; they create no separate or additional rights.
 
 ---
 
@@ -370,3 +465,36 @@ Questions about these Terms can be sent to **contact@invoicerr.app**.
   **Neon, LLC** (a Databricks, Inc. affiliate; managed PostgreSQL database, EU region) in place of the
   `[HOSTING PROVIDER, COUNTRY]` placeholder. Section 12.2's subprocessor list gained matching entries
   for both.
+- **2026-09-19** — Owner decision, on counsel's advice: this document is now translated into French in
+  full (loi Toubon art. 2 — an absence of a French version exposes a clause to inopposability against
+  a French customer). New Section 21 ("Governing Language") states that the English text is the one
+  that governs whenever a translation reads differently, so a translation always remains provided for
+  comprehension only, never a second, competing agreement. No other fact changed.
+- **2026-09-19** — Owner decision: implemented Regulation (EU) 2023/2854 (the "EU Data Act"), Chapter
+  VI, following an audit that found the Service already substantively compliant (EU-only hosting, no
+  switching fee, structured/standard export formats) but missing the formal contractual clauses
+  Articles 25/26/28/29 require, plus one real gap the parallel billing work below closes. **Added**:
+  Section 7.5 (precontractual no-switching-fee disclosure); Section 9 "Switching to a Different
+  Provider (EU Data Act)" (Article 23/25/29 — notice, transitional period, exportable-data scope, end
+  of switching, retrieval window, no fees); Section 10 "Interoperability and Data Formats" (Article
+  26/30 — API and export-format disclosure); Section 14.4 "International access transparency"
+  (Article 28 — links to the new
+  [International Access Transparency](./international-access-transparency.md) page). **Changed**:
+  Section 8.2 now describes the self-service full-data export (`POST /api/companies/export`, shipped
+  alongside this update) in place of the former email-only request — the fact this section describes
+  changed, not merely its wording. Section 13.3's first bullet now gives every Company, including one
+  that never converted from trial, a **minimum thirty (30)-day Retrieval Window** before deletion
+  (`billing/lifecycle.ts`'s own `MIN_RETRIEVAL_DAYS` constant, shipped alongside this update) — closing
+  the one concrete Data Act non-compliance the audit found: a never-paid trial's data used to be erased
+  the instant its end-of-trial archive was sent, with no window to retrieve it at all. Deliberately did
+  **not** add an arbitration/liquidated-damages regime for a failed switch, or a dedicated "portability
+  fee" schedule: neither exists in this product and Article 29 already prohibits charging for the
+  ordinary case. **Renumbering** (every section from 9 onward shifted by +2 to make room for the two
+  new Sections 9-10, including the Section 21 "Governing Language" added by the same day's translation
+  work, now Section 23): old 9→11 (Intellectual Property), 10→12 (Term, Cancellation and Termination),
+  11→13 (Suspension, Archive and Deletion), 12→14 (Hosting and Subprocessors), 13→15 (Data Protection
+  and Security), 14→16 (Service Availability), 15→17 (Limitation of Liability), 16→18
+  (Indemnification), 17→19 (Force Majeure), 18→20 (Changes to These Terms and Governing Law), 19→21
+  (Miscellaneous), 20→22 (Contact), 21→23 (Governing Language). Every internal cross-reference in this
+  document, and every "Terms of Service, Section X" cross-reference in the Privacy Policy, Data
+  Processing Agreement, Legal Notice, and Cookies & Acceptable Use Policy, was updated to match.

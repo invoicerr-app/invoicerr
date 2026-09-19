@@ -7,6 +7,15 @@ jest.mock('@thallesp/nestjs-better-auth', () => ({
   Public: () => () => undefined,
 }));
 
+// `documents()` now calls through to `resolveLegalDocumentLanguages`, which itself needs `@/lib/auth`/
+// `better-auth/node` mocked for the exact reason `legal-request-language.spec.ts`'s own header
+// explains — stubbed here to always resolve `['en']` so this file stays about what THIS controller
+// does with the result, not about language resolution itself (already covered by that other spec).
+const resolveLegalDocumentLanguages = jest.fn().mockResolvedValue(['en']);
+jest.mock('./legal-request-language', () => ({
+  resolveLegalDocumentLanguages: (...args: unknown[]) => resolveLegalDocumentLanguages(...args),
+}));
+
 import { BadRequestException } from '@nestjs/common';
 
 import { LegalController } from './legal.controller';
@@ -36,11 +45,27 @@ function buildController() {
 }
 
 describe('LegalController.documents', () => {
-  it('delegates straight to the service, no user required (public route)', () => {
+  beforeEach(() => {
+    resolveLegalDocumentLanguages.mockClear().mockResolvedValue(['en']);
+  });
+
+  it('delegates straight to the service, no user required (public route)', async () => {
     const { controller, service } = buildController();
     (service.listDocuments as jest.Mock).mockReturnValue({ saasMode: false, documents: [] });
-    expect(controller.documents()).toEqual({ saasMode: false, documents: [] });
-    expect(service.listDocuments).toHaveBeenCalledWith();
+    await expect(controller.documents(fakeRequest())).resolves.toEqual({ saasMode: false, documents: [] });
+    expect(service.listDocuments).toHaveBeenCalledWith(['en']);
+  });
+
+  it('resolves the preferred languages from the request and an explicit ?lang= before calling the service', async () => {
+    const { controller, service } = buildController();
+    (service.listDocuments as jest.Mock).mockReturnValue({ saasMode: false, documents: [] });
+    resolveLegalDocumentLanguages.mockResolvedValue(['de', 'fr', 'en']);
+
+    const request = fakeRequest();
+    await controller.documents(request, 'de');
+
+    expect(resolveLegalDocumentLanguages).toHaveBeenCalledWith(request, 'de');
+    expect(service.listDocuments).toHaveBeenCalledWith(['de', 'fr', 'en']);
   });
 });
 

@@ -9,6 +9,7 @@
 import { logger } from '@/logger/logger.service';
 import { MailService } from '@/mail/mail.service';
 import { buildOwnershipTransferEndedEmail } from '@/mail/system-email-templates';
+import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import prisma from '@/prisma/prisma.service';
 
 import { CompanyOwnershipTransfer } from '../../../../prisma/generated/prisma/client';
@@ -33,11 +34,11 @@ export async function expireOwnershipTransfer(
   try {
     const company = await prisma.company.findUnique({
       where: { id: transfer.companyId },
-      select: { name: true },
+      select: { name: true, language: true },
     });
     const fromUser = await prisma.user.findUnique({
       where: { id: transfer.fromUserId },
-      select: { email: true },
+      select: { email: true, locale: true },
     });
     if (company && fromUser) {
       const email = buildOwnershipTransferEndedEmail({
@@ -45,6 +46,9 @@ export async function expireOwnershipTransfer(
         companyName: company.name,
         toEmail: transfer.toEmail,
         reason: 'expired',
+        // The initiating owner's own preference, falling back to their company's — same chain every
+        // other mail in this module resolves through, see `transfer.service.ts`'s own comments.
+        language: resolveUserLanguage(fromUser.locale, company.language),
       });
       await mailService.sendForCompany(transfer.companyId, {
         to: fromUser.email,

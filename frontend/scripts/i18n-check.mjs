@@ -1,18 +1,35 @@
 #!/usr/bin/env node
 /**
- * i18n consistency checker.
+ * i18n consistency checker — generalized so both frontend (`translation.json`, one big catalog) and
+ * backend (`mails.json`, one namespace per mail family under `src/mail/locales`) run the SAME
+ * extraction/comparison logic instead of two hand-maintained copies drifting apart. Everything
+ * project-specific is a CLI flag with a default that reproduces this script's original,
+ * frontend-only behavior exactly — `node frontend/scripts/i18n-check.mjs` with no arguments is
+ * unchanged, which is what `.github/workflows/cypress.yml`'s own `i18n-check` job still calls.
  *
- * - Extracts every static `t('...')` / `t("...")` / t(`...`) key from frontend/src.
+ * - Extracts every static `t('...')` / `t("...")` / t(`...`) key from the `--src` tree.
  * - Template-literal keys containing `${...}` are treated as dynamic patterns:
  *   they cannot be checked key-by-key, so their static parts become regexes used
  *   to protect matching keys from being flagged as dead.
- * - Fails (exit 1) if any statically used key is missing from en/translation.json.
- * - Warns (exit 0) about: dead EN keys (defined but never referenced), and
- *   per-locale coverage vs EN.
+ * - Fails (exit 1) if any statically used key is missing from the source locale's catalog.
+ * - Warns (exit 0) about: dead source-locale keys (defined but never referenced), and
+ *   per-locale coverage vs the source locale.
  *
  * Flags:
- *   --report   print a JSON report (missing keys + fallbacks, dead keys, coverage)
- *   --quiet    only print errors
+ *   --src <dir>             directory to scan for t() calls, relative to this script's project root
+ *                           (default: "src")
+ *   --locales <dir>         directory holding one subfolder per language, relative to the project
+ *                           root (default: "src/locales")
+ *   --file <name>           catalog filename inside each language's subfolder (default:
+ *                           "translation.json")
+ *   --source-locale <lang>  the language folder that is the source of truth (default: "en")
+ *   --external-prefix <p>   a key prefix to treat as "used" even with no static `t()` call found for
+ *                           it (repeatable) — e.g. a key sent as plain data by another project. With
+ *                           no `--src`/`--locales`/`--file` override this defaults to the one prefix
+ *                           the frontend catalog has always needed; pass an empty run of this project
+ *                           has none.
+ *   --report                print a JSON report (missing keys + fallbacks, dead keys, coverage)
+ *   --quiet                 only print errors
  */
 
 import fs from 'node:fs'
@@ -20,23 +37,57 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const FRONTEND_ROOT = path.resolve(__dirname, '..')
-const SRC_DIR = path.join(FRONTEND_ROOT, 'src')
-const LOCALES_DIR = path.join(SRC_DIR, 'locales')
-const EN_FILE = path.join(LOCALES_DIR, 'en', 'translation.json')
+const PROJECT_ROOT = path.resolve(__dirname, '..')
 
-// Keys referenced outside frontend/src (e.g. sent by the backend as data) or
-// otherwise invisible to static extraction. Prefixes: everything under them is
-// considered "used".
-const EXTERNAL_KEY_PREFIXES = [
-    // backend/src/modules/plugins/plugins.service.ts sends these keys to
-    // webhook-instructions-modal.tsx as plain data.
-    'webhook.instructions.',
-]
+function parseArgs(argv) {
+    const opts = {
+        src: 'src',
+        locales: 'src/locales',
+        file: 'translation.json',
+        sourceLocale: 'en',
+        externalPrefixes: [],
+        report: false,
+        quiet: false,
+    }
+    let sawExternalPrefix = false
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (arg === '--report') opts.report = true
+        else if (arg === '--quiet') opts.quiet = true
+        else if (arg === '--src') opts.src = argv[++i]
+        else if (arg === '--locales') opts.locales = argv[++i]
+        else if (arg === '--file') opts.file = argv[++i]
+        else if (arg === '--source-locale') opts.sourceLocale = argv[++i]
+        else if (arg === '--external-prefix') {
+            if (!sawExternalPrefix) {
+                opts.externalPrefixes = []
+                sawExternalPrefix = true
+            }
+            opts.externalPrefixes.push(argv[++i])
+        } else throw new Error(`i18n-check: unknown argument "${arg}"`)
+    }
+    // Nothing on the command line asked to scope this run away from the frontend's own tree — keep
+    // the one prefix that tree has always needed instead of silently dropping it.
+    if (!sawExternalPrefix && opts.src === 'src' && opts.locales === 'src/locales') {
+        opts.externalPrefixes = [
+            // backend/src/modules/plugins/plugins.service.ts sends these keys to
+            // webhook-instructions-modal.tsx as plain data.
+            'webhook.instructions.',
+        ]
+    }
+    return opts
+}
 
-const args = new Set(process.argv.slice(2))
-const REPORT = args.has('--report')
-const QUIET = args.has('--quiet') || REPORT
+const opts = parseArgs(process.argv.slice(2))
+const SRC_DIR = path.join(PROJECT_ROOT, opts.src)
+const LOCALES_DIR = path.join(PROJECT_ROOT, opts.locales)
+const SOURCE_LOCALE = opts.sourceLocale
+const EN_FILE = path.join(LOCALES_DIR, SOURCE_LOCALE, opts.file)
+const CATALOG_FILE_NAME = opts.file
+const EXTERNAL_KEY_PREFIXES = opts.externalPrefixes
+
+const REPORT = opts.report
+const QUIET = opts.quiet || REPORT
 
 /* ---------- helpers ---------- */
 
@@ -90,7 +141,7 @@ for (const file of walk(SRC_DIR)) {
                             .join('.+') +
                         '$'
                 )
-                dynamicPatterns.set(key, { regex, file: path.relative(FRONTEND_ROOT, file) })
+                dynamicPatterns.set(key, { regex, file: path.relative(PROJECT_ROOT, file) })
             }
             continue
         }
@@ -110,7 +161,7 @@ const enKeys = new Set(Object.keys(en))
 
 const locales = fs
     .readdirSync(LOCALES_DIR, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && e.name !== 'en')
+    .filter((e) => e.isDirectory() && e.name !== SOURCE_LOCALE)
     .map((e) => e.name)
     .sort()
 
@@ -140,7 +191,7 @@ const dead = [...enKeys].filter((k) => !isProtected(k)).sort()
 //    "Email", "Total", proper nouns…).
 const coverage = {}
 for (const locale of locales) {
-    const data = flatten(JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, locale, 'translation.json'), 'utf8')))
+    const data = flatten(JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, locale, CATALOG_FILE_NAME), 'utf8')))
     const keys = Object.keys(data)
     const present = keys.filter((k) => enKeys.has(k))
     const extra = keys.filter((k) => !enKeys.has(k))
@@ -171,24 +222,25 @@ if (REPORT) {
         )
     )
 } else if (!QUIET) {
-    console.log(`i18n-check: ${staticKeys.size} static keys used, ${dynamicPatterns.size} dynamic patterns, ${enKeys.size} keys defined in EN`)
+    const sourceLabel = SOURCE_LOCALE.toUpperCase()
+    console.log(`i18n-check: ${staticKeys.size} static keys used, ${dynamicPatterns.size} dynamic patterns, ${enKeys.size} keys defined in ${sourceLabel}`)
     if (dynamicPatterns.size > 0) {
         console.log(`\nDynamic (unverifiable) key patterns:`)
         for (const [raw, { file }] of dynamicPatterns) console.log(`  - ${raw}  (${file})`)
     }
     if (dead.length > 0) {
-        console.log(`\nWarning: ${dead.length} EN keys appear unused (defined but never referenced).`)
+        console.log(`\nWarning: ${dead.length} ${sourceLabel} keys appear unused (defined but never referenced).`)
     }
-    console.log(`\nCoverage vs EN (${enKeys.size} keys):`)
+    console.log(`\nCoverage vs ${sourceLabel} (${enKeys.size} keys):`)
     for (const [locale, c] of Object.entries(coverage)) {
         console.log(`  ${locale.padEnd(8)} ${String(c.pct).padStart(5)}%  (${c.present}/${c.total}${c.extraKeys ? `, ${c.extraKeys} extra` : ''})`)
     }
 }
 
 if (missing.length > 0) {
-    console.error(`\ni18n-check FAILED: ${missing.length} used key(s) missing from en/translation.json:`)
+    console.error(`\ni18n-check FAILED: ${missing.length} used key(s) missing from ${SOURCE_LOCALE}/${CATALOG_FILE_NAME}:`)
     for (const k of missing) console.error(`  - ${k}`)
     process.exit(1)
 }
 
-if (!QUIET) console.log('\ni18n-check passed: every statically used key is defined in EN.')
+if (!QUIET) console.log(`\ni18n-check passed: every statically used key is defined in ${SOURCE_LOCALE.toUpperCase()}.`)

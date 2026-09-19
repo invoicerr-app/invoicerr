@@ -1,8 +1,20 @@
-import { Body, Controller, ForbiddenException, Post, Req, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Patch,
+  Post,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { auth } from '@/lib/auth';
 import { isOidcOnly } from '@/lib/sso-policy';
+import { User } from '@/decorators/user.decorator';
+import { CurrentUser } from '@/types/user';
+import { SUPPORTED_RENDER_LANGUAGES } from '@/modules/documents/rendering/language/supported-languages';
+import { parseAccountLocaleInput, setUserLocale } from './preferences';
 
 @ApiTags('auth-extended')
 @Controller('auth-extended')
@@ -50,5 +62,37 @@ export class AuthExtendedController {
       console.error('Error setting password:', error);
       throw new UnauthorizedException('Failed to set password');
     }
+  }
+
+  @Patch('preferences')
+  @ApiOperation({
+    summary: 'Update account preferences',
+    description:
+      'Currently just `locale` — the language this user reads the app in, and will eventually ' +
+      'receive mail in (`User.locale`; see `resolve-user-language.ts`). No `@ActiveCompany()`: this ' +
+      'is a per-USER setting, not scoped to whichever company happens to be active. `null` clears ' +
+      "it (falls back to the active company's own language, then English); any other value must be " +
+      'one of the languages this product actually renders documents/mail in.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        locale: {
+          type: 'string',
+          nullable: true,
+          enum: [...SUPPORTED_RENDER_LANGUAGES],
+          description: 'One of SUPPORTED_RENDER_LANGUAGES, or null to clear the preference.',
+        },
+      },
+      required: ['locale'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Preferences updated' })
+  @ApiResponse({ status: 400, description: 'locale is missing, or not one of SUPPORTED_RENDER_LANGUAGES' })
+  async updatePreferences(@User() user: CurrentUser, @Body() body: { locale?: string | null }) {
+    const locale = parseAccountLocaleInput(body);
+    const persisted = await setUserLocale(user.id, locale);
+    return { success: true, locale: persisted };
   }
 }

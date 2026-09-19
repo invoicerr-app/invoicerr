@@ -168,6 +168,30 @@ describe('notifyUsersOfLegalReleases', () => {
     expect(createManyNotifications).not.toHaveBeenCalled();
   });
 
+  /**
+   * The actual defect this wiring fixes: every user used to be mailed in English regardless of their
+   * own account preference, because the caller never passed a `language` through to the template
+   * builder at all. Two users, two locales, one send each — each must come back in ITS OWN user's
+   * language, not the sender's default.
+   */
+  it("mails each user in their own account language, not the caller's default", async () => {
+    releaseCount.mockImplementation(async ({ where }: { where: { slug: string } }) =>
+      where.slug === 'terms-of-service' ? 2 : 1,
+    );
+    findManyUsers.mockResolvedValue([
+      { id: 'user-1', email: 'user-1@example.com', locale: 'fr' },
+      { id: 'user-2', email: 'user-2@example.com', locale: null },
+    ]);
+    const sendMail = jest.fn().mockResolvedValue({ message: 'Email sent successfully' });
+
+    await notifyUsersOfLegalReleases(fakeMailService({ sendMail }), APP_URL);
+
+    const frCall = sendMail.mock.calls.find(([opts]) => opts.to === 'user-1@example.com')![0];
+    expect(frCall.subject).toBe('Document légal mis à jour : Terms of Service');
+    const enCall = sendMail.mock.calls.find(([opts]) => opts.to === 'user-2@example.com')![0];
+    expect(enCall.subject).toBe('Updated legal document: Terms of Service');
+  });
+
   it('processes every document past its bootstrap release, not just the first one', async () => {
     releaseCount.mockResolvedValue(2); // every one of the docCount documents has "changed".
     findManyUsers.mockResolvedValue([{ id: 'user-1', email: 'user-1@example.com' }]);

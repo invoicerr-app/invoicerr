@@ -32,13 +32,16 @@ function uniqueEmail(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
 }
 
-async function createUser(overrides: Partial<{ email: string; firstname: string; lastname: string }> = {}) {
+async function createUser(
+  overrides: Partial<{ email: string; firstname: string; lastname: string; locale: string | null }> = {},
+) {
   return prisma.user.create({
     data: {
       id: randomUUID(),
       firstname: overrides.firstname ?? 'Test',
       lastname: overrides.lastname ?? 'User',
       email: overrides.email ?? uniqueEmail('user'),
+      locale: overrides.locale,
     },
   });
 }
@@ -52,7 +55,7 @@ function asCurrentUser(user: {
   return { ...user, accessToken: 'test-access-token' } as CurrentUser;
 }
 
-async function createCompany() {
+async function createCompany(overrides: Partial<{ language: string | null }> = {}) {
   return prisma.company.create({
     data: {
       name: `Transfer Test Co ${randomUUID()}`,
@@ -64,6 +67,7 @@ async function createCompany() {
       countryCode: 'FR',
       phone: '+33100000000',
       email: uniqueEmail('company'),
+      language: overrides.language,
     },
   });
 }
@@ -203,6 +207,137 @@ describe('TransferService', () => {
         ).rejects.toBeInstanceOf(BadRequestException);
       } finally {
         await cleanup({ companyIds: [company.id], userIds: [owner.id] });
+      }
+    });
+  });
+
+  /**
+   * The actual defect this wiring fixes: every transfer mail used to ship in English no matter which
+   * language a party's own account preference named — the four `buildOwnershipTransfer*Email` callers
+   * never passed a `language` through at all.
+   */
+  describe('language wiring', () => {
+    it("mails the recipient of a request in THEIR OWN locale, not the initiator's", async () => {
+      const mail = fakeMailService();
+      const service = new TransferService(mail as never);
+      const owner = await createUser({ locale: 'de' });
+      const company = await createCompany();
+      await prisma.userCompany.create({ data: { userId: owner.id, companyId: company.id, role: 'OWNER' } });
+      const recipient = await createUser({ locale: 'fr' });
+
+      try {
+        await service.initiateTransfer(
+          company.id,
+          asCurrentUser(owner),
+          recipient.email,
+          await mintOtp(company.id),
+        );
+
+        expect(mail.sendForCompany).toHaveBeenCalledWith(
+          company.id,
+          expect.objectContaining({
+            to: recipient.email,
+            subject: expect.stringContaining('souhaite vous transférer la propriété'),
+          }),
+        );
+      } finally {
+        await cleanup({ companyIds: [company.id], userIds: [owner.id, recipient.id] });
+      }
+    });
+
+    it("falls back to the transferred company's own language when the recipient has none", async () => {
+      const mail = fakeMailService();
+      const service = new TransferService(mail as never);
+      const owner = await createUser();
+      const company = await createCompany({ language: 'it' });
+      await prisma.userCompany.create({ data: { userId: owner.id, companyId: company.id, role: 'OWNER' } });
+      const recipient = await createUser({ locale: null });
+
+      try {
+        await service.initiateTransfer(
+          company.id,
+          asCurrentUser(owner),
+          recipient.email,
+          await mintOtp(company.id),
+        );
+
+        expect(mail.sendForCompany).toHaveBeenCalledWith(
+          company.id,
+          expect.objectContaining({ subject: expect.stringContaining('desidera trasferirti la proprietà') }),
+        );
+      } finally {
+        await cleanup({ companyIds: [company.id], userIds: [owner.id, recipient.id] });
+      }
+    });
+
+    it("mails each party of a finalized transfer in their own language, not the other party's", async () => {
+      const mail = fakeMailService();
+      const service = new TransferService(mail as never);
+      const owner = await createUser({ locale: 'de' });
+      const company = await createCompany();
+      await prisma.userCompany.create({ data: { userId: owner.id, companyId: company.id, role: 'OWNER' } });
+      const recipient = await createUser({ locale: 'fr' });
+      await service.initiateTransfer(
+        company.id,
+        asCurrentUser(owner),
+        recipient.email,
+        await mintOtp(company.id),
+      );
+      const transfer = await prisma.companyOwnershipTransfer.findFirstOrThrow({
+        where: { companyId: company.id },
+      });
+      mail.sendForCompany.mockClear();
+
+      try {
+        await service.acceptTransfer(transfer.id, recipient.id);
+
+        // The new owner (French) and the former owner (German) each read the SAME event in a
+        // different language — one call must not have leaked the other's.
+        expect(mail.sendForCompany).toHaveBeenCalledWith(
+          company.id,
+          expect.objectContaining({ to: recipient.email, subject: expect.stringContaining(company.name) }),
+        );
+        const recipientCall = mail.sendForCompany.mock.calls.find(
+          ([, opts]) => opts.to === recipient.email,
+        )![1];
+        const ownerCall = mail.sendForCompany.mock.calls.find(([, opts]) => opts.to === owner.email)![1];
+        expect(recipientCall.html).not.toBe(ownerCall.html);
+        expect(recipientCall.html).toMatch(/propriétaire/i); // French wording
+        expect(recipientCall.html).not.toMatch(/eigentümer/i);
+        expect(ownerCall.html).toMatch(/eigentümer/i); // German wording
+        expect(ownerCall.html).not.toMatch(/propriétaire/i);
+      } finally {
+        await cleanup({ companyIds: [company.id], userIds: [owner.id, recipient.id] });
+      }
+    });
+
+    it('mails the initiating owner a cancellation receipt in their own locale', async () => {
+      const mail = fakeMailService();
+      const service = new TransferService(mail as never);
+      const owner = await createUser({ locale: 'fr' });
+      const company = await createCompany();
+      await prisma.userCompany.create({ data: { userId: owner.id, companyId: company.id, role: 'OWNER' } });
+      const recipient = await createUser();
+      await service.initiateTransfer(
+        company.id,
+        asCurrentUser(owner),
+        recipient.email,
+        await mintOtp(company.id),
+      );
+      const transfer = await prisma.companyOwnershipTransfer.findFirstOrThrow({
+        where: { companyId: company.id },
+      });
+      mail.sendForCompany.mockClear();
+
+      try {
+        await service.cancelTransfer(company.id, transfer.id);
+
+        expect(mail.sendForCompany).toHaveBeenCalledWith(
+          company.id,
+          expect.objectContaining({ to: owner.email, subject: expect.stringContaining('annulé') }),
+        );
+      } finally {
+        await cleanup({ companyIds: [company.id], userIds: [owner.id, recipient.id] });
       }
     });
   });
@@ -504,6 +639,41 @@ describe('TransferExpirySweepRunner', () => {
         where: { userId_companyId: { userId: owner.id, companyId: company.id } },
       });
       expect(ownerMembership.role).toBe('OWNER');
+    } finally {
+      await cleanup({ companyIds: [company.id], userIds: [owner.id, recipient.id] });
+    }
+  });
+
+  it('notifies the initiating owner of an expiry in their own locale', async () => {
+    const mail = fakeMailService();
+    const transferService = new TransferService(mail as never);
+    const owner = await createUser({ locale: 'de' });
+    const company = await createCompany();
+    await prisma.userCompany.create({ data: { userId: owner.id, companyId: company.id, role: 'OWNER' } });
+    const recipient = await createUser();
+    await transferService.initiateTransfer(
+      company.id,
+      asCurrentUser(owner),
+      recipient.email,
+      await mintOtp(company.id),
+    );
+    const transfer = await prisma.companyOwnershipTransfer.findFirstOrThrow({
+      where: { companyId: company.id },
+    });
+    await prisma.companyOwnershipTransfer.update({
+      where: { id: transfer.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    mail.sendForCompany.mockClear();
+
+    try {
+      const runner = new TransferExpirySweepRunner(mail as never);
+      await runner.runSweep();
+
+      expect(mail.sendForCompany).toHaveBeenCalledWith(
+        company.id,
+        expect.objectContaining({ to: owner.email, subject: expect.stringMatching(/abgelaufen/i) }),
+      );
     } finally {
       await cleanup({ companyIds: [company.id], userIds: [owner.id, recipient.id] });
     }

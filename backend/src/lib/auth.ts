@@ -40,6 +40,7 @@ import { MailService } from '../mail/mail.service';
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
 import { createPendingSignupStore, createRedisClientForPendingSignups } from './pending-signup-store';
 import { devOnlyOrigins } from './dev-origins';
+import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
@@ -256,6 +257,13 @@ const userHookFunction = async (user, context) => {
     data['name'] = names.name;
   }
 
+  // Best-effort account language, posted by `signUp.email` as a plain additional field (see the
+  // `locale` entry in `user.additionalFields` below) — never present at all on an OAuth/SSO sign-up,
+  // which is fine: `normalizeSignupLocale(undefined)` is `null`, the same "no preference yet" state a
+  // federated account already starts in. See `signup-locale.ts`'s own header for why an unsupported
+  // browser language is dropped here rather than rejected the way the preferences endpoint rejects one.
+  data['locale'] = normalizeSignupLocale(data['locale']);
+
   // A user arriving through their own company's IdP has no invitation and must not be asked for one:
   // the provider id of the in-flight OAuth callback IS the authorization, since only a company that
   // registered that IdP can produce a callback bearing its id. Deliberately does NOT consult
@@ -381,7 +389,12 @@ export const auth = betterAuth({
   // directly, since the bundled types are the only documentation this dependency ships.
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      await sendChangeEmailMail(mailService, { newEmail: user.email, url, appUrl: appUrl() });
+      // `user.locale` — the "Mon compte" language preference (`locale` additionalField declared
+      // below) — is not part of better-auth's own typed `User` shape, so it is read the same way
+      // `userHookFunction` above reads it: bracket notation on the loosely-typed hook object, never a
+      // cast to a concrete interface that does not actually declare this field.
+      const language = (user as Record<string, unknown>)['locale'] as string | null | undefined;
+      await sendChangeEmailMail(mailService, { newEmail: user.email, url, appUrl: appUrl(), language });
     },
   },
   account: {
@@ -409,6 +422,19 @@ export const auth = betterAuth({
       lastname: {
         type: 'string',
         required: true,
+        input: true,
+      },
+      // The "Mon compte" language preference (`schema.prisma`'s own comment on `User.locale` for the
+      // full rationale). `input: true` is what makes `signUp.email({ locale: ... })` land in `data`
+      // for `userHookFunction` to normalize below — WITHOUT this declaration, better-auth's own
+      // adapter would neither accept the field on write nor include it when building `session.user`,
+      // and `PATCH /api/auth-extended/preferences` (which writes the column directly through Prisma,
+      // bypassing better-auth entirely) would have no way to make its change visible in the session at
+      // all. `required: false`: unset is a legitimate state (falls back to `Company.language`, then
+      // 'en' — `resolve-user-language.ts`), not an error.
+      locale: {
+        type: 'string',
+        required: false,
         input: true,
       },
     },

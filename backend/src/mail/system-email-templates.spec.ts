@@ -1,6 +1,7 @@
 import { MailTemplateType } from '../../prisma/generated/prisma/client';
 
 import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
+import { SUPPORTED_RENDER_LANGUAGES } from '@/modules/documents/rendering/language/supported-languages';
 
 import {
   buildBlockedZipWarningEmail,
@@ -9,24 +10,19 @@ import {
   buildOwnershipTransferEndedEmail,
   buildOwnershipTransferFinalizedEmail,
   buildOwnershipTransferRequestEmail,
+  buildSystemEmailDefault,
   describeSystemEmailVocabulary,
   resolveSystemEmailTemplate,
-  SYSTEM_EMAIL_DEFAULTS,
   SYSTEM_EMAIL_FAMILIES,
   systemEmailFamilyLabel,
 } from './system-email-templates';
 
 const APP_URL = 'https://invoicerr.test';
 
-describe('the shipped system email templates', () => {
-  it('ships a complete template for EVERY family — no family can exist without one', () => {
-    expect(SYSTEM_EMAIL_FAMILIES).toEqual([
-      MailTemplateType.SIGNATURE_REQUEST,
-      MailTemplateType.VERIFICATION_CODE,
-    ]);
-
+describe('the shipped system email templates — every supported language', () => {
+  it.each(SUPPORTED_RENDER_LANGUAGES)('ships a complete %s template for EVERY family', (language) => {
     for (const family of SYSTEM_EMAIL_FAMILIES) {
-      const template = SYSTEM_EMAIL_DEFAULTS[family];
+      const template = buildSystemEmailDefault(family, language);
       expect(template.subject.trim()).not.toBe('');
       // Both parts written by hand, not derived: prose written for a text reader beats prose stripped
       // out of markup (see this module's own header).
@@ -37,15 +33,19 @@ describe('the shipped system email templates', () => {
 
   /**
    * The guard that matters most: the copy this application ships must not itself contain a placeholder
-   * the sender cannot fill. Rendering each default against the SAME vocabulary its own sender builds
-   * (`describeSystemEmailVocabulary` wraps the very parts builders the service calls) proves every
-   * `{token}` in subject, text body and html is one that really gets substituted — a renamed variable in
-   * one place and not the other shows up here rather than as a literal `{signatureUrl}` in someone's
-   * inbox.
+   * the sender cannot fill, IN ANY LANGUAGE. Rendering each default against the SAME vocabulary its own
+   * sender builds (`describeSystemEmailVocabulary` wraps the very parts builders the service calls)
+   * proves every `{token}` in subject, text body and html is one that really gets substituted — a
+   * renamed variable in one place and not the other shows up here rather than as a literal
+   * `{signatureUrl}` in someone's inbox.
    */
-  it.each(SYSTEM_EMAIL_FAMILIES)('has no unresolvable placeholder anywhere in %s', (family) => {
+  it.each(
+    SUPPORTED_RENDER_LANGUAGES.flatMap((language) =>
+      SYSTEM_EMAIL_FAMILIES.map((f) => [language, f] as const),
+    ),
+  )('has no unresolvable placeholder anywhere in %s/%s', (language, family) => {
     const rendered = renderEmailTemplate(
-      SYSTEM_EMAIL_DEFAULTS[family],
+      buildSystemEmailDefault(family, language),
       describeSystemEmailVocabulary(family, APP_URL),
     );
 
@@ -53,36 +53,68 @@ describe('the shipped system email templates', () => {
     expect(rendered.subject).not.toMatch(/[{}]/);
     expect(rendered.body).not.toMatch(/[{}]/);
     expect(rendered.html).not.toMatch(/\{[a-zA-Z]/);
+    // Never a leftover i18next interpolation brace either — every `{{token}}` this file's own
+    // catalog can carry (plural counts) is always resolved by `mailT` before the string reaches
+    // here; only the single-brace, later-substituted vocabulary above may remain at this point.
+    expect(rendered.subject).not.toContain('{{');
+    expect(rendered.body).not.toContain('{{');
+    expect(rendered.html).not.toContain('{{');
   });
 
   it('uses the single-brace vocabulary, never the retired double-brace one', () => {
     for (const family of SYSTEM_EMAIL_FAMILIES) {
-      const template = SYSTEM_EMAIL_DEFAULTS[family];
+      const template = buildSystemEmailDefault(family, 'en');
       const everything = `${template.subject}${template.body}${template.html ?? ''}`;
       expect(everything).not.toContain('{{');
     }
   });
 
   it('keeps the signature link clickable in the html part', () => {
-    expect(SYSTEM_EMAIL_DEFAULTS[MailTemplateType.SIGNATURE_REQUEST].html).toContain('href="{signatureUrl}"');
+    expect(buildSystemEmailDefault(MailTemplateType.SIGNATURE_REQUEST, 'en').html).toContain(
+      'href="{signatureUrl}"',
+    );
+  });
+
+  it('falls back to English for an unsupported/unknown language', () => {
+    const known = buildSystemEmailDefault(MailTemplateType.VERIFICATION_CODE, 'en');
+    // `mailT` itself resolves an unsupported code to English (see i18n.ts) — a family default built
+    // from a raw, never-normalized string reaches the exact same shipped English copy.
+    const unknown = buildSystemEmailDefault(MailTemplateType.VERIFICATION_CODE, 'xx' as never);
+    expect(unknown).toEqual(known);
+  });
+
+  it('actually varies the wording per language — French is not a byte-for-byte copy of English', () => {
+    const en = buildSystemEmailDefault(MailTemplateType.SIGNATURE_REQUEST, 'en');
+    const fr = buildSystemEmailDefault(MailTemplateType.SIGNATURE_REQUEST, 'fr');
+    expect(fr.subject).not.toBe(en.subject);
+    expect(fr.subject).toContain('signer');
+    expect(fr.html).toContain('Signature de document requise');
   });
 });
 
-describe('resolveSystemEmailTemplate — company override > shipped default', () => {
-  it('returns the shipped default when the company has no row at all', () => {
-    expect(resolveSystemEmailTemplate(MailTemplateType.VERIFICATION_CODE, null)).toBe(
-      SYSTEM_EMAIL_DEFAULTS[MailTemplateType.VERIFICATION_CODE],
+describe('resolveSystemEmailTemplate — company override > shipped default, per language', () => {
+  it('returns the shipped ENGLISH default when the company has no row and no language is given', () => {
+    expect(resolveSystemEmailTemplate(MailTemplateType.VERIFICATION_CODE, null)).toEqual(
+      buildSystemEmailDefault(MailTemplateType.VERIFICATION_CODE, 'en'),
     );
-    expect(resolveSystemEmailTemplate(MailTemplateType.SIGNATURE_REQUEST, undefined)).toBe(
-      SYSTEM_EMAIL_DEFAULTS[MailTemplateType.SIGNATURE_REQUEST],
+    expect(resolveSystemEmailTemplate(MailTemplateType.SIGNATURE_REQUEST, undefined)).toEqual(
+      buildSystemEmailDefault(MailTemplateType.SIGNATURE_REQUEST, 'en'),
     );
   });
 
-  it("maps a company's row onto the html part, leaving the text part for the engine to derive", () => {
-    const resolved = resolveSystemEmailTemplate(MailTemplateType.SIGNATURE_REQUEST, {
+  it('returns the shipped default in the REQUESTED language when the company has no row', () => {
+    expect(resolveSystemEmailTemplate(MailTemplateType.SIGNATURE_REQUEST, null, 'de')).toEqual(
+      buildSystemEmailDefault(MailTemplateType.SIGNATURE_REQUEST, 'de'),
+    );
+  });
+
+  it("maps a company's row onto the html part UNTRANSLATED, regardless of the requested language", () => {
+    const override = {
       subject: 'Signez {signatureNumber}',
       body: '<p>Bonjour,</p><p><a href="{signatureUrl}">Signer</a></p>',
-    });
+    };
+    // 'de' requested, but the override is a company's own words — never translated out from under it.
+    const resolved = resolveSystemEmailTemplate(MailTemplateType.SIGNATURE_REQUEST, override, 'de');
 
     expect(resolved).toEqual({
       subject: 'Signez {signatureNumber}',
@@ -138,8 +170,8 @@ describe('systemEmailFamilyLabel', () => {
   });
 });
 
-describe('OWNER warning emails (J-7/J-1 before the zip, and before the permanent deletion) are in English and link to Settings > Billing', () => {
-  it('buildBlockedZipWarningEmail names the day count and links to the billing settings screen', () => {
+describe('OWNER warning emails (J-7/J-1 before the zip, and before the permanent deletion)', () => {
+  it('buildBlockedZipWarningEmail names the day count and links to the billing settings screen (default: English)', () => {
     const email = buildBlockedZipWarningEmail({ appUrl: APP_URL, daysRemaining: 7 });
     expect(email.subject).toContain('7 days');
     expect(email.text).toContain(`${APP_URL}/settings/billing`);
@@ -163,6 +195,26 @@ describe('OWNER warning emails (J-7/J-1 before the zip, and before the permanent
     const email = buildDeletionWarningEmail({ appUrl: APP_URL, daysRemaining: 1 });
     expect(email.subject).toContain('1 day');
     expect(email.subject).not.toContain('1 days');
+  });
+
+  it('honors an explicit language — French pluralizes "jour"/"jours" correctly at J-1 and J-7', () => {
+    const j1 = buildBlockedZipWarningEmail({ appUrl: APP_URL, daysRemaining: 1, language: 'fr' });
+    const j7 = buildBlockedZipWarningEmail({ appUrl: APP_URL, daysRemaining: 7, language: 'fr' });
+    expect(j1.subject).toContain('1 jour');
+    expect(j1.subject).not.toContain('1 jours');
+    expect(j7.subject).toContain('7 jours');
+
+    const del1 = buildDeletionWarningEmail({ appUrl: APP_URL, daysRemaining: 1, language: 'fr' });
+    const del7 = buildDeletionWarningEmail({ appUrl: APP_URL, daysRemaining: 7, language: 'fr' });
+    expect(del1.text).toContain('1 jour,');
+    expect(del7.text).toContain('7 jours,');
+  });
+
+  it('honors an explicit language — Polish uses its own "many" plural form at J-7', () => {
+    const j7 = buildBlockedZipWarningEmail({ appUrl: APP_URL, daysRemaining: 7, language: 'pl' });
+    expect(j7.subject).toContain('7 dni');
+    const j1 = buildBlockedZipWarningEmail({ appUrl: APP_URL, daysRemaining: 1, language: 'pl' });
+    expect(j1.subject).toContain('1 dzień');
   });
 });
 
@@ -238,6 +290,20 @@ describe('buildLegalDocumentChangedEmail', () => {
 
     expect(email.subject).toBe('Updated legal documents: Privacy Policy and Legal Notice');
   });
+
+  it('translates the surrounding prose in another language while document titles stay verbatim', () => {
+    const email = buildLegalDocumentChangedEmail({
+      appUrl: APP_URL,
+      documents: [
+        { title: 'Privacy Policy', version: '2026-09-17', slug: 'privacy-policy' },
+        { title: 'Legal Notice', version: '2026-09-17', slug: 'legal-notice' },
+      ],
+      requiresAcceptance: false,
+      language: 'it',
+    });
+    expect(email.subject).toBe('Documenti legali aggiornati: Privacy Policy e Legal Notice');
+    expect(email.html).toContain('Abbiamo aggiornato i seguenti documenti legali:');
+  });
 });
 
 /**
@@ -245,17 +311,21 @@ describe('buildLegalDocumentChangedEmail', () => {
  * reach a DIFFERENT, unrelated user's inbox carrying values the INITIATING owner controls — their
  * company's own name, their own display name. The HTML part must escape them: an unescaped `<script>`/
  * `<img onerror>` planted in a company name would otherwise execute in the recipient's mail client the
- * moment they open a transfer request they never asked for.
+ * moment they open a transfer request they never asked for. Checked in EVERY supported language, since
+ * the escaping happens independently of which translated sentence wraps the value.
  */
-describe('ownership transfer emails — HTML-escape attacker-reachable values', () => {
+describe('ownership transfer emails — HTML-escape attacker-reachable values, in every language', () => {
   const PAYLOAD = '<img src=x onerror=alert(1)>Acme "Corp" & Sons';
   const ESCAPED = '&lt;img src=x onerror=alert(1)&gt;Acme &quot;Corp&quot; &amp; Sons';
 
-  it('buildOwnershipTransferRequestEmail escapes companyName and fromName in the HTML part only', () => {
+  it.each(
+    SUPPORTED_RENDER_LANGUAGES,
+  )('buildOwnershipTransferRequestEmail escapes companyName and fromName in the HTML part only (%s)', (language) => {
     const email = buildOwnershipTransferRequestEmail({
       appUrl: APP_URL,
       companyName: PAYLOAD,
       fromName: PAYLOAD,
+      language,
     });
 
     expect(email.html).not.toContain(PAYLOAD);
@@ -264,11 +334,14 @@ describe('ownership transfer emails — HTML-escape attacker-reachable values', 
     expect(email.text).toContain(PAYLOAD);
   });
 
-  it('buildOwnershipTransferFinalizedEmail escapes companyName in the HTML part only', () => {
+  it.each(
+    SUPPORTED_RENDER_LANGUAGES,
+  )('buildOwnershipTransferFinalizedEmail escapes companyName in the HTML part only (%s)', (language) => {
     const email = buildOwnershipTransferFinalizedEmail({
       appUrl: APP_URL,
       companyName: PAYLOAD,
       forNewOwner: true,
+      language,
     });
 
     expect(email.html).not.toContain(PAYLOAD);
@@ -276,16 +349,32 @@ describe('ownership transfer emails — HTML-escape attacker-reachable values', 
     expect(email.text).toContain(PAYLOAD);
   });
 
-  it('buildOwnershipTransferEndedEmail escapes companyName and toEmail in the HTML part only', () => {
+  it.each(
+    SUPPORTED_RENDER_LANGUAGES,
+  )('buildOwnershipTransferEndedEmail escapes companyName and toEmail in the HTML part only (%s)', (language) => {
     const email = buildOwnershipTransferEndedEmail({
       appUrl: APP_URL,
       companyName: PAYLOAD,
       toEmail: PAYLOAD,
       reason: 'expired',
+      language,
     });
 
     expect(email.html).not.toContain(PAYLOAD);
     expect(email.html).toContain(ESCAPED);
     expect(email.text).toContain(PAYLOAD);
+  });
+
+  it("buildOwnershipTransferFinalizedEmail also escapes the template's own quote marks around the name (EN)", () => {
+    // The regression this test pins: `bodyLine` is composed FIRST, THEN escaped as a whole — the
+    // literal quotes this template writes around `{companyName}` become `&quot;` too, exactly like the
+    // pre-i18next code (`escapeHtml(bodyLine)`) always produced.
+    const email = buildOwnershipTransferFinalizedEmail({
+      appUrl: APP_URL,
+      companyName: 'Acme Corp',
+      forNewOwner: true,
+    });
+    expect(email.html).toContain('&quot;Acme Corp&quot;');
+    expect(email.html).not.toContain('"Acme Corp"');
   });
 });

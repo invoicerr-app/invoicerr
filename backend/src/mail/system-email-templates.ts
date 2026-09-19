@@ -5,6 +5,13 @@ import {
   buildSignatureRequestEmailParts,
   DocumentEmailTemplate,
 } from '@/modules/documents/actions/email-template';
+import {
+  DEFAULT_RENDER_LANGUAGE,
+  RenderLanguage,
+} from '@/modules/documents/rendering/language/supported-languages';
+
+import { escapeHtml } from './escape-html';
+import { mailT } from './i18n';
 
 /**
  * The two emails this application sends that are NOT about a document: the signature request and the
@@ -26,6 +33,16 @@ import {
  * a document type: absent means "use the shipped default below", never "this feature is unconfigured".
  * That is what lets the seeding disappear, with no migration needed to put rows back, and it is the
  * same precedence `resolveEmailTemplate` already applies for documents — one mental model for both.
+ *
+ * ## Why the DEFAULT is now resolved per-language, and the override never is
+ *
+ * `buildSystemEmailDefault` reads its prose from the `mails` i18next catalog (`i18n.ts`) instead of a
+ * hardcoded English literal — the shipped copy a company never customised now follows the recipient's
+ * own language, the same posture `resolveEmailTemplate` already holds for a document's own defaults.
+ * A company's OVERRIDE row is untouched by any of this: it is raw HTML/subject text a human typed into
+ * the settings screen in whatever language THEY wrote it in, and translating it out from under them
+ * would silently rewrite content they own — `resolveSystemEmailTemplate` below still returns it
+ * verbatim, `language` only ever selects which DEFAULT would have applied had there been no override.
  *
  * ## What a row's `body` column holds
  *
@@ -49,51 +66,65 @@ export const SYSTEM_EMAIL_FAMILIES: SystemEmailFamily[] = [
 ];
 
 /**
- * The shipped copy. Kept byte-for-byte as the markup these two emails have always had (right down to
- * the inline styles), with only the placeholder syntax migrated from the old double-brace
- * `{{SIGNATURE_URL}}` vocabulary to the engine's single-brace `{signatureUrl}` — an existing
- * customised row is rewritten the same way, by the migration, rather than being reset.
+ * Builds the shipped copy for one family in one language. The single-brace placeholders
+ * (`{signatureNumber}`, `{signatureId}`, `{signatureUrl}`, `{otpCode}`, `{appUrl}`) are deliberately
+ * NOT i18next interpolation — `i18n.ts` configures `{{ }}` as its own interpolation delimiter, so a
+ * lone `{token}` is inert, ordinary text to it and survives every language's translation untouched,
+ * to be substituted later by `renderEmailTemplate` (`actions/email-template.ts`) once a real send
+ * knows the actual signature/OTP values. This is exactly the same "translate the words, keep the
+ * token" contract every legacy `{signatureNumber}`-style default already relied on before this file
+ * had more than one language — only the words move.
  */
-export const SYSTEM_EMAIL_DEFAULTS: Record<SystemEmailFamily, DocumentEmailTemplate> = {
-  [MailTemplateType.SIGNATURE_REQUEST]: {
-    subject: 'Please sign document #{signatureNumber}',
+export function buildSystemEmailDefault(
+  family: SystemEmailFamily,
+  language: RenderLanguage,
+): DocumentEmailTemplate {
+  const t = mailT(language);
+  const sentFrom = t('layout.sentFrom');
+
+  if (family === MailTemplateType.SIGNATURE_REQUEST) {
+    return {
+      subject: t('signatureRequest.subject'),
+      body:
+        `${t('layout.greeting')}\n\n` +
+        `${t('signatureRequest.intro')}\n\n` +
+        `${t('signatureRequest.documentLine')}\n` +
+        `${t('signatureRequest.signatureIdLine')}\n\n` +
+        `${t('signatureRequest.reviewLinkIntro')}\n{signatureUrl}\n\n` +
+        `${t('signatureRequest.contactText')}\n\n` +
+        `${t('layout.signOffText')}\n\n` +
+        sentFrom,
+      html:
+        `<h2>${t('signatureRequest.title')}</h2><p>${t('layout.greeting')}</p>` +
+        `<p>${t('signatureRequest.intro')}</p><div style="background: #f8f9fa; padding: 15px; ` +
+        `border-radius: 8px; margin: 20px 0;">  <strong>${t('signatureRequest.documentLabel')}</strong> ` +
+        `{signatureNumber}<br>  <strong>${t('signatureRequest.signatureIdLabel')}</strong> {signatureId}</div>` +
+        `<p>${t('signatureRequest.clickBelow')}</p><div style="text-align: center; margin: 30px 0;">  ` +
+        `<a href="{signatureUrl}" style="background: #007bff; color: white; padding: 12px 24px; ` +
+        `text-decoration: none; border-radius: 6px; display: inline-block;">` +
+        `${t('signatureRequest.buttonLabel')}</a></div>` +
+        `<p>${t('signatureRequest.contactHtml')}</p><p>${t('layout.signOffHtml')}</p><hr>` +
+        `<p style="font-size: 12px; color: #666;">${sentFrom}</p>`,
+    };
+  }
+
+  return {
+    subject: t('verificationCode.subject'),
     body:
-      'Hello,\n\n' +
-      'You have been requested to sign the following document:\n\n' +
-      'Document: {signatureNumber}\n' +
-      'Signature ID: {signatureId}\n\n' +
-      'Open this link to review and sign it:\n{signatureUrl}\n\n' +
-      'If you have any questions, please contact us.\n\n' +
-      'Best regards,\nThe Invoicerr Team\n\n' +
-      'This email was sent from {appUrl}',
+      `${t('layout.greeting')}\n\n` +
+      `${t('verificationCode.codeIntroText')}\n\n` +
+      `${t('verificationCode.expiryText')}\n\n` +
+      `${t('verificationCode.ignoreNotice')}\n\n` +
+      `${t('layout.signOffText')}`,
     html:
-      '<h2>Document Signature Required</h2><p>Hello,</p><p>You have been requested to sign the ' +
-      'following document:</p><div style="background: #f8f9fa; padding: 15px; border-radius: 8px; ' +
-      'margin: 20px 0;">  <strong>Document:</strong> {signatureNumber}<br>  <strong>Signature ID:' +
-      '</strong> {signatureId}</div><p>Please click the button below to review and sign the document:' +
-      '</p><div style="text-align: center; margin: 30px 0;">  <a href="{signatureUrl}" style=' +
-      '"background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: ' +
-      '6px; display: inline-block;">Sign Document</a></div><p>If you have any questions, please ' +
-      "don't hesitate to contact us.</p><p>Best regards,<br>The Invoicerr Team</p><hr>" +
-      '<p style="font-size: 12px; color: #666;">This email was sent from {appUrl}</p>',
-  },
-  [MailTemplateType.VERIFICATION_CODE]: {
-    subject: 'Your verification code',
-    body:
-      'Hello,\n\n' +
-      'Here is your verification code: {otpCode}\n\n' +
-      'This code will expire shortly. Enter it in the application to complete your verification.\n\n' +
-      "If you didn't request this code, please ignore this email.\n\n" +
-      'Best regards,\nThe Invoicerr Team',
-    html:
-      '<p>Hello,</p><p>Here is your verification code:</p><div style="background: #f8f9fa; padding: ' +
-      '20px; border-radius: 8px; margin: 20px 0; text-align: center;">  <div style="font-size: 32px; ' +
-      'font-weight: bold; color: #007bff; letter-spacing: 4px; font-family: monospace;">{otpCode}' +
-      '</div></div><p>This code will expire shortly. Please enter it in the application to complete ' +
-      "your verification.</p><p>If you didn't request this code, please ignore this email.</p>" +
-      '<p>Best regards,<br>The Invoicerr Team</p>',
-  },
-};
+      `<p>${t('layout.greeting')}</p><p>${t('verificationCode.codeIntroHtml')}</p>` +
+      '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; ' +
+      'text-align: center;">  <div style="font-size: 32px; font-weight: bold; color: #007bff; ' +
+      'letter-spacing: 4px; font-family: monospace;">{otpCode}</div></div>' +
+      `<p>${t('verificationCode.expiryHtml')}</p><p>${t('verificationCode.ignoreNotice')}</p>` +
+      `<p>${t('layout.signOffHtml')}</p>`,
+  };
+}
 
 /** Human-readable family name — "SIGNATURE_REQUEST" -> "Signature Request". Plain data, not an i18n
  *  key, the same convention `DocumentTypeDescriptor.label` follows. */
@@ -107,17 +138,25 @@ export function systemEmailFamilyLabel(family: SystemEmailFamily): string {
 
 /**
  * Which template actually applies for one family: the company's own `MailTemplate` row when it has
- * one, else the shipped default above. The mirror of `resolveEmailTemplate`'s own "company override >
- * shipped default" precedence for documents, and the reason a missing row is a normal state rather
- * than the hard failure it used to be.
+ * one, else the shipped default (`buildSystemEmailDefault`, resolved in `language`). The mirror of
+ * `resolveEmailTemplate`'s own "company override > shipped default" precedence for documents, and the
+ * reason a missing row is a normal state rather than the hard failure it used to be.
+ *
+ * `language` defaults to `DEFAULT_RENDER_LANGUAGE` ('en') so every pre-existing caller that has not
+ * been wired to a recipient's own language yet (today: the settings screen's own preview,
+ * `company.service.ts`) keeps seeing byte-for-byte the same English copy it always has — this
+ * parameter only ever WIDENS what a caller can ask for, it never forces one to already know a
+ * language it has no recipient to resolve one for.
  */
 export function resolveSystemEmailTemplate(
   family: SystemEmailFamily,
   override: { subject: string; body: string } | null | undefined,
+  language: RenderLanguage = DEFAULT_RENDER_LANGUAGE,
 ): DocumentEmailTemplate {
-  if (!override) return SYSTEM_EMAIL_DEFAULTS[family];
+  if (!override) return buildSystemEmailDefault(family, language);
   // `body` is the row's HTML (see this file's own header); the text part is left empty for the engine
-  // to derive from it, rather than sending the raw markup as if it were prose.
+  // to derive from it, rather than sending the raw markup as if it were prose. Never translated: an
+  // override is the company's own words, in whatever language they wrote it — see this file's header.
   return { subject: override.subject, body: '', html: override.body };
 }
 
@@ -148,17 +187,26 @@ export function describeSystemEmailVocabulary(
  * milestones, `lifecycle.ts#computeDueBillingWarnings`) — sent through this INSTANCE's own mail
  * provider (`MailService#sendMail`, never `sendForCompany`: a company nearing the zip or permanent
  * deletion is exactly the company whose OWN mail server, if it even has one, is the least trustworthy
- * thing to rely on for telling it so), always in English. Deliberately plain functions, not a
+ * thing to rely on for telling it so). Deliberately plain functions, not a
  * `SystemEmailFamily`/`MailTemplateType` entry: those are per-COMPANY overrides
  * (`resolveSystemEmailTemplate`'s own precedence), and a company about to lose its data has no
  * business customizing the wording of the notice warning it about that — this is instance-authored
  * content, addressed to a specific OWNER, not a document-adjacent email a tenant configures.
+ *
+ * `language` defaults to `DEFAULT_RENDER_LANGUAGE` because the ONE caller today
+ * (`billing-lifecycle-sweep-runner.ts`) still addresses this as instance-authored content and passes
+ * `DEFAULT_RENDER_LANGUAGE` explicitly — the parameter exists so that caller has somewhere to plug in
+ * a real per-operator locale (a future `DEFAULT_LOCALE` setting) without this function's own shape
+ * changing again.
  */
 export interface BillingWarningEmailParams {
   appUrl: string;
   /** Whole days left until the event this warning is about — 7 or 1, matching the milestone that
    *  triggered it (`lifecycle.ts`'s own `blocked_d7`/`blocked_d1`/`zipped_d7`/`zipped_d1`). */
   daysRemaining: number;
+  /** See this interface's own header — defaults to English, the language every one of these warnings
+   *  has always shipped in. */
+  language?: RenderLanguage;
 }
 
 function billingSettingsUrl(appUrl: string): string {
@@ -172,28 +220,25 @@ export function buildBlockedZipWarningEmail(params: BillingWarningEmailParams): 
   text: string;
   html: string;
 } {
-  const { appUrl, daysRemaining } = params;
+  const { appUrl, daysRemaining, language = DEFAULT_RENDER_LANGUAGE } = params;
+  const t = mailT(language);
   const settingsUrl = billingSettingsUrl(appUrl);
-  const dayWord = daysRemaining === 1 ? 'day' : 'days';
+  const count = daysRemaining;
   return {
-    subject: `Action needed: your Invoicerr data will be archived in ${daysRemaining} ${dayWord}`,
+    subject: t('billingWarning.blockedZip.subject', { count }),
     text:
-      'Hello,\n\n' +
-      `Your company's Invoicerr subscription is not active, and in ${daysRemaining} ${dayWord} its ` +
-      'documents will be exported to a zip file and the account will remain read-only until you ' +
-      'subscribe again.\n\n' +
-      `Manage your subscription: ${settingsUrl}\n\n` +
-      'Best regards,\nThe Invoicerr Team\n\n' +
-      `This email was sent from ${appUrl}`,
+      `${t('layout.greeting')}\n\n` +
+      `${t('billingWarning.blockedZip.introText', { count })}\n\n` +
+      `${t('billingWarning.manageLine').replace('{settingsUrl}', settingsUrl)}\n\n` +
+      `${t('layout.signOffText')}\n\n` +
+      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
     html:
-      '<h2>Action needed</h2>' +
-      `<p>Hello,</p><p>Your company's Invoicerr subscription is not active, and in <strong>${daysRemaining} ` +
-      `${dayWord}</strong> its documents will be exported to a zip file and the account will remain ` +
-      'read-only until you subscribe again.</p>' +
+      `<h2>${t('billingWarning.blockedZip.heading')}</h2>` +
+      `<p>${t('layout.greeting')}</p><p>${t('billingWarning.blockedZip.introHtml', { count })}</p>` +
       `<p><a href="${settingsUrl}" style="background: #007bff; color: white; padding: 12px 24px; ` +
-      'text-decoration: none; border-radius: 6px; display: inline-block;">Manage subscription</a></p>' +
-      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
-      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+      `text-decoration: none; border-radius: 6px; display: inline-block;">${t('billingWarning.ctaLabel')}</a></p>` +
+      `<p>${t('layout.signOffHtml')}</p><hr>` +
+      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
   };
 }
 
@@ -205,27 +250,25 @@ export function buildDeletionWarningEmail(params: BillingWarningEmailParams): {
   text: string;
   html: string;
 } {
-  const { appUrl, daysRemaining } = params;
+  const { appUrl, daysRemaining, language = DEFAULT_RENDER_LANGUAGE } = params;
+  const t = mailT(language);
   const settingsUrl = billingSettingsUrl(appUrl);
-  const dayWord = daysRemaining === 1 ? 'day' : 'days';
+  const count = daysRemaining;
   return {
-    subject: `Final notice: your Invoicerr company will be permanently deleted in ${daysRemaining} ${dayWord}`,
+    subject: t('billingWarning.deletion.subject', { count }),
     text:
-      'Hello,\n\n' +
-      `In ${daysRemaining} ${dayWord}, your company and every document in it will be PERMANENTLY ` +
-      'DELETED from Invoicerr. This cannot be undone. Subscribe again before then to keep your data.\n\n' +
-      `Manage your subscription: ${settingsUrl}\n\n` +
-      'Best regards,\nThe Invoicerr Team\n\n' +
-      `This email was sent from ${appUrl}`,
+      `${t('layout.greeting')}\n\n` +
+      `${t('billingWarning.deletion.textBody', { count })}\n\n` +
+      `${t('billingWarning.manageLine').replace('{settingsUrl}', settingsUrl)}\n\n` +
+      `${t('layout.signOffText')}\n\n` +
+      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
     html:
-      '<h2>Final notice</h2>' +
-      `<p>Hello,</p><p>In <strong>${daysRemaining} ${dayWord}</strong>, your company and every document ` +
-      'in it will be <strong>permanently deleted</strong> from Invoicerr. This cannot be undone. ' +
-      'Subscribe again before then to keep your data.</p>' +
+      `<h2>${t('billingWarning.deletion.heading')}</h2>` +
+      `<p>${t('layout.greeting')}</p><p>${t('billingWarning.deletion.htmlBody', { count })}</p>` +
       `<p><a href="${settingsUrl}" style="background: #dc3545; color: white; padding: 12px 24px; ` +
-      'text-decoration: none; border-radius: 6px; display: inline-block;">Manage subscription</a></p>' +
-      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
-      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+      `text-decoration: none; border-radius: 6px; display: inline-block;">${t('billingWarning.ctaLabel')}</a></p>` +
+      `<p>${t('layout.signOffHtml')}</p><hr>` +
+      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
   };
 }
 
@@ -233,15 +276,18 @@ export function buildDeletionWarningEmail(params: BillingWarningEmailParams): {
  * "Our legal documents have changed" — sent to EVERY user of the instance (not just OWNERs, unlike
  * the two warnings above) once per boot pass in which `legal-release-notify.ts` finds at least one
  * document whose text hash moved past a release it had already recorded. Same posture as the billing
- * warnings: instance mail (`MailService#sendMail`), always English, plain function rather than a
- * `SystemEmailFamily` — this is instance-authored content about legal text a company has no business
- * rewording.
+ * warnings: instance mail (`MailService#sendMail`), plain function rather than a `SystemEmailFamily`
+ * — this is instance-authored content about legal text a company has no business rewording.
  *
  * ONE call = ONE email, no matter how many documents changed: a deploy that ships several document
  * edits at once (a common shape — a legal review round tends to touch the Terms, the Privacy Policy
  * and the Legal Notice together) still means a user reads exactly one message, listing every one of
  * them. The caller is what enforces this by collecting every changed document before calling this
  * function once per user, rather than calling it once per document.
+ *
+ * `language` defaults to English — `legal-release-notify.ts` (the one caller today) has not been
+ * wired to a per-user language yet; the parameter exists so that wiring, when it lands, changes only
+ * that caller, never this function's own shape.
  */
 export interface LegalDocumentChangedEmailParams {
   appUrl: string;
@@ -253,15 +299,26 @@ export interface LegalDocumentChangedEmailParams {
    *  is forced to re-accept, so a batch containing only those gets no call to action, just the reading
    *  links. */
   requiresAcceptance: boolean;
+  /** See this interface's own header — defaults to English. */
+  language?: RenderLanguage;
 }
 
-/** "X", "X and Y", or "X, Y and N more" — a subject line and an opening sentence both need a compact
- *  name for an arbitrary-length list of titles, so this is shared rather than written twice. */
-function describeDocumentTitles(documents: Array<{ title: string }>): string {
+/** "X", "X and Y", or "X, Y and N more" — a subject line needs a compact name for an arbitrary-length
+ *  list of titles, so this is its own helper rather than being inlined into the subject below. Titles
+ *  come from this application's own legal-document catalog (never attacker input), so no HTML-escaping
+ *  concern applies here — same as the per-document `<li>` list this file builds further down. */
+function describeDocumentTitles(documents: Array<{ title: string }>, t: ReturnType<typeof mailT>): string {
   if (documents.length === 1) return documents[0].title;
-  if (documents.length === 2) return `${documents[0].title} and ${documents[1].title}`;
+  if (documents.length === 2) {
+    return t('legalChanged.titlesTwo')
+      .replace('{first}', documents[0].title)
+      .replace('{second}', documents[1].title);
+  }
   const [first, second, ...rest] = documents;
-  return `${first.title}, ${second.title} and ${rest.length} more`;
+  return t('legalChanged.titlesMany')
+    .replace('{first}', first.title)
+    .replace('{second}', second.title)
+    .replace('{count}', String(rest.length));
 }
 
 export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmailParams): {
@@ -269,11 +326,13 @@ export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmail
   text: string;
   html: string;
 } {
-  const { appUrl, documents, requiresAcceptance } = params;
-  const plural = documents.length > 1;
-  const subject = plural
-    ? `Updated legal documents: ${describeDocumentTitles(documents)}`
-    : `Updated legal document: ${documents[0].title}`;
+  const { appUrl, documents, requiresAcceptance, language = DEFAULT_RENDER_LANGUAGE } = params;
+  const t = mailT(language);
+  const count = documents.length;
+  const subject =
+    count === 1
+      ? t('legalChanged.subjectSingular').replace('{title}', documents[0].title)
+      : t('legalChanged.subjectPlural').replace('{titles}', describeDocumentTitles(documents, t));
 
   const listText = documents
     .map((d) => `- ${d.title} (version ${d.version}): ${appUrl}/legal/${d.slug}`)
@@ -286,32 +345,29 @@ export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmail
   // single gate (`REQUIRED_ACCEPTANCE_SLUGS`, checked as a set) a user clears in one visit regardless
   // of how many of the required documents moved.
   const acceptUrl = `${appUrl}/legal/accept`;
-  const acceptText = requiresAcceptance
-    ? `\nYou will be asked to accept the changes the next time you sign in:\n${acceptUrl}\n`
-    : '';
+  const acceptText = requiresAcceptance ? `\n${t('legalChanged.acceptNotice')}\n${acceptUrl}\n` : '';
   const acceptHtml = requiresAcceptance
-    ? '<p>You will be asked to accept the changes the next time you sign in:</p>' +
+    ? `<p>${t('legalChanged.acceptNotice')}</p>` +
       `<p><a href="${acceptUrl}" style="background: #007bff; color: white; padding: 12px 24px; ` +
-      'text-decoration: none; border-radius: 6px; display: inline-block;">Review and accept</a></p>'
+      `text-decoration: none; border-radius: 6px; display: inline-block;">${t('legalChanged.acceptButton')}</a></p>`
     : '';
 
   return {
     subject,
     text:
-      'Hello,\n\n' +
-      `We have updated the following legal document${plural ? 's' : ''}. You can read the new ` +
-      `version${plural ? 's' : ''} here:\n\n` +
+      `${t('layout.greeting')}\n\n` +
+      `${t('legalChanged.introText', { count })}\n\n` +
       `${listText}\n` +
       acceptText +
-      '\nBest regards,\nThe Invoicerr Team\n\n' +
-      `This email was sent from ${appUrl}`,
+      `\n${t('layout.signOffText')}\n\n` +
+      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
     html:
-      `<h2>Updated legal document${plural ? 's' : ''}</h2>` +
-      `<p>Hello,</p><p>We have updated the following legal document${plural ? 's' : ''}:</p>` +
+      `<h2>${t('legalChanged.heading', { count })}</h2>` +
+      `<p>${t('layout.greeting')}</p><p>${t('legalChanged.introHtml', { count })}</p>` +
       `<ul>${listHtml}</ul>` +
       acceptHtml +
-      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
-      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+      `<p>${t('layout.signOffHtml')}</p><hr>` +
+      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
   };
 }
 
@@ -324,25 +380,26 @@ export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmail
  * the same posture `danger.service.ts`'s own OTP mail already takes for this company's OWNER. The
  * cascade's own fallback (company's mail server, else the instance's, else a named refusal) is what
  * keeps the recipient's address reachable even for a company with no mail server configured.
+ *
+ * `language` defaults to English on all three — `transfer.service.ts` (the one caller today) has not
+ * been wired to a per-recipient language yet; the parameter exists so that wiring changes only that
+ * caller.
+ *
+ * ## Why attacker-controlled values are NEVER run through i18next's own `{{var}}` interpolation
+ *
+ * `companyName`/`fromName`/`toEmail` are typed by whichever OWNER initiates/cancels a transfer, and
+ * this HTML reaches a DIFFERENT, unrelated user's inbox — the exact reason the html variant below still
+ * escapes them with the same `escapeHtml` this file always has. i18next's OWN default escaping (used
+ * whenever a value is interpolated via `{{var}}`) additionally escapes `/` (`&#x2F;`), which
+ * `escapeHtml` deliberately does not — switching these three values to real i18next interpolation
+ * would silently change what a company name containing a slash renders as. Keeping them OUTSIDE
+ * interpolation (the translated sentence is fetched as a literal template with its own `{fromName}`/
+ * `{companyName}`/`{toEmail}` tokens, still inert to i18next for the reason `buildSystemEmailDefault`'s
+ * own header explains, then substituted by hand with `replaceAll`) keeps the escaping behavior exactly
+ * what it always was, in every language.
  */
 function transferAccountUrl(appUrl: string): string {
   return `${appUrl}/account/transfers`;
-}
-
-/** Minimal HTML-entity escaping — needed HERE and nowhere else in this file: every template ABOVE
- *  this line mails a company's own OWNER about their own account/subscription (self-directed, so a
- *  value they control reaching their own inbox is not a cross-user concern). A transfer request is
- *  the first system email in this codebase whose HTML reaches a DIFFERENT, unrelated user's inbox
- *  carrying values the INITIATING owner controls (`companyName`, their own display name) — without
- *  escaping, a company renamed to include a `<script>`/`<img onerror>` payload would inject into the
- *  recipient's mail client the moment they open a transfer request they never asked for. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /** Sent to the RECIPIENT the moment an OWNER initiates a transfer — the recipient may not be a member
@@ -351,34 +408,41 @@ export function buildOwnershipTransferRequestEmail(params: {
   appUrl: string;
   companyName: string;
   fromName: string;
+  language?: RenderLanguage;
 }): { subject: string; text: string; html: string } {
-  const { appUrl, companyName, fromName } = params;
+  const { appUrl, companyName, fromName, language = DEFAULT_RENDER_LANGUAGE } = params;
+  const t = mailT(language);
   const url = transferAccountUrl(appUrl);
+
+  const subject = t('ownershipTransfer.request.subject')
+    .replaceAll('{fromName}', fromName)
+    .replaceAll('{companyName}', companyName);
+  const textIntro = t('ownershipTransfer.request.textIntro')
+    .replaceAll('{fromName}', fromName)
+    .replaceAll('{companyName}', companyName);
+  const htmlIntro = t('ownershipTransfer.request.htmlIntro')
+    .replaceAll('{fromName}', escapeHtml(fromName))
+    .replaceAll('{companyName}', escapeHtml(companyName));
+
   return {
-    subject: `${fromName} wants to transfer ownership of "${companyName}" to you`,
+    subject,
     text:
-      'Hello,\n\n' +
-      `${fromName} has requested to transfer ownership of their company "${companyName}" on ` +
-      'Invoicerr to your account. Accepting makes you the OWNER of that company; ' +
-      `${fromName} becomes an admin.\n\n` +
-      'This request expires in 7 days. Review and accept it here:\n' +
+      `${t('layout.greeting')}\n\n` +
+      `${textIntro}\n\n` +
+      `${t('ownershipTransfer.request.expiryNotice')} ${t('ownershipTransfer.request.reviewLinkIntro')}\n` +
       `${url}\n\n` +
-      "If you weren't expecting this, you can simply ignore this email — nothing changes until you " +
-      'accept.\n\n' +
-      'Best regards,\nThe Invoicerr Team\n\n' +
-      `This email was sent from ${appUrl}`,
+      `${t('ownershipTransfer.request.ignoreNotice')}\n\n` +
+      `${t('layout.signOffText')}\n\n` +
+      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
     html:
-      '<h2>Ownership transfer request</h2>' +
-      `<p>Hello,</p><p><strong>${escapeHtml(fromName)}</strong> has requested to transfer ownership ` +
-      `of their company <strong>"${escapeHtml(companyName)}"</strong> on Invoicerr to your account. ` +
-      `Accepting makes you the OWNER of that company; ${escapeHtml(fromName)} becomes an admin.</p>` +
-      '<p>This request expires in 7 days.</p>' +
+      `<h2>${t('ownershipTransfer.request.heading')}</h2>` +
+      `<p>${t('layout.greeting')}</p><p>${htmlIntro}</p>` +
+      `<p>${t('ownershipTransfer.request.expiryNotice')}</p>` +
       `<p><a href="${url}" style="background: #007bff; color: white; padding: 12px 24px; ` +
-      'text-decoration: none; border-radius: 6px; display: inline-block;">Review request</a></p>' +
-      "<p>If you weren't expecting this, you can simply ignore this email — nothing changes until " +
-      'you accept.</p>' +
-      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
-      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+      `text-decoration: none; border-radius: 6px; display: inline-block;">${t('ownershipTransfer.request.buttonLabel')}</a></p>` +
+      `<p>${t('ownershipTransfer.request.ignoreNotice')}</p>` +
+      `<p>${t('layout.signOffHtml')}</p><hr>` +
+      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
   };
 }
 
@@ -389,30 +453,40 @@ export function buildOwnershipTransferFinalizedEmail(params: {
   appUrl: string;
   companyName: string;
   forNewOwner: boolean;
+  language?: RenderLanguage;
 }): { subject: string; text: string; html: string } {
-  const { appUrl, companyName, forNewOwner } = params;
-  const subject = forNewOwner
-    ? `You are now the owner of "${companyName}"`
-    : `Ownership of "${companyName}" has been transferred`;
-  const bodyLine = forNewOwner
-    ? `You are now the OWNER of "${companyName}" on Invoicerr.`
-    : `You are no longer the owner of "${companyName}" — the new owner has accepted the transfer. ` +
-      'You remain an admin of this company.';
+  const { appUrl, companyName, forNewOwner, language = DEFAULT_RENDER_LANGUAGE } = params;
+  const t = mailT(language);
+
+  const subject = (
+    forNewOwner
+      ? t('ownershipTransfer.finalized.subjectNewOwner')
+      : t('ownershipTransfer.finalized.subjectFormerOwner')
+  ).replaceAll('{companyName}', companyName);
+  const bodyKey = forNewOwner
+    ? 'ownershipTransfer.finalized.bodyLineNewOwner'
+    : 'ownershipTransfer.finalized.bodyLineFormerOwner';
+  const bodyLineText = t(bodyKey).replaceAll('{companyName}', companyName);
+  // Unlike the request/ended emails (which escape ONLY the interpolated value inside a literal,
+  // unescaped template), the original code here built the whole sentence RAW first and escaped the
+  // entire line — including its own literal quote marks — as one `escapeHtml(bodyLine)` call. Matching
+  // that exactly: substitute the raw value, THEN escape the fully composed sentence, not the other way
+  // around, or the quotes this template writes around `{companyName}` would stay as literal `"`
+  // characters instead of `&quot;`, a silent behavior change from before this file had languages.
+  const bodyLineHtml = escapeHtml(t(bodyKey).replaceAll('{companyName}', companyName));
+
   return {
     subject,
     text:
-      'Hello,\n\n' +
-      `${bodyLine}\n\n` +
-      'Best regards,\nThe Invoicerr Team\n\n' +
-      `This email was sent from ${appUrl}`,
+      `${t('layout.greeting')}\n\n` +
+      `${bodyLineText}\n\n` +
+      `${t('layout.signOffText')}\n\n` +
+      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
     html:
-      '<h2>Ownership transfer complete</h2>' +
-      // `bodyLine` above is reused verbatim for the TEXT part — the HTML part re-derives its own
-      // escaped copy here rather than sharing that string (see `escapeHtml`'s own header on why the
-      // three previous templates never needed this).
-      `<p>Hello,</p><p>${escapeHtml(bodyLine)}</p>` +
-      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
-      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+      `<h2>${t('ownershipTransfer.finalized.heading')}</h2>` +
+      `<p>${t('layout.greeting')}</p><p>${bodyLineHtml}</p>` +
+      `<p>${t('layout.signOffHtml')}</p><hr>` +
+      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
   };
 }
 
@@ -424,22 +498,32 @@ export function buildOwnershipTransferEndedEmail(params: {
   companyName: string;
   toEmail: string;
   reason: 'expired' | 'canceled';
+  language?: RenderLanguage;
 }): { subject: string; text: string; html: string } {
-  const { appUrl, companyName, toEmail, reason } = params;
-  const verb = reason === 'expired' ? 'expired, unanswered,' : 'was canceled';
+  const { appUrl, companyName, toEmail, reason, language = DEFAULT_RENDER_LANGUAGE } = params;
+  const t = mailT(language);
+  const expired = reason === 'expired';
+
+  const subject = (
+    expired ? t('ownershipTransfer.ended.subjectExpired') : t('ownershipTransfer.ended.subjectCanceled')
+  ).replaceAll('{companyName}', companyName);
+  const bodyKey = expired ? 'ownershipTransfer.ended.bodyExpired' : 'ownershipTransfer.ended.bodyCanceled';
+  const bodyText = t(bodyKey).replaceAll('{companyName}', companyName).replaceAll('{toEmail}', toEmail);
+  const bodyHtml = t(bodyKey)
+    .replaceAll('{companyName}', escapeHtml(companyName))
+    .replaceAll('{toEmail}', escapeHtml(toEmail));
+
   return {
-    subject: `Ownership transfer of "${companyName}" ${reason === 'expired' ? 'expired' : 'canceled'}`,
+    subject,
     text:
-      'Hello,\n\n' +
-      `Your request to transfer ownership of "${companyName}" to ${toEmail} ${verb}. You are still ` +
-      'the owner of this company.\n\n' +
-      'Best regards,\nThe Invoicerr Team\n\n' +
-      `This email was sent from ${appUrl}`,
+      `${t('layout.greeting')}\n\n` +
+      `${bodyText}\n\n` +
+      `${t('layout.signOffText')}\n\n` +
+      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
     html:
-      '<h2>Ownership transfer ended</h2>' +
-      `<p>Hello,</p><p>Your request to transfer ownership of "${escapeHtml(companyName)}" to ` +
-      `${escapeHtml(toEmail)} ${verb}. You are still the owner of this company.</p>` +
-      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
-      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+      `<h2>${t('ownershipTransfer.ended.heading')}</h2>` +
+      `<p>${t('layout.greeting')}</p><p>${bodyHtml}</p>` +
+      `<p>${t('layout.signOffHtml')}</p><hr>` +
+      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
   };
 }

@@ -8,10 +8,39 @@
  *
  * Front matter is a handful of flat `key: value` lines, never nested YAML — a five-line regex parser
  * here is proportionate; pulling in a YAML dependency for two required string fields would not be.
+ *
+ * ## Translations
+ *
+ * A document's own file (`<slug>.md`) is always English — the sole source `version`/`effectiveDate`/
+ * `contentHash` are ever computed from (decision 2026-09-19, owner + counsel: a translation is
+ * provided for comprehension, per GDPR Art. 12/WP260 and, for French readers, loi Toubon art. 2 — see
+ * the "Governing Language" section every document now carries — but it is never itself the text an
+ * acceptance or a release is keyed on; only the wording actually agreed to matters, and that is always
+ * the English one). A SIBLING file `<slug>.<lang>.md` (`<lang>` one of `LEGAL_DOCUMENT_LANGUAGES` minus
+ * `'en'`) is a translation of that same document, attached to it as `translations[<lang>]` rather than
+ * listed as its own top-level `LegalDocument` — `legal-document-view.ts#resolveLegalDocumentView` is
+ * the one place that picks which of a document's own text (English, or one of its translations) a
+ * given request actually sees.
+ *
+ * Not every slug has a translation into every language: `terms-of-service`, `legal-notice`, and
+ * `cookies-and-acceptable-use` only ship French so far; `privacy-policy` and `data-processing-
+ * agreement` ship all five non-English languages (owner decision 2026-09-19 — the two documents GDPR
+ * Art. 12 most directly governs). A missing translation is not an error at load time — a slug simply
+ * has fewer keys in its `translations` map — so adding the sixth language for one more slug is a matter
+ * of dropping one more file in, never a schema change.
  */
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { LegalDocumentLanguage } from './legal-languages';
+
+export interface LegalDocumentTranslation {
+  language: LegalDocumentLanguage;
+  title: string;
+  /** Markdown body, front matter stripped — same shape/contract as `LegalDocument.content` below. */
+  content: string;
+}
 
 export interface LegalDocument {
   slug: string;
@@ -26,8 +55,13 @@ export interface LegalDocument {
   /** sha256 of `content`, normalized first (see `computeContentHash` below) — the true identity a
    *  `LegalAcceptance` and a `LegalDocumentRelease` are keyed on (decision 2026-09-17). `version` is
    *  free text an author sets by hand and nothing stops two real wording changes landing under the
-   *  same version string the same day; the hash can't be fooled that way. */
+   *  same version string the same day; the hash can't be fooled that way. Computed from the ENGLISH
+   *  `content` only — see this module's own "Translations" note above for why a translated wording,
+   *  however different its bytes, must never move this hash. */
   contentHash: string;
+  /** This document's own translations, keyed by language — never including `'en'` (that is `content`/
+   *  `title` above, not an entry here). Empty for a slug with no translation at all. */
+  translations: Partial<Record<LegalDocumentLanguage, LegalDocumentTranslation>>;
 }
 
 /**
@@ -92,6 +126,15 @@ export function computeContentHash(content: string): string {
   return createHash('sha256').update(normalizeForHash(content), 'utf-8').digest('hex');
 }
 
+/** Matches a translation sibling (`<slug>.<lang>.md`) and captures both groups — never matches a
+ *  canonical file, whose name has no language segment before `.md` at all. `<lang>` is intentionally
+ *  the same four-non-English-code alternation as `LEGAL_DOCUMENT_LANGUAGES` minus `'en'`, spelled out
+ *  rather than built from that array: a `RegExp` built from a `const` array read at import time is not
+ *  meaningfully more maintainable than four literal codes for a set this small and this stable, and
+ *  spelling it out keeps this file readable without jumping to `legal-languages.ts` to know what it
+ *  matches. */
+const TRANSLATION_FILENAME_RE = /^(.+)\.(fr|de|it|pl|pt)\.md$/;
+
 function loadDocument(filename: string): LegalDocument {
   const slug = filename.replace(/\.md$/, '');
   const raw = readFileSync(join(DATA_DIR, filename), 'utf-8');
@@ -111,17 +154,70 @@ function loadDocument(filename: string): LegalDocument {
     sidebarPosition: Number(fields.sidebar_position ?? '0'),
     content,
     contentHash: computeContentHash(content),
+    translations: {},
   };
 }
 
 /**
- * Re-reads `./data/*.md` on every call rather than caching — five small files, never on a hot path
- * (a document list page, a sign-up screen, a sign-in interstitial), and NOT caching is what keeps a
- * spec free to assert against the files on disk without a module-cache reset between cases.
+ * A translation only ever needs `title` — `version`/`effectiveDate`/`sidebar_position` all live on the
+ * canonical English document (this module's own "Translations" header above), and a translation is
+ * never itself hashed, so it carries none of the fields that exist only to feed
+ * `REQUIRED_FIELDS`/`computeContentHash`.
+ *
+ * `language` in front matter is OPTIONAL, but when present it must agree with the filename's own
+ * `<lang>` segment — a deliberate, cheap cross-check (the same "provenance the loader itself verifies"
+ * posture CLAUDE.md's documents-module catalogs all take) against the one copy-paste mistake this
+ * format invites: pasting `privacy-policy.de.md`'s front matter into `privacy-policy.it.md` without
+ * updating the `language:` line inside it.
+ */
+function loadTranslation(filename: string, lang: LegalDocumentLanguage): LegalDocumentTranslation {
+  const raw = readFileSync(join(DATA_DIR, filename), 'utf-8');
+  const { fields, content } = parseFrontMatter(raw, filename);
+
+  if (!fields.title) {
+    throw new Error(`legal-documents: "${filename}" is missing required front-matter field "title"`);
+  }
+  if (fields.language && fields.language !== lang) {
+    throw new Error(
+      `legal-documents: "${filename}"'s front-matter "language: ${fields.language}" does not match the ` +
+        `"${lang}" its own filename names`,
+    );
+  }
+
+  return { language: lang, title: fields.title, content };
+}
+
+/**
+ * Re-reads `./data/*.md` on every call rather than caching — a few dozen small files even with every
+ * translation counted, never on a hot path (a document list page, a sign-up screen, a sign-in
+ * interstitial), and NOT caching is what keeps a spec free to assert against the files on disk without
+ * a module-cache reset between cases.
  */
 export function listLegalDocuments(): LegalDocument[] {
   const files = readdirSync(DATA_DIR).filter((f) => f.endsWith('.md'));
-  return files.map(loadDocument).sort((a, b) => a.sidebarPosition - b.sidebarPosition);
+  const canonicalFiles = files.filter((f) => !TRANSLATION_FILENAME_RE.test(f));
+  const translationFiles = files.filter((f) => TRANSLATION_FILENAME_RE.test(f));
+
+  const docs = canonicalFiles.map(loadDocument);
+  const bySlug = new Map(docs.map((doc) => [doc.slug, doc]));
+
+  for (const filename of translationFiles) {
+    const match = filename.match(TRANSLATION_FILENAME_RE);
+    if (!match) continue; // unreachable — `translationFiles` was just filtered by this same regex.
+    const [, slug, lang] = match;
+    const doc = bySlug.get(slug);
+    if (!doc) {
+      throw new Error(
+        `legal-documents: translation "${filename}" has no canonical "${slug}.md" to attach to`,
+      );
+    }
+    doc.translations[lang as LegalDocumentLanguage] = loadTranslation(
+      filename,
+      lang as LegalDocumentLanguage,
+    );
+  }
+
+  return docs.sort((a, b) => a.sidebarPosition - b.sidebarPosition);
 }
 
 export function getLegalDocument(slug: string): LegalDocument | undefined {

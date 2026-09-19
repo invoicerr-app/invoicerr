@@ -1,0 +1,126 @@
+{
+  "demo": {
+    "greeting": "Hello, {{name}}!",
+    "itemCount": "{{count}} items",
+    "itemCount_one": "{{count}} item",
+    "englishOnly": "This key exists only in the English catalog, to prove the fallback chain."
+  },
+  "layout": {
+    "greeting": "Hello,",
+    "signOffText": "Best regards,\nThe Invoicerr Team",
+    "signOffHtml": "Best regards,<br>The Invoicerr Team",
+    "sentFrom": "This email was sent from {appUrl}"
+  },
+  "signatureRequest": {
+    "subject": "Please sign document #{signatureNumber}",
+    "intro": "You have been requested to sign the following document:",
+    "documentLine": "Document: {signatureNumber}",
+    "signatureIdLine": "Signature ID: {signatureId}",
+    "reviewLinkIntro": "Open this link to review and sign it:",
+    "contactText": "If you have any questions, please contact us.",
+    "title": "Document Signature Required",
+    "documentLabel": "Document:",
+    "signatureIdLabel": "Signature ID:",
+    "clickBelow": "Please click the button below to review and sign the document:",
+    "buttonLabel": "Sign Document",
+    "contactHtml": "If you have any questions, please don't hesitate to contact us."
+  },
+  "verificationCode": {
+    "subject": "Your verification code",
+    "codeIntroText": "Here is your verification code: {otpCode}",
+    "codeIntroHtml": "Here is your verification code:",
+    "expiryText": "This code will expire shortly. Enter it in the application to complete your verification.",
+    "expiryHtml": "This code will expire shortly. Please enter it in the application to complete your verification.",
+    "ignoreNotice": "If you didn't request this code, please ignore this email."
+  },
+  "billingWarning": {
+    "manageLine": "Manage your subscription: {settingsUrl}",
+    "ctaLabel": "Manage subscription",
+    "blockedZip": {
+      "subject_one": "Action needed: your Invoicerr data will be archived in {{count}} day",
+      "subject": "Action needed: your Invoicerr data will be archived in {{count}} days",
+      "heading": "Action needed",
+      "introText_one": "Your company's Invoicerr subscription is not active, and in {{count}} day its documents will be exported to a zip file and the account will remain read-only until you subscribe again.",
+      "introText": "Your company's Invoicerr subscription is not active, and in {{count}} days its documents will be exported to a zip file and the account will remain read-only until you subscribe again.",
+      "introHtml_one": "Your company's Invoicerr subscription is not active, and in <strong>{{count}} day</strong> its documents will be exported to a zip file and the account will remain read-only until you subscribe again.",
+      "introHtml": "Your company's Invoicerr subscription is not active, and in <strong>{{count}} days</strong> its documents will be exported to a zip file and the account will remain read-only until you subscribe again."
+    },
+    "deletion": {
+      "subject_one": "Final notice: your Invoicerr company will be permanently deleted in {{count}} day",
+      "subject": "Final notice: your Invoicerr company will be permanently deleted in {{count}} days",
+      "heading": "Final notice",
+      "textBody_one": "In {{count}} day, your company and every document in it will be PERMANENTLY DELETED from Invoicerr. This cannot be undone. Subscribe again before then to keep your data.",
+      "textBody": "In {{count}} days, your company and every document in it will be PERMANENTLY DELETED from Invoicerr. This cannot be undone. Subscribe again before then to keep your data.",
+      "htmlBody_one": "In <strong>{{count}} day</strong>, your company and every document in it will be <strong>permanently deleted</strong> from Invoicerr. This cannot be undone. Subscribe again before then to keep your data.",
+      "htmlBody": "In <strong>{{count}} days</strong>, your company and every document in it will be <strong>permanently deleted</strong> from Invoicerr. This cannot be undone. Subscribe again before then to keep your data."
+    }
+  },
+  "legalChanged": {
+    "subjectSingular": "Updated legal document: {title}",
+    "subjectPlural": "Updated legal documents: {titles}",
+    "titlesTwo": "{first} and {second}",
+    "titlesMany": "{first}, {second} and {count} more",
+    "heading_one": "Updated legal document",
+    "heading": "Updated legal documents",
+    "introText_one": "We have updated the following legal document. You can read the new version here:",
+    "introText": "We have updated the following legal documents. You can read the new versions here:",
+    "introHtml_one": "We have updated the following legal document:",
+    "introHtml": "We have updated the following legal documents:",
+    "acceptNotice": "You will be asked to accept the changes the next time you sign in:",
+    "acceptButton": "Review and accept"
+  },
+  "ownershipTransfer": {
+    "request": {
+      "subject": "{fromName} wants to transfer ownership of \"{companyName}\" to you",
+      "textIntro": "{fromName} has requested to transfer ownership of their company \"{companyName}\" on Invoicerr to your account. Accepting makes you the OWNER of that company; {fromName} becomes an admin.",
+      "expiryNotice": "This request expires in 7 days.",
+      "reviewLinkIntro": "Review and accept it here:",
+      "ignoreNotice": "If you weren't expecting this, you can simply ignore this email — nothing changes until you accept.",
+      "heading": "Ownership transfer request",
+      "htmlIntro": "<strong>{fromName}</strong> has requested to transfer ownership of their company <strong>\"{companyName}\"</strong> on Invoicerr to your account. Accepting makes you the OWNER of that company; {fromName} becomes an admin.",
+      "buttonLabel": "Review request"
+    },
+    "finalized": {
+      "subjectNewOwner": "You are now the owner of \"{companyName}\"",
+      "subjectFormerOwner": "Ownership of \"{companyName}\" has been transferred",
+      "bodyLineNewOwner": "You are now the OWNER of \"{companyName}\" on Invoicerr.",
+      "bodyLineFormerOwner": "You are no longer the owner of \"{companyName}\" — the new owner has accepted the transfer. You remain an admin of this company.",
+      "heading": "Ownership transfer complete"
+    },
+    "ended": {
+      "subjectExpired": "Ownership transfer of \"{companyName}\" expired",
+      "subjectCanceled": "Ownership transfer of \"{companyName}\" canceled",
+      "bodyExpired": "Your request to transfer ownership of \"{companyName}\" to {toEmail} expired, unanswered,. You are still the owner of this company.",
+      "bodyCanceled": "Your request to transfer ownership of \"{companyName}\" to {toEmail} was canceled. You are still the owner of this company.",
+      "heading": "Ownership transfer ended"
+    }
+  },
+  "dataExport": {
+    "subject": "Your company data export"
+  },
+  "dangerOtp": {
+    "subject": "OTP Code Sent",
+    "body": "Your confirmation code for a destructive action on Invoicerr is: {{code}}. It is valid for {{minutes}} minutes. If you did not request this, ignore this message."
+  },
+  "dangerDeleteCompany": {
+    "body": "You are about to permanently delete \"{{companyName}}\" from Invoicerr. Attached is a full export of everything it held — this is your last copy. Once deletion completes, none of it is recoverable."
+  },
+  "instanceResetOtp": {
+    "subject": "Instance reset confirmation code",
+    "body": "Your confirmation code to reset this ENTIRE Invoicerr instance — every company, user and document — is: {{code}}. It is valid for {{minutes}} minutes. If you did not request this, ignore this message and consider removing your address from INSTANCE_OPERATOR_EMAILS."
+  },
+  "changeEmail": {
+    "subject": "Confirm your email address",
+    "textIntro": "Click the link below to confirm this email address for your Invoicerr account:",
+    "htmlIntro": "Click the button below to confirm this email address for your Invoicerr account:",
+    "ignoreNotice": "If you didn't request this, you can safely ignore this message — your account's email address will not change until the link above is opened.",
+    "buttonLabel": "Confirm email"
+  },
+  "mailSettingsTest": {
+    "subject": "Invoicerr — test email",
+    "body": "This is a test email confirming your mail server configuration works."
+  },
+  "billingZipExport": {
+    "body": "Your Invoicerr subscription has been blocked for 14 days. Attached is a full export of your company's documents. If you do not act, this data will be permanently deleted."
+  }
+}

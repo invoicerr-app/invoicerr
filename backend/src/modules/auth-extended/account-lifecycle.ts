@@ -10,10 +10,12 @@
  * better-auth `User`/session object, precisely so no test needs to construct one.
  */
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { mailT } from '@/mail/i18n';
 import { MailOptions } from '@/mail/types';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
+import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 
 // ===================== Change email =====================
 
@@ -21,29 +23,38 @@ import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sy
  * The one non-document system email this module sends — plain subject/html/text, no
  * `MailTemplate`/`{placeholder}` engine (`mail/system-email-templates.ts`): that engine's overrides are
  * keyed by `companyId`, and a user account belongs to no company, so there is nothing for a company to
- * override here.
+ * override here. Translated via the shared `mails` catalog (`mail/i18n.ts`) — `language` is resolved by
+ * the caller (`lib/auth.ts`, via `resolveUserLanguage(user.locale, ...)`) since this function takes
+ * plain data only (see this file's own header on why).
  */
-export function buildChangeEmailMail(params: { newEmail: string; url: string; appUrl: string }): MailOptions {
+export function buildChangeEmailMail(params: {
+  newEmail: string;
+  url: string;
+  appUrl: string;
+  language?: string | null;
+}): MailOptions {
   const { newEmail, url, appUrl } = params;
+  // No `Company.language` fallback here (unlike `resolveRecipientLanguage`'s three-step chain for a
+  // document's recipient) — a user account belongs to no company (see this file's own header), so
+  // `resolveUserLanguage`'s second argument has nothing to resolve against.
+  const t = mailT(resolveUserLanguage(params.language, undefined));
   return {
     to: newEmail,
-    subject: 'Confirm your email address',
+    subject: t('changeEmail.subject'),
     text:
-      'Hello,\n\n' +
-      'Click the link below to confirm this email address for your Invoicerr account:\n\n' +
+      `${t('layout.greeting')}\n\n` +
+      `${t('changeEmail.textIntro')}\n\n` +
       `${url}\n\n` +
-      "If you didn't request this, you can safely ignore this message — your account's email address " +
-      'will not change until the link above is opened.\n\n' +
-      'Best regards,\nThe Invoicerr Team\n\n' +
-      `This email was sent from ${appUrl}`,
+      `${t('changeEmail.ignoreNotice')}\n\n` +
+      `${t('layout.signOffText')}\n\n` +
+      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
     html:
-      '<h2>Confirm your email address</h2><p>Hello,</p><p>Click the button below to confirm this ' +
-      'email address for your Invoicerr account:</p><div style="text-align: center; margin: 30px 0;">' +
-      `<a href="${url}" style="background: #007bff; color: white; padding: 12px 24px; ` +
-      'text-decoration: none; border-radius: 6px; display: inline-block;">Confirm email</a></div>' +
-      "<p>If you didn't request this, you can safely ignore this message — your account's email " +
-      'address will not change until the link above is opened.</p><p>Best regards,<br>The Invoicerr ' +
-      `Team</p><hr><p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+      `<h2>${t('changeEmail.subject')}</h2><p>${t('layout.greeting')}</p><p>${t('changeEmail.htmlIntro')}</p>` +
+      `<div style="text-align: center; margin: 30px 0;"><a href="${url}" style="background: #007bff; ` +
+      'color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; ' +
+      `display: inline-block;">${t('changeEmail.buttonLabel')}</a></div>` +
+      `<p>${t('changeEmail.ignoreNotice')}</p><p>${t('layout.signOffHtml')}</p><hr>` +
+      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
   };
 }
 
@@ -60,7 +71,7 @@ export interface AccountMailer {
  *  the change takes effect; the account's email does not change until that link is opened. */
 export async function sendChangeEmailMail(
   mailer: AccountMailer,
-  params: { newEmail: string; url: string; appUrl: string },
+  params: { newEmail: string; url: string; appUrl: string; language?: string | null },
 ): Promise<void> {
   await mailer.sendMail(buildChangeEmailMail(params));
   logger.info('Change-email confirmation sent', { category: 'auth', details: { newEmail: params.newEmail } });

@@ -167,6 +167,18 @@ describe('InstanceResetService — OTP', () => {
     expect(options.to).toBe('ops@example.test');
   });
 
+  /** This mail is deliberately always English — see the service's own comment on why an instance
+   *  operator has no per-recipient language to resolve yet (`DEFAULT_LOCALE` is a future setting). */
+  it('is always sent in English, regardless of the operator', async () => {
+    const { service, mailService } = build();
+    await service.requestOtp(USER);
+
+    const [options] = mailService.sendMail.mock.calls[0];
+    expect(options.subject).toBe('Instance reset confirmation code');
+    expect(options.text).toContain('ENTIRE Invoicerr instance');
+    expect(options.text).toContain('INSTANCE_OPERATOR_EMAILS');
+  });
+
   it('is a CSPRNG 8-digit code, stored hashed — never in the clear', async () => {
     const { service, mailService } = build();
     const code = await requestAndExtractOtp(service, mailService);

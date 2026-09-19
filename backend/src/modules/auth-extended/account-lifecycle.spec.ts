@@ -67,6 +67,36 @@ describe('buildChangeEmailMail / sendChangeEmailMail', () => {
     expect(sent.to).toBe('new@acme.org');
     expect(sent.text + sent.html).toContain('https://app.test/verify?token=xyz');
   });
+
+  it('defaults to English when no language is given', () => {
+    const mail = buildChangeEmailMail({
+      newEmail: 'new@acme.org',
+      url: 'https://app.test/verify',
+      appUrl: 'https://app.test',
+    });
+    expect(mail.subject).toBe('Confirm your email address');
+  });
+
+  it("uses the user's own locale when given", () => {
+    const mail = buildChangeEmailMail({
+      newEmail: 'new@acme.org',
+      url: 'https://app.test/verify',
+      appUrl: 'https://app.test',
+      language: 'fr',
+    });
+    expect(mail.subject).toBe('Confirmez votre adresse e-mail');
+    expect(mail.html).toContain('Confirmez votre adresse e-mail');
+  });
+
+  it('falls back to English for a locale this catalog does not carry', () => {
+    const mail = buildChangeEmailMail({
+      newEmail: 'new@acme.org',
+      url: 'https://app.test/verify',
+      appUrl: 'https://app.test',
+      language: 'es',
+    });
+    expect(mail.subject).toBe('Confirm your email address');
+  });
 });
 
 describe('assertNotSoleOwner', () => {

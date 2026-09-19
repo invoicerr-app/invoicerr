@@ -20,12 +20,44 @@ describe('LegalService.listDocuments', () => {
     delete process.env[BILLING_FLAG_NAME];
     const view = new LegalService().listDocuments();
     expect(view.saasMode).toBe(false);
-    expect(view.documents).toHaveLength(5);
+    expect(view.documents).toHaveLength(6);
   });
 
   it('reports saasMode true with the flag set', () => {
     process.env[BILLING_FLAG_NAME] = 'true';
     expect(new LegalService().listDocuments().saasMode).toBe(true);
+  });
+
+  it('defaults to English when called with no preferred-language list at all', () => {
+    const doc = new LegalService().listDocuments().documents.find((d) => d.slug === 'privacy-policy');
+    expect(doc?.language).toBe('en');
+    expect(doc?.title).toBe('Privacy Policy');
+  });
+
+  it('serves each document in the best-matching preferred language, per document', () => {
+    const documents = new LegalService().listDocuments(['fr']).documents;
+    // privacy-policy ships a French translation — it resolves to it.
+    const privacy = documents.find((d) => d.slug === 'privacy-policy');
+    expect(privacy?.language).toBe('fr');
+    expect(privacy?.title).toBe('Politique de Confidentialité');
+    // legal-notice also ships a French translation.
+    const notice = documents.find((d) => d.slug === 'legal-notice');
+    expect(notice?.language).toBe('fr');
+  });
+
+  it('falls back to English, per document, for a language the catalog does not carry at all', () => {
+    const documents = new LegalService().listDocuments(['xx']).documents;
+    for (const doc of documents) {
+      expect(doc.language).toBe('en');
+    }
+  });
+
+  it('every document reports its own available languages regardless of which one was resolved', () => {
+    const documents = new LegalService().listDocuments(['de']).documents;
+    const privacy = documents.find((d) => d.slug === 'privacy-policy');
+    expect(privacy?.availableLanguages).toEqual(['en', 'fr', 'de', 'it', 'pl', 'pt']);
+    const notice = documents.find((d) => d.slug === 'legal-notice');
+    expect(notice?.availableLanguages).toEqual(['en', 'fr']);
   });
 });
 
