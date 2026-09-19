@@ -537,3 +537,34 @@ describe('TransferExpirySweepRunner', () => {
     }
   });
 });
+
+describe('looksLikeEmailAddress', () => {
+  // The recipient address is typed free-form; the check must stay linear whatever the input.
+  const { looksLikeEmailAddress } = require('./transfer.service') as typeof import('./transfer.service');
+
+  it('accepts ordinary addresses and rejects the obvious malformations', () => {
+    expect(looksLikeEmailAddress('owner@example.com')).toBe(true);
+    expect(looksLikeEmailAddress('a.b+c@sub.example.co')).toBe(true);
+    for (const bad of [
+      '',
+      'no-at.example.com',
+      '@example.com',
+      'user@',
+      'user@nodot',
+      'user@.com',
+      'user@com.',
+      'a@b@c.com',
+      'sp ace@example.com',
+    ]) {
+      expect(looksLikeEmailAddress(bad)).toBe(false);
+    }
+  });
+
+  it('answers a pathological input in linear time and rejects anything over 254 characters', () => {
+    const pathological = `!@!${'.'.repeat(5_000)}`;
+    const started = performance.now();
+    expect(looksLikeEmailAddress(pathological)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(50);
+    expect(looksLikeEmailAddress(`${'a'.repeat(250)}@x.io`)).toBe(false);
+  });
+});

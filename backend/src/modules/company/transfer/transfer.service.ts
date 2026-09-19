@@ -38,6 +38,26 @@ import { CompanyOwnershipTransfer, CompanyRole, Prisma } from '../../../../prism
 import { verifyAndConsumeDangerOtp } from './danger-otp-check';
 import { expireOwnershipTransfer } from './expire-transfer';
 
+// RFC 5321 caps a whole address at 254 octets — longer input is rejected before any parsing.
+const MAX_EMAIL_LENGTH = 254;
+
+/**
+ * Shape check for the typed recipient address — deliberately NOT a regular expression: a
+ * `[^@]+@[^@]+\.[^@]+` pattern backtracks polynomially on a long run of dots, and this value is
+ * typed by an authenticated OWNER but still reaches the server unbounded. Splitting on the single
+ * `@` and looking at the dot placement is linear, and is all the precision the flow needs — the
+ * address only has to be plausible enough to look up an existing account, never to be delivered
+ * to (the mail goes to that account's own verified address).
+ */
+export function looksLikeEmailAddress(value: string): boolean {
+  if (value.length === 0 || value.length > MAX_EMAIL_LENGTH || /\s/.test(value)) return false;
+  const at = value.indexOf('@');
+  if (at <= 0 || at !== value.lastIndexOf('@') || at === value.length - 1) return false;
+  const domain = value.slice(at + 1);
+  const dot = domain.indexOf('.');
+  return dot > 0 && dot < domain.length - 1;
+}
+
 /** 7 days, per the product brief — never configurable per company: a transfer either gets answered in
  *  that window or it lapses, same as the danger-zone OTP's own fixed window is not per-company. */
 export const TRANSFER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -105,7 +125,7 @@ export class TransferService {
       throw new BadRequestException('email and otp are required');
     }
     const toEmail = toEmailRaw.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+    if (!looksLikeEmailAddress(toEmail)) {
       throw new BadRequestException('Invalid email address');
     }
 
