@@ -47,13 +47,30 @@ in its absence: everything is properly gated.
 
 ## 4. Administrative
 
-- [ ] **PRIMARY — review and resolve the code-review and security threads on PR #401.** Two Opus
-      agents posted 126 inline threads (26 `[SECURITY][severity][SEC-NN]`, index in comment
-      `#issuecomment-5705237990`; 100 `[REVIEW][severity]`, index in `#issuecomment-5705289952`).
-      Every one of them has a reply naming the commit that fixed it, the proof, and what is left.
-      **Only you validate them**: 25 were resolved on your standing instruction (18 `[REVIEW][minor]`
-      and the 7 `[SECURITY][low]`); the other 101 are deliberately left open so you can read the
-      diff and resolve them yourself. Nothing should be merged into `main` before that pass.
+- [ ] **PRIMARY — review and resolve the code-review and security threads on PR #401.** Every one of
+      them already has a reply naming the commit that fixed it, the proof, and what is left. **Only
+      you validate them**: the minor and low-severity ones were resolved on your standing instruction,
+      the rest are deliberately left open so you can read the diff and resolve them yourself. Nothing
+      should be merged into `main` before that pass.
+
+      Counted on 2026-09-19: **148 threads in total, 79 still open.** A suggested order, because they
+      are not equally urgent and two of them are of a different nature from all the others.
+
+      1. **The two remaining security threads.** One high severity: the log stream is cross-tenant,
+         because a role restriction is not a tenant restriction. One medium: nine production
+         dependency alerts on the backend, six of them high. These two are the only security threads
+         left open out of the twenty-six originally posted.
+      2. **The eleven blocking threads that are product defects**, in the backend and the frontend.
+         The heaviest are a document that stays publicly re-sendable while it is already being sent,
+         a delivery step that is not idempotent under the queue's at-least-once redelivery, an
+         unauthenticated cross-tenant write on the Italian notification endpoint, and two Italian and
+         Portuguese catalogs that make it impossible to issue an exempt or zero-rate domestic line.
+      3. **The ten blocking threads that are test-quality defects**, all in the end-to-end suite.
+         These describe tests that cannot fail, tests that never run in continuous integration while
+         being counted as green, and a global exception handler that swallows every application
+         error. None of them breaks the product; all of them mean a guarantee you believe you have is
+         not actually proven.
+      4. **The fifty-six important ones**, last.
 - [x] **Open the PR to `main`** — done: PR #401.
 
 ## 5. Small, no credentials needed

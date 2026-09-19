@@ -11,14 +11,10 @@
  * `pfx`/`passphrase` on the raw TLS connection now (see that file's own "mTLS" header section), a
  * fixture PKCS#12 has to be a REAL one here too, not the placeholder base64 string this file used
  * before that wiring existed — a genuinely corrupt/placeholder archive now fails synchronously at
- * `https.request()` itself, before ever reaching this stub. The cert-building helpers below are the
- * exact shape `pt-at-client.spec.ts`'s own mTLS suite already uses (node-forge, in-memory,
- * never committed) — duplicated rather than imported, matching this file's existing
- * `decryptField`/`unpadPkcs1v15` duplication just below: this stub plays a genuinely different actor
- * (AT itself, receiving and verifying a certificate) from that file's own client-side round-trip
- * helpers.
+ * `https.request()` itself, before ever reaching this stub. The cert-building helpers themselves come
+ * from `mtls-test-fixtures.ts`, shared with `pt-at-client.spec.ts`'s own mTLS suite and
+ * `queue/__tests__/document-report-queue.redis.spec.ts` — see that shared file's own header for why.
  */
-import * as forge from 'node-forge';
 import * as https from 'node:https';
 import {
   createDecipheriv,
@@ -32,6 +28,7 @@ import { ChannelCredentialsService } from '@/modules/company/channels/channels.s
 import { ChannelNotConnectedError, DeclaredInvoice } from '../declaration-provider';
 import { buildPtAtDeclarationProvider, PT_AT_PROVIDER_ID } from './pt-declaration-provider';
 import { PtAtApiError } from './pt-at-client';
+import { buildClientPfx, generateSelfSignedCert } from './mtls-test-fixtures';
 import { firstByLocalName, parseXml, textOf } from '../../transports/sdi/xml-helpers';
 
 const { publicKey: AT_PUBLIC_KEY_PEM, privateKey: AT_PRIVATE_KEY_PEM } = generateKeyPairSync('rsa', {
@@ -39,46 +36,6 @@ const { publicKey: AT_PUBLIC_KEY_PEM, privateKey: AT_PRIVATE_KEY_PEM } = generat
   publicKeyEncoding: { type: 'spki', format: 'pem' },
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
 });
-
-interface GeneratedCert {
-  certPem: string;
-  keyPem: string;
-  cert: forge.pki.Certificate;
-  keys: forge.pki.rsa.KeyPair;
-}
-
-/** Same shape as `pt-at-client.spec.ts`'s own `generateSelfSignedCert` — see this file's own header on
- *  why it is duplicated here rather than imported. */
-function generateSelfSignedCert(commonName: string, opts: { subjectAltIp?: string } = {}): GeneratedCert {
-  const keys = forge.pki.rsa.generateKeyPair(2048);
-  const cert = forge.pki.createCertificate();
-  cert.publicKey = keys.publicKey;
-  cert.serialNumber = '01';
-  cert.validity.notBefore = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  cert.validity.notAfter = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-  const attrs = [
-    { name: 'commonName', value: commonName },
-    { name: 'countryName', value: 'PT' },
-  ];
-  cert.setSubject(attrs);
-  cert.setIssuer(attrs);
-  if (opts.subjectAltIp) {
-    cert.setExtensions([{ name: 'subjectAltName', altNames: [{ type: 7, ip: opts.subjectAltIp }] }]);
-  }
-  cert.sign(keys.privateKey, forge.md.sha256.create());
-  return {
-    certPem: forge.pki.certificateToPem(cert),
-    keyPem: forge.pki.privateKeyToPem(keys.privateKey),
-    cert,
-    keys,
-  };
-}
-
-function buildClientPfx(clientCert: GeneratedCert, password: string): string {
-  const p12Asn1 = forge.pkcs12.toPkcs12Asn1(clientCert.keys.privateKey, [clientCert.cert], password);
-  const p12Der = forge.asn1.toDer(p12Asn1).getBytes();
-  return Buffer.from(p12Der, 'binary').toString('base64');
-}
 
 const CLIENT_PFX_PASSWORD = 'test-pfx-password-not-real';
 const CLIENT_CERT = generateSelfSignedCert('Test Invoicerr Subutilizador');
@@ -351,6 +308,24 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
 
     await expect(provider.declare('company-1', FIXTURE_INVOICE)).rejects.toThrow(PtAtApiError);
     await expect(provider.declare('company-1', FIXTURE_INVOICE)).rejects.toThrow(/99/);
+  });
+
+  it('a channel config pointing baseUrl at a plain http:// address is refused before any connection — never a silent plaintext downgrade', async () => {
+    stub = await startPtAtStub('success');
+    const provider = buildPtAtDeclarationProvider({
+      // Same host:port as the REAL, listening stub — only the scheme is swapped. If the refusal below
+      // did not fire, this would actually reach it, which is exactly why asserting `stub.lastBody`
+      // stayed `undefined` matters: it proves no request was ever sent, not merely that `declare()`
+      // rejected for some other reason.
+      channelCredentials: channelCredentialsFor(stub, {
+        baseUrl: stub.baseUrl.replace('https://', 'http://'),
+      }),
+    });
+
+    await expect(provider.declare('company-1', FIXTURE_INVOICE)).rejects.toThrow(
+      /AT endpoint must use https:/,
+    );
+    expect(stub.lastBody).toBeUndefined();
   });
 
   it('no pt-at channel connected: declare() throws ChannelNotConnectedError, never attempts an HTTP call', async () => {

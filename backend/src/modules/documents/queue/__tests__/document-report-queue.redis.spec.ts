@@ -20,12 +20,21 @@
  * re-pointed at "pt-at" (Portugal, the one declaration provider still in scope) instead
  * of being deleted: the thing this file actually proves — a declarative-report job traverses the REAL
  * BullMQ queue end-to-end and journals a REAL `DocumentAuthorityEvent`, deduplicated by jobId — has
- * nothing to do with which provider carries it, and PT-AT's own webservice (a single plain-`fetch()`
- * POST, no mTLS actually wired yet — see `pt-at-client.ts`'s own header) is, if anything, simpler to
- * stub locally than NAV's three-endpoint token/submit/poll flow was.
+ * nothing to do with which provider carries it.
+ *
+ * The stub below is `https`, requiring and verifying a client certificate (`requestCert: true,
+ * rejectUnauthorized: true`) — `pt-at-client.ts#buildPtAtClient` presents its OWN `pfx`/`passphrase` on
+ * the raw TLS connection (see that file's own "mTLS" header section), so a plain `http://` stub fails
+ * the handshake outright rather than exercising the queue path this file exists to prove (discovered
+ * exactly this way: this spec broke the moment that wiring landed, with `report:failed` instead of
+ * `ACCEPTED` and a `not enough data` TLS error — a real tax-authority client should not quietly
+ * downgrade to plain HTTP because its configured base URL happens to say so, so the fix is this stub,
+ * never the client). Cert generation comes from `mtls-test-fixtures.ts`, shared with
+ * `pt-at-client.spec.ts` and `pt-declaration-provider.spec.ts`.
  */
 import { generateKeyPairSync } from 'node:crypto';
-import * as http from 'node:http';
+import * as https from 'node:https';
+import type { AddressInfo } from 'node:net';
 
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -38,6 +47,7 @@ import { DocumentTypeRegistry } from '../../descriptors/type-registry';
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { DocumentsService } from '../../documents.service';
 import { DeclarationProviderRegistry } from '../../reporting/declaration-provider';
+import { buildClientPfx, generateSelfSignedCert } from '../../reporting/providers/mtls-test-fixtures';
 import {
   buildPtAtDeclarationProvider,
   PT_AT_PROVIDER_ID,
@@ -72,41 +82,56 @@ const { publicKey: AT_PUBLIC_KEY_PEM } = generateKeyPairSync('rsa', {
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
 });
 
+const CLIENT_PFX_PASSWORD = 'test-pfx-password-not-real';
+const CLIENT_CERT = generateSelfSignedCert('Test Invoicerr Subutilizador');
+
 const CREDENTIALS = {
   username: '599999993/37',
   password: 'S3cretPassw0rd!',
   authPublicKeyPem: AT_PUBLIC_KEY_PEM,
-  // Structural fixtures only — this client's mTLS wiring is not actually connected yet (see
-  // `pt-at-client.ts`'s own header), so these two fields are read but never used to negotiate TLS.
-  clientCertificateBase64: 'ZmFrZS1jZXJ0',
-  clientCertificatePassword: 'fake-passphrase',
+  // A REAL PKCS#12 — `buildPtAtClient` presents this on the actual TLS connection now (see this
+  // file's own header), so a placeholder base64 string would fail synchronously at `https.request()`
+  // itself, before ever reaching the stub below.
+  clientCertificateBase64: buildClientPfx(CLIENT_CERT, CLIENT_PFX_PASSWORD),
+  clientCertificatePassword: CLIENT_PFX_PASSWORD,
 };
 
 interface PtAtStub {
   baseUrl: string;
+  serverCertPem: string;
   close: () => Promise<void>;
 }
 
-/** A real local server implementing AT's ONE `RegisterInvoiceRequest` endpoint (a single plain
- *  `fetch()` POST — see `pt-at-client.ts`'s own header, "HTTP transport") — kept minimal (one canned
- *  success path) since this spec's own job is proving the QUEUE traversal, not re-proving the wire
- *  protocol itself (that is `pt-at-client.spec.ts`'s job). */
+/** A real local HTTPS server implementing AT's ONE `RegisterInvoiceRequest` endpoint — REQUIRES and
+ *  verifies the client's own mTLS certificate (see this file's own header), kept minimal otherwise (one
+ *  canned success path) since this spec's own job is proving the QUEUE traversal, not re-proving the
+ *  wire protocol itself (that is `pt-at-client.spec.ts`'s job). */
 function startPtAtStub(): Promise<PtAtStub> {
   return new Promise((resolvePromise, reject) => {
-    const server = http.createServer((req, res) => {
-      req.on('data', () => {});
-      req.on('end', () => {
-        res.writeHead(200, { 'content-type': 'text/xml; charset=utf-8' });
-        res.end(
-          '<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"><S:Body>' +
-            '<doc:RegisterInvoiceResponse xmlns:doc="http://factemi.at.min_financas.pt/documents">' +
-            '<doc:CodigoResposta>0</doc:CodigoResposta>' +
-            '<doc:Mensagem>OK</doc:Mensagem>' +
-            '<doc:DataOperacao>2026-09-12T10:00:00</doc:DataOperacao>' +
-            '</doc:RegisterInvoiceResponse></S:Body></S:Envelope>',
-        );
-      });
-    });
+    const serverCert = generateSelfSignedCert('Test AT fatcorews Stub', { subjectAltIp: '127.0.0.1' });
+    const server = https.createServer(
+      {
+        key: serverCert.keyPem,
+        cert: serverCert.certPem,
+        requestCert: true,
+        rejectUnauthorized: true,
+        ca: [CLIENT_CERT.certPem],
+      },
+      (req, res) => {
+        req.on('data', () => {});
+        req.on('end', () => {
+          res.writeHead(200, { 'content-type': 'text/xml; charset=utf-8' });
+          res.end(
+            '<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"><S:Body>' +
+              '<doc:RegisterInvoiceResponse xmlns:doc="http://factemi.at.min_financas.pt/documents">' +
+              '<doc:CodigoResposta>0</doc:CodigoResposta>' +
+              '<doc:Mensagem>OK</doc:Mensagem>' +
+              '<doc:DataOperacao>2026-09-12T10:00:00</doc:DataOperacao>' +
+              '</doc:RegisterInvoiceResponse></S:Body></S:Envelope>',
+          );
+        });
+      },
+    );
     server.on('error', reject);
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();
@@ -115,7 +140,8 @@ function startPtAtStub(): Promise<PtAtStub> {
         return;
       }
       resolvePromise({
-        baseUrl: `http://127.0.0.1:${address.port}`,
+        baseUrl: `https://127.0.0.1:${(address as AddressInfo).port}`,
+        serverCertPem: serverCert.certPem,
         close: () =>
           new Promise<void>((resolveClose) => {
             server.closeAllConnections();
@@ -198,7 +224,10 @@ describeWithRedis('document-report queue — real Redis, real Postgres', () => {
     await channelCredentials.upsertChannelConfig(companyId, PT_AT_PROVIDER_ID, {
       environment: 'TEST',
       isActive: true,
-      config: { ...CREDENTIALS, baseUrl: ptAtStub.baseUrl },
+      // `caPem` is a TEST-ONLY escape hatch (`pt-at-client.ts#PtAtCredentials.caPem`) that pins this
+      // self-signed stub's own CA without weakening `rejectUnauthorized` — a real "pt-at" channel
+      // config never carries it.
+      config: { ...CREDENTIALS, baseUrl: ptAtStub.baseUrl, caPem: ptAtStub.serverCertPem },
     });
   });
 

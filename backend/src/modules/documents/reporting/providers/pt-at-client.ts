@@ -134,7 +134,12 @@
  *    rejectUnauthorized: true`: the certificate really reaches the TLS handshake (the stub server
  *    SEES it via `getPeerCertificate()`), a request with no certificate is really refused at the TLS
  *    layer (not merely at some later, application-level check), and a wrong passphrase really throws
- *    synchronously and is caught with a message naming the cause ("mac verify failure").
+ *    synchronously and is caught with a message naming the cause ("mac verify failure"). A separate
+ *    check (`postPtAtSoap`'s own comment) refuses, before ever opening a socket, a configured base URL
+ *    whose scheme is not `https:` — `baseUrl` is read from the same schema-less, tenant-editable
+ *    channel config every other "pt-at" credential field is, so nothing else stops it being set to a
+ *    plain `http://` address, which would silently skip presenting this certificate entirely while the
+ *    channel still looked fully configured.
  *
  *    What remains UNPROVABLE from this machine, and always will be without one: whether the REAL AT
  *    endpoint accepts OUR specific production certificate/CSR chain — a self-signed local stub can
@@ -422,6 +427,17 @@ const DEFAULT_TIMEOUT_MS = 30_000;
  * a corrupt PKCS#12 throws SYNCHRONOUSLY ("mac verify failure"), it never surfaces as an async request
  * 'error' event the way a DNS/connection failure does. Verified empirically against this codebase's
  * own Node runtime before relying on it here (`pt-at-client.spec.ts`'s own "wrong passphrase" case).
+ *
+ * The scheme check right below is deliberately HERE, not in `buildPtAtClient` or wherever `baseUrl` is
+ * read off the channel config: `baseUrl` comes from the same schema-less, tenant-editable config blob
+ * as every other "pt-at" credential field (see `PtAtCredentials.baseUrl`'s own comment), so nothing
+ * stops it from being set to a plain `http://` address. Before mTLS existed that only meant a
+ * plaintext declaration; now it would ALSO silently skip presenting the mTLS client certificate
+ * entirely while the channel still looks fully configured — for a payload carrying invoice totals and
+ * taxpayer identifiers, that is not an acceptable silent downgrade. This function is the ONE place
+ * that ever actually opens the socket (`buildPtAtClient#registerInvoice` has no `https.request` call
+ * of its own), so checking here — not merely where `baseUrl` is first read — means no future call path
+ * can reach `https.request()` without going through this same refusal first.
  */
 function postPtAtSoap(
   baseUrl: string,
@@ -435,6 +451,24 @@ function postPtAtSoap(
       url = new URL(baseUrl);
     } catch (err) {
       reject(new Error(`AT endpoint is not a valid URL: ${(err as Error).message}`));
+      return;
+    }
+
+    // Refuse BEFORE any socket opens — never a generic connection failure a caller could mistake for
+    // a transient network problem. Distinguishable, on purpose, from every other error this function
+    // raises ("AT endpoint is not a valid URL", "AT mTLS/HTTPS request failed", …): an administrator
+    // reading this in a journaled declaration error needs to see EXACTLY what to fix (the channel's
+    // own configured base URL), not chase a phantom timeout.
+    if (url.protocol !== 'https:') {
+      reject(
+        new Error(
+          `AT endpoint must use https: — refusing to open a plaintext "${url.protocol}" connection to ` +
+            `a tax declaration channel (configured base URL: ${baseUrl}). A non-TLS connection would ` +
+            'send invoice totals and taxpayer identifiers unencrypted and would silently skip ' +
+            "presenting the mTLS client certificate entirely — check this channel's own configured " +
+            'base URL.',
+        ),
+      );
       return;
     }
 

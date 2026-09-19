@@ -9,7 +9,6 @@
  * accreditation": a live round-trip (`pt-declaration-provider.live.spec.ts`, gated `PT_AT_LIVE=1`) is
  * the only thing that could prove that.
  */
-import * as forge from 'node-forge';
 import {
   privateDecrypt,
   generateKeyPairSync,
@@ -33,6 +32,7 @@ import {
   PtAtCredentials,
   resolvePtAtBaseUrl,
 } from './pt-at-client';
+import { buildClientPfx, GeneratedCert, generateSelfSignedCert } from './mtls-test-fixtures';
 
 // A real RSA keypair, generated ONCE for this whole spec — stands in for the AT Sistema de
 // Autenticação's own key pair (no real one was available — see `pt-at-client.ts`'s own header).
@@ -252,57 +252,11 @@ describe('parsePtAtRegisterInvoiceResponse — RegisterInvoiceResponse (Aspetos 
 // fails loudly. What this can NEVER prove is that the real AT accepts OUR specific production
 // certificate — see `pt-at-client.ts`'s own header, "mTLS" bullet, for that line drawn explicitly.
 //
-// Certs are generated in-memory with `node-forge`, the exact shape
-// `transports/sdi/sdicoop-client.spec.ts#generateSelfSignedCert`/`buildClientPfx` already use for the
-// identical "no real certificate is ever committed" reasoning — never openssl-on-disk, so there is no
-// throwaway file to clean up and no dependency on an `openssl` binary being present in CI.
+// Cert-generation itself (`GeneratedCert`/`generateSelfSignedCert`/`buildClientPfx`) lives in
+// `mtls-test-fixtures.ts`, shared with `pt-declaration-provider.spec.ts` and
+// `queue/__tests__/document-report-queue.redis.spec.ts` — see that file's own header for why it was
+// pulled out rather than left duplicated a third time.
 // ---------------------------------------------------------------------------
-
-interface GeneratedCert {
-  certPem: string;
-  keyPem: string;
-  cert: forge.pki.Certificate;
-  keys: forge.pki.rsa.KeyPair;
-}
-
-function generateSelfSignedCert(commonName: string, opts: { subjectAltIp?: string } = {}): GeneratedCert {
-  // 2048, not 1024: a REAL TLS handshake is negotiated below — modern OpenSSL's default security
-  // level rejects a 1024-bit key for a live handshake ("ee key too small"), the same discovery
-  // `sdicoop-client.spec.ts`'s own `generateSelfSignedCert` already documents.
-  const keys = forge.pki.rsa.generateKeyPair(2048);
-  const cert = forge.pki.createCertificate();
-  cert.publicKey = keys.publicKey;
-  cert.serialNumber = '01';
-  cert.validity.notBefore = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  cert.validity.notAfter = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-  const attrs = [
-    { name: 'commonName', value: commonName },
-    { name: 'countryName', value: 'PT' },
-  ];
-  cert.setSubject(attrs);
-  cert.setIssuer(attrs);
-  if (opts.subjectAltIp) {
-    // The SERVER cert needs a subjectAltName matching the address the client connects to (127.0.0.1)
-    // — Node's TLS client checks SAN/IP, not just commonName, even against a self-signed cert it
-    // otherwise trusts via `ca`. Type 7 = iPAddress (RFC 5280 GeneralName).
-    cert.setExtensions([{ name: 'subjectAltName', altNames: [{ type: 7, ip: opts.subjectAltIp }] }]);
-  }
-  cert.sign(keys.privateKey, forge.md.sha256.create());
-  return {
-    certPem: forge.pki.certificateToPem(cert),
-    keyPem: forge.pki.privateKeyToPem(keys.privateKey),
-    cert,
-    keys,
-  };
-}
-
-/** Builds a PKCS#12 (.pfx) bundle, base64-encoded — the exact shape a real "pt-at" channel's own
- *  `clientCertificateBase64` carries. */
-function buildClientPfx(clientCert: GeneratedCert, password: string): string {
-  const p12Asn1 = forge.pkcs12.toPkcs12Asn1(clientCert.keys.privateKey, [clientCert.cert], password);
-  const p12Der = forge.asn1.toDer(p12Asn1).getBytes();
-  return Buffer.from(p12Der, 'binary').toString('base64');
-}
 
 interface StubServer {
   url: string;
@@ -458,5 +412,39 @@ describe('buildPtAtClient — mTLS against a local stub server (node:https, requ
     await expect(client.registerInvoice({ 'doc:TaxRegistrationNumber': '222222222' })).rejects.toThrow(
       /AT mTLS\/HTTPS request failed:/,
     );
+  });
+
+  it('5. an http:// base URL is refused with a named cause, before any connection is attempted — never a silent plaintext downgrade', async () => {
+    const started = Date.now();
+    const client = buildPtAtClient(
+      credentialsWith({}),
+      // 192.0.2.0/24 (TEST-NET-1, RFC 5737) is reserved for documentation and never routed — a REAL
+      // connection attempt here would hang until some OS-level timeout, not fail instantly. Asserting
+      // this rejects almost immediately, with THIS exact named error, proves the scheme is checked
+      // BEFORE `https.request()` is ever called — not merely that the eventual connection failed.
+      'http://192.0.2.1:65535/fatcorews/ws/',
+    );
+
+    await expect(client.registerInvoice({ 'doc:TaxRegistrationNumber': '222222222' })).rejects.toThrow(
+      /AT endpoint must use https:/,
+    );
+    // Distinguishable from every other failure this client can raise: not "AT mTLS/HTTPS request
+    // failed" (a real handshake/network problem), not a generic timeout — an administrator reading
+    // this in a journaled declaration error sees exactly what to change.
+    await expect(client.registerInvoice({ 'doc:TaxRegistrationNumber': '222222222' })).rejects.not.toThrow(
+      /AT mTLS\/HTTPS request failed/,
+    );
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it('6. an https:// base URL still works — the scheme check never blocks the real, correctly-configured case', async () => {
+    // Same exact call `1.` above already makes, restated as its own test so the https-still-works
+    // guarantee has a name of its own rather than living only as an implicit side effect of test 1.
+    stub.setResponse(200, REGISTER_INVOICE_RESPONSE_XML(0));
+    const client = buildPtAtClient(credentialsWith({}), stub.url, { ca: stub.serverCertPem });
+
+    const result = await client.registerInvoice({ 'doc:TaxRegistrationNumber': '222222222' });
+
+    expect(result.codigoResposta).toBe(0);
   });
 });
