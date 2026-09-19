@@ -24,16 +24,7 @@ import { deleteCompanyPermanently } from './deletion';
 import { reconcileCompanySeats } from './seat-reconcile';
 import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
-import { DEFAULT_RENDER_LANGUAGE } from '@/modules/documents/rendering/language/supported-languages';
-
-/**
- * Every mail this runner sends is instance-authored, addressed to a specific OWNER about their own
- * subscription (`system-email-templates.ts`'s own header on why that is deliberate) — fixed to English
- * for now, exactly like it always has been. The intended injection point for a future per-operator
- * `DEFAULT_LOCALE` instance setting: when that setting exists, it replaces this constant, and nothing
- * else in this file changes.
- */
-const BILLING_MAIL_LANGUAGE = DEFAULT_RENDER_LANGUAGE;
+import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 
 export interface RunBillingLifecycleSweepResult {
   processed: number;
@@ -294,18 +285,18 @@ export class BillingLifecycleSweepRunner {
    *  has at least one, `assertNotLastOwner`) or the mail send itself failed (e.g. `sendForCompany`'s
    *  own named refusal when neither the company nor the instance has a configured mail server). */
   private async sendZipToOwner(companyId: string): Promise<boolean> {
-    const ownerMembership = await this.findOldestOwnerEmail(companyId);
+    const owner = await this.findOldestOwner(companyId);
 
-    if (!ownerMembership) {
+    if (!owner) {
       this.logger.error(`Company ${companyId} has no OWNER membership — cannot send its data export`);
       return false;
     }
 
     try {
       const zip = await this.exportService.buildCompanyZip(companyId);
-      const t = mailT(BILLING_MAIL_LANGUAGE);
+      const t = mailT(owner.language);
       await this.mailService.sendForCompany(companyId, {
-        to: ownerMembership,
+        to: owner.email,
         subject: t('dataExport.subject'),
         text: t('billingZipExport.body'),
         attachments: [{ filename: 'invoicerr-export.zip', content: zip, contentType: 'application/zip' }],
@@ -330,16 +321,25 @@ export class BillingLifecycleSweepRunner {
     }
   }
 
-  /** The company's OLDEST `OWNER` membership's own email — `null` when the company somehow has none
-   *  (should not normally happen, `assertNotLastOwner`). Shared by `sendZipToOwner` and
-   *  `sendDueBillingWarnings` below — both address the SAME "the OWNER" in the singular. */
-  private async findOldestOwnerEmail(companyId: string): Promise<string | null> {
+  /** The company's OLDEST `OWNER` membership's own email, and the language they should be addressed
+   *  in — `null` when the company somehow has none (should not normally happen, `assertNotLastOwner`).
+   *  Shared by `sendZipToOwner` and `sendDueBillingWarnings` below — both address the SAME "the OWNER"
+   *  in the singular, in THEIR own resolved language (`resolveUserLanguage`, the same personal-then-
+   *  company-then-English chain every other system mail in this codebase now uses) rather than the
+   *  instance-wide English default this file hardcoded before `User.locale` existed. */
+  private async findOldestOwner(
+    companyId: string,
+  ): Promise<{ email: string; language: ReturnType<typeof resolveUserLanguage> } | null> {
     const ownerMembership = await prisma.userCompany.findFirst({
       where: { companyId, role: 'OWNER' },
       orderBy: { createdAt: 'asc' },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, locale: true } }, company: { select: { language: true } } },
     });
-    return ownerMembership?.user.email ?? null;
+    if (!ownerMembership) return null;
+    return {
+      email: ownerMembership.user.email,
+      language: resolveUserLanguage(ownerMembership.user.locale, ownerMembership.company?.language),
+    };
   }
 
   /**
@@ -362,8 +362,8 @@ export class BillingLifecycleSweepRunner {
     );
     if (due.length === 0) return;
 
-    const ownerEmail = await this.findOldestOwnerEmail(sub.companyId);
-    if (!ownerEmail) {
+    const owner = await this.findOldestOwner(sub.companyId);
+    if (!owner) {
       this.logger.error(`Company ${sub.companyId} has no OWNER membership — cannot send billing warnings`);
       return;
     }
@@ -373,12 +373,12 @@ export class BillingLifecycleSweepRunner {
     for (const milestone of due) {
       const daysRemaining = milestone.endsWith('_d7') ? 7 : 1;
       const email = milestone.startsWith('blocked_')
-        ? buildBlockedZipWarningEmail({ appUrl, daysRemaining, language: BILLING_MAIL_LANGUAGE })
-        : buildDeletionWarningEmail({ appUrl, daysRemaining, language: BILLING_MAIL_LANGUAGE });
+        ? buildBlockedZipWarningEmail({ appUrl, daysRemaining, language: owner.language })
+        : buildDeletionWarningEmail({ appUrl, daysRemaining, language: owner.language });
 
       try {
         await this.mailService.sendMail({
-          to: ownerEmail,
+          to: owner.email,
           subject: email.subject,
           text: email.text,
           html: email.html,

@@ -186,6 +186,26 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     });
   });
 
+  it("mails the zip export in the OWNER's own resolved language, never a hardcoded English default", async () => {
+    const blockedAt = addDays(NOW, -14);
+    const sub = subRow({ status: 'BLOCKED', blockedAt });
+    listSubs.mockResolvedValue([sub]);
+    mockUnchangedSnapshot(sub);
+    findFirstOwner.mockResolvedValue({
+      user: { email: 'proprietaire@example.com', locale: 'fr' },
+      company: { language: 'de' }, // the OWNER's own locale wins over the company's fallback language.
+    });
+    const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendForCompany }));
+
+    await runner.runSweep(NOW);
+
+    expect(sendForCompany).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ subject: 'Export de vos données de société' }),
+    );
+  });
+
   it('never mails the zip export, and never advances, when the row moved on since this tick read it (the OWNER already paid)', async () => {
     const blockedAt = addDays(NOW, -14);
     listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
@@ -547,6 +567,25 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         where: { companyId: 'c1' },
         data: { billingWarningMilestonesSent: { push: 'blocked_d7' } },
       });
+    });
+
+    it("falls back to the company's own language when the OWNER never set a personal locale", async () => {
+      const blockedAt = addDays(NOW, -7);
+      listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
+      findFirstOwner.mockResolvedValue({
+        user: { email: 'owner@example.com', locale: null },
+        company: { language: 'fr' },
+      });
+      const sendMail = jest.fn().mockResolvedValue({ message: 'ok' });
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendMail }));
+
+      await runner.runSweep(NOW);
+
+      expect(sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Action requise : vos données Invoicerr seront archivées dans 7 jours',
+        }),
+      );
     });
 
     it('never re-sends a milestone already recorded in billingWarningMilestonesSent', async () => {

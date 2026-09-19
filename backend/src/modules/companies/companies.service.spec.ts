@@ -215,6 +215,36 @@ describe('CompaniesService#exportCompanyData', () => {
     }
   });
 
+  it('two truly concurrent requests for the SAME company never both win the cooldown slot (double-click)', async () => {
+    // The sequential test above only proves the SECOND call sees the first one's write — it says
+    // nothing about two requests racing each other with neither's `updateMany` yet committed when the
+    // other starts, exactly what an impatient double click on the export button produces. The `WHERE
+    // lastSelfServiceExportAt IS NULL OR < cutoff` compare-and-set is what `claimExportSlot`'s own
+    // header claims makes that safe — this fires both calls with no `await` between them to actually
+    // exercise that guarantee against a real database, not just against Jest's own event loop
+    // ordering.
+    const company = await createCompany();
+    const service = new CompaniesService({} as never, fakeExportService(Buffer.alloc(1)), fakeMailService());
+
+    try {
+      const results = await Promise.allSettled([
+        service.exportCompanyData(company.id, 'owner@example.com'),
+        service.exportCompanyData(company.id, 'owner@example.com'),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(HttpException);
+      expect(((rejected[0] as PromiseRejectedResult).reason as HttpException).getStatus()).toBe(
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    } finally {
+      await cleanup(company.id, []);
+    }
+  });
+
   it('never builds the zip at all when the cooldown refuses the request (claimed BEFORE the build)', async () => {
     const company = await createCompany();
     await prisma.company.update({ where: { id: company.id }, data: { lastSelfServiceExportAt: new Date() } });

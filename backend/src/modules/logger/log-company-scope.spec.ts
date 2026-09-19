@@ -89,13 +89,13 @@ const REVIEWED_INSTANCE_LEVEL_CALL_SITES = new Set<string>([
   // InstanceOperatorGuard (never @ActiveCompany()), and the caller may well have some UNRELATED
   // company active in their own session at the time (an instance operator is also, ordinarily, a
   // member of at least one company) — that company must never be the one these lines attribute
-  // anything to. The `reset()` method's own two calls (136, 175) additionally run inside an explicit
+  // anything to. The `reset()` method's own two calls (141, 180) additionally run inside an explicit
   // `runWithCompanyId(null, ...)` for the exact same reason — see that method's own doc comment.
-  'modules/instance/instance-reset.service.ts:48', // requestOtp — permanent-lockout refusal
-  'modules/instance/instance-reset.service.ts:73', // requestOtp — OTP e-mail send failure
-  'modules/instance/instance-reset.service.ts:83', // requestOtp — OTP sent successfully
-  'modules/instance/instance-reset.service.ts:136', // reset — invalid/expired OTP refusal
-  'modules/instance/instance-reset.service.ts:175', // reset — the wipe itself completed
+  'modules/instance/instance-reset.service.ts:50', // requestOtp — permanent-lockout refusal
+  'modules/instance/instance-reset.service.ts:78', // requestOtp — OTP e-mail send failure
+  'modules/instance/instance-reset.service.ts:88', // requestOtp — OTP sent successfully
+  'modules/instance/instance-reset.service.ts:141', // reset — invalid/expired OTP refusal
+  'modules/instance/instance-reset.service.ts:180', // reset — the wipe itself completed
 ]);
 
 const BACKEND_SRC = resolve(__dirname, '..', '..');

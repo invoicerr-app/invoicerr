@@ -285,9 +285,12 @@ export function buildDeletionWarningEmail(params: BillingWarningEmailParams): {
  * them. The caller is what enforces this by collecting every changed document before calling this
  * function once per user, rather than calling it once per document.
  *
- * `language` defaults to English — `legal-release-notify.ts` (the one caller today) has not been
- * wired to a per-user language yet; the parameter exists so that wiring, when it lands, changes only
- * that caller, never this function's own shape.
+ * `language` defaults to English only for a caller that omits it — `legal-release-notify.ts` (the one
+ * caller today) always passes the recipient's own `resolveUserLanguage(user.locale, undefined)`, no
+ * company fallback (a legal-release notice reaches every user of the instance regardless of which, if
+ * any, company they belong to, so there is no single company to fall back to). The default stays on
+ * this function's own signature anyway so any future second caller that has no locale in hand yet
+ * still gets a well-defined language rather than an easy-to-miss required argument.
  */
 export interface LegalDocumentChangedEmailParams {
   appUrl: string;
@@ -381,9 +384,10 @@ export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmail
  * cascade's own fallback (company's mail server, else the instance's, else a named refusal) is what
  * keeps the recipient's address reachable even for a company with no mail server configured.
  *
- * `language` defaults to English on all three — `transfer.service.ts` (the one caller today) has not
- * been wired to a per-recipient language yet; the parameter exists so that wiring changes only that
- * caller.
+ * `language` defaults to English only for a caller that omits it — `transfer.service.ts` and
+ * `expire-transfer.ts` (the callers today) always pass `resolveUserLanguage(recipientUser.locale,
+ * company.language)`, so each of the transfer's three participants (requester, recipient, former
+ * owner) reads their own mail in their own preferred language, never the initiating OWNER's.
  *
  * ## Why attacker-controlled values are NEVER run through i18next's own `{{var}}` interpolation
  *

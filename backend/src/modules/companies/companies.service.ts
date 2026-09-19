@@ -229,7 +229,7 @@ export class CompaniesService {
 
     try {
       // To the REQUESTING user's own inbox, not "the oldest OWNER" the automated sweep addresses
-      // (`billing-lifecycle-sweep-runner.ts#findOldestOwnerEmail`) — this call has a real,
+      // (`billing-lifecycle-sweep-runner.ts#findOldestOwner`) — this call has a real,
       // already-authenticated caller in hand, the same choice `danger.service.ts#deleteCompany`
       // already makes for its own export mail.
       await this.mailService.sendForCompany(companyId, {

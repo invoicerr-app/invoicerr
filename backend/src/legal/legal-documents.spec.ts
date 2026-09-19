@@ -1,3 +1,6 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import {
   REQUIRED_ACCEPTANCE_SLUGS,
   computeContentHash,
@@ -6,6 +9,12 @@ import {
   getLegalDocument,
   listLegalDocuments,
 } from './legal-documents';
+
+/** Same directory `legal-documents.ts` itself resolves `DATA_DIR` to (`join(__dirname, 'data')`) —
+ *  not re-exported by that module (nothing else needs a document's on-disk path), so the one spec
+ *  below that has to actually mutate a file on disk names it independently rather than adding an
+ *  export used by no production code. */
+const TRANSLATION_PATH = join(__dirname, 'data', 'privacy-policy.fr.md');
 
 describe('legal-documents', () => {
   it('loads all six documents from ./data, sorted by sidebar_position', () => {
@@ -122,6 +131,26 @@ describe('legal-documents', () => {
       // refactor that accidentally starts hashing a translation's bytes fails here.
       for (const doc of listLegalDocuments()) {
         expect(doc.contentHash).toBe(computeContentHash(doc.content));
+      }
+    });
+
+    it('actually rewriting a translation file on disk never moves the English contentHash', () => {
+      // The test above only re-derives the invariant from whatever `listLegalDocuments()` already
+      // returns — it would pass even if a refactor made `loadTranslation` mutate the wrong object.
+      // This one instead performs the real scenario a wording fix produces: a translator edits a
+      // `.fr.md` file, and re-accepting must never be triggered by that edit — only the English
+      // `terms-of-service`/`privacy-policy` wording an acceptance is actually keyed on can do that
+      // (`legal-acceptance.ts`). `listLegalDocuments()` re-reads `./data` on every call (its own
+      // header), so writing the file and calling it again is enough — no cache to bust.
+      const original = readFileSync(TRANSLATION_PATH, 'utf-8');
+      const before = getLegalDocument('privacy-policy')!;
+      try {
+        writeFileSync(TRANSLATION_PATH, `${original}\n\nCeci est une phrase ajoutée par un traducteur.\n`);
+        const after = getLegalDocument('privacy-policy')!;
+        expect(after.contentHash).toBe(before.contentHash);
+        expect(after.translations.fr!.content).not.toBe(before.translations.fr!.content);
+      } finally {
+        writeFileSync(TRANSLATION_PATH, original);
       }
     });
   });

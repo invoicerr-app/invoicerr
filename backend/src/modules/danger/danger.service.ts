@@ -364,7 +364,7 @@ export class DangerService {
 
     try {
       // To the ACTING user's own inbox, not "the oldest OWNER" the automated sweep addresses (see
-      // `billing-lifecycle-sweep-runner.ts#findOldestOwnerEmail`) — this call has a real, already-
+      // `billing-lifecycle-sweep-runner.ts#findOldestOwner`) — this call has a real, already-
       // authenticated OWNER in hand, so the same F-012 "the export reaches the person requesting it"
       // discipline `requestOtp` above already holds applies here too.
       //

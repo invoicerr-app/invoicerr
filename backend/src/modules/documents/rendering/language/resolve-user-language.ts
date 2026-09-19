@@ -7,8 +7,10 @@ function normalize(value: string | null | undefined): string | undefined {
 
 /**
  * The language a PERSON (not a document recipient — see `resolveRecipientLanguage` for that one)
- * reads the product in, and will eventually receive their own mail in (a later change wires this into
- * the mail layer; nothing calls it yet). Mirrors `resolveRecipientLanguage`'s own three-step chain:
+ * reads the product in, and receives their own mail in — every mail addressed to a specific,
+ * authenticated user (danger-zone OTP, data export, ownership transfer, legal-document-changed
+ * notice) resolves it through this function before building the mail. Mirrors `resolveRecipientLanguage`'s
+ * own three-step chain:
  *
  *  1. `userLocale` (`User.locale`) — set at sign-up (best-effort, from the browser) or deliberately
  *     via `PATCH /api/auth-extended/preferences`. Authoritative when it names a language this render
