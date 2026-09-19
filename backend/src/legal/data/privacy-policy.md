@@ -1,8 +1,8 @@
 ---
 title: Privacy Policy
 sidebar_position: 2
-version: 2026-09-19
-effectiveDate: 2026-09-19
+version: 2026-09-20
+effectiveDate: 2026-09-20
 ---
 
 :::warning Draft
@@ -49,6 +49,7 @@ configuration, support) or automatically as you use the Service (connection and 
 | Company data | company name, address, national identifiers you configure (e.g. SIREN/VAT) | operate your Company's workspace, populate the documents you issue | Performance of a contract (Art. 6(1)(b)) |
 | Subscription data | plan, seat count, subscription status, trial dates | run your subscription; Polar processes and stores your payment method and billing address as merchant of record — see Section 5 | Performance of a contract (Art. 6(1)(b)) |
 | Connection & security data | IP address, timestamps of authentication events, application logs | detect abuse, keep the Service secure, diagnose incidents | Legitimate interest (Art. 6(1)(f)) |
+| Proof of acceptance | which legal document and version you accepted, when, and the IP address and browser user agent you accepted it from | show that you agreed to the text that was in force when you agreed to it | Performance of a contract (Art. 6(1)(b)), and our legitimate interest in being able to evidence that agreement (Art. 6(1)(f)) |
 | Support communications | the content of emails you send to contact@invoicerr.app | answer your request | Legitimate interest (Art. 6(1)(f)), or performance of a contract where the request concerns your subscription |
 | Invoicing records for our own accounting | your Company's identity and the Fees billed to it | our own statutory bookkeeping obligation | Legal obligation (Art. 6(1)(c)) |
 
@@ -111,8 +112,16 @@ involves a non-EU entity.
   (Section 13.3, second bullet — that same file's `PAID_ZIP_GRACE_DAYS` constant). Both figures are the
   minimum data-retrieval window Regulation (EU) 2023/2854 (the EU Data Act), Article 25(2)(g) requires
   before we may erase Your Data once you stop using the Service.
-- **Application logs** and connection/security data are kept only as long as needed for the security
-  and diagnostic purpose in Section 3, and are deleted or anonymized on a rolling basis.
+- **Application logs** are kept for **90 days**, then deleted automatically by a recurring purge —
+  long enough to investigate a security incident or a support question that surfaces weeks later, and
+  no longer.
+- **Session records** — one row per sign-in, carrying the IP address and browser user agent it was
+  created from — are deleted when you sign out, and otherwise kept for as long as your account
+  exists. Deleting your account deletes them with it.
+- **Your acceptance of these documents** — the date, the document and version accepted, and the IP
+  address and user agent it was accepted from — is kept for as long as your account exists. We keep it
+  because it is the proof that you agreed to the version you agreed to; it is deleted with your
+  account.
 - **Support communications** are kept for as long as needed to resolve your request and for a
   reasonable period afterward in case you follow up.
 
@@ -140,11 +149,14 @@ For the self-service full-data export, the accounting ledger export, and the aut
 end-of-subscription data export, see Terms of Service Sections 8.2 and 13.2 — all three are also how
 you exercise portability in practice.
 
-## 9. Cookies
+## 9. Cookies and Other Browser Storage
 
-The Service sets exactly one cookie, used only to keep you signed in. See the
-[Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md) for what it is and why no consent
-banner is shown for it.
+The Service sets two cookies — one to keep you signed in, one to remember whether you left the
+navigation sidebar open — and keeps a handful of interface preferences in your browser's own local
+storage. None of it is used for audience measurement, advertising, or profiling, and no third party
+sets anything through the Service. See the
+[Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md) for the full list, each item's
+purpose and duration, and why no consent banner is shown.
 
 ## 10. Websites We Operate
 
@@ -278,3 +290,17 @@ this document; they create no separate or additional rights.
   US-based-provider list drops Neon/Databricks accordingly and now states explicitly that no part of
   the chain storing your documents or your Company's account and database records involves a non-EU
   entity — the one non-EU exposure that list previously carried for that data.
+- **2026-09-20** — Corrections, following an audit that compared this Policy against what the
+  application actually stores. **Section 3** gains a "Proof of acceptance" row: the record of which
+  legal document and version you accepted, when, and from which IP address and user agent, was being
+  collected without being described here. **Section 6** now states a concrete retention duration for
+  application logs — **90 days**, enforced by a recurring automatic purge — where it previously said
+  only "deleted or anonymized on a rolling basis"; GDPR Article 13(2)(a) asks for the period, or the
+  criteria to determine it, and a real figure now exists to give. The same section separates out
+  session records (kept until sign-out or account deletion) and the acceptance record (kept while the
+  account exists) rather than folding all three into one sentence. **Section 9** previously stated
+  that the Service "sets exactly one cookie" — that was wrong; the navigation sidebar sets a second
+  one. It now summarizes both cookies and the browser-local preferences, and defers to the
+  [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md), corrected the same day, for the
+  itemized list. No new processing was introduced by any of this: every change describes something
+  the Service was already doing.

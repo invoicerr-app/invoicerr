@@ -7,34 +7,67 @@ language: fr
 Brouillon — non encore validé par un avocat.
 :::
 
-Cette page couvre deux sujets pour l'**offre hébergée** d'Invoicerr : le cookie déposé par le Service, et
-les règles d'utilisation acceptable applicables à votre compte. Aucun des deux ne s'applique au logiciel
-auto-hébergé.
+Cette page couvre deux sujets pour l'**offre hébergée** d'Invoicerr : les cookies déposés par le Service,
+et les règles d'utilisation acceptable applicables à votre compte. Aucun des deux ne s'applique au
+logiciel auto-hébergé.
 
-## Partie A — Cookies
+## Partie A — Cookies et Autres Stockages dans le Navigateur
 
 ### 1. Ce Que Nous Déposons
 
-Le Service dépose exactement **un** cookie : le cookie de session d'authentification
-(`better-auth.session_token`) créé lors de votre connexion, utilisé **uniquement** pour vous maintenir
-connecté et associer vos requêtes à votre compte et à votre Société active. Il est déposé par notre
-propre domaine, lu par personne d'autre, et ne poursuit aucune finalité de suivi ou publicitaire.
-**Nous ne déposons aucun cookie d'analyse, de publicité ou de suivi par un tiers.**
+Le Service dépose **deux** cookies, tous deux émis par notre propre domaine, lus par personne d'autre,
+et dont aucun ne poursuit de finalité de suivi ou publicitaire :
+
+| Cookie | Finalité | Durée |
+| --- | --- | --- |
+| `better-auth.session_token` | vous maintient connecté et associe vos requêtes à votre compte et à votre Société active | 7 jours, prolongés à chaque utilisation du Service |
+| `sidebar_state` | mémorise si vous avez laissé le menu latéral de navigation ouvert ou replié | 7 jours |
+
+**Nous ne déposons aucun cookie d'analyse, de publicité ou de suivi par un tiers**, et aucun tiers ne
+dépose de cookie au travers du Service.
+
+Au-delà des cookies, le Service conserve un petit nombre de valeurs dans le **stockage local de votre
+propre navigateur**. Elles ne nous parviennent jamais — seule la page qui s'exécute dans votre
+navigateur les lit — mais nous les listons ici parce que l'**article 82 de la loi n° 78-17 du
+6 janvier 1978** vise toute inscription d'informations dans votre équipement terminal, ou tout accès à
+des informations déjà stockées, et pas les seuls cookies :
+
+| Valeur stockée | Finalité |
+| --- | --- |
+| `i18nextLng` | la langue d'interface que vous avez choisie |
+| `vite-ui-theme` | le thème clair/sombre que vous avez choisi |
+| `pwa-install-dismissed-at` | mémorise que vous avez écarté la proposition d'installer l'application, afin qu'elle cesse de vous la reproposer |
+| `invoicerr_portal_token` | sur le portail client uniquement : le jeton d'accès contenu dans le lien qui vous a été envoyé, pour que la page puisse continuer à charger le document pour lequel elle a été ouverte |
+| `invoicerr-sw-reloaded` (stockage de session, effacé à la fermeture de l'onglet) | évite une boucle de rechargement lorsqu'une nouvelle version de l'application est installée |
+
+Si vous utilisez le Service en tant qu'application installable, votre navigateur conserve également un
+**cache hors ligne** des fichiers de l'application (scripts, styles, icônes) afin qu'elle puisse
+démarrer sans connexion réseau. Ce cache contient du code applicatif, non vos données d'activité, et
+l'effacement des données de site de votre navigateur le supprime.
 
 ### 2. Absence de Bandeau de Consentement
 
-Comme l'unique cookie déposé par ce Service est strictement nécessaire à son fonctionnement, il est
-exempté de l'obligation de consentement préalable applicable aux cookies non essentiels au titre des
-règles ePrivacy que la CNIL fait respecter aux côtés du RGPD — c'est pourquoi aucun bandeau de
-consentement aux cookies n'est affiché. Il s'agit d'une déclaration sur ce que le Service dépose
-techniquement aujourd'hui ; elle ne constitue pas un conseil juridique sur votre propre utilisation de
-cookies ailleurs.
+Tout ce qui figure à la Section 1 est soit **strictement nécessaire** au fonctionnement même du Service
+(le cookie de session, le jeton du portail client, le garde-fou de rechargement du service worker, le
+cache hors ligne de l'application), soit une **préférence que vous avez vous-même exprimée au travers de
+l'interface** et que nous ne conservons que pour vous la restituer (l'état du menu latéral, la langue,
+le thème, la proposition d'installation écartée).
+
+Ces deux catégories relèvent des exemptions que l'**article 82 de la loi n° 78-17 du 6 janvier 1978**
+(loi Informatique et Libertés) prévoit à l'obligation de consentement préalable, telles que la CNIL les
+applique dans ses lignes directrices et sa recommandation relatives aux cookies et autres traceurs —
+c'est pourquoi aucun bandeau de consentement aux cookies n'est affiché. **Rien de ce qui précède n'est
+utilisé à des fins de mesure d'audience, de publicité, de profilage, ni à aucune finalité qui exigerait
+votre consentement.** Il s'agit d'une déclaration sur ce que le Service dépose techniquement
+aujourd'hui ; elle ne constitue pas un conseil juridique sur votre propre utilisation de cookies
+ailleurs.
 
 ### 3. Évolution de Cette Situation
 
 Si une future version du Service venait à ajouter un cookie ou une technologie similaire qui ne serait
-pas strictement nécessaire, cette page — ainsi que le parcours de consentement que les règles ePrivacy
-exigeraient alors — sera mise à jour avant que cela ne se produise.
+ni strictement nécessaire ni une préférence que vous avez vous-même exprimée, cette page — ainsi que le
+parcours de consentement que les règles ePrivacy exigeraient alors — sera mise à jour avant que cela ne
+se produise.
 
 ## Partie B — Utilisation Acceptable
 

@@ -381,8 +381,9 @@ droit applicable ne nous permet pas d'exclure.
 17.1. Dans toute la mesure permise par la loi : (a) aucune des parties n'est responsable des dommages
 indirects, accessoires ou consécutifs, y compris la perte de profit, de revenus ou de données ; et
 (b) notre responsabilité totale **envers vous** découlant du présent Contrat ou s'y rapportant est
-plafonnée aux **Frais que vous nous avez effectivement payés pour le Service au cours des douze
-(12) mois précédant l'événement à l'origine de la réclamation**.
+plafonnée au **montant total que vous avez payé au titre de votre abonnement au Service au cours des
+douze (12) mois précédant l'événement à l'origine de la réclamation, que ce montant ait été versé à
+nous ou, en qualité de *merchant of record*, à Polar pour notre compte**.
 
 17.2. Rien dans le présent Contrat ne limite ou n'exclut la responsabilité de l'une ou l'autre partie au
 titre de sa propre faute lourde, de son dol, d'un décès ou d'une atteinte à l'intégrité physique, ou de
@@ -406,10 +407,13 @@ ce pendant toute la durée de cet événement.
 
 ## 20. Modifications des Présentes Conditions et Droit Applicable
 
-20.1. Nous pouvons mettre à jour les présentes Conditions de temps à autre. Nous vous donnerons un
-**préavis d'au moins trente (30) jours par e-mail** avant qu'une modification ne prenne effet. Si vous
-n'acceptez pas une modification, vous pouvez résilier votre abonnement, conformément à la Section 12,
-avant qu'elle ne prenne effet.
+20.1. Nous pouvons mettre à jour les présentes Conditions de temps à autre. Une modification prend
+effet, et vous engage, **immédiatement dès sa publication** ; nous vous en informons par e-mail dès ce
+moment. Si vous n'avez pas encore accepté la nouvelle version, vous conservez un **accès en lecture
+complet à Vos Données ainsi que la possibilité de les exporter** (Section 8.2), **indéfiniment** — seules
+les actions d'écriture, y compris l'envoi ou l'émission d'un document, sont suspendues jusqu'à votre
+acceptation. Si vous ne souhaitez pas accepter une modification, vous pouvez **résilier votre abonnement
+conformément à la Section 12, à tout moment et sans pénalité**.
 
 20.2. Les présentes Conditions sont régies par le **droit français**. Tout litige né des présentes
 Conditions ou s'y rapportant sera soumis à la compétence exclusive du **Tribunal de commerce de

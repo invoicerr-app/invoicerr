@@ -1,8 +1,8 @@
 ---
 title: Terms of Service
 sidebar_position: 1
-version: 2026-09-19
-effectiveDate: 2026-09-19
+version: 2026-09-20
+effectiveDate: 2026-09-20
 ---
 
 :::warning Draft
@@ -346,8 +346,9 @@ law does not allow us to exclude.
 
 17.1. To the fullest extent permitted by law: (a) neither party is liable for indirect, incidental, or
 consequential damages, including loss of profit, revenue, or data; and (b) our total liability **to
-you** arising out of or relating to this Agreement is capped at the **Fees you actually paid us for
-the Service in the twelve (12) months preceding the event giving rise to the claim**.
+you** arising out of or relating to this Agreement is capped at the **total amounts you paid for your
+subscription to the Service in the twelve (12) months preceding the event giving rise to the claim,
+whether those amounts were paid to us or, as merchant of record, to Polar on our behalf**.
 
 17.2. Nothing in this Agreement limits or excludes either party's liability for its own gross
 negligence, willful misconduct (*dol*), or death or personal injury, or any other liability that
@@ -370,9 +371,12 @@ persists.
 
 ## 20. Changes to These Terms and Governing Law
 
-20.1. We may update these Terms from time to time. We will give you **at least thirty (30) days'
-notice by email** before a change takes effect. If you do not agree with a change, you may cancel your
-subscription, under Section 12, before it takes effect.
+20.1. We may update these Terms from time to time. A change takes effect, and binds you, **immediately
+upon publication**; we notify you by email when it does. If you have not yet accepted the new version,
+you keep **full read access to Your Data and the ability to export it** (Section 8.2), **indefinitely**
+— only write actions, including sending or issuing a document, are withheld until you accept. If you do
+not wish to accept a change, you may **cancel your subscription under Section 12 at any time, without
+penalty**.
 
 20.2. These Terms are governed by **French law**. Any dispute arising out of or relating to these
 Terms shall be submitted to the exclusive jurisdiction of **the Commercial Court of Romans-sur-Isère
@@ -503,3 +507,25 @@ this document; they create no separate or additional rights.
   network rather than the public internet. Section 14.1 and 14.2's separate Scaleway and Neon entries
   are merged into one: **Neon, LLC** (a Databricks, Inc. affiliate) is no longer a subprocessor. No
   section renumbering.
+- **2026-09-20** — Legal audit finding: Section 7.1 makes Polar the merchant of record for your
+  subscription — you pay Polar, not us — while Section 17.1(b)'s liability cap read literally as the
+  Fees "you actually paid **us**", which is zero once Section 7.1 is taken into account. A clause that
+  empties an obligation of its substance risks being struck down entirely under **article 1170 of the
+  French Civil Code**, leaving no cap at all rather than the intended one. **Section 17.1(b)** now caps
+  liability at the total amounts you paid for your subscription in the twelve (12) months preceding the
+  claim, whether paid to us directly or to Polar, as merchant of record, on our behalf — same amount,
+  same twelve-month window, same carve-outs in Section 17.2. Only the cap's reference point changed.
+- **2026-09-20** — Owner decision, on a legal audit finding: Section 20.1 promised at least thirty (30)
+  days' notice before a change takes effect, while the product gave none — a commitment the product
+  contradicted is worse than no commitment. Rather than build the delay, the owner removed what made
+  immediate effect coercive: **Section 20.1** now states that a change takes effect immediately on
+  publication and you are notified, that until you accept a new version you keep full read access to
+  Your Data and the ability to export it, indefinitely, with only write actions withheld, and that you
+  may cancel your subscription under Section 12 at any time, without penalty, if you do not wish to
+  accept. Withholding write access from a customer who has not accepted, without the retained read
+  access and exit right stated here, is the shape of clause **article 1171 of the French Civil Code**
+  and, between professionals, **article L.442-1 of the French Commercial Code** treat as a significant
+  imbalance in a contract the other party cannot negotiate — stating the three together is what makes
+  the immediate-effect rule defensible. No other part of Section 20 changed, and the unrelated thirty-day
+  periods elsewhere in this document (Section 1.4's transfer notice, Section 9.2's switching Transitional
+  Period, Section 9.5/13.3's Retrieval Window) are untouched.

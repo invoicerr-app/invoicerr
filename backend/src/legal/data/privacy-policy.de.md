@@ -54,6 +54,7 @@ und Sicherheitsdaten).
 | Unternehmensdaten | Firmenname, Anschrift, von Ihnen konfigurierte nationale Kennungen (z. B. SIREN/USt-IdNr.) | Betrieb des Arbeitsbereichs Ihres Unternehmens, Befüllung der von Ihnen ausgestellten Dokumente | Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO) |
 | Abonnementdaten | Tarif, Anzahl der Plätze, Abonnementstatus, Testzeiträume | Verwaltung Ihres Abonnements; Polar verarbeitet und speichert Ihre Zahlungsmethode und Rechnungsanschrift als Vertragshändler (Merchant of Record) — siehe Abschnitt 5 | Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO) |
 | Verbindungs- und Sicherheitsdaten | IP-Adresse, Zeitstempel von Authentifizierungsereignissen, Anwendungsprotokolle | Missbrauchserkennung, Aufrechterhaltung der Sicherheit des Dienstes, Diagnose von Vorfällen | Berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO) |
+| Nachweis der Annahme | welches Rechtsdokument und welche Fassung Sie angenommen haben, wann, sowie die IP-Adresse und der Browser-User-Agent, von denen aus dies geschah | belegen, dass Sie der Fassung zugestimmt haben, die zum Zeitpunkt Ihrer Zustimmung galt | Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO) und unser berechtigtes Interesse, diese Zustimmung nachweisen zu können (Art. 6 Abs. 1 lit. f DSGVO) |
 | Support-Kommunikation | Inhalt der E-Mails, die Sie an contact@invoicerr.app senden | Bearbeitung Ihrer Anfrage | Berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO), oder Vertragserfüllung, sofern die Anfrage Ihr Abonnement betrifft |
 | Rechnungsunterlagen für unsere eigene Buchhaltung | Identität Ihres Unternehmens und die ihm in Rechnung gestellten Gebühren | unsere eigene gesetzliche Buchführungspflicht | Rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c DSGVO) |
 
@@ -125,9 +126,16 @@ speichert, betrifft ein Unternehmen außerhalb der EU.
   Fristen entsprechen dem Mindestzeitraum für den Datenabruf, den Artikel 25 Abs. 2 lit. g der
   Verordnung (EU) 2023/2854 (der „Data Act“) vorschreibt, bevor wir Ihre Daten löschen dürfen, sobald
   Sie den Dienst nicht mehr nutzen.
-- **Anwendungsprotokolle** sowie Verbindungs- und Sicherheitsdaten werden nur so lange aufbewahrt, wie
-  es für den in Abschnitt 3 genannten Sicherheits- und Diagnosezweck erforderlich ist, und werden
-  fortlaufend gelöscht oder anonymisiert.
+- **Anwendungsprotokolle** werden **90 Tage** aufbewahrt und danach durch einen wiederkehrenden
+  automatischen Löschlauf entfernt — lang genug, um einen Sicherheitsvorfall oder eine erst Wochen
+  später auftauchende Supportfrage zu untersuchen, und nicht länger.
+- **Sitzungsdatensätze** — ein Eintrag pro Anmeldung, der die IP-Adresse und den Browser-User-Agent
+  enthält, von denen aus sie erstellt wurde — werden bei der Abmeldung gelöscht und andernfalls so
+  lange aufbewahrt, wie Ihr Konto besteht. Mit der Löschung Ihres Kontos werden sie mitgelöscht.
+- **Ihre Annahme dieser Dokumente** — das Datum, das angenommene Dokument samt Version sowie die
+  IP-Adresse und der User-Agent, von denen aus sie erfolgte — wird so lange aufbewahrt, wie Ihr Konto
+  besteht. Wir bewahren sie auf, weil sie der Nachweis dafür ist, dass Sie genau der Fassung zugestimmt
+  haben, der Sie zugestimmt haben; sie wird mit Ihrem Konto gelöscht.
 - **Support-Kommunikation** wird so lange aufbewahrt, wie es zur Bearbeitung Ihrer Anfrage erforderlich
   ist, sowie für einen angemessenen Zeitraum danach, falls Sie sich erneut melden.
 
@@ -160,11 +168,14 @@ Datenexport zum Ende des Abonnements siehe die Allgemeinen Geschäftsbedingungen
 und 13.2 — alle drei sind zugleich die praktische Art und Weise, wie Sie Ihr Recht auf
 Datenübertragbarkeit ausüben.
 
-## 9. Cookies
+## 9. Cookies und sonstige Speicherung im Browser
 
-Der Dienst setzt genau ein Cookie, das ausschließlich dazu dient, Sie angemeldet zu halten. Siehe die
-[Cookies und Richtlinie zur zulässigen Nutzung](./cookies-and-acceptable-use.md) dafür, was es ist und
-warum dafür kein Einwilligungsbanner angezeigt wird.
+Der Dienst setzt zwei Cookies — eines, um Sie angemeldet zu halten, und eines, das sich merkt, ob Sie
+die Navigationsleiste geöffnet gelassen haben — und speichert einige Oberflächeneinstellungen im lokalen
+Speicher Ihres eigenen Browsers. Nichts davon dient der Reichweitenmessung, der Werbung oder dem
+Profiling, und kein Dritter setzt über den Dienst irgendetwas. Siehe die
+[Cookies und Richtlinie zur zulässigen Nutzung](./cookies-and-acceptable-use.md) für die vollständige
+Liste, Zweck und Dauer jedes Elements sowie dafür, warum kein Einwilligungsbanner angezeigt wird.
 
 ## 10. Von uns betriebene Websites
 

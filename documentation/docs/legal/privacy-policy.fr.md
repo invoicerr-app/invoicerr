@@ -52,6 +52,7 @@ fournissez (inscription, configuration, support), soit automatiquement lorsque v
 | Données de la Société | nom de la société, adresse, identifiants nationaux que vous configurez (par exemple SIREN/TVA) | exploiter l'espace de travail de votre Société, renseigner les documents que vous émettez | Exécution d'un contrat (art. 6, § 1, b)) |
 | Données d'abonnement | formule, nombre de sièges, statut de l'abonnement, dates d'essai | gérer votre abonnement ; Polar traite et conserve votre moyen de paiement et votre adresse de facturation en qualité de merchant of record — voir Section 5 | Exécution d'un contrat (art. 6, § 1, b)) |
 | Données de connexion et de sécurité | adresse IP, horodatage des événements d'authentification, journaux applicatifs | détecter les abus, assurer la sécurité du Service, diagnostiquer les incidents | Intérêt légitime (art. 6, § 1, f)) |
+| Preuve d'acceptation | le document légal et la version que vous avez acceptés, la date, ainsi que l'adresse IP et l'agent utilisateur du navigateur depuis lesquels vous les avez acceptés | démontrer que vous avez accepté le texte en vigueur au moment où vous l'avez accepté | Exécution d'un contrat (art. 6, § 1, b)), et notre intérêt légitime à pouvoir en apporter la preuve (art. 6, § 1, f)) |
 | Communications de support | le contenu des e-mails que vous envoyez à contact@invoicerr.app | répondre à votre demande | Intérêt légitime (art. 6, § 1, f)), ou exécution d'un contrat lorsque la demande concerne votre abonnement |
 | Documents de facturation pour notre propre comptabilité | l'identité de votre Société et les Frais qui lui sont facturés | notre propre obligation légale de tenue de comptabilité | Obligation légale (art. 6, § 1, c)) |
 
@@ -122,9 +123,17 @@ et de base de données de votre Société, n'implique d'entité hors UE.
   récupération des données qu'exige l'article 25, paragraphe 2, point g), du règlement (UE) 2023/2854
   (le Data Act) avant que nous puissions supprimer Vos Données une fois que vous cessez d'utiliser le
   Service.
-- **Les journaux applicatifs** et les données de connexion/sécurité sont conservés uniquement le temps
-  nécessaire à la finalité de sécurité et de diagnostic prévue à la Section 3, et sont supprimés ou
-  anonymisés au fil de l'eau.
+- **Les journaux applicatifs** sont conservés **90 jours**, puis supprimés automatiquement par une
+  purge récurrente — assez longtemps pour instruire un incident de sécurité ou une demande de support
+  qui ne se manifeste que des semaines plus tard, et pas davantage.
+- **Les enregistrements de session** — une ligne par connexion, portant l'adresse IP et l'agent
+  utilisateur du navigateur depuis lesquels elle a été créée — sont supprimés lorsque vous vous
+  déconnectez et, à défaut, conservés aussi longtemps que votre compte existe. La suppression de votre
+  compte les supprime avec lui.
+- **Votre acceptation des présents documents** — la date, le document et la version acceptés, ainsi que
+  l'adresse IP et l'agent utilisateur depuis lesquels elle a été donnée — est conservée aussi longtemps
+  que votre compte existe. Nous la conservons parce qu'elle est la preuve que vous avez accepté la
+  version que vous avez acceptée ; elle est supprimée avec votre compte.
 - **Les communications de support** sont conservées le temps nécessaire pour traiter votre demande et
   pendant une période raisonnable par la suite en cas de relance de votre part.
 
@@ -156,11 +165,16 @@ automatique des données de fin d'abonnement, voir les Sections 8.2 et 13.2 des 
 Vente — ces trois moyens constituent également, en pratique, la façon d'exercer votre droit à la
 portabilité.
 
-## 9. Cookies
+## 9. Cookies et Autres Stockages dans le Navigateur
 
-Le Service dépose exactement un seul cookie, utilisé uniquement pour vous maintenir connecté. Voir la
-[Cookies et Politique d'Utilisation Acceptable](./cookies-and-acceptable-use.md) pour savoir ce qu'il est
-et pourquoi aucun bandeau de consentement n'est affiché à son sujet.
+Le Service dépose deux cookies — l'un pour vous maintenir connecté, l'autre pour mémoriser si vous avez
+laissé le menu latéral de navigation ouvert — et conserve quelques préférences d'interface dans le
+stockage local de votre propre navigateur. Rien de tout cela n'est utilisé à des fins de mesure
+d'audience, de publicité ou de profilage, et aucun tiers ne dépose quoi que ce soit au travers du
+Service. Voir la
+[Cookies et Politique d'Utilisation Acceptable](./cookies-and-acceptable-use.md) pour la liste
+complète, la finalité et la durée de chaque élément, et les raisons pour lesquelles aucun bandeau de
+consentement n'est affiché.
 
 ## 10. Sites Web Que Nous Exploitons
 

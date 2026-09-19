@@ -51,6 +51,7 @@ connessione e sicurezza).
 | Dati dell'Azienda | ragione sociale, indirizzo, identificativi nazionali configurati (es. SIREN/partita IVA) | gestire l'area di lavoro della Sua Azienda, compilare i documenti che emette | Esecuzione di un contratto (art. 6, par. 1, lett. b) |
 | Dati di abbonamento | piano, numero di posti, stato dell'abbonamento, date di prova | gestire il Suo abbonamento; Polar tratta e conserva il Suo metodo di pagamento e l'indirizzo di fatturazione in qualità di merchant of record — vedi Sezione 5 | Esecuzione di un contratto (art. 6, par. 1, lett. b) |
 | Dati di connessione e sicurezza | indirizzo IP, timestamp degli eventi di autenticazione, log applicativi | rilevare abusi, mantenere sicuro il Servizio, diagnosticare incidenti | Legittimo interesse (art. 6, par. 1, lett. f) |
+| Prova dell'accettazione | quale documento legale e quale versione Lei ha accettato, quando, nonché l'indirizzo IP e lo user agent del browser da cui l'ha accettato | dimostrare che Lei ha accettato il testo in vigore nel momento in cui lo ha accettato | Esecuzione di un contratto (art. 6, par. 1, lett. b) e nostro legittimo interesse a poterne dare prova (art. 6, par. 1, lett. f) |
 | Comunicazioni di supporto | il contenuto delle email inviate a contact@invoicerr.app | rispondere alla Sua richiesta | Legittimo interesse (art. 6, par. 1, lett. f), oppure esecuzione di un contratto se la richiesta riguarda il Suo abbonamento |
 | Registrazioni di fatturazione per la nostra contabilità | l'identità della Sua Azienda e le Tariffe ad essa fatturate | il nostro obbligo contabile di legge | Obbligo legale (art. 6, par. 1, lett. c) |
 
@@ -118,9 +119,17 @@ coinvolge un'entità extra-UE.
   file). Entrambi i termini corrispondono alla finestra minima di recupero dei dati richiesta
   dall'articolo 25, paragrafo 2, lettera g), del Regolamento (UE) 2023/2854 (il "Data Act"), prima
   che possiamo cancellare i Suoi Dati una volta cessato l'utilizzo del Servizio.
-- **I log applicativi** e i dati di connessione/sicurezza vengono conservati solo per il tempo
-  necessario alla finalità di sicurezza e diagnostica di cui alla Sezione 3, e vengono eliminati o
-  resi anonimi su base continuativa.
+- **I log applicativi** vengono conservati per **90 giorni**, dopodiché sono eliminati automaticamente
+  da una procedura di cancellazione ricorrente — un periodo sufficiente a istruire un incidente di
+  sicurezza o una richiesta di assistenza che emerga solo settimane dopo, e non di più.
+- **I record di sessione** — una riga per ogni accesso, contenente l'indirizzo IP e lo user agent del
+  browser da cui è stata creata — vengono eliminati quando Lei si disconnette e, in caso contrario,
+  conservati per tutta la durata dell'esistenza del Suo account. L'eliminazione del Suo account li
+  elimina insieme ad esso.
+- **La Sua accettazione dei presenti documenti** — la data, il documento e la versione accettati,
+  nonché l'indirizzo IP e lo user agent da cui è stata prestata — viene conservata per tutta la durata
+  dell'esistenza del Suo account. La conserviamo perché costituisce la prova che Lei ha accettato
+  proprio la versione che ha accettato; viene eliminata insieme al Suo account.
 - **Le comunicazioni di supporto** vengono conservate per il tempo necessario a risolvere la Sua
   richiesta e per un periodo ragionevole successivo, nel caso Lei debba fare seguito.
 
@@ -150,11 +159,15 @@ Per l'esportazione completa self-service dei dati, l'esportazione del registro c
 l'esportazione automatica dei dati a fine abbonamento, vedi i Termini di Servizio, Sezioni 8.2 e
 13.2 — tutte e tre sono anche il modo in cui esercita concretamente la portabilità.
 
-## 9. Cookie
+## 9. Cookie e Altri Archivi nel Browser
 
-Il Servizio imposta esattamente un cookie, utilizzato solo per mantenere attiva la Sua sessione di
-accesso. Consulti [Cookie e Politica di Utilizzo Accettabile](./cookies-and-acceptable-use.md) per
-sapere di cosa si tratta e perché non viene mostrato alcun banner di consenso per esso.
+Il Servizio imposta due cookie — uno per mantenere attiva la Sua sessione di accesso, uno per ricordare
+se ha lasciato aperta la barra di navigazione laterale — e conserva alcune preferenze di interfaccia
+nell'archivio locale del Suo stesso browser. Nulla di tutto ciò è utilizzato per misurazione
+dell'audience, pubblicità o profilazione, e nessun terzo imposta alcunché tramite il Servizio. Consulti
+[Cookie e Politica di Utilizzo Accettabile](./cookies-and-acceptable-use.md) per l'elenco completo, la
+finalità e la durata di ciascun elemento, e per i motivi per cui non viene mostrato alcun banner di
+consenso.
 
 ## 10. Siti web che gestiamo
 

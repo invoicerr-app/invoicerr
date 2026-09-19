@@ -1,8 +1,8 @@
 ---
 title: Cookies & Acceptable Use
 sidebar_position: 5
-version: 2026-09-19
-effectiveDate: 2026-09-19
+version: 2026-09-20
+effectiveDate: 2026-09-20
 ---
 
 :::warning Draft
@@ -12,28 +12,58 @@ Draft — not yet reviewed by counsel.
 This page covers two topics for the **hosted offering** of Invoicerr: the cookie the Service sets, and
 the acceptable-use rules that apply to your account. Neither applies to the self-hosted software.
 
-## Part A — Cookies
+## Part A — Cookies and Other Browser Storage
 
 ### 1. What We Set
 
-The Service sets exactly **one** cookie: the authentication session cookie (`better-auth.session_token`)
-created when you sign in, used **solely** to keep you signed in and to associate your requests with
-your account and active Company. It is set by our own domain, read by no one else, and carries no
-tracking or advertising purpose. **We set no analytics, advertising, or other third-party tracking
-cookie.**
+The Service sets **two** cookies, both from our own domain, both read by no one else, and neither
+carrying any tracking or advertising purpose:
+
+| Cookie | Purpose | Duration |
+| --- | --- | --- |
+| `better-auth.session_token` | keeps you signed in and associates your requests with your account and active Company | 7 days, extended each time you use the Service |
+| `sidebar_state` | remembers whether you left the application's navigation sidebar open or collapsed | 7 days |
+
+**We set no analytics, advertising, or other third-party tracking cookie**, and no third party sets a
+cookie through the Service.
+
+Beyond cookies, the Service keeps a small number of values in **your own browser's local storage**.
+These never reach us — they are read only by the page running in your browser — but we list them here
+because French law (article 82 of loi n° 78-17 of 6 January 1978) covers any writing to, or reading
+from, your terminal equipment, not cookies alone:
+
+| Stored value | Purpose |
+| --- | --- |
+| `i18nextLng` | the interface language you picked |
+| `vite-ui-theme` | the light/dark theme you picked |
+| `pwa-install-dismissed-at` | remembers that you dismissed the "install this app" prompt, so it stops asking |
+| `invoicerr_portal_token` | on the client portal only: the access token from the link you were sent, so the page can keep loading the document it was opened for |
+| `invoicerr-sw-reloaded` (session storage, cleared when you close the tab) | prevents a reload loop when a new version of the application is installed |
+
+If you use the Service as an installable application, your browser also keeps an **offline cache** of
+the application's own files (scripts, styles, icons) so it can start without a network connection.
+That cache holds application code, not your business data, and clearing your browser's site data
+removes it.
 
 ### 2. No Consent Banner
 
-Because the only cookie this Service sets is strictly necessary for it to function, it is exempt from
-the prior-consent requirement that applies to non-essential cookies under the ePrivacy rules the CNIL
-enforces alongside the GDPR — which is why no cookie-consent banner is shown. This is a statement about
-what the Service technically sets today; it is not legal advice about your own use of cookies elsewhere.
+Everything listed in Section 1 is either **strictly necessary** for the Service to work at all (the
+session cookie, the client-portal token, the service-worker reload guard, the offline application
+cache) or a **preference you set yourself through the interface** and that we store only in order to
+give it back to you (the sidebar state, the language, the theme, the dismissed install prompt).
+
+Both categories fall within the exemptions article 82 of loi n° 78-17 of 6 January 1978 (loi
+Informatique et Libertés) provides from the prior-consent requirement, as the CNIL applies them in its
+guidelines and recommendation on cookies and other trackers — which is why no cookie-consent banner is
+shown. **Nothing here is used for audience measurement, advertising, profiling, or any purpose that
+would require your consent.** This is a statement about what the Service technically sets today; it is
+not legal advice about your own use of cookies elsewhere.
 
 ### 3. Changing This
 
 If a future version of the Service ever adds a cookie or similar technology that is not strictly
-necessary, this page — and the consent flow the ePrivacy rules would then require — will be updated
-before that happens.
+necessary and is not a preference you set yourself, this page — and the consent flow the ePrivacy
+rules would then require — will be updated before that happens.
 
 ## Part B — Acceptable Use
 
@@ -116,3 +146,18 @@ this document; they create no separate or additional rights.
 - **2026-09-19** — Updated Terms of Service cross-references to match that document's 2026-09-19
   renumbering, done to make room for its new EU Data Act sections (9.1→11.1, Section 11→13,
   14.1→16.1). No fact in this page itself changed.
+- **2026-09-20** — Correction, following an inventory of what the application actually writes to a
+  browser. Part A previously stated that the Service sets "exactly **one** cookie". That was wrong:
+  the application's own navigation sidebar also writes a `sidebar_state` cookie (7 days) recording
+  whether the sidebar is open or collapsed. Section 1 now lists **both** cookies with their purpose
+  and duration — the session cookie's own 7-day, use-extended duration was also never stated — and,
+  for the first time, the five values the Service keeps in the browser's local/session storage
+  (`i18nextLng`, `vite-ui-theme`, `pwa-install-dismissed-at`, `invoicerr_portal_token`,
+  `invoicerr-sw-reloaded`) plus the installable application's own offline asset cache: article 82 of
+  loi n° 78-17 of 6 January 1978 governs any writing to or reading from a terminal, not cookies
+  alone, so listing only cookies left the disclosure incomplete even where the conclusion was right.
+  Section 2's conclusion is **unchanged** — no consent banner is required — but now rests on the two
+  exemption grounds that actually carry it (strictly necessary, and a preference set by the user
+  themselves) rather than on a single-cookie fact that was not true. No non-exempt technology was
+  found: there is still no analytics, advertising, profiling, or audience-measurement technology of
+  any kind in the Service.

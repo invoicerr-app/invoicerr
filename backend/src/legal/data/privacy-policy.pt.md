@@ -51,6 +51,7 @@ segurança).
 | Dados da Empresa | nome da empresa, morada, identificadores nacionais que configura (por exemplo, SIREN/NIF) | gerir o espaço de trabalho da sua Empresa, preencher os documentos que emite | Execução de um contrato (art. 6.º, n.º 1, alínea b)) |
 | Dados de subscrição | plano, número de lugares (seats), estado da subscrição, datas do período experimental | gerir a sua subscrição; a Polar processa e armazena o seu meio de pagamento e morada de faturação na qualidade de merchant of record — ver Secção 5 | Execução de um contrato (art. 6.º, n.º 1, alínea b)) |
 | Dados de ligação e de segurança | endereço IP, registos temporais dos eventos de autenticação, registos (logs) da aplicação | detetar abusos, manter o Serviço seguro, diagnosticar incidentes | Interesse legítimo (art. 6.º, n.º 1, alínea f)) |
+| Prova de aceitação | qual o documento legal e a versão que aceitou, quando, bem como o endereço IP e o agente de utilizador do navegador a partir dos quais o aceitou | demonstrar que aceitou o texto em vigor no momento em que o aceitou | Execução de um contrato (art. 6.º, n.º 1, alínea b)) e o nosso interesse legítimo em poder fazer prova dessa aceitação (art. 6.º, n.º 1, alínea f)) |
 | Comunicações de apoio ao cliente | o conteúdo dos emails que envia para contact@invoicerr.app | responder ao seu pedido | Interesse legítimo (art. 6.º, n.º 1, alínea f)), ou execução de um contrato quando o pedido diz respeito à sua subscrição |
 | Registos de faturação para a nossa própria contabilidade | a identidade da sua Empresa e os montantes que lhe são faturados | a nossa própria obrigação legal de contabilidade | Obrigação legal (art. 6.º, n.º 1, alínea c)) |
 
@@ -119,9 +120,17 @@ entidade fora da UE.
   mínimo de recuperação de dados exigido pelo artigo 25.º, n.º 2, alínea g), do Regulamento (UE)
   2023/2854 (o Data Act da UE), antes de podermos apagar os Seus Dados assim que deixar de utilizar o
   Serviço.
-- Os **registos (logs) da aplicação** e os dados de ligação/segurança são conservados apenas durante o
-  tempo necessário para a finalidade de segurança e de diagnóstico prevista na Secção 3, sendo
-  eliminados ou anonimizados de forma contínua.
+- Os **registos (logs) da aplicação** são conservados durante **90 dias**, sendo depois eliminados
+  automaticamente por uma purga recorrente — tempo suficiente para instruir um incidente de segurança
+  ou um pedido de apoio que só surja semanas mais tarde, e não mais do que isso.
+- Os **registos de sessão** — uma linha por cada início de sessão, com o endereço IP e o agente de
+  utilizador do navegador a partir dos quais foi criada — são eliminados quando termina a sessão e,
+  caso contrário, conservados enquanto a sua conta existir. A eliminação da sua conta elimina-os com
+  ela.
+- A **sua aceitação dos presentes documentos** — a data, o documento e a versão aceites, bem como o
+  endereço IP e o agente de utilizador a partir dos quais foi dada — é conservada enquanto a sua conta
+  existir. Conservamo-la porque constitui a prova de que aceitou exatamente a versão que aceitou; é
+  eliminada juntamente com a sua conta.
 - As **comunicações de apoio ao cliente** são conservadas durante o tempo necessário para resolver o
   seu pedido e por um período razoável adicional, caso pretenda dar seguimento ao assunto.
 
@@ -151,11 +160,15 @@ Para a exportação completa em regime de self-service, a exportação do livro-
 exportação automática de dados no final da subscrição, ver os Termos de Serviço, Secções 8.2 e 13.2 —
 as três constituem também a forma prática de exercer a portabilidade.
 
-## 9. Cookies
+## 9. Cookies e Outros Armazenamentos no Navegador
 
-O Serviço define exatamente um cookie, utilizado apenas para manter a sua sessão iniciada. Consulte
-[Cookies e Política de Utilização Aceitável](./cookies-and-acceptable-use.md) para saber o que é e por
-que motivo não é apresentado nenhum aviso (banner) de consentimento para o mesmo.
+O Serviço define dois cookies — um para manter a sua sessão iniciada e outro para memorizar se deixou o
+menu lateral de navegação aberto — e conserva algumas preferências de interface no armazenamento local
+do seu próprio navegador. Nada disto é utilizado para medição de audiências, publicidade ou definição
+de perfis, e nenhum terceiro define o que quer que seja através do Serviço. Consulte
+[Cookies e Política de Utilização Aceitável](./cookies-and-acceptable-use.md) para a lista completa, a
+finalidade e a duração de cada elemento, e os motivos pelos quais não é apresentado nenhum aviso
+(banner) de consentimento.
 
 ## 10. Sites Que Operamos
 

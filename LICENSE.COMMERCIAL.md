@@ -1,7 +1,7 @@
 # Invoicerr Commercial License Agreement
 
-**Version:** 2026-09-17
-**Effective date:** 2026-09-17
+**Version:** 2026-09-20
+**Effective date:** 2026-09-20
 
 *Draft — not yet reviewed by counsel.*
 
@@ -98,6 +98,14 @@ points it addresses.
 payment only for the Provider's separate hosted subscription offering described in the Terms of
 Service. Payment is due within **thirty (30) days** of the invoice date, unless the Order states a
 different term.
+
+Any sum unpaid at its due date bears, automatically and without prior notice, late-payment penalties
+at a rate equal to **the European Central Bank's refinancing rate in force on 1 January or 1 July of
+the current half-year, increased by ten (10) percentage points**, applied to the amount including tax,
+from the day following the due date until full payment. The Licensee is also liable, automatically,
+for a **fixed recovery indemnity of forty euros (€40)** per unpaid invoice, under articles L.441-10 and
+D.441-5 of the French Commercial Code; where recovery costs actually incurred exceed that amount, the
+Provider may claim additional compensation on justification.
 
 4.4. **No Refund.** License Fees, once paid, are not refundable, except to the extent applicable law
 requires otherwise.
@@ -236,3 +244,11 @@ Email: **contact@invoicerr.app**.
   Romans-sur-Isère, not Paris). Liability cap changed to the License Fees paid under the relevant Order
   in the twelve (12) months preceding the claim, with the same gross-negligence/willful-misconduct/
   death-or-personal-injury carve-out as the Terms of Service. Contact updated to contact@invoicerr.app.
+- **2026-09-20** — Legal audit finding: this is the one revenue stream the Provider invoices directly,
+  in his own name, on 30-day terms (Section 4.3) — Polar is not involved (Section 4.3 itself says so).
+  Payment terms between professionals must state a late-payment penalty rate and the fixed recovery
+  indemnity; omitting them is itself sanctioned. **Article 4.3** now states both: late-payment penalties
+  at the ECB refinancing rate in force on 1 January/1 July of the current half-year plus ten (10)
+  percentage points, and the fixed forty-euro (€40) recovery indemnity, per **articles L.441-10 and
+  D.441-5 of the French Commercial Code** (omission sanctioned by art. L.441-16). No other fact
+  changed.

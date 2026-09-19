@@ -53,6 +53,7 @@ Wszystkie poniższe dane zbieramy **bezpośrednio od Ciebie** — albo gdy nam j
 | Dane firmy | nazwa firmy, adres, konfigurowane przez Ciebie krajowe identyfikatory (np. SIREN/VAT) | obsługa przestrzeni roboczej Twojej Firmy, wypełnianie wystawianych przez Ciebie dokumentów | Wykonanie umowy (art. 6 ust. 1 lit. b)) |
 | Dane subskrypcji | plan, liczba miejsc, status subskrypcji, daty okresu próbnego | obsługa Twojej subskrypcji; Polar przetwarza i przechowuje Twoją metodę płatności oraz adres rozliczeniowy jako sprzedawca formalny (merchant of record) — zob. sekcja 5 | Wykonanie umowy (art. 6 ust. 1 lit. b)) |
 | Dane dotyczące połączenia i bezpieczeństwa | adres IP, znaczniki czasu zdarzeń uwierzytelniania, dzienniki aplikacji | wykrywanie nadużyć, zapewnienie bezpieczeństwa Usługi, diagnozowanie incydentów | Prawnie uzasadniony interes (art. 6 ust. 1 lit. f)) |
+| Dowód akceptacji | który dokument prawny i którą jego wersję zaakceptowałeś, kiedy, a także adres IP i identyfikator przeglądarki (user agent), z których dokonano akceptacji | wykazanie, że zaakceptowałeś tekst obowiązujący w chwili akceptacji | Wykonanie umowy (art. 6 ust. 1 lit. b)) oraz nasz prawnie uzasadniony interes polegający na możliwości udowodnienia tej akceptacji (art. 6 ust. 1 lit. f)) |
 | Korespondencja pomocy technicznej | treść wiadomości e-mail wysyłanych na adres contact@invoicerr.app | udzielenie odpowiedzi na Twoje zgłoszenie | Prawnie uzasadniony interes (art. 6 ust. 1 lit. f)), lub wykonanie umowy, jeżeli zgłoszenie dotyczy Twojej subskrypcji |
 | Zapisy fakturowe na potrzeby naszej własnej księgowości | dane identyfikacyjne Twojej Firmy oraz Opłaty jej naliczone | nasz własny ustawowy obowiązek prowadzenia księgowości | Obowiązek prawny (art. 6 ust. 1 lit. c)) |
 
@@ -123,9 +124,17 @@ obejmuje podmiotu spoza UE.
   stanowią minimalny okres na odzyskanie danych, jaki art. 25 ust. 2 lit. g) rozporządzenia (UE)
   2023/2854 („Data Act”) wymaga zachować, zanim będziemy mogli usunąć Twoje Dane po zaprzestaniu
   przez Ciebie korzystania z Usługi.
-- **Dzienniki aplikacji** oraz dane dotyczące połączenia i bezpieczeństwa są przechowywane
-  wyłącznie tak długo, jak jest to konieczne do celów bezpieczeństwa i diagnostyki określonych w
-  sekcji 3, a następnie są usuwane lub anonimizowane w sposób ciągły.
+- **Dzienniki aplikacji** są przechowywane przez **90 dni**, a następnie usuwane automatycznie przez
+  cykliczne czyszczenie — wystarczająco długo, aby zbadać incydent bezpieczeństwa lub zgłoszenie
+  pomocy technicznej ujawniające się dopiero po kilku tygodniach, i nie dłużej.
+- **Rekordy sesji** — jeden wpis na każde zalogowanie, zawierający adres IP i identyfikator
+  przeglądarki (user agent), z których został utworzony — są usuwane w chwili wylogowania, a w
+  przeciwnym razie przechowywane tak długo, jak długo istnieje Twoje konto. Usunięcie konta usuwa je
+  wraz z nim.
+- **Twoja akceptacja niniejszych dokumentów** — data, zaakceptowany dokument i jego wersja, a także
+  adres IP i identyfikator przeglądarki, z których jej udzielono — jest przechowywana tak długo, jak
+  długo istnieje Twoje konto. Przechowujemy ją, ponieważ stanowi dowód, że zaakceptowałeś dokładnie tę
+  wersję, którą zaakceptowałeś; jest usuwana wraz z Twoim kontem.
 - **Korespondencja pomocy technicznej** jest przechowywana tak długo, jak jest to konieczne do
   rozpatrzenia Twojego zgłoszenia, oraz przez rozsądny okres po jego zakończeniu na wypadek dalszej
   korespondencji.
@@ -158,11 +167,15 @@ automatycznego eksportu danych po zakończeniu subskrypcji znajdują się w Regu
 Usług, sekcje 8.2 i 13.2 — wszystkie trzy stanowią również praktyczny sposób realizacji prawa do
 przenoszenia danych.
 
-## 9. Pliki cookie
+## 9. Pliki cookie i inne dane przechowywane w przeglądarce
 
-Usługa ustawia dokładnie jeden plik cookie, używany wyłącznie do utrzymania Twojego zalogowania.
-Zobacz [Pliki Cookie i Zasady Dopuszczalnego Użytkowania](./cookies-and-acceptable-use.md), aby
-dowiedzieć się, czym on jest i dlaczego nie wyświetlamy dla niego banera zgody.
+Usługa ustawia dwa pliki cookie — jeden, aby utrzymać Twoje zalogowanie, i drugi, aby zapamiętać, czy
+pozostawiłeś boczne menu nawigacji otwarte — oraz przechowuje kilka preferencji interfejsu w pamięci
+lokalnej Twojej własnej przeglądarki. Nic z tego nie służy pomiarowi oglądalności, reklamie ani
+profilowaniu, a żaden podmiot trzeci niczego za pośrednictwem Usługi nie zapisuje. Zobacz
+[Pliki Cookie i Zasady Dopuszczalnego Użytkowania](./cookies-and-acceptable-use.md), aby poznać pełną
+listę, cel i okres przechowywania każdego elementu oraz powody, dla których nie wyświetlamy banera
+zgody.
 
 ## 10. Strony internetowe, które prowadzimy
 
