@@ -16,4 +16,8 @@ export interface PaymentMethodConfig {
   fields: DocumentFieldDescriptor[]
   enabled: boolean
   config: Record<string, unknown>
+  /** Whether `config`, as it stands, already satisfies every field this method requires — the same
+   *  check the backend runs before allowing `enabled: true`. Drives the card's own switch: flipping it
+   *  on while this is `false` opens the config dialog instead of sending a PATCH doomed to a 400. */
+  configured: boolean
 }

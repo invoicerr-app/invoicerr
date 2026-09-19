@@ -23,6 +23,12 @@ interface PaymentMethodConfigDialogProps {
   method: PaymentMethodConfig
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** True only when the card's own Switch opened this dialog because the method wasn't `configured`
+   *  yet (payment-method-card.tsx#handleToggle) — turning the raw "flip the switch, get a 400" defect
+   *  into "fill in what's missing, then activate", in the one action a dialog's Save already is. False
+   *  for the plain "Configure" button, which still only ever touches `config` — see this component's
+   *  own header below. */
+  activateOnSave?: boolean
 }
 
 /**
@@ -33,11 +39,19 @@ interface PaymentMethodConfigDialogProps {
  * an empty form — no invented "nothing to configure" placeholder needed, proving the empty case is a
  * real, working one rather than a special-cased dead end.
  *
- * Deliberately does NOT touch `enabled`: this dialog only ever saves `config`. The card's own Switch
- * (payment-method-card.tsx) is the one place `enabled` is written, so filling in a method's details
- * never silently starts offering it.
+ * Saves `config` alone by default: the card's own Switch (payment-method-card.tsx) is the one place
+ * `enabled` is normally written, so filling in a method's details never silently starts offering it.
+ * The ONE exception is `activateOnSave` — the switch, finding the method not yet `configured`, opens
+ * THIS dialog instead of PATCHing straight to a guaranteed 400; saving it then both fills in the
+ * fields and flips `enabled: true`, in the single PATCH the brief asks for, rather than requiring a
+ * second click on a switch the user already just clicked.
  */
-export function PaymentMethodConfigDialog({ method, open, onOpenChange }: PaymentMethodConfigDialogProps) {
+export function PaymentMethodConfigDialog({
+  method,
+  open,
+  onOpenChange,
+  activateOnSave = false,
+}: PaymentMethodConfigDialogProps) {
   const { t } = useTranslation()
   const updateMethod = useUpdatePaymentMethod()
 
@@ -59,7 +73,11 @@ export function PaymentMethodConfigDialog({ method, open, onOpenChange }: Paymen
 
   const onSubmit = async (values: Record<string, unknown>) => {
     try {
-      await updateMethod.mutateAsync({ methodId: method.id, config: values })
+      await updateMethod.mutateAsync({
+        methodId: method.id,
+        config: values,
+        ...(activateOnSave ? { enabled: true } : {}),
+      })
       toast.success(t("paymentMethods.messages.updateSuccess"))
       onOpenChange(false)
     } catch (error) {
@@ -73,7 +91,11 @@ export function PaymentMethodConfigDialog({ method, open, onOpenChange }: Paymen
         <Form {...form}>
           <DialogHeader>
             <DialogTitle>{t("paymentMethods.dialog.title", { label: method.label })}</DialogTitle>
-            <DialogDescription>{t("paymentMethods.dialog.description")}</DialogDescription>
+            <DialogDescription>
+              {activateOnSave
+                ? t("paymentMethods.dialog.descriptionActivate")
+                : t("paymentMethods.dialog.description")}
+            </DialogDescription>
           </DialogHeader>
 
           {fields.length === 0 ? (

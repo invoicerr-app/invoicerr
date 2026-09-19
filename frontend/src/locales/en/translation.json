@@ -1759,6 +1759,7 @@
     "dialog": {
       "title": "Configure {{label}}",
       "description": "These details are shown to your clients on the invoice and by e-mail once this method is enabled.",
+      "descriptionActivate": "Fill in the details below to turn this payment method on — saving both fills them in and enables it for your clients.",
       "cancel": "Cancel",
       "save": "Save"
     },
@@ -2717,6 +2718,24 @@
         "roleUpdateError": "Failed to update member role",
         "removeSuccess": "Member removed",
         "removeError": "Failed to remove member"
+      },
+      "leave": {
+        "menuLabel": "Leave company",
+        "dialog": {
+          "title": "Leave this company?",
+          "description": "You will lose access to this company's clients, documents and settings. This cannot be undone by yourself — another member would have to invite you back.",
+          "cancel": "Cancel",
+          "confirm": "Leave company"
+        },
+        "soleOwner": {
+          "title": "You're the only owner",
+          "description": "Transfer ownership to another member before leaving — a company can never be left without an owner.",
+          "link": "Go to ownership transfer"
+        },
+        "messages": {
+          "success": "You left the company",
+          "error": "Failed to leave the company"
+        }
       }
     },
     "seats": {

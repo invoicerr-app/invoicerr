@@ -26,11 +26,21 @@ interface PaymentMethodCardProps {
  * in the covering e-mail, rendered here from the exact same `config`/`fields` this card already has —
  * no second endpoint, and what makes two DIFFERENT methods visibly, honestly different on THIS screen
  * too, not only on a document: cash shows nothing beyond its own label, PayPal shows its e-mail.
+ *
+ * The switch itself branches on the backend's own `configured` (see `types/payment-method.ts`):
+ * turning ON a method that isn't configured yet opens the config dialog instead of a PATCH that would
+ * only come back a 400 for a required field with nothing on file — the dialog's `activateOnSave` then
+ * saves the config AND flips `enabled` in that one submit. A method already configured, and turning
+ * ANY method off, still goes straight through the switch, unchanged.
  */
 export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
   const { t } = useTranslation()
   const updateMethod = useUpdatePaymentMethod()
   const [configOpen, setConfigOpen] = useState(false)
+  // Which of the two ways to open the dialog this is — see `PaymentMethodConfigDialog`'s own
+  // `activateOnSave` header: the plain "Configure" button never touches `enabled`, only the switch
+  // reaching for the dialog because the method isn't configured yet does.
+  const [activateOnSave, setActivateOnSave] = useState(false)
 
   const previewLines = method.fields
     .map((field) => {
@@ -40,7 +50,20 @@ export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
     })
     .filter((line): line is string => line !== null)
 
+  const openConfigDialog = (activate: boolean) => {
+    setActivateOnSave(activate)
+    setConfigOpen(true)
+  }
+
   const handleToggle = async (enabled: boolean) => {
+    // Turning a method ON while it isn't `configured` yet would 400 on a required field this call
+    // has no values for at all — the raw error the owner reported. Route to the config dialog instead
+    // of firing a request known in advance to fail; disabling (and turning on an ALREADY configured
+    // method) still goes straight through, exactly like today.
+    if (enabled && !method.configured) {
+      openConfigDialog(true)
+      return
+    }
     try {
       await updateMethod.mutateAsync({ methodId: method.id, enabled })
       toast.success(t("paymentMethods.messages.updateSuccess"))
@@ -87,7 +110,7 @@ export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setConfigOpen(true)}
+          onClick={() => openConfigDialog(false)}
           dataCy={`payment-method-configure-${method.id}`}
         >
           {t("paymentMethods.configure")}
@@ -95,7 +118,12 @@ export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
       </CardContent>
 
       {configOpen && (
-        <PaymentMethodConfigDialog method={method} open={configOpen} onOpenChange={setConfigOpen} />
+        <PaymentMethodConfigDialog
+          method={method}
+          open={configOpen}
+          onOpenChange={setConfigOpen}
+          activateOnSave={activateOnSave}
+        />
       )}
     </Card>
   )

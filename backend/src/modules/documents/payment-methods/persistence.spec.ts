@@ -123,7 +123,24 @@ describe('payment-methods/persistence', () => {
         fields: expect.any(Array),
         enabled: true,
         config: { email: 'billing@acme.test' },
+        configured: true,
       });
+    });
+
+    it('`configured` is false for a required-field method nobody has filled in yet, true once it is', async () => {
+      const before = await listCompanyPaymentMethods('company-1');
+      expect(before.find((v) => v.id === 'paypal')?.configured).toBe(false);
+
+      rows.set('paypal', { enabled: false, config: { email: 'billing@acme.test' } });
+      const after = await listCompanyPaymentMethods('company-1');
+      expect(after.find((v) => v.id === 'paypal')?.configured).toBe(true);
+    });
+
+    it('`configured` is always true for a method with no fields at all — nothing can be missing', async () => {
+      const views = await listCompanyPaymentMethods('company-1');
+      for (const id of ['cash', 'stripe', 'mollie']) {
+        expect(views.find((v) => v.id === id)?.configured).toBe(true);
+      }
     });
   });
 
@@ -160,12 +177,20 @@ describe('payment-methods/persistence', () => {
         fields: expect.any(Array),
         enabled: true,
         config: { email: 'billing@acme.test' },
+        configured: true,
       });
     });
 
     it('cash (zero fields) can be enabled with an empty config — the empty case is not refused', async () => {
       const result = await updateCompanyPaymentMethodConfig('company-1', 'cash', { enabled: true });
-      expect(result).toEqual({ id: 'cash', label: 'Cash', fields: [], enabled: true, config: {} });
+      expect(result).toEqual({
+        id: 'cash',
+        label: 'Cash',
+        fields: [],
+        enabled: true,
+        config: {},
+        configured: true,
+      });
     });
 
     it('a plain enable/disable toggle (no `config`) never overwrites a stored config', async () => {

@@ -5,7 +5,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * bare, information-less `method` string this defect used to hold. A first-class top-level screen
  * (sidebar "Data" group, next to Clients/Articles), never a settings-screen tab.
  *
- * Proven at TWO levels, both driven through the real screen (a real click on the switch, a real
+ * Proven at THREE levels, all driven through the real screen (a real click on the switch, a real
  * fill-in of the config dialog):
  *  1. The payment-methods screen ITSELF renders two configured methods differently — cash (zero
  *     fields) shows nothing beyond its own label; PayPal shows the configured e-mail as a preview
@@ -18,6 +18,9 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     (`cy.task("extractPdfText", ...)`, `pdf-parse` in the Node plugin process, same technique
  *     `20-document-totals.cy.ts` already established), never a byte-count delta: a PDF "growing" is
  *     no proof of WHAT grew, so this asserts the exact configured e-mail and link text instead.
+ *  3. Flipping a still-unconfigured method's switch never round-trips into a raw backend error: the
+ *     screen opens the config dialog instead, and saving it both fills in the missing field and
+ *     activates the method in one action — the last test in this file.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -105,6 +108,21 @@ describe("Payment methods — configured through the screen, rendered differentl
 			cy.get(`[data-cy="payment-method-card-${id}"]`).should("be.visible");
 			cy.get(`[data-cy="payment-method-status-${id}"]`).should("contain.text", "Disabled");
 		}
+	});
+
+	it("the API's own `configured` matches what each method actually needs, before anything is touched", () => {
+		cy.request({ url: `${api}/api/payment-methods` })
+			.its("body")
+			.then((methods: { id: string; configured: boolean }[]) => {
+				// A method with a required field nobody has filled in yet — not configured.
+				for (const id of ["bank_transfer", "paypal", "cheque"]) {
+					expect(methods.find((m) => m.id === id)?.configured, id).to.eq(false);
+				}
+				// A method with no fields at all — nothing can be missing, so always configured.
+				for (const id of ["cash", "stripe", "mollie"]) {
+					expect(methods.find((m) => m.id === id)?.configured, id).to.eq(true);
+				}
+			});
 	});
 
 	it('enabling "Cash" (zero fields) shows only its own label — the empty case, on screen', () => {
@@ -220,5 +238,39 @@ describe("Payment methods — configured through the screen, rendered differentl
 				});
 			});
 		});
+	});
+
+	it('toggling "Cheque" (still unconfigured at this point in the suite) opens its config dialog instead of a raw error — one save both fills it in and enables it', () => {
+		cy.visit("/payment-methods");
+
+		cy.get('[data-cy="payment-method-status-cheque"]').should("contain.text", "Disabled");
+		cy.get('[data-cy="payment-method-toggle-cheque"]').click();
+
+		// The dialog opens INSTEAD of the switch round-tripping into a 400 — no error toast, and the
+		// status badge stays exactly what it was (never a "Disabled" that flickered to an error state).
+		cy.get('[data-cy="payment-method-config-dialog"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="payment-method-status-cheque"]').should("contain.text", "Disabled");
+
+		cy.get('[data-cy="payment-method-config-dialog"]')
+			.find('[data-cy="document-field-payee-input"]')
+			.type("Acme SARL", { force: true });
+		cy.get('[data-cy="payment-method-config-save"]').click();
+		cy.get('[data-cy="payment-method-config-dialog"]').should("not.exist");
+
+		// Saving the dialog both filled in the field AND activated the method — one action, exactly
+		// what the owner asked for, never a second click on the switch.
+		cy.get('[data-cy="payment-method-status-cheque"]').should("contain.text", "Enabled");
+		cy.get('[data-cy="payment-method-preview-cheque"]').should("contain.text", "Payee: Acme SARL");
+
+		cy.request({ url: `${api}/api/payment-methods` })
+			.its("body")
+			.then(
+				(methods: { id: string; enabled: boolean; configured: boolean; config: Record<string, unknown> }[]) => {
+					const cheque = methods.find((m) => m.id === "cheque");
+					expect(cheque?.enabled, "cheque activé côté API").to.eq(true);
+					expect(cheque?.configured, "cheque déclaré configuré côté API").to.eq(true);
+					expect(cheque?.config).to.deep.equal({ payee: "Acme SARL" });
+				},
+			);
 	});
 });

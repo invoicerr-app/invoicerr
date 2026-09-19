@@ -26,7 +26,9 @@ export class PaymentMethodsController {
     description:
       'Always the full registered list (BUILT_IN_PAYMENT_METHODS), configured or not — never filtered ' +
       'down to only the enabled ones: the screen needs to offer every method, not just the ones already ' +
-      'on.',
+      "on. Each entry's own `configured` says whether its current `config` already satisfies every " +
+      'field the method requires — the settings screen uses it to decide whether flipping a method on ' +
+      'can go straight through, or needs its config dialog first.',
   })
   @ApiResponse({ status: 200, description: 'Payment methods retrieved' })
   list(@ActiveCompany() companyId: string) {

@@ -24,6 +24,12 @@ export interface PaymentMethodConfigView {
   fields: DocumentFieldDescriptor[];
   enabled: boolean;
   config: Record<string, unknown>;
+  /** Whether `config`, AS IT STANDS, would pass the exact same check `updateCompanyPaymentMethodConfig`
+   *  runs before allowing `enabled: true` — computed here so the settings screen can decide UP FRONT
+   *  whether flipping a method's switch will actually succeed, instead of firing the request and
+   *  showing whatever 400 comes back. A method with no fields at all (cash, Stripe, Mollie) is always
+   *  `true` — there is nothing to configure, so nothing can be missing. */
+  configured: boolean;
 }
 
 export interface UpdatePaymentMethodConfigInput {
@@ -59,6 +65,15 @@ async function loadBankTransferConfig(companyId: string): Promise<Record<string,
   return config;
 }
 
+/** The one place that decides "is this config good enough to enable" — shared by `loadOne` (the
+ *  read side, exposed to the screen as `configured`) and `updateCompanyPaymentMethodConfig` (the
+ *  write side, which must still 400 on an actual attempt to enable with something missing: a
+ *  `configured` the screen read a moment ago is not a lock against another tab, or the config,
+ *  changing in between). */
+function validationErrorsFor(method: PaymentMethodDescriptor, config: Record<string, unknown>) {
+  return validateAgainstDescriptor(method.fields, config, fieldKindRegistry);
+}
+
 async function loadOne(companyId: string, method: PaymentMethodDescriptor): Promise<PaymentMethodConfigView> {
   const row = await prisma.companyPaymentMethodConfig.findUnique({
     where: { companyId_methodId: { companyId, methodId: method.id } },
@@ -73,6 +88,7 @@ async function loadOne(companyId: string, method: PaymentMethodDescriptor): Prom
     fields: method.fields,
     enabled: row?.enabled ?? false,
     config,
+    configured: validationErrorsFor(method, config).length === 0,
   };
 }
 
@@ -116,7 +132,7 @@ export async function updateCompanyPaymentMethodConfig(
   const config = input.config ?? existing.config;
 
   if (enabled) {
-    const errors = validateAgainstDescriptor(method.fields, config, fieldKindRegistry);
+    const errors = validationErrorsFor(method, config);
     if (errors.length > 0) {
       throw new BadRequestException({ message: 'Invalid payment method configuration', errors });
     }
