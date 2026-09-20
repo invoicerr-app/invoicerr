@@ -79,21 +79,11 @@ export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
   constructor(private readonly queueDispatcher: DocumentQueueDispatcher) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    await this.queueDispatcher.registerScheduleSweepRepeatable();
-    // Post-deposit conformity tracking — same idempotent-
-    // registration guarantee, same reasoning: see `registerConformitySweepRepeatable`'s own header.
-    await this.queueDispatcher.registerConformitySweepRepeatable();
-    // Currency-rate sweep — same idempotent-registration guarantee, same reasoning: see
-    // `registerCurrencyRateSweepRepeatable`'s own header (document-queue.dispatcher.ts).
-    await this.queueDispatcher.registerCurrencyRateSweepRepeatable();
-    // Dunning-reminder sweep — same idempotent-registration guarantee, same reasoning: see
-    // `registerReminderSweepRepeatable`'s own header (document-queue.dispatcher.ts).
-    await this.queueDispatcher.registerReminderSweepRepeatable();
-    // PDP reception sweep — same idempotent-registration guarantee, same reasoning: see
-    // `registerPdpReceptionSweepRepeatable`'s own header (document-queue.dispatcher.ts).
-    await this.queueDispatcher.registerPdpReceptionSweepRepeatable();
-    // Log purge sweep — same idempotent-registration guarantee, same reasoning: see
-    // `registerLogPurgeSweepRepeatable`'s own header (document-queue.dispatcher.ts).
-    await this.queueDispatcher.registerLogPurgeSweepRepeatable();
+    // ONE call, deliberately, rather than the six individual `register*Repeatable` ones this used to
+    // make: registering a sweep and retiring the definitions the configuration no longer names are
+    // halves of the same decision, and splitting them here is what would let a sweep be dropped from
+    // this method while its old schedule kept firing out of Redis. See
+    // `registerSweepRepeatables`'s own header (document-queue.dispatcher.ts).
+    await this.queueDispatcher.registerSweepRepeatables();
   }
 }

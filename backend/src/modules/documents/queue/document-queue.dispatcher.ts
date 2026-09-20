@@ -15,6 +15,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
+import { ConfiguredRepeatable, retireSupersededRepeatables } from '@/lib/queue-repeatables';
+
 import {
   CONFORMITY_POLL_JOB_NAME,
   CONFORMITY_SWEEP_JOB_ID,
@@ -113,16 +115,25 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
    * loud (a real bug — a broken query, a bad env value), not silently retried moments later by BullMQ
    * — the NEXT scheduled sweep tick, `readSweepIntervalMs()` away, is already the natural retry for
    * "the sweep didn't run this time".
+   *
+   * Returns what it registered — every `register*Repeatable` on this class does, so
+   * `registerSweepRepeatables` below can hand the COMPLETE set to `retireSupersededRepeatables`
+   * without a second, hand-maintained list that could drift out of step with these methods.
    */
-  async registerScheduleSweepRepeatable(): Promise<void> {
-    await this.queue.add(SCHEDULE_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
-      jobId: SCHEDULE_SWEEP_JOB_ID,
+  async registerScheduleSweepRepeatable(): Promise<ConfiguredRepeatable> {
+    const configured: ConfiguredRepeatable = {
+      name: SCHEDULE_SWEEP_JOB_NAME,
       repeat: { every: readSweepIntervalMs() },
+    };
+    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
+      jobId: SCHEDULE_SWEEP_JOB_ID,
+      repeat: configured.repeat,
       attempts: 1,
       removeOnComplete: true,
       removeOnFail: true,
     });
     this.logger.log(`Registered the document-schedule sweep repeatable (every ${readSweepIntervalMs()}ms).`);
+    return configured;
   }
 
   /**
@@ -177,10 +188,14 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
    * real bug, loud now rather than silently retried — the next tick, `readConformitySweepIntervalMs()`
    * away, is already the natural retry for "the sweep didn't run this time").
    */
-  async registerConformitySweepRepeatable(): Promise<void> {
-    await this.queue.add(CONFORMITY_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
-      jobId: CONFORMITY_SWEEP_JOB_ID,
+  async registerConformitySweepRepeatable(): Promise<ConfiguredRepeatable> {
+    const configured: ConfiguredRepeatable = {
+      name: CONFORMITY_SWEEP_JOB_NAME,
       repeat: { every: readConformitySweepIntervalMs() },
+    };
+    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
+      jobId: CONFORMITY_SWEEP_JOB_ID,
+      repeat: configured.repeat,
       attempts: 1,
       removeOnComplete: true,
       removeOnFail: true,
@@ -188,6 +203,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     this.logger.log(
       `Registered the document-conformity sweep repeatable (every ${readConformitySweepIntervalMs()}ms).`,
     );
+    return configured;
   }
 
   /**
@@ -200,10 +216,14 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
    * job carries no payload of its own (`{}`), exactly like the other two repeatables on this queue —
    * `CurrencyRateSweepRunner.runSweep` takes no arguments, it always fetches the CURRENT ECB feed.
    */
-  async registerCurrencyRateSweepRepeatable(): Promise<void> {
-    await this.queue.add(CURRENCY_RATE_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
-      jobId: CURRENCY_RATE_SWEEP_JOB_ID,
+  async registerCurrencyRateSweepRepeatable(): Promise<ConfiguredRepeatable> {
+    const configured: ConfiguredRepeatable = {
+      name: CURRENCY_RATE_SWEEP_JOB_NAME,
       repeat: { every: readCurrencyRateSweepIntervalMs() },
+    };
+    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
+      jobId: CURRENCY_RATE_SWEEP_JOB_ID,
+      repeat: configured.repeat,
       attempts: 1,
       removeOnComplete: true,
       removeOnFail: true,
@@ -211,6 +231,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     this.logger.log(
       `Registered the currency-rate sweep repeatable (every ${readCurrencyRateSweepIntervalMs()}ms).`,
     );
+    return configured;
   }
 
   /**
@@ -223,10 +244,14 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
    * didn't run this time". No payload either (`{}`) — `ReminderSweepRunner.runSweep` takes no
    * arguments beyond an optional clock, it always reads the CURRENT set of opted-in companies.
    */
-  async registerReminderSweepRepeatable(): Promise<void> {
-    await this.queue.add(REMINDER_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
-      jobId: REMINDER_SWEEP_JOB_ID,
+  async registerReminderSweepRepeatable(): Promise<ConfiguredRepeatable> {
+    const configured: ConfiguredRepeatable = {
+      name: REMINDER_SWEEP_JOB_NAME,
       repeat: { every: readReminderSweepIntervalMs() },
+    };
+    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
+      jobId: REMINDER_SWEEP_JOB_ID,
+      repeat: configured.repeat,
       attempts: 1,
       removeOnComplete: true,
       removeOnFail: true,
@@ -234,6 +259,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     this.logger.log(
       `Registered the dunning-reminder sweep repeatable (every ${readReminderSweepIntervalMs()}ms).`,
     );
+    return configured;
   }
 
   /**
@@ -244,10 +270,14 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
    * is already the natural retry for "the sweep didn't run this time"). See `reception-sweep.ts`'s own
    * header for why this is ONE repeatable, not one per company.
    */
-  async registerPdpReceptionSweepRepeatable(): Promise<void> {
-    await this.queue.add(RECEPTION_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
-      jobId: RECEPTION_SWEEP_JOB_ID,
+  async registerPdpReceptionSweepRepeatable(): Promise<ConfiguredRepeatable> {
+    const configured: ConfiguredRepeatable = {
+      name: RECEPTION_SWEEP_JOB_NAME,
       repeat: { every: readReceptionSweepIntervalMs() },
+    };
+    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
+      jobId: RECEPTION_SWEEP_JOB_ID,
+      repeat: configured.repeat,
       attempts: 1,
       removeOnComplete: true,
       removeOnFail: true,
@@ -255,6 +285,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     this.logger.log(
       `Registered the PDP-reception sweep repeatable (every ${readReceptionSweepIntervalMs()}ms).`,
     );
+    return configured;
   }
 
   /**
@@ -268,15 +299,47 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
    * nowhere more specific to live; see `document-queue-worker.module.ts`'s own header on that
    * precedent.
    */
-  async registerLogPurgeSweepRepeatable(): Promise<void> {
-    await this.queue.add(LOG_PURGE_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
-      jobId: LOG_PURGE_SWEEP_JOB_ID,
+  async registerLogPurgeSweepRepeatable(): Promise<ConfiguredRepeatable> {
+    const configured: ConfiguredRepeatable = {
+      name: LOG_PURGE_SWEEP_JOB_NAME,
       repeat: { every: readLogPurgeSweepIntervalMs() },
+    };
+    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
+      jobId: LOG_PURGE_SWEEP_JOB_ID,
+      repeat: configured.repeat,
       attempts: 1,
       removeOnComplete: true,
       removeOnFail: true,
     });
     this.logger.log(`Registered the Log purge sweep repeatable (every ${readLogPurgeSweepIntervalMs()}ms).`);
+    return configured;
+  }
+
+  /**
+   * Boot-time entry point for EVERY repeatable this queue carries — registers all six, then retires
+   * any definition Redis still holds that the six above do not name.
+   *
+   * That second half is not bookkeeping: a repeatable's key folds in its own schedule, so changing
+   * one of the `*_SWEEP_INTERVAL_MS` env vars registers a SECOND definition beside the first rather
+   * than replacing it, and the superseded one goes on firing at its old cadence out of Redis — which
+   * outlives every pod — with nothing in the configuration left to explain it. Removing a sweep from
+   * this method entirely has to retire it too, which is why the wanted set is built from what these
+   * methods actually registered rather than from a list kept beside them. See
+   * `lib/queue-repeatables.ts`'s own header for why this is safe when several replicas boot at once.
+   *
+   * The registrations run BEFORE the retirement, in that order, so no sweep this method still names
+   * is ever momentarily absent from the queue.
+   */
+  async registerSweepRepeatables(): Promise<void> {
+    const configured = [
+      await this.registerScheduleSweepRepeatable(),
+      await this.registerConformitySweepRepeatable(),
+      await this.registerCurrencyRateSweepRepeatable(),
+      await this.registerReminderSweepRepeatable(),
+      await this.registerPdpReceptionSweepRepeatable(),
+      await this.registerLogPurgeSweepRepeatable(),
+    ];
+    await retireSupersededRepeatables(this.queue, configured);
   }
 
   /**

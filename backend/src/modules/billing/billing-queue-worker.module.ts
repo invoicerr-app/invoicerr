@@ -2,6 +2,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Module, OnApplicationBootstrap } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
+import { ConfiguredRepeatable, retireSupersededRepeatables } from '@/lib/queue-repeatables';
+
 import { BillingCoreModule } from './billing-core.module';
 import { BillingLifecycleProcessor } from './queue/billing-lifecycle.processor';
 import {
@@ -33,6 +35,12 @@ import {
  * same reasoning every sibling sweep in this codebase documents: a pass that itself throws is a real
  * bug worth surfacing loudly now, never silently retried moments later — the next tick,
  * `readBillingLifecycleSweepIntervalMs()` away, is already the natural retry.
+ *
+ * It then retires whatever else this queue still holds: a repeatable's key folds in the interval
+ * itself, so changing `BILLING_LIFECYCLE_SWEEP_INTERVAL_MS` adds a definition rather than replacing
+ * one, and the superseded schedule survives in Redis — which outlives every pod — until something
+ * removes it. See `lib/queue-repeatables.ts`'s own header, including why this is safe when several
+ * replicas boot at once.
  */
 @Module({
   imports: [BillingCoreModule],
@@ -42,16 +50,21 @@ export class BillingQueueWorkerModule implements OnApplicationBootstrap {
   constructor(@InjectQueue(Q_BILLING_LIFECYCLE) private readonly queue: Queue) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    const configured: ConfiguredRepeatable = {
+      name: BILLING_LIFECYCLE_SWEEP_JOB_NAME,
+      repeat: { every: readBillingLifecycleSweepIntervalMs() },
+    };
     await this.queue.add(
-      BILLING_LIFECYCLE_SWEEP_JOB_NAME,
+      configured.name,
       {},
       {
         jobId: BILLING_LIFECYCLE_SWEEP_JOB_ID,
-        repeat: { every: readBillingLifecycleSweepIntervalMs() },
+        repeat: configured.repeat,
         attempts: 1,
         removeOnComplete: true,
         removeOnFail: true,
       },
     );
+    await retireSupersededRepeatables(this.queue, [configured]);
   }
 }

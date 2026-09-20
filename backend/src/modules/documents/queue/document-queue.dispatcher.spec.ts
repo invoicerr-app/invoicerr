@@ -216,3 +216,80 @@ describe('DocumentQueueDispatcher.registerLogPurgeSweepRepeatable', () => {
     );
   });
 });
+
+/**
+ * A fake queue that keeps the repeatable definitions it is handed, keyed the way BullMQ keys them —
+ * by the schedule itself — so re-registering a sweep under a CHANGED interval adds a definition
+ * rather than replacing one. That is the behaviour that let a superseded sweep keep firing out of
+ * Redis across a whole deploy, and the reason registration alone was never enough.
+ */
+function fakeQueueWithSchedulers() {
+  const schedulers = new Map<string, Record<string, unknown>>();
+  return {
+    name: 'document-action',
+    getJob: vi.fn(),
+    add: vi.fn(
+      async (jobName: string, _data: unknown, opts: { jobId?: string; repeat?: Record<string, unknown> }) => {
+        if (!opts?.repeat) return;
+        const { every } = opts.repeat as { every?: number };
+        const key = `${jobName}:${opts.jobId ?? ''}:::${every}`;
+        schedulers.set(key, { key, name: jobName, every });
+      },
+    ),
+    getJobSchedulers: vi.fn(async () => [...schedulers.values()]),
+    removeJobScheduler: vi.fn(async (key: string) => schedulers.delete(key)),
+    names: () => [...schedulers.values()].map((entry) => entry.name).sort(),
+    entries: () => [...schedulers.values()],
+  };
+}
+
+describe('DocumentQueueDispatcher.registerSweepRepeatables', () => {
+  const ALL_SWEEPS = [
+    'currency-rate-sweep',
+    'document-conformity-sweep',
+    'document-pdp-reception-sweep',
+    'document-reminder-sweep',
+    'document-schedule-sweep',
+    'log-purge-sweep',
+  ];
+
+  afterEach(() => {
+    delete process.env.DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS;
+    vi.resetAllMocks();
+  });
+
+  it('registers every sweep this queue carries, and retires nothing on a first boot', async () => {
+    const queue = fakeQueueWithSchedulers();
+
+    await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
+
+    expect(queue.names()).toEqual(ALL_SWEEPS);
+    expect(queue.removeJobScheduler).not.toHaveBeenCalled();
+  });
+
+  it('leaves ONLY the currently configured interval registered after one sweep interval changed', async () => {
+    const queue = fakeQueueWithSchedulers();
+    process.env.DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS = '1000';
+    await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
+
+    process.env.DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS = '60000';
+    await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
+
+    expect(queue.names()).toEqual(ALL_SWEEPS);
+    const schedule = queue.entries().filter((entry) => entry.name === 'document-schedule-sweep');
+    expect(schedule).toHaveLength(1);
+    expect(schedule[0].every).toBe(60000);
+  });
+
+  it('retires a definition on this queue that no sweep names any more', async () => {
+    const queue = fakeQueueWithSchedulers();
+    // A sweep that used to be registered here and has since been removed from the code entirely —
+    // its definition would otherwise go on firing forever out of Redis.
+    await queue.add('retired-sweep', {}, { jobId: 'retired-sweep-singleton', repeat: { every: 5000 } });
+
+    await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
+
+    expect(queue.names()).toEqual(ALL_SWEEPS);
+    expect(queue.removeJobScheduler).toHaveBeenCalledTimes(1);
+  });
+});
