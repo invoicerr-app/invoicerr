@@ -16,6 +16,7 @@ import SearchSelect from "@/components/search-input"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useReferenceFields } from "@/hooks/queries"
+import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
 
 import type { FieldRendererProps } from "./registry"
 
@@ -173,6 +174,12 @@ export function MoneyField({ field, name }: FieldRendererProps) {
   )
 }
 
+/** A `kind: 'date'` field stores a CALENDAR DAY, not an instant — `lib/calendar-date.ts` carries the
+ *  whole rule and why it is load-bearing here of all places: this is the renderer behind every
+ *  document date the backend reads as law (an invoice's `issueDate` and `dueDate`, a credit note's
+ *  `issueDate`, a purchase order's `expectedDeliveryDate`, an expense's `date`), and it used to hand
+ *  `toISOString()` a `Date` the calendar had built at LOCAL midnight — which is the previous UTC day
+ *  everywhere east of Greenwich, i.e. in all five countries this product targets. */
 export function DateField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
   return (
@@ -183,8 +190,8 @@ export function DateField({ field, name }: FieldRendererProps) {
         <FieldChrome field={field}>
           <DatePicker
             className="w-full"
-            value={rhfField.value ? new Date(rhfField.value) : null}
-            onChange={(date) => rhfField.onChange(date ? date.toISOString() : undefined)}
+            value={fromCalendarDate(rhfField.value)}
+            onChange={(date) => rhfField.onChange(toCalendarDate(date))}
             data-cy={`document-field-${field.key}-input`}
           />
         </FieldChrome>

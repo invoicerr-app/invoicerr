@@ -23,6 +23,7 @@ import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
 import { getDefaultLanguageForCountry } from "@/lib/country-default-language"
 import { DatePicker } from "@/components/date-picker"
+import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, TriangleAlert } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
@@ -1121,7 +1122,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         name: client.name || "",
         description: client.description || "",
         currency: client.currency || null,
-        foundedAt: client.foundedAt ? new Date(client.foundedAt) : undefined,
+        // The founding day as STORED, read off its own leading day rather than reconstructed from
+        // the instant in this browser's timezone -- see `lib/calendar-date.ts`.
+        foundedAt: fromCalendarDate(client.foundedAt) ?? undefined,
         contactFirstname: client.contactFirstname || "",
         contactLastname: client.contactLastname || "",
         contactPhone: client.contactPhone || "",
@@ -1307,6 +1310,12 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     // Filter out empty identifiers so we don't send {scheme, value: ""}
     const payload = {
       ...dataWithoutPeppol,
+      // A founding date is a CALENDAR DAY (`lib/calendar-date.ts`). Left as a `Date`, `JSON.stringify`
+      // would serialize it through `toISOString()` and store the PREVIOUS day for every timezone east
+      // of Greenwich -- the same shift that moved a document's legal date. Sent as the UTC instant
+      // naming the picked day rather than a bare day because this lands straight in a Prisma
+      // `DateTime` column, which refuses a bare calendar date.
+      foundedAt: toCalendarDateInstant(data.foundedAt),
       identifiers: [
         ...(data.identifiers || []).filter((i) => i.value.trim() !== ""),
         ...(peppolEntry ? [peppolEntry] : []),

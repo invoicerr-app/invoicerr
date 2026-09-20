@@ -1,4 +1,5 @@
 import type { FieldValues, UseFormReturn } from "react-hook-form"
+import { fromCalendarDate } from "@/lib/calendar-date"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { toast } from "sonner"
 import { useApiQuery } from "@/hooks/use-api-query"
@@ -158,7 +159,12 @@ export function useCompanyLookup<T extends FieldValues>(
       setIfExists("state", company.state)
       // `country` / `countryCode` are left alone on purpose: the user picked them, and
       // registries return the country name in their own language.
-      if (company.foundedAt) setIfExists("foundedAt", new Date(company.foundedAt))
+      // A registration date from a national registry is a CALENDAR DAY, read off its own leading day
+      // rather than through this browser's timezone (`lib/calendar-date.ts`) — several providers
+      // return a bare "YYYY-MM-DD" (gleif.provider.ts slices one itself), which `new Date(...)`
+      // parses as UTC midnight and would prefill as the day BEFORE west of Greenwich.
+      const foundedAt = fromCalendarDate(company.foundedAt)
+      if (foundedAt) setIfExists("foundedAt", foundedAt)
 
       if (company.legalId) setIdentifier(form as never, "LEGAL_ID", company.legalId)
       if (company.VAT) setIdentifier(form as never, "VAT", company.VAT)

@@ -101,3 +101,36 @@ describe("<DatePicker> — year dropdown range reaches next year, not just the c
     expect(picked.getDate()).toBe(15)
   })
 })
+
+describe('<DatePicker> — "Today" hands back the same shape as clicking a day in the grid', () => {
+  // 00:30 local on 1 June 2026 in Paris, which is still 31 May in UTC — the window in which this
+  // button used to hand back an instant whose UTC day was YESTERDAY's, so a caller serializing it
+  // recorded the previous day. The boundary matters twice over: the two days are also in different
+  // months, so the value crosses every month-, quarter- and year-keyed rule at once.
+  const JUST_PAST_LOCAL_MIDNIGHT = new Date(2026, 5, 1, 0, 30)
+
+  beforeEach(() => {
+    process.env.TZ = "Europe/Paris"
+    vi.useFakeTimers()
+    vi.setSystemTime(JUST_PAST_LOCAL_MIDNIGHT)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("hands back local midnight of today, not the current instant", () => {
+    const onChange = vi.fn()
+    render(<DatePicker value={null} onChange={onChange} data-cy="issue-date" />)
+
+    fireEvent.click(screen.getByTestId("issue-date"))
+    fireEvent.click(screen.getByTestId("date-picker-today"))
+
+    expect(onChange).toHaveBeenCalledTimes(1)
+    const picked: Date = onChange.mock.calls[0][0]
+    expect([picked.getFullYear(), picked.getMonth(), picked.getDate()]).toEqual([2026, 5, 1])
+    // A time of day is what makes a value an instant rather than a calendar day; every day in the
+    // grid arrives at local midnight, and this must be indistinguishable from one of them.
+    expect([picked.getHours(), picked.getMinutes(), picked.getSeconds()]).toEqual([0, 0, 0])
+  })
+})

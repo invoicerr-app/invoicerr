@@ -178,7 +178,13 @@ describe("Document totals", () => {
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 		const nextYear = new Date().getFullYear() + 1;
-		const dueDate = `${nextYear}-03-15`;
+		// A month BOUNDARY, deliberately, not a comfortable 15th. A due date picked mid-month still
+		// round-trips wrong if the form serializes the picked `Date` as an instant instead of a
+		// calendar day — but the day it lands on belongs to the same month, quarter and fiscal year,
+		// so neither this suite nor the backend's own period-keyed rules can tell it apart. The last
+		// day of a month is the one `pickDate` can reach unambiguously: a "1" also appears in the
+		// grid as the NEXT month's leading outside day, whereas a "31" in a 31-day month is unique.
+		const dueDate = `${nextYear}-03-31`;
 		cy.pickDate('[data-cy="document-field-dueDate-input"]', dueDate);
 		// The trigger's own displayed label proves the calendar actually landed on next year, before
 		// the document is even saved — not just that a request eventually carries the right value.
@@ -227,14 +233,16 @@ describe("Document totals", () => {
 				.then((docs: { id: string; data: Record<string, unknown> }[]) => {
 					const created = docs.find((doc) => doc.id === id);
 					expect(created, "the saved invoice is in the list").to.exist;
-					// `DateField`'s own onChange serializes the PICKED DAY via `Date#toISOString()`, which
-					// shifts to UTC — in a positive-offset timezone (this run's own), local midnight on
-					// the 15th prints as the 14th late in the evening. Comparing against the SAME
-					// `new Date(y, m, d).toISOString()` conversion (not a "03-15" string prefix) is
-					// correct regardless of which timezone this happens to run in.
-					expect(created?.data.dueDate, "dueDate carries the day picked on screen").to.eq(
-						new Date(nextYear, 2, 15).toISOString(),
-					);
+					// Compared against the LITERAL day this test asked for, never against a conversion
+					// of it. A `kind: 'date'` field stores a CALENDAR DAY (frontend's
+					// lib/calendar-date.ts), which is what the backend's own rules read: the mandate
+					// check (channel-policy/mandate.ts) takes this string's leading day, retention
+					// counts from it, and toDateOnly cuts BT-2 out of it. Re-deriving the expected
+					// value here with the same conversion the form performs would let this assertion
+					// agree with the form however wrong both were — which is exactly what it used to
+					// do, through a `new Date(y, m, d).toISOString()` that restated a one-day shift as
+					// the contract.
+					expect(created?.data.dueDate, "dueDate carries the day picked on screen").to.eq(dueDate);
 				});
 		});
 	});

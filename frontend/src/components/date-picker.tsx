@@ -9,6 +9,7 @@ import { useFormContext } from "react-hook-form"
 import type React from "react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { fromCalendarDate, todayCalendarDate } from "@/lib/calendar-date"
 import { languageToLocale } from "@/lib/i18n"
 import { useTranslation } from "react-i18next"
 
@@ -118,7 +119,14 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
             className="w-full"
             data-cy="date-picker-today"
             onClick={() => {
-              field.onChange(new Date())
+              // Today's CALENDAR DAY, rebuilt at local midnight -- never a bare `new Date()`. Every
+              // day in the grid above arrives as a `Date` at local midnight (react-day-picker's own
+              // shape), which is this picker's whole contract; `new Date()` instead carries the
+              // current time of day, so between UTC midnight and local midnight its UTC day is
+              // YESTERDAY's -- the day a caller serializing through `toISOString()` would then
+              // record. Going out through `lib/calendar-date.ts` and straight back in makes "Today"
+              // indistinguishable from clicking today in the grid, which is what callers assume.
+              field.onChange(fromCalendarDate(todayCalendarDate()))
               setOpen(false)
             }}
           >

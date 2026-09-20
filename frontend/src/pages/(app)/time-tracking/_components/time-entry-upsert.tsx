@@ -21,6 +21,7 @@ import { type SteppedDialogStep, SteppedDialog } from "@/components/ui/stepped-d
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useCompany, useCreateTimeEntry, useUpdateTimeEntry } from "@/hooks/queries"
+import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "@/lib/calendar-date"
 import { currencies } from "@/lib/constants/currencies"
 import type { TimeEntry } from "@/types"
 
@@ -92,10 +93,15 @@ function DurationStep({ control }: { control: Control<TimeEntryForm> }) {
           <FormItem>
             <FormLabel required>{t("timeTracking.entries.fields.date.label")}</FormLabel>
             <FormControl>
+              {/* The day worked is a CALENDAR DAY (`lib/calendar-date.ts`) — this field carried its
+                  own copy of the `toISOString()` conversion that shifted a document's legal date by
+                  one day east of Greenwich, and shifted an entry onto the previous day here for the
+                  same reason. `time-entries.service.ts` re-parses whatever arrives with `new Date()`
+                  before storing it, so a bare calendar day lands on that day's UTC midnight. */}
               <DatePicker
                 className="w-full"
-                value={field.value ? new Date(field.value) : null}
-                onChange={(date) => field.onChange(date ? date.toISOString() : "")}
+                value={fromCalendarDate(field.value)}
+                onChange={(date) => field.onChange(toCalendarDate(date) ?? "")}
                 data-cy="time-entry-date-input"
               />
             </FormControl>
@@ -217,7 +223,7 @@ export function TimeEntryUpsert({ projectId, projectName, entry, open, onOpenCha
   const form = useForm<TimeEntryForm>({
     resolver: zodResolver(timeEntrySchema),
     defaultValues: {
-      date: new Date().toISOString(),
+      date: todayCalendarDate(),
       hours: 1,
       description: "",
       billable: true,
@@ -236,7 +242,7 @@ export function TimeEntryUpsert({ projectId, projectName, entry, open, onOpenCha
       })
     } else {
       form.reset({
-        date: new Date().toISOString(),
+        date: todayCalendarDate(),
         hours: 1,
         description: "",
         billable: true,

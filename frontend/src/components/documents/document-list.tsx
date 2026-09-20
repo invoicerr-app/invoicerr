@@ -53,6 +53,7 @@ import type {
 import { isActionAvailable, statusLabel } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { DatePicker } from "@/components/date-picker"
+import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
 import { useReferenceResolve, useReferenceSearch, useResolvedCompanyCustomFields } from "@/hooks/queries"
 import BetterPagination from "@/components/pagination"
 import SearchSelect from "@/components/search-input"
@@ -667,18 +668,12 @@ function StatusChip({ label, count, active, onClick, dataCy }: StatusChipProps) 
 }
 
 /** `Date` (the `DatePicker`'s own value shape) <-> `"YYYY-MM-DD"` (the backend's `dateFrom`/`dateTo`
- *  contract, `dto/list-documents.dto.ts`) — a CALENDAR DAY, never an instant, so this reads/writes
- *  the browser's own local year/month/day rather than going through `toISOString()` (UTC), which
- *  would silently shift the picked day for anyone west of UTC. */
-function dateToParam(date: Date | null): string | undefined {
-  if (!date) return undefined
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-}
-function paramToDate(value: string | undefined): Date | null {
-  if (!value) return null
-  const [year, month, day] = value.split("-").map(Number)
-  return new Date(year, month - 1, day)
-}
+ *  contract, `dto/list-documents.dto.ts`) — a CALENDAR DAY, never an instant. This pair held that
+ *  rule on its own, in this file, while the document FORM's own date field did not and shifted every
+ *  legal date by a day east of Greenwich; the rule now lives once in `lib/calendar-date.ts` and these
+ *  two names stay only as the local vocabulary of a URL query param. */
+const dateToParam = toCalendarDate
+const paramToDate = fromCalendarDate
 
 interface DocumentClientFilterProps {
   clientId?: string
