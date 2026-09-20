@@ -8,14 +8,16 @@
  * as a call argument (`typeId`), never something registration time can know. So the check is split
  * in two:
  *
- *  1. REGISTRATION time (tools/list visibility, `ToolDescriptor.isRegistered`) — coarse: is there
- *     ANY document-domain scope granted at all? A key holding only `clients:read` never even sees
- *     `run_document_action` in its tool list — but a key holding only `quotes:read` DOES see it (it
- *     is a generic tool, registered once for every type), even though calling it with
- *     `typeId: "invoice"` is still refused at step 2 below. This mirrors the removed compliance
- *     engine's own "fails fast at planning time" intent as closely as a multi-type tool can: a key
- *     with NO document
- *     access at all never learns these tools exist.
+ *  1. REGISTRATION time (tools/list visibility, `ToolDescriptor.isRegistered`) — coarse, and coarse
+ *     in the direction the tool needs: the read tools ask for any document-domain scope at all,
+ *     while `run_document_action` asks specifically for a WRITE one, since no read-only key has a
+ *     use for it whatever type it names. So a key holding only `clients:read` sees none of these
+ *     tools, a key holding only `quotes:read` sees the read ones but not `run_document_action`, and
+ *     a key holding `quotes:write` sees all of them — including for types it cannot touch, because
+ *     WHICH type a call names only arrives as an argument, so registration cannot filter on it.
+ *     Calling one with a `typeId` the key has no scope for is still refused at step 2 below. This
+ *     mirrors the removed compliance engine's own "fails fast at planning time" intent as closely as
+ *     a multi-type tool can: a key with no document access at all never learns these tools exist.
  *  2. CALL time, inside each tool's own handler — precise: does the key hold the scope for THIS
  *     SPECIFIC `typeId`? `scopeForDocumentType` computes it by pluralising the id, exactly the way
  *     every shipped descriptor's own id already reads ("quote" -> "quotes:read", "credit-note" ->
