@@ -20,17 +20,23 @@ referência. Não se aplica ao software autoalojado, que nunca nos envia quaisqu
 
 A infraestrutura que trata os dados próprios do Serviço — os dados de conta da sua Empresa e os Seus
 Dados (os documentos, registos comerciais e configurações que cria através do Serviço) — está localizada
-exclusivamente em **França**:
+exclusivamente em **França**, distribuída por dois ambientes:
 
-| Componente | Fornecedor | Jurisdição |
-| --- | --- | --- |
-| Infraestrutura aplicacional/Kubernetes, base de dados PostgreSQL gerida e armazenamento de objetos dos documentos | Scaleway SAS | França (região de Paris) |
+| Ambiente | Componente | Fornecedor | Jurisdição |
+| --- | --- | --- | --- |
+| Produção | Infraestrutura aplicacional/Kubernetes, base de dados PostgreSQL gerida e armazenamento de objetos dos documentos | Scaleway SAS | França (região de Paris) |
+| Aceitação | Infraestrutura aplicacional, base de dados e armazenamento de documentos — utilizados para validar uma versão antes de esta chegar à produção e, durante o programa beta, pelos participantes desse programa | O próprio Prestador — sem fornecedor terceiro | França |
 
-Cada um dos componentes acima está junto de um único fornecedor, numa única região, acedido através da
-rede privada própria da Scaleway e não através da internet pública — a base de dados deixou de ser um
-elo separado junto de outro fornecedor ou noutro país. Nem a infraestrutura própria do Serviço nem os
-Seus Dados são alojados, replicados (mirror) ou objeto de cópia de segurança fora de França/da UE.
-Sempre que um subcontratante identificado na
+A linha "Produção" está junto de um único fornecedor, numa única região, acedido através da rede
+privada própria da Scaleway e não através da internet pública — a base de dados deixou de ser um elo
+separado junto de outro fornecedor ou noutro país. A linha "Aceitação" não tem, em sentido próprio,
+nenhum fornecedor: funciona numa infraestrutura que o Prestador opera diretamente, em França, pelo que
+não existe nessa cadeia nenhum terceiro a quem uma autoridade estrangeira possa notificar um pedido —
+uma posição mais forte nos termos do presente artigo do que a da linha "Produção", e não mais fraca. O
+próprio Prestador continua, naturalmente, sujeito ao direito francês e da União Europeia, tal como
+qualquer operador do Serviço. Nem um nem outro ambiente, nem os Seus Dados em qualquer deles, são
+alojados, replicados (mirror) ou objeto de cópia de segurança fora de França/da UE. Sempre que um
+subcontratante identificado na
 [Política de Privacidade](./privacy-policy.md), Secção 4, e no
 [Acordo de Tratamento de Dados](./data-processing-agreement.md), Secção 7 (Polar para a faturação da
 subscrição, Resend para o correio eletrónico transacional, Cloudflare e Google LLC para a correspondência
@@ -51,9 +57,11 @@ uma questão de exaustividade, e não por se enquadrarem no âmbito visado pelo 
 ## 2. Medidas Contra o Acesso Internacional Ilícito
 
 - **Residência dos dados desde a conceção.** A base de dados e o armazenamento de documentos próprios do
-  Serviço estão alojados apenas em França, junto de um único fornecedor (Secção 1, acima) — uma
+  Serviço estão alojados apenas em França, nos dois ambientes descritos na Secção 1, acima — uma
   escolha, e não uma predefinição, que por si só mantém os dados fora do alcance de qualquer pedido de
-  acesso que não passe por uma via jurídica da UE ou francesa.
+  acesso que não passe por uma via jurídica da UE ou francesa. O ambiente de aceitação vai ainda mais
+  longe: como o Prestador o aloja diretamente, não existe nessa cadeia qualquer fornecedor terceiro que
+  uma autoridade estrangeira pudesse coagir.
 - **Encriptação em trânsito.** Todo o tráfego de e para o Serviço é encriptado de ponta a ponta através
   de TLS, com terminação ao nível do ingress mediante um certificado emitido e renovado automaticamente
   (cert-manager / Let's Encrypt) — ver `deploy/helm/invoicerr/templates/ingress.yaml`.

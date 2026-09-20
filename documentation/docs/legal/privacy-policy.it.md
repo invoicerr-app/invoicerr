@@ -74,12 +74,23 @@ trattamento, ciascuno vincolato dai propri termini di trattamento dei dati:
 - **Google LLC (Gmail)** — la casella di posta in cui viene ricevuta la corrispondenza di supporto
   inviata a **contact@invoicerr.app** (solo corrispondenza di supporto; Google non vede mai i dati
   contenuti nei documenti che Lei crea tramite il Servizio).
-- **Scaleway SAS** — hosting dell'infrastruttura per il Servizio: il cluster Kubernetes su cui viene
-  eseguito, il database PostgreSQL gestito che conserva i dati dell'Azienda e dell'account descritti
-  nella Sezione 3, nonché i documenti che Lei crea tramite il Servizio, e l'object storage che conserva
-  i documenti archiviati. **Il Servizio e i Dati del Cliente, compreso il database, sono ospitati
-  nell'Unione Europea**, nella regione di Parigi (Francia) di Scaleway, con il database raggiunto
-  tramite la rete privata propria di Scaleway anziché tramite l'internet pubblico.
+- **Scaleway SAS** — hosting dell'infrastruttura per l'**ambiente di produzione** del Servizio: il
+  cluster Kubernetes su cui viene eseguito, il database PostgreSQL gestito che conserva i dati
+  dell'Azienda e dell'account descritti nella Sezione 3, nonché i documenti che Lei crea tramite il
+  Servizio, e l'object storage che conserva i documenti archiviati. **Il Servizio e i Dati del Cliente,
+  compreso il database, sono ospitati nell'Unione Europea**, nella regione di Parigi (Francia) di
+  Scaleway, con il database raggiunto tramite la rete privata propria di Scaleway anziché tramite
+  l'internet pubblico.
+
+**L'ambiente di collaudo utilizzato per il programma beta.** Prima che una versione raggiunga
+l'infrastruttura di produzione sopra descritta, la validiamo su un ambiente di collaudo distinto, che il
+Fornitore gestisce direttamente, sulla propria infrastruttura, in Francia — nessun terzo lo ospita, per
+questo non è elencato sopra come sub-responsabile del trattamento. Durante il programma beta, i
+partecipanti al programma utilizzano il Servizio su questo ambiente di collaudo anziché
+sull'infrastruttura di produzione di Scaleway, e i loro Dati del Cliente — comprese fatture reali,
+clienti reali e altri documenti commerciali reali — vi sono conservati. Quando l'ambiente di collaudo
+utilizzato per il programma beta viene dismesso, tali dati vengono trasferiti sull'infrastruttura di
+produzione sopra descritta.
 
 **L'OCR (riconoscimento ottico dei caratteri) viene eseguito su un'infrastruttura da noi gestita;
 nessun documento viene inviato a un fornitore OCR terzo.**

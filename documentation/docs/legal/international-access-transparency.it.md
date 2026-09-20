@@ -21,17 +21,23 @@ riferimento. Non si applica al software self-hosted, che non ci invia mai alcun 
 
 L'infrastruttura che tratta i dati propri del Servizio — i dati di account della Sua Azienda e i Suoi
 Dati (i documenti, i dati commerciali e le configurazioni che crea tramite il Servizio) — si trova
-esclusivamente in **Francia**:
+esclusivamente in **Francia**, distribuita su due ambienti:
 
-| Componente | Fornitore | Giurisdizione |
-| --- | --- | --- |
-| Infrastruttura applicativa/Kubernetes, database PostgreSQL gestito e storage a oggetti dei documenti | Scaleway SAS | Francia (regione di Parigi) |
+| Ambiente | Componente | Fornitore | Giurisdizione |
+| --- | --- | --- | --- |
+| Produzione | Infrastruttura applicativa/Kubernetes, database PostgreSQL gestito e storage a oggetti dei documenti | Scaleway SAS | Francia (regione di Parigi) |
+| Collaudo | Infrastruttura applicativa, database e storage dei documenti — utilizzati per validare una versione prima che raggiunga la produzione e, durante il programma beta, dai partecipanti a tale programma | Il Fornitore stesso — nessun fornitore terzo | Francia |
 
-Ogni componente sopra indicato si trova presso un unico fornitore, in un'unica regione, raggiungibile
-tramite la rete privata propria di Scaleway anziché tramite l'internet pubblico — il database non è più
-un passaggio distinto verso un altro fornitore o un altro paese. Né l'infrastruttura propria del
-Servizio né i Suoi Dati sono ospitati, replicati (mirror) o sottoposti a backup al di fuori di
-Francia/UE. Laddove un sub-responsabile del trattamento indicato
+La riga "Produzione" si trova presso un unico fornitore, in un'unica regione, raggiungibile tramite la
+rete privata propria di Scaleway anziché tramite l'internet pubblico — il database non è più un
+passaggio distinto verso un altro fornitore o un altro paese. La riga "Collaudo" non ha, in senso
+proprio, alcun fornitore: funziona su un'infrastruttura che il Fornitore gestisce direttamente, in
+Francia, cosicché in questa catena non vi è alcun terzo a cui un'autorità straniera potrebbe notificare
+una richiesta — una posizione più solida ai sensi del presente articolo rispetto alla riga
+"Produzione", non più debole. Il Fornitore stesso resta naturalmente soggetto al diritto francese ed
+europeo, come qualunque gestore del Servizio. Né l'uno né l'altro ambiente, né i Suoi Dati su ciascuno
+di essi, sono ospitati, replicati (mirror) o sottoposti a backup al di fuori di Francia/UE. Laddove un
+sub-responsabile del trattamento indicato
 nell'[Informativa sulla Privacy](./privacy-policy.md), Sezione 4, e nell'
 [Accordo sul Trattamento dei Dati](./data-processing-agreement.md), Sezione 7 (Polar per la fatturazione
 dell'abbonamento, Resend per le e-mail transazionali, Cloudflare e Google LLC per la corrispondenza di
@@ -52,9 +58,11 @@ nell'ambito di applicazione dell'articolo 28.
 ## 2. Misure contro l'accesso internazionale illecito
 
 - **Residenza dei dati fin dalla progettazione.** Il database e l'archiviazione dei documenti propri
-  del Servizio sono ospitati esclusivamente in Francia, presso un unico fornitore (Sezione 1 sopra) —
-  una scelta, non un'impostazione predefinita, che di per sé tiene i dati fuori dalla portata di
-  qualsiasi richiesta di accesso che non segua un canale legale dell'UE o francese.
+  del Servizio sono ospitati esclusivamente in Francia, sui due ambienti descritti nella Sezione 1
+  sopra — una scelta, non un'impostazione predefinita, che di per sé tiene i dati fuori dalla portata di
+  qualsiasi richiesta di accesso che non segua un canale legale dell'UE o francese. L'ambiente di
+  collaudo va oltre: poiché il Fornitore lo ospita direttamente, in quella catena non vi è alcun
+  fornitore terzo che un'autorità straniera potrebbe costringere.
 - **Cifratura in transito.** Tutto il traffico da e verso il Servizio è cifrato end-to-end tramite TLS,
   con terminazione a livello di ingress mediante un certificato emesso e rinnovato automaticamente
   (cert-manager / Let's Encrypt) — vedere `deploy/helm/invoicerr/templates/ingress.yaml`.

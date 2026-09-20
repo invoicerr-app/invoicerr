@@ -110,16 +110,28 @@ traitement des documents comportant des Données Personnelles Client :
 - **Google LLC (Gmail)** — la boîte aux lettres où est reçue la correspondance de support envoyée à
   **contact@invoicerr.app** (correspondance de support uniquement ; jamais les Données Personnelles
   Client contenues dans les documents que vous créez au moyen du Service).
-- **Scaleway SAS** — hébergement de l'infrastructure du Service : le cluster Kubernetes sur lequel il
-  fonctionne, la base de données PostgreSQL managée dans laquelle sont stockés les documents que vous
-  créez — et les Données Personnelles Client qu'ils contiennent —, et le stockage objet qui conserve
-  les documents archivés, y compris ceux comportant des Données Personnelles Client. **Le Service et
-  les Données Client, y compris la base de données, sont hébergés au sein de l'Union européenne**,
-  dans la région de Paris (France) de Scaleway, la base de données étant accessible via le réseau
-  privé propre de Scaleway plutôt que par l'internet public.
+- **Scaleway SAS** — hébergement de l'infrastructure de l'**environnement de production** du Service :
+  le cluster Kubernetes sur lequel il fonctionne, la base de données PostgreSQL managée dans laquelle
+  sont stockés les documents que vous créez — et les Données Personnelles Client qu'ils contiennent —,
+  et le stockage objet qui conserve les documents archivés, y compris ceux comportant des Données
+  Personnelles Client. **Le Service et les Données Client, y compris la base de données, sont hébergés
+  au sein de l'Union européenne**, dans la région de Paris (France) de Scaleway, la base de données
+  étant accessible via le réseau privé propre de Scaleway plutôt que par l'internet public.
 
 **L'OCR (reconnaissance optique de caractères) fonctionne sur une infrastructure que nous exploitons ;
 aucun document n'est envoyé à un fournisseur d'OCR tiers.**
+
+**L'environnement de recette utilisé pour le programme bêta n'est pas exploité par un sous-traitant.**
+Avant qu'une version n'atteigne l'environnement de production ci-dessus, nous la validons sur un
+environnement de recette distinct, que nous — le Prestataire — exploitons nous-mêmes, sur notre propre
+infrastructure, en France. Parce que nous hébergeons cet environnement directement, et non par
+l'intermédiaire d'un tiers, il n'existe aucun sous-traitant à autoriser pour celui-ci, et aucun n'est
+ajouté à la présente Section pour cette raison — le Sous-traitant qui héberge sur son propre matériel
+n'est pas son propre sous-traitant. Pendant le programme bêta, les participants au programme utilisent
+le Service sur cet environnement de recette, et les Données Personnelles Client qu'ils saisissent — sur
+de véritables factures et d'autres documents réels — y sont traitées et stockées, et non sur
+l'infrastructure de production de Scaleway ci-dessus, jusqu'à ce que cet environnement soit retiré, à
+compter de quoi elles sont transférées vers l'infrastructure de production.
 
 **Polar Software Inc. n'est pas un sous-traitant au titre du présent ATD** : il traite les propres
 données d'abonnement et de paiement de votre Société en qualité de responsable de traitement

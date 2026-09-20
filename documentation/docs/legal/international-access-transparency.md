@@ -22,23 +22,28 @@ by reference. It does not apply to the self-hosted software, which never sends a
 
 The infrastructure that processes the Service's own data — your Company's account data and Your Data
 (the documents, business records, and configuration you create through the Service) — is located
-exclusively in **France**:
+exclusively in **France**, across two environments:
 
-| Component | Provider | Jurisdiction |
-| --- | --- | --- |
-| Application/Kubernetes infrastructure, managed PostgreSQL database, and document object storage | Scaleway SAS | France (Paris region) |
+| Environment | Component | Host | Jurisdiction |
+| --- | --- | --- | --- |
+| Production | Application/Kubernetes infrastructure, managed PostgreSQL database, and document object storage | Scaleway SAS | France (Paris region) |
+| Acceptance | Application infrastructure, database, and document storage — used to validate a release before it reaches production and, during the beta programme, used by that programme's participants | The Provider himself — no third-party host | France |
 
-Every component above sits with a single provider, in a single region, reached over Scaleway's own
-private network rather than the public internet — the database is no longer a separate hop to a
-different provider or country. Neither the Service's own infrastructure nor Your Data is hosted,
-mirrored, or backed up outside France/the EU. Where a sub-processor named in the
+The production row sits with a single provider, in a single region, reached over Scaleway's own private
+network rather than the public internet — the database is no longer a separate hop to a different
+provider or country. The acceptance row has no provider at all in the ordinary sense: it runs on
+infrastructure the Provider operates himself, in France, so there is no third party in that chain for a
+foreign authority to serve a demand on — a stronger position under this Article than the production row
+above, not a weaker one. The Provider himself, of course, remains subject to French and EU legal process
+the same way any operator of the Service would be. Neither environment, nor Your Data on either one, is
+hosted, mirrored, or backed up outside France/the EU. Where a sub-processor named in the
 [Privacy Policy](./privacy-policy.md), Section 4,
 and the [Data Processing Agreement](./data-processing-agreement.md), Section 7 (Polar for
 subscription billing, Resend for transactional email, Cloudflare and Google LLC for inbound support
 correspondence) is a non-EU entity or may process data outside the EEA, that processing is limited to
 account/billing data or support correspondence — never Your Data or the documents you create through
-the Service — and relies on that provider's own GDPR Chapter V safeguards, as described in the
-Privacy Policy, Section 5.
+the Service, on either environment — and relies on that provider's own GDPR Chapter V safeguards, as
+described in the Privacy Policy, Section 5.
 
 Two public, static websites — the marketing site (`invoicerr.app`) and this documentation site
 (`docs.invoicerr.app`) — are hosted on **GitHub Pages**, operated by GitHub, Inc. (USA, a wholly-owned
@@ -51,8 +56,10 @@ completeness, not because they fall within the scope Article 28 targets.
 ## 2. Measures Against Unlawful International Access
 
 - **Data residency by design.** The Service's own database and document storage are hosted only in
-  France, with a single provider (Section 1 above) — a choice, not a default, that by itself keeps the
-  data outside the reach of any access request that does not go through an EU or French legal channel.
+  France, across the two environments described in Section 1 above — a choice, not a default, that by
+  itself keeps the data outside the reach of any access request that does not go through an EU or
+  French legal channel. The acceptance environment goes one step further: because the Provider hosts it
+  himself, there is no third-party provider in that chain at all for a foreign authority to compel.
 - **Encryption in transit.** All traffic to and from the Service is encrypted end-to-end over TLS,
   terminated at the ingress with a certificate issued and renewed automatically (cert-manager /
   Let's Encrypt) — see `deploy/helm/invoicerr/templates/ingress.yaml`.
@@ -125,3 +132,14 @@ Questions about this page can be sent to **contact@invoicerr.app**.
   our infrastructure, under a key the storage provider never holds, so a demand served on that
   provider alone reaches ciphertext, not documents (see the Data Processing Agreement, Section 9, and
   `backend/src/modules/backup/backup-crypto.ts`).
+- **2026-09-20** — Owner decision: disclosed a separate acceptance environment, used to validate a
+  release before it reaches production and, during the beta programme, used by that programme's
+  participants, hosted by the Provider himself, on infrastructure he operates, in France — not by
+  Scaleway, and not by any third party. **Section 1**'s table now has two rows instead of one: the
+  production environment (Scaleway SAS, unchanged) and the acceptance environment, whose host column
+  names no third party at all. This page's own concern — what a foreign authority could actually
+  reach — is served, not undermined, by that: an environment with no third-party provider in the chain
+  has no third party for a foreign authority to serve a demand on, though the Provider himself remains
+  subject to French and EU legal process like any operator of the Service. **Section 2**'s "Data
+  residency by design" bullet no longer claims a single provider, now that Section 1 correctly
+  describes two environments.

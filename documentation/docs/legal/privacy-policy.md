@@ -71,12 +71,21 @@ own data-processing terms:
 - **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
   is received (support correspondence only; Google never sees the data contained in the documents you
   create through the Service).
-- **Scaleway SAS** — infrastructure hosting for the Service: the Kubernetes cluster it runs on, the
-  managed PostgreSQL database that stores the Company and account data described in Section 3 and the
-  documents you create through the Service, and the object storage that holds archived documents.
-  **The Service and Customer Data, including the database, are hosted in the European Union**, in
-  Scaleway's Paris (France) region, with the database reached over Scaleway's own private network
-  rather than the public internet.
+- **Scaleway SAS** — infrastructure hosting for the **production** environment of the Service: the
+  Kubernetes cluster it runs on, the managed PostgreSQL database that stores the Company and account
+  data described in Section 3 and the documents you create through the Service, and the object storage
+  that holds archived documents. **The Service and Customer Data, including the database, are hosted in
+  the European Union**, in Scaleway's Paris (France) region, with the database reached over Scaleway's
+  own private network rather than the public internet.
+
+**The acceptance environment used for the beta programme.** Before a release reaches the production
+infrastructure described above, we validate it on a separate acceptance environment that the Provider
+operates himself, on his own infrastructure, in France — no third party hosts it, so it is not listed
+above as a sub-processor. During the beta programme, the programme's participants use the Service on
+this acceptance environment rather than on Scaleway's production infrastructure, and their Customer
+Data — including real invoices, real clients, and other real business records — is stored there. When
+the acceptance environment used for the beta programme is retired, that data moves to the production
+infrastructure described above.
 
 **OCR (optical character recognition) runs on infrastructure we operate; no document is sent to a
 third-party OCR provider.**
@@ -304,3 +313,13 @@ this document; they create no separate or additional rights.
   [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md), corrected the same day, for the
   itemized list. No new processing was introduced by any of this: every change describes something
   the Service was already doing.
+- **2026-09-20** — Owner decision: introduced a separate acceptance environment, used to validate a
+  release before it reaches the production infrastructure and, during the beta programme, used by the
+  programme's participants. **Section 4**'s Scaleway bullet is now scoped explicitly to the production
+  environment, and gains a new paragraph stating that the acceptance environment is hosted by the
+  Provider himself, on his own infrastructure, in France — not by Scaleway, and not by any third-party
+  sub-processor — and that during the beta programme, participants' Customer Data (including real
+  invoices and other real business records) resides there, moving to the production infrastructure only
+  once that environment is retired. This is a new fact, not a restatement: it is the first place this
+  Policy discloses that a beta participant's Customer Data is stored somewhere other than Scaleway's
+  production infrastructure.

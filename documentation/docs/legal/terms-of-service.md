@@ -271,21 +271,28 @@ the underlying data, beyond the deletion described in Section 13.3.
 
 ## 14. Hosting and Subprocessors
 
-14.1. **The Service and Customer Data are hosted in the European Union**, with **Scaleway SAS**
-(Kubernetes infrastructure, managed PostgreSQL database, and document object storage — Paris region,
-France).
+14.1. **The Service and Customer Data are hosted in the European Union, in France.** The production
+environment runs with **Scaleway SAS** (Kubernetes infrastructure, managed PostgreSQL database, and
+document object storage — Paris region, France). Before a release reaches production, and during the
+beta programme, for the programme's participants, the Service instead runs on a separate acceptance
+environment that we operate ourselves, on our own infrastructure, in France — see the
+[Privacy Policy](./privacy-policy.md), Section 4, for detail on that environment and what happens to a
+beta participant's Customer Data once it is retired.
 
 14.2. We use the following subprocessors in connection with the Service:
 
    - **Scaleway SAS** — Kubernetes infrastructure, managed PostgreSQL database, and object storage for
-     the Service and its archived documents (Paris region, France), the database reached over
-     Scaleway's own private network rather than the public internet.
+     the **production** environment of the Service and its archived documents (Paris region, France),
+     the database reached over Scaleway's own private network rather than the public internet.
    - **Polar Software Inc.** — payment processing and billing for your subscription (Section 7).
    - **Resend** — delivery of transactional email sent by the Service.
    - The **national e-invoicing and government platforms you choose to connect** (for example, the
      French PDP, Poland's KSeF, Italy's SdI, Portugal's AT, or France's Chorus Pro for B2G invoicing)
      — these act on your explicit instruction, under credentials and mandates you provide, to transmit
      the documents you send.
+
+The acceptance environment described in Section 14.1 is hosted by us directly, not by a sub-processor:
+we operate it ourselves, on our own infrastructure, in France.
 
 14.3. **Stripe, Mollie, and PayPal**, where you connect them so your own customers can pay the invoices
 you issue, are **your own accounts** — held, controlled, and contracted for by you, not by us. We
@@ -560,3 +567,14 @@ this document; they create no separate or additional rights.
   its free trial, never subscribed) or already in the Section 13.1 suspension for non-payment — neither
   has a paid period for this Section to protect, and both keep Section 20.1's immediate effect exactly
   as before.
+- **2026-09-20** — Owner decision: introduced a separate acceptance environment, used to validate a
+  release before it reaches production and, during the beta programme, used by that programme's
+  participants, hosted by the Provider himself, on his own infrastructure, in France — not by Scaleway.
+  **Section 14.1** no longer states that Scaleway hosts the Service and Customer Data without
+  qualification: it now names Scaleway for the production environment specifically and discloses the
+  acceptance environment as a second, France-based environment we operate ourselves, cross-referring the
+  Privacy Policy, Section 4, for what happens to a beta participant's Customer Data. **Section 14.2**'s
+  Scaleway entry is scoped to the production environment, and gains a sentence stating the acceptance
+  environment is hosted by us directly, not by a sub-processor. This is the fact this Agreement was
+  missing, not a restatement: a beta programme participant's Customer Data does not, today, sit on
+  Scaleway's infrastructure.

@@ -27,14 +27,28 @@ infrastructure sous la licence figurant dans le fichier `LICENSE` à la racine d
 **Roméo Chevrier**, en sa qualité d'entrepreneur individuel éditant et exploitant le Service, est le
 directeur de la publication au sens de l'article 6-III de la LCEN.
 
-## 3. Hébergeur
+## 3. Hébergeurs
 
-**Scaleway SAS** — *société par actions simplifiée* immatriculée sous le numéro SIREN **433 115 904**
-(RCS Paris), dont le siège social est situé **8 rue de la Ville-l'Évêque, 75008 Paris, France**,
-conformément aux exigences de l'article 6-I-2 de la LCEN. Scaleway exploite le cluster Kubernetes, la
-base de données PostgreSQL managée et le stockage objet sur lesquels fonctionne le Service
-(**my.invoicerr.app**), dans sa région de Paris. Contact : même adresse postale ; voir les mentions
-légales propres de Scaleway (scaleway.com) pour leurs canaux de support.
+Le Service fonctionne sur deux environnements distincts, chacun avec son propre hébergeur, conformément
+à l'article 6-I-2 de la LCEN.
+
+**Production.** **Scaleway SAS** — *société par actions simplifiée* immatriculée sous le numéro SIREN
+**433 115 904** (RCS Paris), dont le siège social est situé **8 rue de la Ville-l'Évêque, 75008 Paris,
+France**. Scaleway exploite le cluster Kubernetes, la base de données PostgreSQL managée et le stockage
+objet sur lesquels fonctionne le Service de production (**my.invoicerr.app**), dans sa région de Paris.
+Contact : même adresse postale ; voir les mentions légales propres de Scaleway (scaleway.com) pour leurs
+canaux de support.
+
+**Environnement de recette.** Un environnement de recette distinct — utilisé pour valider une version
+avant son passage en production et, pendant le programme bêta, utilisé par les participants à ce
+programme — est hébergé par le Prestataire lui-même, sur une infrastructure qu'il exploite, en France :
+**Roméo Chevrier**, entrepreneur individuel (micro-entreprise) de droit français, immatriculé sous le
+numéro **SIREN 982 187 676 (SIRET 982 187 676 00019)**, adresse enregistrée **4 rue du Puits,
+26120 Montélier, France** — la même identité que celle indiquée à la Section 1. Aucun tiers n'héberge
+cet environnement. Pendant le programme bêta, les données des participants au programme — y compris de
+véritables factures et d'autres données commerciales réelles — résident sur cet environnement, et non
+sur l'infrastructure de production de Scaleway ; voir la
+[Politique de Confidentialité](./privacy-policy.md), Section 4, pour le détail.
 
 Le **site public** à l'adresse **invoicerr.app**, le **site de documentation** à l'adresse
 **docs.invoicerr.app** — sur lequel les présentes mentions sont elles-mêmes publiées — et le **dépôt de
@@ -42,10 +56,11 @@ code source** à l'adresse **github.com/invoicerr-app/invoicerr** (issues publiq
 activées, et les workflows GitHub Actions qui construisent et publient les images de conteneur du
 Service sur le GitHub Container Registry) sont hébergés par **GitHub, Inc.**, 88 Colin P. Kelly Jr.
 Street, San Francisco, CA 94107, États-Unis, filiale à 100 % de Microsoft Corporation, au moyen de ses
-services GitHub Pages, GitHub Actions et GitHub Container Registry. GitHub, Inc. n'héberge pas le
-Service hébergé lui-même (**my.invoicerr.app**, Scaleway SAS, ci-dessus) et ne reçoit ni ne stocke jamais
-les données de compte, de facturation ou de documents créées au moyen de celui-ci — voir Politique de
-Confidentialité, Section 10.
+services GitHub Pages, GitHub Actions et GitHub Container Registry. GitHub, Inc. n'héberge ni
+l'environnement de production du Service hébergé (**my.invoicerr.app**, Scaleway SAS, ci-dessus), ni son
+environnement de recette (ci-dessus), et ne reçoit ni ne stocke jamais les données de compte, de
+facturation ou de documents créées au moyen de l'un ou l'autre — voir Politique de Confidentialité,
+Section 10.
 
 ## 4. Propriété Intellectuelle
 

@@ -103,15 +103,25 @@ that carry Customer Personal Data:
 - **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
   is received (support correspondence only; never the Customer Personal Data contained in the documents
   you create through the Service).
-- **Scaleway SAS** — infrastructure hosting for the Service: the Kubernetes cluster it runs on, the
-  managed PostgreSQL database in which the documents you create — and the Customer Personal Data they
-  contain — are stored, and the object storage that holds archived documents, including those carrying
-  Customer Personal Data. **The Service and Customer Data, including the database, are hosted in the
-  European Union**, in Scaleway's Paris (France) region, with the database reached over Scaleway's own
-  private network rather than the public internet.
+- **Scaleway SAS** — infrastructure hosting for the **production** environment of the Service: the
+  Kubernetes cluster it runs on, the managed PostgreSQL database in which the documents you create — and
+  the Customer Personal Data they contain — are stored, and the object storage that holds archived
+  documents, including those carrying Customer Personal Data. **The Service and Customer Data, including
+  the database, are hosted in the European Union**, in Scaleway's Paris (France) region, with the
+  database reached over Scaleway's own private network rather than the public internet.
 
 **OCR (optical character recognition) runs on infrastructure we operate; no document is sent to a
 third-party OCR provider.**
+
+**The acceptance environment used for the beta programme is not run by a sub-processor.** Before a
+release reaches the production environment above, we validate it on a separate acceptance environment
+that we operate ourselves, on our own infrastructure, in France. Because we host that environment
+directly, rather than through a third party, there is no sub-processor to authorize for it, and none is
+added to this Section for that reason — the Processor hosting on his own hardware is not his own
+sub-processor. During the beta programme, the programme's participants use the Service on this
+acceptance environment, and Customer Personal Data they enter — on real invoices and other real
+documents — is processed and stored there, not on Scaleway's production infrastructure above, until
+that environment is retired, at which point it moves to the production infrastructure.
 
 **Polar Software Inc. is not a sub-processor under this DPA**: it processes your Company's own
 subscription and payment data as an independent controller/merchant of record (Privacy Policy
@@ -287,3 +297,13 @@ this document; they create no separate or additional rights.
   longer claims the thirty-day sub-processor notice mirrors the Terms of Service, Section 20.1 — that
   section's own 2026-09-20 rewrite gives changes immediate effect instead, so the cross-reference had
   become false; the thirty-day notice itself is unchanged and stands on its own.
+- **2026-09-20** — Owner decision: introduced a separate acceptance environment, used to validate a
+  release before it reaches the production environment and, during the beta programme, used by that
+  programme's participants. Section 7's Scaleway bullet is now scoped explicitly to the production
+  environment. Section 7 gained a new paragraph, alongside the existing Polar/GitHub/AI-assistant
+  carve-outs, stating that the acceptance environment is **not** run by a sub-processor: we host it
+  ourselves, on our own infrastructure, in France, so there is no third party to authorize for it. The
+  same paragraph discloses that, during the beta programme, participants' Customer Personal Data —
+  including on real invoices and other real documents — is processed and stored on that environment,
+  not on Scaleway's production infrastructure, until the environment is retired, at which point the
+  data moves to the production infrastructure.

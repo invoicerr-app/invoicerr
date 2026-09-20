@@ -112,16 +112,27 @@ trattamento dei documenti che contengono Dati Personali del Cliente:
 - **Google LLC (Gmail)** — la casella di posta in cui viene ricevuta la corrispondenza di supporto
   inviata a **contact@invoicerr.app** (solo corrispondenza di supporto; mai i Dati Personali del
   Cliente contenuti nei documenti che Lei crea tramite il Servizio).
-- **Scaleway SAS** — hosting dell'infrastruttura per il Servizio: il cluster Kubernetes su cui
-  viene eseguito, il database PostgreSQL gestito in cui vengono conservati i documenti che Lei crea
-  — e i Dati Personali del Cliente in essi contenuti —, e l'object storage che conserva i documenti
-  archiviati, compresi quelli contenenti Dati Personali del Cliente. **Il Servizio e i Dati del
-  Cliente, compreso il database, sono ospitati nell'Unione Europea**, nella regione di Parigi
-  (Francia) di Scaleway, con il database raggiunto tramite la rete privata propria di Scaleway
+- **Scaleway SAS** — hosting dell'infrastruttura per l'**ambiente di produzione** del Servizio: il
+  cluster Kubernetes su cui viene eseguito, il database PostgreSQL gestito in cui vengono conservati i
+  documenti che Lei crea — e i Dati Personali del Cliente in essi contenuti —, e l'object storage che
+  conserva i documenti archiviati, compresi quelli contenenti Dati Personali del Cliente. **Il Servizio
+  e i Dati del Cliente, compreso il database, sono ospitati nell'Unione Europea**, nella regione di
+  Parigi (Francia) di Scaleway, con il database raggiunto tramite la rete privata propria di Scaleway
   anziché tramite l'internet pubblico.
 
 **L'OCR (riconoscimento ottico dei caratteri) viene eseguito su un'infrastruttura da noi gestita;
 nessun documento viene inviato a un fornitore OCR terzo.**
+
+**L'ambiente di collaudo utilizzato per il programma beta non è un sub-responsabile del
+trattamento**: prima che una versione raggiunga l'ambiente di produzione sopra descritto, la validiamo
+su un ambiente di collaudo distinto, che gestiamo direttamente sulla nostra infrastruttura, in Francia.
+Poiché ospitiamo tale ambiente direttamente, e non tramite un terzo, non vi è alcun sub-responsabile da
+autorizzare per esso, e per questo motivo non ne viene elencato uno in questa Sezione — il Responsabile
+del trattamento che ospita sul proprio hardware non diventa un sub-responsabile di se stesso. Durante il
+programma beta, i partecipanti al programma utilizzano il Servizio su questo ambiente di collaudo, e i
+Dati Personali del Cliente che vi inseriscono — su fatture reali e altri documenti reali — sono trattati
+e conservati lì, non sull'infrastruttura di produzione di Scaleway sopra descritta, fino a quando tale
+ambiente non viene dismesso; a quel punto i dati vengono trasferiti sull'infrastruttura di produzione.
 
 **Polar Software Inc. non è un sub-responsabile ai sensi del presente DPA**: tratta i dati di
 abbonamento e di pagamento della Sua Azienda in qualità di titolare del trattamento/merchant of

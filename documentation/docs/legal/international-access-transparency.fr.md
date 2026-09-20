@@ -21,25 +21,31 @@ référence. Elle ne s'applique pas au logiciel auto-hébergé, qui ne nous envo
 
 L'infrastructure qui traite les propres données du Service — les données de compte de votre Société et
 Vos Données (les documents, données commerciales et paramètres que vous créez au moyen du Service) —
-est située exclusivement en **France** :
+est située exclusivement en **France**, répartie sur deux environnements :
 
-| Composant | Fournisseur | Juridiction |
-| --- | --- | --- |
-| Infrastructure applicative/Kubernetes, base de données PostgreSQL managée et stockage objet des documents | Scaleway SAS | France (région de Paris) |
+| Environnement | Composant | Hébergeur | Juridiction |
+| --- | --- | --- | --- |
+| Production | Infrastructure applicative/Kubernetes, base de données PostgreSQL managée et stockage objet des documents | Scaleway SAS | France (région de Paris) |
+| Recette | Infrastructure applicative, base de données et stockage des documents — utilisés pour valider une version avant son passage en production et, pendant le programme bêta, par les participants à ce programme | Le Prestataire lui-même — aucun hébergeur tiers | France |
 
-Chaque composant ci-dessus relève d'un fournisseur unique, dans une région unique, accessible via le
+La ligne « Production » relève d'un fournisseur unique, dans une région unique, accessible via le
 réseau privé propre de Scaleway plutôt que par l'internet public — la base de données n'est plus un
-maillon distinct chez un autre fournisseur ou dans un autre pays. Ni l'infrastructure propre du Service
-ni Vos Données ne sont hébergées, dupliquées ou sauvegardées en dehors de la France/de l'UE. Lorsqu'un
-sous-traitant nommé dans la
+maillon distinct chez un autre fournisseur ou dans un autre pays. La ligne « Recette » ne comporte, au
+sens propre, aucun fournisseur : elle fonctionne sur une infrastructure que le Prestataire exploite
+lui-même, en France, de sorte qu'aucun tiers n'intervient dans cette chaîne auprès de qui une autorité
+étrangère pourrait notifier une demande — une position plus solide au regard du présent article que
+celle de la ligne « Production », et non plus faible. Le Prestataire lui-même demeure bien entendu
+soumis au droit français et de l'Union européenne, comme tout exploitant du Service. Ni l'un ni l'autre
+environnement, ni Vos Données sur l'un ou l'autre, ne sont hébergés, dupliqués ou sauvegardés en dehors
+de la France/de l'UE. Lorsqu'un sous-traitant nommé dans la
 [Politique de Confidentialité](./privacy-policy.md), Section 4, et l'
 [Accord de Traitement des Données](./data-processing-agreement.md), Section 7 (Polar pour la
 facturation de l'abonnement, Resend pour les e-mails transactionnels, Cloudflare et Google LLC pour la
 correspondance de support entrante) est une entité non-UE ou peut traiter des données en dehors de
 l'EEE, ce traitement se limite aux données de compte/facturation ou à la correspondance de support —
-jamais à Vos Données ni aux documents que vous créez au moyen du Service — et repose sur les garanties
-propres à ce prestataire au titre du Chapitre V du RGPD, comme décrit dans la Politique de
-Confidentialité, Section 5.
+jamais à Vos Données ni aux documents que vous créez au moyen du Service, sur l'un ou l'autre
+environnement — et repose sur les garanties propres à ce prestataire au titre du Chapitre V du RGPD,
+comme décrit dans la Politique de Confidentialité, Section 5.
 
 Deux sites web publics et statiques — le site de présentation (`invoicerr.app`) et ce site de
 documentation (`docs.invoicerr.app`) — sont hébergés sur **GitHub Pages**, exploité par GitHub, Inc.
@@ -54,9 +60,11 @@ visé par l'article 28.
 ## 2. Mesures contre l'Accès International Illicite
 
 - **Localisation des données dès la conception.** La base de données et le stockage documentaire
-  propres au Service ne sont hébergés qu'en France, chez un fournisseur unique (Section 1 ci-dessus) —
-  un choix, et non une configuration par défaut, qui à lui seul place les données hors de portée de
-  toute demande d'accès ne passant pas par une voie légale de l'UE ou française.
+  propres au Service ne sont hébergés qu'en France, sur les deux environnements décrits à la Section 1
+  ci-dessus — un choix, et non une configuration par défaut, qui à lui seul place les données hors de
+  portée de toute demande d'accès ne passant pas par une voie légale de l'UE ou française. L'environnement
+  de recette va plus loin encore : le Prestataire l'hébergeant lui-même, aucun fournisseur tiers
+  n'intervient dans cette chaîne qu'une autorité étrangère pourrait contraindre.
 - **Chiffrement en transit.** L'ensemble du trafic à destination et en provenance du Service est
   chiffré de bout en bout via TLS, avec terminaison au niveau de l'ingress au moyen d'un certificat émis
   et renouvelé automatiquement (cert-manager / Let's Encrypt) — voir

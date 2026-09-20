@@ -299,15 +299,22 @@ décrite à la Section 13.3.
 
 ## 14. Hébergement et Sous-traitants
 
-14.1. **Le Service et les Données Client sont hébergés au sein de l'Union européenne**, chez
-**Scaleway SAS** (infrastructure Kubernetes, base de données PostgreSQL managée et stockage objet des
-documents — région de Paris, France).
+14.1. **Le Service et les Données Client sont hébergés au sein de l'Union européenne, en France.**
+L'environnement de production fonctionne avec **Scaleway SAS** (infrastructure Kubernetes, base de
+données PostgreSQL managée et stockage objet des documents — région de Paris, France). Avant qu'une
+version n'atteigne la production, et pendant le programme bêta, pour les participants à ce programme,
+le Service fonctionne à la place sur un environnement de recette distinct que nous exploitons
+nous-mêmes, sur notre propre infrastructure, en France — voir la
+[Politique de Confidentialité](./privacy-policy.md), Section 4, pour le détail de cet environnement et
+de ce qu'il advient des Données Client d'un participant au programme bêta une fois cet environnement
+retiré.
 
 14.2. Nous recourons aux sous-traitants suivants dans le cadre du Service :
 
    - **Scaleway SAS** — infrastructure Kubernetes, base de données PostgreSQL managée et stockage objet
-     pour le Service et ses documents archivés (région de Paris, France), la base de données étant
-     accessible via le réseau privé propre de Scaleway plutôt que par l'internet public.
+     pour l'**environnement de production** du Service et ses documents archivés (région de Paris,
+     France), la base de données étant accessible via le réseau privé propre de Scaleway plutôt que par
+     l'internet public.
    - **Polar Software Inc.** — traitement des paiements et facturation de votre abonnement (Section 7).
    - **Resend** — envoi des e-mails transactionnels du Service.
    - Les **plateformes nationales de facturation électronique et plateformes gouvernementales que vous
@@ -315,6 +322,9 @@ documents — région de Paris, France).
      portugaise, ou Chorus Pro pour la facturation B2G en France) — celles-ci agissent sur vos
      instructions explicites, au moyen des identifiants et mandats que vous fournissez, pour transmettre
      les documents que vous envoyez.
+
+L'environnement de recette décrit à la Section 14.1 est hébergé directement par nous, et non par un
+sous-traitant : nous l'exploitons nous-mêmes, sur notre propre infrastructure, en France.
 
 14.3. **Stripe, Mollie et PayPal**, lorsque vous les connectez pour permettre à vos propres clients de
 payer les factures que vous émettez, sont **vos propres comptes** — détenus, contrôlés et souscrits par

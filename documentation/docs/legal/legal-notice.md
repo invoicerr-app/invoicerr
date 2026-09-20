@@ -1,8 +1,8 @@
 ---
 title: Legal Notice
 sidebar_position: 5
-version: 2026-09-19
-effectiveDate: 2026-09-19
+version: 2026-09-20
+effectiveDate: 2026-09-20
 ---
 
 :::warning Draft
@@ -29,13 +29,25 @@ license in the `LICENSE` file at the root of the
 **Roméo Chevrier**, in his capacity as the sole trader publishing and operating the Service, is the
 publication director within the meaning of LCEN art. 6-III.
 
-## 3. Host
+## 3. Hosts
 
-**Scaleway SAS** — a *société par actions simplifiée* registered under SIREN **433 115 904** (RCS
-Paris), with registered office at **8 rue de la Ville-l'Évêque, 75008 Paris, France**, as required by
-LCEN art. 6-I-2. Scaleway operates the Kubernetes cluster, the managed PostgreSQL database, and the
-object storage the Service (**my.invoicerr.app**) runs on, in its Paris region. Contact: same postal
-address; see Scaleway's own published legal notice (scaleway.com) for their support channels.
+The Service runs on two distinct environments, each with its own host, as required by LCEN art. 6-I-2.
+
+**Production.** **Scaleway SAS** — a *société par actions simplifiée* registered under SIREN
+**433 115 904** (RCS Paris), with registered office at **8 rue de la Ville-l'Évêque, 75008 Paris,
+France**. Scaleway operates the Kubernetes cluster, the managed PostgreSQL database, and the object
+storage the production Service (**my.invoicerr.app**) runs on, in its Paris region. Contact: same
+postal address; see Scaleway's own published legal notice (scaleway.com) for their support channels.
+
+**Acceptance environment.** A separate acceptance environment — used to validate a release before it
+reaches production and, during the beta programme, used by that programme's participants — is hosted
+by the Provider himself, on infrastructure he operates, in France: **Roméo Chevrier**, sole trader
+(entrepreneur individuel / micro-entreprise) under French law, registered under **SIREN 982 187 676
+(SIRET 982 187 676 00019)**, registered address **4 rue du Puits, 26120 Montélier, France** — the same
+identity given in Section 1. No third party hosts this environment. During the beta programme, the
+programme's participants' Customer Data — including real invoices and other real business records —
+resides on this environment, not on Scaleway's production infrastructure; see the
+[Privacy Policy](./privacy-policy.md), Section 4, for detail.
 
 The **public website** at **invoicerr.app**, the **documentation site** at **docs.invoicerr.app** —
 where this notice is itself published — and the **source code repository** at
@@ -43,9 +55,10 @@ where this notice is itself published — and the **source code repository** at
 Actions workflows that build and publish the Service's container images to the GitHub Container
 Registry) are hosted by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, a
 wholly-owned subsidiary of Microsoft Corporation, via its GitHub Pages, GitHub Actions, and GitHub
-Container Registry services. GitHub, Inc. does not host the hosted Service itself
-(**my.invoicerr.app**, Scaleway SAS, above) and never receives or stores the account, billing, or
-document data created through it — see Privacy Policy, Section 10.
+Container Registry services. GitHub, Inc. does not host the hosted Service's production environment
+(**my.invoicerr.app**, Scaleway SAS, above) or its acceptance environment (above), and never receives
+or stores the account, billing, or document data created through either — see Privacy Policy,
+Section 10.
 
 ## 4. Intellectual Property
 
@@ -123,3 +136,12 @@ this document; they create no separate or additional rights.
 - **2026-09-19** — Updated Terms of Service cross-references to match that document's 2026-09-19
   renumbering, done to make room for its new EU Data Act sections (9.1→11.1, 18.2→20.2). No fact in
   this notice itself changed.
+- **2026-09-20** — Owner decision: introduced a separate acceptance environment, used to validate a
+  release before it reaches production and, during the beta programme, used by that programme's
+  participants, hosted by the Provider himself on infrastructure he operates in France — not by
+  Scaleway. Section 3 (renamed "Hosts", plural) now identifies both hosts LCEN art. 6-I-2 requires:
+  Scaleway SAS for the production Service (**my.invoicerr.app**), unchanged, and the Provider himself,
+  using the identity already given in Section 1, for the acceptance environment. This is a new fact,
+  not a restatement: during the beta programme, participants' Customer Data — real invoices and other
+  real business records — resides on the acceptance environment, not on Scaleway's production
+  infrastructure — see Privacy Policy, Section 4.

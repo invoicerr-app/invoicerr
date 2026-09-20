@@ -109,16 +109,27 @@ tratamento de documentos que contenham Dados Pessoais do Cliente:
 - **Google LLC (Gmail)** — a caixa de correio onde é recebida a correspondência de apoio ao cliente
   enviada para **contact@invoicerr.app** (apenas correspondência de apoio ao cliente; nunca os Dados
   Pessoais do Cliente contidos nos documentos criados através do Serviço).
-- **Scaleway SAS** — alojamento da infraestrutura do Serviço: o cluster Kubernetes onde este é
-  executado, a base de dados PostgreSQL gerida na qual são armazenados os documentos criados — e os
-  Dados Pessoais do Cliente neles contidos —, e o armazenamento de objetos (object storage) que contém
-  os documentos arquivados, incluindo os que contêm Dados Pessoais do Cliente. **O Serviço e os Dados
-  do Cliente, incluindo a base de dados, estão alojados na União Europeia**, na região de Paris
-  (França) da Scaleway, sendo a base de dados acedida através da rede privada própria da Scaleway e
-  não através da internet pública.
+- **Scaleway SAS** — alojamento da infraestrutura do **ambiente de produção** do Serviço: o cluster
+  Kubernetes onde este é executado, a base de dados PostgreSQL gerida na qual são armazenados os
+  documentos criados — e os Dados Pessoais do Cliente neles contidos —, e o armazenamento de objetos
+  (object storage) que contém os documentos arquivados, incluindo os que contêm Dados Pessoais do
+  Cliente. **O Serviço e os Dados do Cliente, incluindo a base de dados, estão alojados na União
+  Europeia**, na região de Paris (França) da Scaleway, sendo a base de dados acedida através da rede
+  privada própria da Scaleway e não através da internet pública.
 
 **O OCR (reconhecimento ótico de caracteres) é executado em infraestrutura que operamos; nenhum
 documento é enviado a um fornecedor de OCR terceiro.**
+
+**O ambiente de aceitação utilizado para o programa beta não é subcontratante**: antes de uma versão
+chegar ao ambiente de produção acima descrito, validamo-la num ambiente de aceitação separado, que
+operamos diretamente na nossa própria infraestrutura, em França. Uma vez que alojamos esse ambiente
+diretamente, e não através de um terceiro, não existe nenhum subcontratante a autorizar para o mesmo, e
+por essa razão nenhum é aqui indicado — o facto de o responsável pelo tratamento alojar dados no seu
+próprio equipamento não o transforma em subcontratante de si próprio. Durante o programa beta, os
+participantes do programa utilizam o Serviço neste ambiente de aceitação, e os Dados Pessoais do Cliente
+que aí inserem — em faturas reais e noutros documentos reais — são tratados e armazenados nesse
+ambiente, e não na infraestrutura de produção da Scaleway acima descrita, até este ambiente ser
+retirado; nessa altura, os dados são transferidos para a infraestrutura de produção.
 
 **A Polar Software Inc. não é subcontratante ao abrigo deste ATD**: trata os próprios dados de
 subscrição e de pagamento da Empresa do Cliente na qualidade de responsável pelo tratamento/merchant

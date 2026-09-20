@@ -76,13 +76,23 @@ chacun engagé selon ses propres conditions de traitement des données :
 - **Google LLC (Gmail)** — la boîte aux lettres où est reçue la correspondance de support envoyée à
   **contact@invoicerr.app** (correspondance de support uniquement ; Google ne voit jamais les données
   contenues dans les documents que vous créez au moyen du Service).
-- **Scaleway SAS** — hébergement de l'infrastructure du Service : le cluster Kubernetes sur lequel il
-  fonctionne, la base de données PostgreSQL managée qui stocke les données de la Société et de compte
-  décrites à la Section 3 ainsi que les documents que vous créez au moyen du Service, et le stockage
-  objet qui conserve les documents archivés. **Le Service et les Données Client, y compris la base de
-  données, sont hébergés au sein de l'Union européenne**, dans la région de Paris (France) de Scaleway,
-  la base de données étant accessible via le réseau privé propre de Scaleway plutôt que par l'internet
-  public.
+- **Scaleway SAS** — hébergement de l'infrastructure de l'**environnement de production** du Service :
+  le cluster Kubernetes sur lequel il fonctionne, la base de données PostgreSQL managée qui stocke les
+  données de la Société et de compte décrites à la Section 3 ainsi que les documents que vous créez au
+  moyen du Service, et le stockage objet qui conserve les documents archivés. **Le Service et les
+  Données Client, y compris la base de données, sont hébergés au sein de l'Union européenne**, dans la
+  région de Paris (France) de Scaleway, la base de données étant accessible via le réseau privé propre
+  de Scaleway plutôt que par l'internet public.
+
+**L'environnement de recette utilisé pour le programme bêta.** Avant qu'une version n'atteigne
+l'infrastructure de production décrite ci-dessus, nous la validons sur un environnement de recette
+distinct, que le Prestataire exploite lui-même, sur sa propre infrastructure, en France — aucun tiers ne
+l'héberge, ce pourquoi il ne figure pas ci-dessus comme sous-traitant. Pendant le programme bêta, les
+participants au programme utilisent le Service sur cet environnement de recette plutôt que sur
+l'infrastructure de production de Scaleway, et leurs Données Client — y compris de véritables factures,
+de véritables clients et d'autres données commerciales réelles — y sont stockées. Lorsque l'environnement
+de recette utilisé pour le programme bêta est retiré, ces données sont transférées vers l'infrastructure
+de production décrite ci-dessus.
 
 **L'OCR (reconnaissance optique de caractères) fonctionne sur une infrastructure que nous exploitons ;
 aucun document n'est envoyé à un fournisseur d'OCR tiers.**

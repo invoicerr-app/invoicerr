@@ -114,16 +114,29 @@ die Verarbeitung von Dokumenten relevant sind, die personenbezogene Daten des Ku
   Support-Korrespondenz empfangen wird (ausschließlich Support-Korrespondenz; niemals die
   personenbezogenen Daten des Kunden, die in den über den Dienst erstellten Dokumenten enthalten
   sind).
-- **Scaleway SAS** — Infrastruktur-Hosting für den Dienst: der Kubernetes-Cluster, auf dem er läuft,
-  die verwaltete PostgreSQL-Datenbank, in der die von Ihnen erstellten Dokumente — und die darin
-  enthaltenen personenbezogenen Daten des Kunden — gespeichert werden, sowie der Objektspeicher, in dem
-  archivierte Dokumente vorgehalten werden, einschließlich solcher, die personenbezogene Daten des
-  Kunden enthalten. **Der Dienst und die Kundendaten, einschließlich der Datenbank, werden in der
-  Europäischen Union gehostet**, in der Region Paris (Frankreich) von Scaleway, wobei die Datenbank
-  über das eigene private Netzwerk von Scaleway und nicht über das öffentliche Internet erreicht wird.
+- **Scaleway SAS** — Infrastruktur-Hosting für die **Produktionsumgebung** des Dienstes: der
+  Kubernetes-Cluster, auf dem er läuft, die verwaltete PostgreSQL-Datenbank, in der die von Ihnen
+  erstellten Dokumente — und die darin enthaltenen personenbezogenen Daten des Kunden — gespeichert
+  werden, sowie der Objektspeicher, in dem archivierte Dokumente vorgehalten werden, einschließlich
+  solcher, die personenbezogene Daten des Kunden enthalten. **Der Dienst und die Kundendaten,
+  einschließlich der Datenbank, werden in der Europäischen Union gehostet**, in der Region Paris
+  (Frankreich) von Scaleway, wobei die Datenbank über das eigene private Netzwerk von Scaleway und
+  nicht über das öffentliche Internet erreicht wird.
 
 **OCR (optische Zeichenerkennung) läuft auf von uns betriebener Infrastruktur; kein Dokument wird an
 einen externen OCR-Anbieter gesendet.**
+
+**Die für das Beta-Programm genutzte Abnahmeumgebung ist kein Unterauftragsverarbeiter**: Bevor eine
+Version die oben beschriebene Produktionsumgebung erreicht, validieren wir sie auf einer separaten
+Abnahmeumgebung, die wir auf unserer eigenen Infrastruktur, in Frankreich, selbst betreiben. Weil wir
+diese Umgebung direkt betreiben und nicht über einen Dritten, gibt es dafür keinen
+Unterauftragsverarbeiter zu genehmigen, und aus diesem Grund wird hier auch keiner aufgeführt — dass der
+Auftragsverarbeiter auf seiner eigenen Hardware hostet, macht ihn nicht zu seinem eigenen
+Unterauftragsverarbeiter. Während des Beta-Programms nutzen die Teilnehmenden des Programms den Dienst
+auf dieser Abnahmeumgebung, und die personenbezogenen Daten des Kunden, die sie eingeben — auf echten
+Rechnungen und anderen echten Dokumenten —, werden dort verarbeitet und gespeichert, nicht auf der oben
+genannten Produktionsinfrastruktur von Scaleway, bis diese Umgebung stillgelegt wird; danach werden die
+Daten auf die Produktionsinfrastruktur übertragen.
 
 **Polar Software Inc. ist kein Unterauftragsverarbeiter im Sinne dieses AVV**: Es verarbeitet die
 eigenen Abonnement- und Zahlungsdaten Ihres Unternehmens als unabhängiger Verantwortlicher/

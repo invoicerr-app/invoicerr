@@ -78,13 +78,23 @@ die jeweils im Rahmen ihrer eigenen Datenverarbeitungsbedingungen beauftragt wur
 - **Google LLC (Gmail)** — das Postfach, in dem an **contact@invoicerr.app** gesendete
   Support-Korrespondenz empfangen wird (ausschließlich Support-Korrespondenz; Google sieht niemals die
   Daten, die in den über den Dienst erstellten Dokumenten enthalten sind).
-- **Scaleway SAS** — Infrastruktur-Hosting für den Dienst: der Kubernetes-Cluster, auf dem er läuft,
-  die verwaltete PostgreSQL-Datenbank, in der die in Abschnitt 3 beschriebenen Unternehmens- und
-  Kontodaten sowie die von Ihnen über den Dienst erstellten Dokumente gespeichert werden, sowie der
-  Objektspeicher, in dem archivierte Dokumente vorgehalten werden. **Der Dienst und die Kundendaten,
-  einschließlich der Datenbank, werden in der Europäischen Union gehostet**, in der Region Paris
-  (Frankreich) von Scaleway, wobei die Datenbank über das eigene private Netzwerk von Scaleway und
-  nicht über das öffentliche Internet erreicht wird.
+- **Scaleway SAS** — Infrastruktur-Hosting für die **Produktionsumgebung** des Dienstes: der
+  Kubernetes-Cluster, auf dem er läuft, die verwaltete PostgreSQL-Datenbank, in der die in Abschnitt 3
+  beschriebenen Unternehmens- und Kontodaten sowie die von Ihnen über den Dienst erstellten Dokumente
+  gespeichert werden, sowie der Objektspeicher, in dem archivierte Dokumente vorgehalten werden. **Der
+  Dienst und die Kundendaten, einschließlich der Datenbank, werden in der Europäischen Union gehostet**,
+  in der Region Paris (Frankreich) von Scaleway, wobei die Datenbank über das eigene private Netzwerk
+  von Scaleway und nicht über das öffentliche Internet erreicht wird.
+
+**Die für das Beta-Programm genutzte Abnahmeumgebung.** Bevor eine Version die oben beschriebene
+Produktionsinfrastruktur erreicht, validieren wir sie auf einer separaten Abnahmeumgebung, die der
+Anbieter selbst betreibt, auf seiner eigenen Infrastruktur, in Frankreich — kein Dritter hostet sie,
+weshalb sie oben nicht als Unterauftragsverarbeiter aufgeführt ist. Während des Beta-Programms nutzen
+die Teilnehmenden des Programms den Dienst auf dieser Abnahmeumgebung anstatt auf der
+Produktionsinfrastruktur von Scaleway, und ihre Kundendaten — einschließlich echter Rechnungen, echter
+Kunden und anderer echter Geschäftsunterlagen — werden dort gespeichert. Sobald die für das
+Beta-Programm genutzte Abnahmeumgebung stillgelegt wird, werden diese Daten auf die oben beschriebene
+Produktionsinfrastruktur übertragen.
 
 **OCR (optische Zeichenerkennung) läuft auf von uns betriebener Infrastruktur; kein Dokument wird an
 einen externen OCR-Anbieter gesendet.**

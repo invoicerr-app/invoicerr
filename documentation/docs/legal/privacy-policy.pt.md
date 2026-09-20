@@ -75,12 +75,22 @@ vinculado pelos seus próprios termos de tratamento de dados:
 - **Google LLC (Gmail)** — a caixa de correio onde é recebida a correspondência de apoio ao cliente
   enviada para **contact@invoicerr.app** (apenas correspondência de apoio ao cliente; a Google nunca vê
   os dados contidos nos documentos que cria através do Serviço).
-- **Scaleway SAS** — alojamento da infraestrutura do Serviço: o cluster Kubernetes onde este é
-  executado, a base de dados PostgreSQL gerida que armazena os dados da Empresa e da conta descritos na
-  Secção 3, bem como os documentos que cria através do Serviço, e o armazenamento de objetos (object
-  storage) que contém os documentos arquivados. **O Serviço e os Dados do Cliente, incluindo a base de
-  dados, estão alojados na União Europeia**, na região de Paris (França) da Scaleway, sendo a base de
-  dados acedida através da rede privada própria da Scaleway e não através da internet pública.
+- **Scaleway SAS** — alojamento da infraestrutura do **ambiente de produção** do Serviço: o cluster
+  Kubernetes onde este é executado, a base de dados PostgreSQL gerida que armazena os dados da Empresa
+  e da conta descritos na Secção 3, bem como os documentos que cria através do Serviço, e o
+  armazenamento de objetos (object storage) que contém os documentos arquivados. **O Serviço e os Dados
+  do Cliente, incluindo a base de dados, estão alojados na União Europeia**, na região de Paris (França)
+  da Scaleway, sendo a base de dados acedida através da rede privada própria da Scaleway e não através
+  da internet pública.
+
+**O ambiente de aceitação utilizado para o programa beta.** Antes de uma versão chegar à
+infraestrutura de produção acima descrita, validamo-la num ambiente de aceitação separado, que o
+Prestador opera diretamente, na sua própria infraestrutura, em França — nenhum terceiro o aloja, razão
+pela qual não figura acima como subcontratante. Durante o programa beta, os participantes do programa
+utilizam o Serviço neste ambiente de aceitação em vez do ambiente de produção da Scaleway, e os seus
+Dados do Cliente — incluindo faturas reais, clientes reais e outros registos comerciais reais — são aí
+armazenados. Quando o ambiente de aceitação utilizado para o programa beta for retirado, esses dados são
+transferidos para a infraestrutura de produção acima descrita.
 
 **O OCR (reconhecimento ótico de caracteres) é executado em infraestrutura que operamos; nenhum
 documento é enviado a um fornecedor de OCR terceiro.**

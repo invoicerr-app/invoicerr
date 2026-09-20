@@ -112,15 +112,28 @@ istotnych dla przetwarzania dokumentów zawierających Dane Osobowe Klienta:
 - **Google LLC (Gmail)** — skrzynka pocztowa, do której trafia korespondencja pomocy technicznej
   wysyłana na adres **contact@invoicerr.app** (wyłącznie korespondencja pomocy technicznej; nigdy
   Dane Osobowe Klienta zawarte w dokumentach tworzonych przez Ciebie za pośrednictwem Usługi).
-- **Scaleway SAS** — hosting infrastruktury Usługi: klaster Kubernetes, na którym działa, zarządzana
-  baza danych PostgreSQL, w której przechowywane są tworzone przez Ciebie dokumenty — oraz zawarte w
-  nich Dane Osobowe Klienta —, oraz magazyn obiektowy przechowujący zarchiwizowane dokumenty, w tym te
-  zawierające Dane Osobowe Klienta. **Usługa oraz Dane Klienta, w tym baza danych, są hostowane w Unii
-  Europejskiej**, w regionie Scaleway w Paryżu (Francja), przy czym baza danych jest dostępna poprzez
-  własną sieć prywatną Scaleway, a nie poprzez publiczny internet.
+- **Scaleway SAS** — hosting infrastruktury **środowiska produkcyjnego** Usługi: klaster Kubernetes, na
+  którym działa, zarządzana baza danych PostgreSQL, w której przechowywane są tworzone przez Ciebie
+  dokumenty — oraz zawarte w nich Dane Osobowe Klienta —, oraz magazyn obiektowy przechowujący
+  zarchiwizowane dokumenty, w tym te zawierające Dane Osobowe Klienta. **Usługa oraz Dane Klienta, w
+  tym baza danych, są hostowane w Unii Europejskiej**, w regionie Scaleway w Paryżu (Francja), przy
+  czym baza danych jest dostępna poprzez własną sieć prywatną Scaleway, a nie poprzez publiczny
+  internet.
 
 **OCR (optyczne rozpoznawanie znaków) działa na infrastrukturze, którą sami obsługujemy; żaden
 dokument nie jest wysyłany do zewnętrznego dostawcy usług OCR.**
+
+**Środowisko akceptacyjne wykorzystywane na potrzeby programu beta nie jest dalszym podmiotem
+przetwarzającym**: zanim dana wersja trafi do opisanego powyżej środowiska produkcyjnego, weryfikujemy
+ją w odrębnym środowisku akceptacyjnym, które prowadzimy samodzielnie, na własnej infrastrukturze, we
+Francji. Ponieważ prowadzimy to środowisko bezpośrednio, a nie za pośrednictwem podmiotu trzeciego, nie
+ma dla niego żadnego dalszego podmiotu przetwarzającego do zatwierdzenia i z tego powodu żaden nie
+został tu wymieniony — to, że podmiot przetwarzający hostuje dane na własnym sprzęcie, nie czyni go
+dalszym podmiotem przetwarzającym wobec samego siebie. Podczas programu beta uczestnicy programu
+korzystają z Usługi w tym środowisku akceptacyjnym, a wprowadzane przez nich Dane Osobowe Klienta — na
+rzeczywistych fakturach i innych rzeczywistych dokumentach — są tam przetwarzane i przechowywane, a nie
+w opisanej powyżej infrastrukturze produkcyjnej Scaleway, aż do wycofania tego środowiska; wówczas dane
+te zostają przeniesione do infrastruktury produkcyjnej.
 
 **Polar Software Inc. nie jest dalszym podmiotem przetwarzającym w rozumieniu niniejszej Umowy**:
 przetwarza własne dane Twojej Firmy dotyczące subskrypcji i płatności jako niezależny
