@@ -105,12 +105,63 @@ function fakeScopedTable(deleteCalls: { table: string; where: unknown }[], name:
   };
 }
 
+/** A real, in-memory `PendingStorageErasure` — the journal `resetCompanyData` now writes inside its
+ *  own transaction and drains right after it (`documents/archive/company-storage-erasure.ts`). A
+ *  genuine round-trip (createMany → findMany → update), not a stub, so the storage-deletion
+ *  assertions below still prove that the uris read off `DocumentArchive` are the ones that actually
+ *  reach the storage layer — through the journal rather than through an in-memory array. */
+interface FakeJournalRow {
+  id: string;
+  companyId: string;
+  kind: string;
+  target: string;
+  retentionUntil: Date | null;
+  retentionBasis: string | null;
+  erasedAt: Date | null;
+  lastError: string | null;
+}
+
+function fakePendingStorageErasureTable() {
+  const rows: FakeJournalRow[] = [];
+  let nextId = 1;
+  return {
+    rows,
+    async createMany({ data }: { data: Record<string, unknown>[] }) {
+      for (const entry of data) {
+        rows.push({
+          id: `journal-${nextId++}`,
+          companyId: entry.companyId as string,
+          kind: entry.kind as string,
+          target: entry.target as string,
+          retentionUntil: (entry.retentionUntil as Date | null) ?? null,
+          retentionBasis: (entry.retentionBasis as string | null) ?? null,
+          erasedAt: null,
+          lastError: null,
+        });
+      }
+      return { count: data.length };
+    },
+    async findMany({ where }: { where: { erasedAt: null; companyId?: string } }) {
+      return rows
+        .filter((row) => row.erasedAt === null)
+        .filter((row) => !where.companyId || row.companyId === where.companyId)
+        .map((row) => ({ ...row }));
+    },
+    async update({ where, data }: { where: { id: string }; data: Partial<FakeJournalRow> }) {
+      const row = rows.find((candidate) => candidate.id === where.id)!;
+      Object.assign(row, data);
+      return { ...row };
+    },
+  };
+}
+
 let fakeTable: ReturnType<typeof fakeDangerOtpTable>;
 let deleteCalls: { table: string; where: unknown }[];
 let prismaMock: {
   dangerOtp: ReturnType<typeof fakeDangerOtpTable>;
   company: { findUnique: Mock };
   documentArchive: ReturnType<typeof fakeScopedTable> & { findMany: Mock };
+  pendingStorageErasure: ReturnType<typeof fakePendingStorageErasureTable>;
   documentInstance: ReturnType<typeof fakeScopedTable>;
   documentSchedule: ReturnType<typeof fakeScopedTable>;
   documentNumberSequence: ReturnType<typeof fakeScopedTable>;
@@ -134,6 +185,8 @@ vi.mock('@/logger/logger.service', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+// Mocked at the STORE, never at `company-storage-erasure.ts` itself: the journal-then-erase ordering
+// this spec's own assertions depend on is production code here, not a stub.
 const deleteArchivedArtifacts = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/modules/documents/archive/storage', () => ({
   deleteArchivedArtifacts: (...args: unknown[]) => deleteArchivedArtifacts(...args),
@@ -163,6 +216,7 @@ function build() {
     dangerOtp: fakeTable,
     company: { findUnique: vi.fn().mockResolvedValue({ name: 'Acme Corp' }) },
     documentArchive: { ...fakeScopedTable(deleteCalls, 'documentArchive'), findMany: vi.fn() },
+    pendingStorageErasure: fakePendingStorageErasureTable(),
     documentInstance: fakeScopedTable(deleteCalls, 'documentInstance'),
     documentSchedule: fakeScopedTable(deleteCalls, 'documentSchedule'),
     documentNumberSequence: fakeScopedTable(deleteCalls, 'documentNumberSequence'),
@@ -461,6 +515,33 @@ describe('DangerService#resetCompanyData — scoped deletion, config kept', () =
     expect(deleteArchivedArtifacts).toHaveBeenCalledWith('file:///a');
     expect(deleteArchivedArtifacts).toHaveBeenCalledWith('file:///b');
     expect(deleteInboundFilesForCompany).toHaveBeenCalledWith('co-1');
+  });
+
+  it('writes down what it is about to delete BEFORE the rows go — a crash cannot orphan the bytes', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    prismaMock.documentArchive.findMany.mockImplementation((args: { where: { retentionUntil?: unknown } }) =>
+      Promise.resolve(args.where.retentionUntil ? [] : [{ uri: 'file:///a' }]),
+    );
+    const order: string[] = [];
+    const journal = prismaMock.pendingStorageErasure.createMany;
+    prismaMock.pendingStorageErasure.createMany = async (args: never) => {
+      order.push('journal');
+      return journal(args);
+    };
+    prismaMock.documentInstance.deleteMany.mockImplementation(() => {
+      order.push('delete-documents');
+      return Promise.resolve({ count: 0 });
+    });
+
+    await service.resetCompanyData(USER, 'co-1', otp);
+
+    // `documentInstance.deleteMany` is what cascades `DocumentArchive` — and its `uri` column, the
+    // only pointer to the bytes — away. The inventory has to be committed before it, not after.
+    expect(order).toEqual(['journal', 'delete-documents']);
+    expect(prismaMock.pendingStorageErasure.rows.map((row) => row.target).sort()).toEqual(
+      ['co-1', 'file:///a'].sort(),
+    );
   });
 
   it('a storage failure is logged, not thrown — the DB reset already succeeded and must be reported as such', async () => {

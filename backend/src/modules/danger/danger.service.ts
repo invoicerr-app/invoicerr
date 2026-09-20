@@ -13,8 +13,10 @@ import { logger } from '@/logger/logger.service';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 
 import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
-import { deleteArchivedArtifacts } from '@/modules/documents/archive/storage';
-import { deleteInboundFilesForCompany } from '@/modules/documents/received-invoices/storage';
+import {
+  drainStorageErasureJournal,
+  journalCompanyStorageObjects,
+} from '@/modules/documents/archive/company-storage-erasure';
 import { BillingExportService } from '@/modules/billing/export-zip.service';
 import { deleteCompanyPermanentlyNow, PolarCancellationFailedError } from '@/modules/billing/deletion';
 import {
@@ -206,6 +208,11 @@ export class DangerService {
    * retentionUntil` was resolved from at archiving time) — deleting the DATABASE row that proves a
    * legally-retained document ever existed would defeat the retention obligation even if the archived
    * BYTES themselves survived on disk.
+   *
+   * Because of that refusal, every archive this method ever reaches is already out of retention — so
+   * the journal it writes (`documents/archive/company-storage-erasure.ts`) is drained in full on the
+   * same call, and the ⚖ "kept despite an erasure request" branch that journal carries for the
+   * company-DELETION path cannot fire here.
    */
   async resetCompanyData(user: CurrentUser, companyId: string, otp: string) {
     try {
@@ -239,13 +246,17 @@ export class DangerService {
       });
     }
 
-    // Read BEFORE the transaction: once `documentInstance.deleteMany` runs, the FK cascade
-    // (`DocumentArchive.document`, `onDelete: Cascade`) removes these rows too, taking their own
-    // `uri` column with them — this is the last moment the bytes each row points at are still
-    // reachable at all.
-    const archives = await prisma.documentArchive.findMany({ where: { companyId }, select: { uri: true } });
-
     await prisma.$transaction(async (tx) => {
+      // Once `documentInstance.deleteMany` below runs, the FK cascade (`DocumentArchive.document`,
+      // `onDelete: Cascade`) removes those rows too, taking their own `uri` column with them — and the
+      // archive path carries no `companyId`, so nothing could ever name those bytes again. The
+      // inventory is therefore written HERE, inside the same commit, before any delete statement: a
+      // crash between this transaction and the file cleanup below then leaves a query
+      // (`PendingStorageErasure` where `erasedAt` is null) rather than unreachable orphans. Reading it
+      // inside the transaction also closes the race a pre-transaction read left open — a queued send
+      // job archiving between the read and the delete used to produce an orphan nothing listed.
+      await journalCompanyStorageObjects(tx, companyId);
+
       // `DocumentSchedule.sourceDocumentId` is a plain string, never a `@relation` (schema.prisma's
       // own header on that model explains why) — it does NOT cascade when its source document is
       // deleted below, so a schedule left behind would keep trying to replay a document that no
@@ -277,24 +288,11 @@ export class DangerService {
     // File cleanup runs AFTER the transaction commits, deliberately: the database is the source of
     // truth for whether this company's data is gone, and a storage hiccup here must never roll back
     // rows that were correctly deleted, nor make a fully-successful reset look like it failed. Every
-    // failure below is logged and swallowed — best effort, exactly like `export-zip.service.ts`'s own
-    // temp-file cleanup.
-    for (const { uri } of archives) {
-      await deleteArchivedArtifacts(uri).catch((error) => {
-        logger.error('Company data reset: could not delete an archived artifact from storage', {
-          category: 'danger',
-          details: { companyId, uri, error: error instanceof Error ? error.message : String(error) },
-        });
-      });
-    }
-    try {
-      await deleteInboundFilesForCompany(companyId);
-    } catch (error) {
-      logger.error("Company data reset: could not delete this company's inbound files", {
-        category: 'danger',
-        details: { companyId, error: error instanceof Error ? error.message : String(error) },
-      });
-    }
+    // failure is logged and swallowed inside `drainStorageErasureJournal` — best effort, exactly like
+    // `export-zip.service.ts`'s own temp-file cleanup — but, unlike the hand-rolled loop this
+    // replaced, what it could not delete stays NAMED in the journal instead of vanishing with the
+    // in-memory list it was iterating.
+    await drainStorageErasureJournal({ companyId });
 
     logger.info('Company data reset successfully', {
       category: 'danger',
@@ -312,6 +310,15 @@ export class DangerService {
    * while the export or the cancellation could not be confirmed. On a self-hosted instance with no
    * billing configured, `deleteCompanyPermanentlyNow` finds no `CompanySubscription` row at all and
    * simply never calls Polar — the SAME code path, not a separate one.
+   *
+   * This is also the route a customer invokes to exercise erasure, so it must take the STORED BYTES
+   * with it and not merely the rows: `deleteCompanyPermanentlyNow` inventories this company's archived
+   * artifacts and inbound uploads inside its own deletion transaction and erases them right after —
+   * see `documents/archive/company-storage-erasure.ts` for the ordering and for how ⚖ statutory
+   * retention (which does not lapse because an account closed) bounds what can actually be destroyed.
+   * Unlike `resetCompanyData` above, this method does NOT refuse on a live retention window: an OWNER
+   * must be able to end the relationship (`@LegalGateExempt()` on this route, and its own comment),
+   * and what a statute still requires kept stays recorded in that journal instead.
    *
    * The typed `companyName` is a SECOND, independent proof on top of the OTP: the OTP proves "you
    * received the code we mailed to you"; retyping the company's own exact name proves "you know which

@@ -90,6 +90,10 @@ function fakeOtpTable() {
 let fakeTable: ReturnType<typeof fakeOtpTable>;
 let executedSql: string[] = [];
 let documentArchiveRows: { uri: string }[] = [];
+/** Archive uris whose own `DocumentArchive` row is already gone — left by an earlier COMPANY deletion
+ *  (held back by a statutory retention period, or by a failed erasure attempt). The truncate below
+ *  wipes this journal too, so the reset has to read it BEFORE that and delete those bytes as well. */
+let pendingStorageErasureRows: { target: string }[] = [];
 
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -97,6 +101,7 @@ vi.mock('@/prisma/prisma.service', () => ({
     return {
       instanceResetOtp: fakeTable,
       documentArchive: { findMany: async () => documentArchiveRows },
+      pendingStorageErasure: { findMany: async () => pendingStorageErasureRows },
       $transaction: async (
         fn: (tx: { $executeRawUnsafe: (sql: string) => Promise<void> }) => Promise<void>,
       ) =>
@@ -156,6 +161,7 @@ function build() {
   fakeTable = fakeOtpTable();
   executedSql = [];
   documentArchiveRows = [];
+  pendingStorageErasureRows = [];
   const mailService = { sendMail: vi.fn().mockResolvedValue(undefined) };
   return { service: new InstanceResetService(mailService as never), mailService };
 }
@@ -295,6 +301,22 @@ describe('InstanceResetService — the actual wipe', () => {
     await service.reset(USER, code, RESET_INSTANCE_CONFIRMATION_WORD);
 
     expect(existsSync(dir)).toBe(false);
+  });
+
+  it('also deletes archives left pending by an earlier company deletion — nothing whose row is already gone survives', async () => {
+    const { service, mailService } = build();
+    const orphan = join(archiveDir, 'doc-of-a-deleted-company', 'b'.repeat(64));
+    mkdirSync(orphan, { recursive: true });
+    writeFileSync(join(orphan, 'pdf.pdf'), Buffer.from('kept under a retention period'));
+    // No `DocumentArchive` row names this directory any more — only the erasure journal does, and the
+    // TRUNCATE is about to take that journal too.
+    documentArchiveRows = [];
+    pendingStorageErasureRows = [{ target: `file://${orphan}` }];
+
+    const code = await requestAndExtractOtp(service, mailService);
+    await service.reset(USER, code, RESET_INSTANCE_CONFIRMATION_WORD);
+
+    expect(existsSync(orphan)).toBe(false);
   });
 
   it('wipes the shared inbound root (received invoices / attachments / logos), then recreates it empty', async () => {

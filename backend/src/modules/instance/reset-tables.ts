@@ -72,4 +72,5 @@ export const INSTANCE_RESET_TABLES: readonly string[] = [
   'CompanyAtcudSeries',
   'BackupRun',
   'InstanceResetOtp',
+  'PendingStorageErasure',
 ];

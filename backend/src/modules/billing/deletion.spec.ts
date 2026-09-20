@@ -15,12 +15,32 @@ vi.mock('@/prisma/prisma.service', () => ({
     webhook: { deleteMany: vi.fn() },
     company: { delete: vi.fn() },
     companySubscription: { findUnique: vi.fn() },
+    // The storage-erasure journal both deletion paths now write inside their own transaction, and
+    // drain right after it (`documents/archive/company-storage-erasure.ts`). Stubbed empty here: this
+    // spec is about the Polar/FK/stale-read disciplines, and the erasure itself is proven against real
+    // files on a real filesystem in that module's own colocated spec.
+    documentArchive: { findMany: vi.fn().mockResolvedValue([]) },
+    pendingStorageErasure: {
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
 
 const findSub = prisma.companySubscription.findUnique as Mock;
 const transaction = prisma.$transaction as Mock;
+
+/** The storage-erasure journal's own mocks, re-armed every test for the same reason `transaction`'s
+ *  implementation is: `resetAllMocks()` wipes implementations, not just call history, so an empty
+ *  default baked in at module-mock time would silently start returning `undefined` after the first
+ *  test and take `journalCompanyStorageObjects` down with it. */
+function resetStorageErasureMocks() {
+  (prisma.documentArchive.findMany as Mock).mockResolvedValue([]);
+  (prisma.pendingStorageErasure.createMany as Mock).mockResolvedValue({ count: 0 });
+  (prisma.pendingStorageErasure.findMany as Mock).mockResolvedValue([]);
+}
 
 const NOW = new Date('2026-09-17T00:00:00.000Z');
 const DUE_AT = new Date('2026-09-16T00:00:00.000Z'); // already due as of NOW
@@ -48,6 +68,7 @@ describe('deleteCompanyPermanently', () => {
         ? (arg as (tx: typeof prisma) => unknown)(prisma)
         : Promise.all(arg as Promise<unknown>[]),
     );
+    resetStorageErasureMocks();
   });
   afterEach(() => vi.resetAllMocks());
 
@@ -182,8 +203,43 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
         ? (arg as (tx: typeof prisma) => unknown)(prisma)
         : Promise.all(arg as Promise<unknown>[]),
     );
+    resetStorageErasureMocks();
   });
   afterEach(() => vi.resetAllMocks());
+
+  it('writes the storage inventory INSIDE the transaction, before any delete, and drains it after the commit', async () => {
+    findSub.mockResolvedValue({ polarSubscriptionId: null });
+    const calls: string[] = [];
+    let committed = false;
+    (prisma.pendingStorageErasure.createMany as Mock).mockImplementation(() => {
+      calls.push('journal');
+      return Promise.resolve({ count: 1 });
+    });
+    (prisma.webhook.deleteMany as Mock).mockImplementation(() => {
+      calls.push('webhook');
+      return Promise.resolve({ count: 0 });
+    });
+    (prisma.company.delete as Mock).mockImplementation(() => {
+      calls.push('company');
+      return Promise.resolve({});
+    });
+    transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) => {
+      const result = await fn(prisma);
+      committed = true;
+      return result;
+    });
+    // The drain reads the journal — and must only ever do so once the transaction has committed:
+    // object storage has no rollback, so a byte deleted under a transaction that later aborts is
+    // simply gone, with the rows that named it still in place.
+    (prisma.pendingStorageErasure.findMany as Mock).mockImplementation(() => {
+      calls.push(committed ? 'drain-after-commit' : 'drain-INSIDE-transaction');
+      return Promise.resolve([]);
+    });
+
+    await deleteCompanyPermanentlyNow('company-1', fakeClient());
+
+    expect(calls).toEqual(['journal', 'webhook', 'company', 'drain-after-commit']);
+  });
 
   it('deletes Webhook then Company, in one transaction — no CompanySubscription.status/deletionDueAt gate at all', async () => {
     findSub.mockResolvedValue({ polarSubscriptionId: null }); // never paid — nothing to cancel

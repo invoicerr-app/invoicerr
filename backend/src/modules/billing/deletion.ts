@@ -41,8 +41,25 @@
  * again INSIDE the deletion transaction itself, immediately before `company.delete` — the revoke is a
  * real network call, so the row can legitimately move on during it. Returns whether it actually
  * deleted, rather than assuming success, so the caller's own `deleted` counter stays honest.
+ *
+ * ## The company's STORED BYTES go too — and their inventory is written before the rows go
+ *
+ * Cascading `DocumentInstance` → `DocumentArchive` away also destroys `DocumentArchive.uri`, the only
+ * pointer this product ever had to an archived document's bytes (the archive path carries no
+ * `companyId` at all). Both functions below therefore call `journalCompanyStorageObjects` INSIDE the
+ * deletion transaction, before any delete statement, and drain that journal once it has committed —
+ * see `documents/archive/company-storage-erasure.ts`'s own header for why the inventory, not the
+ * object deletion, is what has to precede the rows, and for how ⚖ statutory retention interacts with
+ * an erasure request. Both deletion routes are wired, deliberately: the automated billing sweep and
+ * the OWNER's own "delete company" are the SAME irreversible act and must not differ on what they
+ * leave behind.
  */
 import prisma from '@/prisma/prisma.service';
+
+import {
+  drainStorageErasureJournal,
+  journalCompanyStorageObjects,
+} from '@/modules/documents/archive/company-storage-erasure';
 
 import { CompanySubscriptionStatus } from '../../../prisma/generated/prisma/client';
 import { getPolarClient } from './polar-client';
@@ -132,7 +149,7 @@ export async function deleteCompanyPermanently(
     }
   }
 
-  return prisma.$transaction(async (tx) => {
+  const deleted = await prisma.$transaction(async (tx) => {
     // Re-read INSIDE the same transaction as the delete itself, right before it: the Polar revoke
     // above is a real network round-trip, exactly the kind of window a webhook can land in between
     // the check above and this point. A row that moved on in that window must abort here — the DB
@@ -144,10 +161,19 @@ export async function deleteCompanyPermanently(
     });
     if (!isStillDueForDeletion(fresh, now)) return false;
 
+    // AFTER the guard above, never before it: a journal naming a company this transaction turns
+    // around and does NOT delete would send the drain below after a LIVE company's own archives.
+    await journalCompanyStorageObjects(tx, companyId);
     await tx.webhook.deleteMany({ where: { companyId } });
     await tx.company.delete({ where: { id: companyId } });
     return true;
   });
+
+  // Only once the rows are really gone, and never inside the transaction: object storage has no
+  // rollback, so bytes deleted under a transaction that later aborts are simply lost. Never throws —
+  // whatever it could not erase stays in the journal for an operator (see its own header).
+  if (deleted) await drainStorageErasureJournal({ companyId, now });
+  return deleted;
 }
 
 /**
@@ -161,7 +187,10 @@ export async function deleteCompanyPermanently(
  * exactly as strict here: a PAID company's Polar subscription is revoked FIRST, and the whole
  * deletion is refused if that call fails (`PolarCancellationFailedError`) — never a company deleted
  * while still actively billed; `Webhook` is deleted explicitly before `Company` (see this file's own
- * header on why that one relation alone needs it).
+ * header on why that one relation alone needs it); and the company's stored bytes are inventoried in
+ * the same transaction, then erased — identically to the automated path, because an OWNER exercising
+ * erasure and a billing sweep closing an account must not leave different amounts of the customer
+ * behind on disk.
  */
 export async function deleteCompanyPermanentlyNow(
   companyId: string,
@@ -181,7 +210,15 @@ export async function deleteCompanyPermanentlyNow(
   }
 
   await prisma.$transaction(async (tx) => {
+    // The inventory of this company's stored bytes, taken in the same commit that removes the rows
+    // pointing at them — see this file's own header, and `company-storage-erasure.ts`'s, for why the
+    // order is inventory → rows → objects and not any of the two obvious alternatives.
+    await journalCompanyStorageObjects(tx, companyId);
     await tx.webhook.deleteMany({ where: { companyId } });
     await tx.company.delete({ where: { id: companyId } });
   });
+
+  // Post-commit, best effort, never throwing: this function's callers report "nothing was deleted"
+  // when it throws (`danger.service.ts#deleteCompany`), and by this point that would be a lie.
+  await drainStorageErasureJournal({ companyId });
 }

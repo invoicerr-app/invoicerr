@@ -2177,6 +2177,87 @@ model DocumentArchive {
   @@index([companyId, documentId])
 }
 
+// WHICH STORE a journal row below names. The two are not interchangeable: an ARCHIVE row addresses
+// ONE archive's own bytes by the uri that archive itself recorded, while an INBOUND row addresses a
+// whole company-prefixed directory/key-prefix at once (received-invoice deposits, expense
+// attachments and branding logos all share it — `documents/received-invoices/storage.ts`'s own
+// header), which is the only unit that store exposes for deletion.
+enum PendingStorageErasureKind {
+  ARCHIVE
+  INBOUND_PREFIX
+}
+
+// The WRITTEN-DOWN INVENTORY of a company's stored bytes, taken in the same transaction that removes
+// the rows which used to point at them — so that deleting a company can never again leave files
+// behind that nothing is able to name.
+//
+// ## Why this table has to exist at all
+//
+// `DocumentArchive.uri` was the ONLY pointer to an archived document's bytes, and the archive path
+// is `<root>/<documentId>/<contentHash>/` — `companyId` appears NOWHERE in it. Delete the company
+// and Postgres cascades `DocumentInstance` → `DocumentArchive` away, taking every uri with it: the
+// bytes stay on the volume (or in the bucket) and no scan can afterwards decide which of them
+// belonged to the deleted company. Still there for a subpoena or a breach, gone for the customer who
+// asked to be erased. A row here is what survives that cascade and keeps them nameable.
+//
+// ## Why `companyId` is a plain String and NOT a relation
+//
+// A `@relation` onto `Company` would cascade away with the very deletion this table exists to
+// outlive — the table would be empty at exactly the moment it is needed. Same reasoning, and the
+// same shape, as `Log.companyId` above (see that column's own comment): a row whose `companyId` no
+// longer resolves to a live company is the NORMAL state here, not an anomaly.
+//
+// ## What a crash leaves behind
+//
+// Rows are inserted INSIDE the deletion transaction, so the journal exists if and only if the
+// company is really gone (never a journal naming a live company's files, which a later drain would
+// happily delete). Erasure itself runs AFTER that commit and marks each row `erasedAt` as it goes,
+// so a crash at any point leaves a queryable remainder — `WHERE erasedAt IS NULL` — rather than
+// silence. `lastError` names why the last attempt on a row failed.
+model PendingStorageErasure {
+  id String @id @default(cuid())
+
+  // The company these bytes belonged to. NOT a foreign key, deliberately — see this model's header.
+  companyId String
+
+  kind PendingStorageErasureKind
+
+  // WHAT to delete, in the exact form that store's own delete primitive takes: for ARCHIVE, the
+  // `DocumentArchive.uri` verbatim (`file://…` / `s3://…`, self-describing across a provider switch —
+  // `documents/archive/storage.ts`'s own header); for INBOUND_PREFIX, the companyId itself, which is
+  // the whole addressing unit that store deletes by. Stored even when it duplicates `companyId` so a
+  // row read on its own, by an operator with no code in front of them, still names its own target.
+  target String
+
+  // ARCHIVE rows only: which document these bytes archived, kept purely so an operator reading the
+  // journal after the fact can tell one orphaned directory from another. NULL for INBOUND_PREFIX.
+  documentId String?
+
+  // ARCHIVE rows only, copied VERBATIM from the `DocumentArchive` row before it was cascaded away —
+  // never recomputed here (the country catalog, the issue date and the calculation version that
+  // produced it are all gone by then). `retentionUntil` in the FUTURE means a statute still requires
+  // these bytes kept (⚖ `documents/archive/retention/`), so the drain deliberately skips the row and
+  // leaves it pending; `retentionBasis` carries the citation that says which statute. NULL/NULL for a
+  // country with no declared retention rule, and for INBOUND_PREFIX rows (no per-file retention
+  // exists for that store).
+  retentionUntil DateTime?
+  retentionBasis String?
+
+  journaledAt DateTime  @default(now())
+  // NULL while the bytes are still there. Set once, when they are actually gone.
+  erasedAt    DateTime?
+  // Why the last erasure attempt on this row failed — never cleared on success (the row carries
+  // `erasedAt` by then), so a row that needed two attempts still says what went wrong on the first.
+  lastError   String?
+
+  // Re-journaling the same target for the same company is a no-op rather than a duplicate: several
+  // `DocumentArchive` rows legitimately share one uri (content-hash addressing makes re-archiving
+  // byte-identical artifacts land back on the same path — `archive/storage.ts#archiveDir`).
+  @@unique([companyId, kind, target])
+  // The operator's query: "what is still on disk that nothing else can name any more?"
+  @@index([erasedAt])
+}
+
 // The post-deposit CONFORMITY journal — the reconstruction TODO's own named remainder: a PDP/KSeF
 // deposit today succeeds the moment the PLATFORM ACCEPTS the upload (`DocumentInstance.transportRef`,
 // lifecycle status "sent") and nothing ever follows up on the platform's own later verdict

@@ -153,7 +153,22 @@ export class InstanceResetService {
       // module itself writes through (`deleteArchivedArtifacts`, dispatching on the uri's own scheme
       // to either a local directory removal or an S3 prefix delete — see `archive/storage.ts`'s own
       // header), never a second, hand-rolled deletion path.
-      const archives = await prisma.documentArchive.findMany({ select: { uri: true } });
+      //
+      // PLUS whatever an earlier COMPANY deletion left behind: `PendingStorageErasure` holds archive
+      // uris whose own `DocumentArchive` row is already gone — bytes kept because a statutory
+      // retention period had not elapsed, or because an erasure attempt failed (see
+      // `documents/archive/company-storage-erasure.ts`). The truncate below wipes that journal along
+      // with every other table, so an instance reset that read only `DocumentArchive` would destroy
+      // the last record of those directories while leaving the directories themselves on the volume —
+      // recreating, for the whole instance at once, exactly the orphan this journal exists to prevent.
+      const [archives, journaled] = await Promise.all([
+        prisma.documentArchive.findMany({ select: { uri: true } }),
+        prisma.pendingStorageErasure.findMany({
+          where: { kind: 'ARCHIVE', erasedAt: null },
+          select: { target: true },
+        }),
+      ]);
+      const archiveUris = new Set([...archives.map((a) => a.uri), ...journaled.map((j) => j.target)]);
 
       await prisma.$transaction(async (tx) => {
         const tableList = INSTANCE_RESET_TABLES.map((table) => `"${table}"`).join(', ');
@@ -163,7 +178,7 @@ export class InstanceResetService {
         await tx.$executeRawUnsafe(`TRUNCATE TABLE ${tableList} CASCADE;`);
       });
 
-      await Promise.all(archives.map(({ uri }) => deleteArchivedArtifacts(uri)));
+      await Promise.all([...archiveUris].map((uri) => deleteArchivedArtifacts(uri)));
 
       // Received-invoice uploads, expense attachments and company logos all share ONE content-
       // addressed store (`received-invoices/storage.ts`'s own header) with no per-file DB tracking —
