@@ -72,24 +72,60 @@ export class WebhooksService {
    * (`CompanyChannelConfig.config` via `channels.service.ts`, `CompanySigningCertificate`'s PFX/pass);
    * `Webhook.secret` was the one column that stayed in the clear.
    *
-   * Falls back to storing the plaintext value when `CREDENTIALS_ENCRYPTION_KEY` is not configured —
-   * DELIBERATELY different from `channels.service.ts#upsertChannelConfig`, which refuses to save at
-   * all in that case: channel credentials are an opt-in feature gated behind that key from day one,
-   * but webhook secrets predate it and are not opt-in. Turning webhook creation into a hard failure
-   * for every self-hosted instance that never set the key would be a regression this fix must not
-   * cause; `migratePlaintextWebhookSecrets` (`webhook-secret-migration.ts`) sweeps up whatever is
-   * stored this way the moment a key does become available.
+   * ## Refuses to store a secret it cannot encrypt — it does NOT fall back to plaintext
+   * This used to `return secret` unchanged when `CREDENTIALS_ENCRYPTION_KEY` was unset, on the
+   * reasoning that channel credentials were an opt-in feature gated behind that key from day one
+   * while webhook secrets predate it, so hard-failing would regress instances that never set it. That
+   * reasoning had the blast radius backwards. An unset key is not an edge case here: `.env.example`
+   * ships the variable commented out, `docker-compose.yml` passes it with an empty default, and the
+   * Helm values call it optional — so "no key" is the state of every self-hosted instance that
+   * followed the documentation, and the fallback therefore wrote EVERY webhook secret on those
+   * instances in the clear, which is the default configuration rather than a corner of it. And this
+   * particular column is not a credential this server presents to someone else: it is the HMAC key
+   * the RECEIVER uses to decide that a delivery genuinely came from us. Anyone holding a copy of the
+   * database can forge deliveries into the customer's endpoint that verify as authentic — a loss that
+   * lands on a third party who never had any way to know the key was missing.
+   *
+   * So the write refuses, loudly, naming the variable, exactly like `channels.service.ts#upsertChannelConfig`
+   * and `sso.service.ts#upsert` already do, and for the same reason `backup-crypto.ts#requireBackupKey`
+   * fails a whole backup sweep rather than uploading one plaintext artifact: on every path in this
+   * codebase where a secret is about to be written, a missing key fails the WRITE and nothing else.
+   *
+   * Three things this deliberately does NOT do, because the point is to refuse a plaintext secret and
+   * nothing more:
+   *  - it does not refuse to boot (`main.ts` still asserts only the session secret). Every existing
+   *    instance keeps running, keeps serving, keeps delivering its existing webhooks;
+   *  - it does not refuse a webhook that carries no secret at all — `create`/`update` only reach this
+   *    method for a non-empty value, so an unsigned webhook (the Slack/Discord/Teams drivers, whose
+   *    authentication is the token inside the URL) is untouched;
+   *  - it does not touch, re-read or invalidate a row already stored in the clear. Those keep signing
+   *    (`resolveSecretForSigning` below) until `migratePlaintextWebhookSecrets`
+   *    (`webhook-secret-migration.ts`) encrypts them on the first boot that has a key.
+   *
+   * The one behavior that genuinely changes: on a keyless instance, SETTING a webhook secret now
+   * returns 503 instead of appearing to succeed. That is the intended regression — the alternative is
+   * an operator who believes their deliveries are signed by a secret only they hold.
    */
   private encryptSecretForStorage(secret: string): string {
-    if (!isEncryptionAvailable()) return secret;
+    if (!isEncryptionAvailable()) {
+      throw new HttpException(
+        'CREDENTIALS_ENCRYPTION_KEY is not configured on this server — a webhook secret cannot be ' +
+          'stored, because it would have to be written unencrypted. Set it (see utils/secret-crypto.ts) ' +
+          'and retry; a webhook with no secret can still be created without it.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
     return encryptJson(secret);
   }
 
   /**
    * The read-side counterpart, called by `send()` right before computing the HMAC signature.
    * A stored value can be in any of three states at any given time (this method's own three branches,
-   * in order): still legacy plaintext (no key was configured when it was written, or the boot
-   * migration has not reached it yet) — used as-is, unchanged behavior; an encrypted blob with the key
+   * in order): still legacy plaintext (written before this column was encrypted at all, or written on
+   * a keyless instance back when `encryptSecretForStorage` still fell back to plaintext instead of
+   * refusing, and the boot migration has not reached it yet) — used as-is, unchanged behavior, since
+   * refusing to sign here would silently break deliveries that work today for rows the operator cannot
+   * see and did not choose; an encrypted blob with the key
    * available — decrypted and used; or an encrypted blob with the key NOW missing (rotated away,
    * misconfigured) — unusable, so the send proceeds UNSIGNED rather than HMAC-ing the payload with the
    * literal ciphertext string, which would produce a signature no legitimate receiver could ever

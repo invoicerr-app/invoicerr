@@ -82,12 +82,14 @@ services:
       # the effective value (BETTER_AUTH_SECRET || JWT_SECRET), not each variable.
       # - JWT_SECRET=${JWT_SECRET:-}
 
-      # Encrypts each company's channel credentials at rest (AES-256-GCM). Left empty it fails
-      # SILENTLY — isEncryptionAvailable() returns false, no client can save the credentials for
-      # their KSeF/PDP/SdI channel, and there is no error, no log and nothing on screen to say why.
-      # Optional rather than `:?` on purpose: an instance that stores no channel credentials runs
-      # fine without it. Changing it later makes everything already stored undecryptable — treat it
-      # like a database password, not a toggle.
+      # Encrypts every secret this app stores at rest (AES-256-GCM): each company's channel
+      # credentials (KSeF/PDP/SdI), its SSO provider secret, its signing certificate, and its webhook
+      # HMAC secrets. Left empty, isEncryptionAvailable() returns false and each of those SAVE
+      # endpoints answers 503 — nothing is ever written unencrypted, so the features disable
+      # themselves rather than degrade. Optional rather than `:?` on purpose: an instance that stores
+      # none of them runs fine without it, and an existing deployment must not be bricked by an
+      # upgrade. Changing it later makes everything already stored undecryptable — treat it like a
+      # database password, not a toggle.
       - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY:-}
 
       # Where the archived documents live. Both default IN CODE to `<cwd>/...`, which inside a

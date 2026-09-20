@@ -116,11 +116,17 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
     it('does not re-validate the URL when the update leaves it untouched', async () => {
       // Deliberate: a row already in the table (e.g. from before this guard existed) can still have
       // its non-URL fields edited without being newly rejected for a URL nobody is trying to change.
+      // The edited field is `events` rather than `secret`: this file sets no
+      // `CREDENTIALS_ENCRYPTION_KEY`, and storing a secret without one is a 503 by design
+      // (`webhooks.service.ts#encryptSecretForStorage`) — which would make this case pass or fail for
+      // a reason that has nothing to do with the URL guard it exists to prove.
       mockedPrisma.webhook.findFirst.mockResolvedValue(makeWebhook({ url: 'http://127.0.0.1/legacy' }));
       mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(COMPANY_ROW);
       mockedPrisma.webhook.update.mockResolvedValue(makeWebhook({ url: 'http://127.0.0.1/legacy' }));
 
-      await expect(service.update(COMPANY_ID, 'wh-1', { secret: 'new-secret' })).resolves.toBeDefined();
+      await expect(
+        service.update(COMPANY_ID, 'wh-1', { events: [WebhookEvent.WEBHOOK_UPDATED] }),
+      ).resolves.toBeDefined();
       expect(mockedPrisma.webhook.update).toHaveBeenCalledTimes(1);
     });
 

@@ -185,11 +185,13 @@ worker:
 #                                    A deployment running on a guessable value lets anyone forge a
 #                                    valid session for any userId. The backend refuses to boot in
 #                                    production without it.
-#   CREDENTIALS_ENCRYPTION_KEY      Optional but recommended. AES-256-GCM key encrypting each
-#                                    company's channel credentials (KSeF/PDP/SdI…) at rest. Left
-#                                    unset, this fails SILENTLY — no error, no log, the feature just
-#                                    stops working. Changing it later makes everything already stored
-#                                    undecryptable — treat it like a database password, not a toggle.
+#   CREDENTIALS_ENCRYPTION_KEY      Optional but recommended. AES-256-GCM key encrypting every secret
+#                                    stored at rest: channel credentials (KSeF/PDP/SdI…), SSO provider
+#                                    secrets, signing certificates and webhook HMAC secrets. Left
+#                                    unset, each of those SAVE endpoints answers 503 — nothing is ever
+#                                    written unencrypted, the features disable themselves instead.
+#                                    Changing it later makes everything already stored undecryptable —
+#                                    treat it like a database password, not a toggle.
 #   DATABASE_URL                    REQUIRED when postgresql.enabled=false (the default). Pooled
 #                                    Postgres connection string — the long-lived Nest process's own
 #                                    runtime queries always go through this one, even on Neon.
