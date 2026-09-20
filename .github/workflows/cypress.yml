@@ -320,8 +320,27 @@ jobs:
           MIGRATION_FRESH_TESTS: '1'
         run: cd backend && npx vitest run prisma/migration-fresh-schema.spec.ts
 
+  # Six shards, six COMPLETE stacks. This job used to run all 73 specs back to back in one runner:
+  # 55, 56, 71, 73 and 73 minutes over the five most recent green runs, while every other job in this
+  # workflow finished inside 8 — the whole workflow's wall time was this job's alone. Nothing about
+  # the suite forced that: each job here already builds its own backend, frontend, Postgres, Redis and
+  # Mailpit from scratch, so N shards are N mutually invisible stacks. A spec cannot see, race or
+  # poison another shard's database no matter what it does to its own — which is why the split below
+  # is allowed to be blind to what the specs contain, and why grouping specs by what they "touch"
+  # would be a guess that rots the day someone adds one. Position within a shard is not a
+  # dependency either: `e2e/cypress/support/e2e.ts`'s own global `before()` resets and reseeds the
+  # database for every spec (01-register opts out of it and does its own reset instead), for exactly
+  # the reason its comment records — a spec that passes at position 7 and fails at position 2 is not
+  # testing the product.
   cypress-run:
     runs-on: ubuntu-latest
+    strategy:
+      # Same shape, and the same reason, as scenarios.yml's own six-leg matrix: one shard going red
+      # must not cancel the other five, or a single failure hides every finding the rest would have
+      # reported and the next push re-runs the whole thing to learn what it already could have known.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     env:
       # `npm run start:test` loads backend/.env.test, which pins REDIS_URL to 6399 -- the port the
       # LOCAL dev container publishes. Nothing listens there on a runner, and the backend refuses to
@@ -364,6 +383,49 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # THE SPLIT RULE, and the one thing to know about it: sort every spec `e2e:run` would have run,
+      # number them from 1, and keep the ones whose number falls on this shard (`NR % 6 == shard % 6`).
+      # It is computed from the files ON DISK, at run time — so ADDING A SPEC REQUIRES NO CHANGE TO
+      # THIS FILE. A hand-written list of spec names here would be the opposite: the day someone adds
+      # a spec and does not think to edit CI, that spec silently stops being run by anything, and a
+      # suite nobody runs is a suite everyone believes is green — the exact failure this workflow's own
+      # header already refuses for the `push` trigger.
+      #
+      # `cypress/e2e/*.cy.ts` — ONE level, deliberately not `**` — is `e2e:run`'s own glob, and the
+      # reason it is not the config's `specPattern` (`cypress/e2e/**/*.cy.{js,ts}`):
+      # `cypress/e2e/scenarios/full-lifecycle.cy.ts` belongs to scenarios.yml's own six-leg matrix,
+      # which drives it once per country pair. Widening this glob would run it a seventh time here,
+      # with no `CYPRESS_scenario` set.
+      #
+      # Balance is a consequence of the rule, never a target: hand-tuning which spec lands where would
+      # reintroduce exactly the hand-written list this avoids. Measured on run 35511926079 (73 specs,
+      # 48m38s of spec time serial), the modulo split gives 6m20s–10m34s per shard; the long tail is
+      # 05-clients.cy.ts alone (4m52s), so no assignment of whole specs can do much better.
+      # `LC_ALL=C sort` pins the ordering to bytes rather than to whatever locale the runner image
+      # happens to ship, so a given spec lands on the same shard here and on a developer machine.
+      - name: Select this shard's specs
+        id: shard
+        # Runs before the four install steps on purpose: a glob that stopped matching (a renamed
+        # directory, a `cd` that silently landed elsewhere) fails this job in seconds instead of after
+        # five minutes of `npm ci` and a booted stack.
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/e2e"
+          all=$(ls cypress/e2e/*.cy.ts | LC_ALL=C sort)
+          specs=$(echo "$all" | awk -v shard=${{ matrix.shard }} 'NR % 6 == shard % 6')
+          # Empty is never legitimate here — six shards over 73 specs give twelve or thirteen each —
+          # so it means the glob matched nothing and `--spec ""` would have made Cypress run the
+          # config's own pattern instead: a shard quietly running the WHOLE suite, or nothing at all.
+          if [ -z "$specs" ]; then
+            echo "::error::shard ${{ matrix.shard }}/6 selected no spec out of $(echo "$all" | wc -l) — the glob is wrong, not the suite"
+            exit 1
+          fi
+          # Printed in full, every run: the six job logs side by side ARE the proof that the split
+          # covers every spec exactly once, without anyone having to trust this awk.
+          echo "shard ${{ matrix.shard }}/6 — $(echo "$specs" | wc -l) of $(echo "$all" | wc -l) specs:"
+          echo "$specs"
+          echo "spec=$(echo "$specs" | paste -sd, -)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -393,6 +455,11 @@ jobs:
       # this deterministic instead of lucky — render-pdf.ts's own resolution chain then picks it up via
       # `chromium.executablePath()` with no env var needed (see that file's own comment for why that
       # rule exists and why it is checked before the conventional system paths).
+      #
+      # All six shards share ONE cache key, on purpose: they want the identical browser, and a
+      # per-shard key would store six copies of the same ~150 MB. On a cold key the six runners race
+      # to save it — `actions/cache` resolves that by itself (the losers log "Unable to reserve cache
+      # … already exists" and carry on), so it is noise in a log, never a failed job.
       - name: Cache Playwright Chromium
         uses: actions/cache@v4
         with:
@@ -431,28 +498,37 @@ jobs:
           # against this same database. `migrate dev` used to run again here — it is a
           # developer-machine command that can prompt or fail without a TTY as soon as
           # the migrations drift from schema.prisma.
-          (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
+          (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend-shard-${{ matrix.shard }}.log 2>&1 &)
           (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
           # wait-on above only checked the DB/mail/Redis ports were open, not that the
           # Nest app itself finished booting — a slow boot or a startup crash used to
-          # go unnoticed until 15 Cypress specs failed with confusing auth errors.
+          # go unnoticed until the Cypress specs failed with confusing auth errors.
           npx wait-on http-get://localhost:4000/api/health --timeout 120000
           # Firefox, not Electron: the Electron renderer crashes on a Radix select inside a dialog
           # (see e2e/cypress.config.ts's own analysis). The same specs pass on Firefox.
-          (cd $GITHUB_WORKSPACE/e2e && npm run e2e:run -- --browser firefox)
+          #
+          # `npx cypress run` directly rather than `npm run e2e:run`, which carries a `--spec` of its
+          # own ("every spec"): passing a second one after `--` leaves two `--spec` flags on one
+          # command line, and which of them wins is a yargs detail no CI job should depend on.
+          # `e2e:run` stays the whole-suite command a developer types; this job selects its own slice,
+          # on the SAME `--browser firefox` scenarios.yml's leg and the SaaS lane below already use.
+          (cd $GITHUB_WORKSPACE/e2e && npx cypress run --browser firefox --spec "${{ steps.shard.outputs.spec }}")
 
+      # Artifact names carry the shard: `actions/upload-artifact@v4` REFUSES a name another job in the
+      # same run already uploaded (v3 merged them silently), so six shards uploading `backend-logs`
+      # would fail five of the six uploads — the same per-leg naming scenarios.yml already uses.
       - name: Upload backend logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-logs
-          path: ${{ github.workspace }}/logs/backend.log
+          name: backend-logs-shard-${{ matrix.shard }}
+          path: ${{ github.workspace }}/logs/backend-shard-${{ matrix.shard }}.log
 
       - name: Upload Cypress videos and screenshots
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-videos-screenshots
+          name: cypress-videos-screenshots-shard-${{ matrix.shard }}
           path: |
             ${{ github.workspace }}/e2e/cypress/videos
             ${{ github.workspace }}/e2e/cypress/screenshots
