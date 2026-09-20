@@ -1,6 +1,6 @@
 ---
 title: Legal Notice
-sidebar_position: 4
+sidebar_position: 5
 version: 2026-09-19
 effectiveDate: 2026-09-19
 ---

@@ -1,5 +1,5 @@
 /**
- * Loads and parses the six legal documents this repo ships (`documentation/docs/legal/*.md`,
+ * Loads and parses the seven legal documents this repo ships (`documentation/docs/legal/*.md`,
  * mirrored — see `scripts/sync-legal-docs.ts` and `docs-sync.spec.ts` — onto `./data/*.md`, embedded
  * into the API at build time via `nest-cli.json`'s `**\/*.md` asset rule). Framework-agnostic: no
  * Prisma, no Nest — `legal.service.ts` (HTTP) and `legal-acceptance.ts` (called from both Nest and
@@ -23,11 +23,12 @@
  * given request actually sees.
  *
  * Not every slug has a translation into every language: `terms-of-service`, `legal-notice`, and
- * `cookies-and-acceptable-use` only ship French so far; `privacy-policy` and `data-processing-
- * agreement` ship all five non-English languages (owner decision 2026-09-19 — the two documents GDPR
- * Art. 12 most directly governs). A missing translation is not an error at load time — a slug simply
- * has fewer keys in its `translations` map — so adding the sixth language for one more slug is a matter
- * of dropping one more file in, never a schema change.
+ * `cookies-and-acceptable-use` only ship French so far; `privacy-policy`, `data-processing-agreement`,
+ * and `refund-policy` ship all five non-English languages — the documents a customer most needs to
+ * read in their own language before agreeing to something (GDPR Art. 12 for the first two; a refund
+ * policy is read at the moment of paying, not after). A missing translation is not an error at load
+ * time — a slug simply has fewer keys in its `translations` map — so adding the sixth language for one
+ * more slug is a matter of dropping one more file in, never a schema change.
  */
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';

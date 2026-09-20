@@ -23,14 +23,15 @@ export class LegalController {
     description:
       'Public, always reachable (even on a self-hosted instance — this route never 404s the way ' +
       'BillingModule does). In SaaS mode: Terms of Service, Privacy Policy, Data Processing ' +
-      'Agreement, Legal Notice, Cookies & Acceptable Use, and International Access Transparency, ' +
-      'each with its current version, effective date, and raw markdown content resolved into a ' +
-      'language (`legal-request-language.ts`): the `lang` query param when given and supported, else ' +
-      "the caller's own account locale when signed in, else this request's own `Accept-Language` " +
-      'header, else English — resolved separately per document, since not every document ships every ' +
-      'language. Outside SaaS mode `documents` is always the empty array: every one of the six ' +
-      "describes the hosted offering by name (the author's own identity, a subscription, a processor " +
-      "relationship) and none of it is true of a self-hosted operator's instance — only the licence " +
+      'Agreement, Refund and Cancellation Policy, Legal Notice, Cookies & Acceptable Use, and ' +
+      'International Access Transparency, each with its current version, effective date, and raw ' +
+      'markdown content resolved into a language (`legal-request-language.ts`): the `lang` query ' +
+      "param when given and supported, else the caller's own account locale when signed in, else " +
+      "this request's own `Accept-Language` header, else English — resolved separately per document, " +
+      'since not every document ships every language. Outside SaaS mode `documents` is always the ' +
+      "empty array: every one of the seven describes the hosted offering by name (the author's own " +
+      'identity, a subscription, a processor relationship) and none of it is true of a self-hosted ' +
+      "operator's instance — only the licence " +
       'in the repository governs that install, and this route has never served it. `saasMode` is the ' +
       'one field the frontend actually branches on: whether the sign-up screen must show the ' +
       'acceptance checkbox, and whether there is anything here worth linking to at all.',

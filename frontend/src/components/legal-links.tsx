@@ -15,6 +15,7 @@ const LEGAL_LINKS = [
   { slug: "terms-of-service", key: "legal.links.terms", fallback: "Terms" },
   { slug: "privacy-policy", key: "legal.links.privacy", fallback: "Privacy" },
   { slug: "data-processing-agreement", key: "legal.links.dpa", fallback: "DPA" },
+  { slug: "refund-policy", key: "legal.links.refund", fallback: "Refund policy" },
   { slug: "legal-notice", key: "legal.links.legalNotice", fallback: "Legal notice" },
   { slug: "cookies-and-acceptable-use", key: "legal.links.cookies", fallback: "Cookies" },
   // Regulation (EU) 2023/2854 (the EU Data Act), Article 28 requires this page to be *publicly
@@ -80,7 +81,8 @@ export function useLegalLinks(): LinkEntry[] {
 
 /**
  * A quiet row of links to every legal document the backend currently serves — Terms · Privacy · DPA
- * · Legal notice · Cookies · International access · anything added after this comment was written.
+ * · Refund policy · Legal notice · Cookies · International access · anything added after this comment
+ * was written.
  * Mounted three times: below the sign-in/sign-up card (`sign-in.tsx`, `sign-up.tsx` — a visitor has
  * accepted nothing yet, so the destination page's own version/date is all there is to show), and as
  * a persistent line in the authenticated app shell (`(app)/_layout.tsx`) so a signed-in user is never

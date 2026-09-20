@@ -45,18 +45,19 @@ function doc(overrides: Partial<Record<string, unknown>> = {}) {
   }
 }
 
-/** Every document the six-strong catalog serves as of this test — matches the curated list inside
+/** Every document the seven-strong catalog serves as of this test — matches the curated list inside
  *  `legal-links.tsx` exactly, so these specs exercise the steady state before probing the guard. */
 const CURATED_DOCUMENTS = [
   doc({ slug: "terms-of-service", title: "Terms of Service", sidebarPosition: 0 }),
   doc({ slug: "privacy-policy", title: "Privacy Policy", sidebarPosition: 1 }),
   doc({ slug: "data-processing-agreement", title: "Data Processing Agreement", sidebarPosition: 2 }),
-  doc({ slug: "legal-notice", title: "Legal Notice", sidebarPosition: 3 }),
-  doc({ slug: "cookies-and-acceptable-use", title: "Cookies & Acceptable Use", sidebarPosition: 4 }),
+  doc({ slug: "refund-policy", title: "Refund and Cancellation Policy", sidebarPosition: 3 }),
+  doc({ slug: "legal-notice", title: "Legal Notice", sidebarPosition: 4 }),
+  doc({ slug: "cookies-and-acceptable-use", title: "Cookies & Acceptable Use", sidebarPosition: 5 }),
   doc({
     slug: "international-access-transparency",
     title: "International Access Transparency",
-    sidebarPosition: 5,
+    sidebarPosition: 6,
   }),
 ]
 
@@ -70,7 +71,7 @@ function renderLinks() {
 }
 
 describe("<LegalLinks>", () => {
-  it("links every one of the six documents currently served, each pointing at /legal/<slug>", async () => {
+  it("links every one of the seven documents currently served, each pointing at /legal/<slug>", async () => {
     installFetchMock(CURATED_DOCUMENTS)
     renderLinks()
 
@@ -78,18 +79,18 @@ describe("<LegalLinks>", () => {
       const link = await screen.findByTestId(`legal-link-${document.slug}`)
       expect(link).toHaveAttribute("href", `/legal/${document.slug}`)
     }
-    // Nothing else slipped in or out — exactly the six, not five and not seven.
+    // Nothing else slipped in or out — exactly the seven, not six and not eight.
     expect(screen.getAllByRole("link")).toHaveLength(CURATED_DOCUMENTS.length)
   })
 
   it("still links a document the backend serves that has no curated label — the guard against an unlinked document", async () => {
-    // A seventh document, added to the catalog after this component's own curated list was last
+    // An eighth document, added to the catalog after this component's own curated list was last
     // touched — exactly how `international-access-transparency` itself was served-but-unlinked
     // before it was added here. Nobody updated legal-links.tsx for it in this scenario on purpose.
     const laterDocument = doc({
       slug: "some-new-compliance-page",
       title: "Some New Compliance Page",
-      sidebarPosition: 6,
+      sidebarPosition: 7,
     })
     installFetchMock([...CURATED_DOCUMENTS, laterDocument])
     renderLinks()

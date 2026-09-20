@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 describe('LegalService.listDocuments', () => {
-  // Decision 2026-09-20: a self-hosted instance serves NONE of the six documents — every one of them
+  // Decision 2026-09-20: a self-hosted instance serves NONE of the seven documents — every one of them
   // describes the hosted offering by name (the author's own identity, a subscription that instance
   // doesn't have, a processor relationship where he processes nothing for it) and is true of nobody
   // else. Only the licence already in the repository governs a self-hosted install.
@@ -33,7 +33,7 @@ describe('LegalService.listDocuments', () => {
     process.env[BILLING_FLAG_NAME] = 'true';
     const view = new LegalService().listDocuments();
     expect(view.saasMode).toBe(true);
-    expect(view.documents).toHaveLength(6);
+    expect(view.documents).toHaveLength(7);
   });
 
   it('defaults to English when called with no preferred-language list at all', () => {

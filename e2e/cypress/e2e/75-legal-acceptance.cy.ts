@@ -33,7 +33,17 @@ const api = Cypress.env("apiUrl") || "http://localhost:4000";
 const PASSWORD = "Super_Secret_Password123!";
 
 const REQUIRED_SLUGS = ["terms-of-service", "privacy-policy"];
-const ALL_SLUGS = [...REQUIRED_SLUGS, "data-processing-agreement", "legal-notice", "cookies-and-acceptable-use"];
+/** Every slug the hosted offering serves. The assertion below uses `include.members`, so a slug left
+ *  out of this list is silently unchecked instead of failing — the list only guards what it names,
+ *  which is why it has to grow with every document the corpus gains. */
+const ALL_SLUGS = [
+	...REQUIRED_SLUGS,
+	"data-processing-agreement",
+	"refund-policy",
+	"legal-notice",
+	"cookies-and-acceptable-use",
+	"international-access-transparency",
+];
 
 function fillSignupForm({ firstname, lastname, email }: { firstname: string; lastname: string; email: string }) {
 	cy.get('[data-cy="auth-firstname-input"]', { timeout: 10000 }).should("be.visible").type(firstname);
@@ -91,7 +101,7 @@ describe("Legal acceptance", () => {
 				// to publish — the author's identity, a subscription this instance doesn't sell, a
 				// processor relationship where nothing is processed for it. Only the licence already in
 				// the repository governs a self-hosted install, and this endpoint has never served it.
-				expect(response.body.documents, "self-hosted instances publish none of the six documents").to.deep.equal([]);
+				expect(response.body.documents, "self-hosted instances publish no legal document at all").to.deep.equal([]);
 			}
 		});
 	});

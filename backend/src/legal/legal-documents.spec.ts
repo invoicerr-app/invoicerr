@@ -17,12 +17,13 @@ import {
 const TRANSLATION_PATH = join(__dirname, 'data', 'privacy-policy.fr.md');
 
 describe('legal-documents', () => {
-  it('loads all six documents from ./data, sorted by sidebar_position', () => {
+  it('loads all seven documents from ./data, sorted by sidebar_position', () => {
     const docs = listLegalDocuments();
     expect(docs.map((d) => d.slug)).toEqual([
       'terms-of-service',
       'privacy-policy',
       'data-processing-agreement',
+      'refund-policy',
       'legal-notice',
       'cookies-and-acceptable-use',
       'international-access-transparency',
@@ -93,8 +94,8 @@ describe('legal-documents', () => {
   });
 
   describe('translations', () => {
-    it('privacy-policy and data-processing-agreement ship every non-English catalog language', () => {
-      for (const slug of ['privacy-policy', 'data-processing-agreement']) {
+    it('privacy-policy, data-processing-agreement and refund-policy ship every non-English catalog language', () => {
+      for (const slug of ['privacy-policy', 'data-processing-agreement', 'refund-policy']) {
         const doc = getLegalDocument(slug)!;
         expect(Object.keys(doc.translations).sort()).toEqual(['de', 'fr', 'it', 'pl', 'pt']);
       }

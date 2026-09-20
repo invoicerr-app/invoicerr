@@ -33,7 +33,7 @@ export class LegalService {
    * always did.
    */
   /**
-   * Outside SaaS mode this returns NO documents at all (decision 2026-09-20). All six ship their own
+   * Outside SaaS mode this returns NO documents at all (decision 2026-09-20). All seven ship their own
    * "does not apply to the self-hosted software" scope clause — they describe the author's hosted
    * business (his identity for the legal notice, a subscription that instance doesn't have, a
    * processor relationship where he processes nothing, sub-processors that instance never talks to) —

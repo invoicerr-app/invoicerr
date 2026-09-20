@@ -1,6 +1,6 @@
 ---
 title: Cookies & Acceptable Use
-sidebar_position: 5
+sidebar_position: 6
 version: 2026-09-20
 effectiveDate: 2026-09-20
 ---

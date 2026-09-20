@@ -2983,6 +2983,10 @@
       "description": "Manage this company's hosted subscription — seats, plan, and payment method.",
       "currencyNotice": "Prices are shown in USD. If your card is billed in another currency, your bank converts the charge at its own exchange rate.",
       "vatNotice": "Prices exclude VAT; Polar, the merchant of record, adds the VAT applicable to your company at checkout.",
+      "refundNotice": {
+        "prefix": "Subscribing starts a subscription that renews automatically until you cancel it, with no refund or proration for the unused portion of a cancelled period. See our",
+        "linkLabel": "Refund and Cancellation Policy"
+      },
       "currentPlan": "Current plan",
       "noSubscription": "No subscription",
       "seats": "{{count}} seat",
@@ -4956,6 +4960,7 @@
       "terms": "Terms",
       "privacy": "Privacy",
       "dpa": "DPA",
+      "refund": "Refund policy",
       "legalNotice": "Legal notice",
       "cookies": "Cookies",
       "internationalAccess": "International access"

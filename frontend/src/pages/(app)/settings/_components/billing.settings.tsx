@@ -247,6 +247,12 @@ export default function BillingSettings() {
     ? t("settings.billing.noSubscription", "No subscription")
     : t(`settings.billing.status.${status.status}`, status.status)
 
+  // Same condition the Subscribe buttons themselves render on, below — a company with no billing
+  // customer of its own yet, or one whose ACTIVE status reads off an unrelated legacy customer
+  // (`legacySubscription`). Shared so the auto-renewal/no-refund notice can never show without the
+  // buttons it is about, or the other way around.
+  const canSubscribe = status.status !== "ACTIVE" || !status.hasCompanyCustomer
+
   return (
     <SettingsPage
       title={t("settings.billing.title", "Subscription")}
@@ -322,11 +328,33 @@ export default function BillingSettings() {
         }
         footer={
           canManageBilling ? (
-            <SettingsFormFooter>
+            <SettingsFormFooter
+              hint={
+                // Terms of Service, Section 12.2 states the underlying rule (auto-renewal, no
+                // refund or proration); Polar's own checkout page is where the charge actually
+                // happens, outside this app's own screens, so this button is the last point in the
+                // product itself where that rule can be shown before the customer commits to it.
+                canSubscribe ? (
+                  <>
+                    {t(
+                      "settings.billing.refundNotice.prefix",
+                      "Subscribing starts a subscription that renews automatically until you cancel it, with no refund or proration for the unused portion of a cancelled period. See our",
+                    )}{" "}
+                    <a
+                      href="/legal/refund-policy"
+                      className="underline decoration-border underline-offset-4 hover:decoration-foreground"
+                      data-cy="billing-refund-policy-link"
+                    >
+                      {t("settings.billing.refundNotice.linkLabel", "Refund and Cancellation Policy")}
+                    </a>
+                  </>
+                ) : undefined
+              }
+            >
               {/* Subscribe stays offered — as the SOLE primary action when this company has no billing
                   customer of its own yet, `status` alone (which can read ACTIVE off an unrelated legacy
                   customer, see `legacySubscription`) is never enough on its own to hide it. */}
-              {(status.status !== "ACTIVE" || !status.hasCompanyCustomer) && (
+              {canSubscribe && (
                 <>
                   <Button
                     variant="outline"
