@@ -22,6 +22,9 @@ same way — swap the provider-specific values where noted.
 
 - A Kubernetes cluster (1.28+) and `kubectl` pointed at it.
 - [Helm 3](https://helm.sh/docs/intro/install/).
+- **A DNS name for the instance, and HTTPS in front of it.** Neither is optional, and neither fails
+  in a way that looks like what it is — see the warning just below, and "The Ingress needs a real
+  host name" in step 1.
 - An `ingress-nginx` controller and `cert-manager` installed in the cluster **if** you use the
   chart's bundled Ingress (`ingress.enabled: true`, the default). Skip both and set
   `ingress.enabled: false` if you front the cluster with something else.
@@ -29,6 +32,32 @@ same way — swap the provider-specific values where noted.
   default — see the warning below on why `local` does not survive more than one replica).
 - A Postgres database, unless you only need `postgresql.enabled: true`'s bundled, single-replica,
   **dev/kind-only** Postgres (no HA, no backups — never use it for anything real).
+
+:::warning HTTPS is a prerequisite, and it fails looking like a login bug
+`backend/src/lib/auth.ts` configures better-auth with
+`advanced.useSecureCookies: process.env.NODE_ENV === 'production'`, and the published image sets
+`ENV NODE_ENV=production` (repository `Dockerfile`, runtime stage). Every session cookie this
+deployment mints is therefore named with the `__Secure-` prefix and carries the `Secure` attribute —
+and a browser refuses to store a `__Secure-` cookie received over plain HTTP.
+
+Served over `http://`, the instance then looks healthy and is not. `GET /api/health` is `@Public()`
+(`backend/src/modules/health/health.controller.ts`) and answers `200` with no session at all, so
+every probe, `curl` and dashboard stays green. Every other route goes through the global `AuthGuard`
+(`backend/src/guards/auth.guard.ts`), finds no session cookie, and throws `UnauthorizedException` —
+**401**. The SPA turns that 401 into a redirect to `/auth/sign-in`
+(`frontend/src/hooks/use-fetch.ts`), so the visible symptom is "I sign in and land back on the
+sign-in page": it reads as broken authentication, and the thing actually missing is TLS. Terminate
+HTTPS before debugging anything else.
+
+Same family, same disguise: `app.appUrl` and `app.corsOrigins` must be spelled `https://` as well.
+Both feed better-auth's `trustedOrigins` (`backend/src/lib/auth.ts`) and Nest's own
+`app.enableCors({ credentials: true, origin: [...] })` (`backend/src/create-app.ts`), and
+better-auth compares the browser's `Origin` header against that list as an **exact origin string,
+scheme included** — `matchesOriginPattern` reduces to `pattern === getOrigin(url)` for `http:`/
+`https:` URLs. An `http://` entry therefore never matches an `https://` page: better-auth answers
+**403 `INVALID_ORIGIN`** on its own routes, and Nest's CORS layer omits the
+`Access-Control-Allow-Origin` header on the rest, so the browser throws the response away.
+:::
 
 :::warning Why `archive.storage` defaults to `s3`
 `backend/src/modules/documents/archive/**` is the legal document archive — content-hash-addressed,
@@ -84,6 +113,54 @@ spec:
 ```bash
 kubectl apply -f cluster-issuer.yaml
 ```
+
+### If you do not run cert-manager
+
+`deploy/helm/invoicerr/templates/ingress.yaml` emits the
+`cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}` annotation
+**unconditionally** — it sits in the Ingress's `metadata.annotations`, outside every `if`, and in
+particular it is *not* guarded by `ingress.tls.enabled`. Turning TLS off does not remove it, and
+`ingress.clusterIssuer: ""` does not either: `helm template` then renders the annotation key with an
+empty value rather than dropping the line. There is no values switch that suppresses it.
+
+That is harmless in itself — with no cert-manager in the cluster, no controller watches the
+annotation and nothing acts on it. What you do have to decide is where the certificate comes from,
+because HTTPS is still required (see the prerequisites above). Two working shapes:
+
+- **Bring your own certificate.** Leave `ingress.tls.enabled: true` and create the Secret the
+  template already names, `<ingress.host>-tls`, in the release's namespace yourself:
+
+  ```bash
+  kubectl create secret tls my.invoicerr.app-tls --cert=fullchain.pem --key=privkey.pem
+  ```
+
+  The Ingress references that exact name (`secretName: {{ .Values.ingress.host }}-tls`), so it
+  picks the Secret up with no further configuration. The stray cert-manager annotation is ignored.
+- **Terminate TLS in front of the cluster.** Set `ingress.enabled: false`, expose the `api` Service
+  through your own Ingress/Gateway/load balancer, and adjust `app.trustProxyHops` to the real number
+  of HTTP-aware hops now sitting in front of the pod's own nginx (the chart defaults it to `2`,
+  which counts its own bundled Ingress — `values.yaml` explains the count).
+
+### The Ingress needs a real host name
+
+`ingress.host` is not optional and cannot be an IP address. The template always emits
+`- host: {{ .Values.ingress.host | quote }}`, and with `ingress.tls.enabled: true` (the default) it
+also derives the TLS entry from the same value — `hosts: ["<host>"]` and
+`secretName: <host>-tls`. Neither of the two ways to ask for an IP-only install survives:
+
+- Leaving `ingress.host` empty, with the chart's default `ingress.tls.enabled: true`, renders
+  `hosts: [""]` and `secretName: -tls`. Kubernetes validates both (`validateIngressTLS`): an empty
+  string is not a valid DNS-1123 subdomain, and `-tls` is not a valid Secret name. Switching TLS off
+  to get past that is not a route out — HTTPS is a prerequisite here, not a preference.
+- Putting the IP in `ingress.host` renders `host: "203.0.113.10"`, which Kubernetes rejects outright
+  — `validateIngressRules` fails any rule host that parses as an IP with *"must be a DNS name, not
+  an IP address"*.
+
+If you have no domain yet, the workaround is a wildcard DNS service that maps an address back to
+itself, such as [nip.io](https://nip.io): `203.0.113.10.nip.io` resolves to `203.0.113.10`, is a
+valid DNS name as far as both Kubernetes and the browser are concerned, and can be used as
+`ingress.host` and in `app.appUrl` / `app.corsOrigins` as-is. You still have to solve the
+certificate for it by one of the two routes above.
 
 ## 2. Create the archive bucket — Scaleway Object Storage
 
@@ -149,6 +226,104 @@ Scaleway-backed install; this chart does not ship one (an optional
 scheduled-`pg_dump`-to-object-storage CronJob is reasonable to add later for an extra, provider-
 independent copy — it is not part of this chart today).
 
+## Steps 2 and 3 on a bare cluster
+
+Everything above assumes a cloud provider. If you run your own cluster — k3s on three machines,
+kubeadm, a rack — you have no managed Object Storage and no managed Postgres, and the chart creates
+neither for you. This section is the **alternative to steps 2 and 3 only**: steps 1 and 4 through 7
+are unchanged, and so is everything the rest of this guide says about HTTPS, the Secret and
+`helm install`.
+
+### Object storage
+
+`archive.storage: s3` is the chart's default and the chart **provisions nothing**. It only passes
+values through to the pods — `ARCHIVE_S3_BUCKET` / `ARCHIVE_S3_ENDPOINT` / `ARCHIVE_S3_REGION` /
+`ARCHIVE_S3_FORCE_PATH_STYLE` from `values.yaml`, and `ARCHIVE_S3_ACCESS_KEY_ID` /
+`ARCHIVE_S3_SECRET_ACCESS_KEY` from the Secret. There has to be a bucket behind them:
+`backend/src/modules/documents/archive/s3-storage.ts` throws, deliberately and loudly, when any of
+region, access key or secret key is missing, rather than quietly writing a legal archive somewhere
+else.
+
+**Falling back to `archive.storage: local` on more than one node does not merely lose documents —
+it stops pods from running.** `invoicerr.documentsVolumeNeeded` (`templates/_helpers.tpl`) is true
+unless **both** `archive.storage` and `documents.inbound.storage` are `s3`; when it is true,
+`deployment-api.yaml` *and* `deployment-worker.yaml` both mount the same `invoicerr-documents` PVC
+at `/data`, and `documents.persistence.accessMode` defaults to `ReadWriteOnce`. api and worker are two separate Deployments, so even at the chart's own default of
+one replica each, that is two pods with nothing pinning them to the same node. On a multi-node
+cluster with ordinary block storage, whichever of the two is scheduled onto the second node never
+starts at all: a ReadWriteOnce volume can only be attached to one node at a time, so the pod sits
+in `ContainerCreating` with a `FailedAttachVolume` multi-attach event against it. Note that this
+applies to the Scaleway path too, which leaves `documents.inbound.storage` at its default `local` —
+the PVC is rendered there as well.
+
+**MinIO in the cluster** is the shortest way out, and is what this section was written against:
+
+```bash
+helm repo add minio https://charts.min.io/
+helm install minio minio/minio -n minio --create-namespace \
+  --set mode=standalone \
+  --set persistence.size=50Gi \
+  --set rootUser=invoicerr \
+  --set rootPassword='<a long random string>' \
+  --set 'buckets[0].name=invoicerr-archive' \
+  --set 'buckets[0].policy=none'
+```
+
+`mode=standalone` renders a single-replica Deployment, one PVC, a `minio` Service on port 9000, and
+a post-install Job that creates the bucket. Point the chart at it:
+
+```yaml
+archive:
+  storage: s3
+  s3:
+    bucket: invoicerr-archive
+    endpoint: http://minio.minio.svc.cluster.local:9000
+    region: us-east-1
+    # REQUIRED here, unlike the Scaleway path. Virtual-hosted-style addressing would have the SDK
+    # resolve invoicerr-archive.minio.minio.svc.cluster.local, which no cluster DNS record answers.
+    forcePathStyle: true
+```
+
+and put MinIO's `rootUser` / `rootPassword` into the Secret of step 5 as
+`ARCHIVE_S3_ACCESS_KEY_ID` / `ARCHIVE_S3_SECRET_ACCESS_KEY`. `region` may not be left empty —
+`s3-storage.ts` reads it through `requireEnv('ARCHIVE_S3_REGION')` and throws on an empty value —
+so it has to say something; `us-east-1` is the conventional value in front of a MinIO endpoint.
+
+That covers the archive. To drop the `/data` PVC altogether — the only configuration that lets api
+and worker be scheduled freely across nodes — move the inbound store to object storage as well:
+`documents.inbound.storage: s3` with its own `documents.inbound.s3.*` block, a **different** bucket
+from the archive's, and `INBOUND_S3_ACCESS_KEY_ID` / `INBOUND_S3_SECRET_ACCESS_KEY` added to the
+same Secret. `values.yaml`'s own `documents.inbound` header explains why that store defaults to
+`local` and what does *not* migrate itself when you switch it later.
+
+### PostgreSQL
+
+`postgresql.enabled: true` gives you a single-replica Deployment of the public
+`postgres` image (`postgresql.image.tag`, `15` by default), one ReadWriteOnce PVC
+(`postgresql.persistence.size`, 5Gi by default) and the `invoicerr` / `invoicerr` / `invoicerr_db`
+credentials written in clear in `values.yaml`. `values.yaml` calls it dev/kind-only and means it.
+Before pointing real invoices at it, know what you are accepting:
+
+- **No replication, no failover, no point-in-time recovery, no connection pooler, no TLS.** Its
+  durability is exactly the durability of that one PVC on that one node.
+- **No backups, from anything.** This chart ships no `pg_dump` CronJob (see step 3), and nothing
+  else in it touches the database's own durability. Scheduling dumps to somewhere off the cluster
+  is entirely on you.
+- **The PVC is an ordinary chart resource** (`templates/pvc-postgres.yaml`, no
+  `helm.sh/resource-policy: keep`), so `helm uninstall` deletes it along with everything else, and
+  with a `Delete` reclaim policy the data goes with it.
+- **The password is not a Secret on this path.** `invoicerr.bundledDatabaseUrl`
+  (`templates/_helpers.tpl`) interpolates `postgresql.auth.*` straight into a literal `DATABASE_URL`
+  env value on the api, worker and `catalogs-release` pod specs — readable by anyone who can
+  `kubectl get deployment -o yaml`. Change the defaults at a minimum.
+
+For real data on a bare cluster, run Postgres properly and treat it as external, exactly as step 3
+does: a Postgres operator (CloudNativePG, Zalando's postgres-operator, …) in the cluster, or a
+plain Postgres on a machine outside it. Either way you end up in the same place — `postgresql.enabled:
+false` and a `DATABASE_URL` in the Secret — and every remaining step of this guide applies unchanged.
+`DATABASE_URL_UNPOOLED` stays unset unless you deliberately put a transaction-mode pooler (PgBouncer)
+in front of the database, which is the one case step 3 describes it for.
+
 ## 4. Redis
 
 Bundled by default (a plain, dependency-free Deployment+PVC — see `values.yaml`'s own `redis`
@@ -181,7 +356,7 @@ path for a first install.
 ```yaml title="values.prod.yaml"
 image:
   repository: ghcr.io/invoicerr-app/invoicerr
-  tag: "v1.5.0" # pin a real tag/digest — never "latest" for anything you operate
+  tag: "v1.4.5c" # pin an EXISTING tag — see "Which tag?" below; never "latest" for anything you operate
 
 existingSecret: invoicerr-secrets
 
@@ -213,6 +388,38 @@ helm install invoicerr deploy/helm/invoicerr -f values.prod.yaml
 
 `helm upgrade invoicerr deploy/helm/invoicerr -f values.prod.yaml` re-applies the same file for any
 later change (including a new `image.tag`).
+
+### Which tag?
+
+`.github/workflows/docker-publish.yml` is triggered by `release: created`, and the image tag it
+pushes is the git tag the release was cut from, verbatim. There is no separate image versioning
+scheme: every version-numbered tag on GHCR is a published release of this repository, and the
+workflow's other outputs are branch-named tags built for internal testing, which you should never
+deploy. List the releases before you pin:
+
+```bash
+gh release list --repo invoicerr-app/invoicerr
+```
+
+**`:latest` is not the newest tag.** The same workflow only adds `:latest` when the tag it is
+building matches what `gh release view` reports as the repository's latest release, and GitHub
+excludes pre-releases from that. `v1.4.6a` (2026-07-06) and `v1.4.6b` (2026-07-07) were both
+published as **pre-releases**, so neither moved the moving tag: `:latest` still resolves to the
+`v1.4.5c` image published on 2026-06-29. Comparing manifest digests on GHCR is how you check this
+for yourself, and it needs no credentials for a public package:
+
+```bash
+docker buildx imagetools inspect ghcr.io/invoicerr-app/invoicerr:latest
+docker buildx imagetools inspect ghcr.io/invoicerr-app/invoicerr:v1.4.5c
+```
+
+As of 2026-09-20 both print the same `Digest: sha256:615f4cec…`, while `:v1.4.6b` prints a different
+one. This is the concrete reason the guide says to pin: on this repository `latest` means "newest
+full release", not "newest thing published", and the two have differed since July 2026.
+
+Pinning a digest is stronger still, and the chart supports it: put the digest on the repository and
+leave the tag empty (`repository: ghcr.io/invoicerr-app/invoicerr@sha256:…`, `tag: ""`), which the
+templates render correctly — the `:{{ tag }}` suffix is emitted only when `image.tag` is non-empty.
 
 ## 7. Verify
 
@@ -257,6 +464,21 @@ cert-manager has issued the certificate (`kubectl get certificate`), the app is 
 A few things worth knowing before your first install, found while proving this chart end-to-end
 against a real cluster:
 
+- **A first install that hangs on the `catalogs-release` hook — older charts only.** Until commit
+  `d6eda9a8`, that `pre-install`/`pre-upgrade` Job named the ServiceAccount this chart itself
+  creates. Helm runs `pre-install` hooks to completion *before* applying the chart's ordinary
+  manifests, and the ServiceAccount is one of those — so on a fresh namespace the Job asked for an
+  identity that could not exist yet and the install deadlocked: the Job sat at `0/1` with **no pod
+  at all**, `FailedCreate: serviceaccount "invoicerr" not found` against it, until Helm hit its
+  `--timeout` and rolled back. `helm upgrade` was never affected, because a previous release had
+  already left the ServiceAccount in the namespace — the only broken case was the one nobody
+  rehearses. Current charts are fixed (the Job now falls back to the namespace's `default`
+  ServiceAccount, which is all it needs: it writes catalogs to Postgres over `DATABASE_URL` and
+  never calls the Kubernetes API —
+  `deploy/helm/invoicerr/templates/job-catalogs-release.yaml` carries the full account). Recognise
+  the symptom if you install an older chart: `kubectl get job` shows `0/1`, `kubectl get pods`
+  shows nothing at all for it, and `kubectl describe job/invoicerr-catalogs-release` names the
+  missing ServiceAccount.
 - **First-boot ordering.** A Kubernetes Deployment has no equivalent of `docker-compose.yml`'s
   `depends_on: condition: service_healthy`: `api` and `worker` start at the same time as Redis and
   each other. The chart's `api` and `worker` Deployments carry `initContainers` that wait for Redis
@@ -269,9 +491,16 @@ against a real cluster:
   spike than either pod's steady-state footprint. The chart's default memory limits (768Mi for both
   `api` and `worker`) were sized to survive this in a real test; profile your own invoice volumes
   and PDF complexity before shrinking them.
-- **`archive.storage: local` and `documents.persistence`.** The `documents-data` PVC (mounted at
-  `/data` on both `api` and `worker`) is `ReadWriteOnce` by default. That is fine for
-  `DOCUMENTS_INBOUND_DIR` (received-invoice uploads have no S3 backend today) but will silently
-  break `DOCUMENTS_ARCHIVE_DIR` the moment you scale past one node unless the StorageClass is
-  ReadWriteMany-capable (NFS, EFS/Filestore-equivalent, Longhorn…) — another reason `s3` is this
-  chart's default for the archive specifically.
+- **`documents.persistence` is ReadWriteOnce, and that is a scheduling limit before it is a data
+  one.** The `/data` PVC is rendered whenever *either* `archive.storage` or
+  `documents.inbound.storage` is still `local` (`invoicerr.documentsVolumeNeeded`,
+  `templates/_helpers.tpl`) — which includes this guide's own reference values, since
+  `documents.inbound.storage` defaults to `local` even with the archive on S3. Both the `api` and
+  the `worker` Deployment mount that one claim at `/data`, so on a multi-node cluster with an
+  ordinary ReadWriteOnce StorageClass whichever pod lands on the second node cannot attach the
+  volume and never starts at all (`ContainerCreating`, `FailedAttachVolume`) — it is not only that
+  a document archived by one pod is invisible to the other. Either point
+  `documents.persistence.storageClassName` at a ReadWriteMany-capable class (NFS,
+  EFS/Filestore-equivalent, Longhorn…), or move **both** stores to `s3` so the PVC and its mounts
+  stop being rendered — the "Steps 2 and 3 on a bare cluster" section above works through the
+  second option.
