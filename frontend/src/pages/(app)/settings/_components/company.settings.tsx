@@ -15,6 +15,7 @@ import { fromMinor, toMinor } from "@/components/documents/totals-calculator"
 import CurrencyRatesSettings from "./currency-rates.settings"
 import DataExportSettings from "./data-export.settings"
 import { DatePicker } from "@/components/date-picker"
+import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -63,6 +64,11 @@ const SHIPPED_DEFAULT_INVOICE_FORMAT = "INVOICE-{year}-{number:4}"
  *  time this card loads, before `useReconciliationSettings()` itself resolves (see this file's own
  *  `reconciliationSettings` sync effect). */
 const SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT = 2
+/** The "not declared yet" choice in the distance-sales-regime selector. Radix's `SelectItem` refuses
+ *  an empty-string value outright, but "" IS the stored state this option stands for (the column is
+ *  nullable and clearing it is legitimate), so the option carries this sentinel and the field maps it
+ *  back to "" — never sent to the backend, which only ever sees "ORIGIN", "DESTINATION" or null. */
+const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
 
 export default function CompanySettings() {
   const { t } = useTranslation()
@@ -199,6 +205,12 @@ export default function CompanySettings() {
         return ALLOWED_DATE_FORMATS.includes(val)
       }, t("settings.company.form.dateFormat.errors.format")),
     exemptVat: z.boolean().optional(),
+    // Where this company's intra-Community distance sales to consumers are taxed. "" means "not
+    // declared", which is a valid state to be in and to return to — it is not a default the product
+    // picks: it blocks a cross-border B2C sale of goods inside the EU, by name, at send time (see the
+    // backend's Company.distanceSalesRegime comment). Same "empty stays empty, the backend decides
+    // what that blocks" shape as invoiceTransportId below.
+    distanceSalesRegime: z.string().optional(),
     identifiers: z.array(z.object({ scheme: z.string(), value: z.string() })).optional(),
     // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
     peppolSchemeId: z.string().optional(),
@@ -259,6 +271,7 @@ export default function CompanySettings() {
       name: "",
       description: "",
       exemptVat: false,
+      distanceSalesRegime: "",
       foundedAt: new Date(),
       currency: "",
       address: "",
@@ -310,8 +323,15 @@ export default function CompanySettings() {
         description: data.description ?? "",
         addressLine2: data.addressLine2 ?? "",
         state: data.state ?? "",
-        foundedAt: new Date(data.foundedAt),
+        // The founding day as STORED, read off the value's own leading day rather than reconstructed
+        // from the instant in whatever timezone this browser happens to be in — see
+        // `lib/calendar-date.ts`. A row written before that rule existed carries an instant two hours
+        // into the previous UTC day, and this now shows that day. The `??` keeps the previous
+        // behaviour for a shape `fromCalendarDate` refuses outright: this field is `z.date()` and
+        // non-nullable, so it needs a `Date` to hand back either way.
+        foundedAt: fromCalendarDate(data.foundedAt) ?? new Date(data.foundedAt),
         exemptVat: !!data.exemptVat,
+        distanceSalesRegime: data.distanceSalesRegime ?? "",
         remindersEnabled: !!data.remindersEnabled,
         iban: data.iban ?? "",
         invoiceTransportId: data.invoiceTransportId ?? "",
@@ -530,8 +550,19 @@ export default function CompanySettings() {
         ...(values.identifiers || []).filter((i) => i.value.trim() !== ""),
         ...(peppolEntry ? [peppolEntry] : []),
       ],
+      // A founding date is a CALENDAR DAY (`lib/calendar-date.ts`). Left as a `Date`, `JSON.stringify`
+      // would serialize it through `toISOString()` and store the PREVIOUS day for every timezone east
+      // of Greenwich — the same shift that moved a document's legal date. Sent as the UTC instant
+      // naming the picked day rather than a bare day because this value lands straight in a Prisma
+      // `DateTime` column (`company.service.ts#editCompanyInfo` passes it through untouched), and
+      // Prisma refuses a bare calendar date there.
+      foundedAt: toCalendarDateInstant(values.foundedAt),
       // "" means "no reference currency chosen" in the form; stored as null, not an empty string.
       referenceCurrency: values.referenceCurrency?.trim() ? values.referenceCurrency : null,
+      // Same convention: "" is "not declared", stored as null. Clearing it is legitimate (a company
+      // whose option lapsed, or that dropped back under the threshold) and puts sending a
+      // cross-border B2C sale of goods back behind the backend's own named block.
+      distanceSalesRegime: values.distanceSalesRegime?.trim() ? values.distanceSalesRegime : null,
       // Same "empty means unset, stored as null" convention as referenceCurrency above — an IBAN is
       // never fabricated (see Company.iban's own schema.prisma comment), so leaving this blank must
       // stay indistinguishable from "never set one".
@@ -1310,6 +1341,54 @@ export default function CompanySettings() {
                     />
                   </FormControl>
                   <FormDescription>{t("settings.company.form.exemptVat.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="distanceSalesRegime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.distanceSalesRegime.label")}</FormLabel>
+                  <FormControl>
+                    {/* "" is a real, selectable state — "not declared yet" — not a placeholder: the
+                        backend refuses a cross-border B2C sale of goods inside the EU until one of the
+                        two regimes is chosen, and clearing it again must be possible. Radix Select
+                        forbids an empty-string item value, so the "undeclared" option carries its own
+                        sentinel and is mapped back to "" on the way into the form. */}
+                    <Select
+                      value={field.value?.trim() ? field.value : UNDECLARED_DISTANCE_SALES_REGIME}
+                      onValueChange={(value) =>
+                        field.onChange(value === UNDECLARED_DISTANCE_SALES_REGIME ? "" : value)
+                      }
+                    >
+                      <SelectTrigger data-cy="company-distance-sales-regime-select">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          value={UNDECLARED_DISTANCE_SALES_REGIME}
+                          data-cy="company-distance-sales-regime-option-undeclared"
+                        >
+                          {t("settings.company.form.distanceSalesRegime.options.undeclared")}
+                        </SelectItem>
+                        <SelectItem value="ORIGIN" data-cy="company-distance-sales-regime-option-origin">
+                          {t("settings.company.form.distanceSalesRegime.options.origin")}
+                        </SelectItem>
+                        <SelectItem
+                          value="DESTINATION"
+                          data-cy="company-distance-sales-regime-option-destination"
+                        >
+                          {t("settings.company.form.distanceSalesRegime.options.destination")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription>
+                    {t("settings.company.form.distanceSalesRegime.description")}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

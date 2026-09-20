@@ -2174,6 +2174,15 @@
           "label": "TVA unapplicable",
           "description": "Charge no VAT on future domestic invoices and display the small-business exemption notice your country's law requires (e.g. 'VAT not applicable, art. 293 B of the CGI' in France)."
         },
+        "distanceSalesRegime": {
+          "label": "VAT on sales to consumers in other EU countries",
+          "description": "Selling goods to private customers elsewhere in the EU is taxed in your own country while your EU-wide sales to consumers stay under €10,000 for the year, and in the customer's country once you pass that amount or opt in (this option then binds you for two calendar years). Only you know that running total, so this app will not guess it: until you choose, an invoice that depends on the answer is refused rather than taxed at the wrong rate.",
+          "options": {
+            "undeclared": "Not declared yet — blocks these invoices",
+            "origin": "My own country — under €10,000 of EU sales to consumers, not opted in",
+            "destination": "The customer's country — over €10,000, or I opted in (One-Stop-Shop)"
+          }
+        },
         "language": {
           "label": "Default document language",
           "description": "The language used for a client's PDFs and emails when that client has no document language of its own set. Leave on Automatic to keep using English."

@@ -9,6 +9,14 @@ export class EditCompanyDto {
   name: string;
   currency: import('../../../../prisma/generated/prisma/client').Currency;
   exemptVat?: boolean;
+  /** Where this seller's intra-Community distance sales to consumers are taxed — "ORIGIN" or
+   *  "DESTINATION"; see Company.distanceSalesRegime's own schema.prisma comment for the two articles
+   *  and for why there is no default. Null/empty clears it back to "never declared", which blocks a
+   *  cross-border B2C sale of goods inside the EU (by name) until it is declared again — the same
+   *  "clearing it blocks sending" semantics `invoiceTransportId` below already has. Validated in
+   *  `company.service.ts#editCompanyInfo` before it is ever written: an unrecognized value is refused
+   *  there rather than stored and silently ignored at send time. */
+  distanceSalesRegime?: string | null;
   address?: string;
   addressLine2?: string;
   postalCode?: string;

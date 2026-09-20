@@ -420,6 +420,14 @@ describe('TaxEngine — document-level aggregation', () => {
 });
 
 describe('TaxEngine — intra-EU B2C distance sales (OSS) — PURE ENGINE fallback, never reached by the real send path', () => {
+  // TWO pure-engine fallbacks at once, and BOTH are unreachable from a real send (see this file's own
+  // header, and `resolve-invoice-tax.ts`'s four named blocks): the seller here declares no
+  // `distanceSalesRegime`, which this engine still treats as DESTINATION exactly as it did before that
+  // field existed, and DE has no profile, which makes `ossDestinationVat` fall back to FR's own rate.
+  // Neither is a claim about what the product should do — the wiring refuses an undeclared regime
+  // (`UndeclaredDistanceSalesRegimeError`) and an unknown destination (`UnsupportedOssDestinationError`)
+  // before this function is ever called. What the product does when the seller DOES declare is
+  // `distance-sales-regime.spec.ts`.
   it('FR→DE B2C goods: destination VAT via OSS falls back to the seller rate when DE has no profile', () => {
     const t = determineLineTax(party('FR', 'B2C'), party('DE', 'B2C'), line('GOODS'), prof('FR')!, vat);
     expect(t.components[0].category).toBe('S');

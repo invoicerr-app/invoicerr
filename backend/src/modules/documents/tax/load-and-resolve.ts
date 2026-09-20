@@ -11,7 +11,11 @@
  */
 import prisma from '@/prisma/prisma.service';
 
-import { resolveInvoiceCrossBorderTax, ResolveInvoiceCrossBorderTaxResult } from './resolve-invoice-tax';
+import {
+  parseDistanceSalesRegime,
+  resolveInvoiceCrossBorderTax,
+  ResolveInvoiceCrossBorderTaxResult,
+} from './resolve-invoice-tax';
 
 export async function resolveInvoiceCrossBorderTaxForCompany(
   companyId: string,
@@ -22,7 +26,7 @@ export async function resolveInvoiceCrossBorderTaxForCompany(
   const [company, client] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
-      select: { country: true, countryCode: true, exemptVat: true },
+      select: { country: true, countryCode: true, exemptVat: true, distanceSalesRegime: true },
     }),
     clientId
       ? prisma.client.findFirst({
@@ -65,6 +69,13 @@ export async function resolveInvoiceCrossBorderTaxForCompany(
       // file's own header, "the ONE Prisma-aware entry point", for why here is where that has to
       // happen.
       taxScheme: company?.exemptVat ? 'FRANCHISE_BASE' : undefined,
+      // `Company.distanceSalesRegime` (`schema.prisma`) — the seller's own declaration of where its
+      // intra-Community distance sales to consumers are taxed, narrowed through the ONE shared parser
+      // so a NULL (every company that has never declared), a blank, or any unrecognized value means
+      // "not declared" here and at `documents.service.ts#downloadDocumentFormat` alike — which is a
+      // named refusal on the branch that needs it, never a silently-chosen regime. See
+      // `resolve-invoice-tax.ts`'s own header, "undeclared intra-Community distance-sales regime".
+      distanceSalesRegime: parseDistanceSalesRegime(company?.distanceSalesRegime),
     },
     // No client row at all (a data problem `documents.service.ts`'s own validation already catches
     // earlier — `client` is a required field) resolves to an unresolved buyer country, which is

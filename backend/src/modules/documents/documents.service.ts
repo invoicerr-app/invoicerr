@@ -122,7 +122,11 @@ import {
   validateRowSelections,
 } from './row-selection/resolve-row-selection';
 import { referencedArrayFieldKeys, stampRowIds } from './row-selection/row-selection';
-import { isInvoiceTaxBlockError, resolveInvoiceCrossBorderTax } from './tax/resolve-invoice-tax';
+import {
+  isInvoiceTaxBlockError,
+  parseDistanceSalesRegime,
+  resolveInvoiceCrossBorderTax,
+} from './tax/resolve-invoice-tax';
 import { TransportRegistry } from './transports/transport-registry';
 import { VatRateCatalog } from './vat-rates/registry';
 import {
@@ -1596,6 +1600,11 @@ export class DocumentsService implements OnModuleInit {
             // the mapping has to be repeated here rather than inherited automatically; keep both in
             // sync if it ever changes.
             taxScheme: company.exemptVat ? 'FRANCHISE_BASE' : undefined,
+            // Same reason this block already repeats the `exemptVat` mapping above: this call site
+            // reads its own company row. `parseDistanceSalesRegime` is the SHARED narrowing parser
+            // (`tax/resolve-invoice-tax.ts`), not a second hand-written mapping, so the two sites can
+            // never disagree about what a stored value means — only the row-reading is duplicated.
+            distanceSalesRegime: parseDistanceSalesRegime(company.distanceSalesRegime),
           },
           buyer: { country: client.country, countryCode: client.countryCode },
           buyerVat: buyerVatRow

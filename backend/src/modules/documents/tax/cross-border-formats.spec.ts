@@ -113,6 +113,14 @@ describe('FR→DE B2B, valid VAT: reverse charge, judged by real EN 16931 Schema
 // tax-system file existed for DE. DE's real standard VAT rate (19%) was read from the European
 // Commission's TEDB (`tax-systems/data/de.json`'s own `provenance`) — the send now goes through, and
 // the vendored EN 16931 Schematron judges the resulting CII, not a hand-asserted opinion of it.
+//
+// CORRECTED (2026-09-21): this case used to assert 19% for a seller that had declared NOTHING about
+// its intra-Community distance sales, which is only correct for a seller taxing at DESTINATION —
+// Directive 2006/112/EC art. 59c(1) taxes the same sale in FRANCE, at 20%, while the seller's EU-wide
+// distance sales stay under EUR 10 000 and it has not opted in. The fixture now DECLARES
+// `distanceSalesRegime: 'DESTINATION'` (threshold crossed, or art. 59c(3) option exercised), which is
+// what makes 19% the right number here; the rate, the category and every Schematron assertion below
+// are unchanged. See `distance-sales-regime.spec.ts` for the ORIGIN half of the same sale.
 describe('FR→DE B2C GOODS: OSS charges DE’s real standard rate, judged by real EN 16931 Schematron', () => {
   it('the downloaded CII carries 19% (DE’s real rate), category S, and totals computed on it — never FR’s 20% and never a block', async () => {
     const rawData = {
@@ -133,7 +141,7 @@ describe('FR→DE B2C GOODS: OSS charges DE’s real standard rate, judged by re
     };
 
     const resolved = resolveInvoiceCrossBorderTax({
-      seller: { country: FR_SELLER.country },
+      seller: { country: FR_SELLER.country, distanceSalesRegime: 'DESTINATION' },
       buyer: { country: DE_BUYER_B2C.country },
       // no buyerVat at all — a true B2C consumer, exactly the shape the Cypress
       // extension (35-cross-border-tax.cy.ts) drives through the screen.

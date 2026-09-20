@@ -24,6 +24,12 @@ export interface Company {
   name: string
   currency: string
   exemptVat?: boolean
+  /** Where this company's intra-Community DISTANCE SALES to consumers are taxed: "ORIGIN" (its own
+   *  country) or "DESTINATION" (the buyer's). Null/unset means never declared, which is not a
+   *  default the product picks — sending a cross-border B2C sale of goods inside the EU is refused,
+   *  by name, until it is declared (see backend's Company.distanceSalesRegime schema.prisma comment
+   *  for the Directive articles, and documents/tax/resolve-invoice-tax.ts for the block). */
+  distanceSalesRegime?: string | null
   address: string
   addressLine2?: string | null
   postalCode: string

@@ -34,6 +34,35 @@ function setInvoiceTransport(transportId: string) {
 		});
 }
 
+/**
+ * Declares where this company's intra-Community DISTANCE SALES to consumers are taxed — the seller's
+ * own country ("ORIGIN", Directive 2006/112/EC art. 32 while art. 59c(1) disapplies art. 33(a) below
+ * EUR 10 000 of EU-wide sales to consumers) or the buyer's ("DESTINATION", art. 33(a), once that
+ * threshold is crossed or the art. 59c(3) option is taken). Only the B2C GOODS test below needs it:
+ * a seller that has declared NOTHING is refused by name at send time
+ * (`resolve-invoice-tax.ts#UndeclaredDistanceSalesRegimeError`), since the threshold counts sales
+ * this instance has never seen and the option is a legal act — neither is guessable here.
+ *
+ * Sent as a request rather than driven through the Settings screen's own selector, deliberately: this
+ * file's own `setInvoiceTransport` above already establishes that SETUP for a case goes through the
+ * API while the case's ACTION goes through the screen. The selector itself
+ * (`company-distance-sales-regime-select`) is settings-screen surface with no coverage of its own
+ * yet — see this repo's Cypress conventions before adding one.
+ */
+function setDistanceSalesRegime(regime: "ORIGIN" | "DESTINATION") {
+	return cy
+		.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: { distanceSalesRegime: regime },
+		})
+		.then((res) => {
+			expect(res.status, "distance-sales regime declared").to.be.oneOf([
+				200, 201,
+			]);
+		});
+}
+
 describe("The cross-border case, through the screen", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -355,6 +384,10 @@ describe("The cross-border case, through the screen", () => {
 	// counts is the actual downloaded XML.
 	it("a German client WITHOUT a VAT number (B2C) — FR→DE invoice via email, OSS charges the READ German rate (19%), gross total computed", () => {
 		setInvoiceTransport("email");
+		// DESTINATION — without it this send is now refused by name (see the helper's own comment):
+		// 19% is DE's rate under art. 33(a), which only governs once the seller is past the EUR 10 000
+		// threshold or has opted in. A seller under it would owe FRENCH VAT on this very sale.
+		setDistanceSalesRegime("DESTINATION");
 
 		cy.visit("/clients");
 		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
@@ -503,5 +536,4 @@ describe("The cross-border case, through the screen", () => {
 				});
 			});
 	});
-
 });

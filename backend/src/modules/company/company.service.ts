@@ -94,7 +94,32 @@ type PickedCompanyInput = Pick<
   | 'referenceCurrency'
   | 'approvalThresholdMinor'
   | 'remindersEnabled'
+  | 'distanceSalesRegime'
 >;
+
+/**
+ * `Company.distanceSalesRegime` is one of exactly two values or nothing at all (see its own
+ * schema.prisma comment for the Directive articles that close the set). This API has no
+ * `ValidationPipe` — `EditCompanyDto` is an erased TypeScript interface — so a typo'd or invented
+ * value would otherwise be stored happily and then read back as "not declared" by
+ * `documents/tax/resolve-invoice-tax.ts#parseDistanceSalesRegime`, leaving the company convinced it
+ * declared something while every cross-border B2C sale of goods kept being refused. Rejecting at SAVE
+ * time, named, is the same posture `updateNumberFormat` below already holds for a number pattern.
+ * `undefined` (key absent) leaves the column untouched; `null`/`''` clears it back to "never
+ * declared", which is a legitimate state to return to.
+ */
+function normalizeDistanceSalesRegime(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value.trim() === '') return null;
+  const normalized = value.trim().toUpperCase();
+  if (normalized !== 'ORIGIN' && normalized !== 'DESTINATION') {
+    throw new BadRequestException(
+      `distanceSalesRegime must be "ORIGIN" or "DESTINATION" (or empty to leave it undeclared), not ` +
+        `"${value}".`,
+    );
+  }
+  return normalized;
+}
 
 export function pickCompanyInput(input: EditCompanyDto): PickedCompanyInput {
   return {
@@ -119,6 +144,7 @@ export function pickCompanyInput(input: EditCompanyDto): PickedCompanyInput {
     referenceCurrency: input.referenceCurrency,
     approvalThresholdMinor: input.approvalThresholdMinor,
     remindersEnabled: input.remindersEnabled,
+    distanceSalesRegime: normalizeDistanceSalesRegime(input.distanceSalesRegime),
   };
 }
 

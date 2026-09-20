@@ -31,9 +31,10 @@
  * CROSS-BORDER (seller country !== buyer country): the engine DECIDES. The user's chosen `vatRate`
  * is REPLACED by whatever `tax-engine.ts#determineLineTax` resolves (0% reverse charge, 0%
  * intra-Community supply, 0% export, a US destination-state rate, …) on every branch where the place
- * of taxation is NOT the seller's own country. On the one branch where it IS (a non-digital B2C
+ * of taxation is NOT the seller's own country. On the two branches where it IS (a non-digital B2C
  * service sold across the same union — `determineLineTax`'s own "default to taxing where the supplier
- * is" case, `domesticVat` under the hood), the user's chosen rate is resolved against the SELLER's own
+ * is" case; and, since 2026-09-21, an intra-Community distance sale of goods by a seller that declared
+ * the ORIGIN regime — both `domesticVat` under the hood), the user's chosen rate is resolved against the SELLER's own
  * catalog (`vat-rates/registry.ts#resolveVatRatePercentage`, same lookup `assertDomesticRatesKnown`
  * above already uses) and threaded through as `DocumentLine.taxRateHint` — read, never ignored,
  * because a reduced/exempt rate is a fact about the seller's OWN law that a bare `sys.standardRate`
@@ -48,7 +49,7 @@
  * unlocks B2B. A VAT number that fails ITS OWN SYNTAX CHECK (`vat-syntax.ts`, carried over from the
  * reference) is treated as B2C before VIES is even consulted, with a NAMED warning — never a silent B2B.
  *
- * ## The three hard blocks this product's own history required
+ * ## The four hard blocks this product's own history required
  *
  * - **Unresolved buyer country**: this is the exact bug the product paid for once — "B2C unknown
  *   country -> silent 0% VAT" (see `vat-unknown-country-undercharge`
@@ -75,7 +76,24 @@
  *   `tax-engine.ts` — a PURE-ENGINE property `tax-engine.spec.ts` still tests). This wiring never lets
  *   a real send reach that fallback: an EU-union B2C sale of goods to a country with no known
  *   `tax-systems/data/*.json` is `UnsupportedOssDestinationError`, named, before `determineLineTax` is
- *   even called for that line.
+ *   even called for that line. Since 2026-09-21 this block is asked ONLY of a seller that actually
+ *   taxes at destination (see the next block): a seller under the art. 59c threshold charges its OWN
+ *   country's rate and needs no destination rate table at all, so blocking it over a missing one would
+ *   be refusing an invoice this module can answer perfectly well.
+ * - **Undeclared intra-Community distance-sales regime** (2026-09-21): a cross-border B2C sale of
+ *   GOODS (or of the telecommunications/broadcasting/electronic services art. 58 treats the same way)
+ *   inside the EU is taxed EITHER in the buyer's member state (Directive 2006/112/EC art. 33(a)) or in
+ *   the seller's own (art. 32, once art. 59c(1) disapplies art. 33(a) below the EUR 10 000
+ *   per-seller, per-calendar-year, all-member-states-combined threshold). This module used to apply
+ *   the destination rule to everyone from the first euro — silently, `warnings` empty, a reporting
+ *   flag the seller may never have asked for. Which rule applies depends on a running total this
+ *   instance cannot see and on an option only the seller can exercise (art. 59c(3)), so the seller
+ *   DECLARES it once in Settings (`Company.distanceSalesRegime`) and an undeclared seller is
+ *   `UndeclaredDistanceSalesRegimeError`, named, before `determineTax` runs — the same posture
+ *   `Company.invoiceTransportId` already holds ("No default, deliberately: a company that has never
+ *   chosen one gets a clear, loud block when it tries to send an invoice"). Only the branch that
+ *   actually turns on it is gated: domestic invoices, every B2B branch, exports, and B2C SERVICES
+ *   (taxed where the supplier is regardless) are completely unaffected.
  *
  * ## Never a blind store
  *
@@ -102,13 +120,21 @@ import { defaultVatRateCatalog, resolveVatRatePercentage, VatRateCatalog } from 
 import { TrustFlagVatValidator, VatValidator, taxUnionOf } from './classification';
 import { determineTax, DocumentTaxResult } from './tax-engine';
 import { defaultTaxSystemRegistry, TaxSystemRegistry } from './tax-systems/registry';
-import { DocumentLine, LegalMention, PartyTaxProfile, SupplyType, TaxScheme } from './types';
+import {
+  DistanceSalesRegime,
+  DocumentLine,
+  LegalMention,
+  PartyTaxProfile,
+  SupplyType,
+  TaxScheme,
+} from './types';
 import { validateVat } from './vat-syntax';
 
 export class UnresolvedBuyerCountryError extends Error {}
 export class UnresolvedSellerCountryError extends Error {}
 export class UnresolvedSellerTaxSystemError extends Error {}
 export class UnsupportedOssDestinationError extends Error {}
+export class UndeclaredDistanceSalesRegimeError extends Error {}
 export class ForeignVatRateError extends Error {}
 
 /** Every NAMED hard-block this module can throw — callers (`invoice-actions.ts`'s preflight,
@@ -121,8 +147,24 @@ export function isInvoiceTaxBlockError(error: unknown): error is Error {
     error instanceof UnresolvedSellerCountryError ||
     error instanceof UnresolvedSellerTaxSystemError ||
     error instanceof UnsupportedOssDestinationError ||
+    error instanceof UndeclaredDistanceSalesRegimeError ||
     error instanceof ForeignVatRateError
   );
+}
+
+/**
+ * Narrows a STORED `Company.distanceSalesRegime` (a plain nullable column — see its own
+ * `schema.prisma` comment for why it is not a Prisma enum) to the engine's own union. Anything that is
+ * not exactly one of the two declared values — `null` for the many companies that predate the column,
+ * an empty string the settings form cleared, a stale value from some future rename — comes back
+ * `undefined`, i.e. "not declared", which is the NAMED BLOCK below and never a silent DESTINATION.
+ * Exported and shared by BOTH Prisma-aware call sites (`load-and-resolve.ts` and
+ * `documents.service.ts#downloadDocumentFormat`, which reads its own company row — see
+ * `load-and-resolve.ts`'s own header on that hand-kept duplication) so the two can never drift into
+ * disagreeing about what a stored value means.
+ */
+export function parseDistanceSalesRegime(value: unknown): DistanceSalesRegime | undefined {
+  return value === 'ORIGIN' || value === 'DESTINATION' ? value : undefined;
 }
 
 export interface InvoiceTaxPartyInput {
@@ -139,6 +181,13 @@ export interface InvoiceTaxPartyInput {
    *  why it is threaded there too even though it is currently inert on that branch.
    */
   taxScheme?: TaxScheme;
+  /** SELLER side only — `Company.distanceSalesRegime`, the seller's own declaration of where its
+   *  intra-Community distance sales to consumers are taxed (`types.ts#DistanceSalesRegime` quotes
+   *  Directive 2006/112/EC arts. 32, 33(a) and 59c in full). `undefined` is "never declared", which is
+   *  a NAMED HARD BLOCK on the one branch that needs it — see
+   *  `UndeclaredDistanceSalesRegimeError` and this file's own header. Nothing sets it on the `buyer`
+   *  input: the regime is a fact about the SELLER, never about who it sells to. */
+  distanceSalesRegime?: DistanceSalesRegime;
 }
 
 export interface BuyerVatIdentifierInput {
@@ -163,8 +212,18 @@ export interface ResolveInvoiceCrossBorderTaxResult {
    *  file's own header documents, for a cross-border one. */
   data: Record<string, unknown>;
   crossBorder: boolean;
-  /** Non-fatal, user-visible facts — e.g. "this buyer's VAT number is not syntactically valid, so
-   *  this invoice is being treated as a B2C sale". Never blocks a send on its own. */
+  /** Non-fatal facts about how this invoice was resolved — e.g. "this buyer's VAT number is not
+   *  syntactically valid, so this invoice is being treated as a B2C sale", or "only the destination's
+   *  STANDARD rate could be applied". Never blocks a send on its own.
+   *
+   *  NOT USER-VISIBLE TODAY, and this comment used to claim otherwise. Every production caller reads
+   *  `.data` and drops this array on the floor: `invoice-actions.ts#runInvoiceCrossBorderTaxPreflight`
+   *  and its `deliver()` sibling both return `(...).data`, and
+   *  `documents.service.ts#downloadDocumentFormat` does the same. So a warning added here is a
+   *  warning a DEVELOPER (and any spec) can read, not one the seller ever sees. Surfacing them means
+   *  choosing where a non-fatal tax caveat belongs on a document — a product decision, and a separate
+   *  piece of work from computing them correctly; until it is made, treat this field as "recorded,
+   *  not yet delivered" rather than as a notice anyone has been given. */
   warnings: string[];
 }
 
@@ -508,15 +567,34 @@ export function resolveInvoiceCrossBorderTax(
     return 'SERVICES' as SupplyType;
   });
 
-  // The OSS guard — BEFORE `determineTax` ever runs, so the engine's own historic
-  // seller-rate-fallback (kept verbatim in `tax-engine.ts`, still tested there as a pure-engine
-  // property) is structurally unreachable from a real send. Only the branch that actually NEEDS a
-  // destination rate table (EU-union B2C goods) is guarded — B2B reverse-charge/intra-Community
-  // (always 0%), export/out-of-scope (always 0%), and non-digital B2C services (seller's own rate)
-  // never consult a destination table at all, matching `tax-engine.ts`'s own branching exactly.
-  if (inSameUnion && role === 'B2C' && !buyerProfile) {
-    const anyGoodsLine = supplyTypes.some((s) => s === 'GOODS' || s === 'DIGITAL');
-    if (anyGoodsLine) {
+  // The two guards on the INTRA-COMMUNITY DISTANCE-SALES branch — both BEFORE `determineTax` ever
+  // runs, so neither of the pure engine's own permissive fallbacks (an undeclared regime treated as
+  // DESTINATION; an unknown destination charged at the SELLER's rate — both kept verbatim in
+  // `tax-engine.ts` and still tested there as pure-engine properties) is reachable from a real send.
+  // Only the lines that actually take that branch are gated: B2B reverse-charge/intra-Community
+  // (always 0%), export/out-of-scope (always 0%), and non-digital B2C services (taxed where the
+  // supplier is, Directive 2006/112/EC art. 45, whatever the seller's distance-sales regime) never
+  // consult a destination table nor depend on the regime at all — matching `tax-engine.ts`'s own
+  // branching exactly.
+  const anyDistanceSaleLine = supplyTypes.some((s) => s === 'GOODS' || s === 'DIGITAL');
+  const sellerRegime = input.seller.distanceSalesRegime;
+  if (inSameUnion && role === 'B2C' && anyDistanceSaleLine) {
+    // FIRST, because it decides whether the destination's rate table is even needed: a seller taxing
+    // at ORIGIN charges its own country's rate and never consults `buyerProfile`.
+    if (!sellerRegime) {
+      throw new UndeclaredDistanceSalesRegimeError(
+        `This invoice is a cross-border B2C sale of goods from ${sellerCC} to ${buyerCC} — an ` +
+          'intra-Community distance sale. It is taxed in ' +
+          `${buyerCC} (Directive 2006/112/EC art. 33(a)) once this seller's EU-wide distance sales pass ` +
+          'EUR 10 000 in a calendar year, or if it has opted into that regime; below that threshold and ' +
+          `without the option it stays taxable in ${sellerCC}, at ${sellerCC}'s own rate (art. 59c(1), ` +
+          'which disapplies art. 33(a), leaving art. 32 to govern). That threshold counts every sale ' +
+          'this business makes across the EU, including any made outside this application, so this ' +
+          'invoice cannot work it out and refuses to guess: declare which regime applies in Settings → ' +
+          'Company before sending.',
+      );
+    }
+    if (sellerRegime === 'DESTINATION' && !buyerProfile) {
       throw new UnsupportedOssDestinationError(
         `This invoice is a cross-border B2C sale of goods from ${sellerCC} to ${buyerCC}, which falls ` +
           `under the EU One-Stop-Shop (OSS) scheme — but no VAT rate table is known for ${buyerCC} yet. ` +
@@ -546,22 +624,36 @@ export function resolveInvoiceCrossBorderTax(
     // (`domesticVat`). See `applyDomesticTaxScheme` above for where this field actually does
     // something for the SAME seller on a domestic invoice.
     taxScheme: input.seller.taxScheme,
+    // Read by `determineLineTax`'s intra-union B2C distance-sales branch, and by nothing else. Never
+    // `undefined` by the time a real send reaches it for a line that branch governs — the block above
+    // has already refused; it can still be `undefined` here for an invoice whose lines are all
+    // SERVICES, where the engine never reads it.
+    distanceSalesRegime: sellerRegime,
   };
 
-  // The seller's own country is the taxing jurisdiction on exactly ONE cross-border branch —
-  // `tax-engine.ts#determineLineTax`'s "Other B2C services across the union → default to taxing where
-  // the supplier is" case, which calls `domesticVat` and reads `line.taxRateHint`
-  // (`rate = zeroByHint(line) ? 0 : (line.taxRateHint ?? sys.standardRate)`). EVERY OTHER branch below
-  // (B2B reverse charge, intra-Community goods, export, out-of-scope, OSS) computes its own rate
-  // independently and never reads `taxRateHint` at all — so resolving it here for every line,
-  // unconditionally, changes nothing for them; there is exactly one branch this can affect, and it is
-  // the one this fix targets. Without this, that branch fell back to `sys.standardRate` for every
-  // line (`taxRateHint` was never populated at all), silently REPLACING whatever reduced/exempt rate
-  // the user actually chose on the invoice with the seller's own STANDARD rate — a real, provable
-  // over-charge (e.g. a French 10% "taux intermédiaire" service rewritten to 20% the moment a German
-  // consumer buys it), never merely a display quirk.
-  const isTaxedAtSellerRate = (index: number): boolean =>
-    inSameUnion && role === 'B2C' && supplyTypes[index] !== 'GOODS' && supplyTypes[index] !== 'DIGITAL';
+  // The seller's own country is the taxing jurisdiction on exactly TWO cross-border branches, both of
+  // which end up in `tax-engine.ts#domesticVat` and therefore read `line.taxRateHint`
+  // (`rate = zeroByHint(line) ? 0 : (line.taxRateHint ?? sys.standardRate)`):
+  //   - "Other B2C services across the union → default to taxing where the supplier is" (a service
+  //     that is not one of the art. 58 ones, Directive 2006/112/EC art. 45); and
+  //   - since 2026-09-21, an intra-Community distance sale of GOODS/DIGITAL made by a seller that has
+  //     declared the ORIGIN regime (art. 59c(1) disapplying art. 33(a), leaving art. 32) — which is
+  //     precisely where the seller's own reduced rate matters most: a French 5.5% book (CGI art. 278-0
+  //     bis) sold to a German consumer by a seller under the threshold stays a 5.5% French sale, and
+  //     flattening it to 20% would over-charge the consumer just as surely as the destination's 19%
+  //     standard rate does.
+  // EVERY OTHER branch (B2B reverse charge, intra-Community supply, export, out-of-scope, and a
+  // DESTINATION-regime distance sale) computes its own rate independently and never reads
+  // `taxRateHint` at all — so resolving it here for every line, unconditionally, changes nothing for
+  // them. Without this, the branches above fell back to `sys.standardRate` for every line
+  // (`taxRateHint` was never populated at all), silently REPLACING whatever reduced/exempt rate the
+  // user actually chose on the invoice with the seller's own STANDARD rate — a real, provable
+  // over-charge, never merely a display quirk.
+  const isTaxedAtSellerRate = (index: number): boolean => {
+    if (!inSameUnion || role !== 'B2C') return false;
+    const isDistanceSale = supplyTypes[index] === 'GOODS' || supplyTypes[index] === 'DIGITAL';
+    return isDistanceSale ? sellerRegime === 'ORIGIN' : true;
+  };
 
   const taxRateHints = rows.map((row, index) => {
     const stored = row.vatRate;
@@ -576,12 +668,41 @@ export function resolveInvoiceCrossBorderTax(
     if (isTaxedAtSellerRate(index)) {
       warnings.push(
         `Line ${index + 1}'s chosen VAT rate ("${stored}") is not one of ${sellerCC}'s known VAT ` +
-          `rates — this cross-border B2C service is taxed at ${sellerCC}'s own standard rate instead, ` +
-          'since there is no known rate on this invoice to honour.',
+          `rates — this cross-border B2C line is taxed in ${sellerCC}, at ${sellerCC}'s own standard ` +
+          'rate instead, since there is no known rate on this invoice to honour.',
       );
     }
     return undefined;
   });
+
+  // The DESTINATION regime's own uncloseable half, stated rather than left silent (this branch used to
+  // rewrite the rate and say nothing at all — `warnings` came back empty). `tax-engine.ts
+  // #ossDestinationVat` can only ever resolve the destination's STANDARD rate: no `tax-systems/
+  // data/*.json` carries sourced `reducedRates`, and an invoice line carries no product classification
+  // to select one against even if one did. So a product the destination member state taxes at a
+  // reduced rate (Germany's 7% on books, UStG § 12 Abs. 2) is invoiced here at 19%, over-charging the
+  // consumer. Non-fatal, deliberately — the seller, who knows what it is selling, is the only party
+  // that can judge it, and refusing the send outright would block every correctly standard-rated sale
+  // too. ONE warning per invoice, naming the destination and the rate actually applied, rather than
+  // one per line: every OSS-taxed line on an invoice shares the same destination and the same rate.
+  // Read `ResolveInvoiceCrossBorderTaxResult.warnings`'s own doc comment before calling this "the
+  // seller has been warned" — no production caller surfaces that array to anyone yet.
+  if (inSameUnion && role === 'B2C' && anyDistanceSaleLine && sellerRegime === 'DESTINATION') {
+    const destination = buyerProfile?.taxSystem;
+    const destinationRate =
+      destination && destination.kind !== 'SALES_TAX' && destination.kind !== 'NONE'
+        ? destination.standardRate
+        : undefined;
+    if (destinationRate !== undefined) {
+      warnings.push(
+        `This invoice is an intra-Community distance sale taxed in ${buyerCC} (EU One-Stop-Shop, ` +
+          `Directive 2006/112/EC art. 33(a)), so ${buyerCC}'s STANDARD VAT rate (${destinationRate}%) ` +
+          `was applied. ${buyerCC}'s own reduced rates are not modelled here and an invoice line ` +
+          'carries nothing that says which products they cover — check the destination rate yourself ' +
+          'if what you are selling is reduced-rated there, or this invoice over-charges the customer.',
+      );
+    }
+  }
 
   const lines: DocumentLine[] = rows.map((_row, index) => ({
     id: String(index),

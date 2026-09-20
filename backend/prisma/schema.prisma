@@ -293,6 +293,29 @@ model Company {
   currency     Currency @default(EUR)
   foundedAt    DateTime
   exemptVat    Boolean  @default(false)
+
+  // Where this seller's intra-Community DISTANCE SALES to consumers are taxed — "ORIGIN" (this
+  // company's own country) or "DESTINATION" (the buyer's). NULL, the state every company was in
+  // before this column existed, means "never declared", and that is deliberately NOT a default the
+  // product picks for them: Directive 2006/112/EC art. 33(a) taxes such a sale in the buyer's member
+  // state, art. 59c(1) disapplies that below EUR 10 000 of EU-wide distance sales per calendar year
+  // (leaving art. 32, i.e. this company's own country), and art. 59c(3) lets a seller under the
+  // threshold opt into destination taxation anyway for two calendar years. The threshold is a running
+  // total across EVERY member state and every sale the business makes — including sales this instance
+  // has never seen — so no query over this database can establish it, and the option is a legal act
+  // only the seller can report. A company that has not declared gets a clear, named refusal when it
+  // tries to send an invoice that actually depends on the answer (a cross-border B2C sale of goods
+  // inside the EU) — see documents/tax/resolve-invoice-tax.ts's own
+  // `UndeclaredDistanceSalesRegimeError` — never a silently-applied guess. Same "no default,
+  // deliberately" posture as `invoiceTransportId` below, for the same reason: a wrong guess here is
+  // invisible on the invoice and wrong by several points of VAT.
+  //
+  // Plain `String?`, not a Prisma enum, for the same reason `referenceCurrency`/`invoiceTransportId`
+  // are: it is read back through ONE narrowing parser
+  // (documents/tax/resolve-invoice-tax.ts#parseDistanceSalesRegime), which already treats anything
+  // that is not exactly one of the two values as "not declared" — the enum would buy a second,
+  // migration-bound source of truth for a set that is closed by the Directive, not by us.
+  distanceSalesRegime String?
   address      String
   addressLine2 String? // Second line for address (apartment, suite, etc.)
   postalCode   String

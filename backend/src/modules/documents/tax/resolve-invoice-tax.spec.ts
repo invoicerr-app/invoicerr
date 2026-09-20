@@ -289,13 +289,23 @@ describe('resolveInvoiceCrossBorderTax — FR→US export: G/O, art. 146', () =>
 // with all 26 other EU member states — DE no longer blocks. The BLOCK MECHANISM itself is still
 // exercised below, via dependency injection, against a registry that genuinely has no destination
 // file — proving the gate did not get weakened, only the real-world DE gap got closed.
+//
+// CORRECTED (2026-09-21): every case in this block used to assert DE's 19% for a seller that had
+// declared NOTHING about its intra-Community distance sales. Destination taxation is only ONE of the
+// two answers Directive 2006/112/EC gives — art. 59c(1) disapplies art. 33(a), leaving the sale
+// taxable in FRANCE at 20%, while the seller's EU-wide distance sales stay under EUR 10 000 and it
+// has not opted in under art. 59c(3). So the fixtures now DECLARE `distanceSalesRegime:
+// 'DESTINATION'` (threshold crossed, or option exercised) — which is what makes 19% the correct
+// expectation here rather than an assumption. Nothing else about these cases changed; the ORIGIN half
+// of the same sale, and the block a seller that declared nothing now gets, live in
+// `distance-sales-regime.spec.ts`.
 describe('resolveInvoiceCrossBorderTax — FR→DE B2C GOODS: OSS now resolves a REAL destination rate', () => {
   it('19% (DE’s real TEDB-sourced standard rate), category S, never the seller’s own 20%', () => {
     const data = dataWithLines([
       { description: 'Widgets', quantity: 1, unitPrice: 100, vatRate: '20', supplyType: 'GOODS' },
     ]);
     const result = resolveInvoiceCrossBorderTax({
-      seller: { countryCode: 'FR' },
+      seller: { countryCode: 'FR', distanceSalesRegime: 'DESTINATION' },
       buyer: { countryCode: 'DE' },
       data,
     });
@@ -303,14 +313,23 @@ describe('resolveInvoiceCrossBorderTax — FR→DE B2C GOODS: OSS now resolves a
     const line = (result.data.lines as Record<string, unknown>[])[0];
     expect(line.vatRate).toBe('19'); // DE's real standard rate, never FR's 20% and never invented
     expect(line.__crossBorderCategory).toBe('S');
-    expect(result.warnings).toEqual([]);
+    // CORRECTED (2026-09-21) from `toEqual([])`: this branch can only ever resolve the DESTINATION's
+    // STANDARD rate (no `reducedRates` are sourced for DE, and a line carries no product
+    // classification to select one against — see `tax-engine.ts#ossDestinationVat`), so it now SAYS
+    // so instead of rewriting the rate in silence. The emptiness this used to assert was the
+    // silence, not a proof that nothing was wrong.
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/STANDARD VAT rate \(19%\)/);
   });
 
   it('re-resolving the already-resolved 19% OSS line is stable (idempotence — the same property the B2B paths already prove)', () => {
     const draft = dataWithLines([
       { description: 'Widgets', quantity: 2, unitPrice: 500, vatRate: '20', supplyType: 'GOODS' },
     ]);
-    const parties = { seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' } };
+    const parties = {
+      seller: { countryCode: 'FR', distanceSalesRegime: 'DESTINATION' as const },
+      buyer: { countryCode: 'DE' },
+    };
     const firstPass = resolveInvoiceCrossBorderTax({ ...parties, data: draft });
     const secondPass = resolveInvoiceCrossBorderTax({ ...parties, data: firstPass.data });
     expect(secondPass.data).toEqual(firstPass.data);
@@ -345,15 +364,19 @@ describe('resolveInvoiceCrossBorderTax — the OSS block itself still fires for 
     const data = dataWithLines([
       { description: 'Widgets', quantity: 1, unitPrice: 100, vatRate: '20', supplyType: 'GOODS' },
     ]);
+    // DESTINATION declared (see this file's own note above the previous describe): a seller taxing at
+    // ORIGIN would never need DE's rate table at all, so asking it for one would be the wrong test —
+    // `distance-sales-regime.spec.ts` proves that half.
+    const seller = { countryCode: 'FR', distanceSalesRegime: 'DESTINATION' as const };
     expect(() =>
       resolveInvoiceCrossBorderTax(
-        { seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' }, data },
+        { seller, buyer: { countryCode: 'DE' }, data },
         { taxSystemRegistry: registry },
       ),
     ).toThrow(UnsupportedOssDestinationError);
     expect(() =>
       resolveInvoiceCrossBorderTax(
-        { seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' }, data },
+        { seller, buyer: { countryCode: 'DE' }, data },
         { taxSystemRegistry: registry },
       ),
     ).toThrow(/no VAT rate table is known for DE/);
@@ -423,12 +446,15 @@ describe('resolveInvoiceCrossBorderTax — the OSS block itself still fires for 
     expect(result.warnings.join(' ')).toMatch(/not one of FR's known VAT rates/);
   });
 
-  it("a GOODS line (OSS) is UNAFFECTED by taxRateHint resolution — its own rate is still the destination country's standard rate", () => {
+  it("a DESTINATION-regime GOODS line (OSS) is UNAFFECTED by taxRateHint resolution — its own rate is still the destination country's standard rate", () => {
     const data = dataWithLines([
       { description: 'Widgets', quantity: 1, unitPrice: 100, vatRate: '10', supplyType: 'GOODS' },
     ]);
+    // DESTINATION declared — art. 33(a) applies, so the seller's own 10% is genuinely irrelevant. The
+    // ORIGIN counterpart (where that same 10% IS the rate charged) is proven in
+    // `distance-sales-regime.spec.ts`.
     const result = resolveInvoiceCrossBorderTax({
-      seller: { countryCode: 'FR' },
+      seller: { countryCode: 'FR', distanceSalesRegime: 'DESTINATION' },
       buyer: { countryCode: 'DE' },
       data,
     });

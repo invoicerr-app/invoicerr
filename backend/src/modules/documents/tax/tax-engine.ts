@@ -15,7 +15,7 @@
  * file's own header. This file stays exactly what it was at the reference: a pure function of its
  * inputs, never aware of Prisma, of "sending", or of any HTTP call.
  *
- * TWO amendments, since the reference, both additive (every existing branch, mention and comment not
+ * THREE amendments, since the reference, all additive (every existing branch, mention and comment not
  * mentioned below is still the reference's own, unedited):
  *
  * 1. (2026-09-13) `domesticVat`'s FRANCHISE_BASE branch below used to pick between exactly two
@@ -28,6 +28,14 @@
  *    text is not what discharges the obligation there. `LOCALIZED_MENTION` below is the per-(situation,
  *    country) table of those sourced overrides — see its own header for what it covers, what it
  *    deliberately does not, and why it is a plain TS table rather than a `data/*.json` catalog.
+ * 3. (2026-09-21) The reference's "B2C across the union" branch taxed EVERY such sale of goods in the
+ *    BUYER's country, from the first euro. That is only half of Directive 2006/112/EC: art. 59c(1)
+ *    disapplies art. 33(a) below a EUR 10 000 per-seller, per-calendar-year, all-member-states-combined
+ *    threshold, leaving art. 32 (the seller's own country) to govern. The branch now reads the seller's
+ *    OWN DECLARED `PartyTaxProfile.distanceSalesRegime` — see `types.ts` for the articles quoted in
+ *    full, the branch itself for what each value does, and `resolve-invoice-tax.ts` for the named block
+ *    that refuses to run this branch at all on a seller who has declared nothing. `ossDestinationVat`
+ *    below is untouched, including the rate it can and cannot resolve (see its own comment).
  */
 import {
   DocumentLine,
@@ -304,8 +312,28 @@ export function determineLineTax(
         [localizedMention('reverseCharge', sCountry, MENTION.reverseCharge)],
       );
     }
-    // B2C across the union → OSS: destination VAT (distance sales / digital services).
+    // B2C across the union (distance sales of goods, and the telecommunications/broadcasting/
+    // electronic services art. 58 groups with them) → the SELLER's OWN DECLARED regime decides which
+    // member state taxes this, because the two countries alone cannot: see
+    // `types.ts#DistanceSalesRegime` for Directive 2006/112/EC arts. 32, 33(a) and 59c quoted in full,
+    // and for why the EUR 10 000 threshold behind them is a per-seller running total this engine must
+    // never compute or guess.
+    //   - ORIGIN — art. 59c(1) disapplies art. 33(a)/art. 58, so art. 32's general rule governs and the
+    //     supply is taxed in the SELLER's own member state at the SELLER's own rate. That is exactly
+    //     `domesticVat`, the same branch a domestic sale of the same goods takes — `taxRateHint`
+    //     included, so a reduced rate the seller is genuinely entitled to at home survives instead of
+    //     being flattened to a standard rate. No 'OSS' reporting flag either: an origin-taxed supply is
+    //     declared on the seller's ordinary domestic VAT return, not through the One-Stop-Shop.
+    //   - DESTINATION — art. 33(a) (goods) or art. 58 (TBE services): the buyer's member state, whether
+    //     because the threshold was crossed (art. 59c(2)) or because the seller opted in (art. 59c(3)).
+    //   - UNDECLARED — kept on the DESTINATION branch, deliberately, as this PURE engine's own historic
+    //     behaviour (byte-identical to what it did before this field existed), exactly like
+    //     `ossDestinationVat`'s own seller-rate fallback below: a property of this function, not a
+    //     posture the product ships. `resolve-invoice-tax.ts` refuses an undeclared regime by name
+    //     (`UndeclaredDistanceSalesRegimeError`) BEFORE calling this engine, so no real send can reach
+    //     it — see that file's own header, "the hard blocks this product's own history required".
     if (line.supplyType === 'GOODS' || line.supplyType === 'DIGITAL') {
+      if (supplier.distanceSalesRegime === 'ORIGIN') return domesticVat(line, sys, supplier);
       return ossDestinationVat(sys, bCountry, buyerProfile);
     }
     // Other B2C services across the union → default to taxing where the supplier is.
@@ -425,6 +453,16 @@ function ossDestinationVat(
   // supplier's standard rate (placeholder) — see this reference-ported branch's OWN limitation, and
   // `resolve-invoice-tax.ts`'s header for why the WIRING never lets an invoice reach this fallback in
   // production: it blocks, named, before ever calling this function without a real `buyerProfile`.
+  //
+  // THE STANDARD RATE IS THE ONLY RATE THIS BRANCH CAN RESOLVE, and that is a KNOWN, UNCLOSED gap, not
+  // an oversight: a destination member state's own reduced rate (a book at 7% in Germany rather than
+  // 19%) depends on WHAT is being sold, and neither half of the input exists — `CountryTaxSystemFact`
+  // carries no sourced `reducedRates` for DE/IT/PL/PT (each `tax-systems/data/*.json` says so in its
+  // own notes) and `DocumentLine` carries no product classification (a CN/CPA code, an Annex III
+  // category) a reduced rate could be selected against even if it did. Applying the destination's
+  // standard rate to a reduced-rated product OVER-charges the consumer. `resolve-invoice-tax.ts`
+  // states that, per invoice, as a named non-fatal warning rather than leaving it silent — closing it
+  // for real needs a per-line product classification the invoice does not have today.
   const dest = buyerProfile?.taxSystem;
   const rate =
     dest && dest.kind !== 'SALES_TAX' && dest.kind !== 'NONE' ? dest.standardRate : sys.standardRate;

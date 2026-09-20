@@ -18,7 +18,14 @@
  * FR→PL (23%, tied for the highest among the KEPT countries — see tax-systems/data/all.spec.ts's own
  * matching claim).
  */
-import { CountryTaxSystemProfile, DocumentLine, PartyTaxProfile, SupplyType, TaxScheme } from './types';
+import {
+  CountryTaxSystemProfile,
+  DistanceSalesRegime,
+  DocumentLine,
+  PartyTaxProfile,
+  SupplyType,
+  TaxScheme,
+} from './types';
 import { defaultTaxSystemRegistry } from './tax-systems/registry';
 import { selectorMatches, taxUnionOf, TrustFlagVatValidator } from './classification';
 import { determineLineTax } from './tax-engine';
@@ -49,7 +56,7 @@ const qaProfile: CountryTaxSystemProfile = { countryCode: 'QA', taxSystem: { kin
 function party(
   country: string,
   role: PartyTaxProfile['role'],
-  o: { scheme?: TaxScheme; valid?: boolean } = {},
+  o: { scheme?: TaxScheme; valid?: boolean; distanceSales?: DistanceSalesRegime } = {},
 ): PartyTaxProfile {
   const validated = o.valid ?? role === 'B2B';
   return {
@@ -57,6 +64,7 @@ function party(
     countryCode: country,
     role,
     taxScheme: o.scheme,
+    distanceSalesRegime: o.distanceSales,
     identifiers:
       role === 'B2C' && o.valid === undefined ? [] : [{ scheme: 'VAT', value: `${country}1`, validated }],
   };
@@ -127,10 +135,17 @@ describe('LA MATRICE — TaxEngine — GST & NONE systems', () => {
   });
 });
 
+// CORRECTED (2026-09-21) — each seller below now DECLARES the DESTINATION regime instead of leaving
+// it unsaid. Destination taxation of an intra-Community distance sale is Directive 2006/112/EC art.
+// 33(a), but art. 59c(1) disapplies it (leaving art. 32, the seller's own country) while the seller
+// stays under EUR 10 000 of EU-wide distance sales and has not opted in under art. 59c(3) — so
+// "FR→IT B2C goods is 22%" is true of a seller above that threshold or opted in, and false of one
+// below it. The rates asserted here are unchanged; what changed is that the fixture now says WHY they
+// are the right rates. `distance-sales-regime.spec.ts` holds the ORIGIN half of each.
 describe('LA MATRICE — TaxEngine — OSS destination rate from a real buyer profile', () => {
   it('5. FR→IT B2C goods: OSS charges the real IT standard rate (22%) in IT', () => {
     const t = determineLineTax(
-      party('FR', 'B2C'),
+      party('FR', 'B2C', { distanceSales: 'DESTINATION' }),
       party('IT', 'B2C'),
       line('GOODS'),
       prof('FR'),
@@ -148,7 +163,7 @@ describe('LA MATRICE — TaxEngine — OSS destination rate from a real buyer pr
   // countries (23%, same as PT — see tax-systems/data/all.spec.ts's own matching claim).
   it('11. FR→PL B2C goods: OSS charges the real PL standard rate (23%, tied for the highest among the kept countries)', () => {
     const t = determineLineTax(
-      party('FR', 'B2C'),
+      party('FR', 'B2C', { distanceSales: 'DESTINATION' }),
       party('PL', 'B2C'),
       line('GOODS'),
       prof('FR'),
@@ -163,7 +178,7 @@ describe('LA MATRICE — TaxEngine — OSS destination rate from a real buyer pr
 
   it('12. FR→DE B2C goods: OSS charges the real DE standard rate (19%) — DE used to be the gate’s own textbook missing-table example', () => {
     const t = determineLineTax(
-      party('FR', 'B2C'),
+      party('FR', 'B2C', { distanceSales: 'DESTINATION' }),
       party('DE', 'B2C'),
       line('GOODS'),
       prof('FR'),
