@@ -237,11 +237,29 @@ other locales are Weblate-managed, `npm run i18n:check` gates PRs.
 
 ## Working with the owner
 
-- **Every decision goes through the question tool (`AskUserQuestion`), never through prose.** The
-  owner is not always looking at the screen: a choice written at the end of a report, in a tracking
-  file or in a bullet list is a choice nobody makes. Before the tool call, fire the desktop
-  notification + sound (`notify-send -u critical … && paplay …`). Group the decisions that belong
-  together in one call, state the real consequence of each option, and recommend one.
+- **The owner has ADHD. Load the `i-have-adhd` skill's rules and keep them for the whole session.**
+  They are not a style preference, they are how the output becomes usable: first line is the action
+  or the answer, no preamble, no recap, no closing pleasantry, no "by the way" sidebar. A table only
+  when the table *is* the answer, never to narrate progress. Do not explain your reasoning unless
+  asked why. The trap to watch for: drifting back into long prose the moment the subject turns
+  technical or legal. A dense subject needs a **shorter** answer, not a longer one — that is exactly
+  where the reading cost is highest. Long detail belongs in a file sent with `SendUserFile`, not in
+  the message.
+
+- **Anything you need from the owner goes through `AskUserQuestion`, never through prose.** This
+  covers more than arbitrations: a decision, a doubt, an interpretation you are unsure of, *and any
+  action only he can perform* — typing a command you cannot run, ticking a box on GitHub, opening an
+  account, answering someone. He is often driving from his phone, where the question tool is what
+  makes the device buzz; a question written at the end of a report reaches nobody, and neither does a
+  line in a tracking file. Before the tool call, fire the desktop notification + sound
+  (`notify-send -u critical … && paplay …`). Group what decides together into one call, state the
+  real consequence of each option rather than just its label, and recommend one. When there is
+  nothing to arbitrate and you simply need him to act, the question carries the timing ("ready, do
+  you run it?") and the options serve as the reminder.
+
+- **Some commands are not available over Remote Control** — `/code-review ultra` is one. Do not put
+  that question to him until he says he is at his machine.
+
 - The owner writes in French; answer in French. Every `.md` file in this repository is in English.
 - Sub-agents write the code; the main session orchestrates, verifies (real builds, real runs) and
   commits. Every sub-agent is launched with `model: "sonnet"`.
