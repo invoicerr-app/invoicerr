@@ -85,12 +85,17 @@ function renderFieldValue(
     }
 
     case 'date': {
-      const dateStr = String(value);
-      const parsed = new Date(dateStr);
-      if (Number.isNaN(parsed.getTime())) {
-        return escapeHtmlSafe(dateStr);
-      }
-      return dateStr; // YYYY-MM-DD format
+      // Escaped UNCONDITIONALLY, like every other kind here — never "only when the string fails to
+      // parse as a date". A value that parses is not thereby a YYYY-MM-DD string with a safe
+      // character set: the 'date' kind's own validator (descriptors/field-kinds.ts) accepts whatever
+      // `Date.parse` accepts, and V8's legacy parser accepts a trailing parenthesized comment (the
+      // one `Date.prototype.toString()` emits) holding arbitrary text. Trusting a parsed date let
+      // that text through as raw markup, into a page this module hands to a Chromium launched with
+      // `--no-sandbox` (see render-pdf.ts#launchBrowser) and reachable anonymously through a public
+      // share link — so what renders here decides whether submitted data can run as script inside
+      // the backend's own network. Escape first; there is no formatting to preserve, this returns
+      // the stored string either way.
+      return escapeHtmlSafe(String(value));
     }
 
     case 'boolean': {
@@ -708,9 +713,15 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
   // type that never opts in — see `paymentQr`'s own header above) prints NOTHING here, not an empty
   // frame, same rule `legalMentions` right below already holds.
   if (input.paymentQr) {
+    // `src` is escaped like the branding logo's own `src` above, not interpolated bare. Today's only
+    // caller hands over a `qrcode`-generated base64 URI whose alphabet contains nothing to escape, so
+    // this changes not one byte of any real render — it is here so the ATTRIBUTE, not the caller, is
+    // what guarantees a quote can never close it and open an event handler after it. Escaping at the
+    // one point that composes the markup is the only version of that rule a future caller cannot
+    // forget.
     html += `
     <div class="payment-qr-section">
-      <img class="payment-qr-image" src="${input.paymentQr.dataUri}" alt="SEPA payment QR code" width="130" height="130">
+      <img class="payment-qr-image" src="${escapeHtmlSafe(input.paymentQr.dataUri)}" alt="SEPA payment QR code" width="130" height="130">
       <div class="payment-qr-label">${escapeHtmlSafe(strings.scanToPaySepa)}</div>
     </div>
 `;

@@ -579,6 +579,103 @@ describe('renderDocumentHtml', () => {
       expect(html).not.toContain('<svg');
       expect(html).toContain('&lt;svg');
     });
+
+    // A 'date' value is NOT confined to the YYYY-MM-DD shape the screen offers. The kind's own
+    // validator (descriptors/field-kinds.ts) accepts anything `Date.parse` accepts, and V8's legacy
+    // date parser accepts a trailing parenthesized comment — the one `Date.prototype.toString()`
+    // itself emits — holding arbitrary text. So a value that is a perfectly VALID date can still
+    // carry markup, and the renderer is the only place that can be sure it never reaches Chromium
+    // as such. See `renderFieldValue`'s own 'date' case for why this is escaped unconditionally.
+    const DATE_WITH_MARKUP =
+      'Sat May 31 2026 00:00:00 GMT+0200 (<img src=x onerror=alert(1)><script>alert(2)</script>)';
+
+    /** The content of the one `<div class="field-value">` on the page, entity-decoded. Comparing THAT
+     *  to the input is what proves the value rode through as text: a payload that reached the page as
+     *  markup cannot decode back to the string that was submitted. */
+    function decodedFieldValue(html: string): string {
+      const match = html.match(/<div class="field-value">([\s\S]*?)<\/div>/);
+      expect(match).not.toBeNull();
+      return (match as RegExpMatchArray)[1]
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#0?39;/g, "'")
+        .replace(/&amp;/g, '&');
+    }
+
+    it('escapes HTML in a date value that Date.parse accepts', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'issueDate', kind: 'date', label: 'Issue Date' }],
+        actions: [],
+      };
+
+      // The premise of this test: the payload really does pass the 'date' kind's own validation.
+      expect(Number.isNaN(Date.parse(DATE_WITH_MARKUP))).toBe(false);
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { issueDate: DATE_WITH_MARKUP } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      // Not a tag anywhere on the page — Chromium must parse this as text, never as markup.
+      expect(html).not.toContain('<script>');
+      expect(html).not.toContain('<img src=x');
+      expect(html).toContain('&lt;script&gt;');
+      // ...and the value the reader sees is still, character for character, what was submitted.
+      expect(decodedFieldValue(html)).toBe(DATE_WITH_MARKUP);
+    });
+
+    it('escapes HTML in a date SUBFIELD of an array row', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [{ key: 'deliveryDate', kind: 'date', label: 'Delivery Date' }],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { lines: [{ deliveryDate: DATE_WITH_MARKUP }] } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('<script>');
+      expect(html).not.toContain('<img src=x');
+      expect(html).toContain('&lt;script&gt;');
+    });
+
+    it('escapes the payment QR data URI it is handed', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentQr: { dataUri: 'data:image/png;base64,AAAA" onload="alert(1)' },
+      });
+
+      // The quote must not close the `src` attribute and open an event handler after it.
+      expect(html).not.toContain('onload="alert(1)"');
+      expect(html).toContain('&quot; onload=&quot;alert(1)');
+    });
   });
 
   describe('currencyField resolution', () => {
