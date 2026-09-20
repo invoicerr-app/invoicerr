@@ -41,6 +41,12 @@ interface LinkEntry {
  * document that ISN'T in the curated list still gets a link, labelled with its own (already localized
  * by the backend) title. That second half is the whole point — it is what makes forgetting to add a
  * new document here harmless instead of a silent gap. See `legal-links.spec.tsx`.
+ *
+ * On a self-hosted instance `documents` settles to the empty array (never `undefined` — the fetch
+ * does resolve, it just carries nothing): every curated entry is filtered out and there is nothing
+ * uncurated to add, so this returns `[]` once settled. The brief "assume yes" flash before that
+ * fetch resolves is accepted, not fixed here — the same tradeoff `legal-links.spec.tsx`'s own
+ * "shows the curated baseline immediately" case already accepts for a slow/failed request generally.
  */
 function reconcileLinks(
   documents: LegalDocumentView[] | undefined,
@@ -59,13 +65,29 @@ function reconcileLinks(
 }
 
 /**
+ * The reconciled link list on its own, with no rendering — `(app)/_layout.tsx` needs this to decide
+ * whether its OWN `<footer>` wrapper (the bordered strip around `<LegalLinks/>`) should exist at all:
+ * a `<footer className="border-t px-4 py-2">` around a component that renders `null` is still a
+ * visible empty strip, since the border/padding live on the wrapper, not on what's inside it. Sharing
+ * this hook (rather than duplicating the fetch+reconcile) means both call sites agree on "nothing to
+ * show" from the exact same data, off the same cached query.
+ */
+export function useLegalLinks(): LinkEntry[] {
+  const { t } = useTranslation()
+  const { data } = useLegalDocuments()
+  return reconcileLinks(data?.documents, t)
+}
+
+/**
  * A quiet row of links to every legal document the backend currently serves — Terms · Privacy · DPA
  * · Legal notice · Cookies · International access · anything added after this comment was written.
  * Mounted three times: below the sign-in/sign-up card (`sign-in.tsx`, `sign-up.tsx` — a visitor has
  * accepted nothing yet, so the destination page's own version/date is all there is to show), and as
  * a persistent line in the authenticated app shell (`(app)/_layout.tsx`) so a signed-in user is never
  * more than this one row away from what they agreed to, on any screen — not only a settings tab or
- * an account page they would first have to think to open.
+ * an account page they would first have to think to open. Renders nothing at all — not even an empty
+ * `<nav>` — once the backend settles on an empty catalogue (self-hosted mode): there is nothing to
+ * link to, and a landmark with no content is not an accessibility improvement.
  *
  * NOT wired into `pages/auth/_components/auth-shell.tsx` itself: that shell's own outer frame is a
  * fixed `h-dvh` region with no slot below the card, and it is one of the files this task was told not
@@ -75,8 +97,7 @@ function reconcileLinks(
  */
 export function LegalLinks({ className }: { className?: string }) {
   const { t } = useTranslation()
-  const { data } = useLegalDocuments()
-  const links = reconcileLinks(data?.documents, t)
+  const links = useLegalLinks()
 
   if (links.length === 0) return null
 

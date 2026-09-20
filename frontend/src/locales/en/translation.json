@@ -4962,6 +4962,7 @@
     },
     "document": {
       "notFound": "This document could not be found.",
+      "notAvailableSelfHosted": "This instance doesn't publish this document — it applies to the hosted service only. Self-hosted software is covered by its own license, not by these terms.",
       "version": "Version {{version}} — effective {{date}}",
       "language": "Language"
     },

@@ -131,4 +131,20 @@ describe("<LegalLinks>", () => {
       )
     }
   })
+
+  it("renders nothing at all — no <nav>, no separator — once a self-hosted instance's empty catalogue settles", async () => {
+    // The self-hosted shape: `GET /api/legal/documents` resolves (it's not still loading, and it
+    // didn't fail) with `documents: []`. Every curated entry gets filtered out and there is nothing
+    // uncurated to add — this is the case the wrapping `<footer>` in `(app)/_layout.tsx` depends on
+    // `useLegalLinks()` to detect, since a `null` render here still leaves an empty bordered strip if
+    // that wrapper doesn't also disappear.
+    installFetchMock([])
+    const { container } = renderLinks()
+
+    await waitFor(() => {
+      expect(screen.queryByRole("navigation")).not.toBeInTheDocument()
+    })
+    // Nothing at all — not an empty <nav>, not a lone "·" separator left dangling.
+    expect(container).toBeEmptyDOMElement()
+  })
 })

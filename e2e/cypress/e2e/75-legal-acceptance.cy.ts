@@ -1,21 +1,33 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * The five legal documents (`documentation/docs/legal/*.md`) and the SaaS-mode acceptance flow they
- * back (product decision 2026-09-16): the sign-up checkbox, the `LEGAL_ACCEPTANCE_REQUIRED` refusal,
- * and the sign-in re-acceptance interstitial (`pages/legal/accept.tsx`).
+ * The six legal documents (`backend/src/legal/data/*.md`) and the SaaS-mode acceptance flow they back
+ * (product decision 2026-09-16): the sign-up checkbox, the `LEGAL_ACCEPTANCE_REQUIRED` refusal, and
+ * the sign-in re-acceptance interstitial (`pages/legal/accept.tsx`).
  *
  * This e2e stack, like every other spec here, runs with NO
  * `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set — the same self-hosted-shaped environment
  * `72-billing-hidden.cy.ts`'s own header describes, and for the same reason: CI never turns hosted
  * billing (or, by the same flag, legal acceptance) on for the ordinary stack. Rather than skip the
  * three acceptance scenarios outright, this spec detects the instance's own `saasMode`
- * (`GET /api/legal/documents`, public) and adapts: the public-document and self-hosted assertions
- * always run; the three SaaS-mode scenarios run only when `saasMode` is actually true — proven, on
- * 2026-09-16, against a throwaway backend/frontend pair started for exactly this spec with the flag
- * set (see this feature's own final report for the exact commands). Turning a dedicated SaaS-mode leg
- * on for the standard CI stack (the way `scenarios.yml` runs its own matrix) is a coordinator decision,
- * not one this spec makes for itself.
+ * (`GET /api/legal/documents`, public) and adapts: every assertion below runs unconditionally, but
+ * three of them assert an OUTCOME that itself depends on `saasMode`, and the three SaaS-only sign-up
+ * scenarios run only when `saasMode` is actually true — proven, on 2026-09-16, against a throwaway
+ * backend/frontend pair started for exactly this spec with the flag set (see this feature's own final
+ * report for the exact commands). Turning a dedicated SaaS-mode leg on for the standard CI stack (the
+ * way `scenarios.yml` runs its own matrix) is a coordinator decision, not one this spec makes for
+ * itself.
+ *
+ * REVERSED 2026-09-20: this spec used to assert that `GET /api/legal/documents`, the public document
+ * page, and the sign-in/sign-up footer all served the six documents REGARDLESS of `saasMode` — i.e. it
+ * proved a self-hosted instance published the hosted service's own legal notice, terms, DPA and
+ * sub-processor list under someone else's name. That was the defect, not a feature to keep green: the
+ * owner's decision is that self-hosted instances serve NONE of these six documents (only the licence
+ * already in the repository governs that install). The three assertions below now branch on
+ * `saasMode` instead of ignoring it, and this stack (self-hosted, `saasMode:false`) exercises the
+ * EMPTY-catalogue side of all three every run — the previously-untested "does this actually hide
+ * everything" side, not just "does hosted mode still work" (still covered by the dedicated
+ * `expectSaas` lane described above).
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 const PASSWORD = "Super_Secret_Password123!";
@@ -62,39 +74,72 @@ describe("Legal acceptance", () => {
 		});
 	});
 
-	it("GET /api/legal/documents serves all five documents, publicly, with no session", () => {
+	it("GET /api/legal/documents serves all six documents in SaaS mode, and NONE on a self-hosted instance", () => {
 		cy.request({ url: `${api}/api/legal/documents`, failOnStatusCode: false }).then((response) => {
 			expect(response.status, "public route, reachable with no cookie at all").to.eq(200);
 			expect(response.body.saasMode).to.be.a("boolean");
-			const slugs = response.body.documents.map((d: { slug: string }) => d.slug);
-			expect(slugs).to.include.members(ALL_SLUGS);
-			for (const doc of response.body.documents) {
-				expect(doc.version, `${doc.slug} has a version`).to.be.a("string").and.not.be.empty;
-				expect(doc.content, `${doc.slug} has content`).to.be.a("string").and.not.be.empty;
+
+			if (saasMode) {
+				const slugs = response.body.documents.map((d: { slug: string }) => d.slug);
+				expect(slugs).to.include.members(ALL_SLUGS);
+				for (const doc of response.body.documents) {
+					expect(doc.version, `${doc.slug} has a version`).to.be.a("string").and.not.be.empty;
+					expect(doc.content, `${doc.slug} has content`).to.be.a("string").and.not.be.empty;
+				}
+			} else {
+				// The whole point of the fix: a self-hosted instance has no legal documents of its own
+				// to publish — the author's identity, a subscription this instance doesn't sell, a
+				// processor relationship where nothing is processed for it. Only the licence already in
+				// the repository governs a self-hosted install, and this endpoint has never served it.
+				expect(response.body.documents, "self-hosted instances publish none of the six documents").to.deep.equal([]);
 			}
 		});
 	});
 
-	it("renders the public legal document pages", () => {
+	it("renders the public legal document pages in SaaS mode, or a clear not-published notice on a self-hosted instance", () => {
 		cy.visit("/legal/terms-of-service");
-		cy.get('[data-cy="legal-document-content"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="legal-document-content"] h1').should("contain.text", "Terms of Service");
 
-		cy.visit("/legal/privacy-policy");
-		cy.get('[data-cy="legal-document-content"] h1', { timeout: 15000 }).should("contain.text", "Privacy Policy");
+		if (saasMode) {
+			cy.get('[data-cy="legal-document-content"]', { timeout: 15000 }).should("exist");
+			cy.get('[data-cy="legal-document-content"] h1').should("contain.text", "Terms of Service");
 
-		cy.visit("/legal/does-not-exist");
-		cy.get('[data-cy="legal-document-not-found"]', { timeout: 15000 }).should("exist");
+			cy.visit("/legal/privacy-policy");
+			cy.get('[data-cy="legal-document-content"] h1', { timeout: 15000 }).should("contain.text", "Privacy Policy");
+
+			cy.visit("/legal/does-not-exist");
+			cy.get('[data-cy="legal-document-not-found"]', { timeout: 15000 }).should("exist");
+		} else {
+			// A real slug (terms-of-service) and a bogus one land on the exact same notice — proof this
+			// is a deliberate "this instance doesn't publish this" message, not an ordinary slug-not-found
+			// that would only make sense on an instance that publishes SOME documents. A bookmark or a
+			// link from the operator's own site must not look like a broken page.
+			cy.get('[data-cy="legal-document-not-found"]', { timeout: 15000 })
+				.should("exist")
+				.and("contain.text", "doesn't publish this document");
+
+			cy.visit("/legal/does-not-exist");
+			cy.get('[data-cy="legal-document-not-found"]', { timeout: 15000 })
+				.should("exist")
+				.and("contain.text", "doesn't publish this document");
+		}
 	});
 
-	it("shows the legal links on both the sign-in and sign-up screens", () => {
+	it("shows the legal links on the sign-in/sign-up screens in SaaS mode, and no footer at all on a self-hosted instance", () => {
 		cy.visit("/auth/sign-in");
-		cy.get('[data-cy="legal-links"]').should("exist");
-		cy.get('[data-cy="legal-link-privacy-policy"]').should("have.attr", "href", "/legal/privacy-policy");
+		if (saasMode) {
+			cy.get('[data-cy="legal-links"]').should("exist");
+			cy.get('[data-cy="legal-link-privacy-policy"]').should("have.attr", "href", "/legal/privacy-policy");
+		} else {
+			cy.get('[data-cy="legal-links"]').should("not.exist");
+		}
 
 		cy.visit("/auth/sign-up");
-		cy.get('[data-cy="legal-links"]').should("exist");
-		cy.get('[data-cy="legal-link-terms-of-service"]').should("have.attr", "href", "/legal/terms-of-service");
+		if (saasMode) {
+			cy.get('[data-cy="legal-links"]').should("exist");
+			cy.get('[data-cy="legal-link-terms-of-service"]').should("have.attr", "href", "/legal/terms-of-service");
+		} else {
+			cy.get('[data-cy="legal-links"]').should("not.exist");
+		}
 	});
 
 	describe("self-hosted mode (this e2e stack's own default)", () => {

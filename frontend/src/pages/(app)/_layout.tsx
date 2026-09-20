@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { BillingBanner } from "@/components/billing-banner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { LegalLinks } from "@/components/legal-links"
+import { LegalLinks, useLegalLinks } from "@/components/legal-links"
 import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onboarding"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
@@ -82,6 +82,10 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
   // that's under test/rendered on its own).
   useApplyAccountLocale(accountLocale)
 
+  // Decides whether the footer strip below even exists — see that element's own comment for why a
+  // `<footer>` wrapper can't just contain `<LegalLinks/>` and rely on it rendering `null`.
+  const hasLegalLinks = useLegalLinks().length > 0
+
   return (
     <OnboardingDialogProvider>
       <SidebarProvider>
@@ -110,10 +114,18 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
                     `min-h-0`/auto-shrink on the scrolling section above (its `overflow-y-auto`
                     already gives it that) means adding this row shrinks the scrollable area by
                     exactly its own height instead of pushing the app shell taller than the
-                    viewport — the same mechanism that already lets `header` coexist with it. */}
-                <footer className="shrink-0 border-t px-4 py-2">
-                  <LegalLinks />
-                </footer>
+                    viewport — the same mechanism that already lets `header` coexist with it.
+
+                    Rendered only when `hasLegalLinks` — a self-hosted instance's catalogue is empty,
+                    and `<LegalLinks/>` would render `null` inside it: the border-top and padding live
+                    on THIS element, not on what it contains, so leaving the `<footer>` unconditional
+                    would still draw an empty bordered strip under every authenticated page with
+                    nothing in it to explain why it's there. */}
+                {hasLegalLinks && (
+                  <footer className="shrink-0 border-t px-4 py-2">
+                    <LegalLinks />
+                  </footer>
+                )}
               </section>
             </main>
           </section>

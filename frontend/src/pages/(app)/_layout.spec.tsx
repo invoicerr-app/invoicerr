@@ -28,12 +28,13 @@ vi.mock("@/components/onboarding", () => ({
 }))
 vi.mock("@/hooks/queries", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/queries")>()
-  return { ...actual, useLegalStatus: vi.fn(), useSeats: vi.fn() }
+  return { ...actual, useLegalStatus: vi.fn(), useSeats: vi.fn(), useLegalDocuments: vi.fn() }
 })
 
 const mockedUseSession = vi.mocked(authClient.useSession)
 const mockedUseLegalStatus = vi.mocked(queriesModule.useLegalStatus)
 const mockedUseSeats = vi.mocked(queriesModule.useSeats)
+const mockedUseLegalDocuments = vi.mocked(queriesModule.useLegalDocuments)
 
 const SESSION = { user: { id: "user-1" } }
 
@@ -55,6 +56,19 @@ function seatsResult(overrides: Partial<ReturnType<typeof queriesModule.useSeats
     error: null,
     ...overrides,
   } as unknown as ReturnType<typeof queriesModule.useSeats>
+}
+
+/** Defaults to "still in flight" — `useLegalLinks()`'s own "assume yes" reasoning for `data ===
+ *  undefined` means every test that doesn't care about the footer one way or the other keeps seeing
+ *  it, the same as when this hook wasn't mocked at all. */
+function legalDocumentsResult(overrides: Partial<ReturnType<typeof queriesModule.useLegalDocuments>> = {}) {
+  return {
+    data: undefined,
+    isPending: true,
+    isError: false,
+    error: null,
+    ...overrides,
+  } as unknown as ReturnType<typeof queriesModule.useLegalDocuments>
 }
 
 function renderLayout() {
@@ -85,6 +99,7 @@ describe("(app)/_layout — no-free-seat gate", () => {
         removeEventListener: vi.fn(),
       })),
     )
+    mockedUseLegalDocuments.mockReturnValue(legalDocumentsResult())
   })
 
   afterEach(() => {
@@ -152,6 +167,73 @@ describe("(app)/_layout — no-free-seat gate", () => {
     renderLayout()
 
     expect(screen.getByTestId("dashboard-content")).toBeInTheDocument()
+  })
+})
+
+/**
+ * The permanent legal-links `<footer>` — the wrapper this task added a border/padding to. It must
+ * disappear along with its contents on a self-hosted instance, not sit there as an empty bordered
+ * strip once `<LegalLinks/>` itself renders `null` (see `legal-links.tsx#useLegalLinks`'s own header
+ * for why the border/padding living on the wrapper, not on what it contains, made that possible).
+ */
+describe("(app)/_layout — the legal-links footer", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    )
+    mockedUseSession.mockReturnValue({ data: SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(seatsResult({ data: { seats: 3, members: [], waiting: [] } }))
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it("renders no <footer> at all once a self-hosted instance's catalogue settles empty", () => {
+    mockedUseLegalDocuments.mockReturnValue(
+      legalDocumentsResult({ data: { saasMode: false, documents: [] } }),
+    )
+
+    const { container } = renderLayout()
+
+    expect(screen.getByTestId("dashboard-content")).toBeInTheDocument()
+    expect(container.querySelector("footer")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("legal-links")).not.toBeInTheDocument()
+  })
+
+  it("renders the <footer> with its links once the catalogue carries at least one document", () => {
+    mockedUseLegalDocuments.mockReturnValue(
+      legalDocumentsResult({
+        data: {
+          saasMode: true,
+          documents: [
+            {
+              slug: "terms-of-service",
+              title: "Terms of Service",
+              version: "1",
+              effectiveDate: "2026-09-20",
+              sidebarPosition: 0,
+              content: "…",
+              language: "en",
+              availableLanguages: ["en"],
+            },
+          ],
+        },
+      }),
+    )
+
+    const { container } = renderLayout()
+
+    expect(container.querySelector("footer")).toBeInTheDocument()
+    expect(screen.getByTestId("legal-links")).toBeInTheDocument()
+    expect(screen.getByTestId("legal-link-terms-of-service")).toBeInTheDocument()
   })
 })
 

@@ -29,6 +29,12 @@ export default function LegalDocumentPage() {
   const [langOverride, setLangOverride] = useState<string | undefined>(undefined)
   const { data, isPending, isError } = useLegalDocuments(langOverride)
   const doc = data?.documents.find((d) => d.slug === slug)
+  // `saasMode` (mirroring the backend's own billing flag) is also this endpoint's own signal for
+  // "self-hosted, and therefore an intentionally empty catalogue" — see `legal.service.ts#listDocuments`.
+  // A bookmark or a link from the operator's own site must not land on a page that just looks broken:
+  // this distinguishes that case (every slug 404s the same way) from an ordinary bad slug on a hosted
+  // instance that DOES publish documents, which keeps the plain "not found" wording for that case.
+  const notAvailableSelfHosted = !isPending && !isError && !doc && data?.saasMode === false
 
   return (
     <PublicPageShell width="narrow" dataCy="legal-document-page">
@@ -44,7 +50,13 @@ export default function LegalDocumentPage() {
 
         {!isPending && (isError || !doc) && (
           <p className="text-muted-foreground" data-cy="legal-document-not-found">
-            {t("legal.document.notFound", "This document could not be found.")}
+            {notAvailableSelfHosted
+              ? t(
+                  "legal.document.notAvailableSelfHosted",
+                  "This instance doesn't publish this document — it applies to the hosted service only. " +
+                    "Self-hosted software is covered by its own license, not by these terms.",
+                )
+              : t("legal.document.notFound", "This document could not be found.")}
           </p>
         )}
 

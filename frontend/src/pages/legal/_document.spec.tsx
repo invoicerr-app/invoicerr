@@ -95,11 +95,35 @@ describe("<LegalDocumentPage> — language selector", () => {
     expect(screen.queryByTestId("legal-language-select")).not.toBeInTheDocument()
   })
 
-  it("shows the not-found message when the slug does not match any served document", async () => {
-    installFetchMock(() => ({ saasMode: false, documents: [] }))
+  it("shows the not-found message when the slug does not match any served document in SaaS mode", async () => {
+    // saasMode:true with a NONEMPTY catalogue that just doesn't carry THIS route's slug
+    // (`/legal/privacy-policy` — see `renderPage()`) — an ordinary bad URL on a hosted instance,
+    // distinct from the self-hosted case below (empty catalogue) even though both land on the same
+    // `legal-document-not-found` test id.
+    installFetchMock(() => ({
+      saasMode: true,
+      documents: [privacyPolicyDoc({ slug: "terms-of-service", title: "Terms of Service" })],
+    }))
 
     renderPage()
 
     await waitFor(() => expect(screen.getByTestId("legal-document-not-found")).toBeInTheDocument())
+    expect(screen.getByTestId("legal-document-not-found")).toHaveTextContent("could not be found")
+  })
+})
+
+describe("<LegalDocumentPage> — self-hosted (empty catalogue)", () => {
+  it("shows a distinct 'not published on this instance' notice, not the generic not-found wording, when the whole catalogue is empty", async () => {
+    // The self-hosted shape: `saasMode:false` and `documents: []`, regardless of which slug was
+    // requested — `legal.service.ts#listDocuments` serves NOTHING outside SaaS mode. A bookmark to a
+    // real slug (privacy-policy here) must not look like a broken/missing page; it must say plainly
+    // that this instance doesn't publish it.
+    installFetchMock(() => ({ saasMode: false, documents: [] }))
+
+    renderPage()
+
+    const notice = await screen.findByTestId("legal-document-not-found")
+    expect(notice).toHaveTextContent("doesn't publish this document")
+    expect(notice).not.toHaveTextContent("could not be found")
   })
 })

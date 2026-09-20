@@ -18,25 +18,33 @@ afterEach(() => {
 });
 
 describe('LegalService.listDocuments', () => {
-  it('reports saasMode and every document, self-hosted (flag unset)', () => {
+  // Decision 2026-09-20: a self-hosted instance serves NONE of the six documents — every one of them
+  // describes the hosted offering by name (the author's own identity, a subscription that instance
+  // doesn't have, a processor relationship where he processes nothing for it) and is true of nobody
+  // else. Only the licence already in the repository governs a self-hosted install.
+  it('reports saasMode:false and NO documents, self-hosted (flag unset)', () => {
     delete process.env[BILLING_FLAG_NAME];
     const view = new LegalService().listDocuments();
     expect(view.saasMode).toBe(false);
+    expect(view.documents).toEqual([]);
+  });
+
+  it('reports saasMode true and every document with the flag set', () => {
+    process.env[BILLING_FLAG_NAME] = 'true';
+    const view = new LegalService().listDocuments();
+    expect(view.saasMode).toBe(true);
     expect(view.documents).toHaveLength(6);
   });
 
-  it('reports saasMode true with the flag set', () => {
-    process.env[BILLING_FLAG_NAME] = 'true';
-    expect(new LegalService().listDocuments().saasMode).toBe(true);
-  });
-
   it('defaults to English when called with no preferred-language list at all', () => {
+    process.env[BILLING_FLAG_NAME] = 'true';
     const doc = new LegalService().listDocuments().documents.find((d) => d.slug === 'privacy-policy');
     expect(doc?.language).toBe('en');
     expect(doc?.title).toBe('Privacy Policy');
   });
 
   it('serves each document in the best-matching preferred language, per document', () => {
+    process.env[BILLING_FLAG_NAME] = 'true';
     const documents = new LegalService().listDocuments(['fr']).documents;
     // privacy-policy ships a French translation — it resolves to it.
     const privacy = documents.find((d) => d.slug === 'privacy-policy');
@@ -48,6 +56,7 @@ describe('LegalService.listDocuments', () => {
   });
 
   it('falls back to English, per document, for a language the catalog does not carry at all', () => {
+    process.env[BILLING_FLAG_NAME] = 'true';
     const documents = new LegalService().listDocuments(['xx']).documents;
     for (const doc of documents) {
       expect(doc.language).toBe('en');
@@ -55,6 +64,7 @@ describe('LegalService.listDocuments', () => {
   });
 
   it('every document reports its own available languages regardless of which one was resolved', () => {
+    process.env[BILLING_FLAG_NAME] = 'true';
     const documents = new LegalService().listDocuments(['de']).documents;
     const privacy = documents.find((d) => d.slug === 'privacy-policy');
     expect(privacy?.availableLanguages).toEqual(['en', 'fr', 'de', 'it', 'pl', 'pt']);

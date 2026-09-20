@@ -32,12 +32,29 @@ export class LegalService {
    * spec, anything else that reads it as a plain function) keeps getting exactly the English text it
    * always did.
    */
+  /**
+   * Outside SaaS mode this returns NO documents at all (decision 2026-09-20). All six ship their own
+   * "does not apply to the self-hosted software" scope clause — they describe the author's hosted
+   * business (his identity for the legal notice, a subscription that instance doesn't have, a
+   * processor relationship where he processes nothing, sub-processors that instance never talks to) —
+   * so serving them to a self-hosted operator's own users was never a lighter version of the truth,
+   * it was someone else's facts under a caller who has none of them. The self-hoster's own
+   * legal-notice obligation, if their jurisdiction has one, is theirs to fulfil under their own name;
+   * the one document that genuinely governs a self-hosted install is the licence already in the
+   * repository, which this endpoint has never served and still doesn't. `listLegalDocuments()` itself
+   * stays ungated — `legal-release-boot.service.ts` reads it directly, self-hosted included, to keep
+   * an append-only history of the text this instance ships (see that file's own header); that
+   * internal bookkeeping was never what got exposed to an end user and isn't part of this defect.
+   */
   listDocuments(
     preferredLanguages: readonly string[] = [DEFAULT_LEGAL_DOCUMENT_LANGUAGE],
   ): LegalDocumentsView {
+    const saasMode = isBillingEnabled();
     return {
-      saasMode: isBillingEnabled(),
-      documents: listLegalDocuments().map((doc) => resolveLegalDocumentView(doc, preferredLanguages)),
+      saasMode,
+      documents: saasMode
+        ? listLegalDocuments().map((doc) => resolveLegalDocumentView(doc, preferredLanguages))
+        : [],
     };
   }
 
