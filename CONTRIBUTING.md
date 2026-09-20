@@ -174,19 +174,14 @@ backend doesn't see it, restart it.
 
 ## Licensing of contributions
 
-Invoicerr is dual-licensed: [AGPL-3.0](./LICENSE) for open-source use, and a
-[commercial license](./LICENSE.COMMERCIAL.md) the maintainer, Roméo Chevrier (sole trader,
-*entrepreneur individuel*, under French law), sells separately for use the AGPL doesn't fit.
+Invoicerr is [AGPL-3.0](./LICENSE), and that is the only licence it has. Contributing asks nothing of
+you beyond that licence: no copyright assignment, and no grant letting anyone relicense your work on
+other terms.
 
 **By contributing, you agree that:**
 
 - Your contribution is licensed under the AGPL-3.0, like the rest of the project — you keep your
   copyright; nothing here transfers ownership of your work.
-- You also grant the maintainer the right to distribute your contribution under the commercial
-  license described in `LICENSE.COMMERCIAL.md`, and under any future licensing terms the maintainer
-  adopts for the project, on the same basis the maintainer licenses their own code. This is what lets
-  the project keep offering a single, coherent commercial license over the whole codebase, including
-  contributions — see `LICENSE.COMMERCIAL.md`, Article 6.
 - You have the right to submit the contribution under these terms (it's your own work, or you have
   permission from whoever holds the rights to it).
 

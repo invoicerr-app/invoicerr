@@ -349,9 +349,6 @@ public issue. Please do not report a vulnerability in an issue, a pull request o
 
 ## License
 
-Dual-licensed:
-
-- Open source — [AGPL-3.0](./LICENSE)
-- Commercial — [LICENSE.COMMERCIAL.md](./LICENSE.COMMERCIAL.md), for use the AGPL does not fit
-
-Contact the maintainer for commercial terms.
+[AGPL-3.0](./LICENSE) — free for any use, commercial included. If you run a modified version as a
+network service, you offer its source to the people using it (section 13). That is the whole deal;
+there is no second licence and no paid tier of the software itself.
