@@ -196,7 +196,15 @@ const Layout = () => {
     return <UnauthenticatedLayout />
   }
 
-  if (isPending) {
+  // `isPending && !session`, never `isPending` alone. better-auth revalidates the session on every
+  // window focus, so `isPending` flips back to true long after the initial load — and blanking on it
+  // returns `null` for the WHOLE authenticated shell, which unmounts everything below and remounts it
+  // on the next render. An open dialog, a half-filled form, the scroll position and any in-flight
+  // step are lost on every alt-tab. Once a session is in hand a revalidation is a background detail:
+  // keep rendering the shell with what we already have. Only the very first load, where there is
+  // genuinely nothing to render yet, waits. This is the same defect the comment above describes for
+  // a public signature link, fixed there by checking `isAllowedPath` first and left standing here.
+  if (isPending && !session) {
     return null
   }
 
@@ -209,7 +217,10 @@ const Layout = () => {
   // SSE connection via `useDocumentEventsSse` below) for the one render before this query resolves.
   // `enabled: !!session` above means this reflects a genuine fetch now that we know a session exists,
   // never a permanently-disabled query's own `isPending: true`.
-  if (legalStatusPending) {
+  // Same shape, same reason as the session gate above: this query refetches on window focus too, and
+  // blanking on a refetch that already has an answer would unmount the shell exactly as described
+  // there. Only the first load, with nothing yet to decide on, holds the render back.
+  if (legalStatusPending && !legalStatus) {
     return null
   }
 

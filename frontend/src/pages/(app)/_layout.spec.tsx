@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ApiError } from "@/hooks/use-api-query"
 import * as queriesModule from "@/hooks/queries"
@@ -280,5 +280,65 @@ describe("(app)/_layout — the public signature path ignores session-refetch ch
   it("renders identically once that refetch settles — the path never depended on it either way", () => {
     renderSignaturePath(false)
     expect(screen.getByTestId("signature-page-content")).toBeInTheDocument()
+  })
+})
+
+describe("(app)/_layout — the authenticated shell survives a session refetch", () => {
+  // The only block here that renders the REAL authenticated shell rather than a gate returning
+  // null, so it is the only one that reaches the sidebar's mobile-breakpoint hook — jsdom ships no
+  // `matchMedia`, and without this stub the shell throws before any assertion can run.
+  beforeAll(() => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    })
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  /** A session that is already known, with a refetch in flight on top of it — the exact shape
+   *  better-auth produces on every window focus: `data` still populated, `isPending` back to true. */
+  function renderShell(sessionIsPending: boolean) {
+    mockedUseSession.mockReturnValue({
+      data: { user: { id: "u1" } },
+      isPending: sessionIsPending,
+    } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(seatsResult({}))
+    mockedUseLegalDocuments.mockReturnValue(legalDocumentsResult())
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/dashboard"]}>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<div data-cy="shell-content">Dashboard</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+  }
+
+  it("keeps the shell mounted while a background session refetch is in flight", () => {
+    renderShell(true)
+    expect(screen.getByTestId("shell-content")).toBeInTheDocument()
+  })
+
+  it("renders the same shell once that refetch settles", () => {
+    renderShell(false)
+    expect(screen.getByTestId("shell-content")).toBeInTheDocument()
   })
 })
