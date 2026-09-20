@@ -48,7 +48,22 @@ spec:
         {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "catalogs-release") | nindent 8 }}
     spec:
       restartPolicy: Never
-      serviceAccountName: {{ include "invoicerr.serviceAccountName" . }}
+      {{/* NO `serviceAccountName` here, deliberately — this is a pre-install hook.
+      Helm runs pre-install hooks to completion BEFORE applying the chart's ordinary manifests, and
+      the ServiceAccount this chart creates (`serviceaccount.yaml`, `serviceAccount.create: true` by
+      default) is one of those ordinary manifests. Naming it here therefore asks Kubernetes for a
+      ServiceAccount that cannot exist yet: the Job is created, its pod is refused with
+      `FailedCreate: serviceaccount "<release>" not found`, the Job sits at 0/1 with no pod, and
+      Helm waits out its `--timeout` and rolls back. On a FIRST install that deadlock is total —
+      the ServiceAccount is only ever created after the hook succeeds, which it never does. It went
+      unnoticed because `helm upgrade` fires `pre-upgrade` against a namespace where a previous
+      apply already left the ServiceAccount behind; only the very first install is affected, which
+      is exactly the one nobody rehearses. The pod falls back to the namespace's `default`
+      ServiceAccount, which is what this Job needs: it seeds catalogs into Postgres over
+      `DATABASE_URL` and never calls the Kubernetes API, so it requires no API permissions and no
+      identity of its own. Do not "restore" this line for symmetry with the Deployments — they are
+      ordinary resources applied after the ServiceAccount exists, and they may legitimately carry
+      cloud-IAM annotations on it that this Job has no use for. */}}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
