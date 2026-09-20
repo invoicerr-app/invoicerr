@@ -346,10 +346,12 @@ async function verifyPadesSignatureCoverage(base64: string): Promise<{
 }
 
 export default defineConfig({
-  // The suite runs 15 specs back to back in one CI job with video capture on, which
-  // grows the Electron renderer's heap until it crashes ("Renderer process just
-  // crashed", seen on 14-articles). Both settings below are Cypress' own remedy:
-  // release each spec's memory instead of keeping every test's DOM snapshots around.
+  // The suite used to run every spec back to back in one Electron process with video capture on,
+  // which grew the renderer's heap until it crashed ("Renderer process just crashed", seen on
+  // 14-articles). Both settings below are Cypress' own remedy: release each spec's memory instead
+  // of keeping every test's DOM snapshots around. CI now shards the suite six ways, so a single
+  // process sees 12-13 specs rather than all of them — that shrinks the exposure but does not
+  // remove it, which is why both settings stay, and why the Firefox analysis below still stands.
   experimentalMemoryManagement: true,
   numTestsKeptInMemory: 0,
   //
