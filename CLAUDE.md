@@ -8,7 +8,7 @@ Four independent npm projects (no workspace root — each has its own `package.j
 
 | Dir | Stack | Purpose |
 | --- | --- | --- |
-| `backend/` | NestJS 11 + Prisma 7 (Postgres) + BullMQ | REST API (`/api`), the documents module (invoicing + per-country compliance catalogs), queue worker |
+| `backend/` | NestJS 12 + Prisma 7 (Postgres) + BullMQ | REST API (`/api`), the documents module (invoicing + per-country compliance catalogs), queue worker |
 | `frontend/` | React 19 + Vite 7 + TanStack Query + Tailwind 4 | SPA, file-based routes via generouted |
 | `e2e/` | Cypress 15 | End-to-end + per-country business scenarios |
 | `documentation/` | Docusaurus 3 | Public docs + the five in-scope per-country compliance specs |
