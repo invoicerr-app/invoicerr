@@ -28,6 +28,7 @@ import { registerReceivedInvoiceActions } from './actions/received-invoice-actio
 import { B2gRoutingBootUpsertService } from './b2g-routing/boot-upsert.service';
 import { ArchiveStorageSharingBootCheckService } from './archive/storage-sharing-boot-check.service';
 import { AuthorityStatusPollerRegistry } from './conformity/authority-status-poller';
+import { PdfRendererWarmupService } from './rendering/pdf-renderer-warmup.service';
 import { CountryIdentifierRequirementsBootReseedService } from './country-identifiers/boot-reseed.service';
 import { CountryPolicyBootReseedService } from './country-policy/boot-reseed.service';
 import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
@@ -673,6 +674,15 @@ function buildEntityReferenceRegistry(
     // misconfiguration `archive/storage.ts`'s own header names) and why a failure here is a logged
     // WARNING, never a boot-blocking error the way a country-catalog reseed failure escalates to.
     ArchiveStorageSharingBootCheckService,
+    // Starts the PDF renderer's Chromium at boot instead of leaving it to the first render — the
+    // same "runs on EVERY process that imports this Core module" placement as the boot services
+    // above, and for a reason this module is the only right home for: BOTH roles render (the worker
+    // for queued sends, the API synchronously inside `GET /documents/:id/pdf` and friends, none of
+    // which is gated on `WORKER_INLINE`), and this module is loaded by exactly those two and nothing
+    // else. Unlike the services above it never blocks boot and never escalates a failure — see its
+    // own header (rendering/pdf-renderer-warmup.service.ts) for both, and for why a host with no
+    // Chromium at all must still start.
+    PdfRendererWarmupService,
     // The "sdi-pec" RECEIVE side — parses/journals SdI's own notifiche once drained from a company's
     // PEC mailbox (`transports/sdi-pec/pec-notifiche.service.ts`) and the drain loop itself
     // (`pec-inbox-poller.service.ts`). Plain classes, resolved by Nest the same way

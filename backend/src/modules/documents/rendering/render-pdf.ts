@@ -271,6 +271,32 @@ async function launchBrowser(): Promise<Browser> {
   }
 }
 
+/**
+ * Launches the shared browser NOW, instead of letting the first render pay for it.
+ *
+ * `getBrowser()` above is lazy on purpose — nothing in this module starts a Chromium until something
+ * actually asks for a PDF — but that laziness has a price, and it is always charged to whoever
+ * happens to be first after a boot: a real user downloading their own invoice, or the first queued
+ * send of a deploy. Measured on a shared CI runner, the same render costs ~0.5-0.9 s with the browser
+ * already up, and anywhere from 1.5 s to over 30 s with the launch folded in — the cold-disk cost of
+ * faulting a ~170 MB Chromium snapshot in for the first time. A deployment can absorb that wait; a
+ * customer waiting on an invoice should not have to, so a process that is going to render calls this
+ * at boot and moves the cost to where nobody is watching a spinner.
+ *
+ * Opens no page and renders nothing, deliberately: the LAUNCH is the whole cost (a
+ * `newPage()`/`page.pdf()` pair on a browser that is already up is milliseconds — the same spread
+ * above shows it), so a throwaway render would buy nothing and would hold one of the
+ * `MAX_CONCURRENT_RENDERS` slots while it did.
+ *
+ * Rejects exactly the way `getBrowser()` does when no Chromium can be resolved or launched — this
+ * function deliberately decides nothing about what that means, because the answer differs by caller.
+ * `PdfRendererWarmupService` (pdf-renderer-warmup.service.ts, the only production caller) logs it and
+ * lets the process boot anyway; see its own header for why that has to stay true.
+ */
+export async function warmUpPdfRenderer(): Promise<void> {
+  await getBrowser();
+}
+
 export interface RenderPdfOptions {
   /**
    * Plain text (never HTML) to repeat in a small footer on EVERY printed page — the mechanism this
