@@ -64,6 +64,13 @@ function renderSection() {
  *  CPU contention (a loaded shared CI runner), reproduced locally the same way. */
 const DIALOG_MOUNT_TIMEOUT_MS = 5000
 
+/** Vitest's own default test budget is 5000 ms too — the same number as the wait above. So a test
+ *  that actually spends that wait is killed by the test budget BEFORE its own query can time out,
+ *  which made the widened wait inert: both CI failures reported "Test timed out in 5000ms" at the
+ *  `it()`, clocked at 5010 ms, never the query's own message. Widening a query wait only does
+ *  something when the test budget sits strictly above it. */
+vi.setConfig({ testTimeout: DIALOG_MOUNT_TIMEOUT_MS * 3 })
+
 async function openModalAndFillForm() {
   fireEvent.click(await screen.findByTestId("instance-reset-button"))
   await screen.findByTestId("instance-reset-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })

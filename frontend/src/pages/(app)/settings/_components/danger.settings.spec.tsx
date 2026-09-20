@@ -121,6 +121,13 @@ function renderScreen() {
  *  carries the identical comment for its own sibling case. */
 const DIALOG_MOUNT_TIMEOUT_MS = 5000
 
+/** Vitest's own default test budget is 5000 ms too — the same number as the wait above. So a test
+ *  that actually spends that wait is killed by the test budget BEFORE its own query can time out,
+ *  which made the widened wait inert: both CI failures reported "Test timed out in 5000ms" at the
+ *  `it()`, clocked at 5010 ms, never the query's own message. Widening a query wait only does
+ *  something when the test budget sits strictly above it. */
+vi.setConfig({ testTimeout: DIALOG_MOUNT_TIMEOUT_MS * 3 })
+
 /** Opens the OTP modal for the "reset company data" action and fills both fields the confirm button
  *  requires — the fixed `RESET` keyword ("delete company" instead asks for the company's own name,
  *  unrelated to what this file tests). */
