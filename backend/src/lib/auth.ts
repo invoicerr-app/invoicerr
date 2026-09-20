@@ -9,13 +9,14 @@ import { InvitationLookupResult, decideRegistration, registrationDenialMessage }
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import {
   SSO_PROVISIONED_ROLE,
+  accountLinkingOptions,
   companyForOAuthSignup,
   deriveUserNames,
   isOidcOnly,
   providerIdFromEndpointContext,
   resolveEnvOidcProvider,
   resolveOidcEndpoints,
-  trustedProviderIds,
+  ssoLinkValidator,
 } from './sso-policy';
 import {
   LEGAL_ACCEPTANCE_REQUIRED_CODE,
@@ -32,7 +33,6 @@ import {
   cleanupAfterUserDelete,
   sendChangeEmailMail,
 } from '../modules/auth-extended/account-lifecycle';
-import { registeredCompanyProviderIds } from './sso-registry';
 import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '../modules/billing/seat-sync';
 import { syncCompanyMemberOnMembershipChange } from '../modules/billing/member-sync';
 import { syncPolarMemberEmailForUser } from '../modules/billing/member-email-sync';
@@ -398,21 +398,33 @@ export const auth = betterAuth({
     },
   },
   account: {
-    accountLinking: {
-      enabled: true,
-      // A FUNCTION, not the static one-element array this used to be. better-auth re-resolves this
-      // per request when given a function (`dist/context/helpers.mjs#getTrustedProviders`), which is
-      // the only reason a per-company provider registered AFTER boot can ever be trusted: as a static
-      // array it was evaluated once, at import time, when no company provider existed yet — so
-      // account linking silently failed for every tenant provider.
-      trustedProviders: async () =>
-        trustedProviderIds({
-          env: envOidcProvider,
-          companyProviderIds: registeredCompanyProviderIds(),
-        }),
-    },
+    accountLinking: accountLinkingOptions({ env: envOidcProvider }),
   },
   user: {
+    /**
+     * The second lock on "whose account may an identity provider speak for", independent of
+     * `account.accountLinking` above and held HERE rather than in a library default.
+     *
+     * A per-company provider id carries its company (`c_<companyId>`), so "this IdP is only allowed
+     * to be attached to a member of its own company" is a question this process can actually answer.
+     * It refuses the takeover a second time on the one path `disableImplicitLinking` deliberately
+     * leaves open — the authenticated `linkSocial` flow, where better-auth runs this hook BEFORE its
+     * own trusted-provider check (`dist/api/routes/callback.mjs`'s `link` branch) — so an account
+     * owner cannot be walked through a link that hands a stranger's identity provider permanent
+     * authority over their account.
+     *
+     * Deliberately silent for every other action and provider: `create-user` has no existing account
+     * to take over, `sign-in` reaches an account already bound to this exact provider and subject,
+     * and the instance-wide provider is the operator's own. So the membership query below runs only
+     * on an explicit link through a tenant IdP, never on the sign-in path.
+     */
+    validateUserInfo: ssoLinkValidator({
+      isCompanyMember: async (userId, companyId) =>
+        (await prisma.userCompany.findUnique({
+          where: { userId_companyId: { userId, companyId } },
+          select: { userId: true },
+        })) !== null,
+    }),
     additionalFields: {
       firstname: {
         type: 'string',

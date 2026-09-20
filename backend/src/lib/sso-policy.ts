@@ -20,6 +20,8 @@
  * spec can drive it "cold" with synthetic inputs.
  */
 
+import type { BetterAuthOptions, ValidateUserInfoResult } from 'better-auth';
+
 import { CompanyRole } from '../../prisma/generated/prisma/client';
 
 // ---------------------------------------------------------------------------
@@ -196,27 +198,157 @@ export function isOidcOnly(env: NodeJS.ProcessEnv = process.env): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Every provider id account linking is allowed to trust.
+ * Every provider id account linking is allowed to trust — the INSTANCE's own, and only that one.
  *
- * better-auth re-resolves `account.accountLinking.trustedProviders` PER REQUEST when it is given as
- * a function (`dist/context/helpers.mjs#getTrustedProviders`), which is the only reason a tenant
- * provider registered after boot can ever be trusted: the static one-element array this used to be
- * was resolved once, at import time, when no company provider existed yet. Without this, a user
- * arriving through their own company's IdP whose email already exists would be refused the link
- * instead of being signed in.
+ * "Trusted" in better-auth means "may be linked to a local account without the provider having to
+ * assert `email_verified`" (`dist/api/routes/callback.mjs`'s `link` branch and
+ * `dist/api/routes/account.mjs`'s `linkSocial` both waive that requirement for a listed id). That is
+ * a statement about who VOUCHES for a provider, and the only provider anyone vouches for here is the
+ * one the operator put in the environment. A per-company provider is typed into a settings form by a
+ * customer: `PUT /company/sso` (`modules/company/sso/sso.controller.ts`) takes any public
+ * authorization/token/userinfo URL, requires no relationship whatsoever between that host and any
+ * domain the company has proven it controls, and is reachable by anyone at all — signup is open by
+ * default and `POST /api/companies` makes the caller OWNER of a brand-new company. Listing such an id
+ * here would mean the instance vouches for an identity provider an attacker registered five minutes
+ * ago.
+ *
+ * Per-company ids were listed here, through a function re-resolved per request. Do not put them back.
  */
-export function trustedProviderIds(params: {
-  env: EnvOidcProvider;
-  companyProviderIds: Iterable<string>;
-}): string[] {
-  const ids = new Set<string>();
+export function trustedProviderIds(params: { env: EnvOidcProvider }): string[] {
   // The environment provider is listed whether or not it is registered, exactly as before: this used
   // to be `[process.env.OIDC_NAME || 'Generic OIDC']`, unconditionally. Trusting an id no provider
   // answers to is inert (nothing can ever present it), so narrowing it here would be a behaviour
   // change for existing deployments with no security benefit.
-  ids.add(params.env.providerId);
-  for (const id of params.companyProviderIds) ids.add(id);
-  return [...ids];
+  return [params.env.providerId];
+}
+
+/** The `account.accountLinking` block `lib/auth.ts` hands better-auth, in one testable place. */
+export type AccountLinkingOptions = NonNullable<NonNullable<BetterAuthOptions['account']>['accountLinking']>;
+
+/**
+ * Which OAuth identities better-auth may attach to an account that already exists locally: none.
+ *
+ * `disableImplicitLinking` is the load-bearing field, and it is the ONLY one of better-auth's
+ * account-linking switches that actually closes this. Left at its default, an OAuth callback looks
+ * the incoming identity up by EMAIL ADDRESS (`dist/oauth2/link-account.mjs`, `findUserByEmail`), and
+ * when it finds a row it binds the incoming provider account to that user and issues that user's
+ * session. The three other conditions guarding that branch are all things an attacker controls or
+ * cannot be relied on:
+ *  - "the provider is trusted" — narrowed just above, but it only matters when the provider does NOT
+ *    assert `email_verified`, and an attacker running his own identity provider asserts whatever he
+ *    likes about whichever address he likes;
+ *  - "the local row is already verified" (`requireLocalEmailVerified`, default on) — a library
+ *    default this repository does not set, which its own type marks deprecated and slated to become
+ *    unconditional, and which is true of every account ever provisioned through any IdP;
+ *  - `enabled: false` — which would also disable the deliberate, authenticated `linkSocial` flow.
+ * So the rule is stated positively instead: an OAuth sign-in may create a user or sign an
+ * already-bound one in, and it may never ADOPT a local account it merely shares an address with.
+ * Linking an additional provider to an existing account stays possible through `linkSocial`, where
+ * the request carries the account owner's own session and the owner is the one asking.
+ *
+ * The concrete attack this refuses, which no configuration comment should have to be reconstructed
+ * from: register a company (open to any authenticated caller), point `PUT /company/sso` at a
+ * Keycloak you host, have it answer the userinfo request with another tenant's employee's address
+ * and `"email_verified": true`, and walk away with that employee's session and every company they
+ * belong to.
+ */
+export function accountLinkingOptions(params: { env: EnvOidcProvider }): AccountLinkingOptions {
+  return {
+    enabled: true,
+    disableImplicitLinking: true,
+    trustedProviders: trustedProviderIds(params),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// A tenant IdP may only ever vouch for a user inside its own company
+// ---------------------------------------------------------------------------
+
+/**
+ * The refusal handed back to better-auth when a per-company identity provider tries to be attached
+ * to somebody who is not in that company.
+ *
+ * `error` is surfaced to the client verbatim, so it names the RULE rather than the user it was
+ * evaluated against: "no such membership" would tell a caller who is and is not a member of a
+ * company he has no part in, which is the enumeration primitive `SsoLookupResult` is shaped to
+ * avoid on the public lookup route.
+ */
+export const SSO_LINK_OUTSIDE_COMPANY: ValidateUserInfoResult = {
+  error: 'sso_provider_outside_company',
+  errorDescription:
+    'This identity provider may only be linked to an account that already belongs to its company.',
+};
+
+/**
+ * The company that has to vouch for an account link, or null when this validation is not one.
+ *
+ * Returns non-null ONLY for the `link-account` action from a per-company provider — the single
+ * operation in which an identity asserted by one tenant's IdP gets attached to a user row that
+ * already exists. `create-user` (nobody to take over yet, and the new row is attached to that same
+ * provider's company by `companyForOAuthSignup` above) and `sign-in` (the account was already bound
+ * to this exact provider and `sub`, which is what proved the binding) are deliberately out of scope:
+ * gating either would refuse an employee their own employer's IdP without closing anything.
+ *
+ * Takes `unknown` and walks it defensively for the same reason `providerIdFromEndpointContext` does:
+ * this is a third-party runtime shape, and a hook that throws on an unexpected field would turn every
+ * sign-in into a 403 (better-auth converts a throw in this hook into one — see
+ * `dist/utils/validate-user-info.mjs`).
+ */
+export function companyThatMustVouchForLink(source: unknown): string | null {
+  if (typeof source !== 'object' || source === null) return null;
+
+  const { action, oauth, sso } = source as { action?: unknown; oauth?: unknown; sso?: unknown };
+  if (action !== 'link-account') return null;
+
+  const providerIdOf = (info: unknown): string | null => {
+    if (typeof info !== 'object' || info === null) return null;
+    const id = (info as { providerId?: unknown }).providerId;
+    return typeof id === 'string' && id.length > 0 ? id : null;
+  };
+
+  // `oauth` is what the generic-OAuth plugin every company provider is built from fills in; `sso` is
+  // read too so that mounting better-auth's own SSO plugin later cannot silently step around this.
+  return companyIdFromProviderId(providerIdOf(oauth) ?? providerIdOf(sso));
+}
+
+/** better-auth's `user.validateUserInfo` hook, exactly as the library declares it. */
+export type ValidateUserInfoHook = NonNullable<NonNullable<BetterAuthOptions['user']>['validateUserInfo']>;
+
+/**
+ * The hook `lib/auth.ts` installs as `user.validateUserInfo` — the repository's OWN half of the rule
+ * "a tenant's identity provider speaks for that tenant's members, and for nobody else".
+ *
+ * Without it, which identity provider may speak for which user would rest entirely on better-auth's
+ * `account.accountLinking` defaults, and those defaults are exactly what made a cross-tenant takeover
+ * possible: any company administrator can register an OIDC provider from the SSO settings screen
+ * (`modules/company/sso/sso.controller.ts`'s `PUT /company/sso`, which requires no proof of any kind
+ * that the provider has anything to do with any domain the company controls), and a provider
+ * better-auth considers trusted may adopt a pre-existing local account matched by EMAIL ALONE. Point
+ * such a provider at a Keycloak you host, have it assert
+ * `{"email":"someone@another-tenant.example","email_verified":true}`, and better-auth hands back that
+ * person's session. `accountLinkingOptions` above closes the implicit path; this closes the explicit
+ * one and keeps the rule stated in code this repository owns rather than in a library default a
+ * version bump can change.
+ *
+ * FAIL-CLOSED throughout, which is the whole point of this being a gate:
+ *  - no usable user id on a link that needs one — refuse; better-auth is asking whether to hand this
+ *    identity an existing account, and "there is nothing to check against" is not a yes;
+ *  - `isCompanyMember` throwing (the database is down) — refuse, which better-auth turns into a 403
+ *    of its own (`dist/utils/validate-user-info.mjs` catches a throw here rather than continuing).
+ */
+export function ssoLinkValidator(params: {
+  isCompanyMember: (userId: string, companyId: string) => Promise<boolean>;
+}): ValidateUserInfoHook {
+  return async ({ user, source }) => {
+    const companyId = companyThatMustVouchForLink(source);
+    if (companyId === null) return;
+
+    const userId = typeof user.id === 'string' && user.id.length > 0 ? user.id : null;
+    if (userId === null) return { ...SSO_LINK_OUTSIDE_COMPANY };
+
+    if (await params.isCompanyMember(userId, companyId)) return;
+    return { ...SSO_LINK_OUTSIDE_COMPANY };
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -229,36 +229,19 @@ describe('isOidcOnly', () => {
   });
 });
 
-describe('trustedProviderIds — re-resolved per request, which is why tenants can be trusted at all', () => {
-  it('carries the environment provider plus every live per-company provider', () => {
-    const ids = trustedProviderIds({
-      env: { providerId: 'pocketid', registered: true },
-      companyProviderIds: [companyProviderId('a'), companyProviderId('b')],
-    });
-    expect(ids).toEqual(['pocketid', 'c_a', 'c_b']);
-  });
-
-  it('still lists the environment provider when no company has one — the pre-existing behaviour', () => {
-    expect(
-      trustedProviderIds({ env: { providerId: 'pocketid', registered: true }, companyProviderIds: [] }),
-    ).toEqual(['pocketid']);
+describe('trustedProviderIds — the operator vouches for the instance provider and for nothing else', () => {
+  it('carries the environment provider, and nothing else', () => {
+    // This case used to assert the opposite — that every live per-company provider was listed too.
+    // Being listed here is what let one tenant's IdP be attached to another tenant's user account by
+    // email address alone; `sso-account-linking.spec.ts` drives that attack through better-auth's own
+    // linking code. A tenant provider must never appear in this list again.
+    expect(trustedProviderIds({ env: { providerId: 'pocketid', registered: true } })).toEqual(['pocketid']);
   });
 
   it('lists the environment id even when unregistered, exactly as the old static array did', () => {
     // Trusting an id no provider answers to is inert; narrowing it would be a behaviour change for
     // existing deployments with no security benefit.
-    expect(
-      trustedProviderIds({ env: { providerId: 'oidc', registered: false }, companyProviderIds: [] }),
-    ).toEqual(['oidc']);
-  });
-
-  it('de-duplicates rather than repeating an id', () => {
-    expect(
-      trustedProviderIds({
-        env: { providerId: 'c_a', registered: true },
-        companyProviderIds: ['c_a', 'c_a'],
-      }),
-    ).toEqual(['c_a']);
+    expect(trustedProviderIds({ env: { providerId: 'oidc', registered: false } })).toEqual(['oidc']);
   });
 });
 
