@@ -106,11 +106,24 @@ describe("request-deposit — a real click creates a draft deposit invoice", () 
 				});
 				expect(invoice.data.lines, "une seule ligne d'acompte").to.have.length(1);
 
-				// Quote: 200 EUR net + 20% = 240 EUR gross. 25% deposit of 240 = 60 EUR — the
-				// exact amount, not an approximation, and the quote's single rate carried over as is.
-				expect(invoice.data.lines[0].unitPrice, "montant exact de l'acompte").to.eq(60);
+				// Quote: 200 EUR net + 20% = 240 EUR gross. The client is asked for 25% of that
+				// gross = 60 EUR, and `unitPrice` is the NET side of the invoice that asks for it
+				// (25% of 200 = 50 EUR); the rate carried over from the quote is what puts the
+				// remaining 10 EUR of VAT back on. The 60 itself is asserted below, off the totals
+				// endpoint — a `unitPrice` of 60 would be a VAT-inclusive figure sitting in a net
+				// slot, and the client would be billed 72.
+				expect(invoice.data.lines[0].unitPrice, "assiette HT de l'acompte").to.eq(50);
 				expect(invoice.data.lines[0].vatRate, "taux repris du devis mono-taux").to.eq("20");
 				expect(invoice.data.lines[0].description).to.match(/25%/);
+			});
+
+			// THE amount the client is asked to pay, recomputed by the server from what it stored —
+			// the end of the calculation, not its middle.
+			cy.request({ url: `${api}/api/documents/${invoiceId}/totals?typeId=invoice` }).then((res) => {
+				expect(res.status).to.eq(200);
+				expect(res.body.netMinor, "HT de la facture d'acompte").to.eq(5000);
+				expect(res.body.vatMinor, "TVA de la facture d'acompte").to.eq(1000);
+				expect(res.body.grossMinor, "TTC réclamé au client = 25% du TTC du devis").to.eq(6000);
 			});
 		});
 	});
