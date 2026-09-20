@@ -55,6 +55,34 @@ Two things go into it rather than being rediscovered:
 **This is the owner's to launch** (`/code-review ultra` on the branch) — it cannot be started from a
 session.
 
+### Also before the merge: prove a v1 database reaches v2
+
+A self-hosted operator on the published line upgrades by pulling a new image, and `sync-schema.ts`
+carries their database forward: a legacy `db push` instance is levelled to the frozen v1.4.4a schema,
+23 migrations are baselined as already-applied, and the other ~113 — data backfills included — really
+run. An instance already on the migration system skips the levelling entirely and only runs what it
+is missing.
+
+**Done, 2026-09-20, against real databases holding real rows** — three paths, not two, because the
+population that actually exists turned out not to be either of the two the design anticipated.
+
+- A legacy `db push` database, and a database already on the migration system: both upgrade, data
+  intact, amounts correct, carried into the new document model.
+- **The database of an operator running the published `:latest` image did not.** `:latest` is the
+  v1.4.5c image, whose entrypoint republishes the frozen v1.4.4a schema on *every* boot — dropping
+  what the eleven later migrations created while their records stay in `_prisma_migrations`. So a real
+  operator's database claims thirty-four migrations have run while being shaped like the state before
+  the last eleven. Upgrading it aborted a hundred migrations short of the new models, having already
+  committed eight columns on the way.
+
+The guard only ever asked whether `_prisma_migrations` existed, never whether the schema matched what
+that history claimed. It now asks both, and retracts the records that are lies so the migrations run
+for real. Proven three ways: the broken database upgrades intact, removing the check makes it fail
+again identically, and neither healthy path triggers it.
+
+`schema-v1.4.4a.prisma` and the baselining it serves therefore stay — they do their job; the defect
+was in what the surrounding guard failed to ask.
+
 ## Stage 1 — Merge and cut `v2.0.0-alpha.1`
 
 Gate: Stage 0 closed and its findings fixed.
