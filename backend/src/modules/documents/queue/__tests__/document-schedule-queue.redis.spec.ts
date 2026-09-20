@@ -45,6 +45,7 @@ import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
+import { warmUpPdfRenderer } from './queue-test-pdf-warmup';
 
 // Gated EXPLICITLY (DOCUMENTS_QUEUE_REDIS_TESTS=1), not merely on REDIS_URL being set: a bare local
 // `npx jest` loads `.env` (so REDIS_URL is always set on a dev machine) and runs spec files in
@@ -210,6 +211,13 @@ describeWithRedis('document-schedule sweep — real Redis, real Postgres, real M
       data: invoiceData,
     });
     sourceDocumentId = created.document!.id;
+
+    // The `thenSend` case below renders a real PDF, and `waitFor()`'s own 20 s budget bounds the
+    // sweep round-trip, not this process's one-time Chromium launch. Paid here, exactly as its
+    // sibling `document-action-queue.redis.spec.ts` does — today this file only escapes the cost
+    // because it happens to run after that one, which is a property of Vitest's file ordering and
+    // not of anything asserted here. See queue-test-pdf-warmup.ts for the measurements.
+    await warmUpPdfRenderer();
   });
 
   afterAll(async () => {

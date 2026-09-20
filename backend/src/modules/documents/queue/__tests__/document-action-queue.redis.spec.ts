@@ -62,6 +62,7 @@ import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
+import { warmUpPdfRenderer } from './queue-test-pdf-warmup';
 
 // Gated EXPLICITLY (DOCUMENTS_QUEUE_REDIS_TESTS=1), not merely on REDIS_URL being set: a bare local
 // `npx jest` loads `.env` (so REDIS_URL is always set on a dev machine) and runs spec files in
@@ -248,6 +249,12 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
       },
     });
     companyId = company.id;
+
+    // Every "send" below renders a real PDF, and the FIRST one would otherwise pay this process's
+    // one-time Chromium launch inside `waitForStatus`'s own 20 s budget — a cost that belongs to the
+    // runner, not to the queue round-trip that budget exists to bound. Paid here instead, under this
+    // hook's own 60 s timeout. See queue-test-pdf-warmup.ts for the measurements.
+    await warmUpPdfRenderer();
   });
 
   afterAll(async () => {
