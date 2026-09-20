@@ -30,14 +30,13 @@ describe('API Keys Settings E2E', () => {
         cy.contains('button', /create api key/i).click();
         cy.wait(1500);
 
-        // The plaintext key is shown once, in the "API key created" section
-        cy.contains(/this key will be shown only once/i, { timeout: 10000 }).should('be.visible');
-        // Unrelated pre-existing flake, found by this file's own replay (not caused by removing the
-        // global `force: true` override — that override only ever touched click/type/clear, never a
-        // bare `.should('be.visible')`): at the CI viewport (1000x660) this `<code>` sits low enough
-        // in the "API key created" card that an ancestor's `overflow: hidden` clips it before any
-        // scroll happens, so Cypress correctly reports it not visible — `scrollIntoView()` first is
-        // what a reviewer would do too.
+        // The plaintext key is shown once, in the "API key created" section, inserted ABOVE the
+        // "Active keys" list this button sits below. At the CI viewport (1000x660, Firefox) the
+        // submit button stays exactly where it was rather than the page scrolling up to reveal what
+        // just appeared above it, so both this notice and the key itself below can render outside the
+        // current scroll position — `scrollIntoView()` first is what a real user, noticing nothing
+        // changed, would do too.
+        cy.contains(/this key will be shown only once/i, { timeout: 10000 }).scrollIntoView().should('be.visible');
         cy.contains('.font-mono', /^sk_/).scrollIntoView().should('be.visible');
 
         // The new key appears in the list, as its own row (settings-section.tsx's `SettingsListRow`
@@ -62,6 +61,7 @@ describe('API Keys Settings E2E', () => {
 
     it('does not create a key with an empty name', () => {
         cy.visit('/settings/apiKeys');
+        cy.wait(1000);
 
         cy.get('body').then(($bodyBefore) => {
             const countBefore = $bodyBefore.find('[data-cy^="api-key-row-"]').length;

@@ -128,6 +128,13 @@ describe('Leave Company', () => {
     }
 
     function loginAs(email: string) {
+        // A real, forced navigation rather than trusting sign-up.tsx's own client-side `navigate()`
+        // (fired from `signUpMemberOfAcme`'s submit) to have fully swapped the DOM by the time this
+        // runs: `cy.url()` there only proves the URL updated, not that the sign-in screen's own inputs
+        // have replaced the sign-up screen's (still possibly mid-submission, briefly disabled) ones.
+        // `01-register.cy.ts` already visits `/auth/sign-in` explicitly after the identical handoff,
+        // for the same reason — this mirrors it instead of inventing a different fix.
+        cy.visit('/auth/sign-in');
         cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).type(email);
         cy.get('[data-cy="auth-password-input"]').type(TEST_PASSWORD);
         cy.get('[data-cy="auth-submit-btn"]').click();
