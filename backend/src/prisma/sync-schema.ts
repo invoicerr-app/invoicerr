@@ -91,6 +91,199 @@ function runPrisma(args: string[]): void {
   });
 }
 
+/**
+ * How the live database's shape relates to the frozen v1.4.4a datamodel.
+ *
+ * `undetermined` is a first-class outcome, not an error case to collapse into one of the other two:
+ * every caller below treats it as "assume healthy, change nothing". The repair this verdict gates
+ * rewrites Prisma's own migration history, so the only safe reading of "I could not establish what
+ * this database looks like" is to leave it alone.
+ */
+type LiveSchemaComparison = 'identical-to-v1.4.4a' | 'beyond-v1.4.4a' | 'undetermined';
+
+/**
+ * Asks Prisma itself whether the live database is still shaped exactly like v1.4.4a.
+ *
+ * `migrate diff` is read-only (it introspects and prints; it never writes to either side), and
+ * `--exit-code` turns its answer into a process status: 0 = the two sides are identical, 2 = they
+ * differ, 1 = the command itself failed. Prisma's introspection deliberately ignores its own
+ * `_prisma_migrations` bookkeeping table, so the comparison is purely about user tables, columns,
+ * enums and indexes — which is exactly the question being asked here.
+ *
+ * Not routed through `runPrisma()`: that helper appends `--schema`, which `migrate diff` rejects (it
+ * takes `--from-…`/`--to-…` pairs instead), and it inherits stdio. This one captures instead. The
+ * healthy answer here is "your database is nothing like v1.4.4a", which `migrate diff` renders as a
+ * long `[-] Removed tables` list — an alarming thing to print into the boot log of an instance where
+ * nothing is wrong. It is surfaced only when the comparison could not be made at all. The FROM side is
+ * the live database behind `prisma.config.ts`'s `env('DATABASE_URL')`, resolved inside this
+ * subprocess, so the direct/unpooled override applies here as it does to `migrate deploy`.
+ */
+function compareLiveSchemaToV1_4_4a(): LiveSchemaComparison {
+  try {
+    execFileSync(
+      'npx',
+      [
+        'prisma',
+        'migrate',
+        'diff',
+        '--from-config-datasource',
+        '--to-schema',
+        V1_4_4A_SCHEMA_PATH,
+        '--exit-code',
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'], cwd: BACKEND_ROOT, env: directDatabaseUrlEnv() },
+    );
+    return 'identical-to-v1.4.4a';
+  } catch (error) {
+    const { status, stderr } = error as { status?: number | null; stderr?: Buffer | string };
+    if (status === 2) {
+      return 'beyond-v1.4.4a';
+    }
+    console.warn(
+      `[sync-schema] Could not compare the live schema against v1.4.4a (prisma migrate diff exited ` +
+        `with ${String(status)}) — assuming the database is healthy and changing nothing.`,
+    );
+    if (stderr?.length) {
+      console.warn(`[sync-schema] ${String(stderr).trim()}`);
+    }
+    return 'undetermined';
+  }
+}
+
+/**
+ * The migrations `_prisma_migrations` claims ran successfully and that are NOT part of the frozen
+ * v1.4.4a baseline above.
+ *
+ * "Claims successfully" is Prisma's own encoding: `finished_at` set and `rolled_back_at` unset. A row
+ * with `finished_at IS NULL` is a FAILED migration, which claims nothing — Prisma keeps it precisely
+ * so `migrate deploy` refuses to move on (P3009) until a human decides. That distinction is
+ * load-bearing for the detection below: a database that was correctly baselined and then had its
+ * first real migration fail cleanly has a failed row and no false claim, and must keep tripping P3009
+ * rather than be "repaired" behind the operator's back.
+ */
+async function migrationsClaimedBeyondV1_4_4a(): Promise<string[]> {
+  const rows = await prisma.$queryRawUnsafe<{ migration_name: string }[]>(
+    `SELECT migration_name FROM "_prisma_migrations"
+     WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+     ORDER BY migration_name`,
+  );
+  const baseline = new Set<string>(V1_4_4A_BASELINE_MIGRATIONS);
+  return rows.map((row) => row.migration_name).filter((name) => !baseline.has(name));
+}
+
+/**
+ * Repairs a database whose `_prisma_migrations` history lies about its own schema, and returns the
+ * migration names whose false "applied" records were retracted (empty when nothing was wrong).
+ *
+ * ## The state this exists for
+ *
+ * The published `:latest` image (v1.4.5c) runs `prisma db push --accept-data-loss` against the FROZEN
+ * `schema-v1.4.4a.prisma` on every single container start — not once, every boot. `db push` converges
+ * the database to the datamodel it is handed, so on an instance that had already migrated forward it
+ * silently DROPS every table and column the post-v1.4.4a migrations created, while `_prisma_migrations`
+ * keeps its rows saying those migrations ran. `syncDatabaseSchema()` then sees the history table
+ * exists, considers the database already on the migrate system, and `migrate deploy` finds every one
+ * of those migrations marked applied and skips them.
+ *
+ * The result is a database SHAPED like v1.4.4a whose history CLAIMS far more. Upgrading it fails
+ * partway through, in the worst possible way: `migrate deploy` skips the migrations it wrongly thinks
+ * ran (the `Receipt`→`Payment` rename among them) and then aborts with P3018 on the first migration
+ * that touches what they were supposed to have created — `ALTER TABLE "Payment"` against a database
+ * where `Payment` never came into existence — roughly a hundred migrations short of the target, after
+ * having already committed part of the way there.
+ *
+ * ## Why this detection cannot misfire on a healthy database
+ *
+ * Two independent conditions must BOTH hold, and no healthy database can satisfy them together:
+ *
+ *  1. the history claims at least one post-v1.4.4a migration ran successfully, and
+ *  2. the live schema is, per `prisma migrate diff`, identical to the frozen v1.4.4a datamodel —
+ *     not "close to", not "missing a column": no difference at all, in either direction.
+ *
+ * On a healthy database those contradict each other by construction. Every migration outside the
+ * frozen baseline changes the schema (the earliest of them creates a table), so one that genuinely
+ * ran leaves the database demonstrably past v1.4.4a and (2) is false. Conversely a database that
+ * really is at v1.4.4a has only baseline migrations recorded — or, on a legacy `db push` instance, no
+ * history table at all, which never reaches this function — so (1) is false. A database this repair
+ * fires on has therefore already proven it is inconsistent with itself.
+ *
+ * The two other paths through this file are equally safe from it: a legacy instance with no
+ * `_prisma_migrations` is handled by `baselineIfNeeded()`'s other branch and is never asked, and a
+ * database caught mid-baseline (the 23 rows written, the deploy not yet run) has nothing outside the
+ * baseline and fails (1). An `undetermined` comparison — the diff subprocess itself failing — is
+ * treated as healthy, so a transient failure can only ever mean "skip the repair", never "perform it".
+ *
+ * ## What this deliberately does NOT repair
+ *
+ * The exactness of (2) is what makes the repair safe, and it is also its boundary: a database that
+ * has already been PART of the way through the failed upgrade — the P3018 abort commits some of the
+ * migrations that ran before it — is no longer identical to v1.4.4a, so the comparison comes back
+ * `beyond-v1.4.4a` and nothing happens. That is the intended answer, not an oversight. Such a
+ * database carries a failed migration row, `migrate deploy` stops on it with P3009 by design, and
+ * what remains to be undone is real schema, not just bookkeeping — deciding that from in here, with
+ * no way to tell a half-applied upgrade from a healthy one that merely looks unfamiliar, is exactly
+ * the guess that would destroy data. Detecting the corruption BEFORE the first deploy attempt, which
+ * is what this function does, is what keeps a database from ever reaching that state.
+ *
+ * ## The repair, and why it is a DELETE
+ *
+ * The rows are the only thing wrong: the schema is genuinely at v1.4.4a and the migrations recorded
+ * beyond it genuinely did not survive. Removing those rows restores the truth — the history then says
+ * exactly what the schema shows — and `migrate deploy`, immediately after, runs every one of them for
+ * real, backfills included, in order.
+ *
+ * Prisma has no CLI verb for this. `migrate resolve --applied` only ever ADDS a row, and
+ * `--rolled-back` refuses (P3012) any migration that is not in a failed state, which these are not:
+ * they are recorded as complete successes. Writing the table directly is the only mechanism
+ * available, and it is the same table `migrate resolve` would have written.
+ *
+ * Failed rows outside the baseline are deleted too, deliberately. Condition (2) has just established
+ * that the live schema carries no trace of ANY post-v1.4.4a migration, so a failed one left nothing
+ * behind either and re-running it is precisely the right outcome — the P3009 gate it would otherwise
+ * raise protects a partially-applied migration, and there is provably nothing partial here.
+ *
+ * Concurrent replicas booting together each run this; the DELETE is idempotent (the second one
+ * removes no rows) and `migrate deploy` takes its own advisory lock afterwards.
+ */
+export async function repairV1_4_4aLevelingIfCorrupted(): Promise<string[]> {
+  const claimedBeyondBaseline = await migrationsClaimedBeyondV1_4_4a();
+  // Cheapest question first: on a healthy database this single query is the whole cost when the
+  // answer is "nothing beyond the baseline", and the `migrate diff` subprocess below only runs for
+  // databases that have something to contradict in the first place.
+  if (claimedBeyondBaseline.length === 0) {
+    return [];
+  }
+
+  if (compareLiveSchemaToV1_4_4a() !== 'identical-to-v1.4.4a') {
+    return [];
+  }
+
+  console.warn(
+    '[sync-schema] BROKEN MIGRATION HISTORY DETECTED. This database is shaped exactly like v1.4.4a, ' +
+      `yet its migration history claims ${claimedBeyondBaseline.length} later migration(s) already ran. ` +
+      'That is what the v1.4.5c image did on every boot: it re-pushed the frozen v1.4.4a schema over ' +
+      'your database, dropping what those migrations had created while their records stayed behind.',
+  );
+  console.warn(
+    `[sync-schema] Retracting those false records so they run for real: ${claimedBeyondBaseline.join(', ')}`,
+  );
+
+  // Placeholders rather than an interpolated list: the baseline names are a frozen literal in this
+  // file, but the query still goes through the driver's own parameter binding.
+  const placeholders = V1_4_4A_BASELINE_MIGRATIONS.map((_, index) => `$${index + 1}`).join(', ');
+  const deleted = await prisma.$executeRawUnsafe(
+    `DELETE FROM "_prisma_migrations" WHERE migration_name NOT IN (${placeholders})`,
+    ...V1_4_4A_BASELINE_MIGRATIONS,
+  );
+
+  console.warn(
+    `[sync-schema] Removed ${deleted} false migration record(s). The v1.4.4a baseline is untouched; ` +
+      'migrate deploy will now apply everything after it, in order, with its data backfills.',
+  );
+
+  return claimedBeyondBaseline;
+}
+
 async function tableExists(tableName: string): Promise<boolean> {
   // Cast to text: the pg driver adapter can't deserialize the native
   // `regclass` type returned by `to_regclass` directly.
@@ -130,9 +323,17 @@ async function databaseHasExistingData(): Promise<boolean> {
  * newer table/column). This used to live in entrypoint.sh but ran
  * unconditionally there, wrongly converging already-migrated instances back
  * down to v1.4.4a on every boot.
+ *
+ * The presence of `_prisma_migrations` is NOT on its own proof that the database is consistent, and
+ * treating it as such was this function's one real defect: the v1.4.5c image kept doing that
+ * unconditional v1.4.4a push in its own entrypoint, so a history table can perfectly well sit on top
+ * of a schema that was levelled back underneath it. `repairV1_4_4aLevelingIfCorrupted()` — read its
+ * header — is the second question this branch now asks: does the schema actually match what that
+ * history claims?
  */
 async function baselineIfNeeded(): Promise<void> {
   if (await migrationsTableExists()) {
+    await repairV1_4_4aLevelingIfCorrupted();
     return;
   }
 

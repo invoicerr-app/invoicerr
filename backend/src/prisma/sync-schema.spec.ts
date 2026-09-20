@@ -11,7 +11,7 @@ import { vi, type Mock } from 'vitest';
 vi.mock('child_process');
 vi.mock('./prisma.service', () => ({
   __esModule: true,
-  default: { $queryRawUnsafe: vi.fn() },
+  default: { $queryRawUnsafe: vi.fn(), $executeRawUnsafe: vi.fn() },
 }));
 vi.mock('../modules/documents/country-policy/seed');
 vi.mock('../modules/documents/country-identifiers/seed');
@@ -31,9 +31,15 @@ const mockedSeedCountryIdentifierRequirements = seedCountryIdentifierRequirement
 describe('syncDatabaseSchema', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // `_prisma_migrations` already exists — `baselineIfNeeded()` short-circuits immediately, so the
-    // only `$queryRawUnsafe` call this test needs to account for is that one existence check.
-    mockedQueryRawUnsafe.mockResolvedValue([{ exists: '_prisma_migrations' }]);
+    // A healthy, already-migrated database, so `baselineIfNeeded()` falls straight through to
+    // `migrate deploy` and these tests only ever see the seeding they are about. Two raw queries get
+    // asked along the way and each needs its own answer: the `to_regclass` existence check (yes,
+    // `_prisma_migrations` is there) and then the migration history itself — answered with an empty
+    // list, i.e. nothing recorded beyond the frozen v1.4.4a baseline, which is the cheap
+    // short-circuit in `repairV1_4_4aLevelingIfCorrupted()` (its own spec owns that decision).
+    mockedQueryRawUnsafe.mockImplementation(async (query: string) =>
+      /to_regclass/.test(query) ? [{ exists: '_prisma_migrations' }] : [],
+    );
     mockedExecFileSync.mockReturnValue(Buffer.from(''));
     mockedSeedCountryPolicies.mockResolvedValue({ upserted: 0, deleted: 0 });
     mockedSeedCountryIdentifierRequirements.mockResolvedValue({ upserted: 0, deleted: 0 });
