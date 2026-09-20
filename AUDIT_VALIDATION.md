@@ -3,6 +3,14 @@
 **Audit date:** 2026-09-20 · **Branch:** `feat/compliance-engine-v2` · **Scope:** the hosted offering
 only (the self-hosted software is out of scope, as every document already states).
 
+**How to read this file.** Sections 1 to 3 describe the corpus **as it stood on the audit date** and
+are deliberately not rewritten afterwards — that fixed snapshot is what makes them evidence of what
+was found rather than a summary of what is true now. Two things changed the same day and are worth
+knowing before reading them: a seventh document (the Refund and Cancellation Policy) was added, and
+the commercial licence was removed, leaving the project single-licensed under the AGPL-3.0. Every
+decision taken since is recorded in place, under its own heading in Section 5, marked **Decision**
+with its date; Section 7's checklist is the one part kept current.
+
 **Why this file lives at the repository root.** It must not go in `documentation/docs/legal/`:
 `backend/scripts/sync-legal-docs.ts` copies **every** `.md` in that directory into
 `backend/src/legal/data/`, from where `legal-documents.ts` loads it as a served legal document, and
@@ -60,6 +68,13 @@ lawyer should see.
 
 Every value below was read from the repository, never inferred. "Consistent everywhere" means every
 file listed agrees, character for character, on the value.
+
+This section records the corpus **as it stood on 2026-09-20**, which is what makes it evidence. Later
+that day the owner removed the commercial licence and the project became single-licensed under the
+AGPL-3.0, so `LICENSE.COMMERCIAL.md` no longer exists — the rows below still cite it because it was
+one of the seven places the identity was checked against at the time. Every other source listed is
+current. The consistency the table establishes is unaffected: dropping one agreeing source cannot
+create a disagreement among the rest.
 
 | Item | Value | Sources | Status |
 | --- | --- | --- | --- |
@@ -302,6 +317,14 @@ applies anyway if you say nothing. Proposed insertion as `LICENSE.COMMERCIAL.md`
 The alternative — a contractual rate of three times the legal interest rate — is the statutory floor
 and is also valid; it is simply a negotiation position rather than a default.
 
+**Applied 2026-09-20, then made moot the same day.** The clause was added as written above; hours
+later the owner removed the commercial licence altogether and the project became single-licensed
+under the AGPL-3.0, with no relicensing grant asked of contributors. There is no longer a revenue
+stream the Provider invoices in their own name, so art. L441-10 has nothing left to attach to here.
+The obligation returns the moment the Provider invoices anyone directly — a support contract, a
+bespoke development, a sponsorship — and the wording above is the drafted answer, kept here for that
+day. The deleted file itself remains in the repository's history.
+
 ### D2 — The 30-day notice promise (B2)
 
 ToS §20.1 promises 30 days' notice before a change takes effect. The product enforces the new text
@@ -358,6 +381,11 @@ it everywhere.** This corpus is well beyond the quality where a draft warning he
 invites a counterparty to argue the documents were never meant to bind. Launching with the banner is
 the worst of the three.
 
+**Decision, 2026-09-20: the scoped review, then remove the banner everywhere.** The eight questions
+are written out for the owner in `TODO_MANDANT.md` §4, in the order they should be asked. The banner
+stays on all seven documents until that review comes back. Removing it moves every document's content
+hash, so the re-acceptance prompt it triggers should be spent once.
+
 ### D6 — Refund statement at the point of subscribing (I5)
 
 Nothing links to the Terms, or states the no-refund rule, before the Subscribe button.
@@ -368,6 +396,13 @@ automatically and are not refunded or prorated for the unused part of a cancelle
 than a separate refund-policy document. A standalone policy for a two-sentence rule adds a seventh
 document to keep in sync for no benefit. If you would rather have the document, say so and I will
 write it; it then needs a slug, a sidebar position, and translations.
+
+**Decision, 2026-09-20: the standalone document, against the recommendation above.** A
+`refund-policy` slug at sidebar position 4, in six languages, covering auto-renewal, how to cancel
+and when it takes effect, the no-refund-no-proration rule, seat changes mid-cycle, the free trial,
+the absence of a withdrawal right, and failed payments — plus the line under the Subscribe buttons,
+which is now a link to it rather than a substitute for it. It is not in `REQUIRED_ACCEPTANCE_SLUGS`:
+nothing asks a user to tick a refund policy.
 
 ### D7 — Off-premises sales guardrail (I11)
 
@@ -380,6 +415,9 @@ and the purchase sits outside their main activity, they get 14 days to withdraw.
 person; always have the customer subscribe themselves, online. If you ever want to sell in person,
 that decision needs its own clause and a withdrawal form, and it should be revisited then rather than
 pre-emptively drafted now.
+
+**Decision, 2026-09-20: the operational rule, no document change.** Recorded as a standing rule in
+`TODO_MANDANT.md` §4 so it survives the day this audit is no longer being read.
 
 ### D8 — Backup encryption in the security sections (I7)
 
@@ -395,6 +433,11 @@ so the Terms' hash stays put. Proposed DPA §9 bullet:
 
 Say the word and I will apply it in all six languages of both documents.
 
+**Decision, 2026-09-20: applied to the DPA §9 and the transparency page §2, not to the Terms.** The
+wording states the measure and the consequence — a leaked storage access key yields ciphertext — but
+deliberately stops short of claiming the GDPR art. 34(3)(a) exemption, which is a case-by-case
+assessment a contract must not pre-empt.
+
 ### D9 — AI assistants connected by the customer (I8)
 
 A customer can point their own LLM at the MCP server, which sends Customer Personal Data to a provider
@@ -409,6 +452,12 @@ own Stripe/Mollie/PayPal accounts:
 > then reaches a provider you have chosen and contracted with directly; that provider is not our
 > sub-processor, and the lawfulness of that transfer is yours to establish.
 
+**Decision, 2026-09-20: the paragraph, plus one sentence on the shared PDF link.** The MCP tool that
+hands an assistant a document mints a public, unauthenticated link valid for thirty days — revocable,
+but reachable by anyone holding it until then, including from whatever conversation log the assistant
+writes it into. That belongs in the same paragraph: a customer should learn it here rather than from
+an incident.
+
 ### D10 — PEC mailbox among the connected third parties (I9)
 
 DPA §7 names SdI but not the PEC mailbox the Italian path actually polls.
@@ -417,6 +466,12 @@ DPA §7 names SdI but not the PEC mailbox the Italian path actually polls.
 channel" to the existing "national e-invoicing and government platforms you choose to connect"
 bullet.** It is a four-word addition to a bullet that already has the right legal shape. Six
 languages.
+
+**Decision, 2026-09-20: applied.** A second, unrelated defect was found in the same section while
+applying it and fixed with it: the thirty-days-notice paragraph justified itself as "mirroring the
+notice period the Terms of Service, Section 20.1 already uses", and §20.1 no longer has a notice
+period — D2 replaced it with immediate effect. The sub-processor notice itself is kept, on its own
+footing; only the false cross-reference is gone.
 
 ---
 
@@ -458,13 +513,20 @@ Work through it top to bottom; the order is deliberate.
 
 **Documents**
 
-- [ ] Add late-payment penalties + €40 indemnity to `LICENSE.COMMERCIAL.md` §4.3 (D1)
+- [x] ~~Add late-payment penalties + €40 indemnity to `LICENSE.COMMERCIAL.md` §4.3 (D1)~~ — applied,
+      then moot: the commercial licence was removed the same day and the project is AGPL-3.0 only. The
+      obligation comes back the day anything is invoiced directly; the drafted wording is kept at D1.
 - [ ] Resolve the 30-day notice contradiction — clause or code (D2)
 - [ ] Fix the liability cap for the merchant-of-record structure (D4)
-- [ ] Remove the "Draft — not reviewed by counsel" banner from all six documents, **after** the review (D5)
-- [ ] Add backup encryption to DPA §9 and the transparency page §2 (D8)
-- [ ] Add the AI-assistant carve-out to DPA §7 (D9)
-- [ ] Add the PEC mailbox to DPA §7 (D10)
+- [ ] Remove the "Draft — not reviewed by counsel" banner from all seven documents **and their
+      translations**, after the review (D5). The eight questions to put to the lawyer are written out
+      in `TODO_MANDANT.md` §4.
+- [x] ~~Add backup encryption to DPA §9 and the transparency page §2 (D8)~~ — done, 6 languages each.
+      Scoped to the documents and files the Service stores; see the database item under **Last**.
+- [x] ~~Add the AI-assistant carve-out to DPA §7 (D9)~~ — done, 6 languages, and it also discloses
+      that the MCP PDF tool mints a public link valid 30 days.
+- [x] ~~Add the PEC mailbox to DPA §7 (D10)~~ — done, 6 languages. A stale cross-reference to the
+      Terms §20.1 notice period, which D2 had just removed, was fixed in the same pass.
 - [ ] Re-run `npm run legal:sync` and `npx vitest run src/legal/` after **every** document edit
 - [ ] For each edit, note whether the Terms or Privacy Policy hash moved — if so, every user is re-prompted
 
@@ -493,4 +555,12 @@ Work through it top to bottom; the order is deliberate.
 **Last**
 
 - [ ] Take a fresh backup and prove a restore — the corpus now states encryption at rest as a commitment
+- [ ] **Settle the database backup story, then say it plainly.** DPA §9 commits to encrypted backups
+      of *the documents and files the Service stores* and deliberately says nothing about the
+      database, because the automated sweep genuinely does not cover it: the database dump is a
+      manual procedure an operator pipes through the standalone tool, and the managed database's own
+      snapshots are the provider's. The database is where nearly all personal data actually lives, so
+      silence there is the weak point of an otherwise strong clause. Once the managed database exists,
+      establish what its provider encrypts and under whose key, and either extend §9 truthfully or
+      leave it as is on purpose — but not by default.
 - [ ] Re-read this checklist after the lawyer's review; some items may change shape
