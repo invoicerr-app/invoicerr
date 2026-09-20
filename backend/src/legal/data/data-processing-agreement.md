@@ -1,8 +1,8 @@
 ---
 title: Data Processing Agreement
 sidebar_position: 3
-version: 2026-09-19
-effectiveDate: 2026-09-19
+version: 2026-09-20
+effectiveDate: 2026-09-20
 ---
 
 :::warning Draft
@@ -92,9 +92,9 @@ You give us a **general authorization** to engage the sub-processors relevant to
 that carry Customer Personal Data:
 
 - The **national e-invoicing and government platforms you choose to connect** — the French PDP,
-  Poland's KSeF, Italy's SdI, Portugal's AT, France's Chorus Pro for B2G invoicing — acting on your
-  explicit instruction, under the credentials and mandates you provide, to transmit the documents you
-  send.
+  Poland's KSeF, Italy's SdI (and, for its certified-email channel, the PEC mailbox provider you
+  subscribe to), Portugal's AT, France's Chorus Pro for B2G invoicing — acting on your explicit
+  instruction, under the credentials and mandates you provide, to transmit the documents you send.
 - **Resend** — delivery of transactional email that may carry a document, or a link to one, on your
   instruction.
 - **Cloudflare, Inc.** — inbound email routing for correspondence sent to **contact@invoicerr.app**
@@ -122,14 +122,26 @@ website (docs.invoicerr.app) and our source code repository via GitHub Pages, Ac
 Registry — infrastructure that never receives, stores, or processes Customer Personal Data. See
 Privacy Policy, Section 10.
 
+**The AI assistant you connect through our Model Context Protocol endpoint is not a sub-processor
+under this DPA**: the Service exposes an MCP endpoint (`POST /api/mcp`) so you can create an API key
+and connect an AI assistant of your own choosing to it; within the scopes you grant that key, the
+assistant can read and manage your clients and documents, and run document actions, on your behalf.
+We neither call nor choose the AI model behind your assistant — its provider is selected by you, has
+no contract with us, and is therefore not a sub-processor under this DPA, for the same reason Polar is
+not one above. You are responsible for the lawfulness of any Customer Personal Data your assistant
+sends to that provider, including any transfer outside the EEA, and for the instructions the assistant
+acts on. One of the MCP tools, `get_document_pdf_link`, creates a public, unauthenticated link to a
+document's PDF, valid for 30 days and revocable from the Service; once such a link is surfaced into a
+conversation with your assistant, anyone who holds it can reach that document for as long as the link
+remains valid.
+
 Each sub-processor above is bound, by contract, to data-protection obligations materially equivalent
 to those in this DPA — in particular the confidentiality duty of Section 6 and the security measures
 of Section 9 (**GDPR Art. 28(4)**). We remain fully liable to you for that sub-processor's performance
 of those obligations.
 
 We will give you at least **thirty (30) days' notice by email** before adding a new sub-processor to
-the list above, mirroring the notice period the Terms of Service, Section 20.1 already uses for
-changes to that Agreement. You may object on reasonable data-protection grounds by writing to
+the list above. You may object on reasonable data-protection grounds by writing to
 **contact@invoicerr.app** within that window; if we cannot address your objection, either party may
 treat that as grounds to end the subscription under the Terms of Service, Section 12.
 
@@ -147,6 +159,13 @@ you should use it directly; we will otherwise provide reasonable assistance.
 - Encryption in transit (TLS) for all traffic to and from the Service.
 - Role-based access control within your Company (owner/admin/member roles) and, within our own
   organization, access limited to what is needed to operate and support the Service.
+- **Backup encryption.** Backups of the documents and files the Service stores are encrypted
+  (AES-256-GCM) inside our own infrastructure before they are written to backup storage, under a key
+  that only we hold and that the storage provider never receives — a missing key fails the backup run
+  rather than writing anything unencrypted, and a leaked storage access key on its own yields
+  ciphertext, not documents. This does not, by itself, establish the notification exemption **GDPR
+  Article 34(3)(a)** allows for personal data rendered unintelligible by such measures; whether that
+  exemption applies is a case-by-case assessment, not a claim made here.
 
 ## 10. Deletion or Return of Data at the End of the Provision of Services
 
@@ -253,3 +272,18 @@ this document; they create no separate or additional rights.
   removes that affiliate's US parent from the processing chain for Customer Personal Data. No other
   section changed: Section 13 (International Transfers) already only cross-refers to the Privacy
   Policy, Section 5, where the corresponding statement is updated.
+- **2026-09-20** — Legal audit finding. Section 9 gained a fourth security measure: backups of the
+  documents and files the Service stores are encrypted (AES-256-GCM) inside our own infrastructure
+  before they reach backup storage, under a key the storage provider never receives, without claiming
+  the **GDPR Article 34(3)(a)** notification exemption applies — that remains a case-by-case
+  assessment. Section 7's e-invoicing
+  platforms bullet now names the certified-email (PEC) mailbox provider behind Italy's SdI channel for
+  companies using it. Section 7 gained a third non-sub-processor carve-out, for the AI assistant a
+  Customer connects through the Service's Model Context Protocol endpoint: the provider behind it is
+  chosen by the Customer, not by us, so it is not a sub-processor under this DPA, and the Customer is
+  responsible for what it sends that provider — including any transfer outside the EEA — and for the
+  instructions its assistant acts on; the paragraph also discloses that one of its tools mints a
+  public, unauthenticated PDF link, valid 30 days and revocable. Section 7's closing paragraph no
+  longer claims the thirty-day sub-processor notice mirrors the Terms of Service, Section 20.1 — that
+  section's own 2026-09-20 rewrite gives changes immediate effect instead, so the cross-reference had
+  become false; the thirty-day notice itself is unchanged and stands on its own.

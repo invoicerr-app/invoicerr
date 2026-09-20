@@ -98,7 +98,8 @@ Vous nous donnez une **autorisation générale** de recourir aux sous-traitants 
 traitement des documents comportant des Données Personnelles Client :
 
 - Les **plateformes nationales de facturation électronique et plateformes gouvernementales que vous
-  choisissez de connecter** — la PDP française, le KSeF polonais, le SdI italien, l'AT portugaise,
+  choisissez de connecter** — la PDP française, le KSeF polonais, le SdI italien (et, pour son canal de
+  messagerie certifiée, le prestataire de messagerie PEC auquel vous souscrivez), l'AT portugaise,
   Chorus Pro pour la facturation B2G en France — agissant sur vos instructions explicites, au moyen des
   identifiants et mandats que vous fournissez, pour transmettre les documents que vous envoyez.
 - **Resend** — envoi des e-mails transactionnels pouvant contenir un document, ou un lien vers celui-ci,
@@ -130,15 +131,27 @@ de documentation publique (docs.invoicerr.app) et notre dépôt de code source v
 et Container Registry — une infrastructure qui ne reçoit, ne stocke ni ne traite jamais de Données
 Personnelles Client. Voir Politique de Confidentialité, Section 10.
 
+**L'assistant IA que vous connectez au moyen de notre point de terminaison Model Context Protocol n'est
+pas un sous-traitant au titre du présent ATD** : le Service expose un point de terminaison MCP
+(`POST /api/mcp`) vous permettant de créer une clé API et d'y connecter un assistant IA de votre choix ;
+dans la limite des habilitations que vous accordez à cette clé, cet assistant peut consulter et gérer
+vos clients et documents, et exécuter des actions sur les documents, pour votre compte. Nous n'appelons
+ni ne choisissons nous-mêmes le modèle d'IA qui se trouve derrière votre assistant — son fournisseur est
+sélectionné par vous, n'a aucun contrat avec nous, et n'est donc pas un sous-traitant au titre du présent
+ATD, pour le même motif que pour Polar ci-dessus. Vous êtes responsable de la licéité de tout envoi de
+Données Personnelles Client à ce fournisseur, y compris tout transfert hors de l'EEE, ainsi que des
+instructions que votre assistant exécute. L'un des outils MCP, `get_document_pdf_link`, crée un lien
+public et non authentifié vers le PDF d'un document, valable 30 jours et révocable depuis le Service ;
+une fois qu'un tel lien apparaît dans une conversation avec votre assistant, quiconque le détient peut
+accéder à ce document tant que le lien reste valide.
+
 Chacun des sous-traitants ci-dessus est tenu, par contrat, à des obligations de protection des données
 substantiellement équivalentes à celles du présent ATD — en particulier l'obligation de confidentialité
 de la Section 6 et les mesures de sécurité de la Section 9 (**art. 28, § 4, du RGPD**). Nous demeurons
 pleinement responsables envers vous de l'exécution de ces obligations par ce sous-traitant.
 
 Nous vous donnerons un préavis d'au moins **trente (30) jours par e-mail** avant d'ajouter un nouveau
-sous-traitant à la liste ci-dessus, reprenant le même délai de préavis que celui déjà utilisé par la
-Section 20.1 des Conditions Générales de Vente pour les modifications de ce Contrat. Vous pouvez vous y
-opposer pour des motifs raisonnables tenant à la protection des données, en écrivant à
+sous-traitant à la liste ci-dessus. Vous pouvez vous y opposer pour des motifs raisonnables tenant à la protection des données, en écrivant à
 **contact@invoicerr.app** dans ce délai ; si nous ne pouvons répondre à votre objection, l'une ou
 l'autre partie peut considérer cela comme un motif de résiliation de l'abonnement au titre de la
 Section 12 des Conditions Générales de Vente.
@@ -159,6 +172,15 @@ défaut, nous fournirons une assistance raisonnable.
 - Contrôle d'accès fondé sur les rôles au sein de votre Société (rôles propriétaire/administrateur/
   membre) et, au sein de notre propre organisation, un accès limité à ce qui est nécessaire pour
   exploiter et assurer le support du Service.
+- **Chiffrement des sauvegardes.** Les sauvegardes des documents et fichiers stockés par le Service sont
+  chiffrées (AES-256-GCM) au sein de notre propre infrastructure avant d'être écrites dans le stockage
+  de sauvegarde, au moyen d'une clé que nous seuls détenons et que le prestataire de stockage ne reçoit
+  jamais — l'absence de clé fait échouer l'exécution de la sauvegarde plutôt que d'écrire quoi que ce
+  soit en clair, et le vol d'une clé d'accès au stockage ne donne à lui seul accès qu'à du texte
+  chiffré, jamais aux documents. Cela n'établit pas, en soi, l'exemption de notification que
+  l'**article 34, paragraphe 3, point a), du RGPD** prévoit pour les données à caractère personnel
+  rendues inintelligibles par de telles mesures ; l'applicabilité de cette exemption s'apprécie au cas
+  par cas, ce que la présente clause ne prétend pas trancher.
 
 ## 10. Suppression ou Restitution des Données à la Fin de la Fourniture des Services
 

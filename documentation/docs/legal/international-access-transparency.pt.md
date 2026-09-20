@@ -62,6 +62,11 @@ uma questão de exaustividade, e não por se enquadrarem no âmbito visado pelo 
   eletrónica, um fornecedor OIDC, um certificado de assinatura, um segredo de webhook) são encriptados
   em repouso com AES-256-GCM antes de serem escritos na base de dados — ver
   `backend/src/utils/secret-crypto.ts` — pelo que uma simples cópia da base de dados não os expõe.
+- **Encriptação das cópias de segurança.** As cópias de segurança dos documentos e ficheiros
+  armazenados pelo Serviço são encriptadas (AES-256-GCM) antes de saírem da nossa infraestrutura, com
+  uma chave que o fornecedor de armazenamento nunca detém — ver o Acordo de Tratamento de Dados,
+  Secção 9 — pelo que um pedido dirigido diretamente a esse fornecedor, ou uma cópia do próprio
+  armazenamento de cópias de segurança, apenas alcança texto cifrado, nunca os documentos.
 - **Controlo de acesso.** O acesso aos dados de uma Empresa dentro do Serviço é delimitado pelas funções
   próprias dessa Empresa (proprietário/administrador/membro); o acesso à infraestrutura de produção e
   aos dados dentro da nossa própria organização está limitado ao que é necessário para operar e apoiar o

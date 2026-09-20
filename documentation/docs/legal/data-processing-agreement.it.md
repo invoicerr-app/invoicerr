@@ -100,7 +100,8 @@ Lei ci concede un'**autorizzazione generale** a coinvolgere i sub-responsabili r
 trattamento dei documenti che contengono Dati Personali del Cliente:
 
 - Le **piattaforme nazionali di fatturazione elettronica e governative che sceglie di collegare**
-  — la PDP francese, il KSeF polacco, lo SdI italiano, l'AT portoghese, Chorus Pro in Francia per
+  — la PDP francese, il KSeF polacco, lo SdI italiano (e, per il relativo canale di posta certificata,
+  il fornitore della casella PEC a cui si abbona), l'AT portoghese, Chorus Pro in Francia per
   la fatturazione B2G — che agiscono su Sua esplicita istruzione, con le credenziali e i mandati
   che fornisce, per trasmettere i documenti che invia.
 - **Resend** — invio di email transazionali che possono contenere un documento, o un link ad
@@ -132,6 +133,20 @@ web pubblico di documentazione (docs.invoicerr.app) e il nostro repository di co
 tramite GitHub Pages, Actions e Container Registry — infrastruttura che non riceve, non conserva e
 non tratta mai i Dati Personali del Cliente. Vedi Informativa sulla Privacy, Sezione 10.
 
+**L'assistente IA che collega tramite il nostro endpoint Model Context Protocol non è un
+sub-responsabile ai sensi del presente DPA**: il Servizio espone un endpoint MCP (`POST /api/mcp`) che
+Le consente di creare una chiave API e di collegarvi un assistente IA di Sua scelta; nei limiti degli
+ambiti (scope) che concede a tale chiave, l'assistente può consultare e gestire i Suoi clienti e
+documenti, ed eseguire azioni sui documenti, per Suo conto. Non chiamiamo né scegliamo noi il modello
+di IA dietro il Suo assistente — il relativo fornitore è selezionato da Lei, non ha alcun contratto con
+noi, e non è pertanto un sub-responsabile ai sensi del presente DPA, per lo stesso motivo per cui non lo
+è Polar sopra. Lei è responsabile della liceità dell'invio di Dati Personali del Cliente a tale
+fornitore, compreso qualsiasi trasferimento al di fuori del SEE, nonché delle istruzioni che il Suo
+assistente esegue. Uno degli strumenti MCP, `get_document_pdf_link`, crea un link pubblico e non
+autenticato al PDF di un documento, valido 30 giorni e revocabile dal Servizio; una volta che tale link
+compare in una conversazione con il Suo assistente, chiunque lo possieda può accedere a quel documento
+finché il link resta valido.
+
 Ciascuno dei sub-responsabili sopra indicati è vincolato, contrattualmente, a obblighi di
 protezione dei dati sostanzialmente equivalenti a quelli del presente DPA — in particolare
 l'obbligo di riservatezza di cui alla Sezione 6 e le misure di sicurezza di cui alla Sezione 9
@@ -139,8 +154,7 @@ l'obbligo di riservatezza di cui alla Sezione 6 e le misure di sicurezza di cui 
 l'adempimento di tali obblighi da parte di detto sub-responsabile.
 
 Le daremo un preavviso di almeno **trenta (30) giorni via email** prima di aggiungere un nuovo
-sub-responsabile all'elenco sopra riportato, rispecchiando il periodo di preavviso già utilizzato
-dai Termini di Servizio, Sezione 20.1, per le modifiche a tale Accordo. Può opporsi per
+sub-responsabile all'elenco sopra riportato. Può opporsi per
 ragionevoli motivi di protezione dei dati scrivendo a **contact@invoicerr.app** entro tale
 termine; se non riusciamo a risolvere la Sua obiezione, ciascuna delle parti può considerarla
 motivo per terminare l'abbonamento ai sensi dei Termini di Servizio, Sezione 12.
@@ -161,6 +175,14 @@ dovrebbe utilizzarla direttamente; in caso contrario, forniremo un'assistenza ra
 - Controllo degli accessi basato sui ruoli all'interno della Sua Azienda (ruoli
   proprietario/amministratore/membro) e, all'interno della nostra organizzazione, accesso limitato
   a quanto necessario per gestire e supportare il Servizio.
+- **Cifratura delle copie di backup.** Le copie di backup dei documenti e dei file conservati dal
+  Servizio sono cifrate (AES-256-GCM) all'interno della nostra infrastruttura prima di essere scritte
+  nello storage di backup, con una chiave che deteniamo solo noi e che il fornitore di storage non
+  riceve mai — l'assenza della chiave fa fallire l'esecuzione del backup anziché scrivere qualcosa in
+  chiaro, e una chiave di accesso allo storage trafugata dà accesso, da sola, solo a testo cifrato, mai
+  ai documenti. Ciò non stabilisce, di per sé, l'esenzione dall'obbligo di notifica che l'**art. 34,
+  par. 3, lett. a), del GDPR** prevede per i dati personali resi non intelligibili da tali misure; se
+  tale esenzione si applichi è una valutazione caso per caso, che qui non si afferma.
 
 ## 10. Cancellazione o restituzione dei dati al termine della fornitura dei servizi
 

@@ -67,6 +67,11 @@ visé par l'article 28.
   repos avec AES-256-GCM avant d'être écrits en base de données — voir
   `backend/src/utils/secret-crypto.ts` — de sorte qu'une simple copie de la base de données ne suffit
   pas à les exposer.
+- **Chiffrement des sauvegardes.** Les copies de sauvegarde des documents et fichiers stockés par le
+  Service sont chiffrées (AES-256-GCM) avant de quitter notre infrastructure, au moyen d'une clé que le
+  prestataire de stockage ne détient jamais — voir l'Accord de Traitement des Données, Section 9 — de
+  sorte qu'une demande adressée directement à ce prestataire, ou une copie du compartiment de
+  sauvegarde lui-même, n'atteint que du texte chiffré, jamais les documents.
 - **Contrôle d'accès.** L'accès aux données d'une Société au sein du Service est limité par les rôles
   propres à cette Société (propriétaire/administrateur/membre) ; l'accès à l'infrastructure et aux
   données de production au sein de notre propre organisation est limité à ce qui est nécessaire pour

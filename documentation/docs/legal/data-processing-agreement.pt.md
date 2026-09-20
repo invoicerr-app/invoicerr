@@ -97,9 +97,10 @@ O Cliente concede-nos uma **autorização geral** para contratar os subcontratan
 tratamento de documentos que contenham Dados Pessoais do Cliente:
 
 - As **plataformas nacionais de faturação eletrónica e governamentais que opte por ligar** — a PDP
-  francesa, o KSeF polaco, o SdI italiano, a AT portuguesa, a Chorus Pro francesa para a faturação B2G
-  — atuando por instrução expressa do Cliente, ao abrigo das credenciais e mandatos que este fornece,
-  para transmitir os documentos enviados.
+  francesa, o KSeF polaco, o SdI italiano (e, para o respetivo canal de correio certificado, o
+  fornecedor da caixa de correio PEC ao qual subscreve), a AT portuguesa, a Chorus Pro francesa para a
+  faturação B2G — atuando por instrução expressa do Cliente, ao abrigo das credenciais e mandatos que
+  este fornece, para transmitir os documentos enviados.
 - **Resend** — entrega de emails transacionais que podem conter um documento, ou uma ligação para um
   documento, por instrução do Cliente.
 - **Cloudflare, Inc.** — encaminhamento de correio eletrónico de entrada para a correspondência
@@ -129,6 +130,20 @@ documentação (docs.invoicerr.app) e o nosso repositório de código-fonte atra
 Actions e Container Registry — infraestrutura que nunca recebe, armazena ou trata Dados Pessoais do
 Cliente. Ver Política de Privacidade, Secção 10.
 
+**O assistente de IA que o Cliente liga através do nosso endpoint Model Context Protocol não é
+subcontratante ao abrigo deste ATD**: o Serviço expõe um endpoint MCP (`POST /api/mcp`) que permite ao
+Cliente criar uma chave API e ligar-lhe um assistente de IA à sua escolha; dentro dos âmbitos (scopes)
+concedidos a essa chave, o assistente pode consultar e gerir os clientes e documentos do Cliente, e
+executar ações sobre documentos, em seu nome. Não chamamos nem escolhemos nós o modelo de IA por
+detrás do assistente do Cliente — o respetivo fornecedor é escolhido pelo Cliente, não tem qualquer
+contrato connosco e não é, por isso, subcontratante ao abrigo deste ATD, pela mesma razão que a Polar
+acima. O Cliente é responsável pela licitude de qualquer envio de Dados Pessoais do Cliente a esse
+fornecedor, incluindo qualquer transferência para fora do EEE, bem como pelas instruções que o seu
+assistente executa. Uma das ferramentas MCP, `get_document_pdf_link`, cria uma ligação pública e não
+autenticada ao PDF de um documento, válida por 30 dias e revogável a partir do Serviço; assim que essa
+ligação surja numa conversa com o assistente, qualquer pessoa que a possua pode aceder a esse documento
+enquanto a ligação se mantiver válida.
+
 Cada um dos subcontratantes acima está vinculado, por contrato, a obrigações de proteção de dados
 materialmente equivalentes às previstas neste ATD — em particular o dever de confidencialidade da
 Secção 6 e as medidas de segurança da Secção 9 (**artigo 28.º, n.º 4, do RGPD**). Continuamos
@@ -136,8 +151,7 @@ totalmente responsáveis perante o Cliente pelo cumprimento dessas obrigações 
 subcontratante.
 
 Notificaremos o Cliente por email com uma antecedência mínima de **trinta (30) dias** antes de
-acrescentar um novo subcontratante à lista acima, espelhando o prazo de aviso já utilizado nos Termos
-de Serviço, Secção 20.1, para as alterações a esse Acordo. O Cliente pode opor-se, por motivos
+acrescentar um novo subcontratante à lista acima. O Cliente pode opor-se, por motivos
 razoáveis de proteção de dados, escrevendo para **contact@invoicerr.app** dentro desse prazo; se não
 conseguirmos resolver a sua objeção, qualquer uma das partes pode considerar esse facto como
 fundamento para cessar a subscrição ao abrigo dos Termos de Serviço, Secção 12.
@@ -158,6 +172,15 @@ cliente), deve utilizá-la diretamente; nos restantes casos, prestaremos assist�
 - Controlo de acesso baseado em funções dentro da Empresa do Cliente (funções de
   proprietário/administrador/membro) e, dentro da nossa própria organização, acesso limitado ao que é
   necessário para operar e apoiar o Serviço.
+- **Encriptação das cópias de segurança.** As cópias de segurança (backups) dos documentos e ficheiros
+  armazenados pelo Serviço são encriptadas (AES-256-GCM) dentro da nossa própria infraestrutura antes
+  de serem escritas no armazenamento de cópias de segurança, com uma chave que só nós detemos e que o
+  fornecedor de armazenamento nunca recebe — a ausência da chave faz falhar a execução da cópia de
+  segurança em vez de escrever qualquer coisa em claro, e uma chave de acesso ao armazenamento
+  comprometida dá acesso, por si só, apenas a texto cifrado, nunca aos documentos. Isto não estabelece,
+  por si só, a isenção de notificação que o **artigo 34.º, n.º 3, alínea a), do RGPD** prevê para dados
+  pessoais tornados ininteligíveis por tais medidas; se essa isenção se aplica é uma avaliação
+  casuística, que aqui não se afirma.
 
 ## 10. Eliminação ou Devolução dos Dados no Final da Prestação dos Serviços
 

@@ -99,7 +99,8 @@ Udzielasz nam **ogólnego upoważnienia** do korzystania z usług dalszych podmi
 istotnych dla przetwarzania dokumentów zawierających Dane Osobowe Klienta:
 
 - **Krajowe platformy e-fakturowania i platformy rządowe, które decydujesz się połączyć** —
-  francuska PDP, polski KSeF, włoski SdI, portugalskie AT, francuskie Chorus Pro w przypadku
+  francuska PDP, polski KSeF, włoski SdI (a w przypadku jego kanału poczty certyfikowanej — dostawca
+  skrzynki PEC, do której subskrybujesz), portugalskie AT, francuskie Chorus Pro w przypadku
   fakturowania B2G — działające na podstawie Twojego wyraźnego polecenia, przy użyciu dostarczonych
   przez Ciebie poświadczeń i pełnomocnictw, w celu przekazywania wysyłanych przez Ciebie
   dokumentów.
@@ -132,6 +133,20 @@ hostuje naszą publiczną stronę z dokumentacją (docs.invoicerr.app) oraz nasz
 nigdy nie otrzymuje, nie przechowuje ani nie przetwarza Danych Osobowych Klienta. Zob. Polityka
 Prywatności, sekcja 10.
 
+**Asystent AI, którego łączysz za pośrednictwem naszego punktu końcowego Model Context Protocol, nie
+jest dalszym podmiotem przetwarzającym w rozumieniu niniejszej Umowy**: Usługa udostępnia punkt końcowy
+MCP (`POST /api/mcp`), dzięki któremu możesz utworzyć klucz API i połączyć z nim wybranego przez siebie
+asystenta AI; w granicach uprawnień (scope), które przyznasz temu kluczowi, asystent może odczytywać i
+zarządzać Twoimi klientami i dokumentami oraz wykonywać w Twoim imieniu akcje na dokumentach. Nie
+wywołujemy ani nie wybieramy modelu AI stojącego za Twoim asystentem — jego dostawcę wybierasz Ty, nie
+ma on żadnej umowy z nami i z tego samego powodu, co Polar powyżej, nie jest dalszym podmiotem
+przetwarzającym w rozumieniu niniejszej Umowy. To Ty odpowiadasz za zgodność z prawem przekazania
+Danych Osobowych Klienta temu dostawcy, w tym za wszelkie przekazanie poza EOG, a także za polecenia,
+którymi kieruje się Twój asystent. Jedno z narzędzi MCP, `get_document_pdf_link`, tworzy publiczny,
+niewymagający uwierzytelnienia link do pliku PDF dokumentu, ważny 30 dni i odwoływalny z poziomu
+Usługi; gdy taki link pojawi się w rozmowie z Twoim asystentem, każdy, kto go otrzyma, będzie mógł
+uzyskać dostęp do tego dokumentu tak długo, jak link pozostaje ważny.
+
 Każdy z powyższych dalszych podmiotów przetwarzających jest umownie zobowiązany do przestrzegania
 obowiązków w zakresie ochrony danych, których zakres jest zasadniczo równoważny obowiązkom
 określonym w niniejszej Umowie — w szczególności obowiązkowi zachowania poufności z sekcji 6 oraz
@@ -139,9 +154,8 @@ określonym w niniejszej Umowie — w szczególności obowiązkowi zachowania po
 odpowiedzialni za wykonanie tych obowiązków przez ten dalszy podmiot przetwarzający.
 
 Przed dodaniem nowego dalszego podmiotu przetwarzającego do powyższej listy poinformujemy Cię
-e-mailem z co najmniej **trzydziestodniowym (30-dniowym) wyprzedzeniem**, odzwierciedlającym okres
-powiadomienia, jaki Regulamin Świadczenia Usług już stosuje w sekcji 20.1 do zmian tego dokumentu.
-W tym okresie możesz wnieść sprzeciw z uzasadnionych względów ochrony danych, pisząc na adres
+e-mailem z co najmniej **trzydziestodniowym (30-dniowym) wyprzedzeniem**. W tym okresie możesz wnieść
+sprzeciw z uzasadnionych względów ochrony danych, pisząc na adres
 **contact@invoicerr.app**; jeżeli nie będziemy w stanie uwzględnić Twojego sprzeciwu, każda ze
 stron może potraktować to jako podstawę do zakończenia subskrypcji zgodnie z Regulaminem
 Świadczenia Usług, sekcja 12.
@@ -162,6 +176,15 @@ bezpośrednio; w pozostałych przypadkach zapewnimy racjonalną pomoc.
 - Kontrola dostępu oparta na rolach w ramach Twojej Firmy (role właściciela/administratora/członka)
   oraz, w ramach naszej własnej organizacji, dostęp ograniczony do zakresu niezbędnego do obsługi
   i wsparcia Usługi.
+- **Szyfrowanie kopii zapasowych.** Kopie zapasowe dokumentów i plików przechowywanych przez Usługę są
+  szyfrowane (AES-256-GCM) w ramach naszej własnej infrastruktury, zanim zostaną zapisane w magazynie
+  kopii zapasowych, za pomocą klucza, który posiadamy wyłącznie my i którego dostawca magazynu nigdy
+  nie otrzymuje — brak klucza powoduje niepowodzenie wykonania kopii zapasowej, zamiast zapisania
+  czegokolwiek w postaci jawnej, a wyciek klucza dostępu do magazynu sam w sobie daje dostęp wyłącznie
+  do zaszyfrowanego tekstu, nigdy do dokumentów. Nie stanowi to samo w sobie podstawy do zwolnienia z
+  obowiązku powiadomienia, jakie **art. 34 ust. 3 lit. a) RODO** przewiduje dla danych osobowych
+  uczynionych nieczytelnymi za pomocą takich środków; to, czy takie zwolnienie ma zastosowanie,
+  podlega ocenie w każdym indywidualnym przypadku, czego niniejszy zapis nie przesądza.
 
 ## 10. Usunięcie lub zwrot danych po zakończeniu świadczenia usług
 

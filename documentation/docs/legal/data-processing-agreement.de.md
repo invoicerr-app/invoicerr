@@ -101,7 +101,8 @@ Sie erteilen uns eine **allgemeine Genehmigung**, die Unterauftragsverarbeiter h
 die Verarbeitung von Dokumenten relevant sind, die personenbezogene Daten des Kunden enthalten:
 
 - Die **nationalen E-Invoicing- und Regierungsplattformen, die Sie verbinden möchten** — die
-  französische PDP, das polnische KSeF, das italienische SdI, das portugiesische AT, das französische
+  französische PDP, das polnische KSeF, das italienische SdI (und, für dessen Kanal der zertifizierten
+  E-Mail, der PEC-Postfachanbieter, den Sie abonnieren), das portugiesische AT, das französische
   Chorus Pro für B2G-Rechnungsstellung — die auf Ihre ausdrückliche Anweisung hin, unter den von Ihnen
   bereitgestellten Zugangsdaten und Mandaten, die von Ihnen versendeten Dokumente übermitteln.
 - **Resend** — Zustellung transaktionaler E-Mails, die auf Ihre Anweisung hin ein Dokument oder einen
@@ -134,6 +135,21 @@ personenbezogenen Daten des Kunden, die auf den von Ihnen ausgestellten Dokument
 Pages, Actions und Container Registry — Infrastruktur, die niemals personenbezogene Daten des Kunden
 empfängt, speichert oder verarbeitet. Siehe Datenschutzerklärung, Abschnitt 10.
 
+**Der KI-Assistent, den Sie über unseren Model-Context-Protocol-Endpunkt verbinden, ist kein
+Unterauftragsverarbeiter im Sinne dieses AVV**: Der Dienst stellt einen MCP-Endpunkt bereit
+(`POST /api/mcp`), über den Sie einen API-Schlüssel erstellen und einen KI-Assistenten Ihrer Wahl damit
+verbinden können; innerhalb der Berechtigungen, die Sie diesem Schlüssel erteilen, kann der Assistent
+Ihre Kunden und Dokumente einsehen und verwalten sowie in Ihrem Auftrag Dokumentaktionen ausführen. Wir
+rufen das KI-Modell hinter Ihrem Assistenten weder auf noch wählen wir es aus — dessen Anbieter wird
+von Ihnen ausgewählt, steht in keinem Vertragsverhältnis zu uns und ist daher aus demselben Grund wie
+Polar oben kein Unterauftragsverarbeiter im Sinne dieses AVV. Sie sind verantwortlich für die
+Rechtmäßigkeit jeder Übermittlung personenbezogener Daten des Kunden an diesen Anbieter, einschließlich
+jeder Übermittlung außerhalb des EWR, sowie für die Anweisungen, nach denen Ihr Assistent handelt. Eines
+der MCP-Tools, `get_document_pdf_link`, erstellt einen öffentlichen, nicht authentifizierten Link zum
+PDF eines Dokuments, gültig für 30 Tage und über den Dienst widerrufbar; sobald ein solcher Link in
+einem Gespräch mit Ihrem Assistenten erscheint, kann jeder, der ihn besitzt, so lange auf dieses
+Dokument zugreifen, wie der Link gültig bleibt.
+
 Jeder der oben genannten Unterauftragsverarbeiter ist vertraglich zu Datenschutzpflichten verpflichtet,
 die den in diesem AVV enthaltenen Pflichten inhaltlich gleichwertig sind — insbesondere zur
 Vertraulichkeitspflicht aus Abschnitt 6 und zu den Sicherheitsmaßnahmen aus Abschnitt 9 (**Art. 28
@@ -141,9 +157,7 @@ Abs. 4 DSGVO**). Wir haften Ihnen gegenüber weiterhin uneingeschränkt für die
 Pflichten durch den jeweiligen Unterauftragsverarbeiter.
 
 Wir werden Sie mindestens **dreißig (30) Tage im Voraus per E-Mail** benachrichtigen, bevor wir der
-obigen Liste einen neuen Unterauftragsverarbeiter hinzufügen; dies entspricht der Ankündigungsfrist,
-die die Allgemeinen Geschäftsbedingungen (AGB), Abschnitt 20.1, bereits für Änderungen dieser
-Vereinbarung vorsehen. Sie können innerhalb dieser Frist aus vertretbaren datenschutzrechtlichen
+obigen Liste einen neuen Unterauftragsverarbeiter hinzufügen. Sie können innerhalb dieser Frist aus vertretbaren datenschutzrechtlichen
 Gründen widersprechen, indem Sie an **contact@invoicerr.app** schreiben; können wir Ihrem Widerspruch
 nicht Rechnung tragen, kann jede Partei dies als Grund ansehen, das Abonnement gemäß den Allgemeinen
 Geschäftsbedingungen (AGB), Abschnitt 12, zu beenden.
@@ -164,6 +178,15 @@ direkt nutzen; andernfalls leisten wir angemessene Unterstützung.
 - Rollenbasierte Zugriffskontrolle innerhalb Ihres Unternehmens (Rollen Owner/Admin/Mitglied) sowie,
   innerhalb unserer eigenen Organisation, ein auf das zum Betrieb und zur Unterstützung des Dienstes
   Erforderliche beschränkter Zugriff.
+- **Verschlüsselung von Backups.** Backups der Dokumente und Dateien, die der Dienst speichert, werden
+  (AES-256-GCM) innerhalb unserer eigenen Infrastruktur verschlüsselt, bevor sie in den Backup-Speicher
+  geschrieben werden, mit einem Schlüssel, den nur wir besitzen und den der Speicheranbieter nie
+  erhält — fehlt der Schlüssel, schlägt der Backup-Lauf fehl, anstatt irgendetwas unverschlüsselt zu
+  schreiben, und ein durchgesickerter Zugriffsschlüssel zum Speicher liefert für sich genommen nur
+  verschlüsselten Text, keine Dokumente. Dies begründet für sich genommen nicht die Ausnahme von der
+  Benachrichtigungspflicht, die **Art. 34 Abs. 3 lit. a) DSGVO** für personenbezogene Daten vorsieht,
+  die durch solche Maßnahmen unkenntlich gemacht wurden; ob diese Ausnahme greift, ist eine
+  Einzelfallbeurteilung, die hier nicht behauptet wird.
 
 ## 10. Löschung oder Rückgabe der Daten am Ende der Erbringung der Dienste
 

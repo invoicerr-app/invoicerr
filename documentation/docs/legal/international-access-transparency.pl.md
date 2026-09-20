@@ -64,6 +64,11 @@ tu wymienione dla kompletności, a nie dlatego, że mieszczą się w zakresie ob
   (transport e-fakturowania, dostawca OIDC, certyfikat podpisu, sekret webhooka) są szyfrowane w
   spoczynku za pomocą AES-256-GCM przed zapisaniem w bazie danych — zob.
   `backend/src/utils/secret-crypto.ts` — dzięki czemu sama kopia bazy danych ich nie ujawnia.
+- **Szyfrowanie kopii zapasowych.** Kopie zapasowe dokumentów i plików przechowywanych przez Usługę są
+  szyfrowane (AES-256-GCM), zanim opuszczą naszą infrastrukturę, za pomocą klucza, którego dostawca
+  magazynu nigdy nie posiada — zob. Umowa Powierzenia Przetwarzania Danych, sekcja 9 — dzięki czemu
+  żądanie skierowane bezpośrednio do tego dostawcy, lub kopia samego magazynu kopii zapasowych,
+  dociera wyłącznie do zaszyfrowanego tekstu, nigdy do dokumentów.
 - **Kontrola dostępu.** Dostęp do danych danej Firmy w ramach Usługi jest ograniczony rolami
   przypisanymi w tej Firmie (właściciel/administrator/członek); dostęp do infrastruktury produkcyjnej i
   danych w ramach naszej własnej organizacji jest ograniczony do zakresu niezbędnego do obsługi i

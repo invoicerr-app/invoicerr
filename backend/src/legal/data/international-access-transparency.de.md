@@ -67,6 +67,11 @@ den von Artikel 28 erfassten Anwendungsbereich fielen.
   (ein E-Invoicing-Transportweg, ein OIDC-Anbieter, ein Signaturzertifikat, ein Webhook-Secret), werden
   vor dem Schreiben in die Datenbank mit AES-256-GCM im Ruhezustand verschlüsselt — siehe
   `backend/src/utils/secret-crypto.ts` — sodass eine bloße Kopie der Datenbank sie nicht offenlegt.
+- **Verschlüsselung von Backups.** Backup-Kopien der Dokumente und Dateien, die der Dienst speichert,
+  werden verschlüsselt (AES-256-GCM), bevor sie unsere Infrastruktur überhaupt verlassen, mit einem
+  Schlüssel, den der Speicheranbieter nie besitzt — siehe Auftragsverarbeitungsvertrag (AVV), Abschnitt
+  9 — sodass eine Anfrage, die unmittelbar an diesen Anbieter gerichtet wird, oder eine Kopie des
+  Backup-Speichers selbst, nur verschlüsselten Text erreicht, keine Dokumente.
 - **Zugriffskontrolle.** Der Zugriff auf die Daten eines Unternehmens innerhalb des Dienstes ist auf die
   eigenen Rollen dieses Unternehmens beschränkt (Owner/Admin/Mitglied); der Zugriff auf
   Produktionsinfrastruktur und -daten innerhalb unserer eigenen Organisation ist auf das beschränkt, was

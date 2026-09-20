@@ -63,6 +63,11 @@ nell'ambito di applicazione dell'articolo 28.
   fatturazione elettronica, un provider OIDC, un certificato di firma, un segreto webhook) sono cifrati
   a riposo con AES-256-GCM prima di essere scritti nel database — vedere
   `backend/src/utils/secret-crypto.ts` — cosicché una semplice copia del database non li espone.
+- **Cifratura dei backup.** Le copie di backup dei documenti e dei file conservati dal Servizio sono
+  cifrate (AES-256-GCM) prima di lasciare la nostra infrastruttura, con una chiave che il fornitore di
+  storage non detiene mai — vedere l'Accordo sul Trattamento dei Dati, Sezione 9 — cosicché una
+  richiesta rivolta direttamente a tale fornitore, o una copia del bucket di backup stesso, raggiunge
+  solo testo cifrato, mai i documenti.
 - **Controllo degli accessi.** L'accesso ai dati di un'Azienda all'interno del Servizio è delimitato dai
   ruoli propri di tale Azienda (proprietario/amministratore/membro); l'accesso all'infrastruttura e ai
   dati di produzione all'interno della nostra organizzazione è limitato a quanto necessario per gestire

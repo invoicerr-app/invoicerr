@@ -1,8 +1,8 @@
 ---
 title: International Access Transparency
-sidebar_position: 6
-version: 2026-09-19
-effectiveDate: 2026-09-19
+sidebar_position: 7
+version: 2026-09-20
+effectiveDate: 2026-09-20
 ---
 
 :::warning Draft
@@ -61,6 +61,10 @@ completeness, not because they fall within the scope Article 28 targets.
   provider, a signing certificate, a webhook secret) are encrypted at rest with AES-256-GCM before
   being written to the database — see `backend/src/utils/secret-crypto.ts` — so a copy of the database
   alone does not expose them.
+- **Backup encryption.** Backup copies of the documents and files the Service stores are encrypted
+  (AES-256-GCM) before they ever leave our infrastructure, under a key the storage provider never
+  holds — see the Data Processing Agreement, Section 9 — so a demand served directly on that provider,
+  or a copy of the backup bucket itself, reaches ciphertext, not documents.
 - **Access control.** Access to a Company's data within the Service is scoped by that Company's own
   roles (owner/admin/member); access to production infrastructure and data within our own organization
   is restricted to what is needed to operate and support the Service, as described in the Privacy
@@ -116,3 +120,8 @@ Questions about this page can be sent to **contact@invoicerr.app**.
   bullet now state **France** alone rather than "France and, more broadly, the EU" — a hedge this page
   needed only because the database used to sit in a different EU country under a different provider.
   This removes the one non-French, non-Scaleway hop the Service's own infrastructure had.
+- **2026-09-20** — Legal audit finding: Section 2 gained a **Backup encryption** measure — backup
+  copies of the documents and files the Service stores are encrypted (AES-256-GCM) before they leave
+  our infrastructure, under a key the storage provider never holds, so a demand served on that
+  provider alone reaches ciphertext, not documents (see the Data Processing Agreement, Section 9, and
+  `backend/src/modules/backup/backup-crypto.ts`).
