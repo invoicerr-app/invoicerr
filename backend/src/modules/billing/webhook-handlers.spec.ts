@@ -106,6 +106,42 @@ describe('applySubscriptionWebhook', () => {
     );
   });
 
+  it('writes currentPeriodEnd when the webhook carries one — the fact the paid-period Terms exception reads', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
+    const currentPeriodEnd = new Date('2026-10-18T00:00:00.000Z');
+
+    await applySubscriptionWebhook({
+      companyId: 'company-1',
+      polarSubscriptionId: 'sub_1',
+      polarCustomerId: 'cus_1',
+      status: 'active',
+      recurringInterval: 'month',
+      currentPeriodEnd,
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ currentPeriodEnd }) }),
+    );
+  });
+
+  it('leaves the stored currentPeriodEnd untouched when the webhook carries none', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
+
+    await applySubscriptionWebhook({
+      companyId: 'company-1',
+      polarSubscriptionId: 'sub_1',
+      polarCustomerId: 'cus_1',
+      status: 'active',
+      recurringInterval: 'month',
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ currentPeriodEnd: expect.anything() }),
+      }),
+    );
+  });
+
   it('leaves the stored seats untouched when the webhook carries none', async () => {
     getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
 

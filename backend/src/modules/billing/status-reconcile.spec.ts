@@ -82,6 +82,26 @@ describe('reconcileFromPolarIfStale', () => {
     expect(result.status).toBe('ACTIVE');
   });
 
+  it('threads currentPeriodEnd through to applySubscriptionWebhook, for the paid-period Terms exception', async () => {
+    const currentPeriodEnd = new Date('2026-10-18T00:00:00.000Z');
+    const client = fakeClient([
+      {
+        id: 'polar_sub_1',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'year',
+        metadata: { companyId: 'company-1' },
+        currentPeriodEnd,
+      },
+    ]);
+    const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_1' });
+    getOrCreate.mockResolvedValue({ ...row, status: 'ACTIVE' });
+
+    await reconcileFromPolarIfStale(row, client, 0);
+
+    expect(applyWebhook).toHaveBeenCalledWith(expect.objectContaining({ currentPeriodEnd }));
+  });
+
   it('filters the Polar list call by this company — not by the stored polarCustomerId', async () => {
     const client = fakeClient([]);
     const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_shared_with_another_company' });

@@ -160,3 +160,18 @@ export async function lockCompanySubscriptionRow(
 export async function listAdvanceableCompanySubscriptions(): Promise<CompanySubscription[]> {
   return prisma.companySubscription.findMany({ where: { status: { not: 'DELETED' } } });
 }
+
+/**
+ * A plain, side-effect-free read — `null` for a Company with no row at all, rather than the LAZY
+ * `getOrCreateCompanySubscription`'s own upsert. The one caller this exists for
+ * (`legal/terms-paid-period-exemption.ts`, the Terms of Service Section 20.2 exception) must never
+ * itself CREATE a subscription row as a side effect of merely checking whether a pending legal
+ * re-acceptance should be excused — `CompanyWriteGuard` (`company-write.guard.ts`), registered ahead of
+ * `LegalAcceptanceGuard` in `app.module.ts`, already lazily creates the row for every write request
+ * before this ever runs, but this function deliberately does not rely on that ordering: a Company with
+ * genuinely no row yet has no subscription period to protect either way, so `null` here reads exactly
+ * the same as a fresh `TRIAL` row would (no exception) without this module ever writing anything.
+ */
+export async function findCompanySubscription(companyId: string): Promise<CompanySubscription | null> {
+  return prisma.companySubscription.findUnique({ where: { companyId } });
+}

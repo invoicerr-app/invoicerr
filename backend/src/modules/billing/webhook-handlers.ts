@@ -105,6 +105,13 @@ export interface PolarSubscriptionWebhookFacts {
    *  already stored alone", the same permissive convention `recurringInterval`'s own `null` already
    *  holds, rather than ever writing `0`/`undefined` over a real value. */
   seats?: number;
+  /** Polar's own `Subscription.currentPeriodEnd` — the end of the period THIS COMPANY HAS ALREADY PAID
+   *  FOR, mirrored onto `CompanySubscription.currentPeriodEnd` (see that column's own schema comment)
+   *  purely so `paid-period-grace.ts`'s Terms-of-Service Section 20.2 exception has a real date to read.
+   *  `undefined` when the wire payload omits it (a hand-built spec fact) — the same permissive
+   *  "leave whatever is already stored alone" convention `seats`/`recurringInterval` already hold,
+   *  never written as `null`/cleared just because one particular fact happened not to carry it. */
+  currentPeriodEnd?: Date;
   /** WHEN this fact actually happened, Polar-side — the delivering webhook's own `webhook-timestamp`
    *  header (`polar-webhook.controller.ts`) or, for a `status-reconcile.ts` repair read, the
    *  reconciled subscription's own `modifiedAt`. `undefined` applies UNCONDITIONALLY (the historical
@@ -274,6 +281,7 @@ export async function applySubscriptionWebhook(
       polarCustomerId: facts.polarCustomerId,
       ...(interval ? { interval } : {}),
       ...(facts.seats !== undefined ? { seats: facts.seats } : {}),
+      ...(facts.currentPeriodEnd !== undefined ? { currentPeriodEnd: facts.currentPeriodEnd } : {}),
       ...(facts.factAt ? { lastPolarFactAt: facts.factAt } : {}),
       ...(status === 'ACTIVE'
         ? { blockedAt: null, zipSentAt: null, deletionDueAt: null, seatPaymentFailedAt: null }
@@ -300,6 +308,10 @@ export interface SubscriptionWebhookPayload {
      *  file's own header describes for the other two fields. See `PolarSubscriptionWebhookFacts.seats`
      *  for how this flows onward (never the reverse — see `seat-sync.ts`). */
     seats?: number;
+    /** Polar's own `currentPeriodEnd` (wire `current_period_end`, remapped to this camelCase `Date` by
+     *  `polar-webhook.controller.ts#toSubscriptionWebhookPayload` the same way `recurringInterval` is)
+     *  — see `PolarSubscriptionWebhookFacts.currentPeriodEnd` for where this flows onward. */
+    currentPeriodEnd?: Date;
     metadata: Record<string, string | number | boolean>;
     /** The subscription's own customer's `external_id` — option A (product decision 2026-09-16):
      *  `external_id = company.id` for every Polar customer this app creates (`billing-customer.ts`'s
@@ -340,6 +352,7 @@ export async function handleSubscriptionPayload(
     status: payload.data.status,
     recurringInterval: payload.data.recurringInterval,
     seats: payload.data.seats,
+    currentPeriodEnd: payload.data.currentPeriodEnd,
     factAt,
   });
 }

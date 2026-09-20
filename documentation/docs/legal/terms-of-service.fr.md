@@ -408,14 +408,33 @@ ce pendant toute la durée de cet événement.
 ## 20. Modifications des Présentes Conditions et Droit Applicable
 
 20.1. Nous pouvons mettre à jour les présentes Conditions de temps à autre. Une modification prend
-effet, et vous engage, **immédiatement dès sa publication** ; nous vous en informons par e-mail dès ce
-moment. Si vous n'avez pas encore accepté la nouvelle version, vous conservez un **accès en lecture
-complet à Vos Données ainsi que la possibilité de les exporter** (Section 8.2), **indéfiniment** — seules
-les actions d'écriture, y compris l'envoi ou l'émission d'un document, sont suspendues jusqu'à votre
-acceptation. Si vous ne souhaitez pas accepter une modification, vous pouvez **résilier votre abonnement
-conformément à la Section 12, à tout moment et sans pénalité**.
+effet, et vous engage, **immédiatement dès sa publication**, sous réserve de la Section 20.2 ci-dessous
+pour une période d'abonnement déjà en cours ; nous vous en informons par e-mail dès ce moment. Si vous
+n'avez pas encore accepté la nouvelle version, vous conservez un **accès en lecture complet à Vos
+Données ainsi que la possibilité de les exporter** (Section 8.2), **indéfiniment** — seules les actions
+d'écriture, y compris l'envoi ou l'émission d'un document, sont suspendues jusqu'à votre acceptation, à
+compter de la date à laquelle la présente Section rend la modification opposable. Si vous ne souhaitez
+pas accepter une modification, vous pouvez **résilier votre abonnement conformément à la Section 12, à
+tout moment et sans pénalité**.
 
-20.2. Les présentes Conditions sont régies par le **droit français**. Tout litige né des présentes
+20.2. **Période d'abonnement déjà en cours.** Si vous avez une période d'abonnement déjà en cours au
+moment de la publication d'une modification, celle-ci ne vous engage pas, et les actions d'écriture ne
+sont pas suspendues, avant la plus tardive des deux dates suivantes : (a) le premier jour du mois civil
+suivant la publication de la modification, ou (b) la date de renouvellement de cette période
+d'abonnement — la plus tardive des deux prévalant. Jusqu'à cette date, vous conservez le plein usage du
+Service, actions d'écriture comprises, dans les conditions des présentes Conditions en vigueur au moment
+où vous avez payé cette période. C'est ce qui rend l'effet immédiat de la Section 20.1 cohérent avec la
+**Section 12.2** : une période déjà payée n'est pas raccourcie par une modification que vous n'avez pas
+acceptée. Si vous n'avez pas accepté la nouvelle version à la date à laquelle la présente Section la
+rend opposable, votre abonnement ne se poursuit pas dans les nouvelles Conditions, et la Section 13
+(Suspension pour Non-Paiement, Fin d'Abonnement, Archivage et Suppression des Données) s'applique à
+compter de cette date, exactement comme pour toute autre fin d'abonnement. La présente Section ne
+protège qu'une période effectivement payée : elle ne s'applique **pas** — et l'effet immédiat de la
+Section 20.1 s'applique alors à vous sans aménagement — si vous n'avez aucune période d'abonnement en
+cours, par exemple parce que vous êtes encore en période d'essai gratuit, que vous n'avez jamais souscrit
+d'abonnement, ou que votre Société est déjà placée dans la suspension décrite à la Section 13.1.
+
+20.3. Les présentes Conditions sont régies par le **droit français**. Tout litige né des présentes
 Conditions ou s'y rapportant sera soumis à la compétence exclusive du **Tribunal de commerce de
 Romans-sur-Isère, tribunal du siège social du Prestataire**, sous réserve de toute règle impérative
 contraire.

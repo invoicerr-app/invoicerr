@@ -134,6 +134,56 @@ describe('PolarWebhookController.handleWebhook', () => {
     );
   });
 
+  it('remaps current_period_end to a Date currentPeriodEnd, for the paid-period Terms exception', async () => {
+    const body = JSON.stringify({
+      type: 'subscription.active',
+      data: {
+        id: 'sub_3',
+        customer_id: 'cus_3',
+        status: 'active',
+        recurring_interval: 'month',
+        current_period_end: '2026-10-18T00:00:00.000Z',
+        metadata: { companyId: 'company-3' },
+        customer: { id: 'cus_3', external_id: 'company-3' },
+      },
+    });
+    const controller = new PolarWebhookController();
+    const headers = signCurrentEra(body, CURRENT_ERA_SECRET);
+
+    await controller.handleWebhook(fakeRequest(body, headers));
+
+    expect(handleMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currentPeriodEnd: new Date('2026-10-18T00:00:00.000Z') }),
+      }),
+      expect.any(Date),
+    );
+  });
+
+  it('drops a malformed current_period_end to undefined rather than forwarding an Invalid Date', async () => {
+    const body = JSON.stringify({
+      type: 'subscription.active',
+      data: {
+        id: 'sub_4',
+        customer_id: 'cus_4',
+        status: 'active',
+        recurring_interval: 'month',
+        current_period_end: 'not-a-date',
+        metadata: { companyId: 'company-4' },
+        customer: { id: 'cus_4', external_id: 'company-4' },
+      },
+    });
+    const controller = new PolarWebhookController();
+    const headers = signCurrentEra(body, CURRENT_ERA_SECRET);
+
+    await controller.handleWebhook(fakeRequest(body, headers));
+
+    expect(handleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ currentPeriodEnd: undefined }) }),
+      expect.any(Date),
+    );
+  });
+
   it('remaps to customerExternalId: undefined when the wire payload carries no nested customer object', async () => {
     const body = JSON.stringify({
       type: 'subscription.active',

@@ -575,6 +575,20 @@ model CompanySubscription {
   polarCustomerId     String?
   polarSubscriptionId String?
 
+  // Polar's own `Subscription.currentPeriodEnd` — the end of the period THIS COMPANY HAS ALREADY PAID
+  // FOR, mirrored verbatim from every subscription webhook/reconcile read that carries one
+  // (`webhook-handlers.ts#applySubscriptionWebhook`, `status-reconcile.ts`), the same "leave it alone
+  // when the fact set omits it" convention `interval`/`seats` already hold. `null` until the first such
+  // fact arrives (a Company still in TRIAL has no Polar subscription to read one from at all).
+  //
+  // The ONE reason this column exists: `paid-period-grace.ts`'s Terms-of-Service Section 20.2
+  // exception — a Company with a subscription period already in progress when the Terms change keeps
+  // full write access, under the version it paid for, until the later of a calendar floor or this exact
+  // date. Never cleared on its own when `status` moves away from `ACTIVE` (a stale value combined with
+  // a non-ACTIVE status can never grant that exception — `paid-period-grace.ts`'s own header — so there
+  // is nothing to protect by clearing it defensively).
+  currentPeriodEnd DateTime?
+
   // The PURCHASED seat quantity. Invoicerr never tells Polar how many seats to bill — it only reads
   // what Polar says: the quantity is bought in the Polar portal itself and arrives here EXCLUSIVELY via
   // `webhook-handlers.ts` (a `subscription.*` webhook's own `seats` field) and `seat-reconcile.ts`'s

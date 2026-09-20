@@ -60,6 +60,18 @@
  * (`AuthGuard` sets `request.user` for both) — the exact gap the "quiconque... utilise une clé d'API"
  * finding named: automation must not be a way to keep using the product while a required re-acceptance
  * sits unanswered.
+ *
+ * ## One more exemption: a paid subscription period already in progress (Terms of Service Section 20.2)
+ *
+ * A Company that has already paid for a subscription period keeps FULL write access — under the
+ * version of the Terms in force when it paid — for the rest of that period, even with a pending
+ * `terms-of-service` re-acceptance: a unilateral later change cannot retroactively shorten what was
+ * already bought. `filterPendingSlugsAfterPaidPeriodGrace` (`terms-paid-period-exemption.ts`) computes
+ * this from the Company's own `CompanySubscription` row and the document's real release timestamp; see
+ * that file's own header for exactly which statuses qualify (`ACTIVE` only — `BLOCKED`/`ZIPPED`/
+ * `PAST_DUE`/`TRIAL` never do, which is also what keeps a Company already suspended for non-payment
+ * from regaining writes through this exact door) and why it is scoped to `terms-of-service` alone, never
+ * `privacy-policy` or any future required document.
  */
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -70,6 +82,7 @@ import { LEGAL_ACCEPTANCE_REQUIRED_CODE } from '@/lib/legal-signup-policy';
 import { getPendingAcceptanceSlugs } from './legal-acceptance';
 import { getLegalDocument } from './legal-documents';
 import { LEGAL_GATE_EXEMPT_KEY } from './legal-gate-exempt.decorator';
+import { filterPendingSlugsAfterPaidPeriodGrace } from './terms-paid-period-exemption';
 
 const READ_ONLY_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -94,24 +107,31 @@ export class LegalAcceptanceGuard implements CanActivate {
     }
 
     const pending = await getPendingAcceptanceSlugs(request.user.id);
-    if (pending.length > 0) {
-      // Names what is blocked (this one write, not the account), why (the actual document titles, not
-      // their slugs), and what still works — the refusal has to stand on its own for a product people
-      // rely on for their accounting, not merely carry a machine-readable `code` the frontend turns
-      // into a toast. See this file's own header for the exact read/export/termination routes
-      // `readOnly: true` refers to.
-      const documentList = pending.map((slug) => getLegalDocument(slug)?.title ?? slug).join(' and ');
-      throw new ForbiddenException({
-        message:
-          `You must accept our updated ${documentList} before making further changes. You can still ` +
-          'view and export all of your data, and close your account or leave this company, without ' +
-          'accepting — only actions that create or change data are on hold.',
-        code: LEGAL_ACCEPTANCE_REQUIRED_CODE,
-        pending,
-        readOnly: true,
-      });
-    }
+    if (pending.length === 0) return true;
 
-    return true;
+    // Terms of Service Section 20.2: a Company with a subscription period already in progress keeps
+    // full write access, under the version it paid for, until that period's own protection lapses —
+    // see `terms-paid-period-exemption.ts`'s own header for exactly which slug this ever excuses (only
+    // `terms-of-service`) and why. `blocking` is `pending` with that one slug removed when the
+    // exception applies — every OTHER pending document (today, only `privacy-policy`) still blocks
+    // regardless, deliberately: this reasoning is not extended to documents it does not concern.
+    const blocking = await filterPendingSlugsAfterPaidPeriodGrace(pending, request.companyId);
+    if (blocking.length === 0) return true;
+
+    // Names what is blocked (this one write, not the account), why (the actual document titles, not
+    // their slugs), and what still works — the refusal has to stand on its own for a product people
+    // rely on for their accounting, not merely carry a machine-readable `code` the frontend turns
+    // into a toast. See this file's own header for the exact read/export/termination routes
+    // `readOnly: true` refers to.
+    const documentList = blocking.map((slug) => getLegalDocument(slug)?.title ?? slug).join(' and ');
+    throw new ForbiddenException({
+      message:
+        `You must accept our updated ${documentList} before making further changes. You can still ` +
+        'view and export all of your data, and close your account or leave this company, without ' +
+        'accepting — only actions that create or change data are on hold.',
+      code: LEGAL_ACCEPTANCE_REQUIRED_CODE,
+      pending: blocking,
+      readOnly: true,
+    });
   }
 }

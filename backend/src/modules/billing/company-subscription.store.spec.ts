@@ -3,6 +3,7 @@ import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import {
+  findCompanySubscription,
   getOrCreateCompanySubscription,
   listAdvanceableCompanySubscriptions,
   recomputeStatusForVanishedSubscription,
@@ -58,6 +59,29 @@ describe('getOrCreateCompanySubscription', () => {
       update: {},
     });
     expect(result).toBe(created);
+  });
+});
+
+describe('findCompanySubscription', () => {
+  afterEach(() => vi.resetAllMocks());
+
+  it('returns the row as-is, never creating one', async () => {
+    const existing = { id: 'sub-1', companyId: 'company-1', status: 'ACTIVE' };
+    findUnique.mockResolvedValue(existing);
+
+    const result = await findCompanySubscription('company-1');
+
+    expect(result).toBe(existing);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('returns null for a Company with no row at all, without creating one', async () => {
+    findUnique.mockResolvedValue(null);
+
+    const result = await findCompanySubscription('company-1');
+
+    expect(result).toBeNull();
+    expect(upsert).not.toHaveBeenCalled();
   });
 });
 

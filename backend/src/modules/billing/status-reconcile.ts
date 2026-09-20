@@ -86,6 +86,12 @@ interface ReconcileSubscriptionFacts {
   metadata: Record<string, string | number | boolean>;
   modifiedAt?: string | Date | null;
   createdAt?: string | Date | null;
+  /** `@polar-sh/sdk`'s own `Subscription.currentPeriodEnd` (confirmed by the same
+   *  `subscription.d.ts` read `webhook-handlers.ts`'s own header cites) — threaded through to
+   *  `applySubscriptionWebhook` below the same way a real webhook's `current_period_end` is, so a
+   *  repaired row is indistinguishable from one a webhook had updated correctly (this module's own
+   *  header). */
+  currentPeriodEnd?: Date | null;
 }
 
 /** Structurally typed subset of the `Polar` SDK client this function actually calls — see
@@ -150,6 +156,7 @@ export async function reconcileFromPolarIfStale(
         polarCustomerId: latest.customerId,
         status: latest.status,
         recurringInterval: latest.recurringInterval,
+        currentPeriodEnd: latest.currentPeriodEnd ?? undefined,
         // `undefined` (never a genuinely unparseable Date) when Polar reports neither — see
         // `applySubscriptionWebhook`'s own header: an absent `factAt` applies unconditionally, the
         // safe default when this read has no timestamp of its own to compare against a webhook's.

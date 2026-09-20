@@ -129,6 +129,12 @@ interface PolarSubscriptionWireData {
    *  writes it back to Polar (`webhook-handlers.ts#PolarSubscriptionWebhookFacts.seats`'s own doc
    *  comment). */
   seats?: number | null;
+  /** The end of the period this subscription's customer has already paid for — Polar's own
+   *  `Subscription.currentPeriodEnd` field, ISO-8601 on the wire (confirmed against
+   *  `node_modules/@polar-sh/sdk/dist/commonjs/models/components/subscription.d.ts`'s own
+   *  `current_period_end: string` wire type). Remapped to a `Date` below the same way the two other
+   *  snake_case fields are — see this file's own header. */
+  current_period_end?: string | null;
   metadata?: Record<string, string | number | boolean>;
   customer?: { external_id?: string | null };
 }
@@ -144,6 +150,18 @@ function isPolarWebhookEvent(value: unknown): value is PolarWebhookEvent {
   return typeof candidate.type === 'string' && typeof candidate.data === 'object' && candidate.data !== null;
 }
 
+/** Parses an ISO-8601 wire date defensively — `undefined` for a missing/malformed value rather than the
+ *  truthy `Invalid Date` a bare `new Date(...)` would produce (the exact trap this file's own comment on
+ *  `webhook-timestamp` parsing already documents for `factAt`, immediately below): `undefined` is what
+ *  `applySubscriptionWebhook`'s own `currentPeriodEnd` already treats as "nothing to write, leave
+ *  whatever is stored alone", while an `Invalid Date` would reach Prisma and turn the whole delivery
+ *  into a 500. */
+function parseWireDate(value: string | null | undefined): Date | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 function toSubscriptionWebhookPayload(event: PolarWebhookEvent): SubscriptionWebhookPayload {
   return {
     data: {
@@ -152,6 +170,7 @@ function toSubscriptionWebhookPayload(event: PolarWebhookEvent): SubscriptionWeb
       status: event.data.status,
       recurringInterval: event.data.recurring_interval,
       seats: event.data.seats ?? undefined,
+      currentPeriodEnd: parseWireDate(event.data.current_period_end),
       metadata: event.data.metadata ?? {},
       customerExternalId: event.data.customer?.external_id ?? undefined,
     },

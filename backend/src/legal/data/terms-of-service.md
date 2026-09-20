@@ -372,13 +372,29 @@ persists.
 ## 20. Changes to These Terms and Governing Law
 
 20.1. We may update these Terms from time to time. A change takes effect, and binds you, **immediately
-upon publication**; we notify you by email when it does. If you have not yet accepted the new version,
-you keep **full read access to Your Data and the ability to export it** (Section 8.2), **indefinitely**
-— only write actions, including sending or issuing a document, are withheld until you accept. If you do
-not wish to accept a change, you may **cancel your subscription under Section 12 at any time, without
-penalty**.
+upon publication**, subject to Section 20.2 below for a subscription period already in progress; we
+notify you by email when it does. If you have not yet accepted the new version, you keep **full read
+access to Your Data and the ability to export it** (Section 8.2), **indefinitely** — only write actions,
+including sending or issuing a document, are withheld until you accept, from whichever date this Section
+makes the change binding on you. If you do not wish to accept a change, you may **cancel your
+subscription under Section 12 at any time, without penalty**.
 
-20.2. These Terms are governed by **French law**. Any dispute arising out of or relating to these
+20.2. **Subscription period already in progress.** If you have a subscription period already in
+progress when a change is published, the change does not bind you, and write actions are not withheld,
+before the later of: (a) the first day of the calendar month following the change's publication, or
+(b) the renewal date of that subscription period — whichever falls later. Until then, you keep full use
+of the Service, write actions included, under the version of these Terms in effect when you paid for
+that period. This is what makes Section 20.1's immediate effect consistent with **Section 12.2**: a
+period you have already paid for is not shortened by a change you have not agreed to. If you have not
+accepted the new version by the date this Section makes it binding on you, your subscription does not
+continue on the new Terms, and Section 13 (Suspension for Non-Payment, End of Subscription, Data
+Archive and Deletion) applies from that date exactly as it would to any other end of subscription. This
+Section protects only a period you have actually paid for: it does **not** apply — and Section 20.1's
+immediate effect applies to you without adjustment — if you have no subscription period in progress, for
+example because you are still in the free trial, you never subscribed, or your Company is already in the
+suspension described in Section 13.1.
+
+20.3. These Terms are governed by **French law**. Any dispute arising out of or relating to these
 Terms shall be submitted to the exclusive jurisdiction of **the Commercial Court of Romans-sur-Isère
 (Tribunal de commerce de Romans-sur-Isère), the court of the Provider's registered office**, subject
 to any mandatory rule of law that provides otherwise.
@@ -529,3 +545,18 @@ this document; they create no separate or additional rights.
   the immediate-effect rule defensible. No other part of Section 20 changed, and the unrelated thirty-day
   periods elsewhere in this document (Section 1.4's transfer notice, Section 9.2's switching Transitional
   Period, Section 9.5/13.3's Retrieval Window) are untouched.
+- **2026-09-20** — Owner decision, on top of the same day's Section 20.1 rewrite above: immediate effect
+  still let a change withhold write access from a Customer who had already paid for a subscription
+  period running past publication — **article 1103 of the French Civil Code** (an agreement lawfully
+  formed has the force of law between the parties) does not let a later, unilateral change reduce what
+  was already bought under the version in force at payment. **New Section 20.2** now holds a change
+  back from a Company with a subscription period already in progress until the later of two dates: the
+  first day of the calendar month following the change's publication, or that period's own renewal date
+  — the calendar date gives everyone a single, predictable date to plan and be supported around, and the
+  renewal date on top of it is what keeps a longer-running period (an annual plan, or one that renews
+  late in the following month) from ever being cut short by the calendar date alone. Former **Section
+  20.2** (Governing Law) is renumbered **Section 20.3**; no other change to Section 20. The exception is
+  deliberately narrow: it does not extend to a Company with no subscription period in progress (still in
+  its free trial, never subscribed) or already in the Section 13.1 suspension for non-payment — neither
+  has a paid period for this Section to protect, and both keep Section 20.1's immediate effect exactly
+  as before.
