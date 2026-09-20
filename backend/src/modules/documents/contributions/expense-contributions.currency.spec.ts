@@ -2,6 +2,7 @@ import { vi, type Mock } from 'vitest';
 
 import * as currencyRatesStore from '../../company/currency-rates/currency-rates.store';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildExpenseDashboardWidgetsWithConsolidation } from './expense-contributions';
 import { MetricWidget } from './widgets';
@@ -14,7 +15,18 @@ vi.mock('../../company/currency-rates/currency-rates.store', async () => {
   return { ...actual, getReferenceCurrency: vi.fn(), listCurrencyRates: vi.fn() };
 });
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The client/status/type
+ *  narrowing moved into SQL when the read stopped being capped, so a mock returning a fixture
+ *  verbatim would feed it rows production never sees. Fixtures here stay small on purpose — they
+ *  prove the rules around the read; the cap-crossing fixtures live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
+
 const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as Mock;
 const listCurrencyRates = currencyRatesStore.listCurrencyRates as Mock;
 
@@ -40,7 +52,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
 
   beforeEach(() => {
     vi.useFakeTimers().setSystemTime(now);
-    listDocuments.mockReset();
+    listAllDocuments.mockReset();
     getReferenceCurrency.mockReset();
     listCurrencyRates.mockReset();
   });
@@ -48,9 +60,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
   afterEach(() => vi.useRealTimers());
 
   it('no referenceCurrency set: the exact same widgets as the base handler, untouched — the default', async () => {
-    listDocuments.mockResolvedValue([
-      expense({ id: 'e1', data: { amount: 100, currency: 'EUR', date: dateInMonth(now) } }),
-    ]);
+    seedDocuments([expense({ id: 'e1', data: { amount: 100, currency: 'EUR', date: dateInMonth(now) } })]);
     getReferenceCurrency.mockResolvedValue(null);
     listCurrencyRates.mockResolvedValue([]);
 
@@ -71,7 +81,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
   });
 
   it('no expenses this month: the currency-less zero metric, consolidation never even attempted', async () => {
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
     getReferenceCurrency.mockResolvedValue('EUR');
     listCurrencyRates.mockResolvedValue([]);
 
@@ -85,7 +95,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
   });
 
   it('every encountered currency resolves: adds ONE consolidated metric, hand-checked, naming the rate used', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       expense({ id: 'e-eur', data: { amount: 100, currency: 'EUR', date: dateInMonth(now) } }),
       expense({ id: 'e-usd', data: { amount: 50, currency: 'USD', date: dateInMonth(now) } }),
     ]);
@@ -128,7 +138,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
   });
 
   it('a currency with no resolvable rate: NO consolidated widget, and the missing currency is named on the ordinary widgets', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       expense({ id: 'e-eur', data: { amount: 100, currency: 'EUR', date: dateInMonth(now) } }),
       expense({ id: 'e-jpy', data: { amount: 1000, currency: 'JPY', date: dateInMonth(now) } }),
     ]);
@@ -150,9 +160,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
   });
 
   it('a DB failure resolving currency context degrades to "unchanged", never throws', async () => {
-    listDocuments.mockResolvedValue([
-      expense({ id: 'e1', data: { amount: 100, currency: 'EUR', date: dateInMonth(now) } }),
-    ]);
+    seedDocuments([expense({ id: 'e1', data: { amount: 100, currency: 'EUR', date: dateInMonth(now) } })]);
     getReferenceCurrency.mockRejectedValue(new Error('connect ECONNREFUSED'));
     listCurrencyRates.mockResolvedValue([]);
 

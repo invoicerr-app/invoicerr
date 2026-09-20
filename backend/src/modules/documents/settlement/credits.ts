@@ -1,7 +1,6 @@
-import prisma from '@/prisma/prisma.service';
-
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
+import { listAllDocuments } from '../persistence';
 import { rowIdOf } from '../row-selection/row-selection';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { SettlementCreditInput } from './compute-settlement';
@@ -21,10 +20,6 @@ import { SettlementCreditInput } from './compute-settlement';
  * `resolveCreditsForDocument` below is the one function that decides "invoice" is, today, the only
  * correctable type; extending that to a second one later only touches this file.
  */
-
-/** Same explicit, honest cap as every other settlement/contribution read in this module — see
- *  persistence.ts's `listDocuments` and credit-note-contributions.ts's own `CONTRIBUTION_READ_LIMIT`. */
-const CREDIT_NOTE_READ_LIMIT = 500;
 
 /** One credit note counted (or named in a warning) against a document — mirrors the shape
  *  `DocumentPaymentResult` (settlement/payments.ts) gives a payment, so the frontend can render both
@@ -106,10 +101,15 @@ function computeCreditedAmountMinor(
  * credit-note-contributions.ts (`resolveInvoiceLabel`) already uses.
  */
 async function listCreditNotes(companyId: string): Promise<DocumentInstanceResult[]> {
-  return prisma.documentInstance.findMany({
-    where: { companyId, typeId: 'credit-note' },
-    orderBy: { createdAt: 'asc' },
-    take: CREDIT_NOTE_READ_LIMIT,
+  // EVERY credit note, paged until exhausted — never a capped page. This list is matched against
+  // invoices by `data.invoice` afterwards, so a note left unread is a credit that never reduces the
+  // invoice it corrects: the company keeps chasing a customer for money it already credited, and the
+  // balance is over-stated by exactly the note's own amount with nothing reporting it. The oldest
+  // notes are the ones a capped read kept, so it was always the NEWEST credits that stopped
+  // allocating — the ones a company is most likely to be asked about.
+  return listAllDocuments(companyId, {
+    typeId: 'credit-note',
+    orderBy: { field: 'createdAt', direction: 'asc' },
   });
 }
 

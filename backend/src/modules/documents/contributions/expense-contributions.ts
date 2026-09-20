@@ -1,6 +1,6 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
-import { listDocuments } from '../persistence';
+import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
 import { MetricWidget, TableWidget, Widget } from './widgets';
@@ -19,9 +19,10 @@ import { MetricWidget, TableWidget, Widget } from './widgets';
  * for THIS shape, rather than reaching for a shared helper that does not fit it.
  */
 
-/** How many document instances a contribution reads before aggregating — same explicit, honest cap
- *  as invoice-contributions.ts's own (persistence.ts's `listDocuments`), not a second convention. */
-const CONTRIBUTION_READ_LIMIT = 500;
+/** How many rows the STATISTICS table below lists — a display cap on a screen listing individual
+ *  expenses, named in the widget's own `warnings` when the company has more. The dashboard's monthly
+ *  totals do NOT use it: a sum over a page is a wrong sum. */
+const STATISTICS_TABLE_ROW_LIMIT = 500;
 
 /** `data.amount` if it is actually a number, 0 otherwise — the same "a still-being-filled draft is a
  *  normal state to aggregate over, not an error" rule invoice-contributions.ts's own `invoiceTotal`
@@ -65,7 +66,10 @@ function monthKey(value: unknown): string | null {
  * month" label, no `unit` — a currency-less zero shown honestly rather than a guessed one.
  */
 export const buildExpenseDashboardWidgets: ContributionHandler = async ({ companyId }) => {
-  const expenses = await listDocuments(companyId, 'expense', CONTRIBUTION_READ_LIMIT);
+  // Every expense, paged until exhausted: this month's and last month's totals are sums, and a sum
+  // computed over the most recently touched N rows silently drops whatever fell outside that window
+  // — including, for a company with steady activity, part of the very month being totalled.
+  const expenses = await listAllDocuments(companyId, { typeId: 'expense' });
   const now = new Date();
   const thisMonth = monthKey(now.toISOString());
   // Last month's key, on the same UTC clock as `thisMonth` — feeds `previousValue` below.
@@ -202,7 +206,10 @@ export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler 
  * `expenseAmount` already holds for a missing `amount` — never a crash, never a fabricated bucket.
  */
 export const buildExpenseStatisticsWidgets: ContributionHandler = async ({ companyId }) => {
-  const expenses = await listDocuments(companyId, 'expense', CONTRIBUTION_READ_LIMIT);
+  const [expenses, expenseCount] = await Promise.all([
+    listRecentDocuments(companyId, { typeId: 'expense', take: STATISTICS_TABLE_ROW_LIMIT }),
+    countDocuments(companyId, 'expense'),
+  ]);
 
   const rows = expenses
     .map((expense) => {
@@ -221,6 +228,12 @@ export const buildExpenseStatisticsWidgets: ContributionHandler = async ({ compa
     id: 'expense:all',
     kind: 'table',
     label: 'All expenses',
+    // See invoice-contributions.ts's identical caveat: a list that silently stops at its cap reads
+    // exactly like a complete one, so the widget says which it is.
+    warnings:
+      expenseCount > rows.length
+        ? [`Showing the ${rows.length} most recently updated expenses of ${expenseCount}.`]
+        : undefined,
     columns: [
       { key: 'date', label: 'Date' },
       { key: 'description', label: 'Description' },

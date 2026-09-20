@@ -1,6 +1,7 @@
 import { vi, type Mock } from 'vitest';
 
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import { resolveReceivedInvoiceReconciliation } from './resolve-received-invoice-reconciliation';
 import * as settings from './reconciliation-settings';
 import * as varianceAcceptance from './variance-acceptance';
@@ -16,7 +17,18 @@ vi.mock('./variance-acceptance');
  */
 describe('resolveReceivedInvoiceReconciliation', () => {
   const findOwnedDocument = persistence.findOwnedDocument as Mock;
-  const listDocuments = persistence.listDocuments as Mock;
+  const listAllDocuments = persistence.listAllDocuments as Mock;
+
+  /** Hands the code under test only the rows the QUERY would have returned. The client/status/type
+   *  narrowing moved into SQL when the read stopped being capped, so a mock returning a fixture
+   *  verbatim would feed it rows production never sees. Fixtures here stay small on purpose — they
+   *  prove the rules around the read; the cap-crossing fixtures live in `*.read-cap.spec.ts`. */
+  function seedDocuments(rows: DocumentInstanceResult[]): void {
+    listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+      filterLikeListAllDocuments(rows, options),
+    );
+  }
+
   const getReconciliationSettings = settings.getReconciliationSettings as Mock;
   const getVarianceAcceptance = varianceAcceptance.getVarianceAcceptance as Mock;
 
@@ -32,7 +44,7 @@ describe('resolveReceivedInvoiceReconciliation', () => {
     const result = await resolveReceivedInvoiceReconciliation('c1', 'ri1');
 
     expect(result).toEqual({ hasPurchaseOrder: false });
-    expect(listDocuments).not.toHaveBeenCalled();
+    expect(listAllDocuments).not.toHaveBeenCalled();
   });
 
   it('composes the PO, only RECORDED matching receipts, and the invoice into the engine, tolerance included', async () => {
@@ -47,21 +59,24 @@ describe('resolveReceivedInvoiceReconciliation', () => {
         status: 'sent',
         data: { lines: [{ description: 'Widget', quantity: 10, unitPrice: 100 }] },
       });
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       {
         id: 'gr1',
+        typeId: 'goods-receipt',
         status: 'recorded',
         data: { purchaseOrder: 'po1', lines: [{ description: 'Widget', quantityReceived: 10 }] },
       },
       {
         // A DRAFT receipt against the same PO — must NOT count towards quantityReceived.
         id: 'gr2',
+        typeId: 'goods-receipt',
         status: 'draft',
         data: { purchaseOrder: 'po1', lines: [{ description: 'Widget', quantityReceived: 999 }] },
       },
       {
         // A recorded receipt against a DIFFERENT PO — must not leak in either.
         id: 'gr3',
+        typeId: 'goods-receipt',
         status: 'recorded',
         data: { purchaseOrder: 'po-other', lines: [{ description: 'Widget', quantityReceived: 5 }] },
       },
@@ -71,7 +86,13 @@ describe('resolveReceivedInvoiceReconciliation', () => {
 
     expect(findOwnedDocument).toHaveBeenNthCalledWith(1, 'c1', 'received-invoice', 'ri1');
     expect(findOwnedDocument).toHaveBeenNthCalledWith(2, 'c1', 'purchase-order', 'po1');
-    expect(listDocuments).toHaveBeenCalledWith('c1', 'goods-receipt', expect.any(Number));
+    // Both narrowing conditions are in the QUERY now, so the fixture's draft receipt and its
+    // other-PO receipt are excluded before a single row reaches this function.
+    expect(listAllDocuments).toHaveBeenCalledWith('c1', {
+      typeId: 'goods-receipt',
+      status: ['recorded'],
+      dataEquals: { purchaseOrder: 'po1' },
+    });
 
     if (!result.hasPurchaseOrder) throw new Error('expected hasPurchaseOrder: true');
     expect(result.purchaseOrderId).toBe('po1');
@@ -94,9 +115,10 @@ describe('resolveReceivedInvoiceReconciliation', () => {
         status: 'sent',
         data: { lines: [{ description: 'Widget', quantity: 5, unitPrice: 100 }] },
       });
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       {
         id: 'gr1',
+        typeId: 'goods-receipt',
         status: 'recorded',
         data: { purchaseOrder: 'po1', lines: [{ description: 'Widget', quantityReceived: 5 }] },
       },
@@ -125,7 +147,7 @@ describe('resolveReceivedInvoiceReconciliation', () => {
         data: { purchaseOrder: 'po1', lines: [{ quantity: 10, unitPrice: 100 }, null, 'not-a-row'] },
       })
       .mockResolvedValueOnce({ id: 'po1', status: 'sent', data: { lines: 'not-an-array' } });
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
 
     const result = await resolveReceivedInvoiceReconciliation('c1', 'ri1');
 

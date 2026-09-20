@@ -16,12 +16,25 @@ import prisma from '@/prisma/prisma.service';
 import { computeArtifactHash } from '../archive/hashing';
 import { checkReceivedInvoiceLineTotals } from './line-totals-check';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import { receivedDocumentExtractorRegistry } from './ocr/extractor';
 import { ReceivedInvoicesService } from './received-invoices.service';
 import { persistInboundFile } from './storage';
 import { MAX_RECEIVED_INVOICE_BYTES } from './upload-validation';
 
 vi.mock('../persistence');
+
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the duplicate check only the rows the QUERY would have returned — the `fileRef` match moved
+ *  into SQL when this read stopped being capped, so a mock returning a fixture verbatim would let
+ *  every test here pass on an in-memory comparison production no longer makes. The cap-crossing
+ *  fixture lives in `duplicate-upload.read-cap.spec.ts`. */
+function seedDocuments(rows: Parameters<typeof filterLikeListAllDocuments>[0]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
 
 /** A minimal, real, valid CII XML — small enough to hand-write, big enough that extraction has real
  *  fields to find (this spec's own concern is the SERVICE's upload/dedup/download orchestration, not
@@ -78,7 +91,7 @@ describe('ReceivedInvoicesService', () => {
     dir = mkdtempSync(join(tmpdir(), 'received-invoices-service-test-'));
     process.env.DOCUMENTS_INBOUND_DIR = dir;
     service = new ReceivedInvoicesService();
-    (persistence.listDocuments as Mock).mockResolvedValue([]);
+    seedDocuments([]);
   });
 
   afterEach(() => {
@@ -140,7 +153,7 @@ describe('ReceivedInvoicesService', () => {
     it('refuses re-uploading the exact same file (same hash) already on an existing received-invoice, by name', async () => {
       const bytes = Buffer.from(MINIMAL_CII_XML, 'utf-8');
       const hash = computeArtifactHash(Buffer.from(MINIMAL_CII_XML, 'utf-8'));
-      (persistence.listDocuments as Mock).mockResolvedValue([
+      seedDocuments([
         {
           id: 'ri-existing',
           typeId: 'received-invoice',
@@ -163,7 +176,7 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a DIFFERENT file (different hash) is accepted even when another received-invoice exists', async () => {
-      (persistence.listDocuments as Mock).mockResolvedValue([
+      seedDocuments([
         {
           id: 'ri-existing',
           typeId: 'received-invoice',

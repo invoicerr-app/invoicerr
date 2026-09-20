@@ -1,6 +1,5 @@
 import { Prisma } from '../../../prisma/generated/prisma/client';
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import { logger } from '@/logger/logger.service';
+import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
 
 import { DocumentInstanceResult } from './actions/action-registry';
@@ -229,22 +228,161 @@ export async function claimDocumentTransition(
 }
 
 /**
- * `take` defaults to 50 (the list screen's own page size budget) — a contribution that needs to
- * aggregate over more history (contributions/invoice-contributions.ts) passes a larger explicit
- * value rather than this function growing a second, uncapped code path. Still ordered by
- * `updatedAt`, same as ever: a contribution reading a large `take` is an honest "most recently
- * touched N documents" view, not a full, unbounded table scan.
+ * The "most recently touched N" read — DELIBERATELY capped, `take` mandatory so no caller ever gets
+ * one by default without deciding what it means.
+ *
+ * ONLY for a genuine DISPLAY list, where showing the first N IS the intent (a reference picker's
+ * options, a detailed table a screen renders). A caller using this owes its reader a statement that
+ * the list is capped, and must never compute a total, a balance or a count FROM it — those come from
+ * `countDocuments`/`listAllDocuments` below, over the whole set.
+ *
+ * It replaces a `listDocuments(companyId, typeId, take)` that had a `take` DEFAULT and no status
+ * filter, which is what let a dozen callers read one capped page and then filter it in memory (by
+ * client, by status, by period) before summing it. That is not "the N most recent documents", it is
+ * a SUBSET OF A SUBSET reported as the whole: the rows past `take` were never loaded, so the
+ * in-memory filter cannot see them, and every amount derived from it is wrong WITH NO SIGNAL — no
+ * exception, no warning, no short count a reader could notice. Reproduced on a seeded company: 600
+ * sent invoices of 100.00 EUR each, the client statement reporting 50 000.00 EUR owed instead of
+ * 60 000.00 EUR. The mandatory `take` and the SQL-side `status` here exist so that shape cannot be
+ * written by accident again.
  */
-export async function listDocuments(
+export async function listRecentDocuments(
   companyId: string,
-  typeId?: string,
-  take = 50,
+  options: { typeId?: string; status?: string[]; take: number },
 ): Promise<DocumentInstanceResult[]> {
   return prisma.documentInstance.findMany({
-    where: { companyId, ...(typeId ? { typeId } : {}) },
+    where: {
+      companyId,
+      ...(options.typeId ? { typeId: options.typeId } : {}),
+      ...(options.status && options.status.length > 0 ? { status: { in: options.status } } : {}),
+    },
     orderBy: { updatedAt: 'desc' },
-    take,
+    take: options.take,
   });
+}
+
+/** How many rows this company's documents number, counted in SQL — what a screen showing a capped
+ *  list beside a "total" reports as that total, so the number never describes the page instead of
+ *  the set. Never reads a row. */
+export async function countDocuments(companyId: string, typeId?: string, status?: string[]): Promise<number> {
+  return prisma.documentInstance.count({
+    where: {
+      companyId,
+      ...(typeId ? { typeId } : {}),
+      ...(status && status.length > 0 ? { status: { in: status } } : {}),
+    },
+  });
+}
+
+/** How many rows ONE round trip of the exhaustive scan below reads. A batch size, never a cap: the
+ *  scan keeps going until the database hands back a short page. Sized so an ordinary company is one
+ *  or two queries while no single page is large enough to matter on its own. */
+const DOCUMENT_SCAN_PAGE_SIZE = 1000;
+
+/**
+ * The absolute number of rows `listAllDocuments` will read before it REFUSES, loudly.
+ *
+ * A ceiling is still needed — an unbounded read on a large enough company is its own failure mode
+ * (memory, latency) and pretending otherwise would trade one silent breakage for another. What makes
+ * this one honest is that reaching it THROWS instead of truncating: a computation over a set either
+ * covers the whole set or fails where someone can see it, never silently reports a partial answer as
+ * a total. Sized well past any company this product serves today, so it is a genuine capacity alarm
+ * and not a limit ordinary use runs into.
+ */
+export const DOCUMENT_SCAN_MAX_ROWS = 50_000;
+
+export interface ListAllDocumentsOptions {
+  /** Absent means "every type", same as `listDocuments` above. */
+  typeId?: string;
+  /** Statuses to keep — pushed into SQL as `status IN (...)`, never applied in memory afterwards. */
+  status?: string[];
+  /** Exact JSON-path equalities on `data`, ANDed and pushed into SQL — `{ client: '<id>' }` becomes
+   *  `data -> 'client' = '"<id>"'`. The ONE filter shape Prisma pushes down reliably for this column
+   *  (`listDocumentsPage` below already relies on it for the list screen's own client filter), and
+   *  the reason a per-client statement scans that client's own invoices rather than the company's
+   *  whole history. Keys are single `data` keys, never nested paths — nothing in this codebase
+   *  stores a document field deeper than that. */
+  dataEquals?: Record<string, string>;
+  /** Ordering applied in memory ONCE the scan is complete — the scan itself walks the primary key,
+   *  which is the only ordering a keyset pager can page on safely. Defaults to `updatedAt` DESC, the
+   *  exact order `listDocuments` above has always returned, so a caller moved from one to the other
+   *  sees the same sequence. `id` is always the tiebreaker, so two rows written in the same
+   *  millisecond never swap places between two calls. */
+  orderBy?: { field: 'updatedAt' | 'createdAt'; direction: 'asc' | 'desc' };
+}
+
+/**
+ * EVERY document matching the filter — paged until the set is exhausted, never one capped page.
+ *
+ * This is what any read feeding a computed amount uses: a client statement's balance due, an
+ * accounting export's period, credit-note allocation, the reminder sweep's overdue set, the
+ * dashboard's totals. See `listDocuments` above for what a capped read does to those numbers.
+ *
+ * Pages by keyset on `id` (`WHERE id > <last>` ORDER BY id), not `skip`/`take`: an offset pager
+ * re-reads the same prefix on every page and, worse, SKIPS a row whenever anything is inserted or
+ * deleted mid-scan — which would reintroduce exactly the silent gap this function exists to close.
+ * A cuid sorts by creation, so a row written during the scan lands ahead of the cursor and is picked
+ * up rather than duplicated.
+ */
+export async function listAllDocuments(
+  companyId: string,
+  options: ListAllDocumentsOptions = {},
+): Promise<DocumentInstanceResult[]> {
+  const where: Prisma.DocumentInstanceWhereInput = {
+    companyId,
+    ...(options.typeId ? { typeId: options.typeId } : {}),
+    ...(options.status && options.status.length > 0 ? { status: { in: options.status } } : {}),
+    ...(options.dataEquals && Object.keys(options.dataEquals).length > 0
+      ? {
+          AND: Object.entries(options.dataEquals).map(([key, value]) => ({
+            data: { path: [key], equals: value },
+          })),
+        }
+      : {}),
+  };
+
+  const rows = await scanEveryMatchingDocument(where, companyId, options.typeId);
+
+  const field = options.orderBy?.field ?? 'updatedAt';
+  const direction = options.orderBy?.direction ?? 'desc';
+  const sign = direction === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    const delta = a[field].getTime() - b[field].getTime();
+    if (delta !== 0) return sign * delta;
+    return sign * a.id.localeCompare(b.id);
+  });
+  return rows;
+}
+
+/** The keyset loop itself, shared by `listAllDocuments` above and `listDocumentsPage`'s own
+ *  date-filtered path below — the second place the cap used to be applied, so the two must share ONE
+ *  implementation or a fix to either leaves the other truncating. `companyId`/`typeId` are carried
+ *  only to name the company and type in the ceiling's refusal. */
+async function scanEveryMatchingDocument(
+  where: Prisma.DocumentInstanceWhereInput,
+  companyId: string,
+  typeId: string | undefined,
+): Promise<DocumentInstanceResult[]> {
+  const rows: DocumentInstanceResult[] = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await prisma.documentInstance.findMany({
+      where: cursor === undefined ? where : { AND: [where, { id: { gt: cursor } }] },
+      orderBy: { id: 'asc' },
+      take: DOCUMENT_SCAN_PAGE_SIZE,
+    });
+    rows.push(...page);
+    if (page.length < DOCUMENT_SCAN_PAGE_SIZE) break;
+    if (rows.length > DOCUMENT_SCAN_MAX_ROWS) {
+      throw new InternalServerErrorException(
+        `Reading every "${typeId ?? 'document'}" of company ${companyId} exceeded ` +
+          `${DOCUMENT_SCAN_MAX_ROWS} rows — refused rather than answering from a partial read, ` +
+          `which would silently misstate every amount computed from it.`,
+      );
+    }
+    cursor = page[page.length - 1].id;
+  }
+  return rows;
 }
 
 /** The real columns `GET /documents` may sort by — deliberately NOT `issueDate` or any other field
@@ -300,13 +438,6 @@ export interface ListDocumentsPageResult {
   pageSize: number;
 }
 
-/** Same cap discipline `accounting-export.service.ts`'s own `ACCOUNTING_EXPORT_READ_LIMIT` already
- *  holds for the identical constraint (a JSON-embedded date has no SQL ORDER BY/range this codebase
- *  trusts — see this function's own header): an honest "most recently touched N documents" read, not
- *  an unbounded table scan, whenever a date filter forces the in-memory path below. Larger than the
- *  accounting export's own 500 — this is a general list, not one bounded to a single fiscal period. */
-export const DOCUMENT_LIST_DATE_FILTER_READ_CAP = 2000;
-
 /** `"YYYY-MM-DD"` -> the UTC midnight of that day, in milliseconds — the exact same conversion
  *  `accounting-export.service.ts#dayMs` already holds for the identical param shape, duplicated
  *  rather than imported (a sibling, single-purpose concern; see `dateValueInRange`'s own header for
@@ -353,10 +484,9 @@ function buildSearchOr(options: ListDocumentsPageOptions): Prisma.DocumentInstan
 }
 
 /**
- * The paginated, filtered companion to `listDocuments` above — what `GET /documents` (the list
- * screen) actually calls today; `listDocuments` itself stays untouched for its dozen other callers
- * (contributions, reconciliation, the accounting export…), every one of which wants an honestly-
- * capped, unpaginated read, never a page.
+ * The paginated, filtered companion to the reads above — what `GET /documents` (the list screen)
+ * actually calls. `listAllDocuments` stays the unpaginated form, for a caller computing something
+ * over the whole set rather than showing one page of it.
  *
  * Two different execution paths, chosen by whether a date-range filter is present:
  *  - No date filter: `status`/`clientId`/`searchOr` are already ordinary Prisma WHERE clauses
@@ -367,9 +497,12 @@ function buildSearchOr(options: ListDocumentsPageOptions): Prisma.DocumentInstan
  *    which Prisma/Postgres has no trustworthy ORDER BY or range comparison for that agrees with this
  *    codebase's own notion of "a valid date" (see `dateValueInRange`'s own header — a malformed
  *    value must read as EXCLUDED, never as an arbitrary lexicographic sort position a raw jsonb
- *    comparison would silently produce). So the range is applied in application code, over a capped
- *    candidate set already narrowed by every DB-pushable clause, and pagination becomes an in-memory
- *    slice of the SURVIVORS — `total` is the survivor count, honestly bounded by the same cap.
+ *    comparison would silently produce). So the range is applied in application code, over the
+ *    candidate set every DB-pushable clause narrows to — read IN FULL (`scanEveryMatchingDocument`),
+ *    never one capped page. `total` is a count over the whole filtered set, and the page is a slice
+ *    of it. This path used to read one 2000-row page and return the survivor count of THAT as
+ *    `total`: past the cap the screen reported a total it had never counted, and a document the
+ *    filter genuinely matched simply was not in the list — with nothing on the page saying so.
  */
 export async function listDocumentsPage(
   companyId: string,
@@ -385,7 +518,13 @@ export async function listDocumentsPage(
       : {}),
     ...(searchOr.length > 0 ? { OR: searchOr } : {}),
   };
-  const orderBy = { [options.sort]: options.order } as Prisma.DocumentInstanceOrderByWithRelationInput;
+  // `id` is the tiebreaker on BOTH paths (see `compareBySortField` below for the in-memory copy):
+  // without it, rows sharing a sort value have no defined order, so paging through a list sorted by
+  // `status` could show one document twice and never show another at all.
+  const orderBy: Prisma.DocumentInstanceOrderByWithRelationInput[] = [
+    { [options.sort]: options.order } as Prisma.DocumentInstanceOrderByWithRelationInput,
+    { id: options.order },
+  ];
 
   const hasDateFilter = !!(options.dateFrom || options.dateTo);
   if (!hasDateFilter) {
@@ -401,23 +540,7 @@ export async function listDocumentsPage(
     return { items, total, page: options.page, pageSize: options.pageSize };
   }
 
-  const candidates = await prisma.documentInstance.findMany({
-    where,
-    orderBy,
-    take: DOCUMENT_LIST_DATE_FILTER_READ_CAP,
-  });
-  // Hitting the cap exactly means there may be MORE rows this WHERE clause would otherwise have
-  // matched, beyond what was ever read — `total` below is then the survivor count of a truncated
-  // candidate set, not a true total, and a company approaching this in ordinary use is a real
-  // capacity signal a raised cap or a dedicated export (accounting-export.service.ts already exists
-  // for exactly that) should pick up, not something that should only ever be discovered by a support
-  // ticket about a document that "isn't in the list".
-  if (candidates.length === DOCUMENT_LIST_DATE_FILTER_READ_CAP) {
-    logger.warn('Date-filtered document list hit its in-memory read cap — total may be undercounted', {
-      category: 'documents',
-      details: { typeId: options.typeId, cap: DOCUMENT_LIST_DATE_FILTER_READ_CAP },
-    });
-  }
+  const candidates = await scanEveryMatchingDocument(where, companyId, options.typeId);
   const dateFieldKey = options.dateFieldKey;
   const fromMs = options.dateFrom ? dayMs(options.dateFrom) : undefined;
   const toMs = options.dateTo ? dayMs(options.dateTo) : undefined;
@@ -426,6 +549,10 @@ export async function listDocumentsPage(
         dateValueInRange((doc.data as Record<string, unknown> | null)?.[dateFieldKey], fromMs, toMs),
       )
     : candidates;
+  // The scan pages on the primary key, so the requested ordering has to be re-applied here — the
+  // fast path above gets it straight from SQL and the two must agree or the same query answers
+  // differently depending on whether a date filter happens to be set.
+  survivors.sort(compareBySortField(options.sort, options.order));
   const start = (options.page - 1) * options.pageSize;
   return {
     items: survivors.slice(start, start + options.pageSize),
@@ -435,10 +562,41 @@ export async function listDocumentsPage(
   };
 }
 
+/** Postgres's own ordering for one of `DOCUMENT_LIST_SORT_FIELDS`, reproduced in memory for the
+ *  date-filtered path above. NULLs (only `number` is nullable) go LAST ascending and FIRST
+ *  descending, which is what Postgres does by default and therefore what the SQL path returns; `id`
+ *  breaks every tie so a page boundary never lands mid-way through a group of equal values and drops
+ *  or repeats a row between two page requests. */
+function compareBySortField(
+  sort: DocumentListSortField,
+  order: 'asc' | 'desc',
+): (a: DocumentInstanceResult, b: DocumentInstanceResult) => number {
+  const sign = order === 'asc' ? 1 : -1;
+  return (a, b) => {
+    let delta = 0;
+    if (sort === 'number') {
+      const left = a.number ?? null;
+      const right = b.number ?? null;
+      if (left === null || right === null) {
+        if (left === right) delta = 0;
+        // NULLS LAST ascending / FIRST descending — independent of `sign`, hence the early return.
+        else return left === null ? 1 : -1;
+      } else {
+        delta = left - right;
+      }
+    } else if (sort === 'status') {
+      delta = a.status.localeCompare(b.status);
+    } else {
+      delta = a[sort].getTime() - b[sort].getTime();
+    }
+    if (delta !== 0) return sign * delta;
+    return sign * a.id.localeCompare(b.id);
+  };
+}
+
 /**
  * The batched, EXACT-id companion to `findOwnedDocument` — every document among `ids` that belongs to
- * `companyId`, in ONE query, regardless of type or how far back `listDocuments`' own `take` cap would
- * otherwise reach. Added for accounting-export/accounting-export.service.ts:
+ * `companyId`, in ONE query, regardless of type or of any display cap a list read applies. Added for accounting-export/accounting-export.service.ts:
  * a `DocumentPayment` row's `documentId` can, in principle, name any document (see
  * `DocumentPayment.documentId`'s own schema comment), so resolving "which invoice did this payment
  * settle" for a period-wide read needs an exact lookup, never a status/type-filtered, capped list. An

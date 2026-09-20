@@ -4,6 +4,7 @@ import * as currencyRatesStore from '../../company/currency-rates/currency-rates
 import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildInvoiceDashboardWidgetsWithConsolidation } from './invoice-contributions';
 import { MetricWidget } from './widgets';
@@ -24,7 +25,18 @@ vi.mock('../../company/currency-rates/currency-rates.store', async () => {
   return { ...actual, getReferenceCurrency: vi.fn(), listCurrencyRates: vi.fn() };
 });
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The client/status/type
+ *  narrowing moved into SQL when the read stopped being capped, so a mock returning a fixture
+ *  verbatim would feed it rows production never sees. Fixtures here stay small on purpose — they
+ *  prove the rules around the read; the cap-crossing fixtures live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
+
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
 const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as Mock;
@@ -46,7 +58,7 @@ function invoice(
 describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
   beforeEach(() => {
     vi.useFakeTimers().setSystemTime(new Date('2026-08-30'));
-    listDocuments.mockReset();
+    listAllDocuments.mockReset();
     sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
     listCreditNotes.mockReset().mockResolvedValue([]);
     getReferenceCurrency.mockReset();
@@ -56,7 +68,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
   afterEach(() => vi.useRealTimers());
 
   it('no referenceCurrency set: the per-currency pending totals are returned, no consolidated metric', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'sent-1',
         data: { currency: 'EUR', dueDate: '2026-09-01', lines: [{ quantity: 1, unitPrice: 100 }] },
@@ -78,7 +90,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
   });
 
   it('every pending currency resolves: adds ONE consolidated metric, hand-checked, naming the rate used', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'sent-eur',
         data: { currency: 'EUR', dueDate: '2026-09-01', lines: [{ quantity: 1, unitPrice: 100 }] },
@@ -117,7 +129,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
   });
 
   it('a currency with no resolvable rate: no consolidated metric, and the missing currency is named', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'sent-eur',
         data: { currency: 'EUR', dueDate: '2026-09-01', lines: [{ quantity: 1, unitPrice: 100 }] },
@@ -144,7 +156,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
   });
 
   it('nothing pending at all: no per-currency total widgets, consolidation never attempted', async () => {
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
     getReferenceCurrency.mockResolvedValue('EUR');
     listCurrencyRates.mockResolvedValue([]);
 

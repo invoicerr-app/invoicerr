@@ -3,11 +3,11 @@ import { vi, type Mock } from 'vitest';
 import JSZip = require('jszip');
 
 import { BillingExportService, ExportZipTimedOutError, ExportZipTooLargeError } from './export-zip.service';
-import { listDocuments } from '../documents/persistence';
+import { listAllDocuments } from '../documents/persistence';
 
 vi.mock('../documents/persistence');
 
-const listDocumentsMock = listDocuments as Mock;
+const listAllDocumentsMock = listAllDocuments as Mock;
 
 function fakeDocumentsService(overrides: Partial<{ renderInstancePdf: Mock }> = {}) {
   return {
@@ -18,19 +18,20 @@ function fakeDocumentsService(overrides: Partial<{ renderInstancePdf: Mock }> = 
 describe('BillingExportService.buildCompanyZip', () => {
   afterEach(() => vi.resetAllMocks());
 
-  it('requests every document (a very large take — never the 50-row list-screen default)', async () => {
-    listDocumentsMock.mockResolvedValue([]);
+  it('reads every document of every type — no cap of any size, not even a very large one', async () => {
+    listAllDocumentsMock.mockResolvedValue([]);
     const service = new BillingExportService(fakeDocumentsService());
 
     await service.buildCompanyZip('company-1');
 
-    expect(listDocumentsMock).toHaveBeenCalledWith('company-1', undefined, expect.any(Number));
-    const [, , take] = listDocumentsMock.mock.calls[0];
-    expect(take).toBeGreaterThan(1000);
+    // `listAllDocuments` pages until the set is exhausted; there is no `take` to get wrong. The
+    // previous shape passed a 1 000 000 row cap to stand in for "no cap", which is still a cap —
+    // one nothing would ever report hitting on a company that crossed it.
+    expect(listAllDocumentsMock).toHaveBeenCalledWith('company-1');
   });
 
   it('writes one JSON + one PDF per renderable document', async () => {
-    listDocumentsMock.mockResolvedValue([
+    listAllDocumentsMock.mockResolvedValue([
       { id: 'doc-1', typeId: 'invoice', number: 42, data: { foo: 'bar' } },
     ]);
     const render = vi.fn().mockResolvedValue(Buffer.from('%PDF-1.4'));
@@ -45,7 +46,7 @@ describe('BillingExportService.buildCompanyZip', () => {
   });
 
   it('still includes the JSON when PDF rendering fails for one document, without throwing', async () => {
-    listDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'quote', number: null, data: {} }]);
+    listAllDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'quote', number: null, data: {} }]);
     const render = vi.fn().mockRejectedValue(new Error('cannot render draft'));
     const service = new BillingExportService(fakeDocumentsService({ renderInstancePdf: render }));
 
@@ -57,7 +58,7 @@ describe('BillingExportService.buildCompanyZip', () => {
   });
 
   it('falls back to the document id in the filename when it has no number yet', async () => {
-    listDocumentsMock.mockResolvedValue([{ id: 'doc-9', typeId: 'expense', number: undefined, data: {} }]);
+    listAllDocumentsMock.mockResolvedValue([{ id: 'doc-9', typeId: 'expense', number: undefined, data: {} }]);
     const service = new BillingExportService(fakeDocumentsService());
 
     const buffer = await service.buildCompanyZip('company-1');
@@ -68,7 +69,7 @@ describe('BillingExportService.buildCompanyZip', () => {
   });
 
   it('aborts with a named ExportZipTooLargeError once the archive crosses the byte cap, instead of finishing an unbounded build', async () => {
-    listDocumentsMock.mockResolvedValue([
+    listAllDocumentsMock.mockResolvedValue([
       { id: 'doc-1', typeId: 'invoice', number: 1, data: { text: 'x'.repeat(10_000) } },
     ]);
     const service = new BillingExportService(fakeDocumentsService());
@@ -84,7 +85,7 @@ describe('BillingExportService.buildCompanyZip', () => {
   });
 
   it('aborts with a named ExportZipTimedOutError once the build exceeds the time cap', async () => {
-    listDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'invoice', number: 1, data: {} }]);
+    listAllDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'invoice', number: 1, data: {} }]);
     const service = new BillingExportService(fakeDocumentsService());
     // A constant clock (elapsed always 0) combined with a negative cap makes the very first chunk
     // trip the timeout deterministically — no reliance on real wall-clock timing in this spec.
@@ -96,7 +97,7 @@ describe('BillingExportService.buildCompanyZip', () => {
   });
 
   it('still builds normally once bytes and duration stay within the (generous, default) bounds', async () => {
-    listDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'invoice', number: 1, data: {} }]);
+    listAllDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'invoice', number: 1, data: {} }]);
     const service = new BillingExportService(fakeDocumentsService());
 
     const buffer = await service.buildCompanyZip('company-1');

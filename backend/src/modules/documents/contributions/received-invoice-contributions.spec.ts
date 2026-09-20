@@ -2,12 +2,23 @@ import { vi, type Mock } from 'vitest';
 
 import { buildReceivedInvoiceDashboardWidgets, grossAmount } from './received-invoice-contributions';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget } from './widgets';
 
 vi.mock('../persistence');
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The client/status/type
+ *  narrowing moved into SQL when the read stopped being capped, so a mock returning a fixture
+ *  verbatim would feed it rows production never sees. Fixtures here stay small on purpose — they
+ *  prove the rules around the read; the cap-crossing fixtures live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
 
 function receivedInvoice(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -34,10 +45,10 @@ describe('grossAmount', () => {
 });
 
 describe('buildReceivedInvoiceDashboardWidgets', () => {
-  beforeEach(() => listDocuments.mockReset());
+  beforeEach(() => listAllDocuments.mockReset());
 
   it('counts every "received" (pending review) instance, grouped amounts by currency', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       receivedInvoice({ id: 'ri-1', status: 'received', data: { grossAmount: 120, currency: 'EUR' } }),
       receivedInvoice({ id: 'ri-2', status: 'received', data: { grossAmount: 30, currency: 'EUR' } }),
       // A different currency, same status — its own metric, never merged into EUR's.
@@ -60,7 +71,7 @@ describe('buildReceivedInvoiceDashboardWidgets', () => {
   });
 
   it('a pending record with no recorded amount still counts, but contributes nothing to the currency totals', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       receivedInvoice({ id: 'ri-1', status: 'received', data: {} }), // a plain scanned PDF, nothing extracted
     ]);
 
@@ -77,7 +88,7 @@ describe('buildReceivedInvoiceDashboardWidgets', () => {
   });
 
   it('nothing pending at all: a zero count, no currency metrics', async () => {
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
 
     const widgets = await buildReceivedInvoiceDashboardWidgets({ companyId: 'c1' });
 

@@ -1,21 +1,9 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
-import { listDocuments } from '../persistence';
+import { listAllDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
 import { MetricWidget, Widget } from './widgets';
-
-/**
- * The received-invoice dashboard contribution — "pending received invoices" (count + amount by
- * currency). DASHBOARD only, deliberately: no Statistics table here the way expense/invoice/credit-
- * note each got one — inventing one unprompted would be exactly
- * the kind of unrequested scope this codebase avoids elsewhere (see credit-note.descriptor.ts's own
- * "no forced negative amounts" list). Calqued on expense-contributions.ts's own dashboard metric —
- * same reasoning reused: grouped BY currency, one metric per currency actually present, NEVER a
- * cross-currency sum, exactly the "grouped by currency, consolidation applies itself on top if a
- * reference currency is configured" discipline this whole module holds everywhere else.
- */
-const CONTRIBUTION_READ_LIMIT = 500;
 
 /** `data.grossAmount` if it is actually a number, 0 otherwise — the same "a still-being-filled
  *  record is a normal state to aggregate over, not an error" rule expense-contributions.ts's own
@@ -35,8 +23,14 @@ function grossAmount(data: Record<string, unknown>): number {
  * still a real, useful fact for an empty-looking dashboard.
  */
 export const buildReceivedInvoiceDashboardWidgets: ContributionHandler = async ({ companyId }) => {
-  const invoices = await listDocuments(companyId, 'received-invoice', CONTRIBUTION_READ_LIMIT);
-  const pending = invoices.filter((invoice) => invoice.status === 'received');
+  // "received" pushed into SQL, paged until exhausted: both the count and the per-currency sums
+  // below are aggregates over every pending received invoice. Filtering a capped page in memory made
+  // a supplier invoice awaiting review for a long time drop out of the pending count and out of the
+  // amount due — the oldest ones first, which are exactly the ones a reviewer needs to see.
+  const pending = await listAllDocuments(companyId, {
+    typeId: 'received-invoice',
+    status: ['received'],
+  });
 
   const countMetric: MetricWidget = {
     id: 'received-invoice:pending-count',

@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 
-import { findOwnedDocument, listDocuments } from '../persistence';
+import { countDocuments, findOwnedDocument, listRecentDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { TableWidget, Widget } from './widgets';
 
@@ -9,9 +9,12 @@ import { TableWidget, Widget } from './widgets';
  * below for exactly what that means for the descriptor.
  */
 
-/** Same explicit, honest cap as every other contribution file's own — persistence.ts's
- *  `listDocuments`, never an unbounded scan. */
-const CONTRIBUTION_READ_LIMIT = 500;
+/** How many rows the STATISTICS table below lists — a display cap on a screen listing individual
+ *  credit notes, named in the widget's own `warnings` when the company has more. This file emits no
+ *  aggregate at all (no total, no count), so the cap ends here: nothing is computed from the page.
+ *  Credit-note ALLOCATION — the arithmetic that actually reduces what an invoice owes — reads every
+ *  note instead (`settlement/credits.ts#listCreditNotes`). */
+const STATISTICS_TABLE_ROW_LIMIT = 500;
 
 /**
  * The invoice a credit note corrects, as a human-facing string — its own `displayNumber` when the
@@ -41,7 +44,10 @@ async function resolveInvoiceLabel(companyId: string, invoiceId: string): Promis
  * space on.
  */
 export const buildCreditNoteStatisticsWidgets: ContributionHandler = async ({ companyId }) => {
-  const creditNotes = await listDocuments(companyId, 'credit-note', CONTRIBUTION_READ_LIMIT);
+  const [creditNotes, creditNoteCount] = await Promise.all([
+    listRecentDocuments(companyId, { typeId: 'credit-note', take: STATISTICS_TABLE_ROW_LIMIT }),
+    countDocuments(companyId, 'credit-note'),
+  ]);
 
   const rows = await Promise.all(
     creditNotes.map(async (creditNote) => {
@@ -59,6 +65,12 @@ export const buildCreditNoteStatisticsWidgets: ContributionHandler = async ({ co
     id: 'credit-note:all',
     kind: 'table',
     label: 'All credit notes',
+    // See invoice-contributions.ts's identical caveat: a list that silently stops at its cap reads
+    // exactly like a complete one, so the widget says which it is.
+    warnings:
+      creditNoteCount > rows.length
+        ? [`Showing the ${rows.length} most recently updated credit notes of ${creditNoteCount}.`]
+        : undefined,
     columns: [
       { key: 'issueDate', label: 'Issue date' },
       { key: 'invoice', label: 'Invoice' },

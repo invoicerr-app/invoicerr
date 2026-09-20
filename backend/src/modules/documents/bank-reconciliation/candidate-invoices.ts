@@ -1,5 +1,5 @@
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { listDocuments } from '../persistence';
+import { listAllDocuments } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { computeSettlement } from '../settlement/compute-settlement';
 import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
@@ -21,12 +21,15 @@ import { MatchCandidateInvoice } from './matching';
  * exact same filter `client-statement.ts` already applies for the identical reason.
  */
 
-const CANDIDATE_READ_LIMIT = 500;
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 export async function resolveOutstandingInvoices(companyId: string): Promise<MatchCandidateInvoice[]> {
-  const allInvoices = await listDocuments(companyId, 'invoice', CANDIDATE_READ_LIMIT);
-  const sentInvoices = allInvoices.filter((invoice) => invoice.status === 'sent');
+  // Every sent invoice, "sent" pushed into SQL, paged until exhausted (`listAllDocuments`). The pool
+  // a bank line is matched against must be the WHOLE pool: an invoice missing from it is not merely
+  // absent from a screen, it is an incoming payment that silently finds no invoice to settle — and
+  // the invoices an `updatedAt`-ordered capped read dropped first were the long-unpaid ones, the very
+  // population a bank statement is most likely to be paying off.
+  const sentInvoices = await listAllDocuments(companyId, { typeId: 'invoice', status: ['sent'] });
 
   const paidByDocument = await sumPaidMinorByDocument(
     companyId,

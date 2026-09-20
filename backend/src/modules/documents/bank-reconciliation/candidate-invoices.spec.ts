@@ -4,6 +4,7 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
 import * as clientLabels from '../accounting-export/client-labels';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
 import { resolveOutstandingInvoices } from './candidate-invoices';
@@ -22,7 +23,18 @@ vi.mock('../settlement/credits', async () => {
 });
 vi.mock('../accounting-export/client-labels');
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The client/status/type
+ *  narrowing moved into SQL when the read stopped being capped, so a mock returning a fixture
+ *  verbatim would feed it rows production never sees. Fixtures here stay small on purpose — they
+ *  prove the rules around the read; the cap-crossing fixtures live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
+
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
 const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 const resolveClientLabels = clientLabels.resolveClientLabels as Mock;
@@ -55,7 +67,7 @@ function invoice(
 }
 
 beforeEach(() => {
-  listDocuments.mockReset();
+  listAllDocuments.mockReset();
   sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
   listCreditNotes.mockReset().mockResolvedValue([]);
   resolveClientLabels.mockReset().mockResolvedValue(new Map([['client-1', 'ACME SARL']]));
@@ -63,7 +75,7 @@ beforeEach(() => {
 
 describe('resolveOutstandingInvoices', () => {
   it('a sent, unpaid invoice is a candidate with its full gross as outstanding', async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
 
     const candidates = await resolveOutstandingInvoices('company-1');
     expect(candidates).toEqual([
@@ -80,18 +92,18 @@ describe('resolveOutstandingInvoices', () => {
   });
 
   it('a draft invoice is never a candidate — nothing owed on record yet', async () => {
-    listDocuments.mockResolvedValue([invoice({ id: 'inv-draft', status: 'draft', data: invoiceData() })]);
+    seedDocuments([invoice({ id: 'inv-draft', status: 'draft', data: invoiceData() })]);
     expect(await resolveOutstandingInvoices('company-1')).toEqual([]);
   });
 
   it('a fully paid invoice is never a candidate — nothing left to reconcile', async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     sumPaidMinorByDocument.mockResolvedValue(new Map([['inv-1', 12000]]));
     expect(await resolveOutstandingInvoices('company-1')).toEqual([]);
   });
 
   it('a partially paid invoice is still a candidate, for its REMAINING balance', async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     sumPaidMinorByDocument.mockResolvedValue(new Map([['inv-1', 5000]]));
     const candidates = await resolveOutstandingInvoices('company-1');
     expect(candidates).toHaveLength(1);
@@ -99,7 +111,7 @@ describe('resolveOutstandingInvoices', () => {
   });
 
   it('a client id with no resolvable label degrades to null, never a crash', async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     resolveClientLabels.mockResolvedValue(new Map());
     const candidates = await resolveOutstandingInvoices('company-1');
     expect(candidates[0].clientLabel).toBeNull();

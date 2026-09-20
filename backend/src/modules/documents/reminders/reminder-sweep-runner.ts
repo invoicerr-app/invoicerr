@@ -69,18 +69,13 @@ import { decimalsFor, fromMinor } from '@/utils/financial';
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { listDocuments } from '../persistence';
+import { listAllDocuments } from '../persistence';
 import { resolveRecipientLanguage } from '../rendering/language/resolve-recipient-language';
 import { computeSettlement } from '../settlement/compute-settlement';
 import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
 import { sumPaidMinorByDocument } from '../settlement/payments';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { buildReminderEmail, daysOverdueOn, selectDueReminderTier } from './reminder-sweep';
-
-/** Same explicit, honest read cap as `settlement/client-statement.ts#CLIENT_STATEMENT_READ_LIMIT` — a
- *  sweep pass is an honest "most recently touched N invoices per company" walk, never an unbounded
- *  table scan. */
-const REMINDER_SWEEP_INVOICE_READ_LIMIT = 500;
 
 /** The invoice's own base descriptor — see `client-statement.ts`'s identical constant for why a
  *  direct import is fine here: this file only ever computes totals for "invoice" instances (this
@@ -183,11 +178,13 @@ export class ReminderSweepRunner {
     companyLanguage: string | null,
     now: Date,
   ): Promise<CompanyReminderResult> {
-    const invoices = (await listDocuments(companyId, 'invoice', REMINDER_SWEEP_INVOICE_READ_LIMIT)).filter(
-      // "sent" only — the same rule `client-statement.ts#resolveClientStatement` already applies: a
-      // draft was never actually issued, and a cancelled invoice owes nothing.
-      (invoice) => invoice.status === 'sent',
-    );
+    // "sent" only — the same rule `client-statement.ts#resolveClientStatement` already applies: a
+    // draft was never actually issued, and a cancelled invoice owes nothing. Pushed into SQL and
+    // paged until exhausted (`listAllDocuments`): the overdue invoices this sweep exists to chase are
+    // by definition the ones NOT recently touched, which is exactly what a `updatedAt`-ordered capped
+    // read dropped first — past the cap a company's oldest debts simply stopped being reminded, and
+    // the sweep reported a clean pass while doing it.
+    const invoices = await listAllDocuments(companyId, { typeId: 'invoice', status: ['sent'] });
     if (invoices.length === 0) return { remindersSent: 0, skipped: 0 };
 
     const invoiceIds = invoices.map((invoice) => invoice.id);

@@ -12,6 +12,7 @@ import { buildQuoteDescriptor } from '../documents/descriptors/quote.descriptor'
 import { DocumentTypeRegistry } from '../documents/descriptors/type-registry';
 import { DocumentsService } from '../documents/documents.service';
 import * as persistence from '../documents/persistence';
+import { filterLikeListAllDocuments } from '../documents/__tests__/fake-document-instance-table';
 import { PaymentSessionsService } from '../documents/payments/payment-sessions.service';
 import * as clientStatement from '../documents/settlement/client-statement';
 import { EntityReferenceRegistry } from '../documents/references/reference-registry';
@@ -21,6 +22,17 @@ import { PortalService } from './portal.service';
 
 vi.mock('../documents/persistence');
 vi.mock('../documents/settlement/client-statement');
+
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the portal only the rows the QUERY would have returned — the client and client-visible
+ *  status narrowing moved into SQL when this read stopped being capped. The cap-crossing fixture
+ *  lives in `portal-quotes.read-cap.spec.ts`. */
+function seedDocuments(rows: Parameters<typeof filterLikeListAllDocuments>[0]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
 
 /**
  * `PortalService` is where the portal's ENTIRE security boundary lives (see that file's own header)
@@ -322,7 +334,10 @@ describe('PortalService — the client-portal security boundary', () => {
   describe('listQuotes', () => {
     it('lists only THIS client’s quotes, on a clientVisible status — never a draft, never another client’s', async () => {
       const { service } = buildService();
-      (persistence.listDocuments as Mock).mockResolvedValue([QUOTE_A, QUOTE_B, DRAFT_QUOTE_A]);
+      // The client and status narrowing is in the QUERY now, so this fixture goes through the same
+      // filter — the other client's quote and the draft never reach the service at all, which is
+      // exactly what the boundary this test guards must keep being true of.
+      seedDocuments([QUOTE_A, QUOTE_B, DRAFT_QUOTE_A]);
 
       const rows = await service.listQuotes(COMPANY, CLIENT_A);
       expect(rows.map((row) => row.id)).toEqual(['quote-a']);

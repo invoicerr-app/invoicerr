@@ -6,12 +6,36 @@ import {
   quoteGrossTotal,
 } from './quote-contributions';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget, ShortListWidget, TableWidget } from './widgets';
 
 vi.mock('../persistence');
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+const listRecentDocuments = persistence.listRecentDocuments as Mock;
+const countDocuments = persistence.countDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The narrowing moved into
+ *  SQL when these reads stopped being capped, and the statistics screen now counts in the table
+ *  rather than on its own page — so one fixture feeds all three reads. Fixtures here stay small on
+ *  purpose; the cap-crossing ones live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+  listRecentDocuments.mockImplementation(async (_companyId: string, options) =>
+    filterLikeListAllDocuments(rows, {
+      typeId: options.typeId,
+      status: options.status,
+      orderBy: { field: 'updatedAt', direction: 'desc' },
+    }).slice(0, options.take),
+  );
+  countDocuments.mockImplementation(
+    async (_companyId: string, typeId?: string, status?: string[]) =>
+      filterLikeListAllDocuments(rows, { typeId, status }).length,
+  );
+}
 
 function quote(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -44,10 +68,14 @@ describe('quoteGrossTotal', () => {
 });
 
 describe('buildQuoteDashboardWidgets', () => {
-  beforeEach(() => listDocuments.mockReset());
+  beforeEach(() => {
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
+  });
 
   it('shows only DRAFT quotes — a sent one never appears in the shortlist', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       quote({ id: 'draft-1', status: 'draft', data: { issueDate: '2026-01-01' } }),
       quote({
         id: 'sent-1',
@@ -64,7 +92,7 @@ describe('buildQuoteDashboardWidgets', () => {
   });
 
   it('a never-sent draft shows the FACT (no number yet), never a fabricated number', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       quote({ id: 'draft-1', status: 'draft', displayNumber: null, data: { issueDate: '2026-01-05' } }),
     ]);
 
@@ -79,7 +107,7 @@ describe('buildQuoteDashboardWidgets', () => {
   });
 
   it('a quote sent, then re-saved as draft, keeps showing its real number — the number is never cleared', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       quote({
         id: 'reverted-1',
         status: 'draft',
@@ -97,7 +125,7 @@ describe('buildQuoteDashboardWidgets', () => {
   it('relies on listDocuments\' own updatedAt-desc order for "most recent first" — no re-sort', async () => {
     // listDocuments (mocked here) is documented to already return most-recently-updated first;
     // this contribution must preserve that order rather than re-sort by something else.
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       quote({ id: 'newest', status: 'draft', data: {} }),
       quote({ id: 'oldest', status: 'draft', data: {} }),
     ]);
@@ -109,7 +137,7 @@ describe('buildQuoteDashboardWidgets', () => {
   });
 
   it('"Open quotes" counts drafts and sent ones — signed, sending and failed sends are not open', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       quote({ id: 'd1', status: 'draft', data: {} }),
       quote({ id: 's1', status: 'sent', displayNumber: 'QUO-1', data: {} }),
       quote({ id: 'signed', status: 'signed', displayNumber: 'QUO-2', data: {} }),
@@ -128,10 +156,14 @@ describe('buildQuoteDashboardWidgets', () => {
 });
 
 describe('buildQuoteStatisticsWidgets', () => {
-  beforeEach(() => listDocuments.mockReset());
+  beforeEach(() => {
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
+  });
 
   it('"Quotes sent" counts only quotes CURRENTLY at status "sent"', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       quote({ id: 'd1', status: 'draft', data: {} }),
       quote({ id: 's1', status: 'sent', displayNumber: 'QUO-1', data: {} }),
       quote({ id: 's2', status: 'sent', displayNumber: 'QUO-2', data: {} }),
@@ -144,7 +176,7 @@ describe('buildQuoteStatisticsWidgets', () => {
   });
 
   it('renders one detailed row per quote, including the reused gross total', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       quote({
         id: 'q1',
         status: 'sent',

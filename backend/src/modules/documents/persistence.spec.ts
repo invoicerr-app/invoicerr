@@ -2,15 +2,15 @@ import { vi, type Mock } from 'vitest';
 
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
-import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import {
   claimDocumentTransition,
   confirmDelivery,
-  DOCUMENT_LIST_DATE_FILTER_READ_CAP,
+  countDocuments,
   findOwnedDocument,
   listDocumentsPage,
+  listRecentDocuments,
   updateDocumentStatus,
   upsertDocument,
 } from './persistence';
@@ -29,21 +29,12 @@ vi.mock('@/prisma/prisma.service', () => ({
   },
 }));
 
-// Explicit factory mock (not automock) — lets the cap test below assert `logger.warn` was actually
-// called, the same "mock the singleton, assert on it" approach this module's own `logger.warn` call
-// is meant to be caught by (see `conformity/pollers/chorus-pro-status-poller.spec.ts` for the same
-// pattern on `logger.error`).
-vi.mock('@/logger/logger.service', () => ({
-  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
-}));
-
 const findFirst = prisma.documentInstance.findFirst as Mock;
 const findMany = prisma.documentInstance.findMany as Mock;
 const count = prisma.documentInstance.count as Mock;
 const update = prisma.documentInstance.update as Mock;
 const create = prisma.documentInstance.create as Mock;
 const updateMany = prisma.documentInstance.updateMany as Mock;
-const loggerWarn = logger.warn as Mock;
 
 describe('persistence — upsertDocument', () => {
   beforeEach(() => {
@@ -437,11 +428,52 @@ describe('persistence — confirmDelivery', () => {
 // (clientFieldKey/dateFieldKey/searchTextFieldKeys/searchClientIds) arrives here ALREADY resolved —
 // this function only ever turns them into a Prisma query, never itself reads a descriptor or queries
 // `Client` — see documents.service.list-documents.spec.ts for that resolution half.
+describe('persistence — listRecentDocuments / countDocuments', () => {
+  beforeEach(() => {
+    findMany.mockReset();
+    count.mockReset();
+  });
+
+  it('is an explicitly capped, ordered read — `take` is mandatory, never a default', async () => {
+    findMany.mockResolvedValue([]);
+
+    await listRecentDocuments('company-1', { typeId: 'quote', status: ['draft'], take: 5 });
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-1', typeId: 'quote', status: { in: ['draft'] } },
+      orderBy: { updatedAt: 'desc' },
+      take: 5,
+    });
+  });
+
+  it('applies no status narrowing at all when none is asked for', async () => {
+    findMany.mockResolvedValue([]);
+
+    await listRecentDocuments('company-1', { take: 50 });
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-1' },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+  });
+
+  it('counts in SQL without reading a row — what a screen shows next to a capped list', async () => {
+    count.mockResolvedValue(1234);
+
+    await expect(countDocuments('company-1', 'invoice', ['sent'])).resolves.toBe(1234);
+
+    expect(count).toHaveBeenCalledWith({
+      where: { companyId: 'company-1', typeId: 'invoice', status: { in: ['sent'] } },
+    });
+    expect(findMany).not.toHaveBeenCalled();
+  });
+});
+
 describe('persistence — listDocumentsPage', () => {
   beforeEach(() => {
     findMany.mockReset();
     count.mockReset();
-    loggerWarn.mockReset();
   });
 
   const baseOptions = {
@@ -452,6 +484,20 @@ describe('persistence — listDocumentsPage', () => {
     order: 'desc' as const,
   };
 
+  /** A candidate row carrying the columns the ordering actually reads — the date path pages on the
+   *  primary key and re-applies the requested sort in memory, so `updatedAt` is no longer optional
+   *  scaffolding in a fixture. `rank` orders them: higher is more recently updated. */
+  function candidate(id: string, issueDate: string | undefined, rank: number) {
+    return {
+      id,
+      updatedAt: new Date(Date.UTC(2026, 0, 1, 0, rank)),
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, rank)),
+      number: null,
+      status: 'sent',
+      data: issueDate === undefined ? {} : { issueDate },
+    };
+  }
+
   it('scopes by companyId and typeId, paginates with skip/take, and counts the SAME where clause', async () => {
     findMany.mockResolvedValue([{ id: 'doc-1' }, { id: 'doc-2' }]);
     count.mockResolvedValue(37);
@@ -461,7 +507,9 @@ describe('persistence — listDocumentsPage', () => {
     const expectedWhere = { companyId: 'company-1', typeId: 'invoice' };
     expect(findMany).toHaveBeenCalledWith({
       where: expectedWhere,
-      orderBy: { updatedAt: 'desc' },
+      // `id` is the tiebreaker on both paths — without it two rows sharing a sort value have no
+      // defined order, so paging could show one twice and never show another.
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       skip: 20,
       take: 10,
     });
@@ -574,11 +622,11 @@ describe('persistence — listDocumentsPage', () => {
 
     it('excludes a document whose date falls outside the range, inclusive at both UTC-day boundaries', async () => {
       findMany.mockResolvedValue([
-        { id: 'too-early', data: { issueDate: '2025-12-31T23:59:00.000Z' } },
-        { id: 'lower-bound', data: { issueDate: '2026-01-01T00:00:00.000Z' } },
-        { id: 'inside', data: { issueDate: '2026-01-15T10:00:00.000Z' } },
-        { id: 'upper-bound', data: { issueDate: '2026-01-31T23:59:59.000Z' } },
-        { id: 'too-late', data: { issueDate: '2026-02-01T00:00:00.000Z' } },
+        candidate('too-early', '2025-12-31T23:59:00.000Z', 1),
+        candidate('lower-bound', '2026-01-01T00:00:00.000Z', 2),
+        candidate('inside', '2026-01-15T10:00:00.000Z', 3),
+        candidate('upper-bound', '2026-01-31T23:59:59.000Z', 4),
+        candidate('too-late', '2026-02-01T00:00:00.000Z', 5),
       ]);
 
       const result = await listDocumentsPage('company-1', {
@@ -589,15 +637,15 @@ describe('persistence — listDocumentsPage', () => {
         dateTo: '2026-01-31',
       });
 
-      expect(result.items.map((item) => item.id)).toEqual(['lower-bound', 'inside', 'upper-bound']);
+      expect(result.items.map((item) => item.id)).toEqual(['upper-bound', 'inside', 'lower-bound']);
       expect(result.total).toBe(3);
     });
 
     it('excludes a document with a missing or unparseable date — an honest default, never a guess', async () => {
       findMany.mockResolvedValue([
-        { id: 'missing', data: {} },
-        { id: 'not-a-date', data: { issueDate: 'not a date' } },
-        { id: 'ok', data: { issueDate: '2026-01-15T00:00:00.000Z' } },
+        candidate('missing', undefined, 1),
+        candidate('not-a-date', 'not a date', 2),
+        candidate('ok', '2026-01-15T00:00:00.000Z', 3),
       ]);
 
       const result = await listDocumentsPage('company-1', {
@@ -611,10 +659,11 @@ describe('persistence — listDocumentsPage', () => {
 
     it('paginates the SURVIVORS in memory — page 2 starts after the first pageSize survivors, not the first pageSize candidates', async () => {
       findMany.mockResolvedValue([
-        { id: 'in-1', data: { issueDate: '2026-01-01T00:00:00.000Z' } },
-        { id: 'out-of-range', data: { issueDate: '2025-06-01T00:00:00.000Z' } }, // filtered out, never counted as a page slot
-        { id: 'in-2', data: { issueDate: '2026-01-02T00:00:00.000Z' } },
-        { id: 'in-3', data: { issueDate: '2026-01-03T00:00:00.000Z' } },
+        candidate('in-1', '2026-01-01T00:00:00.000Z', 1),
+        // Filtered out, never counted as a page slot.
+        candidate('out-of-range', '2025-06-01T00:00:00.000Z', 2),
+        candidate('in-2', '2026-01-02T00:00:00.000Z', 3),
+        candidate('in-3', '2026-01-03T00:00:00.000Z', 4),
       ]);
 
       const result = await listDocumentsPage('company-1', {
@@ -625,41 +674,31 @@ describe('persistence — listDocumentsPage', () => {
         dateFrom: '2026-01-01',
       });
 
-      expect(result.items.map((item) => item.id)).toEqual(['in-3']);
+      expect(result.items.map((item) => item.id)).toEqual(['in-1']);
       expect(result.total).toBe(3);
     });
 
-    it('warns once the candidate read hits its cap — the point past which `total` is a survivor count of a TRUNCATED read, not a true total', async () => {
-      const candidates = Array.from({ length: DOCUMENT_LIST_DATE_FILTER_READ_CAP }, (_, i) => ({
-        id: `doc-${i}`,
-        data: { issueDate: '2026-01-15T00:00:00.000Z' },
-      }));
-      findMany.mockResolvedValue(candidates);
-
-      await listDocumentsPage('company-1', {
-        ...baseOptions,
-        dateFieldKey: 'issueDate',
-        dateFrom: '2026-01-01',
-      });
-
-      expect(loggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining('cap'),
-        expect.objectContaining({
-          details: expect.objectContaining({ cap: DOCUMENT_LIST_DATE_FILTER_READ_CAP }),
-        }),
+    it('keeps reading while the database hands back full pages — the candidate set is never capped', async () => {
+      // One FULL page followed by a short one: the read must ask twice, carrying a keyset cursor,
+      // rather than stopping at the first. `persistence.read-cap.spec.ts` proves the resulting
+      // `total` over a real 2 400-row set; this proves the loop itself pages.
+      const fullPage = Array.from({ length: 1000 }, (_, index) =>
+        candidate(`doc-${String(index).padStart(5, '0')}`, '2026-01-15T00:00:00.000Z', index),
       );
-    });
+      findMany.mockResolvedValueOnce(fullPage);
+      findMany.mockResolvedValueOnce([candidate('doc-last', '2026-01-15T00:00:00.000Z', 1000)]);
 
-    it('never warns for an ordinary, uncapped read', async () => {
-      findMany.mockResolvedValue([{ id: 'doc-1', data: { issueDate: '2026-01-15T00:00:00.000Z' } }]);
-
-      await listDocumentsPage('company-1', {
+      const result = await listDocumentsPage('company-1', {
         ...baseOptions,
         dateFieldKey: 'issueDate',
         dateFrom: '2026-01-01',
       });
 
-      expect(loggerWarn).not.toHaveBeenCalled();
+      expect(findMany).toHaveBeenCalledTimes(2);
+      expect(findMany.mock.calls[1][0].where).toEqual({
+        AND: [{ companyId: 'company-1', typeId: 'invoice' }, { id: { gt: 'doc-00999' } }],
+      });
+      expect(result.total).toBe(1001);
     });
   });
 });

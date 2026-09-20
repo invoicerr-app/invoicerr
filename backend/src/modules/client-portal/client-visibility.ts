@@ -35,12 +35,19 @@ export function clientVisibleStatusIds(descriptor: DocumentTypeDescriptor): Set<
   );
 }
 
+/** The `data` key the invoice/quote descriptors give their own client reference field. Exported so a
+ *  caller narrowing the QUERY by client (`portal.service.ts#listQuotes`, which pushes the condition
+ *  into SQL rather than filtering a capped page in memory) names the same key `directClientId` below
+ *  reads — one constant, never two spellings that can drift apart. */
+export const DIRECT_CLIENT_FIELD_KEY = 'client';
+
 /** The invoice/quote `client` reference field's own value, read directly off a document's `data` —
  *  `undefined` for a data anomaly (missing/wrong-typed field), never a thrown error: a caller checks
  *  this against a known clientId, and `undefined !== clientId` refuses exactly the way a genuine
  *  mismatch would. */
 export function directClientId(data: Record<string, unknown>): string | undefined {
-  return typeof data.client === 'string' ? data.client : undefined;
+  const value = data[DIRECT_CLIENT_FIELD_KEY];
+  return typeof value === 'string' ? value : undefined;
 }
 
 /** A credit note's own `invoice` reference field's value — see this file's own header. */

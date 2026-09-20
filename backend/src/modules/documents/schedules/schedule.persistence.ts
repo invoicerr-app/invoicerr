@@ -52,7 +52,7 @@ export async function createSchedule(input: CreateDocumentScheduleInput): Promis
 }
 
 /** Every schedule for the active company — optionally narrowed to one document type, the same
- *  `typeId?` convention ../persistence.ts's own `listDocuments` already holds. Newest first. */
+ *  `typeId?` convention ../persistence.ts's own reads already hold. Newest first. */
 export async function listSchedules(companyId: string, typeId?: string): Promise<DocumentScheduleRecord[]> {
   return prisma.documentSchedule.findMany({
     where: { companyId, ...(typeId ? { typeId } : {}) },

@@ -4,7 +4,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { DocumentInstanceResult } from '../documents/actions/action-registry';
 import { DocumentsService } from '../documents/documents.service';
-import { findOwnedDocument, listDocuments, updateDocumentStatus } from '../documents/persistence';
+import { findOwnedDocument, listAllDocuments, updateDocumentStatus } from '../documents/persistence';
 import {
   InvoiceCheckoutSessionResult,
   PaymentSessionsService,
@@ -14,16 +14,12 @@ import { ClientStatement, resolveClientStatement } from '../documents/settlement
 import { SignaturesService } from '../documents/signatures/signatures.service';
 import { computeDocumentTotals } from '../documents/totals/compute-totals';
 import {
+  DIRECT_CLIENT_FIELD_KEY,
   clientVisibleStatusIds,
   directClientId,
   invoiceIdOfCreditNote,
   isPortalDocumentType,
 } from './client-visibility';
-
-/** An honest, capped read — same convention every other portal/statement read in this codebase
- *  already holds (`settlement/client-statement.ts#CLIENT_STATEMENT_READ_LIMIT`,
- *  `settlement/credits.ts#CREDIT_NOTE_READ_LIMIT`). */
-const PORTAL_QUOTE_READ_LIMIT = 500;
 
 export interface PortalProfile {
   clientId: string;
@@ -121,13 +117,25 @@ export class PortalService {
   async listQuotes(companyId: string, clientId: string): Promise<PortalQuoteRow[]> {
     const descriptor = this.documentsService.getType('quote');
     const visible = clientVisibleStatusIds(descriptor);
+    // A descriptor declaring NO client-visible status at all means this client may see nothing —
+    // returned here rather than handed to the query below, where an empty status list would read as
+    // "no status narrowing" and expose every draft. The in-memory `visible.has(...)` this replaced
+    // could not get that wrong; the SQL form can, so the case is closed explicitly.
+    if (visible.size === 0) return [];
 
-    const quotes = await listDocuments(companyId, 'quote', PORTAL_QUOTE_READ_LIMIT);
+    // The client's own quotes, both conditions pushed into SQL and paged until exhausted: this is
+    // THIS client's complete list, not "the company's most recent quotes that happen to be this
+    // client's". A capped read let a busy company's other clients push this one's quotes out of the
+    // window entirely, and the portal then showed a shorter list — or none at all — with no
+    // indication anything was missing.
+    const quotes = await listAllDocuments(companyId, {
+      typeId: 'quote',
+      status: [...visible],
+      dataEquals: { [DIRECT_CLIENT_FIELD_KEY]: clientId },
+    });
     const rows: PortalQuoteRow[] = [];
     for (const quote of quotes) {
       const data = (quote.data ?? {}) as Record<string, unknown>;
-      if (!visible.has(quote.status)) continue;
-      if (directClientId(data) !== clientId) continue;
 
       rows.push({
         id: quote.id,

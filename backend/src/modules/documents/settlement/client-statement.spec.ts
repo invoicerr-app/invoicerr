@@ -3,6 +3,7 @@ import { vi, type Mock } from 'vitest';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import * as settlementCredits from './credits';
 import * as settlementPayments from './payments';
 import { resolveAgingBucket, resolveClientStatement } from './client-statement';
@@ -23,7 +24,18 @@ vi.mock('./credits', async () => {
   return { ...actual, listCreditNotes: vi.fn() };
 });
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The client/status/type
+ *  narrowing moved into SQL when the read stopped being capped, so a mock returning a fixture
+ *  verbatim would feed it rows production never sees. Fixtures here stay small on purpose — they
+ *  prove the rules around the read; the cap-crossing fixtures live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
+
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
 const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 
@@ -72,7 +84,7 @@ function creditNote(
 }
 
 beforeEach(() => {
-  listDocuments.mockReset();
+  listAllDocuments.mockReset();
   sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
   listCreditNotes.mockReset().mockResolvedValue([]);
 });
@@ -129,7 +141,7 @@ describe('resolveClientStatement', () => {
   const ASOF = new Date('2026-06-01T00:00:00Z');
 
   it("a partially paid, partially credited invoice's outstanding balance = amount - payments - credits", async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     sumPaidMinorByDocument.mockResolvedValue(new Map([['inv-1', 5000]]));
     listCreditNotes.mockResolvedValue([
       creditNote({ data: { invoice: 'inv-1', currency: 'EUR', correctedLines: ['line-2'] } }),
@@ -160,7 +172,7 @@ describe('resolveClientStatement', () => {
   });
 
   it('a fully paid invoice is settled, with a zero outstanding balance', async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     sumPaidMinorByDocument.mockResolvedValue(new Map([['inv-1', 18000]]));
 
     const statement = await resolveClientStatement('company-1', 'client-1', ASOF);
@@ -172,7 +184,7 @@ describe('resolveClientStatement', () => {
   });
 
   it("the total per currency is the SUM of every counted invoice's own outstanding balance", async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'inv-1', data: invoiceData({ dueDate: '2026-05-01' }) }), // 18000 outstanding
       invoice({ id: 'inv-2', data: invoiceData({ dueDate: '2026-05-15' }) }), // 18000 outstanding
     ]);
@@ -186,7 +198,7 @@ describe('resolveClientStatement', () => {
   });
 
   it("places each invoice's outstanding balance in the correct aged bucket, by its own due date", async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'not-due', data: invoiceData({ dueDate: '2026-07-01' }) }),
       invoice({ id: 'overdue-40', data: invoiceData({ dueDate: '2026-04-22' }) }), // 40 days overdue
       invoice({ id: 'overdue-70', data: invoiceData({ dueDate: '2026-03-23' }) }), // 70 days overdue
@@ -203,7 +215,7 @@ describe('resolveClientStatement', () => {
   });
 
   it('never mixes currencies into one total — one entry per currency', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'inv-eur', data: invoiceData({ currency: 'EUR' }) }),
       invoice({ id: 'inv-usd', data: invoiceData({ currency: 'USD' }) }),
     ]);
@@ -217,7 +229,7 @@ describe('resolveClientStatement', () => {
   });
 
   it('excludes a DRAFT invoice — never issued, nothing legally owed yet', async () => {
-    listDocuments.mockResolvedValue([invoice({ id: 'draft-1', status: 'draft', data: invoiceData() })]);
+    seedDocuments([invoice({ id: 'draft-1', status: 'draft', data: invoiceData() })]);
 
     const statement = await resolveClientStatement('company-1', 'client-1', ASOF);
 
@@ -226,7 +238,7 @@ describe('resolveClientStatement', () => {
   });
 
   it('excludes a CANCELLED invoice — nothing is owed on a void document', async () => {
-    listDocuments.mockResolvedValue([invoice({ id: 'void-1', status: 'cancelled', data: invoiceData() })]);
+    seedDocuments([invoice({ id: 'void-1', status: 'cancelled', data: invoiceData() })]);
 
     const statement = await resolveClientStatement('company-1', 'client-1', ASOF);
 
@@ -235,7 +247,7 @@ describe('resolveClientStatement', () => {
 
   // Isolation — the concern this whole task exists to protect (an audit finding, per CLAUDE.md).
   it("never includes another CLIENT's invoice, even for the same company", async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'mine', data: invoiceData({ client: 'client-1' }) }),
       invoice({ id: 'someone-elses', data: invoiceData({ client: 'client-2' }) }),
     ]);
@@ -246,7 +258,7 @@ describe('resolveClientStatement', () => {
   });
 
   it("a credit note correcting a DIFFERENT client's invoice never leaks onto this statement", async () => {
-    listDocuments.mockResolvedValue([invoice({ id: 'mine', data: invoiceData({ client: 'client-1' }) })]);
+    seedDocuments([invoice({ id: 'mine', data: invoiceData({ client: 'client-1' }) })]);
     listCreditNotes.mockResolvedValue([
       creditNote({
         id: 'not-mine',
@@ -264,17 +276,21 @@ describe('resolveClientStatement', () => {
   // never drops or swaps the `companyId` it was given on the way to them — a mutation deleting this
   // argument, or passing the clientId instead, fails this test.
   it('scopes every read by the given companyId', async () => {
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
 
     await resolveClientStatement('company-42', 'client-1', ASOF);
 
-    expect(listDocuments).toHaveBeenCalledWith('company-42', 'invoice', expect.any(Number));
+    expect(listAllDocuments).toHaveBeenCalledWith('company-42', {
+      typeId: 'invoice',
+      status: ['sent'],
+      dataEquals: { client: 'client-1' },
+    });
     expect(listCreditNotes).toHaveBeenCalledWith('company-42');
     expect(sumPaidMinorByDocument).toHaveBeenCalledWith('company-42', []);
   });
 
   it('an empty result for a client with no "sent" invoice at all', async () => {
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
 
     const statement = await resolveClientStatement('company-1', 'client-1', ASOF);
 

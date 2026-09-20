@@ -6,6 +6,7 @@ import {
   invoiceTotal,
 } from './invoice-contributions';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
 import { DocumentInstanceResult } from '../actions/action-registry';
@@ -25,7 +26,31 @@ vi.mock('../settlement/credits', async () => {
   return { ...actual, listCreditNotes: vi.fn() };
 });
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+const listRecentDocuments = persistence.listRecentDocuments as Mock;
+const countDocuments = persistence.countDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The narrowing moved into
+ *  SQL when these reads stopped being capped, and the statistics screen now counts in the table
+ *  rather than on its own page — so one fixture feeds all three reads. Fixtures here stay small on
+ *  purpose; the cap-crossing ones live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+  listRecentDocuments.mockImplementation(async (_companyId: string, options) =>
+    filterLikeListAllDocuments(rows, {
+      typeId: options.typeId,
+      status: options.status,
+      orderBy: { field: 'updatedAt', direction: 'desc' },
+    }).slice(0, options.take),
+  );
+  countDocuments.mockImplementation(
+    async (_companyId: string, typeId?: string, status?: string[]) =>
+      filterLikeListAllDocuments(rows, { typeId, status }).length,
+  );
+}
+
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
 const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 
@@ -62,7 +87,9 @@ describe('invoiceTotal', () => {
 describe('buildInvoiceDashboardWidgets', () => {
   beforeEach(() => {
     vi.useFakeTimers().setSystemTime(new Date('2026-08-30'));
-    listDocuments.mockReset();
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
     sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
     listCreditNotes.mockReset().mockResolvedValue([]);
   });
@@ -70,7 +97,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   afterEach(() => vi.useRealTimers());
 
   it('lists only "sent" invoices as pending, sorted by due date, with an arithmetic total', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'draft-1',
         status: 'draft',
@@ -107,7 +134,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   });
 
   it('titles a pending row with the invoice NUMBER once it has one — the amount stays structured', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'sent-1',
         status: 'sent',
@@ -127,7 +154,7 @@ describe('buildInvoiceDashboardWidgets', () => {
 
   it('totals OVERDUE pending invoices per currency — due yesterday counts, due today does not', async () => {
     // System time is 2026-08-30 (see beforeEach).
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'late',
         status: 'sent',
@@ -165,7 +192,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   });
 
   it('nothing pending at all: ONE currency-less overdue zero, never a guessed currency', async () => {
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
 
     const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
 
@@ -175,7 +202,7 @@ describe('buildInvoiceDashboardWidgets', () => {
 
   it('sums what was INVOICED this month per currency, next to last month — "sent" only', async () => {
     // System time is 2026-08-30: this month = 2026-08, last month = 2026-07.
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'aug-1',
         status: 'sent',
@@ -237,7 +264,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   });
 
   it('nothing invoiced this month or last: ONE currency-less zero, no previous value', async () => {
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
 
     const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
     const zero = widgets.find((w) => w.id === 'invoice:issued-this-month');
@@ -248,7 +275,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   });
 
   it('excludes a "cancelled" invoice — a void invoice owes nothing and is never pending', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'cancelled-1',
         status: 'cancelled',
@@ -274,7 +301,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   });
 
   it('excludes a "sent" invoice that has been SETTLED — a paid invoice is no longer pending', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'settled-1',
         status: 'sent',
@@ -305,7 +332,7 @@ describe('buildInvoiceDashboardWidgets', () => {
     // credited-1: one 100 EUR line, no VAT rate given -> grossMinor 10000, corrected in FULL by a
     // SENT credit note selecting that same line. still-pending-1: correctable line untouched by any
     // credit note at all.
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'credited-1',
         status: 'sent',
@@ -346,7 +373,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   });
 
   it('counts invoices per issue month over the trailing window — never sums their amounts', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'i1',
         status: 'sent',
@@ -380,7 +407,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   });
 
   it('an invoice with no parseable issueDate is skipped by the curve rather than crashing it', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'bad', status: 'sent', data: { currency: 'EUR', issueDate: 'not-a-date', lines: [] } }),
     ]);
 
@@ -391,10 +418,14 @@ describe('buildInvoiceDashboardWidgets', () => {
 });
 
 describe('buildInvoiceStatisticsWidgets', () => {
-  beforeEach(() => listDocuments.mockReset());
+  beforeEach(() => {
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
+  });
 
   it('renders one detailed row per invoice, and a total count metric', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({
         id: 'a',
         status: 'sent',

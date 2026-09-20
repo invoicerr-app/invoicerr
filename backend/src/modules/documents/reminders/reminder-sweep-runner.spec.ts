@@ -11,6 +11,7 @@ import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
 import { ReminderSweepRunner } from './reminder-sweep-runner';
@@ -65,7 +66,18 @@ vi.mock('@/prisma/prisma.service', () => ({
   },
 }));
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The client/status/type
+ *  narrowing moved into SQL when the read stopped being capped, so a mock returning a fixture
+ *  verbatim would feed it rows production never sees. Fixtures here stay small on purpose — they
+ *  prove the rules around the read; the cap-crossing fixtures live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
+
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
 const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 const companyFindMany = prisma.company.findMany as Mock;
@@ -112,7 +124,7 @@ function buildMailService(): MailService {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  listDocuments.mockResolvedValue([]);
+  seedDocuments([]);
   sumPaidMinorByDocument.mockResolvedValue(new Map());
   listCreditNotes.mockResolvedValue([]);
   companyFindMany.mockResolvedValue([]);
@@ -135,7 +147,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('sends the tier-7 reminder for an overdue, unpaid invoice of an OPTED-IN company', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
 
     const mailService = buildMailService();
     const runner = new ReminderSweepRunner(mailService);
@@ -158,7 +170,7 @@ describe('ReminderSweepRunner.runSweep', () => {
   // the pure builder itself can translate (already proven by reminder-sweep.spec.ts).
   it("sends the reminder in the CLIENT's own language, even when the company's default differs", async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp', language: 'en' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com', language: 'fr' });
 
     const mailService = buildMailService();
@@ -172,7 +184,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it("falls back to the COMPANY's own language when the client never set one", async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp', language: 'de' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com', language: null });
 
     const mailService = buildMailService();
@@ -185,7 +197,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('falls back all the way to English when NEITHER the client nor the company set a language', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]); // no `language` at all
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com' }); // no `language` at all
 
     const mailService = buildMailService();
@@ -198,7 +210,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('does NOT send anything for a company that has not opted in — findMany already filters it out', async () => {
     // The runner's own query is `where: { remindersEnabled: true }` — a disabled company never even
-    // reaches `listDocuments` at all, proven here by `companyFindMany` simply returning nothing.
+    // reaches `listAllDocuments` at all, proven here by `companyFindMany` simply returning nothing.
     companyFindMany.mockResolvedValue([]);
 
     const mailService = buildMailService();
@@ -206,13 +218,13 @@ describe('ReminderSweepRunner.runSweep', () => {
     const result = await runner.runSweep(NOW);
 
     expect(result.remindersSent).toBe(0);
-    expect(listDocuments).not.toHaveBeenCalled();
+    expect(listAllDocuments).not.toHaveBeenCalled();
     expect(mailService.sendForCompany).not.toHaveBeenCalled();
   });
 
   it('does not re-send a tier already recorded — idempotency via the (documentId, tier) read', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     reminderFindMany.mockResolvedValue([{ documentId: 'inv-1', tier: 7 }]); // tier 7 already sent
 
     const mailService = buildMailService();
@@ -226,7 +238,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('climbs to tier 14 once due, when tier 7 was already sent', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     reminderFindMany.mockResolvedValue([{ documentId: 'inv-1', tier: 7 }]);
 
     const mailService = buildMailService();
@@ -242,7 +254,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('sends only tier 7 (never a burst) for an invoice 30 days overdue with nothing sent yet', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
 
     const mailService = buildMailService();
     const runner = new ReminderSweepRunner(mailService);
@@ -258,7 +270,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('does not email a fully paid invoice at all, even if its due date is long past', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     sumPaidMinorByDocument.mockResolvedValue(new Map([['inv-1', 12000]])); // 120 EUR gross, fully paid
 
     const mailService = buildMailService();
@@ -271,7 +283,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('skips (never throws) an invoice whose client has no resolvable contact email', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     clientFindFirst.mockResolvedValue({ contactEmail: null });
 
     const mailService = buildMailService();
@@ -284,7 +296,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('skips (never throws) an invoice whose data.client points at no client at all', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData({ client: undefined }) })]);
+    seedDocuments([invoice({ data: invoiceData({ client: undefined }) })]);
     clientFindFirst.mockResolvedValue(null);
 
     const mailService = buildMailService();
@@ -297,7 +309,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('a MailService.sendForCompany rejection for one invoice does not abort the others, and releases that reservation', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'inv-1', displayNumber: 'INV-2026-0001', data: invoiceData() }),
       invoice({ id: 'inv-2', displayNumber: 'INV-2026-0002', data: invoiceData() }),
     ]);
@@ -336,7 +348,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('persists an admin-visible log entry when a reminder email fails to send', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     const mailService = {
       sendForCompany: vi.fn().mockRejectedValue(new Error('SMTP timeout')),
     } as unknown as MailService;
@@ -381,7 +393,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('never sends the email when the reservation write fails for a reason OTHER than a race — the send-then-record bug this closes', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     // A transient DB hiccup on the CLAIM itself — not a P2002 race. On the old (send-then-record)
     // order this mock has no bearing on whether the email goes out at all, since sendForCompany always
     // ran BEFORE this write was ever attempted; this test would therefore see `sendForCompany` called
@@ -400,7 +412,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('releases a claimed tier whose send then failed, so a later pass finds it unclaimed and retries — never blocked forever', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     reminderCreate.mockResolvedValue({ id: 'reminder-claim-1' });
     const mailService = {
       sendForCompany: vi.fn().mockRejectedValue(new Error('SMTP timeout')),
@@ -423,7 +435,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('leaves a PERSISTED trace when the release itself also fails — the one case a tier can stay stuck as claimed', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     reminderCreate.mockResolvedValue({ id: 'reminder-claim-1' });
     reminderDeleteMany.mockRejectedValue(new Error('connection reset by peer'));
     const mailService = {
@@ -465,7 +477,7 @@ describe('ReminderSweepRunner.runSweep', () => {
       { id: 'company-broken', name: 'Broken Co' },
       { id: 'company-1', name: 'Acme Corp' },
     ]);
-    listDocuments
+    listAllDocuments
       .mockRejectedValueOnce(new Error('DB hiccup for company-broken'))
       .mockResolvedValueOnce([invoice({ data: invoiceData() })]);
 
@@ -494,7 +506,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
   it('treats a race on the (documentId, tier) unique constraint as "already claimed", never a crash, and never sends a duplicate', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    seedDocuments([invoice({ data: invoiceData() })]);
     reminderCreate.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError(
         'Unique constraint failed on the fields: (`documentId`,`tier`)',
@@ -544,7 +556,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
     it("sends the reminder through THIS company's own SMTP server when Settings → Mail has one configured", async () => {
       companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-      listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+      seedDocuments([invoice({ data: invoiceData() })]);
       process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
       mockedResolveCompanyMailSettings.mockResolvedValue({
         kind: 'smtp',
@@ -569,7 +581,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
     it('falls back to the instance mail server when this company has none configured', async () => {
       companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
-      listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+      seedDocuments([invoice({ data: invoiceData() })]);
       process.env.SMTP_HOST = 'instance-smtp.example.com';
       mockedResolveCompanyMailSettings.mockResolvedValue(null);
       const sendMailMock = vi.fn().mockResolvedValue(undefined);

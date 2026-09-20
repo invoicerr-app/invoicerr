@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 
 import { ClientsService } from '@/modules/clients/clients.service';
 
-import { findOwnedDocument, listDocuments } from '../persistence';
+import { findOwnedDocument, listRecentDocuments } from '../persistence';
 import { EntityReferenceOption, EntityReferenceProvider } from './reference-registry';
 
 /**
@@ -44,9 +44,18 @@ async function labelFor(
  *
  * `search` does not filter server-side on the stored JSON `data` (there is no per-field index on it,
  * and building one would be a schema decision well beyond a picker) — it fetches the company's most
- * recent instances of this type (persistence.listDocuments, already capped) and filters in memory on
- * the resolved label. Good enough for a picker; not a general-purpose search.
+ * recent instances of this type (`persistence.listRecentDocuments`, explicitly capped at
+ * `PICKER_OPTION_LIMIT`) and filters in memory on the resolved label. This is the ONE remaining
+ * deliberately-capped read of this kind, and it is legitimate BECAUSE nothing is ever computed from
+ * it: a picker offers options a human then chooses from, it never produces a total, a balance or a
+ * count. A document older than the cap is still perfectly reachable — `resolve` below goes through
+ * an exact `findOwnedDocument`, never this list. Good enough for a picker; not a general-purpose
+ * search.
  */
+
+/** How many options the picker offers. A display cap on a chooser, never an input to arithmetic —
+ *  see this file's own header. */
+const PICKER_OPTION_LIMIT = 50;
 export function buildDocumentReferenceProvider(
   typeId: string,
   typeLabel: string,
@@ -54,7 +63,7 @@ export function buildDocumentReferenceProvider(
 ): EntityReferenceProvider {
   return {
     async search(companyId, query): Promise<EntityReferenceOption[]> {
-      const documents = await listDocuments(companyId, typeId);
+      const documents = await listRecentDocuments(companyId, { typeId, take: PICKER_OPTION_LIMIT });
       const options = await Promise.all(
         documents.map(async (document) => ({
           id: document.id,

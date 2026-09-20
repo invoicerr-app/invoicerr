@@ -5,6 +5,7 @@ import { BadRequestException } from '@nestjs/common';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
 import { DocumentPaymentResult } from '../settlement/payments';
@@ -27,7 +28,18 @@ vi.mock('../settlement/credits', async () => {
 });
 vi.mock('./client-labels');
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The client/status/type
+ *  narrowing moved into SQL when the read stopped being capped, so a mock returning a fixture
+ *  verbatim would feed it rows production never sees. Fixtures here stay small on purpose — they
+ *  prove the rules around the read; the cap-crossing fixtures live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+}
+
 const findOwnedDocumentsByIds = persistence.findOwnedDocumentsByIds as Mock;
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
 const listPaymentsInRange = settlementPayments.listPaymentsInRange as Mock;
@@ -98,7 +110,7 @@ function payment(overrides: Partial<DocumentPaymentResult> = {}): DocumentPaymen
 }
 
 beforeEach(() => {
-  listDocuments.mockReset().mockResolvedValue([]);
+  listAllDocuments.mockReset().mockResolvedValue([]);
   findOwnedDocumentsByIds.mockReset().mockResolvedValue([]);
   sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
   listPaymentsInRange.mockReset().mockResolvedValue([]);
@@ -137,7 +149,7 @@ describe('buildAccountingExport — an empty period', () => {
 
 describe('buildAccountingExport — invoices', () => {
   it("an invoice's own issueDate inside the period appears, with amounts from computeDocumentTotals", async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData({ issueDate: '2026-03-15' }) })]);
+    seedDocuments([invoice({ data: invoiceData({ issueDate: '2026-03-15' }) })]);
 
     const csv = await buildAccountingExport('company-1', '2026-03-01', '2026-03-31');
     const line = csv.split('\n')[1];
@@ -148,14 +160,14 @@ describe('buildAccountingExport — invoices', () => {
   });
 
   it("an invoice whose own issueDate is OUTSIDE the period is excluded, even though it's the only invoice", async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData({ issueDate: '2026-02-15' }) })]);
+    seedDocuments([invoice({ data: invoiceData({ issueDate: '2026-02-15' }) })]);
 
     const csv = await buildAccountingExport('company-1', '2026-03-01', '2026-03-31');
     expect(csv).toBe(HEADER);
   });
 
   it('a DRAFT invoice never appears — never issued, nothing real to export yet', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'draft-1', status: 'draft', data: invoiceData({ issueDate: '2026-03-15' }) }),
     ]);
 
@@ -164,7 +176,7 @@ describe('buildAccountingExport — invoices', () => {
   });
 
   it('a CANCELLED invoice never appears — nothing owed on a void document', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'void-1', status: 'cancelled', data: invoiceData({ issueDate: '2026-03-15' }) }),
     ]);
 
@@ -173,7 +185,7 @@ describe('buildAccountingExport — invoices', () => {
   });
 
   it('issueDate range boundaries are inclusive', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'first-day', data: invoiceData({ issueDate: '2026-03-01' }) }),
       invoice({ id: 'last-day', data: invoiceData({ issueDate: '2026-03-31' }) }),
     ]);
@@ -183,7 +195,7 @@ describe('buildAccountingExport — invoices', () => {
   });
 
   it("a partially paid invoice's status is 'outstanding'; a fully paid one is 'settled' — computeSettlement, never re-derived", async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       invoice({ id: 'partial', data: invoiceData({ issueDate: '2026-03-15' }) }),
       invoice({ id: 'full', data: invoiceData({ issueDate: '2026-03-16' }) }),
     ]);
@@ -202,7 +214,7 @@ describe('buildAccountingExport — invoices', () => {
   });
 
   it("resolves the invoice's client id to a real label, in one batched call", async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData({ issueDate: '2026-03-15' }) })]);
+    seedDocuments([invoice({ data: invoiceData({ issueDate: '2026-03-15' }) })]);
     resolveClientLabels.mockResolvedValue(new Map([['client-1', 'Acme Corp']]));
 
     const csv = await buildAccountingExport('company-1', '2026-03-01', '2026-03-31');
@@ -216,7 +228,7 @@ describe('buildAccountingExport — credit notes', () => {
   it("a credit note's OWN issueDate governs, independent of its invoice's issueDate", async () => {
     // The invoice was issued in FEBRUARY (outside this export's March period) — but the credit note
     // correcting it was issued in March, so only the credit note appears.
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData({ issueDate: '2026-02-01' }) })]);
+    seedDocuments([invoice({ data: invoiceData({ issueDate: '2026-02-01' }) })]);
     listCreditNotes.mockResolvedValue([
       creditNote({
         data: { invoice: 'inv-1', issueDate: '2026-03-10', currency: 'EUR', correctedLines: ['line-2'] },
@@ -233,7 +245,7 @@ describe('buildAccountingExport — credit notes', () => {
   });
 
   it('a credit note pointing at an unresolvable invoice contributes nothing — skipped, no crash', async () => {
-    listDocuments.mockResolvedValue([]); // the invoice it names doesn't exist in this company's set
+    seedDocuments([]); // the invoice it names doesn't exist in this company's set
     listCreditNotes.mockResolvedValue([
       creditNote({ data: { invoice: 'ghost-invoice', issueDate: '2026-03-10', currency: 'EUR' } }),
     ]);
@@ -245,7 +257,7 @@ describe('buildAccountingExport — credit notes', () => {
 
 describe('buildAccountingExport — payments', () => {
   it("a payment inside the period appears, using documentAmountMinor and the document's own currency", async () => {
-    listDocuments.mockResolvedValue([invoice({ data: invoiceData({ issueDate: '2026-01-01' }) })]); // out of period
+    seedDocuments([invoice({ data: invoiceData({ issueDate: '2026-01-01' }) })]); // out of period
     listPaymentsInRange.mockResolvedValue([
       // A converted payment: 100.00 USD received, pinned at 92.00 EUR against the (EUR) invoice.
       payment({
@@ -289,7 +301,7 @@ describe('buildAccountingExport — scoping', () => {
   it('scopes every read by the given companyId', async () => {
     await buildAccountingExport('company-42', '2026-03-01', '2026-03-31');
 
-    expect(listDocuments).toHaveBeenCalledWith('company-42', 'invoice', expect.any(Number));
+    expect(listAllDocuments).toHaveBeenCalledWith('company-42', { typeId: 'invoice', status: ['sent'] });
     expect(listCreditNotes).toHaveBeenCalledWith('company-42');
     expect(sumPaidMinorByDocument).toHaveBeenCalledWith('company-42', []);
     expect(listPaymentsInRange).toHaveBeenCalledWith('company-42', expect.any(Date), expect.any(Date));

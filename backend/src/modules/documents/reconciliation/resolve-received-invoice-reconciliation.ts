@@ -9,7 +9,7 @@
  * afterward").
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
-import { findOwnedDocument, listDocuments } from '../persistence';
+import { findOwnedDocument, listAllDocuments } from '../persistence';
 import { getReconciliationSettings } from './reconciliation-settings';
 import {
   computeThreeWayMatch,
@@ -20,12 +20,6 @@ import {
   ThreeWayMatchLine,
 } from './three-way-match';
 import { getVarianceAcceptance, VarianceAcceptance } from './variance-acceptance';
-
-/** How many of this company's own goods receipts are scanned for ones referencing the purchase order
- *  under reconciliation — a bounded, honest linear check, the same `500`-row budget
- *  `received-invoices.service.ts`'s own `DUPLICATE_CHECK_LIMIT` already uses for an identical
- *  per-request, not-a-hot-path scan. */
-const GOODS_RECEIPT_SCAN_LIMIT = 500;
 
 /** The final, screen-facing verdict — the engine's own two-value `LineMatchVerdict` widened with the
  *  THIRD state a human decision (never the pure engine) can reach: `'accepted'`. */
@@ -135,16 +129,20 @@ export async function resolveReceivedInvoiceReconciliation(
     return { hasPurchaseOrder: false };
   }
 
-  const [purchaseOrder, receipts, settings] = await Promise.all([
+  // Both conditions go into the QUERY — the status AND the purchase order this receipt must
+  // reference — so every recorded receipt against this PO is counted however old it is. They used to
+  // be applied in memory over the 500 most recently touched goods receipts: a receipt outside that
+  // window was simply absent from the three-way match, which then reported a quantity variance
+  // against the invoice that the warehouse had in fact already received.
+  const [purchaseOrder, matchingReceipts, settings] = await Promise.all([
     findOwnedDocument(companyId, 'purchase-order', purchaseOrderId),
-    listDocuments(companyId, 'goods-receipt', GOODS_RECEIPT_SCAN_LIMIT),
+    listAllDocuments(companyId, {
+      typeId: 'goods-receipt',
+      status: ['recorded'],
+      dataEquals: { purchaseOrder: purchaseOrderId },
+    }),
     getReconciliationSettings(companyId),
   ]);
-
-  const matchingReceipts = receipts.filter((receipt) => {
-    const data = (receipt.data ?? {}) as Record<string, unknown>;
-    return receipt.status === 'recorded' && data.purchaseOrder === purchaseOrderId;
-  });
 
   const engineResult = computeThreeWayMatch({
     purchaseOrderLines: extractPurchaseOrderLines(purchaseOrder.data),

@@ -4,8 +4,20 @@ import { NotFoundException } from '@nestjs/common';
 
 import { buildDocumentReferenceProvider } from './document-reference.provider';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 
 vi.mock('../persistence');
+
+const listRecentDocuments = persistence.listRecentDocuments as Mock;
+
+/** Hands the picker only the rows the QUERY would have returned. Small on purpose: the picker is the
+ *  one read in this module that stays deliberately capped, because nothing is ever computed from it
+ *  — see `document-reference.provider.ts`'s own header. */
+function seedDocuments(rows: Parameters<typeof filterLikeListAllDocuments>[0]): void {
+  listRecentDocuments.mockImplementation(async (_companyId: string, options) =>
+    filterLikeListAllDocuments(rows, { typeId: options.typeId }).slice(0, options.take),
+  );
+}
 
 /**
  * This provider is what a document type's own reference fields resolve and search through — the
@@ -30,9 +42,7 @@ describe.each([
 
   describe('search', () => {
     it('labels each result from its client name and issue date, never a computed total', async () => {
-      (persistence.listDocuments as Mock).mockResolvedValue([
-        document('d1', { client: 'client-1', issueDate: '2026-01-15', lines: [] }),
-      ]);
+      seedDocuments([document('d1', { client: 'client-1', issueDate: '2026-01-15', lines: [] })]);
       const clientsService = { getClientById: vi.fn().mockResolvedValue({ name: 'Acme Corp' }) };
 
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, clientsService as never);
@@ -43,7 +53,7 @@ describe.each([
     });
 
     it('falls back to a labeled id when the document has no client, or the client is gone', async () => {
-      (persistence.listDocuments as Mock).mockResolvedValue([document('d1', {})]);
+      seedDocuments([document('d1', {})]);
       const clientsService = { getClientById: vi.fn() };
 
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, clientsService as never);
@@ -54,7 +64,7 @@ describe.each([
     });
 
     it('filters in memory by the resolved label when a query is given', async () => {
-      (persistence.listDocuments as Mock).mockResolvedValue([
+      seedDocuments([
         document('d1', { client: 'client-1', issueDate: '2026-01-15' }),
         document('d2', { client: 'client-2', issueDate: '2026-02-01' }),
       ]);
@@ -71,15 +81,20 @@ describe.each([
       expect(results).toEqual([{ id: 'd1', label: 'Acme Corp — 2026-01-15' }]);
     });
 
-    it('is scoped to the calling company AND the given type through persistence.listDocuments', async () => {
-      (persistence.listDocuments as Mock).mockResolvedValue([]);
+    it('is scoped to the calling company AND the given type, under an explicit option cap', async () => {
+      seedDocuments([]);
       const provider = buildDocumentReferenceProvider(typeId, typeLabel, {
         getClientById: vi.fn(),
       } as never);
 
       await provider.search('company-1', '');
 
-      expect(persistence.listDocuments).toHaveBeenCalledWith('company-1', typeId);
+      // A `take` is passed EXPLICITLY, never inherited from a default — the picker owns the fact that
+      // it shows a bounded set of options.
+      expect(listRecentDocuments).toHaveBeenCalledWith('company-1', {
+        typeId,
+        take: expect.any(Number),
+      });
     });
   });
 

@@ -4,7 +4,7 @@ import { decimalsFor, fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { findOwnedDocumentsByIds, listDocuments } from '../persistence';
+import { findOwnedDocumentsByIds, listAllDocuments } from '../persistence';
 import { DocumentSettlement, computeSettlement } from '../settlement/compute-settlement';
 import {
   DocumentCreditResult,
@@ -42,13 +42,6 @@ import { resolveClientLabels } from './client-labels';
  * credits already netted in, per that file's own header — is what the "status" column reports, rather
  * than this file re-deriving "is this paid off" by hand.
  */
-
-/** Same explicit, honest read cap as every other settlement read in this module (e.g.
- *  `client-statement.ts`'s own `CLIENT_STATEMENT_READ_LIMIT`) — an export is an honest "most recently
- *  touched N invoices" view, not an unbounded table scan. A credit note or payment can still reference
- *  an invoice beyond this cap; see `findOwnedDocumentsByIds` below for why payment rows resolve their
- *  own invoice through an UNCAPPED, exact-id lookup instead of this list. */
-const ACCOUNTING_EXPORT_READ_LIMIT = 500;
 
 /** The invoice's own base descriptor — see `client-statement.ts`'s identical constant for why a direct
  *  import is fine here: this file only ever computes totals for "invoice" instances. */
@@ -148,8 +141,13 @@ export async function buildAccountingExport(
   //     "draft" (not yet actually issued) or "cancelled" (nothing is owed on
   //     a document that no longer legally exists) — the exact filter `client-statement.ts` already
   //     applies for the identical reason. ===
-  const allInvoices = await listDocuments(companyId, 'invoice', ACCOUNTING_EXPORT_READ_LIMIT);
-  const sentInvoices = allInvoices.filter((invoice) => invoice.status === 'sent');
+  // Paged until every sent invoice of the company has been read, with "sent" pushed into SQL. A
+  // capped read here was the worst shape this defect took: the cap kept the most recently TOUCHED
+  // invoices, and the period filter below then discarded almost all of them, so asking for a quarter
+  // of last year produced a CSV that opened cleanly, carried no warning and no truncation marker, and
+  // was simply missing invoices. An export of a period must cover that period, not the tail of an
+  // unrelated ordering.
+  const sentInvoices = await listAllDocuments(companyId, { typeId: 'invoice', status: ['sent'] });
   const creditNotes = await listCreditNotes(companyId);
   const paidByDocument = await sumPaidMinorByDocument(
     companyId,
@@ -235,9 +233,9 @@ export async function buildAccountingExport(
 
   // === Payment rows: `paidAt` is a real column — filtered in SQL (`listPaymentsInRange`), never in
   //     memory. Resolved through an UNCAPPED, exact-id lookup (`findOwnedDocumentsByIds`), never the
-  //     `sentInvoices` list above: a payment's own `documentId` can reference an invoice beyond
-  //     `ACCOUNTING_EXPORT_READ_LIMIT`, or (in principle — see `DocumentPayment.documentId`'s own
-  //     schema comment) a document that isn't "sent" at all. ===
+  //     `sentInvoices` list above: a payment's own `documentId` can (in principle — see
+  //     `DocumentPayment.documentId`'s own schema comment) reference a document that isn't "sent" at
+  //     all, which that list deliberately excludes. ===
   const fromDate = new Date(`${from}T00:00:00.000Z`);
   const toDate = new Date(`${to}T23:59:59.999Z`);
   const payments = await listPaymentsInRange(companyId, fromDate, toDate);

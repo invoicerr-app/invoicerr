@@ -1,7 +1,7 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { listDocuments } from '../persistence';
+import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
 import { computeSettlement } from '../settlement/compute-settlement';
 import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
 import { sumPaidMinorByDocument } from '../settlement/payments';
@@ -40,9 +40,12 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
  *  screen for this is future work, not something to half-build here for one widget. */
 const CURVE_MONTHS = 6;
 
-/** How many document instances a contribution reads before aggregating — see persistence.ts's
- *  `listDocuments` for why this is an explicit, honest cap rather than an unbounded scan. */
-const CONTRIBUTION_READ_LIMIT = 500;
+/** How many rows the STATISTICS table below lists — a display cap, and the only one left in this
+ *  file. The table is a screen listing individual invoices, so showing the most recent N is a real
+ *  answer; the widget says so in its own `warnings` the moment the company has more. Every
+ *  AGGREGATE here (the dashboard's totals, the curve, the count metric) is computed over the whole
+ *  set instead — a sum or a count read off a capped page is simply a wrong number. */
+const STATISTICS_TABLE_ROW_LIMIT = 500;
 
 interface InvoiceLineLike {
   quantity?: unknown;
@@ -100,7 +103,11 @@ function recentMonths(now: Date): { key: string; label: string }[] {
  * branch has no business inventing.
  */
 export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ companyId }) => {
-  const invoices = await listDocuments(companyId, 'invoice', CONTRIBUTION_READ_LIMIT);
+  // Every invoice, paged until exhausted: each figure below (the pending list and its per-currency
+  // totals, the overdue totals, the curve, "issued this month") is an aggregate over ALL of this
+  // company's invoices, and a capped read made every one of them silently understate itself as soon
+  // as the company had more invoices than the cap.
+  const invoices = await listAllDocuments(companyId, { typeId: 'invoice' });
 
   // A "draft" is not yet issued at all, so it is never "pending" in the sense a reader of this
   // widget means — that part is unchanged. What changed once payments (and now credits —
@@ -338,7 +345,14 @@ export const buildInvoiceDashboardWidgetsWithConsolidation: ContributionHandler 
  * pure aggregation over the invoice's OWN data, the same boundary invoiceTotal draws).
  */
 export const buildInvoiceStatisticsWidgets: ContributionHandler = async ({ companyId }) => {
-  const invoices = await listDocuments(companyId, 'invoice', CONTRIBUTION_READ_LIMIT);
+  // TWO reads, deliberately: the table is a capped DISPLAY list, the count metric beside it is a
+  // total. Reading the count off `invoices.length` would make "Total invoices" report the size of
+  // the page — a number that stops growing the moment the company passes the cap, while the screen
+  // goes on calling it the total.
+  const [invoices, invoiceCount] = await Promise.all([
+    listRecentDocuments(companyId, { typeId: 'invoice', take: STATISTICS_TABLE_ROW_LIMIT }),
+    countDocuments(companyId, 'invoice'),
+  ]);
 
   const rows = invoices.map((invoice) => {
     const data = (invoice.data ?? {}) as Record<string, unknown>;
@@ -355,6 +369,15 @@ export const buildInvoiceStatisticsWidgets: ContributionHandler = async ({ compa
     id: 'invoice:all',
     kind: 'table',
     label: 'All invoices',
+    // Named on the widget itself, never left for a reader to infer from a row count — a list that
+    // silently stops at its cap reads exactly like a complete one.
+    warnings:
+      invoiceCount > rows.length
+        ? [
+            `Showing the ${rows.length} most recently updated invoices of ${invoiceCount}. ` +
+              `Use the accounting export for a complete period.`,
+          ]
+        : undefined,
     columns: [
       { key: 'issueDate', label: 'Issue date' },
       { key: 'dueDate', label: 'Due date' },
@@ -369,7 +392,7 @@ export const buildInvoiceStatisticsWidgets: ContributionHandler = async ({ compa
     id: 'invoice:count',
     kind: 'metric',
     label: 'Total invoices',
-    value: invoices.length,
+    value: invoiceCount,
   };
 
   return [totalMetric, tableWidget];

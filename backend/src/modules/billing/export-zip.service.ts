@@ -44,13 +44,8 @@ import { Transform } from 'node:stream';
 import JSZip = require('jszip');
 
 import { DocumentsService } from '../documents/documents.service';
-import { listDocuments } from '../documents/persistence';
+import { listAllDocuments } from '../documents/persistence';
 import { logger } from '@/logger/logger.service';
-
-/** Effectively "no cap" — `listDocuments`'s own default `take` is 50 (the list SCREEN's page-size
- *  budget, persistence.ts's own header), which this export must never inherit: a company with years
- *  of history must get every document, not its 50 most recently touched. */
-const EXPORT_TAKE = 1_000_000;
 
 /** Hard ceiling on the ARCHIVE's own compressed bytes — far below the 10-25 MB an ordinary SMTP server
  *  accepts as an attachment, so a company whose documents exceed it fails FAST, with a diagnosable
@@ -162,15 +157,18 @@ export class BillingExportService {
   /** The zip's bytes, ready to attach to an outgoing email. Never throws for a single document that
    *  fails to render (an incomplete draft missing a required field, e.g.) — that document's JSON
    *  still lands in the zip, just without a `.pdf` beside it, logged rather than aborting the WHOLE
-   *  export over one bad row. A genuinely fatal error DOES propagate: the initial `listDocuments`
-   *  query, the zip library itself, or — new as of 2026-09-17 — this company's own export crossing
+   *  export over one bad row. A genuinely fatal error DOES propagate: the initial
+   *  `listAllDocuments` scan, the zip library itself, or — new as of 2026-09-17 — this company's own export crossing
    *  `EXPORT_ZIP_MAX_BYTES`/`EXPORT_ZIP_MAX_DURATION_MS` (`ExportZipTooLargeError`/
    *  `ExportZipTimedOutError`, this file's own header). Callers that walk MANY companies (the billing
    *  lifecycle sweep) must catch per company — one company's export failing, of any kind, must never
    *  stop the rest of the pass; see `billing-lifecycle-sweep-runner.ts#sendZipToOwner`'s own try/catch. */
   async buildCompanyZip(companyId: string, limits: ExportZipLimits = {}): Promise<Buffer> {
     const zip = new JSZip();
-    const documents = await listDocuments(companyId, undefined, EXPORT_TAKE);
+    // Every document of every type, paged until exhausted — an export a company takes its data away
+    // with cannot be "the most recently touched N". This used to pass a 1 000 000 `take` to stand in
+    // for "no cap", which is still a cap, just one nothing would ever report hitting.
+    const documents = await listAllDocuments(companyId);
 
     for (const doc of documents) {
       const dir = `${doc.typeId}/${doc.number ?? doc.id}`;

@@ -1,5 +1,5 @@
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { listDocuments } from '../persistence';
+import { listAllDocuments } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { computeSettlement } from './compute-settlement';
 import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from './credits';
@@ -23,11 +23,6 @@ import { sumPaidMinorByDocument } from './payments';
  * THIS company ever has that id as its `client`), never another tenant's data — see this file's own
  * `client-statement.spec.ts` for the isolation proof.
  */
-
-/** Same explicit, honest read cap as every other contribution/settlement read in this module (e.g.
- *  invoice-contributions.ts's own `CONTRIBUTION_READ_LIMIT`, credits.ts's `CREDIT_NOTE_READ_LIMIT`)
- *  — a statement is an honest "most recently touched N invoices" view, not an unbounded table scan. */
-const CLIENT_STATEMENT_READ_LIMIT = 500;
 
 /** The invoice's own base descriptor — see invoice-contributions.ts's identical constant for why a
  *  direct import is fine here: this file only ever computes totals for "invoice" instances. */
@@ -182,10 +177,15 @@ export async function resolveClientStatement(
   clientId: string,
   asOf: Date = new Date(),
 ): Promise<ClientStatement> {
-  const allInvoices = await listDocuments(companyId, 'invoice', CLIENT_STATEMENT_READ_LIMIT);
-  const invoices = allInvoices.filter((invoice) => {
-    const data = (invoice.data ?? {}) as Record<string, unknown>;
-    return invoice.status === 'sent' && data.client === clientId;
+  // BOTH conditions go into SQL and the read pages until this client's sent invoices are exhausted
+  // (`listAllDocuments`). They used to be applied in memory over the 500 most recently touched
+  // invoices of the WHOLE company: a client whose invoices had fallen out of that window contributed
+  // nothing to `documents` AND nothing to `totals`, so the balance due came out UNDER-STATED with
+  // nothing on the statement indicating a single row was missing.
+  const invoices = await listAllDocuments(companyId, {
+    typeId: 'invoice',
+    status: ['sent'],
+    dataEquals: { client: clientId },
   });
 
   const paidByDocument = await sumPaidMinorByDocument(

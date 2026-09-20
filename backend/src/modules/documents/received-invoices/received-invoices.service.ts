@@ -17,7 +17,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { computeArtifactHash } from '../archive/hashing';
-import { findOwnedDocument, listDocuments } from '../persistence';
+import { findOwnedDocument, listAllDocuments } from '../persistence';
 import { extractReceivedInvoiceFields } from './extraction';
 import { applyOcrFallback, OcrOutcome } from './ocr/apply-ocr-fallback';
 import { persistInboundFile, readInboundFile } from './storage';
@@ -25,12 +25,6 @@ import { reconcileSupplierClient, SupplierMatchResult } from './supplier-reconci
 import { sanitizeFileName, validateInboundFile } from './upload-validation';
 
 const TYPE_ID = 'received-invoice';
-
-/** How many of this company's own received invoices are scanned for a hash collision — a bounded,
- *  honest linear check (same `500` cap `persistence.ts#listDocuments`'s own default budget and every
- *  contribution in this module already uses) rather than a JSONB-indexed query: this is a duplicate
- *  UPLOAD check, not a hot read path, and 500 already comfortably covers any real company's inbox. */
-const DUPLICATE_CHECK_LIMIT = 500;
 
 export interface UploadReceivedInvoiceInput {
   fileName: string;
@@ -100,10 +94,14 @@ export class ReceivedInvoicesService {
     const fileName = sanitizeFileName(input.fileName);
     const fileRef = computeArtifactHash(bytes);
 
-    const existing = await listDocuments(companyId, TYPE_ID, DUPLICATE_CHECK_LIMIT);
-    const duplicate = existing.find(
-      (doc) => (doc.data as Record<string, unknown> | null)?.fileRef === fileRef,
-    );
+    // The hash goes into the QUERY, so the whole inbox is checked however large it is. This used to
+    // scan the 500 most recently touched received invoices and compare `fileRef` in memory: past
+    // that, re-uploading a file already on record was accepted as new — the same supplier invoice
+    // recorded twice, and eventually paid twice, with the duplicate check reporting nothing at all.
+    const [duplicate] = await listAllDocuments(companyId, {
+      typeId: TYPE_ID,
+      dataEquals: { fileRef },
+    });
     if (duplicate) {
       throw new ConflictException(
         `This exact file has already been received (document "${duplicate.id}", ` +

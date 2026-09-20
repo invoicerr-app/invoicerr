@@ -7,12 +7,36 @@ import {
   monthKey,
 } from './expense-contributions';
 import * as persistence from '../persistence';
+import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget, TableWidget } from './widgets';
 
 vi.mock('../persistence');
 
-const listDocuments = persistence.listDocuments as Mock;
+const listAllDocuments = persistence.listAllDocuments as Mock;
+const listRecentDocuments = persistence.listRecentDocuments as Mock;
+const countDocuments = persistence.countDocuments as Mock;
+
+/** Hands the code under test only the rows the QUERY would have returned. The narrowing moved into
+ *  SQL when these reads stopped being capped, and the statistics screen now counts in the table
+ *  rather than on its own page — so one fixture feeds all three reads. Fixtures here stay small on
+ *  purpose; the cap-crossing ones live in `*.read-cap.spec.ts`. */
+function seedDocuments(rows: DocumentInstanceResult[]): void {
+  listAllDocuments.mockImplementation(async (_companyId: string, options = {}) =>
+    filterLikeListAllDocuments(rows, options),
+  );
+  listRecentDocuments.mockImplementation(async (_companyId: string, options) =>
+    filterLikeListAllDocuments(rows, {
+      typeId: options.typeId,
+      status: options.status,
+      orderBy: { field: 'updatedAt', direction: 'desc' },
+    }).slice(0, options.take),
+  );
+  countDocuments.mockImplementation(
+    async (_companyId: string, typeId?: string, status?: string[]) =>
+      filterLikeListAllDocuments(rows, { typeId, status }).length,
+  );
+}
 
 function expense(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -50,13 +74,15 @@ describe('buildExpenseDashboardWidgets', () => {
 
   beforeEach(() => {
     vi.useFakeTimers().setSystemTime(now);
-    listDocuments.mockReset();
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
   });
 
   afterEach(() => vi.useRealTimers());
 
   it('sums only the CURRENT month, grouped by currency — a last-month expense is excluded', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       expense({ id: 'this-month-1', data: { amount: 100, currency: 'EUR', date: dateInMonth(now, 0, 5) } }),
       expense({ id: 'this-month-2', data: { amount: 50, currency: 'EUR', date: dateInMonth(now, 0, 20) } }),
       // A different currency, same month — must produce its OWN metric, never get added into EUR's.
@@ -91,7 +117,7 @@ describe('buildExpenseDashboardWidgets', () => {
   });
 
   it('an empty month produces ONE currency-less zero metric, never a guessed currency', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       expense({ id: 'last-month', data: { amount: 500, currency: 'EUR', date: dateInMonth(now, -1, 1) } }),
     ]);
 
@@ -105,7 +131,7 @@ describe('buildExpenseDashboardWidgets', () => {
   });
 
   it('no expenses at all is the same empty-month case', async () => {
-    listDocuments.mockResolvedValue([]);
+    seedDocuments([]);
 
     const widgets = await buildExpenseDashboardWidgets({ companyId: 'c1' });
 
@@ -116,10 +142,14 @@ describe('buildExpenseDashboardWidgets', () => {
 });
 
 describe('buildExpenseStatisticsWidgets', () => {
-  beforeEach(() => listDocuments.mockReset());
+  beforeEach(() => {
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
+  });
 
   it('renders one detailed row per expense, most recent date first', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       expense({
         id: 'older',
         data: { description: 'Taxi', amount: 12.3, currency: 'EUR', date: '2026-01-01' },
@@ -146,7 +176,7 @@ describe('buildExpenseStatisticsWidgets', () => {
   // flows through to the statistics table verbatim (the raw option value, not its label — see this
   // file's own header on `translateWidget`'s "row data stays untranslated" convention).
   it('a chosen category flows through to the statistics table', async () => {
-    listDocuments.mockResolvedValue([
+    seedDocuments([
       expense({
         id: 'categorized',
         data: {

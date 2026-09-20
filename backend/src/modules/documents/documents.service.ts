@@ -823,8 +823,8 @@ export class DocumentsService implements OnModuleInit {
 
   /**
    * `GET /documents` — one page of instances, filtered and sorted server-side (issue: the list
-   * screen used to fetch a flat, unpaginated `take: 50` — see `persistence.ts#listDocuments`'s own
-   * comment — with every filter re-applied client-side against whatever those 50 rows happened to
+   * screen used to fetch a flat, unpaginated `take: 50` — see `persistence.ts#listRecentDocuments`'s
+   * own comment — with every filter re-applied client-side against whatever those 50 rows happened to
    * be, silently hiding anything past the cap). `query` is already fully SHAPE-validated by the
    * controller's own `parseListDocumentsQuery` (page bounds, date format, sort whitelist); what's
    * left here is the part that needs a type's own DESCRIPTOR to make sense of at all —
