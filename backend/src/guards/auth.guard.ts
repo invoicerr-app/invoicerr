@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -14,9 +15,12 @@ import { fromNodeHeaders } from 'better-auth/node';
 import prisma from '@/prisma/prisma.service';
 import { ApiKeyScope } from '@/modules/api-keys/scopes';
 import {
+  DOCUMENT_TYPE_SCOPE_BREADTH_KEY,
+  DocumentTypeScopeBreadth,
   hasAnyDocumentScope,
   hasAnyScope,
   hasScope,
+  readRequestedDocumentType,
   REQUIRES_DOCUMENT_TYPE_SCOPE_KEY,
   REQUIRES_SCOPE_KEY,
   scopeForDocumentType,
@@ -28,6 +32,45 @@ const IS_PUBLIC_KEY = 'PUBLIC';
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
+
+  /**
+   * A route declared `'one-type'` (the default of `@RequiresDocumentTypeScope`) must be TOLD which
+   * document type it is about, whoever is calling. Nothing else in this pipeline makes a caller say
+   * it: `@ApiQuery({ required: true })` is Swagger metadata the request never passes through, and
+   * `app.module.ts` registers no global `APP_PIPE`, so `?typeId=` can simply be left off the URL.
+   *
+   * Leave it off and TWO separate controls stop working, on that one missing word. The scope check
+   * below falls through to its coarse "holds ANY document scope for this mode" branch — written for
+   * the aggregate routes, never for one aimed at a single record — so a key granted only
+   * `invoices:read` passes the gate on a QUOTE. Then the handler forwards `typeId: undefined` into
+   * `modules/documents/persistence.ts#findOwnedDocument`, and Prisma drops an `undefined` filter out
+   * of the WHERE clause entirely, leaving `companyId` as the sole predicate: the row comes back, of
+   * whatever type it is. Together that is a narrow-purpose key reading every quote, credit note and
+   * received invoice in the company, in full, through `GET /documents/:id` and its `:id/archives`,
+   * `:id/authority-events` and `:id/share-links` siblings.
+   *
+   * Refused here, before either control is consulted, and for a human session as well as for a key:
+   * the type predicate that vanishes from the SQL vanishes the same way for both, and a route that
+   * promises a 404 across types must not answer 200 just because the caller stayed quiet.
+   */
+  private assertDocumentTypeNamed(
+    context: ExecutionContext,
+    request: {
+      params?: Record<string, unknown>;
+      query?: Record<string, unknown>;
+      body?: Record<string, unknown>;
+    },
+  ): void {
+    const breadth = this.reflector.getAllAndOverride<DocumentTypeScopeBreadth>(
+      DOCUMENT_TYPE_SCOPE_BREADTH_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (breadth !== 'one-type') return;
+
+    if (readRequestedDocumentType(request) === undefined) {
+      throw new BadRequestException('This route is about one document type — name it with `typeId`.');
+    }
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -62,6 +105,7 @@ export class AuthGuard implements CanActivate {
       // Session (human) auth isn't scope-restricted — access is governed
       // by CompanyRole instead. See @/utils/scope-check's hasScope().
       request.scopes = null;
+      this.assertDocumentTypeNamed(context, request);
       return true;
     }
 
@@ -120,22 +164,25 @@ export class AuthGuard implements CanActivate {
           throw new ForbiddenException('This API key is missing the scope required for this action');
         }
 
+        // A route aimed at ONE document type has already been refused above unless the caller named
+        // it (`assertDocumentTypeNamed`), so the coarse branch below is now reachable only from a
+        // route that genuinely spans every type — which is the only thing it was ever written for.
+        this.assertDocumentTypeNamed(context, request);
+
         // `documents.controller.ts`'s own counterpart: `@RequiresDocumentTypeScope('read'|'write')`
         // instead of a fixed scope list, because which scope applies depends on the `typeId` the
-        // CALLER names — never something decorator metadata alone can express. Looked up
-        // params → query → body, in that order, matching where each route on that controller
-        // actually carries it (a path segment for most, a query string for a handful of GETs, the
-        // request body for `POST .../schedules`). No `typeId` at all (e.g. `GET /documents/
-        // dashboard`, which aggregates across every type) falls back to the coarse "holds ANY
-        // document scope for this mode" check — the same two-tier (coarse/precise) shape
+        // CALLER names — never something decorator metadata alone can express. Read through the one
+        // shared `readRequestedDocumentType` (params → query → body) so this check and the refusal
+        // above can never disagree about what the caller named. An 'every-type' route (e.g.
+        // `GET /documents/dashboard`, which aggregates across every type) falls back to the coarse
+        // "holds ANY document scope for this mode" check — the same two-tier (coarse/precise) shape
         // `mcp/tools/scope-mapping.ts` already established for the exact same reason.
         const documentScopeMode = this.reflector.getAllAndOverride<'read' | 'write'>(
           REQUIRES_DOCUMENT_TYPE_SCOPE_KEY,
           [context.getHandler(), context.getClass()],
         );
         if (documentScopeMode) {
-          const typeId: string | undefined =
-            request.params?.typeId ?? request.query?.typeId ?? request.body?.typeId;
+          const typeId = readRequestedDocumentType(request);
           const allowed = typeId
             ? (() => {
                 const scope = scopeForDocumentType(typeId, documentScopeMode);

@@ -344,7 +344,9 @@ describe("Free credit note — the screen, browser level", () => {
 			expect(savedId, "l'avoir créé a un identifiant").to.be.a("string");
 
 			// Assertion via l'API, jamais via l'écran seul — même discipline que le reste de la suite.
-			cy.request(`${api}/api/documents/${savedId}`).then((res) => {
+			// `typeId` is not optional here: it is the only thing that carries the document TYPE into
+			// the lookup, in the scope check and in the SQL alike, so a call that omits it is refused.
+			cy.request(`${api}/api/documents/${savedId}?typeId=credit-note`).then((res) => {
 				expect(res.status).to.eq(200);
 				expect(res.body?.data?.invoice, "toujours aucune facture d'origine").to
 					.be.undefined;

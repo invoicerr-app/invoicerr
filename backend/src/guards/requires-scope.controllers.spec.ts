@@ -4,9 +4,9 @@
  * `@RequiresDocumentTypeScope` were rolled out to, and that a scope-restricted key really does get
  * refused on a write and let through on a read for a REAL route.
  *
- * Part 1 (metadata tripwire, no DB): pins the exact scope/mode `SetMetadata` attached to a
- * representative method on every annotated controller. Catches an annotation silently lost in a
- * future refactor.
+ * Part 1 (metadata tripwire, no DB): pins the exact scope, mode and type-breadth `SetMetadata`
+ * attached to a representative method on every annotated controller. Catches an annotation silently
+ * lost in a future refactor.
  *
  * Part 2 (real `AuthGuard`, real Prisma, `@/lib/auth` mocked exactly like `auth.guard.spec.ts`):
  * a `clients:read`-only key against the REAL `ClientsController.getClients`/`postClientsInfo`
@@ -33,7 +33,11 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
 import { CompanyRole } from '../../prisma/generated/prisma/client';
 import { generateApiKey, hashApiKey } from '@/utils/api-key';
-import { REQUIRES_DOCUMENT_TYPE_SCOPE_KEY, REQUIRES_SCOPE_KEY } from '@/utils/scope-check';
+import {
+  DOCUMENT_TYPE_SCOPE_BREADTH_KEY,
+  REQUIRES_DOCUMENT_TYPE_SCOPE_KEY,
+  REQUIRES_SCOPE_KEY,
+} from '@/utils/scope-check';
 import prisma from '@/prisma/prisma.service';
 
 import { ClientsController } from '@/modules/clients/clients.controller';
@@ -45,6 +49,7 @@ import { WebhooksController } from '@/modules/webhooks/webhooks.controller';
 import { BillingController } from '@/modules/billing/billing.controller';
 import { SeatsController } from '@/modules/billing/seats.controller';
 import { DocumentsController } from '@/modules/documents/documents.controller';
+import { CompanyCustomFieldsController } from '@/modules/documents/company-custom-fields/company-custom-fields.controller';
 
 describe('@RequiresScope / @RequiresDocumentTypeScope — wired onto the REST controllers', () => {
   const cases: Array<{
@@ -200,6 +205,37 @@ describe('@RequiresScope / @RequiresDocumentTypeScope — wired onto the REST co
       method: 'createSchedule',
       key: REQUIRES_DOCUMENT_TYPE_SCOPE_KEY,
       expected: 'write',
+    },
+    // The breadth half of the same annotation, pinned on one route of each kind. Losing it on a
+    // per-document route silently reopens the coarse-fallback hole `document-type-scope.spec.ts`
+    // closes; adding it by mistake to a route that spans every type would 400 the dashboard.
+    {
+      name: 'DocumentsController',
+      Controller: DocumentsController,
+      method: 'getDocument',
+      key: DOCUMENT_TYPE_SCOPE_BREADTH_KEY,
+      expected: 'one-type',
+    },
+    {
+      name: 'DocumentsController',
+      Controller: DocumentsController,
+      method: 'listDashboardWidgets',
+      key: DOCUMENT_TYPE_SCOPE_BREADTH_KEY,
+      expected: 'every-type',
+    },
+    {
+      name: 'CompanyCustomFieldsController',
+      Controller: CompanyCustomFieldsController,
+      method: 'create',
+      key: REQUIRES_SCOPE_KEY,
+      expected: ['company:write'],
+    },
+    {
+      name: 'CompanyCustomFieldsController',
+      Controller: CompanyCustomFieldsController,
+      method: 'list',
+      key: REQUIRES_SCOPE_KEY,
+      expected: ['company:read'],
     },
   ];
 

@@ -2,7 +2,10 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { Roles } from '@/decorators/roles.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
+import { CompanyRole } from '../../../../prisma/generated/prisma/client';
 import { CompanyCustomFieldsService } from './company-custom-fields.service';
 import {
   CompanyCustomFieldTarget,
@@ -17,6 +20,26 @@ import {
  * a `DocumentInstance`, and has no business inside the generic document controller. `GET .../resolved`
  * is the one exception — read by the DOCUMENT FORM and the CLIENT form alike, never by the settings
  * screen itself (which reads the plain list below).
+ *
+ * Gated on `company:*` + `@Roles(OWNER, ADMIN)` for the writes, because of what a definition IS: not
+ * one person's own note on one record, but a rule imposed on every document and every client of the
+ * company, retroactively and for everyone. Creating one with `required: true` makes every colleague's
+ * next action fail validation until they fill in a field they never asked for — `documents.service.ts
+ * #runAction` checks EVERY action's data against the definitions of the moment, "send" included, so
+ * this reaches documents already in flight, not just new drafts. Archiving one takes a field other
+ * people are actively filling straight off the create/edit form. Renaming a label rewrites what the
+ * PDF the customer receives calls that value, on documents already issued, because
+ * `rendering/render-instance-pdf.ts` re-resolves the definitions at render time. That is a
+ * company-configuration write, the same class as an expense category or the branding
+ * (`expense-categories.controller.ts`, `branding.controller.ts` — both OWNER/ADMIN already), and the
+ * settings menu has always presented this tab as one. The route simply never said so, which left a
+ * plain MEMBER — and any API key at all, whatever narrow purpose it was minted for — able to impose
+ * a mandatory field on the whole company, or to remove one, through a single unguarded call.
+ *
+ * Reads stay open to every active-company ROLE: the document form and the client form need the
+ * resolved descriptors to render at all, and a definition is not a secret. They still name
+ * `company:read`, so a key minted for one narrow resource does not get this company's form shape
+ * thrown in for free.
  */
 @ApiTags('custom-fields')
 @Controller('custom-fields')
@@ -24,6 +47,7 @@ export class CompanyCustomFieldsController {
   constructor(private readonly customFields: CompanyCustomFieldsService) {}
 
   @Get()
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: "Every custom field definition for this company (settings screen's own list)",
     description:
@@ -49,6 +73,7 @@ export class CompanyCustomFieldsController {
   }
 
   @Get('resolved')
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'Definitions for one target, as ready-to-render DocumentFieldDescriptor[]',
     description:
@@ -73,6 +98,8 @@ export class CompanyCustomFieldsController {
   }
 
   @Post()
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Create a new custom field definition',
     description:
@@ -80,11 +107,14 @@ export class CompanyCustomFieldsController {
       "schema.prisma's own `CompanyCustomField.key` header).",
   })
   @ApiResponse({ status: 201, description: 'Custom field definition created' })
+  @ApiResponse({ status: 403, description: 'Not an OWNER/ADMIN, or an API key without company:write' })
   create(@ActiveCompany() companyId: string, @Body() body: CreateCompanyCustomFieldInput) {
     return this.customFields.create(companyId, body);
   }
 
   @Patch(':id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Update a custom field definition — label/options/required/order only',
     description:
@@ -93,6 +123,7 @@ export class CompanyCustomFieldsController {
   })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Custom field definition updated' })
+  @ApiResponse({ status: 403, description: 'Not an OWNER/ADMIN, or an API key without company:write' })
   update(
     @ActiveCompany() companyId: string,
     @Param('id') id: string,
@@ -102,6 +133,8 @@ export class CompanyCustomFieldsController {
   }
 
   @Delete(':id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Archive (soft-delete) a custom field definition',
     description:
@@ -111,14 +144,18 @@ export class CompanyCustomFieldsController {
   })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Custom field definition archived' })
+  @ApiResponse({ status: 403, description: 'Not an OWNER/ADMIN, or an API key without company:write' })
   archive(@ActiveCompany() companyId: string, @Param('id') id: string) {
     return this.customFields.archive(companyId, id);
   }
 
   @Post(':id/restore')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Un-archive a previously archived custom field definition' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Custom field definition restored' })
+  @ApiResponse({ status: 403, description: 'Not an OWNER/ADMIN, or an API key without company:write' })
   restore(@ActiveCompany() companyId: string, @Param('id') id: string) {
     return this.customFields.restore(companyId, id);
   }

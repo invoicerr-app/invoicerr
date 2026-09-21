@@ -1,4 +1,4 @@
-import { SetMetadata } from '@nestjs/common';
+import { applyDecorators, SetMetadata } from '@nestjs/common';
 
 import { API_KEY_SCOPES, ApiKeyScope, isApiKeyScope } from '@/modules/api-keys/scopes';
 import { RequestWithUser } from '@/types/request';
@@ -83,15 +83,62 @@ export const RequiresScope = (...scopes: ApiKeyScope[]) => SetMetadata(REQUIRES_
 
 export const REQUIRES_DOCUMENT_TYPE_SCOPE_KEY = 'requiresDocumentTypeScope';
 
+export const DOCUMENT_TYPE_SCOPE_BREADTH_KEY = 'documentTypeScopeBreadth';
+
+/**
+ * Whether a document-scoped route is ABOUT one document type the caller names ('one-type'), or spans
+ * every registered type at once ('every-type': `GET /documents/dashboard`, `GET /documents/types`,
+ * the SSE stream, the reference/attachment helpers — routes where no single `typeId` exists to
+ * check against, and where the coarse "holds ANY document scope for this mode" fallback is the only
+ * thing expressible).
+ *
+ * 'one-type' is the DEFAULT, and deliberately the fail-closed one: a route that names a single
+ * record without being told which type it is has no type predicate left to enforce, neither in the
+ * scope check nor in the SQL (see `AuthGuard#assertDocumentTypeNamed`). A new per-document route
+ * therefore starts out refusing a call that omits `typeId`, and only an explicit 'every-type' here —
+ * a decision someone had to write down — opens it up.
+ */
+export type DocumentTypeScopeBreadth = 'one-type' | 'every-type';
+
 /**
  * The document-engine counterpart of `@RequiresScope` above, for `documents.controller.ts`: a FIXED
  * scope list cannot express this controller's routes, because which scope applies depends on the
  * `typeId` the CALLER names (a path param, a query string, or — `POST .../schedules` — a body field),
  * never something decorator metadata can see ahead of time. `AuthGuard` resolves the real scope at
  * request time via `scopeForDocumentType`/`hasAnyDocumentScope` above — see its own call site for the
- * exact (params → query → body) lookup order and the coarse fallback for a route with no `typeId` at
- * all (e.g. `GET /documents/dashboard`). `mode` is 'read' for a GET, 'write' for everything that
- * creates/mutates — the same HTTP-verb convention `@RequiresScope`'s own callers already follow.
+ * coarse fallback used by an 'every-type' route. `mode` is 'read' for a GET, 'write' for everything
+ * that creates/mutates — the same HTTP-verb convention `@RequiresScope`'s own callers already follow.
+ *
+ * Two metadata keys rather than one object, so the mode a route declares stays readable on its own
+ * by anything that only cares about read-vs-write.
  */
-export const RequiresDocumentTypeScope = (mode: 'read' | 'write') =>
-  SetMetadata(REQUIRES_DOCUMENT_TYPE_SCOPE_KEY, mode);
+export const RequiresDocumentTypeScope = (
+  mode: 'read' | 'write',
+  breadth: DocumentTypeScopeBreadth = 'one-type',
+) =>
+  applyDecorators(
+    SetMetadata(REQUIRES_DOCUMENT_TYPE_SCOPE_KEY, mode),
+    SetMetadata(DOCUMENT_TYPE_SCOPE_BREADTH_KEY, breadth),
+  );
+
+/**
+ * The document type a request NAMES — params → query → body, in that order, matching where each
+ * document route actually carries it (a path segment for `types/:typeId/...`, a query string for the
+ * per-document reads, the request body for `POST /documents/schedules`).
+ *
+ * Normalized the way the handlers themselves read it, so the scope resolved from this value is
+ * always the scope of the type the handler will really act on: a query key repeated in the URL
+ * (`?typeId=quote&typeId=invoice`) arrives as an array and collapses to its FIRST entry, exactly
+ * what `dto/list-documents.dto.ts#firstValue` hands the list endpoint. An EMPTY value
+ * (`?typeId=`) is not a named type and comes back `undefined` — otherwise a caller could spell
+ * "this route is about no particular type" in a URL that looks like it names one.
+ */
+export function readRequestedDocumentType(request: {
+  params?: Record<string, unknown>;
+  query?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+}): string | undefined {
+  const raw = request.params?.typeId ?? request.query?.typeId ?? request.body?.typeId;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}

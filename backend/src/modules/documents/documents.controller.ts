@@ -93,8 +93,17 @@ interface UploadedMulterFile {
 // string for the read side of a handful, the body for `POST .../schedules`) — a fixed `@RequiresScope`
 // list cannot express "the required scope depends on the document type", the same reason
 // `mcp/tools/scope-mapping.ts` already resolves it per call rather than at tool-registration time.
-// Session (human) callers are entirely unaffected: `request.scopes` is `null` for them, which every
-// scope check in this codebase already treats as "always satisfied".
+// Session (human) callers are unaffected by the SCOPE half: `request.scopes` is `null` for them,
+// which every scope check in this codebase already treats as "always satisfied".
+//
+// The second argument says whether the route is about ONE type or spans every registered type.
+// 'every-type' is written out on the aggregate routes (dashboard/statistics/types/declarations, the
+// SSE stream, the reference and attachment helpers, the `GET /documents` list with its optional
+// `typeId` filter); everything else keeps the fail-closed default, which makes a request that does
+// not name a type a 400 instead of a lookup with the type predicate silently missing — see
+// `AuthGuard#assertDocumentTypeNamed` for what an omitted `typeId` otherwise switches off. That
+// refusal applies to sessions too, so a `:id/...` route answers about the type it was asked about,
+// never about whatever type the id happens to be.
 @ApiTags('documents')
 @Controller('documents')
 export class DocumentsController {
@@ -111,7 +120,7 @@ export class DocumentsController {
   // first — see documents.module.ts's comment header for why this ordering matters here.
 
   @Get('schedules')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'List recurrences',
     description: 'Every DocumentSchedule for the active company — optionally narrowed to one document type.',
@@ -138,7 +147,7 @@ export class DocumentsController {
   }
 
   @Patch('schedules/:id')
-  @RequiresDocumentTypeScope('write')
+  @RequiresDocumentTypeScope('write', 'every-type')
   @ApiOperation({
     summary: 'Enable or disable a recurrence',
     description:
@@ -156,7 +165,7 @@ export class DocumentsController {
   }
 
   @Delete('schedules/:id')
-  @RequiresDocumentTypeScope('write')
+  @RequiresDocumentTypeScope('write', 'every-type')
   @ApiOperation({ summary: 'Delete a recurrence' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Schedule deleted' })
@@ -166,7 +175,7 @@ export class DocumentsController {
   }
 
   @Get('types')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'List document types',
     description: 'Every registered document type descriptor, id and label only.',
@@ -181,7 +190,7 @@ export class DocumentsController {
   // `@Get(':id')` route further down.
 
   @Get('email-templates')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'List every document type email template',
     description:
@@ -310,7 +319,7 @@ export class DocumentsController {
   }
 
   @Get('available-types')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: "List document types available for the active company's country",
     description:
@@ -325,7 +334,7 @@ export class DocumentsController {
   }
 
   @Get('required-identifiers')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'Legal identifier requirements for a country and party type',
     description:
@@ -347,7 +356,7 @@ export class DocumentsController {
   }
 
   @Get('b2g-routing')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'The B2G routing rule declared for a country, if any',
     description:
@@ -367,7 +376,7 @@ export class DocumentsController {
   }
 
   @Get('declarations')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: "List the active company's declarative-reporting events",
     description:
@@ -398,7 +407,7 @@ export class DocumentsController {
   }
 
   @Get('dashboard')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'Dashboard widgets',
     description:
@@ -412,7 +421,7 @@ export class DocumentsController {
   }
 
   @Get('statistics')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'Statistics widgets',
     description: 'Same mechanism as GET documents/dashboard, for the Statistics screen.',
@@ -423,7 +432,7 @@ export class DocumentsController {
   }
 
   @Get('transports')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'List document transports',
     description:
@@ -466,7 +475,7 @@ export class DocumentsController {
    * heartbeat for a real document event and never invalidates a query over one.
    */
   @Sse('events')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'Live document status/conformity events (SSE)',
     description:
@@ -501,7 +510,7 @@ export class DocumentsController {
   }
 
   @Get('references/:entity/search')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'Search a reference entity',
     description: 'Generic search behind a "reference" field, regardless of which entity it targets.',
@@ -519,7 +528,7 @@ export class DocumentsController {
   }
 
   @Get('references/:entity/:refId')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'Resolve a reference value',
     description: 'The {id, label} for one entity id — used to display an already-set reference field.',
@@ -537,7 +546,7 @@ export class DocumentsController {
   }
 
   @Get('references/:entity/:refId/fields')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: "A reference entity's own raw fields, for prefilling a row",
     description:
@@ -570,7 +579,7 @@ export class DocumentsController {
   // this handler, or even `AttachmentsService`, ever runs. `FileInterceptor`'s single-field contract
   // (`.single('file')`) already refuses more than one file per request on its own.
   @Post('attachments/upload')
-  @RequiresDocumentTypeScope('write')
+  @RequiresDocumentTypeScope('write', 'every-type')
   @UseInterceptors(
     FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_ATTACHMENT_BYTES } }),
   )
@@ -611,7 +620,7 @@ export class DocumentsController {
   }
 
   @Get('attachments/:fileRef')
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({ summary: "An attachment's original uploaded bytes" })
   @ApiParam({
     name: 'fileRef',
@@ -724,7 +733,7 @@ export class DocumentsController {
   }
 
   @Get()
-  @RequiresDocumentTypeScope('read')
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'List document instances',
     description:
