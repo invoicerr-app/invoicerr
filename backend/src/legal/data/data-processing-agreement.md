@@ -1,8 +1,8 @@
 ---
 title: Data Processing Agreement
 sidebar_position: 3
-version: 2026-09-20
-effectiveDate: 2026-09-20
+version: 2026-09-21
+effectiveDate: 2026-09-21
 ---
 
 :::warning Draft
@@ -191,6 +191,19 @@ your data, and this DPA adopts the same mechanism as the "return" half of Articl
   **thirty (30) days** after the archive for a Company that never had a paid subscription (Regulation
   (EU) 2023/2854, Article 25(2)(g)'s minimum retrieval window), no earlier than **180 days** after the
   archive for one that did.
+- **Statutory retention**: one category of Customer Personal Data outlives that deletion. Every
+  document you send through the Service is archived, and each archive records how long the law of your
+  Company's own country requires that document to be kept and which text imposes the period. We do not
+  erase an archived document while its period is still running — not on your instruction, and not when
+  your Company is deleted, which you may do at any time and which we never block. Article 28(3)(g)
+  itself preserves this case: a processor deletes existing copies "unless Union or Member State law
+  requires storage of the personal data", and **GDPR Article 17(3)(b)** disapplies the erasure right to
+  the same extent, for processing "necessary … for compliance with a legal obligation which requires
+  processing by Union or Member State law to which the controller is subject". The file stays on our
+  storage, with the expiry date and the citation recorded against it, and is erased once that date has
+  passed. The Privacy Policy, Section 6 lists the four countries concerned today — Germany, France,
+  Poland and Portugal — with the period and the statute for each, and states that a Company established
+  anywhere else has nothing held back.
 
 ## 11. Audits
 
@@ -307,3 +320,13 @@ this document; they create no separate or additional rights.
   including on real invoices and other real documents — is processed and stored on that environment,
   not on Scaleway's production infrastructure, until the environment is retired, at which point the
   data moves to the production infrastructure.
+- **2026-09-21** — Owner decision: how deleting a Company and statutory retention interact. **Section
+  10** gains a third bullet, "Statutory retention": an archived document whose retention period is
+  still running is not erased — neither on your instruction nor when your Company is deleted, which you
+  may do at any time and which we never block — and the file stays on our storage with its expiry date
+  and its citation recorded against it. The ground is the carve-out Article 28(3)(g) already contains
+  ("unless Union or Member State law requires storage of the personal data") together with **GDPR
+  Article 17(3)(b)**. Section 3's "Duration" was already expressed as the subscription plus the
+  retention window described in Section 10, and now correctly covers this window too. This is a new
+  fact, not a restatement: it is the first place this DPA discloses that Customer Personal Data can
+  remain on our storage for years after the end of the provision of services.

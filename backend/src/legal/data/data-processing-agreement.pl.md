@@ -216,6 +216,21 @@ Po zakończeniu subskrypcji Twojej Firmy to, co dzieje się z Twoimi danymi, reg
   nie miała płatnej subskrypcji (minimalny okres na odzyskanie danych określony w art. 25 ust. 2
   lit. g) rozporządzenia (UE) 2023/2854), oraz nie wcześniej niż **180 dni** po utworzeniu archiwum
   w przypadku Firmy, która taką subskrypcję miała.
+- **Przechowywanie wymagane przepisami**: jedna kategoria Danych Osobowych Klienta przetrwa to
+  usunięcie. Każdy dokument wysłany przez Ciebie za pośrednictwem Usługi jest archiwizowany, a każde
+  archiwum zapisuje, jak długo prawo kraju Twojej Firmy wymaga przechowywania tego dokumentu i który
+  przepis ten okres nakłada. Nie usuwamy zarchiwizowanego dokumentu, dopóki jego okres biegnie — ani na
+  Twoje polecenie, ani przy usunięciu Twojej Firmy, którego możesz dokonać w dowolnym momencie i
+  którego nigdy nie blokujemy. Sam art. 28 ust. 3 lit. g) RODO zastrzega ten przypadek: podmiot
+  przetwarzający usuwa istniejące kopie, chyba że prawo Unii lub prawo państwa członkowskiego nakazuje
+  przechowywanie danych osobowych; a **art. 17 ust. 3 lit. b) RODO** wyłącza prawo do usunięcia danych
+  w tym samym zakresie — dla przetwarzania niezbędnego do wywiązania się z prawnego obowiązku
+  wynikającego z prawa Unii lub prawa państwa członkowskiego, któremu podlega administrator. Plik
+  pozostaje w naszej przestrzeni przechowywania wraz z zapisaną przy nim datą wygaśnięcia i podstawą
+  prawną i zostaje usunięty, gdy data ta minie. Polityka Prywatności, sekcja 6, wymienia cztery kraje,
+  których to dziś dotyczy — Niemcy, Francję, Polskę i Portugalię — wraz z okresem i przepisem dla
+  każdego z nich oraz wskazuje, że w przypadku Firmy z siedzibą gdzie indziej nic nie jest
+  zatrzymywane.
 
 ## 11. Audyty
 

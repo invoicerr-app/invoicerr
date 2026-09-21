@@ -1,8 +1,8 @@
 ---
 title: Privacy Policy
 sidebar_position: 2
-version: 2026-09-20
-effectiveDate: 2026-09-20
+version: 2026-09-21
+effectiveDate: 2026-09-21
 ---
 
 :::warning Draft
@@ -121,6 +121,27 @@ involves a non-EU entity.
   (Section 13.3, second bullet — that same file's `PAID_ZIP_GRACE_DAYS` constant). Both figures are the
   minimum data-retrieval window Regulation (EU) 2023/2854 (the EU Data Act), Article 25(2)(g) requires
   before we may erase Your Data once you stop using the Service.
+- **Archived documents still inside a statutory retention period outlive that deletion.** When you send
+  a document through the Service we archive a copy of it and record, at that moment, how long the law
+  of your Company's own country requires it to be kept and which text imposes that period. When your
+  Company is deleted — by you, from your Company's settings, at any time and without us blocking your
+  exit, or at the end of the schedule above — every record scoped to it and every stored file goes,
+  **except** those archived documents whose recorded period has not yet run out. Those files stay on our
+  storage, alongside a record naming the expiry date and the citation for each of them, and we erase
+  them once that date has passed. The ground is **GDPR Article 17(3)(b)**: the right to erasure "shall
+  not apply to the extent that processing is necessary … for compliance with a legal obligation which
+  requires processing by Union or Member State law to which the controller is subject" — and a national
+  invoice-retention obligation does not lapse because an account was closed. The periods we apply, each
+  taken from the text that imposes it: **Germany**, 8 years from the end of the calendar year the
+  document was issued in (UStG § 14b Abs. 1; AO § 147 Abs. 3); **France**, the longer of 6 years (LPF
+  art. L102 B) and 10 years (C. com. art. L123-22), which bind a French company at the same time;
+  **Poland**, 5 years (ustawa o VAT art. 112, which refers to the limitation period of Ordynacja
+  podatkowa art. 70 § 1); **Portugal**, 10 years from the end of the calendar year of issue (CIVA art.
+  52.º n.º 1). Those four countries are the only ones for which the Service carries a sourced retention
+  rule: for a Company established anywhere else, nothing is held back and its archived documents are
+  erased with everything else. Stated plainly: **if your Company is established in one of those four
+  countries, the documents you sent through the Service stay on our storage for years after you have
+  left**, and we will not erase them earlier at your request.
 - **Application logs** are kept for **90 days**, then deleted automatically by a recurring purge —
   long enough to investigate a security incident or a support question that surfaces weeks later, and
   no longer.
@@ -150,6 +171,11 @@ interest (**Art. 21**). You can exercise any of these by writing to **contact@in
 will respond within the timeframe the GDPR sets for a controller. You also have the right to lodge a
 complaint with the French data protection authority, the **CNIL** (www.cnil.fr), or with the
 supervisory authority of your own EU member state.
+
+The right to erasure (**Art. 17**) has a limit we apply, and you should know it before you ask: where a
+statute still requires an archived document to be kept, **Art. 17(3)(b)** disapplies that right for as
+long as the retention period runs, and we keep the document. Section 6 sets out which countries, which
+periods, and which texts, and what is erased anyway.
 
 We do not carry out any processing described in **GDPR Article 22** — there is no automated
 decision-making, including profiling, that produces legal or similarly significant effects on you.
@@ -323,3 +349,16 @@ this document; they create no separate or additional rights.
   once that environment is retired. This is a new fact, not a restatement: it is the first place this
   Policy discloses that a beta participant's Customer Data is stored somewhere other than Scaleway's
   production infrastructure.
+- **2026-09-21** — Owner decision: how deleting a Company and statutory retention interact. **Section
+  6** gains a bullet stating that a Company can be deleted at any time and that nothing blocks that
+  exit, that every record scoped to it and every stored file is then erased **except** archived
+  documents whose statutory retention period has not yet run out, and that those files stay on our
+  storage — with the expiry date and the citation recorded against each — until that date passes. The
+  ground is **GDPR Article 17(3)(b)**, and the bullet lists the four countries for which the Service
+  carries a sourced retention rule (Germany, UStG § 14b Abs. 1 and AO § 147 Abs. 3; France, LPF art.
+  L102 B and C. com. art. L123-22; Poland, ustawa o VAT art. 112 with Ordynacja podatkowa art. 70 § 1;
+  Portugal, CIVA art. 52.º n.º 1), stating that a Company established anywhere else has nothing held
+  back. **Section 8** now names that limit on the erasure right where the right itself is described,
+  instead of leaving it only in Section 6. This is a new fact, not a restatement: it is the first place
+  this Policy discloses that documents you sent through the Service can remain on our storage for years
+  after your Company is deleted.

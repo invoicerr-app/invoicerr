@@ -133,6 +133,30 @@ et de base de données de votre Société, n'implique d'entité hors UE.
   récupération des données qu'exige l'article 25, paragraphe 2, point g), du règlement (UE) 2023/2854
   (le Data Act) avant que nous puissions supprimer Vos Données une fois que vous cessez d'utiliser le
   Service.
+- **Les documents archivés encore soumis à une durée légale de conservation survivent à cette
+  suppression.** Lorsque vous envoyez un document au moyen du Service, nous en archivons une copie et
+  enregistrons, à cet instant, la durée pendant laquelle la loi du pays de votre Société exige qu'il
+  soit conservé ainsi que le texte qui impose cette durée. Lorsque votre Société est supprimée — par
+  vous, depuis les réglages de votre Société, à tout moment et sans que nous fassions obstacle à votre
+  départ, ou au terme du calendrier ci-dessus — tout enregistrement qui lui est rattaché et tout
+  fichier stocké disparaissent, **à l'exception** des documents archivés dont la durée enregistrée
+  n'est pas encore écoulée. Ces fichiers demeurent sur notre stockage, accompagnés d'un enregistrement
+  indiquant, pour chacun, la date d'expiration et la citation applicable, et nous les effaçons une fois
+  cette date passée. Le fondement est l'**article 17, paragraphe 3, point b), du RGPD** : le droit à
+  l'effacement ne s'applique pas dans la mesure où le traitement est nécessaire pour respecter une
+  obligation légale qui requiert le traitement, prévue par le droit de l'Union ou le droit de l'État
+  membre auquel le responsable du traitement est soumis — et une obligation nationale de conservation
+  des factures ne disparaît pas parce qu'un compte a été fermé. Les durées que nous appliquons, chacune
+  tirée du texte qui l'impose : **Allemagne**, 8 ans à compter de la fin de l'année civile d'émission du
+  document (UStG § 14b Abs. 1 ; AO § 147 Abs. 3) ; **France**, la plus longue de 6 ans (LPF art.
+  L102 B) et de 10 ans (C. com. art. L123-22), qui s'imposent simultanément à une société française ;
+  **Pologne**, 5 ans (ustawa o VAT art. 112, qui renvoie au délai de prescription de l'Ordynacja
+  podatkowa art. 70 § 1) ; **Portugal**, 10 ans à compter de la fin de l'année civile d'émission (CIVA
+  art. 52.º n.º 1). Ces quatre pays sont les seuls pour lesquels le Service dispose d'une règle de
+  conservation sourcée : pour une Société établie ailleurs, rien n'est retenu et ses documents archivés
+  sont effacés avec le reste. Dit simplement : **si votre Société est établie dans l'un de ces quatre
+  pays, les documents que vous avez envoyés au moyen du Service demeurent sur notre stockage pendant
+  des années après votre départ**, et nous ne les effacerons pas plus tôt à votre demande.
 - **Les journaux applicatifs** sont conservés **90 jours**, puis supprimés automatiquement par une
   purge récurrente — assez longtemps pour instruire un incident de sécurité ou une demande de support
   qui ne se manifeste que des semaines plus tard, et pas davantage.
@@ -165,6 +189,12 @@ droits en écrivant à **contact@invoicerr.app** ; nous vous répondrons dans le
 un responsable de traitement. Vous avez également le droit d'introduire une réclamation auprès de
 l'autorité française de protection des données, la **CNIL** (www.cnil.fr), ou auprès de l'autorité de
 contrôle de votre propre État membre de l'UE.
+
+Le droit à l'effacement (**art. 17**) connaît une limite que nous appliquons et que vous devez
+connaître avant d'en faire la demande : lorsqu'un texte impose encore la conservation d'un document
+archivé, l'**article 17, paragraphe 3, point b)** écarte ce droit tant que la durée de conservation
+court, et nous conservons le document. La Section 6 précise quels pays, quelles durées et quels textes
+sont concernés, ainsi que ce qui est malgré tout effacé.
 
 Nous ne mettons en œuvre aucun traitement relevant de l'**article 22 du RGPD** — il n'existe aucune
 décision automatisée, y compris de profilage, produisant des effets juridiques ou vous affectant de

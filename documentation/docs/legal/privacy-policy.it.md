@@ -130,6 +130,31 @@ coinvolge un'entità extra-UE.
   file). Entrambi i termini corrispondono alla finestra minima di recupero dei dati richiesta
   dall'articolo 25, paragrafo 2, lettera g), del Regolamento (UE) 2023/2854 (il "Data Act"), prima
   che possiamo cancellare i Suoi Dati una volta cessato l'utilizzo del Servizio.
+- **I documenti archiviati ancora soggetti a un periodo di conservazione obbligatorio sopravvivono a
+  tale eliminazione.** Quando Lei invia un documento tramite il Servizio, ne archiviamo una copia e
+  registriamo, in quel momento, per quanto tempo la legge del Paese della Sua Azienda ne impone la
+  conservazione e quale testo fissa tale periodo. Quando la Sua Azienda viene eliminata — da Lei, dalle
+  impostazioni della Sua Azienda, in qualsiasi momento e senza che noi ostacoliamo la Sua uscita,
+  oppure al termine del calendario sopra descritto — vengono meno ogni record a essa riferito e ogni
+  file memorizzato, **ad eccezione** dei documenti archiviati il cui periodo registrato non è ancora
+  trascorso. Tali file restano sul nostro spazio di archiviazione, accompagnati da un record che per
+  ciascuno di essi indica la data di scadenza e il riferimento normativo, e vengono da noi cancellati
+  una volta trascorsa tale data. Il fondamento è l'**articolo 17, paragrafo 3, lettera b), del GDPR**:
+  il diritto alla cancellazione non si applica nella misura in cui il trattamento sia necessario per
+  adempiere un obbligo legale che richieda il trattamento previsto dal diritto dell'Unione o dello
+  Stato membro cui è soggetto il titolare del trattamento — e un obbligo nazionale di conservazione
+  delle fatture non viene meno per il fatto che un account sia stato chiuso. I periodi che applichiamo,
+  ciascuno tratto dal testo che lo impone: **Germania**, 8 anni dalla fine dell'anno civile di emissione
+  del documento (UStG § 14b Abs. 1; AO § 147 Abs. 3); **Francia**, il più lungo tra 6 anni (LPF art.
+  L102 B) e 10 anni (C. com. art. L123-22), che vincolano simultaneamente una società francese;
+  **Polonia**, 5 anni (ustawa o VAT art. 112, che rinvia al termine di prescrizione dell'Ordynacja
+  podatkowa art. 70 § 1); **Portogallo**, 10 anni dalla fine dell'anno civile di emissione (CIVA art.
+  52.º n.º 1). Questi quattro Paesi sono gli unici per i quali il Servizio dispone di una regola di
+  conservazione documentata: per un'Azienda stabilita altrove nulla viene trattenuto e i suoi documenti
+  archiviati vengono cancellati insieme a tutto il resto. Detto chiaramente: **se la Sua Azienda è
+  stabilita in uno di questi quattro Paesi, i documenti che ha inviato tramite il Servizio restano sul
+  nostro spazio di archiviazione per anni dopo che Lei se n'è andato**, e non li cancelleremo prima su
+  Sua richiesta.
 - **I log applicativi** vengono conservati per **90 giorni**, dopodiché sono eliminati automaticamente
   da una procedura di cancellazione ricorrente — un periodo sufficiente a istruire un incidente di
   sicurezza o una richiesta di assistenza che emerga solo settimane dopo, e non di più.
@@ -161,6 +186,12 @@ nostro legittimo interesse (**art. 21**). Può esercitare ciascuno di questi dir
 **contact@invoicerr.app**; risponderemo entro i termini che il GDPR stabilisce per un titolare del
 trattamento. Ha inoltre il diritto di presentare un reclamo all'autorità francese di protezione dei
 dati, la **CNIL** (www.cnil.fr), oppure all'autorità di controllo del Suo Stato membro dell'UE.
+
+Il diritto alla cancellazione (**art. 17**) incontra un limite che applichiamo e che Lei dovrebbe
+conoscere prima di esercitarlo: quando una norma impone ancora la conservazione di un documento
+archiviato, l'**articolo 17, paragrafo 3, lettera b)** esclude tale diritto per tutta la durata del
+periodo di conservazione, e noi conserviamo il documento. La Sezione 6 indica quali Paesi, quali
+periodi e quali testi, e che cosa viene comunque cancellato.
 
 Non effettuiamo alcun trattamento tra quelli descritti dall'**articolo 22 del GDPR** — non esiste
 alcun processo decisionale automatizzato, inclusa la profilazione, che produca effetti giuridici o

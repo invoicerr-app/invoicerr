@@ -130,6 +130,30 @@ entidade fora da UE.
   mínimo de recuperação de dados exigido pelo artigo 25.º, n.º 2, alínea g), do Regulamento (UE)
   2023/2854 (o Data Act da UE), antes de podermos apagar os Seus Dados assim que deixar de utilizar o
   Serviço.
+- **Os documentos arquivados ainda dentro de um prazo legal de conservação sobrevivem a essa
+  eliminação.** Quando envia um documento através do Serviço, arquivamos uma cópia do mesmo e
+  registamos, nesse momento, durante quanto tempo a lei do país da sua Empresa exige que seja
+  conservado e qual o texto que impõe esse prazo. Quando a sua Empresa é eliminada — por si, a partir
+  das definições da sua Empresa, a qualquer momento e sem que bloqueemos a sua saída, ou no final do
+  calendário acima descrito — desaparecem todos os registos a ela associados e todos os ficheiros
+  armazenados, **exceto** os documentos arquivados cujo prazo registado ainda não decorreu. Esses
+  ficheiros permanecem no nosso armazenamento, acompanhados de um registo que indica, para cada um, a
+  data de caducidade e a respetiva citação legal, e apagamo-los assim que essa data tiver passado. O
+  fundamento é o **artigo 17.º, n.º 3, alínea b), do RGPD**: o direito ao apagamento não se aplica na
+  medida em que o tratamento seja necessário ao cumprimento de uma obrigação jurídica que exija o
+  tratamento, prevista pelo direito da União ou do Estado-Membro a que o responsável pelo tratamento
+  esteja sujeito — e uma obrigação nacional de conservação de faturas não cessa pelo facto de uma conta
+  ter sido encerrada. Os prazos que aplicamos, cada um retirado do texto que o impõe: **Alemanha**, 8
+  anos a contar do fim do ano civil de emissão do documento (UStG § 14b Abs. 1; AO § 147 Abs. 3);
+  **França**, o mais longo entre 6 anos (LPF art. L102 B) e 10 anos (C. com. art. L123-22), que
+  vinculam em simultâneo uma sociedade francesa; **Polónia**, 5 anos (ustawa o VAT art. 112, que remete
+  para o prazo de prescrição da Ordynacja podatkowa art. 70 § 1); **Portugal**, 10 anos a contar do fim
+  do ano civil de emissão (CIVA art. 52.º n.º 1). Estes quatro países são os únicos para os quais o
+  Serviço dispõe de uma regra de conservação documentada: para uma Empresa estabelecida noutro local,
+  nada é retido e os seus documentos arquivados são apagados juntamente com tudo o resto. Dito de forma
+  clara: **se a sua Empresa estiver estabelecida num destes quatro países, os documentos que enviou
+  através do Serviço permanecem no nosso armazenamento durante anos após a sua saída**, e não os
+  apagaremos mais cedo a seu pedido.
 - Os **registos (logs) da aplicação** são conservados durante **90 dias**, sendo depois eliminados
   automaticamente por uma purga recorrente — tempo suficiente para instruir um incidente de segurança
   ou um pedido de apoio que só surja semanas mais tarde, e não mais do que isso.
@@ -161,6 +185,12 @@ direitos escrevendo para **contact@invoicerr.app**; responderemos dentro do praz
 um responsável pelo tratamento. Tem também o direito de apresentar reclamação junto da autoridade
 francesa de proteção de dados, a **CNIL** (www.cnil.fr), ou junto da autoridade de controlo do seu
 próprio Estado-Membro da UE.
+
+O direito ao apagamento (**artigo 17.º**) tem um limite que aplicamos e que deve conhecer antes de o
+exercer: quando um diploma legal continua a exigir a conservação de um documento arquivado, o
+**artigo 17.º, n.º 3, alínea b)** afasta esse direito enquanto durar o prazo de conservação, e nós
+conservamos o documento. A Secção 6 indica quais os países, os prazos e os textos em causa, e o que é
+apagado de qualquer forma.
 
 Não realizamos qualquer tratamento do tipo descrito no **artigo 22.º do RGPD** — não existe qualquer
 decisão automatizada, incluindo definição de perfis (profiling), que produza efeitos jurídicos ou

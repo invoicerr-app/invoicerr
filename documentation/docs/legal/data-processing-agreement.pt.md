@@ -209,6 +209,20 @@ aos dados do Cliente, e este ATD adota o mesmo mecanismo previsto na vertente de
   **trinta (30) dias** após o arquivo, no caso de uma Empresa que nunca teve uma subscrição paga
   (período mínimo de recuperação de dados do artigo 25.º, n.º 2, alínea g), do Regulamento (UE)
   2023/2854), não antes de **180 dias** após o arquivo, no caso de uma que a teve.
+- **Conservação legal**: uma categoria de Dados Pessoais do Cliente sobrevive a essa eliminação. Cada
+  documento enviado através do Serviço é arquivado, e cada arquivo regista durante quanto tempo a lei
+  do país da Empresa do Cliente exige que esse documento seja conservado e qual o texto que impõe o
+  prazo. Não apagamos um documento arquivado enquanto o respetivo prazo estiver a correr — nem por
+  instrução do Cliente, nem aquando da eliminação da sua Empresa, que pode efetuar a qualquer momento e
+  que nunca bloqueamos. O próprio artigo 28.º, n.º 3, alínea g), ressalva este caso: o subcontratante
+  apaga as cópias existentes, salvo se o direito da União ou de um Estado-Membro exigir a conservação
+  dos dados pessoais; e o **artigo 17.º, n.º 3, alínea b), do RGPD** afasta o direito ao apagamento na
+  mesma medida, para um tratamento necessário ao cumprimento de uma obrigação jurídica prevista pelo
+  direito da União ou de um Estado-Membro a que o responsável pelo tratamento esteja sujeito. O
+  ficheiro permanece no nosso armazenamento, com a data de caducidade e a citação registadas a seu
+  respeito, e é apagado assim que essa data tiver passado. A Política de Privacidade, Secção 6, enumera
+  os quatro países hoje em causa — Alemanha, França, Polónia e Portugal — com o prazo e o diploma
+  aplicáveis a cada um, e esclarece que, para uma Empresa estabelecida noutro local, nada é retido.
 
 ## 11. Auditorias
 

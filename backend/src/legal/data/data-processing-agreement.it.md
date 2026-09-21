@@ -212,6 +212,21 @@ che accade ai Suoi dati, e il presente DPA adotta lo stesso meccanismo previsto 
   prima di trenta (30) giorni** dall'archivio per un'Azienda che non ha mai avuto un abbonamento a
   pagamento (la finestra minima di recupero prevista dall'articolo 25, paragrafo 2, lettera g), del
   Regolamento (UE) 2023/2854), non prima di **180 giorni** dall'archivio per una che lo ha avuto.
+- **Conservazione obbligatoria per legge**: una categoria di Dati Personali del Cliente sopravvive a
+  tale cancellazione. Ogni documento che Lei invia tramite il Servizio viene archiviato, e ogni
+  archivio registra per quanto tempo la legge del Paese della Sua Azienda ne impone la conservazione e
+  quale testo fissa tale periodo. Non cancelliamo un documento archiviato finché il relativo periodo è
+  in corso — né su Sua istruzione, né in occasione dell'eliminazione della Sua Azienda, che Lei può
+  effettuare in qualsiasi momento e che non ostacoliamo mai. Lo stesso articolo 28, paragrafo 3,
+  lettera g), fa salvo questo caso: il responsabile del trattamento cancella le copie esistenti, salvo
+  che il diritto dell'Unione o degli Stati membri preveda la conservazione dei dati personali; e
+  l'**articolo 17, paragrafo 3, lettera b), del GDPR** esclude il diritto alla cancellazione nella
+  stessa misura, per un trattamento necessario ad adempiere un obbligo legale previsto dal diritto
+  dell'Unione o dello Stato membro cui è soggetto il titolare del trattamento. Il file resta sul nostro
+  spazio di archiviazione, con la data di scadenza e il riferimento normativo registrati a suo carico,
+  e viene cancellato una volta trascorsa tale data. L'Informativa sulla Privacy, Sezione 6, elenca i
+  quattro Paesi oggi interessati — Germania, Francia, Polonia e Portogallo — con il periodo e la norma
+  per ciascuno, e precisa che per un'Azienda stabilita altrove nulla viene trattenuto.
 
 ## 11. Audit
 

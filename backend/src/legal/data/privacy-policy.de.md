@@ -136,6 +136,31 @@ speichert, betrifft ein Unternehmen außerhalb der EU.
   Fristen entsprechen dem Mindestzeitraum für den Datenabruf, den Artikel 25 Abs. 2 lit. g der
   Verordnung (EU) 2023/2854 (der „Data Act“) vorschreibt, bevor wir Ihre Daten löschen dürfen, sobald
   Sie den Dienst nicht mehr nutzen.
+- **Archivierte Dokumente, deren gesetzliche Aufbewahrungsfrist noch läuft, überdauern diese
+  Löschung.** Wenn Sie ein Dokument über den Dienst versenden, archivieren wir eine Kopie davon und
+  halten in diesem Moment fest, wie lange das Recht des Landes Ihres Unternehmens dessen Aufbewahrung
+  verlangt und welcher Text diese Frist vorschreibt. Wird Ihr Unternehmen gelöscht — von Ihnen, in den
+  Einstellungen Ihres Unternehmens, jederzeit und ohne dass wir Ihren Weggang blockieren, oder am Ende
+  des oben beschriebenen Zeitplans —, verschwinden jeder auf es bezogene Datensatz und jede
+  gespeicherte Datei, **mit Ausnahme** derjenigen archivierten Dokumente, deren festgehaltene Frist
+  noch nicht abgelaufen ist. Diese Dateien verbleiben auf unserem Speicher, zusammen mit einem Eintrag,
+  der für jede von ihnen das Ablaufdatum und die einschlägige Fundstelle nennt, und wir löschen sie,
+  sobald dieses Datum verstrichen ist. Grundlage ist **Art. 17 Abs. 3 lit. b DSGVO**: Das Recht auf
+  Löschung gilt nicht, soweit die Verarbeitung zur Erfüllung einer rechtlichen Verpflichtung
+  erforderlich ist, die nach dem Recht der Union oder der Mitgliedstaaten, dem der Verantwortliche
+  unterliegt, eine Verarbeitung erfordert — und eine nationale Pflicht zur Rechnungsaufbewahrung
+  entfällt nicht dadurch, dass ein Konto geschlossen wurde. Die Fristen, die wir anwenden, jeweils dem
+  Text entnommen, der sie vorschreibt: **Deutschland**, 8 Jahre ab dem Schluss des Kalenderjahres, in
+  dem das Dokument ausgestellt wurde (UStG § 14b Abs. 1; AO § 147 Abs. 3); **Frankreich**, die längere
+  von 6 Jahren (LPF art. L102 B) und 10 Jahren (C. com. art. L123-22), die ein französisches
+  Unternehmen gleichzeitig binden; **Polen**, 5 Jahre (ustawa o VAT art. 112, die auf die
+  Verjährungsfrist der Ordynacja podatkowa art. 70 § 1 verweist); **Portugal**, 10 Jahre ab dem Schluss
+  des Kalenderjahres der Ausstellung (CIVA art. 52.º n.º 1). Diese vier Länder sind die einzigen, für
+  die der Dienst eine belegte Aufbewahrungsregel führt: Bei einem Unternehmen mit Sitz in einem anderen
+  Land wird nichts zurückbehalten, und seine archivierten Dokumente werden mit allem Übrigen gelöscht.
+  Klar gesagt: **Hat Ihr Unternehmen seinen Sitz in einem dieser vier Länder, verbleiben die Dokumente,
+  die Sie über den Dienst versendet haben, noch Jahre nach Ihrem Weggang auf unserem Speicher**, und
+  wir werden sie auf Ihren Wunsch nicht früher löschen.
 - **Anwendungsprotokolle** werden **90 Tage** aufbewahrt und danach durch einen wiederkehrenden
   automatischen Löschlauf entfernt — lang genug, um einen Sicherheitsvorfall oder eine erst Wochen
   später auftauchende Supportfrage zu untersuchen, und nicht länger.
@@ -168,6 +193,12 @@ gespeichert haben (**Art. 15**); auf deren Berichtigung (**Art. 16**); auf deren
 werden innerhalb der von der DSGVO für einen Verantwortlichen vorgesehenen Frist antworten. Sie haben
 außerdem das Recht, sich bei der französischen Datenschutzbehörde, der **CNIL** (www.cnil.fr), oder
 bei der Aufsichtsbehörde Ihres eigenen EU-Mitgliedstaats zu beschweren.
+
+Das Recht auf Löschung (**Art. 17**) hat eine Grenze, die wir anwenden und die Sie kennen sollten,
+bevor Sie es geltend machen: Verlangt ein Gesetz weiterhin die Aufbewahrung eines archivierten
+Dokuments, so verdrängt **Art. 17 Abs. 3 lit. b** dieses Recht für die Dauer der Aufbewahrungsfrist,
+und wir bewahren das Dokument auf. Abschnitt 6 nennt die betroffenen Länder, die Fristen und die Texte
+sowie das, was gleichwohl gelöscht wird.
 
 Wir führen keine der in **Artikel 22 DSGVO** beschriebenen Verarbeitungen durch — es findet keine
 automatisierte Entscheidungsfindung, einschließlich Profiling, statt, die rechtliche oder ähnlich

@@ -219,6 +219,21 @@ Abschnitt 13, was mit Ihren Daten geschieht, und dieser AVV übernimmt denselben
   hatte (der in Artikel 25 Abs. 2 lit. g der Verordnung (EU) 2023/2854 vorgeschriebene
   Mindestzeitraum für den Datenabruf), frühestens **180 Tage** nach dem Archiv für ein Unternehmen,
   das ein solches hatte.
+- **Gesetzliche Aufbewahrung**: Eine Kategorie personenbezogener Daten des Kunden überdauert diese
+  Löschung. Jedes Dokument, das Sie über den Dienst versenden, wird archiviert, und jedes Archiv hält
+  fest, wie lange das Recht des Landes Ihres Unternehmens die Aufbewahrung dieses Dokuments verlangt
+  und welcher Text die Frist vorschreibt. Wir löschen ein archiviertes Dokument nicht, solange seine
+  Frist läuft — weder auf Ihre Weisung hin noch bei der Löschung Ihres Unternehmens, die Sie jederzeit
+  vornehmen können und die wir niemals blockieren. Artikel 28 Abs. 3 lit. g DSGVO behält diesen Fall
+  selbst vor: Der Auftragsverarbeiter löscht vorhandene Kopien, sofern nicht nach dem Recht der Union
+  oder der Mitgliedstaaten eine Speicherung der personenbezogenen Daten vorgeschrieben ist; und **Art.
+  17 Abs. 3 lit. b DSGVO** verdrängt das Recht auf Löschung im selben Umfang für eine Verarbeitung, die
+  zur Erfüllung einer rechtlichen Verpflichtung nach dem Recht der Union oder der Mitgliedstaaten, dem
+  der Verantwortliche unterliegt, erforderlich ist. Die Datei verbleibt auf unserem Speicher, mit dem
+  dazu festgehaltenen Ablaufdatum und der Fundstelle, und wird gelöscht, sobald dieses Datum
+  verstrichen ist. Die Datenschutzerklärung, Abschnitt 6, nennt die heute betroffenen vier Länder —
+  Deutschland, Frankreich, Polen und Portugal — mit der jeweiligen Frist und dem jeweiligen Gesetz und
+  stellt klar, dass bei einem Unternehmen mit Sitz in einem anderen Land nichts zurückbehalten wird.
 
 ## 11. Audits
 

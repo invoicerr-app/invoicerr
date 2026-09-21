@@ -210,6 +210,21 @@ paragraphe 3, point g) :
   plus tôt **trente (30) jours** après l'archive pour une Société n'ayant jamais eu d'abonnement payant
   (la fenêtre minimale de récupération de l'article 25, paragraphe 2, point g), du règlement
   (UE) 2023/2854), au plus tôt **180 jours** après l'archive pour une Société qui en a eu un.
+- **Conservation légale** : une catégorie de Données Personnelles Client survit à cette suppression.
+  Chaque document que vous envoyez au moyen du Service est archivé, et chaque archive enregistre la
+  durée pendant laquelle la loi du pays de votre Société exige que ce document soit conservé ainsi que
+  le texte qui impose cette durée. Nous n'effaçons pas un document archivé tant que sa durée court — ni
+  sur votre instruction, ni lors de la suppression de votre Société, que vous pouvez opérer à tout
+  moment et à laquelle nous ne faisons jamais obstacle. L'article 28, paragraphe 3, point g), réserve
+  lui-même ce cas : le sous-traitant supprime les copies existantes, à moins que le droit de l'Union ou
+  le droit d'un État membre n'exige la conservation des données à caractère personnel ; et l'**article
+  17, paragraphe 3, point b), du RGPD** écarte le droit à l'effacement dans la même mesure, pour un
+  traitement nécessaire au respect d'une obligation légale prévue par le droit de l'Union ou d'un État
+  membre auquel le responsable du traitement est soumis. Le fichier demeure sur notre stockage, avec la
+  date d'expiration et la citation enregistrées à son égard, et est effacé une fois cette date passée.
+  La Section 6 de la Politique de Confidentialité énumère les quatre pays concernés à ce jour —
+  Allemagne, France, Pologne et Portugal — avec la durée et le texte applicables à chacun, et précise
+  que, pour une Société établie ailleurs, rien n'est retenu.
 
 ## 11. Audits
 

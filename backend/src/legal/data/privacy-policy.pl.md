@@ -134,6 +134,29 @@ obejmuje podmiotu spoza UE.
   stanowią minimalny okres na odzyskanie danych, jaki art. 25 ust. 2 lit. g) rozporządzenia (UE)
   2023/2854 („Data Act”) wymaga zachować, zanim będziemy mogli usunąć Twoje Dane po zaprzestaniu
   przez Ciebie korzystania z Usługi.
+- **Zarchiwizowane dokumenty objęte wciąż biegnącym ustawowym okresem przechowywania przetrwają to
+  usunięcie.** Gdy wysyłasz dokument za pośrednictwem Usługi, archiwizujemy jego kopię i zapisujemy w
+  tym momencie, jak długo prawo kraju Twojej Firmy wymaga jego przechowywania oraz który przepis ten
+  okres nakłada. Gdy Twoja Firma zostaje usunięta — przez Ciebie, z poziomu ustawień Firmy, w dowolnym
+  momencie i bez blokowania przez nas Twojego odejścia, albo z końcem opisanego wyżej harmonogramu —
+  znika każdy zapis z nią powiązany i każdy przechowywany plik, **z wyjątkiem** tych zarchiwizowanych
+  dokumentów, których zapisany okres jeszcze nie upłynął. Pliki te pozostają w naszej przestrzeni
+  przechowywania wraz z zapisem wskazującym dla każdego z nich datę wygaśnięcia i podstawę prawną, a
+  usuwamy je, gdy data ta minie. Podstawą jest **art. 17 ust. 3 lit. b) RODO**: prawo do usunięcia
+  danych nie ma zastosowania w zakresie, w jakim przetwarzanie jest niezbędne do wywiązania się z
+  prawnego obowiązku wymagającego przetwarzania na mocy prawa Unii lub prawa państwa członkowskiego,
+  któremu podlega administrator — a krajowy obowiązek przechowywania faktur nie wygasa dlatego, że
+  konto zostało zamknięte. Okresy, które stosujemy, każdy zaczerpnięty z przepisu, który go nakłada:
+  **Niemcy** — 8 lat od końca roku kalendarzowego wystawienia dokumentu (UStG § 14b Abs. 1; AO § 147
+  Abs. 3); **Francja** — dłuższy z okresów 6 lat (LPF art. L102 B) i 10 lat (C. com. art. L123-22),
+  które wiążą francuską spółkę jednocześnie; **Polska** — 5 lat (ustawa o VAT art. 112, odsyłająca do
+  terminu przedawnienia z Ordynacji podatkowej art. 70 § 1); **Portugalia** — 10 lat od końca roku
+  kalendarzowego wystawienia (CIVA art. 52.º n.º 1). Te cztery kraje są jedynymi, dla których Usługa
+  dysponuje udokumentowaną regułą przechowywania: w przypadku Firmy z siedzibą gdzie indziej nic nie
+  jest zatrzymywane, a jej zarchiwizowane dokumenty są usuwane wraz z resztą. Mówiąc wprost: **jeżeli
+  Twoja Firma ma siedzibę w jednym z tych czterech krajów, dokumenty wysłane przez Ciebie za
+  pośrednictwem Usługi pozostają w naszej przestrzeni przechowywania przez lata po Twoim odejściu**, a
+  na Twoje żądanie nie usuniemy ich wcześniej.
 - **Dzienniki aplikacji** są przechowywane przez **90 dni**, a następnie usuwane automatycznie przez
   cykliczne czyszczenie — wystarczająco długo, aby zbadać incydent bezpieczeństwa lub zgłoszenie
   pomocy technicznej ujawniające się dopiero po kilku tygodniach, i nie dłużej.
@@ -167,6 +190,12 @@ interesie (**art. 21**). Możesz skorzystać z każdego z tych praw, pisząc na 
 **contact@invoicerr.app**; odpowiemy w terminie przewidzianym przez RODO dla administratora danych.
 Masz również prawo wniesienia skargi do francuskiego organu ochrony danych osobowych, **CNIL**
 (www.cnil.fr), lub do organu nadzorczego właściwego dla Twojego państwa członkowskiego UE.
+
+Prawo do usunięcia danych (**art. 17**) ma granicę, którą stosujemy i o której warto wiedzieć przed
+złożeniem żądania: jeżeli przepis nadal wymaga przechowywania zarchiwizowanego dokumentu, **art. 17
+ust. 3 lit. b)** wyłącza to prawo na czas trwania okresu przechowywania, a my zachowujemy ten dokument.
+Sekcja 6 wskazuje, których krajów, jakich okresów i jakich przepisów to dotyczy oraz co mimo to zostaje
+usunięte.
 
 Nie prowadzimy żadnego przetwarzania opisanego w **art. 22 RODO** — nie stosujemy
 zautomatyzowanego podejmowania decyzji, w tym profilowania, wywołującego skutki prawne lub w
