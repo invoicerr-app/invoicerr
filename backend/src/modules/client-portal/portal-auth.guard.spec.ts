@@ -86,7 +86,10 @@ describe('PortalAuthGuard', () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
 
     const request = context.switchToHttp().getRequest<{ portal?: unknown }>();
-    expect(request.portal).toEqual({ companyId: 'company-1', clientId: 'client-1', token: RAW_TOKEN });
+    // WHO, never the credential: the raw token stops at the guard, so no handler can put it in an
+    // outbound URL (see `PortalIdentity`'s own header).
+    expect(request.portal).toEqual({ companyId: 'company-1', clientId: 'client-1' });
+    expect(JSON.stringify(request.portal)).not.toContain(RAW_TOKEN);
     expect(persistence.touchPortalTokenLastUsed).toHaveBeenCalledWith('token-1');
   });
 });

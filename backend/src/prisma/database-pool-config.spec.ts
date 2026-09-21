@@ -27,6 +27,21 @@ describe('readDatabasePoolMax', () => {
     process.env.DATABASE_POOL_MAX = '5';
     expect(readDatabasePoolMax()).toBe(5);
   });
+
+  // The half pg-pool's own `max || poolSize || 10` coalescence does NOT catch: a negative number is
+  // truthy, so it reaches `_isFull()` (`this._clients.length >= this.options.max`) intact and makes it
+  // true before a single connection is opened — every query queues against a pool that never fills.
+  // See `readDatabasePoolMax`'s own header.
+  it.each([
+    '-1',
+    '-20',
+    'not-a-number',
+    '0',
+    '',
+  ])('refuses %p and falls back to a pool of 10 rather than handing it to pg', (value) => {
+    process.env.DATABASE_POOL_MAX = value;
+    expect(readDatabasePoolMax()).toBe(10);
+  });
 });
 
 describe('readDatabasePoolConnectTimeoutMs', () => {
@@ -84,6 +99,17 @@ describe('buildDatabasePoolConfig', () => {
     expect(buildDatabasePoolConfig('postgresql://user:pass@host:5432/db')).toEqual({
       connectionString: 'postgresql://user:pass@host:5432/db',
       max: 7,
+      connectionTimeoutMillis: 3000,
+    });
+  });
+
+  it('never lets a malformed pool size reach the driver config', () => {
+    process.env.DATABASE_POOL_MAX = '-1';
+    process.env.DATABASE_POOL_CONNECT_TIMEOUT_MS = '3000';
+
+    expect(buildDatabasePoolConfig('postgresql://user:pass@host:5432/db')).toEqual({
+      connectionString: 'postgresql://user:pass@host:5432/db',
+      max: 10,
       connectionTimeoutMillis: 3000,
     });
   });

@@ -63,7 +63,12 @@ import {
   ScheduleOccurrenceJobData,
 } from '../schedules/schedule-sweep';
 import { buildDocumentActionJobId } from './document-action-job';
-import { DocumentActionJobData, DocumentActionQueueDispatcher, Q_DOCUMENT_ACTION } from './queue.constants';
+import {
+  DocumentActionJobData,
+  DocumentActionQueueDispatcher,
+  Q_DOCUMENT_ACTION,
+  readDocumentActionQueueAttempts,
+} from './queue.constants';
 
 @Injectable()
 export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
@@ -99,7 +104,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
       }
     }
 
-    const attempts = parseInt(process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS ?? '3', 10);
+    const attempts = readDocumentActionQueueAttempts();
     await this.queue.add('run', input, {
       jobId,
       attempts,
@@ -470,7 +475,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
       return false;
     }
 
-    const attempts = parseInt(process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS ?? '3', 10);
+    const attempts = readDocumentActionQueueAttempts();
     await this.queue.add(DOCUMENT_REPORT_JOB_NAME, data as unknown as DocumentActionJobData, {
       jobId,
       attempts,

@@ -10,15 +10,17 @@ import { setPortalToken } from "@/hooks/use-portal-fetch"
  * never lingers in the address bar, browser history entry list, or a `Referer` header a later
  * navigation from this page might otherwise leak it through.
  *
- * This is ALSO where a payment provider's `successUrl`/`cancelUrl` land (see
- * `PortalService.createInvoiceCheckoutSession`'s own header — the checkout opens in a NEW tab, so it
- * cannot rely on `localStorage` already holding a token the way a same-tab reload can): those URLs
- * carry a `?payment=success|cancelled` flag that `pages/portal/index.tsx`'s own return-banner effect
- * reads to pick a toast. That flag is therefore forwarded onto the clean `/portal` URL below (the
- * WHOLE search string, not just this one known key — future query params added to either the emailed
- * link or a payment redirect survive this hop without this file needing to know their names) rather
- * than dropped: dropping it here would silently swallow the payment return signal on its very first
- * hop, before `index.tsx` ever gets a chance to read it.
+ * A payment provider's `successUrl`/`cancelUrl` deliberately do NOT land here — they point at the
+ * bare `/portal`, because a return URL is stored by the provider and a token in it would reach that
+ * provider's dashboard and logs (see `PortalService.createInvoiceCheckoutSession`'s own header). The
+ * tab returning from checkout reads the token `localStorage` already holds: storage is per-ORIGIN,
+ * shared by every tab of the same browser profile, so a new tab is not a fresh, empty one here.
+ *
+ * The whole search string is nonetheless forwarded onto the clean `/portal` URL below rather than
+ * dropped (not just the keys this file happens to know): query params added to the emailed link —
+ * and the `?payment=success|cancelled` flag `pages/portal/index.tsx`'s own return-banner effect
+ * reads, should a link ever arrive carrying one — survive this hop without this file needing to know
+ * their names.
  *
  * Store-then-navigate happens in ONE effect, imperatively (`useNavigate`, never a declarative
  * `<Navigate>` sibling): React fires a CHILD's own effects before its parent's, so a `<Navigate>`

@@ -3,6 +3,8 @@
  * (document-queue.module.ts) for the full split (Core providers / worker processors / WORKER_INLINE)
  * this module is part of.
  */
+import { Logger } from '@nestjs/common';
+
 import { ReportJobData } from '../reporting/report-job';
 
 /** The ONE queue this whole mechanism needs — see document-action-job.ts's own header for why the
@@ -54,4 +56,51 @@ export interface DocumentActionJobData {
 export interface DocumentActionQueueDispatcher {
   enqueueAction(input: DocumentActionJobData): Promise<void>;
   enqueueReport?(input: ReportJobData): Promise<boolean>;
+}
+
+const attemptsLogger = new Logger('DocumentActionQueueAttempts');
+
+/** The last raw value this module refused, so a misconfigured instance says so ONCE rather than on
+ *  every enqueue — the variable cannot change under a running process, so a second refusal of the
+ *  same string carries no information the first one did not. */
+let refusedAttemptsValue: string | undefined;
+
+export const DEFAULT_DOCUMENT_ACTION_QUEUE_ATTEMPTS = 3;
+
+/**
+ * How many times BullMQ attempts one job on this queue before giving up — `DOCUMENT_ACTION_QUEUE_ATTEMPTS`,
+ * default 3, paired with the exponential backoff (base 2s) both `enqueueAction` and `enqueueReport`
+ * set. Read here, next to the queue's own constants, rather than inline at each `queue.add` call —
+ * the same placement `webhook-queue.constants.ts#readWebhookQueueAttempts` already holds for the
+ * webhook queue, and the reason this one now has a home of its own: the two dispatch sites read the
+ * same variable and must not drift apart on how they interpret it.
+ *
+ * A value that is not a positive integer falls back to the default INSTEAD of reaching BullMQ,
+ * because BullMQ does not recognise a nonsensical attempts count as nonsense. `Job.moveToFailed`
+ * decides whether an attempt is left with `this.attemptsMade + 1 < this.opts.attempts`, and that
+ * comparison is false for `NaN` (a typo such as `three`, or an empty string), for `0` and for a
+ * negative number alike. So a malformed value does not SHRINK the retry budget — it removes it
+ * entirely, while the process boots normally and logs nothing: every transient failure (a network
+ * blip towards a national platform, a PDP briefly unavailable) then lands on `send_failed` at the
+ * first attempt, which is precisely the retry this queue exists to provide.
+ *
+ * The refusal is logged, naming the value rejected and the value in force: falling back silently
+ * would leave an operator who asked for 10 attempts running 3 with nothing to read that says so.
+ */
+export function readDocumentActionQueueAttempts(): number {
+  const raw = process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS;
+  if (raw === undefined) return DEFAULT_DOCUMENT_ACTION_QUEUE_ATTEMPTS;
+
+  const parsed = parseInt(raw, 10);
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+
+  if (refusedAttemptsValue !== raw) {
+    refusedAttemptsValue = raw;
+    attemptsLogger.warn(
+      `DOCUMENT_ACTION_QUEUE_ATTEMPTS="${raw}" is not a positive integer — using ` +
+        `${DEFAULT_DOCUMENT_ACTION_QUEUE_ATTEMPTS} attempts instead. Passed to BullMQ as given it ` +
+        'would disable retries altogether, not merely lower them.',
+    );
+  }
+  return DEFAULT_DOCUMENT_ACTION_QUEUE_ATTEMPTS;
 }

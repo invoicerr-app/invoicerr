@@ -842,15 +842,24 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 					.type("1000", { force: true });
 				// The VAT rate is a real SearchSelect for Poland (vat-rates/data/pl.json ships a
 				// catalog) — "23% — Stawka podstawowa" is that catalog's own label for the standard rate.
+				//
+				// Targeted by its OWN data-cy, not `[data-cy$="-input"] button` + `.last()`: a Polish
+				// seller's invoice lines also carry the optional "Supply type" select (country-fields'
+				// `supplyType` overlay, appended AFTER `vatRate` by apply-overlay.ts's own `add`), so
+				// `.last()` lands on that select instead and its GOODS/SERVICES list has no rate at all.
+				// The same trap 20-document-totals.cy.ts already documents for a French seller.
 				cy.get(
-					'[data-cy="document-field-lines-row-0"] [data-cy$="-input"] button',
+					'[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button',
 				)
-					.last()
+					.first()
 					.click({ force: true });
-				cy.get('[data-cy$="-input-options"]', { timeout: 10000 }).should(
-					"be.visible",
-				);
-				cy.contains('[data-cy*="-option-"]', /23\s?%/)
+				cy.get('[data-cy="document-field-vatRate-input-options"]', {
+					timeout: 10000,
+				}).should("be.visible");
+				cy.contains(
+					'[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]',
+					/23\s?%/,
+				)
 					.first()
 					.click();
 				cy.continueDocumentWizard(); // Lines -> Options

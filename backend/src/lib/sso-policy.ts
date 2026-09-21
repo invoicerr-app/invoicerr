@@ -417,6 +417,35 @@ export function companyForOAuthSignup(context: unknown): string | null {
   return companyIdFromProviderId(providerIdFromEndpointContext(context));
 }
 
+/**
+ * Whether the `emailVerified` an identity provider asserted about a BRAND-NEW user may be written to
+ * that user's row as-is, or has to be forced back to `false`.
+ *
+ * `accountLinkingOptions`/`ssoLinkValidator` above both police the same sentence — "a tenant's IdP
+ * speaks for that tenant's members and for nobody else" — on the paths where an asserted identity
+ * meets an account that ALREADY EXISTS. Neither covers the path where no such account exists yet:
+ * better-auth's `dist/oauth2/link-account.mjs` creates the user with `emailVerified: userInfo.emailVerified`,
+ * straight from the claim, with no trusted-provider condition anywhere on that branch. A company
+ * administrator points `PUT /company/sso` at an IdP he hosts, has it answer with any address nobody
+ * has signed up with yet and `"email_verified": true`, and this instance now holds a row asserting
+ * that address was proven — a claim his IdP had no standing whatsoever to make about a domain that
+ * is not its own.
+ *
+ * `emailVerified` is not decoration: `guards/instance-operator.guard.ts` reads it as the proof of
+ * ownership behind `INSTANCE_OPERATOR_EMAILS`, so a provider able to write it is a provider able to
+ * name the instance's operator.
+ *
+ * The split is exactly "who registered this provider". A per-company id (`c_<companyId>`) was typed
+ * into a settings form by a customer — refused. The instance-wide environment provider has no
+ * company, so `companyForOAuthSignup` returns null for it and its claim stands: it is the operator's
+ * own directory, the one thing on this deployment that IS entitled to vouch for who owns what. Plain
+ * email/password sign-up is likewise null here and keeps better-auth's own `false`, which the
+ * verification-mail round-trip is what lifts.
+ */
+export function signupMayAssertVerifiedEmail(context: unknown): boolean {
+  return companyForOAuthSignup(context) === null;
+}
+
 // ---------------------------------------------------------------------------
 // Names: what an IdP actually sends, versus what the schema requires
 // ---------------------------------------------------------------------------

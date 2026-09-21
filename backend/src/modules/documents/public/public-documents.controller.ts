@@ -15,6 +15,7 @@
  */
 import { Controller, Get, NotFoundException, Param, Res } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 
 import { Public } from '@thallesp/nestjs-better-auth';
@@ -30,8 +31,29 @@ export class PublicDocumentsController {
     private readonly documentsService: DocumentsService,
   ) {}
 
+  /**
+   * 10 requests per minute per IP — the SAME figure `PublicSignaturesController`'s own
+   * `GET :token/document` carries, and for the same reason stated there: an anonymous caller can make
+   * this route start a real Chromium render. The global default (120/min, `app.module.ts`'s
+   * `ThrottlerModule.forRoot`) is sized for ordinary JSON handlers and is the wrong bound for the
+   * most expensive thing an unauthenticated request can ask this product to do.
+   *
+   * This route is in fact the costlier of the two: its sibling freezes what it renders and serves the
+   * same bytes on every later call, whereas `renderInstancePdf` only skips the render when the
+   * document already has a send-time archive — an issued-but-never-sent document has none, so every
+   * call re-renders (and re-signs, when the company has a PAdES certificate). So 10/min is a ceiling
+   * here, not a generous allowance; a recipient opening or reloading their own invoice stays far
+   * below it.
+   *
+   * The renderer now starts its browser at process boot (rendering/pdf-renderer-warmup.service.ts),
+   * which changes the SHAPE of the cost but not the need for this limit: what a burst consumes is
+   * `PDF_RENDER_CONCURRENCY` slots (render-pdf.ts, default 4), and that semaphore QUEUES rather than
+   * rejects — so unbounded anonymous renders do not fail loudly, they push every other PDF on the
+   * instance (authenticated downloads included) behind them.
+   */
   @Public()
   @Get(':token/pdf')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Download a shared document PDF — no session required',
     description:
@@ -43,7 +65,11 @@ export class PublicDocumentsController {
       'nothing archived yet renders fresh (still the same rendering + PAdES signing pipeline). ' +
       'An unknown token, an EXPIRED one, and a REVOKED one all answer the exact same 404, with the ' +
       'exact same body: this endpoint never lets a caller distinguish "this link once existed" from ' +
-      '"this link was never real". No company data beyond the PDF itself is ever exposed here.',
+      '"this link was never real". No company data beyond the PDF itself is ever exposed here. ' +
+      '`Cache-Control: private, no-store`, the same header the signature route ' +
+      '(public-signatures.controller.ts) sets for the same reason: a real invoice or quote must not ' +
+      "be written to any cache, least of all a shared machine's own browser disk cache, where it " +
+      'would reopen without the token.',
   })
   @ApiParam({ name: 'token', type: String })
   @ApiResponse({ status: 200, description: 'PDF retrieved', schema: { type: 'string', format: 'binary' } })
@@ -63,6 +89,14 @@ export class PublicDocumentsController {
     );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${resolved.typeId}-${resolved.documentId}.pdf"`);
+    // The SAME header the signature route already sets (public-signatures.controller.ts), for the
+    // same reason and now with the same words. `no-store` is the operative half: it forbids WRITING
+    // the response to any cache at all, which is what keeps a real invoice out of the browser's own
+    // disk cache on a shared machine, where it would reopen later with no token in sight. `private`
+    // adds the narrower promise — no SHARED cache may hold it — and is kept for the intermediaries
+    // that honour it while treating `no-store` loosely. Never `no-cache`: that one permits storing
+    // and only demands revalidation, which is not the promise this response needs.
+    res.setHeader('Cache-Control', 'private, no-store');
     res.send(pdfBuffer);
   }
 }

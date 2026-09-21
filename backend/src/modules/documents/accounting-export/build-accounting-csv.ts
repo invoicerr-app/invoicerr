@@ -13,6 +13,8 @@
  * `settlement/compute-settlement.ts` already hold.
  */
 
+import { toCsvLine } from '@/utils/csv';
+
 export type AccountingLedgerRowType = 'invoice' | 'credit-note' | 'payment';
 
 /**
@@ -64,21 +66,6 @@ const COLUMNS: ReadonlyArray<keyof AccountingLedgerRow> = [
   'status',
 ];
 
-/** RFC 4180 §2.6/2.7: a field containing the delimiter, a double quote, or a line break is wrapped in
- *  double quotes, with any interior double quote doubled. A field with none of those characters is
- *  left bare — this is what keeps the common case (a plain reference number, an ISO date) readable
- *  without quotes cluttering every line. */
-function escapeField(value: string): string {
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
-function toLine(values: readonly string[]): string {
-  return values.map(escapeField).join(',');
-}
-
 /**
  * Builds the full CSV text, header row first — a period with no ledger rows at all still produces a
  * valid, header-only CSV (an accountant importing an empty period should see "nothing happened", not
@@ -86,8 +73,15 @@ function toLine(values: readonly string[]): string {
  * convention (`hooks/use-table-export.ts`) rather than RFC 4180's own CRLF — every spreadsheet tool
  * that matters (Excel, Numbers, Google Sheets) parses either, and one convention across the codebase
  * beats strict adherence to a detail the format itself treats as optional.
+ *
+ * Cell escaping — RFC 4180 quoting AND the spreadsheet-formula guard — is `@/utils/csv.ts`'s
+ * `toCsvLine`, never a second copy here: the `client` column is a customer's own free text, and a
+ * name beginning `=`, `+`, `-` or `@` is a formula the accountant's spreadsheet executes on open.
+ * That file's own header carries the full reasoning, including why a negative amount (`-120.00`)
+ * must, and does, come out of this export bare so the accounting software importing it reads a
+ * number.
  */
 export function buildAccountingCsv(rows: readonly AccountingLedgerRow[]): string {
-  const lines = [toLine(COLUMNS), ...rows.map((row) => toLine(COLUMNS.map((column) => row[column])))];
+  const lines = [toCsvLine(COLUMNS), ...rows.map((row) => toCsvLine(COLUMNS.map((column) => row[column])))];
   return lines.join('\n');
 }

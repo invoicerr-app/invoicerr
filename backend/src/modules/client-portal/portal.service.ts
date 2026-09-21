@@ -211,26 +211,39 @@ export class PortalService {
    * re-checks status ("sent") and the outstanding balance on top (its own header) — this method's OWN
    * job stops at "does this token's owner get to ask about THIS document at all".
    *
-   * `successUrl`/`cancelUrl` point back at `/portal/<token>` — the SAME bootstrap route `[token].tsx`
-   * already exists for the emailed portal link (see `PortalIdentity.token`'s own header) — never bare
-   * `/portal`: that route reads the token from `localStorage`, which a NEW TAB opened by `PayButton`
-   * (see that component's own header — the checkout opens in a separate tab, not a redirect of the
-   * current one) has never had a chance to populate. A query flag (`?payment=success|cancelled`,
-   * forwarded by `[token].tsx` onto the clean `/portal` URL it redirects to) is never trusted as a
-   * payment signal either way — only a verified webhook moves the balance, see
-   * `PaymentSessionsService`'s own header — it only picks which toast the frontend shows on return.
+   * `successUrl`/`cancelUrl` point at the BARE `/portal`, and carry NO credential of any kind. They
+   * used to embed this session's own raw portal token (`/portal/<token>?payment=…`), on the belief
+   * that the new tab the checkout opens could not rely on `localStorage` — which is simply not how
+   * `localStorage` is scoped: it is per-ORIGIN, shared by every tab of the same browser profile, and
+   * the buyer necessarily populated it (`[token].tsx`, `hooks/use-portal-fetch.ts`) in the very tab
+   * they pressed "Pay" in. So the token bought nothing, and cost a great deal: a return URL is handed
+   * to the payment provider, which STORES it on its own session object (Stripe's `success_url`,
+   * PayPal's `return_url`, Mollie's `redirectUrl`) — visible in that provider's dashboard, its API,
+   * and its logs. A portal token is a 30-day bearer credential for one client's entire portal (see
+   * `portal-auth.guard.ts`'s own "what a leaked token can do" section), so that was a long-lived
+   * credential leaving the product into a third party's retained records, read by a set of people
+   * nobody ever granted access in Invoicerr.
+   *
+   * What the bare URL costs, stated rather than glossed over: a browser that refuses `localStorage`
+   * (private mode, blocked site data) lands back on `/portal` with no token and sees the ordinary
+   * "this link is invalid or expired" card instead of the dashboard. That browser's portal session
+   * already could not survive a reload — see `setPortalToken`'s own comment — so this narrows a
+   * session that was already single-page, in exchange for never handing the credential out.
+   *
+   * The query flag (`?payment=success|cancelled`) is never trusted as a payment signal — only a
+   * verified webhook moves the balance, see `PaymentSessionsService`'s own header — it only picks
+   * which banner the frontend shows on return.
    */
   async createInvoiceCheckoutSession(
     companyId: string,
     clientId: string,
     documentId: string,
-    token: string,
   ): Promise<InvoiceCheckoutSessionResult> {
     await this.assertVisibleToClient(companyId, clientId, 'invoice', documentId);
     const appUrl = (process.env.APP_URL || '').replace(/\/+$/, '');
     return this.paymentSessions.createInvoiceCheckoutSession(companyId, documentId, {
-      successUrl: `${appUrl}/portal/${token}?payment=success`,
-      cancelUrl: `${appUrl}/portal/${token}?payment=cancelled`,
+      successUrl: `${appUrl}/portal?payment=success`,
+      cancelUrl: `${appUrl}/portal?payment=cancelled`,
     });
   }
 

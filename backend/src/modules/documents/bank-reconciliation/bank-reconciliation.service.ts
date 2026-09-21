@@ -196,18 +196,29 @@ export class BankReconciliationService {
    * `DocumentsService.runAction` — see this class's own header.
    *
    * The sequence, and why the ORDER matters:
-   *  1. `claimLineForReconciliation` — an ATOMIC, conditional `UPDATE ... WHERE status = 'UNMATCHED'`
+   *  1. `findOwnedDocument` — resolve the invoice the caller named, tenant-scoped (404 for an unknown
+   *     id AND for one belonging to another company, indistinguishably). Runs BEFORE the claim, and
+   *     that is the point: the claim WRITES `documentId` straight onto the line, so any order that
+   *     checks afterwards puts an unvalidated, caller-supplied id in the database first and relies on
+   *     the compensating release (step 5) to take it back out. A member of company B naming an invoice
+   *     of company A would have left their own line RECONCILED, pointing across the tenant boundary,
+   *     for the width of that window — and permanently so if the process died inside it, since nothing
+   *     in this module ever moves a line back out of RECONCILED (see the status enum's own comment).
+   *     Nothing ever leaked through it (`getStatementLines` resolves labels via
+   *     `findOwnedDocumentsByIds`, which is company-scoped), but a stuck line and a cross-tenant
+   *     reference are not worth the width of a window that costs one reordered statement to close.
+   *  2. `claimLineForReconciliation` — an ATOMIC, conditional `UPDATE ... WHERE status = 'UNMATCHED'`
    *     (persistence.ts's own header explains the race it closes). Runs BEFORE the payment exists:
    *     claiming FIRST is what makes a lost race refuse cleanly with NO payment ever created, rather
    *     than risking two concurrent requests each creating one for the same line.
-   *  2. Only once claimed: call "record-payment" through the REAL action. `paidAt` is the LINE's own
+   *  3. Only once claimed: call "record-payment" through the REAL action. `paidAt` is the LINE's own
    *     date (the day the money actually arrived, per the bank) — never "now", the same "a payment
    *     converts/settles as of when the money arrived, not when someone got around to recording it"
    *     discipline `settlement/convert-payment.ts` already holds. `method: 'bank_transfer'` — this
    *     payment did, in fact, arrive by bank transfer (a reconciled statement line IS that channel);
    *     `note` names the line's own label, so a later reader of the invoice's payment list can see
    *     which bank transaction produced this row without cross-referencing the statement.
-   *  3. `attachReconciledPayment` — records WHICH payment resulted, read straight off
+   *  4. `attachReconciledPayment` — records WHICH payment resulted, read straight off
    *     `ActionResult.createdPaymentId` (see that field's own header in `action-registry.ts`). This
    *     USED TO be resolved by diffing `listPayments` before/after the action ran — which broke the
    *     moment two statement lines were reconciled against the SAME invoice with the two calls
@@ -216,10 +227,12 @@ export class BankReconciliationService {
    *     up naming the wrong bank transaction even though the money itself always posted correctly
    *     (each call still posts its OWN line's own amount). Reading the id the handler already has
    *     removes the race entirely — see this file's own spec's interleaved-reconciliation test.
-   *  4. If step 2 or 3 THROWS (a currency-conversion refusal, a country-policy block, a status
-   *     conflict…), `releaseLineClaim` UNDOES step 1's claim — a failed reconciliation must leave the
+   *  5. If step 3 or 4 THROWS (a currency-conversion refusal, a country-policy block, a status
+   *     conflict…), `releaseLineClaim` UNDOES step 2's claim — a failed reconciliation must leave the
    *     line exactly as it was, ready to be retried, never stuck "reconciled" with nothing to show
-   *     for it.
+   *     for it. This is a compensation for the failures that can only be discovered by ATTEMPTING the
+   *     write, never a substitute for a check that can be made up front — which is why step 1 is
+   *     where it is.
    */
   async reconcileLine(
     companyId: string,
@@ -234,6 +247,11 @@ export class BankReconciliationService {
     if (line.amountMinor <= 0) {
       throw new BadRequestException('Only a credit (money-in) line can be reconciled against an invoice.');
     }
+
+    // BEFORE the claim, never after — see this method's own header, step 1: the claim writes this
+    // very `documentId` onto the line, so an unknown or foreign one has to 404 while the line is
+    // still untouched.
+    const document = await findOwnedDocument(companyId, 'invoice', documentId);
 
     const claimed = await claimLineForReconciliation(companyId, lineId, documentId);
     if (!claimed) {
@@ -251,9 +269,7 @@ export class BankReconciliationService {
       // all (see invoice-actions.ts's own handler) — the exact same "re-submit the record's current
       // data unchanged" shape the real screen's own action dialog already sends for any action run on
       // an EXISTING document (documents.controller.ts's generic route has no notion of "this action
-      // doesn't need data"). An unknown/foreign `documentId` 404s here, before any claim is touched.
-      const document = await findOwnedDocument(companyId, 'invoice', documentId);
-
+      // doesn't need data"). `document` was resolved above, before the claim.
       const result = await this.documentsService.runAction(
         companyId,
         'invoice',

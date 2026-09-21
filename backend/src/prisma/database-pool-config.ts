@@ -31,16 +31,57 @@
  * overrides it), so one worker process is normally running exactly ONE job's own queries at a time and
  * needs far less headroom per replica than an API pod fielding several concurrent HTTP requests.
  */
+import { Logger } from '@nestjs/common';
 import { PoolConfig } from 'pg';
 
-/** Per-process pool ceiling — `DATABASE_POOL_MAX`. Default `10`: pg's OWN implicit default
- *  (`pg-pool`'s constructor already falls back to 10 for a `0`/`NaN`/unset `max`, so a missing or
- *  malformed value here degrades to the exact same number this file would otherwise have to hardcode
- *  a second time) — chosen so a self-hosted, single-container deployment (this app's own default
- *  topology, one process) sees NO behavior change from before this file existed. A multi-replica
- *  deployment sets a smaller, role-specific value per Deployment — see this file's own header. */
+/** `@nestjs/common`'s own Logger, NEVER `@/logger/logger.service`: that one imports
+ *  `prisma.service.ts`, which imports THIS file — a cycle, on the import path that constructs the
+ *  database client. It is also the logger `logger.service.ts` itself writes through, so the console
+ *  shape is the same one every other boot-time line has. */
+const logger = new Logger('DatabasePoolConfig');
+
+/** The last raw value refused, so a misconfigured instance says so once rather than on every read —
+ *  see `readDatabasePoolMax` below. */
+let refusedPoolMaxValue: string | undefined;
+
+const DEFAULT_POOL_MAX = 10;
+
+/**
+ * Per-process pool ceiling — `DATABASE_POOL_MAX`. Default `10`: pg's OWN implicit default, chosen so
+ * a self-hosted, single-container deployment (this app's own default topology, one process) sees NO
+ * behavior change from before this file existed. A multi-replica deployment sets a smaller,
+ * role-specific value per Deployment — see this file's own header.
+ *
+ * Validated here, the same way `readDatabasePoolConnectTimeoutMs` below already validates its own
+ * knob, because pg-pool's own coalescence only catches HALF the malformed cases. Its constructor
+ * runs `this.options.max = this.options.max || this.options.poolSize || 10`, so a `NaN` (a typo) or a
+ * `0` is falsy and does land on 10 — but a NEGATIVE number is truthy and survives intact, and
+ * `_isFull()` is `this._clients.length >= this.options.max`, which is then true from the very first
+ * `connect()`: with `max: -1` the pool never opens a single connection, every query queues, and the
+ * process boots, answers its health check, and serves nothing. That is the failure this validation
+ * exists to prevent — a `connectionTimeoutMillis` (below) turns the hang into an error after 10s,
+ * but an error on every query is not a working process either.
+ *
+ * The refusal is logged, naming the value rejected and the value in force: an operator who asked for
+ * a pool of 4 and silently got 10 has no way to find out otherwise, and on a pooler-less managed
+ * Postgres that difference is real connections on the server (this file's own header).
+ */
 export function readDatabasePoolMax(): number {
-  return parseInt(process.env.DATABASE_POOL_MAX ?? '10', 10);
+  const raw = process.env.DATABASE_POOL_MAX;
+  if (raw === undefined) return DEFAULT_POOL_MAX;
+
+  const parsed = parseInt(raw, 10);
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+
+  if (refusedPoolMaxValue !== raw) {
+    refusedPoolMaxValue = raw;
+    logger.warn(
+      `DATABASE_POOL_MAX="${raw}" is not a positive integer — using a pool of ${DEFAULT_POOL_MAX} ` +
+        'instead. Handed to pg as given, a negative value would leave every query waiting on a pool ' +
+        'that never opens a connection.',
+    );
+  }
+  return DEFAULT_POOL_MAX;
 }
 
 /**

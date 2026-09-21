@@ -15,23 +15,49 @@
  * A hand-rolled check rather than a dependency (`express-basic-auth` et al.) for the same reason this
  * codebase writes its own OTP/token comparisons: `crypto.timingSafeEqual`, never `===`, on the
  * supplied credentials — a length-dependent short-circuit on `===` would leak how many leading
- * characters of a guess were already correct through response timing.
+ * characters of a guess were already correct through response timing. See `constantTimeEquals` below
+ * for why the comparison runs over a hash of each side rather than over the credentials themselves.
  */
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const DOCS_PATH_PREFIX = '/api/docs';
 
+/**
+ * Per-process, per-boot HMAC key, never configured and never persisted — it exists only so that the
+ * digests compared below are unpredictable to whoever is doing the guessing. Without it the pair
+ * being compared would be two plain SHA-256s, one of which the attacker can compute himself for any
+ * guess he makes; with it, neither side of the comparison is a value he can work backwards from, so
+ * the only thing his guess can learn is the one bit the middleware already returns him.
+ */
+const COMPARISON_KEY = randomBytes(32);
+
+/**
+ * Equality that does not leak the SHAPE of the secret it is comparing against.
+ *
+ * `timingSafeEqual` refuses two buffers of different lengths (it throws), so a caller has to deal
+ * with unequal lengths somehow — and returning early on that check is the thing to avoid here,
+ * because the length of a credential is a fact about the credential. A guess shorter or longer than
+ * `SWAGGER_BASIC_AUTH_PASSWORD` would come back measurably sooner than one of exactly the right
+ * length, which hands an attacker the password's length for free and collapses the space he has to
+ * search.
+ *
+ * So each side is reduced to a fixed-size HMAC first, and the comparison is on the two 32-byte
+ * digests — always the same size, whatever was supplied, so `timingSafeEqual` always runs and always
+ * over the same number of bytes. Hashing before comparing is the standard shape for this (the
+ * "double HMAC" comparison) precisely because it makes the length question disappear rather than
+ * having to be answered.
+ *
+ * Both arguments are secrets here, which is why this is worth the two extra hashes: the middleware
+ * below compares the supplied username against `SWAGGER_BASIC_AUTH_USER` and the supplied password
+ * against `SWAGGER_BASIC_AUTH_PASSWORD`, the credential pair standing between an anonymous visitor
+ * and the complete route map of this API.
+ */
 function constantTimeEquals(a: string, b: string): boolean {
-  const bufA = Buffer.from(a, 'utf-8');
-  const bufB = Buffer.from(b, 'utf-8');
-  // Different lengths would make `timingSafeEqual` throw rather than just return false — comparing
-  // against a fixed-size hash of each side keeps the comparison itself constant-time regardless of how
-  // long the supplied credential is, without ever comparing the raw buffers whose lengths could differ.
-  if (bufA.length !== bufB.length) {
-    return false;
-  }
-  return timingSafeEqual(bufA, bufB);
+  const digest = (value: string): Buffer =>
+    createHmac('sha256', COMPARISON_KEY).update(value, 'utf-8').digest();
+
+  return timingSafeEqual(digest(a), digest(b));
 }
 
 /** Parses a `Authorization: Basic base64(user:password)` header. `null` for anything malformed —

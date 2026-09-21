@@ -1,6 +1,6 @@
 import { vi, type Mock } from 'vitest';
 
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
 import { DocumentsService } from '../documents.service';
 import * as documentsPersistence from '../persistence';
@@ -191,16 +191,46 @@ describe('BankReconciliationService.reconcileLine', () => {
     expect(attachReconciledPayment).not.toHaveBeenCalled();
   });
 
-  it('a documentId not owned by this company rolls back the claim too, never a stuck line', async () => {
+  it('a documentId not owned by this company NEVER reaches the claim — the line is never written', async () => {
     findOwnedLine.mockResolvedValue(buildLine());
     claimLineForReconciliation.mockResolvedValue(true);
     findOwnedStatement.mockResolvedValue(buildStatement());
-    findOwnedDocument.mockRejectedValue(new Error('not found'));
+    findOwnedDocument.mockRejectedValue(new NotFoundException('not found'));
     const { service, runAction } = buildService();
 
-    await expect(service.reconcileLine('company-1', 'line-1', 'foreign-inv')).rejects.toThrow('not found');
-    expect(releaseLineClaim).toHaveBeenCalledWith('company-1', 'line-1');
+    await expect(service.reconcileLine('company-1', 'line-1', 'foreign-inv')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    // THE assertion, and the reason it is "not called" rather than "rolled back": the claim WRITES
+    // `reconciledDocumentId = <whatever the caller sent>`. Claiming first and compensating after
+    // leaves another tenant's invoice id sitting on this line for the width of that window — and
+    // permanently if the process dies inside it, since nothing ever moves a line back out of
+    // RECONCILED. There is no window to compensate for if the id is never written.
+    expect(claimLineForReconciliation).not.toHaveBeenCalled();
+    expect(releaseLineClaim).not.toHaveBeenCalled();
     expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('resolves the invoice BEFORE claiming the line, on the SUCCESS path too — not just on failure', async () => {
+    // The order itself, pinned independently of any refusal: a spec that only checks the 404 path
+    // would still pass against a claim-first implementation whose compensation happened to work.
+    const order: string[] = [];
+    findOwnedLine.mockResolvedValue(buildLine());
+    findOwnedStatement.mockResolvedValue(buildStatement());
+    findOwnedDocument.mockImplementation(() => {
+      order.push('findOwnedDocument');
+      return Promise.resolve({ id: 'inv-1', data: { client: 'client-1', currency: 'EUR' } });
+    });
+    claimLineForReconciliation.mockImplementation(() => {
+      order.push('claimLineForReconciliation');
+      return Promise.resolve(true);
+    });
+    const { service, runAction } = buildService();
+    runAction.mockResolvedValue({ document: {}, changed: true, message: 'ok', createdPaymentId: 'pay-1' });
+
+    await service.reconcileLine('company-1', 'line-1', 'inv-1');
+
+    expect(order).toEqual(['findOwnedDocument', 'claimLineForReconciliation']);
   });
 
   it(

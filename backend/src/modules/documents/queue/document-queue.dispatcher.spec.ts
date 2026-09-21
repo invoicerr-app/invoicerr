@@ -73,6 +73,27 @@ describe('DocumentQueueDispatcher.enqueueAction', () => {
     expect(existing.remove).not.toHaveBeenCalled();
     expect(queue.add).not.toHaveBeenCalled();
   });
+
+  // A malformed `DOCUMENT_ACTION_QUEUE_ATTEMPTS` must not reach BullMQ: `NaN` loses every
+  // `attemptsMade + 1 < attempts` comparison, so the send that fails once — a momentary network
+  // failure towards a national platform — goes straight to `send_failed` with no second attempt.
+  // See `readDocumentActionQueueAttempts`'s own header.
+  it('enqueues with the default attempts when the environment value is malformed', async () => {
+    const ORIGINAL = process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS;
+    process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS = 'three';
+    const queue = fakeQueue();
+    queue.getJob.mockResolvedValue(undefined);
+    const dispatcher = new DocumentQueueDispatcher(queue as never);
+
+    try {
+      await dispatcher.enqueueAction(INPUT);
+    } finally {
+      if (ORIGINAL === undefined) delete process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS;
+      else process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS = ORIGINAL;
+    }
+
+    expect(queue.add).toHaveBeenCalledWith('run', INPUT, expect.objectContaining({ attempts: 3 }));
+  });
 });
 
 const OCCURRENCE_DATA: ScheduleOccurrenceJobData = {

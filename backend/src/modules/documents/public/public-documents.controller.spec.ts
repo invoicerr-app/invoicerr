@@ -18,6 +18,7 @@ import * as renderInstancePdf from '../rendering/render-instance-pdf';
 import { ShareLinksService } from '../share-links/share-links.service';
 import { TransportRegistry } from '../transports/transport-registry';
 import { PublicDocumentsController } from './public-documents.controller';
+import { PublicSignaturesController } from './public-signatures.controller';
 
 vi.mock('../persistence');
 vi.mock('../country-policy/country-policy');
@@ -203,6 +204,19 @@ describe('PublicDocumentsController — the public PDF is the SAME pipeline as t
     }
   });
 
+  it('sets Cache-Control: private, no-store — a real invoice is never written to any cache', async () => {
+    const { publicController, shareLinksService } = buildControllers();
+    const created = await shareLinksService.create('company-1', 'invoice', 'doc-1');
+    const res = fakeResponse();
+
+    await publicController.getSharedPdf(created.token, res as never);
+
+    // `no-store` is the operative half — it forbids WRITING the response anywhere, which is what
+    // keeps the PDF out of a shared machine's own browser disk cache, where it would reopen with no
+    // token. `no-cache` would NOT do: it permits storing and only demands revalidation.
+    expect(res.headers['Cache-Control']).toBe('private, no-store');
+  });
+
   it('answers the exact same 404 for an unknown, an expired, and a revoked token', async () => {
     const { publicController, shareLinksService } = buildControllers();
 
@@ -236,6 +250,25 @@ describe('PublicDocumentsController — the public PDF is the SAME pipeline as t
     );
     expect((revokedError as NotFoundException).getStatus()).toBe(
       (unknownError as NotFoundException).getStatus(),
+    );
+  });
+});
+
+describe('PublicDocumentsController.getSharedPdf — throttled like the signature PDF', () => {
+  // Both public routes that can start a Chromium render carry the SAME budget; the global 120/min
+  // default is for JSON handlers. Asserted on both methods together so raising one and forgetting
+  // the other fails here rather than in production. See this route's own header for the figure.
+  it('carries the same per-IP budget as the signature document route (10/minute)', () => {
+    const shared = PublicDocumentsController.prototype.getSharedPdf;
+    const signature = PublicSignaturesController.prototype.getDocument;
+
+    expect(Reflect.getMetadata('THROTTLER:LIMITdefault', shared)).toBe(10);
+    expect(Reflect.getMetadata('THROTTLER:TTLdefault', shared)).toBe(60_000);
+    expect(Reflect.getMetadata('THROTTLER:LIMITdefault', shared)).toBe(
+      Reflect.getMetadata('THROTTLER:LIMITdefault', signature),
+    );
+    expect(Reflect.getMetadata('THROTTLER:TTLdefault', shared)).toBe(
+      Reflect.getMetadata('THROTTLER:TTLdefault', signature),
     );
   });
 });

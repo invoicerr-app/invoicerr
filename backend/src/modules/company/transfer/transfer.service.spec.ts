@@ -603,6 +603,109 @@ describe('TransferService', () => {
       }
     });
   });
+
+  describe('acceptTransfer — seat reservation', () => {
+    // An accepted transfer ADDS a member (the initiator stays, as ADMIN), and a seat is one user
+    // account attached to the company whatever its role — so the arrival has to pass the same
+    // capacity check every other membership-creating path passes. See `billing/seat-sync.ts`'s header.
+    it('refuses to attach the recipient when the company has no free seat, and leaves the transfer PENDING', async () => {
+      process.env[BILLING_FLAG_NAME] = 'true';
+      const service = new TransferService(fakeMailService() as never);
+      const owner = await createUser();
+      const company = await createCompany();
+      await prisma.userCompany.create({ data: { userId: owner.id, companyId: company.id, role: 'OWNER' } });
+      // One bought seat, one member: full.
+      await prisma.companySubscription.create({
+        data: {
+          companyId: company.id,
+          status: 'ACTIVE',
+          seats: 1,
+          trialStartedAt: new Date(),
+          trialEndsAt: new Date(),
+        },
+      });
+      const recipient = await createUser(); // not a member yet
+      await service.initiateTransfer(
+        company.id,
+        asCurrentUser(owner),
+        recipient.email,
+        await mintOtp(company.id),
+      );
+      const transfer = await prisma.companyOwnershipTransfer.findFirstOrThrow({
+        where: { companyId: company.id },
+      });
+
+      try {
+        const error = await service.acceptTransfer(transfer.id, recipient.id).catch((e) => e);
+        expect(error).toBeInstanceOf(ForbiddenException);
+        expect(error.getResponse()).toMatchObject({ code: 'NO_FREE_SEAT' });
+
+        // THE COUNT: the company still holds exactly the members it bought seats for.
+        expect(await prisma.userCompany.count({ where: { companyId: company.id } })).toBe(1);
+        expect(
+          await prisma.userCompany.findUnique({
+            where: { userId_companyId: { userId: recipient.id, companyId: company.id } },
+          }),
+        ).toBeNull();
+
+        // Nothing else moved either: the initiator is still OWNER and the request can still be
+        // accepted once a seat is bought.
+        const ownerMembership = await prisma.userCompany.findUniqueOrThrow({
+          where: { userId_companyId: { userId: owner.id, companyId: company.id } },
+        });
+        expect(ownerMembership.role).toBe('OWNER');
+        const row = await prisma.companyOwnershipTransfer.findUniqueOrThrow({ where: { id: transfer.id } });
+        expect(row.status).toBe('PENDING');
+        expect(row.acceptedAt).toBeNull();
+      } finally {
+        await cleanup({ companyIds: [company.id], userIds: [owner.id, recipient.id] });
+      }
+    });
+
+    it('attaches the recipient and gives them a desk when a seat is free', async () => {
+      process.env[BILLING_FLAG_NAME] = 'true';
+      const service = new TransferService(fakeMailService() as never);
+      const owner = await createUser();
+      const company = await createCompany();
+      await prisma.userCompany.create({
+        data: { userId: owner.id, companyId: company.id, role: 'OWNER', seatIndex: 1 },
+      });
+      await prisma.companySubscription.create({
+        data: {
+          companyId: company.id,
+          status: 'ACTIVE',
+          seats: 2,
+          trialStartedAt: new Date(),
+          trialEndsAt: new Date(),
+        },
+      });
+      const recipient = await createUser();
+      await service.initiateTransfer(
+        company.id,
+        asCurrentUser(owner),
+        recipient.email,
+        await mintOtp(company.id),
+      );
+      const transfer = await prisma.companyOwnershipTransfer.findFirstOrThrow({
+        where: { companyId: company.id },
+      });
+
+      try {
+        await service.acceptTransfer(transfer.id, recipient.id);
+
+        expect(await prisma.userCompany.count({ where: { companyId: company.id } })).toBe(2);
+        const recipientMembership = await prisma.userCompany.findUniqueOrThrow({
+          where: { userId_companyId: { userId: recipient.id, companyId: company.id } },
+        });
+        expect(recipientMembership.role).toBe('OWNER');
+        // The desk the reservation hands out — the lowest free index, never left null the way a
+        // membership created outside `withSeatReservation` was.
+        expect(recipientMembership.seatIndex).toBe(2);
+      } finally {
+        await cleanup({ companyIds: [company.id], userIds: [owner.id, recipient.id] });
+      }
+    });
+  });
 });
 
 describe('TransferExpirySweepRunner', () => {

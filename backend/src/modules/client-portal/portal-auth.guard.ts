@@ -44,17 +44,20 @@ import { hashPortalToken } from './portal-token';
  * `ActivePortalClient`'s own `clientId`, checked on every read — see `portal.service.ts`), NOTHING
  * about the company's own staff-facing screens (a portal token is never accepted by `AuthGuard`), and
  * NOTHING once expired or revoked (checked on every single call below, never cached).
+ *
+ * ## Why the raw token stops here
+ *
+ * `PortalIdentity` carries WHO is asking, never the credential they asked with. The raw bearer used
+ * to be a third field on it, for exactly one consumer
+ * (`PortalService.createInvoiceCheckoutSession`) which put it in a payment provider's return URL —
+ * and therefore into that provider's dashboard, API and retained logs, where a 30-day credential for
+ * this client's whole portal (the section immediately above) has no business being. Not re-adding
+ * the field is what makes that class of leak impossible rather than merely fixed: a handler that
+ * cannot obtain the token cannot put it in a URL, a log line, or an outbound payload.
  */
 export interface PortalIdentity {
   companyId: string;
   clientId: string;
-  /** The RAW bearer token this request itself authenticated with — never persisted anywhere new, just
-   *  handed back to whichever handler already has the header (`extractBearerToken` below already
-   *  parsed it once; this avoids re-parsing it a second time at the one call site that needs the raw
-   *  value itself: `PortalService.createInvoiceCheckoutSession`, which embeds it in the payment
-   *  provider's `successUrl`/`cancelUrl` so the buyer's browser lands back on `/portal/<token>` —
-   *  the SAME bootstrap route `[token].tsx` already exists for the emailed link, never a second one). */
-  token: string;
 }
 
 interface RequestWithPortalIdentity extends Request {
@@ -87,7 +90,8 @@ export class PortalAuthGuard implements CanActivate {
     }
 
     touchPortalTokenLastUsed(record.id);
-    request.portal = { companyId: record.companyId, clientId: record.clientId, token };
+    // The raw `token` stops here — see `PortalIdentity`'s own header.
+    request.portal = { companyId: record.companyId, clientId: record.clientId };
     return true;
   }
 }

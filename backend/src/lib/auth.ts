@@ -16,6 +16,7 @@ import {
   providerIdFromEndpointContext,
   resolveEnvOidcProvider,
   resolveOidcEndpoints,
+  signupMayAssertVerifiedEmail,
   ssoLinkValidator,
 } from './sso-policy';
 import {
@@ -263,6 +264,15 @@ const userHookFunction = async (user, context) => {
   // federated account already starts in. See `signup-locale.ts`'s own header for why an unsupported
   // browser language is dropped here rather than rejected the way the preferences endpoint rejects one.
   data['locale'] = normalizeSignupLocale(data['locale']);
+
+  // What an IdP CLAIMS about an address it does not own is not proof that address was proven. Written
+  // here, on the before-create hook, because it is the last point this process controls before
+  // better-auth's own `createUser` persists the provider's `emailVerified` verbatim (see
+  // `sso-policy.ts#signupMayAssertVerifiedEmail` for the full account of which provider may assert it
+  // and why the column is worth defending).
+  if (!signupMayAssertVerifiedEmail(context)) {
+    data['emailVerified'] = false;
+  }
 
   // A user arriving through their own company's IdP has no invitation and must not be asked for one:
   // the provider id of the in-flight OAuth callback IS the authorization, since only a company that

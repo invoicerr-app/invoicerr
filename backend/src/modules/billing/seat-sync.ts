@@ -12,12 +12,15 @@
  * membership is created, and a capacity refusal
  * (`NoFreeSeatError`) for the "a company must not exceed the seats it actually bought" rule at the
  * exact moment a membership WOULD be created — never for a role change or removal, neither of which
- * needs a new desk. Called from the SAME three "a brand-new membership is being created" call sites the
- * old push used to also cover:
+ * needs a new desk. Called from EVERY "a brand-new membership is being created" call site, which is
+ * what makes the capacity rule a property of the company rather than of one entry door:
  *  - `company/company.service.ts` — a brand-new company's own OWNER row (createCompany);
  *  - `invitations/invitations.service.ts` — an EXISTING user accepting an invitation (useInvitation);
  *  - `lib/auth.ts` — a BRAND-NEW user signing up via an invitation code or their company's own SSO
- *    (`markInvitationAsUsed`/`attachSsoProvisionedMembership`).
+ *    (`markInvitationAsUsed`/`attachSsoProvisionedMembership`);
+ *  - `company/transfer/transfer.service.ts` — the recipient of an ownership transfer accepting it
+ *    (`acceptTransfer`). An accepted transfer ADDS a member: the initiator is demoted to ADMIN and
+ *    keeps their own membership, they are not replaced.
  *
  * Deliberately NOT called any more from `companies.service.ts#removeMember` or
  * `auth-extended/account-lifecycle.ts#cleanupAfterUserDelete`: freeing a desk on removal needs no

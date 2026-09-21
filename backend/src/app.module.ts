@@ -1,4 +1,4 @@
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CompanyContextInterceptor } from '@/interceptors/company-context.interceptor';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { ArticlesModule } from './modules/articles/articles.module';
@@ -6,8 +6,7 @@ import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module
 import { BackupModule } from './modules/backup/backup.module';
 import { BackupQueueWorkerModule } from './modules/backup/backup-queue-worker.module';
 import { isBackupEnabled } from './modules/backup/backup.constants';
-import { AuthGuard } from '@/guards/auth.guard';
-import { RolesGuard } from '@/guards/roles.guard';
+import { globalGuardProviders } from '@/guards/global-guards';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { ClientPortalModule } from './modules/client-portal/client-portal.module';
 import { ClientsModule } from './modules/clients/clients.module';
@@ -45,15 +44,13 @@ import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { WebhooksQueueWorkerModule } from './modules/webhooks/queue/webhooks-queue-worker.module';
 import { LoggerModule } from './modules/logger/logger.module';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { createLibRedisClient } from './lib/redis-connection';
 import { auth } from './lib/auth';
 import { BillingModule } from './modules/billing/billing.module';
 import { BillingQueueWorkerModule } from './modules/billing/billing-queue-worker.module';
-import { CompanyWriteGuard } from './modules/billing/company-write.guard';
 import { isBillingEnabled } from './modules/billing/billing-flag';
-import { LegalAcceptanceGuard } from './legal/legal-acceptance.guard';
 
 /**
  * Hosted billing (product decision 2026-09-15) — `BillingModule` is imported ONLY when
@@ -98,7 +95,8 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // Defense in depth on top of the
     // real, mathematical bound `documents/signatures/otp.ts#MAX_FAILED_ATTEMPTS` already gives the
     // signature OTP flow (see that constant's own header). This is a GLOBAL default (every route gets
-    // it, `ThrottlerGuard` below is a global `APP_GUARD`); `PublicSignaturesController`'s own two
+    // it, `ThrottlerGuard` is a global `APP_GUARD` — the FIRST one, see `guards/global-guards.ts` for
+    // why the order matters); `PublicSignaturesController`'s own two
     // anonymous routes narrow it further with their own `@Throttle()` overrides. `ttl` is
     // MILLISECONDS in this major version (v5+), never seconds — 60_000 = one minute.
     //
@@ -248,14 +246,12 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
   controllers: [],
   providers: [
     MailService,
-    {
-      provide: APP_GUARD,
-      useClass: AuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
+    // Every global guard, IN EXECUTION ORDER — `guards/global-guards.ts`, which owns that order and
+    // the reasons for it (Nest runs `APP_GUARD`s in registration order and stops at the first
+    // refusal, so the rate limiter has to come first or refused requests are never counted). A new
+    // global guard belongs in that list, not here: the order is the security property, and only that
+    // file is under test for it.
+    ...globalGuardProviders({ billingEnabled }),
     // Request-scoped `companyId` for every `Log` write this request triggers — see
     // `@/interceptors/company-context.interceptor.ts`'s own header for why this has to be an
     // Interceptor (runs after every `APP_GUARD` above, `AuthGuard` included) rather than folded into
@@ -264,26 +260,6 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     {
       provide: APP_INTERCEPTOR,
       useClass: CompanyContextInterceptor,
-    },
-    // Hosted billing's read-only gate (product decision 2026-09-15) — refuses every WRITE from a
-    // `blocked`/`zipped` company. Registered ONLY under the flag, like `BillingModule` right above:
-    // with it unset, this guard doesn't merely no-op, it never enters the graph at all. See
-    // `billing/write-gate.ts`'s own header for the full exemption list (GET/HEAD/OPTIONS, no active
-    // company, `/api/auth/*` bypassing Nest routing entirely). `send-gate.ts#assertCanSend` (the
-    // narrower, TRIAL-only gate on `send` specifically) stays a direct call from
-    // `documents.service.ts#runAction` — unrelated, not duplicated here.
-    ...(billingEnabled ? [{ provide: APP_GUARD, useClass: CompanyWriteGuard }] : []),
-    // Refuses every write from a caller with a pending legal-document re-acceptance — named
-    // `LEGAL_ACCEPTANCE_REQUIRED`. Registered ONLY under the same flag as `CompanyWriteGuard` right
-    // above, for the identical reason: self-hosted has nothing to accept in the first place. See
-    // `legal/legal-acceptance.guard.ts`'s own header for the full exemption list.
-    ...(billingEnabled ? [{ provide: APP_GUARD, useClass: LegalAcceptanceGuard }] : []),
-    // Global rate limiting, see ThrottlerModule.forRoot's own comment
-    // above. A THIRD global APP_GUARD: Nest runs every registered one, ANDing their results, so this
-    // adds a check rather than replacing AuthGuard/RolesGuard's own.
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
     },
   ],
 })

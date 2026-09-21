@@ -70,6 +70,7 @@ describe('reconcileFromPolarIfStale', () => {
     expect(client.subscriptions.list as Mock).toHaveBeenCalledWith({
       externalCustomerId: 'company-1',
       limit: 10,
+      sorting: ['-started_at'],
     });
     expect(applyWebhook).toHaveBeenCalledWith({
       companyId: 'company-1',
@@ -111,6 +112,7 @@ describe('reconcileFromPolarIfStale', () => {
     expect(client.subscriptions.list as Mock).toHaveBeenCalledWith({
       externalCustomerId: 'company-1',
       limit: 10,
+      sorting: ['-started_at'],
     });
   });
 
@@ -165,6 +167,69 @@ describe('reconcileFromPolarIfStale', () => {
     expect(applyWebhook).toHaveBeenCalledWith(expect.objectContaining({ factAt: new Date(createdAt) }));
   });
 
+  // A company that resubscribed after cancelling: Polar returns both, and nothing says which comes
+  // first. Taking the list's own first item applied the CANCELLED one — and `applySubscriptionWebhook`
+  // maps `canceled` to PAST_DUE — on a row whose `lastPolarFactAt` is null, i.e. one no webhook ever
+  // reached, which is the case this repair path exists for. See `findMostRecentSubscription`'s header.
+  it('applies the most recently STARTED subscription, whatever order Polar returned the list in', async () => {
+    const client = fakeClient([
+      {
+        id: 'polar_sub_old',
+        customerId: 'cus_1',
+        status: 'canceled',
+        recurringInterval: 'month',
+        metadata: { companyId: 'company-1' },
+        startedAt: '2026-01-05T00:00:00.000Z',
+      },
+      {
+        id: 'polar_sub_new',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'year',
+        metadata: { companyId: 'company-1' },
+        startedAt: '2026-09-05T00:00:00.000Z',
+      },
+    ]);
+    const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_1', lastPolarFactAt: null });
+    getOrCreate.mockResolvedValue({ ...row, status: 'ACTIVE' });
+
+    await reconcileFromPolarIfStale(row, client, 0);
+
+    expect(applyWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ polarSubscriptionId: 'polar_sub_new', status: 'active' }),
+    );
+  });
+
+  it('ranks a subscription Polar never started below one it did, rather than above it', async () => {
+    const client = fakeClient([
+      {
+        id: 'polar_sub_abandoned',
+        customerId: 'cus_1',
+        status: 'incomplete',
+        recurringInterval: 'month',
+        metadata: { companyId: 'company-1' },
+        startedAt: null,
+        createdAt: null,
+      },
+      {
+        id: 'polar_sub_real',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'year',
+        metadata: { companyId: 'company-1' },
+        startedAt: '2026-09-05T00:00:00.000Z',
+      },
+    ]);
+    const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_1', lastPolarFactAt: null });
+    getOrCreate.mockResolvedValue({ ...row, status: 'ACTIVE' });
+
+    await reconcileFromPolarIfStale(row, client, 0);
+
+    expect(applyWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ polarSubscriptionId: 'polar_sub_real' }),
+    );
+  });
+
   it('recomputes an ACTIVE row whose own company-scoped customer has NO subscription at all', async () => {
     const client = fakeClient([]);
     const row = sub({
@@ -181,6 +246,7 @@ describe('reconcileFromPolarIfStale', () => {
     expect(client.subscriptions.list as Mock).toHaveBeenCalledWith({
       externalCustomerId: 'company-1',
       limit: 10,
+      sorting: ['-started_at'],
     });
     expect(recomputeVanished).toHaveBeenCalledWith(
       'company-1',

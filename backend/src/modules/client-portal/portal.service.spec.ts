@@ -288,45 +288,61 @@ describe('PortalService — the client-portal security boundary', () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceB);
 
       await expect(
-        service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-b', 'raw-token'),
+        service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-b'),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(paymentSessions.createInvoiceCheckoutSession).not.toHaveBeenCalled();
     });
 
     it(
-      'delegates to PaymentSessionsService, verbatim, for THIS client’s own invoice, with the ' +
-        'return URLs carrying THIS session’s own portal token (never bare /portal — see this ' +
-        'method’s own header on why a new tab cannot rely on localStorage)',
+      'delegates to PaymentSessionsService, verbatim, for THIS client’s own invoice, with return ' +
+        'URLs that carry NO credential — the provider stores these on its own session object',
       async () => {
         const { service, paymentSessions } = buildService();
         (persistence.findOwnedDocument as Mock).mockResolvedValue(INVOICE_A);
         process.env.APP_URL = 'http://localhost:5173';
 
-        const result = await service.createInvoiceCheckoutSession(
-          COMPANY,
-          CLIENT_A,
-          'invoice-a',
-          'raw-token',
-        );
+        const result = await service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-a');
 
         expect(result).toEqual({ checkoutUrl: 'https://checkout.stripe.com/x' });
         expect(paymentSessions.createInvoiceCheckoutSession).toHaveBeenCalledWith(COMPANY, 'invoice-a', {
-          successUrl: 'http://localhost:5173/portal/raw-token?payment=success',
-          cancelUrl: 'http://localhost:5173/portal/raw-token?payment=cancelled',
+          successUrl: 'http://localhost:5173/portal?payment=success',
+          cancelUrl: 'http://localhost:5173/portal?payment=cancelled',
         });
       },
     );
+
+    it('the return URLs carry NOTHING but the banner flag — no path segment, no extra query', async () => {
+      // A 30-day bearer credential for this client's whole portal must never be handed to Stripe/
+      // PayPal/Mollie, each of which RETAINS the return URL on its own session object, readable from
+      // that provider's dashboard, API and logs. Asserted structurally — path and query, not a
+      // substring — so any future addition of a secret to either URL fails here.
+      const { service, paymentSessions } = buildService();
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(INVOICE_A);
+      process.env.APP_URL = 'http://localhost:5173';
+
+      await service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-a');
+
+      const [, , urls] = (paymentSessions.createInvoiceCheckoutSession as Mock).mock.calls[0];
+      for (const [raw, flag] of [
+        [urls.successUrl, 'success'],
+        [urls.cancelUrl, 'cancelled'],
+      ] as const) {
+        const url = new URL(raw);
+        expect(url.pathname).toBe('/portal');
+        expect([...url.searchParams]).toEqual([['payment', flag]]);
+      }
+    });
 
     it('strips a trailing slash off APP_URL before building the return URL', async () => {
       const { service, paymentSessions } = buildService();
       (persistence.findOwnedDocument as Mock).mockResolvedValue(INVOICE_A);
       process.env.APP_URL = 'http://localhost:5173/';
 
-      await service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-a', 'raw-token');
+      await service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-a');
 
       expect(paymentSessions.createInvoiceCheckoutSession).toHaveBeenCalledWith(COMPANY, 'invoice-a', {
-        successUrl: 'http://localhost:5173/portal/raw-token?payment=success',
-        cancelUrl: 'http://localhost:5173/portal/raw-token?payment=cancelled',
+        successUrl: 'http://localhost:5173/portal?payment=success',
+        cancelUrl: 'http://localhost:5173/portal?payment=cancelled',
       });
     });
   });

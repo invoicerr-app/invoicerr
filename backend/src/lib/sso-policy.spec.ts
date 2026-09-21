@@ -15,6 +15,7 @@ import {
   resolveOidcEndpoints,
   resolveSsoLookup,
   sanitizeProviderId,
+  signupMayAssertVerifiedEmail,
   ssoEndpointsComplete,
   trustedProviderIds,
 } from '@/lib/sso-policy';
@@ -290,6 +291,26 @@ describe('companyForOAuthSignup — the company a brand-new OAuth user belongs t
   it('is null for an email/password signup, so the invitation path still runs', () => {
     expect(companyForOAuthSignup({ body: { email: 'a@b.com' } })).toBeNull();
     expect(companyForOAuthSignup(null)).toBeNull();
+  });
+});
+
+describe('signupMayAssertVerifiedEmail — who may write `emailVerified` on a brand-new row', () => {
+  it('refuses the claim from a provider a CUSTOMER registered', () => {
+    // The attack in one line: the IdP is his, the address is somebody else's, the claim is free.
+    expect(signupMayAssertVerifiedEmail({ params: { id: companyProviderId(COMPANY_ID) } })).toBe(false);
+  });
+
+  it("honours the claim from the instance's own environment provider", () => {
+    // The operator's own directory — the one thing on this deployment entitled to vouch for who owns
+    // an address. Refusing it here would break federated sign-in for the deployments that run it.
+    expect(signupMayAssertVerifiedEmail({ params: { id: 'pocketid' } })).toBe(true);
+  });
+
+  it('leaves the plain email/password signup alone', () => {
+    // Nothing to strip: better-auth writes `false` there itself, and the verification-mail
+    // round-trip is what lifts it.
+    expect(signupMayAssertVerifiedEmail({ body: { email: 'a@b.com' } })).toBe(true);
+    expect(signupMayAssertVerifiedEmail(null)).toBe(true);
   });
 });
 

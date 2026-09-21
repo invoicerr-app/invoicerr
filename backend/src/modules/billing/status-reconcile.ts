@@ -86,6 +86,10 @@ interface ReconcileSubscriptionFacts {
   metadata: Record<string, string | number | boolean>;
   modifiedAt?: string | Date | null;
   createdAt?: string | Date | null;
+  /** `@polar-sh/sdk`'s own `Subscription.startedAt` (`Date | null` in `subscription.d.ts`) — read
+   *  ONLY to order the list below, never threaded into `applySubscriptionWebhook`: which
+   *  subscription is the current one is a different question from what facts it carries. */
+  startedAt?: string | Date | null;
   /** `@polar-sh/sdk`'s own `Subscription.currentPeriodEnd` (confirmed by the same
    *  `subscription.d.ts` read `webhook-handlers.ts`'s own header cites) — threaded through to
    *  `applySubscriptionWebhook` below the same way a real webhook's `current_period_end` is, so a
@@ -101,27 +105,66 @@ export interface ReconcileSubscriptionsClient {
     list(request: {
       externalCustomerId: string;
       limit: number;
+      sorting: string[];
     }): Promise<AsyncIterable<{ result: { items: ReconcileSubscriptionFacts[] } }>>;
   };
 }
 
-/** The most recently created subscription for this COMPANY, Polar-side — filtered by
- *  `externalCustomerId` (= `company.id` under option A, `billing-customer.ts`'s own header), never by
- *  the locally-stored `polarCustomerId`: this is the fix for a bug this feature's own research found
- *  in the pre-option-A code (a shared per-USER customer meant `items[0]` here could belong to a
- *  DIFFERENT company owned by the same user) — under option A every company has its own dedicated
- *  Polar customer, so this filter is now also strictly correct rather than merely defense in depth.
- *  `subscriptions.list` has no "most recent only" shortcut, so this just reads the (small,
- *  page-1-sized for a per-company customer) list and takes the first item; a customer with no
- *  subscription at all (checkout started but never completed) reads as `undefined`, a genuine
- *  "nothing to reconcile" rather than an error. */
+/** Most recently started first, `createdAt` breaking a tie (or standing in entirely for a
+ *  subscription Polar has not started — an abandoned checkout), then `id` so the comparison is total
+ *  and the same list never sorts two ways. A missing date sorts LAST: "no start date at all" is the
+ *  weakest possible claim to being the current subscription. */
+function byRecencyDesc(a: ReconcileSubscriptionFacts, b: ReconcileSubscriptionFacts): number {
+  const at = (sub: ReconcileSubscriptionFacts) => {
+    const value = sub.startedAt ?? sub.createdAt;
+    const time = value ? new Date(value).getTime() : Number.NaN;
+    return Number.isFinite(time) ? time : Number.NEGATIVE_INFINITY;
+  };
+  return at(b) - at(a) || a.id.localeCompare(b.id);
+}
+
+/**
+ * The most recently started subscription for this COMPANY, Polar-side — filtered by
+ * `externalCustomerId` (= `company.id` under option A, `billing-customer.ts`'s own header), never by
+ * the locally-stored `polarCustomerId`: this is the fix for a bug this feature's own research found
+ * in the pre-option-A code (a shared per-USER customer meant the first item here could belong to a
+ * DIFFERENT company owned by the same user) — under option A every company has its own dedicated
+ * Polar customer, so this filter is now also strictly correct rather than merely defense in depth.
+ *
+ * ## Why the order is asked for AND redone locally
+ * This used to return `items[0]` of an unordered read. Nothing guarantees that item is the newest:
+ * `SubscriptionsListRequest` (read directly, in
+ * `node_modules/@polar-sh/sdk/dist/commonjs/models/operations/subscriptionslist.d.ts`) carries an
+ * explicit `sorting` parameter and documents NO default for it, so the order of an unsorted response
+ * is the server's own business and may change without the SDK's types changing at all. For a company
+ * that has subscribed more than once — resubscribed after cancelling, switched plan — the first item
+ * could be the OLD, cancelled one, and `applySubscriptionWebhook` would map its
+ * `canceled` status onto the company as `PAST_DUE`. The `lastPolarFactAt` staleness guard catches
+ * that for a company a webhook has already written to, and NOT for one where it is `null` — a company
+ * no webhook ever reached, which is the exact situation this repair module exists for.
+ *
+ * So `sorting: ['-started_at']` is asked for (the closest thing to recency the API offers: its sort
+ * properties are customer/status/started_at/current_period_end/ended_at/ends_at/amount/product/
+ * discount — there is no created_at), because ordering matters BEYOND this page too: with more
+ * subscriptions than `limit`, no local sort can rank an item that never came back. And the page is
+ * then sorted again here, because a parameter the server is free to interpret is not a guarantee —
+ * the cost is sorting at most ten items, and the failure it rules out is a company being downgraded
+ * on the strength of a subscription it replaced.
+ *
+ * A customer with no subscription at all (checkout started but never completed) reads as `undefined`,
+ * a genuine "nothing to reconcile" rather than an error.
+ */
 async function findMostRecentSubscription(
   client: ReconcileSubscriptionsClient,
   companyId: string,
 ): Promise<ReconcileSubscriptionFacts | undefined> {
-  const pages = await client.subscriptions.list({ externalCustomerId: companyId, limit: 10 });
+  const pages = await client.subscriptions.list({
+    externalCustomerId: companyId,
+    limit: 10,
+    sorting: ['-started_at'],
+  });
   for await (const page of pages) {
-    if (page.result.items.length > 0) return page.result.items[0];
+    if (page.result.items.length > 0) return [...page.result.items].sort(byRecencyDesc)[0];
   }
   return undefined;
 }

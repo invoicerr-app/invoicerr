@@ -31,6 +31,7 @@ import {
 import { isBillingEnabled } from '@/modules/billing/billing-flag';
 import { getOrCreateCompanySubscription } from '@/modules/billing/company-subscription.store';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
+import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';
@@ -350,34 +351,57 @@ export class TransferService {
       throw new GoneException('This transfer request has expired');
     }
 
-    const claimed = await prisma.$transaction(async (tx) => {
-      // The guarded write that actually wins or loses this finalize — see `expireOwnershipTransfer`'s
-      // own header on the identical shape: whoever's `updateMany` here matches `status: 'PENDING'` is
-      // the one call that gets to run the role changes below; a concurrent cancel/expire racing this
-      // same row simply loses the transaction with nothing left to roll back.
-      const claim = await tx.companyOwnershipTransfer.updateMany({
-        where: { id: transferId, status: 'PENDING' },
-        data: { status: 'ACCEPTED', acceptedAt: new Date() },
-      });
-      if (claim.count === 0) return false;
+    // Through `withSeatReservation`, like every other path in this codebase that can create a
+    // `UserCompany` row (`invitations.service.ts#useInvitation`, `lib/auth.ts`'s two, and
+    // `company.service.ts#createCompany`). A transfer does NOT swap one member for another: the
+    // recipient is attached as OWNER and the initiator STAYS, demoted to ADMIN — so accepting adds a
+    // member, and a seat is exactly one user account attached to the company, role-blind
+    // (`billing/seat-holders.ts`'s own header). Without the reservation a company at capacity reached
+    // `seats + 1` members while paying for `seats`, by the one door the arrival check did not cover.
+    // A no-op wrapper outside hosted-billing mode, so a self-hosted transfer behaves exactly as before.
+    try {
+      await withSeatReservation(transfer.companyId, transfer.toUserId, async (tx) => {
+        // The guarded write that actually wins or loses this finalize — see `expireOwnershipTransfer`'s
+        // own header on the identical shape: whoever's `updateMany` here matches `status: 'PENDING'` is
+        // the one call that gets to run the role changes below; a concurrent cancel/expire racing this
+        // same row simply loses the transaction with nothing left to roll back.
+        const claim = await tx.companyOwnershipTransfer.updateMany({
+          where: { id: transferId, status: 'PENDING' },
+          data: { status: 'ACCEPTED', acceptedAt: new Date() },
+        });
+        // Thrown from INSIDE the transaction, never returned as a flag: the seat reservation that
+        // wraps this one assigns the new member's desk after this callback returns, and a callback
+        // that "succeeded" without creating the membership would send it looking for a row nobody
+        // wrote. Rolling back here leaves the transfer PENDING, which is what losing the race means.
+        if (claim.count === 0) {
+          throw new ConflictException('This transfer request is no longer pending');
+        }
 
-      await tx.userCompany.upsert({
-        where: { userId_companyId: { userId: transfer.toUserId, companyId: transfer.companyId } },
-        create: { userId: transfer.toUserId, companyId: transfer.companyId, role: CompanyRole.OWNER },
-        update: { role: CompanyRole.OWNER },
+        await tx.userCompany.upsert({
+          where: { userId_companyId: { userId: transfer.toUserId, companyId: transfer.companyId } },
+          create: { userId: transfer.toUserId, companyId: transfer.companyId, role: CompanyRole.OWNER },
+          update: { role: CompanyRole.OWNER },
+        });
+        // The FROM user may have left the company entirely since this transfer was initiated (removed by
+        // another admin, e.g.) — `updateMany` is a silent no-op in that case rather than throwing, since
+        // there is no membership row left to demote.
+        await tx.userCompany.updateMany({
+          where: { userId: transfer.fromUserId, companyId: transfer.companyId },
+          data: { role: CompanyRole.ADMIN },
+        });
       });
-      // The FROM user may have left the company entirely since this transfer was initiated (removed by
-      // another admin, e.g.) — `updateMany` is a silent no-op in that case rather than throwing, since
-      // there is no membership row left to demote.
-      await tx.userCompany.updateMany({
-        where: { userId: transfer.fromUserId, companyId: transfer.companyId },
-        data: { role: CompanyRole.ADMIN },
-      });
-      return true;
-    });
-
-    if (!claimed) {
-      throw new ConflictException('This transfer request is no longer pending');
+    } catch (error) {
+      if (error instanceof NoFreeSeatError) {
+        logger.warn('Ownership transfer refused — no free seat', {
+          category: 'company-transfer',
+          companyId: transfer.companyId,
+          details: { transferId, toUserId: transfer.toUserId },
+        });
+        // Same translation `invitations.service.ts` gives the same refusal, so a client reads ONE
+        // code for "this company has no seat left", whichever door the new member came in by.
+        throw new ForbiddenException({ message: error.message, code: NO_FREE_SEAT_CODE });
+      }
+      throw error;
     }
 
     // Outside the transaction, same placement `invitations.service.ts#useInvitation`/
