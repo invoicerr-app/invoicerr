@@ -388,11 +388,11 @@ describe('DangerService — OTP hardening', () => {
     );
   });
 
-  it('locks the company out permanently after MAX_FAILED_ATTEMPTS wrong guesses', async () => {
+  it('locks the company out after MAX_FAILED_ATTEMPTS wrong guesses', async () => {
     const { service, mailService } = build();
     await requestAndExtractOtp(service, mailService, 'co-1');
 
-    // Five wrong guesses (MAX_FAILED_ATTEMPTS, documents/signatures/otp.ts) exhaust the lifetime budget.
+    // Five wrong guesses (MAX_FAILED_ATTEMPTS, documents/signatures/otp.ts) exhaust the budget.
     for (let i = 0; i < 5; i++) {
       await expect(service.resetCompanyData(USER, 'co-1', '00000000')).rejects.toBeInstanceOf(
         BadRequestException,
@@ -401,7 +401,9 @@ describe('DangerService — OTP hardening', () => {
 
     expect(fakeTable.rows.get('co-1')!.lockedAt).not.toBeNull();
 
-    // A fresh, correctly-typed code can no longer be minted at all for this company.
+    // A fresh, correctly-typed code can no longer be minted at all for this company. How long that
+    // holds — and that it does eventually lift, since this same challenge gates the company's own
+    // deletion — is `danger-otp-lockout.spec.ts`'s subject, not this one's.
     await expect(service.requestOtp(USER, 'co-1')).rejects.toThrow(/Too many failed attempts/);
   });
 

@@ -7,6 +7,7 @@ import {
   BadRequestException,
   ConflictException,
   HttpException,
+  HttpStatus,
   Injectable,
 } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
@@ -21,6 +22,7 @@ import { BillingExportService } from '@/modules/billing/export-zip.service';
 import { deleteCompanyPermanentlyNow, PolarCancellationFailedError } from '@/modules/billing/deletion';
 import {
   clearDangerOtp,
+  DANGER_OTP_LOCKOUT_HOURS,
   findDangerOtp,
   mintDangerOtp,
   recordDangerOtpFailedAttempt,
@@ -37,6 +39,12 @@ const GENERIC_OTP_FAILURE_MESSAGE = 'Invalid or expired OTP';
  *  retention" — mirrors `billing/write-gate.ts#COMPANY_BLOCKED`'s own "a named code, not just a
  *  message to string-match" convention. */
 export const RETENTION_BLOCKED = 'RETENTION_BLOCKED';
+
+/** The one code a caller can rely on to mean "this company burnt its guesses and must wait the
+ *  cooldown out" — same "a named code, not just a message to string-match" convention as
+ *  `RETENTION_BLOCKED` above and `companies.service.ts#SELF_SERVICE_EXPORT_RATE_LIMITED_CODE`, whose
+ *  429 + `retryAfterSeconds` response shape this refusal reuses rather than inventing a second one. */
+export const DANGER_OTP_LOCKED = 'DANGER_OTP_LOCKED';
 
 export interface CompanyDataResetCounts {
   documents: number;
@@ -71,22 +79,35 @@ export class DangerService {
 
   async requestOtp(user: CurrentUser, companyId: string) {
     const code = generateOtpCode();
-    const { minted } = await mintDangerOtp(companyId, hashOtpCode(code));
+    const { minted, lockedUntil } = await mintDangerOtp(companyId, hashOtpCode(code));
 
     if (!minted) {
-      // `mintDangerOtp` refuses once this company's row is permanently locked (see that function's own
-      // header) — reported as a distinct, explicit message here rather than the generic OTP-check
+      // `mintDangerOtp` refuses while this company is inside its lockout window (see that function's
+      // own header) — reported as a distinct, explicit refusal here rather than the generic OTP-check
       // failure above: there is no code in flight yet for the caller to have gotten wrong, so folding
       // this into `GENERIC_OTP_FAILURE_MESSAGE` would be actively misleading rather than merely vague.
-      logger.warn(
-        'OTP request refused — this company is permanently locked out after too many failed attempts',
+      //
+      // The moment the lockout lifts is told plainly, not withheld. It is not a secret worth keeping:
+      // an attacker learns it by retrying, while the OWNER — the party actually locked out — otherwise
+      // has no way to know whether the door opens in an hour or never, which is the whole defect this
+      // window exists to close. 429 + `retryAfterSeconds`, the shape
+      // `companies.service.ts#claimExportSlot` already uses for the only other cooldown in this
+      // codebase, so a client has one thing to recognise rather than two.
+      const retryAfterSeconds = Math.max(1, Math.ceil((lockedUntil.getTime() - Date.now()) / 1000));
+      logger.warn('OTP request refused — this company is inside its failed-attempt lockout window', {
+        category: 'danger',
+        details: { userId: user.id, companyId, retryAfterSeconds },
+      });
+      throw new HttpException(
         {
-          category: 'danger',
-          details: { userId: user.id, companyId },
+          message:
+            `Too many failed attempts — the danger zone is locked for this company for ` +
+            `${DANGER_OTP_LOCKOUT_HOURS} hours. Request a new code after ${lockedUntil.toISOString()}.`,
+          code: DANGER_OTP_LOCKED,
+          retryAfterSeconds,
+          retryAt: lockedUntil.toISOString(),
         },
-      );
-      throw new BadRequestException(
-        'Too many failed attempts. This action is locked for this company and can no longer be confirmed by OTP.',
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 

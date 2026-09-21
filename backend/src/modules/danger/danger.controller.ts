@@ -34,6 +34,14 @@ export class DangerController {
     description: 'Sends a one-time passcode to the user email to authorize destructive operations.',
   })
   @ApiResponse({ status: 201, description: 'OTP sent' })
+  // The failed-attempt lockout, and the ONLY way out of it: too many wrong codes stop this route for
+  // `DANGER_OTP_LOCKOUT_HOURS`, after which it starts answering again on its own. Declared here
+  // because it is a response a client must actually handle — it carries the moment the lockout lifts,
+  // so the screen can say "come back at" instead of "never" (see `DangerService#requestOtp`).
+  @ApiResponse({
+    status: 429,
+    description: 'Locked out after too many failed codes — retry after the moment named in the body',
+  })
   async requestOtp(@User() user: CurrentUser, @ActiveCompany() companyId: string) {
     return this.dangerService.requestOtp(user, companyId);
   }
