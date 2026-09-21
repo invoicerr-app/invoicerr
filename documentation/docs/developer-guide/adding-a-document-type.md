@@ -8,9 +8,9 @@ A **document type** is the other half of this codebase's "no business code names
 — see [Extending Invoicerr](./extending-invoicerr.md) if you haven't read it yet. Where a
 **country** is a folder of JSON files (see [Adding a country](./adding-a-country.md)), a
 **document type** is a single TypeScript file — a *descriptor* — that describes one kind of paper
-a business creates: a quote, an invoice, a credit note, an expense, a received invoice. This page
-has the same two-part shape as every other guide here: Part 1 for a first-time reader, Part 2 for
-the person about to actually write one.
+a business creates: a quote, an invoice, a credit note, an expense, a received invoice, a purchase
+order, a goods receipt. This page has the same two-part shape as every other guide here: Part 1 for
+a first-time reader, Part 2 for the person about to actually write one.
 
 ## Part 1 — In plain words
 
@@ -20,7 +20,7 @@ the person about to actually write one.
 buttons ('save', 'delete'), and it only ever has one status ('draft')." Nothing in that file draws
 a form, builds a list screen, or talks to a database — the rest of the app (the edit form, the list
 of expenses, the dashboard widget) is *generic* code that reads this description and builds itself
-from it. Adding a sixth document type — say, a "purchase order" — means writing one more file like
+from it. Adding an eighth document type — say, a "delivery note" — means writing one more file like
 this one, not designing a new screen from scratch.
 
 **Every document, whatever its type, lives in the exact same place.** There is no separate
@@ -126,13 +126,15 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   registry.register(buildInvoiceDescriptor());
   registry.register(buildCreditNoteDescriptor());
   registry.register(buildExpenseDescriptor());
-  registry.register(buildReceivedInvoiceDescriptor()); // ← adding a type is exactly this one line
+  registry.register(buildReceivedInvoiceDescriptor());
+  registry.register(buildPurchaseOrderDescriptor());
+  registry.register(buildGoodsReceiptDescriptor()); // ← adding a type is exactly this one line
   return registry;
 }
 ```
 
 `DocumentTypeRegistry.register()` (`descriptors/type-registry.ts`) does two things, synchronously,
-the instant it runs — at real app boot, or the moment a jest spec calls it directly:
+the instant it runs — at real app boot, or the moment a vitest spec calls it directly:
 
 1. Refuses a duplicate `id` (`Error`, not an HTTP exception — this registry has to stay usable
    outside an HTTP request).

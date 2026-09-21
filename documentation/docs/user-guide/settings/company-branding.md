@@ -26,7 +26,10 @@ established for each supported country, and says plainly where nothing has been 
 
 ### Invoice PDF format
 
-- Choose the default e-invoicing format: **PDF**, **Factur-X**, **ZUGFeRD**, **XRechnung**, **UBL**, or **CII**
+- A dropdown offers **PDF**, **Factur-X**, **ZUGFeRD**, **XRechnung**, **UBL**, or **CII** as your
+  default e-invoicing format. The choice is saved, but nothing in the app reads it back yet: every
+  invoice still renders as an ordinary PDF unless you pick a different format yourself from that
+  invoice's own **Download** menu (see [Invoices](../billing/invoices.md#download-formats)).
 
 ### Document numbering
 

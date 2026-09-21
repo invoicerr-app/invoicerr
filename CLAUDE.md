@@ -67,14 +67,22 @@ own narration comments). Run one leg standalone with `CYPRESS_scenario=<pair> np
 (needs :4000/:6284/:5433/:6379/:8025 up, per the E2E section above).
 
 ### CI (`.github/workflows/`)
-- `cypress.yml` ("Tests", on PR) — biome lint, i18n check, backend vitest, a **queue-integration** job
-  (real Redis + Postgres, runs `modules/documents/queue/__tests__`), and the Cypress run.
+- `cypress.yml` ("Tests", on PR) — eight jobs: `lint` (biome on both projects + frontend vitest),
+  `i18n-check`, `e2e-typecheck` (`tsc --noEmit` over the Cypress specs), `backend-tests` (backend
+  vitest against a real Postgres — 13+ spec files need one), a **queue-integration** job (real Redis +
+  Postgres, runs `modules/documents/queue/__tests__` **and** `modules/webhooks/queue/__tests__`, plus
+  the migration-vs-schema enum tripwire), `cypress-run` (the numbered suites, 6-way sharded),
+  `cypress-run-saas` (the hosted-billing-only specs, `WARNING__ENABLE_BILLING_FOR_USERS__WARNING=true`),
+  and `tests-green` — a fixed-name aggregator job branch protection targets instead of the six
+  `cypress-run` shard names, `needs` every other job and fails on any failure/cancellation/skip.
 - `scenarios.yml` ("Business Scenarios", on PR) — matrix `fr-pl de-fr it-it pt-de it-pt pl-de` (the
   5-country prune, 2026-09-10, re-pointed fr-be/es-pt/mx-us/us-us onto kept-country pairs — see
-  `e2e/cypress/fixtures/scenarios.ts`'s own header for the mapping). Its only step drives
+  `e2e/cypress/fixtures/scenarios.ts`'s own header for the mapping), each leg driving
   `cypress/e2e/scenarios/full-lifecycle.cy.ts` — all six legs green as of run `34874375005` (commit
-  `b41e99a9`, 2026-09-14).
-- `compliance-live.yml` — real-API round-trips, `workflow_dispatch` only. See
+  `b41e99a9`, 2026-09-14) — plus `scenarios-green`, the same fixed-name-aggregator pattern as
+  `cypress.yml`'s `tests-green`, for the same branch-protection reason.
+- `compliance-live.yml` — real-API round-trips, `workflow_dispatch` **or** a nightly `schedule` cron
+  (inert on any branch but the repository default, per the file's own comment). See
   `documentation/docs/developer-guide/live-testing.md`.
 
 ## Architecture
@@ -97,7 +105,7 @@ operations go through `prisma.$transaction`.
 
 ### Prisma / migrations
 The generated client lands in `backend/prisma/generated/prisma` and is imported via relative paths
-(`../../prisma/generated/prisma/client`). It is **gitignored** (`backend/.gitignore:62`), not
+(`../../prisma/generated/prisma/client`). It is **gitignored** (`backend/.gitignore:60`), not
 committed — so `npx prisma generate` is required before build/test in any fresh checkout, and a
 `git worktree` starts without it (and `generate` itself needs `DATABASE_URL`, so `.env` has to be
 in place first). Self-hosted instances ran `db push` until v1.4.4a, so
@@ -147,11 +155,15 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
   counted from** (`origin`, mandatory per rule, never defaulted). DE/FR/PL/PT today; Italy is
   deliberately absent because DPR 600/1973 art. 22 makes the obligation run until tax assessments
   close, which has no computable terminus this schema can express.
-- `reporting/` — declarative post-send declaration providers. **Portugal (AT) only** today; the
-  Hungarian (NAV) and Greek (myDATA) providers were deleted with the five-country prune, so this
-  catalog is now the thinnest of the thirteen rather than the broadest. France's own obligation IS
-  established (CGI art. 290) but is discharged through the accredited platform (the PDP), which this
-  catalog cannot express — a fact here names a `providerId`.
+- `reporting/` — declarative post-send declaration obligations. Two data files, `pt.json` and
+  `fr.json`, but exactly ONE implemented `DeclarationProvider`: `pt-at`, the only one
+  `documents-core.module.ts` registers. The Hungarian (NAV) and Greek (myDATA) providers were deleted
+  with the five-country prune. France's three facts are all deliberately unexecutable here and say so
+  in their own `notes`: the B2B-domestic one is `dischargedBy: 'transport'` (CGI art. 289 E puts the
+  duty to transmit on the accredited platform itself, so the PDP transport discharges it and the
+  send-time hook skips it), and the two e-reporting ones (CGI art. 290, 290 A) name an UNREGISTERED
+  `providerId` placeholder — present as data so the obligation stays visible, not as something that
+  runs.
 - `domestic-reverse-charge/` — the statutory categories in which the BUYER, not the seller, owes the
   VAT on a purely domestic supply (construction subcontracting, waste, scrap, greenhouse-gas
   allowances, gas and electricity to a reseller…). DE/FR/IT/PT, 32 sourced categories; Poland has none

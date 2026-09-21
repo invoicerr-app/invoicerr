@@ -96,7 +96,7 @@ npx cypress run --spec "cypress/e2e/21-document-lifecycle.cy.ts"   # a single sp
 ### Running a single test
 
 ```bash
-npx jest src/modules/documents/tax/tax-matrix.spec.ts   # backend, one file
+npx vitest run src/modules/documents/tax/tax-matrix.spec.ts   # backend, one file
 npm test -- -t "OSS destination rate"                    # backend, one test by name
 npx vitest run src/some.test.tsx                          # frontend, one file
 ```
@@ -132,8 +132,8 @@ backend doesn't see it, restart it.
   turned off in `backend/biome.json` for this reason. Booting the app (`npm run build` and actually
   starting it) is the real check that DI is wired correctly — `tsc --noEmit` alone will not catch it.
 
-- **Tests are colocated.** `*.spec.ts` sits next to the code it tests, both backend (Jest) and
-  frontend (Vitest). `*.live.spec.ts` files hit real external APIs and self-gate behind
+- **Tests are colocated.** `*.spec.ts` sits next to the code it tests — Vitest, both backend and
+  frontend. `*.live.spec.ts` files hit real external APIs and self-gate behind
   `liveDescribe(FLAG, [ENV_VARS])`: skipped unless the flag is `1` and every credential variable is
   set. A gated spec that passes on mocks alone proves nothing about the real integration — see
   `documentation/docs/developer-guide/live-testing.md` before claiming a channel works end to end.

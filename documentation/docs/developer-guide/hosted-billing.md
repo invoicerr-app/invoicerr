@@ -29,6 +29,16 @@ priority over `email` for the Polar customer. A collision surfaces as a named `4
 `code: "BILLING_EMAIL_TAKEN"` from `POST /api/billing/checkout`, and the Settings screen shows
 "Choose a distinct billing email for this company".
 
+A company with **neither** a `billingEmail` override **nor** a contact `email` on file is refused
+before this module ever calls Polar: `POST /billing/checkout` and `POST /billing/portal` answer `422`
+with `code: "BILLING_EMAIL_MISSING"` (`MissingBillingEmailError`, `billing-customer.ts`), and the
+Settings screen shows that error's own message verbatim. Before this guard existed, the empty string
+reached Polar directly, which refused it with its own 422 ("An email address must have an @-sign")
+that nothing on the checkout path caught — surfacing to the user as an opaque `500`. The Settings
+screen's billing-email field now prefills from the same priority order the backend resolves by: the
+saved override, then the company's own contact email, then the signed-in user's own account email —
+always a visible, editable value in the form, never a silent server-side substitution.
+
 ## Who can touch Polar
 
 Only company members with role `OWNER` or `ADMIN` can start a checkout or open the customer portal —

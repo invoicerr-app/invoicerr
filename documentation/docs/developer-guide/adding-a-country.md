@@ -78,7 +78,7 @@ There is no third option, and no silent default. Every schema in this module enf
 **load time** (`assertValidProvenance` and its per-module siblings, called from that mechanism's
 own `data/all.ts`): a JSON file with no `provenance`, or a `legal` claim with no `sourceText`,
 fails to load — which for `country-policy`/`b2g-routing`/etc. means **the whole backend fails to
-boot**, and for tests it means every jest run fails immediately. This is deliberate: a rule
+boot**, and for tests it means every vitest run fails immediately. This is deliberate: a rule
 without a citation must never be one accidental commit away from looking exactly like a rule
 that has one.
 

@@ -11,8 +11,9 @@ country**. One port, one provider per country, one normalized result.
   onboarding form reads it before a session is fully settled)
 - Frontend hook: `frontend/src/hooks/use-company-lookup.ts`
 
-The identifier schemes are the ones the compliance profiles already declare in
-`requiredIdentifiers`: `LEGAL_ID` (the national registration number) and `VAT`.
+The identifier schemes are the same two names the documents module's own
+`country-identifiers/` catalog uses for a party's national identifiers: `LEGAL_ID` (the national
+registration number) and `VAT`.
 Resolution order per country: **national register → VIES → GLEIF → Peppol Directory**.
 The national register returns the legal name, address and registration date; VIES
 confirms the EU VAT number; the two worldwide directories are the keyless safety net for
@@ -74,8 +75,8 @@ the capability endpoint reports `coverage: PARTIAL`.
 
 ### Everything else
 
-`GET /api/company-lookup/capabilities` returns an entry for **every** country the
-compliance profiles know about, all of them `AVAILABLE`. Those without an open register
+`GET /api/company-lookup/capabilities` returns an entry for **every** ISO country this module
+knows about, all of them `AVAILABLE`. Those without an open register
 API report `coverage: PARTIAL` and a `note` explaining the situation (no federal register
 in the US, Handelsregister has no API in Germany, GSTIN needs a paid GSP subscription in
 India…) — see `COUNTRY_LOOKUP_NOTES` in `registry.ts`.

@@ -18,4 +18,4 @@ A template you customise here is always sent exactly as written, in whatever lan
 
 ## Webhooks
 
-Configure webhook endpoints to receive real-time events (e.g. `quote.signed`, `invoice.paid`). See the [Webhooks developer guide](../../developer-guide/webhooks.md) for event types and payloads.
+Configure webhook endpoints to receive real-time events (e.g. `DOCUMENT_SIGNED`, `DOCUMENT_SETTLED` — one generic event family shared by every document type, not a `quote.*`/`invoice.*` pair per type). See the [Webhooks developer guide](../../developer-guide/webhooks.md) for event types and payloads.

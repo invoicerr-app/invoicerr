@@ -147,7 +147,12 @@ without it, by design (that is also exactly what makes it worth doing). If you l
   rotation on its own (an unchanged file, at an unchanged size, is still read as "already backed up"
   — see "How it runs" above). If you need those specific artifacts re-protected, that is a manual
   re-upload (or, for the file sweep, deleting the affected objects from the bucket so the next
-  scheduled run treats them as new).
+  scheduled run treats them as new). **On Kubernetes, changing the value inside a Secret is not
+  enough on its own** — the chart renders no checksum annotation that would roll the Deployments when
+  a Secret's content changes, so the api/worker pods keep running with the OLD key baked into their
+  own environment until you restart them yourself (see the [Kubernetes guide](./kubernetes.md)'s own
+  warning on this, right after Secret creation) — `kubectl rollout restart deployment/invoicerr-api
+  deployment/invoicerr-worker`.
 - There is nothing to report to this application — it has no record of the key and cannot help
   recover it. Whatever process you use to store secrets (a password manager, a vault, a printed copy
   in a safe) is the only backstop; store the key there BEFORE you need it, not after.

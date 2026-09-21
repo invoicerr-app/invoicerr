@@ -351,6 +351,21 @@ Never commit these values. For a real operation, prefer a secrets manager
 Secret rather than a plaintext `kubectl create` typed by hand — the command above is the quickest
 path for a first install.
 
+:::warning Rotating a value in this Secret does not restart the pods that read it
+`deployment-api.yaml`/`deployment-worker.yaml` only render `podAnnotations` you set yourself
+(`values.yaml`'s own `api.podAnnotations`/`worker.podAnnotations`) — there is no checksum annotation
+computed from the Secret's own content, the pattern many charts use to force a rollout when a Secret
+changes. A `kubectl apply`/`helm upgrade` that only changes a value inside `invoicerr-secrets` is
+therefore a no-op for every already-running pod: the env var was injected once, at that pod's own
+start, and stays whatever it was until the pod restarts for some other reason. After rotating
+anything in this Secret — `BETTER_AUTH_SECRET`, `CREDENTIALS_ENCRYPTION_KEY`, `DATABASE_URL`,
+the `ARCHIVE_S3_*`/`BACKUP_S3_*` keys — you still have to roll the Deployments yourself:
+
+```bash
+kubectl rollout restart deployment/invoicerr-api deployment/invoicerr-worker
+```
+:::
+
 ## 6. Install
 
 ```yaml title="values.prod.yaml"

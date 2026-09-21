@@ -133,7 +133,7 @@ either kind — the environment provider **or** at least one company-registered 
 
 For programmatic access (integrations, scripts), clients send `Authorization: Bearer <raw-key>`. `AuthGuard` extracts the key, hashes it, and looks up a matching `apiKey` row. On match, it updates `lastUsedAt` and attaches the associated user and company to `request.user`/`request.companyId`. Keys are scoped to a single user and a single company, and are never returned again after creation.
 
-Keys can also carry a `scopes` array narrowing what they're allowed to do (e.g. `clients:write`, `articles:read`) — see [MCP server](./mcp-server.md#how-scopes-gate-the-tools) for where this is enforced today.
+Keys can also carry a `scopes` array narrowing what they're allowed to do (e.g. `clients:write`, `articles:read`, `company:read` — the full list is `backend/src/modules/api-keys/scopes.ts`). A `@RequiresScope()` decorator, checked inside `AuthGuard` itself, gates most REST controllers on this array directly — not only the MCP tools built on top of it; see [MCP server](./mcp-server.md#how-scopes-gate-the-tools) for that layer's own, finer-grained check. Session (browser) auth is never scope-restricted — a human's access is governed by `CompanyRole`/`@Roles()` instead, the same way it always was; only an API-key caller is narrowed to its granted scopes.
 
 ## Public routes
 

@@ -22,16 +22,11 @@ Your company must have an Italian **Partita IVA** (VAT number).
 
 ## 2. Choose your SDI channel
 
-SDI supports several transmission channels. Choose the one that fits your setup:
-
-| Channel | Description |
-|---------|-------------|
-| **PEC** (Certified Email) | Send and receive invoices via a certified email address. Simplest option. |
-| **Web service** (API) | Direct API integration with SDI for automated transmission. Recommended for Invoicerr. |
-| **FTP/SFTP** | File-based exchange with SDI servers. |
-| **SDICoop** | Lightweight client provided by the Revenue Agency. |
-
-For Invoicerr integration, the **Web service (API)** channel is recommended.
+SDI supports several transmission channels in general — **PEC** (certified email), a **web service
+(API)**, **FTP/SFTP**, and the Revenue Agency's own **SdICoop** client. Invoicerr implements exactly
+one of these: **SdICoop**, the SOAP web-service channel. There is no PEC, FTP, or generic-API option
+in Invoicerr's own SDI connection form — if you want to use this integration, register the SdICoop
+channel with the Revenue Agency.
 
 ---
 
@@ -41,11 +36,12 @@ To use the SDI web service API:
 
 1. Go to the **Fattura Elettronica** portal: [https://fatturaelettronica.agenziaentrate.gov.it](https://fatturaelettronica.agenziaentrate.gov.it)
 2. Log in with your **SPID**, **CIE**, or **CNS** digital identity.
-3. Navigate to **Servizi → Ricezione fatture** (Invoice reception).
-5. Register your **SDI channel**:
-   - If using **PEC**: register your certified email address.
-   - If using **API**: request an **authorisation token** or **client certificate**.
-6. Download the credentials (token or certificate file).
+3. Navigate to **Servizi → Ricezione fatture** (Invoice reception) and accredit for the **SdICoop**
+   web-service channel — the one Invoicerr implements (see step 2 above).
+4. Get accredited as an intermediary and obtain:
+   - your **IdTrasmittente** (transmitter ID),
+   - the **SdIRiceviFile** endpoint URL the Agency hands your accredited account,
+   - a **PFX client certificate** (and its password) for that channel.
 
 ---
 
@@ -72,14 +68,19 @@ Invoice lifecycle:
 
 Once you have your credentials, configure the SDI channel in Invoicerr:
 
-1. Go to **Settings → E-invoicing**.
+1. Go to **Settings → E-invoicing → Channels**.
 2. Click **Connect** on the SDI card.
-3. Fill in:
-   - **Partita IVA** — your Italian VAT number
-   - **Channel type** — `PEC` or `API`
-   - **Credentials** — PEC address or API token / certificate
-   - **Environment** — `TEST` or `PRODUCTION`
+3. Fill in the four fields this channel actually asks for:
+   - **IdTrasmittente** — your transmitter ID from step 3 above
+   - **SdIRiceviFile endpoint URL** — the exact URL the Revenue Agency handed your accredited account
+   - **PFX certificate (base64)** — your SdICoop client certificate
+   - **Certificate password** — optional; a real PFX can legitimately carry an empty one
+   - **Environment** — `TEST` or `PRODUCTION` (the same selector every channel offers)
 4. Save the configuration.
+
+This module is implemented but, as of this writing, has never been run against SdI's real
+production endpoint — see the accreditation note above and "Known limitation" below before relying
+on it for a live invoice.
 
 Invoicerr will use these credentials to authenticate with the SDI system and transmit invoices on your behalf.
 

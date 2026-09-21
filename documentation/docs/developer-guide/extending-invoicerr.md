@@ -43,7 +43,7 @@ at all. Two independent, composable layers make that possible:
   its buttons ("actions"), its lifecycle (which statuses exist, which action moves it from one to
   another). Every document, whatever its type, is stored in the exact same `DocumentInstance`
   table, distinguished only by a `typeId` string column — never a per-type Prisma model, never a
-  migration to add a sixth type. See [Adding a document type](./adding-a-document-type.md).
+  migration to add another type. See [Adding a document type](./adding-a-document-type.md).
 - **The country layer** (ten-odd small mechanisms under `documents/*/data/`) describes FACTS about
   a jurisdiction: which actions its law allows, which correction routes exist, what identifiers a
   party needs, which channel it mandates, what its VAT rates are. None of these mechanisms knows

@@ -194,68 +194,68 @@ Hard-success contract (enforced per-spec):
 # KSeF (PL) — KSEF_AUTH_TOKEN/KSEF_NIP DO exist as CI secrets (see the summary table above); whether
 # they are still valid today has not been re-verified since 2026-07-14
 KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
-  npx jest ksef.live --no-coverage --runInBand
+  npx vitest run ksef.live --no-file-parallelism
 
 # PDP superpdp (FR) — round-trip proven: deposited, validated, issued, received (see the box above)
 set -a; . .env.pdp.local; set +a
-PDP_LIVE=1 npx jest pdp.live --no-coverage --runInBand
+PDP_LIVE=1 npx vitest run pdp.live --no-file-parallelism
 
 # PDP reception (FR) — inbound e-invoices: self-addressed deposit -> direction=in -> download ->
 # extract -> real received-invoice -> approve -> record-payment (see the dedicated section above).
 # DB-CONNECTED (like pdp-conformity.live.spec.ts) — reads backend/.env's own DATABASE_URL, creates
 # and cleans up one throwaway Company.
 set -a; . .env.test.local; set +a
-PDP_LIVE=1 npx jest pdp-reception.live --no-coverage --runInBand
+PDP_LIVE=1 npx vitest run pdp-reception.live --no-file-parallelism
 
 # Email (document "send" SMTP delivery to the local Mailpit container — no external creds needed,
 # but needs Mailpit running on :1025/:8025 and a DATABASE_URL for one throwaway Company row)
 DOCUMENTS_MAIL_LIVE=1 SMTP_HOST=localhost SMTP_PORT=1025 \
   DATABASE_URL=postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db \
-  npx jest send-quote.live --no-coverage
+  npx vitest run send-quote.live
 
 # SdI (IT) — requires AdE accreditation + qualified PFX certificate (code implemented-awaiting-accreditation)
 SDI_LIVE=1 SDI_ID_TRASMITTENTE=IT01234567890 SDI_ENDPOINT=<accredited-SdIRiceviFile-url> \
   SDI_CERTIFICATE=<base64-pfx> SDI_CERT_PASSWORD=<pass> \
-  npx jest sdicoop.live --no-coverage --runInBand
+  npx vitest run sdicoop.live --no-file-parallelism
 
 # SdI via PEC (IT) — NO accreditation needed, only a real PEC mailbox (code implemented-awaiting-credentials)
 PEC_LIVE=1 PEC_ID_TRASMITTENTE=IT01234567890 PEC_ADDRESS=fatture@example.pec.it \
   PEC_SMTP_HOST=smtps.pec-provider.it PEC_SMTP_PORT=465 \
   PEC_IMAP_HOST=imaps.pec-provider.it PEC_IMAP_PORT=993 \
   PEC_USERNAME=fatture@example.pec.it PEC_PASSWORD=<pass> \
-  npx jest pec.live --no-coverage --runInBand
+  npx vitest run pec.live --no-file-parallelism
 
 # Chorus Pro (FR B2G) — full qualification round-trip proven live 2026-09-14 (deposit +
 # terminal IN_INTEGRE); production never attempted. Omitting the TECH_LOGIN/PASSWORD pair
 # still runs the spec, but only its OAuth half — see credentials-guide.md §3.
 CHORUSPRO_LIVE=1 CHORUSPRO_CLIENT_ID=<id> CHORUSPRO_CLIENT_SECRET=<secret> \
   CHORUSPRO_TECH_LOGIN=<login> CHORUSPRO_TECH_PASSWORD=<password> \
-  npx jest choruspro.live --no-coverage --runInBand
+  npx vitest run choruspro.live --no-file-parallelism
 
 # RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
 TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
-  npx jest tsa.live --no-coverage --runInBand
+  npx vitest run tsa.live --no-file-parallelism
 
 # Local OCR engine (the ocr-image repo, our own ocrmypdf-based image — the only OCR engine this
 # product talks to, no cloud key at all). Requires a usable local Docker daemon (`docker info`) —
 # the spec pulls, runs, uses, and tears down the published container itself; nothing needs to be
 # started manually first (the first run pulls ghcr.io/invoicerr-app/ocr-image; every run after
 # reuses Docker's layer cache).
-LOCAL_OCR_LIVE=1 npx jest local-client.live --no-coverage --forceExit
+LOCAL_OCR_LIVE=1 npx vitest run local-client.live
 
 # Stripe (online payment) — test-mode secret key from the Stripe dashboard
 STRIPE_LIVE=1 STRIPE_SECRET_KEY=sk_test_... \
-  npx jest stripe.live --no-coverage --runInBand
+  npx vitest run stripe.live --no-file-parallelism
 
 # Mollie (online payment) — test API key from the Mollie dashboard
 MOLLIE_LIVE=1 MOLLIE_API_KEY=test_... \
-  npx jest mollie.live --no-coverage --runInBand
+  npx vitest run mollie.live --no-file-parallelism
 
 # PayPal (online payment) — sandbox app Client ID/Secret from the PayPal developer dashboard.
 # PAYPAL_WEBHOOK_ID/PAYPAL_ENVIRONMENT are read but not required by this narrower spec (order
 # creation only, no webhook verification round-trip — see the spec's own header).
 PAYPAL_LIVE=1 PAYPAL_CLIENT_ID=<id> PAYPAL_CLIENT_SECRET=<secret> \
-  npx jest paypal.live --no-coverage --runInBand
+  npx vitest run paypal.live --no-file-parallelism
 
 # PAYMENT_PROVIDERS_REAL=1 wires the REAL Stripe/Mollie/PayPal clients into the RUNNING app itself
 # (e.g. `npm run start:test`) instead of only inside a `*.live.spec.ts` process — the two code paths
@@ -277,10 +277,10 @@ PAYMENT_PROVIDERS_REAL=1 BACKEND_PUBLIC_URL=https://your-tunnel.example.com npm 
 ```bash
 # Run the gated spec without the flag → must show as skipped
 cd backend
-npx jest ksef.live --no-coverage
-# Expected: Test Suites: 1 skipped | Tests: 0 (suite skipped)
+npx vitest run ksef.live
+# Expected: Test Files  1 skipped | Tests  1 skipped
 
-npx jest pdp.live pdp-reception.live send-quote.live sdicoop.live tsa.live choruspro.live --no-coverage
+npx vitest run pdp.live pdp-reception.live send-quote.live sdicoop.live tsa.live choruspro.live
 # Expected: all suites skipped
 ```
 
@@ -290,19 +290,21 @@ npx jest pdp.live pdp-reception.live send-quote.live sdicoop.live tsa.live choru
 
 ```bash
 cd backend
-npx jest --no-coverage
-# Live specs appear in "skipped suites" count — no live call is made.
-# Baseline (2026-09-13): 2740 passed / 58 skipped, 254 of 278 suites run — this number drifts as the
-# codebase grows; treat it as a sanity check, not a pinned target.
+npx vitest run
+# Live specs appear in the "skipped" count — no live call is made.
+# Baseline (2026-09-13, under the since-replaced Jest runner): 2740 passed / 58 skipped, 254 of 278
+# suites run — this number drifts as the codebase grows and predates the Jest→Vitest migration
+# (2026-09-19); treat it as a sanity check of the shape (most suites run, live ones skip), not a
+# pinned target or a Vitest-reporter-accurate count.
 ```
 
 ---
 
 ## CI
 
-Live specs are **excluded from CI by default**. The CI workflow (`Tests`) runs:
+Live specs are **excluded from CI by default**. The CI workflow (`Tests`, `backend-tests` job) runs:
 ```
-cd backend && npx jest --no-coverage
+cd backend && npx vitest run --maxWorkers=2
 ```
 No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
 
@@ -330,7 +332,7 @@ CHORUSPRO_LIVE=1 \
   CHORUSPRO_TECH_LOGIN=<compte_technique_login> \
   CHORUSPRO_TECH_PASSWORD=<compte_technique_password> \
   [CHORUSPRO_ENVIRONMENT=SANDBOX] \
-  npx jest choruspro.live --no-coverage --runInBand
+  npx vitest run choruspro.live --no-file-parallelism
 ```
 
 | Env var | Purpose |

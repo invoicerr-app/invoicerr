@@ -14,9 +14,14 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
 - `linux/amd64` (x86_64)
 - `linux/arm64/v8` (ARMv8)
 
-:::warning 
-`linux/arm/v7` is not supported
-Prisma does not provide prebuilt binaries for that architecture — the application will not run on 32-bit ARM devices.
+:::warning
+`linux/arm/v7` is published but untested
+CI does build and publish a `linux/arm/v7` entry in the image's multi-arch manifest, so `docker pull`
+will hand a 32-bit ARM host an image that claims to fit it. Whether the application actually runs
+there has never been established on real hardware, and Prisma's own prebuilt engine coverage for
+that architecture is the doubt behind this warning. Treat it as unsupported until someone runs it on
+a 32-bit ARM device and reports back; `linux/amd64` and `linux/arm64/v8` are the two variants this
+project exercises.
 :::
 
 ## Quick start
@@ -34,6 +39,11 @@ Prisma does not provide prebuilt binaries for that architecture — the applicat
          - APP_URL=https://invoicerr.example.com
          - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com
 
+         # Redis — required (BullMQ queues the document-send jobs). No password on a
+         # single-host Docker network by default; set REDIS_PASSWORD on both services to add one.
+         - REDIS_HOST=redis
+         - REDIS_PORT=6379
+
          # Email delivery - see "Email delivery" below for the Resend alternative (Brevo's own SMTP
          # relay also works with the SMTP settings below)
          - SMTP_HOST=smtp-relay.example.com
@@ -43,9 +53,10 @@ Prisma does not provide prebuilt binaries for that architecture — the applicat
          - SMTP_PORT=587
          - SMTP_SECURE=false
 
-         - JWT_SECRET="your_jwt_secret"
+         - BETTER_AUTH_SECRET="your_better_auth_secret"
        depends_on:
          - invoicerr_db
+         - redis
 
      invoicerr_db:
        image: postgres:15
@@ -56,10 +67,22 @@ Prisma does not provide prebuilt binaries for that architecture — the applicat
        volumes:
          - db_data:/var/lib/postgresql/data
 
+     redis:
+       image: bitnami/redis:latest
+       environment:
+         ALLOW_EMPTY_PASSWORD: "yes"
+       volumes:
+         - redis_data:/bitnami
+
    volumes:
      db_data:
        driver: local
+     redis_data:
+       driver: local
    ```
+
+   The app will not boot at all without a reachable Redis — it is not optional, and there is no
+   degraded fallback if it is missing.
 
 2. Run the app:
 
@@ -70,7 +93,7 @@ Prisma does not provide prebuilt binaries for that architecture — the applicat
 3. Open your browser at `http://localhost`.
 
 :::tip
-The repository's [`docker-compose.yml`](https://github.com/invoicerr-app/invoicerr/blob/main/docker-compose.yml) also includes a commented-out OIDC example, useful if you want single sign-on.
+The repository's [`docker-compose.yml`](https://github.com/invoicerr-app/invoicerr/blob/main/docker-compose.yml) also includes an OIDC example (placeholder values, live rather than commented out — set `OIDC_CLIENT_ID` to actually register the provider, or remove the whole block if you don't want single sign-on).
 :::
 
 ## Updating
@@ -100,8 +123,10 @@ These are set under the `invoicerr` service's `environment` key.
 | Variable | Description |
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db` |
-| `APP_URL` | Full public URL of the frontend (e.g. `https://invoicerr.example.com`). Required for email templates and links. |
-| `JWT_SECRET` | Optional but recommended for JWT authentication. Any random string. If unset, a default secret is used, which can cause issues with Docker deployments. |
+| `APP_URL` | Full public URL of the frontend (e.g. `https://invoicerr.example.com`). Required for email templates and links, and used as better-auth's own base URL. |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Required — the app refuses to boot without a reachable Redis (BullMQ queues every document-send job). Defaults to `localhost:6379`, no password, if unset; `REDIS_URL` (e.g. `redis://:pass@redis:6379`) is accepted instead and wins when both are set. |
+| `BETTER_AUTH_SECRET` | The one that's actually documented and recommended — any random string, e.g. `openssl rand -hex 32`. Leaving it (and `JWT_SECRET` below) unset falls back to a known default, which the app flags as insecure. |
+| `JWT_SECRET` | A **legacy fallback only** — better-auth reads `BETTER_AUTH_SECRET \|\| JWT_SECRET`. Set `BETTER_AUTH_SECRET` instead for anything new; this one exists so an older deployment that only ever set `JWT_SECRET` keeps working unchanged. |
 | `DEFAULT_LOCALE` | Optional. Instance-wide fallback language (`en`, `fr`, `it`, `pl`, `de`, or `pt`) for any document or system email whose client/company/user never set one of their own — see [Document Language](./document-language.md) for the full cascade. Left unset, everything renders in English exactly as before. |
 
 Make sure port 80 is available on your host machine, or change the port mapping.

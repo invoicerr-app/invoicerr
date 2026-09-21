@@ -8,52 +8,64 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 
 ## Actions
 
-- **Add New** — create a one-time or recurring invoice
-- **Search** — find an invoice by number, title, or client name
-- **Filter** — toggle the **Sent**, **Unpaid**, **Overdue**, **Paid**, and **Upcoming** badges
+- **Add New** — create an invoice
+- **Search** — find an invoice by its number or client name
+- **Filter** — toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Cancelled**
 - **View** (eye icon) — read-only details
-- **Download** — choose **PDF**, **Factur-X**, **ZUGFeRD**, **XRechnung**, **UBL**, or **CII**
-- **Send by email** — email the invoice as a PDF attachment
+- **Download** — a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**
+- **Send** — deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…)
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement
-- **Edit** (pencil icon) — available for unpaid invoices
+- **Edit** — available only while the invoice is still a **Draft**; once sent, a mistake is fixed with a correction, not a re-edit
+- **Cancel** — voids an already-sent invoice, where this country's law allows it; this replaces "delete" — an invoice that reached "Sent" is never removed, only cancelled
 - **Create receipt** (receipt icon) — generate a [receipt](receipts.md) from this invoice
-- **Delete** (trash icon) — available for unpaid invoices
 
 ## Creating an invoice
 
 Click **Add New** and fill in:
 
-- **Client** (required) and optional **Title**
-- **Currency** and **Payment Method** (optional)
-- **Type** — one-time or recurring (with frequency and end date)
-- **Line items** — Name, an optional multi-line Description (supports `**bold**` and `*italic*`), Type, Quantity, Unit Price, and VAT Rate; drag to reorder, or add a line straight from your [article catalog](../articles.md)
-- **Discount Rate** (0–100%) and **Notes** (optional)
+- **Client** (required)
+- **Date** and **Due date** (both required)
+- **Currency** (required)
+- **Origin document** and **Corrects invoice** (optional) — links back to the quote/invoice this one was raised from, or the invoice it corrects
+- **Client reference / PO number** (optional) — the buyer's own reference, shown only once you fill it in
+- **Line items** — Designation, Quantity, Unit, Unit price, VAT rate, and a per-line **Discount %**; drag to reorder, or add a line straight from your [article catalog](../articles.md)
+- **Notes** (optional)
+
+There is no per-document "Payment Method" field: every enabled [payment method](../billing/payment-methods.md) your company has turned on is printed on the invoice automatically, and the one actually used is only recorded afterwards, when you mark the invoice as paid.
 
 ### Creating from a quote
 
 Once a quote is **Signed**, click **Create invoice** on the quote. All client info, line items, and details carry over. You can adjust before finalising.
 
+### Recurring invoices
+
+There is no "recurring" choice at creation time. Once an invoice exists, its row menu offers a
+**duplicate/recurrence** action that schedules a fresh copy on a cadence you set (with an optional
+"then send" step) — see the row's own action menu on an existing invoice.
+
 ## Statuses
 
 | Status | Meaning |
 | --- | --- |
-| **Sent** | Created and sent to the client |
-| **Unpaid** | Awaiting payment |
-| **Overdue** | Past the due date |
-| **Paid** | Payment received |
-| **Upcoming** | Recurring invoice scheduled for the next period |
+| **Draft** | Created, not yet sent — editable |
+| **Sending** | Send in progress |
+| **Sent** | Delivered to the client — this is also when **Paid** / **Partially paid** starts being tracked as a balance, shown alongside the status rather than replacing it |
+| **Send failed** | The last delivery attempt failed |
+| **Cancelled** | Voided; no longer legally in force |
 
 ## Download formats
 
 | Format | Use case |
 | --- | --- |
 | **PDF** | Standard printable invoice |
-| **Factur-X** | French e-invoicing standard (PDF + XML) |
-| **ZUGFeRD** | German e-invoicing standard (PDF + XML) |
-| **XRechnung** | German public-sector e-invoicing |
-| **UBL** | Universal Business Language XML |
-| **CII** | Cross-Industry Invoice XML |
+| **CII** | UN/CEFACT Cross Industry Invoice XML |
+| **UBL** | Universal Business Language 2.1 XML |
+| **Factur-X** | French e-invoicing standard (PDF/A-3 with embedded CII) |
+| **FA(3)** | Polish KSeF national schema |
+| **FatturaPA** | Italian SdI national schema |
+| **Peppol BIS Billing 3.0** | Pan-European Peppol network format |
+| **XRechnung** | German public-sector e-invoicing (KoSIT) |
 
 ## First use
 

@@ -27,21 +27,17 @@ KSeF uses an **API-based authentication** model. To send invoices you need:
 - **NIP** — your Polish tax ID
 - **Invoice token** or **authorisation certificate** (depending on the integration method)
 
-### Option A: Invoice token (simpler)
+### Get a KSeF token
+
+Invoicerr's own KSeF channel only ever authenticates with a **token** — its connection form has no
+certificate upload at all, so a qualified electronic signature / authorisation certificate (an
+option KSeF itself offers for other integrations) is not something you can use here.
 
 1. Log in to the Polish e-Tax portal ([podatki.gov.pl](https://podatki.gov.pl)).
 2. Navigate to **KSeF → Token management**.
 3. Generate a new **API token** for invoice submission.
 4. Set the appropriate permissions (at minimum: `invoice:send`, `invoice:read`).
 5. Copy and store the token securely.
-
-### Option B: Authorisation certificate (production use)
-
-For production environments, KSeF requires a **qualified electronic signature** or an **authorisation certificate** issued by a trusted certificate authority.
-
-1. Obtain a qualified certificate from a Polish CA (e.g., Certum, Szafir, PWPW).
-2. Register the certificate on the e-Tax portal under **KSeF → Certificates**.
-3. Download the certificate file (`.p12` or `.cer`).
 
 ---
 
@@ -62,12 +58,12 @@ Start with the **Test** environment, validate your integration, then switch to *
 
 Once you have your credentials, configure the KSeF channel in Invoicerr:
 
-1. Go to **Settings → E-invoicing**.
+1. Go to **Settings → E-invoicing → Channels**.
 2. Click **Connect** on the KSeF card.
-3. Fill in:
+3. Fill in the two fields this channel actually asks for:
    - **NIP** — your Polish tax ID
-   - **Token** or **Certificate** — depending on your chosen auth method
-   - **Environment** — `TEST` or `PRODUCTION`
+   - **KSeF token** — the API token from step 2 above
+   - **Environment** — `TEST` or `PRODUCTION` (the same selector every channel offers)
 4. Save the configuration.
 
 Invoicerr will use these credentials to authenticate with the KSeF API and transmit invoices on your behalf.

@@ -102,7 +102,7 @@ modeled here.
 
 ## Correcting or cancelling an invoice
 
-Only 3 of the 11 correction routes are sourced to Portuguese law: a **credit note** and a
+Only 4 of the 11 correction routes are sourced to Portuguese law: a **credit note** and a
 **corrective invoice** are allowed, a **debit note** is required for the cases it covers. A
 ledger-only annotation is also allowed. The other seven routes, including cancel-and-replace, are
 unverified — and because `CANCEL_AND_REPLACE` has no confirmed status, **cancelling an issued invoice

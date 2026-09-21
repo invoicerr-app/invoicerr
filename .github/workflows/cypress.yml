@@ -3,9 +3,9 @@ name: Tests
 # `pull_request` alone means a long-lived branch that opens no PR -- this repository's own
 # feat/compliance-engine-v2 ran 860 commits that way -- gets NO lint, NO i18n check, NO backend
 # suite, NO queue integration and NO Cypress run. A suite that never runs is a suite everyone
-# believes is green. The `push` trigger below is deliberately unfiltered, unlike scenarios.yml's:
-# these jobs guard the whole tree, not one catalog, so there is no subset of paths that can break
-# them and no subset that cannot.
+# believes is green. The `push` trigger below carries no path filter, unlike scenarios.yml's: these
+# jobs guard the whole tree, not one catalog, so there is no subset of paths that can break them and
+# no subset that cannot. It does carry a BRANCH filter (`main`, `dev`) -- see the next paragraph.
 # A branch under review is tested once, by its `pull_request` run — a bare `push:` trigger used to
 # start the exact same hour of Cypress a second time for every commit pushed to that branch. The
 # `push:` trigger is kept only for the long-lived branches, which have no PR of their own.
@@ -14,7 +14,7 @@ on:
   push:
     branches: [main, dev]
 
-# None of the seven jobs below pushes a package, comments on a PR, or otherwise calls the GitHub API
+# None of the eight jobs below pushes a package, comments on a PR, or otherwise calls the GitHub API
 # for anything beyond the checkout every job already does — `actions/upload-artifact`/`actions/cache`
 # authenticate through their own runtime token, not GITHUB_TOKEN permissions, so this is the whole ask.
 permissions:

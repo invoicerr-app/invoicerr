@@ -6,7 +6,8 @@ sidebar_position: 0
 
 ## Prerequisites
 
-- Node.js v20+
+- Node.js — the app itself (NestJS 12) boots on v20.19+, but the backend test runner (Vitest 5)
+  refuses to start below v22.12, so use **v22.12+** to actually run `npm test`.
 - PostgreSQL — the repo ships `docker-compose.dev.yml` to start one locally (also Redis and Mailpit), or point `DATABASE_URL` at your own instance
 - npm
 
@@ -28,7 +29,8 @@ sidebar_position: 0
    npm run start
    ```
 
-   PDF generation (invoices, quotes, receipts, credit notes) needs a Chromium/Chrome binary. Outside
+   PDF generation (every document type shares one renderer — quotes, invoices, credit notes,
+   expenses, received invoices, purchase orders, goods receipts) needs a Chromium/Chrome binary. Outside
    the Docker image nothing provides one automatically, so run `npx playwright-core install chromium`
    once to fetch a matching build — or point `CHROMIUM_EXECUTABLE_PATH` at a browser you already have
    (see `backend/.env.example`).
