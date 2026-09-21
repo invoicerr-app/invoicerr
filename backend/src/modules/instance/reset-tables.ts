@@ -52,6 +52,7 @@ export const INSTANCE_RESET_TABLES: readonly string[] = [
   'BankStatementLine',
   'DocumentReminder',
   'DocumentArchive',
+  'PendingDocumentArchive',
   'DocumentAuthorityEvent',
   'DocumentDownloadToken',
   'Signature',

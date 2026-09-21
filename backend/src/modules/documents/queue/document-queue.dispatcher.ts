@@ -18,6 +18,11 @@ import { Queue } from 'bullmq';
 import { ConfiguredRepeatable, retireSupersededRepeatables } from '@/lib/queue-repeatables';
 
 import {
+  ARCHIVE_RETRY_SWEEP_JOB_ID,
+  ARCHIVE_RETRY_SWEEP_JOB_NAME,
+  readArchiveRetrySweepIntervalMs,
+} from '../archive/archive-retry-sweep';
+import {
   readStorageErasureSweepIntervalMs,
   STORAGE_ERASURE_SWEEP_JOB_ID,
   STORAGE_ERASURE_SWEEP_JOB_NAME,
@@ -349,8 +354,37 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
   }
 
   /**
-   * Boot-time entry point for EVERY repeatable this queue carries — registers all seven, then retires
-   * any definition Redis still holds that the seven above do not name.
+   * Registers the ONE archive-retry sweep repeatable — the pass that finally re-attempts the legal
+   * archiving of documents that were DELIVERED and could not be preserved (⚖
+   * `archive/archive-retry-sweep.ts`'s own header for why nothing retried them before, and why the
+   * artifacts have to be journaled for this pass to have anything to work from). Same
+   * idempotent-registration guarantee as every sibling repeatable above (BullMQ dedups a repeatable
+   * definition by its own key across the whole cluster), same `attempts: 1` reasoning — and, like the
+   * storage-erasure sweep, the pass itself does not fail on a row that fails (it reschedules it in its
+   * own journal), so the next tick is the retry for the only thing that can go wrong: the sweep not
+   * having run.
+   */
+  async registerArchiveRetrySweepRepeatable(): Promise<ConfiguredRepeatable> {
+    const configured: ConfiguredRepeatable = {
+      name: ARCHIVE_RETRY_SWEEP_JOB_NAME,
+      repeat: { every: readArchiveRetrySweepIntervalMs() },
+    };
+    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
+      jobId: ARCHIVE_RETRY_SWEEP_JOB_ID,
+      repeat: configured.repeat,
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
+    this.logger.log(
+      `Registered the archive-retry sweep repeatable (every ${readArchiveRetrySweepIntervalMs()}ms).`,
+    );
+    return configured;
+  }
+
+  /**
+   * Boot-time entry point for EVERY repeatable this queue carries — registers all eight, then retires
+   * any definition Redis still holds that the eight above do not name.
    *
    * That second half is not bookkeeping: a repeatable's key folds in its own schedule, so changing
    * one of the `*_SWEEP_INTERVAL_MS` env vars registers a SECOND definition beside the first rather
@@ -372,6 +406,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
       await this.registerPdpReceptionSweepRepeatable(),
       await this.registerLogPurgeSweepRepeatable(),
       await this.registerStorageErasureSweepRepeatable(),
+      await this.registerArchiveRetrySweepRepeatable(),
     ];
     await retireSupersededRepeatables(this.queue, configured);
   }

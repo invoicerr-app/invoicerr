@@ -4756,7 +4756,8 @@
       "resultIntact": "Intact",
       "resultCorrupted": "Corrupted",
       "corruptedDetail": "{{role}}: expected {{expected}}, got {{actual}}",
-      "corruptedMissing": "file missing"
+      "corruptedMissing": "file missing",
+      "lastArchiveError": "This document was delivered, but archiving it failed and it is being retried automatically: {{message}}"
     },
     "shareLink": {
       "title": "Public share link",

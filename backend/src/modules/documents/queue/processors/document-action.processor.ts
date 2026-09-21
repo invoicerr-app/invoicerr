@@ -57,6 +57,11 @@ import { Job } from 'bullmq';
 import { runWithCompanyId } from '@/lib/request-context';
 
 import { ActionResult } from '../../actions/action-registry';
+import { ARCHIVE_RETRY_SWEEP_JOB_NAME } from '../../archive/archive-retry-sweep';
+import {
+  ArchiveRetrySweepRunner,
+  RunArchiveRetrySweepResult,
+} from '../../archive/archive-retry-sweep-runner';
 import { STORAGE_ERASURE_SWEEP_JOB_NAME } from '../../archive/storage-erasure-sweep';
 import {
   RunStorageErasureSweepResult,
@@ -159,6 +164,13 @@ export class DocumentActionProcessor extends WorkerHost {
     // COMPANY owned in both stores — and rides this same queue for the same reason: it is a
     // zero-dependency leaf provider and this is the one always-on queue every topology already has.
     @Optional() private readonly storageErasureSweepRunner?: StorageErasureSweepRunner,
+    // The legal archive's own retry journal — same `@Optional()` reasoning once more: every EXISTING
+    // spec in this file constructs this processor without one and never sends an archive-retry-named
+    // job; production wiring (document-queue-worker.module.ts) always provides a real one. Unlike the
+    // storage-erasure drain next to it, this one IS a "documents" concept — it finishes the archiving
+    // of a document that was really delivered (⚖ `archive/archive-retry-sweep.ts`) — and it rides this
+    // queue for the same reason every sweep here does: one repeatable, fired once cluster-wide.
+    @Optional() private readonly archiveRetrySweepRunner?: ArchiveRetrySweepRunner,
   ) {
     super();
   }
@@ -174,6 +186,7 @@ export class DocumentActionProcessor extends WorkerHost {
     | RunReceptionSweepResult
     | RunLogPurgeSweepResult
     | RunStorageErasureSweepResult
+    | RunArchiveRetrySweepResult
     | { journaled: number }
   > {
     if (job.name === SCHEDULE_SWEEP_JOB_NAME) {
@@ -226,6 +239,11 @@ export class DocumentActionProcessor extends WorkerHost {
     if (job.name === STORAGE_ERASURE_SWEEP_JOB_NAME) {
       this.logger.log(`Running the storage-erasure sweep (job ${job.id})`);
       return this.requireStorageErasureSweepRunner().runSweep();
+    }
+
+    if (job.name === ARCHIVE_RETRY_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the archive-retry sweep (job ${job.id})`);
+      return this.requireArchiveRetrySweepRunner().runSweep();
     }
 
     if (job.name === DOCUMENT_REPORT_JOB_NAME) {
@@ -354,6 +372,17 @@ export class DocumentActionProcessor extends WorkerHost {
     return this.storageErasureSweepRunner;
   }
 
+  private requireArchiveRetrySweepRunner(): ArchiveRetrySweepRunner {
+    if (!this.archiveRetrySweepRunner) {
+      // Unreachable in production (document-queue-worker.module.ts always provides one) — a loud,
+      // named failure rather than a silent no-op if this is ever wired without it.
+      throw new Error(
+        'DocumentActionProcessor received an archive-retry job but has no ArchiveRetrySweepRunner.',
+      );
+    }
+    return this.archiveRetrySweepRunner;
+  }
+
   /**
    * Fires after EVERY failed attempt, not only the last one — `job.attemptsMade` (already
    * incremented for this attempt by BullMQ before the event fires) compared against the job's own
@@ -438,7 +467,15 @@ export class DocumentActionProcessor extends WorkerHost {
       // drain it wraps never throws: a failed delete is counted and left in the journal with its own
       // `lastError`, see `archive/company-storage-erasure.ts`'s own header), and this job's data
       // (`{}`, no `documentId`/`actionId`) shares nothing with `markSendFailed`'s vocabulary either.
-      job.name === STORAGE_ERASURE_SWEEP_JOB_NAME
+      job.name === STORAGE_ERASURE_SWEEP_JOB_NAME ||
+      // Same skip once more — `ArchiveRetrySweepRunner.runSweep` treats a document whose archiving
+      // failed again as that ROW's own outcome (rescheduled in its own journal, escalated to an
+      // error-level `Log` row once it stops being transient — see that runner's own header), never as
+      // this job's failure, and this job's data (`{}`, no `documentId`/`actionId`) shares nothing with
+      // `markSendFailed`'s vocabulary either. Reaching this branch at all would mean the pass's own
+      // due-row query failed, which is a real, loud queue failure and exactly what should NOT be
+      // confused with "some archive is still missing".
+      job.name === ARCHIVE_RETRY_SWEEP_JOB_NAME
     )
       return;
 

@@ -242,6 +242,12 @@ export interface DocumentInstance {
    *  once cleared by any later write. Shown verbatim, never an i18n key — same convention as
    *  `ActionResult.message`. */
   lastActionError?: string | null
+  /** Mirrors the backend's `DocumentInstance.lastArchiveError` — set when this document was
+   *  DELIVERED and its legal archiving (⚖) did not succeed, cleared as soon as a later attempt does.
+   *  A different fact from `lastActionError` above, and never a stand-in for it: the send worked, it
+   *  is the preservation that has a gap. Shown verbatim, like `lastActionError` — the backend rewrites
+   *  it from a bare driver message into a full sentence once automatic retries stop explaining it. */
+  lastArchiveError?: string | null
 }
 
 /**

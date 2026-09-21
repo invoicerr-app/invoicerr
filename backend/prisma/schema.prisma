@@ -599,17 +599,25 @@ model CompanySubscription {
   polarSubscriptionId String?
 
   // Polar's own `Subscription.currentPeriodEnd` — the end of the period THIS COMPANY HAS ALREADY PAID
-  // FOR, mirrored verbatim from every subscription webhook/reconcile read that carries one
-  // (`webhook-handlers.ts#applySubscriptionWebhook`, `status-reconcile.ts`), the same "leave it alone
-  // when the fact set omits it" convention `interval`/`seats` already hold. `null` until the first such
-  // fact arrives (a Company still in TRIAL has no Polar subscription to read one from at all).
+  // FOR, mirrored from every subscription webhook/reconcile read that carries one AND still reports the
+  // subscription as paid (`webhook-handlers.ts#applySubscriptionWebhook`, `status-reconcile.ts`), the
+  // same "leave it alone when the fact set omits it" convention `interval`/`seats` already hold. `null`
+  // until the first such fact arrives (a Company still in TRIAL has no Polar subscription to read one
+  // from at all). A fact reporting the subscription as no longer paying is deliberately NOT mirrored
+  // here — see that function's own comment on why an unpaid cycle must never be written into a column
+  // both rules below hand out access from.
   //
-  // The ONE reason this column exists: `paid-period-grace.ts`'s Terms-of-Service Section 20.2
-  // exception — a Company with a subscription period already in progress when the Terms change keeps
-  // full write access, under the version it paid for, until the later of a calendar floor or this exact
-  // date. Never cleared on its own when `status` moves away from `ACTIVE` (a stale value combined with
-  // a non-ACTIVE status can never grant that exception — `paid-period-grace.ts`'s own header — so there
-  // is nothing to protect by clearing it defensively).
+  // Two rules read it, both turning on "what has this Company already paid for":
+  //  - `paid-period-grace.ts`'s Terms-of-Service Section 20.2 exception — a Company with a subscription
+  //    period already in progress when the Terms change keeps full write access, under the version it
+  //    paid for, until the later of a calendar floor or this exact date.
+  //  - `lifecycle.ts`'s own `PAST_DUE` branch — the Section 13.1 read-only suspension opens when a paid
+  //    subscription ENDS, so a renewal refused part-way through an already-paid period does not open it
+  //    until this date's own calendar day is over.
+  // Never cleared on its own when `status` moves away from `ACTIVE` (a stale value combined with a
+  // non-ACTIVE status can never grant the Section 20.2 exception — `paid-period-grace.ts`'s own header —
+  // and the suspension rule only ever compares it against the clock, so a date in the past protects
+  // nobody).
   currentPeriodEnd DateTime?
 
   // The PURCHASED seat quantity. Invoicerr never tells Polar how many seats to bill — it only reads
@@ -1624,6 +1632,12 @@ model DocumentInstance {
   // facts, not a conflict).
   archives DocumentArchive[]
 
+  // See PendingDocumentArchive below (archive/) — present ONLY while a delivery's artifacts are
+  // waiting to be archived after a failed attempt, at most one at a time, deleted the moment an
+  // archive is finally written. A document carrying one has been DELIVERED and is NOT preserved:
+  // the same fact `lastArchiveError` above states in words, here with the bytes still to write.
+  pendingArchive PendingDocumentArchive?
+
   // Public download links — see DocumentDownloadToken below. A document can have several (a re-share, a
   // link for two different recipients); each is its own row, never overwritten.
   shareLinkTokens DocumentDownloadToken[]
@@ -2200,6 +2214,89 @@ model DocumentArchive {
   @@index([companyId, documentId])
 }
 
+// THE RETRY JOURNAL OF THE LEGAL ARCHIVE — one row per DELIVERED document whose archiving attempt
+// failed, holding the artifact BYTES THEMSELVES until some later pass manages to write them into a
+// real `DocumentArchive` row above (documents/archive/archive-retry-sweep-runner.ts).
+//
+// ## Why the bytes live here, and not a pointer to them
+//
+// The artifacts exist exactly once, in memory, inside the send job that just delivered them
+// (`actions/async-send.ts`'s phase-2 `deliver()` result). Archiving is what makes them durable — so
+// when archiving is what failed, there is by definition nothing left anywhere pointing at them: the
+// object store is the very thing that refused the write (a full volume, a bucket answering 503),
+// and no code path ever re-derives a delivered artifact (the PDF actually attached to the mail, the
+// Factur-X actually deposited at the PDP) from the document row afterwards. The bytes are therefore
+// copied into this table at the moment of failure, or they are lost for good and the document is
+// left permanently unarchivable while its statutory retention (⚖ documents/archive/retention/) runs
+// for six to ten years. Postgres holding a few hundred kilobytes per undelivered-to-the-archive
+// document during an outage is the cheap side of that trade.
+//
+// ## One row per document
+//
+// `documentId` is unique: a row is UPSERTED, never accumulated. A second delivery of the same
+// document (a "send_failed" retry that delivers again) produces fresh artifacts which REPLACE the
+// pending ones and restart the schedule — the newer delivery is the one that has to be preserved.
+// The row is deleted the instant an archive is actually written for it, by whichever path wrote it.
+//
+// ## Never abandoned
+//
+// There is no "gave up" state here, deliberately, unlike `DocumentInstance.conformityResolvedAt`'s
+// own synthetic 'poll:gave-up': deleting a row is destroying the only remaining copy of a legally
+// required artifact, so a row is retried for ever, at a capped interval. What IS bounded is the
+// SILENCE — `escalatedAt` marks the moment the automatic schedule stopped being able to explain
+// itself and the failure became a human's problem (see archive-retry-sweep.ts's own header), which
+// is what keeps an ordinary blip that recovers on its own from teaching anyone to ignore this.
+model PendingDocumentArchive {
+  id String @id @default(cuid())
+
+  // Which company owns these bytes. Carried explicitly (rather than read through `document` below)
+  // because every write this journal drives is company-scoped: `createDocumentArchive` resolves the
+  // retention rule from the company's own country, and the sweep enters `runWithCompanyId` with it
+  // so its `Log` rows land on the company whose archive is missing.
+  companyId String
+
+  // `onDelete: Cascade`, like `DocumentArchive.document` above: a deleted document has no archive to
+  // owe anyone, and bytes kept for a row nothing can name any more would be exactly the defect
+  // `PendingStorageErasure` below exists to prevent.
+  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String           @unique
+
+  // The artifacts `deliver()` actually handed over, base64-encoded:
+  // `[{ role, mime, bytesBase64 }]` — the same role/mime vocabulary `DocumentArchive.artifacts`
+  // above records metadata for, plus the payload itself, which that column deliberately never
+  // carries (its bytes are already at `uri`; these have nowhere else to be yet).
+  artifacts Json
+
+  // When archiving first failed for THESE bytes — the start of the gap an auditor would measure, and
+  // what the escalated message on `DocumentInstance.lastArchiveError` quotes. Reset when a newer
+  // delivery replaces the artifacts.
+  firstFailedAt DateTime @default(now())
+
+  // How many archiving attempts these bytes have survived, INCLUDING the one at send time that
+  // created this row (so a row created by `archive-on-send.ts` starts at 1, never 0).
+  attempts Int @default(0)
+
+  // Why the most recent attempt failed — never cleared, since a row only stops existing by
+  // succeeding.
+  lastError String
+
+  // The earliest instant the sweep may try again (exponential backoff, capped — see
+  // archive-retry-sweep.ts). A row is never retried by two passes at once simply because the sweep
+  // is one cluster-wide repeatable, the same property every other sweep on that queue relies on.
+  nextAttemptAt DateTime
+
+  // Set ONCE, when the retry schedule has failed often enough that this stopped being a transient
+  // outage (archive-retry-sweep.ts's own `ARCHIVE_RETRY_ESCALATE_AFTER_ATTEMPTS`). Retries carry on
+  // afterwards; what this marks is that a human has been told — an error-level `Log` row naming the
+  // document, and a `lastArchiveError` that says plainly this document has no archive. Kept as a
+  // column rather than derived from `attempts` so the escalation happens exactly once per row,
+  // whatever the threshold is later changed to.
+  escalatedAt DateTime?
+
+  // The sweep's own query: the due rows, oldest deadline first.
+  @@index([nextAttemptAt])
+}
+
 // WHICH STORE a journal row below names. The two are not interchangeable: an ARCHIVE row addresses
 // ONE archive's own bytes by the uri that archive itself recorded, while an INBOUND row addresses a
 // whole company-prefixed directory/key-prefix at once (received-invoice deposits, expense
@@ -2519,11 +2616,19 @@ model Signature {
 // Unlike `Signature`, a fresh mint (`POST /danger/otp`) DOES reset `failedAttempts` — this challenge
 // sits behind an already-authenticated OWNER session (`@Roles(OWNER)`), never a bearer link a third
 // party could probe anonymously, so re-arming is a deliberate, freshly-authorized request rather than
-// a possible attacker's do-over. What must still never reset is the lock itself: once `lockedAt` is
-// set, `danger-otp.persistence.ts#mintDangerOtp` refuses to mint a replacement at all — this action
-// stays locked for the company until the row is manually cleared, matching `Signature`'s own
-// "PERMANENT, independent of any later re-arming" posture for the one field that actually carries the
-// guarantee.
+// a possible attacker's do-over. What bounds brute force instead is `lockedAt`: while it is set,
+// `danger-otp.persistence.ts#mintDangerOtp` refuses to mint a replacement, so no further guess can
+// ever be checked against a live code.
+//
+// That stamp is a COOLDOWN, not a tombstone, and this is the one place this model deliberately parts
+// ways with `Signature`'s own permanent lock: the routes it gates include deleting the company, which
+// is the customer's termination and erasure path (`danger.controller.ts#deleteCompany` carries
+// `@LegalGateExempt()` for exactly that reason). A stamp nothing could ever lift would seal that exit
+// shut with no one able to open it — the locked-out party IS the OWNER, and an instance operator
+// (`INSTANCE_OPERATOR_EMAILS`) is unset by default self-hosted and is the provider on the hosted
+// offering. `mintDangerOtp` therefore refuses only for `DANGER_OTP_LOCKOUT_MS` after `lockedAt`, then
+// re-arms and clears the stamp in the same write; see that function's own header for the arithmetic
+// that keeps the bound inside the 0.01 % ceiling `documents/signatures/otp.ts` pins.
 model DangerOtp {
   id        String  @id @default(cuid())
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)

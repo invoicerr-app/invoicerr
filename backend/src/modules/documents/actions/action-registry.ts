@@ -47,6 +47,13 @@ export interface DocumentInstanceResult {
    *  need to) — never assume its absence means "no error", only that this particular result didn't
    *  carry it. */
   lastActionError?: string | null;
+  /** See `DocumentInstance.lastArchiveError`'s own schema comment — set when this document was
+   *  DELIVERED and its legal archiving did not succeed (⚖ `archive/archive-on-send.ts`), cleared the
+   *  moment a later attempt does. Deliberately a SEPARATE fact from `lastActionError` above: the send
+   *  succeeded, it is the preservation that has a gap. Declared here because `findOwnedDocument`
+   *  returns the whole row and the document screen reads this straight off it — same "absent ≠ no
+   *  error, only that this result didn't carry it" convention as the field above. */
+  lastArchiveError?: string | null;
   /** See `DocumentInstance.transportRef`'s own schema comment — the identifier a TRANSPORT handed
    *  back on successful delivery (e.g. a PDP deposit id), or null/undefined for a document no
    *  transport has ever reported one for. Same "absent ≠ no reference, only that this result didn't

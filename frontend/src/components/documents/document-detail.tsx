@@ -195,6 +195,21 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </Alert>
       )}
 
+      {liveInstance.lastArchiveError && (
+        // ⚖ The document WAS delivered and is not preserved. This is the only place a company can
+        // learn that: the archive section below renders nothing at all when there is no archive —
+        // which is exactly the case here — so a missing archive would otherwise look identical to a
+        // document that never needed one. Deliberately NOT `destructive`: the send succeeded, the
+        // customer has their invoice, and the backend is already retrying; what this needs is to be
+        // impossible to miss, not to read as a failed send. Read from the LIVE record, so the retry
+        // that finally archives it makes this disappear without a reload.
+        <Alert variant="warning" data-cy="document-archive-error">
+          <AlertDescription>
+            {t("documents.archive.lastArchiveError", { message: liveInstance.lastArchiveError })}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         {/* `scroll-mb-24` on anything focused inside the form: a field tabbed into near the bottom
             must clear the sticky "unsaved" bar, not land under it. */}

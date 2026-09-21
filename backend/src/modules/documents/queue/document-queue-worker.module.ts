@@ -4,6 +4,7 @@ import { MailService } from '@/mail/mail.service';
 
 import { CurrencyRateSweepRunner } from '../../company/currency-rates/currency-rate-sweep-runner';
 import { LogPurgeSweepRunner } from '../../../logger/log-purge-sweep-runner';
+import { ArchiveRetrySweepRunner } from '../archive/archive-retry-sweep-runner';
 import { StorageErasureSweepRunner } from '../archive/storage-erasure-sweep-runner';
 import { DocumentsCoreModule } from '../documents-core.module';
 import { ReminderSweepRunner } from '../reminders/reminder-sweep-runner';
@@ -73,6 +74,12 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
  * pass is a queue job, so BullMQ fires it once cluster-wide and one consumer runs it, whereas a timer
  * living in the API process would drain the same journal once per replica. See
  * `archive/storage-erasure-sweep-runner.ts`'s own header.
+ *
+ * `ArchiveRetrySweepRunner` (the pass that finishes the legal archiving of documents that were really
+ * delivered and could not be preserved — ⚖ `archive/archive-retry-sweep.ts`) is provided directly
+ * HERE for that same "zero Nest dependencies" reason, and belongs on the WORKER side for the same one
+ * that decides every sweep on this page: one repeatable fired cluster-wide, never one timer per
+ * replica re-attempting the same row several times over.
  */
 @Module({
   imports: [DocumentsCoreModule],
@@ -83,6 +90,7 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
     ReminderSweepRunner,
     LogPurgeSweepRunner,
     StorageErasureSweepRunner,
+    ArchiveRetrySweepRunner,
   ],
 })
 export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {

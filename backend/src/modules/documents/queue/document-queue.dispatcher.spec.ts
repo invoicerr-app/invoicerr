@@ -283,6 +283,7 @@ function fakeQueueWithSchedulers() {
 
 describe('DocumentQueueDispatcher.registerSweepRepeatables', () => {
   const ALL_SWEEPS = [
+    'archive-retry-sweep',
     'currency-rate-sweep',
     'document-conformity-sweep',
     'document-pdp-reception-sweep',
