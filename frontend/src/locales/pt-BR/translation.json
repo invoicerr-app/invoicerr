@@ -85,5 +85,120 @@
                 "generatedInvoices": "Generated Invoices"
             }
         }
+    },
+    "clients": {
+        "header": {
+            "subtitle": "Gerenciar clientes",
+            "count": "{{count}} clientes {{found}}",
+            "found": "encontrados"
+        },
+        "search": {
+            "placeholder": "Procurar clientes..."
+        },
+        "actions": {
+            "addNew": "Adicionar novo cliente"
+        },
+        "stats": {
+            "total": "Clientes totais",
+            "active": "Ativo",
+            "inactive": "Inativo"
+        },
+        "emptyState": {
+            "noClients": "Sem clientes",
+            "noResults": "Nenhum cliente encontrado",
+            "startAdding": "Comece criando seu primeiro cliente.",
+            "tryDifferentSearch": "Tente ajustar sua pesquisa"
+        },
+        "list": {
+            "title": "Todos os clientes",
+            "description": "Gerencie e visualize todos os clientes em um lugar só.",
+            "status": {
+                "active": "Ativo",
+                "inactive": "Inativo"
+            },
+            "tooltips": {
+                "view": "Ver detalhes do cliente",
+                "edit": "Editar cliente",
+                "delete": "Apagar cliente"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Adicionar novo cliente",
+                "edit": "Editar cliente"
+            },
+            "fields": {
+                "contactFirstname": {
+                    "label": "Nome",
+                    "placeholder": "Nome"
+                },
+                "contactLastname": {
+                    "label": "Sobrenome",
+                    "placeholder": "Sobrenome"
+                },
+                "name": {
+                    "label": "Empresa",
+                    "placeholder": "Empresa"
+                },
+                "description": {
+                    "label": "Descrição",
+                    "placeholder": "Descrição da empresa"
+                },
+                "legalId": {
+                    "label": "Identidade"
+                },
+                "vat": {
+                    "label": "CNPJ",
+                    "placeholder": "AB.123.CDE/4567-89"
+                },
+                "currency": {
+                    "label": "Moeda"
+                },
+                "contactEmail": {
+                    "label": "Email"
+                },
+                "contactPhone": {
+                    "label": "Telefone"
+                },
+                "address": {
+                    "label": "Endereço"
+                },
+                "addressLine2": {
+                    "label": "Complemento (Opcional)",
+                    "placeholder": "Prédio, apartamento, andar, etc."
+                },
+                "postalCode": {
+                    "label": "CEP"
+                },
+                "city": {
+                    "label": "Cidade"
+                },
+                "state": {
+                    "label": "Estado (Opcional)"
+                },
+                "type": {
+                    "label": "Tipo de Cliente",
+                    "company": "Empresa",
+                    "individual": "Pessoa Física",
+                    "description": "Selecione o tipo de cliente (Pessoa Física ou Jurídica)"
+                },
+                "country": {
+                    "label": "País"
+                }
+            },
+            "validation": {
+                "name": {
+                    "required": "Nome da empresa obrigatório"
+                },
+                "description": {
+                    "required": "Descrição obrigatória",
+                    "maxLength": "Descrição deve conter menos de 500 caracteres"
+                },
+                "vat": {
+                    "required": "CNPJ obrigatório",
+                    "empty": "CNPJ não pode ficar em branco"
+                }
+            }
+        }
     }
 }
