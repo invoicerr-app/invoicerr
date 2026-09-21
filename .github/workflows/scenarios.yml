@@ -165,3 +165,27 @@ jobs:
           path: |
             ${{ github.workspace }}/e2e/cypress/videos
             ${{ github.workspace }}/e2e/cypress/screenshots
+
+  # Branch protection lists this one name instead of the six per-leg names the matrix produces
+  # (`scenario (fr-pl)` .. `scenario (pl-de)`): reshaping the matrix -- adding or removing a country
+  # pair -- would otherwise mean editing the branch protection rule in lockstep, and shrinking it
+  # would leave a required leg that never reports again, blocking every PR forever on "Expected --
+  # Waiting for status to be reported".
+  #
+  # `if: always()` for the same reason as cypress.yml's own aggregator: without it, this job is itself
+  # `skipped` when `scenario` fails, and a skipped required check reads to branch protection as never
+  # reported, not as failing -- the opposite of what a required check should do on a real failure.
+  #
+  # `scenario` carries no job-level `if:` of its own -- every leg of the matrix runs unconditionally
+  # -- so a `skipped` result here cannot be a legitimate outcome of this workflow's own logic; it is
+  # treated the same as `failure`/`cancelled` below rather than being let through.
+  scenarios-green:
+    runs-on: ubuntu-latest
+    needs: [scenario]
+    if: always()
+    steps:
+      - name: Require the scenario matrix to have succeeded
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
+            exit 1
+          fi

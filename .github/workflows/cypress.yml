@@ -657,3 +657,33 @@ jobs:
           path: |
             ${{ github.workspace }}/e2e/cypress/videos
             ${{ github.workspace }}/e2e/cypress/screenshots
+
+  # Branch protection can only require a STABLE list of check names, and this workflow's own names
+  # are not stable: `cypress-run` fans out into `cypress-run (1)` .. `(6)` through its own matrix, and
+  # reshaping that matrix breaks protection either way -- shrinking it (6 -> 4) leaves two required
+  # shards that never report again, which blocks every PR forever on "Expected -- Waiting for status
+  # to be reported"; growing it (6 -> 8) silently leaves the two new shards unrequired. This job is
+  # the one name branch protection lists instead: it depends on every other job in this file, so a
+  # reshard, a rename, or a new job added here never has to touch the protection rule again.
+  #
+  # `if: always()` is required, not decorative: without it, a FAILED dependency makes this job itself
+  # `skipped` (GitHub's default for a job whose `needs` did not all succeed), and a skipped required
+  # check reads to branch protection as "no status reported yet", not as failing -- which blocks the
+  # PR forever rather than failing it closed. This job exists specifically to avoid that trap, so it
+  # has to run no matter what its dependencies did, and decide pass/fail itself from their results.
+  #
+  # None of the seven jobs above carries a job-level `if:` -- every one of them runs unconditionally
+  # off this workflow's own triggers -- so none of them has a legitimate reason to be skipped. A
+  # `skipped` result here can therefore only mean something external interrupted the run (e.g. the
+  # workflow run was cancelled), not an expected outcome, so it is treated the same as
+  # `failure`/`cancelled` below rather than being let through.
+  tests-green:
+    runs-on: ubuntu-latest
+    needs: [lint, i18n-check, e2e-typecheck, backend-tests, queue-integration, cypress-run, cypress-run-saas]
+    if: always()
+    steps:
+      - name: Require every job above to have succeeded
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
+            exit 1
+          fi
