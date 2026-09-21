@@ -57,6 +57,13 @@ export async function syncPolarCustomerOnCompanyChange(
   // shape, which carries an `id` this module has no use for).
   const email = company.billingEmail?.trim() || company.email;
 
+  // Same "nothing to push" guard `MissingBillingEmailError` names for CREATE — skip the call outright
+  // rather than sending Polar an empty `email` and having it refuse the update. Deliberately NOT
+  // stamped as a failure (`customerSyncFailedAt` left untouched, exactly like the `isResourceNotFoundError`
+  // no-op below): this is a DATA problem (nobody has set a contact/billing email for this company yet),
+  // not a transient Polar problem the sweep's retry could ever fix by trying again.
+  if (!email) return;
+
   try {
     await client.customers.updateExternal({
       externalId: companyId,

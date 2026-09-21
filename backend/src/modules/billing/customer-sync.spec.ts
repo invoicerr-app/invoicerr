@@ -76,6 +76,20 @@ describe('syncPolarCustomerOnCompanyChange', () => {
     expect(client.customers.updateExternal).not.toHaveBeenCalled();
   });
 
+  it('is a no-op — never calls Polar with an empty email — when neither billingEmail nor the contact email resolves to anything', async () => {
+    const updateExternal = vi.fn();
+    const client = fakeClient(updateExternal);
+
+    await expect(
+      syncPolarCustomerOnCompanyChange('company-1', { name: 'Acme', email: '', billingEmail: null }, client),
+    ).resolves.toBeUndefined();
+    expect(updateExternal).not.toHaveBeenCalled();
+    // Not stamped as a failure either — this is a DATA problem (nobody set an email), not a transient
+    // Polar problem the sweep's retry could ever fix, same distinction `customer-provisioning.ts`'s
+    // own `skipped` count draws.
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
   it('is a no-op — never an error — when this company has no Polar customer at all yet', async () => {
     const updateExternal = vi.fn().mockRejectedValue({ statusCode: 404 });
     const client = fakeClient(updateExternal);

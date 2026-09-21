@@ -5,6 +5,7 @@ import {
   BillingEmailTakenError,
   getOrCreatePolarCustomerForCompany,
   isResourceNotFoundError,
+  MissingBillingEmailError,
   resolveBillingEmail,
 } from './billing-customer';
 
@@ -140,5 +141,27 @@ describe('getOrCreatePolarCustomerForCompany', () => {
     await expect(getOrCreatePolarCustomerForCompany(company, client)).rejects.toThrow(
       'some other Polar failure',
     );
+  });
+
+  // The live incident this whole guard responds to: `company.email` and `company.billingEmail` BOTH
+  // empty used to reach `client.customers.create({ email: '' })`, Polar answered 422, and nothing on
+  // the checkout path caught it — an unhandled 500. Asserts the guard fires BEFORE `create` is ever
+  // called, not merely that SOME error comes back.
+  it('refuses BEFORE calling Polar when neither billingEmail nor the contact email resolves to anything', async () => {
+    const getExternal = vi.fn().mockRejectedValue(notFoundError());
+    const create = vi.fn();
+    const client = fakeClient({ customers: { getExternal, create } });
+    const companyWithNoEmailAnywhere = { ...company, email: '', billingEmail: null };
+
+    const error = await getOrCreatePolarCustomerForCompany(companyWithNoEmailAnywhere, client).catch(
+      (e) => e,
+    );
+
+    expect(error).toBeInstanceOf(MissingBillingEmailError);
+    expect(error.code).toBe('BILLING_EMAIL_MISSING');
+    expect(error.message).toBe(
+      'This company has no billing email address on file. Set one in Settings > Billing, then try again.',
+    );
+    expect(create).not.toHaveBeenCalled();
   });
 });

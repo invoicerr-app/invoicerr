@@ -19,6 +19,7 @@ import {
   useStartCheckout,
 } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
+import { authClient } from "@/lib/auth"
 import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
 
 /** Chip tone per subscription status — a lifecycle, not a binary "good/bad", so this needs more than
@@ -78,10 +79,32 @@ export default function BillingSettings() {
   const openLegacyPortal = useOpenLegacyCustomerPortal()
   const setBillingEmail = useSetBillingEmail()
 
+  // The signed-in user's own account email — read here ONLY as a form default (see the effect below),
+  // never sent anywhere on its own; `account/index.tsx` reads the same session field the same way.
+  const { data: session } = authClient.useSession()
+  const signedInUserEmail = (session as unknown as { user?: { email?: string } } | null)?.user?.email ?? ""
+
   const [billingEmailDraft, setBillingEmailDraft] = useState("")
+  // Pre-fills the FORM only — the backend keeps its own `billingEmail || company.email` fallback
+  // exactly as it is (`billing-customer.ts#resolveBillingEmail`); who actually gets billed is never
+  // guessed at behind the screen, only shown here as an editable default the owner can accept, change,
+  // or clear. Precedence: the saved override first, then the company's own contact email (the same
+  // value the backend would already bill under, so showing it is never a surprise) — and, when BOTH
+  // are blank (the exact live case that produced the checkout 500 this whole fix responds to), the
+  // signed-in user's own account email: still just a visible, editable form value, never a silent
+  // backend substitution, and the one address this screen can always be sure exists (every account
+  // needs one to sign up at all), which beats leaving the field with nothing to even look at.
   useEffect(() => {
-    if (billingEmail) setBillingEmailDraft(billingEmail.billingEmail ?? "")
-  }, [billingEmail])
+    if (!billingEmail) return
+    setBillingEmailDraft(billingEmail.billingEmail || billingEmail.companyEmail || signedInUserEmail)
+  }, [billingEmail, signedInUserEmail])
+
+  // Persisted state (never the draft above) — `true` only when NEITHER address this company actually
+  // has on file is set yet, the condition the pre-fill's own last fallback exists for. Drives the
+  // inline notice below so the owner knows the value now showing in the field is a suggestion of
+  // their OWN account email, not something already saved.
+  const noBillingEmailOnFile =
+    Boolean(billingEmail) && !billingEmail?.billingEmail && !billingEmail?.companyEmail
 
   // `mutate*.isPending` falls back to false as soon as the mutation's own promise resolves — i.e. as
   // soon as `onSuccess` runs — but `window.location.*` navigation still takes a beat (up to a few
@@ -491,6 +514,19 @@ export default function BillingSettings() {
               value={billingEmailDraft}
               onChange={(event) => setBillingEmailDraft(event.target.value)}
             />
+            {/* Neither the company's own contact email NOR a billing-email override is on file — the
+                field above is showing the signed-in user's own account email as a starting point
+                (see the pre-fill effect's own comment), not a saved value. Names what happened and
+                what to do next, the same "actionable, not a raw code" bar `MissingBillingEmailError`
+                (backend) holds for the checkout failure this exact gap causes. */}
+            {noBillingEmailOnFile && (
+              <p className="text-sm text-warning-foreground" data-cy="billing-email-none-on-file-notice">
+                {t(
+                  "settings.billing.billingEmail.noneOnFileNotice",
+                  "No billing email is on file yet. The field above has been filled in with your own account email as a starting point — review it, or enter a different one, then save before subscribing.",
+                )}
+              </p>
+            )}
           </div>
         </SettingsSection>
       )}

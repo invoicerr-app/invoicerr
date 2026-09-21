@@ -14,7 +14,16 @@
  * `checkout`/`portal` both carry `@BillingGateExempt()` (`billing-gate-exempt.decorator.ts`) — see
  * that decorator's own header for why a BLOCKED company must still be able to reach them.
  */
-import { BadRequestException, Body, ConflictException, Controller, Get, Post, Put } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  ConflictException,
+  Controller,
+  Get,
+  Post,
+  Put,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
@@ -25,7 +34,12 @@ import { CurrentUser } from '@/types/user';
 import { RequiresScope } from '@/utils/scope-check';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
-import { BillingEmailTakenError, loadCompanyBillingIdentity, resolveBillingEmail } from './billing-customer';
+import {
+  BillingEmailTakenError,
+  loadCompanyBillingIdentity,
+  MissingBillingEmailError,
+  resolveBillingEmail,
+} from './billing-customer';
 import { BillingGateExempt } from './billing-gate-exempt.decorator';
 import { BillingEmailView, getCompanyBillingEmail, setCompanyBillingEmail } from './billing-email';
 import { SetBillingEmailDto, StartCheckoutDto } from './billing.dto';
@@ -108,9 +122,13 @@ export class BillingController {
       "seat-sync.ts). Ensures the company's own Polar customer exists first (option A: one customer " +
       'per company, never per user — see checkout-session.ts / billing-customer.ts). Refuses (409, ' +
       'BILLING_EMAIL_TAKEN) when another Polar customer already uses the resolved billing email — set ' +
-      'a distinct Company.billingEmail (PUT /billing/billing-email) and retry.',
+      'a distinct Company.billingEmail (PUT /billing/billing-email) and retry. Refuses (422, ' +
+      'BILLING_EMAIL_MISSING) when this company has no billing email at all yet, BEFORE ever calling ' +
+      'Polar with one (see billing-customer.ts MissingBillingEmailError — this used to reach Polar as ' +
+      'an empty string and come back as an unhandled 500).',
   })
   @ApiResponse({ status: 201, description: 'Checkout session URL' })
+  @ApiResponse({ status: 422, description: 'This company has no billing email set' })
   async startCheckout(
     @ActiveCompany() companyId: string,
     @Body() body: StartCheckoutDto,
@@ -137,6 +155,16 @@ export class BillingController {
         // codebase's convention for a machine-readable refusal a frontend can branch on
         // (use-mutation-with-toast.ts's own header).
         throw new ConflictException({ message: error.message, code: error.code });
+      }
+      if (error instanceof MissingBillingEmailError) {
+        // 422, not 409: there is nothing here for two states to CONFLICT over (no duplicate, no
+        // competing write) — the company's own data is simply incomplete for what this request is
+        // asking to do, which is exactly what 422 Unprocessable Entity means (well-formed request,
+        // semantically impossible to carry out as sent). It also mirrors the status Polar's own API
+        // would have answered with for the identical reason, now caught before that call is ever
+        // made. `error.message` is the actual deliverable here (see `MissingBillingEmailError`'s own
+        // header) — thrown as the exception BODY, not swallowed, so it reaches the frontend verbatim.
+        throw new UnprocessableEntityException({ message: error.message, code: error.code });
       }
       throw error;
     }
@@ -166,6 +194,7 @@ export class BillingController {
   })
   @ApiResponse({ status: 201, description: 'Portal session URL' })
   @ApiResponse({ status: 409, description: 'This company has no Polar customer yet' })
+  @ApiResponse({ status: 422, description: 'This company has no billing email set' })
   async openPortal(@ActiveCompany() companyId: string): Promise<PortalSessionResult> {
     try {
       const identity = await loadCompanyBillingIdentity(companyId);
@@ -181,6 +210,12 @@ export class BillingController {
         // 404: the frontend already has a generic error toast, but this ONE case gets its own
         // translated notice instead (`billing.settings.tsx`) rather than showing this raw message.
         throw new ConflictException({ message: error.message, code: error.code });
+      }
+      if (error instanceof MissingBillingEmailError) {
+        // Reachable here only in the narrow case `member-resolution.ts#resolveOrCreateCompanyBillingMemberId`'s
+        // own header describes (a `team` customer whose billing email went blank AFTER promotion, so
+        // no existing Polar member matches it any more) — same 422, same reasoning as `startCheckout`.
+        throw new UnprocessableEntityException({ message: error.message, code: error.code });
       }
       throw error;
     }

@@ -85,6 +85,32 @@ export function isResourceNotFoundError(error: unknown): boolean {
   );
 }
 
+export const BILLING_EMAIL_MISSING_CODE = 'BILLING_EMAIL_MISSING';
+
+/** Thrown BEFORE this module ever calls Polar when neither `Company.billingEmail` nor `Company.email`
+ *  resolves to anything (`resolveBillingEmail` returns `''`) — the live incident this class exists to
+ *  prevent: `checkout-session.ts` used to hand that empty string straight to
+ *  `client.customers.create`, Polar refused it (422, `"An email address must have an @-sign"`), and
+ *  nothing on the checkout path caught THAT specific refusal, so Nest's own default exception handler
+ *  turned it into an opaque 500. `billing.controller.ts`'s own `startCheckout`/`openPortal` catch
+ *  blocks turn this into a 422 (`UnprocessableEntityException`, see that file's own comment on why
+ *  422 rather than 409) the frontend shows VERBATIM (`billing.settings.tsx`'s generic
+ *  `error.message` fallback — there is deliberately no separate, translated override for this one
+ *  code the way `BILLING_EMAIL_TAKEN` gets: the whole point of this class's own wording is that it
+ *  IS what reaches the screen). Reuses the exact "empty" check `customer-provisioning.ts`'s
+ *  boot/sweep pass already established (`!resolveBillingEmail(company)`) rather than inventing a
+ *  second notion of "empty" for the same fact. */
+export class MissingBillingEmailError extends Error {
+  readonly code = BILLING_EMAIL_MISSING_CODE;
+
+  constructor() {
+    super(
+      'This company has no billing email address on file. Set one in Settings > Billing, then try again.',
+    );
+    this.name = 'MissingBillingEmailError';
+  }
+}
+
 /** Detects the specific 422 "email already exists" refusal (as opposed to some OTHER validation
  *  failure a malformed request could also get back as an `HTTPValidationError`) — checked on the
  *  `detail` array's own `loc`/`msg`, the exact shape `@polar-sh/sdk`'s `HTTPValidationError` carries,
@@ -118,6 +144,12 @@ export async function getOrCreatePolarCustomerForCompany(
   }
 
   const email = resolveBillingEmail(company);
+  // Refuses BEFORE ever calling Polar — see `MissingBillingEmailError`'s own header for the live 500
+  // this guard replaces. `customer-provisioning.ts`'s own boot/sweep pass already checks this same
+  // condition before EVER calling this function at all (so this branch never fires from that caller —
+  // defense in depth, same discipline `member-sync.ts`'s own header names for its warm-cache calls);
+  // this is the guard for `checkout-session.ts`, the caller that had none.
+  if (!email) throw new MissingBillingEmailError();
   try {
     return await client.customers.create({
       type: 'individual',

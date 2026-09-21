@@ -27,7 +27,7 @@
  * passes `matchByEmail: false`: a delete acts ONLY on a member this app itself created and can name by
  * its own stored `externalId`, never one merely guessed at by a shared email address.
  */
-import { isResourceNotFoundError } from './billing-customer';
+import { isResourceNotFoundError, MissingBillingEmailError } from './billing-customer';
 import { callPolarWithRetry } from './polar-client';
 
 export interface ResolvedMemberUser {
@@ -175,6 +175,14 @@ export async function resolveOrCreateCompanyBillingMemberId(
   const identity = { id: COMPANY_BILLING_MEMBER_EXTERNAL_ID, email: billing.email, name: billing.name };
   const existing = await findMemberIdForUser(client, customerId, companyId, identity);
   if (existing) return existing;
+
+  // Same guard `billing-customer.ts#getOrCreatePolarCustomerForCompany` holds for the CUSTOMER
+  // create call — reachable here when `Company.billingEmail`/`Company.email` both went blank AFTER
+  // this company was already promoted to a `team` customer (portal-session.ts's own header on why
+  // this path exists at all), so the resolved billing email no longer matches any existing member and
+  // this function would otherwise hand Polar the same empty string `MissingBillingEmailError` exists
+  // to catch before it ever leaves this process.
+  if (!billing.email) throw new MissingBillingEmailError();
 
   const created = await callPolarWithRetry(
     () =>

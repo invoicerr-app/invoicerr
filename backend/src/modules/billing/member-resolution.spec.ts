@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 
+import { MissingBillingEmailError } from './billing-customer';
 import {
   COMPANY_BILLING_MEMBER_EXTERNAL_ID,
   findMemberIdForUser,
@@ -242,6 +243,28 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
     await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
 
     expect(getExternal).not.toHaveBeenCalledWith(expect.objectContaining({ memberExternalId: USER.id }));
+  });
+
+  // Reachable when `Company.billingEmail`/`Company.email` went blank AFTER this company was already
+  // promoted to a `team` customer, so nothing matches the (now empty) resolved billing email any more
+  // — same guard `billing-customer.ts#getOrCreatePolarCustomerForCompany` holds for the CUSTOMER
+  // create call, here for the MEMBER create call.
+  it('refuses BEFORE calling Polar when the resolved billing email is empty and no existing member matches', async () => {
+    const createExternal = vi.fn();
+    const client = fakeClient({
+      customers: {
+        members: { getExternal: vi.fn().mockRejectedValue(notFoundError()), createExternal, delete: vi.fn() },
+      },
+      members: { listMembers: vi.fn().mockResolvedValue(asPages([])) },
+    });
+
+    const error = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', {
+      email: '',
+      name: 'Acme Inc',
+    }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(MissingBillingEmailError);
+    expect(createExternal).not.toHaveBeenCalled();
   });
 });
 

@@ -1,9 +1,13 @@
 import { vi, type Mock } from 'vitest';
 
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnprocessableEntityException } from '@nestjs/common';
 
 import { BillingController } from './billing.controller';
-import { BillingEmailTakenError, loadCompanyBillingIdentity } from './billing-customer';
+import {
+  BillingEmailTakenError,
+  loadCompanyBillingIdentity,
+  MissingBillingEmailError,
+} from './billing-customer';
 import { getCompanyBillingEmail, setCompanyBillingEmail } from './billing-email';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { createCheckoutSession } from './checkout-session';
@@ -177,6 +181,27 @@ describe('BillingController.startCheckout', () => {
     expect(error).toBeInstanceOf(ConflictException);
     expect(error.getResponse()).toMatchObject({ code: 'BILLING_EMAIL_TAKEN' });
   });
+
+  // The live incident this whole fix responds to: an empty billing email used to reach Polar and come
+  // back as an unhandled 500. `createCheckoutSession` now refuses BEFORE that ever happens — this
+  // asserts the controller turns THAT refusal into a 422 carrying the exact, actionable message
+  // (`MissingBillingEmailError`'s own header on why 422 and why the message itself is the deliverable),
+  // never a 409 or a generic 500.
+  it('turns a MissingBillingEmailError into a named 422, carrying the exact backend message', async () => {
+    startCheckoutSession.mockRejectedValue(new MissingBillingEmailError());
+    const controller = new BillingController();
+
+    const error = await controller
+      .startCheckout('company-1', { slug: 'monthly', successUrl: 'https://a', returnUrl: 'https://a' })
+      .catch((e) => e);
+
+    expect(error).toBeInstanceOf(UnprocessableEntityException);
+    expect(error.getResponse()).toEqual({
+      message:
+        'This company has no billing email address on file. Set one in Settings > Billing, then try again.',
+      code: 'BILLING_EMAIL_MISSING',
+    });
+  });
 });
 
 describe('BillingController.openPortal', () => {
@@ -239,6 +264,22 @@ describe('BillingController.openPortal', () => {
 
     expect(error).toBeInstanceOf(ConflictException);
     expect(error.getResponse()).toMatchObject({ code: BILLING_NO_COMPANY_CUSTOMER_CODE });
+  });
+
+  it('turns a MissingBillingEmailError into a named 422, same as startCheckout', async () => {
+    loadBillingIdentity.mockResolvedValue({
+      id: 'company-1',
+      name: 'Acme Inc',
+      email: 'contact@acme.test',
+      billingEmail: null,
+    });
+    createPortalSession.mockRejectedValue(new MissingBillingEmailError());
+    const controller = new BillingController();
+
+    const error = await controller.openPortal('company-1').catch((e) => e);
+
+    expect(error).toBeInstanceOf(UnprocessableEntityException);
+    expect(error.getResponse()).toMatchObject({ code: 'BILLING_EMAIL_MISSING' });
   });
 });
 

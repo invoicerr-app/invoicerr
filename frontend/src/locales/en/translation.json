@@ -3031,7 +3031,8 @@
         "title": "Billing email",
         "description": "Used for this company's own Polar customer. Defaults to the company's contact email — set a distinct one if another company already uses it.",
         "label": "Billing email",
-        "save": "Save"
+        "save": "Save",
+        "noneOnFileNotice": "No billing email is on file yet. The field above has been filled in with your own account email as a starting point — review it, or enter a different one, then save before subscribing."
       },
       "messages": {
         "checkoutError": "Failed to start checkout",
