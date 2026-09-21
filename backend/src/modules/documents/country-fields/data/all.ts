@@ -61,8 +61,12 @@ function loadCountryFile(code: string): CountryFieldOverlayFile {
 }
 
 /** Every wired jurisdiction's field overlay, one file per country — see the module docstring above
- *  for what France's and Germany's own overlays add. A country with NO entry here gets the trunk
- *  fields UNCHANGED — the ordinary case, not a misconfiguration (see country-fields/registry.ts's own
- *  `operationsFor`). */
+ *  for what France's and Germany's own overlays add, and each country file's own `notes` for the
+ *  rest. All five wired countries now carry the SAME `lines[].supplyType` operation, added to the
+ *  four others after France's: it is a Directive 2006/112/EC distinction (arts. 33(a)/45, via
+ *  `../../tax/resolve-invoice-tax.ts`) that binds every member state identically, so the country
+ *  files differ only in which national text they cite for it. A country with NO entry here gets the
+ *  trunk fields UNCHANGED — the ordinary case, not a misconfiguration (see
+ *  country-fields/registry.ts's own `operationsFor`). */
 export const ALL_COUNTRY_FIELD_OVERLAY_FILES: CountryFieldOverlayFile[] =
   discoverCountryCodes().map(loadCountryFile);

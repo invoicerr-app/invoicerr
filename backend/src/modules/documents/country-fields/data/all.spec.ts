@@ -5,10 +5,15 @@
  * (BT-10 / Leitweg-ID) for `formats/xrechnung-provider.ts`'s own BR-DE-15. Poland is the THIRD,
  * adding a document-level `correctionReason`, conditionally required once `correctsInvoiceId`
  * (invoice.descriptor.ts's own trunk field) names the invoice being corrected — see
- * `data/pl.json`'s own header for the full "legally optional, product-required" distinction. This
- * file pins the NEW state the same way the old one pinned the empty one and then the FR/DE-only one,
- * so whoever adds a FOURTH country's file has to update the one place asserting what is shipped, same
- * discipline either way.
+ * `data/pl.json`'s own header for the full "legally optional, product-required" distinction. Italy
+ * and Portugal arrived with the pass that extended `lines[].supplyType` past France to all five
+ * wired countries, so this file now also pins what that pass guarantees: the supply-type field is
+ * BYTE-IDENTICAL in every one of them (same key, kind, label, options, optionality), because what
+ * reads it branches on a Directive 2006/112/EC distinction that binds every member state the same
+ * way — see each country file's own `notes` for the national text it cites. This file pins the NEW
+ * state the same way the old one pinned the empty one and then the FR/DE-only one, so whoever adds
+ * a SIXTH country's file has to update the one place asserting what is shipped, same discipline
+ * either way.
  */
 import { applyFieldOverlay } from '../apply-overlay';
 import { DocumentFieldDescriptor } from '../../descriptors/types';
@@ -29,22 +34,55 @@ const TRUNK_INVOICE_FIELDS: DocumentFieldDescriptor[] = [
   TRUNK_LINES_FIELD,
 ];
 
-describe('country-fields/data — France, Germany and Poland each ship a real overlay', () => {
-  it('ships exactly France, Germany and Poland today', () => {
-    expect(ALL_COUNTRY_FIELD_OVERLAY_FILES.map((f) => f.countryCode).sort()).toEqual(['DE', 'FR', 'PL']);
+/** The five wired countries — `lines[].supplyType` is declared by every one of them. */
+const SUPPLY_TYPE_COUNTRIES = ['DE', 'FR', 'IT', 'PL', 'PT'] as const;
+
+function supplyTypeFieldOf(countryCode: string) {
+  const file = ALL_COUNTRY_FIELD_OVERLAY_FILES.find((f) => f.countryCode === countryCode)!;
+  const operations = file.overlays.find((o) => o.typeId === 'invoice')!.operations;
+  const applied = applyFieldOverlay([TRUNK_LINES_FIELD], operations);
+  return applied.find((f) => f.key === 'lines')!.fields!.find((f) => f.key === 'supplyType');
+}
+
+describe('country-fields/data — five countries ship a real overlay', () => {
+  it('ships exactly the five wired countries today', () => {
+    expect(ALL_COUNTRY_FIELD_OVERLAY_FILES.map((f) => f.countryCode).sort()).toEqual([
+      'DE',
+      'FR',
+      'IT',
+      'PL',
+      'PT',
+    ]);
   });
 
-  it("adds an OPTIONAL 'select' supplyType subfield to invoice.lines, GOODS/SERVICES only", () => {
-    const fr = ALL_COUNTRY_FIELD_OVERLAY_FILES.find((f) => f.countryCode === 'FR')!;
-    const operations = fr.overlays.find((o) => o.typeId === 'invoice')!.operations;
+  it.each(
+    SUPPLY_TYPE_COUNTRIES,
+  )("%s adds an OPTIONAL 'select' supplyType subfield to invoice.lines, GOODS/SERVICES only", (countryCode) => {
+    const supplyType = supplyTypeFieldOf(countryCode)!;
 
-    const applied = applyFieldOverlay([TRUNK_LINES_FIELD], operations);
-    const linesField = applied.find((f) => f.key === 'lines')!;
-    const supplyType = linesField.fields!.find((f) => f.key === 'supplyType')!;
-
+    expect(supplyType).toBeDefined();
     expect(supplyType.kind).toBe('select');
     expect(supplyType.required).toBeFalsy();
     expect(supplyType.options?.map((o) => o.value).sort()).toEqual(['GOODS', 'SERVICES']);
+    // DIGITAL is deliberately absent from every one of them: `tax/resolve-invoice-tax.ts` narrows a
+    // stored value to GOODS/SERVICES, so a third option would be discarded on the way in.
+    expect(supplyType.options).toHaveLength(2);
+  });
+
+  it('the supply-type field is the SAME field in all five — only the help text may name a national consequence', () => {
+    // The point of the assertion: a directive-level distinction (Directive 2006/112/EC arts. 33(a)
+    // and 45, see each file's own `notes`) must not silently become five slightly different controls.
+    const shapes = SUPPLY_TYPE_COUNTRIES.map((countryCode) => {
+      const field = supplyTypeFieldOf(countryCode)!;
+      return JSON.stringify({
+        key: field.key,
+        kind: field.kind,
+        label: field.label,
+        required: field.required ?? false,
+        options: field.options,
+      });
+    });
+    expect(new Set(shapes).size).toBe(1);
   });
 
   it('France does not touch any other document type', () => {

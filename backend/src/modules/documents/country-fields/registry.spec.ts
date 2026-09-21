@@ -35,22 +35,24 @@ describe('CountryFieldOverlayCatalog', () => {
     expect(catalog.operationsFor('FR', 'quote')).toEqual([]);
   });
 
-  it('defaults to the real shipped catalog — France, Germany and Poland each ship a real overlay (see data/all.ts)', () => {
+  it('defaults to the real shipped catalog — the five wired countries each ship a real overlay (see data/all.ts)', () => {
     const catalog = new CountryFieldOverlayCatalog();
-    expect(catalog.countries()).toEqual(['DE', 'FR', 'PL']);
-    expect(catalog.operationsFor('FR', 'invoice')).toEqual([
-      {
-        op: 'add',
-        path: 'lines',
-        field: expect.objectContaining({ key: 'supplyType', kind: 'select' }),
-      },
-    ]);
+    expect(catalog.countries()).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+    const supplyType = {
+      op: 'add',
+      path: 'lines',
+      field: expect.objectContaining({ key: 'supplyType', kind: 'select' }),
+    };
+    expect(catalog.operationsFor('FR', 'invoice')).toEqual([supplyType]);
+    expect(catalog.operationsFor('IT', 'invoice')).toEqual([supplyType]);
+    expect(catalog.operationsFor('PT', 'invoice')).toEqual([supplyType]);
     expect(catalog.operationsFor('DE', 'invoice')).toEqual([
       {
         op: 'add',
         path: '',
         field: expect.objectContaining({ key: 'buyerReference', kind: 'text' }),
       },
+      supplyType,
     ]);
     expect(catalog.operationsFor('PL', 'invoice')).toEqual([
       {
@@ -62,8 +64,9 @@ describe('CountryFieldOverlayCatalog', () => {
           requiredIfPresent: 'correctsInvoiceId',
         }),
       },
+      supplyType,
     ]);
     // A country with no file at all still resolves to an empty list, never a throw.
-    expect(catalog.operationsFor('IT', 'invoice')).toEqual([]);
+    expect(catalog.operationsFor('ES', 'invoice')).toEqual([]);
   });
 });
