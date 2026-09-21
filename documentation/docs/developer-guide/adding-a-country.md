@@ -19,6 +19,12 @@ same files — see the [country compliance matrix](./country-support/index.md); 
 from the files this guide tells you how to write, every time the docs are built, so it can never
 say something these files don't.
 
+If you already know which country you want and would rather start from it than from the mechanism,
+the [country directory](./countries/index.md) has a page per country — what its e-invoicing system
+is called, who runs it, which format family it uses, and which of the files below that country
+would need. Around a hundred of those countries have no file here at all; their page says so on
+the first line.
+
 For adding a new *kind of document* (an invoice, a quote, something else entirely) rather than a
 new country, see [Adding a document type](./adding-a-document-type.md) instead — the two are
 deliberately independent axes; see the [overview](./extending-invoicerr.md) for how they fit
