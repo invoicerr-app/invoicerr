@@ -217,10 +217,16 @@ export class CompanyController {
   /**
    * POST /api/company/mail-settings/test — sends a real test email to the CALLER's own address
    * (never an address from the request body — see `CompanyMailSettingsService#sendTest`'s own header)
-   * through this company's actual send cascade, and returns the REAL provider error on failure rather
-   * than a generic "check your configuration" message.
+   * through this company's actual send cascade, and reports the reason it failed, vetted: which
+   * distinctions survive and which collapse is `mail-endpoint-guard.ts`'s decision, documented there.
+   *
+   * Same roles as the PUT that sets the host in the first place. This route makes the server open a
+   * socket to an address a member of this company chose, so "who may make it connect" must not be a
+   * wider set than "who may choose where" — it used to be every MEMBER, which meant the narrowest role
+   * in a company could drive a connection attempt the role above it configured.
    */
   @Post('mail-settings/test')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('company:write')
   // Nest's default for POST is 201 (Created) — wrong here, this action creates nothing (see
   // `verifyDomain` in sso.controller.ts for the same "action, not creation" precedent). Without this,
@@ -231,7 +237,8 @@ export class CompanyController {
     summary: 'Send a test email to yourself',
     description:
       "Exercises this company's real société → instance → refus-nommé mail cascade and reports the " +
-      'actual failure reason (bad credentials, unreachable host, nothing configured at all, ...).',
+      'failure reason (credentials rejected, address not allowed, nothing configured at all, ...). ' +
+      'Every network-level outcome reports identically — see the mail endpoint guard.',
   })
   @ApiResponse({ status: 200, description: 'Test email sent' })
   @ApiResponse({ status: 400, description: 'The real send failure — see the message' })

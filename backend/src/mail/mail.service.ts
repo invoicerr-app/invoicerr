@@ -6,6 +6,12 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ResendMailProvider } from '@/mail/providers/resend.provider';
 import { SmtpMailProvider } from '@/mail/providers/smtp.provider';
 import { logger } from '@/logger/logger.service';
+import {
+  INSTANCE_MAIL_FAILED_MESSAGE,
+  MailDeliveryError,
+  assertTenantSmtpEndpoint,
+  describeSmtpFailure,
+} from '@/mail/mail-endpoint-guard';
 import { sanitizeEmailHtml } from '@/mail/sanitize-email-html';
 import { toTransportAttachments } from '@/mail/attachments';
 import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
@@ -143,28 +149,70 @@ export class MailService {
     }
   }
 
-  /** Builds and uses a one-shot nodemailer transport from decrypted SMTP credentials — shared by the
-   *  per-call `smtpOverrides` path below and by `sendForCompany`'s own company-SMTP branch. Never
-   *  logs `overrides.password`. */
+  /**
+   * Builds and uses a one-shot nodemailer transport from decrypted SMTP credentials — shared by the
+   * per-call `smtpOverrides` path below and by `sendForCompany`'s own company-SMTP branch. Never logs
+   * `overrides.password`.
+   *
+   * THE single point in this codebase where a TENANT-supplied host and port become a real socket
+   * (`Settings → Mail` for a company's own server, the SdI PEC mailbox for `sdi-pec-transport.ts`),
+   * which is why both halves of the guard live here rather than on one route: a route-level check
+   * would leave every other caller of this method — document sends, reminders, signature requests,
+   * OTP mails, client-portal invites, the PEC transport — dialing whatever it was handed.
+   *
+   * The instance-level provider (`this.provider`, `SMTP_*` env vars) deliberately does NOT go through
+   * this: an operator running a relay on `10.0.0.5` is configuring their own server, not probing it.
+   */
   private async deliverViaSmtp(options: MailOptions, overrides: SmtpOverrides): Promise<void> {
+    const resolved = await assertTenantSmtpEndpoint(overrides.host, overrides.port);
+
+    // Connect to the address the guard just validated, never to the name again: nodemailer does its
+    // OWN `dns.resolve` (with a process-wide cache and a fallback-address retry list) the moment it
+    // connects, which a short-TTL record can answer differently by then — the rebinding window
+    // `ResolvedOutboundUrl` exists to close. Handing it an IP literal short-circuits that resolution
+    // entirely (`shared.resolveHostname`'s own `net.isIP` branch), so there is no second lookup and
+    // no fallback list. `servername` carries the ORIGINAL hostname so SNI and certificate validation
+    // still match the server the tenant actually named — and is omitted when that name IS an IP
+    // literal, since an IP is not a legal SNI value.
+    const pinnedHost = resolved ? resolved.address : overrides.host;
+    const servername = resolved && resolved.hostname !== resolved.address ? resolved.hostname : undefined;
+
     const transporter = nodemailer.createTransport({
-      host: overrides.host,
+      host: pinnedHost,
       port: overrides.port,
       secure: overrides.secure,
+      ...(servername ? { servername } : {}),
+      // Bounded, and equal for both phases: without these, an open port that never speaks SMTP (a
+      // database, a cache) holds the request for nodemailer's own multi-minute defaults while a
+      // closed one fails at once — a timing difference that survives the identical error text below.
+      // The address guard above is what makes that difference harmless (nothing internal is reachable
+      // any more); this keeps it small anyway, and stops one settings test from pinning a request for
+      // two minutes.
+      connectionTimeout: 15_000,
+      greetingTimeout: 15_000,
       auth: {
         user: overrides.username,
         pass: overrides.password,
       },
     });
     const safe = sanitizedMailOptions(options);
-    await transporter.sendMail({
-      from: overrides.fromAddress,
-      to: safe.to,
-      subject: safe.subject,
-      text: safe.text,
-      html: safe.html,
-      attachments: toTransportAttachments(safe.attachments),
-    });
+    try {
+      await transporter.sendMail({
+        from: overrides.fromAddress,
+        to: safe.to,
+        subject: safe.subject,
+        text: safe.text,
+        html: safe.html,
+        attachments: toTransportAttachments(safe.attachments),
+      });
+    } catch (error) {
+      // The real reason — errno, host, port — goes HERE and nowhere else. Never `overrides.password`.
+      logger.error('Failed to send email via a tenant-configured SMTP server.', {
+        category: 'mail',
+        details: { host: overrides.host, port: overrides.port, user: overrides.username, error },
+      });
+      throw new MailDeliveryError(describeSmtpFailure(error));
+    }
   }
 
   async sendMail(options: MailOptions, smtpOverrides?: SmtpOverrides) {
@@ -174,7 +222,13 @@ export class MailService {
       try {
         await this.deliverViaSmtp(options, smtpOverrides);
       } catch (error) {
-        // Log host+user only — never the password.
+        // `deliverViaSmtp` has already logged the real reason and replaced it with a message that is
+        // safe to show a tenant — pass THAT through rather than flattening it back into one string:
+        // "the credentials were rejected" and "the address is not allowed" are both actionable, and
+        // neither says anything the generic one was hiding. Anything else reaching here is not a
+        // delivery failure at all (a bug in this method's own argument handling), so it keeps the
+        // narrow message it always had.
+        if (error instanceof MailDeliveryError) throw error;
         logger.error('Failed to send email via per-company SMTP.', {
           category: 'mail',
           details: { host: smtpOverrides.host, user: smtpOverrides.username, error },
@@ -208,18 +262,21 @@ export class MailService {
    * NAMED refusal, thrown before any network attempt, when neither level has anything configured —
    * a send must never look like it worked and then silently vanish into an unconfigured transport.
    *
-   * Deliberately does NOT rewrap failures into a generic message the way `sendMail` above does:
-   * `CompanyMailSettingsService#sendTest` exists specifically to show a company admin the REAL
-   * provider error (a bad SMTP password, an invalid Resend key, ECONNREFUSED, ...) while they are
-   * configuring this — a generic "check your configuration" string would defeat the entire point of a
-   * "test send" button. Every OTHER caller decides for itself, at its own call site, whether to let
-   * that real error propagate (documents: `actions/send-document-email.ts`, `reminders/
-   * reminder-sweep-runner.ts` — both already tolerate a `sendMail` failure exactly the same way, so
-   * the extra detail is free) or to catch it and rewrap it into something narrower for an untrusted
-   * caller (`signatures.service.ts#sendTemplatedMail`, `danger.service.ts#requestOtp` — both rethrow
-   * the named "no mail server configured" refusal verbatim but collapse any OTHER provider error into
-   * a generic message, since their own callers are a public signature page / an OWNER confirming a
-   * destructive action, not someone configuring the mail server itself).
+   * Every failure it raises is a `MailDeliveryError` whose message is ALREADY safe to show whoever
+   * triggered the send — see `mail-endpoint-guard.ts`'s own header. That is a middle position between
+   * the two this method has held: it used to let the raw provider error through, so a company admin
+   * configuring this would see the real reason ("a bad SMTP password, ECONNREFUSED, ..."), which is
+   * genuinely what a "test send" button is for — but the same raw text also reported, to anyone who
+   * could name a host and a port, whether something was listening on an internal address. Collapsing
+   * everything into one generic string instead would defeat that button. So the DISTINCTION survives
+   * where it is safe (credentials rejected, message rejected, address not allowed, nothing configured)
+   * and disappears where it is not (every network-level outcome, which is one sentence).
+   *
+   * Every caller therefore gets a message it can surface as-is. The ones that additionally narrow it
+   * still do (`signatures.service.ts#sendTemplatedMail`, `danger.service.ts#requestOtp` both rethrow
+   * the named "no mail server configured" refusal verbatim but collapse anything else, since their own
+   * callers are a public signature page / an OWNER confirming a destructive action, not someone
+   * configuring the mail server itself).
    *
    * NOW CONSUMED by every real send in this codebase — see `git log -- mail/mail.service.ts` around
    * the commit that wired this in (this comment used to say "not yet consumed" and named
@@ -252,7 +309,16 @@ export class MailService {
         apiKey: companySettings.apiKey,
         defaultFrom: companySettings.fromAddress,
       });
-      await provider.sendMail(sanitizedMailOptions(options));
+      try {
+        await provider.sendMail(sanitizedMailOptions(options));
+      } catch (error) {
+        // Resend's own text is kept verbatim, unlike the SMTP branch above: this provider dials ONE
+        // fixed public API (`api.resend.com`) that no tenant chooses, so its answer describes the
+        // tenant's own key, domain or sender address and can say nothing about this server's network.
+        // Wrapped all the same, so `sendTest` can tell a vetted mail failure from any other error
+        // that happened to surface on this path.
+        throw new MailDeliveryError(error instanceof Error ? error.message : String(error));
+      }
       return { message: 'Email sent successfully' };
     }
 
@@ -263,7 +329,19 @@ export class MailService {
       throw new BadRequestException(NO_MAIL_SERVER_CONFIGURED_MESSAGE);
     }
 
-    await this.provider.sendMail(sanitizedMailOptions(options));
+    try {
+      await this.provider.sendMail(sanitizedMailOptions(options));
+    } catch (error) {
+      // The instance provider's own failure must not reach a TENANT raw either: this is the OPERATOR's
+      // mail server, so a raw nodemailer error here would describe the hosting infrastructure (its
+      // relay's host and port, whether it answered) to whoever clicked "test send" on a company that
+      // configured nothing of its own.
+      logger.error('Failed to send email via the instance mail provider.', {
+        category: 'mail',
+        details: { provider: this.provider.id, error },
+      });
+      throw new MailDeliveryError(INSTANCE_MAIL_FAILED_MESSAGE);
+    }
     return { message: 'Email sent successfully' };
   }
 }

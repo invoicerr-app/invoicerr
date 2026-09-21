@@ -9,8 +9,9 @@ import * as net from 'node:net';
 import { Agent } from 'undici';
 
 /**
- * Shared SSRF guard for every outbound URL this backend is handed by a TENANT and later dials itself
- * — a webhook receiver, a company's own OIDC endpoints, a PDP/SdI transport's `baseUrl`/`endpoint`.
+ * Shared SSRF guard for every outbound ENDPOINT this backend is handed by a TENANT and later dials
+ * itself — a webhook receiver, a company's own OIDC endpoints, a PDP/SdI transport's
+ * `baseUrl`/`endpoint`, a company's own SMTP server (`host` + `port`, via `assertPublicOutboundHost`).
  * Originally lived only as `modules/webhooks/webhook-url-guard.ts#assertPublicWebhookUrl`; pulled out
  * here once a SECOND caller (company SSO) needed the exact same private/loopback/link-local logic —
  * see that file's own header, now a thin wrapper around `assertPublicOutboundUrl` below with the
@@ -112,7 +113,19 @@ export function pinnedNodeLookup(
   return resolved ? pinnedLookup(resolved) : undefined;
 }
 
-export interface OutboundUrlPolicy {
+export interface OutboundHostPolicy {
+  /** Hostnames to always reject, on top of the built-in metadata/loopback names below. */
+  blockedHostnames?: string[];
+  /**
+   * Set true ONLY from a caller's own env-gated escape hatch, already resolved by the caller (never
+   * read from the environment in here — see this file's own header). Skips every address check:
+   * private/loopback/link-local ranges and DNS resolution. NEVER true in production; every caller's
+   * own env var doc says so.
+   */
+  allowPrivateForTesting?: boolean;
+}
+
+export interface OutboundUrlPolicy extends OutboundHostPolicy {
   /** Schemes allowed. Default: `['https:']` — every NEW caller (SSO, PDP, SdI) is https-only; the
    *  webhook guard is the one exception, passing `['http:', 'https:']` for backward compatibility. */
   allowedProtocols?: string[];
@@ -123,15 +136,6 @@ export interface OutboundUrlPolicy {
    * the webhook guard's own historical behavior (a receiver on a non-standard port is normal).
    */
   allowedPorts?: number[] | null;
-  /** Hostnames to always reject, on top of the built-in metadata/loopback names below. */
-  blockedHostnames?: string[];
-  /**
-   * Set true ONLY from a caller's own env-gated escape hatch, already resolved by the caller (never
-   * read from the environment in here — see this file's own header). Skips every check below the
-   * scheme check: private/loopback/link-local ranges, the port restriction, and DNS resolution. NEVER
-   * true in production; every caller's own env var doc says so.
-   */
-  allowPrivateForTesting?: boolean;
 }
 
 const DEFAULT_PORT_FOR_SCHEME: Record<string, number> = { 'https:': 443, 'http:': 80 };
@@ -239,6 +243,148 @@ function isPrivateIpv6(address: string): boolean {
 }
 
 /**
+ * The shared tail of BOTH entry points below — everything that decides whether a bare hostname may be
+ * dialed, once it has been separated from whatever syntax carried it (a URL's authority, or an SMTP
+ * settings form's own `host` field). Kept as one function on purpose: a second entry point that
+ * re-implemented "is this address internal" would drift from this one silently, and the whole point of
+ * this module is that there is exactly ONE such rule in the codebase.
+ *
+ * `hostname` must already be lowercased and unbracketed — `parseBareHost` / `assertPublicOutboundUrl`
+ * both do that before calling in.
+ */
+async function assertPublicHostname(
+  hostname: string,
+  blockedHostnames: string[] | undefined,
+): Promise<ResolvedOutboundUrl> {
+  const blocked =
+    blockedHostnames && blockedHostnames.length > 0
+      ? new Set([...ALWAYS_BLOCKED_HOSTNAMES, ...blockedHostnames])
+      : ALWAYS_BLOCKED_HOSTNAMES;
+
+  if (!hostname || blocked.has(hostname)) {
+    throw new OutboundUrlValidationError('blocked hostname');
+  }
+
+  const literalIpVersion = net.isIP(hostname);
+  if (literalIpVersion === 4) {
+    if (isPrivateIpv4(hostname)) throw new OutboundUrlValidationError('literal address is private/internal');
+    return { hostname, address: hostname, family: 4 };
+  }
+  if (literalIpVersion === 6) {
+    if (isPrivateIpv6(hostname)) throw new OutboundUrlValidationError('literal address is private/internal');
+    return { hostname, address: hostname, family: 6 };
+  }
+
+  // Not a literal IP: resolve for real and check every returned address. A hostname can carry both an
+  // A and AAAA record, or several of either — one public answer does not make the others safe.
+  let addresses: dns.LookupAddress[];
+  try {
+    addresses = await dns.promises.lookup(hostname, { all: true });
+  } catch {
+    throw new OutboundUrlValidationError('hostname does not resolve');
+  }
+
+  if (addresses.length === 0) {
+    throw new OutboundUrlValidationError('hostname does not resolve');
+  }
+
+  for (const { address, family } of addresses) {
+    const isPrivate = family === 6 ? isPrivateIpv6(address) : isPrivateIpv4(address);
+    if (isPrivate) {
+      throw new OutboundUrlValidationError('hostname resolves to a private/internal address');
+    }
+  }
+
+  // Pin to the FIRST validated address — the one a normal client would try first anyway (Node/undici's
+  // own Happy Eyeballs ordering), and the only one this function can vouch a caller actually intends
+  // to connect to when several were returned.
+  const [{ address, family }] = addresses;
+  return { hostname, address, family: family === 6 ? 6 : 4 };
+}
+
+/**
+ * Normalizes a BARE host field — no scheme, no port, no path — into the same lowercased, unbracketed
+ * hostname `assertPublicOutboundUrl` derives from a URL's authority, and rejects anything else that
+ * field might be carrying.
+ *
+ * Runs the value through the WHATWG URL parser rather than a hand-written regex, so a bare host gets
+ * the EXACT same normalization a URL's authority already gets here: IDN to punycode, and — the part
+ * that matters for this guard — the legacy IPv4 spellings folded to a dotted quad, so `2130706433`
+ * and `0x7f.1` reach `isPrivateIpv4` as `127.0.0.1` instead of sailing through as opaque names that
+ * `getaddrinfo` would happily resolve to loopback at connect time.
+ *
+ * Everything the parser can absorb OTHER than a host (`user:pass@`, `:port`, a path, a query, a
+ * fragment) is a rejection, not something to strip: a settings form whose host field contains any of
+ * them is either a mistake or an attempt to smuggle a different target past the port this guard was
+ * told about.
+ */
+function parseBareHost(rawHost: string): string {
+  const candidate = rawHost.trim();
+  if (!candidate) throw new OutboundUrlValidationError('malformed host');
+
+  // An IPv6 literal only parses bracketed; a settings field realistically carries it either way.
+  const bracketed = candidate.includes(':') && !candidate.startsWith('[') ? `[${candidate}]` : candidate;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(`https://${bracketed}`);
+  } catch {
+    throw new OutboundUrlValidationError('malformed host');
+  }
+
+  if (
+    !parsed.hostname ||
+    parsed.username ||
+    parsed.password ||
+    parsed.port ||
+    parsed.pathname !== '/' ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    throw new OutboundUrlValidationError('malformed host');
+  }
+
+  const lower = parsed.hostname.toLowerCase();
+  return lower.startsWith('[') && lower.endsWith(']') ? lower.slice(1, -1) : lower;
+}
+
+/**
+ * The host+port twin of `assertPublicOutboundUrl`, for a tenant-supplied endpoint that is NOT spelled
+ * as a URL: an SMTP server's `host` and `port` (a company's own mail server in Settings → Mail, and
+ * the SdI PEC mailbox stored under its own channel credentials). Without it, those two fields are a
+ * port scanner of whatever network this backend runs in — a tenant names `10.x`, `127.0.0.1`,
+ * `169.254.169.254` or the managed database's own address, the server dials it, and the outcome tells
+ * the tenant whether something is listening there.
+ *
+ * Same decision logic, same range tables, same return contract as the URL entry point — only the
+ * parsing differs (there is no scheme to check, and unlike a webhook or an OIDC endpoint ANY port is
+ * legitimate here: 25, 465, 587, 2525 and stranger ones on real relays, so the port is range-checked
+ * rather than restricted to a list). Callers MUST connect to the returned `.address`, not re-resolve
+ * `.hostname` themselves — see `ResolvedOutboundUrl`'s own header on why a second lookup reopens the
+ * rebinding window this return value exists to close.
+ */
+export async function assertPublicOutboundHost(
+  host: string,
+  port: number,
+  policy: OutboundHostPolicy = {},
+): Promise<ResolvedOutboundUrl | null> {
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new OutboundUrlValidationError('invalid port');
+  }
+
+  // Shape first, reachability second: a host field carrying a path or credentials is malformed
+  // whatever the environment says, so the escape hatch below never gets to wave that through.
+  const hostname = parseBareHost(host);
+
+  // Dev/test-only escape hatch — NEVER set in production. Nothing was resolved, so there is nothing
+  // to pin: `null` tells the caller to connect to the host it was given, exactly as before this guard
+  // existed (the e2e stack's own Mailpit on localhost is why this hatch has to reach here at all).
+  if (policy.allowPrivateForTesting) return null;
+
+  return assertPublicHostname(hostname, policy.blockedHostnames);
+}
+
+/**
  * Throws `OutboundUrlValidationError` unless `rawUrl` satisfies `policy` — a well-formed URL on an
  * allowed scheme and port, whose hostname resolves EXCLUSIVELY to public, routable addresses. Resolves
  * the hostname for real (`dns.lookup`) rather than trusting a literal IP alone — literal IPs are also
@@ -289,48 +435,5 @@ export async function assertPublicOutboundUrl(
   const bracketed = parsed.hostname.toLowerCase();
   const hostname = bracketed.startsWith('[') && bracketed.endsWith(']') ? bracketed.slice(1, -1) : bracketed;
 
-  const blockedHostnames =
-    policy.blockedHostnames && policy.blockedHostnames.length > 0
-      ? new Set([...ALWAYS_BLOCKED_HOSTNAMES, ...policy.blockedHostnames])
-      : ALWAYS_BLOCKED_HOSTNAMES;
-
-  if (!hostname || blockedHostnames.has(hostname)) {
-    throw new OutboundUrlValidationError('blocked hostname');
-  }
-
-  const literalIpVersion = net.isIP(hostname);
-  if (literalIpVersion === 4) {
-    if (isPrivateIpv4(hostname)) throw new OutboundUrlValidationError('literal address is private/internal');
-    return { hostname, address: hostname, family: 4 };
-  }
-  if (literalIpVersion === 6) {
-    if (isPrivateIpv6(hostname)) throw new OutboundUrlValidationError('literal address is private/internal');
-    return { hostname, address: hostname, family: 6 };
-  }
-
-  // Not a literal IP: resolve for real and check every returned address. A hostname can carry both an
-  // A and AAAA record, or several of either — one public answer does not make the others safe.
-  let addresses: dns.LookupAddress[];
-  try {
-    addresses = await dns.promises.lookup(hostname, { all: true });
-  } catch {
-    throw new OutboundUrlValidationError('hostname does not resolve');
-  }
-
-  if (addresses.length === 0) {
-    throw new OutboundUrlValidationError('hostname does not resolve');
-  }
-
-  for (const { address, family } of addresses) {
-    const isPrivate = family === 6 ? isPrivateIpv6(address) : isPrivateIpv4(address);
-    if (isPrivate) {
-      throw new OutboundUrlValidationError('hostname resolves to a private/internal address');
-    }
-  }
-
-  // Pin to the FIRST validated address — the one a normal client would try first anyway (Node/undici's
-  // own Happy Eyeballs ordering), and the only one this function can vouch a caller actually intends
-  // to connect to when several were returned.
-  const [{ address, family }] = addresses;
-  return { hostname, address, family: family === 6 ? 6 : 4 };
+  return assertPublicHostname(hostname, policy.blockedHostnames);
 }

@@ -11,7 +11,9 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+import { logger } from '@/logger/logger.service';
 import { mailT } from '@/mail/i18n';
+import { MailDeliveryError, assertTenantSmtpEndpoint } from '@/mail/mail-endpoint-guard';
 import { MailService } from '@/mail/mail.service';
 import { RenderLanguage } from '@/modules/documents/rendering/language/supported-languages';
 
@@ -22,6 +24,14 @@ import {
   resolveCompanyMailSettings,
 } from './company-mail-settings.resolver';
 import { CompanyMailSettingsStatus } from './company-mail-settings.types';
+
+/** What a test send reports when it failed for a reason that is NOT a mail outcome — see `sendTest`'s
+ *  own header. Deliberately says nothing beyond "not your settings": the real text belongs in the
+ *  server log, and pointing a customer at their own mail configuration for a fault that is not theirs
+ *  would send them hunting for a problem that does not exist. */
+export const UNEXPECTED_TEST_SEND_FAILURE_MESSAGE =
+  'The test send failed for an unexpected reason on this server, not in these mail settings. The ' +
+  'details are in the server log.';
 
 @Injectable()
 export class CompanyMailSettingsService {
@@ -44,6 +54,17 @@ export class CompanyMailSettingsService {
    *  server — that guard already lives there, not duplicated here). */
   async set(companyId: string, dto: SetCompanyMailSettingsDto): Promise<CompanyMailSettingsStatus> {
     this.validate(dto);
+    if (dto.kind === 'smtp') {
+      // Refuse an internal address at WRITE time, not only at connect time. `MailService` re-checks
+      // on every actual send (that check, not this one, is what governs — a name that is public today
+      // can point somewhere internal tomorrow), but refusing here means a settings form that names
+      // `10.0.0.5` or `169.254.169.254` is answered without a socket ever being opened, and the row
+      // never gets stored for some later send to trip over.
+      await assertTenantSmtpEndpoint(dto.host, dto.port).catch((error) => {
+        if (error instanceof MailDeliveryError) throw new BadRequestException(error.message);
+        throw error;
+      });
+    }
     await this.channelCredentials.upsertChannelConfig(companyId, MAIL_SETTINGS_PROVIDER_ID, {
       environment: MAIL_SETTINGS_ENVIRONMENT,
       // `UpsertChannelConfigBody.config` is a bare `Record<string, unknown>` (it stores arbitrary
@@ -67,9 +88,17 @@ export class CompanyMailSettingsService {
    * in the request body: this proves "can *I* receive mail sent by this company's configuration",
    * never lets one member probe deliverability to an arbitrary third-party address) through the exact
    * same company → instance → named refusal cascade a real document send would use
-   * (`MailService#sendForCompany`), and re-throws whatever it raised — the REAL provider error (a bad
-   * SMTP password, an invalid Resend key, the named "no mail server configured" refusal, ...) rather
-   * than a generic "check your configuration" string, which would defeat the point of a test button.
+   * (`MailService#sendForCompany`).
+   *
+   * Reports the reason it was given — a rejected password, an invalid Resend key, an address this
+   * server refuses to dial, the named "no mail server configured" refusal — because a test button
+   * that only ever says "check your configuration" is useless. What it does NOT do is forward an
+   * error it has not vetted: `sendForCompany` raises `MailDeliveryError` for every mail outcome, and
+   * those messages are safe by construction (`mail-endpoint-guard.ts`'s own header explains which
+   * distinctions survive there and which are collapsed, and why the network-level ones have to be).
+   * Anything ELSE surfacing here is not a mail outcome at all — a decryption fault, a database error
+   * — and its text is about this server's internals, not about this company's mail settings, so it is
+   * logged and replaced.
    *
    * `language` — the REQUESTER's own preference (`resolveUserLanguage`, resolved by the controller,
    * which is where the authenticated `CurrentUser` lives) — defaults to English (`mailT(undefined)`)
@@ -89,7 +118,12 @@ export class CompanyMailSettingsService {
       });
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new BadRequestException((error as Error).message);
+      if (error instanceof MailDeliveryError) throw new BadRequestException(error.message);
+      logger.error('Test send failed for a reason that is not a mail outcome.', {
+        category: 'mail',
+        details: { companyId, error },
+      });
+      throw new BadRequestException(UNEXPECTED_TEST_SEND_FAILURE_MESSAGE);
     }
   }
 

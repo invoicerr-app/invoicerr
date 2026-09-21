@@ -3,22 +3,33 @@
  * named refusal). Mocks `@/prisma/prisma.service` at its own entry point (the same discipline
  * `channels.service.spec.ts` already holds), so this proves this
  * SERVICE's own logic — the encryption round-trip through the REAL `ChannelCredentialsService`
- * (never mocked away), per-kind validation, and that `sendTest` propagates the REAL underlying error
- * rather than a generic one — never a real database.
+ * (never mocked away), per-kind validation, and which failures `sendTest` is allowed to report — never
+ * a real database. The SSRF guard on the SMTP host/port, and what a failed send may say about the
+ * network, are `company-mail-settings.ssrf.spec.ts`'s job.
  */
 
 import { vi, type Mock } from 'vitest';
 
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+// `set()` now validates the SMTP endpoint against the shared SSRF guard before storing it, which
+// RESOLVES the host for real. Nothing in this file is about that decision (its own spec, hermetic
+// against a mocked resolver, is `company-mail-settings.ssrf.spec.ts`), and the example hostnames below
+// deliberately do not exist — without this hatch every round-trip test here would depend on what the
+// machine running the suite answers for them.
+process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
 
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
+import { MailDeliveryError } from '@/mail/mail-endpoint-guard';
 import { MailService } from '@/mail/mail.service';
 
 import { ChannelEnvironment } from '../../../../prisma/generated/prisma/client';
 import { ChannelCredentialsService } from '../channels/channels.service';
-import { CompanyMailSettingsService } from './company-mail-settings.service';
+import {
+  CompanyMailSettingsService,
+  UNEXPECTED_TEST_SEND_FAILURE_MESSAGE,
+} from './company-mail-settings.service';
 import { resolveCompanyMailSettings } from './company-mail-settings.resolver';
 
 vi.mock('@/prisma/prisma.service', () => ({
@@ -198,7 +209,7 @@ describe('CompanyMailSettingsService', () => {
     });
   });
 
-  describe('sendTest — propagates the REAL error, never a generic one', () => {
+  describe('sendTest — reports the real reason, as long as it is one this server vetted', () => {
     it('re-throws an HttpException from sendForCompany as-is', async () => {
       const refusal = new NotFoundException('No mail server is configured: ...');
       mailService.sendForCompany.mockRejectedValue(refusal);
@@ -206,14 +217,29 @@ describe('CompanyMailSettingsService', () => {
       await expect(service.sendTest('company-1', 'me@example.com')).rejects.toBe(refusal);
     });
 
-    it('wraps a raw provider Error in a BadRequestException carrying its EXACT message', async () => {
+    it('wraps a MailDeliveryError in a BadRequestException carrying its EXACT message', async () => {
+      // What `sendForCompany` actually raises for every mail outcome — a message already vetted as
+      // safe to show a tenant (`mail-endpoint-guard.ts`). A test button whose failures all read
+      // "check your configuration" would be useless, so this detail has to survive.
       mailService.sendForCompany.mockRejectedValue(
-        new Error('Resend API returned HTTP 401: invalid API key'),
+        new MailDeliveryError('Resend API returned HTTP 401: invalid API key'),
       );
 
       await expect(service.sendTest('company-1', 'me@example.com')).rejects.toThrow(
         'Resend API returned HTTP 401: invalid API key',
       );
+    });
+
+    it('replaces an error that is NOT a mail outcome — its text describes this server, not these settings', async () => {
+      // A decryption fault, a database error: whatever it is, it did not come from the mail cascade,
+      // so its message is about this server's internals and has no business on a settings screen.
+      mailService.sendForCompany.mockRejectedValue(new Error('connect ECONNREFUSED 10.0.0.42:5432'));
+
+      const thrown = await service.sendTest('company-1', 'me@example.com').catch((error: Error) => error);
+
+      expect(thrown).toBeInstanceOf(BadRequestException);
+      expect((thrown as Error).message).toBe(UNEXPECTED_TEST_SEND_FAILURE_MESSAGE);
+      expect((thrown as Error).message).not.toContain('10.0.0.42');
     });
 
     it('sends to the given address with a recognizable subject on success', async () => {

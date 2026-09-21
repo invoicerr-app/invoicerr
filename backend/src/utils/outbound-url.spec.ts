@@ -26,6 +26,7 @@ import * as dns from 'node:dns';
 import {
   OutboundUrlValidationError,
   ResolvedOutboundUrl,
+  assertPublicOutboundHost,
   assertPublicOutboundUrl,
   pinnedDispatcher,
   pinnedNodeLookup,
@@ -161,6 +162,78 @@ describe('assertPublicOutboundUrl', () => {
         assertPublicOutboundUrl('file:///etc/passwd', { allowPrivateForTesting: true }),
       ).rejects.toThrow(OutboundUrlValidationError);
     });
+  });
+});
+
+/**
+ * The host+port entry point, for endpoints that are not spelled as a URL — a company's own SMTP
+ * server, the SdI PEC mailbox. It shares `assertPublicHostname` with `assertPublicOutboundUrl` above,
+ * so only what is NOT shared is worth proving here: the parsing of a bare host field, the port range,
+ * and that the shared decision really is reached through it. What that guard buys the mail path (and
+ * what a refusal is allowed to SAY) is `modules/company/mail-settings/company-mail-settings.ssrf.spec.ts`.
+ */
+describe('assertPublicOutboundHost — a bare host and port, not a URL', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('accepts a public host on any port — an SMTP relay is not restricted to one', async () => {
+    lookup.mockResolvedValue([{ address: '203.0.113.20', family: 4 }]);
+    await expect(assertPublicOutboundHost('smtp.customer.example', 2525)).resolves.toMatchObject({
+      hostname: 'smtp.customer.example',
+      address: '203.0.113.20',
+      family: 4,
+    });
+  });
+
+  it.each([
+    ['literal loopback', '127.0.0.1'],
+    ['RFC1918', '10.0.0.5'],
+    ['cloud instance metadata', '169.254.169.254'],
+    ['IPv6 loopback, unbracketed as a settings field would carry it', '::1'],
+    ['IPv6 loopback, bracketed', '[::1]'],
+    ['the name "localhost"', 'localhost'],
+  ])('refuses %s without resolving anything', async (_label, host) => {
+    await expect(assertPublicOutboundHost(host, 25)).rejects.toThrow(OutboundUrlValidationError);
+  });
+
+  it('folds a legacy integer IPv4 spelling to its dotted quad before deciding', async () => {
+    // `getaddrinfo` accepts `2130706433` as 127.0.0.1, so a guard that treated it as an opaque name
+    // would hand it straight to a resolver that turns it into loopback at connect time.
+    await expect(assertPublicOutboundHost('2130706433', 6379)).rejects.toThrow(
+      'literal address is private/internal',
+    );
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('refuses a host field carrying anything other than a host', async () => {
+    // Each of these would otherwise reach a different target than the port this guard was told about.
+    for (const host of ['smtp.example.com/../x', 'user@smtp.example.com', 'smtp.example.com:25', '']) {
+      await expect(assertPublicOutboundHost(host, 25)).rejects.toThrow('malformed host');
+    }
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('refuses a port outside 1-65535, and a non-integer one', async () => {
+    for (const port of [0, -1, 70000, 25.5, Number.NaN]) {
+      await expect(assertPublicOutboundHost('smtp.customer.example', port)).rejects.toThrow('invalid port');
+    }
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('refuses a public NAME that resolves into a private range', async () => {
+    lookup.mockResolvedValue([{ address: '192.168.1.10', family: 4 }]);
+    await expect(assertPublicOutboundHost('mail.attacker.example', 587)).rejects.toThrow(
+      'hostname resolves to a private/internal address',
+    );
+  });
+
+  it('still refuses a malformed host under the escape hatch, but waives the address checks', async () => {
+    await expect(
+      assertPublicOutboundHost('localhost', 1025, { allowPrivateForTesting: true }),
+    ).resolves.toBeNull();
+    await expect(
+      assertPublicOutboundHost('smtp.example.com:25', 25, { allowPrivateForTesting: true }),
+    ).rejects.toThrow('malformed host');
+    expect(lookup).not.toHaveBeenCalled();
   });
 });
 

@@ -115,6 +115,12 @@ describe('MailService#sendForCompany — the société → instance → refus no
     delete process.env.MAIL_FROM;
     delete process.env.SMTP_FROM;
     delete process.env.SMTP_USER;
+    // The company-SMTP branch validates its host against the shared SSRF guard before connecting,
+    // which RESOLVES it for real. Which addresses that guard refuses is not what this file proves
+    // (`modules/company/mail-settings/company-mail-settings.ssrf.spec.ts` does, against a mocked
+    // resolver), and the example hostnames here deliberately do not exist — without this hatch the
+    // cascade assertions below would depend on what the machine running them answers for those names.
+    process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
   });
 
   afterAll(() => {
@@ -225,6 +231,9 @@ describe('MailService#sendMail — per-company SMTP override', () => {
     delete process.env.MAIL_PROVIDER;
     delete process.env.RESEND_API_KEY;
     delete process.env.SMTP_HOST;
+    // Same reason as the cascade describe above: `smtpOverrides` goes through the same endpoint guard,
+    // and `smtp.example.com` is not a name this suite may depend on resolving.
+    process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
   });
 
   afterAll(() => {

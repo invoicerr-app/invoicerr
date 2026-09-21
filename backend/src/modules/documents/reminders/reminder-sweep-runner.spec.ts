@@ -558,6 +558,10 @@ describe('ReminderSweepRunner.runSweep', () => {
       companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
       seedDocuments([invoice({ data: invoiceData() })]);
       process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
+      // The company-SMTP branch validates its host against the shared SSRF guard before connecting,
+      // which resolves it for real — and `company-smtp.example.com` deliberately does not exist.
+      // WHICH addresses that guard refuses is proven in the mail-settings suite, not here.
+      process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
       mockedResolveCompanyMailSettings.mockResolvedValue({
         kind: 'smtp',
         host: 'company-smtp.example.com',
