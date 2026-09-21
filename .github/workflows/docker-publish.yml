@@ -10,12 +10,26 @@ on:
 env:
   REGISTRY: ghcr.io
 
+# The floor every job inherits, and deliberately NOT the union of what the three jobs below need:
+# only two of them push to GHCR, so `packages: write` stays on those two and never becomes something
+# `prepare` carries for free. `contents: read` rather than an empty `{}` because two jobs genuinely
+# read through GITHUB_TOKEN — `prepare` runs `gh release view` (releases live under the `contents`
+# scope, they have no scope of their own) and `build` runs `actions/checkout`.
+# Without a block here a job falls back to the repository-wide default workflow permissions, which is
+# a SETTING rather than a property of this file: read-only today, one click from write for every
+# workflow at once. Stating the floor caps that blast radius and makes a job added later start
+# read-only, having to ask for more in writing.
+permissions:
+  contents: read
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
     # Read-only: this job only computes tag/cache variables and reads the release list via `gh
     # release view` (GH_TOKEN below) — it never pushes an image or a package, so it needs neither
     # `packages: write` (that's `build`/`merge`, which actually push to GHCR) nor any other scope.
+    # Restating the inherited floor rather than leaning on it: this block is what makes the job
+    # read-only even if the top-level one is ever widened for the sake of another job.
     permissions:
       contents: read
     outputs:
@@ -69,6 +83,14 @@ jobs:
   build:
     needs: prepare
     runs-on: ${{ matrix.runner }}
+    # `contents: read` for `actions/checkout` below — the build context IS this repository, and a
+    # job-level block REPLACES the top-level floor instead of adding to it, so the line has to be
+    # here and not only up there.
+    # `packages: write` for the push: `docker/login-action` authenticates to ghcr.io with
+    # GITHUB_TOKEN and the build step's `outputs: …,push=true` uploads the per-platform image by
+    # digest. `actions/upload-artifact`, at the end of this job, needs NEITHER — it authenticates
+    # with the Actions runtime token, not with GITHUB_TOKEN, which is why the digest hand-off to
+    # `merge` costs no scope here.
     permissions:
       contents: read
       packages: write
@@ -122,8 +144,23 @@ jobs:
   merge:
     runs-on: ubuntu-latest
     needs: [prepare, build]
+    # `packages: write` because THIS is the job that creates the published tag: `docker buildx
+    # imagetools create` reads back the per-platform digests `build` pushed and writes the manifest
+    # list at `:<image-tag>` (plus `:latest` when `prepare` said so), all against ghcr.io under
+    # GITHUB_TOKEN.
+    # And NOTHING else — no `contents: read`, unlike its two siblings, because a job-level block
+    # REPLACES the top-level floor rather than adding to it and this job never reads the repository:
+    # it does not check out (the manifest is assembled from digests, not from source), and none of
+    # its four steps reaches GITHUB_TOKEN for anything but the registry. Each was checked against its
+    # own action definition rather than assumed: `actions/download-artifact` leaves `github-token`
+    # with NO default and needs it only for a different repository or a different run — this one
+    # downloads from its own run, over the Actions runtime token, like its upload counterpart in
+    # `build`; `docker/setup-buildx-action` and `docker/login-action` declare no token input at all
+    # (login takes the password explicitly, below), and neither is `docker/build-push-action`, whose
+    # `github-token` default IS the reason `build` above keeps its own `contents: read`.
+    # If that ever stops holding, the symptom is a 403 on repository metadata in this job alone, and
+    # the fix is to add the line back here — not to widen the floor for all three.
     permissions:
-      contents: read
       packages: write
     steps:
       - uses: actions/download-artifact@v4

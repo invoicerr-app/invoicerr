@@ -18,9 +18,28 @@ on:
 env:
   REGISTRY: ghcr.io
 
+# The floor every job inherits. Without a block here a job falls back to the repository-wide default
+# workflow permissions -- a SETTING, not a property of this file: it reads read-only today and one
+# click flips it to write for every workflow in the repository at once. Stating the floor means the
+# next job added below starts read-only whatever that setting says, and has to ask for more in
+# writing. `build` below is the one job that asks, and says why.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    # `contents: read` is the floor restated -- a job-level block REPLACES the top-level one instead
+    # of adding to it, so omitting the line here would set `contents` to none and `actions/checkout`
+    # below could no longer clone the repository this image is built from.
+    # `docker/build-push-action` also defaults its own `github-token` input to `${{ github.token }}`
+    # ("used to authenticate against a repository for Git context") -- unexercised here, since the
+    # build below passes `context: .` rather than a Git URL, but it is one more reason the line is
+    # not surplus.
+    # `packages: write` is the whole reason this workflow exists: `docker/login-action` authenticates
+    # to ghcr.io with GITHUB_TOKEN and `docker/build-push-action` runs with `push: true` on every
+    # dispatch (see the `Set variables` step -- a dispatch always sets `push=true`). A token without
+    # it logs in successfully and then fails at the first layer upload.
     permissions:
       contents: read
       packages: write
