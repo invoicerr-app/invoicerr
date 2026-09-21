@@ -58,10 +58,23 @@ if [ -n "${OIDC_CLIENT_ID:-}" ]; then
   esac
 fi
 
+# ENABLE_BETA_BANNER: off by default, turns on exactly ONE thing — a banner on the sign-in/sign-up
+# screens (frontend/src/components/beta-banner.tsx, mounted once from AuthShell) telling a visitor
+# this instance is a preview, so nobody issues an invoice here and then relies on it.
+# Published raw, the same passthrough as VITE_OIDC_ONLY above: no shell-side parsing, the frontend's
+# own tolerant boolean check (isBetaBannerEnabled, lib/runtime-config.ts) is the single source of
+# truth for what counts as "on". Deliberately an ORDINARY name, not a shouty one like
+# WARNING__ENABLE_BILLING_FOR_USERS__WARNING (backend/src/modules/billing/billing-flag.ts) — that
+# flag is shouty because getting it wrong by accident turns on a whole billing system; this one only
+# ever adds a sentence to a page nobody is signed into yet, so an accidental flip in either direction
+# costs nothing worse than a banner that shouldn't (or should) be there. Public by design: this is
+# read before anyone logs in, so it goes through the same unauthenticated /config.json channel as
+# everything else in this file, never a session-gated endpoint.
 cat > /usr/share/nginx/html/config.json <<EOF
 {
   "VITE_OIDC_PROVIDER_ID": "${OIDC_PROVIDER_ID}",
-  "VITE_OIDC_ONLY": "${OIDC_ONLY:-}"
+  "VITE_OIDC_ONLY": "${OIDC_ONLY:-}",
+  "VITE_ENABLE_BETA_BANNER": "${ENABLE_BETA_BANNER:-}"
 }
 EOF
 

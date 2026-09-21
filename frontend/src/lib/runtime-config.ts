@@ -42,3 +42,18 @@ export function isOidcOnly(): boolean {
   const raw = (getEnvVariable("VITE_OIDC_ONLY") ?? "").trim().toLowerCase()
   return raw === "1" || raw === "true"
 }
+
+/**
+ * Whether this instance should show the beta banner on its auth screens.
+ *
+ * Mirrors `ENABLE_BETA_BANNER` (see entrypoint.sh's own header for the raw env var -> config.json
+ * mapping) with the same tolerant parsing every other instance-level switch here uses — "1"/"true",
+ * case-insensitive, whitespace trimmed. Off by default: a deployment that never sets the variable
+ * renders nothing new, exactly as before this flag existed. Unlike `isOidcOnly` above, nothing on
+ * the backend enforces this — it only ever adds text to a page, so there is no server-side rule for
+ * this function to mirror; see `components/beta-banner.tsx` for what it turns on.
+ */
+export function isBetaBannerEnabled(): boolean {
+  const raw = (getEnvVariable("VITE_ENABLE_BETA_BANNER") ?? "").trim().toLowerCase()
+  return raw === "1" || raw === "true"
+}

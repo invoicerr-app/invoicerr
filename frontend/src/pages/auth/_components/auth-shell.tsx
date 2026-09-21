@@ -2,8 +2,10 @@ import type * as React from "react"
 import { useTranslation } from "react-i18next"
 
 import { BrandWordmark } from "@/components/brand-wordmark"
+import { BetaBanner } from "@/components/beta-banner"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { isBetaBannerEnabled } from "@/lib/runtime-config"
 
 interface AuthShellProps {
   title: string
@@ -25,6 +27,9 @@ export function AuthShell({ title, description, footer, dataCy, children }: Auth
     <div className="flex h-dvh flex-col overflow-y-auto bg-background bg-radial-[90%_45%_at_50%_-15%] from-primary/15 to-transparent text-foreground">
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-10">
         <BrandWordmark className="mb-6" />
+        {/* Instance-wide, never page-specific — checked once here rather than in every auth page, so
+            sign-in, sign-up, AND sign-up's single-sign-on-only branch all pick it up automatically. */}
+        {isBetaBannerEnabled() && <BetaBanner className="mb-4 w-full max-w-sm sm:max-w-md" />}
         <Card className="w-full max-w-sm gap-5 py-6 sm:max-w-md" data-cy={dataCy}>
           <CardHeader className="gap-1 text-center">
             <h1 className="font-heading text-xl font-semibold tracking-tight text-balance">{title}</h1>

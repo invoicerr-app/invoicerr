@@ -272,6 +272,19 @@ app:
   # of nginx, or raise it further if you put ANOTHER load balancer/CDN in front of the Ingress itself.
   # Getting this wrong is silent — see `trust-proxy.ts`'s own header for what breaks in each direction.
   trustProxyHops: "2"
+  # ENABLE_BETA_BANNER — OFF by default. Read only by entrypoint.sh (api role only — see that
+  # script's own header), which publishes it, unparsed, into the frontend's runtime /config.json;
+  # the frontend's own tolerant boolean check (isBetaBannerEnabled, frontend/src/lib/runtime-config.ts)
+  # is what actually decides. Turns on exactly ONE thing: a banner on the sign-in/sign-up screens
+  # (frontend/src/components/beta-banner.tsx) telling a visitor this instance is a preview and not to
+  # type a real client's name, address, or invoice amount into it. Nothing else — no seeded accounts,
+  # no automatic reset, no relaxed authentication; those remain separate, unmade decisions. Set this
+  # to `true` ONLY on an instance you are knowingly standing up as a public preview (the motivating case:
+  # a "try it" link with nowhere real behind it yet). Deliberately an ordinary name, not a shouty one
+  # like the backend's own `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (billing-flag.ts) — that flag
+  # is shouty because getting it wrong by accident turns on a whole billing system; an accidental flip
+  # here costs nothing worse than a banner that shouldn't (or should) be showing.
+  enableBetaBanner: false
   # Escape hatch for anything this chart doesn't wire explicitly (mail provider, OIDC, …) — see
   # .env.example / docker-compose.yml in the repo root for the full variable list. Same shape Helm
   # uses everywhere: a list of `{name, value}` or `{name, valueFrom}` entries, appended to both the

@@ -3283,6 +3283,10 @@
       "title": "Service temporarily unavailable",
       "description": "The server can't be reached. Check the logs."
     },
+    "betaBanner": {
+      "title": "Beta",
+      "description": "Invoicerr is in beta: billing runs in test mode and nothing is charged. Don't rely on invoices issued here — keep using your usual tool for real ones."
+    },
     "or": "or",
     "password": {
       "show": "Show password",

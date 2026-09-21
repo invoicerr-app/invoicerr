@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { envOidcProviderId, getEnvVariable, isOidcOnly } from "./runtime-config"
+import { envOidcProviderId, getEnvVariable, isBetaBannerEnabled, isOidcOnly } from "./runtime-config"
 
 type WindowWithConfig = { __APP_CONFIG__?: Record<string, string | undefined> }
 
@@ -78,5 +78,24 @@ describe("isOidcOnly", () => {
     vi.stubEnv("VITE_OIDC_ONLY", "")
     setConfig({ VITE_OIDC_ONLY: value })
     expect(isOidcOnly()).toBe(false)
+  })
+})
+
+describe("isBetaBannerEnabled", () => {
+  it("is OFF when nothing is published — the default for every deployment that never sets ENABLE_BETA_BANNER", () => {
+    vi.stubEnv("VITE_ENABLE_BETA_BANNER", "")
+    setConfig({})
+    expect(isBetaBannerEnabled()).toBe(false)
+  })
+
+  it.each(["1", "true", "TRUE", "  true  "])("is on for %p", (value) => {
+    setConfig({ VITE_ENABLE_BETA_BANNER: value })
+    expect(isBetaBannerEnabled()).toBe(true)
+  })
+
+  it.each(["0", "false", "", "   ", "yes"])("is off for %p", (value) => {
+    vi.stubEnv("VITE_ENABLE_BETA_BANNER", "")
+    setConfig({ VITE_ENABLE_BETA_BANNER: value })
+    expect(isBetaBannerEnabled()).toBe(false)
   })
 })

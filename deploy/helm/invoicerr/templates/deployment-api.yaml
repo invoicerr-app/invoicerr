@@ -81,6 +81,12 @@ spec:
             # InstanceController (HTTP), never on the worker.
             - name: INSTANCE_OPERATOR_EMAILS
               value: {{ .Values.app.instanceOperatorEmails | quote }}
+            # ENABLE_BETA_BANNER — API-role only, and for the same reason as the two vars above: only
+            # this container's entrypoint.sh writes the frontend's runtime /config.json (the worker
+            # never serves the SPA, so publishing this there would do nothing). See
+            # values.yaml#app.enableBetaBanner's own header for what this flag does and does not do.
+            - name: ENABLE_BETA_BANNER
+              value: {{ .Values.app.enableBetaBanner | quote }}
             # This pod's own per-process Postgres connection pool ceiling — see
             # values.yaml#api.databasePoolMax's own header for the full "why this differs from the
             # worker's own value, and from the backend's own single-container default" account.
