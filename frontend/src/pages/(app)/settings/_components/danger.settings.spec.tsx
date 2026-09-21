@@ -106,19 +106,34 @@ function renderScreen() {
   )
 }
 
-/** `findBy*`'s own default (1000ms) is tight for this specific query, not because anything here
- *  waits on a real timer or an unresolved request — `requestOtp` flips `otpModalOpen` synchronously,
- *  BEFORE the OTP POST even fires (see that handler's own comment in the component), and Radix's
- *  `Presence` mounts the dialog via `useLayoutEffect`, not an animation-frame callback, so there is
- *  no genuine async gate between the click and this input existing. What IS real is the synchronous
- *  render/commit cost of the whole page this dialog lives on (this section plus
- *  `TransferCompanySection` and `InstanceResetSection`, each with their own i18n interpolation and
- *  Tailwind `cn()` merges) — CPU-bound work whose wall-clock cost scales with host contention, not
- *  with anything this test could await instead. Reproduced locally by pinning the test runner to 2
- *  cores and loading them with `yes`: click-to-input-visible grew from ~3ms idle to ~980ms under
- *  contention, i.e. genuinely on the edge of the default budget on a busy shared CI runner. Widening
- *  the wait (never the assertion) is the correct fix for that; `instance-reset.section.spec.tsx`
- *  carries the identical comment for its own sibling case. */
+/** THE actual cause of both CI-only failures this file ever produced (`TestingLibraryElementError` on
+ *  the OTP input, and separately a `toast.error` never called — a different test each run, same
+ *  commit) was NOT a slow render eventually catching up: it was `danger-reset-company-data-button`
+ *  genuinely still being `disabled` (`resetBlocked || preflightLoading` in the component — see the
+ *  button's own JSX) at the exact moment a click fired on it. `fireEvent.click` on a `disabled`
+ *  `<button>` is correctly a no-op in jsdom, same as a real browser, so a click that races ahead of
+ *  the preflight GET's `loading` flip starts NOTHING — no OTP POST, no modal — and no later `waitFor`,
+ *  however patient, can then succeed. Proved directly: a probe logging the button's own `disabled`
+ *  attribute immediately before `fireEvent.click`, run under host contention (2-core-pinned + `yes`),
+ *  caught `disabled=true` on a failing run with `otpModalOpen` never having flipped. The fix is
+ *  `openResetModalAndFillForm` and the "locked out" test both now waiting for the button to be enabled
+ *  BEFORE clicking it — the same thing the preflight-focused describe block above already did
+ *  correctly (`await waitFor(() => expect(button).not.toBeDisabled())`); this file's other two clickers
+ *  (`danger-delete-company-button`, `instance-reset-button`) were never affected because neither one is
+ *  ever `disabled` by a pending fetch in the first place.
+ *
+ *  Separately, and still worth a wider-than-default budget: `findBy*`/`waitFor`'s own default (1000ms)
+ *  IS genuinely tight for a click that lands on an ENABLED button here, because every one of these
+ *  actions re-renders the whole page (this section plus `TransferCompanySection` and
+ *  `InstanceResetSection`, each with their own i18n interpolation and Tailwind `cn()` merges) — real,
+ *  if normally small, CPU-bound work whose wall-clock cost scales with host contention. Measured
+ *  locally (same 2-core+`yes` repro): click-to-input-visible grew from ~3ms idle to ~980ms under
+ *  contention. `.github/workflows/cypress.yml`'s own `--maxWorkers` comment covers the actual
+ *  contention fix (capping the frontend job's Vitest parallelism, same as the backend job already
+ *  does) — this constant is the backstop for the part that reduction can't fully rule out. Every
+ *  `waitFor`/`findBy*` downstream of a click in this file uses it. `instance-reset.section.spec.tsx`
+ *  carries the identical constant and comment for its own sibling case (minus the disabled-button
+ *  mechanism above: `instance-reset-button` has no preflight-gated `disabled` of its own). */
 const DIALOG_MOUNT_TIMEOUT_MS = 5000
 
 /** Vitest's own default test budget is 5000 ms too — the same number as the wait above. So a test
@@ -130,9 +145,22 @@ vi.setConfig({ testTimeout: DIALOG_MOUNT_TIMEOUT_MS * 3 })
 
 /** Opens the OTP modal for the "reset company data" action and fills both fields the confirm button
  *  requires — the fixed `RESET` keyword ("delete company" instead asks for the company's own name,
- *  unrelated to what this file tests). */
+ *  unrelated to what this file tests). Waits for the button to actually be enabled before clicking
+ *  it — see `DIALOG_MOUNT_TIMEOUT_MS`'s own comment for why that wait is not optional: the button
+ *  stays `disabled` until the preflight GET resolves (`resetBlocked || preflightLoading` in the
+ *  component), and `fireEvent.click` on a `disabled` `<button>` is correctly a no-op in jsdom, same as
+ *  a real browser. A click that fires BEFORE that GET's `loading` flip has committed is silently
+ *  swallowed — nothing downstream (the OTP input mounting, an OTP POST ever firing) can then happen no
+ *  matter how long a later assertion waits, because the click that was supposed to start all of it
+ *  never actually did anything. This is not hypothetical: caught directly under host contention
+ *  (2-core-pinned + `yes`) with a probe logging the button's own `disabled` attribute immediately
+ *  before `fireEvent.click` — `disabled=true` on the failing run, `otpModalOpen` never flipped. The
+ *  preflight-focused describe block above already gets this right
+ *  (`await waitFor(() => expect(button).not.toBeDisabled())`); this helper used to skip it. */
 async function openResetModalAndFillForm() {
-  fireEvent.click(await screen.findByTestId("danger-reset-company-data-button"))
+  const button = await screen.findByTestId("danger-reset-company-data-button")
+  await waitFor(() => expect(button).not.toBeDisabled())
+  fireEvent.click(button)
   await screen.findByTestId("danger-otp-input", {}, { timeout: DIALOG_MOUNT_TIMEOUT_MS })
   fireEvent.change(screen.getByTestId("danger-otp-input"), { target: { value: "12345678" } })
   fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "RESET" } })
@@ -223,13 +251,25 @@ describe("<DangerZoneSettings> — reset company data: OTP transport", () => {
     })
 
     renderScreen()
-    fireEvent.click(await screen.findByTestId("danger-reset-company-data-button"))
+    // Wait for the button to actually be enabled before clicking it — see
+    // `openResetModalAndFillForm`'s own comment: it stays `disabled` until the preflight GET
+    // resolves, and a click that fires before that is a silent no-op, not merely a slow one. This is
+    // THE bug this specific test kept losing to in CI (`toast.error` never called — not the button's
+    // rendering being late, the click never having started anything in the first place).
+    const button = await screen.findByTestId("danger-reset-company-data-button")
+    await waitFor(() => expect(button).not.toBeDisabled())
+    fireEvent.click(button)
 
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Locked out", {
-        description:
-          "Too many failed attempts. This action is locked for your company and can no longer be confirmed by a one-time code.",
-      }),
+    // Same `DIALOG_MOUNT_TIMEOUT_MS` budget as every other wait downstream of a click on this page —
+    // see that constant's own comment: this assertion is gated behind the identical CPU-bound
+    // render/commit cost, not a real timer.
+    await waitFor(
+      () =>
+        expect(toast.error).toHaveBeenCalledWith("Locked out", {
+          description:
+            "Too many failed attempts. This action is locked for your company and can no longer be confirmed by a one-time code.",
+        }),
+      { timeout: DIALOG_MOUNT_TIMEOUT_MS },
     )
     // Not the generic fallback path — the raw, untranslated backend string never reaches the toast.
     expect(toast.error).not.toHaveBeenCalledWith("Failed to send verification code", expect.anything())
@@ -301,7 +341,9 @@ describe("<DangerZoneSettings> — delete company: OTP + company name transport"
     fireEvent.change(screen.getByTestId("danger-confirm-input"), { target: { value: "Acme Corp" } })
     fireEvent.click(screen.getByTestId("danger-modal-confirm"))
 
-    await waitFor(() => expect(refetch).toHaveBeenCalled())
+    // Same budget as `DIALOG_MOUNT_TIMEOUT_MS` above — this is the same page's same render/commit
+    // cost, just gated on `executeReset`'s success chain instead of the modal opening.
+    await waitFor(() => expect(refetch).toHaveBeenCalled(), { timeout: DIALOG_MOUNT_TIMEOUT_MS })
   })
 
   it("hands off to afterCompanyGone (a hard reload) once the session refetch settles, never a plain SPA navigate", async () => {
@@ -322,7 +364,8 @@ describe("<DangerZoneSettings> — delete company: OTP + company name transport"
 
     // The exact regression this proves: the screen no longer merely calls the SPA router's
     // `navigate("/dashboard")` (which would leave every other company-scoped query cached under
-    // the just-deleted company) — it hands off to the shared hard-reload helper instead.
-    await waitFor(() => expect(afterCompanyGone).toHaveBeenCalled())
+    // the just-deleted company) — it hands off to the shared hard-reload helper instead. Same
+    // `DIALOG_MOUNT_TIMEOUT_MS` budget as every other wait on this page, for the same reason.
+    await waitFor(() => expect(afterCompanyGone).toHaveBeenCalled(), { timeout: DIALOG_MOUNT_TIMEOUT_MS })
   })
 })

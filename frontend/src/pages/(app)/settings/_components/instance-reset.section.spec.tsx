@@ -57,11 +57,21 @@ function renderSection() {
   )
 }
 
-/** Same reasoning as `danger.settings.spec.tsx`'s own comment on this constant: `openModal` flips
- *  `otpModalOpen` synchronously, before the OTP POST even fires, and Radix mounts the dialog via
- *  `useLayoutEffect` — nothing here actually waits on a timer or an unresolved request. The default
- *  `findBy*` budget (1000ms) is just tight for the synchronous render/commit cost of this page under
- *  CPU contention (a loaded shared CI runner), reproduced locally the same way. */
+/** Same render-cost reasoning as `danger.settings.spec.tsx`'s own comment on this constant: `openModal`
+ *  flips `otpModalOpen` synchronously, before the OTP POST even fires, and Radix mounts the dialog via
+ *  `useLayoutEffect` — nothing here waits on a timer or an unresolved request. The default
+ *  `findBy*`/`waitFor` budget (1000ms) is just tight for the synchronous render/commit cost of this
+ *  page under CPU contention (a loaded shared CI runner), reproduced locally the same way. Applied to
+ *  every wait downstream of a click here, not only the modal-mount one — see
+ *  `.github/workflows/cypress.yml`'s own `--maxWorkers` comment for the actual contention fix; this
+ *  constant only keeps the test from losing the race against it.
+ *
+ *  UNLIKE the sibling file, this one does NOT also need a "wait for the button to be enabled before
+ *  clicking" guard: `instance-reset-button` has no `disabled` prop of its own (see the component —
+ *  only `loading={requestOtp.isPending}`, false until a request actually starts), so it is never
+ *  gated behind a pending preflight fetch the way `danger-reset-company-data-button` is. That gating
+ *  is what made a click there a silent no-op under contention (see the sibling file's own comment on
+ *  its `DIALOG_MOUNT_TIMEOUT_MS` for the actual repro) — a mechanism this file's button cannot hit. */
 const DIALOG_MOUNT_TIMEOUT_MS = 5000
 
 /** Vitest's own default test budget is 5000 ms too — the same number as the wait above. So a test
@@ -135,7 +145,11 @@ describe("<InstanceResetSection>", () => {
     // Same discipline `danger.settings.spec.tsx` proves for the company-scoped screen: never a query
     // string for the OTP (or here, the confirmation word either).
     expect(capturedUrl?.search).toBe("")
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/auth/log-out"))
+    // Same `DIALOG_MOUNT_TIMEOUT_MS` budget — gated behind `confirmReset`'s own success chain, the
+    // same render/commit cost as every other wait on this page.
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/auth/log-out"), {
+      timeout: DIALOG_MOUNT_TIMEOUT_MS,
+    })
   })
 
   it("keeps the confirm button disabled until the confirmation word matches EXACTLY", async () => {
@@ -169,13 +183,18 @@ describe("<InstanceResetSection>", () => {
     renderSection()
     fireEvent.click(await screen.findByTestId("instance-reset-button"))
 
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(
-        "Locked out",
-        expect.objectContaining({
-          description: expect.stringContaining("locked for your account"),
-        }),
-      ),
+    // Same `DIALOG_MOUNT_TIMEOUT_MS` budget as `openModalAndFillForm`'s own wait — see that
+    // constant's comment; `danger.settings.spec.tsx`'s identical "locked out" test is the one that
+    // actually failed in CI on the unwidened default this used to have too.
+    await waitFor(
+      () =>
+        expect(toast.error).toHaveBeenCalledWith(
+          "Locked out",
+          expect.objectContaining({
+            description: expect.stringContaining("locked for your account"),
+          }),
+        ),
+      { timeout: DIALOG_MOUNT_TIMEOUT_MS },
     )
   })
 })

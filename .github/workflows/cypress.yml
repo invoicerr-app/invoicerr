@@ -47,8 +47,21 @@ jobs:
       - name: Install frontend dependencies
         run: cd frontend && npm ci
 
+      # `--maxWorkers=2`, same reasoning and same number as the backend job's own Vitest step below:
+      # `npm test` alone lets Vitest default to (CPUs - 1) workers, which suits a developer machine
+      # with cores to spare but oversubscribes a GitHub runner's much smaller core count — every
+      # CPU-bound render/commit in this suite (jsdom + React + Tailwind's `cn()` + i18n
+      # interpolation) then slows down together under that contention. This is a defense-in-depth
+      # measure, NOT the fix for the actual bug that used to make `danger.settings.spec.tsx` fail
+      # twice in a row on one commit (a different assertion each time): that was
+      # `openResetModalAndFillForm` clicking a still-`disabled` button — a real no-op, not a slow one,
+      # no amount of CI headroom would have out-waited it — fixed at the test level (see that file's
+      # own `DIALOG_MOUNT_TIMEOUT_MS` comment for the proof and the fix). What genuine host contention
+      # DOES still cost here is real render/commit time on assertions gated behind an ENABLED click
+      # (~3ms idle vs ~980ms measured under a 2-core+`yes` repro) — fewer, less-contended workers
+      # gives each one a real core against that, the same way it already does for the backend suite.
       - name: Run frontend unit tests (vitest)
-        run: cd frontend && npm test
+        run: cd frontend && npx vitest run --maxWorkers=2
 
   i18n-check:
     runs-on: ubuntu-latest
