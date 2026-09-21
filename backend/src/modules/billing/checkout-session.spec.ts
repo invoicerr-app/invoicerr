@@ -17,12 +17,17 @@ import {
   releaseCheckoutWindow,
   reserveCheckoutWindow,
 } from './company-subscription.store';
+import { invalidateCompanyCustomerFactsCache } from './legacy-customer';
 
 vi.mock('./billing-customer', () => ({
   loadCompanyBillingIdentity: vi.fn(),
   getOrCreatePolarCustomerForCompany: vi.fn(),
 }));
 vi.mock('./company-subscription.store');
+// See `webhook-handlers.spec.ts`'s own comment on why this is mocked rather than left real: nothing
+// here needs the real cache, only proof this write site calls it — the other half of the fix for the
+// reported double-billing defect (`legacy-customer.ts`'s own header).
+vi.mock('./legacy-customer', () => ({ invalidateCompanyCustomerFactsCache: vi.fn() }));
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
@@ -40,6 +45,7 @@ const getOrCreateSub = getOrCreateCompanySubscription as Mock;
 const reserveWindow = reserveCheckoutWindow as Mock;
 const releaseWindow = releaseCheckoutWindow as Mock;
 const warn = logger.warn as Mock;
+const invalidateFacts = invalidateCompanyCustomerFactsCache as Mock;
 
 /** Shape of Polar's own `HTTPValidationError` (422) — same fixture convention
  *  `customer-provisioning.spec.ts` already uses for the sibling "email already exists" case. */
@@ -161,6 +167,10 @@ describe('createCheckoutSession', () => {
     expect(reserveWindow).toHaveBeenCalledWith('company-1', CHECKOUT_IN_PROGRESS_WINDOW_MS);
     expect(releaseWindow).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'https://sandbox.polar.sh/checkout/abc', redirect: true });
+    // Right after `getOrCreatePolarCustomerForCompany` resolves — the exact instant this company's own
+    // `hasCompanyCustomer` can flip false→true (`legacy-customer.ts`'s own header, the reported
+    // double-billing defect this closes for the same process's own cached facts).
+    expect(invalidateFacts).toHaveBeenCalledWith('company-1');
   });
 
   it('omits the billing address when the country cannot be resolved to a real ISO code, never fabricating one', async () => {

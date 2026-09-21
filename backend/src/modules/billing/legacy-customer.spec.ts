@@ -5,6 +5,7 @@ import {
   CompanyCustomerFactsClient,
   getCompanyCustomerFacts,
   hasLegacyPolarCustomer,
+  invalidateCompanyCustomerFactsCache,
   resetCompanyCustomerFactsCacheForTests,
   resetLegacyPortalAvailabilityCacheForTests,
 } from './legacy-customer';
@@ -144,6 +145,94 @@ describe('getCompanyCustomerFacts', () => {
 
     await getCompanyCustomerFacts(s, client, 5 * 60_000 + 1);
     expect(getExternal).toHaveBeenCalledTimes(2);
+  });
+
+  // The reported live defect: after a company subscribed successfully, the billing screen kept
+  // showing "Subscribe yearly"/"Subscribe monthly" for up to five minutes, and clicking one started a
+  // SECOND Polar subscription — traced to `hasCompanyCustomer: false` cached from a dashboard load
+  // BEFORE the company ever checked out, still being served well after the checkout completed.
+  describe('the reported double-billing defect (a confirmed absence must never be trusted stale)', () => {
+    it('never caches a CONFIRMED absence (404) — every call re-verifies directly against Polar, which is what actually keeps this correct across every API replica/worker process, not just this one', async () => {
+      const getExternal = vi.fn().mockRejectedValue(notFoundError());
+      const client = fakeClient({ customers: { getExternal, getState: vi.fn() } });
+      const s = sub({ polarCustomerId: null });
+
+      await getCompanyCustomerFacts(s, client, 0);
+      // Still well inside the old 5-minute cache window — a fresh Polar check happens anyway.
+      await getCompanyCustomerFacts(s, client, 60_000);
+
+      expect(getExternal).toHaveBeenCalledTimes(2);
+    });
+
+    it('DOES still cache a genuine Polar-outage negative (an unrelated failure) — the cache exists so this check does not hammer an already-failing Polar on every status poll', async () => {
+      const getExternal = vi.fn().mockRejectedValue(new Error('polar is down'));
+      const client = fakeClient({ customers: { getExternal } });
+      const s = sub({ polarCustomerId: 'cus_old' });
+
+      await getCompanyCustomerFacts(s, client, 0);
+      await getCompanyCustomerFacts(s, client, 60_000);
+
+      expect(getExternal).toHaveBeenCalledTimes(1);
+    });
+
+    it(
+      'reproduces the defect directly: a company checking out — the write sites (checkout-session.ts, ' +
+        'customer-provisioning.ts, webhook-handlers.ts) call invalidateCompanyCustomerFactsCache — sees ' +
+        'the fresh answer immediately, well inside the window a stale cache used to keep answering false',
+      async () => {
+        const getExternal = vi
+          .fn()
+          .mockRejectedValueOnce(notFoundError()) // the dashboard load BEFORE the company subscribed
+          .mockResolvedValueOnce({ id: 'cus_company' }); // Polar now has the company-scoped customer
+        const client = fakeClient({ customers: { getExternal, getState: vi.fn() } });
+        const s = sub({ polarCustomerId: null });
+
+        expect(await getCompanyCustomerFacts(s, client, 0)).toEqual({
+          hasCompanyCustomer: false,
+          legacySubscription: false,
+        });
+
+        invalidateCompanyCustomerFactsCache('company-1');
+
+        expect(await getCompanyCustomerFacts(s, client, 60_000)).toEqual({
+          hasCompanyCustomer: true,
+          legacySubscription: false,
+        });
+        expect(getExternal).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    it('invalidateCompanyCustomerFactsCache also clears a cached CONFIRMED true — belt-and-braces for the single-process case', async () => {
+      const getExternal = vi.fn().mockResolvedValue({ id: 'cus_company' });
+      const client = fakeClient({ customers: { getExternal, getState: vi.fn() } });
+      const s = sub({ polarCustomerId: 'cus_company' });
+
+      await getCompanyCustomerFacts(s, client, 0);
+      invalidateCompanyCustomerFactsCache('company-1');
+      await getCompanyCustomerFacts(s, client, 60_000);
+
+      expect(getExternal).toHaveBeenCalledTimes(2);
+    });
+
+    it('invalidateCompanyCustomerFactsCache only clears the named company, never every company (unlike resetCompanyCustomerFactsCacheForTests)', async () => {
+      const getExternalA = vi.fn().mockResolvedValue({ id: 'cus_a' });
+      const getExternalB = vi.fn().mockResolvedValue({ id: 'cus_b' });
+      const clientA = fakeClient({ customers: { getExternal: getExternalA, getState: vi.fn() } });
+      const clientB = fakeClient({ customers: { getExternal: getExternalB, getState: vi.fn() } });
+      const subA = sub({ companyId: 'company-a', polarCustomerId: 'cus_a' });
+      const subB = sub({ companyId: 'company-b', polarCustomerId: 'cus_b' });
+
+      await getCompanyCustomerFacts(subA, clientA, 0);
+      await getCompanyCustomerFacts(subB, clientB, 0);
+
+      invalidateCompanyCustomerFactsCache('company-a');
+
+      await getCompanyCustomerFacts(subA, clientA, 60_000);
+      await getCompanyCustomerFacts(subB, clientB, 60_000);
+
+      expect(getExternalA).toHaveBeenCalledTimes(2); // invalidated — re-checked
+      expect(getExternalB).toHaveBeenCalledTimes(1); // untouched — still cached
+    });
   });
 });
 

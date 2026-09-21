@@ -46,6 +46,56 @@
  * Cached the same 5-minute-per-company way `status-reconcile.ts` already caches its own Polar calls —
  * this is a genuine extra network round-trip per company on every `GET /api/billing/status`, so it must
  * not turn a dashboard tab left open into a Polar API hot loop.
+ *
+ * ## Stale `hasCompanyCustomer: false` caused double billing (2026-09-21)
+ *
+ * Observed live: a company subscribed successfully (`CompanySubscription` row `ACTIVE`,
+ * `polarCustomerId`/`polarSubscriptionId` both set), yet `billing.settings.tsx` kept showing "Subscribe
+ * yearly"/"Subscribe monthly" for up to five minutes — `canSubscribe` there is `status !== "ACTIVE" ||
+ * !hasCompanyCustomer`, and clicking Subscribe again started a SECOND Polar subscription. Root cause: a
+ * dashboard load BEFORE the company ever checked out cached `hasCompanyCustomer: false` for the full
+ * `FACTS_CACHE_MS` window, and nothing invalidated it the moment that answer flipped.
+ *
+ * Two changes fix it, at two different layers:
+ *
+ * 1. `invalidateCompanyCustomerFactsCache` below is called at every write site that can flip
+ *    `hasCompanyCustomer` from false to true (`checkout-session.ts` right after
+ *    `getOrCreatePolarCustomerForCompany` actually resolves a customer, `customer-provisioning.ts`'s own
+ *    `persistPolarCustomerId`, `webhook-handlers.ts#applySubscriptionWebhook`'s own
+ *    `polarCustomerId` write). This is a real fix, but only within ONE Node process: the cache is a
+ *    plain module-level `Map`, and this deployment runs several API replicas behind a load balancer plus
+ *    separate worker processes (`entrypoint.sh`'s `ROLE` split) — a webhook landing on the worker, or on
+ *    a DIFFERENT API replica than the one that answers the user's next `GET /billing/status`, cannot
+ *    reach this process's own `Map` at all. So (1) alone genuinely does NOT fix the reported defect
+ *    under the real topology — it only narrows the window in the single-process/test case the reproducing
+ *    spec below exercises.
+ *
+ * 2. `getCompanyCustomerFacts` itself now only caches a CONFIRMED `hasCompanyCustomer: true` (a
+ *    successful `getExternal`) or a genuine Polar-outage negative (an unrelated error, where NOT caching
+ *    would hammer a currently-failing Polar on every single status poll for the whole outage). A
+ *    CONFIRMED absence (a clean 404 — "no company-scoped customer exists, full stop") is never cached at
+ *    all: every call re-verifies it directly against Polar, which is shared, durable, cross-process state
+ *    every replica and worker reads identically — no invalidation signal needs to travel between
+ *    processes for this to be correct. This is the fix that actually holds under the real topology; (1)
+ *    is kept anyway because it still shortens the window within a single process (and is what the
+ *    reproducing test below exercises directly), and because a future caller that DOES cache negative
+ *    results again should not have to rediscover why per-company invalidation matters.
+ *
+ * Why not the other two options considered: a short TTL for the negative case only shrinks the window,
+ * it does not close it — under this topology any TTL still lets a request that lands on a stale replica
+ * observe `false` after the fact already flipped elsewhere, so it trades an accidental five minutes for
+ * a chosen (smaller) accidental window instead of removing the race. Deriving `hasCompanyCustomer` from
+ * `CompanySubscription.polarCustomerId` (the DB row every process already reads, no cache at all) was
+ * rejected for a sharper reason: that column also holds a PRE-migration, per-USER customer id
+ * (`legacySubscription`'s own whole reason to exist, this file's header above) until a fresh webhook or
+ * provisioning pass overwrites it — a company with only a legacy customer would read `hasCompanyCustomer:
+ * true` from the DB alone, which is exactly the 2026-09-16 incident this whole module was built to stop
+ * recurring (a "Manage subscription" button with nothing company-scoped behind it). Telling a legacy
+ * customer apart from a company-scoped one is a Polar-side fact this app's own schema does not carry, so
+ * the live check stays required — this fix only changes what the ANSWER "no, not yet" is allowed to cost.
+ * A `true` answer is never subject to this distinction (a confirmed company-scoped customer from a live
+ * `getExternal` IS the company-scoped one, by construction), which is also why caching a stale `true`
+ * stays safe: nothing in this app's normal flow ever deletes a company's own Polar customer.
  */
 import { logger } from '@/logger/logger.service';
 
@@ -66,6 +116,22 @@ const lastFactsByCompanyId = new Map<string, CompanyCustomerFacts>();
 export function resetCompanyCustomerFactsCacheForTests(): void {
   lastCheckedAtByCompanyId.clear();
   lastFactsByCompanyId.clear();
+}
+
+/**
+ * Clears ONE company's cached facts — called at every write site that can flip `hasCompanyCustomer`
+ * false→true (see this file's own header, "Stale `hasCompanyCustomer: false` caused double billing").
+ * Deliberately NOT `resetCompanyCustomerFactsCacheForTests` above: that one wipes EVERY company's entry
+ * and exists purely so a spec starts from a clean slate — reusing it here would mean one company
+ * finishing checkout silently discards every OTHER company's still-valid cached facts on whichever
+ * process happens to run this code path, forcing a needless Polar re-check for accounts that have
+ * nothing to do with this write. Only actually closes the reported race within a single Node process —
+ * see this file's own header on why `getCompanyCustomerFacts` no longer caching a confirmed-negative
+ * answer at all is what makes the fact correct across the real multi-replica/worker topology too.
+ */
+export function invalidateCompanyCustomerFactsCache(companyId: string): void {
+  lastCheckedAtByCompanyId.delete(companyId);
+  lastFactsByCompanyId.delete(companyId);
 }
 
 /** Narrow, mockable subset of the `Polar` SDK client this module calls — same convention every other
@@ -153,8 +219,16 @@ export async function getCompanyCustomerFacts(
     : false;
 
   const facts: CompanyCustomerFacts = { hasCompanyCustomer, legacySubscription };
-  lastCheckedAtByCompanyId.set(sub.companyId, now);
-  lastFactsByCompanyId.set(sub.companyId, facts);
+  // Only a CONFIRMED "yes" is cached — never a confirmed "no" (the 404 branch above falls through to
+  // here with `hasCompanyCustomer` still `false`). See this file's own header: a stale `true` is
+  // harmless (nothing in this app's normal flow deletes a company's own Polar customer), but a stale
+  // `false` is exactly what let the reported double-billing defect happen, and this is the one change
+  // that keeps the answer correct across every replica/worker process rather than just this one — no
+  // invalidation signal needs to travel anywhere, the next call simply asks Polar again directly.
+  if (hasCompanyCustomer) {
+    lastCheckedAtByCompanyId.set(sub.companyId, now);
+    lastFactsByCompanyId.set(sub.companyId, facts);
+  }
   return facts;
 }
 

@@ -36,6 +36,7 @@ import {
   releaseCheckoutWindow,
   reserveCheckoutWindow,
 } from './company-subscription.store';
+import { invalidateCompanyCustomerFactsCache } from './legacy-customer';
 import { getPolarClient } from './polar-client';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
@@ -278,6 +279,13 @@ export async function createCheckoutSession(
   try {
     const company = await loadCompanyBillingIdentity(params.companyId);
     await getOrCreatePolarCustomerForCompany(company, client);
+    // This is the exact instant a company's own `hasCompanyCustomer` can flip false→true — whether the
+    // call above just CREATED the customer or found one already there, this process's own cached facts
+    // (`legacy-customer.ts#getCompanyCustomerFacts`) must not keep answering the "no customer yet" it
+    // may have cached the last time THIS company loaded the billing screen. See that module's own
+    // header for why this alone is not the full fix (a different replica's cache is untouched by this)
+    // and what closes the gap for real.
+    invalidateCompanyCustomerFactsCache(params.companyId);
 
     const { details, vatNumber } = await loadCheckoutBillingDetails(params.companyId);
     const taxId = resolveCheckoutTaxId({

@@ -6,6 +6,9 @@ import prisma from '@/prisma/prisma.service';
 import { BillingCustomerClient } from './billing-customer';
 import { recordPolarCustomerId } from './company-subscription.store';
 import { CUSTOMER_PROVISIONING_BATCH_SIZE, reconcileMissingCompanyCustomers } from './customer-provisioning';
+import { invalidateCompanyCustomerFactsCache } from './legacy-customer';
+
+vi.mock('./legacy-customer', () => ({ invalidateCompanyCustomerFactsCache: vi.fn() }));
 
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -25,6 +28,7 @@ const findMany = prisma.company.findMany as Mock;
 const findUniqueOrThrow = prisma.company.findUniqueOrThrow as Mock;
 const warn = logger.warn as Mock;
 const recordCustomerId = recordPolarCustomerId as Mock;
+const invalidateFacts = invalidateCompanyCustomerFactsCache as Mock;
 
 /** The WHERE this file's own query filters on — a company still missing a known Polar customer id. */
 const MISSING_CUSTOMER_WHERE = { OR: [{ subscription: null }, { subscription: { polarCustomerId: null } }] };
@@ -308,6 +312,10 @@ describe('reconcileMissingCompanyCustomers', () => {
     await reconcileMissingCompanyCustomers(client);
 
     expect(recordCustomerId).toHaveBeenCalledWith('company-a', 'cus_a');
+    // The write that resolves `hasCompanyCustomer` from false to true for a company this pass just
+    // discovered already had a Polar customer this app never recorded locally — see
+    // `legacy-customer.ts`'s own header on the reported double-billing defect this closes.
+    expect(invalidateFacts).toHaveBeenCalledWith('company-a');
   });
 
   it('persists the Polar customer id for a newly-created customer', async () => {
@@ -319,6 +327,7 @@ describe('reconcileMissingCompanyCustomers', () => {
     await reconcileMissingCompanyCustomers(client);
 
     expect(recordCustomerId).toHaveBeenCalledWith('company-a', 'cus_new');
+    expect(invalidateFacts).toHaveBeenCalledWith('company-a');
   });
 
   it('never counts a company as failed just because persisting its confirmed customer id failed', async () => {
@@ -337,6 +346,9 @@ describe('reconcileMissingCompanyCustomers', () => {
       skipped: 0,
       failed: 0,
     });
+    // The DB write never landed, so there is nothing to invalidate — see this file's own
+    // `persistPolarCustomerId`: the invalidation call sits right after the write it depends on.
+    expect(invalidateFacts).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('Failed to persist'),
       expect.objectContaining({

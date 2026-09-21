@@ -6,6 +6,7 @@ import {
   getOrCreateCompanySubscription,
   recomputeStatusForVanishedSubscription,
 } from './company-subscription.store';
+import { invalidateCompanyCustomerFactsCache } from './legacy-customer';
 import {
   applySubscriptionWebhook,
   handleSubscriptionPayload,
@@ -21,12 +22,18 @@ vi.mock('@/prisma/prisma.service', () => ({
   },
 }));
 vi.mock('./company-subscription.store');
+// Real `invalidateCompanyCustomerFactsCache` only ever touches its own module-level `Map`s (never
+// throws, nothing to assert on indirectly) — mocked here so this file can assert DIRECTLY on the one
+// thing that matters for this spec: is it called, with the right companyId, exactly when a real fact
+// actually gets written (see `legacy-customer.ts`'s own header on why this write site invalidates).
+vi.mock('./legacy-customer', () => ({ invalidateCompanyCustomerFactsCache: vi.fn() }));
 
 const update = prisma.companySubscription.update as Mock;
 const findLegacyRow = prisma.companySubscription.findFirst as Mock;
 const findCompany = prisma.company.findUnique as Mock;
 const getOrCreate = getOrCreateCompanySubscription as Mock;
 const recomputeVanished = recomputeStatusForVanishedSubscription as Mock;
+const invalidateFacts = invalidateCompanyCustomerFactsCache as Mock;
 
 describe('mapPolarSubscriptionStatus', () => {
   it.each(['active', 'trialing'])('%s maps to ACTIVE', (status) => {
@@ -87,6 +94,32 @@ describe('applySubscriptionWebhook', () => {
         seatPaymentFailedAt: null,
       },
     });
+    // The instant `hasCompanyCustomer` can flip false→true for this company — see
+    // `legacy-customer.ts`'s own header on the reported double-billing defect this closes.
+    expect(invalidateFacts).toHaveBeenCalledWith('company-1');
+  });
+
+  it('never invalidates the cache when the status write itself was held back (still inside the trial, no real fact applied)', async () => {
+    getOrCreate.mockResolvedValue({
+      companyId: 'company-1',
+      status: 'TRIAL',
+      trialEndsAt: new Date('2026-09-20T00:00:00Z'),
+      lastPolarFactAt: null,
+    });
+
+    await applySubscriptionWebhook(
+      {
+        companyId: 'company-1',
+        polarSubscriptionId: 'sub_1',
+        polarCustomerId: 'cus_1',
+        status: 'incomplete',
+        recurringInterval: 'month',
+      },
+      new Date('2026-09-16T00:00:00Z'),
+    );
+
+    expect(update).not.toHaveBeenCalled();
+    expect(invalidateFacts).not.toHaveBeenCalled();
   });
 
   it('writes the seats field when the webhook carries one — the only direction seat quantity ever flows in', async () => {

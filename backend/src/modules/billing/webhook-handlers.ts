@@ -65,6 +65,7 @@ import {
   getOrCreateCompanySubscription,
   recomputeStatusForVanishedSubscription,
 } from './company-subscription.store';
+import { invalidateCompanyCustomerFactsCache } from './legacy-customer';
 
 /**
  * Polar's own `SubscriptionStatus` values (`@polar-sh/sdk`'s `models/components/subscriptionstatus`)
@@ -301,6 +302,13 @@ export async function applySubscriptionWebhook(
         : {}),
     },
   });
+
+  // This write just recorded a real Polar customer/subscription fact for this company — the same
+  // false→true instant for `hasCompanyCustomer` that `checkout-session.ts`/`customer-provisioning.ts`
+  // invalidate for their own callers. See `legacy-customer.ts`'s own header on why this alone does not
+  // fix the reported defect under a multi-replica/worker deployment (this webhook can land on a process
+  // whose cache is not the one a subsequent status poll reads) and what actually does.
+  invalidateCompanyCustomerFactsCache(facts.companyId);
 }
 
 /** Structurally typed from whatever a Polar subscription webhook's own `data` carries — every one of

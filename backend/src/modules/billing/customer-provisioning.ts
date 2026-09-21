@@ -52,6 +52,7 @@ import {
   resolveBillingEmail,
 } from './billing-customer';
 import { recordPolarCustomerId } from './company-subscription.store';
+import { invalidateCompanyCustomerFactsCache } from './legacy-customer';
 import { MemberResolutionClient } from './member-resolution';
 import { ensureCompanyBillingMember } from './member-sync';
 import { callPolarWithRetry, getPolarClient } from './polar-client';
@@ -138,6 +139,10 @@ async function checkCustomerExists(
 async function persistPolarCustomerId(companyId: string, polarCustomerId: string): Promise<void> {
   try {
     await recordPolarCustomerId(companyId, polarCustomerId);
+    // This boot/sweep pass just confirmed (or created) this company's Polar customer — the same
+    // false→true instant `checkout-session.ts` invalidates for its own caller, see
+    // `legacy-customer.ts`'s own header on why a cached "no customer yet" must not outlive this write.
+    invalidateCompanyCustomerFactsCache(companyId);
   } catch (error) {
     logger.warn('Failed to persist a confirmed Polar customer id — retried next pass', {
       category: 'billing',
