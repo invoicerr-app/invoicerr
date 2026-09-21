@@ -7,12 +7,12 @@
  * other test noticing:
  *
  *  1. `time-tracking:*` must NOT be a document scope. `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES`
- *     (`utils/scope-check.ts`) are `API_KEY_SCOPES` minus an exclusion list, so a pair declared in
- *     `api-keys/scopes.ts` and left out of that list joins them silently — and every scope in them
- *     satisfies the coarse "holds ANY document scope" fallback that `AuthGuard` applies to the
+ *     (`utils/scope-check.ts`) are a POSITIVE allow-list of document-type resources, so `time-tracking`
+ *     is a document scope only if someone deliberately adds it there — and every scope in those two
+ *     arrays satisfies the coarse "holds ANY document scope" fallback that `AuthGuard` applies to the
  *     document routes spanning every type (`GET /documents/dashboard` and its siblings). A key minted
- *     to log an hour would then read the company's quotes, invoices and credit notes. Asserted below
- *     against `listDashboardWidgets`, which is that fallback's own route.
+ *     to log an hour must never read the company's quotes, invoices and credit notes through that
+ *     fallback. Asserted below against `listDashboardWidgets`, which is that fallback's own route.
  *  2. The pair is not folded onto `invoices:*`. A key that may write invoices cannot log time, and a
  *     key that may log time cannot write documents — asserted in both directions, because either
  *     inclusion would be a widening nobody asked for.
@@ -150,8 +150,8 @@ describe('AuthGuard — the time-tracking scopes gate time tracking and nothing 
   });
 
   // Point 1: the coarse fallback. `listDashboardWidgets` is an 'every-type' document route, so it is
-  // granted by ANY document scope and by no other — which is precisely what a time-tracking scope
-  // would become if it were ever left out of the entity exclusion list the derivation subtracts.
+  // granted by ANY document scope and by no other — which time-tracking must never become, and does
+  // not, precisely because it is absent from the positive `DOCUMENT_TYPE_RESOURCES` allow-list.
   it('refuses a time-tracking key on the document route granted by ANY document scope', async () => {
     const rawKey = await createApiKey(['time-tracking:read', 'time-tracking:write']);
     await expect(

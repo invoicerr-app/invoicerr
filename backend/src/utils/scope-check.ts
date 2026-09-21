@@ -1,6 +1,6 @@
 import { applyDecorators, SetMetadata } from '@nestjs/common';
 
-import { API_KEY_SCOPES, ApiKeyScope, isApiKeyScope } from '@/modules/api-keys/scopes';
+import { ApiKeyScope, isApiKeyScope } from '@/modules/api-keys/scopes';
 import { RequestWithUser } from '@/types/request';
 
 // Session (human) auth is never scope-restricted — its access is governed
@@ -18,40 +18,43 @@ export function hasAnyScope(request: Pick<RequestWithUser, 'scopes'>, scopes: Ap
   return scopes.some((scope) => hasScope(request, scope));
 }
 
-/** Real business entities read/written DIRECTLY (`clients:*`/`articles:*`/`time-tracking:*`) — never
- *  resolved through the document-type registry, so never part of the document-scope predicates below.
- *  Moved here from `mcp/tools/scope-mapping.ts` (still re-exported there) so a REST controller can use
- *  the exact same computation the MCP tool layer already relies on, rather than a second, drifting
- *  one.
+/** The document-type RESOURCES the document engine ships today, named ONCE — the read/write scope
+ *  pair for each is derived below by template literal, matching the exact `<resource>:<mode>` shape
+ *  `scopeForDocumentType` already computes for a `typeId`. This is a POSITIVE allow-list: a resource
+ *  NOT named here is granted NOTHING by `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES`, no matter
+ *  what pair later joins `API_KEY_SCOPES` — the deliberate inverse of what used to live here.
  *
- *  This list is a SUBTRACTION: the two predicates below are `API_KEY_SCOPES` MINUS everything named
- *  here. So a new non-document pair added to `api-keys/scopes.ts` and nowhere else does not stay
- *  neutral — it JOINS `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES`, and its holder thereby
- *  satisfies the coarse "holds ANY document scope" fallback `hasAnyDocumentScope` applies to every
- *  'every-type' document route. Naming the pair here is the whole of what prevents that. */
-const ENTITY_SCOPES: readonly ApiKeyScope[] = [
-  'clients:read',
-  'clients:write',
-  'articles:read',
-  'articles:write',
-  // Time tracking: a project is a billing bucket for logged hours, not a document type — nothing
-  // registers a descriptor for it, and `scopeForDocumentType` could never compute either of these
-  // names. A key allowed to log an hour must not thereby be able to read the company's documents,
-  // which is exactly what leaving these two out of this list would grant it.
-  'time-tracking:read',
-  'time-tracking:write',
-];
+ *  It used to be a SUBTRACTION: the two arrays were "every `API_KEY_SCOPES` pair MINUS an exclusion
+ *  list of known non-document entities" (`clients`, `articles`, `time-tracking`). That shape is only
+ *  as safe as the exclusion list staying exhaustive forever, and it didn't: four more non-document
+ *  pairs (`company`, `api-keys`, `webhooks`, `billing`) were added to `api-keys/scopes.ts` after the
+ *  exclusion list was written and nobody added them to it, so each of their bare `:read` scopes
+ *  satisfied `hasAnyDocumentScope(request, 'read')` (the coarse fallback every 'every-type' document
+ *  route falls back to when no `typeId` is named) — a key minted with nothing but `billing:read`
+ *  could read the company's quotes, invoices and every other document. A positive list fails the
+ *  other way instead: an unclassified resource is excluded by DEFAULT, and the completeness check in
+ *  `scope-check.spec.ts` turns "forgot to classify a new resource" into a red test rather than a
+ *  silent grant.
+ *
+ *  Typed by indexing INTO `ApiKeyScope` via template literal, not cast down from bare strings: a typo
+ *  here (`'quote'` for `'quotes'`) makes `` `${typo}:read` `` a string that is not a member of the
+ *  `ApiKeyScope` union, so the `.map` below fails to COMPILE rather than silently producing a shorter
+ *  array — the same "adding a type is the only change ever needed" property the old comment promised,
+ *  now enforced by the type checker instead of by nobody forgetting to update an exclusion list. */
+const DOCUMENT_TYPE_RESOURCES = [
+  'quotes',
+  'invoices',
+  'credit-notes',
+  'expenses',
+  'received-invoices',
+] as const;
 
-/** Every declared scope for an actual DOCUMENT TYPE (quotes/invoices/credit-notes/expenses/
- *  received-invoices), split by read vs write — everything in `API_KEY_SCOPES` minus the two entity
- *  pairs above. Adding a scope pair for a new document type to `API_KEY_SCOPES` is the only change
- *  ever needed to extend both of these; nothing here is ever hand-edited for a new type. */
-export const DOCUMENT_READ_SCOPES: ApiKeyScope[] = API_KEY_SCOPES.filter(
-  (scope) => scope.endsWith(':read') && !ENTITY_SCOPES.includes(scope),
+export const DOCUMENT_READ_SCOPES: ApiKeyScope[] = DOCUMENT_TYPE_RESOURCES.map(
+  (resource): ApiKeyScope => `${resource}:read`,
 );
 
-export const DOCUMENT_WRITE_SCOPES: ApiKeyScope[] = API_KEY_SCOPES.filter(
-  (scope) => scope.endsWith(':write') && !ENTITY_SCOPES.includes(scope),
+export const DOCUMENT_WRITE_SCOPES: ApiKeyScope[] = DOCUMENT_TYPE_RESOURCES.map(
+  (resource): ApiKeyScope => `${resource}:write`,
 );
 
 /**

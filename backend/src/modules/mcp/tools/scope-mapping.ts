@@ -30,10 +30,10 @@
  *     (country/status/implementation/validation) — it is never a substitute for them, and never
  *     touches them: a scope-denied call here never reaches `runAction`/`ShareLinksService` at all.
  *
- * `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES` are derived from `API_KEY_SCOPES` itself, minus the
- * two ENTITY scopes (`clients`/`articles`) — so adding a sixth document type's own scopes to
- * `api-keys/scopes.ts` is the ONLY change ever needed to extend both the registration gate and the
- * per-call gate to it; nothing in this file is ever edited by hand for a new document type.
+ * `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES` are a POSITIVE allow-list of document-type resources
+ * (`utils/scope-check.ts`'s own `DOCUMENT_TYPE_RESOURCES`) — so adding a sixth document type means
+ * naming it there (a one-line, type-checked change) to extend both the registration gate and the
+ * per-call gate to it; nothing in THIS file is ever edited by hand for a new document type.
  *
  * `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES`/`scopeForDocumentType` themselves now live in
  * `utils/scope-check.ts` (re-exported below, unchanged, for every existing import site in this
