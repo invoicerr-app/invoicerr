@@ -4,20 +4,26 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Multi-milestone installment billing — from a SENT quote, the
  * `request-installments` action generates N draft invoices (one per milestone), whose gross-total
  * SUM equals EXACTLY the quote's own gross total, split according to each milestone's own PERCENT —
- * never merely as many equal shares as there are milestones. The split's OWN arithmetic (exact
- * net-sum + gross-sum, the last milestone absorbs the rounding; refusal on mixed VAT rates) is
- * covered/bitten in jest (`actions/request-installments.spec.ts`); here we prove the real journey
- * through the SCREEN (the action's own params dialog, `ArrayField` — the exact same component a
- * document's own "lines" field already uses): 3 milestones 30/40/30 → 3 invoices whose gross totals
- * are EXACTLY 36000/36000/48000 minor, not merely three amounts that happen to sum to the quote's own
- * total (a 40/40/40 split, with every percent silently ignored, would pass a sum-only check
- * identically). All three share the SAME due date ("today", via `cy.pickToday`) — nothing in
+ * never merely as many equal shares as there are milestones. The split's OWN arithmetic (which axis
+ * is made exact, who carries the remainder; refusal on mixed VAT rates) is covered/bitten in jest
+ * (`actions/request-installments.spec.ts`); here we prove the real journey through the SCREEN (the
+ * action's own params dialog, `ArrayField` — the exact same component a document's own "lines" field
+ * already uses).
+ *
+ * The quote's amount is deliberately one that does NOT divide evenly: 1000.03 net at 20% carries
+ * 200.01 of VAT (round(200.006)), and neither its net nor its gross is divisible by 30/40/30 without
+ * a remainder. A round 1000.00 quote would sum correctly however the split rounded, and would
+ * therefore prove nothing about the cent. Expected gross totals: 360.01/480.02/360.01, i.e. EXACTLY
+ * 36001/48002/36001 minor — not merely three amounts that happen to sum to the quote's own total (a
+ * 40/40/40 split, with every percent silently ignored, would pass a sum-only check identically).
+ *
+ * All three milestones share the SAME due date ("today", via `cy.pickToday`) — nothing in
  * `request-installments.ts` requires them distinct or ordered, and "today" is reachable without
  * navigating the calendar's month/year dropdowns to an arbitrary future date.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
-// Quote: 1000 net @ 20% → gross 120000 minor. 30/40/30 → gross amounts 36000/48000/36000 = 120000.
-const QUOTE_GROSS_MINOR = 120000;
+// Quote: 1000.03 net @ 20% → VAT 20001, gross 120004 minor. 30/40/30 → 36001/48002/36001 = 120004.
+const QUOTE_GROSS_MINOR = 120004;
 
 describe("Installment billing — N invoices whose sum equals the quote's own gross total", () => {
 	let clientEmail: string;
@@ -60,7 +66,9 @@ describe("Installment billing — N invoices whose sum equals the quote's own gr
 					issueDate: "2026-08-30",
 					dueDate: "2026-09-30",
 					currency: "EUR",
-					lines: [{ description: "Prestation", quantity: 1, unit: "day", unitPrice: 1000, vatRate: "20" }],
+					lines: [
+						{ description: "Prestation", quantity: 1, unit: "day", unitPrice: 1000.03, vatRate: "20" },
+					],
 				};
 				// Quote → draft → send (the installment-schedule action requires 'sent').
 				cy.request({
@@ -122,10 +130,13 @@ describe("Installment billing — N invoices whose sum equals the quote's own gr
 							const mine = invoices.filter((d) => d.data?.origin?.id === quoteId);
 							expect(mine, "3 factures d'échéance créées").to.have.length(3);
 
-							// Sum AND repartition of gross totals — the sum alone would pass just as well
-							// for an (ignored-percentages) 40/40/40 split: THIS is the assertion that
-							// actually proves 30/40/30 was honored. 1000 net @ 20% = 1200.00 gross TTC, so
-							// 30 % → 360.00 (36000 minor), 40 % → 480.00 (48000 minor).
+							// Sum AND repartition of gross totals. The sum is read off each INVOICE's own
+							// totals endpoint, i.e. the amount actually being asked of the client — the
+							// only place a cent lost between the split and the invoice's recomputed VAT
+							// can show up. And the repartition matters because the sum alone would pass
+							// just as well for an (ignored-percentages) 40/40/40 split: 1000.03 net @ 20%
+							// = 1200.04 gross TTC, so 30 % → 360.01 (36001 minor) and 40 % → 480.02
+							// (48002 minor).
 							const ids = mine.map((d) => d.id);
 							const grosses: number[] = [];
 							cy.wrap(ids).each((id) => {
@@ -139,7 +150,7 @@ describe("Installment billing — N invoices whose sum equals the quote's own gr
 								expect(
 									[...grosses].sort((a, b) => a - b),
 									"répartition 30/40/30 — jamais 40/40/40, qui donnerait la même somme",
-								).to.deep.eq([36000, 36000, 48000]);
+								).to.deep.eq([36001, 36001, 48002]);
 							});
 						});
 				});

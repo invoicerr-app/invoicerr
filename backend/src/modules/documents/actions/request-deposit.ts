@@ -41,10 +41,10 @@ const QUOTE_DESCRIPTOR = buildQuoteDescriptor();
  * gross, to the cent — a proportion holds on both sides of a single rate. The percentage is applied to the
  * net rather than the gross because that is the only base VAT may legitimately be computed on, and
  * because deriving a net back OUT of a gross would divide by (1 + rate) — a rounding trip whose
- * result, re-taxed by `computeDocumentTotals`, need not land back on the gross it came from. This is
- * the same reasoning computeMilestoneSplit (request-installments.ts) already documents for its own
- * split: grosses only reconcile when the single rate is applied on top of nets, never the other way
- * around.
+ * result, re-taxed by `computeDocumentTotals`, need not land back on the gross it came from. That
+ * trip is exactly what computeMilestoneSplit (request-installments.ts) is forced to make and to
+ * verify, because its N invoices must SUM back to the quote's own gross; one deposit invoice has no
+ * such sum to reconcile, so it stays on the base VAT is legitimately computed on.
  *
  * For a quote carrying zero or several rates the line is stored WITHOUT a rate (below), so the
  * deposit is N% of the quote's net and stays there until a human picks the rate the message asks them
