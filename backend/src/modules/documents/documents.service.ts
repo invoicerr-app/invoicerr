@@ -122,6 +122,7 @@ import {
   validateRowSelections,
 } from './row-selection/resolve-row-selection';
 import { referencedArrayFieldKeys, stampRowIds } from './row-selection/row-selection';
+import { resolveInvoiceCrossBorderTaxForCompany } from './tax/load-and-resolve';
 import {
   isInvoiceTaxBlockError,
   parseDistanceSalesRegime,
@@ -220,6 +221,14 @@ export interface DocumentSettlementView {
   credits: DocumentCreditResult[];
   warnings: string[];
   settlement: DocumentSettlement;
+}
+
+/** What `GET /documents/:id/tax-warnings` hands back — see `DocumentsService.getTaxWarnings`. An
+ *  OBJECT rather than a bare array, so the response can grow a second field (a severity, a per-line
+ *  anchor) without every caller having to re-shape what it already parses. Always present, always an
+ *  array: a document with nothing to caveat answers `[]`, never 204 and never a missing key. */
+export interface DocumentTaxWarningsView {
+  warnings: string[];
 }
 
 @Injectable()
@@ -1382,6 +1391,57 @@ export class DocumentsService implements OnModuleInit {
       toSettlementCreditInputs(credits),
     );
     return { totals, payments, credits, warnings, settlement };
+  }
+
+  /**
+   * The NON-FATAL caveats this document's own tax resolution records — "this buyer's VAT number
+   * could not be confirmed, so the sale was taxed as a consumer sale", "only the destination's
+   * STANDARD rate could be applied, so a reduced-rated product is over-charged". `tax/
+   * resolve-invoice-tax.ts` has always produced them; nothing had ever read them, because every
+   * caller of that resolver is a WRITE path that wants the rewritten `data` and nothing else
+   * (`actions/invoice-actions.ts`'s preflight and `deliver()`, `downloadDocumentFormat` below). This
+   * is the READ side those paths never had: the document screen shows the list beside the computed
+   * amounts, which are exactly the numbers each warning is about.
+   *
+   * RECOMPUTED, never read back off the record, and that is why no fourth sidecar key was added next
+   * to the ones `resolve-invoice-tax.ts`'s own "never a blind store" section documents. Re-resolving
+   * ALREADY-resolved data is provably stable (`tax/resolve-invoice-tax.spec.ts` asserts a second pass
+   * returns the first pass's warnings verbatim), so an ISSUED invoice whose parties have not changed
+   * reads back exactly the warnings its own send computed — while a DRAFT, which has never resolved
+   * tax at all and is the one moment the caveat can still be acted on, gets them for the first time.
+   * The flip side, stated rather than hidden: a fact that changes AFTER the send (the buyer's VAT
+   * number finally confirmed, the client's country corrected) changes this answer with it. This reads
+   * "what today's facts say about these amounts", not "what issuance said" — the same recompute-on-
+   * read posture `downloadDocumentFormat` already holds for the treatment itself, so the screen and
+   * the downloadable XML can never disagree about which caveats apply.
+   *
+   * The named HARD BLOCKS (`isInvoiceTaxBlockError` — unresolved buyer/seller country, unknown OSS
+   * destination, undeclared distance-sales regime, a rate foreign to the seller's own catalog) are
+   * deliberately swallowed into an EMPTY list here rather than turned into a 4xx. They are refusals
+   * of a SEND, and they are already delivered as such, by name, at the moment someone tries to send
+   * (`invoice-actions.ts#runInvoiceCrossBorderTaxPreflight` turns each into a 400 the user acts on).
+   * A read-only panel that 400s the document screen while merely being looked at would be a new
+   * failure mode invented for an informational list — and a blocked invoice has no resolved treatment
+   * to caveat in the first place.
+   *
+   * Any type but "invoice" answers `[]`, the same contract (and the same reasoning) as
+   * `resolveCreditsForDocument`'s own empty credits: the cross-border tax wiring only ever covered the
+   * invoice, and an empty array is something the frontend never has to special-case.
+   */
+  async getTaxWarnings(companyId: string, typeId: string, id: string): Promise<DocumentTaxWarningsView> {
+    const instance = await findOwnedDocument(companyId, typeId, id);
+    if (typeId !== 'invoice') return { warnings: [] };
+
+    try {
+      const resolved = await resolveInvoiceCrossBorderTaxForCompany(
+        companyId,
+        (instance.data ?? {}) as Record<string, unknown>,
+      );
+      return { warnings: resolved.warnings };
+    } catch (error) {
+      if (isInvoiceTaxBlockError(error)) return { warnings: [] };
+      throw error;
+    }
   }
 
   /**

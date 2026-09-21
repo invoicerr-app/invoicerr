@@ -216,14 +216,20 @@ export interface ResolveInvoiceCrossBorderTaxResult {
    *  syntactically valid, so this invoice is being treated as a B2C sale", or "only the destination's
    *  STANDARD rate could be applied". Never blocks a send on its own.
    *
-   *  NOT USER-VISIBLE TODAY, and this comment used to claim otherwise. Every production caller reads
-   *  `.data` and drops this array on the floor: `invoice-actions.ts#runInvoiceCrossBorderTaxPreflight`
-   *  and its `deliver()` sibling both return `(...).data`, and
-   *  `documents.service.ts#downloadDocumentFormat` does the same. So a warning added here is a
-   *  warning a DEVELOPER (and any spec) can read, not one the seller ever sees. Surfacing them means
-   *  choosing where a non-fatal tax caveat belongs on a document — a product decision, and a separate
-   *  piece of work from computing them correctly; until it is made, treat this field as "recorded,
-   *  not yet delivered" rather than as a notice anyone has been given. */
+   *  Every WRITE path still drops this array on the floor, and always did:
+   *  `invoice-actions.ts#runInvoiceCrossBorderTaxPreflight` and its `deliver()` sibling both return
+   *  `(...).data`, and `documents.service.ts#downloadDocumentFormat` does the same — nothing about a
+   *  non-fatal caveat belongs in the persisted treatment, which is why none of them was ever changed.
+   *  The READ side is what delivers them: `documents.service.ts#getTaxWarnings` re-resolves an
+   *  invoice purely to collect THIS array, and the document screen renders it beside the computed
+   *  amounts (`frontend/src/components/documents/document-tax-warnings.tsx`). So a warning added here
+   *  is a warning the seller actually reads — word it for one.
+   *
+   *  It is ENGLISH PROSE, formed here, interpolated with country codes/rates/VAT numbers, and shown
+   *  verbatim: there is no message key a locale file could translate, the same posture the other
+   *  server-formed warning arrays on that screen already have (`totals/compute-totals.ts`,
+   *  `settlement/credits.ts`). Giving these a translatable identity is a change to the warning
+   *  MECHANISM — every producer and every spec that matches on the wording — not to its delivery. */
   warnings: string[];
 }
 
@@ -685,8 +691,9 @@ export function resolveInvoiceCrossBorderTax(
   // that can judge it, and refusing the send outright would block every correctly standard-rated sale
   // too. ONE warning per invoice, naming the destination and the rate actually applied, rather than
   // one per line: every OSS-taxed line on an invoice shares the same destination and the same rate.
-  // Read `ResolveInvoiceCrossBorderTaxResult.warnings`'s own doc comment before calling this "the
-  // seller has been warned" — no production caller surfaces that array to anyone yet.
+  // The seller IS warned: `documents.service.ts#getTaxWarnings` re-resolves the invoice to collect
+  // this array and the document screen prints it next to the totals it changes — see
+  // `ResolveInvoiceCrossBorderTaxResult.warnings`'s own doc comment for the delivery path.
   if (inSameUnion && role === 'B2C' && anyDistanceSaleLine && sellerRegime === 'DESTINATION') {
     const destination = buyerProfile?.taxSystem;
     const destinationRate =

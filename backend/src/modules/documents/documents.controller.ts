@@ -816,6 +816,30 @@ export class DocumentsController {
     return this.documentsService.getSettlement(companyId, typeId, id);
   }
 
+  @Get(':id/tax-warnings')
+  @RequiresDocumentTypeScope('read')
+  @ApiOperation({
+    summary: "A document's non-fatal tax caveats",
+    description:
+      "The warnings this invoice's own cross-border tax resolution records — a buyer VAT number " +
+      'that could not be confirmed (so the sale was taxed as a consumer sale), a destination whose ' +
+      'reduced rates are not modelled (so the line may be over-taxed), a line with no declared ' +
+      'supply type. Never a refusal: a send is blocked by its own named 400, and a block is reported ' +
+      'here as an empty list, not as an error. Recomputed on every read (see ' +
+      'DocumentsService.getTaxWarnings); any type but "invoice" answers an empty list.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Tax warnings computed (possibly an empty list)' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  getTaxWarnings(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.getTaxWarnings(companyId, typeId, id);
+  }
+
   @Get(':id/correction-routes')
   @RequiresDocumentTypeScope('read')
   @ApiOperation({

@@ -14,6 +14,7 @@ import type {
   DocumentAuthorityEvent,
   DocumentInstance,
   DocumentSettlementResult,
+  DocumentTaxWarningsResult,
   DocumentTypeDescriptor,
   DocumentTypeSummary,
   EntityReferenceOption,
@@ -197,6 +198,23 @@ export function useDocumentSettlement(typeId: string | undefined, id: string | u
   return useApiQuery<DocumentSettlementResult>(
     ["documents", typeId, id, "settlement"],
     `/api/documents/${id}/settlement?typeId=${typeId}`,
+    { enabled: !!typeId && !!id },
+  )
+}
+
+/**
+ * The non-fatal caveats this document's own tax resolution recorded — see the backend's
+ * `DocumentsService.getTaxWarnings`. Keyed under `["documents", ...]` like every per-instance query
+ * above, so `useRunDocumentAction`'s own `invalidateKeys: [["documents"]]` refetches it the moment an
+ * action changes the record: a "send" resolves tax for real, and this list must not keep showing what
+ * the draft said. The backend RECOMPUTES on every read rather than storing, so this is always about
+ * the document as it stands, never a stale snapshot — and it never errors on a draft (a tax hard
+ * block reads back as an empty list there, refused loudly at "send" instead).
+ */
+export function useDocumentTaxWarnings(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentTaxWarningsResult>(
+    ["documents", typeId, id, "tax-warnings"],
+    `/api/documents/${id}/tax-warnings?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
   )
 }

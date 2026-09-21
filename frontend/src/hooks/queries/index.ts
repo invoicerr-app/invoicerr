@@ -58,6 +58,7 @@ export {
   useDocumentInstances,
   useDocumentInstance,
   useDocumentSettlement,
+  useDocumentTaxWarnings,
   useDocumentArchives,
   useVerifyDocumentArchive,
   useCorrectionRoutes,

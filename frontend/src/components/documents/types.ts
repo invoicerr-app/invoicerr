@@ -307,6 +307,16 @@ export interface DocumentSettlementResult {
   settlement: DocumentSettlement
 }
 
+/** What `GET /documents/:id/tax-warnings` returns — mirrors the backend's `DocumentTaxWarningsView`.
+ *  Non-fatal caveats the cross-border tax resolution recorded about THIS document's own amounts (a
+ *  buyer VAT number it could not confirm, a destination whose reduced rates it cannot reach). Always
+ *  present, empty for a domestic invoice, for a blocked one, and for every type but the invoice — so
+ *  the screen reads `.warnings.length` and never has to guard a missing key. English prose formed by
+ *  the server, shown verbatim: see `document-tax-warnings.tsx` for why there is no key to translate. */
+export interface DocumentTaxWarningsResult {
+  warnings: string[]
+}
+
 /** One artifact this archive covers, mirrors the backend's
  *  `StoredArtifactMeta` (documents/archive/persistence.ts). Never the bytes themselves. */
 export interface DocumentArchiveArtifact {

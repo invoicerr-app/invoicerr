@@ -4725,6 +4725,7 @@
       "net": "Net",
       "vat": "VAT {{rate}}% on {{base}}",
       "gross": "Total",
+      "taxWarningsTitle": "About this VAT treatment",
       "warnings": {
         "noUsableVatRate": "Line {{line}} has no usable VAT rate — counted in net only"
       }

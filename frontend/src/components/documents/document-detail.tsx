@@ -38,6 +38,7 @@ import {
   DocumentSettlementSection,
 } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
+import { DocumentTaxWarningsSection } from "@/components/documents/document-tax-warnings"
 import { DocumentTotals, formatTotal, useDocumentTotals } from "@/components/documents/document-totals"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { hasUnsavedChanges } from "@/components/documents/form-dirty"
@@ -204,7 +205,7 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </Card>
 
         <aside className="space-y-4">
-          <TotalsCard descriptor={descriptor} />
+          <TotalsCard descriptor={descriptor} documentId={instance.id} />
           {showSettlement && <DocumentSettlementSection typeId={descriptor.id} documentId={instance.id} />}
           {/* Legal archiving ⚖ — shown for ANY document type/status once it has at least one
               archive (the component itself renders nothing otherwise, see its own header): never
@@ -364,13 +365,22 @@ function HeadlineAmount({ descriptor }: { descriptor: DocumentTypeDescriptor }) 
   )
 }
 
-function TotalsCard({ descriptor }: { descriptor: DocumentTypeDescriptor }) {
+/**
+ * The tax warnings live INSIDE this card, under the figures, rather than in a section of their own:
+ * every one of them is a statement about a number printed a few lines above it ("this line was taxed
+ * at the destination's standard rate", "this sale was treated as a consumer sale"), and a caveat read
+ * anywhere other than next to the amount it changes is a caveat nobody connects to anything. It is
+ * also why they are not in the settlement card — that one is about what has been PAID, not about how
+ * the amount was arrived at.
+ */
+function TotalsCard({ descriptor, documentId }: { descriptor: DocumentTypeDescriptor; documentId: string }) {
   const { t } = useTranslation()
   const totals = useDocumentTotals(descriptor)
   if (!totals) return null
   return (
     <SectionCard title={t("documents.detail.totalsTitle")} dataCy="document-totals-card">
       <DocumentTotals descriptor={descriptor} />
+      <DocumentTaxWarningsSection typeId={descriptor.id} documentId={documentId} />
     </SectionCard>
   )
 }
