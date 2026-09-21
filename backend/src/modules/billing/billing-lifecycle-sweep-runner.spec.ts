@@ -78,6 +78,7 @@ function subRow(overrides: Record<string, unknown>) {
     zipSentAt: null,
     deletionDueAt: null,
     polarSubscriptionId: null,
+    currentPeriodEnd: null,
     customerSyncFailedAt: null,
     lastPolarFactAt: null,
     billingWarningMilestonesSent: [] as string[],
@@ -141,6 +142,65 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     expect(result.blocked).toBe(1);
     expect(updateMany).toHaveBeenCalledWith({
       where: { companyId: 'c1', status: 'TRIAL', lastPolarFactAt: null },
+      data: { status: 'BLOCKED', blockedAt: NOW },
+    });
+  });
+
+  describe('a PAST_DUE company that has already paid through 2026-10-31', () => {
+    // The everyday case: the card is refused at renewal, Polar keeps retrying for days, and the
+    // company has October in hand either way.
+    const pastDue = () =>
+      subRow({
+        status: 'PAST_DUE',
+        polarSubscriptionId: 'sub_1',
+        currentPeriodEnd: new Date('2026-10-31T06:00:00.000Z'),
+      });
+
+    it('is left alone while the period it bought is still running — no write at all', async () => {
+      listSubs.mockResolvedValue([pastDue()]);
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+      const result = await runner.runSweep(new Date('2026-10-20T00:00:00.000Z'));
+
+      expect(result).toEqual(baseResult({ processed: 1 }));
+      expect(updateMany).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('is still left alone on the last millisecond of the last day paid for', async () => {
+      listSubs.mockResolvedValue([pastDue()]);
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+      const result = await runner.runSweep(new Date('2026-10-31T23:59:59.999Z'));
+
+      expect(result.blocked).toBe(0);
+      expect(updateMany).not.toHaveBeenCalled();
+    });
+
+    it('is blocked on the first tick of the day it has NOT paid for', async () => {
+      const now = new Date('2026-11-01T00:00:00.000Z');
+      listSubs.mockResolvedValue([pastDue()]);
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+      const result = await runner.runSweep(now);
+
+      expect(result.blocked).toBe(1);
+      expect(updateMany).toHaveBeenCalledWith({
+        where: { companyId: 'c1', status: 'PAST_DUE', lastPolarFactAt: null },
+        data: { status: 'BLOCKED', blockedAt: now },
+      });
+    });
+  });
+
+  it('blocks a PAST_DUE company with no paid period on file on the very next tick', async () => {
+    listSubs.mockResolvedValue([subRow({ status: 'PAST_DUE', currentPeriodEnd: null })]);
+    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+    const result = await runner.runSweep(NOW);
+
+    expect(result.blocked).toBe(1);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'c1', status: 'PAST_DUE', lastPolarFactAt: null },
       data: { status: 'BLOCKED', blockedAt: NOW },
     });
   });

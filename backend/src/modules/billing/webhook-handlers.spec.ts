@@ -142,6 +142,31 @@ describe('applySubscriptionWebhook', () => {
     );
   });
 
+  it('never mirrors a currentPeriodEnd carried by a fact that says the subscription is no longer paid', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-1', status: 'ACTIVE', lastPolarFactAt: null });
+
+    await applySubscriptionWebhook({
+      companyId: 'company-1',
+      polarSubscriptionId: 'sub_1',
+      polarCustomerId: 'cus_1',
+      // The renewal charge was refused; a billing platform can already have rolled the subscription
+      // into the period it is now dunning. Writing that date would hand this company the whole of a
+      // cycle it has not paid for — both rules reading this column grant ACCESS from it.
+      status: 'past_due',
+      recurringInterval: 'month',
+      currentPeriodEnd: new Date('2026-11-30T00:00:00.000Z'),
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ currentPeriodEnd: expect.anything() }),
+      }),
+    );
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'PAST_DUE' }) }),
+    );
+  });
+
   it('leaves the stored seats untouched when the webhook carries none', async () => {
     getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
 

@@ -1,8 +1,10 @@
 import {
   CompanySubscriptionPeriodFacts,
   firstOfMonthFollowing,
+  isPaidPeriodStillRunning,
   isWithinPaidPeriodGrace,
   paidPeriodBindingDate,
+  paidThroughEndOfDay,
 } from './paid-period-grace';
 
 /** A change published today, 2026-09-20 — the same day this Section 20.2 exception was drafted, so the
@@ -105,5 +107,57 @@ describe('isWithinPaidPeriodGrace', () => {
   it('false for a company with no subscription period in progress (still in trial)', () => {
     const trial = facts({ status: 'TRIAL', currentPeriodEnd: null });
     expect(isWithinPaidPeriodGrace(trial, PUBLISHED_AT, PUBLISHED_AT)).toBe(false);
+  });
+});
+
+describe('paidThroughEndOfDay', () => {
+  it('is midnight UTC opening the day AFTER the one the period ends in', () => {
+    expect(paidThroughEndOfDay(new Date('2026-10-18T09:14:02.000Z'))).toEqual(
+      new Date('2026-10-19T00:00:00.000Z'),
+    );
+  });
+
+  it.each([
+    ['2026-10-18T00:30:00.000Z', '2026-10-19T00:00:00.000Z'],
+    ['2026-10-18T23:30:00.000Z', '2026-10-19T00:00:00.000Z'],
+  ])("reads %s in UTC, never in the deployment's own timezone — landing on %s", (periodEnd, expected) => {
+    // The pair matters: a renewal at 00:30 UTC falls on the PREVIOUS calendar day west of
+    // Greenwich, one at 23:30 UTC on the NEXT one east of it. An implementation reading local
+    // components instead of UTC gets exactly one of these two wrong on any machine whose offset is
+    // not zero, whichever side of Greenwich it sits on.
+    expect(paidThroughEndOfDay(new Date(periodEnd))).toEqual(new Date(expected));
+  });
+
+  it('carries the overflow into the next month, and the next year', () => {
+    expect(paidThroughEndOfDay(new Date('2026-11-30T12:00:00.000Z'))).toEqual(
+      new Date('2026-12-01T00:00:00.000Z'),
+    );
+    expect(paidThroughEndOfDay(new Date('2026-12-31T23:59:59.999Z'))).toEqual(
+      new Date('2027-01-01T00:00:00.000Z'),
+    );
+  });
+
+  it('is null when nothing is on file — no period, nothing paid for, nothing to protect', () => {
+    expect(paidThroughEndOfDay(null)).toBeNull();
+    expect(paidThroughEndOfDay(undefined)).toBeNull();
+  });
+});
+
+describe('isPaidPeriodStillRunning', () => {
+  const periodEnd = new Date('2026-10-31T06:00:00.000Z');
+
+  it('true for every instant of the last day paid for, its final millisecond included', () => {
+    expect(isPaidPeriodStillRunning(periodEnd, new Date('2026-10-20T00:00:00.000Z'))).toBe(true);
+    expect(isPaidPeriodStillRunning(periodEnd, periodEnd)).toBe(true);
+    expect(isPaidPeriodStillRunning(periodEnd, new Date('2026-10-31T23:59:59.999Z'))).toBe(true);
+  });
+
+  it('false from the first instant of the day after', () => {
+    expect(isPaidPeriodStillRunning(periodEnd, new Date('2026-11-01T00:00:00.000Z'))).toBe(false);
+    expect(isPaidPeriodStillRunning(periodEnd, new Date('2026-11-14T00:00:00.000Z'))).toBe(false);
+  });
+
+  it('false with no period on file at all', () => {
+    expect(isPaidPeriodStillRunning(null, new Date('2026-10-20T00:00:00.000Z'))).toBe(false);
   });
 });

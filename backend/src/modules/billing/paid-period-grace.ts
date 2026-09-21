@@ -28,6 +28,18 @@
  * separate exclusion list to keep in sync. `TRIAL` reads the same way: the free trial is not a
  * subscription period paid for at all — Section 20.2 says as much by name.
  *
+ * ## The same period, read by the OTHER decision that can take the Service away
+ * Section 20.2's exception is not the only rule that turns on "what has this Company already paid
+ * for": Section 13.1 opens the read-only suspension when a paid subscription ENDS, which a renewal
+ * payment failing part-way through an already-paid period is not. That decision lives in
+ * `lifecycle.ts#computeLifecycleTransition`'s own `PAST_DUE` branch and reads the two functions at the
+ * BOTTOM of this file (`paidThroughEndOfDay`/`isPaidPeriodStillRunning`) rather than
+ * `paidPeriodBindingDate` above — deliberately, because the two questions differ on exactly one point:
+ * this Section-20.2 exception is barred for a `PAST_DUE` Company (a Terms change it has not accepted
+ * must not reopen writes for a Company already refused them for non-payment), whereas the suspension
+ * question IS the `PAST_DUE` case. One file, one definition of "the period already paid for", two
+ * rules reading it for their own reason.
+ *
  * Re-derived fresh on every check from the CURRENT `status`/`currentPeriodEnd` (never a single grace
  * end date computed once and cached): a paid period that in fact ends EARLIER than the later of (a)/(b)
  * above (a cancellation lands, a renewal payment fails) loses ACTIVE status the moment Polar reports it
@@ -89,4 +101,47 @@ export function isWithinPaidPeriodGrace(
 ): boolean {
   const bindingDate = paidPeriodBindingDate(sub, publishedAt);
   return bindingDate !== null && now.getTime() < bindingDate.getTime();
+}
+
+/**
+ * The first instant NO LONGER covered by what a Company has already paid for: midnight UTC opening the
+ * day AFTER the one `currentPeriodEnd` falls in. `null` when no period end is on file at all (a
+ * Company still in its free trial, or one no Polar fact has ever carried one for — nothing paid for,
+ * so nothing to protect).
+ *
+ * A whole DAY, not the raw renewal instant, because of what reads this: losing the Service is a
+ * working-day event for everyone in the Company, while the instant itself is an accident of what time
+ * of day the Company happened to subscribe (03:14, say). Cutting a Company off mid-morning on a day it
+ * paid for, because its renewal timestamp falls earlier in that same day, is the outcome this rounding
+ * exists to prevent; rounding can only ever extend, never shorten, what was bought.
+ *
+ * UTC, never the server's own timezone, and `Date.UTC` rather than `setDate` on a local Date — the
+ * same discipline `firstOfMonthFollowing` above holds, and for the same reason: the day a Company is
+ * suspended on must not depend on which region the container happens to run in. `Date.UTC` carries a
+ * day overflow into the next month/year on its own, so 31 December needs no special case.
+ */
+export function paidThroughEndOfDay(currentPeriodEnd: Date | null | undefined): Date | null {
+  // Accepts `undefined` as well as `null` on purpose: callers hand this whatever their own facts
+  // projection carries, and a row read before this column existed reads as neither a date nor `null`.
+  if (!currentPeriodEnd) return null;
+
+  return new Date(
+    Date.UTC(
+      currentPeriodEnd.getUTCFullYear(),
+      currentPeriodEnd.getUTCMonth(),
+      currentPeriodEnd.getUTCDate() + 1,
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+}
+
+/** True while `now` is still inside a period the Company has already paid for — the one question
+ *  `lifecycle.ts`'s own `PAST_DUE` branch asks before suspending anyone (see this file's header).
+ *  `false`, never a throw, when no period end is on file: no claim of having paid for anything. */
+export function isPaidPeriodStillRunning(currentPeriodEnd: Date | null | undefined, now: Date): boolean {
+  const paidThrough = paidThroughEndOfDay(currentPeriodEnd);
+  return paidThrough !== null && now.getTime() < paidThrough.getTime();
 }

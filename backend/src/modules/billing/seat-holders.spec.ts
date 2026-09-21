@@ -71,6 +71,53 @@ describe('seatHolders', () => {
     expect(waiting.map((m) => m.userId)).toEqual(['admin']);
   });
 
+  it('bills every role alike: a company that bought 2 seats seats exactly 2 of its 5 mixed-role members', () => {
+    const seats = 2; // the quantity Polar bills this company for
+    const members = [
+      member('owner-1', CompanyRole.OWNER, '2026-01-01'),
+      member('admin', CompanyRole.ADMIN, '2026-01-02'),
+      member('owner-2', CompanyRole.OWNER, '2026-01-03'),
+      member('member', CompanyRole.MEMBER, '2026-01-04'),
+      member('owner-3', CompanyRole.OWNER, '2026-01-05'),
+    ];
+
+    const { seated, waiting } = seatHolders(members, seats);
+
+    expect(seated).toHaveLength(seats);
+    expect(seated.map((m) => m.userId)).toEqual(['owner-1', 'owner-2']);
+    expect(waiting.map((m) => m.userId)).toEqual(['member', 'admin', 'owner-3']);
+  });
+
+  it('promoting the whole company to OWNER seats no one extra — one bought seat stays one working member', () => {
+    const members = [
+      member('founder', CompanyRole.OWNER, '2026-01-01'),
+      member('promoted-1', CompanyRole.OWNER, '2026-01-02'),
+      member('promoted-2', CompanyRole.OWNER, '2026-01-03'),
+      member('promoted-3', CompanyRole.OWNER, '2026-01-04'),
+    ];
+
+    const { seated, waiting } = seatHolders(members, 1);
+
+    expect(seated.map((m) => m.userId)).toEqual(['founder']);
+    expect(waiting.map((m) => m.userId)).toEqual(['promoted-3', 'promoted-2', 'promoted-1']);
+  });
+
+  it.each([
+    [1, [CompanyRole.OWNER, CompanyRole.OWNER, CompanyRole.OWNER]],
+    [2, [CompanyRole.OWNER, CompanyRole.OWNER, CompanyRole.OWNER, CompanyRole.OWNER]],
+    [3, [CompanyRole.OWNER, CompanyRole.ADMIN, CompanyRole.OWNER, CompanyRole.MEMBER, CompanyRole.OWNER]],
+    [1, [CompanyRole.ADMIN, CompanyRole.ADMIN]],
+  ])('never seats more than the %i bought seat(s), whatever roles the members hold (%j)', (seats, roles) => {
+    const members = roles.map((role, index) =>
+      member(`u${index}`, role, `2026-01-0${index + 1}T00:00:00.000Z`),
+    );
+
+    const { seated, waiting } = seatHolders(members, seats);
+
+    expect(seated.length).toBeLessThanOrEqual(seats);
+    expect(seated.length + waiting.length).toBe(members.length);
+  });
+
   it('ignores seatIndex entirely — not part of SeatMember, so it cannot influence the split', () => {
     const members = [
       { ...member('owner', CompanyRole.OWNER, '2026-01-01'), seatIndex: 99 },
@@ -98,7 +145,17 @@ describe('memberHoldsSeat', () => {
     expect(memberHoldsSeat(members, 2, 'late')).toBe(false);
   });
 
-  it('true for the OWNER regardless of capacity', () => {
+  it('true for the longest-standing OWNER regardless of capacity', () => {
     expect(memberHoldsSeat(members, 0, 'owner')).toBe(true);
+  });
+
+  it('false for a LATER owner past capacity — being promoted does not conjure a seat', () => {
+    const promoted = [
+      member('owner', CompanyRole.OWNER, '2026-01-01'),
+      member('promoted', CompanyRole.OWNER, '2026-01-02'),
+    ];
+
+    expect(memberHoldsSeat(promoted, 1, 'owner')).toBe(true);
+    expect(memberHoldsSeat(promoted, 1, 'promoted')).toBe(false);
   });
 });

@@ -107,7 +107,9 @@ export interface PolarSubscriptionWebhookFacts {
   seats?: number;
   /** Polar's own `Subscription.currentPeriodEnd` — the end of the period THIS COMPANY HAS ALREADY PAID
    *  FOR, mirrored onto `CompanySubscription.currentPeriodEnd` (see that column's own schema comment)
-   *  purely so `paid-period-grace.ts`'s Terms-of-Service Section 20.2 exception has a real date to read.
+   *  so the two rules that turn on an already-paid period have a real date to read: the Terms-of-Service
+   *  Section 20.2 exception (`paid-period-grace.ts`) and the Section 13.1 suspension
+   *  (`lifecycle.ts`'s own `PAST_DUE` branch).
    *  `undefined` when the wire payload omits it (a hand-built spec fact) — the same permissive
    *  "leave whatever is already stored alone" convention `seats`/`recurringInterval` already hold,
    *  never written as `null`/cleared just because one particular fact happened not to carry it. */
@@ -281,7 +283,18 @@ export async function applySubscriptionWebhook(
       polarCustomerId: facts.polarCustomerId,
       ...(interval ? { interval } : {}),
       ...(facts.seats !== undefined ? { seats: facts.seats } : {}),
-      ...(facts.currentPeriodEnd !== undefined ? { currentPeriodEnd: facts.currentPeriodEnd } : {}),
+      // Mirrored ONLY from a fact that still reports the subscription as paid (`ACTIVE` — Polar's own
+      // `active`/`trialing`), never from one that reports it as no longer paying. The stored column
+      // then always means what it claims to mean: the end of the last period Polar said this company
+      // was in WHILE PAYING for it. A billing platform advances a subscription into its next period
+      // when that period opens and only then attempts the charge, so a `past_due` fact can legitimately
+      // carry the end of a period nobody has paid for yet — and both rules reading this column
+      // (`lifecycle.ts`'s suspension, `paid-period-grace.ts`'s Terms exception) hand out ACCESS on the
+      // strength of it. Taking that date would hand a company whose card was refused a free cycle, a
+      // full year of one on an annual plan.
+      ...(status === 'ACTIVE' && facts.currentPeriodEnd !== undefined
+        ? { currentPeriodEnd: facts.currentPeriodEnd }
+        : {}),
       ...(facts.factAt ? { lastPolarFactAt: facts.factAt } : {}),
       ...(status === 'ACTIVE'
         ? { blockedAt: null, zipSentAt: null, deletionDueAt: null, seatPaymentFailedAt: null }

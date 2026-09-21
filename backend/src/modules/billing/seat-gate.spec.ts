@@ -71,6 +71,31 @@ describe('assertUserHasSeatOrThrow', () => {
       await expect(assertUserHasSeatOrThrow('c1', 'owner')).resolves.toBeUndefined();
     });
 
+    it('lets exactly as many people write as the company bought seats, even when every member is an OWNER', async () => {
+      const seats = 1;
+      const members = [
+        { userId: 'founder', role: CompanyRole.OWNER, createdAt: new Date('2026-01-01') },
+        { userId: 'promoted-1', role: CompanyRole.OWNER, createdAt: new Date('2026-01-02') },
+        { userId: 'promoted-2', role: CompanyRole.OWNER, createdAt: new Date('2026-01-03') },
+        { userId: 'promoted-3', role: CompanyRole.OWNER, createdAt: new Date('2026-01-04') },
+      ];
+      getOrCreate.mockResolvedValue({ seats });
+      findMany.mockResolvedValue(members);
+
+      const allowedToWrite: string[] = [];
+      for (const { userId } of members) {
+        await assertUserHasSeatOrThrow('c1', userId).then(
+          () => allowedToWrite.push(userId),
+          () => undefined,
+        );
+      }
+
+      // The whole point of a per-seat price: four people working must cost four seats, and promoting
+      // them is not a way to buy the other three.
+      expect(allowedToWrite).toEqual(['founder']);
+      expect(allowedToWrite).toHaveLength(seats);
+    });
+
     it('resolves silently for a caller with no membership row in this company at all — not what this gate exists to judge', async () => {
       getOrCreate.mockResolvedValue({ seats: 1 });
       findMany.mockResolvedValue([

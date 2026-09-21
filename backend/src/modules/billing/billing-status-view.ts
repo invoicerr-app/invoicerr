@@ -6,6 +6,7 @@
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { CompanyCustomerFacts } from './legacy-customer';
 import { addDays, BLOCKED_DAYS } from './lifecycle';
+import { paidThroughEndOfDay } from './paid-period-grace';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,11 +27,13 @@ export interface BillingStatusView {
   /** Counts down to whatever date NEXT matters for the CURRENT status — trial's own end, blocked's
    *  own 14-day zip deadline, zipped's own deletion date. `null` for ACTIVE (a paying company with
    *  nothing counting down) and for a defensively-incomplete row (e.g. BLOCKED with no `blockedAt`,
-   *  which should never happen). `0`, never `null`, for PAST_DUE — `lifecycle.ts`'s own header says
-   *  `past_due` carries no window of its own and folds straight into `blocked` on the very next sweep
-   *  tick, so there is nothing to count DOWN from, but showing `null` here reads as "nothing urgent"
-   *  to a company that can be blocked within the hour; `0` reuses the same "day(s) remaining" wording
-   *  the screen already renders for every other status to say "this could happen any moment now". */
+   *  which should never happen). For PAST_DUE it counts down to the end of the period the company has
+   *  ALREADY PAID FOR — the very date `lifecycle.ts`'s own `PAST_DUE` branch will block it on — so the
+   *  screen states the real deadline a customer whose card was refused has to fix it, rather than
+   *  understating it. `0`, never `null`, once (or when) no paid period is left: `past_due` carries no
+   *  window of its own beyond what was bought, so the block lands on the very next sweep tick, and
+   *  `null` would read as "nothing urgent" to a company that can be locked out within the hour; `0`
+   *  reuses the same "day(s) remaining" wording the screen already renders for every other status. */
   daysRemaining: number | null;
   /** This app's OWN route (`billing.controller.ts`'s `POST /billing/checkout`) — not a link this
    *  controller can meaningfully "generate": the frontend supplies its own `slug`/`successUrl`/
@@ -73,9 +76,10 @@ export function computeBillingStatusView(
   if (sub.status === 'TRIAL') {
     daysRemaining = daysUntil(sub.trialEndsAt, now);
   } else if (sub.status === 'PAST_DUE') {
-    // See this view's own field comment — no window of its own (`lifecycle.ts`), so `0` is the
-    // truthful "could be blocked any moment" reading, never `null`'s "nothing urgent".
-    daysRemaining = 0;
+    // The SAME boundary the sweep suspends on, never a second definition of it — see this view's own
+    // field comment, and `paid-period-grace.ts` for why that boundary is a calendar day.
+    const paidThrough = paidThroughEndOfDay(sub.currentPeriodEnd);
+    daysRemaining = paidThrough === null ? 0 : daysUntil(paidThrough, now);
   } else if (sub.status === 'BLOCKED' && sub.blockedAt) {
     daysRemaining = daysUntil(addDays(sub.blockedAt, BLOCKED_DAYS), now);
   } else if (sub.status === 'ZIPPED' && sub.deletionDueAt) {

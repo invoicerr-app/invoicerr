@@ -21,6 +21,7 @@ function facts(overrides: Partial<CompanySubscriptionLifecycleFacts>): CompanySu
     zipSentAt: null,
     deletionDueAt: null,
     polarSubscriptionId: null,
+    currentPeriodEnd: null,
     ...overrides,
   };
 }
@@ -68,10 +69,39 @@ describe('computeLifecycleTransition — active / deleted are never advanced by 
   });
 });
 
-describe('computeLifecycleTransition — past_due folds straight into blocked, no window of its own', () => {
-  it('enters blocked immediately, whatever the clock', () => {
+describe('computeLifecycleTransition — past_due has no window of its own BEYOND the period already paid for', () => {
+  it('enters blocked immediately when nothing is paid for — no period end on file', () => {
     const sub = facts({ status: 'PAST_DUE' });
     expect(computeLifecycleTransition(sub, T0)).toEqual({ type: 'enter_blocked', blockedAt: T0 });
+  });
+
+  it('enters blocked immediately when the period on file is already over', () => {
+    const sub = facts({ status: 'PAST_DUE', currentPeriodEnd: addDays(T0, -3) });
+    expect(computeLifecycleTransition(sub, T0)).toEqual({ type: 'enter_blocked', blockedAt: T0 });
+  });
+
+  describe('a company paid through 2026-10-31 whose renewal was refused on the 3rd', () => {
+    // Polar's own renewal instant, mid-day: the company bought October, and October is not over
+    // because a card was declined during it.
+    const currentPeriodEnd = new Date('2026-10-31T06:00:00.000Z');
+    const sub = facts({ status: 'PAST_DUE', currentPeriodEnd, polarSubscriptionId: 'sub_1' });
+
+    it.each([
+      ['2026-10-03T08:00:00.000Z', 'the sweep tick right after the failed charge'],
+      ['2026-10-20T00:00:00.000Z', 'a tick well into the dunning retries'],
+      ['2026-10-31T06:00:00.001Z', 'a tick past the renewal instant, still on the day paid for'],
+      ['2026-10-31T23:59:59.999Z', 'the last millisecond of the last day paid for'],
+    ])('is NOT blocked at %s (%s)', (now) => {
+      expect(computeLifecycleTransition(sub, new Date(now))).toEqual({ type: 'none' });
+    });
+
+    it.each([
+      ['2026-11-01T00:00:00.000Z', 'the first instant no longer paid for'],
+      ['2026-11-04T09:30:00.000Z', 'a later tick, blocked from that tick — never backdated'],
+    ])('IS blocked at %s (%s), blockedAt stamped now', (nowIso) => {
+      const now = new Date(nowIso);
+      expect(computeLifecycleTransition(sub, now)).toEqual({ type: 'enter_blocked', blockedAt: now });
+    });
   });
 });
 

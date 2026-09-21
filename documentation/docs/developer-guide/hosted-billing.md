@@ -91,9 +91,12 @@ never grants or revokes access — `seat-holders.ts#seatHolders` decides who is 
 from role + arrival order (`UserCompany.createdAt`), completely ignoring `seatIndex`.
 
 **Over capacity** — the OWNER lowers the bought quantity in the Polar portal below the current
-headcount — is handled the same way: the OWNER always keeps their seat; the most-recently-arrived
-non-owner members wait, and get their seat back automatically (no action needed) the moment a seat frees
-up or is bought back. A member currently WAITING is refused every write via
+headcount — is handled the same way: members are ranked (OWNERs first, then everyone else, each in
+arrival order) and the bought quantity is a hard ceiling on how many of them hold a seat, so a role is a
+priority over the seats bought, never an exemption from buying one (promoting the whole company to
+OWNER seats nobody extra). The single exception is the longest-standing OWNER, who keeps a seat even at
+zero capacity so somebody can always log in and buy seats back. Whoever waits gets their seat back
+automatically (no action needed) the moment a seat frees up or is bought back. A member currently WAITING is refused every write via
 `company-write.guard.ts`/`seat-gate.ts` (403, `SEAT_REQUIRED`) and sees a full-app "waiting for a seat"
 takeover (`(app)/_layout.tsx`, driven by `GET /api/billing/seats`) naming the OWNER — the same
 gate `write-gate.ts#assertCompanyWritable`'s `COMPANY_BLOCKED` already holds for a blocked company,

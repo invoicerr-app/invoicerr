@@ -25,6 +25,7 @@ function sub(overrides: Partial<CompanySubscription>): CompanySubscription {
     deletionDueAt: null,
     polarCustomerId: null,
     polarSubscriptionId: null,
+    currentPeriodEnd: null,
     seats: 1,
     interval: null,
     seatPaymentFailedAt: null,
@@ -67,13 +68,27 @@ describe('computeBillingStatusView', () => {
   });
 
   it(
-    'is 0, never null, for PAST_DUE — it folds into BLOCKED on the very next sweep tick (no window ' +
-      'of its own, lifecycle.ts), so `null` would wrongly read as "nothing urgent" an hour before the ' +
-      'company is locked out',
+    'is 0, never null, for PAST_DUE with no paid period left — it folds into BLOCKED on the very next ' +
+      'sweep tick, so `null` would wrongly read as "nothing urgent" an hour before the company is ' +
+      'locked out',
     () => {
-      expect(computeView(sub({ status: 'PAST_DUE' }), NOW).daysRemaining).toBe(0);
+      expect(computeView(sub({ status: 'PAST_DUE', currentPeriodEnd: null }), NOW).daysRemaining).toBe(0);
+      expect(
+        computeView(sub({ status: 'PAST_DUE', currentPeriodEnd: addDays(NOW, -2) }), NOW).daysRemaining,
+      ).toBe(0);
     },
   );
+
+  it('counts down to the end of the period already paid for while PAST_DUE — the date the sweep will block on', () => {
+    // Renewal refused on the 3rd, October paid for through the 31st: the screen owes this company the
+    // real deadline it has to fix its card, not "0 days".
+    const view = computeView(
+      sub({ status: 'PAST_DUE', currentPeriodEnd: new Date('2026-10-31T06:00:00.000Z') }),
+      new Date('2026-10-03T08:00:00.000Z'),
+    );
+
+    expect(view.daysRemaining).toBe(29);
+  });
 
   it('is null defensively when BLOCKED carries no blockedAt', () => {
     expect(computeView(sub({ status: 'BLOCKED', blockedAt: null }), NOW).daysRemaining).toBeNull();

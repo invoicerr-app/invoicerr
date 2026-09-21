@@ -10,18 +10,26 @@
  *     `send-gate.ts#assertCanSend`) --[trialEndsAt reached]--> `blocked` (14 days, read-only, every
  *     action refused) --[14 days elapse]--> zip sent, `zipped` --[30 days elapse]--> deleted.
  *  2. PAID-THEN-STOPPED: `active` --[Polar webhook reports the subscription stopped renewing]-->
- *     `past_due` --[the very next sweep tick, no separate grace window of its own — see below]-->
- *     `blocked` (14 days) --[14 days elapse]--> zip sent, `zipped` --[180 days elapse]--> deleted.
+ *     `past_due` --[the period the company had ALREADY PAID FOR runs out — see below]--> `blocked`
+ *     (14 days) --[14 days elapse]--> zip sent, `zipped` --[180 days elapse]--> deleted.
  *
  * `active` itself is never advanced by this function — becoming `active`/`past_due` is a WEBHOOK
  * fact (`webhook-handlers.ts`, `subscription.active` / `subscription.canceled` / `.revoked`), not
  * something a periodic sweep can observe on its own; this function only walks a subscription FORWARD
  * once it is already in `trial`, `past_due`, `blocked`, or `zipped`.
  *
- * `past_due` carries no duration of its own (the product brief never named one — the moment payment
+ * `past_due` carries no grace window OF ITS OWN (the product brief never named one — the moment payment
  * stops, this treats it as already inside the SAME 14-day countdown the never-paid cycle uses, never
- * a separate/longer grace period a company could exploit by design ambiguity) — so `past_due` folds
- * straight into `blocked` on the very next tick, `blockedAt` stamped `now`.
+ * a separate/longer grace period a company could exploit by design ambiguity). What it does carry is
+ * whatever the company ALREADY BOUGHT: the read-only suspension opens when a paid subscription ENDS
+ * (Terms of Service, Section 13.1(b)) — "through cancellation taking effect, non-renewal, or an
+ * unresolved payment failure" — and a period paid through the 31st has not ended on the 3rd merely
+ * because that month's renewal was refused and Polar is still retrying it. So `past_due` folds into
+ * `blocked` on the first tick at or after the end of the period on file (`currentPeriodEnd`, read
+ * through `paid-period-grace.ts#isPaidPeriodStillRunning` — the same "a period already paid for is not
+ * shortened by something the customer never agreed to" commitment Section 20.2 makes for a Terms
+ * change), `blockedAt` stamped `now`, and on the very next tick for a company with no paid period on
+ * file at all (a checkout that never completed, a trial that lapsed straight into `past_due`).
  *
  * ## Distinguishing the two cycles' zip→delete delay WITHOUT a dedicated field
  * Both cycles fold into `blocked` and then `zipped` through IDENTICAL code, but the grace period
@@ -32,6 +40,12 @@
  * later canceled/revoked. So "has this company ever actually paid" is exactly
  * `polarSubscriptionId !== null`, with no new column and no way for the two facts to drift apart.
  */
+// The only import this otherwise dependency-free module takes, and deliberately so: "when does the
+// period a company already paid for stop protecting it" is ONE definition, shared with the Terms
+// exception that asks the same question for its own reason (`paid-period-grace.ts`'s own header). That
+// file is equally pure — no Prisma client, no clock of its own — so importing it costs this module
+// none of the testability the split above exists for.
+import { isPaidPeriodStillRunning } from './paid-period-grace';
 
 /** Mirrors the Prisma `CompanySubscriptionStatus` enum's own member names exactly (SCREAMING_SNAKE,
  *  the convention every other enum in `schema.prisma` already uses — `CompanyRole`,
@@ -49,6 +63,12 @@ export interface CompanySubscriptionLifecycleFacts {
   deletionDueAt: Date | null;
   /** See this file's own header — the ONLY signal distinguishing the two cycles' zip→delete delay. */
   polarSubscriptionId: string | null;
+  /** The end of the period this company has ALREADY PAID FOR — Polar's own `currentPeriodEnd`, as last
+   *  mirrored while the subscription was live (`webhook-handlers.ts#applySubscriptionWebhook` only
+   *  writes it from a fact that still reports the subscription as paid, so it can never quietly become
+   *  the end of an UNPAID cycle Polar rolled the company into on a failed renewal). `null` for a
+   *  company that has never paid for one — read only by the `PAST_DUE` branch below. */
+  currentPeriodEnd: Date | null;
 }
 
 export const TRIAL_DAYS = 14;
@@ -99,7 +119,12 @@ export function computeLifecycleTransition(
         : { type: 'none' };
 
     case 'PAST_DUE':
-      // No window of its own — see this file's own header. Folds straight into `blocked`.
+      // No grace window of its own — but never before the end of the period the company already paid
+      // for (see this file's own header on Section 13.1(b)). `none` here is not "nothing is wrong": the
+      // company keeps the access it bought while its Billing screen shows the failed payment and the
+      // days it has left to fix it (`billing-status-view.ts`), which is exactly the window a card
+      // decline needs and the old unconditional block never gave.
+      if (isPaidPeriodStillRunning(sub.currentPeriodEnd, now)) return { type: 'none' };
       return { type: 'enter_blocked', blockedAt: now };
 
     case 'BLOCKED': {
