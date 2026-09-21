@@ -4,6 +4,7 @@ import { MailService } from '@/mail/mail.service';
 
 import { CurrencyRateSweepRunner } from '../../company/currency-rates/currency-rate-sweep-runner';
 import { LogPurgeSweepRunner } from '../../../logger/log-purge-sweep-runner';
+import { StorageErasureSweepRunner } from '../archive/storage-erasure-sweep-runner';
 import { DocumentsCoreModule } from '../documents-core.module';
 import { ReminderSweepRunner } from '../reminders/reminder-sweep-runner';
 import { DocumentQueueDispatcher } from './document-queue.dispatcher';
@@ -64,6 +65,14 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
  * "documents" concept at all; it rides this queue purely because it is the one always-on, cross-
  * cutting queue every deployment topology already has, the same opportunistic placement
  * `CurrencyRateSweepRunner` itself gets away with despite living under `modules/company/`.
+ *
+ * `StorageErasureSweepRunner` (the drain that finally erases bytes a departed company's own statutory
+ * retention was still holding) is provided directly HERE for that same "zero Nest dependencies" reason
+ * — it calls one plain exported function and `prisma`, nothing injectable. It belongs on the WORKER
+ * side rather than beside an API controller for the reason that decides every sweep on this page: the
+ * pass is a queue job, so BullMQ fires it once cluster-wide and one consumer runs it, whereas a timer
+ * living in the API process would drain the same journal once per replica. See
+ * `archive/storage-erasure-sweep-runner.ts`'s own header.
  */
 @Module({
   imports: [DocumentsCoreModule],
@@ -73,6 +82,7 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
     MailService,
     ReminderSweepRunner,
     LogPurgeSweepRunner,
+    StorageErasureSweepRunner,
   ],
 })
 export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {

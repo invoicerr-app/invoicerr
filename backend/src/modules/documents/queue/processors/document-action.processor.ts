@@ -57,6 +57,11 @@ import { Job } from 'bullmq';
 import { runWithCompanyId } from '@/lib/request-context';
 
 import { ActionResult } from '../../actions/action-registry';
+import { STORAGE_ERASURE_SWEEP_JOB_NAME } from '../../archive/storage-erasure-sweep';
+import {
+  RunStorageErasureSweepResult,
+  StorageErasureSweepRunner,
+} from '../../archive/storage-erasure-sweep-runner';
 import {
   CurrencyRateSweepRunner,
   RunCurrencyRateSweepResult,
@@ -147,6 +152,13 @@ export class DocumentActionProcessor extends WorkerHost {
     // "documents" concept — see `LogPurgeSweepRunner`'s own header for why it still rides this same
     // queue.
     @Optional() private readonly logPurgeSweepRunner?: LogPurgeSweepRunner,
+    // The storage-erasure journal's own drain — same `@Optional()` reasoning once more: every EXISTING
+    // spec in this file constructs this processor without one and never sends a storage-erasure-named
+    // job; production wiring (document-queue-worker.module.ts) always provides a real one. Like
+    // `LogPurgeSweepRunner`, this is not a "documents" concept either — it erases the bytes a DELETED
+    // COMPANY owned in both stores — and rides this same queue for the same reason: it is a
+    // zero-dependency leaf provider and this is the one always-on queue every topology already has.
+    @Optional() private readonly storageErasureSweepRunner?: StorageErasureSweepRunner,
   ) {
     super();
   }
@@ -161,6 +173,7 @@ export class DocumentActionProcessor extends WorkerHost {
     | RunReminderSweepResult
     | RunReceptionSweepResult
     | RunLogPurgeSweepResult
+    | RunStorageErasureSweepResult
     | { journaled: number }
   > {
     if (job.name === SCHEDULE_SWEEP_JOB_NAME) {
@@ -208,6 +221,11 @@ export class DocumentActionProcessor extends WorkerHost {
     if (job.name === LOG_PURGE_SWEEP_JOB_NAME) {
       this.logger.log(`Running the Log purge sweep (job ${job.id})`);
       return this.requireLogPurgeSweepRunner().runSweep();
+    }
+
+    if (job.name === STORAGE_ERASURE_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the storage-erasure sweep (job ${job.id})`);
+      return this.requireStorageErasureSweepRunner().runSweep();
     }
 
     if (job.name === DOCUMENT_REPORT_JOB_NAME) {
@@ -325,6 +343,17 @@ export class DocumentActionProcessor extends WorkerHost {
     return this.logPurgeSweepRunner;
   }
 
+  private requireStorageErasureSweepRunner(): StorageErasureSweepRunner {
+    if (!this.storageErasureSweepRunner) {
+      // Unreachable in production (document-queue-worker.module.ts always provides one) — a loud,
+      // named failure rather than a silent no-op if this is ever wired without it.
+      throw new Error(
+        'DocumentActionProcessor received a storage-erasure job but has no StorageErasureSweepRunner.',
+      );
+    }
+    return this.storageErasureSweepRunner;
+  }
+
   /**
    * Fires after EVERY failed attempt, not only the last one — `job.attemptsMade` (already
    * incremented for this attempt by BullMQ before the event fires) compared against the job's own
@@ -404,7 +433,12 @@ export class DocumentActionProcessor extends WorkerHost {
       // but this job's data (`{}`, no `documentId`/`actionId`) shares nothing with `markSendFailed`'s
       // vocabulary either way; `attempts: 1` plus the next scheduled tick is this sweep's own retry,
       // identical to every sibling repeatable above.
-      job.name === LOG_PURGE_SWEEP_JOB_NAME
+      job.name === LOG_PURGE_SWEEP_JOB_NAME ||
+      // Same skip again — `StorageErasureSweepRunner.runSweep` cannot fail on an object at all (the
+      // drain it wraps never throws: a failed delete is counted and left in the journal with its own
+      // `lastError`, see `archive/company-storage-erasure.ts`'s own header), and this job's data
+      // (`{}`, no `documentId`/`actionId`) shares nothing with `markSendFailed`'s vocabulary either.
+      job.name === STORAGE_ERASURE_SWEEP_JOB_NAME
     )
       return;
 

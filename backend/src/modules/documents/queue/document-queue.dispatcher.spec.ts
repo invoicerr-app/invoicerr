@@ -217,6 +217,44 @@ describe('DocumentQueueDispatcher.registerLogPurgeSweepRepeatable', () => {
   });
 });
 
+describe('DocumentQueueDispatcher.registerStorageErasureSweepRepeatable', () => {
+  afterEach(() => {
+    delete process.env.STORAGE_ERASURE_SWEEP_INTERVAL_MS;
+    vi.resetAllMocks();
+  });
+
+  it('registers the ONE storage-erasure sweep job as a repeatable, under its fixed singleton jobId', async () => {
+    const queue = fakeQueue();
+    const dispatcher = new DocumentQueueDispatcher(queue as never);
+
+    await dispatcher.registerStorageErasureSweepRepeatable();
+
+    expect(queue.add).toHaveBeenCalledWith(
+      'storage-erasure-sweep',
+      {},
+      expect.objectContaining({
+        jobId: 'storage-erasure-sweep-singleton',
+        // Daily by default — a statutory retention boundary is measured in years, so this is already
+        // far finer resolution than the obligation it discharges has.
+        repeat: { every: 24 * 60 * 60 * 1000 },
+      }),
+    );
+  });
+
+  it('honours STORAGE_ERASURE_SWEEP_INTERVAL_MS, the way every sibling sweep honours its own', async () => {
+    process.env.STORAGE_ERASURE_SWEEP_INTERVAL_MS = '5000';
+    const queue = fakeQueue();
+
+    await new DocumentQueueDispatcher(queue as never).registerStorageErasureSweepRepeatable();
+
+    expect(queue.add).toHaveBeenCalledWith(
+      'storage-erasure-sweep',
+      {},
+      expect.objectContaining({ repeat: { every: 5000 } }),
+    );
+  });
+});
+
 /**
  * A fake queue that keeps the repeatable definitions it is handed, keyed the way BullMQ keys them —
  * by the schedule itself — so re-registering a sweep under a CHANGED interval adds a definition
@@ -251,6 +289,7 @@ describe('DocumentQueueDispatcher.registerSweepRepeatables', () => {
     'document-reminder-sweep',
     'document-schedule-sweep',
     'log-purge-sweep',
+    'storage-erasure-sweep',
   ];
 
   afterEach(() => {

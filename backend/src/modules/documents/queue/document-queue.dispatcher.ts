@@ -18,6 +18,11 @@ import { Queue } from 'bullmq';
 import { ConfiguredRepeatable, retireSupersededRepeatables } from '@/lib/queue-repeatables';
 
 import {
+  readStorageErasureSweepIntervalMs,
+  STORAGE_ERASURE_SWEEP_JOB_ID,
+  STORAGE_ERASURE_SWEEP_JOB_NAME,
+} from '../archive/storage-erasure-sweep';
+import {
   CONFORMITY_POLL_JOB_NAME,
   CONFORMITY_SWEEP_JOB_ID,
   CONFORMITY_SWEEP_JOB_NAME,
@@ -316,8 +321,36 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
   }
 
   /**
-   * Boot-time entry point for EVERY repeatable this queue carries — registers all six, then retires
-   * any definition Redis still holds that the six above do not name.
+   * Registers the ONE storage-erasure sweep repeatable — the pass that erases bytes a deleted
+   * company's own statutory retention was still holding when it left (⚖
+   * `archive/storage-erasure-sweep.ts`'s own header for why this sweep had to exist at all, and why a
+   * day is already generous for a boundary measured in years). Same idempotent-registration guarantee
+   * as every sibling repeatable above (BullMQ dedups a repeatable definition by its own key across the
+   * whole cluster), same `attempts: 1` reasoning — and here the pass itself never throws in the first
+   * place (`drainStorageErasureJournal` records a failed object in its own row and moves on), so the
+   * next tick is the retry for the only thing that can go wrong: the sweep not having run.
+   */
+  async registerStorageErasureSweepRepeatable(): Promise<ConfiguredRepeatable> {
+    const configured: ConfiguredRepeatable = {
+      name: STORAGE_ERASURE_SWEEP_JOB_NAME,
+      repeat: { every: readStorageErasureSweepIntervalMs() },
+    };
+    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
+      jobId: STORAGE_ERASURE_SWEEP_JOB_ID,
+      repeat: configured.repeat,
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
+    this.logger.log(
+      `Registered the storage-erasure sweep repeatable (every ${readStorageErasureSweepIntervalMs()}ms).`,
+    );
+    return configured;
+  }
+
+  /**
+   * Boot-time entry point for EVERY repeatable this queue carries — registers all seven, then retires
+   * any definition Redis still holds that the seven above do not name.
    *
    * That second half is not bookkeeping: a repeatable's key folds in its own schedule, so changing
    * one of the `*_SWEEP_INTERVAL_MS` env vars registers a SECOND definition beside the first rather
@@ -338,6 +371,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
       await this.registerReminderSweepRepeatable(),
       await this.registerPdpReceptionSweepRepeatable(),
       await this.registerLogPurgeSweepRepeatable(),
+      await this.registerStorageErasureSweepRepeatable(),
     ];
     await retireSupersededRepeatables(this.queue, configured);
   }
