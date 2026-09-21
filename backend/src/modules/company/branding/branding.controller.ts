@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import {
   BadRequestException,
   Body,
@@ -49,6 +50,7 @@ export class BrandingController {
   constructor(private readonly branding: BrandingService) {}
 
   @Get()
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: "Get this company's document branding",
     description:
@@ -63,6 +65,7 @@ export class BrandingController {
 
   @Put()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Set the accent color, font and/or preset',
     description:
@@ -94,6 +97,7 @@ export class BrandingController {
   // ceiling, not a different physical constraint.
   @Post('logo')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @UseInterceptors(
     FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_ATTACHMENT_BYTES } }),
   )
@@ -125,6 +129,7 @@ export class BrandingController {
 
   @Delete('logo')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Remove the company logo' })
   @ApiResponse({ status: 200, description: 'Logo removed' })
   async removeLogo(@ActiveCompany() companyId: string) {
@@ -132,6 +137,7 @@ export class BrandingController {
   }
 
   @Get('logo')
+  @RequiresScope('company:read')
   @ApiOperation({ summary: "The company logo's raw stored bytes" })
   @ApiResponse({
     status: 200,
@@ -146,6 +152,7 @@ export class BrandingController {
   }
 
   @Get('preview')
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'A sample document rendered with this branding applied',
     description:

@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -23,6 +24,7 @@ export class CurrencyRatesController {
   constructor(private readonly currencyRatesService: CurrencyRatesService) {}
 
   @Get()
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'List currency rates',
     description: 'Returns every manually-entered exchange rate for the current company, newest first.',
@@ -33,6 +35,7 @@ export class CurrencyRatesController {
   }
 
   @Get('gaps')
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'List currency pairs with no automatic rate',
     description:
@@ -47,6 +50,7 @@ export class CurrencyRatesController {
 
   @Post()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Add a currency rate',
     description:

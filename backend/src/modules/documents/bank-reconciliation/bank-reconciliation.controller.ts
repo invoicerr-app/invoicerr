@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { BadRequestException, Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -21,6 +22,7 @@ export class BankReconciliationController {
   constructor(private readonly bankReconciliation: BankReconciliationService) {}
 
   @Post('statements')
+  @RequiresScope('invoices:write')
   @ApiOperation({
     summary: 'Import a bank statement (CSV or OFX)',
     description:
@@ -56,6 +58,7 @@ export class BankReconciliationController {
   }
 
   @Get('statements')
+  @RequiresScope('invoices:read')
   @ApiOperation({ summary: 'List every imported bank statement for the active company' })
   @ApiResponse({ status: 200, description: 'Statements, most recently imported first' })
   listStatements(@ActiveCompany() companyId: string) {
@@ -63,6 +66,7 @@ export class BankReconciliationController {
   }
 
   @Get('statements/:id/lines')
+  @RequiresScope('invoices:read')
   @ApiOperation({
     summary: "One statement's own lines, each with its live suggested matches",
     description:
@@ -79,6 +83,7 @@ export class BankReconciliationController {
   }
 
   @Post('lines/:id/reconcile')
+  @RequiresScope('invoices:write')
   @ApiOperation({
     summary: 'Confirm a match: creates a real invoice payment from a bank statement line',
     description:

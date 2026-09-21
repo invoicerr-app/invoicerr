@@ -48,6 +48,20 @@ export const API_KEY_SCOPES = [
   'webhooks:write',
   'billing:read',
   'billing:write',
+  // Time tracking — projects and the time entries logged against them (`modules/time-tracking/`).
+  // Its OWN pair rather than a fold onto `invoices:*`: a key minted to log an hour must not thereby
+  // gain the power to issue an invoice, and the two resources have nothing else in common. The one
+  // route that crosses the line, `POST /time-entries/generate-invoice`, reads entries AND creates an
+  // invoice, so it names `invoices:write` instead — `@RequiresScope` is an any-of check and cannot
+  // express "both", which makes gating it on the heavier consequence the only honest reading.
+  //
+  // Neither half is a document type: no `DocumentTypeDescriptor` resolves a project, so
+  // `scopeForDocumentType` can never compute either name. Both are therefore listed in the exclusion
+  // list of `utils/scope-check.ts`, WITHOUT which they would silently join `DOCUMENT_READ_SCOPES`/
+  // `DOCUMENT_WRITE_SCOPES` (derived as "everything here minus that list") and a key granted nothing
+  // but `time-tracking:read` would satisfy the coarse "holds ANY document scope" fallback.
+  'time-tracking:read',
+  'time-tracking:write',
 ] as const;
 
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];

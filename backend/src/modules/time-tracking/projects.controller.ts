@@ -2,6 +2,7 @@ import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
 import { CreateProjectDto, EditProjectDto, ProjectsService } from './projects.service';
 
@@ -11,6 +12,7 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get()
+  @RequiresScope('time-tracking:read')
   @ApiOperation({
     summary: 'List projects',
     description: "Returns this company's projects, active ones only unless includeArchived=true.",
@@ -27,6 +29,7 @@ export class ProjectsController {
   }
 
   @Get(':id')
+  @RequiresScope('time-tracking:read')
   @ApiOperation({ summary: 'Get a project' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Project retrieved' })
@@ -39,6 +42,7 @@ export class ProjectsController {
   }
 
   @Post()
+  @RequiresScope('time-tracking:write')
   @ApiOperation({
     summary: 'Create a project',
     description:
@@ -51,6 +55,9 @@ export class ProjectsController {
   }
 
   @Patch(':id')
+  // Archiving a project is this same route with `isArchived: true` (see below), so the write scope
+  // covers the destructive half as well — there is no separate delete to gate.
+  @RequiresScope('time-tracking:write')
   @ApiOperation({
     summary: 'Update a project',
     description:

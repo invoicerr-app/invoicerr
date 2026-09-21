@@ -50,6 +50,8 @@ import { BillingController } from '@/modules/billing/billing.controller';
 import { SeatsController } from '@/modules/billing/seats.controller';
 import { DocumentsController } from '@/modules/documents/documents.controller';
 import { CompanyCustomFieldsController } from '@/modules/documents/company-custom-fields/company-custom-fields.controller';
+import { ProjectsController } from '@/modules/time-tracking/projects.controller';
+import { TimeEntriesController } from '@/modules/time-tracking/time-entries.controller';
 
 describe('@RequiresScope / @RequiresDocumentTypeScope — wired onto the REST controllers', () => {
   const cases: Array<{
@@ -236,6 +238,45 @@ describe('@RequiresScope / @RequiresDocumentTypeScope — wired onto the REST co
       method: 'list',
       key: REQUIRES_SCOPE_KEY,
       expected: ['company:read'],
+    },
+    {
+      name: 'ProjectsController',
+      Controller: ProjectsController,
+      method: 'findAll',
+      key: REQUIRES_SCOPE_KEY,
+      expected: ['time-tracking:read'],
+    },
+    {
+      name: 'ProjectsController',
+      Controller: ProjectsController,
+      method: 'create',
+      key: REQUIRES_SCOPE_KEY,
+      expected: ['time-tracking:write'],
+    },
+    {
+      name: 'TimeEntriesController',
+      Controller: TimeEntriesController,
+      method: 'findAll',
+      key: REQUIRES_SCOPE_KEY,
+      expected: ['time-tracking:read'],
+    },
+    {
+      name: 'TimeEntriesController',
+      Controller: TimeEntriesController,
+      method: 'create',
+      key: REQUIRES_SCOPE_KEY,
+      expected: ['time-tracking:write'],
+    },
+    // The one time-tracking route deliberately gated on the INVOICE write scope: it drafts an
+    // invoice out of the entries it bills, and an any-of check cannot ask for both scopes at once.
+    // Pinned here because a later "consistency" pass would otherwise be free to align it with its
+    // siblings and hand every hour-logging key the power to issue invoices.
+    {
+      name: 'TimeEntriesController',
+      Controller: TimeEntriesController,
+      method: 'generateInvoice',
+      key: REQUIRES_SCOPE_KEY,
+      expected: ['invoices:write'],
     },
   ];
 

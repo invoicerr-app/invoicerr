@@ -1,3 +1,4 @@
+import { RequiresDocumentTypeScope } from '@/utils/scope-check';
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -18,6 +19,7 @@ import { buildAccountingExport } from './accounting-export.service';
 @Controller('accounting-export')
 export class AccountingExportController {
   @Get()
+  @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
     summary: 'Export the company ledger (invoices, credit notes, payments) as CSV over a date range',
     description:

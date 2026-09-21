@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { Body, Controller, Delete, Get, Param, Put } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -28,6 +29,7 @@ export class ChannelsController {
    * `ChannelPolicyStatus` for the exact shape).
    */
   @Get()
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'List channel connections',
     description:
@@ -55,6 +57,7 @@ export class ChannelsController {
    */
   @Put(':providerId')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Connect/update a channel',
     description:
@@ -86,6 +89,7 @@ export class ChannelsController {
    *  environment's row for this provider — see `deleteChannelConfig`'s own header). */
   @Delete(':providerId')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Disconnect a channel',
     description: "Removes this company's configuration for one provider, every environment included.",

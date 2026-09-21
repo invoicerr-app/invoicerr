@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { Controller, Get, Post, Delete, Body, Param, Query, BadRequestException } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -82,6 +83,7 @@ export class InvitationsController {
 
   @Post()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Create an invitation',
     description:
@@ -103,6 +105,7 @@ export class InvitationsController {
 
   @Get()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'List invitations',
     description: 'Returns all pending invitations for the active company.',
@@ -114,6 +117,7 @@ export class InvitationsController {
 
   @Delete(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Delete an invitation', description: 'Revokes a pending invitation by its ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Invitation ID' })
   @ApiResponse({ status: 200, description: 'Invitation deleted' })

@@ -2,6 +2,7 @@ import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
 import {
   CreateTimeEntryDto,
@@ -16,6 +17,7 @@ export class TimeEntriesController {
   constructor(private readonly timeEntriesService: TimeEntriesService) {}
 
   @Get()
+  @RequiresScope('time-tracking:read')
   @ApiOperation({
     summary: 'List time entries',
     description:
@@ -40,6 +42,7 @@ export class TimeEntriesController {
   }
 
   @Post()
+  @RequiresScope('time-tracking:write')
   @ApiOperation({ summary: 'Log a time entry' })
   @ApiResponse({ status: 201, description: 'Time entry logged' })
   @ApiResponse({ status: 404, description: 'Project not found' })
@@ -48,6 +51,7 @@ export class TimeEntriesController {
   }
 
   @Patch(':id')
+  @RequiresScope('time-tracking:write')
   @ApiOperation({ summary: 'Edit a time entry' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Time entry updated' })
@@ -58,6 +62,7 @@ export class TimeEntriesController {
   }
 
   @Delete(':id')
+  @RequiresScope('time-tracking:write')
   @ApiOperation({ summary: 'Delete a time entry' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Time entry deleted' })
@@ -68,6 +73,13 @@ export class TimeEntriesController {
   }
 
   @Post('generate-invoice')
+  // The one route here that is NOT gated on `time-tracking:write`: it reads time entries and CREATES
+  // AN INVOICE, and `@RequiresScope` is an any-of check, so it cannot demand both scopes at once.
+  // Named on the heavier consequence, therefore: a key that may only log hours must not be able to
+  // mint a billable document out of them, whereas a key already trusted to write invoices loses
+  // nothing by being trusted with the ones this route drafts. A key holding both scopes satisfies it
+  // through this one all the same.
+  @RequiresScope('invoices:write')
   @ApiOperation({
     summary: 'Bill selected time entries to a new draft invoice',
     description:

@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import {
   BadRequestException,
   Body,
@@ -72,6 +73,7 @@ export class ReceivedInvoicesController {
    * (different segment counts), but this keeps the more specific, fixed routes easy to find.
    */
   @Get('reconciliation-settings')
+  @RequiresScope('received-invoices:read')
   @ApiOperation({ summary: "This company's own 3-way-match tolerance (percent)" })
   @ApiResponse({ status: 200, description: 'The configured tolerance, or the default if never set' })
   async getReconciliationSettings(@ActiveCompany() companyId: string): Promise<ReconciliationSettings> {
@@ -86,6 +88,7 @@ export class ReceivedInvoicesController {
    */
   @Put('reconciliation-settings')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('received-invoices:write')
   @ApiOperation({ summary: "Set this company's own 3-way-match tolerance (percent)" })
   @ApiBody({
     schema: {
@@ -113,6 +116,7 @@ export class ReceivedInvoicesController {
    * own header for the full "why this is not an error" reasoning.
    */
   @Get(':id/reconciliation')
+  @RequiresScope('received-invoices:read')
   @ApiOperation({ summary: 'The 3-way-match reconciliation for this received invoice' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'The reconciliation result (or hasPurchaseOrder: false)' })
@@ -136,6 +140,7 @@ export class ReceivedInvoicesController {
    * `verdict` already turned into `'accepted'` — the frontend panel needs no second round-trip.
    */
   @Post(':id/accept-variance')
+  @RequiresScope('received-invoices:write')
   // Nest's default for POST is 201 (Created) — wrong here, this action creates nothing (see
   // `verifyDomain` in sso.controller.ts for the same "action, not creation" precedent).
   @HttpCode(200)
@@ -170,6 +175,7 @@ export class ReceivedInvoicesController {
   // `FileInterceptor`'s built-in `MulterError` translation) before this handler, or
   // `ReceivedInvoicesService`, ever runs.
   @Post('upload')
+  @RequiresScope('received-invoices:write')
   @UseInterceptors(
     FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_RECEIVED_INVOICE_BYTES } }),
   )
@@ -218,6 +224,7 @@ export class ReceivedInvoicesController {
    * record (frontend `custom/received-invoice-download-button.tsx`).
    */
   @Get(':id/file')
+  @RequiresScope('received-invoices:read')
   @ApiOperation({ summary: "A received invoice's original uploaded file" })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({

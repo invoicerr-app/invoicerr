@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -20,6 +21,7 @@ export class PortalAccessController {
   constructor(private readonly portalTokensService: PortalTokensService) {}
 
   @Post()
+  @RequiresScope('clients:write')
   @ApiOperation({
     summary: 'Invites a client to the client portal',
     description:
@@ -38,6 +40,7 @@ export class PortalAccessController {
   }
 
   @Get()
+  @RequiresScope('clients:read')
   @ApiOperation({ summary: "A client's own portal-access history" })
   @ApiParam({ name: 'clientId', type: String })
   @ApiResponse({ status: 200, description: 'Portal access list retrieved' })
@@ -49,6 +52,7 @@ export class PortalAccessController {
   }
 
   @Delete(':tokenId')
+  @RequiresScope('clients:write')
   @ApiOperation({ summary: 'Revokes one portal-access link' })
   @ApiParam({ name: 'clientId', type: String })
   @ApiParam({ name: 'tokenId', type: String })
@@ -63,6 +67,7 @@ export class PortalAccessController {
   }
 
   @Delete()
+  @RequiresScope('clients:write')
   @ApiOperation({
     summary: 'Revokes EVERY active portal-access link for this client',
     description:

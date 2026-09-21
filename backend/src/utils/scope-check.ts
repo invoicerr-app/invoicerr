@@ -18,15 +18,28 @@ export function hasAnyScope(request: Pick<RequestWithUser, 'scopes'>, scopes: Ap
   return scopes.some((scope) => hasScope(request, scope));
 }
 
-/** Real business entities read/written DIRECTLY (`clients:*`/`articles:*`) — never resolved through
- *  the document-type registry, so never part of the document-scope predicates below. Moved here from
- *  `mcp/tools/scope-mapping.ts` (still re-exported there) so a REST controller can use the exact same
- *  computation the MCP tool layer already relies on, rather than a second, drifting one. */
+/** Real business entities read/written DIRECTLY (`clients:*`/`articles:*`/`time-tracking:*`) — never
+ *  resolved through the document-type registry, so never part of the document-scope predicates below.
+ *  Moved here from `mcp/tools/scope-mapping.ts` (still re-exported there) so a REST controller can use
+ *  the exact same computation the MCP tool layer already relies on, rather than a second, drifting
+ *  one.
+ *
+ *  This list is a SUBTRACTION: the two predicates below are `API_KEY_SCOPES` MINUS everything named
+ *  here. So a new non-document pair added to `api-keys/scopes.ts` and nowhere else does not stay
+ *  neutral — it JOINS `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES`, and its holder thereby
+ *  satisfies the coarse "holds ANY document scope" fallback `hasAnyDocumentScope` applies to every
+ *  'every-type' document route. Naming the pair here is the whole of what prevents that. */
 const ENTITY_SCOPES: readonly ApiKeyScope[] = [
   'clients:read',
   'clients:write',
   'articles:read',
   'articles:write',
+  // Time tracking: a project is a billing bucket for logged hours, not a document type — nothing
+  // registers a descriptor for it, and `scopeForDocumentType` could never compute either of these
+  // names. A key allowed to log an hour must not thereby be able to read the company's documents,
+  // which is exactly what leaving these two out of this list would grant it.
+  'time-tracking:read',
+  'time-tracking:write',
 ];
 
 /** Every declared scope for an actual DOCUMENT TYPE (quotes/invoices/credit-notes/expenses/

@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { BadRequestException, Body, Controller, Delete, Get, Param, Put } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -28,6 +29,7 @@ export class AtcudSeriesController {
    *  NOT a secret (it is printed on every invoice — Portaria n.º 195/2020, art. 4.º n.º 1) so, unlike
    *  a signing certificate's metadata-only list, it is returned in full. */
   @Get()
+  @RequiresScope('company:read')
   @ApiOperation({ summary: "List this company's registered ATCUD series validation codes" })
   @ApiResponse({ status: 200, description: 'ATCUD series list' })
   list(@ActiveCompany() companyId: string): Promise<AtcudSeriesResponse[]> {
@@ -43,6 +45,7 @@ export class AtcudSeriesController {
    */
   @Put()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Register (or update) an ATCUD series validation code' })
   @ApiBody({
     schema: {
@@ -72,6 +75,7 @@ export class AtcudSeriesController {
    *  certificate's soft one). */
   @Delete(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Remove a registered ATCUD series validation code' })
   @ApiParam({ name: 'id', type: String, description: 'ATCUD series record ID' })
   @ApiResponse({ status: 200, description: 'Series removed' })

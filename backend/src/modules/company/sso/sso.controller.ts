@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import {
   BadRequestException,
   Body,
@@ -43,6 +44,7 @@ export class SsoController {
    * Readable by any member: it carries no secret, and the screen itself is hidden from MEMBERs.
    */
   @Get()
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'Get the SSO configuration',
     description:
@@ -66,6 +68,7 @@ export class SsoController {
    */
   @Put()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Configure SSO',
     description:
@@ -110,6 +113,7 @@ export class SsoController {
   /** DELETE /api/company/sso — removes the configuration and deregisters the provider immediately. */
   @Delete()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Remove SSO',
     description: "Deletes this company's SSO configuration and stops accepting sign-ins through it.",
@@ -138,6 +142,7 @@ export class SsoController {
    * value is meant to be published in PUBLIC DNS by design.
    */
   @Get('domains')
+  @RequiresScope('company:read')
   @ApiOperation({ summary: 'List claimed SSO domains and their verification status' })
   @ApiResponse({ status: 200, description: 'Domain claims' })
   listDomains(@ActiveCompany() companyId: string): Promise<SsoDomainStatus[]> {
@@ -152,6 +157,7 @@ export class SsoController {
    */
   @Post('domains')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Claim an email domain for SSO',
     description:
@@ -179,6 +185,7 @@ export class SsoController {
    * `@Throttle` documents for its own outbound-lookup-shaped route.
    */
   @Post('domains/:id/verify')
+  @RequiresScope('company:write')
   @HttpCode(200)
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -195,6 +202,7 @@ export class SsoController {
   /** DELETE /api/company/sso/domains/:id — removes a domain claim outright. */
   @Delete('domains/:id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Remove a claimed SSO domain' })
   @ApiParam({ name: 'id', type: String, description: 'Domain claim ID' })
   @ApiResponse({ status: 200, description: 'Domain removed' })

@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { BadRequestException, Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -37,6 +38,7 @@ export class SigningCertificatesController {
    * `signing-certificates.service.ts#toMeta`'s own header.
    */
   @Get()
+  @RequiresScope('company:read')
   @ApiOperation({ summary: 'List signing certificates for the active company (metadata only)' })
   @ApiResponse({ status: 200, description: 'Certificate list (no PFX / no password)' })
   list(@ActiveCompany() companyId: string): Promise<CertificateMetaResponse[]> {
@@ -51,6 +53,7 @@ export class SigningCertificatesController {
    */
   @Post()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Upload a signing certificate (PFX + password, write-only)' })
   @ApiBody({
     schema: {
@@ -97,6 +100,7 @@ export class SigningCertificatesController {
    */
   @Delete(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Deactivate a signing certificate' })
   @ApiParam({ name: 'id', type: String, description: 'Certificate record ID' })
   @ApiResponse({ status: 200, description: 'Certificate deactivated' })

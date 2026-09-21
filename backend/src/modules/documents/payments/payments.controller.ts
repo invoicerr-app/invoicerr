@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -23,6 +24,7 @@ export class PaymentsController {
   constructor(private readonly paymentSessions: PaymentSessionsService) {}
 
   @Get(':documentId/sessions')
+  @RequiresScope('invoices:read')
   @ApiOperation({
     summary: "One invoice's own checkout sessions",
     description:

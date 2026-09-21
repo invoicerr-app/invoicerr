@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { User } from '@/decorators/user.decorator';
 import { DangerService } from '@/modules/danger/danger.service';
 import { CurrentUser } from '@/types/user';
@@ -24,6 +25,7 @@ export class DangerController {
   constructor(private readonly dangerService: DangerService) {}
 
   @Post('otp')
+  @RequiresScope('company:write')
   // Shared prerequisite for BOTH actions below: minting it is never itself destructive, and refusing
   // it to a caller with a pending re-acceptance would only ever block `deleteCompany` indirectly —
   // `resetCompanyData` stays refused at its OWN route regardless of an OTP the caller holds, since that
@@ -47,6 +49,7 @@ export class DangerController {
   }
 
   @Get('reset/company-data/preflight')
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'Preview a company-data reset',
     description:
@@ -59,6 +62,7 @@ export class DangerController {
   }
 
   @Post('reset/company-data')
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Reset company data',
     description:
@@ -93,6 +97,7 @@ export class DangerController {
   }
 
   @Post('delete-company')
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Delete company',
     description:

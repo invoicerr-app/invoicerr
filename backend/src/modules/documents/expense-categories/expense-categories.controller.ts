@@ -1,3 +1,4 @@
+import { RequiresScope } from '@/utils/scope-check';
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -27,6 +28,7 @@ export class ExpenseCategoriesController {
   constructor(private readonly expenseCategories: ExpenseCategoriesService) {}
 
   @Get()
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: "Every expense category for this company (settings screen's own list)",
     description:
@@ -45,6 +47,7 @@ export class ExpenseCategoriesController {
 
   @Post()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Create a new expense category',
     description:
@@ -58,6 +61,7 @@ export class ExpenseCategoriesController {
 
   @Put(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Rename an expense category',
     description: '`key` is immutable after creation — this only ever changes `label`.',
@@ -74,6 +78,7 @@ export class ExpenseCategoriesController {
 
   @Delete(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Archive (soft-delete) an expense category',
     description:
