@@ -40,19 +40,19 @@ describe("<AuthShell> — beta banner", () => {
     expect(screen.queryByTestId("beta-banner")).not.toBeInTheDocument()
   })
 
-  it.each(["1", "true", "TRUE", "  true  "])(
-    "renders the banner, with its exact warning text, for the published value %p",
-    (value) => {
-      setConfig({ VITE_ENABLE_BETA_BANNER: value })
-      renderShell()
+  it.each([
+    "1",
+    "true",
+    "TRUE",
+    "  true  ",
+  ])("renders the banner, with its exact warning text, for the published value %p", (value) => {
+    setConfig({ VITE_ENABLE_BETA_BANNER: value })
+    renderShell()
 
-      expect(screen.getByTestId("beta-banner")).toBeInTheDocument()
-      expect(screen.getByText("Beta")).toBeInTheDocument()
-      expect(
-        screen.getByText(/billing runs in test mode and nothing is charged/i),
-      ).toBeInTheDocument()
-    },
-  )
+    expect(screen.getByTestId("beta-banner")).toBeInTheDocument()
+    expect(screen.getByText("Beta")).toBeInTheDocument()
+    expect(screen.getByText(/billing runs in test mode and nothing is charged/i)).toBeInTheDocument()
+  })
 
   it("still renders the page's own content alongside the banner — the flag only ever adds text, never hides the form", () => {
     setConfig({ VITE_ENABLE_BETA_BANNER: "true" })
