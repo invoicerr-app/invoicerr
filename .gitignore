@@ -67,3 +67,4 @@ TODO_FEATURES.md
 # the open with the owner, including the ones that were reversed. It is a working record, not a
 # statement of what the product does — the data files carry that, each with its own sources.
 documentation/internal/DECISIONS.md
+documentation/internal/audit/
