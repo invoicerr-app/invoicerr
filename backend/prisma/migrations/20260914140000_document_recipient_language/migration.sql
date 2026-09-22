@@ -1,4 +1,4 @@
--- TODO_FEATURES.md rank 14 ("langue du document par destinataire"): an explicit, optional language on
+-- An explicit, optional language on
 -- the client (authoritative when set — see Client.language's own schema.prisma comment) with the
 -- company's own default as the fallback layer (Company.language). Both free-text, like the existing
 -- `country`/`countryCode` columns on these same tables: an unsupported or garbage value is never
