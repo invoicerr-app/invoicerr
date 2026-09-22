@@ -1,0 +1,100 @@
+
+
+  █ THRESHOLDS 
+
+    http_req_duration{name:company_info}
+    ✓ 'max>=0' max=819.52ms
+
+    http_req_duration{name:dashboard}
+    ✓ 'max>=0' max=1.06s
+
+    http_req_duration{name:invoice_pdf}
+    ✓ 'max>=0' max=8.34s
+
+    http_req_duration{name:invoice_send}
+    ✓ 'max>=0' max=1.96s
+
+    http_req_duration{name:list_clients}
+    ✓ 'max>=0' max=719.93ms
+
+    http_req_duration{name:list_invoices}
+    ✓ 'max>=0' max=436.19ms
+
+    http_req_duration{name:list_quotes}
+    ✓ 'max>=0' max=575.81ms
+
+    http_req_duration{name:login}
+    ✓ 'max>=0' max=0s
+
+    http_req_duration{name:ocr_upload}
+    ✓ 'max>=0' max=0s
+
+    http_req_duration{name:poll_invoice}
+    ✓ 'max>=0' max=735.65ms
+
+    http_req_duration{name:quote_convert}
+    ✓ 'max>=0' max=855.27ms
+
+    http_req_duration{name:quote_create}
+    ✓ 'max>=0' max=1.31s
+
+    http_req_duration{name:session}
+    ✓ 'max>=0' max=462.2ms
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 22941  74.542199/s
+    checks_succeeded...: 97.20% 22299 out of 22941
+    checks_failed......: 2.79%  642 out of 22941
+
+    ✗ session 200
+      ↳  63% — ✓ 1120 / ✗ 642
+    ✓ company_info 200
+    ✓ dashboard 200
+    ✓ list_quotes 200
+    ✓ list_invoices 200
+    ✓ list_clients 200
+    ✓ quote_create 201
+    ✓ quote_convert 201
+    ✓ invoice_pdf 200
+    ✓ pdf is a PDF
+    ✓ invoice_send 201
+    ✓ poll_invoice 200
+    ✓ invoice sent
+
+    CUSTOM
+    send_to_sent...................: avg=1.08s    med=1.05s    p(95)=1.11s    p(99)=2.26s    max=2.59s    count=1762 
+    throttled_429..................: 642    2.086051/s
+
+    HTTP
+    http_req_duration..............: avg=690.13ms med=72.2ms   p(95)=6.68s    p(99)=6.99s    max=8.34s    count=19417
+      { expected_response:true }...: avg=712.94ms med=73.93ms  p(95)=6.69s    p(99)=7s       max=8.34s    count=18775
+      { name:company_info }........: avg=86.36ms  med=61.92ms  p(95)=193.95ms p(99)=575.06ms max=819.52ms count=1762 
+      { name:dashboard }...........: avg=130.95ms med=95.76ms  p(95)=331.09ms p(99)=891.79ms max=1.06s    count=1762 
+      { name:invoice_pdf }.........: avg=6.62s    med=6.71s    p(95)=7.06s    p(99)=7.43s    max=8.34s    count=1762 
+      { name:invoice_send }........: avg=213.08ms med=171.18ms p(95)=437.84ms p(99)=1.1s     max=1.96s    count=1762 
+      { name:list_clients }........: avg=72.44ms  med=54.85ms  p(95)=182.48ms p(99)=441.68ms max=719.93ms count=1762 
+      { name:list_invoices }.......: avg=66.15ms  med=54.54ms  p(95)=139.34ms p(99)=376.3ms  max=436.19ms count=1762 
+      { name:list_quotes }.........: avg=71.49ms  med=61.72ms  p(95)=135.26ms p(99)=261.1ms  max=575.81ms count=1762 
+      { name:login }...............: avg=0s       med=0s       p(95)=0s       p(99)=0s       max=0s       count=0    
+      { name:ocr_upload }..........: avg=0s       med=0s       p(95)=0s       p(99)=0s       max=0s       count=0    
+      { name:poll_invoice }........: avg=58.83ms  med=49.33ms  p(95)=121.47ms p(99)=194.74ms max=735.65ms count=1797 
+      { name:quote_convert }.......: avg=114.15ms med=85.29ms  p(95)=321.24ms p(99)=709.42ms max=855.27ms count=1762 
+      { name:quote_create }........: avg=117.07ms med=82.06ms  p(95)=401.18ms p(99)=798.69ms max=1.31s    count=1762 
+      { name:session }.............: avg=46.42ms  med=37.18ms  p(95)=82.42ms  p(99)=354.58ms max=462.2ms  count=1762 
+    http_req_failed................: 3.30%  642 out of 19417
+    http_reqs......................: 19417  63.091665/s
+
+    EXECUTION
+    iteration_duration.............: avg=8.62s    med=8.51s    p(95)=9.35s    p(99)=11.72s   max=14.48s   count=1762 
+    iterations.....................: 1762   5.725267/s
+    vus............................: 7      min=7            max=50
+    vus_max........................: 50     min=50           max=50
+
+    NETWORK
+    data_received..................: 219 MB 710 kB/s
+    data_sent......................: 10 MB  33 kB/s
+
+
+
