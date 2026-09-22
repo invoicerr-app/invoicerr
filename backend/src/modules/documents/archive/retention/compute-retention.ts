@@ -70,14 +70,11 @@
  * has expired — is therefore the MAXIMUM across all of them, never any single rule read in isolation.
  *
  * This is not this codebase inventing an answer to the open question its own removed compliance
- * engine (git tag `avant-refonte-documents`) left unresolved (see `documentation/internal/
- * DECISIONS.md`'s own entry D-001, and `documentation/internal/audit/03-LEGAL-VERIFICATION.md`'s
- * FR-D9): that question was "which ONE of the two should the engine treat as *the* retention
- * duration", framed as a choice between two facts that are not actually in competition. Applying
- * BOTH texts simultaneously — which is what French law genuinely requires of a French company
- * regardless of what any compliance engine decides — sidesteps that framing rather than resolving it
- * by fiat; D-001 itself already anticipated this ("the product should probably carry both rather
- * than choose one"). A future rule that names an
+ * engine (git tag `avant-refonte-documents`) left unresolved. That question was "which ONE of the
+ * two should the engine treat as *the* retention duration", framed as a choice between two facts
+ * that are not actually in competition. Applying BOTH texts simultaneously — which is what French
+ * law genuinely requires of a French company regardless of what any compliance engine decides —
+ * sidesteps that framing rather than resolving it by fiat. A future rule that names an
  * ACTUAL exception (one obligation genuinely superseding another, rather than two independently
  * binding ones) would be a real re-opening of this reasoning — this file is not that.
  *
