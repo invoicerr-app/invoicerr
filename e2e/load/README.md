@@ -64,6 +64,9 @@ rather than the VU count when comparing against real usage.
 --keep                 leave the cluster running
 --destroy              destroy the named cluster, then exit
 --reuse-ip <ip>        load an instance already running, create nothing
+--spread-across-nodes  podAntiAffinity so api replicas prefer separate nodes (needs --nodes > 1)
+--ocr-pool <type>      a second, single-node pool tainted for the OCR pod alone
+--kill-a-node-at <dur> mid-run (e.g. 3m), delete one pool node and time the Ready-count recovery
 ```
 
 Comparing a change:
@@ -102,6 +105,7 @@ directories keep their `kubeconfig` and `secrets.yaml` too. All three are git-ig
 | `pods.csv`, `nodes.csv` | `kubectl top` every 15 s |
 | `queue.csv` | `document-action` queue depth and Postgres connections every 15 s |
 | `stage-end.csv` | the queue when k6 stopped, and how long it took to drain |
+| `node-kill.csv` | `--kill-a-node-at` only: when a node was killed, which one, and when the cluster showed a Ready node count again |
 | `project-after.json` | what the Scaleway project still held after teardown |
 
 ## Things this harness works around, on purpose

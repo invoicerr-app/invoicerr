@@ -1,0 +1,108 @@
+
+
+  █ THRESHOLDS 
+
+    http_req_duration{name:company_info}
+    ✓ 'max>=0' max=681.3ms
+
+    http_req_duration{name:dashboard}
+    ✓ 'max>=0' max=497.04ms
+
+    http_req_duration{name:invoice_pdf}
+    ✓ 'max>=0' max=6.97s
+
+    http_req_duration{name:invoice_send}
+    ✓ 'max>=0' max=1.21s
+
+    http_req_duration{name:list_clients}
+    ✓ 'max>=0' max=275.87ms
+
+    http_req_duration{name:list_invoices}
+    ✓ 'max>=0' max=387.84ms
+
+    http_req_duration{name:list_quotes}
+    ✓ 'max>=0' max=209.98ms
+
+    http_req_duration{name:login}
+    ✓ 'max>=0' max=0s
+
+    http_req_duration{name:ocr_upload}
+    ✓ 'max>=0' max=236.28ms
+
+    http_req_duration{name:poll_invoice}
+    ✓ 'max>=0' max=549.76ms
+
+    http_req_duration{name:poll_ocr}
+    ✓ 'max>=0' max=250.67ms
+
+    http_req_duration{name:quote_convert}
+    ✓ 'max>=0' max=1.15s
+
+    http_req_duration{name:quote_create}
+    ✓ 'max>=0' max=1.07s
+
+    http_req_duration{name:session}
+    ✓ 'max>=0' max=572.86ms
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 24483  58.29271/s
+    checks_succeeded...: 99.97% 24478 out of 24483
+    checks_failed......: 0.02%  5 out of 24483
+
+    ✗ session 200
+      ↳  99% — ✓ 585 / ✗ 5
+    ✓ company_info 200
+    ✓ dashboard 200
+    ✓ list_quotes 200
+    ✓ list_invoices 200
+    ✓ list_clients 200
+    ✓ quote_create 201
+    ✓ quote_convert 201
+    ✓ invoice_pdf 200
+    ✓ pdf is a PDF
+    ✓ invoice_send 201
+    ✓ poll_invoice 200
+    ✓ invoice sent
+    ✓ ocr_upload 201
+    ✓ poll_ocr 200
+    ✓ ocr extracted
+
+    CUSTOM
+    ocr_to_extracted...............: avg=2m7s     med=2m46s    p(95)=2m48s    p(99)=2m49s    max=2m49s    count=103  
+    send_to_sent...................: avg=4.5s     med=1.03s    p(95)=10.75s   p(99)=10.87s   max=11.03s   count=590  
+    throttled_429..................: 5     0.011905/s
+
+    HTTP
+    http_req_duration..............: avg=65.75ms  med=30.35ms  p(95)=176.99ms p(99)=589.79ms max=6.97s    count=23200
+      { expected_response:true }...: avg=65.76ms  med=30.36ms  p(95)=177.04ms p(99)=589.86ms max=6.97s    count=23195
+      { name:company_info }........: avg=78.25ms  med=39.09ms  p(95)=290.75ms p(99)=428.75ms max=681.3ms  count=590  
+      { name:dashboard }...........: avg=83.91ms  med=52.73ms  p(95)=251.49ms p(99)=326.99ms max=497.04ms count=590  
+      { name:invoice_pdf }.........: avg=839.64ms med=463.49ms p(95)=3.46s    p(99)=6.46s    max=6.97s    count=590  
+      { name:invoice_send }........: avg=161.05ms med=78.66ms  p(95)=615.36ms p(99)=819.63ms max=1.21s    count=590  
+      { name:list_clients }........: avg=53.1ms   med=33.65ms  p(95)=171.67ms p(99)=225.71ms max=275.87ms count=590  
+      { name:list_invoices }.......: avg=49.42ms  med=32.68ms  p(95)=136.79ms p(99)=197.51ms max=387.84ms count=590  
+      { name:list_quotes }.........: avg=48.47ms  med=34.37ms  p(95)=122.41ms p(99)=167.12ms max=209.98ms count=590  
+      { name:login }...............: avg=0s       med=0s       p(95)=0s       p(99)=0s       max=0s       count=0    
+      { name:ocr_upload }..........: avg=106.34ms med=99.65ms  p(95)=155.28ms p(99)=219.16ms max=236.28ms count=117  
+      { name:poll_invoice }........: avg=66.49ms  med=51.02ms  p(95)=158.89ms p(99)=234.72ms max=549.76ms count=2491 
+      { name:poll_ocr }............: avg=29.86ms  med=27.24ms  p(95)=46.37ms  p(99)=67.56ms  max=250.67ms count=14692
+      { name:quote_convert }.......: avg=74.92ms  med=47.92ms  p(95)=213.65ms p(99)=307.84ms max=1.15s    count=590  
+      { name:quote_create }........: avg=90.21ms  med=49.72ms  p(95)=324.98ms p(99)=422.41ms max=1.07s    count=590  
+      { name:session }.............: avg=61.1ms   med=28.73ms  p(95)=280.08ms p(99)=429.36ms max=572.86ms count=590  
+    http_req_failed................: 0.02% 5 out of 23200
+    http_reqs......................: 23200 55.237956/s
+
+    EXECUTION
+    iteration_duration.............: avg=29.01s   med=10.79s   p(95)=2m49s    p(99)=2m50s    max=2m55s    count=576  
+    iterations.....................: 576   1.371425/s
+    vus............................: 14    min=14         max=50
+    vus_max........................: 50    min=50         max=50
+
+    NETWORK
+    data_received..................: 70 MB 166 kB/s
+    data_sent......................: 31 MB 74 kB/s
+
+
+

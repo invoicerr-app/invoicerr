@@ -59,8 +59,19 @@ export function makeKube(kubeconfig, { ns = 'invoicerr', release = 'lt' } = {}) 
 
     async topNode() {
       const out = (await run('kubectl', ['top', 'nodes', '--no-headers'], { env })).stdout;
-      const [node, cpu, , mem] = out.trim().split('\n')[0].trim().split(/\s+/);
-      return { node, cpu: parseInt(cpu, 10), mem: parseInt(mem, 10) };
+      const lines = out.trim().split('\n').filter(Boolean);
+      // Summed over every node, with their count: an autoscaling pool changes size mid-run, and a
+      // reading from one node alone would silently halve when a second one joins.
+      const totals = lines.reduce(
+        (acc, l) => {
+          const [, cpu, , mem] = l.trim().split(/\s+/);
+          acc.cpu += parseInt(cpu, 10) || 0;
+          acc.mem += parseInt(mem, 10) || 0;
+          return acc;
+        },
+        { cpu: 0, mem: 0 },
+      );
+      return { node: `${lines.length}-nodes`, nodes: lines.length, ...totals };
     },
 
     async loadBalancerIp(timeoutMs = 600000) {
@@ -113,7 +124,10 @@ spec:
     - {name: http, port: 8025, targetPort: 8025}
 `;
 
-export async function deploy(kube, { chart, values, extraSets = [], secretsFile, workDir, log = () => {} }) {
+export async function deploy(
+  kube,
+  { chart, values, extraSets = [], extraValuesFiles = [], secretsFile, workDir, log = () => {} },
+) {
   const { kubectl, helm, env, ns, release } = kube;
   log('installing metrics-server and Mailpit…');
   await run('kubectl', ['apply', '-f', METRICS_SERVER], { env });
@@ -147,7 +161,20 @@ export async function deploy(kube, { chart, values, extraSets = [], secretsFile,
     );
   }
 
-  const base = ['-n', ns, chart, '-f', values, '-f', secretsFile, ...extraSets];
+  // extraValuesFiles: e.g. --spread-across-nodes's podAntiAffinity file — a nested value `--set`
+  // cannot express. Order among -f files matters (last wins); extraSets' own --set flags still win
+  // over all of them, since Helm applies every --set after every -f regardless of position.
+  const base = [
+    '-n',
+    ns,
+    chart,
+    '-f',
+    values,
+    '-f',
+    secretsFile,
+    ...extraValuesFiles.flatMap((f) => ['-f', f]),
+    ...extraSets,
+  ];
   // --no-hooks on the first install: the chart's pre-install hook runs `prisma migrate deploy`
   // before the bundled Postgres exists, so a fresh install with postgresql.enabled cannot succeed
   // with hooks on. The upgrade below runs that same hook, once the database answers.
@@ -216,6 +243,42 @@ export function startSampler(kube, dir, stage, intervalMs = 15000) {
       await loop;
     },
   };
+}
+
+// How many nodes `kubectl get nodes` currently reports Ready — used by --kill-a-node-at to notice
+// when the cluster has recovered from a deleted node. Asked of kubectl rather than the Scaleway API:
+// what actually matters for this test is whether the scheduler has somewhere to put pods again, not
+// whether Kapsule's own pool object has settled.
+export async function readyNodeCount(kube) {
+  const out = await run('kubectl', ['get', 'nodes', '--no-headers'], { env: kube.env }).catch(() => ({ stdout: '' }));
+  return out.stdout
+    .split('\n')
+    .filter((l) => l.trim().split(/\s+/)[1] === 'Ready').length;
+}
+
+// --spread-across-nodes: a podAntiAffinity on api.affinity, preferring (never requiring — a
+// single-node cluster must still schedule) that no two api pods share a node. `helm --set` cannot
+// express a nested list of objects, so this is written to its own values file and passed as another
+// `-f` (see loadtest.js's call site). Label values match templates/_helpers.tpl's
+// invoicerr.componentSelectorLabels for the api component: app.kubernetes.io/name is this chart's
+// own Chart.Name ("invoicerr" — nothing in this repo ever sets nameOverride),
+// app.kubernetes.io/instance is the release name this tool always installs under.
+export function spreadAcrossNodesValues(release, chartName = 'invoicerr') {
+  return `# Written by loadtest.js --spread-across-nodes. Regenerated every run — do not edit by
+# hand. Exists only because helm --set cannot express a nested podAntiAffinity.
+api:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: ${chartName}
+                app.kubernetes.io/instance: ${release}
+                app.kubernetes.io/component: api
+`;
 }
 
 export function hasBinary(name) {

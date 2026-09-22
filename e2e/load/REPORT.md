@@ -1,4 +1,108 @@
-# How much machine Invoicerr needs per active user — 22 September 2026
+
+# Which machines to buy — campaign of 22-23 September 2026
+
+Nine runs, one variable at a time, same image (`sha256:e5f172e9…`, the asynchronous OCR capped at
+two), same chart, same k6 scenario, 50 virtual users for five minutes each. A virtual user invoices
+without a pause — roughly one invoice every 2.5 s — so read the invoices/5 min column against your
+own expected volume, never the virtual-user count.
+
+Prices are Scaleway's own public API, monthly, excluding VAT. Every cluster was created for the run
+and destroyed after it.
+
+| Run | €/month | Invoices / 5 min | p95 PDF | p95 scan wait | peak CPU | peak RAM | 429 | lost work |
+|---|---|---|---|---|---|---|---|---|
+| T0 — 1 × 6 vCPU/12 GB, 3 api, OCR on the same node (reference) | 57.60 | **522** | 3913 ms | 199.2 s | 5.6 vCPU | 4.6 GiB | 0 | 0 |
+| T5 — 6 vCPU + a 2 vCPU node for OCR | 82.79 | **590** | 3467 ms | 168.3 s | 6.2 vCPU | 4.6 GiB | 5 | 0 |
+| T3b — reference node, 6 api replicas | 57.60 | **536** | 4431 ms | 198.1 s | 5.8 vCPU | 6.6 GiB | 0 | 0 |
+| T3a — reference node, 1 api at PDF_RENDER_CONCURRENCY=12, 3Gi | 57.60 | **540** | 7136 ms | 183.8 s | 5.9 vCPU | 3.7 GiB | 76 | 0 |
+| T8 — 4 vCPU api/workers + 2 vCPU OCR | 62.93 | **504** | 5849 ms | 181.2 s | 4.6 vCPU | 5.3 GiB | 0 | 0 |
+| T4 — 2 × 4 vCPU, one node killed mid-run | 75.48 | **463** | 3576 ms | 243.9 s | 6.2 vCPU | 6.3 GiB | 0 | 0 |
+| T7 — 3 × 2 vCPU | 75.57 | **453** | 5683 ms | 233.0 s | 4.8 vCPU | 6.3 GiB | 0 | 0 |
+| T1 — 1 × 4 vCPU | 37.74 | **440** | 7122 ms | 233.4 s | 3.9 vCPU | 4.9 GiB | 0 | 0 |
+| T2 — 1 × 2 vCPU | 25.19 | **299** | 14.8 s | 199.8 s | 2.0 vCPU | 4.5 GiB | 9 | 0 |
+| T6 — 1 × 2 vCPU, autoscaling 1→3 | 25.19 | **152** | 15.9 s | 0 ms | 2.0 vCPU | 4.7 GiB | 5595 | 0 |
+
+**No work was ever lost.** Across every run, in every topology, zero invoices failed to send and
+zero scans failed to extract. Every figure in the 429 column is the instance-wide rate limit that
+[#411](https://github.com/invoicerr-app/invoicerr/pull/411) fixes — never a dropped document.
+
+## What the numbers say
+
+### Give the OCR its own machine before buying anything else
+
+T5 is the best result of the campaign: moving OCR to a 2 vCPU node of its own bought **13 % more
+throughput and the fastest PDFs**, for 25 €/month. On a single node, OCR competes with the
+invoicing path for the same cores — measured directly: the same node does 1 302 invoices/5 min with
+OCR off (22/09) against 522 with it on.
+
+### Replicas beat both a bigger machine and a bigger setting
+
+| | invoices/5 min | p95 PDF |
+|---|---|---|
+| 3 api replicas (T0) | 522 | **3.9 s** |
+| 6 api replicas (T3b) | 536 | 4.4 s |
+| 1 api replica, `PDF_RENDER_CONCURRENCY=12` (T3a) | 540 | 7.1 s |
+| 1 api replica, 12 vCPU node (22/09) | 587 | 7.1 s |
+
+Three replicas is where the curve flattens: six add nothing but memory. And one process at
+concurrency 12 renders no faster than one process at concurrency 4 — Node runs those twelve renders
+concurrently, not in parallel. **A trap worth knowing: at the chart's default 768Mi, that same
+setting OOMKills the pod three times over** (`results/t3a-oomkilled-768mi`); raising it means raising
+memory too.
+
+### Scattering across small machines costs more and delivers less
+
+3 × 2 vCPU (T7) is 18 €/month dearer than one 6 vCPU node and delivers 13 % fewer invoices.
+Postgres and Redis still live on one node, so the extra machines mostly add network hops.
+
+### Losing a node costs throughput, not data
+
+T4 killed one of two nodes in the middle of the run. Throughput fell while Scaleway reprovisioned,
+**and not one invoice was lost**. Redundancy buys continuity of service, not correctness.
+
+### Autoscaling does not answer this workload
+
+T6 never grew past one node: the Kubernetes autoscaler reacts to pods that cannot be **scheduled**,
+not to pods that are merely **slow**. A saturated CPU with all pods running is invisible to it.
+Autoscaling here would need a horizontal pod autoscaler on CPU plus room to put those pods — and a
+node still takes minutes to join, so it answers a daily curve, never a three-minute burst.
+
+### Where the floor is
+
+| Users | Machine | €/month | Result |
+|---|---|---|---|
+| ~10 | 1 × 2 vCPU / 8 GB | 25.19 | 236 invoices/5 min, PDF p95 **2.0 s** — comfortable |
+| 50 | 1 × 2 vCPU / 8 GB | 25.19 | PDF p95 **14.8 s** — broken |
+| 50 | 1 × 4 vCPU / 8 GB | 37.74 | PDF p95 7.1 s — poor |
+| 50 | 1 × 6 vCPU / 12 GB | 57.60 | PDF p95 3.9 s — the floor for this load |
+
+## Recommendation, per role
+
+- **API and workers: one `BASIC2-A6C-12G` (6 vCPU / 12 GB), 57.60 €/month, with 3 api replicas and
+  3 workers.** Peak memory across every pod never passed 6.6 GiB, so 12 GB is right and 24 GB is
+  wasted money.
+- **OCR: its own `BASIC2-A2C-8G`, 25.19 €/month**, as soon as received-invoice scanning is a real
+  feature rather than a demo. It is the single best euro in this campaign.
+- **Starting smaller is legitimate**: `BASIC2-A2C-8G` alone at 25.19 €/month holds ten hammering
+  users, which is far beyond a first year of real customers. Move up when p95 PDF passes ~2 s.
+- **Not yet answered**: a horizontal pod autoscaler on CPU (T6 shows the node autoscaler alone is
+  the wrong tool), and anything above 50 hammering users.
+
+## Two things that block scaling out, not measured before
+
+- **Multi-node requires object storage.** With `archive.storage=local` or
+  `documents.inbound.storage=local`, the documents PVC is ReadWriteOnce: a pod scheduled on a second
+  node never starts (`FailedAttachVolume`). T4 and T7 only ran once both stores pointed at Scaleway
+  Object Storage. This is in the chart's own comments, and it is now measured.
+- **Image pull dominates a new node's first minutes.** The application image is 1.9 GB and the
+  kubelet pulls serially, so a node added to a pool needs several minutes before it serves anything
+  — the same delay that makes autoscaling useless against a burst.
+
+
+---
+
+# Earlier campaign — 22 September 2026
+
 
 Measured on throwaway Scaleway Kapsule clusters (Paris, mutualized control plane), one node each,
 image `ghcr.io/invoicerr-app/invoicerr:v2.0.0-alpha.1` pinned by digest

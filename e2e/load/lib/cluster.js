@@ -48,7 +48,13 @@ export async function deletePrivateNetwork(id) {
   await api('DELETE', `/vpc/v2/regions/${REGION}/private-networks/${id}`).catch(() => {});
 }
 
-export async function createCluster({ name, nodeType, version = '1.37.0', size = 1, diskGb = 40 }) {
+// Kubernetes-side label/taint this pool's nodes carry, once created with `ocrPoolNodeType` below —
+// shared with loadtest.js, which passes the matching `ocr.nodeSelector` / `ocr.tolerations` --set
+// flags, so the two sides can never drift apart.
+export const OCR_POOL_LABEL = { key: 'workload', value: 'ocr' };
+export const OCR_POOL_TAINT = { key: 'dedicated', value: 'ocr', effect: 'NoSchedule' };
+
+export async function createCluster({ name, nodeType, version = '1.37.0', size = 1, diskGb = 40, autoscale = null, ocrPoolNodeType = null }) {
   const { project } = creds();
   const network = await createPrivateNetwork(`${name}-net`);
   const cluster = await api('POST', `/k8s/v1/regions/${REGION}/clusters`, {
@@ -65,17 +71,68 @@ export async function createCluster({ name, nodeType, version = '1.37.0', size =
       {
         name: 'load',
         node_type: nodeType,
-        size,
-        min_size: size,
-        max_size: size,
-        autoscaling: false,
+        // With --autoscale min:max the pool grows on its own when pods cannot be scheduled. It is
+        // measured, not assumed: a node takes minutes to join, which is the number that decides
+        // whether autoscaling answers a burst or only a daily curve.
+        size: autoscale ? autoscale.min : size,
+        min_size: autoscale ? autoscale.min : size,
+        max_size: autoscale ? autoscale.max : size,
+        autoscaling: Boolean(autoscale),
         autohealing: false,
         root_volume_size: diskGb * 1000 * 1000 * 1000,
         container_runtime: 'containerd',
       },
+      // --ocr-pool: a second, single-node pool the OCR pod gets to itself. `labels`/`taints` here
+      // are reconciled by Kapsule onto the pool's nodes directly (verified against the public API's
+      // CreateClusterRequestPoolConfig: `labels map[string]string`, `taints []CoreV1Taint` — no
+      // separate kubectl/PUT step needed, unlike node-level `kubectl taint`, which a replaced node
+      // would silently lose). `kubelet_args` exists on this same request shape but nothing here
+      // needs it — kept in mind only so a future need for it isn't mistaken for unsupported.
+      ...(ocrPoolNodeType
+        ? [
+            {
+              name: 'ocr',
+              node_type: ocrPoolNodeType,
+              size: 1,
+              min_size: 1,
+              max_size: 1,
+              autoscaling: false,
+              autohealing: false,
+              root_volume_size: diskGb * 1000 * 1000 * 1000,
+              container_runtime: 'containerd',
+              tags: ['loadtest', 'ocr-pool'],
+              labels: { [OCR_POOL_LABEL.key]: OCR_POOL_LABEL.value },
+              taints: [OCR_POOL_TAINT],
+            },
+          ]
+        : []),
     ],
   });
   return cluster;
+}
+
+// The pool node-kill targets — named 'load' by createCluster above, always the pool api/worker/
+// postgres actually run on. Never the 'ocr' pool: that one is deliberately a single node, so killing
+// it would just be an outage, not a redundancy measurement.
+export async function findPool(clusterId, name = 'load') {
+  const res = await api('GET', `/k8s/v1/regions/${REGION}/clusters/${clusterId}/pools`);
+  return (res.pools || []).find((p) => p.name === name) ?? null;
+}
+
+export async function listPoolNodes(clusterId, poolId) {
+  const res = await api('GET', `/k8s/v1/regions/${REGION}/clusters/${clusterId}/nodes?pool_id=${poolId}`);
+  return res.nodes || [];
+}
+
+// --kill-a-node-at: delete one node the way an operator can't control it dying for real, and ask
+// Kapsule for a replacement (`replace=true`) so the pool returns to its configured size on its own —
+// the same self-healing a production pool gets from an actual node failure (this pool's own
+// `autohealing: false` above only controls scaling reactions to pressure, not this explicit
+// replace). `skip_drain` is deliberately left at the API's default (false) even though the public
+// docs mark that field "currently inactive" server-side — recorded here so a future SDK/API version
+// that honours it does the graceful thing, not the abrupt one, without this call needing to change.
+export async function deleteNode(nodeId, { replace = true } = {}) {
+  return api('DELETE', `/k8s/v1/regions/${REGION}/nodes/${nodeId}?replace=${replace}`);
 }
 
 export async function waitReady(id, { timeoutMs = 900000 } = {}) {

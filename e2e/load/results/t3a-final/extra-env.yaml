@@ -1,0 +1,8 @@
+app:
+  extraEnv:
+    - {name: MAIL_PROVIDER, value: "smtp"}
+    - {name: SMTP_HOST, value: "mailpit"}
+    - {name: SMTP_PORT, value: "1025"}
+    - {name: SMTP_SECURE, value: "false"}
+    - {name: SMTP_FROM, value: "noreply@load.test"}
+    - {name: PDF_RENDER_CONCURRENCY, value: "12"}
