@@ -85,5 +85,12 @@
                 "generatedInvoices": "Generated Invoices"
             }
         }
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Читаємо документ… поля заповняться автоматично після завершення. Ви вже можете почати вводити дані."
+            }
+        }
     }
 }

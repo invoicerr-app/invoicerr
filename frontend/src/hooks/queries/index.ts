@@ -78,7 +78,12 @@ export {
   type SelectableRowsResult,
 } from "./use-document-types"
 export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
-export { useUploadReceivedInvoice, type UploadReceivedInvoicePreview } from "./use-received-invoices"
+export {
+  useUploadReceivedInvoice,
+  useReceivedInvoiceOcrResult,
+  type UploadReceivedInvoicePreview,
+  type ReceivedInvoiceOcrResult,
+} from "./use-received-invoices"
 export {
   useDocumentSchedules,
   useCreateDocumentSchedule,

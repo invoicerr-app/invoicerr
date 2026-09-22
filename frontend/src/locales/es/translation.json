@@ -1876,5 +1876,12 @@
         "selectThisFolder": "Seleccionar esta carpeta",
         "noSubdirectories": "No se encontraron subcarpetas",
         "loading": "Cargando directorios..."
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Leyendo el documento… los campos se completarán cuando termine. Ya puede empezar a escribir."
+            }
+        }
     }
 }

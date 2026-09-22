@@ -114,6 +114,16 @@ services:
       # with `docker compose --profile ocr up`. Everything stays on this machine — no API key, no
       # third party, the PDF never leaves the internal compose network.
       # - OCR_SERVICE_URL=http://ocr:9998
+      # RECEIVED_INVOICE_OCR_CONCURRENCY: how many OCR jobs run at once ACROSS THE WHOLE CLUSTER (the
+      # `received-invoice-ocr` BullMQ queue — a scanned PDF is now OCR'd off the upload request
+      # entirely, see backend/src/modules/documents/received-invoices/received-invoices.service.ts's
+      # own header). Enforced via BullMQ's Queue.setGlobalConcurrency (Redis-backed, applies across
+      # every worker), never merely this container's own `@Processor()` slot count — the distinction
+      # only matters once more than one worker replica shares this queue (docker-compose.scale.yml);
+      # a single mono-container deployment like this one sees no difference either way. Optional,
+      # defaults to 1 — Tesseract is CPU-heavy, so raising this trades node CPU for OCR throughput.
+      # Only meaningful alongside OCR_SERVICE_URL above.
+      # - RECEIVED_INVOICE_OCR_CONCURRENCY=1
     depends_on:
       - invoicerr_db
       - redis

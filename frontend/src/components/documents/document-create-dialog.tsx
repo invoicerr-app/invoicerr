@@ -1,3 +1,4 @@
+import type React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 
@@ -27,6 +28,17 @@ interface DocumentCreateDialogProps {
    * correction-routes dialog hands a pre-linked `invoice` through router state ([typeId]/index.tsx).
    */
   initialData?: Record<string, unknown>
+  /** See `useDocumentForm`'s own `UseDocumentFormOptions.lateData` header — passed straight through.
+   *  Rendered nowhere by this component itself; only forwarded to the form hook that merges it. */
+  lateData?: Record<string, unknown>
+  /** Rendered at the top of the dialog body, above every step's own fields — e.g. the received-
+   *  invoice upload flow's "reading the document…" spinner while its background OCR job is still
+   *  running (`custom/received-invoice-upload-button.tsx`). Shown on EVERY step (not just the one
+   *  current when it appears): `SteppedDialog` mounts exactly one step's `render()` at a time, and a
+   *  caller has no way to know which step the user is looking at when the condition that produces
+   *  this becomes true. `undefined` renders nothing — no behaviour change for any caller that doesn't
+   *  pass it. */
+  notice?: React.ReactNode
 }
 
 /** Whether a field is "table-shaped" — a set of ROWS rather than one scalar value: 'array' (line
@@ -275,6 +287,8 @@ export function DocumentCreateDialog({
   open,
   onOpenChange,
   initialData,
+  lateData,
+  notice,
 }: DocumentCreateDialogProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -282,6 +296,7 @@ export function DocumentCreateDialog({
   const state = useDocumentForm({
     descriptor,
     initialData,
+    lateData,
     onActionSuccess: (result: DocumentInstance) => {
       onOpenChange(false)
       navigate(`/documents/${result.typeId}/${result.id}`)
@@ -290,6 +305,17 @@ export function DocumentCreateDialog({
 
   const { effectiveDescriptor } = state
   const { detailsFields, lineFields, optionsFields } = buildFieldGroups(effectiveDescriptor.fields)
+
+  // `SteppedDialog` mounts exactly one step's `render()` at a time (see that component's own
+  // header), so `notice` (a caller-level condition, not a per-step one) is prepended inside EVERY
+  // step's own `render()` below rather than once outside the wizard — the only way it stays visible
+  // regardless of which step the user is currently on.
+  const withNotice = (content: React.ReactNode): React.ReactNode => (
+    <>
+      {notice}
+      {content}
+    </>
+  )
 
   // The first runnable action is the ONE default button (the type's own "Save draft"/"Save"),
   // shown as the wizard's final "Continue"; anything else a never-saved record can already run is
@@ -318,7 +344,7 @@ export function DocumentCreateDialog({
       id: "details",
       label: t("documents.form.stepped.steps.details"),
       fields: detailsFields.map((field) => field.key),
-      render: () => <FieldsStep fields={detailsFields} documentTypeId={descriptor.id} />,
+      render: () => withNotice(<FieldsStep fields={detailsFields} documentTypeId={descriptor.id} />),
     })
   }
   if (lineFields.length > 0) {
@@ -326,13 +352,14 @@ export function DocumentCreateDialog({
       id: "lines",
       label: t("documents.form.stepped.steps.lines"),
       fields: lineFields.map((field) => field.key),
-      render: () => (
-        <FieldsStep
-          fields={lineFields}
-          documentTypeId={descriptor.id}
-          lineTotalWarnings={state.lineTotalWarnings}
-        />
-      ),
+      render: () =>
+        withNotice(
+          <FieldsStep
+            fields={lineFields}
+            documentTypeId={descriptor.id}
+            lineTotalWarnings={state.lineTotalWarnings}
+          />,
+        ),
     })
   }
   if (optionsFields.length > 0) {
@@ -340,21 +367,22 @@ export function DocumentCreateDialog({
       id: "options",
       label: t("documents.form.stepped.steps.options"),
       fields: optionsFields.map((field) => field.key),
-      render: () => <FieldsStep fields={optionsFields} documentTypeId={descriptor.id} />,
+      render: () => withNotice(<FieldsStep fields={optionsFields} documentTypeId={descriptor.id} />),
     })
   }
   steps.push({
     id: "recap",
     label: t("documents.form.stepped.steps.recap"),
     fields: [],
-    render: () => (
-      <RecapStep
-        descriptor={effectiveDescriptor}
-        state={state}
-        primaryAction={primaryAction}
-        secondaryActions={secondaryActions}
-      />
-    ),
+    render: () =>
+      withNotice(
+        <RecapStep
+          descriptor={effectiveDescriptor}
+          state={state}
+          primaryAction={primaryAction}
+          secondaryActions={secondaryActions}
+        />,
+      ),
   })
 
   return (

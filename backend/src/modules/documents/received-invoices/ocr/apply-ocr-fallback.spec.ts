@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
 import { ExtractionResult } from '../extraction';
-import { applyOcrFallback } from './apply-ocr-fallback';
+import { applyOcrFallback, needsOcr } from './apply-ocr-fallback';
 import { ExtractorNotReadyError, receivedDocumentExtractorRegistry } from './extractor';
 
 const STRUCTURAL_EMPTY: ExtractionResult = { syntax: null, fields: {} };
@@ -9,6 +9,30 @@ const STRUCTURAL_CII: ExtractionResult = {
   syntax: 'CII',
   fields: { supplier: 'Structural Supplier', netAmount: 100 },
 };
+
+/**
+ * The exact gate `received-invoices.service.ts#upload` calls BEFORE `applyOcrFallback` even runs, to
+ * decide whether to enqueue a background job — proven here against the SAME condition
+ * `applyOcrFallback` itself uses (its very first `if`, below), so the two can never drift apart.
+ */
+describe('needsOcr', () => {
+  it('is true for a PDF (by mime) with nothing structural', () => {
+    expect(needsOcr(STRUCTURAL_EMPTY, 'application/pdf', 'x.pdf')).toBe(true);
+  });
+
+  it('is true for a PDF detected by FILENAME alone, even with a generic mime', () => {
+    expect(needsOcr(STRUCTURAL_EMPTY, 'application/octet-stream', 'scan.pdf')).toBe(true);
+  });
+
+  it('is false once structural extraction already found something — never second-guessed', () => {
+    expect(needsOcr(STRUCTURAL_CII, 'application/pdf', 'x.pdf')).toBe(false);
+  });
+
+  it('is false for a non-PDF file, even with nothing structural', () => {
+    expect(needsOcr(STRUCTURAL_EMPTY, 'application/xml', 'x.xml')).toBe(false);
+    expect(needsOcr(STRUCTURAL_EMPTY, 'image/png', 'x.png')).toBe(false);
+  });
+});
 
 describe('applyOcrFallback', () => {
   // ONE stub, registered once, reconfigured per test via its own mock — see this file's own header

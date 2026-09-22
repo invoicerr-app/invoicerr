@@ -468,7 +468,30 @@ ocr:
     # Must match the port the ocr-image server listens on (docker-compose.yml's own commented-out
     # OCR_SERVICE_URL example uses the same 9998).
     port: 9998
-  resources: {}
+  # Tesseract takes every core it can see — a 10-user load test pinned a 6-vCPU node at 6.0/6 CPU and
+  # cut uploads off at the frontend's own 60s timeout (the exact reason OCR moved off the synchronous
+  # upload request onto the `received-invoice-ocr` queue — see backend/src/modules/documents/
+  # received-invoices/received-invoices.service.ts's own header). A request/limit pair is what stops
+  # this ONE container from ever taking a WHOLE node for itself again, whatever else is scheduled on
+  # it; raise the limit against your own node sizing, never remove it outright.
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  # How many OCR jobs run at once ACROSS THE WHOLE CLUSTER — wired as RECEIVED_INVOICE_OCR_CONCURRENCY
+  # on both the api and worker deployments (only when ocr.enabled), independent of the document-action
+  # queue's own concurrency. Enforced two ways from the SAME value: BullMQ's Queue.setGlobalConcurrency
+  # (a Redis-backed cap BullMQ applies across every worker replica) is the one that actually bounds
+  # load on this single OCR container; each worker's own `@Processor()` concurrency option mirrors it
+  # so a single-replica deployment behaves the same as before that cluster-wide cap existed. Without
+  # the global cap, N worker replicas each honoring "1" could still send N simultaneous OCR requests to
+  # this ONE container — exactly the scenario a scaled deployment exists to produce. Default 1: one
+  # Tesseract job at a time is already what `resources` above budgets for; raise it only alongside a
+  # proportional increase to `resources.limits.cpu`.
+  queueConcurrency: 1
 
 # ===================================================================================================
 # Ingress. Assumes an ingress-nginx controller and cert-manager are already installed in the cluster.

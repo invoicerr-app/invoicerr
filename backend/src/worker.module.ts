@@ -8,6 +8,7 @@ import { isBillingEnabled } from './modules/billing/billing-flag';
 import { TransferQueueWorkerModule } from './modules/company/transfer/transfer-queue-worker.module';
 import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
 import { WebhooksQueueWorkerModule } from './modules/webhooks/queue/webhooks-queue-worker.module';
+import { OcrExtractorModule } from './plugins';
 import { PrismaModule } from './prisma/prisma.module';
 
 /**
@@ -45,6 +46,16 @@ import { PrismaModule } from './prisma/prisma.module';
  * `WebhooksQueueWorkerModule` — same shape again: outbound-webhook delivery used to happen inline, in
  * whichever request or job dispatched the event, so a dedicated worker process never touched it either.
  * No flag (webhooks work in self-hosted mode too, same posture as `TransferQueueWorkerModule`).
+ *
+ * `OcrExtractorModule` (`plugins/index.ts`) — received-invoice OCR now has a real, worker-reachable
+ * consumer: `DocumentsQueueWorkerModule`'s own `ReceivedInvoiceOcrProcessor` runs `run-ocr-job.ts`,
+ * which resolves an extractor from `receivedDocumentExtractorRegistry`. Without registering a
+ * provider into that registry HERE too, a dedicated worker process (`WORKER_INLINE=false`) would
+ * consume every OCR job with NOTHING registered and every one would silently land on
+ * `{ outcome: 'unavailable' }`, regardless of how `OCR_SERVICE_URL` is actually configured. Unlike the
+ * modules above, this needs no flag/env gate of its own — `OcrExtractorBootstrap`'s own
+ * `registered` guard (`plugins/index.ts`) already makes this safe to import unconditionally, whether
+ * or not this process ever actually receives an OCR job.
  */
 @Module({
   imports: [
@@ -55,6 +66,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ...(isBillingEnabled() ? [BillingQueueWorkerModule] : []),
     TransferQueueWorkerModule,
     WebhooksQueueWorkerModule,
+    OcrExtractorModule,
   ],
 })
 export class WorkerModule {}

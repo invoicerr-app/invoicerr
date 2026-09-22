@@ -53,11 +53,21 @@ class OcrExtractorBootstrap implements OnModuleInit {
 }
 
 /**
- * Registered directly in `AppModule` — `received-invoices.module.ts` never imports this module
- * itself, staying blind to which provider (or fake) backs the extension point, exactly as its own
- * header describes. Not part of `DocumentsCoreModule`/the queue worker: received-invoice upload and
- * its OCR fallback are an HTTP-only, synchronous flow (`ReceivedInvoicesController`), never reached
- * from the BullMQ worker process.
+ * Registered in BOTH `AppModule` (the API process) AND `WorkerModule` (`src/worker.module.ts`, the
+ * dedicated `ROLE=worker` process) — `received-invoices.module.ts` never imports this module itself,
+ * staying blind to which provider (or fake) backs the extension point, exactly as its own header
+ * describes. `OcrExtractorBootstrap`'s own `registered` guard (below) is what makes importing it from
+ * TWO independent root modules safe rather than a double-registration crash.
+ *
+ * OCR used to be reachable ONLY from the API process, synchronously, inside `upload()` — no longer
+ * true: an upload whose OCR is handed off to the `received-invoice-ocr` BullMQ queue
+ * (`received-invoices/ocr/ocr-queue.constants.ts`) has that job's own extractor CALL happen inside
+ * `run-ocr-job.ts`, running in whichever process actually consumes that queue (the API inline by
+ * default, or a dedicated worker when `WORKER_INLINE=false`) — see
+ * `queue/document-queue-worker.module.ts`'s own header on `ReceivedInvoiceOcrProcessor`. Without this
+ * module registered in `WorkerModule` too, a scaled deployment's dedicated worker would resolve NO
+ * extractor at all and every OCR job would silently land on `{ outcome: 'unavailable' }` regardless of
+ * how OCR is actually configured.
  */
 @Module({ providers: [OcrExtractorBootstrap] })
 export class OcrExtractorModule {}

@@ -10,6 +10,8 @@ import { DocumentsCoreModule } from '../documents-core.module';
 import { ReminderSweepRunner } from '../reminders/reminder-sweep-runner';
 import { DocumentQueueDispatcher } from './document-queue.dispatcher';
 import { DocumentActionProcessor } from './processors/document-action.processor';
+import { ReceivedInvoiceOcrProcessor } from './processors/received-invoice-ocr.processor';
+import { ReceivedInvoiceOcrDispatcher } from './received-invoice-ocr.dispatcher';
 
 /**
  * The CONSUMING half of the document-action queue — the gate target for `WORKER_INLINE` (default
@@ -80,11 +82,24 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
  * HERE for that same "zero Nest dependencies" reason, and belongs on the WORKER side for the same one
  * that decides every sweep on this page: one repeatable fired cluster-wide, never one timer per
  * replica re-attempting the same row several times over.
+ *
+ * `ReceivedInvoiceOcrProcessor` (received-invoice OCR, `processors/received-invoice-ocr.processor.ts`)
+ * is the ONE provider on this page that does NOT belong to `Q_DOCUMENT_ACTION` at all — it consumes
+ * the SEPARATE, dedicated `received-invoice-ocr` queue (`received-invoices/ocr/ocr-queue.constants.ts`)
+ * instead, but is provided in THIS SAME module deliberately: `WORKER_INLINE` is meant to gate "does
+ * this process consume ANY document-related BullMQ queue", not just the one this module was originally
+ * built around, so a scaled deployment's dedicated worker consumes OCR jobs the exact same way it
+ * consumes "send" jobs, with no second gate to configure. Its own `@InjectQueue`-holding dispatcher
+ * (`ReceivedInvoiceOcrDispatcher`) lives in the `@Global()` `DocumentQueueModule` instead (imported
+ * transitively via `DocumentsCoreModule`), so it needs no entry here — only the CONSUMING processor
+ * does, the same split `DocumentQueueDispatcher`/`DocumentActionProcessor` already hold for the
+ * document-action queue.
  */
 @Module({
   imports: [DocumentsCoreModule],
   providers: [
     DocumentActionProcessor,
+    ReceivedInvoiceOcrProcessor,
     CurrencyRateSweepRunner,
     MailService,
     ReminderSweepRunner,
@@ -94,7 +109,10 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
   ],
 })
 export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
-  constructor(private readonly queueDispatcher: DocumentQueueDispatcher) {}
+  constructor(
+    private readonly queueDispatcher: DocumentQueueDispatcher,
+    private readonly receivedInvoiceOcrDispatcher: ReceivedInvoiceOcrDispatcher,
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     // ONE call, deliberately, rather than the six individual `register*Repeatable` ones this used to
@@ -103,5 +121,11 @@ export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
     // this method while its old schedule kept firing out of Redis. See
     // `registerSweepRepeatables`'s own header (document-queue.dispatcher.ts).
     await this.queueDispatcher.registerSweepRepeatables();
+
+    // The received-invoice OCR queue's CLUSTER-WIDE concurrency cap — see
+    // `ReceivedInvoiceOcrDispatcher.applyGlobalConcurrency`'s own header for why this must be set from
+    // every process that consumes this queue (never only once), and why re-applying the same value on
+    // every boot is harmless rather than a race.
+    await this.receivedInvoiceOcrDispatcher.applyGlobalConcurrency();
   }
 }

@@ -27,6 +27,20 @@ export interface UseDocumentFormOptions {
   documentId?: string
   initialData?: Record<string, unknown>
   status?: string
+  /** Fields discovered AFTER the form was already open and possibly edited — e.g. the received-
+   *  invoice upload flow's async OCR result (`hooks/queries/use-received-invoices.ts
+   *  #useReceivedInvoiceOcrResult`) arrives on its own timer, well after the review dialog is already
+   *  showing and the user may already be typing. Unlike `initialData` below (a full snapshot
+   *  `form.reset` overwrites the WHOLE form with, keyed off its own object identity precisely so a
+   *  stale poll/refetch never wipes what the user typed — see that effect's own comment), this NEVER
+   *  resets: on every object-IDENTITY change, each key is applied with `form.setValue(key, value, {
+   *  shouldDirty: true })` ONLY when the field is still empty (undefined/null/""/an empty array) — so
+   *  a value the user already typed, or that a PREVIOUS `lateData` tick already filled in, is never
+   *  clobbered. `form.setValue`, never a second `useFieldArray().replace()`, is what reaches a
+   *  SEPARATE `useFieldArray` instance for an array field (e.g. `lines`) too — see the goods-receipt
+   *  effect further down for the full, live-verified reason `replace()` from this hook's own instance
+   *  never reaches `field-renderers/array-field.tsx`'s rendered rows. */
+  lateData?: Record<string, unknown>
   /** The record's own displayNumber, as known when this form was opened — see types.ts's
    *  `DocumentInstance.displayNumber`. Absent/null for a not-yet-numbered (or never-numbered) record;
    *  re-synced live via `onDocumentUpdate` once an action actually numbers it (e.g. "send"), the same
@@ -54,6 +68,7 @@ export function useDocumentForm({
   descriptor,
   documentId,
   initialData,
+  lateData,
   status,
   displayNumber,
   onActionSuccess,
@@ -153,6 +168,33 @@ export function useDocumentForm({
       setLineTotalWarnings(extractLineTotalWarnings(initialData))
     }
   }, [initialData, status, displayNumber, form])
+
+  // See `UseDocumentFormOptions.lateData`'s own header for the full "why never a reset" reasoning.
+  // Fires on every object-identity change of `lateData` (the caller controls that identity, the exact
+  // same discipline `initialData` above already holds — see that effect's own comment): each key is
+  // read off the form's CURRENT values first (a snapshot, not a live subscription — later keys in the
+  // same tick aren't affected by earlier ones since they're independent field names) and only applied
+  // when still empty, so typing ahead of the late data — or a second, later `lateData` tick — never
+  // loses anything already filled in, by the user or by a previous tick.
+  useEffect(() => {
+    if (!lateData) return
+    const currentValues = form.getValues() as Record<string, unknown>
+    for (const [key, value] of Object.entries(lateData)) {
+      const current = currentValues[key]
+      const isEmpty =
+        current === undefined ||
+        current === null ||
+        current === "" ||
+        (Array.isArray(current) && current.length === 0)
+      if (isEmpty) {
+        form.setValue(key as never, value as never, { shouldDirty: true })
+      }
+    }
+    // Mirrors the `initialData` effect above: `lineTotalWarnings` is reserved bookkeeping, not a
+    // declared field (see `extractLineTotalWarnings`'s own header), so it is re-derived from the SAME
+    // object here rather than folded into the per-key loop above.
+    setLineTotalWarnings(extractLineTotalWarnings(lateData))
+  }, [lateData, form])
 
   // Three-way match (rapprochement à 3 voies) — "pre-filled from the PO": a
   // NARROW, explicitly TYPE-GATED exception, unlike the B2G client-watching block above (which looks

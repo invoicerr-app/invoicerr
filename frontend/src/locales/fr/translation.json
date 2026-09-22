@@ -3095,6 +3095,11 @@
                     }
                 }
             }
+        },
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Lecture du document en cours… les champs se rempliront une fois terminé. Vous pouvez déjà commencer à saisir."
+            }
         }
     }
 }
