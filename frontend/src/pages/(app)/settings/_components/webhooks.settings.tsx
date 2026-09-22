@@ -158,7 +158,21 @@ export default function WebhooksSettings() {
                 dataCy={`webhook-row-${wh.id}`}
                 badge={<Badge variant="secondary">{wh.type}</Badge>}
                 title={<span className="min-w-0 break-all font-mono text-sm">{wh.url}</span>}
-                meta={t("settings.webhooks.card.events", { events: wh.events.join(", ") })}
+                meta={
+                  // One line per event rather than a comma-joined string: a webhook subscribed to a
+                  // dozen events used to render as a single row the browser then truncated, so the
+                  // tail of the list was simply unreadable.
+                  <>
+                    <span>{t("settings.webhooks.card.events")}</span>
+                    <ul className="mt-1 list-inside list-disc space-y-0.5">
+                      {wh.events.map((event) => (
+                        <li key={event} className="break-all">
+                          {event}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                }
                 primary={
                   <Button
                     type="button"

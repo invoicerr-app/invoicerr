@@ -33,6 +33,13 @@ describe('DiscordDriver', () => {
   });
 
   it('posts the exact Discord payload shape for a known event', async () => {
+    // The avatar and the author link come from THIS instance, never from the project's public site:
+    // a self-hosted deployment must not send its users to a domain where they have no account, and a
+    // chat server on a closed network cannot fetch an image from the open internet at all. Set here
+    // rather than asserted as a literal so the test proves the derivation, not a constant.
+    const previousAppUrl = process.env.APP_URL;
+    process.env.APP_URL = 'https://billing.example.test';
+
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(200, {}));
 
     const ok = await new DiscordDriver().send('https://discord.com/api/webhooks/1/abc', {
@@ -54,7 +61,7 @@ describe('DiscordDriver', () => {
 
     const body = JSON.parse(options?.body as string);
     expect(body.username).toBe('Invoicerr');
-    expect(body.avatar_url).toBe('https://invoicerr.app/favicon.png');
+    expect(body.avatar_url).toBe('https://billing.example.test/favicon.svg');
     expect(body.content).toBeUndefined();
     expect(body.embeds).toHaveLength(1);
 
@@ -67,14 +74,17 @@ describe('DiscordDriver', () => {
     expect(new Date(embed.timestamp).toString()).not.toBe('Invalid Date');
     expect(embed.author).toEqual({
       name: 'Invoicerr',
-      url: 'https://invoicerr.app',
-      icon_url: 'https://invoicerr.app/favicon.png',
+      url: 'https://billing.example.test',
+      icon_url: 'https://billing.example.test/favicon.svg',
     });
     expect(embed.footer).toEqual({
       text: 'Invoicerr Webhooks',
-      icon_url: 'https://invoicerr.app/favicon.png',
+      icon_url: 'https://billing.example.test/favicon.svg',
     });
     expect(embed.fields).toBeUndefined();
+
+    if (previousAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = previousAppUrl;
   });
 
   it('falls back to the generic style for an event with no dedicated entry', async () => {

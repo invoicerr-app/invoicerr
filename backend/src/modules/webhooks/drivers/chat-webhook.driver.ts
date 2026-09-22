@@ -5,6 +5,16 @@ import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/c
 
 import { WEBHOOK_FETCH_TIMEOUT_MS, WebhookDriver } from './webhook-driver.interface';
 
+/**
+ * The icon and link a chat message carries, taken from THIS instance rather than from
+ * `invoicerr.app`. A self-hosted deployment that posts a webhook pointing at the project's own
+ * public site sends its users somewhere they have no account, and asks a private chat server to
+ * fetch an image from the open internet — which a closed network simply cannot do. `favicon.svg`
+ * because that is the file every deployment actually serves.
+ */
+export const instanceUrl = (): string => (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+export const instanceIcon = (): string => `${instanceUrl()}/favicon.svg`;
+
 export interface ChatField {
   title: string;
   value: string;
@@ -153,7 +163,7 @@ export abstract class ChatWebhookDriver implements WebhookDriver {
       .setTitle(`${eventStyle.emoji} ${eventStyle.title}`)
       .setText(description)
       .setColor(eventStyle.color)
-      .setFooter(`Invoicerr Webhooks • ${new Date().toLocaleString()}`, 'https://invoicerr.app/favicon.png');
+      .setFooter(`Invoicerr Webhooks • ${new Date().toLocaleString()}`, instanceIcon());
 
     if (payload.company?.name) {
       attachment.addField({ title: 'Entreprise', value: payload.company.name, short: true });
@@ -161,7 +171,7 @@ export abstract class ChatWebhookDriver implements WebhookDriver {
 
     const res = await hook
       .setUsername('Invoicerr')
-      .setIcon('https://invoicerr.app/favicon.png')
+      .setIcon(instanceIcon())
       .addAttachment(attachment)
       .send(dispatcher);
 

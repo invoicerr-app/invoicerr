@@ -6,6 +6,8 @@ import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/c
 import { Logger } from '@nestjs/common';
 import { WEBHOOK_FETCH_TIMEOUT_MS, WebhookDriver } from './webhook-driver.interface';
 
+import { instanceIcon, instanceUrl } from './chat-webhook.driver';
+
 /**
  * A bound on how long a single Discord 429 is worth waiting out. `webhooks.service.ts#send` awaits
  * every driver inside one `Promise.all`, so an unbounded wait here would hang the whole batch behind
@@ -70,12 +72,12 @@ export class DiscordDriver implements WebhookDriver {
       color: hexToDiscordColor(eventStyle.color),
       author: {
         name: 'Invoicerr',
-        url: 'https://invoicerr.app',
-        icon_url: 'https://invoicerr.app/favicon.png',
+        url: instanceUrl(),
+        icon_url: instanceIcon(),
       },
       footer: {
         text: 'Invoicerr Webhooks',
-        icon_url: 'https://invoicerr.app/favicon.png',
+        icon_url: instanceIcon(),
       },
     };
 
@@ -85,7 +87,7 @@ export class DiscordDriver implements WebhookDriver {
 
     const body = JSON.stringify({
       username: 'Invoicerr',
-      avatar_url: 'https://invoicerr.app/favicon.png',
+      avatar_url: instanceIcon(),
       embeds: [embed],
     });
 
