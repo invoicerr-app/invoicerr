@@ -119,6 +119,8 @@
     "xmldsigjs": "^2.8.7"
   },
   "overrides": {
-    "hono": "^4.11.4"
+    "hono": "^4.11.4",
+    "mysql2": "^3.23.1",
+    "deepmerge-ts": "^8.0.2"
   }
 }
