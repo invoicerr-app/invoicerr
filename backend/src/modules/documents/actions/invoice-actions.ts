@@ -1,0 +1,996 @@
+import { BadRequestException, NotImplementedException } from '@nestjs/common';
+
+import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
+import { logger } from '@/logger/logger.service';
+import { decimalsFor, toMinor } from '@/utils/financial';
+
+import {
+  B2gClientRoutingDecision,
+  B2gRoutingRuleView,
+  resolveClientB2gRouting,
+} from '../b2g-routing/b2g-routing';
+import { loadRatesSafely } from '../../company/currency-rates/currency-rates.store';
+import { resolveCompanyCountryCode } from '../country-policy/country-policy';
+import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { stripSidecarKeys } from '../descriptors/validate';
+import { findOwnedDocument, updateDocumentStatus } from '../persistence';
+import { DocumentEventPublisher } from '../queue/document-events';
+import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
+import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
+import { resolvePaymentConversion } from '../settlement/convert-payment';
+import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
+import { crossedIntoSettled, emitDocumentSettled } from '../settlement/document-settled';
+import { listPayments, recordPayment, toSettlementPaymentInputs } from '../settlement/payments';
+import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
+import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
+import { computeDocumentTotals } from '../totals/compute-totals';
+import { ActiveChannelMandate, activeChannelMandateFor } from '../transports/channel-policy/mandate';
+import { getCompanyInvoiceTransportId } from '../transports/company-transport';
+import {
+  DocumentTransport,
+  TransportRegistry,
+  UnknownTransportError,
+} from '../transports/transport-registry';
+import { runAsyncSendAction } from './async-send';
+import { ActionRegistry } from './action-registry';
+import { attachAtcudToNumberedInvoice, ensureAtcudIssuable, isAtcudBlockError } from './atcud-issuance';
+import { performSaveDraft } from './generic-actions';
+
+export interface InvoiceActionDeps {
+  transportRegistry: TransportRegistry;
+  queueDispatcher: DocumentActionQueueDispatcher;
+  /** See `async-send.ts`'s own `RunAsyncSendInput.events` header. */
+  events?: DocumentEventPublisher;
+  /**
+   * See `async-send.ts`'s own `RunAsyncSendInput.webhooks` header:
+   * `DOCUMENT_SENT`/`DOCUMENT_CREATED` now, generic across every type (the old per-type
+   * `INVOICE_SENT` is purged from the schema by that same commit) — this is what makes it actually
+   * fire, from the ONE point a transmission is genuinely known to have succeeded, instead of never at
+   * all.
+   */
+  webhooks?: DocumentWebhookEmitter;
+}
+
+/**
+ * "country-mandated channel" — resolves the issuing company's own COUNTRY and asks
+ * whether it MANDATES a channel for an invoice issued on `issueDate` (`channel-policy/mandate.ts`,
+ * evaluated against the invoice's own issue date, never the server's clock — see that file's own
+ * header). Undefined for any company whose country's own channel-policy fact does not (yet) declare
+ * a `requirement: 'mandated'` — see `channel-policy/data/*.json` for which countries currently do, a
+ * set this function never enumerates itself so that arming a new one stays a data change, never a
+ * code change here — and for any company whose country cannot even be resolved — exactly the same
+ * "no permissive fallback, but also no invented block" posture `country-policy.ts`'s own
+ * `resolveCompanyCountryCode` callers already hold elsewhere in this module.
+ */
+async function resolveActiveInvoiceMandate(
+  companyId: string,
+  issueDate: string | undefined,
+): Promise<{ countryCode: string; mandate: ActiveChannelMandate } | undefined> {
+  const countryCode = await resolveCompanyCountryCode(companyId);
+  if (!countryCode) return undefined;
+  const mandate = activeChannelMandateFor(countryCode, issueDate);
+  return mandate ? { countryCode, mandate } : undefined;
+}
+
+/** `${sourceText} (checked ${date})` — the one line every mandate-refusal message below reuses so the
+ *  SOURCE is always named, never just the channel's id. */
+function describeMandateSource(mandate: ActiveChannelMandate): string {
+  return `"${mandate.provenance.sourceText}" (checked ${mandate.provenance.sourceCheckedAt})`;
+}
+
+/**
+ * B2G routing (`b2g-routing/`) — a client marked GOVERNMENT (`Client.kind`) changes which channel an
+ * invoice addressed to it must use, per THAT CLIENT's OWN country — never the seller's. This is a
+ * DIFFERENT axis from the seller-country mandate just above: that mandate asks "does
+ * the ISSUING COMPANY's country force a channel on every invoice it sends"; B2G routing asks "does
+ * the RECIPIENT's status as a public body, in ITS OWN country, force a channel on THIS ONE invoice".
+ *
+ * ## PRECEDENCE — the exact reason this check runs FIRST in `resolveInvoiceTransport`, before the
+ * seller-country mandate is even consulted
+ *
+ * A B2G rule, once it applies, decides the WHOLE question by itself — it does not merely add one more
+ * constraint on top of the seller-country mandate or the company's free choice, it REPLACES them for
+ * this invoice: `resolveClientB2gRouting`'s own `applies: true` short-circuits `resolveInvoiceTransport`
+ * below entirely, so `activeChannelMandateFor` (item 11) is never even called for a government client,
+ * regardless of what the ISSUING company's own country would otherwise mandate. This is deliberate,
+ * not an oversight: a B2G obligation is a regime of the DESTINATION (directive 2014/55/UE itself binds
+ * the RECEIVING contracting authority, never the seller's own country — see `b2g-routing/data/fr.json`'s
+ * own EU-baseline note), so a French seller invoicing a German public body follows GERMANY's B2G rule,
+ * never France's own seller-country PDP mandate, even though that seller would otherwise be bound by
+ * it for every OTHER invoice it sends. Precedence, in order: (1) a B2G rule for the CLIENT's country,
+ * when the client is GOVERNMENT; (2) failing that, the SELLER's own country mandate; (3)
+ * failing that, the company's free transport choice. A BUSINESS client (the default, and every client
+ * that predates this mechanism) sees NO change at all — `resolveClientB2gRouting` returns
+ * `applies: false` and every line below this comment runs exactly as it did before B2G routing was added.
+ *
+ * ## The three outcomes `resolveB2gInvoiceTransport` below can reach, all HONEST, never a silent B2B
+ * fallback ("the wrong channel to a government is worse than a block")
+ *
+ *  - the client's own country cannot be resolved to an ISO code at all → refused, naming the client
+ *    and asking for an explicit country code;
+ *  - the country resolves but has NO B2G rule declared (`b2g-routing/data/` has no file for it) →
+ *    refused, naming the country and where to add one — never silently treated as an ordinary B2B
+ *    send;
+ *  - a rule exists: its `requiredClientIdentifiers` (e.g. a French SIRET) are checked against the
+ *    client's own `PartyIdentifier`s FIRST — missing one refuses, naming the exact identifier, the
+ *    screen to fill it in (the client's own edit form), and the rule's own sourced `why`; then its
+ *    `requiredDocumentFields` marked `required: true` (e.g. Germany's Leitweg-ID, carried generically
+ *    as `data.buyerReference`) are checked against THIS invoice's own submitted fields, same refusal
+ *    shape; only once both pass is `rule.transportId` actually resolved against the live registry —
+ *    a rule naming a channel not yet implemented (e.g. `"zre-ozgre"` — see each shipped file's own
+ *    header for why that is this model's own thesis, not a gap; `"chorus-pro"` used to be this
+ *    example too, until `transports/chorus-pro-transport.ts` registered it, proven live in
+ *    qualification 2026-09-14 — see `credentials-guide.md` §3) refuses too, naming exactly that
+ *    channel and citing the rule's own source.
+ */
+function b2gUnresolvedCountryMessage(decision: B2gClientRoutingDecision): string {
+  return (
+    'This client is marked as a government body, but its own country could not be resolved to a ' +
+    `recognized ISO 3166-1 code ("${decision.clientCountryRaw ?? 'unknown'}") — set an explicit ` +
+    'country code on the client (Clients → this client → Country) before sending it an invoice.'
+  );
+}
+
+function b2gNoRuleMessage(decision: B2gClientRoutingDecision): string {
+  return (
+    `No B2G routing rule is declared for "${decision.countryCode}" — sending an invoice to a public-` +
+    'sector body in this country is not covered yet. To unblock it, add ' +
+    `backend/src/modules/documents/b2g-routing/data/${decision.countryCode!.toLowerCase()}.json ` +
+    '(see fr.json/de.json/it.json in that directory for the format) and restart the backend so the ' +
+    'boot upsert picks it up.'
+  );
+}
+
+function b2gMissingIdentifierMessage(countryCode: string, rule: B2gRoutingRuleView, scheme: string): string {
+  const requirement = rule.requiredClientIdentifiers.find((r) => r.scheme === scheme)!;
+  return (
+    `${countryCode} requires this government client to have a "${requirement.label}" ` +
+    `(${requirement.scheme}) on file before an invoice can be sent to it — ${requirement.why} Add it ` +
+    "on the client's own edit screen (Clients → this client → country-specific identifiers) before " +
+    'sending.'
+  );
+}
+
+function b2gMissingFieldMessage(
+  countryCode: string,
+  field: B2gRoutingRuleView['requiredDocumentFields'][number],
+): string {
+  return (
+    `${countryCode} requires "${field.label}" on this invoice before it can be sent to a government ` +
+    `client — ${field.why} Fill it in on the invoice form before sending.`
+  );
+}
+
+function b2gTransportNotAvailableMessage(countryCode: string, rule: B2gRoutingRuleView): string {
+  return (
+    `${countryCode} routes invoices to government bodies through the "${rule.transportId}" channel — ` +
+    `${rule.provenanceDescription}. That channel is not available in this deployment yet, so sending ` +
+    'this invoice is blocked until it is — this is a known, named gap, never a silent fallback to ' +
+    'another channel.'
+  );
+}
+
+function b2gChannelNotReadyMessage(
+  countryCode: string,
+  rule: B2gRoutingRuleView,
+  underlyingMessage: string,
+): string {
+  return (
+    `${countryCode} routes invoices to government bodies through the "${rule.transportId}" channel — ` +
+    `${rule.provenanceDescription}. This company already has "${rule.transportId}" available, but it ` +
+    `is not ready yet: ${underlyingMessage}`
+  );
+}
+
+function hasValue(value: unknown): boolean {
+  return typeof value === 'string' ? value.trim() !== '' : value != null;
+}
+
+/**
+ * The B2G half of `resolveInvoiceTransport` — see this file's own header just above for the full
+ * precedence reasoning. Returns the transport a B2G rule FORCES, having already checked every
+ * required client identifier and required document field; throws the exact named refusal otherwise.
+ * `data` is the invoice's OWN submitted fields (needed only to check `requiredDocumentFields`) — may
+ * be `undefined` at call sites that have no document data on hand yet (none today, but never assumed).
+ */
+/**
+ * What `resolveInvoiceTransport` hands back — the transport to use, PLUS an optional `formatOverride`
+ * forwarded verbatim onto `DocumentTransportContext` at the `deliver()` call site
+ * (`transport-registry.ts`'s own header for the full contract). Only `resolveB2gInvoiceTransport`
+ * below ever sets `formatOverride` (to `rule.formatSyntax`) — the seller-country mandate and the
+ * company's own free-choice paths never do, since neither carries a per-invoice format decision of
+ * its own the way a B2G rule does.
+ */
+interface ResolvedInvoiceTransport {
+  transport: DocumentTransport;
+  formatOverride?: string;
+}
+
+function resolveB2gInvoiceTransport(
+  transportRegistry: TransportRegistry,
+  decision: B2gClientRoutingDecision,
+  data: Record<string, unknown> | undefined,
+): ResolvedInvoiceTransport {
+  if (!decision.rule) {
+    logger.warn('Invoice "send" blocked: B2G client with no usable routing rule', {
+      category: 'documents',
+      details: { countryCode: decision.countryCode, clientCountryRaw: decision.clientCountryRaw },
+    });
+    throw new NotImplementedException(
+      decision.countryCode ? b2gNoRuleMessage(decision) : b2gUnresolvedCountryMessage(decision),
+    );
+  }
+
+  const rule = decision.rule;
+  const countryCode = decision.countryCode!;
+
+  if (decision.missingIdentifierSchemes.length > 0) {
+    throw new BadRequestException(
+      b2gMissingIdentifierMessage(countryCode, rule, decision.missingIdentifierSchemes[0]),
+    );
+  }
+
+  const missingField = rule.requiredDocumentFields.find(
+    (field) => field.required && !hasValue(data?.[field.field]),
+  );
+  if (missingField) {
+    throw new BadRequestException(b2gMissingFieldMessage(countryCode, missingField));
+  }
+
+  try {
+    // `formatOverride: rule.formatSyntax` — ALWAYS set here, regardless of which transport the rule
+    // names: every transport registered today is fixed-format (chorus-pro/facturx, sdi/fatturapa) and
+    // never reads it at all, so setting it is inert for those — see `transport-registry.ts`'s own
+    // header. The one transport that used to honor it, "peppol" (for Germany's own rule,
+    // `b2g-routing/data/de.json`, `formatSyntax: "xrechnung"`), was removed from the product on
+    // 2026-09-15 — see that JSON file's own `notes` for the full history. DE's rule still names
+    // "xrechnung" here (the content requirement is real, unaffected by which transport can carry it),
+    // but its `transportId` now names a channel this registry does not implement either, so this call
+    // throws `UnknownTransportError` below before `formatOverride` is ever consulted.
+    return { transport: transportRegistry.resolve(rule.transportId), formatOverride: rule.formatSyntax };
+  } catch (error) {
+    if (error instanceof UnknownTransportError) {
+      logger.warn('Invoice "send" blocked: B2G channel not implemented in this deployment', {
+        category: 'documents',
+        details: { countryCode, transportId: rule.transportId },
+      });
+      throw new NotImplementedException(b2gTransportNotAvailableMessage(countryCode, rule));
+    }
+    throw error;
+  }
+}
+
+/** The company's configured transport is anything OTHER than the mandated one (including nothing
+ *  configured at all) — see `resolveInvoiceTransport`'s own call site below. */
+function mandateOverridesTransportMessage(
+  countryCode: string,
+  mandate: ActiveChannelMandate,
+  configuredTransportId: string | null,
+): string {
+  const configuredClause = configuredTransportId
+    ? `This company is currently configured to send invoices via "${configuredTransportId}"`
+    : 'No transport is configured for this company';
+  return (
+    `${countryCode} requires invoices issued on or after ${mandate.mandatedFrom} to go through the ` +
+    `"${mandate.providerId}" channel — ${describeMandateSource(mandate)}. ${configuredClause}. ` +
+    `Connect "${mandate.providerId}" in company settings (Channels) and choose it as the invoice ` +
+    'transport before sending.'
+  );
+}
+
+/** The company already chose the mandated channel, but ITS OWN preflight (e.g. "PDP channel is not
+ *  connected") refused — see `runInvoiceSendPreflight` below. `underlyingMessage` is that transport's
+ *  own error text, folded in rather than replaced: the mandate context explains WHY this channel is
+ *  non-negotiable, the transport's own message explains WHAT to fix about it. */
+function mandateChannelNotReadyMessage(
+  countryCode: string,
+  mandate: ActiveChannelMandate,
+  underlyingMessage: string,
+): string {
+  return (
+    `${countryCode} requires invoices issued on or after ${mandate.mandatedFrom} to go through the ` +
+    `"${mandate.providerId}" channel — ${describeMandateSource(mandate)}. This company already chose ` +
+    `"${mandate.providerId}" as its invoice transport, but it is not ready yet: ${underlyingMessage}`
+  );
+}
+
+/**
+ * Resolves the ISSUING COMPANY's own configured transport, or throws the exact 501 this action
+ * always has for "no transport" / "an unknown one" — shared between the two moments this now runs at
+ * (see `registerInvoiceActions`'s own header): the phase-1 PREFLIGHT check (so a doomed send is
+ * refused before anything is persisted or queued, never a job enqueued only to fail immediately) and
+ * `deliver()` itself (re-resolved there too — the company's configuration could have changed between
+ * the two calls, which a job replayed later must still honor, not a value cached from the first one).
+ *
+ * A country mandate adds ONE more check, BEFORE the company's own free choice is even consulted: does
+ * the company's country MANDATE a different channel for an invoice issued on `issueDate`? A mandate,
+ * once active, overrides `Company.invoiceTransportId` entirely — `transport-registry.ts`'s own header
+ * ("nothing here... ever hard-codes which transport a company should use") still holds for every
+ * country with NO mandate (the overwhelming majority today), but a country that DOES mandate a
+ * channel has, by construction, already made that choice FOR the company; letting a mismatched
+ * `invoiceTransportId` silently win would mean this product believed it did exactly what the company
+ * asked while quietly sending a legally non-compliant invoice.
+ *
+ * B2G routing (`b2g-routing/`, see this file's own header just above `resolveB2gInvoiceTransport`)
+ * adds a check that runs BEFORE even this one: when the invoice's `clientId` names a GOVERNMENT
+ * client, `resolveClientB2gRouting` short-circuits this whole function — the seller-country mandate
+ * below is never consulted at all for that invoice, precedence documented in full at this file's own
+ * B2G section header.
+ */
+async function resolveInvoiceTransport(
+  transportRegistry: TransportRegistry,
+  companyId: string,
+  issueDate: string | undefined,
+  clientId: string | undefined,
+  data: Record<string, unknown> | undefined,
+): Promise<ResolvedInvoiceTransport> {
+  const b2g = await resolveClientB2gRouting(companyId, clientId);
+  if (b2g.applies) {
+    return resolveB2gInvoiceTransport(transportRegistry, b2g, data);
+  }
+
+  const transportId = await getCompanyInvoiceTransportId(companyId);
+
+  const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
+  // A mandate is satisfied by its own `providerId` OR by any of its `equivalentProviderIds`
+  // (`channel-policy/schema.ts`'s own header) — e.g. Italy's "sdi" mandate is equally discharged by
+  // "sdi-pec" (`transports/sdi-pec-transport.ts`), a different transport implementing the SAME legal
+  // channel over a different sub-channel. `?? false` keeps every pre-existing mandate (no
+  // `equivalentProviderIds` at all) behaving exactly as before: a strict `providerId` match.
+  const mandateSatisfied =
+    !!activeMandate &&
+    (transportId === activeMandate.mandate.providerId ||
+      (!!transportId && (activeMandate.mandate.equivalentProviderIds?.includes(transportId) ?? false)));
+  if (activeMandate && !mandateSatisfied) {
+    logger.warn('Invoice "send" blocked: overridden by a country channel mandate', {
+      category: 'documents',
+      details: {
+        companyId,
+        countryCode: activeMandate.countryCode,
+        mandatedProviderId: activeMandate.mandate.providerId,
+        configuredTransportId: transportId,
+      },
+    });
+    throw new NotImplementedException(
+      mandateOverridesTransportMessage(activeMandate.countryCode, activeMandate.mandate, transportId),
+    );
+  }
+
+  if (!transportId) {
+    logger.warn('Invoice "send" blocked: no transport configured for this company', {
+      category: 'documents',
+      details: { companyId },
+    });
+    throw new NotImplementedException(
+      'No transport is configured for this company to send an invoice. ' +
+        'Configure one in company settings before sending — there is no default channel.',
+    );
+  }
+
+  try {
+    // No `formatOverride` on this path — neither the seller-country mandate nor the company's own
+    // free choice carries a per-invoice format decision the way a B2G rule does (see
+    // `ResolvedInvoiceTransport`'s own header).
+    return { transport: transportRegistry.resolve(transportId) };
+  } catch (error) {
+    if (error instanceof UnknownTransportError) {
+      throw new NotImplementedException(
+        `The transport "${transportId}" configured for this company is not available. ` +
+          'Choose a different one in company settings before sending.',
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * The "send" action's OWN preflight closure — resolves the transport (mandate-aware, see
+ * `resolveInvoiceTransport` above) and then runs that transport's OWN readiness check
+ * (`DocumentTransport.preflight`, e.g. "are PDP credentials actually connected"). When a country
+ * mandate is active and the company already chose the mandated channel but that channel itself is
+ * not ready, the transport's own error (already loud, already named) is re-thrown WITH the mandate's
+ * own context folded in: the refusal still names the channel, still names the source, still says what to do,
+ * exactly like the "wrong transport entirely" case above, not a bare "not connected" with no country
+ * context attached.
+ */
+async function runInvoiceSendPreflight(
+  transportRegistry: TransportRegistry,
+  companyId: string,
+  issueDate: string | undefined,
+  clientId: string | undefined,
+  data: Record<string, unknown> | undefined,
+): Promise<void> {
+  const { transport } = await resolveInvoiceTransport(
+    transportRegistry,
+    companyId,
+    issueDate,
+    clientId,
+    data,
+  );
+  try {
+    await transport.preflight?.(companyId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // B2G routing takes precedence over the seller-country mandate here too — see this file's own
+    // B2G section header. Checked FIRST, same order as `resolveInvoiceTransport` above.
+    const b2g = await resolveClientB2gRouting(companyId, clientId);
+    if (b2g.applies && b2g.rule) {
+      throw new NotImplementedException(b2gChannelNotReadyMessage(b2g.countryCode!, b2g.rule, message));
+    }
+
+    const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
+    if (activeMandate) {
+      throw new NotImplementedException(
+        mandateChannelNotReadyMessage(activeMandate.countryCode, activeMandate.mandate, message),
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * Cross-border tax ("transfrontalier") — runs at the EXACT SAME moment as the transport/mandate
+ * checks above: phase-1 preflight, before the record is ever transitioned to "sending" and before
+ * anything is numbered or enqueued (see `actions/async-send.ts`'s own header).
+ *
+ * ## The principle (carried over from the pre-refonte compliance engine)
+ *
+ * Fiscal treatment is re-resolved AT ISSUANCE, and the document that is ISSUED **is** the resolved
+ * document — never the raw draft. The draft was the user's own entry (whatever `vatRate` they typed
+ * or picked); the instant it leaves "draft" (or "send_failed") and enters "sending" it becomes a
+ * legal fact, and that fact must be the RESOLVED one: what the buyer receives, what the archive
+ * keeps, and what `computeDocumentTotals`/the settlement balance/the dashboard's "pending" total all
+ * read back must be the SAME number, not three different views of "20%" vs. "0%, autoliquidation".
+ *
+ * Concretely: the RESOLVED `data` this function returns is handed back to `runAsyncSendAction`
+ * (`actions/async-send.ts`'s own `preflight` header), which uses it — instead of the raw submission —
+ * for the "sending" write AND the enqueued job payload. Only the HARD BLOCKS
+ * (`resolve-invoice-tax.ts`'s own named errors — an unresolved buyer country, an uncatalogued OSS
+ * destination, a rate foreign to the seller's own country) can stop a send here; nothing here is
+ * discarded any more.
+ *
+ * `deliver()` below STILL re-resolves, on the exact same (already-resolved) `data` this produced —
+ * deliberately: a worker can replay `deliver()` seconds or minutes after this ran, and the company's
+ * transport/client data could have changed in that gap. Re-resolving an ALREADY-resolved cross-border
+ * line must be — and is — perfectly stable (`resolve-invoice-tax.ts` never reads a line's existing
+ * `vatRate` to decide the cross-border treatment, only `supplyType` plus the seller/buyer identity —
+ * see that file's own idempotence proof, `resolve-invoice-tax.spec.ts`), which is what makes doing
+ * it twice safe rather than a second chance to silently drift from what was just persisted.
+ */
+async function runInvoiceCrossBorderTaxPreflight(
+  companyId: string,
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  try {
+    return (await resolveInvoiceCrossBorderTaxForCompany(companyId, data)).data;
+  } catch (error) {
+    if (isInvoiceTaxBlockError(error)) {
+      throw new BadRequestException(error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Portugal's ATCUD — a no-op for every company whose resolved country is not Portugal
+ * (`atcud-issuance.ts#ensureAtcudIssuable`'s own header), otherwise the LOAD-BEARING hard block: this
+ * runs at the SAME preflight moment as the transport/mandate and cross-border-tax checks above, before
+ * the record is ever transitioned to "sending" and before `numberOnEnqueue` (this action's own
+ * registration below) can spend a sequence number this codebase can never hand back
+ * (numbering/sequence.ts's own "never waste a number" header). `isAtcudBlockError` turns either of
+ * `ensureAtcudIssuable`'s two named errors — an incompatible number format, or a validation code not
+ * yet registered for the predicted series — into a 400 the user can act on, the exact same posture
+ * `runInvoiceCrossBorderTaxPreflight` just above already holds for its own named errors.
+ */
+async function runInvoiceAtcudPreflight(companyId: string): Promise<void> {
+  try {
+    await ensureAtcudIssuable(companyId);
+  } catch (error) {
+    if (isAtcudBlockError(error)) {
+      throw new BadRequestException(error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * NOTE on Poland's `correctionReason` (country-fields/data/pl.json): unlike ATCUD/cross-border-tax
+ * above, this needs NO dedicated preflight function here. `requiredIfPresent: "correctsInvoiceId"`
+ * (descriptors/types.ts) is read by `validateAgainstDescriptor` (descriptors/validate.ts), and
+ * `documents.service.ts#runAction` runs that validation against the MERGED (country-overlaid)
+ * descriptor for EVERY action — "save-draft" included — BEFORE any handler (this file's own or
+ * generic-actions.ts's) ever runs. A Polish invoice with `correctsInvoiceId` set and no
+ * `correctionReason` is therefore already refused (400, naming the field) at the generic gate, the
+ * SAME gate every other required field already goes through — confirmed empirically:
+ * `43-correction-routes.cy.ts`'s own Poland describe block posts exactly this shape at "save-draft"
+ * and gets the 400 there, "send" never even reached. A bespoke send-time guard here would be
+ * unreachable dead code, not a second layer of safety.
+ */
+
+/**
+ * The invoice's OWN base descriptor, imported directly here rather than resolved through
+ * `DocumentTypeRegistry` — deliberate, and only defensible because this file is ALREADY 100%
+ * invoice-specific (every handler below hardcodes `'invoice'` as the typeId; unlike
+ * generic-actions.ts, nothing here is meant to be reused by another type). It exists purely to feed
+ * `computeDocumentTotals` the field SHAPE it needs to find the invoice's own `lines`/`currency` —
+ * exactly the same shape `documents.service.ts`'s own `computeTotals` endpoint already uses (that one
+ * reads the MERGED descriptor — native + third-party action extensions — which never touches invoice
+ * FIELDS either, so this is no less faithful). Country field overlays are a no-op for every shipped
+ * country today (country-fields/data/all.ts ships none) — the day one exists for the invoice, this is
+ * the one spot that would need to start asking `DocumentTypeRegistry` instead.
+ */
+const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
+
+/**
+ * The residual the f6888eb2/d58caaa5 pair left open. Those two commits hard-
+ * blocked an UNRESOLVED BUYER COUNTRY at every ISSUED-producing path of the pre-refonte engine
+ * (`issueInvoice`, `correctInvoice`, …) and then, in a follow-up, closed the one path that could
+ * still slip past that guard: `editInvoice()` recomputing tax on an ALREADY-ISSUED invoice for an
+ * `immutableAfter: 'NEVER'` jurisdiction (US/FALLBACK) with no country check at all. That engine, and
+ * `editInvoice()` itself, no longer exist (this branch's documents/ rewrite) — but the SAME shape of
+ * hole exists again here, one layer down:
+ *
+ *  - `invoice.descriptor.ts`'s "save-draft" transition is `{ from: 'always', to: 'draft' }` — it can
+ *    demote an ALREADY-SENT invoice back to "draft" (`quote-contributions.ts`'s own comment documents
+ *    this as an accepted, real state: a sent record re-saved as a draft "keeps the number it already
+ *    earned"). `generic-actions.ts`'s `performSaveDraft` never touches tax at all — by design, so a
+ *    genuinely NEW or STILL-draft record stays country-less-safe (the exact posture
+ *    `resolve-invoice-tax.ts`'s own header, and `documents.service.invoice.spec.ts`'s own
+ *    "'save-draft' NEVER resolves cross-border tax" test, hold on purpose).
+ *  - For FRANCE, this demotion is already refused outright: `country-policy/data/fr.json`'s own
+ *    `invoice.save-draft` rule narrows `statuses` to `["draft"]` (CGI art. 289, I.5 — an issued
+ *    invoice is corrected by a DISTINCT document, never rewritten), so `documents.service.ts#runAction`
+ *    409s before this handler is ever called.
+ *  - Nothing in `country-policy` itself closes this generally: ANY country whose own policy file
+ *    permits "save-draft" unconditionally (no `statuses` narrowing on it, unlike FR's own rule
+ *    above) reopens the SAME under-charge shape as the old `editInvoice()` residual: edit an
+ *    already-"sent" invoice's client to one whose country cannot be resolved (or simply to a
+ *    different country the resolved data no longer matches) and click Save — the record demotes to
+ *    "draft" carrying WHATEVER the form submitted, no re-resolution, no block. (US's own policy file
+ *    used to be exactly that missing-narrowing case, until the 5-country prune removed it,
+ *    2026-09-10 — every country shipped today narrows this the same way FR does, per its own data
+ *    file, but nothing enforces that a future one must.)
+ *
+ * The fix reuses `runInvoiceCrossBorderTaxPreflight` VERBATIM — the exact same resolution path
+ * "send"'s own preflight/deliver already call — rather than inventing a second buyer-country check:
+ * only when `ctx.currentStatus` is a REAL, already-persisted, NON-DRAFT status (a genuine re-edit of
+ * an issued invoice, never a brand-new or still-draft record) does this run the same recompute +
+ * hard-block "send" already performs, BEFORE the demoted draft is ever persisted. A resolvable buyer
+ * country still saves fine — this is a backstop for the under-charge shape, not a ban on editing an
+ * issued invoice (that policy question belongs to country-policy, e.g. FR's own rule above, not here).
+ */
+function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: DocumentWebhookEmitter): void {
+  registry.register('invoice', 'save-draft', async (ctx) => {
+    const reEditingAnIssuedInvoice = !!ctx.documentId && !!ctx.currentStatus && ctx.currentStatus !== 'draft';
+    const data = reEditingAnIssuedInvoice
+      ? await runInvoiceCrossBorderTaxPreflight(ctx.companyId, ctx.data)
+      : ctx.data;
+    return performSaveDraft(ctx.companyId, 'invoice', ctx.documentId, data, webhooks);
+  });
+}
+
+/**
+ * Registers the invoice type's action IMPLEMENTATIONS. "save-draft" is ALMOST the exact same generic
+ * mechanism the quote uses (generic-actions.ts's `performSaveDraft`) — persisting a draft's field
+ * values has nothing to do with WHERE the document eventually travels — but not QUITE, since
+ * `registerInvoiceSaveDraftAction` below wraps it with one invoice-specific
+ * guard the generic mechanism has no business knowing about.
+ *
+ * "send" is DELIBERATELY NOT the quote's own send-by-email mechanism (quote-actions.ts) — an
+ * invoice's transport is a fact about the ISSUING COMPANY, never about the invoice's country or the
+ * buyer's: `resolveInvoiceTransport` above reads `Company.invoiceTransportId` and asks
+ * TransportRegistry for whatever the company chose. Two outcomes are deliberately treated as the SAME
+ * kind of failure as an action with no implementation at all (a clear 501, never a silent fallback to
+ * email or anywhere else):
+ *  - the company has not configured a transport yet (`invoiceTransportId` is null/empty);
+ *  - the company configured one that is no longer registered (a plugin was removed, a typo).
+ * Both cases mean "this invoice cannot actually be sent right now", which is exactly what 501 means
+ * elsewhere in this module — see documents.service.ts's own NotImplementedException for an action
+ * genuinely missing a handler. This handler IS registered (so DocumentsService finds it and validates
+ * `data` before calling it); the block happens once inside it, deliberately worded so a user reads
+ * WHY, the same discipline "export-accounting" now keeps proving for an action with no handler at all
+ * (see invoice.descriptor.ts's own header — that role used to belong to "record-payment").
+ *
+ * "send" is ASYNCHRONOUS — built on `runAsyncSendAction` (actions/async-send.ts),
+ * the same two-phase engine the quote's and the credit note's own "send" use. The transport check
+ * above becomes this action's `preflight`: it still runs BEFORE the record ever moves to "sending" and
+ * BEFORE anything is queued, so an unconfigured company still gets an immediate 501 with nothing
+ * persisted — exactly the behavior this action had before it became asynchronous. `deliver()`
+ * re-resolves the transport rather than closing over the preflight's result: the two calls can be
+ * seconds (or, after a retry, much longer) apart, and a job replayed later must honor whatever the
+ * company's configuration says AT THAT TIME, not a value cached from when it was first enqueued.
+ *
+ * A country channel mandate ("country-mandated channel") folds one more gate into this SAME preflight: a country
+ * can now MANDATE a channel (`transports/channel-policy/data/*.json`, `requirement: 'mandated'`), not
+ * merely suggest one — see `resolveInvoiceTransport`'s own header for how that overrides the
+ * company's free choice once active, and `channel-policy/mandate.ts`'s header for why "active" is
+ * decided by the INVOICE's own `issueDate`, never the server's clock. A country with no mandate (the
+ * overwhelming majority — only FR/pdp ships one today) sees no behavior change at all.
+ *
+ * "record-payment" IS registered below — see its own comment for the currency/amount guards and what
+ * it hands back. "export-accounting" stays declared on the descriptor (invoice.descriptor.ts) and
+ * deliberately NOT registered here: a real accounting export needs a chart-of-accounts mapping and a
+ * ledger format this branch does not build, the same discipline "record-payment" used to hold before
+ * it was implemented, and "convert-to-invoice" held the quote to before IT was implemented (see
+ * quote-actions.ts) — this is now the live case documents.service.invoice.spec.ts proves the 501
+ * mechanism against.
+ */
+export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceActionDeps): void {
+  registerInvoiceSaveDraftAction(registry, deps.webhooks);
+
+  registry.register(
+    'invoice',
+    'send',
+    async ({ companyId, documentId, data: rawData, params, currentStatus }) => {
+      // A SECOND, worker-only entry into this exact handler happens once the record is already
+      // "sending" (async-send.ts's own header: the API's synchronous call and the worker's replayed
+      // one are the SAME code path) — `rawData` at THAT point is not a caller submission at all, it is
+      // the ALREADY-RESOLVED data this very preflight persisted moments earlier, `__crossBorderCategory`/
+      // `__crossBorderMentions` sidecars included (tax/resolve-invoice-tax.ts's own header). Stripping
+      // unconditionally would throw that resolution away on every worker retry — a legitimate
+      // cross-border rate would then fail field-kinds.ts's own domestic-catalog check the SECOND time
+      // this validates, not the first (see that file's own `usesVatRateCatalog` branch).
+      //
+      // Stripped ONLY when `currentStatus !== 'sending'`: a fresh submission (draft/send_failed) can
+      // NEVER legitimately carry either sidecar yet — the tax engine only ever writes them from THIS
+      // SAME preflight, a few lines below, which has not run yet for a call reaching this branch — so
+      // any occurrence there was typed into the request body by the caller, not computed by this
+      // server. Left unstripped, a caller could post `lines[].__crossBorderCategory` directly to (a)
+      // fabricate a cross-border legal mention on a purely domestic invoice (it would survive into the
+      // printed PDF and the transmitted XML — see `resolveInvoiceCrossBorderTax`'s own domestic-STANDARD
+      // branch, which returns `data` UNCHANGED) and (b) skip the domestic VAT-rate catalog check
+      // entirely for that line (field-kinds.ts's own bypass trusts the sidecar's mere PRESENCE).
+      // Stripping here, before either preflight or `runAsyncSendAction` ever see `rawData`, means
+      // neither fact can ever reach persistence, rendering, or the transmitted format from a caller
+      // that never legitimately reached the tax engine in the first place.
+      const data =
+        currentStatus === 'sending' ? rawData : stripSidecarKeys(INVOICE_DESCRIPTOR.fields, rawData);
+      return runAsyncSendAction({
+        companyId,
+        typeId: 'invoice',
+        documentId,
+        data,
+        params,
+        queueDispatcher: deps.queueDispatcher,
+        events: deps.events,
+        // Absent (no webhook fires) for a company/deployment that
+        // never wired `deps.webhooks` (every EXISTING spec of this function). Production wiring
+        // (`documents-core.module.ts`) always provides one.
+        // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
+        webhooks: deps.webhooks,
+        numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
+        // The country-mandate check runs as part of THIS preflight — see
+        // `runInvoiceSendPreflight`'s own header. `data.issueDate` is the submitted field value at
+        // ENQUEUE time; `descriptors/invoice.descriptor.ts` requires it, so by the time "send" can even
+        // run the record already has one (validated at "save-draft").
+        preflight: async () => {
+          const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
+          const clientId = typeof data.client === 'string' ? data.client : undefined;
+          await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate, clientId, data);
+          // Portugal's ATCUD — see `runInvoiceAtcudPreflight`'s own header. A no-op for every other
+          // country; for Portugal, the LOAD-BEARING check (before `numberOnEnqueue` below can ever spend
+          // a sequence number this codebase can never hand back — numbering/sequence.ts's own header).
+          await runInvoiceAtcudPreflight(companyId);
+          // Poland's `correctionReason` — see this file's own NOTE just above `registerInvoiceActions`'s
+          // header: no dedicated preflight needed, the generic descriptor gate already enforces it.
+          // See `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never
+          // discarded): `runAsyncSendAction` persists exactly this as the "sending" document's own
+          // `data`, so the record that just left "draft" already carries the resolved treatment, not
+          // the user's raw entry.
+          return runInvoiceCrossBorderTaxPreflight(companyId, data);
+        },
+        // Portugal's ATCUD, part two — computes and freezes it onto the invoice the MOMENT it is
+        // numbered (before anything is enqueued), reading the FROZEN `displayNumber` numbering just
+        // produced. See `attachAtcudToNumberedInvoice`'s own header for why this never throws: the
+        // preflight step just above is what can still refuse the whole issuance, this is a defensive
+        // re-check running after a number has already been irreversibly spent.
+        onNumbered: async ({ companyId: c, documentId, numbered }) =>
+          attachAtcudToNumberedInvoice(c, documentId, numbered),
+        // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
+        // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
+        // and attaches the PDF itself; see that file's own header and actions/send-document-email.ts
+        // for the shared "compose + attach + send" mechanics. A hypothetical transport that still wants
+        // plain text is free to build its own from `document`.
+        //
+        // `deliver`'s own `data` is the SAME value the enqueue call captured (`async-send.ts`'s own
+        // header: "the retry IS the action itself"), never re-read from the database — the mandate this
+        // re-resolves must judge the SAME issueDate the preflight already judged, not whatever the
+        // document happens to hold by the time a worker gets to it. `data` here
+        // is ALREADY the resolved value the preflight persisted (see `runInvoiceCrossBorderTaxPreflight`'s
+        // own header) — resolving it again below is deliberately safe, not merely harmless: the ONLY
+        // reachable-here-but-not-at-preflight case is a client/transport reconfiguration in the gap
+        // between the two calls, which must still be judged fresh.
+        deliver: async ({ companyId: c, document, data: deliverData }) => {
+          const issueDate = typeof deliverData.issueDate === 'string' ? deliverData.issueDate : undefined;
+          const clientId = typeof deliverData.client === 'string' ? deliverData.client : undefined;
+          const { transport, formatOverride } = await resolveInvoiceTransport(
+            deps.transportRegistry,
+            c,
+            issueDate,
+            clientId,
+            deliverData,
+          );
+          // RECOMPUTED here (never a value cached from the preflight call above,
+          // same discipline `resolveInvoiceTransport`'s own re-resolution already holds): every
+          // transport (email/pdp/ksef/sdi) reads `ctx.document.data` generically, so rewriting it HERE,
+          // once, is what makes the PDF attached, the CII/UBL/Factur-X/FA(3)/FatturaPA exports built
+          // from it, and the archived artefact all agree on the RESOLVED cross-border treatment — never
+          // the originally-typed domestic-looking rate. A block reachable only here (never at
+          // preflight — e.g. a client's country changed between the two calls) still fails loud, never
+          // silently reverting to the stored rate. Re-resolving `deliverData` here even though it is
+          // ALREADY resolved is exactly the idempotence `resolve-invoice-tax.ts` guarantees (it decides
+          // the cross-border treatment from `supplyType` + seller/buyer identity, never from a line's
+          // existing `vatRate`) — see `resolve-invoice-tax.spec.ts`'s own idempotence proof.
+          let resolvedData = deliverData;
+          try {
+            resolvedData = (await resolveInvoiceCrossBorderTaxForCompany(c, deliverData)).data;
+          } catch (error) {
+            if (isInvoiceTaxBlockError(error)) throw new BadRequestException(error.message);
+            throw error;
+          }
+          const documentForDelivery =
+            resolvedData === deliverData ? document : { ...document, data: resolvedData };
+          // `formatOverride` — see `ResolvedInvoiceTransport`'s own header and `transport-registry.ts`'s
+          // own header: forwarded VERBATIM, exactly as the B2G rule (if any) named it, never invented or
+          // adjusted here. Every transport registered today ignores it entirely.
+          return transport.send({
+            companyId: c,
+            document: documentForDelivery,
+            label: 'Invoice',
+            formatOverride,
+          });
+        },
+      });
+    },
+  );
+
+  /**
+   * "cancel" — the ONE correction route this repo performs LOCALLY, no
+   * authority channel involved. By the time this handler runs, `documents.service.ts`'s own
+   * `resolveActionPolicy` has ALREADY confirmed (via `correction-routes/cancel-policy.ts`) that this
+   * company's seller country founds a real local cancellation and, where narrower (Italy), that the
+   * record's own current status is one this country's own data actually covers — this handler never
+   * re-checks either, the same "the gate ran before the handler, the handler trusts it ran" posture
+   * every other action in this registry already holds for `evaluateCountryPolicy`.
+   *
+   * A STATUS-ONLY write (`updateDocumentStatus`, never `upsertDocument`): cancelling never rewrites a
+   * single FIELD the invoice already carries — the document that was issued keeps existing, exactly
+   * as issued, only its own status changes. `number`/`displayNumber` are therefore NEVER touched here
+   * (`updateDocumentStatus` never writes either column) — the number stays taken FOREVER, the same
+   * "never reused, never renumbered" guarantee numbering/sequence.ts already holds for a "send_failed"
+   * retry, and exactly what CANCEL_AND_REPLACE itself requires in every founding country's own data
+   * (e.g. data/fr.json: cancelling must "porter référence exacte à la facture initiale" — a reference
+   * to a number that must go on existing, unique, and never reissued to anything else).
+   *
+   * `DOCUMENT_CANCELLED` (schema.prisma's WebhookEvent) — a NEW, dedicated event: a third-party
+   * integration that already saw this invoice `DOCUMENT_SENT` needs to know it is now void, the same
+   * reasoning `DOCUMENT_SETTLED` (T3) already got its own event for rather than riding a second time
+   * on an existing one. Best-effort, same try/catch-and-log posture as every other webhook dispatch in
+   * this module — a webhook failing to dispatch must never undo a cancellation already committed.
+   *
+   * NO SSE nudge (`DocumentEventPublisher`, `queue/document-events.ts`): unlike "send"
+   * (`runAsyncSendAction` above), this is a single synchronous request/response with no SECOND
+   * process (a BullMQ worker) that could change the outcome after the caller's own response already
+   * landed — the same reasoning "record-payment" below, and `received-invoice-actions.ts`'s own
+   * "approve"/"reject", already hold for firing no SSE event of their own.
+   */
+  registry.register('invoice', 'cancel', async ({ companyId, documentId }) => {
+    if (!documentId) {
+      // Unreachable in practice — `availableWhen: ['sent', 'send_failed']` already refuses this
+      // before the handler runs (a never-saved record has no status to match) — but a handler never
+      // trusts that alone, the same defensive posture "delete" (generic-actions.ts) already holds.
+      throw new Error('Cannot cancel an invoice that has not been saved yet.');
+    }
+
+    // `fromStatuses` pinned to CANCEL_TRANSITIONS' own `from` (invoice.descriptor.ts) — the descriptor
+    // gate above already checked this a moment ago, but that check and this write are two separate
+    // round trips: two browser tabs (or a double-click) both racing "cancel" on the SAME invoice would
+    // otherwise both read "sent", both pass the gate, and both write "cancelled" — a second, spurious
+    // DOCUMENT_CANCELLED webhook for a cancellation that already happened. Compare-and-swap turns the
+    // loser into a named 409 instead, before it ever reaches the webhook dispatch below.
+    const document = await updateDocumentStatus(
+      companyId,
+      'invoice',
+      documentId,
+      'cancelled',
+      null,
+      undefined,
+      undefined,
+      ['sent', 'send_failed'],
+    );
+
+    if (deps.webhooks) {
+      try {
+        await deps.webhooks.dispatch(
+          WebhookEvent.DOCUMENT_CANCELLED,
+          buildDocumentWebhookPayload(companyId, 'invoice', document),
+        );
+      } catch (error) {
+        logger.error('Failed to dispatch a DOCUMENT_CANCELLED webhook — the invoice was still cancelled', {
+          category: 'documents',
+          details: {
+            companyId,
+            typeId: 'invoice',
+            documentId,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
+
+    return { document, changed: true, message: 'Cancelled.' };
+  });
+
+  // "recipient" defaults from the client (registerEmailRecipientDefaultFromClient, quote-actions.ts)
+  // is the model for this: a best-effort pre-fill, read from the CURRENT record, never required for
+  // the action to be usable at all (a resolver failing to run still opens the dialog, just empty).
+  // Here it pre-fills `paidAt` with TODAY and `currency` with the invoice's OWN currency — the second
+  // one is not a declared `param` a user fills in from nothing, it is what makes the `amount` field's
+  // `currencyField: 'currency'` (invoice.descriptor.ts) show the right symbol from the moment the
+  // dialog opens, without the invoice's `data` ever being reachable from the params dialog's own,
+  // separate form.
+  registry.registerParamsDefaults('invoice', 'record-payment', async ({ companyId, documentId }) => {
+    if (!documentId) return {};
+    const document = await findOwnedDocument(companyId, 'invoice', documentId);
+    const currency = (document.data as Record<string, unknown> | null)?.currency;
+    return {
+      paidAt: new Date().toISOString(),
+      ...(typeof currency === 'string' ? { currency } : {}),
+    };
+  });
+
+  /**
+   * Records a payment against an ALREADY-SENT invoice (availableWhen: ['sent'] — see
+   * invoice.descriptor.ts) and hands back the invoice's up-to-date BALANCE. Guards, in order:
+   *  - `amount` must be strictly positive — `min` is deliberately NOT set on the field descriptor
+   *    (which would only ever enforce `>= 0`, letting a bare 0 through as "structurally valid"); this
+   *    handler is the one place that enforces the actual business rule, with one clear message;
+   *  - `currency`, when it differs from the invoice's own, is CONVERTED at a dated rate rather than
+   *    refused (see settlement/convert-payment.ts's header for the full reasoning) — but ONLY when the company has
+   *    actually entered a dated `CurrencyRate` for this exact pair, resolvable as of `paidAt`; absent
+   *    one, this still refuses exactly as before T3 (this module never invents a rate). Read off the
+   *    PERSISTED document (`findOwnedDocument`), never the client-submitted `data`: the
+   *    params-defaults resolver above pre-fills the params dialog's `currency` from the same source,
+   *    but nothing stops a scripted client from posting a different one directly — the same "the API
+   *    refuses exactly what the screen would refuse" discipline documents.service.ts's own `runAction`
+   *    holds for country policy and status.
+   *  - implicitly, `documentId` must exist: unreachable in practice (a never-saved record has no
+   *    status for `availableWhen: ['sent']` to match) but never trusted alone — the same defensive
+   *    posture "delete" (generic-actions.ts) already holds for the same shape of guarantee.
+   *
+   * Deliberately does NOT call `upsertDocument`: a payment does not change the invoice's own field
+   * values or status (see invoice.descriptor.ts's lifecycle comment on why no `transitions` are
+   * declared here) — `result.document` is the SAME, unchanged, freshly-read instance, which is also
+   * exactly what `checkTransitionResult` (lifecycle.ts) expects for an action with no declared
+   * transitions: whatever status it already was.
+   *
+   * This is ALSO one of the two write paths that can make
+   * an invoice cross into "settled" (the other is a credit note reaching "sent" —
+   * credit-note-actions.ts) — `DOCUMENT_SETTLED` fires here the instant THIS payment is the one that
+   * makes the crossing happen, computed by comparing settlement WITH vs. WITHOUT the row this call
+   * just inserted (settlement/document-settled.ts's own header explains why that needs no separate
+   * "before" query).
+   */
+  registry.register('invoice', 'record-payment', async ({ companyId, documentId, params }) => {
+    if (!documentId) {
+      throw new Error('Cannot record a payment on an invoice that has not been saved yet.');
+    }
+
+    const document = await findOwnedDocument(companyId, 'invoice', documentId);
+    const documentData = (document.data ?? {}) as Record<string, unknown>;
+    const documentCurrency = typeof documentData.currency === 'string' ? documentData.currency : undefined;
+    if (!documentCurrency) {
+      throw new BadRequestException(
+        `Invoice "${documentId}" has no currency recorded — cannot record a payment against it.`,
+      );
+    }
+
+    const amount = params.amount as number; // already proven a finite number by the 'money' kind.
+    if (!(amount > 0)) {
+      throw new BadRequestException('The payment amount must be greater than zero.');
+    }
+
+    const paymentCurrency = typeof params.currency === 'string' ? params.currency : documentCurrency;
+    // The date this resolves the rate against — see convert-payment.ts's own header: the rate that
+    // was true WHEN THE MONEY ARRIVED, never "now" (a payment entered late must not convert at
+    // today's rate). A date-only ISO string ("2026-08-30") parses as UTC MIDNIGHT per the JS spec —
+    // never local-timezone midnight — so this is already safe against the month-boundary bug that
+    // has bitten this codebase elsewhere (local getters vs. UTC-midnight dates); see
+    // settlement/convert-payment.spec.ts's own pinned boundary tests.
+    const paidAt = typeof params.paidAt === 'string' ? new Date(params.paidAt) : new Date();
+    const paymentAmountMinor = toMinor(amount, paymentCurrency);
+
+    // `loadRatesSafely` only actually queries Prisma when a conversion is genuinely needed — the
+    // overwhelming majority of payments still match the invoice's own currency, and
+    // `resolvePaymentConversion` never even looks at `rates` in that case (see its own header).
+    const rates = paymentCurrency === documentCurrency ? [] : await loadRatesSafely(companyId);
+    const conversion = resolvePaymentConversion(
+      documentCurrency,
+      paymentCurrency,
+      paymentAmountMinor,
+      rates,
+      paidAt,
+    );
+    if (!conversion.ok) {
+      throw new BadRequestException(
+        `The payment currency ("${paymentCurrency}") does not match this invoice's own currency ` +
+          `("${documentCurrency}"), and no dated ${paymentCurrency}→${documentCurrency} exchange rate ` +
+          `is set as of ${paidAt.toISOString().slice(0, 10)} — recording this payment would silently ` +
+          `guess an exchange rate, so it is refused instead. Enter a dated rate first (Settings → ` +
+          `Currency rates), then record the payment again.`,
+      );
+    }
+
+    const method = typeof params.method === 'string' ? params.method : undefined;
+    const note = typeof params.note === 'string' ? params.note : undefined;
+
+    const newPayment = await recordPayment({
+      companyId,
+      documentId,
+      amountMinor: paymentAmountMinor,
+      currency: paymentCurrency,
+      documentAmountMinor: conversion.documentAmountMinor,
+      conversionRate: conversion.rate,
+      conversionRateAsOf: conversion.rateAsOf,
+      conversionSource: conversion.rateSource,
+      method,
+      paidAt,
+      note,
+    });
+
+    const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, documentData);
+    const payments = await listPayments(companyId, documentId);
+    // CREDITS count towards this same balance (credit matching) — resolved here too, not just
+    // in documents.service.ts's own GET .../settlement, so the balance THIS message states (and the
+    // "settled" fact logged below) never contradicts what a follow-up read of the settlement screen
+    // shows: an invoice already partly credited before this payment must not be reported as owing
+    // more than it actually does.
+    const { credits } = await resolveCreditsForDocument(
+      companyId,
+      'invoice',
+      documentId,
+      INVOICE_DESCRIPTOR,
+      documentData,
+    );
+    const creditInputs = toSettlementCreditInputs(credits);
+    const paymentInputsAfter = toSettlementPaymentInputs(payments);
+    // "Before": the exact same set of payments, minus the one THIS call just inserted — never a
+    // second query taken a moment earlier (which would open a race window between two reads); see
+    // settlement/document-settled.ts's own header.
+    const paymentInputsBefore = toSettlementPaymentInputs(
+      payments.filter((payment) => payment.id !== newPayment.id),
+    );
+    const settlementBefore = computeSettlement(totals.grossMinor, paymentInputsBefore, creditInputs);
+    const settlement = computeSettlement(totals.grossMinor, paymentInputsAfter, creditInputs);
+
+    logger.info('Payment recorded against an invoice', {
+      category: 'documents',
+      details: {
+        companyId,
+        documentId,
+        amountMinor: paymentAmountMinor,
+        currency: paymentCurrency,
+        documentAmountMinor: conversion.documentAmountMinor,
+        documentCurrency,
+        decimals: decimalsFor(documentCurrency),
+        settled: settlement.settled,
+      },
+    });
+
+    if (crossedIntoSettled(settlementBefore, settlement)) {
+      await emitDocumentSettled(deps.webhooks, companyId, 'invoice', document, settlement);
+    }
+
+    return {
+      document,
+      changed: true,
+      message: describeSettlement(settlement, documentCurrency),
+      // See ActionResult.createdPaymentId's own header — this is what lets
+      // bank-reconciliation.service.ts / payment-sessions.service.ts stop diffing `listPayments` to
+      // guess which row they just produced.
+      createdPaymentId: newPayment.id,
+    };
+  });
+}

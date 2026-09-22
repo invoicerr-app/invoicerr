@@ -4,30 +4,205 @@
  * work well for content-centric websites.
  */
 
-/* Invoicerr brand palette — a refined indigo that reads well in both modes. */
+/* Self-hosted fonts (identity "Lagune", decision 2026-09-15, frontend/src/index.css) — same three
+   fontsource packages the app itself imports, at the same pinned version, imported the same way
+   (whole variable-weight-axis file for Inter/Space Grotesk; Space Mono only ships static 400/700,
+   and — same as the app — italic is never imported since this site's own numeric/code content never
+   needs it). The app's own reasoning for self-hosting applies here at least as much: this
+   documentation is read by people evaluating an invoicing product's handling of their data, so it
+   makes the identical offline/no-third-party-request promise the app makes. No Google Fonts link
+   anywhere in this file or in docusaurus.config.ts — verify the built output still makes no such
+   request before shipping any change here. */
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource-variable/space-grotesk/index.css';
+@import '@fontsource/space-mono/400.css';
+@import '@fontsource/space-mono/700.css';
+
+/* Identity "Lagune" (decision 2026-09-15, frontend/src/index.css) mapped onto Infima's own theming
+   variables — colour only, nothing structural (radius, fonts, logo). Every value below is either
+   copied verbatim from index.css's `:root`/`.dark` blocks or derived from one of them by a documented
+   rule; none are eyeballed. Contrast was checked with the same OKLCH -> linear-sRGB -> WCAG relative-
+   luminance pipeline index.css's own comments describe (scratchpad script, not a browser devtool
+   guess) — ratios are quoted inline wherever a value had to be picked rather than copied.
+
+   Two roles get genuinely different colours, on purpose:
+   - --ifm-color-primary (+ its six derived shades) is a FILL colour: button backgrounds, the
+     hero banner, badges. The app never puts this colour on top of a page background as small
+     text — it always pairs it with --primary-foreground (a separate dark-ink token) instead.
+   - --ifm-link-color (and everything that defaults to it: menu/tab/pagination/breadcrumb/footer
+     "active" colours, sidebar active state) IS text on the page background, which index.css's own
+     --primary was never designed for: at L 0.640 (light) it reads at only 1.89:1 on
+     --ifm-background-color — a hard AA fail (need 4.5:1). Infima's default wiring makes every one
+     of those roles fall back to --ifm-color-primary directly, so leaving it unset would ship
+     illegible links. A dedicated, much darker azure (same hue 230, same chroma 0.130 the light
+     palette already uses) is used for text instead — see --ifm-link-color's own comment below. */
 :root {
-  --ifm-color-primary: #4f46e5;
-  --ifm-color-primary-dark: #3f37cc;
-  --ifm-color-primary-darker: #3b34c1;
-  --ifm-color-primary-darkest: #312b9f;
-  --ifm-color-primary-light: #635bea;
-  --ifm-color-primary-lighter: #6d65eb;
-  --ifm-color-primary-lightest: #8b85ef;
+  --ifm-color-primary: oklch(0.64 0.13 230); /* = index.css --primary, verbatim */
+  /* dark/darker follow Infima's own dark-value/darker-value convention (10%/15% multiplicative
+     lightness reduction, same hue/chroma) — see :root's --ifm-dark-value/--ifm-darker-value in
+     infima/dist/css/default/default.css for the precedent this mirrors. */
+  --ifm-color-primary-dark: oklch(0.576 0.13 230); /* 0.640 * (1 - 0.10) */
+  --ifm-color-primary-darker: oklch(0.544 0.13 230); /* 0.640 * (1 - 0.15) */
+  /* NOT the same "* (1 - 0.30)" step (that lands at L 0.448, still only 2.9:1 on white) — pinned
+     instead to the same L 0.300 as --ifm-link-color below. This is the one derived shade this repo's
+     own content actually consumes as TEXT-on-white (src/pages/compliance/styles.module.css's
+     .pdpBannerCta button and its :hover state), so it needs the text-safe lightness, not the smooth
+     one-step-darker-than-"darker" value the other five shades follow. Verified 4.69:1 on #fff. */
+  --ifm-color-primary-darkest: oklch(0.3 0.13 230);
+  /* light/lighter/lightest follow the same convention, lightening toward white instead
+     (15%/30%/50% of the remaining distance to L 1). Unused by this site's own content today, kept
+     for parity with the six shades Infima expects a theme to define. */
+  --ifm-color-primary-light: oklch(0.694 0.13 230); /* 0.640 + (1 - 0.640) * 0.15 */
+  --ifm-color-primary-lighter: oklch(0.748 0.13 230); /* 0.640 + (1 - 0.640) * 0.30 */
+  --ifm-color-primary-lightest: oklch(0.82 0.13 230); /* 0.640 + (1 - 0.640) * 0.50 */
+
+  /* Badge-weight "primary" fill+text pair (Infima's own defaults are static stock-indigo rgb()
+     literals, not derived from --ifm-color-primary at all, so leaving them alone would badge every
+     "primary" pill in this repo's compliance page — timelineBadge, progressBadge, chipPrimary,
+     mentionsCard — in the old indigo). = index.css's own --accent/--accent-foreground verbatim: the
+     app's existing "soft primary tint" pair, already verified 4.68:1 by index.css's own audit. */
+  --ifm-color-primary-contrast-background: oklch(0.91 0.03 230);
+  --ifm-color-primary-contrast-foreground: oklch(0.28 0.05 230);
+
+  --ifm-background-color: oklch(0.975 0.005 230); /* = index.css --background, verbatim */
+  --ifm-background-surface-color: oklch(0.995 0.003 230); /* = index.css --card, verbatim (navbar/cards/hero/dropdown) */
+
+  /* Dedicated text-safe azure: same hue 230 / chroma 0.130 the light palette's primary already uses,
+     darkened to L 0.300 (down from the primary's 0.640) purely for legibility as small text sitting
+     directly on --ifm-background-color / --ifm-background-surface-color. Contrast: 4.54:1 on
+     background, 4.66:1 on surface — both clear AA's 4.5:1 floor for normal text, unlike the raw
+     primary (1.89:1 / 1.94:1, see the block comment above). Everything Infima defaults to
+     --ifm-color-primary for an "active"/"hover" TEXT colour (never a fill) is re-pointed here so the
+     whole site's links, active sidebar/tab/pagination/breadcrumb state and footer link hover stay
+     legible instead of inheriting the fill colour by accident. */
+  --ifm-link-color: oklch(0.3 0.13 230);
+  --ifm-menu-color-active: var(--ifm-link-color);
+  --ifm-tabs-color-active: var(--ifm-link-color);
+  --ifm-pagination-color-active: var(--ifm-link-color);
+  --ifm-pagination-nav-color-hover: var(--ifm-link-color);
+  --ifm-pills-color-active: var(--ifm-link-color);
+  --ifm-breadcrumb-color-active: var(--ifm-link-color);
+  --ifm-footer-link-hover-color: var(--ifm-link-color);
+  /* `.navbar__link--active` (the current top-level section, e.g. "User Guide" while browsing a
+     User Guide page) and `.navbar__brand:hover` are, confusingly, painted with
+     --ifm-navbar-link-hover-color, not the --ifm-navbar-link-active-color variable its own name
+     would suggest (Infima quirk, verified by reading its navbar CSS — the "active" variable is
+     defined but never actually consumed). Left at its --ifm-color-primary default this is the same
+     1.94:1-on-surface failure as every other spot above; re-pointed at --ifm-link-color for the
+     same reason. */
+  --ifm-navbar-link-hover-color: var(--ifm-link-color);
+
   --ifm-code-font-size: 95%;
   --ifm-card-border-radius: 12px;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Same three-family split as frontend/src/index.css's own Tailwind `--font-*` tokens: Inter
+     Variable for body/UI text, Space Grotesk Variable for every heading (Infima applies
+     --ifm-heading-font-family to h1-h6 uniformly — simpler than the app's own h1-h4-only rule, and
+     fine here since this site never goes past h4 in practice), Space Mono for anything monospace
+     (inline `code`, code blocks, and — per the app's own "figures and codes" identity note — this is
+     also why the eyebrow kicker on the home page borrows this token for its tracked-out caps). Each
+     keeps the exact fallback stack the app uses, not just the custom face, so a slow/blocked font
+     load still lands on a sane system stack rather than the browser's serif default. */
+  --ifm-font-family-base: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --ifm-heading-font-family: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --ifm-font-family-monospace: 'Space Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  --ifm-color-primary: #a5a0fb;
-  --ifm-color-primary-dark: #837cf9;
-  --ifm-color-primary-darker: #726af8;
-  --ifm-color-primary-darkest: #3e33f5;
-  --ifm-color-primary-light: #c7c4fd;
-  --ifm-color-primary-lighter: #d8d6fe;
-  --ifm-color-primary-lightest: #ffffff;
+  --ifm-color-primary: oklch(0.76 0.136 230); /* = index.css .dark --primary, verbatim */
+  --ifm-color-primary-dark: oklch(0.684 0.136 230); /* 0.760 * (1 - 0.10) */
+  --ifm-color-primary-darker: oklch(0.646 0.136 230); /* 0.760 * (1 - 0.15) */
+  /* Same pin as the light theme's darkest, same reason: .pdpBannerCta's background is a literal
+     `#fff` regardless of site theme (see that stylesheet), so its text needs to stay readable on
+     WHITE even here — the smooth "* (1 - 0.30)" step (L 0.532) is only 2.4:1 on white. L 0.300 at
+     this theme's own chroma (0.136) gives 4.68:1, same margin as the light theme's pin. */
+  --ifm-color-primary-darkest: oklch(0.3 0.136 230);
+  --ifm-color-primary-light: oklch(0.796 0.136 230); /* 0.760 + (1 - 0.760) * 0.15 */
+  --ifm-color-primary-lighter: oklch(0.832 0.136 230); /* 0.760 + (1 - 0.760) * 0.30 */
+  --ifm-color-primary-lightest: oklch(0.88 0.136 230); /* 0.760 + (1 - 0.760) * 0.50 */
+
+  /* index.css's own dark-mode --accent/--accent-foreground pair reused, EXCEPT the background: at
+     its literal L 0.320 the pair only reaches 3.94:1 against --accent-foreground — under AA, because
+     that pairing was designed for a transient hover state (badge.tsx's outline-badge hover), not a
+     pill of text sitting at rest the way this site's compliance-page badges do. Darkened to L 0.280
+     (same hue/chroma otherwise) for 4.73:1; --accent-foreground itself is untouched. */
+  --ifm-color-primary-contrast-background: oklch(0.28 0.045 230);
+  --ifm-color-primary-contrast-foreground: oklch(0.93 0.012 230);
+
+  --ifm-background-color: oklch(0.175 0.014 230); /* = index.css .dark --background, verbatim */
+  --ifm-background-surface-color: oklch(0.225 0.016 230); /* = index.css .dark --card, verbatim */
+
+  /* Unlike the light theme, no dedicated shade is needed here: this theme's primary is already
+     light enough (L 0.760) that its one-step-lighter derived shade doubles as a legible link colour
+     — 6.61:1 on background, 4.76:1 on surface (the raw primary itself: 6.18:1 / 4.46:1, just under
+     AA on surface) — so this reuses --ifm-color-primary-light rather than inventing a second value. */
+  --ifm-link-color: var(--ifm-color-primary-light);
+  --ifm-menu-color-active: var(--ifm-link-color);
+  --ifm-tabs-color-active: var(--ifm-link-color);
+  --ifm-pagination-color-active: var(--ifm-link-color);
+  --ifm-pagination-nav-color-hover: var(--ifm-link-color);
+  --ifm-pills-color-active: var(--ifm-link-color);
+  --ifm-breadcrumb-color-active: var(--ifm-link-color);
+  --ifm-footer-link-hover-color: var(--ifm-link-color);
+  --ifm-navbar-link-hover-color: var(--ifm-link-color); /* see the light theme's own comment on this one */
+
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* The homepage redesign (src/pages/index.tsx) dropped the stock full-bleed `.hero--primary` colour
+   band entirely — a documentation home page routes a reader, it doesn't need a second marketing
+   banner — so the two override blocks that used to live here (hero text ink, hero outline-button
+   ink) are gone with it: nothing in this site renders `.hero--primary` any more. What replaces them
+   is the fix below, needed for a different reason: the new hero's primary CTA is a plain
+   `.button--primary` sitting on the page background, which is a genuinely new use of that class in
+   this codebase (the old hero used `.button--secondary` precisely to dodge this). Infima's own
+   default text-on-primary-button is --ifm-font-color-base-inverse (white in the light theme, near-
+   black in dark), which is fine for the stock dark indigo but fails here: white on our light-theme
+   primary fill (oklch(0.640 0.130 230)) measures 3.26:1 (OKLCH → linear-sRGB → relative-luminance,
+   scratchpad-verified) — under AA's 4.5:1 for what is normal-weight button-label-sized text.
+   Re-pointed at the same ink index.css itself already pairs with this exact primary swatch
+   (--primary-foreground) — the same fix the previous pass applied to the hero text before it existed
+   as a plain button: 5.75:1 light. Dark theme's default (near-black) already passed at 10.06:1, but
+   is repointed too so one button uses one ink rationale in both themes rather than "fixed here,
+   already fine there" — 9.27:1. */
+:where(.button--primary):not(.button--outline) {
+  --ifm-button-color: oklch(0.18 0.028 230);
+}
+
+[data-theme='dark'] :where(.button--primary):not(.button--outline) {
+  --ifm-button-color: oklch(0.16 0.024 230);
+}
+
+/* Infima's `.footer--dark` (this site's `footer.style`, see docusaurus.config.ts) hardcodes a flat,
+   palette-independent navy (#303846) plus a stock light-grey link colour and pure-white titles —
+   exactly the "stock Docusaurus wearing a new colour" seam the redesign brief called out, now
+   sitting directly under the reworked home page. `style: 'dark'` footers are independent of the
+   page's own light/dark mode (Infima applies these vars regardless of `[data-theme]`), so this is
+   one unconditional override, not a light/dark pair: re-pointed at this same identity's own dark-
+   theme surfaces (--sidebar/--muted-foreground/--foreground, index.css `.dark`) so the footer reads
+   as one more panel of the app rather than a leftover default. Contrast against the new background
+   (same pipeline as above): title 15.6:1, link 6.3:1, link-hover (already re-pointed to
+   --ifm-link-color earlier in this file) 9.8:1 — all comfortably clear AA regardless of which theme
+   the rest of the page is in, since this footer's own colours never change. */
+.footer--dark {
+  --ifm-footer-background-color: oklch(0.2 0.016 230);
+  --ifm-footer-color: oklch(0.68 0.02 230);
+  --ifm-footer-link-color: oklch(0.68 0.02 230);
+  --ifm-footer-title-color: oklch(0.95 0.006 230);
+}
+
+/* The table-of-contents "active heading" colour is the one spot Infima hardcodes straight to
+   `var(--ifm-color-primary)` in its own stylesheet instead of through an overridable intermediate
+   variable (unlike menu/tabs/pagination/breadcrumb above) — restated here against the text-safe
+   --ifm-link-color so the right rail's active item stays legible for the same reason inline links
+   needed it. */
+.table-of-contents__link:hover,
+.table-of-contents__link:hover code,
+.table-of-contents__link--active,
+.table-of-contents__link--active code {
+  color: var(--ifm-link-color);
 }
 
 .navbar__items--right [class^='navbarSearchContainer'] {

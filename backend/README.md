@@ -50,12 +50,13 @@ $ npm run start:prod
 # unit tests
 $ npm run test
 
-# e2e tests
-$ npm run test:e2e
-
 # test coverage
 $ npm run test:cov
 ```
+
+End-to-end tests live in the separate `e2e/` Cypress project at the repository root, not here —
+see the repository's own `CLAUDE.md` for how to run them (needs this backend, the frontend, Postgres,
+Redis and Mailpit all running).
 
 ## Deployment
 

@@ -1,0 +1,685 @@
+import { Currency } from '../../../../prisma/generated/prisma/client';
+import { BUILT_IN_PAYMENT_METHODS } from '../payment-methods/built-in';
+import { transitionsAvailableWhen } from './lifecycle';
+import { standardDocumentEmailTranslations } from './standard-email-translations';
+import { DocumentActionTransition, DocumentFieldDescriptor, DocumentTypeDescriptor } from './types';
+
+/** Same reused, un-invented list as the quote's — see quote.descriptor.ts. */
+const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
+
+/**
+ * "record-payment"'s own `method` options — generated from `payment-methods/built-in.ts`'s own list,
+ * never hand-typed here: before this, this array WAS the whole payment-method vocabulary (four bare
+ * strings, "product labels... carrying no fiscal meaning" — see this file's own comment on `method`
+ * just below), which is exactly the defect `payment-methods/` replaces. Now it is a VIEW over that
+ * module's own registry — adding a SIXTH method (payment-methods/built-in.ts) grows this list for
+ * free, with no edit needed here. `bank_transfer`/`cash` keep the exact ids the old hardcoded list
+ * used — see built-in.ts's own header on why an EXISTING `DocumentPayment.method` of either still
+ * resolves correctly with no migration of its own data. Not COMPANY-scoped (unlike `vatRate`'s own
+ * `usesVatRateCatalog` options — vat-rates/): a payment method is never a country fact, so every
+ * company sees the exact same five options, regardless of which ones it has actually enabled in its
+ * own payment-methods screen — recording how a client ACTUALLY paid is a bookkeeping fact, not
+ * conditioned on what this company currently advertises accepting.
+ */
+const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
+  value: method.id,
+  label: method.label,
+}));
+
+/**
+ * The invoice document type — the SECOND type written entirely as data, on the model of
+ * quote.descriptor.ts. It exists as much to test the ten-kind core (field-kinds.ts) on something
+ * that isn't the quote as to be a usable invoice form.
+ *
+ * Fields shared VERBATIM with the quote — client, issueDate, currency, notes — are declared exactly
+ * the same way, deliberately: nothing about an invoice needed a different KIND for any of them, only
+ * a different requiredness or a different action-availability, noted below. `lines` used to be
+ * shared verbatim too (description/quantity/unitPrice); it no longer is — see "the line shape" below
+ * for why the invoice's own lines grew two fields the quote's did not, and why that is not yet a
+ * quote/invoice difference so much as an "unfinished on the quote" one.
+ *
+ * ## The line shape — written FROM France, for now
+ *
+ * This follows a one-country-at-a-time method: the first country's pass puts the full description of
+ * what an invoice must have into the descriptor; a later country's pass decides whether a field that
+ * turned out to be specific to the first country moves into that country's own file. France is that
+ * first pass. Every field below that
+ * might turn out to be France's own, rather than universal, is marked "SUSPECTED FRANCE-SPECIFIC" —
+ * a one-line flag for whichever second country's pass has to decide whether it moves into
+ * country-fields/, not a claim that it definitely will.
+ *
+ * A line now carries SIX fields — description, quantity, unit, unit price, VAT rate, discount —
+ * the minimum the business itself imposes everywhere.
+ * Two of them (`unit`, `vatRate`) were new at that pass; `discountPercent` was added in a LATER one
+ * (see below).
+ *
+ *  - `unit` — STRUCTURAL, not legal, so it carries no citation (see this file's own closing note on
+ *    that distinction). EN 16931 (the base format for France's e-invoicing reform — see
+ *    documentation/compliance/FR-France.md §3.A, and the accepted-formats table there) models a
+ *    line's quantity with a MANDATORY unit-of-measure code (BT-130, cardinality 1..1) sitting right
+ *    next to the quantity itself (BT-129) — confirmed by the old canonical model's own fixtures at
+ *    git tag `avant-refonte-documents` (e.g. `unitCode="C62"` on every BilledQuantity/
+ *    InvoicedQuantity in compliance/schemas/en16931/* and compliance/providers/format/__fixtures__/*
+ *    — "C62" being the UN/ECE Recommendation 20 code for "one/piece"). Declared here as free `text`,
+ *    deliberately NOT a closed list of UN/ECE codes: nothing downstream in this branch renders or
+ *    transmits an EN16931 XML today (the compliance engine that used to do that was removed
+ *    entirely), so enforcing that exact vocabulary now would model for a consumer that does not
+ *    exist — a future format-emitting consumer can tighten this into a closed `options` list (or a
+ *    dedicated field kind) without needing to move the field out of the trunk. EN 16931 is a European
+ *    norm, not a France-specific one, so this field is NOT flagged as suspected-French.
+ *
+ *  - `vatRate` (kind: 'select') — `options` is intentionally EMPTY in this trunk descriptor:
+ *    the core names no country, so it cannot know any country's rates. `usesVatRateCatalog: true` is
+ *    what tells descriptors/company-view.ts to fill `options` per company, from vat-rates/, for the
+ *    ACTIVE company's resolved country. `allowCustomValue: true` is the escape hatch for a country
+ *    with NO known catalog at all — never a dead control, and, just as importantly, never a way for
+ *    a country WITH a known list to be bypassed either (see field-kinds.ts's 'select' validator: the
+ *    escape only opens when `options` is actually empty).
+ *
+ *    SUSPECTED FRANCE-SPECIFIC: is "every invoice line carries exactly one ad-valorem VAT rate,
+ *    chosen from a short national list" universal, or is it shaped by France's own VAT regime? A
+ *    jurisdiction with no VAT at all (US sales tax: no per-line rate the same way — rate depends on
+ *    product category AND the buyer's taxing jurisdiction, often not a single-line concept) may need
+ *    this field REMOVED for it, not merely handed an empty catalog. Left in the trunk and required —
+ *    exactly what France needs — because there is no second country's pass yet to say otherwise; a
+ *    future one settles it, not a guess made here.
+ *
+ *  - `discountPercent` (kind: 'number', OPTIONAL, 0..100) — added later,
+ *    once a real need showed up: a per-line discount is universal invoicing arithmetic (it reduces
+ *    the taxable base BEFORE VAT applies to it — see totals/compute-totals.ts's own header), not a
+ *    national rule, so it carries no legal citation the way `vatRate`'s RATE does — only `min`/`max`
+ *    to keep it a genuine percentage (see field-kinds.ts's 'number' validator, which already applies
+ *    to an 'array' row's own subfields the same way it does to a top-level field — validate.ts
+ *    recurses with the SAME registry per row). This is the bullet that used to say "deliberately NOT
+ *    added" for exactly this reason ("no concrete need yet"); the need arrived, so the field did.
+ *
+ *  - `articleId` (kind: 'hiddenReference', OPTIONAL) — basic stock management, added alongside the
+ *    SIX business fields above, not a seventh one of them: it carries
+ *    no designation/price/tax fact of its own, only WHICH catalog article (if any) this line came
+ *    from, so `documents/stock/apply-stock-on-issuance.ts` can find it again at issuance. Filled by
+ *    the SAME `prefillFrom` mechanism as `description`/`unitPrice`/`vatRate` below (see `map`) — never
+ *    a second picker — and, per its own kind, never rendered anywhere a human looks (form, PDF, list);
+ *    see types.ts's own `entity` doc comment for the full "why a dedicated kind" account. A line
+ *    typed by hand, with no article ever picked, simply has no `articleId` at all — stock bookkeeping
+ *    then has nothing to attribute that line's quantity to, which is the correct, honest outcome for
+ *    a business that keeps no catalog record of what it just sold.
+ *
+ * `lines` also declares `prefillFrom: { entity: 'article', map: {...} }` — lets a row's UI offer a
+ * "from catalog" button (field-renderers/array-field.tsx, frontend) that fills `description`/
+ * `unitPrice`/`vatRate`/`articleId` from a picked Article (articles/articles.service.ts — the ONE
+ * module that survived the pre-refactor architecture unchanged). See types.ts's own comment on
+ * `prefillFrom` for the full, entity-agnostic mechanism; this descriptor only ever supplies the map,
+ * never any code.
+ *
+ * What actually distinguishes an invoice from a quote here, beyond the line shape, and why each one
+ * is here:
+ *
+ *  - `dueDate` is REQUIRED (the quote's is optional). A quote's due date is an optional validity
+ *    window — a quote can stand with none. An invoice's due date is its payment deadline, central to
+ *    what the document IS. Still the same `date` kind, no new kind needed — a requiredness
+ *    difference on the same kind, decided per document type exactly the way `required` already
+ *    varies per FIELD within one descriptor.
+ *
+ *  - `origin` (kind: 'reference', entities: ['quote', 'invoice']) — an invoice commonly traces back
+ *    to an accepted quote (see "convert-to-invoice" on the quote, actions/quote-actions.ts), and
+ *    recording that link is a purely structural fact about the document, not a business rule (no
+ *    conversion, no copied totals, nothing computed). Optional: an invoice can exist with none. This
+ *    field used to be called `originQuote` and target ONLY "quote" — it is now MULTI-TARGET
+ *    (`entities`, not `entity`) because an invoice can just as well trace back to ANOTHER invoice
+ *    (a corrective re-issue, a follow-up on a partial one) as to a quote; the field itself does not
+ *    judge which case applies, it only records which one it is. Its stored value is therefore
+ *    `{ entity: 'quote' | 'invoice', id: string }`, not a bare id — see types.ts's
+ *    `MultiTargetReferenceValue` for why a bare id stopped being enough the moment more than one
+ *    target became possible. It targets another document TYPE's own instances rather than a business
+ *    entity from an existing service — see references/document-reference.provider.ts, a NEW provider
+ *    THIS field needed (generalized, not duplicated, once the invoice itself also needed one for
+ *    "invoice" — see documents.module.ts) — but the 'reference' field KIND itself and the generic
+ *    /documents/references/:entity/... endpoints did not change at all to support it.
+ *
+ * Deliberately NOT added, and why — this is where the core could have been tempted, not where it
+ * broke:
+ *
+ *  - An invoice "number" FIELD. This descriptor does NOT declare `number` among its `fields` — the
+ *    number is not a user-typed value at all (see `numbering` below and numbering/), so it has no
+ *    business being one more entry in this array the way a free-text field would be. A structural,
+ *    system-assigned fact gets a structural mechanism (a descriptor-level declaration plus its own
+ *    `DocumentInstance` columns), never a field a user could edit or leave blank.
+ *  - Any computed TAX AMOUNT or TOTAL. `vatRate` records a CHOICE the user makes about a line, not a
+ *    computed figure — it costs nothing to store and nothing to derive from. Computing an actual tax
+ *    amount, or a line/document total, is a fiscal or arithmetic rule this module still does not own
+ *    (see contributions/invoice-contributions.ts's own `invoiceTotal`, deliberately quantity×
+ *    unitPrice only, "no VAT, no rounding rule invented on top").
+ *
+ * Numbering: `onEnterStatus: 'sending'` (the async-send mechanism moved this from "sent" — see this file's own
+ * lifecycle paragraph below) — an invoice receives its number the moment it STARTS being sent, so the
+ * number is already on the record (and therefore on whatever PDF a transport attaches) before
+ * delivery is even attempted, deliberately still at ISSUANCE rather than at creation, exactly like
+ * the old, removed engine. What this does NOT claim: sequential, GAPLESS, per-country invoice
+ * numbering is a LEGAL property some jurisdictions attach to an issued invoice (see this file's own
+ * `invoice.save-draft` note in country-policy/data/fr.json, and that file's top-level `notes`) —
+ * numbering/sequence.ts's own mechanism never wastes a number, which reduces gap risk without
+ * asserting the legal claim itself.
+ *
+ * Actions: "save-draft" is implemented, built on the same generic mechanism the quote uses
+ * (actions/generic-actions.ts's `performSaveDraft`) for the actual persistence — but now
+ * wrapped by `invoice-actions.ts`'s own `registerInvoiceSaveDraftAction`,
+ * which reuses "send"'s own buyer-country resolution to hard-block the ONE case the generic
+ * mechanism cannot see coming: re-editing an ALREADY-issued invoice back into a draft with a buyer
+ * country that no longer resolves (see that function's own header for the full history — the same
+ * shape of hole f6888eb2/d58caaa5 already closed once in the pre-refonte engine). "send" is
+ * implemented too, but DELIBERATELY NOT the quote's mechanism
+ * — see actions/invoice-actions.ts's own comment for why an invoice's transport is read from the
+ * ISSUING COMPANY's own configuration (TransportRegistry) rather than always being email. That is
+ * also why, unlike the quote's "send", this action declares NO `params`: there is no user-typed
+ * "recipient" here, because which transport runs — and what addressing it needs — is a company
+ * setting, not something the person clicking "Send" types in on the spot. "send" is
+ * also ASYNCHRONOUS (actions/async-send.ts) exactly like the quote's own — see this file's lifecycle
+ * paragraph below for the shape.
+ *
+ * "record-payment" is now IMPLEMENTED (actions/invoice-actions.ts) — the payments module
+ * (settlement/) landed alongside it. Its `params` reuse the exact same field vocabulary a document's own `fields` use
+ * (money/select/date/text — see types.ts's `DocumentActionDescriptor.params`): `amount` (the payment
+ * itself), `currency` (checked against the invoice's own — see the handler for why a mismatch is
+ * refused rather than silently converted), `paidAt` (defaulted to today by a params-defaults
+ * resolver, the same mechanism "send"'s recipient pre-fill already uses), and `method`/`note`
+ * (product-only vocabulary, no legal weight — see the `method` field's own comment). "export-accounting"
+ * is the NEW declared-but-unimplemented example: a real future need (a chart-of-accounts mapping, a
+ * ledger export format this branch does not build), the same role "record-payment" used to hold
+ * before it was built, and "convert-to-invoice" held for the quote before it was implemented. The 501
+ * mechanism this proves lives on THIS action now — see documents.service.invoice.spec.ts.
+ *
+ * "download-xml" (normalized formats) is declared here but, unlike every other
+ * action above, is NOT run through `ActionRegistry`/`runAction` at all — it produces BINARY bytes
+ * (an XML document), not the JSON `ActionResult` every registered handler returns, so it has no
+ * business pretending to fit that shape. It exists on THIS descriptor purely so the same four gates
+ * (country policy 403, status 409, implementation 501, validation 400) apply to it — see
+ * `documents.service.ts#downloadDocumentFormat`'s own header for exactly how, and `documents/
+ * formats/`'s own module for the descriptor → EN 16931 bridge and the real XSD/Schematron gate. The
+ * actual download is a GET endpoint (the same "download, not an action result" shape "GET .../pdf"
+ * already holds), never a POST to `.../actions/download-xml`.
+ *
+ * A note on `unit`/`vatRate` NOT carrying a legal citation directly on the field: a purely
+ * STRUCTURAL fact (there is a unit; there is a VAT-rate choice) is not itself a legal rule and needs
+ * none — the modeling is free. What DOES need a citation is any claim about WHICH rates exist and
+ * what they are worth for a given country, and that citation lives where the claim actually is: the
+ * VAT rate catalog (vat-rates/data/fr.json), never repeated here.
+ *
+ * Lifecycle: FIVE statuses — "draft", "sending", "sent", "send_failed", and "cancelled"
+ * — the first four grown from the original two by the async-send mechanism, on the exact same
+ * model as the quote's own (see quote.descriptor.ts's lifecycle paragraph for the full design,
+ * actions/async-send.ts for the shared mechanism, and the "sent before delivery
+ * actually succeeded" limit this replaces).
+ *
+ * "cancelled" is TERMINAL — nothing transitions OUT of it, on purpose: nothing in the eleven-route
+ * correction-routes vocabulary (`correction-routes/schema.ts`'s own `CORRECTION_ROUTE_IDS`) that grounds this action
+ * (CANCEL_AND_REPLACE) ever describes UN-cancelling, only cancel-THEN-issue-a-SEPARATE-new-document —
+ * see "cancel" itself, below, for why its own number is therefore never touched, let alone reused.
+ * `record-payment`/`download-xml`/`share-link`/`export-accounting` are DELIBERATELY left unchanged
+ * (not extended to include "cancelled" in their own `availableWhen`) — recording a payment against a
+ * void invoice makes no sense (the invoice this transitioned FROM already excludes it the moment
+ * status stops being "sent"), and this descriptor draws no NEW conclusion about whether a cancelled
+ * invoice's XML/share-link should keep working, so it doesn't invent one; that
+ * question can be settled if a real need for it shows up.
+ * "save-draft" (invoice-actions.ts's registerInvoiceSaveDraftAction, wrapping generic-actions.ts's
+ * performSaveDraft) always persists "draft", from ANY current status (`from: 'always'`) — faithful
+ * to the handler's actual, literal behavior, not an invented rule; what the buyer-country guard changed is a
+ * BLOCK that can fire before that persist ever happens for a re-edited non-draft record, never the
+ * declared transition itself. "send" (invoice-actions.ts) now has the same two transition entries
+ * the quote's own
+ * does: "draft"/"send_failed" -> "sending" (the API's synchronous call — a fresh send or a retry),
+ * then "sending" -> "sent" OR "send_failed" (the worker's replay). `availableWhen` is DERIVED from
+ * BOTH (lifecycle.ts's header), so it includes "sending" too — necessary for the worker's own replay
+ * to pass `documents.service.ts#runAction`'s status gate at all, since that gate has no notion of
+ * "this call came from the queue, not a browser". This is NOT merely "an invitation for a human to
+ * re-click mid-flight" the way an earlier version of this comment put it: a genuine external caller
+ * (double-click, a second tab, an HTTP client retrying after a timeout) reaches the SAME "sending"
+ * branch the worker does, and reaching it is harmless BY CONSTRUCTION rather than by convention —
+ * `actions/async-send.ts`'s own claim (an in-process `Set` short-circuit backed by
+ * `persistence.ts#claimDocumentTransition`'s database-level compare-and-swap, its own file header, "the
+ * sending branch") lets exactly ONE caller — anywhere, not merely in this one process — actually invoke
+ * `deliver()`, refusing every other one with a 409 before it ever touches a transport. Removing
+ * "sending" from `availableWhen` was considered and
+ * rejected: `lifecycle.ts`'s own `transitionsAvailableWhen` DERIVES `availableWhen` from the union of
+ * every declared transition's `from`, and `checkTransitionResult` needs THIS SAME second transition
+ * entry to validate the worker's own "sending" -> "sent"/"send_failed" write — dropping the entry (or
+ * hand-typing a narrower `availableWhen` that drifts from it) would break that boot-time/request-time
+ * consistency check for a cosmetic gain the DB-level claim already makes redundant.
+ *
+ * "record-payment" declares an explicit `availableWhen: ['sent']` (deliberately UNCHANGED by the async-send mechanism
+ * — a payment is only meaningful once the invoice has genuinely been delivered, never while it is
+ * still "sending" or after it "send_failed") and, DELIBERATELY, still NO
+ * `transitions` — even though it is now implemented. A payment reaching (or exceeding) the invoice's
+ * total does NOT flip the status to some invented "paid": the STATUS stays the declared lifecycle
+ * (draft/sent), and the BALANCE (settlement/compute-settlement.ts's `computeSettlement`) is a
+ * PROJECTION computed on read, displayed as a derived badge ("Paid"/"Partially paid" — see the
+ * frontend's settlement components), never a status this descriptor would have to invent a
+ * transition for. Two real designs were on the table here: (a) declare `record-payment`'s own
+ * `to: 'paid'` and accept that the FIRST euro paid would already flip a partially-paid invoice's
+ * status (transitions have no notion of "conditionally, only once the balance clears") — wrong, an
+ * invoice with one euro paid out of a thousand is not "paid"; (b) the one built: no status change at
+ * all, ever, from this action. (b) also keeps the door open for a future "paid" STATUS the day
+ * reconciliation (credit notes — credit matching) needs one, without inventing it first on
+ * a guess. "export-accounting" likewise declares no `transitions`: unimplemented, so there is no
+ * handler behavior yet to declare a status effect for.
+ *
+ * "cancel" (actions/invoice-actions.ts) is the ONE correction route this
+ * repo can perform LOCALLY, no authority channel involved — see correction-routes/cancel-policy.ts's
+ * own header for the full per-country reasoning (CANCEL_AND_REPLACE, four of the seven pivots).
+ * `from: ['sent', 'send_failed']` — an invoice can only be cancelled once it genuinely left "draft"
+ * (nothing to cancel before that: "save-draft" already refuses a re-edit of anything past
+ * "draft"), `to: 'cancelled'`, ALWAYS — no honest second outcome the way "send"'s own worker replay has.
+ * Gated PER COUNTRY, not by this descriptor: `documents.service.ts`'s own `resolveActionPolicy`
+ * special-cases `invoice.cancel` to read `cancel-policy.ts` instead of the ordinary country-policy/
+ * DB table — a seller country whose own correction-routes data does not found a real local
+ * cancellation (Poland, Spain, Mexico — see that file's own header) gets a 403 the exact same shape
+ * every other country-policy refusal already has, and Italy gets its own `restrictedToStatuses:
+ * ['send_failed']` (a 409, composed the same way `country-policy/schema.ts`'s own per-status
+ * narrowing already is) — this descriptor's OWN `availableWhen` stays the union (`['sent',
+ * 'send_failed']`) precisely because it is country-BLIND, the same "the descriptor never names a
+ * country" discipline every other action here already holds.
+ */
+const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
+const SEND_TRANSITIONS: DocumentActionTransition[] = [
+  { from: ['draft', 'send_failed'], to: 'sending' },
+  { from: ['sending'], to: ['sent', 'send_failed'] },
+];
+const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_failed'], to: 'cancelled' }];
+
+/**
+ * "record-payment"'s own params — the exact same field vocabulary the document's own `fields` use
+ * (see `DocumentActionDescriptor.params`'s comment in types.ts), never a second, bespoke shape.
+ *
+ *  - `amount`/`currency`: a 'money' field paired with a 'select' sibling via `currencyField`, the
+ *    identical pattern the invoice's own `lines[].unitPrice` already uses for `currency` — except
+ *    here the sibling is another PARAM (`currency`), not a document field, because a payment's own
+ *    dialog has no access to the document's `data` at all (a separate namespace — see
+ *    actions/action-registry.ts's `ActionContext`). `currency` is defaulted to the invoice's own
+ *    currency by a params-defaults resolver (invoice-actions.ts, the same mechanism "send"'s
+ *    `recipient` pre-fill already uses for the quote) — a user recording a payment never has to think
+ *    about it in the ordinary case, but a value CAN still be picked here that differs from the
+ *    invoice's own, which is exactly what the handler checks for and refuses (no conversion — that
+ *    belongs to a separate feature, not this one).
+ *  - `paidAt`: defaults to TODAY via the same params-defaults resolver, editable for a payment
+ *    received earlier and only just being recorded.
+ *  - `method`: "how the customer says they paid" — useful for a bookkeeper skimming a list, carrying
+ *    no fiscal meaning of its own (a legally mandated mention is chosen by COUNTRY, never by payment
+ *    method — mentions/ never reads this). Its `options` (`PAYMENT_METHOD_OPTIONS`, above) are now a
+ *    VIEW over `payment-methods/built-in.ts`'s own typed registry rather than four hand-typed strings
+ *    — see that constant's own header for the full "why" and what migrating from the old, bare-string
+ *    vocabulary means for a `DocumentPayment` row already on file. Still Optional: a payment can be
+ *    recorded before its method is known or worth naming.
+ *  - `note`: free text, optional, for whatever context doesn't fit the fields above (a reference
+ *    number, "paid by the client's accountant directly", ...).
+ */
+const RECORD_PAYMENT_PARAMS: DocumentFieldDescriptor[] = [
+  {
+    key: 'amount',
+    kind: 'money',
+    label: 'Amount',
+    required: true,
+    currencyField: 'currency',
+  },
+  {
+    key: 'currency',
+    kind: 'select',
+    label: 'Currency',
+    required: true,
+    options: CURRENCY_OPTIONS,
+  },
+  {
+    key: 'paidAt',
+    kind: 'date',
+    label: 'Paid at',
+    required: true,
+  },
+  {
+    key: 'method',
+    kind: 'select',
+    label: 'Method',
+    required: false,
+    options: PAYMENT_METHOD_OPTIONS,
+  },
+  {
+    key: 'note',
+    kind: 'text',
+    label: 'Note',
+    required: false,
+  },
+];
+
+export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
+  return {
+    id: 'invoice',
+    label: 'Invoice',
+    statuses: [
+      { id: 'draft', label: 'Draft' },
+      { id: 'sending', label: 'Sending' },
+      // `clientVisible` — see `DocumentStatusDescriptor`'s own header: this is the ONE status the
+      // client portal (`client-portal/`) ever shows for an invoice. "cancelled" below is deliberately
+      // NOT flagged — see `client-portal/portal.service.ts`'s own header for the "no longer legally
+      // exists" reasoning, carried over from `settlement/client-statement.ts`.
+      { id: 'sent', label: 'Sent', clientVisible: true },
+      { id: 'send_failed', label: 'Send failed' },
+      { id: 'cancelled', label: 'Cancelled' },
+    ],
+    initialStatus: 'draft',
+    numbering: { onEnterStatus: 'sending' },
+    // See types.ts's own comment on `DocumentTypeDescriptor.email`, and quote.descriptor.ts for the
+    // same call on the sibling type — sober, plain-English default, overridable per company.
+    email: {
+      subject: '{typeLabel} {displayNumber} from {companyName}',
+      body:
+        'Dear {recipientName},\n\n' +
+        'Please find attached {typeLabel} {displayNumber} from {companyName}, for a total of ' +
+        '{totalGross}.\n\n' +
+        'Best regards,\n{companyName}',
+    },
+    // Per-recipient document language — see types.ts's own comment on `emailTranslations`, and
+    // standard-email-translations.ts's own header on why this is shared, word-for-word, with
+    // quote.descriptor.ts rather than duplicated.
+    emailTranslations: standardDocumentEmailTranslations(),
+    // "mandatory mentions" — see types.ts's own comment on this flag. BG-1
+    // (EN 16931's mentions block) is an invoice concept; the invoice is the first, and today the
+    // only, type that opts in.
+    usesLegalMentions: true,
+    // "SEPA QR / GiroCode" — see types.ts's own comment on this flag. An
+    // invoice is the one document type that actually REQUESTS payment; quote/credit-note/expense/
+    // received-invoice each have their own reason NOT to opt in (see that comment).
+    usesPaymentQr: true,
+    // "Payment methods" — see types.ts's own comment on this flag. Same
+    // "an invoice is the one document type that REQUESTS payment" reasoning as `usesPaymentQr` above,
+    // for the broader, method-agnostic section this flag opts into.
+    usesPaymentMethods: true,
+    // See contributions/invoice-contributions.ts for the implementation — the first real one written
+    // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
+    // the small widget vocabulary on both.
+    contributions: ['dashboard', 'statistics'],
+    // See types.ts's own comment on `listItem`, and quote.descriptor.ts for the same call on the
+    // sibling type: `client` is required and the one thing a reader scans a list of invoices for.
+    listItem: {
+      titleFields: ['client'],
+      // `clientReference` last and `hideWhenEmpty` — see quote.descriptor.ts's own identical comment.
+      secondaryFields: ['issueDate', 'dueDate', 'currency', 'clientReference'],
+    },
+    fields: [
+      {
+        key: 'client',
+        kind: 'reference',
+        label: 'Client',
+        required: true,
+        entity: 'client',
+      },
+      {
+        key: 'origin',
+        kind: 'reference',
+        label: 'Origin document',
+        required: false,
+        entities: ['quote', 'invoice'],
+        helpText: 'The quote or invoice this invoice was raised from, if any.',
+      },
+      // `correctsInvoiceId` — DELIBERATELY a separate field from `origin` just above, not a reuse of
+      // it: `origin`'s own comment already documents that a bare "traces back to another invoice" link
+      // covers TWO different cases ("a corrective re-issue, a follow-up on a partial one") without
+      // judging which one applies — exactly the ambiguity a LEGAL correction cannot afford. This field
+      // means one thing only: this invoice IS a correction of the one it names, in the sense
+      // `correction-routes/data/pl.json`'s own `CORRECTIVE_INVOICE` route describes (Poland's post-
+      // clearance `faktura korygująca`, art. 106j ustawy o VAT — today the ONLY country whose format
+      // provider reads it, `formats/national/fa3-provider.ts`'s KOR mode; the field itself is trunk-
+      // level, structural, and country-blind, the same "an invoice can point at another invoice" fact
+      // `origin` already is, in case a second country's own correction mechanism needs the same link
+      // later). `entity: 'invoice'` (single-target, not `entities`) — a correction only ever points at
+      // ANOTHER INVOICE, never a quote, so there is no ambiguity for a multi-target value to resolve
+      // (see credit-note.descriptor.ts's own `invoice` field for the identical single-target reasoning).
+      // Optional: an ordinary, non-correcting invoice sets nothing here, ever — this is what keeps the
+      // whole KOR mechanism a no-op for every invoice that isn't one.
+      {
+        key: 'correctsInvoiceId',
+        kind: 'reference',
+        label: 'Corrects invoice',
+        required: false,
+        entity: 'invoice',
+        helpText:
+          "The invoice this one corrects, if any — a post-clearance correction (e.g. Poland's " +
+          'faktura korygująca). Leave empty for an ordinary invoice.',
+      },
+      {
+        key: 'issueDate',
+        kind: 'date',
+        label: 'Date',
+        required: true,
+      },
+      {
+        key: 'dueDate',
+        kind: 'date',
+        label: 'Due date',
+        required: true,
+      },
+      {
+        key: 'currency',
+        kind: 'select',
+        label: 'Currency',
+        required: true,
+        options: CURRENCY_OPTIONS,
+      },
+      {
+        key: 'notes',
+        kind: 'longText',
+        label: 'Notes',
+        required: false,
+      },
+      // "client reference / PO number" — see quote.descriptor.ts's own
+      // comment on this exact field for the full reasoning, including why this is deliberately NOT
+      // the same key as the DE country-fields overlay's own `buyerReference` (BT-10/Leitweg-ID/Chorus
+      // Pro "code service" — a compliance-wired field this descriptor must not touch or collide with).
+      {
+        key: 'clientReference',
+        kind: 'text',
+        label: 'Client reference / PO number',
+        required: false,
+        helpText: "The buyer's own reference for this document — their purchase order or file number.",
+        hideWhenEmpty: true,
+      },
+      {
+        key: 'lines',
+        kind: 'array',
+        label: 'Lines',
+        required: true,
+        min: 1,
+        // See this file's own header, "The line shape — written FROM France, for now", for why each
+        // of these six fields is here and which ones are flagged as possibly France-only.
+        //
+        // `description` maps from the article's `name`, not its own `description`: this line shape
+        // has one free-text designation field, not the separate name+description pair the old,
+        // removed article-line form used to have.
+        prefillFrom: {
+          entity: 'article',
+          // `articleId: 'id'` — see article-reference.provider.ts's own
+          // `getFields` comment for why `id` is there to map from at all.
+          map: { articleId: 'id', description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
+        },
+        fields: [
+          {
+            key: 'description',
+            kind: 'text',
+            label: 'Designation',
+            required: true,
+          },
+          {
+            // See this file's own header bullet on `articleId` for the
+            // full "why", and types.ts's `entity` doc comment for why this is a distinct field KIND
+            // rather than a 'reference' field or a rendering flag.
+            key: 'articleId',
+            kind: 'hiddenReference',
+            label: 'Article',
+            required: false,
+            entity: 'article',
+          },
+          {
+            key: 'quantity',
+            kind: 'number',
+            label: 'Quantity',
+            required: true,
+            min: 0,
+          },
+          {
+            // STRUCTURAL, not legal — EN 16931's BT-130 (mandatory unit-of-measure code). See this
+            // file's header for the full reasoning on why this is free text, not a closed code list.
+            key: 'unit',
+            kind: 'text',
+            label: 'Unit',
+            required: true,
+            helpText: 'How the quantity is counted — e.g. "hour", "day", "kg", "unit".',
+          },
+          {
+            key: 'unitPrice',
+            kind: 'money',
+            label: 'Unit price',
+            required: true,
+            min: 0,
+            currencyField: 'currency',
+          },
+          {
+            // SUSPECTED FRANCE-SPECIFIC — see this file's header. `options` is filled per company by
+            // descriptors/company-view.ts, from vat-rates/, never here.
+            key: 'vatRate',
+            kind: 'select',
+            label: 'VAT rate',
+            required: true,
+            options: [],
+            allowCustomValue: true,
+            usesVatRateCatalog: true,
+            helpText: 'The VAT rate that applies to this line.',
+          },
+          {
+            // See this file's own header for why this is universal arithmetic, not a national rule.
+            key: 'discountPercent',
+            kind: 'number',
+            label: 'Discount %',
+            required: false,
+            min: 0,
+            max: 100,
+            helpText: 'Percentage discount applied to this line, before VAT.',
+          },
+        ],
+      },
+    ],
+    actions: [
+      {
+        id: 'save-draft',
+        label: 'Save draft',
+        transitions: SAVE_DRAFT_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
+      },
+      {
+        id: 'send',
+        label: 'Send',
+        transitions: SEND_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
+        // No params — see this file's header comment: which transport runs, and what it needs to
+        // address the delivery, is read from the company's own configuration, not typed here.
+      },
+      {
+        id: 'cancel',
+        label: 'Cancel',
+        transitions: CANCEL_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(CANCEL_TRANSITIONS),
+        // No params — this is a plain, irreversible status flip; the
+        // screen's own confirmation ("this is irreversible") lives in the correction-routes dialog
+        // (custom/invoice-correction-routes-button.tsx), never a typed input here.
+      },
+      {
+        id: 'record-payment',
+        label: 'Record payment',
+        // Recording a payment only makes sense once the invoice has actually been sent — one cannot
+        // cash a draft. NO `transitions`: see this file's own lifecycle comment above for why —
+        // now IMPLEMENTED (actions/invoice-actions.ts), but its effect lands on a NEW DocumentPayment
+        // row and the projected balance, never on this record's own declared status.
+        availableWhen: ['sent'],
+        params: RECORD_PAYMENT_PARAMS,
+      },
+      {
+        id: 'download-xml',
+        label: 'Download normalized XML',
+        // "Available once numbered" — the same GUARD `documents/formats/`'s own header on
+        // `documents.service.ts#downloadDocumentFormat` explains: EN 16931's BT-1 (Invoice number)
+        // has cardinality 1..1, and a "draft" has none (numbering/, `numbering.onEnterStatus:
+        // 'sending'` above) — so this action is offered from EXACTLY the same three statuses a
+        // number is already guaranteed to exist on: 'sending' (the number is taken the moment this
+        // status is FIRST entered, before delivery itself is even attempted — see this file's own
+        // numbering paragraph), 'sent', and 'send_failed' (a failed SEND does not un-number the
+        // document — see `DocumentInstance.number`'s own schema comment: never cleared once set).
+        // NO `transitions`: like "record-payment"/"export-accounting", downloading a normalized
+        // export has no status effect of its own on this record.
+        availableWhen: ['sending', 'sent', 'send_failed'],
+        params: [
+          {
+            key: 'syntax',
+            kind: 'select',
+            label: 'Syntax',
+            required: true,
+            options: [
+              { value: 'cii', label: 'CII (UN/CEFACT Cross Industry Invoice)' },
+              { value: 'ubl', label: 'UBL 2.1' },
+              // See formats/facturx-provider.ts's own header for the
+              // reuse this resolves ("Factur-X: reuse of an existing embedder").
+              { value: 'facturx', label: 'Factur-X (PDF/A-3 with embedded CII)' },
+              // `fa3`/`fatturapa` are TRANSPORT-only by default (see
+              // `ksef-transport.ts`/`sdi-transport.ts`'s own headers), added here too only because it
+              // costs nothing: neither builder needs anything this action doesn't already pass every
+              // other syntax (descriptor/document/company/client), so this is two more option entries,
+              // not new plumbing. NOT gated by the calling company's own country — like every other
+              // entry in this list, `download-xml` never asks "does this company's country match this
+              // syntax", the same way a French company can already download a `ubl` export today.
+              { value: 'fa3', label: 'FA(3) — Polish KSeF national schema' },
+              { value: 'fatturapa', label: 'FatturaPA — Italian SdI national schema' },
+              // SIXTH and SEVENTH entries, same "no country
+              // gate, ever" rule as every option above: a French seller can request 'xrechnung' for a
+              // German public buyer just as freely as a US one can already request 'ubl' today (see
+              // this file's own comment on the entries above). What differs is the DATA the chosen
+              // syntax's own delta then demands at build time — never something this select decides.
+              { value: 'peppol-bis', label: 'Peppol BIS Billing 3.0' },
+              { value: 'xrechnung', label: 'XRechnung 3.0 (KoSIT, Germany)' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'export-accounting',
+        label: 'Export to accounting',
+        // The NEW declared-but-unimplemented action — see this file's own header on why this, and not
+        // "record-payment" anymore, is what documents.service.invoice.spec.ts's 501 test now targets.
+        // A real future need (a chart-of-accounts mapping, a ledger export format) this branch does
+        // not build today. Gated the same way "record-payment" is: an accounting export of a document
+        // that was never actually issued makes no sense either.
+        availableWhen: ['sent'],
+      },
+      {
+        id: 'share-link',
+        label: 'Share link',
+        // Declared here for EXACTLY the same
+        // reason "download-xml" above is: a company sharing a public download link is an ACTION this
+        // country's document-action policy should get an opinion on (a country's data-protection or
+        // professional-secrecy posture on "give an unauthenticated third party a link to this
+        // document" is a real, distinct question from "may this action run on this type at all" —
+        // even though every shipped policy file today answers it the same permissive, `unverified`
+        // way "download-xml" already does — see country-policy/data/fr.json's own new entry). This
+        // is NOT registered as an `ActionRegistry` handler (documents-core.module.ts) — unlike
+        // "download-xml" it does not need the bypass for a BINARY-payload reason (creating a share
+        // link returns plain JSON, which fits `ActionResult` fine) but for a ROUTE-SHAPE reason
+        // instead: share-links/share-links.service.ts's own create/list/revoke are REST resources
+        // under "/documents/:id/share-link[s]" (create a link, list active links, revoke one by id),
+        // not a single POST-and-forget action — a shape `runAction`'s generic
+        // "POST .../actions/:actionId" endpoint was never built to express. `documents.controller.ts`
+        // runs the SAME two gates by hand (country policy 403, status 409) before calling into that
+        // service, on the same model `documents.service.ts#downloadDocumentFormat`'s own four-gate
+        // comment documents — only two of those four ever have anything to say for THIS action
+        // (there is no format to pick, so no 501; no document to build and validate, so no 400).
+        //
+        // "Available once numbered" — same three statuses as "download-xml": a draft has no number
+        // (numbering/, `numbering.onEnterStatus: 'sending'` above) and has "no legal existence" to
+        // hand a stranger a link to yet.
+        availableWhen: ['sending', 'sent', 'send_failed'],
+      },
+    ],
+  };
+}

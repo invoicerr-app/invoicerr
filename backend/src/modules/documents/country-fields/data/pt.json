@@ -1,0 +1,23 @@
+{
+  "countryCode": "PT",
+  "overlays": [
+    {
+      "typeId": "invoice",
+      "operations": [
+        {
+          "op": "add",
+          "path": "lines",
+          "field": {
+            "key": "supplyType",
+            "kind": "select",
+            "label": "Supply type",
+            "required": false,
+            "options": [{ "value": "GOODS", "label": "Goods" }, { "value": "SERVICES", "label": "Services" }],
+            "helpText": "Whether this line is a delivery of goods or a supply of services — it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services."
+          }
+        }
+      ]
+    }
+  ],
+  "notes": "Portugal's FIRST field overlay — the SAME `supplyType` line subfield France's own `fr.json` already adds, in the same shape: kind 'select', values GOODS/SERVICES, OPTIONAL, added to `invoice.lines` rather than to the trunk `descriptors/invoice.descriptor.ts`, which stays country-blind. WHY THE FIELD IS IDENTICAL IN ALL FIVE COUNTRIES RATHER THAN A PER-COUNTRY VARIANT: what reads it — `tax/resolve-invoice-tax.ts`, feeding `tax/tax-engine.ts#determineLineTax` — branches on the goods/services distinction of Directive 2006/112/EC (arts. 32, 33(a) and 59c for an intra-Community distance sale of goods, art. 45 for a service), which binds every member state identically; the same reasoning `tax/types.ts`'s own `DistanceSalesRegime` states for art. 59c ('art. 59c applies identically in all of them'). Portugal's transposition defines the two in the directive's own terms — « Considera-se, em geral, transmissão de bens a transferência onerosa de bens corpóreos por forma correspondente ao exercício do direito de propriedade » (Código do IVA, art. 3.º, n.º 1) against « São consideradas como prestações de serviços as operações efectuadas a título oneroso que não constituem transmissões, aquisições intracomunitárias ou importações de bens » (same code, art. 4.º, n.º 1), the residual definition the directive itself uses. Read in raw text on 2026-09-21 at the tax authority's own publication of the code, info.portaldasfinancas.gov.pt (https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva3.aspx and .../iva4.aspx); diariodarepublica.pt's consolidated view of the same code serves a client-rendered shell to an automated request and could not be used as the source. WHAT IS DELIBERATELY NOT MIRRORED FROM FRANCE: the French overlay's own `helpText` names BT-23 (« cadre de facturation »), which is a FRENCH obligation — `formats/semantic/business-process.ts#resolveFrenchBusinessProcessCode` derives that code only for a seller whose country has an active BT-23 rule in `content-requirements/`, and France is the only country with one — so a Portuguese seller declaring a supply type changes the exported document not at all; it changes the TAX determination, which is what this file's own help text names instead. NO RETROACTIVE EFFECT ON STORED DOCUMENTS: the field is OPTIONAL and nothing back-fills it. `resolve-invoice-tax.ts` narrows a line's raw `supplyType` to GOODS/SERVICES and treats anything else — including absent — as SERVICES, emitting a named warning; that fallback is untouched here, so every invoice stored before this file existed resolves exactly as it did before, and only a line a user explicitly marks as goods reaches the distance-sales branch. DIGITAL IS NOT OFFERED, on purpose: `tax/types.ts`'s own `SupplyType` has a third value, but `resolve-invoice-tax.ts` narrows a stored value to GOODS/SERVICES only, so a 'DIGITAL' option would be silently discarded on the way in — offering it would need that narrowing widened first, for all five countries including France."
+}

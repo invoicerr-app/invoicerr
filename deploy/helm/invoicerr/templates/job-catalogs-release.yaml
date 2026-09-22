@@ -1,0 +1,117 @@
+{{/*
+catalogs-release Job — Helm pre-install/pre-upgrade hook. Runs `prisma migrate deploy` (idempotent,
+same as the api pod's own boot-time `sync-schema.ts` — see that file's header) followed by
+`npm run catalogs:release` (backend/scripts/release-catalogs.ts) exactly ONCE, before this release's
+api/worker Deployment specs are even applied.
+
+WHY a separate, pre-rollout Job at all: `backend/src/prisma/sync-schema.ts` (running inside every
+api pod's own boot) and the three per-catalog `OnModuleInit` boot-reseed/boot-upsert services
+(country-policy, country-identifiers, b2g-routing — running in EVERY api/worker replica, EVERY boot)
+never purge a whole country's rows any more — see `country-policy/seed.ts`'s own
+`purgeRemovedCountries` doc comment for why: an OLD replica still running yesterday's shorter
+catalog, restarting mid-rollout on its own liveness probe, must never be the thing that decides a
+country a NEWER replica already seeded is "removed" and deletes it. Something still has to do that
+purge once a country is genuinely gone from `data/*.json` — this Job is that something, run once,
+deliberately, before any replica of the new image is even scheduled.
+
+`migrate deploy` runs here too, not only inside each pod's own boot: if THIS release also ships a
+schema migration touching one of the three catalog tables, this hook could otherwise run
+`catalogs:release` against the OLD column set before any replica has migrated. Safe to run twice —
+here, then again (redundantly) inside the new api pod's own boot — Prisma Migrate is idempotent and
+takes its own advisory lock.
+
+Runs on `pre-install` too, not just `pre-upgrade`: a fresh install has no prior country data to
+remove, so the purge itself is a no-op there, but keeping ONE hook for "materialize a new app
+version" (install included) is simpler than special-casing the very first deployment.
+
+`before-hook-creation`: a leftover Job from a previous release (e.g. one that failed) is deleted
+before this one is created, rather than colliding on the fixed name below. `hook-succeeded`: a
+Job that DID succeed is cleaned up automatically — nothing to `kubectl delete` by hand after every
+upgrade. A FAILED Job is deliberately left behind (not deleted) so `kubectl logs
+job/<name>` still answers "what went wrong" after Helm reports the upgrade as failed.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "catalogs-release") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "catalogs-release") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "catalogs-release") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{/* NO `serviceAccountName` here, deliberately — this is a pre-install hook.
+      Helm runs pre-install hooks to completion BEFORE applying the chart's ordinary manifests, and
+      the ServiceAccount this chart creates (`serviceaccount.yaml`, `serviceAccount.create: true` by
+      default) is one of those ordinary manifests. Naming it here therefore asks Kubernetes for a
+      ServiceAccount that cannot exist yet: the Job is created, its pod is refused with
+      `FailedCreate: serviceaccount "<release>" not found`, the Job sits at 0/1 with no pod, and
+      Helm waits out its `--timeout` and rolls back. On a FIRST install that deadlock is total —
+      the ServiceAccount is only ever created after the hook succeeds, which it never does. It went
+      unnoticed because `helm upgrade` fires `pre-upgrade` against a namespace where a previous
+      apply already left the ServiceAccount behind; only the very first install is affected, which
+      is exactly the one nobody rehearses. The pod falls back to the namespace's `default`
+      ServiceAccount, which is what this Job needs: it seeds catalogs into Postgres over
+      `DATABASE_URL` and never calls the Kubernetes API, so it requires no API permissions and no
+      identity of its own. Do not "restore" this line for symmetry with the Deployments — they are
+      ordinary resources applied after the ServiceAccount exists, and they may legitimately carry
+      cloud-IAM annotations on it that this Job has no use for. */}}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: catalogs-release
+          image: "{{ .Values.image.repository }}{{ if .Values.image.tag }}:{{ .Values.image.tag }}{{ end }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          workingDir: /usr/share/nginx/backend
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              # Prefer the DIRECT/non-pooled URL when one is set, for BOTH steps below — exactly what
+              # `sync-schema.ts`'s own `directDatabaseUrlEnv()` does for its `migrate deploy`
+              # subprocess (see that function's comment: Prisma Migrate's advisory lock does not
+              # reliably survive PgBouncer's transaction-mode pooling). Using it for `catalogs:release`
+              # too is a deliberate simplification, not an oversight: this Job is one short-lived
+              # process making a handful of writes — it has no use for a connection pool either way.
+              if [ -n "$DATABASE_URL_UNPOOLED" ]; then export DATABASE_URL="$DATABASE_URL_UNPOOLED"; fi
+              echo "Applying pending migrations (idempotent — same as the api pod's own boot)...";
+              npx prisma migrate deploy --schema prisma/schema.prisma;
+              echo "Releasing country catalogs (whole-country purge included — see this Job's own header)...";
+              npm run catalogs:release;
+          env:
+            {{- if .Values.postgresql.enabled }}
+            # Bundled DEV/KIND-ONLY Postgres — see values.yaml's own postgresql.* header, and
+            # deployment-api.yaml's identical branch for DATABASE_URL.
+            - name: DATABASE_URL
+              value: {{ include "invoicerr.bundledDatabaseUrl" . | quote }}
+            {{- else }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: DATABASE_URL
+            {{- end }}
+            # Optional — see this container's own command script above for how it is actually used.
+            - name: DATABASE_URL_UNPOOLED
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: DATABASE_URL_UNPOOLED
+                  optional: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 512Mi

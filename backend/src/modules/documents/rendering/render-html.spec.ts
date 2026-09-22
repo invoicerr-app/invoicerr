@@ -1,0 +1,1471 @@
+import { renderDocumentHtml } from './render-html';
+import { DocumentTypeDescriptor } from '../descriptors/types';
+
+describe('renderDocumentHtml', () => {
+  const baseCompany = {
+    name: 'Acme Corp',
+    address: '123 Main St',
+    city: 'Springfield',
+    postalCode: '12345',
+    country: 'USA',
+  };
+
+  const baseInstance = {
+    id: 'doc-1',
+    status: 'draft',
+    data: {},
+    createdAt: new Date('2026-08-30'),
+  };
+
+  describe('core field kinds', () => {
+    it('renders text fields', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'title', kind: 'text', label: 'Title' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { title: 'Hello World' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Hello World');
+      expect(html).toContain('Title');
+    });
+
+    it('renders longText fields with line breaks preserved', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'notes', kind: 'longText', label: 'Notes' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { notes: 'Line 1\nLine 2\nLine 3' },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Line 1');
+      expect(html).toContain('Line 2');
+      expect(html).toContain('pre');
+    });
+
+    it('renders number fields', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'quantity', kind: 'number', label: 'Quantity' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { quantity: 42 } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('42');
+    });
+
+    it('renders money fields with correct decimal places', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'amount', kind: 'money', label: 'Amount', currency: 'EUR' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { amount: 100.5 } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('100.50');
+      expect(html).toContain('EUR');
+    });
+
+    it('renders money fields respecting JPY (0 decimal places)', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'amount', kind: 'money', label: 'Amount', currency: 'JPY' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { amount: 1000 } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('1000');
+      expect(html).not.toContain('1000.00');
+    });
+
+    it('renders date fields in YYYY-MM-DD format', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'issueDate', kind: 'date', label: 'Issue Date' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { issueDate: '2026-08-30' },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('2026-08-30');
+    });
+
+    it('renders boolean fields as Yes/No', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          { key: 'isPaid', kind: 'boolean', label: 'Is Paid' },
+          { key: 'isPending', kind: 'boolean', label: 'Is Pending' },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { isPaid: true, isPending: false },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Yes');
+      expect(html).toContain('No');
+    });
+
+    it('renders select fields showing option labels', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'status',
+            kind: 'select',
+            label: 'Status',
+            options: [
+              { value: 'draft', label: 'Draft' },
+              { value: 'sent', label: 'Sent' },
+            ],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { status: 'sent' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Sent');
+      expect(html).not.toContain('sent');
+    });
+
+    it('renders reference fields using resolved labels', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'client', kind: 'reference', label: 'Client', entity: 'client' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { client: 'client-123' } },
+        company: baseCompany,
+        referenceLabels: { client: 'Acme Industries' },
+      });
+
+      expect(html).toContain('Acme Industries');
+      expect(html).not.toContain('client-123');
+    });
+
+    it('renders reference fields with raw id when label not resolved', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'client', kind: 'reference', label: 'Client', entity: 'client' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { client: 'client-123' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('client-123');
+    });
+
+    it('renders array fields as a table', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Line Items',
+            fields: [
+              { key: 'description', kind: 'text', label: 'Description' },
+              { key: 'quantity', kind: 'number', label: 'Qty' },
+            ],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [
+              { description: 'Widget', quantity: 5 },
+              { description: 'Gadget', quantity: 3 },
+            ],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Widget');
+      expect(html).toContain('Gadget');
+      expect(html).toContain('5');
+      expect(html).toContain('3');
+      expect(html).toContain('<table');
+    });
+
+    it('renders rowSelection as a simple list', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'selectedRows', kind: 'rowSelection', label: 'Selected' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { selectedRows: ['row-1', 'row-2', 'row-3'] },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('row-1');
+      expect(html).toContain('row-2');
+      expect(html).toContain('row-3');
+      expect(html).toContain('<ul');
+      expect(html).toContain('<li');
+    });
+  });
+
+  // Basic stock management ("gestion de stock basique") — an invoice/quote line's `articleId` must
+  // be STORED but never printed. Deliberately a SEPARATE describe block from `hideWhenEmpty` below:
+  // that hint still prints a value once one is set (see its own test "renders ... once it is set"),
+  // the exact opposite of what this kind guarantees — see types.ts's own `entity` doc comment.
+  describe('hiddenReference (never rendered, not even when set)', () => {
+    it('renders no row at all for a TOP-LEVEL hiddenReference field, whether set or unset', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'articleId', kind: 'hiddenReference', label: 'Article', entity: 'article' }],
+        actions: [],
+      };
+
+      const withValue = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { articleId: 'article-123' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+      const withoutValue = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: {} },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      // The id itself must never leak into the PDF, and — since `articleId` is the ONLY field this
+      // descriptor declares — neither rendering produces a single field-row at all (`field-label` is
+      // also a static CSS class name in the document's own <style> block, present regardless of
+      // whether any row uses it, so the row markup itself is what this actually has to check).
+      expect(withValue).not.toContain('article-123');
+      expect(withValue).not.toContain('class="field-row"');
+      expect(withoutValue).not.toContain('class="field-row"');
+    });
+
+    it('excludes a hiddenReference SUBFIELD from an array — no header column, no cell, in ANY row, even when set', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [
+              { key: 'description', kind: 'text', label: 'Designation' },
+              { key: 'articleId', kind: 'hiddenReference', label: 'Article', entity: 'article' },
+            ],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { lines: [{ description: 'Widget', articleId: 'article-secret-id' }] },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Widget');
+      expect(html).toContain('<table');
+      // No header column for it...
+      expect(html).not.toContain('>Article<');
+      // ...and, above all, the referenced id itself never appears anywhere in the document.
+      expect(html).not.toContain('article-secret-id');
+    });
+  });
+
+  describe('unknown field kinds', () => {
+    it('produces a visible marker for unknown kinds', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'custom', kind: 'plugin:unknown.type', label: 'Custom' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { custom: 'some value' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('[unrendered field kind');
+      expect(html).toContain('plugin:unknown.type');
+      expect(html).toContain('custom');
+    });
+
+    it('does NOT silently skip unknown kinds', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'custom', kind: 'unknown.kind', label: 'Custom' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { custom: 'some value' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      // The marker MUST be present — test fails if someone silently skips unknown kinds
+      expect(html).toMatch(/\[unrendered field kind/);
+    });
+  });
+
+  describe('missing and empty values', () => {
+    it('renders missing field values as em-dash', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'optional', kind: 'text', label: 'Optional' }],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: {} },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('—');
+    });
+
+    it('renders empty array as em-dash', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [{ key: 'desc', kind: 'text', label: 'Desc' }],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { lines: [] } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('—');
+      expect(html).not.toContain('<table');
+    });
+  });
+
+  // Client reference / order number — `hideWhenEmpty` (types.ts) is the
+  // one opt-in escape from the "missing and empty values" block right above: a field that declares it
+  // gets NO row at all when unset, rather than the universal label + em-dash placeholder.
+  describe('hideWhenEmpty', () => {
+    const descriptor: DocumentTypeDescriptor = {
+      id: 'test',
+      label: 'Test',
+      fields: [{ key: 'clientReference', kind: 'text', label: 'Client reference', hideWhenEmpty: true }],
+      actions: [],
+    };
+
+    it('omits the field row entirely when the value is unset', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: {} },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('Client reference');
+    });
+
+    it('omits the field row entirely when the value is an empty string', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { clientReference: '' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('Client reference');
+    });
+
+    it('renders the field, label and value, exactly as any other field, once it is set', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { clientReference: 'PO-2026-00042' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Client reference');
+      expect(html).toContain('PO-2026-00042');
+    });
+
+    it('never hides a field that does not opt in, even when unset — the universal rule is unchanged', () => {
+      const untouched: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'notes', kind: 'longText', label: 'Notes' }],
+        actions: [],
+      };
+      const html = renderDocumentHtml({
+        descriptor: untouched,
+        instance: { ...baseInstance, data: {} },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Notes');
+      expect(html).toContain('—');
+    });
+  });
+
+  describe('XSS prevention', () => {
+    it('escapes HTML in text values', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'title', kind: 'text', label: 'Title' }],
+        actions: [],
+      };
+
+      const malicious = '<script>alert(1)</script>';
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { title: malicious } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      // The literal script tag must NOT appear
+      expect(html).not.toContain('<script>');
+      // But the text should be escaped and visible
+      expect(html).toContain('&lt;script&gt;');
+    });
+
+    it('escapes HTML in company name', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [],
+        actions: [],
+      };
+
+      const malicious = '<img src=x onerror="alert(1)">';
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: { ...baseCompany, name: malicious },
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('<img');
+      expect(html).toContain('&lt;img');
+    });
+
+    it('escapes HTML in reference labels', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'client', kind: 'reference', label: 'Client', entity: 'client' }],
+        actions: [],
+      };
+
+      const malicious = '"><svg onload="alert(1)">';
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { client: 'id' } },
+        company: baseCompany,
+        referenceLabels: { client: malicious },
+      });
+
+      expect(html).not.toContain('<svg');
+      expect(html).toContain('&lt;svg');
+    });
+
+    // A 'date' value is NOT confined to the YYYY-MM-DD shape the screen offers. The kind's own
+    // validator (descriptors/field-kinds.ts) accepts anything `Date.parse` accepts, and V8's legacy
+    // date parser accepts a trailing parenthesized comment — the one `Date.prototype.toString()`
+    // itself emits — holding arbitrary text. So a value that is a perfectly VALID date can still
+    // carry markup, and the renderer is the only place that can be sure it never reaches Chromium
+    // as such. See `renderFieldValue`'s own 'date' case for why this is escaped unconditionally.
+    const DATE_WITH_MARKUP =
+      'Sat May 31 2026 00:00:00 GMT+0200 (<img src=x onerror=alert(1)><script>alert(2)</script>)';
+
+    /** The content of the one `<div class="field-value">` on the page, entity-decoded. Comparing THAT
+     *  to the input is what proves the value rode through as text: a payload that reached the page as
+     *  markup cannot decode back to the string that was submitted. */
+    function decodedFieldValue(html: string): string {
+      const match = html.match(/<div class="field-value">([\s\S]*?)<\/div>/);
+      expect(match).not.toBeNull();
+      return (match as RegExpMatchArray)[1]
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#0?39;/g, "'")
+        .replace(/&amp;/g, '&');
+    }
+
+    it('escapes HTML in a date value that Date.parse accepts', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'issueDate', kind: 'date', label: 'Issue Date' }],
+        actions: [],
+      };
+
+      // The premise of this test: the payload really does pass the 'date' kind's own validation.
+      expect(Number.isNaN(Date.parse(DATE_WITH_MARKUP))).toBe(false);
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { issueDate: DATE_WITH_MARKUP } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      // Not a tag anywhere on the page — Chromium must parse this as text, never as markup.
+      expect(html).not.toContain('<script>');
+      expect(html).not.toContain('<img src=x');
+      expect(html).toContain('&lt;script&gt;');
+      // ...and the value the reader sees is still, character for character, what was submitted.
+      expect(decodedFieldValue(html)).toBe(DATE_WITH_MARKUP);
+    });
+
+    it('escapes HTML in a date SUBFIELD of an array row', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [{ key: 'deliveryDate', kind: 'date', label: 'Delivery Date' }],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { lines: [{ deliveryDate: DATE_WITH_MARKUP }] } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('<script>');
+      expect(html).not.toContain('<img src=x');
+      expect(html).toContain('&lt;script&gt;');
+    });
+
+    it('escapes the payment QR data URI it is handed', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentQr: { dataUri: 'data:image/png;base64,AAAA" onload="alert(1)' },
+      });
+
+      // The quote must not close the `src` attribute and open an event handler after it.
+      expect(html).not.toContain('onload="alert(1)"');
+      expect(html).toContain('&quot; onload=&quot;alert(1)');
+    });
+  });
+
+  describe('currencyField resolution', () => {
+    it('resolves money currency from a sibling field', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          { key: 'currency', kind: 'text', label: 'Currency' },
+          {
+            key: 'unitPrice',
+            kind: 'money',
+            label: 'Unit Price',
+            currencyField: 'currency',
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { currency: 'CHF', unitPrice: 99.99 },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('99.99');
+      expect(html).toContain('CHF');
+    });
+  });
+
+  describe('document numbering (numbering/)', () => {
+    const numberedDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [],
+      actions: [],
+      numbering: { onEnterStatus: 'sent' },
+    };
+    const unnumberedDescriptor: DocumentTypeDescriptor = {
+      id: 'expense',
+      label: 'Expense',
+      fields: [],
+      actions: [],
+    };
+
+    it('shows the displayNumber, next to the type label, for a NUMBERED type that already has one', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: 'INVOICE-2026-0001' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('INVOICE-2026-0001');
+    });
+
+    // THE rule this whole mechanism exists to hold: a document with no number NEVER shows a
+    // fabricated one — see numbering/format-number.ts's own header on the historical bug this
+    // guards against.
+    it('shows the honest placeholder, NEVER a fabricated number, for a NUMBERED type with none yet', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: null },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Draft — no number yet');
+      expect(html).not.toMatch(/INVOICE-\d{4}-0000/);
+    });
+
+    it('shows no number badge at all for a type that never declares `numbering` (e.g. "expense")', () => {
+      const html = renderDocumentHtml({
+        descriptor: unnumberedDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      // The `.document-number` CSS RULE is always in the stylesheet (see renderDocumentHtml's own
+      // <style> block) — what must be absent is the ELEMENT that would use it.
+      expect(html).not.toContain('class="document-number"');
+      expect(html).not.toContain('no number yet');
+    });
+  });
+
+  // Portugal's ATCUD (Portaria n.º 195/2020, art. 4.º n.º 1) — printed once here, near the document
+  // number; the "on every page" rule (art. 4.º n.º 3) is a PDF-footer concern, see render-pdf.spec.ts.
+  describe('ATCUD (Portugal)', () => {
+    const numberedDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [],
+      actions: [],
+      numbering: { onEnterStatus: 'sent' },
+    };
+
+    it('prints the ATCUD, verbatim, when the instance carries one', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: 'FT 2026/0007', atcud: 'ATCUD:JCVPTS0J-0007' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('class="document-atcud"');
+      expect(html).toContain('ATCUD:JCVPTS0J-0007');
+    });
+
+    it('prints no ATCUD block at all for a document with none — not an empty frame, nothing', () => {
+      const htmlNull = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: 'INVOICE-2026-0001', atcud: null },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+      const htmlAbsent = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: 'INVOICE-2026-0001' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(htmlNull).not.toContain('class="document-atcud"');
+      expect(htmlAbsent).not.toContain('class="document-atcud"');
+    });
+  });
+
+  // Mandatory legal mentions ("mentions obligatoires") — reprises the removed compliance engine's own
+  // `legal-mentions-pdf.spec.ts` intent (git tag `avant-refonte-documents`), adapted to this generic
+  // renderer: the mentions come in as a plain `legalMentions` array (already resolved for a date by
+  // `mentions/invoice-notes.ts` — this file has no opinion on WHERE they came from), and the only
+  // thing under test here is how the HTML PRESENTS them.
+  describe('legal mentions', () => {
+    const invoiceDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [{ key: 'notes', kind: 'longText', label: 'Notes' }],
+      actions: [],
+      usesLegalMentions: true,
+    };
+
+    const THREE_FR_MENTIONS = [
+      { text: 'Escompte pour paiement anticipé : néant', legalRef: 'C. com. art. L441-9' },
+      {
+        text: "Tout retard de paiement entraîne des pénalités au taux de 12,40 % l'an.",
+        legalRef: 'C. com. art. L441-10 II',
+      },
+      {
+        text: 'En cas de retard de paiement, une indemnité forfaitaire pour frais de recouvrement de 40 € est due.',
+        legalRef: 'C. com. art. L441-10, D441-5',
+      },
+    ];
+
+    it('prints every mention handed to it, in a dedicated block', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: THREE_FR_MENTIONS,
+      });
+
+      expect(html).toContain('class="legal-mentions"');
+      expect(html).toContain('40 €');
+      expect(html).toContain('12,40 %');
+      expect(html).toContain('Escompte pour paiement anticipé : néant');
+    });
+
+    it('legalRef is carried as data but never printed on the document itself', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: THREE_FR_MENTIONS,
+      });
+
+      expect(html).not.toContain('L441-9');
+      expect(html).not.toContain('D441-5');
+    });
+
+    it('sits in its own block, never mixed into the user’s own "notes" field — deleting a note must never delete a legal mention', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: { ...baseInstance, data: { notes: 'Merci de votre confiance.' } },
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: THREE_FR_MENTIONS,
+      });
+
+      expect(html.indexOf('Merci de votre confiance.')).toBeLessThan(html.indexOf('class="legal-mentions"'));
+    });
+
+    it('a country/type with no mentions prints no block at all — not an empty frame, nothing', () => {
+      const htmlEmpty = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: [],
+      });
+      const htmlAbsent = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(htmlEmpty).not.toContain('class="legal-mentions"');
+      expect(htmlAbsent).not.toContain('class="legal-mentions"');
+    });
+
+    it('a document type that never declares `usesLegalMentions` renders byte-for-byte the same whether or not a caller mistakenly passes mentions', () => {
+      const plainDescriptor: DocumentTypeDescriptor = {
+        id: 'expense',
+        label: 'Expense',
+        fields: [],
+        actions: [],
+      };
+      const withoutMentions = renderDocumentHtml({
+        descriptor: plainDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+      // renderDocumentHtml itself has no opinion on `usesLegalMentions` — that gate lives in the
+      // CALLER (render-instance-pdf.ts#legalMentionsFor). This test documents that boundary: were a
+      // caller to pass mentions anyway, this pure function would still print them, exactly as
+      // instructed — the flag is enforced once, upstream, not re-checked here.
+      const ifCallerMisusedIt = renderDocumentHtml({
+        descriptor: plainDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: THREE_FR_MENTIONS,
+      });
+      expect(withoutMentions).not.toContain('class="legal-mentions"');
+      expect(ifCallerMisusedIt).toContain('class="legal-mentions"');
+    });
+  });
+
+  // SEPA payment QR / GiroCode — `renderDocumentHtml` itself only knows how to
+  // PRESENT a `paymentQr` input, exactly the way it only presents `legalMentions` above; whether one is
+  // actually passed is entirely `render-instance-pdf.ts#sepaPaymentQrFor`'s own gating, proven in that
+  // file's own spec, not here.
+  describe('payment QR', () => {
+    const invoiceDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [],
+      actions: [],
+      usesPaymentQr: true,
+    };
+
+    const SAMPLE_DATA_URI =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk';
+
+    it('renders an <img> with the given data URI and a "Scan to pay" label when paymentQr is passed', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentQr: { dataUri: SAMPLE_DATA_URI },
+      });
+
+      expect(html).toContain('<img');
+      expect(html).toContain(SAMPLE_DATA_URI);
+      expect(html).toContain('Scan to pay');
+    });
+
+    it('renders no <img> and no "Scan to pay" label at all when paymentQr is omitted', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('<img');
+      expect(html).not.toContain('Scan to pay');
+      // The `.payment-qr-section` CSS RULE is always in the stylesheet (see renderDocumentHtml's own
+      // <style> block, same convention `document numbering`'s own test above already uses) — what must
+      // be absent is the ELEMENT that would use it.
+      expect(html).not.toContain('class="payment-qr-section"');
+    });
+
+    it('a document type that never declares `usesPaymentQr` still renders one if the caller mistakenly passes it — the flag is enforced upstream, not re-checked by this pure function', () => {
+      const plainDescriptor: DocumentTypeDescriptor = {
+        id: 'expense',
+        label: 'Expense',
+        fields: [],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor: plainDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentQr: { dataUri: SAMPLE_DATA_URI },
+      });
+
+      expect(html).toContain('<img');
+    });
+  });
+
+  describe('payment methods', () => {
+    it('renders one item per presentation — label, lines, and a link when present', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [
+          { id: 'bank_transfer', label: 'Bank transfer', lines: ['IBAN: FR1420041010050500013M02606'] },
+          {
+            id: 'paypal',
+            label: 'PayPal',
+            lines: ['PayPal e-mail: billing@acme.test'],
+            link: 'https://www.paypal.com/cgi-bin/webscr?cmd=_xclick',
+          },
+        ],
+      });
+
+      expect(html).toContain('class="payment-methods-section"');
+      expect(html).toContain('Payment methods');
+      expect(html).toContain('Bank transfer');
+      expect(html).toContain('IBAN: FR1420041010050500013M02606');
+      expect(html).toContain('PayPal');
+      expect(html).toContain('PayPal e-mail: billing@acme.test');
+      expect(html).toContain('https://www.paypal.com/cgi-bin/webscr?cmd=_xclick');
+    });
+
+    it('a method with no lines and no link (cash) still gets its own item, just the label', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [{ id: 'cash', label: 'Cash', lines: [] }],
+      });
+
+      expect(html).toContain('class="payment-methods-section"');
+      expect(html).toContain('class="payment-method-label">Cash<');
+    });
+
+    it('renders NOTHING at all — not an empty frame — when `paymentMethods` is absent', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('class="payment-methods-section"');
+      expect(html).not.toContain('Payment methods');
+    });
+
+    it('renders NOTHING when `paymentMethods` is an empty array — no method currently enabled', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [],
+      });
+
+      expect(html).not.toContain('class="payment-methods-section"');
+    });
+
+    it('two DIFFERENTLY-configured methods render visibly different HTML — the actual defect this fixes', () => {
+      const cashOnly = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [{ id: 'cash', label: 'Cash', lines: [] }],
+      });
+      const bankTransferConfigured = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [
+          { id: 'bank_transfer', label: 'Bank transfer', lines: ['IBAN: FR1420041010050500013M02606'] },
+        ],
+      });
+
+      expect(cashOnly).not.toEqual(bankTransferConfigured);
+      expect(bankTransferConfigured).toContain('IBAN: FR1420041010050500013M02606');
+      expect(cashOnly).not.toContain('IBAN');
+    });
+
+    it('the section heading is translated by `language`, the method label/lines never are', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [{ id: 'cash', label: 'Cash', lines: [] }],
+        language: 'de',
+      });
+
+      expect(html).toContain('Zahlungsmethoden');
+      expect(html).not.toContain('>Payment methods<');
+      expect(html).toContain('Cash');
+    });
+  });
+
+  // VAT display (`DocumentTotals.showVat`) — a VAT-exempt seller, or a document whose every line
+  // resolves to exactly 0%, gets no "Net"/"VAT ... 0.00" rows at all: a single "Total" row.
+  describe('totals — VAT display (showVat)', () => {
+    const descriptor: DocumentTypeDescriptor = { id: 'invoice', label: 'Invoice', fields: [], actions: [] };
+
+    it('renders Net + one row per VAT-breakdown entry + Total when showVat is true (the pre-existing behaviour)', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: 'EUR',
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+          showVat: true,
+        },
+      });
+
+      expect(html).toContain('>Net<');
+      expect(html).toContain('VAT 20% on 100.00 EUR');
+      expect(html).toContain('>Total<');
+      expect(html).toContain('120.00 EUR');
+    });
+
+    it('omitting `showVat` entirely still shows the breakdown — every pre-existing fixture/caller keeps working unchanged', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: 'EUR',
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+        },
+      });
+
+      expect(html).toContain('>Net<');
+      expect(html).toContain('VAT 20% on 100.00 EUR');
+    });
+
+    it('showVat: false — no "Net" row, no "VAT ... 0.00" row, just ONE "Total" row', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: 'EUR',
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 0,
+          grossMinor: 10000,
+          vatBreakdown: [{ ratePercent: 0, baseMinor: 10000, vatMinor: 0 }],
+          warnings: [],
+          showVat: false,
+        },
+      });
+
+      expect(html).not.toContain('>Net<');
+      expect(html).not.toContain('VAT 0% on');
+      expect(html).toContain('>Total<');
+      // The gross figure (== net here, since there is no VAT to charge) still prints exactly once.
+      expect((html.match(/100\.00 EUR/g) ?? []).length).toBe(1);
+    });
+
+    it('showVat: false still hides EVERY breakdown row, even a mistakenly non-empty one with a positive rate', () => {
+      // Defensive: a caller could in principle hand `showVat: false` alongside a non-trivial
+      // breakdown (e.g. a stale value from before a franchise-base seller's lines were resolved to
+      // 0%) — this render layer trusts the flag, never re-derives it from the breakdown itself.
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: 'EUR',
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+          showVat: false,
+        },
+      });
+
+      expect(html).not.toContain('VAT 20% on');
+      expect(html).not.toContain('>Net<');
+    });
+  });
+
+  // Per-recipient document language ("langue du document par destinataire") — `language` translates ONLY this
+  // render layer's OWN chrome vocabulary (`language/pdf-chrome-strings.ts`); `descriptor.label`/
+  // `field.label`/`option.label` stay exactly what the descriptor wrote, in every test below, proving
+  // the split described in that field's own header (types.ts) holds in practice, not just in comments.
+  describe('recipient language', () => {
+    const totalsFixture = {
+      currency: 'EUR',
+      lines: [],
+      netMinor: 10000,
+      vatMinor: 2000,
+      grossMinor: 12000,
+      vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+      warnings: [],
+    };
+
+    it('omitting `language` renders byte-for-byte the same English chrome as before this feature existed', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
+        actions: [],
+      };
+
+      const withoutLanguage = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { isPaid: true } },
+        company: baseCompany,
+        referenceLabels: {},
+        totals: totalsFixture,
+      });
+      const withEnglish = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { isPaid: true } },
+        company: baseCompany,
+        referenceLabels: {},
+        totals: totalsFixture,
+        language: 'en',
+      });
+
+      expect(withoutLanguage).toBe(withEnglish);
+      expect(withoutLanguage).toContain('Yes');
+      expect(withoutLanguage).toContain('>Status:<');
+      expect(withoutLanguage).toContain('>Totals<');
+      expect(withoutLanguage).toContain('VAT 20% on 100.00 EUR');
+      expect(withoutLanguage).toContain('>Total<');
+    });
+
+    it("renders the totals block, the boolean Yes/No pair, and the unnumbered placeholder in Italian — VAT reads 'IVA', never 'TVA' or 'VAT'", () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'invoice',
+        label: 'Invoice',
+        fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
+        actions: [],
+        numbering: { onEnterStatus: 'sent' },
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { isPaid: false } },
+        company: baseCompany,
+        referenceLabels: {},
+        totals: totalsFixture,
+        language: 'it',
+      });
+
+      expect(html).toContain('>Stato:<');
+      expect(html).toContain('>Data:<');
+      expect(html).toContain('>Totali<');
+      expect(html).toContain('>Netto<');
+      expect(html).toContain('IVA 20% su 100.00 EUR');
+      expect(html).toContain('>Totale<');
+      expect(html).toContain('<div class="field-value">No</div>'); // 'No' happens to spell like English too
+      expect(html).toContain('Bozza — numero non ancora assegnato');
+      expect(html).not.toContain('TVA');
+      expect(html).not.toContain('>Status:<');
+    });
+
+    it("renders the same document in French — VAT reads 'TVA', the boolean prints 'Oui', never the Italian or English chrome", () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'invoice',
+        label: 'Invoice',
+        fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
+        actions: [],
+        numbering: { onEnterStatus: 'sent' },
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { isPaid: true } },
+        company: baseCompany,
+        referenceLabels: {},
+        totals: totalsFixture,
+        language: 'fr',
+      });
+
+      expect(html).toContain('>Statut:<');
+      expect(html).toContain('>Totaux<');
+      expect(html).toContain('TVA 20% sur 100.00 EUR');
+      expect(html).toContain('>Total<'); // French "Total" happens to spell like English — not the bug
+      expect(html).toContain('<div class="field-value">Oui</div>');
+      expect(html).toContain('Brouillon — pas encore de numéro');
+      expect(html).not.toContain('IVA');
+      expect(html).not.toContain('>Stato:<');
+    });
+
+    it('the SEPA "scan to pay" caption translates too, in the same language as everything else', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'invoice',
+        label: 'Invoice',
+        fields: [],
+        actions: [],
+        usesPaymentQr: true,
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentQr: { dataUri: 'data:image/png;base64,AAAA' },
+        language: 'de',
+      });
+
+      expect(html).toContain('Zum Bezahlen scannen (SEPA)');
+      expect(html).not.toContain('Scan to pay');
+    });
+
+    it('descriptor/field/option labels are NEVER translated — plain data, the same in every language', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Invoice', // plain data — a plugin could equally have written this in Polish
+        fields: [
+          {
+            key: 'status2',
+            kind: 'select',
+            label: 'Payment status',
+            options: [{ value: 'x', label: 'Paid in full' }],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { status2: 'x' } },
+        company: baseCompany,
+        referenceLabels: {},
+        language: 'pt',
+      });
+
+      // The chrome around it is Portuguese ("Estado", not "Status")...
+      expect(html).toContain('>Estado:<');
+      // ...but the descriptor's OWN label and this field's OWN label/option stay exactly as declared.
+      expect(html).toContain('Invoice');
+      expect(html).toContain('Payment status');
+      expect(html).toContain('Paid in full');
+    });
+  });
+
+  describe('branding (chantier B, 2026-09-15)', () => {
+    const richDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      actions: [],
+      usesLegalMentions: true,
+      usesPaymentQr: true,
+      usesPaymentMethods: true,
+      fields: [
+        { key: 'title', kind: 'text', label: 'Title' },
+        { key: 'currency', kind: 'select', label: 'Currency', options: [{ value: 'EUR', label: 'EUR' }] },
+        {
+          key: 'items',
+          kind: 'array',
+          label: 'Items',
+          fields: [
+            { key: 'description', kind: 'text', label: 'Description' },
+            { key: 'quantity', kind: 'number', label: 'Quantity' },
+            { key: 'unitPrice', kind: 'money', label: 'Unit price', currencyField: 'currency' },
+          ],
+        },
+      ],
+    };
+
+    const richInstance = {
+      ...baseInstance,
+      displayNumber: 'INV-2026-0001',
+      data: {
+        title: 'Consulting',
+        currency: 'EUR',
+        items: [{ description: 'Consulting hours', quantity: 2, unitPrice: 100 }],
+      },
+    };
+
+    const richInput = {
+      descriptor: richDescriptor,
+      instance: richInstance,
+      company: { ...baseCompany, iban: 'FR1420041010050500013M02606' },
+      referenceLabels: {},
+      totals: {
+        currency: 'EUR',
+        lines: [],
+        netMinor: 20000,
+        vatMinor: 4000,
+        grossMinor: 24000,
+        vatBreakdown: [{ ratePercent: 20, baseMinor: 20000, vatMinor: 4000 }],
+        warnings: [],
+      },
+      legalMentions: [{ text: 'Autoliquidation', legalRef: 'CGI art. 283-2' }],
+      paymentQr: { dataUri: 'data:image/png;base64,AAAA' },
+      paymentMethods: [
+        { id: 'bank_transfer', label: 'Bank transfer', lines: ['IBAN FR14 2004 1010 0505 0001 3M02 606'] },
+      ],
+      customFields: [],
+    };
+
+    it('a company with NO branding renders the exact pre-branding accent color and font stack', () => {
+      const html = renderDocumentHtml(richInput);
+
+      // The four rules that used to hardcode this literal — see render-html.ts's own
+      // `DEFAULT_ACCENT_COLOR` header.
+      expect(html.split('#007bff').length - 1).toBe(4);
+      expect(html).toContain(
+        'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+      );
+      // No branding input at all: no @font-face block, no logo image — nothing added. The ONE <img>
+      // in this rich fixture is the SEPA payment QR (`richInput.paymentQr`), unrelated to branding.
+      expect(html).not.toContain('@font-face');
+      expect(html.split('<img').length - 1).toBe(1);
+    });
+
+    it('an EMPTY branding object renders byte-for-byte the same HTML as no branding at all', () => {
+      const withoutBranding = renderDocumentHtml(richInput);
+      const withEmptyBranding = renderDocumentHtml({ ...richInput, branding: {} });
+
+      expect(withEmptyBranding).toBe(withoutBranding);
+    });
+
+    it('pins the full unbranded render — any accidental byte change here must be a deliberate diff', () => {
+      expect(renderDocumentHtml(richInput)).toMatchSnapshot();
+    });
+
+    it('applies a custom accent color to the header rule, field labels, totals label and custom-fields heading', () => {
+      const html = renderDocumentHtml({ ...richInput, branding: { accentColor: '#b91c1c' } });
+
+      expect(html.split('#b91c1c').length - 1).toBe(4);
+      expect(html).not.toContain('#007bff');
+    });
+
+    it('an unrecognized font key falls back to the default system stack, exactly like no font at all', () => {
+      const html = renderDocumentHtml({ ...richInput, branding: { font: 'not-a-real-font' } });
+
+      expect(html).toContain(
+        'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+      );
+      expect(html).not.toContain('@font-face');
+    });
+
+    it('a recognized font key embeds @font-face rules and switches the body stack to it', () => {
+      const html = renderDocumentHtml({ ...richInput, branding: { font: 'inter' } });
+
+      expect(html).toContain('@font-face');
+      expect(html).toContain('InvoicerrBrandInter');
+      expect(html).toContain('font-family: "InvoicerrBrandInter", -apple-system');
+    });
+
+    it('a logo data URI prints an <img> at the top of the header, nowhere else', () => {
+      const html = renderDocumentHtml({
+        ...richInput,
+        branding: { logoDataUri: 'data:image/png;base64,LOGO' },
+      });
+
+      expect(html).toContain('<img src="data:image/png;base64,LOGO"');
+      // Comes before the company name, i.e. sits at the very top of the header block.
+      expect(html.indexOf('data:image/png;base64,LOGO')).toBeLessThan(html.indexOf('Acme Corp'));
+    });
+  });
+});

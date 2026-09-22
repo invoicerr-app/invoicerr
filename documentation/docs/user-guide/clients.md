@@ -13,6 +13,7 @@ The **Clients** page is your address book of everyone you bill. Clients are reus
 - **Filter** — click the **Active** or **Inactive** badge to filter the list (each shows a count)
 - **View** (eye icon) — open a read-only summary
 - **Edit** (pencil icon) — change a client's details
+- **Client portal access** — invite this client to their own [Client Portal](client-portal.md)
 - **Delete** (trash icon) — remove a client (asks for confirmation)
 
 ## Creating a client
@@ -39,6 +40,8 @@ Click **Add New** and fill in the form.
 
 - Description (optional, up to 500 characters)
 - Currency (optional) — overrides the company default for this client
+- Document Language (optional) — overrides the company's default language for this client's PDFs
+  and emails; see [Document Language](document-language.md)
 - Founded Date (optional, cannot be in the future)
 
 ## Statuses

@@ -1,151 +1,245 @@
-import { Edit, Package, Plus, Search, Trash2 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { forwardRef, useImperativeHandle, useState } from "react"
+import { Package, Pencil, Plus, SearchX, Trash2, TriangleAlert } from "lucide-react"
+import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 
-import { ArticleDeleteDialog } from "./article-delete"
-import { ArticleUpsert } from "./article-upsert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
+import { useArticles, useCompany } from "@/hooks/queries"
 import { currencies } from "@/lib/constants/currencies"
-import type React from "react"
-import { useCompany } from "@/hooks/queries"
-import { useTranslation } from "react-i18next"
 import type { Article } from "@/types"
 
-interface ArticlesListProps {
-  articles: Article[]
-  loading: boolean
-  title?: string
-  description?: string
-  searchTerm?: string
-  onSearchChange?: (value: string) => void
-  emptyState: React.ReactNode
-  showCreateButton?: boolean
-}
+import { FilterChip, FilterChipGroup, ListRow, ListSearch, ListSkeleton } from "../../_shared/data-list"
+import { ArticleDeleteDialog } from "./article-delete"
+import { ArticleUpsert } from "./article-upsert"
 
-export interface ArticlesListHandle {
-  handleAddClick: () => void
-}
-
-export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
-  ({ articles = [], loading, title, description, searchTerm, onSearchChange, emptyState, showCreateButton = false }, ref) => {
-    const { t } = useTranslation()
-    const { data: company } = useCompany()
-    const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : ""
-    const [createDialog, setCreateDialog] = useState<boolean>(false)
-    const [editDialog, setEditDialog] = useState<Article | null>(null)
-    const [deleteDialog, setDeleteDialog] = useState<Article | null>(null)
-
-    useImperativeHandle(ref, () => ({
-      handleAddClick() {
-        setCreateDialog(true)
-      },
-    }))
-
-    return (
-      <>
-        <Card className="gap-0">
-          <CardHeader className="border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
-            {title ? (
-              <div>
-                <CardTitle className="flex items-center space-x-2">
-                  <span>{title}</span>
-                </CardTitle>
-                {description && <CardDescription>{description}</CardDescription>}
-              </div>
-            ) : onSearchChange ? (
-              <div className="relative w-full sm:w-fit sm:flex-1 sm:max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder={t("articles.search.placeholder") || ""}
-                  value={searchTerm}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  className="pl-10 w-full"
-                />
-              </div>
-            ) : null}
-            <div className="flex items-center gap-2 sm:ml-auto">
-              {showCreateButton && (
-                <Button onClick={() => setCreateDialog(true)} dataCy="article-add-button">
-                  <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                  <span className="hidden md:inline-flex">{t("articles.list.add")}</span>
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
-              </div>
-            ) : articles.length === 0 ? (
-              emptyState
-            ) : (
-              <div className="divide-y">
-                {articles.map((article) => (
-                  <div key={article.id} className="p-4 sm:p-6" data-cy="article-item">
-                    <div className="flex flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="flex flex-row items-center gap-4 w-full">
-                        <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                          <Package className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-medium text-foreground break-words">{article.name}</h3>
-                            <Badge variant="outline" className="text-xs">
-                              {t(`articles.fields.type.${article.type?.toLowerCase()}`) || article.type}
-                            </Badge>
-                          </div>
-                          {article.description && (
-                            <div className="mt-1 text-sm text-muted-foreground break-words">{article.description}</div>
-                          )}
-                          <div className="mt-1 text-sm text-muted-foreground">
-                            {t("articles.fields.unitPrice.label")}: {article.unitPrice}{currencySymbol} · {t("articles.fields.vatRate.label")}: {article.vatRate}%
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
-                        <Button tooltip={t("articles.actions.edit")} variant="ghost" size="icon" onClick={() => setEditDialog(article)} className="text-gray-600 hover:text-green-600" dataCy="article-edit-button">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-
-                        <Button tooltip={t("articles.actions.delete")} variant="ghost" size="icon" onClick={() => setDeleteDialog(article)} className="text-gray-600 hover:text-red-600" dataCy="article-delete-button">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+/** One article as a row — identity (name, type + low-stock badges, description), pricing figures in
+ *  the mono face, "Edit" as the row's one contextual action and delete right beside it: with only
+ *  ONE secondary action, a "⋯" menu would hide it for no reason, so the menu slot renders the plain
+ *  ghost icon button instead of a dropdown (see `ListRow`'s own header on why that slot takes any
+ *  node, not only a `ListRowMenu`). */
+function ArticleRow({
+  article,
+  currencySymbol,
+  onEdit,
+  onDelete,
+}: {
+  article: Article
+  currencySymbol?: string
+  onEdit: (article: Article) => void
+  onDelete: (article: Article) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <ListRow
+      dataCy="article-item"
+      identity={
+        <>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h3 className="min-w-0 break-words font-medium text-foreground">{article.name}</h3>
+            <Badge variant="outline" className="text-xs">
+              {t(`articles.fields.type.${article.type?.toLowerCase()}`) || article.type}
+            </Badge>
+            {/* `isLowStock` is server-computed (articles.service.ts), never re-derived here; the
+                badge only ever reflects what the API already decided. */}
+            {article.isLowStock && (
+              <Badge variant="warning" className="gap-1 text-xs" data-cy={`article-low-stock-${article.id}`}>
+                <TriangleAlert className="size-3" aria-hidden="true" />
+                {t("articles.stock.lowStockBadge")}
+              </Badge>
             )}
-          </CardContent>
-        </Card>
+          </div>
+          {article.description && (
+            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{article.description}</p>
+          )}
+        </>
+      }
+      figures={
+        <div className="font-mono text-sm tabular-nums">
+          <div>
+            {article.unitPrice}
+            {currencySymbol} · {article.vatRate}%
+          </div>
+          {article.quantity != null && (
+            <div className="text-xs text-muted-foreground">
+              {t("articles.fields.quantity.label")}: {article.quantity}
+            </div>
+          )}
+        </div>
+      }
+      primary={
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={() => onEdit(article)}
+          dataCy="article-edit-button"
+        >
+          <Pencil aria-hidden="true" />
+          {t("articles.actions.edit")}
+        </Button>
+      }
+      menu={
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          tooltip={t("articles.actions.delete")}
+          aria-label={t("articles.actions.delete")}
+          onClick={() => onDelete(article)}
+          dataCy="article-delete-button"
+        >
+          <Trash2 aria-hidden="true" />
+        </Button>
+      }
+    />
+  )
+}
 
-        <ArticleUpsert
-          open={createDialog}
-          onOpenChange={(open: boolean) => setCreateDialog(open)}
-        />
+/**
+ * The reusable article/service catalog — same list grammar the clients screen already holds
+ * (search + filter chips with counts + one filled "New …" button; rows made of identity, figures in
+ * the mono face, one contextual action and, here, a single secondary control instead of a "⋯" menu).
+ * Fetches and filters its own data: nothing above this component in the tree needs to know an
+ * article even exists.
+ */
+export function ArticlesList() {
+  const { t } = useTranslation()
+  const { data: articles = [], isLoading } = useArticles()
+  const { data: company } = useCompany()
+  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : ""
 
-        <ArticleUpsert
-          open={!!editDialog}
-          article={editDialog}
-          onOpenChange={(open: boolean) => {
-            if (!open) setEditDialog(null)
-          }}
-        />
+  const [searchTerm, setSearchTerm] = useState("")
+  const [lowStockOnly, setLowStockOnly] = useState(false)
+  const [createDialog, setCreateDialog] = useState(false)
+  const [editDialog, setEditDialog] = useState<Article | null>(null)
+  const [deleteDialog, setDeleteDialog] = useState<Article | null>(null)
 
-        <ArticleDeleteDialog
-          article={deleteDialog}
-          onOpenChange={(open: boolean) => {
-            if (!open) setDeleteDialog(null)
-          }}
-        />
-      </>
+  const filtered = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+    return articles.filter(
+      (article) =>
+        (!term ||
+          (article.name || "").toLowerCase().includes(term) ||
+          (article.description || "").toLowerCase().includes(term) ||
+          (article.type || "").toLowerCase().includes(term)) &&
+        (!lowStockOnly || article.isLowStock),
     )
-  },
-)
+  }, [articles, searchTerm, lowStockOnly])
+
+  const lowStockCount = articles.filter((article) => article.isLowStock).length
+  const hasActiveFilter = !!searchTerm || lowStockOnly
+
+  const clearFilters = () => {
+    setSearchTerm("")
+    setLowStockOnly(false)
+  }
+
+  return (
+    <>
+      <Card className="gap-0">
+        <CardHeader className="gap-3 border-b">
+          <div className="flex items-center gap-2">
+            <ListSearch
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder={t("articles.search.placeholder")}
+              dataCy="articles-search"
+              className="flex-1 sm:max-w-xs"
+            />
+            <Button onClick={() => setCreateDialog(true)} className="ml-auto" dataCy="article-add-button">
+              <Plus aria-hidden="true" />
+              <span className="hidden md:inline">{t("articles.list.add")}</span>
+            </Button>
+          </div>
+
+          {articles.length > 0 && (
+            <FilterChipGroup label={t("articles.filters.ariaLabel")} dataCy="articles-filters">
+              <FilterChip
+                label={t("articles.filters.all")}
+                count={articles.length}
+                active={!lowStockOnly}
+                onClick={() => setLowStockOnly(false)}
+                dataCy="articles-filter-all"
+              />
+              <FilterChip
+                label={t("articles.filters.lowStock")}
+                count={lowStockCount}
+                tone="warning"
+                active={lowStockOnly}
+                onClick={() => setLowStockOnly(!lowStockOnly)}
+                dataCy="articles-filter-low-stock"
+              />
+            </FilterChipGroup>
+          )}
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {isLoading ? (
+            <ListSkeleton dataCy="articles-skeleton" />
+          ) : filtered.length === 0 ? (
+            hasActiveFilter ? (
+              <EmptyState
+                icon={SearchX}
+                title={t("common.emptyState.noResultsTitle")}
+                description={t("common.emptyState.noResultsHint")}
+                action={
+                  <Button variant="outline" onClick={clearFilters}>
+                    {t("common.emptyState.clearSearch")}
+                  </Button>
+                }
+                data-cy="articles-empty"
+              />
+            ) : (
+              <EmptyState
+                icon={Package}
+                title={t("articles.empty")}
+                description={t("articles.description")}
+                action={
+                  <Button variant="secondary" onClick={() => setCreateDialog(true)}>
+                    <Plus aria-hidden="true" />
+                    {t("articles.list.add")}
+                  </Button>
+                }
+                data-cy="articles-empty"
+              />
+            )
+          ) : (
+            <div className="divide-y" data-cy="articles-list">
+              {filtered.map((article) => (
+                <ArticleRow
+                  key={article.id}
+                  article={article}
+                  currencySymbol={currencySymbol}
+                  onEdit={setEditDialog}
+                  onDelete={setDeleteDialog}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ArticleUpsert open={createDialog} onOpenChange={setCreateDialog} />
+
+      <ArticleUpsert
+        open={!!editDialog}
+        article={editDialog}
+        onOpenChange={(open) => {
+          if (!open) setEditDialog(null)
+        }}
+      />
+
+      <ArticleDeleteDialog
+        article={deleteDialog}
+        onOpenChange={(open) => {
+          if (!open) setDeleteDialog(null)
+        }}
+      />
+    </>
+  )
+}
 
 export default ArticlesList

@@ -1,0 +1,875 @@
+import { Logger, Module } from '@nestjs/common';
+
+import { ArticlesModule } from '@/modules/articles/articles.module';
+import { ArticlesService } from '@/modules/articles/articles.service';
+import { ClientsModule } from '@/modules/clients/clients.module';
+import { ClientsService } from '@/modules/clients/clients.service';
+import { CompanyModule } from '@/modules/company/company.module';
+import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
+import { MailService } from '@/mail/mail.service';
+import { WebhookDispatcherService } from '@/modules/webhooks/webhook-dispatcher.service';
+import { WebhooksModule } from '@/modules/webhooks/webhooks.module';
+
+import { ActionExtensionRegistry } from './actions/action-extensions';
+import { ActionRegistry } from './actions/action-registry';
+import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
+import { registerDuplicateExtension } from './actions/duplicate-extension';
+import { registerExpenseActions } from './actions/expense-actions';
+import { registerGoodsReceiptActions } from './actions/goods-receipt-actions';
+import { registerInvoiceActions } from './actions/invoice-actions';
+import { registerPurchaseOrderActions } from './actions/purchase-order-actions';
+import { registerQuoteActions } from './actions/quote-actions';
+import { registerRequestDepositAction } from './actions/request-deposit';
+import { registerRequestInstallmentsAction } from './actions/request-installments';
+import { registerRequestSignatureAction } from './actions/request-signature';
+import { registerCreditNoteActions } from './actions/credit-note-actions';
+import { registerReceivedInvoiceActions } from './actions/received-invoice-actions';
+import { B2gRoutingBootUpsertService } from './b2g-routing/boot-upsert.service';
+import { ArchiveStorageSharingBootCheckService } from './archive/storage-sharing-boot-check.service';
+import { AuthorityStatusPollerRegistry } from './conformity/authority-status-poller';
+import { PdfRendererWarmupService } from './rendering/pdf-renderer-warmup.service';
+import { CountryIdentifierRequirementsBootReseedService } from './country-identifiers/boot-reseed.service';
+import { CountryPolicyBootReseedService } from './country-policy/boot-reseed.service';
+import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
+import { buildChorusProStatusPoller } from './conformity/pollers/chorus-pro-status-poller';
+import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
+import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
+import { PdpReceptionSweepRunner } from './conformity/reception-sweep-runner';
+import { ContributionRegistry } from './contributions/contribution-registry';
+import { DeclarationProviderRegistry } from './reporting/declaration-provider';
+import { buildPtAtDeclarationProvider } from './reporting/providers/pt-declaration-provider';
+import { ReportingRunner } from './reporting/reporting-runner';
+import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
+import { registerExpenseContributions } from './contributions/expense-contributions';
+import { registerInvoiceContributions } from './contributions/invoice-contributions';
+import { registerQuoteContributions } from './contributions/quote-contributions';
+import { registerReceivedInvoiceContributions } from './contributions/received-invoice-contributions';
+import { CountryFieldOverlayCatalog } from './country-fields/registry';
+import { VatRateCatalog } from './vat-rates/registry';
+import { DocumentsService } from './documents.service';
+import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
+import { DocumentTypeRegistry } from './descriptors/type-registry';
+import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor';
+import { buildExpenseDescriptor } from './descriptors/expense.descriptor';
+import { buildGoodsReceiptDescriptor } from './descriptors/goods-receipt.descriptor';
+import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
+import { buildPurchaseOrderDescriptor } from './descriptors/purchase-order.descriptor';
+import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
+import { buildReceivedInvoiceDescriptor } from './descriptors/received-invoice.descriptor';
+import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from './queue/document-webhooks';
+import { DocumentEventsPublisher } from './queue/document-events-publisher';
+import { DocumentQueueDispatcher } from './queue/document-queue.dispatcher';
+import { DocumentQueueModule } from './queue/document-queue.module';
+import { DocumentScheduleSweepRunner } from './schedules/schedule-sweep-runner';
+import { DocumentSchedulesService } from './schedules/schedules.service';
+import { ShareLinksService } from './share-links/share-links.service';
+import { CLIENT_CONTACT_LOOKUP, SignaturesService } from './signatures/signatures.service';
+import { buildArticleReferenceProvider } from './references/article-reference.provider';
+import { buildClientReferenceProvider } from './references/client-reference.provider';
+import { buildDocumentReferenceProvider } from './references/document-reference.provider';
+import { EntityReferenceRegistry } from './references/reference-registry';
+import { PaymentProviderRegistry } from './payments/payment-provider-registry';
+import { PaymentSessionsService } from './payments/payment-sessions.service';
+import { shouldUseRealPaymentClients } from './payments/should-use-real-clients';
+import { FakeMollieClient, RealMollieClient } from './payments/providers/mollie/mollie-client';
+import { MollieProvider } from './payments/providers/mollie/mollie-provider';
+import { FakePayPalClient, RealPayPalClient } from './payments/providers/paypal/paypal-client';
+import { PayPalProvider } from './payments/providers/paypal/paypal-provider';
+import {
+  FakeStripeCheckoutClient,
+  RealStripeCheckoutClient,
+} from './payments/providers/stripe/stripe-checkout-client';
+import { StripeProvider } from './payments/providers/stripe/stripe-provider';
+import { buildChorusProTransport } from './transports/chorus-pro-transport';
+import { buildEmailTransport } from './transports/email-transport';
+import { buildKsefTransport } from './transports/ksef-transport';
+import { buildPdpTransport } from './transports/pdp-transport';
+import { buildPdpReceptionStatusPusher } from './transports/pdp/pdp-reception';
+import { buildSdiTransport } from './transports/sdi-transport';
+import { buildSdiPecTransport } from './transports/sdi-pec-transport';
+import { PecInboxPollerService } from './transports/sdi-pec/pec-inbox-poller.service';
+import { PecNotificheService } from './transports/sdi-pec/pec-notifiche.service';
+import { TransportRegistry } from './transports/transport-registry';
+import { ciiFormatProvider } from './formats/cii-provider';
+import { buildFacturxFormatProvider } from './formats/facturx-provider';
+import { FormatProviderRegistry } from './formats/format-registry';
+import { fa3FormatProvider } from './formats/national/fa3-provider';
+import { fatturapaFormatProvider } from './formats/national/fatturapa-provider';
+import { peppolBisFormatProvider } from './formats/peppol-bis-provider';
+import { ublFormatProvider } from './formats/ubl-provider';
+import { xrechnungFormatProvider } from './formats/xrechnung-provider';
+import {
+  ACTION_EXTENSION_REGISTRY,
+  ACTION_REGISTRY,
+  CONTRIBUTION_REGISTRY,
+  COUNTRY_FIELD_OVERLAY_REGISTRY,
+  DOCUMENT_TYPE_REGISTRY,
+  ENTITY_REFERENCE_REGISTRY,
+  FIELD_KIND_REGISTRY,
+  FORMAT_PROVIDER_REGISTRY,
+  TRANSPORT_REGISTRY,
+  VAT_RATE_CATALOG_REGISTRY,
+} from './tokens';
+
+function buildDocumentTypeRegistry(): DocumentTypeRegistry {
+  const registry = new DocumentTypeRegistry();
+  // Adding a document type is exactly this one line — a descriptor, registered. No controller, no
+  // service, no frontend screen of its own. The credit note (THIRD type) proves it again; the
+  // expense (FOURTH — migrated OUT of its own former bespoke module, see expense.descriptor.ts)
+  // proves it once more, this time for a type that used to be something else entirely.
+  registry.register(buildQuoteDescriptor());
+  registry.register(buildInvoiceDescriptor());
+  registry.register(buildCreditNoteDescriptor());
+  registry.register(buildExpenseDescriptor());
+  // The FIFTH type, and the first in the "inbound"
+  // category: see received-invoice.descriptor.ts for the full reasoning.
+  registry.register(buildReceivedInvoiceDescriptor());
+  // Purchase orders & goods receipts — the SIXTH type: see purchase-order.descriptor.ts for the full
+  // reasoning (first pass: EMIT a purchase order; 3-way match against a received invoice is a
+  // deliberately separate, second pass).
+  registry.register(buildPurchaseOrderDescriptor());
+  // Purchase orders & goods receipts, SECOND PASS (three-way match) — the SEVENTH type: see
+  // goods-receipt.descriptor.ts for the full reasoning.
+  registry.register(buildGoodsReceiptDescriptor());
+  return registry;
+}
+
+/** The WIDGET contribution side of the same registration discipline — see
+ *  contributions/contribution-registry.ts. The invoice was the first to contribute (the model
+ *  contribution, contributions/invoice-contributions.ts); the expense, the quote and the credit note
+ *  (statistics only — see its own descriptor and contribution file for why) followed, each exactly
+ *  one more line here, the same shape `buildActionRegistry` below already has. */
+function buildContributionRegistry(): ContributionRegistry {
+  const registry = new ContributionRegistry();
+  registerInvoiceContributions(registry);
+  registerExpenseContributions(registry);
+  registerQuoteContributions(registry);
+  registerCreditNoteContributions(registry);
+  registerReceivedInvoiceContributions(registry);
+  return registry;
+}
+
+function buildFieldKindRegistry(): FieldKindRegistry {
+  const registry = new FieldKindRegistry();
+  registerCoreFieldKinds(registry);
+  return registry;
+}
+
+/**
+ * The invoice's "download-xml" action's own registry — same registration shape as
+ * `buildTransportRegistry` above (a plugin adds a jurisdiction's syntax by registering ONE more
+ * provider here, never by touching `documents.service.ts#downloadDocumentFormat`). Only the two
+ * EN 16931 base syntaxes are registered today — see
+ * `formats/format-registry.ts`'s own header for what stays deliberately unbranched (Peppol BIS,
+ * XRechnung). Factur-X (`facturx-provider.ts`) is the THIRD —
+ * see that file's own header for the reuse. `fa3` (PL,
+ * `national/fa3-provider.ts`) and `fatturapa` (IT, `national/fatturapa-provider.ts`) are the FOURTH
+ * and FIFTH — both TRANSPORT-only by default (see `ksef-transport.ts`/
+ * `sdi-transport.ts`), registered here too so `download-xml` can also offer them directly (see that
+ * action's own `syntax` param options). Neither needs a companyId or any extra dependency, so
+ * (unlike `facturx`) they are plain objects, not factories.
+ *
+ * `peppol-bis` and `xrechnung` are the SIXTH and
+ * SEVENTH — both UBL-syntax EN 16931 profiles judged by the base Schematron PLUS their own vendored
+ * delta (see each provider's own header for exactly which BR-DE-* / PEPPOL-EN16931-R* rules that
+ * delta enforces and how). Neither needs a companyId either, so both are plain objects too.
+ *
+ * `facturae` (ES) and `nlcius` (NL) used to be the EIGHTH and NINTH entries here — Spain's FACe payload
+ * and the Netherlands' vendored NLCIUS delta. Both were deleted outright (never just left dormant) when
+ * the product's scope was reduced to five countries (FR/PL/IT/PT/DE, 2026-09-10): neither ES nor NL is
+ * in scope, and keeping fully-working code for a country nobody asked to support contradicted that
+ * decision — see `documentation/docs/developer-guide/live-testing.md` for what that gave up.
+ */
+function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry): FormatProviderRegistry {
+  const registry = new FormatProviderRegistry();
+  registry.register(ciiFormatProvider);
+  registry.register(ublFormatProvider);
+  registry.register(buildFacturxFormatProvider({ referenceRegistry }));
+  registry.register(fa3FormatProvider);
+  registry.register(fatturapaFormatProvider);
+  registry.register(peppolBisFormatProvider);
+  registry.register(xrechnungFormatProvider);
+  return registry;
+}
+
+/**
+ * The invoice's transports. "email" is registered exactly like a third party would register their
+ * own (TransportRegistry.register) — nothing about invoice-actions.ts treats it specially.
+ * `typeRegistry`/`referenceRegistry` are what let it compose+attach a PDF (see
+ * actions/send-document-email.ts) — NEITHER depends on ACTION_REGISTRY, so wiring them here (and into
+ * buildActionRegistry below, for the quote's OWN send) never creates a circular dependency, even
+ * though ACTION_REGISTRY is where the send actions that call into this machinery are registered.
+ *
+ * "pdp" (`transports/pdp-transport.ts`) is the SECOND. It gets its own
+ * `buildFacturxFormatProvider({ referenceRegistry })` instance rather than sharing the one
+ * `FORMAT_PROVIDER_REGISTRY` already builds below: both are stateless closures over the exact same
+ * pure function, so a second instance costs nothing and avoids making TRANSPORT_REGISTRY's own
+ * factory depend on FORMAT_PROVIDER_REGISTRY's DI token for no reason beyond convenience.
+ * `channelCredentials` (`ChannelCredentialsService`, `modules/company/channels/`) is what resolves
+ * whether — and with what — a company actually connected PDP; `CompanyModule` is imported below
+ * purely to make that injectable here, the same reuse `ClientsService`/`MailService` already get.
+ *
+ * "ksef" (PL, `transports/ksef-transport.ts`) and "sdi" (IT, `transports/sdi-transport.ts`) are the
+ * THIRD and FOURTH. Same reasoning as "pdp": each gets its OWN
+ * `fa3FormatProvider`/`fatturapaFormatProvider` reference (both stateless, plain objects — see
+ * `buildFormatProviderRegistry`'s own header) rather than sharing `FORMAT_PROVIDER_REGISTRY`'s
+ * instance, for the identical "no reason to couple two registries" argument.
+ *
+ * "chorus-pro" (`transports/chorus-pro-transport.ts`) is the FIFTH — this makes the channel the B2G
+ * FR routing rule (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST (that commit's
+ * own thesis: "a rule may legitimately name a channel not implemented yet" — see this file's own
+ * header for the full precedent). Same reasoning as "pdp": its own `facturxFormatProvider` instance,
+ * same "stateless, no reason to couple two registries" argument.
+ *
+ * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`) is
+ * threaded into "email" (the one transport that hands a human-readable PDF to
+ * someone — see `EmailTransportDeps.signingCertificates`'s own header). It used to be threaded into
+ * "face" (Spain's FACe channel) too, for XAdES/WS-Security signing — that transport was deleted
+ * outright along with Spain's scope (2026-09-10), so this dependency now serves
+ * "email" alone. "pdp"/"ksef"/"sdi" transmit XML/Factur-X formats built by
+ * `formats/*-provider.ts`, which are deliberately NOT signed (see `sign-instance-pdf.ts`'s
+ * own header on why Factur-X's raw-PDF material is exempt).
+ *
+ * "anaf" (Romania) and "face" (Spain, B2G) used to be registered here too, and `formatOverrides` used
+ * to carry three entries (`xrechnung`, `peppol-bis`, and Netherlands' `nlcius`) on a SIXTH transport,
+ * "peppol". All of that was deleted outright — never left dormant. "anaf"/"face" went with the
+ * five-country prune (2026-09-10: none of RO/ES/NL is in scope any more — see
+ * `documentation/docs/developer-guide/live-testing.md` for exactly what capability that gave up).
+ * "peppol" went separately and later (2026-09-15): the product decision was to remove the channel
+ * entirely rather than keep a generic Access Point client that had only ever spoken to
+ * `POST /api/v1/send`, a shape matching none of the real AP vendors this project had researched, and
+ * that had never proven a round-trip against a real commercial AP account (only against peppol.sh, a
+ * zero-secret sandbox). `formats/peppol-bis-provider.ts` (the Peppol BIS Billing 3.0 FORMAT) survives
+ * untouched — it is still registered above for `download-xml`, and Germany's XRechnung obligation
+ * (`b2g-routing/data/de.json`) is real regardless of which transport can or can't carry it; see that
+ * file's own `notes` for the full, dated history of the format-override mechanism this removal made
+ * dormant (no transport in this registry reads `ctx.formatOverride` today — it remains available for
+ * a future one that builds more than one format).
+ */
+function buildTransportRegistry(
+  clientsService: ClientsService,
+  mailService: MailService,
+  typeRegistry: DocumentTypeRegistry,
+  referenceRegistry: EntityReferenceRegistry,
+  channelCredentials: ChannelCredentialsService,
+  signingCertificates: SigningCertificatesService,
+): TransportRegistry {
+  const registry = new TransportRegistry();
+  registry.register(
+    'email',
+    'Email',
+    buildEmailTransport({
+      clientsService,
+      mailService,
+      typeRegistry,
+      referenceRegistry,
+      signingCertificates,
+    }),
+  );
+  registry.register(
+    'pdp',
+    'PDP (France)',
+    buildPdpTransport({
+      channelCredentials,
+      facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
+    }),
+  );
+  registry.register('ksef', 'KSeF (Poland)', buildKsefTransport({ channelCredentials, fa3FormatProvider }));
+  registry.register('sdi', 'SdI (Italy)', buildSdiTransport({ channelCredentials, fatturapaFormatProvider }));
+  // "sdi-pec" — the SAME Sistema di Interscambio as "sdi" above, reached over a certified-email (PEC)
+  // mailbox instead of the accredited SDICoop web service — see `transports/sdi-pec-transport.ts`'s
+  // own header for why this exists (SDICoop needs AdE accreditation this project cannot obtain; PEC
+  // needs none). `channel-policy/data/it.json`'s own "sdi" mandate names this id in its
+  // `equivalentProviderIds` so choosing THIS transport for Italy is treated as satisfying the SAME
+  // legal mandate as "sdi" itself (see `channel-policy/schema.ts`'s own header on that field, and
+  // `actions/invoice-actions.ts`'s own mandate-satisfaction check). Own `fatturapaFormatProvider`
+  // instance, same "stateless, no reason to couple two registries" reasoning "sdi" above already holds.
+  registry.register(
+    'sdi-pec',
+    'SdI via PEC (Italy)',
+    buildSdiPecTransport({ channelCredentials, fatturapaFormatProvider, mailService }),
+  );
+  // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
+  // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
+  // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
+  // "stateless, no reason to couple two registries" reasoning "pdp" above already holds — and, unlike
+  // "pdp"'s own instance, configured with TWO overrides:
+  //  - `businessProcessCodeOverride: 'A1'`: Chorus Pro reuses BT-23's own wire element
+  //    (`BusinessProcessSpecifiedDocumentContextParameter/ID`) for its OWN, unrelated "Cadre (Mode de
+  //    Facturation)" concept — see `SemanticInvoiceInput.businessProcessCodeOverride`'s own header for
+  //    the full sourcing (AIFE's Chorus Pro EDI annex, G1.02/G1.03) and the 2026-09-14 rejection
+  //    (`CPP0011117000000000425895`) this closes. 'A1' ("Dépôt par un fournisseur d'une facture") is
+  //    Chorus Pro's OWN documented default/standard case — the only deposit scenario this codebase's
+  //    descriptor model ever represents.
+  //  - `legalIdOverride: 'full'`: Chorus Pro routes a deposit to a STRUCTURE identified by its FULL
+  //    14-digit SIRET (schemeID '0002', AIFE's own S2.13), never the 9-digit SIREN
+  //    `build-semantic-invoice.ts#toSiren` reduces to by default — see
+  //    `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing (the NEXT rejection
+  //    in the SAME 2026-09-14 sequence, `CPP0011117000000000425899`, both parties truncated).
+  // Both scoped to THIS instance alone: "pdp"'s own instance above is untouched, keeping its
+  // already-proven-live CGI-reform BT-23 value AND SIREN identifier (2026-08-29, `fr:200→201→202`)
+  // intact.
+  registry.register(
+    'chorus-pro',
+    'Chorus Pro (France)',
+    buildChorusProTransport({
+      channelCredentials,
+      facturxFormatProvider: buildFacturxFormatProvider({
+        referenceRegistry,
+        businessProcessCodeOverride: 'A1',
+        legalIdOverride: 'full',
+      }),
+    }),
+  );
+  // "anaf" (Romania) and "face" (Spain, B2G) used to be registered here — both deleted outright
+  // along with the rest of their countries' scope (2026-09-10, see
+  // `documentation/docs/developer-guide/live-testing.md`), never left dormant.
+  return registry;
+}
+
+/**
+ * Post-deposit conformity tracking (`conformity/`). Same
+ * "a provider registers itself under an id" shape as `buildTransportRegistry` just above, this
+ * registry's own read-side twin: "pdp", "ksef" and "chorus-pro" (`consulterCr` —
+ * `conformity/pollers/chorus-pro-status-poller.ts`) all register a poller; "sdi" does not (push-only
+ * SOAP notifiche — see `conformity/authority-status-poller.ts`'s own header for why that is
+ * permanent, not a gap to fill later). "anaf" (Romania) and "face" (Spain) used to register pollers
+ * here too — both deleted outright along with the rest of their countries' scope (2026-09-10, see
+ * `documentation/docs/developer-guide/live-testing.md`), which is also why this factory no longer needs
+ * `signingCertificates` (it was "face"'s own WS-Security dependency). "peppol" (generic AP
+ * `getStatus()`) registered a poller here too, until the transport itself was removed from the
+ * product (2026-09-15) — see `buildTransportRegistry`'s own header for why.
+ */
+function buildAuthorityStatusPollerRegistry(
+  channelCredentials: ChannelCredentialsService,
+): AuthorityStatusPollerRegistry {
+  const registry = new AuthorityStatusPollerRegistry();
+  registry.register(buildPdpStatusPoller({ channelCredentials }));
+  registry.register(buildKsefStatusPoller({ channelCredentials }));
+  // "chorus-pro" — `consulterCr`, the ONE status-consultation endpoint the removed compliance
+  // engine's own client carried (`chorus-pro/choruspro-client.ts`) — see
+  // `conformity/pollers/chorus-pro-status-poller.ts`'s
+  // own header for what is, and is not, live-verified.
+  registry.register(buildChorusProStatusPoller({ channelCredentials }));
+  return registry;
+}
+
+/**
+ * Online payment — same "a provider registers itself under an id"
+ * shape as `buildTransportRegistry`/`buildAuthorityStatusPollerRegistry` above. Stripe → Mollie →
+ * PayPal, in that order (product decision 2026-09-15) — see `payments/provider.ts`'s own header on why
+ * this is its own narrow registry, never a DB-backed, single-active-provider toggle (the in-app plugin
+ * mechanism, removed 2026-09-17). Credentials are resolved the SAME way every
+ * other channel already does (`ChannelCredentialsService`, injected into `PaymentSessionsService`
+ * below, never into a provider itself — a `PaymentProvider` implementation is handed already-decrypted
+ * config by its caller, the same shape `DocumentTransport.send()` is handed a `ResolvedChannelConfig`'s
+ * own `config`).
+ *
+ * The ONE environment-conditional wiring decision every provider here shares: `NODE_ENV=test` (every
+ * jest run, and the e2e backend — `.env.test` sets it) gets each provider's own Fake network client,
+ * never a real call to `api.stripe.com`/`api.mollie.com`/`api-m.(sandbox.)paypal.com` — the identical
+ * "swap a network-calling client for a deterministic fake under test" discipline
+ * `clients.module.ts#vatValidationClient` already holds for VIES. Stripe's webhook SIGNATURE
+ * VERIFICATION is never faked, in any environment (`stripe-provider.ts`'s own header) — Mollie's and
+ * PayPal's own verification calls ARE, of necessity, faked under test too (see `mollie-client.ts`'s own
+ * header on why that asymmetry with Stripe is real, not an oversight).
+ *
+ * `PAYMENT_PROVIDERS_REAL=1` is the ONE escape hatch from that: it wires the REAL clients even under
+ * `NODE_ENV=test`, for the one case the Fake can never stand in for — proving, from the RUNNING app
+ * (`npm run start:test`), that a real Checkout Session opens end-to-end (browser → Stripe → webhook →
+ * `record-payment`), the same round-trip `stripe.live.spec.ts` already proves but by constructing
+ * `RealStripeCheckoutClient` itself, a second code path this app's own boot never takes. Scoped
+ * narrowly on purpose: it reads only under `NODE_ENV=test` (`shouldUseRealPaymentClients`, its own file
+ * — see that file's header for why it is NOT defined here) and touches only THIS registry — every other
+ * `NODE_ENV=test` fake in this codebase (VIES, transports' own sandboxes) is untouched, so a
+ * `start:test` run stays safe to point at real card networks only when this one flag is deliberately
+ * set.
+ */
+function buildPaymentProviderRegistry(): PaymentProviderRegistry {
+  const registry = new PaymentProviderRegistry();
+  const useReal = shouldUseRealPaymentClients(process.env);
+  if (useReal && process.env.NODE_ENV === 'test') {
+    Logger.log('payment providers: REAL clients under NODE_ENV=test', 'DocumentsCoreModule');
+  }
+
+  const stripeCheckoutClient = useReal ? new RealStripeCheckoutClient() : new FakeStripeCheckoutClient();
+  registry.register(new StripeProvider(stripeCheckoutClient));
+
+  const mollieClient = useReal ? new RealMollieClient() : new FakeMollieClient();
+  registry.register(new MollieProvider(mollieClient));
+
+  const paypalClient = useReal ? new RealPayPalClient() : new FakePayPalClient();
+  registry.register(new PayPalProvider(paypalClient));
+
+  return registry;
+}
+
+/**
+ * Declarative reporting (`reporting/`): a NEW concept, never a transport (see
+ * `reporting/report-on-send.ts`'s own header). Same "a provider registers itself under an id" shape
+ * as `buildAuthorityStatusPollerRegistry` just above. "nav" (Hungary, NAV Online Számla 3.0) and
+ * "mydata" (Greece, AADE myDATA) were the first two shipped providers, but both HU and GR fell outside
+ * the five-country scope decided 2026-09-10 — unlike the transports/formats deleted for the same
+ * reason, their underlying `reporting/data/*.json` obligation files had ALREADY been removed by that
+ * prune, so the providers were unreachable dead code even before this pass deleted them outright (see
+ * `documentation/docs/developer-guide/live-testing.md` for what that gave up). "pt-at" (Portugal, AT "comunicação de
+ * faturas") is the only provider left, implemented-to-contract-but-credential-gated, the exact same
+ * "awaiting accreditation" posture `transports/sdi/` already carries — see
+ * `reporting/providers/pt-at-client.ts`'s own header. It is gated by the exact same
+ * `ChannelCredentialsService` every transport/poller already shares (credentials are generic,
+ * per-`providerId`, reusable for a declarative channel with zero changes — see
+ * `modules/company/channels/channels.service.ts`'s own header).
+ */
+function buildDeclarationProviderRegistry(
+  channelCredentials: ChannelCredentialsService,
+): DeclarationProviderRegistry {
+  const registry = new DeclarationProviderRegistry();
+  registry.register(buildPtAtDeclarationProvider({ channelCredentials }));
+  return registry;
+}
+
+/**
+ * `queueDispatcher` (DocumentQueueDispatcher, queue/document-queue.dispatcher.ts) is what turns
+ * "send" asynchronous for every type that has one — see actions/async-send.ts for
+ * the shared two-phase engine every one of these registrations now goes through. Injecting the
+ * CONCRETE class here (never `import type` — see this repo's own DI rule) is safe: it comes from
+ * `DocumentQueueModule`, `@Global()` and imported below, so Nest resolves it the same way regardless
+ * of which process (API or worker) this module boots in.
+ *
+ * `signingCertificates` is threaded into the quote's own "send" only — see
+ * `QuoteActionDeps.signingCertificates`'s own header; the invoice's "send" goes through
+ * `TRANSPORT_REGISTRY` instead (see `buildTransportRegistry` above), never through this function.
+ *
+ * `eventsPublisher` is threaded into every type declaring a "send"
+ * — the SSE status bridge, see `async-send.ts`'s own `RunAsyncSendInput.events` header. Same
+ * `@Global()` `DocumentQueueModule` origin as `queueDispatcher` just above, so it resolves the same
+ * way regardless of process (API or worker).
+ *
+ * `webhookDispatcher` is threaded into
+ * EVERY type registered below (quote, invoice, credit note, expense, received invoice) — the
+ * per-type `WebhookEvent`s this comment used to name (`QUOTE_SENT`/`INVOICE_SENT`,
+ * both purged from the schema) were replaced with a generic vocabulary (`DOCUMENT_SENT`/`DOCUMENT_CREATED`/
+ * `DOCUMENT_DELETED`/…, see the enum's own header in `schema.prisma`) fired by the shared
+ * `actions/async-send.ts` engine and `generic-actions.ts`, so there is no longer a "this type
+ * opts in, that one is deliberately left out" split — see each type's own `deps.webhooks` comment
+ * for exactly which events it fires. Unlike `eventsPublisher`, this does NOT come from the
+ * `@Global()` `DocumentQueueModule` — it comes from `WebhooksModule`, imported below specifically
+ * so this resolves identically in a scaled ("giga") deployment's dedicated worker process too
+ * (the "WORKER_INLINE=false" requirement): `DocumentsQueueWorkerModule`
+ * imports THIS Core module, never `WebhooksModule` directly, so without this import a worker-only
+ * process could never actually dispatch the webhook it just decided to fire.
+ */
+function buildActionRegistry(
+  clientsService: ClientsService,
+  mailService: MailService,
+  transportRegistry: TransportRegistry,
+  typeRegistry: DocumentTypeRegistry,
+  referenceRegistry: EntityReferenceRegistry,
+  queueDispatcher: DocumentQueueDispatcher,
+  signingCertificates: SigningCertificatesService,
+  eventsPublisher: DocumentEventsPublisher,
+  webhookDispatcher: WebhookDispatcherService,
+  signaturesService: SignaturesService,
+  // PDP reception — see `registerReceivedInvoiceActions`'s own new, optional `pdpStatusPusher`
+  // parameter: "approve"/"reject"/"record-payment" push the buyer-side lifecycle status back to PDP
+  // ONLY for a received-invoice that actually carries `data.pdpInboundId` (an import created by the
+  // reception sweep, `conformity/reception-sweep-runner.ts`) — a manually-uploaded one has none, and
+  // the pusher itself already no-ops on a non-numeric id (`transports/pdp/pdp-reception.ts`).
+  channelCredentials: ChannelCredentialsService,
+): ActionRegistry {
+  const registry = new ActionRegistry();
+  registerQuoteActions(registry, {
+    clientsService,
+    mailService,
+    typeRegistry,
+    referenceRegistry,
+    queueDispatcher,
+    signingCertificates,
+    events: eventsPublisher,
+    webhooks: webhookDispatcher,
+  });
+  registerConvertToInvoiceAction(registry);
+  registerRequestDepositAction(registry);
+  // The "installment schedule" action — see request-installments.ts's own header. Needs no
+  // extra dependency (unlike, say, request-signature.ts's SignaturesService), so it registers exactly
+  // like "request-deposit" right above: pure function of the ActionRegistry it's handed.
+  registerRequestInstallmentsAction(registry);
+  // See request-signature.ts's own header. `SignaturesService` is a plain
+  // provider of THIS module (below), the same "inject the concrete class here, never `import type`"
+  // rule every other DI token on this page already follows.
+  registerRequestSignatureAction(registry, signaturesService);
+  registerInvoiceActions(registry, {
+    transportRegistry,
+    queueDispatcher,
+    events: eventsPublisher,
+    webhooks: webhookDispatcher,
+  });
+  registerCreditNoteActions(registry, {
+    queueDispatcher,
+    events: eventsPublisher,
+    // See credit-note-actions.ts's own header on why this type, deliberately
+    // webhook-less before (no per-type `CREDIT_NOTE_SENT` ever existed), gets `DOCUMENT_SENT` for
+    // free the moment the vocabulary stops being per-type: the SAME `webhookDispatcher` instance
+    // invoice/quote already receive above, no new wiring concept needed.
+    webhooks: webhookDispatcher,
+  });
+  registerExpenseActions(registry, webhookDispatcher);
+  registerReceivedInvoiceActions(
+    registry,
+    webhookDispatcher,
+    buildPdpReceptionStatusPusher(channelCredentials),
+  );
+  // Purchase orders & goods receipts — see purchase-order-actions.ts's own header. Same dependency shape as
+  // "quote" above (unconditional email send), never the invoice's transport-registry one.
+  registerPurchaseOrderActions(registry, {
+    clientsService,
+    mailService,
+    typeRegistry,
+    referenceRegistry,
+    queueDispatcher,
+    signingCertificates,
+    events: eventsPublisher,
+    webhooks: webhookDispatcher,
+  });
+  // Purchase orders & goods receipts, second pass (three-way match) — see
+  // goods-receipt-actions.ts's own header. Needs no extra
+  // dependency (like "expense" above), so it registers exactly like that call: pure function of the
+  // ActionRegistry it's handed, plus the shared webhook dispatcher.
+  registerGoodsReceiptActions(registry, webhookDispatcher);
+  // "record-payment" (invoice) IS registered — see registerInvoiceActions inside invoice-actions.ts.
+  // "export-accounting" (invoice) is intentionally left unregistered here — see that file's header.
+  return registry;
+}
+
+/**
+ * Where a THIRD PARTY's extra actions get attached to an EXISTING type — none of this touches the
+ * type's own descriptor factory above. Adding "duplicate" to quotes is exactly this one line, the
+ * same way registering the quote type itself is exactly one line in buildDocumentTypeRegistry.
+ *
+ * Only the invoice gets `dateRecalc`: recomputing `issueDate`/`dueDate` on a scheduled occurrence
+ * (schedules/) is exactly what the invoice case needs — the quote has no
+ * recurrence screen wired to it today, so there is no real caller yet to build a `dateRecalc` for
+ * without inventing one. Nothing here wires "send" chaining onto "duplicate" — see
+ * duplicate-extension.ts's own header ("Why 'then send' does NOT live here") for why that is now
+ * schedule-sweep-runner.ts's job instead.
+ */
+function buildActionExtensionRegistry(actionRegistry: ActionRegistry): ActionExtensionRegistry {
+  const registry = new ActionExtensionRegistry();
+  registerDuplicateExtension('quote', registry, actionRegistry);
+  registerDuplicateExtension('invoice', registry, actionRegistry, {
+    dateRecalc: { anchorField: 'issueDate', dependentFields: ['dueDate'] },
+  });
+  return registry;
+}
+
+function buildEntityReferenceRegistry(
+  clientsService: ClientsService,
+  articlesService: ArticlesService,
+): EntityReferenceRegistry {
+  const registry = new EntityReferenceRegistry();
+  // "client" (the invoice's/quote's own BILLABLE picker) excludes pure
+  // suppliers; "supplier" (received-invoice's own `supplierClient` field) reuses the SAME Client
+  // table with no such exclusion — see client-reference.provider.ts's own header for the full "why"
+  // (both entities, one search implementation, two different `options`).
+  registry.register('client', buildClientReferenceProvider(clientsService, { excludeSuppliers: true }));
+  registry.register('supplier', buildClientReferenceProvider(clientsService));
+  // The catalog article picker (14-articles.cy.ts, quote/invoice line `prefillFrom`) — the only
+  // provider that implements `getFields` today (see article-reference.provider.ts).
+  registry.register('article', buildArticleReferenceProvider(articlesService));
+  // The invoice's "origin" field (multi-target: quote OR another invoice) and the credit note's
+  // "invoice" field are what needed these: a 'reference' field pointing at another document TYPE's
+  // own instances rather than at a business entity from an existing service. One factory, called
+  // once per typeId — see references/document-reference.provider.ts's own comment on why this used
+  // to be one file hard-coded to "quote" and is now generic instead of duplicated.
+  registry.register('quote', buildDocumentReferenceProvider('quote', 'Quote', clientsService));
+  registry.register('invoice', buildDocumentReferenceProvider('invoice', 'Invoice', clientsService));
+  // Purchase orders & goods receipts, second pass (three-way match) — the
+  // goods receipt's own "purchaseOrder" field AND the
+  // received invoice's new "purchaseOrder" field (received-invoice.descriptor.ts) both target this:
+  // one more call to the SAME generic factory, exactly like "quote"/"invoice" just above.
+  registry.register(
+    'purchase-order',
+    buildDocumentReferenceProvider('purchase-order', 'Purchase order', clientsService),
+  );
+  return registry;
+}
+
+/**
+ * The PROVIDERS-ONLY half of the documents module — no controllers — split out from
+ * `DocumentsModule` for exactly the reason the pre-refonte compliance engine split its own
+ * `ComplianceCoreModule` out (git tag `avant-refonte-documents`,
+ * `compliance/compliance-core.module.ts`): so a
+ * WORKER process (`DocumentsQueueWorkerModule`, queue/document-queue-worker.module.ts) can import
+ * JUST this module and get the exact same DI-wired `DocumentsService`/`ActionRegistry`/etc. instances
+ * the API process uses — never a second, parallel construction of the same registries.
+ *
+ * Imports `DocumentQueueModule` (`@Global()`, queue/document-queue.module.ts) so
+ * `DocumentQueueDispatcher` is available to `buildActionRegistry`'s factory above — and, just as
+ * importantly, so `DocumentQueueRedisRequiredGuard` (that module's own provider) runs its boot-time
+ * Redis check in EVERY process that imports this Core module, API or worker alike: there is no way to
+ * boot the documents system at all without also proving Redis is reachable.
+ *
+ * `WebhooksModule` is imported for the identical "every process that
+ * imports this Core module gets it" reason — `WebhookDispatcherService` needs to resolve in a
+ * dedicated worker process (`WORKER_INLINE=false`) exactly as much as in the API, since that is where
+ * the "sent" write (and therefore the webhook it announces) actually happens under that topology.
+ * `WebhooksModule` now imports `WebhooksCoreModule` (its own `BullModule.forRoot`/`registerQueue` for
+ * `Q_WEBHOOK_DELIVERY` — see that module's own header for why outbound delivery moved off this
+ * request/job's own critical path onto a queue) — still no cycle back into this module, since neither
+ * depends on anything `DocumentsCoreModule` provides.
+ */
+@Module({
+  imports: [ClientsModule, ArticlesModule, DocumentQueueModule, CompanyModule, WebhooksModule],
+  providers: [
+    DocumentsService,
+    MailService,
+    // Recurrences — `DocumentSchedulesService` is the CRUD half
+    // (documents.controller.ts's `schedules/*` routes); `DocumentScheduleSweepRunner` is the
+    // RUNTIME half the queue's own processor calls (queue/processors/document-action.processor.ts).
+    // Both are plain classes (not string-tokened registries) resolved by Nest the same way
+    // `DocumentsService`/`MailService` already are — nothing here needs a factory.
+    DocumentSchedulesService,
+    DocumentScheduleSweepRunner,
+    // The CRUD half of a public download link (share-links/). Same shape as
+    // `DocumentSchedulesService` right above (a plain class, resolved by Nest, reusing
+    // `DocumentsService` for its own tenant-scoped 404s) — no factory needed.
+    ShareLinksService,
+    // See signatures/signatures.service.ts's own header. A plain class,
+    // resolved by Nest the same way `ShareLinksService` right above already is: Nest auto-wires its
+    // constructor (`ClientsService`, `MailService`, both already available in this module; the
+    // `DOCUMENT_WEBHOOK_EMITTER` token, provided further below) with no factory needed. Exported (see
+    // this module's own `exports` array) so `PublicDocumentsModule`'s controller — a DIFFERENT
+    // module, importing `DocumentsCoreModule` directly — can inject it for the public OTP flow.
+    SignaturesService,
+    // Online payment — see `buildPaymentProviderRegistry`'s own header
+    // just above. A plain class provider (like `AuthorityStatusPollerRegistry`/
+    // `DeclarationProviderRegistry`, never a string token — nothing outside this feature's own two
+    // controllers and `PortalService` ever needs to `@Inject()` it by name). `PaymentSessionsService`
+    // right below it is a plain class too, resolved by Nest the same way `ShareLinksService` above
+    // already is: its constructor (`DocumentsService`, `ChannelCredentialsService`,
+    // `PaymentProviderRegistry`) is entirely satisfied by providers already in this module's own graph.
+    { provide: PaymentProviderRegistry, useFactory: buildPaymentProviderRegistry },
+    PaymentSessionsService,
+    // See signatures.service.ts's own `CLIENT_CONTACT_LOOKUP` header for
+    // why this is a token/`useExisting` mapping, never a direct `ClientsService` constructor param on
+    // that (decorated) class — the identical shape `DOCUMENT_WEBHOOK_EMITTER` below already uses.
+    { provide: CLIENT_CONTACT_LOOKUP, useExisting: ClientsService },
+    // B2G routing (b2g-routing/) — `OnModuleInit`, runs `upsertB2gRoutingRules` on EVERY process that
+    // imports this Core module (API inline, or a scaled worker replica) — see that service's own
+    // header for why this is registered here, unconditionally, rather than gated the way the queue's
+    // own repeatable registration is behind `WORKER_INLINE`.
+    B2gRoutingBootUpsertService,
+    // Same `OnModuleInit`-on-every-process pattern as `B2gRoutingBootUpsertService` just above,
+    // extended to the two SIBLING country-data tables it didn't originally cover — see each
+    // service's own header (country-policy/boot-reseed.service.ts,
+    // country-identifiers/boot-reseed.service.ts) for the drift-detect-then-reseed mechanism and the
+    // decision to also run it in production. Closes the "`resetAndSeed` does not reseed
+    // the country policy" gap, which `B2gRoutingRule`'s own boot-upsert deliberately left open for
+    // these two tables when it first shipped (see `schema.prisma`'s own comment on `B2gRoutingRule`).
+    CountryPolicyBootReseedService,
+    CountryIdentifierRequirementsBootReseedService,
+    // Same "OnModuleInit, every process, never throws" shape as the two services just above — see
+    // that service's own header for what it checks (the API/worker archive-storage-sharing
+    // misconfiguration `archive/storage.ts`'s own header names) and why a failure here is a logged
+    // WARNING, never a boot-blocking error the way a country-catalog reseed failure escalates to.
+    ArchiveStorageSharingBootCheckService,
+    // Starts the PDF renderer's Chromium at boot instead of leaving it to the first render — the
+    // same "runs on EVERY process that imports this Core module" placement as the boot services
+    // above, and for a reason this module is the only right home for: BOTH roles render (the worker
+    // for queued sends, the API synchronously inside `GET /documents/:id/pdf` and friends, none of
+    // which is gated on `WORKER_INLINE`), and this module is loaded by exactly those two and nothing
+    // else. Unlike the services above it never blocks boot and never escalates a failure — see its
+    // own header (rendering/pdf-renderer-warmup.service.ts) for both, and for why a host with no
+    // Chromium at all must still start.
+    PdfRendererWarmupService,
+    // The "sdi-pec" RECEIVE side — parses/journals SdI's own notifiche once drained from a company's
+    // PEC mailbox (`transports/sdi-pec/pec-notifiche.service.ts`) and the drain loop itself
+    // (`pec-inbox-poller.service.ts`). Plain classes, resolved by Nest the same way
+    // `DocumentSchedulesService`/`ShareLinksService` above already are — both constructor-inject only
+    // tokens already available in this module's own graph (`ChannelCredentialsService` from
+    // `CompanyModule`, `DocumentEventsPublisher`/`DOCUMENT_WEBHOOK_EMITTER` provided elsewhere in it).
+    // NOT YET wired to a schedule — see `pec-inbox-poller.service.ts`'s own header on why that is a
+    // deliberate, named gap rather than a blind cron.
+    PecNotificheService,
+    PecInboxPollerService,
+    // Post-deposit conformity tracking (`conformity/`) —
+    // `AuthorityStatusPollerRegistry` is this mechanism's read-side twin of `TRANSPORT_REGISTRY`
+    // (registered as a plain class token, not a string one, the same choice `DocumentScheduleSweepRunner`
+    // makes: nothing outside this module ever needs to `@Inject()` it by name — only
+    // `ConformitySweepRunner`, resolved right below, constructor-injects it). `ConformitySweepRunner`
+    // itself is the RUNTIME half the queue's own processor calls, the exact same split
+    // `DocumentScheduleSweepRunner` already holds for the recurrence sweep.
+    {
+      provide: AuthorityStatusPollerRegistry,
+      useFactory: buildAuthorityStatusPollerRegistry,
+      inject: [ChannelCredentialsService],
+    },
+    // The `DOCUMENT_WEBHOOK_EMITTER` token (`queue/document-webhooks.ts`)
+    // resolves to the SAME `WebhookDispatcherService` instance `buildActionRegistry` already injects
+    // directly below — `useExisting`, never a second instance. Declared here (not inside
+    // `WebhooksModule` itself) deliberately: `WebhooksModule` is a generic, document-agnostic module
+    // (it also backs `CLIENT_CREATED`/`COMPANY_CREATED`, etc.) and has no business knowing about a
+    // `documents/`-specific interface — this pairing belongs to the module that actually NEEDS the
+    // token, the same reasoning `sdi-notifiche.module.ts` repeats for its own (much smaller) graph.
+    { provide: DOCUMENT_WEBHOOK_EMITTER, useExisting: WebhookDispatcherService },
+    ConformitySweepRunner,
+    // PDP reception (inbound e-invoices) — same "plain class provider, Nest's ordinary reflection-based
+    // DI resolves its constructor" shape as `ConformitySweepRunner` right above: `ChannelCredentialsService`
+    // comes from `CompanyModule` (imported by this module), `DocumentsService` and `DocumentEventsPublisher`
+    // are both already providers/exports reachable in this exact module's own graph — no factory needed.
+    // Exported below so `DocumentActionProcessor` (a provider of `DocumentsQueueWorkerModule`, which
+    // imports this Core module) can `@Optional()`-inject the concrete class, the identical wiring
+    // `ConformitySweepRunner` itself already has.
+    PdpReceptionSweepRunner,
+    // Declarative reporting (`reporting/`): same split as `AuthorityStatusPollerRegistry`/
+    // `ConformitySweepRunner` just above — the registry (a provider registers itself under an id) and
+    // the runtime half the queue's own processor calls (`queue/processors/document-action.processor.ts`).
+    // `ReportingRunner` additionally needs `DOCUMENT_TYPE_REGISTRY` (to rebuild a `DeclaredInvoice` from
+    // the document's own descriptor — see `reporting/reporting-runner.ts`'s own header).
+    {
+      provide: DeclarationProviderRegistry,
+      useFactory: buildDeclarationProviderRegistry,
+      inject: [ChannelCredentialsService],
+    },
+    {
+      provide: ReportingRunner,
+      // BUG FOUND WHILE WIRING `DOCUMENT_AUTHORITY_EVENT`: this factory
+      // manually calls `new ReportingRunner(...)`, which is PLAIN JavaScript construction, not Nest's
+      // own reflection-based DI — `@Optional()` constructor-param decorators on `ReportingRunner`
+      // itself (its own header claims "no factory change needed... resolves automatically") only ever
+      // take effect when NEST instantiates the class itself (a plain `providers: [ReportingRunner]`
+      // entry, exactly how `ConformitySweepRunner` right above IS registered). Concretely: the
+      // `eventsPublisher` was NEVER actually threaded through here in production — every
+      // `reporting-runner.spec.ts` test passed because it constructs the class directly with an
+      // `events` mock, never through this factory, so the gap was invisible to jest. Fixed here by
+      // passing both existing-and-broken (`eventsPublisher`) and new (`webhookDispatcher`) explicitly.
+      useFactory: (
+        registry: DeclarationProviderRegistry,
+        typeRegistry: DocumentTypeRegistry,
+        eventsPublisher: DocumentEventsPublisher,
+        webhookDispatcher: DocumentWebhookEmitter,
+      ) => new ReportingRunner(registry, typeRegistry, eventsPublisher, webhookDispatcher),
+      // `DOCUMENT_WEBHOOK_EMITTER`, never the concrete `WebhookDispatcherService` class — see that
+      // token's own header (`queue/document-webhooks.ts`) for why `ReportingRunner`'s own constructor
+      // parameter is typed as the narrow interface: this factory still resolves the REAL instance
+      // (this module's own `{ provide: DOCUMENT_WEBHOOK_EMITTER, useExisting: WebhookDispatcherService }`
+      // provider, below) — only `ReportingRunner`'s OWN file (and every spec that imports it) is kept
+      // clear of the concrete class.
+      inject: [
+        DeclarationProviderRegistry,
+        DOCUMENT_TYPE_REGISTRY,
+        DocumentEventsPublisher,
+        DOCUMENT_WEBHOOK_EMITTER,
+      ],
+    },
+    { provide: DOCUMENT_TYPE_REGISTRY, useFactory: buildDocumentTypeRegistry },
+    { provide: FIELD_KIND_REGISTRY, useFactory: buildFieldKindRegistry },
+    {
+      provide: TRANSPORT_REGISTRY,
+      useFactory: buildTransportRegistry,
+      // DOCUMENT_TYPE_REGISTRY/ENTITY_REFERENCE_REGISTRY: no circular dependency — see
+      // buildTransportRegistry's own comment above. ChannelCredentialsService/SigningCertificatesService
+      // both come from CompanyModule (imported above) — no cycle either: CompanyModule imports
+      // nothing from here.
+      inject: [
+        ClientsService,
+        MailService,
+        DOCUMENT_TYPE_REGISTRY,
+        ENTITY_REFERENCE_REGISTRY,
+        ChannelCredentialsService,
+        SigningCertificatesService,
+      ],
+    },
+    {
+      provide: ACTION_REGISTRY,
+      useFactory: buildActionRegistry,
+      // Since `SignaturesService.getPublicDocument` (its own header) needs
+      // `DocumentsService.renderInstancePdf`, `SignaturesService` now depends on `DocumentsService`,
+      // which itself depends on this very `ACTION_REGISTRY` token (documents.service.ts's own
+      // `@Inject(ACTION_REGISTRY)`) — a genuine 3-hop cycle (ACTION_REGISTRY -> SignaturesService ->
+      // DocumentsService -> ACTION_REGISTRY), not merely a TypeScript import-order nuisance. The break
+      // lives entirely on `SignaturesService`'s OWN side — its `@Inject(forwardRef(() => DocumentsService))`
+      // (see that class's own header) makes Nest construct it with a LAZY, back-patched reference to
+      // `DocumentsService` rather than blocking on it, which is what lets `SignaturesService` finish
+      // constructing (and this factory proceed) without ever needing `DocumentsService` — and
+      // therefore `ACTION_REGISTRY` itself — to exist first. `FactoryProvider.inject`'s own TypeScript
+      // signature does not accept a `ForwardReference` entry (`InjectionToken | OptionalFactoryDependency`
+      // only), so this array stays exactly as it always was — nothing to mark here.
+      inject: [
+        ClientsService,
+        MailService,
+        TRANSPORT_REGISTRY,
+        DOCUMENT_TYPE_REGISTRY,
+        ENTITY_REFERENCE_REGISTRY,
+        DocumentQueueDispatcher,
+        SigningCertificatesService,
+        DocumentEventsPublisher,
+        WebhookDispatcherService,
+        SignaturesService,
+        ChannelCredentialsService,
+      ],
+    },
+    {
+      provide: ACTION_EXTENSION_REGISTRY,
+      useFactory: buildActionExtensionRegistry,
+      inject: [ACTION_REGISTRY],
+    },
+    {
+      provide: ENTITY_REFERENCE_REGISTRY,
+      useFactory: buildEntityReferenceRegistry,
+      inject: [ClientsService, ArticlesService],
+    },
+    { provide: CONTRIBUTION_REGISTRY, useFactory: buildContributionRegistry },
+    // The country FIELD overlay (add/modify/remove) and the VAT rate catalog — see
+    // country-fields/registry.ts and vat-rates/registry.ts. Both default-construct from their own
+    // shipped data files (data/all.ts) the exact same way CountryPolicyCatalog already does for
+    // country-policy's own data — no factory function needed, there is nothing to inject.
+    { provide: COUNTRY_FIELD_OVERLAY_REGISTRY, useValue: new CountryFieldOverlayCatalog() },
+    { provide: VAT_RATE_CATALOG_REGISTRY, useValue: new VatRateCatalog() },
+    {
+      provide: FORMAT_PROVIDER_REGISTRY,
+      useFactory: buildFormatProviderRegistry,
+      inject: [ENTITY_REFERENCE_REGISTRY],
+    },
+  ],
+  exports: [
+    DocumentsService,
+    DocumentSchedulesService,
+    DocumentScheduleSweepRunner,
+    PecNotificheService,
+    PecInboxPollerService,
+    ShareLinksService,
+    SignaturesService,
+    PaymentProviderRegistry,
+    PaymentSessionsService,
+    AuthorityStatusPollerRegistry,
+    ConformitySweepRunner,
+    PdpReceptionSweepRunner,
+    DeclarationProviderRegistry,
+    ReportingRunner,
+    DOCUMENT_TYPE_REGISTRY,
+    FIELD_KIND_REGISTRY,
+    TRANSPORT_REGISTRY,
+    ACTION_REGISTRY,
+    ACTION_EXTENSION_REGISTRY,
+    ENTITY_REFERENCE_REGISTRY,
+    CONTRIBUTION_REGISTRY,
+    COUNTRY_FIELD_OVERLAY_REGISTRY,
+    VAT_RATE_CATALOG_REGISTRY,
+    FORMAT_PROVIDER_REGISTRY,
+    // `DOCUMENT_WEBHOOK_EMITTER` (the token, defined and provided just above,
+    // NEVER the concrete `WebhookDispatcherService` class itself — see that token's own header,
+    // `queue/document-webhooks.ts`, for why exporting the concrete class would poison every consumer
+    // under ts-jest) is exported so a DIRECT consumer of `DocumentsCoreModule` can inject it too:
+    // `DocumentActionProcessor` (`queue/processors/document-action.processor.ts`) needs it to
+    // dispatch `DOCUMENT_SEND_FAILED` from its own `onFailed` handler, and it is a provider of
+    // `DocumentsQueueWorkerModule`, which imports THIS module. Every OTHER `DOCUMENT_*` webhook
+    // emitter in this codebase (`ConformitySweepRunner`/`ReportingRunner`, both providers OF this
+    // very module) already resolved the token fine without needing it exported at all, because Nest
+    // resolves a PROVIDER's own constructor deps in the scope of the module that PROVIDES it, never
+    // the module that later imports/re-exports the provider itself.
+    DOCUMENT_WEBHOOK_EMITTER,
+  ],
+})
+export class DocumentsCoreModule {}

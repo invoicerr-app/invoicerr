@@ -1,0 +1,484 @@
+# -------------------------------------------------------------------------------------------------
+# Invoicerr — Helm chart values
+# -------------------------------------------------------------------------------------------------
+# One image, two roles, selected by the ROLE env var (see the repo's entrypoint.sh / worker.ts):
+#   - `api`    Deployment: nginx (port 80, proxies /api to the Nest process on :3000, serves the SPA
+#              at /) + main.js. Runs Prisma migrations at boot (production only, api role only —
+#              backend/src/prisma/sync-schema.ts). ALWAYS runs with WORKER_INLINE=false in THIS
+#              chart (hardcoded in templates/deployment-api.yaml, not a toggle here) — unlike
+#              docker-compose.yml's single-container default (WORKER_INLINE=true), a Kubernetes
+#              Deployment is trivially replicated on its own, so the queue worker is always its own,
+#              independently-scaled Deployment below.
+#   - `worker` Deployment: only the BullMQ document-action queue consumer. No nginx, no migrations,
+#              a tiny built-in HTTP health server on :3001.
+# -------------------------------------------------------------------------------------------------
+
+image:
+  repository: ghcr.io/invoicerr-app/invoicerr
+  # A moving tag is a real, previously-hit operational problem for this exact image: the Dockerfile's
+  # own GIT_REVISION label exists because, on 2026-09-14, the commit actually running behind a
+  # moving branch tag (e.g. `:compliance-engine-v2`) could only be GUESSED by correlating the image's
+  # build timestamp against the git log to within two minutes — reading it from GHCR needed a token
+  # scope nobody had. `latest` is fine for a throwaway/dev install; pin an exact tag, ideally a
+  # digest (`repository: ghcr.io/invoicerr-app/invoicerr@sha256:...` and leave `tag` empty), for
+  # anything you intend to operate.
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# ===================================================================================================
+# api — nginx + Nest API. Serves the SPA, proxies /api, runs migrations at boot.
+# ===================================================================================================
+api:
+  replicaCount: 1
+  # DATABASE_POOL_MAX (backend/src/prisma/database-pool-config.ts) — this pod's OWN per-process
+  # connection pool ceiling, NOT a fleet-wide budget: at a `replicaCount` of 3 (the production
+  # topology this default was sized against — the chart's own SHIPPED default `replicaCount` above
+  # stays 1, for a small/dev install) x this value, that is how many simultaneous connections the api
+  # tier alone can open against Postgres. Left at the backend's own implicit default (10, unset here)
+  # instead, 3 api replicas + 15 worker replicas (see `worker.databasePoolMax` below) would already
+  # open up to 18 x 10 = 180 connections at peak — comfortably past a stock, untuned Postgres's own
+  # compiled-in `max_connections = 100`, before counting migrations, an operator's own psql session,
+  # or monitoring. This matters MUCH more than it would have on a serverless provider that fronts
+  # every connection with its own pooler (Neon, this chart's own previous default) — against a
+  # traditional managed instance with NO pooler at all, every one of these `max` connections is a real
+  # backend process on the database server. 5 here (api tier at 3 replicas: 3 x 5 = 15 connections)
+  # plus 3 on `worker` (worker tier at 15 replicas: 15 x 3 = 45) totals 60 — comfortably under even a
+  # small/entry-level managed instance's own connection ceiling, leaving real headroom for anything
+  # outside this chart's own pods. Sized larger than the worker's own default DELIBERATELY: the api
+  # pod fields a BURST of concurrent short HTTP requests (this figure roughly tracks
+  # `PDF_RENDER_CONCURRENCY`'s own default of 4, plus one, for the synchronous PDF renders this role
+  # alone performs), while a worker's own BullMQ `Worker` runs at `concurrency: 1` everywhere in this
+  # codebase (no `@Processor()` here overrides it) and is normally running exactly ONE job's own
+  # queries at a time. Raise or lower this against your OWN instance's real `SHOW max_connections;`
+  # and your OWN chosen `replicaCount`s, never against this comment's numbers alone — they assume a
+  # 3 api / 15 worker topology, not whatever `replicaCount`s you actually set.
+  databasePoolMax: 5
+  # OBSERVED on a real `kind` install, 2026-09-17: the api pod's own first boot (running Prisma
+  # migrations, syncing policy/B2G-routing rows, THEN starting nginx) hit the previous 512Mi
+  # limit and was OOMKilled once before settling — and rendering a PDF (playwright-core driving the
+  # base image's own bundled Chromium, see the repo's Dockerfile/CLAUDE.md
+  # "pdf-renderer-needs-chromium") is a much heavier one-off spike than boot itself: a headless
+  # Chromium page alone commonly needs 300-500Mi, on top of the Node/Nest process's own ~150-250Mi.
+  # 512Mi was too tight for either case. 768Mi is not a tuned number — it is what fixed the OOMKill
+  # observed here — profile your own real invoice/PDF sizes before shipping something smaller.
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+  # `/api/health` (HealthController, @Public()) does a real `SELECT 1` against Postgres: 200 when
+  # the database answers, 503 otherwise. That makes it a GOOD readiness probe (a pod that can't reach
+  # its database should stop receiving traffic) but a BAD liveness probe used alone — a transient DB
+  # blip would then kill/restart an otherwise-healthy pod, turning a brief database hiccup into a
+  # pod-restart storm on top of it. Liveness therefore checks nginx itself (plain TCP on :80,
+  # independent of the database) instead, with a generous failureThreshold as a second safety net.
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 80
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  livenessProbe:
+    tcpSocket:
+      port: 80
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 6
+  service:
+    type: ClusterIP
+    port: 80
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ===================================================================================================
+# worker — BullMQ document-action queue consumer only (ROLE=worker). Independently replicated.
+# ===================================================================================================
+worker:
+  replicaCount: 1
+  # DATABASE_POOL_MAX (backend/src/prisma/database-pool-config.ts) — this pod's OWN per-process
+  # connection pool ceiling. See `api.databasePoolMax` above for the full "why this matters at all"
+  # account and the 3+15-replica math it is based on. Smaller than the api tier's own default on
+  # purpose: this codebase's BullMQ `Worker` runs at `concurrency: 1` everywhere (no `@Processor()`
+  # overrides it), so one worker pod is normally running exactly ONE job's own queries at a time — a
+  # small pool comfortably covers whatever a single job's own concurrent async work needs (e.g. a
+  # `Promise.all` of a couple of independent reads) without ever queueing on the pool itself, while
+  # still leaving room for an incidental repeatable-sweep tick landing on the SAME pod at the same
+  # moment as an ordinary action job. At a `replicaCount` of 15 (the topology this default was sized
+  # against — the chart's own shipped default `replicaCount` above stays 1), the worker TIER alone
+  # opens up to 15 x this value connections — 45 at the default of 3, well within
+  # the 60-connection combined budget `api.databasePoolMax`'s own comment sizes against a small
+  # managed instance.
+  databasePoolMax: 3
+  # OBSERVED on a real `kind` install, 2026-09-17: the worker was OOMKilled (exit 137) the FIRST time
+  # it actually ran a "send" action — this is the process that renders the invoice PDF
+  # (playwright-core + the base image's bundled Chromium, see CLAUDE.md "pdf-renderer-needs-chromium")
+  # before archiving/emailing it, and 384Mi was not enough headroom for a headless Chromium page on
+  # top of the Node/Nest baseline. 768Mi is not a tuned number — it is what fixed the OOMKill observed
+  # here — profile your own real invoice/PDF sizes before shipping something smaller. This is the
+  # process that pays for PDF rendering on this chart's default topology; api itself only renders one
+  # synchronously for the "download-xml"/preview-style actions, hence its own smaller bump.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      memory: 768Mi
+  # The worker's own bootstrap (backend/src/worker.ts) starts a minimal HTTP server on :3001
+  # answering `{"status":"ok"}` on ANY path — plain TCP or an HTTP GET both work equally well; GET is
+  # used here so a failing response body would also show up in `kubectl describe pod`.
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 3001
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 3001
+    initialDelaySeconds: 20
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 6
+  service:
+    type: ClusterIP
+    port: 3001
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ===================================================================================================
+# Secrets. Two mutually-exclusive paths:
+#   - existingSecret (below)     — production. A Secret you manage outside this chart.
+#   - generateSecret (below)     — dev/kind proof only. This chart creates the Secret FOR you from
+#                                   plaintext values.yaml values. UNSAFE for anything real.
+# ===================================================================================================
+
+# existingSecret — the production path, and the DEFAULT (generateSecret.enabled is OFF). Name of a
+# Secret you create yourself (kubectl, sealed-secrets, external-secrets, your CI/CD...) BEFORE
+# installing this chart. Left empty, this chart still computes a name for it
+# (`<release>-invoicerr-secret`) and every Deployment references that name — so either create a
+# Secret with that exact name yourself, or set this field to an existing Secret's real name, or turn
+# on generateSecret below for a throwaway install.
+#
+# Required keys in that Secret:
+#   BETTER_AUTH_SECRET              REQUIRED. Signs every session cookie/JWT. `openssl rand -hex 32`.
+#                                    A deployment running on a guessable value lets anyone forge a
+#                                    valid session for any userId. The backend refuses to boot in
+#                                    production without it.
+#   CREDENTIALS_ENCRYPTION_KEY      Optional but recommended. AES-256-GCM key encrypting every secret
+#                                    stored at rest: channel credentials (KSeF/PDP/SdI…), SSO provider
+#                                    secrets, signing certificates and webhook HMAC secrets. Left
+#                                    unset, each of those SAVE endpoints answers 503 — nothing is ever
+#                                    written unencrypted, the features disable themselves instead.
+#                                    Changing it later makes everything already stored undecryptable —
+#                                    treat it like a database password, not a toggle.
+#   DATABASE_URL                    REQUIRED when postgresql.enabled=false (the default). Pooled
+#                                    Postgres connection string — the long-lived Nest process's own
+#                                    runtime queries always go through this one, even on Neon.
+#   DATABASE_URL_UNPOOLED           Optional. Neon's DIRECT (non-pooled) connection string — used
+#                                    ONLY by the api pod's `prisma migrate deploy` CLI subprocess at
+#                                    boot (Prisma Migrate's session-level advisory lock does not
+#                                    reliably survive PgBouncer's transaction-mode pooling). Falls
+#                                    back to DATABASE_URL when unset — irrelevant on a non-pooled
+#                                    Postgres (e.g. the bundled dev one, or a plain self-managed
+#                                    instance). Wired on the api Deployment ONLY: the worker never
+#                                    runs migrations, so it never needs it.
+#   REDIS_PASSWORD                  Optional — only if the bundled or external Redis requires auth.
+#   ARCHIVE_S3_ACCESS_KEY_ID        REQUIRED when archive.storage=s3 (the default — see below).
+#   ARCHIVE_S3_SECRET_ACCESS_KEY    REQUIRED when archive.storage=s3.
+#   INBOUND_S3_ACCESS_KEY_ID        REQUIRED when documents.inbound.storage=s3 (opt-in — see below).
+#   INBOUND_S3_SECRET_ACCESS_KEY    REQUIRED when documents.inbound.storage=s3.
+#   BACKUP_S3_ACCESS_KEY_ID         REQUIRED when backup.s3.bucket is set (off by default — see below).
+#   BACKUP_S3_SECRET_ACCESS_KEY     REQUIRED when backup.s3.bucket is set.
+#   BACKUP_ENCRYPTION_KEY           Strongly recommended whenever backup.s3.bucket is set. AES-256-GCM
+#                                    key encrypting every backup artifact BEFORE it leaves the pod —
+#                                    see backend/src/modules/backup/backup-crypto.ts. Deliberately a
+#                                    DIFFERENT key from CREDENTIALS_ENCRYPTION_KEY (different blast
+#                                    radius and lifetime — that file's own header explains why).
+#                                    `openssl rand -hex 32`. Left unset, this does NOT disable backups
+#                                    and does NOT upload them in the clear: every sweep FAILS loudly
+#                                    instead (a FAILED run, visible on GET /api/backup/status) until a
+#                                    key is set — backups exist for disaster recovery, so this module
+#                                    refuses to go silently inert. Store this key OUTSIDE this chart's
+#                                    own Secret too (a password manager, a separate vault) — an
+#                                    operator restoring a backup onto a brand new instance, after
+#                                    losing the one THIS Secret lived on, needs it independently of
+#                                    everything else here. LOSING THIS KEY LOSES EVERY BACKUP ENCRYPTED
+#                                    WITH IT, PERMANENTLY — see
+#                                    documentation/docs/user-guide/backups.md's "Restoring" section.
+existingSecret: ""
+
+# generateSecret — OFF by default. Turn on ONLY for a disposable local/kind install. Loudly UNSAFE
+# for anything else: every value below lands in `helm get values`, in `helm template` output, and in
+# this release's Secret object in plaintext (base64 in a Kubernetes Secret is encoding, not
+# encryption) — anyone who can read Secrets in this namespace, or your values files / CI logs, reads
+# these too. Use `existingSecret` above for any real deployment.
+generateSecret:
+  enabled: false
+  betterAuthSecret: ""
+  credentialsEncryptionKey: ""
+  databaseUrl: ""
+  databaseUrlUnpooled: ""
+  redisPassword: ""
+  archiveS3AccessKeyId: ""
+  archiveS3SecretAccessKey: ""
+  inboundS3AccessKeyId: ""
+  inboundS3SecretAccessKey: ""
+  backupS3AccessKeyId: ""
+  backupS3SecretAccessKey: ""
+  backupEncryptionKey: ""
+
+# ===================================================================================================
+# Application-level settings wired as plain env vars (non-secret).
+# ===================================================================================================
+app:
+  # Required for email templates (redirects to the app) and is also better-auth's own base URL.
+  appUrl: "https://invoicerr.example.com"
+  # Comma-separated list of allowed CORS origins.
+  corsOrigins: "https://invoicerr.example.com"
+  # Comma-separated, case-insensitive list of e-mail addresses trusted with INSTANCE-WIDE actions —
+  # today, resetting the whole deployment (every company, user and document, from
+  # Settings > Danger Zone), masked and refused entirely on a hosted (SaaS) deployment regardless of
+  # this value; and GET /api/backup/status, which requires a real operator on self-hosted AND SaaS
+  # alike (not masked there). Left empty (the default), NO instance operator exists and both stay
+  # unavailable/refused — see backend/src/lib/instance-operators.ts.
+  instanceOperatorEmails: ""
+  # TRUST_PROXY_HOPS (backend/src/lib/trust-proxy.ts) — how many HTTP-aware reverse-proxy hops sit in
+  # front of the api pod's own in-container nginx when resolving a request's real client IP. Default
+  # `2` here, NOT the backend's own single-container default of `1`: this chart's `ingress.yaml` is
+  # enabled by default (`ingress.enabled: true` below) and sits IN FRONT of that same in-container
+  # nginx — a real second HTTP-aware hop docker-compose.yml's own topology never has. Set this to `1`
+  # if you disable `ingress.enabled` and expose the `api` Service directly with nothing else in front
+  # of nginx, or raise it further if you put ANOTHER load balancer/CDN in front of the Ingress itself.
+  # Getting this wrong is silent — see `trust-proxy.ts`'s own header for what breaks in each direction.
+  trustProxyHops: "2"
+  # ENABLE_BETA_BANNER — OFF by default. Read only by entrypoint.sh (api role only — see that
+  # script's own header), which publishes it, unparsed, into the frontend's runtime /config.json;
+  # the frontend's own tolerant boolean check (isBetaBannerEnabled, frontend/src/lib/runtime-config.ts)
+  # is what actually decides. Turns on exactly ONE thing: a banner on the sign-in/sign-up screens
+  # (frontend/src/components/beta-banner.tsx) telling a visitor this instance is a preview and not to
+  # type a real client's name, address, or invoice amount into it. Nothing else — no seeded accounts,
+  # no automatic reset, no relaxed authentication; those remain separate, unmade decisions. Set this
+  # to `true` ONLY on an instance you are knowingly standing up as a public preview (the motivating case:
+  # a "try it" link with nowhere real behind it yet). Deliberately an ordinary name, not a shouty one
+  # like the backend's own `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (billing-flag.ts) — that flag
+  # is shouty because getting it wrong by accident turns on a whole billing system; an accidental flip
+  # here costs nothing worse than a banner that shouldn't (or should) be showing.
+  enableBetaBanner: false
+  # Escape hatch for anything this chart doesn't wire explicitly (mail provider, OIDC, …) — see
+  # .env.example / docker-compose.yml in the repo root for the full variable list. Same shape Helm
+  # uses everywhere: a list of `{name, value}` or `{name, valueFrom}` entries, appended to both the
+  # api and worker containers' env.
+  extraEnv: []
+  # extraEnvFrom: additional envFrom entries (ConfigMaps/Secrets), same list-append behaviour.
+  extraEnvFrom: []
+
+# ===================================================================================================
+# Legal document archive. `local` (DOCUMENTS_ARCHIVE_DIR on the pod's own filesystem, see
+# `documents.persistence` below) is NOT meaningful once there is more than one api/worker replica
+# UNLESS every one of those pods mounts the SAME ReadWriteMany volume: a document archived by worker
+# replica B then simply isn't on the disk api replica A reads back for a verify/download — the exact
+# failure mode docker-compose.scale.yml's own shared-volume comment already describes for its
+# two-container case ("a document archived by a worker is simply not found by the API... the
+# integrity check on it reports a missing file"). A Deployment just makes this trivial to trip over
+# the moment you scale past 1 without noticing, since most default StorageClasses (AWS EBS gp2/gp3,
+# GCE PD, Azure Disk) are ReadWriteOnce-only. Hence `s3` is the DEFAULT here: it is the only mode
+# that is safe at replicaCount > 1 out of the box, with no StorageClass gymnastics required.
+# ===================================================================================================
+archive:
+  # "local" or "s3" — read by backend/src/modules/documents/archive/storage.ts via ARCHIVE_STORAGE.
+  storage: s3
+  s3:
+    bucket: "invoicerr-archive"
+    # Scaleway Object Storage example (fr-par region). Any S3-compatible endpoint works the same way
+    # (AWS S3 itself, MinIO, Backblaze B2, ...) — just change endpoint/region/forcePathStyle to match.
+    #   endpoint: https://s3.fr-par.scw.cloud
+    #   region:   fr-par
+    endpoint: "https://s3.fr-par.scw.cloud"
+    region: "fr-par"
+    # Most S3-compatible providers (Scaleway included) use virtual-hosted-style URLs
+    # (bucket.endpoint/key) — leave this false. Set true only for a provider/gateway that requires
+    # path-style (endpoint/bucket/key), e.g. some MinIO setups behind a plain reverse proxy.
+    forcePathStyle: false
+
+# ===================================================================================================
+# Instance file backup (backend/src/modules/backup) — a periodic sweep to a SECOND, dedicated S3
+# bucket, entirely separate from `archive` above (which stays the PRIMARY store for legal archives).
+# Copies legal archives PLUS everything under DOCUMENTS_INBOUND_DIR (received-invoice uploads,
+# expense attachments, company logos) — disaster-recovery insurance, never a second source of truth
+# the app reads back from, and it never touches the database (Postgres has its own backup story).
+# OFF by default: an empty `bucket` is what `isBackupEnabled()` reads as "module disabled" — no
+# route, no queue, nothing rendered into either Deployment's env below.
+#
+# Every artifact is encrypted with AES-256-GCM BEFORE it ever leaves the pod (`backup-crypto.ts`) —
+# holding `BACKUP_S3_*` credentials is not enough to read a backup, only `BACKUP_ENCRYPTION_KEY`
+# (existingSecret's own header above) is. Set that key when you set `bucket` below; see this chart's
+# `existingSecret` header for what happens if you don't (backups fail loudly, they are never uploaded
+# in the clear).
+# ===================================================================================================
+backup:
+  s3:
+    bucket: "" # set to enable, e.g. "invoicerr-backup" — see values.yaml's own `archive.s3` above for
+    # the shape (bucket/endpoint/region/forcePathStyle mean exactly the same thing here)
+    endpoint: ""
+    region: ""
+    forcePathStyle: false
+    # Every object key is written under "<prefix>/…" when set — leave empty for an unprefixed bucket.
+    prefix: ""
+    # Cron (UTC) — read by backend/src/modules/backup/queue/backup-queue.dispatcher.ts via
+    # BACKUP_S3_SCHEDULE. Default: daily at 03:00.
+    schedule: "0 3 * * *"
+
+# ===================================================================================================
+# Received-invoice / attachment / logo inbound store (backend/src/modules/documents/received-invoices/
+# storage.ts) — the SECOND half of what used to make the `documents` PVC below unconditional. `local`
+# (DOCUMENTS_INBOUND_DIR on the pod's own filesystem) has the EXACT SAME ReadWriteOnce-at-replicaCount-1
+# caveat `archive.storage=local` documents above, for the same reason: a file uploaded on worker
+# replica B is simply not on the disk api replica A reads back from, unless every pod mounts the SAME
+# ReadWriteMany volume. `local` is still the DEFAULT here (unlike `archive.storage`, which defaults to
+# `s3`) — an operator with no object storage at all (a single-container self-hosted install) must keep
+# working exactly as before with zero configuration; opt into `s3` once real multi-replica scaling is
+# the goal. Existing local files do NOT migrate themselves when you switch this later — see
+# `received-invoices/storage.ts`'s own header for exactly what that means and why (no per-file uri is
+# persisted anywhere for this store, unlike the archive's own `DocumentArchive.uri` column).
+#
+# THIS is the setting that decides whether the `documents` PVC below can be dropped entirely: with
+# `archive.storage=s3` (the default) AND `documents.inbound.storage=s3`, NOTHING reads or writes
+# `/data` any more on either Deployment, and the PVC/volume/mounts stop being rendered altogether
+# (see templates/_helpers.tpl#invoicerr.documentsVolumeNeeded) — this is the ONLY combination that lets
+# api and worker actually scale to more than one node/replica on ReadWriteOnce block storage, which is
+# the entire point of this block existing. Any other combination (either one still `local`) keeps the
+# PVC and its mounts exactly as before.
+# ===================================================================================================
+documents:
+  inbound:
+    # "local" or "s3" — read by backend/src/modules/documents/received-invoices/storage.ts via
+    # INBOUND_STORAGE. Default "local" — see this block's own header for why that default differs
+    # from `archive.storage`'s.
+    storage: local
+    s3:
+      bucket: "invoicerr-inbound"
+      # Same shape as `archive.s3` above — a Scaleway Object Storage example, any S3-compatible
+      # endpoint works identically (AWS S3, MinIO, Backblaze B2, ...). Use a DIFFERENT bucket from
+      # `archive.s3.bucket`: this store's own `deleteAllInboundObjectsS3` (instance reset) and backup
+      # source enumeration both treat `INBOUND_S3_BUCKET` as dedicated to inbound files alone.
+      #   endpoint: https://s3.fr-par.scw.cloud
+      #   region:   fr-par
+      endpoint: "https://s3.fr-par.scw.cloud"
+      region: "fr-par"
+      forcePathStyle: false
+  # ===================================================================================================
+  # Local, on-disk shared storage — mounted at /data on BOTH api and worker, ONLY when at least one of
+  # `archive.storage` / `documents.inbound.storage` is still "local" (see this block's own header
+  # above) AND `persistence.enabled` is true. See the `archive` block's own comment for why
+  # ReadWriteOnce silently breaks beyond a single replica: point storageClassName at a
+  # ReadWriteMany-capable class (NFS, EFS, Azure Files, Longhorn, ...) for a multi-replica install that
+  # still needs local mode for one of the two stores, or move BOTH to `s3` and drop this volume
+  # entirely instead.
+  # ===================================================================================================
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    storageClassName: ""
+
+# ===================================================================================================
+# Postgres. DEFAULT is a managed, external Postgres — Neon.tech, decided by the product owner — via
+# `externalDatabase`/`existingSecret`. `postgresql.enabled: true` instead deploys a bundled,
+# single-replica, DEV/KIND-ONLY Postgres: no HA, no backups, no point-in-time recovery, its data
+# durability is exactly whatever the underlying StorageClass gives a single PVC. Never use it for
+# production.
+# ===================================================================================================
+postgresql:
+  enabled: false
+  image:
+    repository: postgres
+    tag: "15"
+  auth:
+    # Plaintext on purpose — this whole block only ever applies to the dev/kind-only bundled
+    # Postgres below, matching the repo's own docker-compose.yml dev defaults byte for byte.
+    username: invoicerr
+    password: invoicerr
+    database: invoicerr_db
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClassName: ""
+  resources: {}
+
+# Read only when postgresql.enabled=false. Not consumed directly by the application (which reads
+# DATABASE_URL straight out of the Secret named by `existingSecret`) — `host` exists only so this
+# chart's templates (and `helm template`) always have something to render even before a real
+# existingSecret is wired up; it is never interpolated into an actual connection string.
+externalDatabase:
+  host: ""
+
+# ===================================================================================================
+# Redis. REQUIRED for the backend to boot at all (BullMQ) — there is no "Redis optional" mode.
+# Bundled by default: a plain, dependency-free Deployment+PVC (deliberately NOT the Bitnami subchart,
+# so `helm lint`/`helm dependency` never needs network access to a chart repo). Point
+# `external.host` at a managed Redis instance for production HA and no Redis resources render here
+# at all — REDIS_HOST/REDIS_PORT then point at that host/port instead.
+# ===================================================================================================
+redis:
+  external:
+    host: ""
+    port: 6379
+  image:
+    repository: bitnami/redis
+    tag: latest
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClassName: ""
+  resources: {}
+
+# ===================================================================================================
+# OCR of scanned received invoices — optional, off by default. Our own image
+# (ghcr.io/invoicerr-app/ocr-image: ocrmypdf + this product's Tesseract language packs). Nothing
+# leaves the cluster: the backend talks to this Service directly over HTTP
+# (OCR_SERVICE_URL, wired automatically on both api and worker when enabled).
+# ===================================================================================================
+ocr:
+  enabled: false
+  image:
+    repository: ghcr.io/invoicerr-app/ocr-image
+    tag: latest
+  service:
+    # Must match the port the ocr-image server listens on (docker-compose.yml's own commented-out
+    # OCR_SERVICE_URL example uses the same 9998).
+    port: 9998
+  resources: {}
+
+# ===================================================================================================
+# Ingress. Assumes an ingress-nginx controller and cert-manager are already installed in the cluster.
+# ===================================================================================================
+ingress:
+  enabled: true
+  className: nginx
+  # cert-manager ClusterIssuer name.
+  clusterIssuer: letsencrypt
+  host: my.invoicerr.app
+  tls:
+    enabled: true
+  annotations: {}

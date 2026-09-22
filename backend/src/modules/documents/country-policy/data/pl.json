@@ -1,0 +1,306 @@
+{
+  "countryCode": "PL",
+  "documentTypes": [
+    "quote",
+    "invoice",
+    "credit-note",
+    "expense",
+    "received-invoice",
+    "purchase-order",
+    "goods-receipt"
+  ],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act — same reasoning as fr.json/us.json for this same action: no text identified that would specifically govern this act under Polish law. To revisit if the product were ever to give legal effect to the mere fact of saving a draft."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1 — the SAME citation, read live on 2026-09-03 on eur-lex.europa.eu, as de.json/it.json/es.json's own quote.send: an EU regulation is directly applicable, without national transposition, so it is identical for Poland. A quote is not an invoice (see invoice.send below, specific to Polish tax law and the KSeF regime): it is this general regime of non-discrimination against electronic writing that grounds the sending of a quote."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Converting an accepted quote into an invoice is a product convenience; no text identified either requires or prohibits this precise mechanism under Polish law (the only legal constraint would bear on the resulting invoice). To confirm via a dedicated review if a specific traceability rule were ever to attach to it."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Requesting a deposit on a quote, in the form of a draft deposit invoice, is a product convenience of the same nature as 'convert-to-invoice' above; no text identified governs this precise mechanism under Polish law. To confirm via a dedicated review if a specific rule were ever to attach to the deposit request itself."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-installments",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Generating a billing schedule from an accepted quote (several draft invoices, one per installment) is a product convenience of the same nature as 'request-deposit' above; no text identified governs this precise mechanism under Polish law (the only legal constraint would bear on the invoices that result once issued, not on the creation of these drafts). To confirm via a dedicated review if a specific rule were ever to attach to the generation of a schedule itself."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Duplicating a quote into a new draft is a pure product convenience; no text identified governs it under Polish law. To confirm via a dedicated review before extending this mechanism to a document type whose duplication would carry legal significance."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Generating an unauthenticated public link to a quote's PDF is a product convenience — a quote is not even a tax document. No text identified that would specifically govern sharing a link to a document already communicated to its recipient; the link itself remains subject to the token security discipline (share-links/share-links.service.ts). To confirm via a dedicated review if needed."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-signature",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Asking a client to electronically sign a quote (link + OTP code by email — signatures/signatures.service.ts) is a product convenience — signing a quote is not a legally governed act, it is a mark of commercial acceptance. The mechanism stays at the lowest eIDAS level (SIMPLE electronic signature), never a certificate, so no Polish text on advanced/qualified electronic signature applies here. To confirm via a dedicated review if needed."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Po przesłaniu pliku faktury do KSeF nie jest możliwe jej edytowanie… Jedyną formą poprawienia błędu… jest wystawienie faktury korygującej w KSeF.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "REUSES the citation already read by correction-routes/data/pl.json (route INTERNAL_CREDIT_NOTE, forbidden) — Podręcznik KSeF 2.0 cz. II, § 1.6.2, checked on 2026-08-29 (date preserved as-is: reused, not re-verified by this task). Literal translation from the Polish: « Once the invoice file has been transmitted to KSeF, it is no longer possible to edit it… The ONLY way to correct an error… is to issue a corrective invoice in KSeF. » This is THE most explicit citation among the five new countries on exactly this fact: a Polish invoice transmitted to KSeF is LITERALLY non-editable — correction must go through a separate corrective invoice (faktura korygująca, art. 106j ust. 1 ustawy o VAT), never through a new draft save on the same document. The `statuses: [\"draft\"]` field applies this principle by refusing to re-save as draft an invoice already 'sent'."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Krajowy System e-Faktur zapewnia autentyczność pochodzenia, integralność treści oraz czytelność faktury ustrukturyzowanej. [...] Fakturę ustrukturyzowaną uznaje się za wystawioną w dniu jej przesłania do Krajowego Systemu e-Faktur.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Art. 106m ust. 1 and art. 106na ust. 1 of the ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. 2004 Nr 54 poz. 535). Read live on 2026-09-03 on isap.sejm.gov.pl (the official portal of the Sejm Chancellery, consolidated text — 'Opracowano na podstawie: t.j. Dz. U. z 2025 r. poz. 775 [...], z 2026 r. poz. 507, 846', state of the law displayed as of 2026-07-20) — the same authority as the Podręcznik KSeF already cited by correction-routes. This text is the most FAVORABLE of the five new countries on this exact fact: the structured invoice (via KSeF) is legally DEEMED ISSUED as soon as it is transmitted to the system, and the system itself GUARANTEES its authenticity and integrity — no recipient-consent condition to check here, unlike Germany/Italy/Spain (the former Polish art. 106n, which set a recipient-acceptance condition for the NON-structured electronic invoice, was itself REPEALED — '(uchylony)' in the text read — by the shift to the mandatory KSeF regime). NUANCE NOT MODELED HERE: the effective-date schedule for KSeF's own MANDATORY character (large taxpayers 2026-03-31, others 2026-12-31) remains 'suggested'/unverified in transports/channel-policy/data/pl.json for lack of a citation of its own consultation date — a DISTINCT subject (the channel/mandate), outside the scope of this rule, which covers only the admissibility of the structured sending itself, already well established today."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Duplicating an invoice into a new draft is the same pure product convenience as quote.duplicate above — the new document is born 'draft' and re-enters the normal issuance circuit in full, so no text identified governs the act of duplication itself under Polish law. The tax question (ustawa o VAT) bears on THE ISSUED INVOICE that will result, not on this initial draft."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording a payment is an internal accounting entry; no specific text identified that would govern the mere fact of declaring it in this tool. The resulting balance is a PROJECTION displayed on screen, never a document status — see invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "EN 16931 is a European TECHNICAL STANDARD (Directive 2014/55/EU) — it is not in itself a Polish legal obligation for THIS company to produce it. The national format actually mandated in Poland is FA(3), transmitted via KSeF (a DISTINCT subject, the mandated channel/format — see transports/channel-policy/data/pl.json, which remains 'suggested'/unverified for lack of a citation of its own consultation date on the MANDATORY character and its schedule), outside the scope of this rule, which only builds the voluntary standardized EN 16931 FORMAT. This rule therefore authorizes the voluntary DOWNLOAD of an EN 16931 export without asserting that it is legally required IN THIS PRECISE FORM."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporting an invoice to an accounting tool is a product convenience; no specific text identified that would govern the mere fact of offering this export. This action has no registered implementation to date anyway (see invoice-actions.ts) — the real blocker comes from the 501, not from this rule."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Generating an unauthenticated public link to an invoice's PDF is a product convenience of the same order as 'download-xml' just above: no text identified either requires or specifically prohibits sharing a link to an invoice already communicated to its legitimate recipient. The link's security is a technical guarantee documented in share-links/share-links.service.ts, not a separate legal requirement to source here."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a credit note draft is an internal product operation. The Polish correction legal regime (see credit-note.send below) concerns the CONTENT and the tax status of the document, not the act of saving a draft — same distinction as fr.json/de.json for this same action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Interdite EN TANT QUE DOCUMENT DISTINCT — pas interdite en substance. Il n'existe pas d'instrument séparé : l'art. 106j ust. 1 donne UN instrument pour les deux sens, et l'énumération FA(3) RodzajFaktury est fermée — {VAT, KOR, ZAL, ROZ, UPR, KOR_ZAL, KOR_ROZ} — sans type « avoir ».",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "REUSES the citation already read by correction-routes/data/pl.json (route CREDIT_NOTE, forbidden AS A SEPARATE DOCUMENT) — art. 106j ust. 1 ustawy o VAT; broszura FA(3), Ministerstwo Finansów, checked on 2026-08-29 (date preserved: reused, not re-verified by this task). NUANCE SPECIFIC TO POLAND, not to be missed: unlike the four other new countries, Poland has NO separate legal instrument named « nota kredytowa » — any reduction in amount goes through the SAME instrument as an increase, the faktura korygująca (art. 106j, route CORRECTIVE_INVOICE of correction-routes, 'required'). The SEND of this tool's 'credit-note' document, for a Polish company, must therefore be understood as functionally representing a negative-sense faktura korygująca, never a separate Polish document of type 'credit note' — allowed:true remains solely because REDUCING an invoice's amount via a referenced document is legally open (in fact mandatory in the 5 cases of art. 106j ust. 1) in Poland; only the TERMINOLOGY/the TYPE of instrument differs from what the document's name suggests. What would settle any potential CONTENT gap between the document this tool produces and a genuinely compliant faktura korygująca (mandatory mentions, KSeF number of the corrected invoice — art. 106j ust. 2 pkt 2a): a dedicated review of the Polish output format, outside the scope of this rule, which covers only the ACTION."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Same reasoning as invoice.share-link above, applied to the credit note: no text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording an expense is an internal management entry in the tool. Polish accounting obligations bear on the company's own accounting, not on this recording mechanism within the tool. To confirm via a dedicated review if this core were ever to produce accounting documents enforceable against third parties from this data."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Deleting a mis-entered expense; no text identified specifically governs the deletion of such an entry prior to any accounting close. To confirm via a dedicated review if this core were ever to distinguish a \"closed\" state for an expense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording (or correcting) the fields of a received invoice is an internal management operation — this tool only records an already-occurred fact, never issues anything. The `statuses` field restricts re-writing the fields to the 'received' status alone: once approved or rejected, the review decision must no longer be silently undone (same mechanics as `invoice.save-draft` above). Not researched here: Poland will receive its domestic invoices via KSeF, an accredited channel (a distinct subject, outside the scope of this internal approval workflow)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marking a received invoice as approved is an internal company review decision; no text identified specifically governs this act."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marking a received invoice as rejected (dispute, supplier error) is an internal company review decision; no text identified specifically governs this act."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording that this company paid a supplier is an internal bookkeeping entry, the mirror of `invoice.record-payment` above but on the buyer side of a purchase — no text identified specifically governs the ACT of recording it in this tool (as opposed to the underlying payment/input-VAT-deduction facts, which exist and produce their own legal effects regardless of whether this screen tracks them). Not independently researched for Poland beyond the reasoning already applied to `received-invoice.approve`/`reject` above (2026-09-16)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Deleting a received-invoice record before any approval/rejection decision is a product convenience, same nature as `expense.delete` above; no text identified governs it. The descriptor already restricts this action to the 'received' status alone."
+      }
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a purchase-order draft is an internal product operation, unrelated to VAT or invoicing — same reasoning as quote.save-draft above (see its own note for the research conducted on the applicable codes): no text identified that would specifically govern the saving of such a draft. A purchase order commits less than a quote anyway (it does not constitute an offer of sale, only a purchase intent of the issuing company itself), which makes the existence of a text targeting it even less likely. Research not specifically resumed for this type/action (2026-09-15) — to revisit if a real need requires it."
+      }
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1 — the SAME text, at the same verification date, as quote.send above (see its own note: an EU REGULATION applies directly, without national variant, in all Member States). A purchase order is neither an invoice nor a quote, but an electronic document like any other with regard to this text: it is this same general regime of non-discrimination against electronic writing that grounds its sending by email, never a text specific to invoicing or VAT (none exists for this type — see purchase-order.descriptor.ts's own header)."
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "cancel-order",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cancelling a purchase order sent to a supplier is a purely commercial act (the company gives up its own order), never the correction of an already-transmitted tax document — this is NOT a correction route within the meaning of correction-routes/ (CANCEL_AND_REPLACE and the other routes of that module only concern a tax document ALREADY ISSUED to a third party whose correction the law governs, which a purchase order is not — see purchase-order-actions.ts's own header). The contractual consequences of such a cancellation towards the supplier fall under ordinary contract law, outside the scope of this rule (which only says whether THIS TOOL may record the entry, never whether the cancellation is enforceable against the supplier). No dedicated research conducted for this type/action (2026-09-15) — to revisit if a real need requires it."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a goods-receipt draft is an internal, purely documentary operation (what this company's warehouse recorded as received) — same reasoning as purchase-order.save-draft above: no text identified that would specifically govern the saving of such a draft, as this document is transmitted to no one (see goods-receipt.descriptor.ts's own header). Research not specifically conducted for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "record",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Finalizing a goods receipt (status 'recorded') is an internal management act — closing out what the warehouse recorded as received against a purchase order, to feed a 3-way matching check that is itself internal to the tool, never transmitted to a third party or declared to an authority. No text identified that would target this act specifically. Research not specifically conducted for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Restricted by the descriptor itself to the 'draft' status (goods-receipt.descriptor.ts): once recorded ('recorded'), a goods receipt is part of the matching trail that a received invoice may already have been compared against, and its deletion is in any case no longer offered by the screen. Before that, deleting a mis-entered draft is the same internal operation, with no recipient, as purchase-order.save-draft/received-invoice.delete above (see their own notes for the tension, not settled here either, over the retention obligations for a supporting document — LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22 — which target the RECEIVED INVOICE, never a goods receipt by name). Research not specifically conducted for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+      }
+    }
+  ],
+  "notes": "Poland — research from 2026-09-03. THIS IS THE UNBLOCKING TARGETED BY THIS TASK: before this file, a Polish company had EVERY document action blocked (DECISION 1 of country-policy.ts) — no pl.json file existed. The product-internal acts follow the same reasoning already held by fr.json/us.json for the same actions. The legal heavy lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on isap.sejm.gov.pl (the official consolidated text of the Sejm Chancellery, state of the law as of 2026-07-20) for art. 106m/106na of the ustawa o VAT (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/pl.json for the immutability of the issued invoice (invoice.save-draft, INTERNAL_CREDIT_NOTE forbidden — the most explicit citation among the five new countries: « nie jest możliwe jej edytowanie ») and for the credit note (credit-note.send, CREDIT_NOTE forbidden AS A SEPARATE DOCUMENT, the only notable Polish nuance: no separate 'nota kredytowa' instrument) — each valid only for the exact fact it settles here, never stretched beyond that."
+}

@@ -1,0 +1,353 @@
+/**
+ * facturx-provider.ts — `rendering/render-instance-pdf.ts` is MOCKED (the same discipline `email-transport.spec.ts`
+ * already holds for the identical reason: real Puppeteer has no business in a unit spec) — but it
+ * hands back a REAL, valid PDF built with `pdf-lib` rather than a fake byte string, because
+ * `@e-invoice-eu/core`'s Factur-X embedder genuinely PARSES and manipulates the PDF it is given (PDF/
+ * A-3 attachments, XMP metadata) — a non-PDF buffer would make even the SUCCESS case throw for a
+ * reason that has nothing to do with this provider's own logic. Everything else — the semantic
+ * bridge, the REAL vendored EN 16931 Schematron, the REAL Factur-X embed — runs for real.
+ */
+import { vi, type Mock } from 'vitest';
+import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
+const { decodePDFRawStream } = require('pdf-lib/cjs/core');
+
+import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { DocumentTypeDescriptor } from '../descriptors/types';
+import { EntityReferenceRegistry } from '../references/reference-registry';
+import * as renderInstancePdf from '../rendering/render-instance-pdf';
+import { validateStructural } from './structural-check';
+import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schematron';
+import { DocumentFormatParty } from './format-provider';
+import { buildFacturxFormatProvider } from './facturx-provider';
+
+vi.mock('../rendering/render-instance-pdf');
+
+/**
+ * Regression guard for the gap this file's own header now documents as
+ * REACHED-and-FIXED (`splitCiiIncludedNotesInObject`, wired via `@e-invoice-eu/core`'s own
+ * `postProcessor` option): pulls the ACTUAL embedded CII back out of the PDF/A-3
+ * `buildFacturxFormatProvider` produces, so a future regression here fails OFFLINE, in this spec,
+ * rather than only live against a real superpdp deposit (`pdp/pdp.live.spec.ts`) the way this
+ * exact bug first surfaced. `pdf-lib` (already a dependency here) has no public "read attachments"
+ * API — `decodePDFRawStream` is its own internal stream-decoding primitive (used the same way
+ * `@e-invoice-eu/core` itself decodes streams internally), reached through the package's `cjs/core`
+ * entry point because the public one does not re-export it.
+ */
+async function extractEmbeddedCii(pdfBytes: Uint8Array): Promise<string> {
+  const loaded = await PDFDocument.load(pdfBytes, { updateMetadata: false });
+  for (const [, obj] of loaded.context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFStream)) continue;
+    const type = obj.dict.get(PDFName.of('Type'));
+    if (type?.toString() !== '/EmbeddedFile') continue;
+    const decoded: Uint8Array = decodePDFRawStream(obj).decode();
+    return Buffer.from(decoded).toString('utf-8');
+  }
+  throw new Error(
+    'No /EmbeddedFile stream found in the generated PDF/A-3 — the Factur-X embed itself failed.',
+  );
+}
+
+const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
+
+/** Same fixture `providers.spec.ts` uses for the CII/UBL providers — a seller the vendored
+ *  Schematron actually accepts (VAT + SIRET on file). */
+const SELLER: DocumentFormatParty = {
+  name: 'Dupont Consulting SARL',
+  address: '12 Rue de la Paix',
+  city: 'Paris',
+  postalCode: '75002',
+  country: 'France',
+  email: 'contact@dupont-consulting.example',
+  phone: '+33102030405',
+  partyIdentifiers: [
+    { scheme: 'VAT', value: 'FR12345678901' },
+    { scheme: 'LEGAL_ID', value: '12345678900017' },
+  ],
+};
+
+const BUYER: DocumentFormatParty = {
+  name: 'Acme GmbH',
+  address: 'Friedrichstraße 42',
+  city: 'Berlin',
+  postalCode: '10117',
+  country: 'Germany',
+  partyIdentifiers: [{ scheme: 'VAT', value: 'DE123456789' }],
+};
+
+const VALID_DATA = {
+  client: 'client-1',
+  issueDate: '2026-08-30',
+  dueDate: '2026-09-30',
+  currency: 'EUR',
+  notes: 'Merci de votre confiance.',
+  lines: [{ description: 'Conseil stratégique', quantity: 10, unit: 'hour', unitPrice: 1200, vatRate: '20' }],
+};
+
+/** BR-Z-02 bait — a zero-rated line with NO seller VAT identifier at all: the same reproduction
+ *  `pitfalls.spec.ts` already proves against the raw bridge, used here to prove the PROVIDER refuses
+ *  to embed it. */
+const INVALID_DATA = {
+  client: 'client-1',
+  issueDate: '2026-08-30',
+  dueDate: '2026-09-30',
+  currency: 'EUR',
+  lines: [{ description: 'Prestation exonérée', quantity: 1, unit: 'unit', unitPrice: 1000, vatRate: '0' }],
+};
+const SELLER_NO_VAT: DocumentFormatParty = { ...SELLER, partyIdentifiers: [] };
+
+async function fakeRealPdf(): Promise<Buffer> {
+  const doc = await PDFDocument.create();
+  doc.addPage([200, 200]);
+  return Buffer.from(await doc.save());
+}
+
+describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts gates it', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
+      pdf: await fakeRealPdf(),
+      totals: {
+        currency: 'EUR',
+        lines: [],
+        netMinor: 0,
+        vatMinor: 0,
+        grossMinor: 0,
+        vatBreakdown: [],
+        warnings: [],
+      },
+      referenceLabels: {},
+      companyName: SELLER.name,
+    });
+  });
+
+  const provider = buildFacturxFormatProvider({ referenceRegistry: new EntityReferenceRegistry() });
+
+  it('declares itself correctly for the format registry / download-xml param', () => {
+    expect(provider.id).toBe('facturx');
+    expect(provider.mime).toBe('application/pdf');
+  });
+
+  it('a VALID document: embeds a real PDF/A-3, starting with the %PDF magic bytes', async () => {
+    const document = {
+      id: 'doc-1',
+      data: VALID_DATA,
+      displayNumber: 'INV-2026-0001',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await provider.build(descriptor, document, SELLER, BUYER, 'company-1');
+
+    expect(result.validation.valid).toBe(true);
+    expect(result.validation.errors).toEqual([]);
+    expect(Buffer.from(result.bytes.slice(0, 5)).toString()).toBe('%PDF-');
+    expect(renderInstancePdf.renderDocumentInstance).toHaveBeenCalledWith(
+      { referenceRegistry: expect.any(EntityReferenceRegistry) },
+      'company-1',
+      descriptor,
+      document,
+    );
+  }, 30_000);
+
+  // VALID_DATA's SELLER is French, so this now embeds
+  // FOUR notes (the user's own + the three statutory mentions). The regression this test exists to
+  // catch: `@e-invoice-eu/core` regenerates the CII internally for THIS embed step, a copy the plain
+  // structural+Schematron gate above never sees — see `facturx-provider.ts`'s own header for the
+  // real superpdp `fr:213` rejection this exact gap caused before `splitCiiIncludedNotesInObject`
+  // was wired in as the embed call's own `postProcessor`.
+  it('the EMBEDDED CII (not just the plain one the gate checks) carries all three mentions and is itself Schematron-valid', async () => {
+    const document = {
+      id: 'doc-mentions',
+      data: VALID_DATA,
+      displayNumber: 'INV-2026-MENTIONS',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await provider.build(descriptor, document, SELLER, BUYER, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+
+    const structural = validateStructural(embeddedCii, 'cii');
+    expect(structural.errors).toEqual([]);
+    expect(structural.valid).toBe(true);
+
+    const schematron = validateSchematron(embeddedCii, EN16931_CII_SCH);
+    expect(schematron.errors).toEqual([]);
+    expect(schematron.valid).toBe(true);
+
+    for (const code of ['PMT', 'PMD', 'AAB']) {
+      expect(embeddedCii).toContain(`<ram:SubjectCode>${code}</ram:SubjectCode>`);
+    }
+    expect(embeddedCii).toContain('Merci de votre confiance.'); // the user's own note, still there too
+  }, 30_000);
+
+  // BT-23. The plain-CII gate above (built the same way
+  // `cii-provider.ts` does) gets its fix from `applyFrenchBusinessProcess` on the rendered STRING;
+  // `@e-invoice-eu/core`'s own internal regeneration for THIS embed step never sees that string, the
+  // exact gap `applyFrenchBusinessProcessInObject` (chained into the SAME `postProcessor` as
+  // `splitCiiIncludedNotesInObject`) exists to close — see `facturx-provider.ts`'s own header.
+  it('the EMBEDDED CII also carries BT-23 — the SAME code the plain-CII gate would have produced', async () => {
+    const document = {
+      id: 'doc-bt23',
+      data: {
+        ...VALID_DATA,
+        issueDate: '2026-09-01', // on the shipped content requirement's own mandatedFrom
+        dueDate: '2026-09-30',
+        lines: [{ ...VALID_DATA.lines[0], supplyType: 'SERVICES' }],
+      },
+      displayNumber: 'INV-2026-BT23',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await provider.build(descriptor, document, SELLER, BUYER, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    const schematron = validateSchematron(embeddedCii, EN16931_CII_SCH);
+    expect(schematron.errors).toEqual([]);
+    expect(schematron.valid).toBe(true);
+
+    // Pretty-printed by the embedder (real newlines/indentation between tags) — a plain substring
+    // match would be brittle against that whitespace, so this reuses the exact same
+    // whitespace-tolerant pattern `applyFrenchBusinessProcess`'s own regex is built on.
+    expect(embeddedCii).toMatch(
+      /<(?:ram:)?BusinessProcessSpecifiedDocumentContextParameter>\s*<(?:ram:)?ID>S1<\/(?:ram:)?ID>/,
+    );
+  }, 30_000);
+
+  // BT-81. `sellerPaymentMeans` (build-semantic-invoice.ts) only builds `cac:PaymentMeans` when the
+  // seller has an IBAN on file — this test proves the HAPPY path actually reaches the wire, both in
+  // the plain-CII gate and the EMBEDDED Factur-X: the exact fact
+  // `chorus-pro-transport.ts`'s own new "PAYMENT MEANS GATE" exists to guarantee is true before a
+  // real Chorus Pro deposit. Regression for the real 2026-09-14 rejection
+  // (`flux CPP0011117000000000425895`, "TypeCode.value est obligatoire") — see
+  // `SemanticInvoiceInput.businessProcessCodeOverride`'s own header (BT-23, the sibling fix) for the
+  // full sourcing of the OTHER half of that same rejection.
+  it('BT-81: a seller WITH an IBAN on file embeds cac:PaymentMeans (TypeCode 30 + the IBAN) in the ACTUAL Factur-X', async () => {
+    const sellerWithIban: DocumentFormatParty = { ...SELLER, iban: 'FR7630006000011234567890189' };
+    const document = {
+      id: 'doc-bt81',
+      data: VALID_DATA,
+      displayNumber: 'INV-2026-BT81',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await provider.build(descriptor, document, sellerWithIban, BUYER, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    expect(embeddedCii).toMatch(
+      /<(?:ram:)?SpecifiedTradeSettlementPaymentMeans>\s*<(?:ram:)?TypeCode>30<\/(?:ram:)?TypeCode>/,
+    );
+    expect(embeddedCii).toContain('<ram:IBANID>FR7630006000011234567890189</ram:IBANID>');
+  }, 30_000);
+
+  // BT-23, Chorus Pro variant. `FacturxProviderDeps.businessProcessCodeOverride` — see that field's
+  // own header, and `SemanticInvoiceInput.businessProcessCodeOverride`'s, for the full sourcing
+  // (AIFE's Chorus Pro EDI annex: the SAME wire element carries Chorus Pro's OWN, unrelated "Cadre de
+  // facturation" vocabulary, A1-A25, not the CGI-reform B1/S1/M1 family this provider otherwise
+  // derives). A SEPARATE provider instance (mirrors `documents-core.module.ts`'s own Chorus
+  // Pro-specific construction) — the DEFAULT `provider` above (no override) is untouched by this test.
+  it('a provider instance configured with businessProcessCodeOverride embeds THAT code, never the FR-derived one', async () => {
+    const chorusProProvider = buildFacturxFormatProvider({
+      referenceRegistry: new EntityReferenceRegistry(),
+      businessProcessCodeOverride: 'A1',
+    });
+    const document = {
+      id: 'doc-bt23-chorus-pro',
+      data: {
+        ...VALID_DATA,
+        issueDate: '2026-09-01', // on the shipped content requirement's own mandatedFrom
+        dueDate: '2026-09-30',
+        lines: [{ ...VALID_DATA.lines[0], supplyType: 'SERVICES' }], // would derive 'S1' without the override
+      },
+      displayNumber: 'INV-2026-BT23-CPRO',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await chorusProProvider.build(descriptor, document, SELLER, BUYER, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    expect(embeddedCii).toMatch(
+      /<(?:ram:)?BusinessProcessSpecifiedDocumentContextParameter>\s*<(?:ram:)?ID>A1<\/(?:ram:)?ID>/,
+    );
+    expect(embeddedCii).not.toContain('<ram:ID>S1</ram:ID>');
+  }, 30_000);
+
+  // BT-29/BT-30/BT-46/BT-47, Chorus Pro variant. `FacturxProviderDeps.legalIdOverride` — see that
+  // field's own header, and `SemanticInvoiceInput.legalIdOverride`'s, for the full sourcing (the
+  // 2026-09-14 `CPP0011117000000000425899` rejection: both the seller's and the buyer's SIRET
+  // truncated to their own SIREN). SEPARATE provider instance (mirrors `documents-core.module.ts`'s
+  // own Chorus Pro-specific construction) — the DEFAULT `provider` above (no override) is untouched,
+  // still reducing to the SIREN (see `providers.spec.ts`'s own SIREN/SIRET-equivalence proof).
+  it('a provider instance configured with legalIdOverride: "full" embeds the FULL 14-digit SIRET, for BOTH parties, never the SIREN', async () => {
+    const chorusProProvider = buildFacturxFormatProvider({
+      referenceRegistry: new EntityReferenceRegistry(),
+      legalIdOverride: 'full',
+    });
+    // A French BUYER with its own 14-digit SIRET on file — a Chorus Pro-realistic recipient (a
+    // government "structure"), unlike the default German `BUYER` fixture above which has no
+    // `LEGAL_ID` at all.
+    const buyerFr: DocumentFormatParty = {
+      ...BUYER,
+      name: 'Mairie de Testville',
+      country: 'France',
+      partyIdentifiers: [{ scheme: 'LEGAL_ID', value: '12345678200051' }],
+    };
+    const document = {
+      id: 'doc-siret-chorus-pro',
+      data: VALID_DATA,
+      displayNumber: 'INV-2026-SIRET-CPRO',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await chorusProProvider.build(descriptor, document, SELLER, buyerFr, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    // SELLER.partyIdentifiers carries LEGAL_ID '12345678900017' (14 digits) — the DEFAULT bridge would
+    // reduce this to '123456789' (see `providers.spec.ts`); WITH the override, the full value survives.
+    expect(embeddedCii).toContain('12345678900017');
+    expect(embeddedCii).not.toContain('>123456789<');
+    // buyerFr's own SIRET, same proof, buyer side.
+    expect(embeddedCii).toContain('12345678200051');
+    expect(embeddedCii).not.toContain('>123456782<');
+  }, 30_000);
+
+  it('an INVALID document (BR-Z-02: zero-rated line, no seller VAT id): NEVER embeds — no PDF is even attempted', async () => {
+    const document = {
+      id: 'doc-2',
+      data: INVALID_DATA,
+      displayNumber: 'INV-2026-0002',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await provider.build(descriptor, document, SELLER_NO_VAT, BUYER, 'company-1');
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors.join(' ')).toContain('BR-Z-02');
+    // The failure branch returns the CII bytes (for diagnosis), never a PDF — and the human PDF
+    // renderer is never even reached once the CII gate has already failed.
+    expect(Buffer.from(result.bytes.slice(0, 5)).toString()).not.toBe('%PDF-');
+    expect(renderInstancePdf.renderDocumentInstance).not.toHaveBeenCalled();
+  }, 30_000);
+
+  it('throws rather than silently building without a companyId (unreachable via documents.service.ts, never trusted alone)', async () => {
+    const document = {
+      id: 'doc-3',
+      data: VALID_DATA,
+      displayNumber: 'INV-2026-0003',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+    await expect(provider.build(descriptor, document, SELLER, BUYER)).rejects.toThrow(/requires a companyId/);
+  });
+});

@@ -1,0 +1,466 @@
+import { useCallback } from "react"
+import { useQueries } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
+
+import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
+import { computeConformityVerdict } from "@/components/documents/document-conformity-section"
+import { translateDocumentTypeDescriptor, translateDocumentTypeSummary } from "@/lib/descriptor-i18n"
+
+import type {
+  ActionResult,
+  ArchiveVerificationResult,
+  CorrectionRoutesDecision,
+  DocumentArchive,
+  DocumentAuthorityEvent,
+  DocumentInstance,
+  DocumentSettlementResult,
+  DocumentTaxWarningsResult,
+  DocumentTypeDescriptor,
+  DocumentTypeSummary,
+  EntityReferenceOption,
+} from "@/components/documents/types"
+
+/**
+ * Every registered document type — a front-end nav renders this without knowing any type by name.
+ * Translated here (see lib/descriptor-i18n.ts's own header) so
+ * every consumer (reference-field.tsx's multi-target picker, recurring.settings.tsx's type badges)
+ * reads an already-resolved `label`, never a raw one: this is the ONE place this response is fetched.
+ */
+export function useDocumentTypesList() {
+  const { t } = useTranslation()
+  const select = useCallback(
+    (data: DocumentTypeSummary[]) => data.map((summary) => translateDocumentTypeSummary(t, summary)),
+    [t],
+  )
+  return useApiQuery<DocumentTypeSummary[]>(["document-types"], "/api/documents/types", { select })
+}
+
+export interface AvailableDocumentTypesResult {
+  types: DocumentTypeSummary[]
+  /** Present, and `types` empty, when the active company's country cannot be resolved or has no
+   *  document-type policy declared at all — plain text, shown as-is: see the backend's
+   *  country-policy/country-policy.ts (resolveAvailableDocumentTypes) for how it is computed. */
+  reason?: string
+}
+
+/**
+ * The document types the active company's COUNTRY makes available — what the sidebar's Documents
+ * group renders. Distinct from `useDocumentTypesList` above (every REGISTERED type, unfiltered): a
+ * type can be registered on this build and still be absent here for a country whose policy file
+ * doesn't declare it, or for a country with no policy file at all. Translated the same way
+ * `useDocumentTypesList` is — see that hook's own comment.
+ */
+export function useAvailableDocumentTypes() {
+  const { t } = useTranslation()
+  const select = useCallback(
+    (data: AvailableDocumentTypesResult) => ({
+      ...data,
+      types: data.types.map((summary) => translateDocumentTypeSummary(t, summary)),
+    }),
+    [t],
+  )
+  return useApiQuery<AvailableDocumentTypesResult>(
+    ["document-types", "available"],
+    "/api/documents/available-types",
+    { select },
+  )
+}
+
+/**
+ * The full descriptor a form is rendered from — translated in ONE place (see
+ * lib/descriptor-i18n.ts's own header) so every consumer of this hook's `data`
+ * (DocumentForm, DocumentList, ActionParamsDialog, every custom slot, the page header) reads already-
+ * resolved `label`s on every field/action/status, with zero changes needed to any of them: they all
+ * always just displayed whatever string `.label` held.
+ *
+ * Optional `clientId` — the backend's own `describeTypeForCompany(companyId, typeId, clientId)` third
+ * argument (see documents.controller.ts's `?clientId=` query param): when it names a GOVERNMENT
+ * client whose country declares B2G `requiredDocumentFields` (e.g. Germany's Leitweg-ID), those are
+ * folded into `fields` too. Omitting it (every call site before this one) keeps the EXACT same query
+ * key/URL as before — `document-form.tsx` is the one caller that passes it, watching its own "client"
+ * field and re-fetching reactively; when it passes `undefined` (no client picked yet, or the
+ * descriptor has no client field at all) this collapses to the SAME key `[typeId]/index.tsx`'s own call
+ * already populated, so React Query serves the cached descriptor instantly rather than a second
+ * network round-trip for the common case.
+ */
+export function useDocumentType(typeId: string | undefined, clientId?: string) {
+  const { t } = useTranslation()
+  const select = useCallback((data: DocumentTypeDescriptor) => translateDocumentTypeDescriptor(t, data), [t])
+  const queryKey = clientId ? ["document-types", typeId, clientId] : ["document-types", typeId]
+  const url = clientId
+    ? `/api/documents/types/${typeId}?clientId=${encodeURIComponent(clientId)}`
+    : `/api/documents/types/${typeId}`
+  return useApiQuery<DocumentTypeDescriptor>(queryKey, url, {
+    enabled: !!typeId,
+    select,
+  })
+}
+
+/**
+ * Polls while ANY currently-loaded instance is "sending" — the async "send" mechanism's own
+ * in-flight status (actions/async-send.ts on the backend): a document enqueued for
+ * delivery moves to "sent"/"send_failed" entirely from the WORKER's own write, never from a
+ * follow-up click this tab makes, so nothing else would ever tell this list to refetch and notice.
+ * Stops polling the moment nothing is "sending" anymore — never an unconditional background poll for
+ * a list that has nothing in flight. Generic on purpose: reads the STATUS STRING this mechanism
+ * itself introduces, never a document type.
+ *
+ * DECISION: SSE (`useDocumentEventsSse`, mounted once for the whole
+ * authenticated app — `(app)/_layout.tsx`) is now the PRIMARY signal for this exact transition; this
+ * `refetchInterval` is DELIBERATELY KEPT, not removed, but slowed way down to a SAFETY NET rather than
+ * the main mechanism. Two independent reasons, both load-bearing:
+ *  - SSE can fall silent without the write itself being at fault — a misbehaving corporate proxy that
+ *    buffers/kills long-lived connections, a browser tab that was asleep and hasn't finished its own
+ *    `EventSource` auto-reconnect yet, a Redis blip on the worker→API bridge
+ *    (`queue/document-events-publisher.ts`). None of those should ever mean "the screen just never
+ *    catches up" — a slow poll is the honest backstop for exactly that failure mode.
+ *  - It is what makes the SSE path PROVABLE at all, in Cypress AND for a human watching the screen: at
+ *    the OLD 1.5s value, ANY status change appearing within a few seconds could always be explained by
+ *    the poll alone, never by SSE — a passing "the badge updates live" test would be a false green, the
+ *    exact failure mode this codebase's own history (`documentation/…`, mocked-provider incidents)
+ *    keeps naming explicitly. At 60s, a change surfacing within ~10s (28-document-async-send.cy.ts's
+ *    own extended assertion) can ONLY be SSE.
+ */
+const SENDING_POLL_INTERVAL_MS = 60_000
+
+/** `GET /documents`'s own filters — mirrors the backend's `ParsedListDocumentsQuery`
+ *  (dto/list-documents.dto.ts). `status`/`sort`/`order` are always sendable; `clientId`/`dateFrom`/
+ *  `dateTo`/`q` each read the type's own descriptor server-side, so the screen only ever offers them
+ *  once it knows (via the SAME descriptor this page already fetched) that this type has a field for
+ *  them — see document-list.tsx's own `resolveClientFieldKey`/`resolveDateFieldKey`. */
+export interface DocumentInstancesFilters {
+  page?: number
+  pageSize?: number
+  status?: string[]
+  clientId?: string
+  /** `YYYY-MM-DD`, inclusive — matches the backend's own `dateFrom`/`dateTo` contract. */
+  dateFrom?: string
+  dateTo?: string
+  q?: string
+  sort?: "updatedAt" | "createdAt" | "number" | "status"
+  order?: "asc" | "desc"
+}
+
+/** `GET /documents`'s own response shape — one PAGE, never a bare array (issue: the list used to
+ *  fetch a flat, unpaginated `take: 50` with every filter re-applied client-side against whatever
+ *  those 50 rows happened to be, silently hiding anything past the cap). */
+export interface DocumentInstancesPage {
+  items: DocumentInstance[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+function buildDocumentListParams(typeId: string, filters: DocumentInstancesFilters): string {
+  const params = new URLSearchParams()
+  params.set("typeId", typeId)
+  params.set("page", String(filters.page ?? 1))
+  params.set("pageSize", String(filters.pageSize ?? 25))
+  for (const status of filters.status ?? []) params.append("status", status)
+  if (filters.clientId) params.set("clientId", filters.clientId)
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
+  if (filters.dateTo) params.set("dateTo", filters.dateTo)
+  if (filters.q) params.set("q", filters.q)
+  if (filters.sort) params.set("sort", filters.sort)
+  if (filters.order) params.set("order", filters.order)
+  return params.toString()
+}
+
+export function useDocumentInstances(typeId: string | undefined, filters: DocumentInstancesFilters = {}) {
+  return useApiQuery<DocumentInstancesPage>(
+    ["documents", typeId, filters],
+    `/api/documents?${typeId ? buildDocumentListParams(typeId, filters) : ""}`,
+    {
+      enabled: !!typeId,
+      refetchInterval: (query) => {
+        const page = query.state.data as DocumentInstancesPage | undefined
+        return page?.items?.some((instance) => instance.status === "sending")
+          ? SENDING_POLL_INTERVAL_MS
+          : false
+      },
+    },
+  )
+}
+
+export function useDocumentInstance(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentInstance>(["documents", typeId, id], `/api/documents/${id}?typeId=${typeId}`, {
+    enabled: !!typeId && !!id,
+  })
+}
+
+/**
+ * A document instance's payment settlement (totals + recorded payments + balance) — see the
+ * backend's `DocumentsService.getSettlement`. Keyed under `["documents", ...]` like every other
+ * per-instance query above, so `useRunDocumentAction`'s own `invalidateKeys: [["documents"]]` sweeps
+ * this one too the moment "record-payment" runs — no separate invalidation wiring needed for it.
+ */
+export function useDocumentSettlement(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentSettlementResult>(
+    ["documents", typeId, id, "settlement"],
+    `/api/documents/${id}/settlement?typeId=${typeId}`,
+    { enabled: !!typeId && !!id },
+  )
+}
+
+/**
+ * The non-fatal caveats this document's own tax resolution recorded — see the backend's
+ * `DocumentsService.getTaxWarnings`. Keyed under `["documents", ...]` like every per-instance query
+ * above, so `useRunDocumentAction`'s own `invalidateKeys: [["documents"]]` refetches it the moment an
+ * action changes the record: a "send" resolves tax for real, and this list must not keep showing what
+ * the draft said. The backend RECOMPUTES on every read rather than storing, so this is always about
+ * the document as it stands, never a stale snapshot — and it never errors on a draft (a tax hard
+ * block reads back as an empty list there, refused loudly at "send" instead).
+ */
+export function useDocumentTaxWarnings(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentTaxWarningsResult>(
+    ["documents", typeId, id, "tax-warnings"],
+    `/api/documents/${id}/tax-warnings?typeId=${typeId}`,
+    { enabled: !!typeId && !!id },
+  )
+}
+
+/**
+ * Every legal archive written for this document instance,
+ * most recent first (see the backend's `DocumentArchive` schema comment: a re-send archives AGAIN,
+ * never overwriting). Keyed under `["documents", ...]` like `useDocumentSettlement` above, so nothing
+ * here needs its own invalidation wiring — a re-send's own `useRunDocumentAction` already sweeps every
+ * "documents"-keyed query.
+ */
+export function useDocumentArchives(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentArchive[]>(
+    ["documents", typeId, id, "archives"],
+    `/api/documents/${id}/archives?typeId=${typeId}`,
+    { enabled: !!typeId && !!id },
+  )
+}
+
+/**
+ * Which correction routes THIS document's own seller country declares (see
+ * the backend's `DocumentsService.getCorrectionRoutes`, correction-routes/correction-routes.ts's own
+ * header for the four gates it composes). `retry: false`, unlike most queries here (the default
+ * client-wide policy retries up to twice — lib/query-client.ts): a 404 (no file for this country, or
+ * the document itself gone), a 409 (still "draft"), or a 501 (a typeId this endpoint doesn't cover)
+ * are all STRUCTURAL refusals, never a transient failure retrying would fix — the screen reads
+ * `error` (an `ApiError`, see use-api-query.ts) to show the backend's own named refusal VERBATIM the
+ * instant it arrives, rather than spinning through two pointless retries first. `enabled` composes
+ * the caller's own gate (only offered at all for an ISSUED invoice) with the usual id/typeId guard.
+ */
+export function useCorrectionRoutes(
+  typeId: string | undefined,
+  id: string | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useApiQuery<CorrectionRoutesDecision>(
+    ["documents", typeId, id, "correction-routes"],
+    `/api/documents/${id}/correction-routes?typeId=${typeId}`,
+    { enabled: !!typeId && !!id && (options?.enabled ?? true), retry: false },
+  )
+}
+
+interface VerifyDocumentArchiveVariables {
+  typeId: string
+  documentId: string
+  archiveId: string
+}
+
+/** RE-HASHES the archive's stored bytes on the server on every call — never a cached verdict, and
+ *  never invalidates the archives LIST (verifying changes nothing about what is recorded). */
+export function useVerifyDocumentArchive() {
+  return useApiMutation<VerifyDocumentArchiveVariables, ArchiveVerificationResult>(
+    "POST",
+    (vars) => `/api/documents/${vars.documentId}/archives/${vars.archiveId}/verify?typeId=${vars.typeId}`,
+  )
+}
+
+/**
+ * Post-deposit conformity tracking (`conformity/`) — every
+ * event the ISSUING PLATFORM itself reported for this document, most recent first. Empty (not an
+ * error) for a document sent by a channel with no poller ("email", "sdi") or a PDP/KSeF deposit the
+ * background sweep hasn't polled yet. ONLY once something is actually IN FLIGHT (at least one event
+ * already journaled, none of them terminal yet) — a document with zero events (nothing sent through a
+ * polled channel yet, or the very first sweep pass hasn't run) is not worth polling for at all; one
+ * that already reached a verdict stops on its own the moment `computeConformityVerdict` sees it. Same
+ * "poll only while something could still change" discipline `useDocumentInstances`'s own
+ * `refetchInterval` already holds for the "sending" status.
+ *
+ * SAME decision as `useDocumentInstances`'s own
+ * `SENDING_POLL_INTERVAL_MS` (see that constant's own comment for the full "why kept, why slowed, why
+ * this is what makes SSE provable at all" reasoning): `useDocumentEventsSse` is now the PRIMARY signal
+ * for a newly-journaled authority event (a poller sweep result, a declarative-report verdict, an SdI
+ * push notifica), this interval is the SLOW safety net, not the main mechanism. Was 5s; the interval
+ * constant is shared with `SENDING_POLL_INTERVAL_MS` rather than a second one of its own — one number
+ * to keep this decision consistent across both call sites.
+ */
+export function useDocumentAuthorityEvents(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentAuthorityEvent[]>(
+    ["documents", typeId, id, "authority-events"],
+    `/api/documents/${id}/authority-events?typeId=${typeId}`,
+    {
+      enabled: !!typeId && !!id,
+      refetchInterval: (query) => {
+        const events = query.state.data as DocumentAuthorityEvent[] | undefined
+        if (!events || events.length === 0) return false
+        return computeConformityVerdict(events) === "pending" ? SENDING_POLL_INTERVAL_MS : false
+      },
+    },
+  )
+}
+
+interface RunActionVariables {
+  typeId: string
+  actionId: string
+  documentId?: string
+  data: Record<string, unknown>
+  /** The action's OWN params (see DocumentActionDescriptor.params) — a separate namespace from `data`. */
+  params?: Record<string, unknown>
+}
+
+/** Runs one declared action of one document type (e.g. "save-draft"), native or attached by a third
+ *  party — this hook never knows which. A 501 means the action is declared on the descriptor but has
+ *  no implementation registered yet — see ApiError.status. */
+export function useRunDocumentAction() {
+  return useApiMutation<RunActionVariables, ActionResult>(
+    "POST",
+    (vars) => `/api/documents/types/${vars.typeId}/actions/${vars.actionId}`,
+    { invalidateKeys: [["documents"]] },
+  )
+}
+
+interface ActionParamsDefaultsVariables {
+  typeId: string
+  actionId: string
+  documentId?: string
+  data: Record<string, unknown>
+}
+
+/** Optional pre-fill for an action's params dialog (e.g. "send" pre-filling the recipient from the
+ *  document's client) — resolves to `{}` when the action has no defaults resolver, never an error. A
+ *  mutation rather than a query: it depends on the form's current, possibly-unsaved values, fetched
+ *  once when the params dialog opens rather than kept live. */
+export function useResolveActionParamsDefaults() {
+  return useApiMutation<ActionParamsDefaultsVariables, Record<string, unknown>>(
+    "POST",
+    (vars) => `/api/documents/types/${vars.typeId}/actions/${vars.actionId}/params/defaults`,
+  )
+}
+
+/** Generic search behind a 'reference' field, regardless of which entity it targets. */
+export function useReferenceSearch(entity: string | undefined, query: string) {
+  return useApiQuery<EntityReferenceOption[]>(
+    ["document-references", entity, "search", query],
+    `/api/documents/references/${entity}/search?q=${encodeURIComponent(query)}`,
+    { enabled: !!entity },
+  )
+}
+
+/** Resolves a single already-set reference value to its display label. */
+export function useReferenceResolve(entity: string | undefined, id: string | undefined) {
+  return useApiQuery<EntityReferenceOption | null>(
+    ["document-references", entity, id],
+    `/api/documents/references/${entity}/${id}`,
+    { enabled: !!entity && !!id },
+  )
+}
+
+/**
+ * The raw field values behind a `prefillFrom`-declared row (see the backend's
+ * `DocumentFieldDescriptor.prefillFrom`, descriptors/types.ts) — e.g. an Article's own `name`/
+ * `unitPrice`/`vatRate`. `null` when the id doesn't resolve, or the entity has no prefill data to
+ * offer at all (most reference entities don't — see `EntityReferenceProvider.getFields`, an OPTIONAL
+ * method on the backend). Not a React Query hook, deliberately: this is fetched once, imperatively,
+ * the moment a row's "from catalog" picker (field-renderers/array-field.tsx) resolves a selection —
+ * there is nothing about it worth keeping live or cached.
+ */
+export async function fetchPrefillFields(
+  entity: string,
+  id: string,
+): Promise<Record<string, unknown> | null> {
+  return apiFetch<Record<string, unknown> | null>(`/api/documents/references/${entity}/${id}/fields`)
+}
+
+/**
+ * LIVE (React Query) variant of `fetchPrefillFields`, for a field that must track a SIBLING
+ * 'reference' field's resolved raw values REACTIVELY as the user changes that reference — see the
+ * backend's `DocumentFieldDescriptor.lockedFromReference` (descriptors/types.ts: a credit note's own
+ * `currency` following its `invoice`). Unlike `fetchPrefillFields` above
+ * (fetched once, imperatively, on a button click), this one is meant to be called on every render
+ * with whatever id the sibling field CURRENTLY holds, the same "keep this live" posture
+ * `useReferenceResolve` already holds for a reference field's own label.
+ */
+export function useReferenceFields(entity: string | undefined, id: string | undefined) {
+  return useApiQuery<Record<string, unknown> | null>(
+    ["document-references", entity, id, "fields"],
+    `/api/documents/references/${entity}/${id}/fields`,
+    { enabled: !!entity && !!id },
+  )
+}
+
+/** One search result from a MULTI-target 'reference' field's fan-out search, tagged with which
+ *  entity it came from — this is what lets the picker show "of which type" each result is. */
+export interface EntityReferenceSearchHit extends EntityReferenceOption {
+  entity: string
+}
+
+/**
+ * Fans a single search query out to EVERY entity a multi-target 'reference' field allows (e.g.
+ * `entities: ["quote", "invoice"]`), through the exact same generic per-entity search endpoint a
+ * single-target field already uses — no backend endpoint changes needed for "multiple targets" at
+ * all, only calling the existing one more than once and merging. `useQueries` (not a fixed number of
+ * `useReferenceSearch` calls) is what lets `entities` be a runtime-provided list without breaking the
+ * rules of hooks.
+ */
+export function useMultiEntityReferenceSearch(entities: string[], query: string) {
+  return useQueries({
+    queries: entities.map((entity) => ({
+      queryKey: ["document-references", entity, "search", query],
+      queryFn: () =>
+        apiFetch<EntityReferenceOption[]>(
+          `/api/documents/references/${entity}/search?q=${encodeURIComponent(query)}`,
+        ),
+    })),
+    combine: (results) => ({
+      data: results.flatMap((result, index) =>
+        (result.data ?? []).map((option) => ({ ...option, entity: entities[index] })),
+      ) as EntityReferenceSearchHit[],
+      isLoading: results.some((result) => result.isLoading),
+    }),
+  })
+}
+
+/** The registered document transports (documents/transports/transport-registry.ts) — what a
+ *  company's settings screen offers for `invoiceTransportId`. Never scoped by country. */
+export function useDocumentTransports() {
+  return useApiQuery<DocumentTypeSummary[]>(["document-transports"], "/api/documents/transports")
+}
+
+/** One row a 'rowSelection' field may currently offer — the source row's own field values, exactly
+ *  as stored (minus the internal identity key), keyed by its stable id. */
+export interface SelectableRow {
+  id: string
+  data: Record<string, unknown>
+}
+
+export interface SelectableRowsResult {
+  sourceTypeId: string
+  sourceArrayField: string
+  rows: SelectableRow[]
+}
+
+/**
+ * What a 'rowSelection' field on document type `typeId`, field `fieldKey`, may currently offer, given
+ * the LIVE value of its sourceField sibling (`sourceId` — read off the form, not necessarily saved
+ * yet). Disabled while `sourceId` is unset: the backend already degrades to an empty list in that
+ * case (see row-selection/resolve-row-selection.ts's listSourceRows), but not even asking avoids a
+ * request that can only ever come back empty.
+ */
+export function useSelectableRows(
+  typeId: string | undefined,
+  fieldKey: string | undefined,
+  sourceId: string | undefined,
+) {
+  return useApiQuery<SelectableRowsResult>(
+    ["document-row-selection", typeId, fieldKey, sourceId],
+    `/api/documents/types/${typeId}/fields/${fieldKey}/rows?sourceId=${encodeURIComponent(sourceId ?? "")}`,
+    { enabled: !!typeId && !!fieldKey && !!sourceId },
+  )
+}

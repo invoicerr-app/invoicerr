@@ -1,0 +1,120 @@
+import { vi, type Mock } from 'vitest';
+
+// `@thallesp/nestjs-better-auth`'s own package ships an ESM-only transitive dependency
+// (better-auth/dist/integrations/node.mjs) jest's ts-jest transform doesn't parse — mocked here, the
+// same way `public-documents.controller.spec.ts`/`sdi-notifiche.controller.spec.ts` already do, rather
+// than widening jest's transformIgnorePatterns for one decorator whose only job is to set metadata
+// AuthGuard reads.
+vi.mock('@thallesp/nestjs-better-auth', () => ({
+  Public: () => () => undefined,
+}));
+
+// `documents()` now calls through to `resolveLegalDocumentLanguages`, which itself needs `@/lib/auth`/
+// `better-auth/node` mocked for the exact reason `legal-request-language.spec.ts`'s own header
+// explains — stubbed here to always resolve `['en']` so this file stays about what THIS controller
+// does with the result, not about language resolution itself (already covered by that other spec).
+const resolveLegalDocumentLanguages = vi.fn().mockResolvedValue(['en']);
+vi.mock('./legal-request-language', () => ({
+  resolveLegalDocumentLanguages: (...args: unknown[]) => resolveLegalDocumentLanguages(...args),
+}));
+
+import { BadRequestException } from '@nestjs/common';
+
+import { LegalController } from './legal.controller';
+import { LegalService } from './legal.service';
+
+const CLICKING_USER = {
+  id: 'user-1',
+  email: 'owner@acme.test',
+  firstname: 'Ada',
+  lastname: 'Owner',
+} as never;
+
+function fakeRequest(overrides: Partial<{ ip: string; headers: Record<string, string> }> = {}) {
+  return {
+    ip: overrides.ip ?? '203.0.113.9',
+    headers: overrides.headers ?? { 'user-agent': 'jest-agent' },
+  } as never;
+}
+
+function buildController() {
+  const service = {
+    listDocuments: vi.fn(),
+    getStatus: vi.fn(),
+    accept: vi.fn(),
+  } as unknown as LegalService;
+  return { controller: new LegalController(service), service };
+}
+
+describe('LegalController.documents', () => {
+  beforeEach(() => {
+    resolveLegalDocumentLanguages.mockClear().mockResolvedValue(['en']);
+  });
+
+  it('delegates straight to the service, no user required (public route)', async () => {
+    const { controller, service } = buildController();
+    (service.listDocuments as Mock).mockReturnValue({ saasMode: false, documents: [] });
+    await expect(controller.documents(fakeRequest())).resolves.toEqual({ saasMode: false, documents: [] });
+    expect(service.listDocuments).toHaveBeenCalledWith(['en']);
+  });
+
+  it('resolves the preferred languages from the request and an explicit ?lang= before calling the service', async () => {
+    const { controller, service } = buildController();
+    (service.listDocuments as Mock).mockReturnValue({ saasMode: false, documents: [] });
+    resolveLegalDocumentLanguages.mockResolvedValue(['de', 'fr', 'en']);
+
+    const request = fakeRequest();
+    await controller.documents(request, 'de');
+
+    expect(resolveLegalDocumentLanguages).toHaveBeenCalledWith(request, 'de');
+    expect(service.listDocuments).toHaveBeenCalledWith(['de', 'fr', 'en']);
+  });
+});
+
+describe('LegalController.status', () => {
+  it("delegates to the service with the caller's user id", () => {
+    const { controller, service } = buildController();
+    (service.getStatus as Mock).mockResolvedValue({
+      requiresAcceptance: true,
+      pending: ['privacy-policy'],
+    });
+    const result = controller.status(CLICKING_USER);
+    expect(service.getStatus).toHaveBeenCalledWith('user-1');
+    return expect(result).resolves.toEqual({ requiresAcceptance: true, pending: ['privacy-policy'] });
+  });
+});
+
+describe('LegalController.accept', () => {
+  it('forwards the body slugs plus the request ip/user-agent as acceptance metadata', () => {
+    const { controller, service } = buildController();
+    (service.accept as Mock).mockResolvedValue({ accepted: ['terms-of-service'] });
+
+    controller.accept(CLICKING_USER, { slugs: ['terms-of-service'] }, fakeRequest());
+
+    expect(service.accept).toHaveBeenCalledWith('user-1', ['terms-of-service'], {
+      ipAddress: '203.0.113.9',
+      userAgent: 'jest-agent',
+    });
+  });
+
+  it('tolerates a missing body and a missing user-agent header', () => {
+    const { controller, service } = buildController();
+    (service.accept as Mock).mockResolvedValue({ accepted: [] });
+
+    controller.accept(CLICKING_USER, undefined, fakeRequest({ headers: {} }));
+
+    expect(service.accept).toHaveBeenCalledWith('user-1', undefined, {
+      ipAddress: '203.0.113.9',
+      userAgent: null,
+    });
+  });
+
+  it('rejects a non-array slugs body with a 400 instead of reaching the service (was a raw 500 via .filter)', () => {
+    const { controller, service } = buildController();
+
+    expect(() =>
+      controller.accept(CLICKING_USER, { slugs: 'terms-of-service' } as never, fakeRequest()),
+    ).toThrow(BadRequestException);
+    expect(service.accept).not.toHaveBeenCalled();
+  });
+});

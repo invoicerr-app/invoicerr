@@ -1,0 +1,13 @@
+// DI tokens for the plain (non-Nest) registry instances documents.module.ts constructs and wires
+// once. String tokens, matching this codebase's existing convention (see ClientsModule's
+// 'VAT_VALIDATION_CLIENT') rather than symbols.
+export const DOCUMENT_TYPE_REGISTRY = 'DOCUMENT_TYPE_REGISTRY';
+export const FIELD_KIND_REGISTRY = 'FIELD_KIND_REGISTRY';
+export const ACTION_REGISTRY = 'ACTION_REGISTRY';
+export const ACTION_EXTENSION_REGISTRY = 'ACTION_EXTENSION_REGISTRY';
+export const ENTITY_REFERENCE_REGISTRY = 'ENTITY_REFERENCE_REGISTRY';
+export const TRANSPORT_REGISTRY = 'TRANSPORT_REGISTRY';
+export const CONTRIBUTION_REGISTRY = 'CONTRIBUTION_REGISTRY';
+export const COUNTRY_FIELD_OVERLAY_REGISTRY = 'COUNTRY_FIELD_OVERLAY_REGISTRY';
+export const VAT_RATE_CATALOG_REGISTRY = 'VAT_RATE_CATALOG_REGISTRY';
+export const FORMAT_PROVIDER_REGISTRY = 'FORMAT_PROVIDER_REGISTRY';

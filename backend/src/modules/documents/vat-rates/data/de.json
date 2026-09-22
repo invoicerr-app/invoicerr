@@ -1,0 +1,42 @@
+{
+  "countryCode": "DE",
+  "rates": [
+    {
+      "id": "de-standard",
+      "rate": 19,
+      "label": "Regelsteuersatz",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(1) Die Steuer beträgt für jeden steuerpflichtigen Umsatz 19 Prozent der Bemessungsgrundlage (§§ 10, 11, 25 Abs. 3 und § 25a Abs. 3 und 4).",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "UStG § 12 Abs. 1. Read directly on 2026-09-13 on https://www.gesetze-im-internet.de/ustg_1980/__12.html (an unofficial consolidated text from the Bundesministerium der Justiz — its Last-Modified header dated the very day of the reading, so a continuously regenerated mirror, not a fixed snapshot), direct curl then iso-8859-1 decoding (the site serves Latin-1, not UTF-8) and HTML parsing by a Python script. § 28 UStG (the temporary rate derogations) was also read directly: every derogation it lists (COVID cut to 16%, 2020-07-01 to 2020-12-31; the former wording for passenger transport by boat until 2011-12-31; the 7% energy-crisis rate on gas/district heating, 2022-10-01 to 2024-03-31) is EXPIRED as of 2026-09-13, none is in force today and no future change to the standard rate was found announced or scheduled."
+    },
+    {
+      "id": "de-reduced",
+      "rate": 7,
+      "label": "Ermäßigter Steuersatz",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(2) Die Steuer ermäßigt sich auf sieben Prozent für die folgenden Umsätze: 1. die Lieferungen, die Einfuhr und der innergemeinschaftliche Erwerb der in Anlage 2 bezeichneten Gegenstände; [...] 11. die Vermietung von Wohn- und Schlafräumen, die ein Unternehmer zur kurzfristigen Beherbergung von Fremden bereithält, sowie die kurzfristige Vermietung von Campingflächen. [...] 15. die Restaurant- und Verpflegungsdienstleistungen, mit Ausnahme der Abgabe von Getränken.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "UStG § 12 Abs. 2 (Nr. 1 for the goods listed in Anlage 2; Nr. 11 for short-term hotel/camping accommodation; Nr. 15 for restaurant/catering services excluding beverages — the full Nr. 1 to 15 list also covers cultural admissions (Nr. 7), services of charitable organizations (Nr. 8), local/short-distance passenger transport (Nr. 10), digital books/periodicals (Nr. 14), etc., not reproduced here). Same direct reading and same method as the de-standard entry above, same URL (https://www.gesetze-im-internet.de/ustg_1980/__12.html), same date. Anlage 2 itself (the list of goods covered by Nr. 1), also read directly the same day at https://www.gesetze-im-internet.de/ustg_1980/anlage_2.html, carries the following heading: « Anlage 2 (zu § 12 Absatz 2 Nummer 1, 2 und 14) Liste der dem ermäßigten Steuersatz unterliegenden Gegenstände », followed by a list of goods identified by customs code (live animals, meat, fish, dairy products, vegetables, fruit, cereals, books/newspapers, etc. — not reproduced in full here). Anlage 1 (the former pre-2007 list) is now formally empty, its page returning only « (weggefallen) » (literally: \"lapsed\"/\"no longer applicable\") — only Anlage 2 is actually referenced by the current § 12. NOTABLE RECENT CHANGE: Nr. 15 (restaurant/catering at 7%, excluding beverages) was a temporary COVID measure until 2023-12-31, made PERMANENT from 2024-01-01 by the Wachstumschancengesetz (Growth Opportunities Act) — the current consolidated text carries it with no sunset clause, which is consistent with that; the exact date this law itself came into force was not independently verified in this research (general knowledge, not re-derived from a primary text of this specific law)."
+    },
+    {
+      "id": "de-zero-pv",
+      "rate": 0,
+      "label": "Nullsteuersatz (Photovoltaikanlagen)",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(3) Die Steuer ermäßigt sich auf 0 Prozent für die folgenden Umsätze: 1. die Lieferungen von Solarmodulen an den Betreiber einer Photovoltaikanlage, einschließlich der für den Betrieb einer Photovoltaikanlage wesentlichen Komponenten und der Speicher, die dazu dienen, den mit Solarmodulen erzeugten Strom zu speichern, wenn die Photovoltaikanlage auf oder in der Nähe von Privatwohnungen, Wohnungen sowie öffentlichen und anderen Gebäuden, die für dem Gemeinwohl dienende Tätigkeiten genutzt werden, installiert wird. Die Voraussetzungen des Satzes 1 gelten als erfüllt, wenn die installierte Bruttoleistung der Photovoltaikanlage laut Marktstammdatenregister nicht mehr als 30 Kilowatt (peak) beträgt oder betragen wird[.]",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "UStG § 12 Abs. 3 Nr. 1 (Nr. 2 to 4, not reproduced here, extend the same 0% rate to the intra-Community acquisition, importation and installation of the same systems/storage units — the same rule repeated, not transcribed). Same direct reading, same URL, same date as de-standard above. THIS IS NOT AN EXEMPTION but a genuine ZERO RATE in the EN 16931 sense (category ZERO, not EXEMPT): this provision sits in § 12, titled « Steuersätze » (tax rates), worded exactly like the 19%/7% subsections (« Die Steuer ermäßigt sich auf … Prozent »), and NOT in § 4 UStG (« Steuerbefreiungen », the exemptions) — a taxable person selling under this regime still invoices VAT (at 0%) and keeps full input-VAT deduction rights, which is the EN 16931 zero-rate behavior, not that of an exemption. This conclusion rests on the structure and title of § 12 itself (read directly above); the text of § 4 UStG was NOT independently read to contrast the wording in this research. NARROW scope: limited to solar modules and associated equipment for a photovoltaic installation installed on or near homes/buildings serving the public interest, with an installed gross capacity (Marktstammdatenregister) not exceeding 30 kilowatts-peak — not a general zero rate. Effective date (understood as 2023-01-01, via the Jahressteuergesetz 2022) NOT independently verified in this research: § 28 UStG, which is where the UStG's own transitional rules live, is silent on Abs. 3 — its effective date lives in the enacting law itself, not read here."
+    }
+  ],
+  "notes": "Germany (2026-09-13). Three rates, all 'legal', SOURCED FROM THE PRIMARY LEGAL TEXT as served by the Bundesministerium der Justiz on gesetze-im-internet.de (an unofficial but continuously regenerated consolidated text), direct curl + HTML parsing, never a fetch-summary: UStG § 12 Abs. 1 — 19% (Regelsteuersatz), Abs. 2 — 7% (ermäßigter Steuersatz), Abs. 3 Nr. 1 — 0% (Nullsteuersatz, residential/public-interest-building photovoltaics, narrow scope detailed on the de-zero-pv entry). NO SUPER_REDUCED TIER exists for Germany (only these two ordinary tiers plus the narrow zero rate) — do not invent one. A CAVEAT ON THE LABELS: unlike France (where « taux normal » appears literally in CGI art. 278) or Portugal (« taxa normal »/« taxa reduzida » on the AT's own page), the UStG NEVER NAMES its own rates in § 12 — it only gives numbers (« ermäßigt sich auf sieben Prozent », « ermäßigt sich auf 0 Prozent »). « Regelsteuersatz » / « ermäßigter Steuersatz » / « Nullsteuersatz » are the usual administrative/doctrinal terms (BMF, UStAE) and not words quoted from § 12 itself — this `label` field therefore carries a convention, not a literal official term from the statutory text (verified by confirming that none of these labels appears in the citations themselves above). This catalog still does not model the temporality of rates (no validFrom/validTo in schema.ts): only the rates CURRENTLY in force are listed. No EXEMPT entry is added for Germany: the small-business regime (Kleinunternehmerregelung, § 19 UStG) was not read at its primary text by this research and is therefore not encoded here, following the same discipline as the rest of this file."
+}

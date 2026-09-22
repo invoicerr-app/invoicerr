@@ -1,0 +1,151 @@
+{
+  "demo": {
+    "greeting": "Olá, {{name}}!",
+    "itemCount": "{{count}} itens",
+    "itemCount_one": "{{count}} item"
+  },
+  "layout": {
+    "greeting": "Olá,",
+    "signOffText": "Atenciosamente,\nA equipa Invoicerr",
+    "signOffHtml": "Atenciosamente,<br>A equipa Invoicerr",
+    "sentFrom": "Este e-mail foi enviado de {appUrl}"
+  },
+  "signatureRequest": {
+    "subject": "Assine o documento n.º {signatureNumber}",
+    "intro": "Foi-lhe pedido que assine o seguinte documento:",
+    "documentLine": "Documento: {signatureNumber}",
+    "signatureIdLine": "ID de assinatura: {signatureId}",
+    "reviewLinkIntro": "Abra este link para consultar e assinar o documento:",
+    "contactText": "Se tiver alguma dúvida, contacte-nos.",
+    "title": "Assinatura de documento necessária",
+    "documentLabel": "Documento:",
+    "signatureIdLabel": "ID de assinatura:",
+    "clickBelow": "Clique no botão abaixo para consultar e assinar o documento:",
+    "buttonLabel": "Assinar documento",
+    "contactHtml": "Se tiver alguma dúvida, não hesite em contactar-nos."
+  },
+  "verificationCode": {
+    "subject": "O seu código de verificação",
+    "codeIntroText": "Este é o seu código de verificação: {otpCode}",
+    "codeIntroHtml": "Este é o seu código de verificação:",
+    "expiryText": "Este código irá expirar em breve. Introduza-o na aplicação para concluir a verificação.",
+    "expiryHtml": "Este código irá expirar em breve. Introduza-o na aplicação para concluir a verificação.",
+    "ignoreNotice": "Se não solicitou este código, ignore este e-mail."
+  },
+  "billingWarning": {
+    "manageLine": "Faça a gestão da sua subscrição: {settingsUrl}",
+    "ctaLabel": "Gerir subscrição",
+    "blockedZip": {
+      "subject_one": "Ação necessária: os seus dados Invoicerr serão arquivados dentro de {{count}} dia",
+      "subject": "Ação necessária: os seus dados Invoicerr serão arquivados dentro de {{count}} dias",
+      "heading": "Ação necessária",
+      "introText_one": "A subscrição Invoicerr da sua empresa não está ativa; dentro de {{count}} dia, os seus documentos serão exportados para um ficheiro zip e a conta ficará apenas para leitura até subscrever novamente.",
+      "introText": "A subscrição Invoicerr da sua empresa não está ativa; dentro de {{count}} dias, os seus documentos serão exportados para um ficheiro zip e a conta ficará apenas para leitura até subscrever novamente.",
+      "introHtml_one": "A subscrição Invoicerr da sua empresa não está ativa; dentro de <strong>{{count}} dia</strong>, os seus documentos serão exportados para um ficheiro zip e a conta ficará apenas para leitura até subscrever novamente.",
+      "introHtml": "A subscrição Invoicerr da sua empresa não está ativa; dentro de <strong>{{count}} dias</strong>, os seus documentos serão exportados para um ficheiro zip e a conta ficará apenas para leitura até subscrever novamente."
+    },
+    "deletion": {
+      "subject_one": "Aviso final: a sua empresa Invoicerr será eliminada permanentemente dentro de {{count}} dia",
+      "subject": "Aviso final: a sua empresa Invoicerr será eliminada permanentemente dentro de {{count}} dias",
+      "heading": "Aviso final",
+      "textBody_one": "Dentro de {{count}} dia, a sua empresa e todos os documentos nela contidos serão ELIMINADOS PERMANENTEMENTE do Invoicerr. Esta ação não pode ser revertida. Subscreva novamente antes desse prazo para manter os seus dados.",
+      "textBody": "Dentro de {{count}} dias, a sua empresa e todos os documentos nela contidos serão ELIMINADOS PERMANENTEMENTE do Invoicerr. Esta ação não pode ser revertida. Subscreva novamente antes desse prazo para manter os seus dados.",
+      "htmlBody_one": "Dentro de <strong>{{count}} dia</strong>, a sua empresa e todos os documentos nela contidos serão <strong>eliminados permanentemente</strong> do Invoicerr. Esta ação não pode ser revertida. Subscreva novamente antes desse prazo para manter os seus dados.",
+      "htmlBody": "Dentro de <strong>{{count}} dias</strong>, a sua empresa e todos os documentos nela contidos serão <strong>eliminados permanentemente</strong> do Invoicerr. Esta ação não pode ser revertida. Subscreva novamente antes desse prazo para manter os seus dados."
+    }
+  },
+  "legalChanged": {
+    "subjectSingular": "Documento legal atualizado: {title}",
+    "subjectPlural": "Documentos legais atualizados: {titles}",
+    "titlesTwo": "{first} e {second}",
+    "titlesMany": "{first}, {second} e mais {count}",
+    "heading_one": "Documento legal atualizado",
+    "heading": "Documentos legais atualizados",
+    "introText_one": "Atualizámos o seguinte documento legal. Pode consultar a nova versão aqui:",
+    "introText": "Atualizámos os seguintes documentos legais. Pode consultar as novas versões aqui:",
+    "introHtml_one": "Atualizámos o seguinte documento legal:",
+    "introHtml": "Atualizámos os seguintes documentos legais:",
+    "acceptNotice": "Ser-lhe-á pedido que aceite as alterações no seu próximo início de sessão:",
+    "acceptButton": "Consultar e aceitar"
+  },
+  "ownershipTransfer": {
+    "request": {
+      "subject": "{fromName} pretende transferir-lhe a propriedade de \"{companyName}\"",
+      "textIntro": "{fromName} solicitou a transferência da propriedade da sua empresa \"{companyName}\" no Invoicerr para a sua conta. Ao aceitar, torna-se PROPRIETÁRIO(A) dessa empresa; {fromName} passa a administrador(a).",
+      "expiryNotice": "Este pedido expira dentro de 7 dias.",
+      "reviewLinkIntro": "Consulte e aceite o pedido aqui:",
+      "ignoreNotice": "Se não esperava esta mensagem, pode simplesmente ignorá-la — nada muda até aceitar.",
+      "heading": "Pedido de transferência de propriedade",
+      "htmlIntro": "<strong>{fromName}</strong> solicitou a transferência da propriedade da sua empresa <strong>\"{companyName}\"</strong> no Invoicerr para a sua conta. Ao aceitar, torna-se PROPRIETÁRIO(A) dessa empresa; {fromName} passa a administrador(a).",
+      "buttonLabel": "Consultar pedido"
+    },
+    "finalized": {
+      "subjectNewOwner": "Agora é o(a) proprietário(a) de \"{companyName}\"",
+      "subjectFormerOwner": "A propriedade de \"{companyName}\" foi transferida",
+      "bodyLineNewOwner": "Agora é o(a) PROPRIETÁRIO(A) de \"{companyName}\" no Invoicerr.",
+      "bodyLineFormerOwner": "Já não é o(a) proprietário(a) de \"{companyName}\" — o novo proprietário aceitou a transferência. Continua a ser administrador(a) desta empresa.",
+      "heading": "Transferência de propriedade concluída"
+    },
+    "ended": {
+      "subjectExpired": "A transferência de propriedade de \"{companyName}\" expirou",
+      "subjectCanceled": "A transferência de propriedade de \"{companyName}\" foi cancelada",
+      "bodyExpired": "O seu pedido de transferência de propriedade de \"{companyName}\" para {toEmail} expirou sem resposta. Continua a ser o(a) proprietário(a) desta empresa.",
+      "bodyCanceled": "O seu pedido de transferência de propriedade de \"{companyName}\" para {toEmail} foi cancelado. Continua a ser o(a) proprietário(a) desta empresa.",
+      "heading": "Transferência de propriedade terminada"
+    }
+  },
+  "dataExport": {
+    "subject": "Exportação dos dados da sua empresa"
+  },
+  "dangerOtp": {
+    "subject": "Código OTP enviado",
+    "body": "O seu código de confirmação para uma ação destrutiva no Invoicerr é: {{code}}. É válido durante {{minutes}} minutos. Se não solicitou este código, ignore esta mensagem."
+  },
+  "dangerDeleteCompany": {
+    "body": "Está prestes a eliminar permanentemente \"{{companyName}}\" do Invoicerr. Em anexo encontra uma exportação completa de todos os dados que continha — esta é a sua última cópia. Após a conclusão da eliminação, nada poderá ser recuperado."
+  },
+  "instanceResetOtp": {
+    "subject": "Código de confirmação para repor a instância",
+    "body": "O seu código de confirmação para repor a TOTALIDADE desta instância Invoicerr — todas as empresas, utilizadores e documentos — é: {{code}}. É válido durante {{minutes}} minutos. Se não solicitou este código, ignore esta mensagem e considere remover o seu endereço de INSTANCE_OPERATOR_EMAILS."
+  },
+  "changeEmail": {
+    "subject": "Confirme o seu endereço de e-mail",
+    "textIntro": "Clique no link abaixo para confirmar este endereço de e-mail para a sua conta Invoicerr:",
+    "htmlIntro": "Clique no botão abaixo para confirmar este endereço de e-mail para a sua conta Invoicerr:",
+    "ignoreNotice": "Se não solicitou esta alteração, pode ignorar esta mensagem em segurança — o endereço de e-mail da sua conta não será alterado até que o link acima seja aberto.",
+    "buttonLabel": "Confirmar e-mail"
+  },
+  "mailSettingsTest": {
+    "subject": "Invoicerr — e-mail de teste",
+    "body": "Este é um e-mail de teste que confirma que a configuração do seu servidor de correio está a funcionar."
+  },
+  "billingZipExport": {
+    "body": "A subscrição Invoicerr da sua empresa está bloqueada há 14 dias. Em anexo encontra uma exportação completa dos documentos da sua empresa. Se não agir, estes dados serão eliminados permanentemente."
+  },
+  "reminders": {
+    "tier7": {
+      "subject": "Lembrete de pagamento — fatura {displayNumber}",
+      "body_one": "Olá,\n\nEste é um lembrete simpático de que a fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dia.\n\nPor favor, efetue o pagamento o mais brevemente possível. Se já tiver efetuado o pagamento, ignore esta mensagem.\n\nObrigado,\n{companyName}",
+      "body": "Olá,\n\nEste é um lembrete simpático de que a fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dias.\n\nPor favor, efetue o pagamento o mais brevemente possível. Se já tiver efetuado o pagamento, ignore esta mensagem.\n\nObrigado,\n{companyName}"
+    },
+    "tier14": {
+      "subject": "Segundo lembrete — a fatura {displayNumber} está em atraso",
+      "body_one": "Olá,\n\nA fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dia. Este é o nosso segundo lembrete — por favor, regularize o pagamento o mais brevemente possível.\n\nSe está com dificuldades em efetuar o pagamento, contacte-nos para encontrarmos uma solução em conjunto.\n\n{companyName}",
+      "body": "Olá,\n\nA fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dias. Este é o nosso segundo lembrete — por favor, regularize o pagamento o mais brevemente possível.\n\nSe está com dificuldades em efetuar o pagamento, contacte-nos para encontrarmos uma solução em conjunto.\n\n{companyName}"
+    },
+    "tier30": {
+      "subject": "URGENTE — a fatura {displayNumber} está significativamente em atraso",
+      "body_one": "Olá,\n\nA fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dia. Apesar dos lembretes anteriores, continua por pagar.\n\nPor favor, regularize esta fatura IMEDIATAMENTE para evitar outras medidas. Contacte-nos com urgência caso exista alguma contestação ou dificuldade da qual ainda não tenhamos conhecimento.\n\n{companyName}",
+      "body": "Olá,\n\nA fatura {displayNumber}, no valor de {amountOutstanding}, tinha vencimento em {dueDate} e está agora em atraso há {{count}} dias. Apesar dos lembretes anteriores, continua por pagar.\n\nPor favor, regularize esta fatura IMEDIATAMENTE para evitar outras medidas. Contacte-nos com urgência caso exista alguma contestação ou dificuldade da qual ainda não tenhamos conhecimento.\n\n{companyName}"
+    }
+  },
+  "portalInvite": {
+    "subject": "{companyName} — aceda ao seu portal de cliente",
+    "introText": "{companyName} convidou-o(a) para o seu portal de cliente, onde pode consultar as suas faturas, orçamentos e saldo de conta, e responder a qualquer orçamento que aguarde a sua decisão.",
+    "openPortalIntro": "Aceda ao seu portal:",
+    "buttonLabel": "Aceder ao portal",
+    "privacyNotice": "Mantenha este link confidencial — qualquer pessoa que o possua pode consultar a sua conta.",
+    "signOffText": "Com os melhores cumprimentos,\n{companyName}",
+    "signOffHtml": "Com os melhores cumprimentos,<br>{companyName}"
+  }
+}

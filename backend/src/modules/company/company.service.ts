@@ -1,410 +1,568 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto';
-import { MailTemplate, MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { EditCompanyDto, IdentifierEntry } from '@/modules/company/dto/company.dto';
+import { MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 import { logger } from '@/logger/logger.service';
+import { sanitizeEmailHtml } from '@/mail/sanitize-email-html';
+import {
+  describeSystemEmailVocabulary,
+  resolveSystemEmailTemplate,
+  SYSTEM_EMAIL_FAMILIES,
+  SystemEmailFamily,
+  systemEmailFamilyLabel,
+} from '@/mail/system-email-templates';
+import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
+import { assertValidNumberPattern } from '@/modules/documents/numbering/format-number';
+import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country-identifiers/validate-identifier-value';
+import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
+import { withSeatReservation } from '@/modules/billing/seat-sync';
+import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
+import { syncPolarCustomerOnCompanyChange } from '@/modules/billing/customer-sync';
 import prisma from '@/prisma/prisma.service';
-import { randomUUID } from 'crypto';
 
+/**
+ * One SYSTEM email template, as this module's settings routes hand it over — the signature request and
+ * the verification code only. A DOCUMENT type's email is a different mechanism, keyed by type rather
+ * than by a closed enum: see `documents/actions/company-email-templates.ts` and
+ * `GET /api/documents/email-templates`.
+ */
 export interface EmailTemplate {
-    dbId: string
-    id: string
-    companyId: string
-    name: string
-    subject: string
-    body: string
-    variables: Record<string, string>
+  /** The stored override's row id, or '' when this company has none and the shipped default applies —
+   *  which is what makes `source` below worth reporting rather than inferring from a string compare. */
+  dbId: string;
+  id: SystemEmailFamily;
+  companyId: string;
+  name: string;
+  subject: string;
+  /** HTML — see `MailTemplate.body`'s own schema comment. The text/plain alternative is derived from it
+   *  at send time (`email-template.ts#deriveTextFromHtml`), never stored twice. */
+  body: string;
+  source: 'company' | 'default';
+  variables: Record<string, string>;
+}
+
+/** Where the sample `{appUrl}` in a preview points, and what the senders interpolate — one fallback,
+ *  spelled once. */
+function appUrl(): string {
+  return process.env.APP_URL || 'http://localhost:3000';
+}
+
+/**
+ * The only `Company` columns a caller may ever set through `EditCompanyDto` — the single allow-list
+ * BOTH `createCompany` and `editCompanyInfo` write through, so the two can never drift into accepting
+ * different fields. `EditCompanyDto` is a TypeScript interface (erased at compile time) and this API
+ * has no `ValidationPipe`, so this function is the only thing standing between the raw JSON request
+ * body and `prisma.company.create`/`update`. Without it, a caller-named `subscription`, `documents`,
+ * `clients`, `signingCertificates`, `channelConfigs`, `id`, or any of the ~30 other relations
+ * `CompanyCreateInput`/`CompanyUpdateInput` accept would reach Prisma verbatim — and because the
+ * foreign key on a one-to-many/one-to-one relation lives on the CHILD row, a nested `connect` there
+ * REASSIGNS an existing row (someone else's active subscription, signing certificate, or transmission
+ * channel) to the caller's own company rather than merely failing. Every field named here is a plain
+ * scalar column with no such nested-write surface. Each key is always present on the returned object
+ * (possibly `undefined`) — Prisma treats an `undefined` value exactly like an absent key for both
+ * `create` and `update`, so this matches `editCompanyInfo`'s pre-existing literal-object write below.
+ */
+// `Pick<EditCompanyDto, ...>` rather than letting the return type be inferred: it preserves each
+// field's own OPTIONALITY exactly as `EditCompanyDto` declares it (`phone?: string`, not the
+// mandatory-but-possibly-`undefined` `phone: string | undefined` a bare object-literal return type
+// would infer). That distinction is what lets `createCompany` spread this result AFTER its own
+// `phone: ''`/`email: ''`/... fallbacks without TypeScript flagging every one of them as "always
+// overwritten by an `undefined`-typed spread" — Prisma's generated `CompanyCreateInput` itself marks
+// these columns as optional-with-a-caller-can-omit-them semantics for exactly this reason.
+type PickedCompanyInput = Pick<
+  EditCompanyDto,
+  | 'description'
+  | 'foundedAt'
+  | 'name'
+  | 'currency'
+  | 'exemptVat'
+  | 'address'
+  | 'addressLine2'
+  | 'postalCode'
+  | 'city'
+  | 'state'
+  | 'country'
+  | 'countryCode'
+  | 'language'
+  | 'phone'
+  | 'email'
+  | 'iban'
+  | 'invoiceTransportId'
+  | 'paymentProviderId'
+  | 'referenceCurrency'
+  | 'approvalThresholdMinor'
+  | 'remindersEnabled'
+  | 'distanceSalesRegime'
+>;
+
+/**
+ * `Company.distanceSalesRegime` is one of exactly two values or nothing at all (see its own
+ * schema.prisma comment for the Directive articles that close the set). This API has no
+ * `ValidationPipe` — `EditCompanyDto` is an erased TypeScript interface — so a typo'd or invented
+ * value would otherwise be stored happily and then read back as "not declared" by
+ * `documents/tax/resolve-invoice-tax.ts#parseDistanceSalesRegime`, leaving the company convinced it
+ * declared something while every cross-border B2C sale of goods kept being refused. Rejecting at SAVE
+ * time, named, is the same posture `updateNumberFormat` below already holds for a number pattern.
+ * `undefined` (key absent) leaves the column untouched; `null`/`''` clears it back to "never
+ * declared", which is a legitimate state to return to.
+ */
+function normalizeDistanceSalesRegime(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value.trim() === '') return null;
+  const normalized = value.trim().toUpperCase();
+  if (normalized !== 'ORIGIN' && normalized !== 'DESTINATION') {
+    throw new BadRequestException(
+      `distanceSalesRegime must be "ORIGIN" or "DESTINATION" (or empty to leave it undeclared), not ` +
+        `"${value}".`,
+    );
+  }
+  return normalized;
+}
+
+export function pickCompanyInput(input: EditCompanyDto): PickedCompanyInput {
+  return {
+    description: input.description,
+    foundedAt: input.foundedAt,
+    name: input.name,
+    currency: input.currency,
+    exemptVat: input.exemptVat,
+    address: input.address,
+    addressLine2: input.addressLine2,
+    postalCode: input.postalCode,
+    city: input.city,
+    state: input.state,
+    country: input.country,
+    countryCode: input.countryCode,
+    language: input.language,
+    phone: input.phone,
+    email: input.email,
+    iban: input.iban,
+    invoiceTransportId: input.invoiceTransportId,
+    paymentProviderId: input.paymentProviderId,
+    referenceCurrency: input.referenceCurrency,
+    approvalThresholdMinor: input.approvalThresholdMinor,
+    remindersEnabled: input.remindersEnabled,
+    distanceSalesRegime: normalizeDistanceSalesRegime(input.distanceSalesRegime),
+  };
 }
 
 @Injectable()
 export class CompanyService {
+  private lastCompanyHash?: string;
 
-    private lastCompanyHash?: string;
+  private computeHash(payload: any): string {
+    try {
+      const hash = createHash('sha1');
+      hash.update(JSON.stringify(payload));
+      return hash.digest('hex');
+    } catch (e) {
+      return String(Date.now());
+    }
+  }
 
-    private computeHash(payload: any): string {
-        try {
-            const hash = createHash('sha1');
-            hash.update(JSON.stringify(payload));
-            return hash.digest('hex');
-        } catch (e) {
-            return String(Date.now());
-        }
+  constructor(private readonly webhookDispatcher: WebhookDispatcherService) {}
+
+  async getCompanyInfo(companyId: string) {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: { partyIdentifiers: true },
+    });
+    if (!company) {
+      logger.warn('No company found', { category: 'company', details: { companyId } });
+      return null;
+    }
+    // Compute hash and log only on init or when company data changed
+    const companyData = company;
+    const hash = this.computeHash(companyData);
+    if (!this.lastCompanyHash) {
+      this.lastCompanyHash = hash;
+      logger.info('Company fetch initialized', {
+        category: 'company',
+        details: { companyId: company.id, hash },
+      });
+    } else if (this.lastCompanyHash !== hash) {
+      this.lastCompanyHash = hash;
+      logger.info('Company fetched data changed', {
+        category: 'company',
+        details: { companyId: company.id, hash },
+      });
+    }
+    return await prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } });
+  }
+
+  private async upsertPartyIdentifiers(
+    companyId: string,
+    identifiers: IdentifierEntry[] | undefined,
+    // The active company's own country — needed to resolve a declared `pattern`, exactly like
+    // `clients.service.ts`'s own `upsertPartyIdentifiers` needs the client's.
+    countryCode: string | null | undefined,
+  ) {
+    if (!identifiers) return;
+
+    const existing = await prisma.partyIdentifier.findMany({
+      where: { companyId },
+    });
+
+    // Every entry is checked against the country's declared `pattern` BEFORE any write below — see
+    // clients.service.ts's own identical comment and validate-identifier-value.ts's header for why
+    // this refuses rather than warns, and why an unchanged value is exempt.
+    for (const entry of identifiers) {
+      const before = existing.find((r) => r.scheme === entry.scheme);
+      await assertIdentifierValueMatchesPattern({
+        countryCode,
+        scheme: entry.scheme,
+        value: entry.value,
+        previousValue: before?.value,
+      });
     }
 
-    constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
+    const incomingSchemes = new Set(identifiers.map((i) => i.scheme));
+
+    // Delete rows whose scheme is no longer present
+    for (const row of existing) {
+      if (!incomingSchemes.has(row.scheme)) {
+        await prisma.partyIdentifier.delete({ where: { id: row.id } });
+      }
     }
 
-    async getCompanyInfo() {
-        const company = await prisma.company.findFirst({ include: { emailTemplates: true } });
-        if (!company) {
-            logger.warn('No company found', { category: 'company' });
-            return null;
-        }
-        await prisma.$transaction([
-            prisma.mailTemplate.upsert({
-                where: {
-                    companyId_type: { companyId: company.id, type: MailTemplateType.SIGNATURE_REQUEST }
-                },
-                create: {
-                    companyId: company.id,
-                    type: MailTemplateType.SIGNATURE_REQUEST,
-                    subject: 'Please sign document #{{SIGNATURE_NUMBER}}',
-                    body: '<h2>Document Signature Required</h2><p>Hello,</p><p>You have been requested to sign the following document:</p><div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">  <strong>Document:</strong> {{SIGNATURE_NUMBER}}<br>  <strong>Signature ID:</strong> {{SIGNATURE_ID}}</div><p>Please click the button below to review and sign the document:</p><div style="text-align: center; margin: 30px 0;">  <a href="{{SIGNATURE_URL}}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Sign Document</a></div><p>If you have any questions, please don\'t hesitate to contact us.</p><p>Best regards,<br>The Invoicerr Team</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-                },
-                update: {}
-            }),
-            prisma.mailTemplate.upsert({
-                where: {
-                    companyId_type: { companyId: company.id, type: MailTemplateType.VERIFICATION_CODE }
-                },
-                create: {
-                    type: MailTemplateType.VERIFICATION_CODE,
-                    subject: 'Your verification code',
-                    body: '<p>Hello,</p><p>Here is your verification code:</p><div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">  <div style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 4px; font-family: monospace;">{{OTP_CODE}}</div></div><p>This code will expire in 10 minutes. Please enter it in the application to complete your verification.</p><p>If you didn\'t request this code, please ignore this email.</p><p>Best regards,<br>The Invoicerr Team</p>',
-                    companyId: company.id
-                },
-                update: {}
-            }),
-            prisma.mailTemplate.upsert({
-                where: {
-                    companyId_type: { companyId: company.id, type: MailTemplateType.INVOICE }
-                },
-                create: {
-                    type: MailTemplateType.INVOICE,
-                    subject: 'Invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}',
-                    body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-                    companyId: company.id
-                },
-                update: {}
-            }),
-            prisma.mailTemplate.upsert({
-                where: {
-                    companyId_type: { companyId: company.id, type: MailTemplateType.PAYMENT }
-                },
-                create: {
-                    type: MailTemplateType.PAYMENT,
-                    subject: 'Payment #{{PAYMENT_NUMBER}} from {{COMPANY_NAME}}',
-                    body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the payment receipt #{{PAYMENT_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-                    companyId: company.id
-                },
-                update: {}
-            })
-        ]);
-        // Compute hash and log only on init or when company data changed
-        const companyData = company;
-        const hash = this.computeHash(companyData);
-        if (!this.lastCompanyHash) {
-            this.lastCompanyHash = hash;
-            logger.info('Company fetch initialized', { category: 'company', details: { companyId: company.id, hash } });
-        } else if (this.lastCompanyHash !== hash) {
-            this.lastCompanyHash = hash;
-            logger.info('Company fetched data changed', { category: 'company', details: { companyId: company.id, hash } });
-        }
-        return await prisma.company.findFirst();
+    // Upsert each submitted entry
+    for (const entry of identifiers) {
+      await prisma.partyIdentifier.upsert({
+        where: { companyId_scheme: { companyId, scheme: entry.scheme } },
+        create: { companyId, scheme: entry.scheme, value: entry.value },
+        update: { value: entry.value },
+      });
+    }
+  }
+
+  async editCompanyInfo(companyId: string, editCompanyDto: EditCompanyDto) {
+    // `rest` below is never spread wholesale — see the explicit allow-list a few lines down — so
+    // `identifiers` only needs pulling out here because it is written through its own upsert instead.
+    const { identifiers, ...rest } = editCompanyDto;
+
+    const existingCompany = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!existingCompany) {
+      throw new NotFoundException('Company not found');
     }
 
-    async getPDFTemplateConfig(): Promise<PDFConfigDto> {
-        const existingCompany = await prisma.company.findFirst({
-            include: { pdfConfig: true }
+    // Explicit allow-list, never `...rest`: there is no runtime request validation anywhere in this
+    // API (no ValidationPipe, no class-validator — `EditCompanyDto` is a TypeScript `interface`,
+    // erased at compile time), so `rest` is really just the raw, caller-supplied JSON body with two
+    // keys deleted. Spreading it wholesale would let a caller write ANY Company column by naming it —
+    // `id`, `createdAt`, and, directly relevant to numbering, `numberFormats` itself, which would
+    // bypass `assertValidNumberPattern` (the check `updateNumberFormat` below always runs) and let an
+    // invalid pattern sit in the database until it fails loudly, far from here, at issuance. Every
+    // field this settings screen is actually allowed to write is named once, in `pickCompanyInput`
+    // above — shared with `createCompany` so the two paths can never diverge.
+    const updatedCompany = await prisma.company.update({
+      where: { id: companyId },
+      data: pickCompanyInput(rest),
+    });
+
+    await this.upsertPartyIdentifiers(
+      companyId,
+      identifiers,
+      updatedCompany.countryCode ?? updatedCompany.country,
+    );
+
+    // A rename or a changed contact email is also what this company's Polar CUSTOMER should show —
+    // pushed in the same request rather than waiting for the next lifecycle-sweep tick, best-effort
+    // (never blocks this write — see `customer-sync.ts`'s own header). Only fired when one of the two
+    // actually changed: every OTHER field this screen writes (address, currency, IBAN…) has no Polar
+    // customer counterpart worth a network call on every save.
+    if (existingCompany.name !== updatedCompany.name || existingCompany.email !== updatedCompany.email) {
+      await syncPolarCustomerOnCompanyChange(companyId, {
+        name: updatedCompany.name,
+        email: updatedCompany.email,
+        billingEmail: updatedCompany.billingEmail,
+      });
+    }
+
+    logger.info('Company info updated', { category: 'company', details: { companyId: updatedCompany.id } });
+
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_UPDATED, {
+        company: updatedCompany,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch COMPANY_UPDATED webhook', { category: 'company', details: { error } });
+    }
+
+    return updatedCompany;
+  }
+
+  /**
+   * Sets ONE document type's own number-format PATTERN (`Company.numberFormats`,
+   * `documents/numbering/format-number.ts`). Deliberately its OWN small endpoint/method, never folded
+   * into `editCompanyInfo`'s `EditCompanyDto` above: `numberFormats` must only ever be written through
+   * a path that runs `assertValidNumberPattern` — see `editCompanyInfo`'s own comment on why its
+   * allow-list deliberately excludes this column. Two callers merge into the same JSON blob today: the
+   * Portuguese ATCUD settings screen (`documents/numbering/atcud.ts#parseAtcudPattern` requires a
+   * "/{number...}"-shaped pattern) and the main company settings screen's "Number formats" card, one
+   * `PUT` per type (quote, then invoice) rather than a single multi-type call — see that screen's own
+   * `onSubmit` for why the two are sequenced rather than fired concurrently.
+   *
+   * MERGES into the existing JSON blob (read-modify-write) rather than replacing it outright — a
+   * future second type writing through this same method must never silently erase what a prior call
+   * stored for a DIFFERENT typeId. `assertValidNumberPattern` is the SAME eager check
+   * `numbering/format-number.ts#resolveNumberFormat` re-applies at issuance time — reject here, at
+   * SAVE time, rather than let a company store a pattern that would only fail loudly the next time it
+   * tries to issue anything.
+   */
+  async updateNumberFormat(
+    companyId: string,
+    typeId: string,
+    pattern: string,
+  ): Promise<Record<string, string>> {
+    const trimmedTypeId = typeId?.trim();
+    const trimmedPattern = pattern?.trim();
+    if (!trimmedTypeId) throw new BadRequestException('typeId is required.');
+    if (!trimmedPattern) throw new BadRequestException('pattern is required.');
+
+    try {
+      assertValidNumberPattern(trimmedPattern, `for document type "${trimmedTypeId}"`);
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
+
+    const existingCompany = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { numberFormats: true },
+    });
+    if (!existingCompany) {
+      throw new NotFoundException('Company not found');
+    }
+
+    const existingFormats = (existingCompany.numberFormats as Record<string, string> | null) ?? {};
+    const numberFormats = { ...existingFormats, [trimmedTypeId]: trimmedPattern };
+
+    await prisma.company.update({ where: { id: companyId }, data: { numberFormats } });
+
+    logger.info('Company number format updated', {
+      category: 'company',
+      details: { companyId, typeId: trimmedTypeId },
+    });
+
+    return numberFormats;
+  }
+
+  // Creates a brand-new company and makes the creating user its OWNER —
+  // used both for a first-time user's onboarding and for an existing user
+  // starting an additional company from the company switcher.
+  async createCompany(userId: string, editCompanyDto: EditCompanyDto) {
+    const { identifiers, ...data } = editCompanyDto;
+
+    // Checked BEFORE the company row itself is created — same reasoning as
+    // `clients.service.ts#createClient`'s identical guard: `upsertPartyIdentifiers` cannot run
+    // first (no `companyId` yet), and a refusal surfacing only after create would leave an orphan
+    // company (and its OWNER `UserCompany` row) behind.
+    if (identifiers) {
+      for (const entry of identifiers) {
+        await assertIdentifierValueMatchesPattern({
+          countryCode: data.countryCode ?? data.country,
+          scheme: entry.scheme,
+          value: entry.value,
         });
-
-        if (!existingCompany?.pdfConfig) {
-            logger.error('No PDF configuration found for the company', { category: 'company' });
-            throw new BadRequestException('No PDF configuration found for the company');
-        }
-
-        return {
-            fontFamily: existingCompany.pdfConfig.fontFamily,
-            includeLogo: existingCompany.pdfConfig.includeLogo,
-            logoB64: existingCompany.pdfConfig.logoB64,
-            padding: existingCompany.pdfConfig.padding,
-            primaryColor: existingCompany.pdfConfig.primaryColor,
-            secondaryColor: existingCompany.pdfConfig.secondaryColor,
-
-            labels: {
-                // Payment-specific labels
-                payment: existingCompany.pdfConfig.payment,
-                receivedFrom: existingCompany.pdfConfig.receivedFrom,
-                invoiceRefer: existingCompany.pdfConfig.invoiceRefer,
-                paymentDate: existingCompany.pdfConfig.paymentDate,
-                totalReceived: existingCompany.pdfConfig.totalReceived,
-
-                // Generic / shared labels
-                billTo: existingCompany.pdfConfig.billTo,
-                description: existingCompany.pdfConfig.description,
-                date: existingCompany.pdfConfig.date,
-                dueDate: existingCompany.pdfConfig.dueDate,
-                grandTotal: existingCompany.pdfConfig.grandTotal,
-                invoice: existingCompany.pdfConfig.invoice,
-                quantity: existingCompany.pdfConfig.quantity,
-                quote: existingCompany.pdfConfig.quote,
-                quoteFor: existingCompany.pdfConfig.quoteFor,
-                subtotal: existingCompany.pdfConfig.subtotal,
-                discount: existingCompany.pdfConfig.discount,
-                total: existingCompany.pdfConfig.total,
-                unitPrice: existingCompany.pdfConfig.unitPrice,
-                validUntil: existingCompany.pdfConfig.validUntil,
-                vat: existingCompany.pdfConfig.vat,
-                vatRate: existingCompany.pdfConfig.vatRate,
-                notes: existingCompany.pdfConfig.notes,
-                paymentMethod: existingCompany.pdfConfig.paymentMethod,
-                paymentDetails: existingCompany.pdfConfig.paymentDetails,
-
-                // Payment method display labels
-                paymentMethodBankTransfer: existingCompany.pdfConfig.paymentMethodBankTransfer,
-                paymentMethodPayPal: existingCompany.pdfConfig.paymentMethodPayPal,
-                paymentMethodCash: existingCompany.pdfConfig.paymentMethodCash,
-                paymentMethodCheck: existingCompany.pdfConfig.paymentMethodCheck,
-                paymentMethodOther: existingCompany.pdfConfig.paymentMethodOther,
-
-                type: existingCompany.pdfConfig.type,
-                hour: existingCompany.pdfConfig.hour,
-                day: existingCompany.pdfConfig.day,
-                deposit: existingCompany.pdfConfig.deposit,
-                service: existingCompany.pdfConfig.service,
-                product: existingCompany.pdfConfig.product,
-
-                legalId: existingCompany.pdfConfig.legalId,
-                VATId: existingCompany.pdfConfig.VATId,
-            }
-        }
+      }
     }
 
-    async editPDFTemplateConfig(pdfConfig: PDFConfigDto) {
-        const existingCompany = await prisma.company.findFirst({
-            include: { pdfConfig: true }
-        });
+    // Same allow-list `editCompanyInfo` writes through — never `...data` (the raw JSON body minus
+    // `identifiers`). This is the ONE route on this DTO open to any authenticated user regardless of
+    // company membership (`companies.controller.ts`'s own comment), so an unchecked spread here was
+    // the more exploitable half of the mass-assignment hole: a caller who knows no other id at all
+    // can hand Prisma a nested `subscription: { create: { status: 'ACTIVE', ... } } }` and get an
+    // ACTIVE subscription with no Polar customer behind it, or a `connect` naming another tenant's
+    // row (subscription, signing certificate, channel config, client, document) and reassign it here
+    // on creation. See `pickCompanyInput`'s own header.
+    const picked = pickCompanyInput(data);
+    const newCompany = await prisma.company.create({
+      data: {
+        ...picked,
+        foundedAt: picked.foundedAt ?? new Date(),
+        // Sensible blanks for the fields the simplified onboarding (name + country only) doesn't
+        // collect — the user fills these in later via Settings. `??`, not the previous
+        // spread-after-literal ordering, because `Company`'s columns are non-nullable `string`
+        // (`prisma/generated/prisma/models/Company.ts`) while `pickCompanyInput`'s fields are all
+        // OPTIONAL (`EditCompanyDto`): the old `{ city: '', ...picked }` shape let an explicit
+        // `city: undefined` key from the spread silently win over the blank default — which
+        // `tsc` catches as a type error (`picked.city` is `string | undefined`, the column wants
+        // `string`) precisely because it WOULD have reached Prisma as `undefined`, i.e. "field not
+        // provided" — throwing at runtime on a required column with no schema default, the exact
+        // simplified-onboarding path (name + country only) this comment says must stay blank instead.
+        address: picked.address ?? '',
+        postalCode: picked.postalCode ?? '',
+        city: picked.city ?? '',
+        phone: picked.phone ?? '',
+        email: picked.email ?? '',
+      },
+    });
 
-        if (!existingCompany?.pdfConfig) {
-            logger.error('No PDF configuration found for the company', { category: 'company' });
-            throw new BadRequestException('No PDF configuration found for the company');
-        }
+    // A brand-new company's own OWNER is its first seat — assigned desk 1 on the generative office
+    // plan (`billing/seat-sync.ts#withSeatReservation`, a no-op entirely when billing is disabled).
+    await withSeatReservation(newCompany.id, userId, (tx) =>
+      tx.userCompany.create({ data: { userId, companyId: newCompany.id, role: 'OWNER' } }),
+    );
+    // Practically always a no-op here (a brand-new company has no `polarSubscriptionId` yet), kept
+    // for the rare case a company row is created for one already billed elsewhere — see
+    // `billing/member-sync.ts`'s own header.
+    await syncCompanyMemberOnMembershipChange(newCompany.id, userId);
 
-        const updatedConfig = await prisma.pDFConfig.update({
-            where: { id: existingCompany.pdfConfig.id }, // ✅ ici on utilise un identifiant unique
-            data: {
-                fontFamily: pdfConfig.fontFamily,
-                includeLogo: pdfConfig.includeLogo,
-                logoB64: pdfConfig.logoB64,
-                padding: pdfConfig.padding,
-                primaryColor: pdfConfig.primaryColor,
-                secondaryColor: pdfConfig.secondaryColor,
+    // Enriched expense categories ("notes de frais enrichies") — this brand-new company's default
+    // expense category set (the ten categories + "Other" `expense.descriptor.ts` used to hardcode).
+    // Idempotent (`ensureDefaultExpenseCategoriesSeeded`'s own header) — count is trivially 0 here, so
+    // this always inserts; the SAME function also runs lazily, on first read, for a company that
+    // predates this feature (`expense-categories/persistence.ts#listExpenseCategories`), so no data
+    // migration was needed to backfill existing companies.
+    await ensureDefaultExpenseCategoriesSeeded(newCompany.id);
 
-                // Payment-specific labels
-                payment: pdfConfig.labels.payment,
-                receivedFrom: pdfConfig.labels.receivedFrom,
-                invoiceRefer: pdfConfig.labels.invoiceRefer,
-                paymentDate: pdfConfig.labels.paymentDate,
-                totalReceived: pdfConfig.labels.totalReceived,
+    await this.upsertPartyIdentifiers(
+      newCompany.id,
+      identifiers,
+      newCompany.countryCode ?? newCompany.country,
+    );
 
-                // Generic / shared labels
-                billTo: pdfConfig.labels.billTo,
-                description: pdfConfig.labels.description,
-                dueDate: pdfConfig.labels.dueDate,
-                date: pdfConfig.labels.date,
-                grandTotal: pdfConfig.labels.grandTotal,
-                invoice: pdfConfig.labels.invoice,
-                quantity: pdfConfig.labels.quantity,
-                quote: pdfConfig.labels.quote,
-                quoteFor: pdfConfig.labels.quoteFor,
-                subtotal: pdfConfig.labels.subtotal,
-                discount: pdfConfig.labels.discount,
-                total: pdfConfig.labels.total,
-                unitPrice: pdfConfig.labels.unitPrice,
-                validUntil: pdfConfig.labels.validUntil,
-                vat: pdfConfig.labels.vat,
-                vatRate: pdfConfig.labels.vatRate,
-
-                notes: pdfConfig.labels.notes,
-                paymentMethod: pdfConfig.labels.paymentMethod,
-                paymentDetails: pdfConfig.labels.paymentDetails,
-
-                // Payment method display labels
-                paymentMethodBankTransfer: pdfConfig.labels.paymentMethodBankTransfer,
-                paymentMethodPayPal: pdfConfig.labels.paymentMethodPayPal,
-                paymentMethodCash: pdfConfig.labels.paymentMethodCash,
-                paymentMethodCheck: pdfConfig.labels.paymentMethodCheck,
-                paymentMethodOther: pdfConfig.labels.paymentMethodOther,
-
-                type: pdfConfig.labels.type,
-                hour: pdfConfig.labels.hour,
-                day: pdfConfig.labels.day,
-                deposit: pdfConfig.labels.deposit,
-                service: pdfConfig.labels.service,
-                product: pdfConfig.labels.product,
-
-                legalId: pdfConfig.labels.legalId,
-                VATId: pdfConfig.labels.VATId,
-            }
-        });
-
-        logger.info('Company PDF config updated', { category: 'company', details: { companyId: existingCompany.id } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_PDF_CONFIG_UPDATED, {
-                config: updatedConfig,
-                company: existingCompany,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch COMPANY_PDF_CONFIG_UPDATED webhook', { category: 'company', details: { error } });
-        }
-
-        return updatedConfig;
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_CREATED, {
+        company: newCompany,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch COMPANY_CREATED webhook', error);
     }
 
+    return newCompany;
+  }
 
-    async editCompanyInfo(editCompanyDto: EditCompanyDto) {
-        const data = { ...editCompanyDto };
-        const existingCompany = await prisma.company.findFirst();
-
-        if (existingCompany) {
-            const { pdfConfig, ...rest } = data;
-
-            const updatedCompany = await prisma.company.update({
-                where: { id: existingCompany.id },
-                data: {
-                    ...rest
-                }
-            });
-
-            logger.info('Company info updated', { category: 'company', details: { companyId: updatedCompany.id } });
-
-            try {
-                await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_UPDATED, {
-                    company: updatedCompany,
-                });
-            } catch (error) {
-                logger.error('Failed to dispatch COMPANY_UPDATED webhook', { category: 'company', details: { error } });
-            }
-
-            return updatedCompany;
-        } else {
-            const newCompany = await prisma.company.create({
-                data: {
-                    // Sensible blanks for the fields the simplified onboarding (name + country
-                    // only) doesn't collect — the user fills these in later via Settings.
-                    foundedAt: new Date(),
-                    address: '',
-                    postalCode: '',
-                    city: '',
-                    phone: '',
-                    email: '',
-                    ...data,
-                    pdfConfig: {
-                        create: {}
-                    },
-                    emailTemplates: {
-                        createMany: {
-                            data: [
-                                {
-                                    type: 'SIGNATURE_REQUEST',
-                                    subject: 'Please sign document #{{SIGNATURE_NUMBER}}',
-                                    body: '<h2>Document Signature Required</h2><p>Hello,</p><p>You have been requested to sign the following document:</p><div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">  <strong>Document:</strong> {{SIGNATURE_NUMBER}}<br>  <strong>Signature ID:</strong> {{SIGNATURE_ID}}</div><p>Please click the button below to review and sign the document:</p><div style="text-align: center; margin: 30px 0;">  <a href="{{SIGNATURE_URL}}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Sign Document</a></div><p>If you have any questions, please don\'t hesitate to contact us.</p><p>Best regards,<br>The Invoicerr Team</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>'
-                                },
-                                {
-                                    type: 'VERIFICATION_CODE',
-                                    subject: 'Your verification code',
-                                    body: '<p>Hello,</p><p>Here is your verification code:</p><div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">  <div style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 4px; font-family: monospace;">{{OTP_CODE}}</div></div><p>This code will expire in 10 minutes. Please enter it in the application to complete your verification.</p><p>If you didn\'t request this code, please ignore this email.</p><p>Best regards,<br>The Invoicerr Team</p>'
-                                },
-                                {
-                                    type: 'INVOICE',
-                                    subject: 'Invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}',
-                                    body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>'
-                                }
-                            ]
-                        }
-                    }
-                }
-            });
-
-            try {
-                await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_CREATED, {
-                    company: newCompany,
-                });
-            } catch (error) {
-                logger.error('Failed to dispatch COMPANY_CREATED webhook', error);
-            }
-
-            return newCompany;
-        }
+  /**
+   * The two SYSTEM emails, each resolved to what ACTUALLY applies: this company's own `MailTemplate`
+   * override when it has one, else the copy shipped in code (`mail/system-email-templates.ts`). Driven by
+   * `SYSTEM_EMAIL_FAMILIES` rather than a list written down here, so a family added to the enum cannot
+   * be silently missing from this response.
+   *
+   * Nothing is seeded to make this work. A company whose rows were never created — or were deleted
+   * (`danger.service.ts`'s reset does exactly that) — still gets both templates here and can still send
+   * both emails: "no row" means "the shipped default applies", never "unconfigured". That is what
+   * replaced the upsert this method's own caller used to fire on every read of a company's info.
+   */
+  async getEmailTemplates(companyId: string): Promise<EmailTemplate[]> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: { emailTemplates: true },
+    });
+    if (!company) {
+      logger.warn('No company found for email templates', { category: 'company', details: { companyId } });
+      throw new NotFoundException('Company not found');
     }
 
-    async getEmailTemplates(): Promise<EmailTemplate[]> {
-        const existingCompany = await prisma.company.findFirst({
-            include: { emailTemplates: true }
-        });
+    return SYSTEM_EMAIL_FAMILIES.map((family): EmailTemplate => {
+      const row = company.emailTemplates.find((candidate) => candidate.type === family) ?? null;
+      const template = resolveSystemEmailTemplate(family, row);
 
-        if (!existingCompany?.emailTemplates) {
-            logger.error('No email templates found for the company', { category: 'company' });
-            throw new BadRequestException('No email templates found for the company');
-        }
+      return {
+        dbId: row?.id ?? '',
+        id: family,
+        companyId: company.id,
+        name: systemEmailFamilyLabel(family),
+        subject: template.subject,
+        // The html part: this is the field the settings editor writes, and `MailTemplate.body` has held
+        // html since it existed. The text/plain alternative is never stored — it is derived from this at
+        // send time (`email-template.ts#deriveTextFromHtml`).
+        body: template.html ?? template.body,
+        source: row ? 'company' : 'default',
+        variables: describeSystemEmailVocabulary(family, appUrl()),
+      };
+    });
+  }
 
-        return existingCompany.emailTemplates.map(template => ({
-            id: template.type,
-            dbId: template.id,
-            companyId: existingCompany.id,
-            name: template.type
-                .replace('_', ' ')
-                .toLowerCase()
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' '),
-            subject: template.subject,
-            body: template.body,
-            variables: {
-                APP_URL: process.env.APP_URL || 'http://localhost:3000',
-                ...template.type === MailTemplateType.SIGNATURE_REQUEST && {
-                    SIGNATURE_ID: randomUUID(),
-                    SIGNATURE_NUMBER: 'QUOTE-2025-0001',
-                    SIGNATURE_URL: `${process.env.APP_URL || 'http://localhost:3000'}/signature/${randomUUID()}`
-                },
-                ...template.type === MailTemplateType.VERIFICATION_CODE && {
-                    OTP_CODE: '1234-5678',
-                },
-                ...template.type === MailTemplateType.INVOICE && {
-                    INVOICE_NUMBER: 'INV-2025-0001',
-                    CLIENT_NAME: 'Acme',
-                    COMPANY_NAME: existingCompany.name,
-                },
-                ...template.type === MailTemplateType.PAYMENT && {
-                    PAYMENT_NUMBER: 'PAY-2025-0001',
-                    CLIENT_NAME: 'Acme',
-                    COMPANY_NAME: existingCompany.name,
-                }
-            }
-        }));
+  /**
+   * Saves this company's override of one system email.
+   *
+   * The family is identified by `id` (the family name) or by `dbId`, the row id a screen holding an
+   * already-stored override will have — resolved TENANT-SCOPED, so a `dbId` belonging to another company
+   * is simply not found rather than updated. An upsert, not an update: the row IS the override, and a
+   * company overriding a shipped default for the first time has no row yet.
+   *
+   * Refused (400): an unidentifiable family, a blank subject, an empty body — none of those is a
+   * sendable email. REPORTED in `warnings`, never refused: an unknown `{placeholder}`, exactly as the
+   * engine documents (`renderEmailTemplate`). A typo in a verification-code template must never be what
+   * stops a code from reaching someone mid-signature.
+   */
+  async updateEmailTemplate(
+    companyId: string,
+    input: { id?: string; dbId?: string; subject: string; body: string },
+  ): Promise<EmailTemplate & { warnings: string[] }> {
+    const family = await this.resolveSystemEmailFamily(companyId, input);
+    const subject = input.subject ?? '';
+    // Sanitized BEFORE the emptiness check (`mail/sanitize-email-html.ts`), so markup that is nothing
+    // but a script tag is refused as an empty body rather than stored as one.
+    const body = sanitizeEmailHtml(input.body ?? '');
+    if (subject.trim() === '') {
+      throw new BadRequestException('An email template needs a subject.');
+    }
+    if (body.trim() === '') {
+      throw new BadRequestException('An email template needs a body.');
     }
 
-    async updateEmailTemplate(id: MailTemplate['id'], subject: string, body: string) {
-        let existingTemplate = await prisma.mailTemplate.findUnique({
-            where: { id },
-            include: { company: true }
-        });
-        if (!existingTemplate) {
-            logger.error(`Email template with id ${id} not found`, { category: 'company', details: { id } });
-            throw new BadRequestException(`Email template with id ${id} not found`);
-        }
+    const row = await prisma.mailTemplate.upsert({
+      where: { companyId_type: { companyId, type: family } },
+      create: { companyId, type: family, subject, body },
+      update: { subject, body },
+      include: { company: true },
+    });
 
-        existingTemplate = await prisma.mailTemplate.update({
-            where: { id },
-            data: {
-                subject,
-                body
-            },
-            include: { company: true }
-        });
+    const variables = describeSystemEmailVocabulary(family, appUrl());
+    const { warnings } = renderEmailTemplate(resolveSystemEmailTemplate(family, row), variables);
 
-        logger.info('Email template updated', { category: 'company', details: { templateId: id } });
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED, {
-                company: existingTemplate.company,
-                template: existingTemplate,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch COMPANY_EMAIL_TEMPLATE_UPDATED webhook', { category: 'company', details: { error } });
-        }
-        return existingTemplate;
+    logger.info('Email template updated', {
+      category: 'company',
+      details: { templateId: row.id, family, warningCount: warnings.length },
+    });
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED, {
+        company: row.company,
+        template: { id: row.id, type: row.type, subject: row.subject, body: row.body },
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch COMPANY_EMAIL_TEMPLATE_UPDATED webhook', {
+        category: 'company',
+        details: { error },
+      });
     }
+
+    return {
+      dbId: row.id,
+      id: family,
+      companyId,
+      name: systemEmailFamilyLabel(family),
+      subject: row.subject,
+      body: row.body,
+      source: 'company',
+      variables,
+      warnings,
+    };
+  }
+
+  /** Which family a write targets — by name when the caller knows it, else by the row id of an override
+   *  it already holds. The `dbId` lookup carries `companyId`, so it can only ever resolve a row this
+   *  tenant owns; an id from another company falls through to the same refusal as a missing one. */
+  private async resolveSystemEmailFamily(
+    companyId: string,
+    input: { id?: string; dbId?: string },
+  ): Promise<SystemEmailFamily> {
+    const named = SYSTEM_EMAIL_FAMILIES.find((family) => family === input.id);
+    if (named) return named;
+
+    if (input.dbId) {
+      const row = await prisma.mailTemplate.findFirst({
+        where: { id: input.dbId, companyId },
+        select: { type: true },
+      });
+      if (row) return row.type;
+    }
+
+    throw new BadRequestException(
+      `Unknown email template — identify it by id (${SYSTEM_EMAIL_FAMILIES.join(' | ')}) or by dbId.`,
+    );
+  }
 }
