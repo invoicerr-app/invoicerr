@@ -14,6 +14,17 @@ on:
         description: 'Image tag to publish (defaults to the sanitised branch name)'
         required: false
         type: string
+      # The Scaleway nodes a branch image gets tested on are ARM. Built on GitHub's native ARM runner
+      # rather than through QEMU on an x86 one: emulating a Node build multiplies its time several
+      # times over, the same reason docker-publish.yml gives each platform its own runner.
+      arch:
+        description: 'CPU architecture to build for'
+        required: false
+        type: choice
+        options:
+          - amd64
+          - arm64
+        default: amd64
 
 env:
   REGISTRY: ghcr.io
@@ -28,7 +39,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     # `contents: read` is the floor restated -- a job-level block REPLACES the top-level one instead
     # of adding to it, so omitting the line here would set `contents` to none and `actions/checkout`
     # below could no longer clone the repository this image is built from.
@@ -56,6 +67,7 @@ jobs:
         # bash as an ordinary environment variable instead, which is never re-parsed as shell syntax.
         env:
           INPUT_TAG: ${{ inputs.tag }}
+          INPUT_ARCH: ${{ inputs.arch }}
         run: |
           REPO_NAME_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
           IMAGE="${{ env.REGISTRY }}/${REPO_NAME_LOWER}"
@@ -68,6 +80,11 @@ jobs:
             TAG="$INPUT_TAG"
             if [[ -z "$TAG" ]]; then
               TAG=$(echo "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9_.-' '-' | sed 's/-*$//')
+            fi
+            # Each architecture is its own single-platform image, so an ARM build must not overwrite
+            # the amd64 image an x86 host may already be pulling under the same tag.
+            if [[ "$INPUT_ARCH" == "arm64" ]]; then
+              TAG="${TAG}-arm64"
             fi
             echo "push=true" >> $GITHUB_OUTPUT
           else
@@ -82,6 +99,7 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "cache_scope=$TAG" >> $GITHUB_OUTPUT
+          echo "platform=linux/${INPUT_ARCH:-amd64}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -99,7 +117,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64
+          platforms: ${{ steps.vars.outputs.platform }}
           # Same stamping as docker-publish.yml — a PR image is the one most likely to be deployed
           # somewhere and later wondered about, so it needs the revision at least as much.
           build-args: |
