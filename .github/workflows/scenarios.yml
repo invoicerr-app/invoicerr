@@ -11,12 +11,16 @@ name: Business Scenarios
 # So the `push` trigger below is deliberately PATH-FILTERED on exactly what has ever broken them —
 # the catalogs, the tax engine that composes them, and the spec and fixture themselves — rather than
 # firing six full-stack jobs on every push. `pull_request` stays unfiltered: a PR runs them all.
-# Same de-duplication as cypress.yml: a branch under review runs the matrix once, on its
-# `pull_request` event; the `push:` trigger only covers the long-lived branches.
+# Same de-duplication as cypress.yml, and for the same reason it was tightened there: a branch under
+# review runs the matrix once, on its `pull_request` event. `dev` was on this line and did not belong
+# — a permanent `dev -> main` pull request keeps every commit that lands on `dev` covered already, so
+# listing it here bought a second identical matrix and nothing else. `main` has no pull request of its
+# own and therefore stays. If that permanent PR is ever closed for good, `dev` goes back on this line
+# in the same commit.
 on:
   pull_request:
   push:
-    branches: [main, dev]
+    branches: [main]
     paths:
       - 'backend/src/modules/documents/**/data/**'
       - 'backend/src/modules/documents/tax/**'

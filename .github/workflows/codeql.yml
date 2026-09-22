@@ -11,11 +11,16 @@
 #
 name: "CodeQL Advanced"
 
+# `dev` is this repository's DEFAULT branch and was missing from both lists, while `basic` — a branch
+# that no longer exists anywhere — was on them. The consequence is not that analysis was merely
+# incomplete: an alert raised on `dev` can only be closed by a later analysis of `dev`, so three
+# findings stayed open for months after the code that caused them had been fixed, and every pull
+# request targeting `dev` (which is most of them) shipped with no analysis at all.
 on:
   push:
-    branches: [ "main", "basic" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main", "basic" ]
+    branches: [ "main", "dev" ]
   schedule:
     - cron: '25 20 * * 4'
 

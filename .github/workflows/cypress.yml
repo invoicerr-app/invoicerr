@@ -8,11 +8,19 @@ name: Tests
 # no subset that cannot. It does carry a BRANCH filter (`main`, `dev`) -- see the next paragraph.
 # A branch under review is tested once, by its `pull_request` run — a bare `push:` trigger used to
 # start the exact same hour of Cypress a second time for every commit pushed to that branch. The
-# `push:` trigger is kept only for the long-lived branches, which have no PR of their own.
+# `push:` trigger is therefore kept only for a branch that has NO pull request of its own, which is
+# `main` alone.
+#
+# `dev` used to be listed here too, and that cost a full duplicate battery on every single push: this
+# repository keeps a permanent `dev -> main` pull request open, so every commit that lands on `dev`
+# is already tested by that PR's own run. Two identical six-shard Cypress runs, on the same commit,
+# answering the same question. If that permanent PR is ever closed for good, put `dev` back on this
+# line in the same commit — otherwise `dev` silently stops being tested, which is the failure this
+# whole comment exists to prevent.
 on:
   pull_request:
   push:
-    branches: [main, dev]
+    branches: [main]
 
 # None of the eight jobs below pushes a package, comments on a PR, or otherwise calls the GitHub API
 # for anything beyond the checkout every job already does — `actions/upload-artifact`/`actions/cache`
