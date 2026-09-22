@@ -97,6 +97,22 @@ const config: Config = {
 
   plugins: [
     complianceContentPlugin,
+    // `/llms.txt` (an index of every page) and `/llms-full.txt` (every page's text in one file),
+    // per https://llmstxt.org. Generated from the same markdown at each build, so it can't drift
+    // from the site. The legal translations are excluded for the same reason the docs preset
+    // excludes them below: they are backend content, not pages of this site.
+    [
+      'docusaurus-plugin-llms',
+      {
+        title: 'Invoicerr',
+        description:
+          'Open-source invoicing software (AGPL-3.0): quotes, invoices, payments and country e-invoicing for France, Germany, Italy, Poland and Portugal. Self-hosted with Docker, or hosted.',
+        ignoreFiles: ['legal/*.{fr,de,it,pl,pt}.md'],
+        includeOrder: ['user-guide/**', 'developer-guide/**', 'legal/**'],
+        excludeImports: true,
+        removeDuplicateHeadings: true,
+      },
+    ],
     [
       require.resolve('@easyops-cn/docusaurus-search-local'),
       {
