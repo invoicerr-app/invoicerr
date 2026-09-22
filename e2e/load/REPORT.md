@@ -134,15 +134,54 @@ Reading it as a purchase:
 4. **Both figures are hammering users.** A real invoicing customer issues a handful of documents an
    hour, not thirty a minute. Size against the `sent/min` column and your own expected volume.
 
+## The asynchronous OCR, measured (`results/run4-ocr-async`)
+
+Same node, same stages, image `sha256:e5f172e9…` (OCR moved to a background job, capped cluster-wide
+at two at a time). The upload now answers `ocr: pending` and the extraction is polled, so the number
+that matters is upload → extraction, not the upload call.
+
+| Users | upload call | upload → extraction | scans | failures | node CPU peak | OCR pod RAM peak |
+|---|---|---|---|---|---|---|
+| 1 | 126 ms (was 3.8 s) | 4.1 s | 23 | 0 | 1.5 vCPU | 17 MiB |
+| 2 | 185 ms | 4.1 s | 44 | 0 | 2.5 vCPU | 131 MiB |
+| 10 | 126 ms | **31.0 s** (was 59.5 s, with 2 uploads timing out) | 81 | **0** | **4.8 vCPU** (was 6.0, saturated) | **156 MiB** (was 2.2 GiB) |
+| 50 | 185 ms | 192.9 s | 93 | **0** | 5.6 vCPU | 3.1 GiB node total |
+
+**At fifty users the instance stayed up** — the run that brought the node down before now drains a
+queue instead: every scan was extracted, every one of the 545 invoices was sent, and Postgres never
+restarted. The wait grows (three minutes at fifty hammering users) because two scans run at a time
+by design; that is a queue, not a failure.
+
+## One api pod versus three (`results/run5-3api`)
+
+50 users, same six-core node, `--set api.replicaCount=3`:
+
+| | 1 api replica | **3 api replicas** | 12-core node, 1 replica |
+|---|---|---|---|
+| p95 PDF | 10.2 s | **1.5 s** | 7.1 s |
+| invoices sent in 5 min | 545 | **1 302** | 587 |
+| node CPU peak | 5.7 / 6 vCPU | 5.8 / 6 vCPU | 7.9 / 12 vCPU |
+| €/month | 65.92 | **65.92** | 115.19 |
+
+**Three api replicas on the small node beat doubling the machine, for nothing.** With one replica the
+api tier could not use the cores it had — it was capped at four concurrent renders; with three it
+saturates the node and PDFs come back in a second and a half.
+
+### Sizing, settled
+
+- **Node: `BASIC2-A6C-12G`, 57.60 €/month** (6 vCPU, 12 GB). Peak memory across every pod stayed
+  at 3.1–3.8 GiB, so 24 GB buys nothing; the cores are what matter. 8.32 €/month below today's
+  candidate, 57.59 € below the twelve-core node.
+- **Topology: 3 api replicas, 3 workers.** Anything less leaves the machine idle under load.
+- Nothing smaller than six cores was measured.
+
 ## What could not be measured
 
-- **The OCR path under a fixed concurrency**: the cap was not in the image tested. The measurement
-  above is of an unbounded OCR, which is why it ends in an eviction rather than in a queue. The
-  build carrying the asynchronous, two-at-a-time OCR published linux/amd64 only, so it could not
-  run on the arm64 node every other number here comes from.
-- **More api replicas**, which is the measurement that would actually settle the sizing question:
-  `npm run loadtest -- --set api.replicaCount=3 --stages 50`. Until it is run, "three api pods on
-  the small node beat one api pod on a big node" is a hypothesis, not a result.
+- **Whether the OCR wait itself is acceptable**: at fifty hammering users a scan waits three
+  minutes. Nothing here says what a real user will tolerate, or how many OCR pods would be needed —
+  that is a product decision, and dedicated OCR machines behind a load balancer are the stated plan.
+- **A memory limit on the OCR pod**: `ocr.resources` is still `{}`. The new cap keeps memory at
+  156 MiB in practice, but nothing in the chart enforces it.
 - **A second node / real replication**: every stage ran on a single node, as the production
   candidate does. Nothing here says what a second pool would add.
 - **Real-user think time**: every virtual user hammers. The `sent/min` column is the honest axis for

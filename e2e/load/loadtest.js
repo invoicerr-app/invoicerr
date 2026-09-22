@@ -206,8 +206,24 @@ async function main() {
         .then(() => true)
         .catch(() => false);
       if (installed) {
-        log('release already installed, reusing it');
+        // The cluster was reused, but --image / --set still have to reach the release, or a second
+        // run would silently measure the first one's deployment.
         base = `http://${await kube.loadBalancerIp()}`;
+        log(`release already installed, upgrading it in place (${base})…`);
+        await kube.helm([
+          'upgrade',
+          kube.release,
+          '-n',
+          kube.ns,
+          resolve(here, '../../deploy/helm/invoicerr'),
+          // --reuse-values keeps the release's own values, secrets included: this run's directory
+          // has no secrets.yaml of its own, the first install's release holds them.
+          ...sets,
+          '--reuse-values',
+          '--wait',
+          '--timeout',
+          '10m',
+        ]);
       } else {
         const ip = await deploy(kube, {
           chart: resolve(here, '../../deploy/helm/invoicerr'),

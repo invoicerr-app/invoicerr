@@ -40,6 +40,7 @@ export const options = {
       'invoice_send',
       'poll_invoice',
       'ocr_upload',
+      'poll_ocr',
     ].map((n) => [`http_req_duration{name:${n}}`, ['max>=0']]),
   ),
 };
@@ -50,6 +51,9 @@ const sendToSent = new Trend('send_to_sent', true);
 const sendFailed = new Counter('send_failed');
 const sendTimedOut = new Counter('send_timed_out');
 const throttled = new Counter('throttled_429');
+// Upload → extraction available, across the background OCR queue (cluster-wide cap).
+const ocrToExtracted = new Trend('ocr_to_extracted', true);
+const ocrNotExtracted = new Counter('ocr_not_extracted');
 
 let cookie = null;
 
@@ -182,5 +186,24 @@ export default function () {
       { headers: headers(), tags: { name: 'ocr_upload' }, timeout: '180s' },
     );
     track(res, 'ocr_upload', 201);
+
+    // Since the OCR moved to a background job, the upload answers `ocr.outcome: "pending"` and the
+    // extraction arrives later — so the number that matters is the wait until it is done, not how
+    // fast the upload returned. An instance still running OCR inline answers `extracted` straight
+    // away and this simply records ~0.
+    if (res.status === 201 && res.json('ocr.outcome') === 'pending') {
+      const fileRef = res.json('fileRef');
+      const started = Date.now();
+      let status = 'pending';
+      while (status === 'pending' && Date.now() - started < 300000) {
+        sleep(1);
+        const poll = get(`/api/documents/received-invoices/upload/${fileRef}/ocr`, 'poll_ocr');
+        if (poll.status === 200) status = poll.json('status');
+        else if (poll.status === 404) status = 'gone';
+      }
+      if (status === 'done') ocrToExtracted.add(Date.now() - started);
+      else ocrNotExtracted.add(1, { status });
+      check(status, { 'ocr extracted': (s) => s === 'done' });
+    }
   }
 }
