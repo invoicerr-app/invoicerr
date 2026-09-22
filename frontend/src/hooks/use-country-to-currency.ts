@@ -5,7 +5,7 @@ import { countryToCurrency } from "@/lib/constants/country-to-currency"
 export function useCountryToCurrency(
   form: UseFormReturn<any>,
   countryFieldName = "country",
-  currencyFieldName = "currency"
+  currencyFieldName = "currency",
 ) {
   const country = form.watch(countryFieldName)
 

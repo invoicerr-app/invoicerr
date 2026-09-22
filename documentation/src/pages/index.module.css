@@ -3,24 +3,67 @@
  * and scoped locally.
  */
 
-.heroBanner {
-  padding: 5rem 0;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
+/* Composed, confident hero (see index.tsx's own header comment for the reasoning): sits on the
+   plain page background, no colour fill. A single hairline border is the only separator from the
+   feature grid below — no shadow, no gradient. Left-aligned rather than centred: a docs home page
+   is read top-to-bottom like a document, not looked at as a poster. */
+.hero {
+  padding: 4.5rem 0 3.5rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 3rem 1rem;
-  }
+.heroInner {
+  max-width: 42rem;
+}
+
+/* The small "DOCUMENTATION" kicker + mark pair: --ifm-link-color is the identity's own text-safe
+   azure (already defined and contrast-verified in custom.css — 4.5:1+ in both themes), reused here
+   rather than inventing a second accent token for the same role. */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ifm-link-color);
+}
+
+.eyebrowMark {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 2.75rem;
+  line-height: 1.1;
+}
+
+.tagline {
+  margin: 0 0 2rem;
+  max-width: 34rem;
+  font-size: 1.125rem;
+  color: var(--ifm-color-emphasis-700);
 }
 
 .buttons {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
+  gap: 0.875rem;
   flex-wrap: wrap;
-  margin-top: 1.5rem;
+}
+
+@media screen and (max-width: 640px) {
+  .hero {
+    padding: 2.75rem 0 2.25rem;
+  }
+
+  .title {
+    font-size: 2.1rem;
+  }
 }

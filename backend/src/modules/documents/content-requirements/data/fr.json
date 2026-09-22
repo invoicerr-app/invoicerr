@@ -1,0 +1,16 @@
+{
+  "countryCode": "FR",
+  "facts": [
+    {
+      "field": "BT-23",
+      "mandatedFrom": "2026-09-01",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "8° bis L'information selon laquelle les opérations donnant lieu à facture sont constituées exclusivement de livraisons de biens ou exclusivement de prestations de services ou sont constituées de ces deux catégories d'opérations ; (CGI, annexe II, art. 242 nonies A, I, 8° bis)",
+        "sourceCheckedAt": "2026-08-31"
+      },
+      "notes": "The exact text was found in the consolidated PDF « Code général des impôts, annexe II » (codes.droit.org, the Légifrance mirror already used for ../../mentions/data/fr.json — Légifrance itself returns 403 to automated requests, see that file), the version shown as last updated 2026-07-29, checked on 2026-08-31. The pre-refactor git tag `avant-refonte-documents` (compliance/providers/format/providers.ts, P2-T08) carried only a PARAPHRASE of this 8° bis (« the machine translation of the statutory mention 8° bis... ») with no verbatim citation and no check date; the text above is the exact citation, verified for this task, that was missing. The effective DATE (2026-09-01) is not carried by article 242 nonies A itself (an implementing decree, with no calendar clause of its own in the consolidated text) but by the mandatory e-invoicing regime it equips — CGI art. 289 bis/290, already sourced and dated (checked 2026-08-28) in ../../transports/channel-policy/data/fr.json for the same milestone. BT-23 (EN 16931, UBL cbc:ProfileID / CII BusinessProcessSpecifiedDocumentContextParameter/ID) is the machine translation of this 8° bis — the closed value list French law imposes exists nowhere in a text cited here word for word (B1/S1/M1/...): it comes from the DGFiP's own external specifications v3.2, not from the CGI — see formats/semantic/business-process.ts's own header, which already carries it and is not duplicated here."
+    }
+  ],
+  "notes": "Only France is wired today — the only country for which a real PDP rejection (informational poll, ../../transports/pdp/pdp.live.spec.ts) cited BT-23. A future country/field adds an entry here, never a branch in the generic code (formats/semantic/business-process.ts)."
+}

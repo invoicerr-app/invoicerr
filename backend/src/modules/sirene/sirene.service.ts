@@ -1,58 +1,45 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { FranceProvider } from '@/modules/company-lookup/providers/fr.provider';
 import { SireneCompanyDto } from '@/modules/sirene/dto/sirene-company.dto';
-import { calculateFrenchVAT, extractSirenFromSiret, formatSiret, isValidSiret } from '@/modules/sirene/sirene.utils';
+import { isValidSiret } from '@/modules/sirene/sirene.utils';
 
-const SIRENE_API_URL = 'https://recherche-entreprises.api.gouv.fr/search';
-const REQUEST_TIMEOUT_MS = 8000;
-
+/**
+ * French SIRET lookup — a thin, backwards-compatible facade over the country-aware
+ * company lookup (`modules/company-lookup`). New code should call CompanyLookupService,
+ * which serves every country that has a registry API; this endpoint stays for the
+ * existing `/api/sirene/siret/:siret` callers.
+ */
 @Injectable()
 export class SireneService {
-    private readonly logger = new Logger(SireneService.name);
+  private readonly logger = new Logger(SireneService.name);
+  private readonly provider = new FranceProvider();
 
-    async getCompanyBySiret(siret: string): Promise<SireneCompanyDto | null> {
-        if (!isValidSiret(siret)) return null;
+  async getCompanyBySiret(siret: string): Promise<SireneCompanyDto | null> {
+    if (!isValidSiret(siret)) return null;
 
-        const formattedSiret = formatSiret(siret);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const company = await this.provider.lookup({
+        countryCode: 'FR',
+        scheme: 'LEGAL_ID',
+        value: siret,
+      });
+      if (!company) return null;
 
-        try {
-            const res = await fetch(`${SIRENE_API_URL}?q=${formattedSiret}&per_page=1`, {
-                signal: controller.signal,
-            });
-
-            if (!res.ok) {
-                this.logger.warn(`Sirene lookup for ${formattedSiret} failed with status ${res.status}`);
-                return null;
-            }
-
-            const data = await res.json();
-            const result = data?.results?.[0];
-            if (!result || result.siege?.siret !== formattedSiret) return null;
-
-            return this.mapToDto(result);
-        } catch (err) {
-            this.logger.warn(`Sirene lookup for ${formattedSiret} failed: ${err?.message}`);
-            return null;
-        } finally {
-            clearTimeout(timeout);
-        }
+      return {
+        name: company.name,
+        legalId: company.legalId as string,
+        VAT: company.VAT,
+        address: company.address,
+        postalCode: company.postalCode,
+        city: company.city,
+        state: company.state,
+        country: company.country,
+        foundedAt: company.foundedAt,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Sirene lookup for ${siret} failed: ${message}`);
+      return null;
     }
-
-    private mapToDto(result: any): SireneCompanyDto {
-        const siege = result.siege ?? {};
-        const siren = result.siren ?? extractSirenFromSiret(siege.siret ?? '');
-
-        return {
-            name: result.nom_complet ?? result.nom_raison_sociale ?? siege.siret,
-            legalId: siege.siret,
-            VAT: siren ? calculateFrenchVAT(siren) : undefined,
-            address: siege.adresse,
-            postalCode: siege.code_postal,
-            city: siege.libelle_commune,
-            state: undefined,
-            country: 'France',
-            foundedAt: result.date_creation ? new Date(result.date_creation) : undefined,
-        };
-    }
+  }
 }

@@ -1,76 +1,181 @@
-# Invoicerr
+![Invoicerr](./Invoicerr_banner.webp)
 
+Open-source invoicing you host yourself: quotes, invoices, payments and the paperwork that follows —
+including the e-invoicing rules of the country you bill from.
 
-![Invoicerr Banner](https://github.com/invoicerr-app/invoicerr/blob/ac4ea3fb8293b63e0b58bd33ea38b6b7018f673a/Invoicerr_banner.webp)
+[![Tests](https://github.com/invoicerr-app/invoicerr/actions/workflows/cypress.yml/badge.svg)](https://github.com/invoicerr-app/invoicerr/actions/workflows/cypress.yml)
+[![Latest release](https://img.shields.io/github/v/release/invoicerr-app/invoicerr?label=release)](https://github.com/invoicerr-app/invoicerr/releases)
+[![Container image](https://img.shields.io/badge/ghcr.io-invoicerr--app%2Finvoicerr-2496ED?logo=docker&logoColor=white)](https://ghcr.io/invoicerr-app/invoicerr)
+[![License](https://img.shields.io/github/license/invoicerr-app/invoicerr)](./LICENSE)
 
-Invoicerr is a simple, open-source invoicing application designed to help freelancers manage their quotes and invoices efficiently. It provides a clean interface for creating, sending, and tracking quotes and invoices — so you get paid faster, with less hassle.
+![Dashboard](./documentation/static/img/readme/dashboard.webp)
 
----
+## What you get
 
-## 📢 Maintainer availability
+- Quotes, invoices, credit notes, purchase orders, goods receipts, expenses and received invoices —
+  one document engine, one lifecycle, one list and detail screen for every type.
+- Payments, partial payments, deposits, instalments and settlement badges computed from the record,
+  never stored on the document.
+- Clients with their own portal, account statements and aged balance.
+- An article catalogue with stock counts, project time tracking that turns into invoice lines, and
+  recurring documents.
+- Bank statement import (CSV/OFX) with reference and amount matching, plus online payment methods.
+- PDF generation, e-invoice XML (Factur-X, UBL, CII, XRechnung, Peppol BIS, FatturaPA, FA(3)) and
+  national transmission channels.
+- A legal archive per issued document, with the retention duration and its starting point taken from
+  the country's own rule.
+- Encrypted, scheduled backups of every archived document and uploaded file to a separate bucket,
+  with a key the storage provider never holds.
+- Sign-in by e-mail/password, OIDC/SSO (instance-wide or per company) or API key; multi-company,
+  role-based access; webhooks, a REST API, an MCP server and a plugin system.
+- 18 interface languages, per-recipient document language, multi-currency with rate history.
+- Installable as a PWA, light and dark themes.
 
-I no longer have enough personal time to work on Invoicerr full-time (studies + job).
+## Screenshots
 
-The project is still open, and I can continue to review and manage community pull requests, but development speed from my side will be slower.
+<details>
+<summary>Invoicing</summary>
 
----
+Invoice list, filtered by status, with the settlement state of each one.
 
-![Dashboard Page](https://github.com/user-attachments/assets/18e8af88-cf02-4e35-975a-d57f58d062c6)
+![Invoice list](./documentation/static/img/readme/invoices.webp)
 
-<section>
-<img src="https://wakatime.com/badge/user/4cf4132a-4ced-411d-b714-67bdbdc84527/project/2f27011d-6794-4fbe-97c9-9fdef2550fc7.svg?style=flat">
-<img src="https://m3-markdown-badges.vercel.app/stars/12/1/invoicerr-app/invoicerr">
-<img src="https://m3-markdown-badges.vercel.app/issues/12/1/invoicerr-app/invoicerr">
-</section>
+Creation wizard — lines filled from the article catalogue, VAT rates from the seller country's own
+rate list.
 
-## ✨ Features
+![Invoice creation wizard](./documentation/static/img/readme/invoice-wizard.webp)
 
-- Create and manage invoices  
-- Create and manage quotes (convertible to invoices)  
-- Manage clients and their contact details  
-- Track status of quotes and invoices (signed, paid, unread, etc.)  
-- Built-in quote signing system with secure tokens  
-- Generate and send quote/invoice emails directly from the app
-- Generate clean PDF documents (quotes, invoices, payments, and more)  
-- Custom brand identity: logo, company name, VAT, and more  
-- Authentication via JWT or OIDC (stored in cookies)
-- International-friendly: Default English UI, customizable currencies  
-- SQLite database for quick local setup  
-- Docker & docker-compose ready for self-hosting  
-- Built with modern stack: React, NestJS, Prisma, SQLite/PostgreSQL  
-- REST API backend, ready for future integrations (mobile & desktop apps)
-- Plugin system for community-made features
+Invoice detail: totals, settlement and the legal archive with its retention rule.
 
----
+![Invoice detail](./documentation/static/img/readme/invoice-detail.webp)
 
-## 🌍 Translation
+Quotes, convertible to invoices, with deposit and instalment requests.
 
-Invoicerr uses weblate to easily manage the translations
+![Quotes](./documentation/static/img/readme/quotes.webp)
 
-[![Translation status](https://hosted.weblate.org/widget/invoicerr/horizontal-auto.svg)](https://hosted.weblate.org/engage/invoicerr/)
+Credit notes correct an invoice line by line, never freehand.
 
-[![Translation status](https://hosted.weblate.org/widget/invoicerr/open-graph.png)](https://hosted.weblate.org/engage/invoicerr/)
+![Credit note](./documentation/static/img/readme/credit-note.webp)
 
----
+</details>
 
-## 🐳 Docker Installation (Recommended)
+<details>
+<summary>Purchasing</summary>
 
-#### Supported Architectures
+Purchase orders sent to suppliers.
 
-The images are built for the following architectures:
+![Purchase orders](./documentation/static/img/readme/purchase-orders.webp)
 
-- `linux/amd64` (x86_64)
-- `linux/arm64/v8` (ARMv8)
+Received invoices — uploaded, OCR-read into an editable proposal, then approved or rejected.
 
-#### Why not `linux/arm/v7`?
+![Received invoices](./documentation/static/img/readme/received-invoices.webp)
 
-The `linux/arm/v7` architecture is not supported due to the use of prisma, which does not provide prebuilt binaries for this architecture. This means that the application will not run on 32-bit ARM devices.
+</details>
 
-The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is available at [ghcr.io/invoicerr-app/invoicerr](https://ghcr.io/invoicerr-app/invoicerr).
+<details>
+<summary>Clients</summary>
 
-### 🚀 Quick Start
+Client list with activity and supplier filters.
 
-1. Create a `docker-compose.yml` file with the following content, then adjust the environment variables to your setup:
+![Clients](./documentation/static/img/readme/clients.webp)
+
+Account statement: every document, the balance and the aged balance.
+
+![Client statement](./documentation/static/img/readme/client-statement.webp)
+
+The client portal — the client's own documents, balance, PDFs, payment and quote decisions.
+
+![Client portal](./documentation/static/img/readme/client-portal.webp)
+
+Quote signing: a one-time code sent to the signer, then a signed quote.
+
+![Quote signature](./documentation/static/img/readme/quote-signature.webp)
+
+</details>
+
+<details>
+<summary>Catalogue and time</summary>
+
+Articles priced per hour, day, unit or service, with stock counts and low-stock alerts.
+
+![Articles](./documentation/static/img/readme/articles.webp)
+
+Time tracking per project, billable or not, turned into invoice lines in one step.
+
+![Time tracking](./documentation/static/img/readme/time-tracking.webp)
+
+</details>
+
+<details>
+<summary>Getting paid</summary>
+
+Bank reconciliation: import a statement, confirm the suggested match, get a real payment record.
+
+![Bank reconciliation](./documentation/static/img/readme/bank-reconciliation.webp)
+
+Payment methods offered to clients, with the details each one shows on the document.
+
+![Payment methods](./documentation/static/img/readme/payment-methods.webp)
+
+</details>
+
+<details>
+<summary>Settings</summary>
+
+Company settings — the country decides which identifiers are asked for, and how they are labelled.
+
+![Company settings](./documentation/static/img/readme/company-settings.webp)
+
+E-invoicing channels: connect the national platform the country expects, then use it as the invoice
+transport.
+
+![E-invoicing channels](./documentation/static/img/readme/e-invoicing-channels.webp)
+
+Signing certificates for PAdES-signed PDFs.
+
+![Signing certificates](./documentation/static/img/readme/signing-certificates.webp)
+
+E-mail templates, one per document type plus the system e-mails.
+
+![E-mail templates](./documentation/static/img/readme/email-templates.webp)
+
+</details>
+
+<details>
+<summary>Dark theme</summary>
+
+![Dashboard in dark theme](./documentation/static/img/readme/dashboard-dark.webp)
+
+</details>
+
+## Country coverage
+
+A country is data, not code: which actions a document allows, which identifiers a party must supply,
+which correction route applies, which VAT rates exist, which channel and format a buyer requires, how
+long an archive must be kept — each is its own catalogue of sourced facts, and every fact carries the
+legal text it comes from.
+
+Germany, France, Italy, Poland and Portugal ship with their catalogues filled in.
+
+| Channel | Country | Used for |
+| --- | --- | --- |
+| PDP | France | B2B e-invoicing through an accredited platform |
+| Chorus Pro | France | B2G invoices to public buyers |
+| KSeF | Poland | National clearance |
+| SdI | Italy | National clearance (web service) |
+| SdI over PEC | Italy | National clearance (certified e-mail) |
+| E-mail | Any | PDF and attached e-invoice XML |
+
+The full per-country picture is generated from those data files on every documentation build:
+[country support matrix](https://docs.invoicerr.app/docs/developer-guide/country-support) ·
+[adding a country](https://docs.invoicerr.app/docs/developer-guide/adding-a-country).
+
+## Quick start
+
+A prebuilt image is published at [ghcr.io/invoicerr-app/invoicerr](https://ghcr.io/invoicerr-app/invoicerr),
+built for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
+
+1. Create a `docker-compose.yml`:
 
    ```yaml
    services:
@@ -78,29 +183,30 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
        image: ghcr.io/invoicerr-app/invoicerr:latest
        ports:
          - "80:80"
+       volumes:
+         # Legal archives and received invoices. Without it they live in the container's writable
+         # layer and are destroyed by the next image pull.
+         - documents_data:/data
        environment:
          - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
-         - APP_URL=https://invoicerr.example.com # Required for email templates, as it redirects to the app
-         - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com # Comma-separated list of allowed origins for CORS
-
-         # Required for email features - choose ONE provider below
-         # Option 1: SMTP (default, MAIL_PROVIDER can be omitted)
-         - MAIL_PROVIDER=smtp
-         - SMTP_HOST=smtp-relay.example.com
-         - SMTP_USER="username@example.com"
-         - SMTP_FROM="user-from@example.com" # Not required if SMTP_USER is the same as SMTP_FROM
-         - SMTP_PASSWORD="your_smtp_password"
+         - APP_URL=https://invoicerr.example.com
+         - DOCUMENTS_ARCHIVE_DIR=/data/documents-archive
+         - DOCUMENTS_INBOUND_DIR=/data/documents-inbound
+         # Signs every session cookie. Generate with: openssl rand -hex 32
+         - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set it in a .env file next to this one}
+         # Redis is required for the backend to boot at all (the document-action queue).
+         - REDIS_HOST=redis
+         - REDIS_PORT=6379
+         # One mail provider, or nothing can be sent. Resend is the alternative:
+         # MAIL_PROVIDER=resend + RESEND_API_KEY.
+         - SMTP_HOST=smtp.example.com
+         - SMTP_USER=invoices@example.com
+         - SMTP_PASSWORD=${SMTP_PASSWORD:?set it in a .env file next to this one}
          - SMTP_PORT=587
          - SMTP_SECURE=false
-
-         # Option 2: Brevo (set MAIL_PROVIDER=brevo and comment out the SMTP_* variables above)
-         # - MAIL_PROVIDER=brevo
-         # - BREVO_API_KEY="your_brevo_api_key"
-
-         # Optional, but recommended for docker deployments
-         - JWT_SECRET="your_jwt_secret"
        depends_on:
          - invoicerr_db
+         - redis
 
      invoicerr_db:
        image: postgres:15
@@ -111,168 +217,138 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
        volumes:
          - db_data:/var/lib/postgresql/data
 
+     redis:
+       image: bitnami/redis:latest
+       restart: unless-stopped
+       environment:
+         ALLOW_EMPTY_PASSWORD: "yes"
+       volumes:
+         - redis_data:/bitnami
+
    volumes:
+     documents_data:
      db_data:
-       driver: local
+     redis_data:
    ```
 
-   > The full reference file with OIDC options is available at [`docker-compose.yml`](./docker-compose.yml).
+2. Put the two secrets in a `.env` file next to it, then start:
 
-2. Run the app:  
    ```bash
    docker compose up -d
    ```
 
-3. Open your browser at:  
-   ```
-   http://localhost
-   ```
+3. Open `http://localhost` and create the first account.
 
----
+The reference compose file with every option — OIDC, OCR, mail providers — is
+[`docker-compose.yml`](./docker-compose.yml); [`docker-compose.scale.yml`](./docker-compose.scale.yml)
+adds dedicated queue workers. Every variable is documented, with its default and the source file that
+default lives in, in [`backend/.env.example`](./backend/.env.example).
 
-### 🔧 Environment Variables
+For more than one host, use the Helm chart in [`deploy/helm/invoicerr/`](./deploy/helm/invoicerr). The
+API and worker scale safely as independent Deployments — three API replicas behind a load balancer and
+fifteen workers — once the legal archive and uploaded files move to S3-compatible object storage
+instead of local disk, which is what makes running on more than one machine possible at all. The
+[Kubernetes guide](https://docs.invoicerr.app/docs/user-guide/kubernetes)'s own reference deployment
+runs entirely on one French provider, in Paris: cluster, object storage and managed database.
 
-These environment variables are defined in `docker-compose.yml` under the `invoicerr` service:
+### Updating
 
-- `DATABASE_URL`  
-  PostgreSQL connection string. Example:  
-  `postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db`
+```bash
+docker compose pull && docker compose up -d
+```
 
-- `APP_URL`  
-  Full public URL of the frontend (e.g., `https://invoicerr.example.com`).  
-  This is required for email templates and links.
+Database migrations run at boot, in the API role only. When a release changes which countries the
+shipped catalogues cover, one manual step follows it, because no boot path is allowed to delete a
+country's rows:
 
-- `MAIL_PROVIDER`  
-  Which email transport to use: `smtp` (default) or `brevo`.
+```bash
+npm run catalogs:release    # from the backend workspace — /usr/share/nginx/backend in the image
+```
 
-- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`  
-  Used when `MAIL_PROVIDER=smtp` (or unset). Credentials and server used for sending emails (quotes, invoices, etc.)
+## Documentation
 
-- `SMTP_FROM`  
-  Optional — address used as the sender for emails. If omitted, defaults to `SMTP_USER`.
+[docs.invoicerr.app](https://docs.invoicerr.app)
 
-- `BREVO_API_KEY`  
-  Used when `MAIL_PROVIDER=brevo`. API key for sending emails via [Brevo](https://www.brevo.com/) instead of SMTP. The sender address falls back to `MAIL_FROM`, then `SMTP_FROM`/`SMTP_USER`.
+| Page | What it covers |
+| --- | --- |
+| [Introduction](https://docs.invoicerr.app/docs/user-guide/introduction) | What Invoicerr is, and the first steps in it |
+| [Docker installation](https://docs.invoicerr.app/docs/user-guide/docker-installation) | The full compose reference and every environment variable |
+| [Kubernetes deployment](https://docs.invoicerr.app/docs/user-guide/kubernetes) | The Helm chart, its two roles, storage and ingress |
+| [Instance backups](https://docs.invoicerr.app/docs/user-guide/backups) | Encrypted backups to a separate bucket, and how to restore one |
+| [User guide](https://docs.invoicerr.app/docs/user-guide/overview) | Every screen: documents, clients, portal, settings |
+| [Developer guide](https://docs.invoicerr.app/docs/developer-guide/architecture) | Architecture, document types, catalogues, local setup |
+| [API reference](https://docs.invoicerr.app/docs/developer-guide/api-reference) | The REST API and its authentication |
+| [Plugins](https://docs.invoicerr.app/docs/developer-guide/plugin-system) · [Webhooks](https://docs.invoicerr.app/docs/developer-guide/webhooks) · [MCP server](https://docs.invoicerr.app/docs/developer-guide/mcp-server) | Extending Invoicerr from outside |
+| [Live testing](https://docs.invoicerr.app/docs/developer-guide/live-testing) | Running the real round-trips against national platforms |
+| [Changelog](https://docs.invoicerr.app/changelog) | Every release |
 
-- `JWT_SECRET`  
-  Optional but recommended for JWT authentication. Can be any random string.  
-  If not set, a default secret will be used. But it can have issues with docker deployments.
+## Technologies
 
-Make sure port 80 is available on your host machine, or change the mapping.
+| Area | Stack |
+| --- | --- |
+| Backend | NestJS 12, TypeScript 5.7, Swagger/OpenAPI |
+| Database | PostgreSQL (Prisma 7 — no other engine: the schema hardcodes the `postgres` provider) |
+| Queue | BullMQ 5 on Redis (required to boot; inline worker or dedicated processes) |
+| Auth | better-auth 1.7 — e-mail/password, OIDC/SSO, API keys |
+| Frontend | React 19, Vite 7, TanStack Query 5, Tailwind CSS 4, Radix UI (shadcn-style), react-i18next |
+| PDF | playwright-core 1.63 (headless Chromium), pdf-lib, `@signpdf` for PAdES |
+| E-invoice XML | `@e-invoice-eu/core`, `@digitalia/fatturapa`, node-schematron, xmllint-wasm |
+| OCR | [ghcr.io/invoicerr-app/ocr-image](https://github.com/invoicerr-app/ocr-image) — ocrmypdf + Tesseract, self-hosted, opt-in |
+| Tests | Vitest (backend and frontend), Cypress 15 (end-to-end and per-country scenarios) |
+| Tooling | Biome 2.5 (lint and format), Docker, Helm 3, GitHub Actions |
+| Documentation | Docusaurus 3.10 |
+| Hosted billing | Polar (hidden unless the instance explicitly enables it; self-hosting stays free) |
 
----
+## Contributing
 
-## 💻 Manual Installation (Local Development)
+Issues and pull requests are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for how to report a
+bug, propose a feature, and get a pull request merged. Setting the four workspaces up, running the test
+stack and running the end-to-end suites are covered in
+[local development](https://docs.invoicerr.app/docs/developer-guide/local-development); how the
+pieces fit together is in [architecture](https://docs.invoicerr.app/docs/developer-guide/architecture).
 
-### Prerequisites
+Translations are managed on Weblate; the English catalogue in `frontend/src/locales/en` is the source
+every other language is translated from.
 
-- Node.js v20+  
-- SQLite (or configure another `DATABASE_URL`)  
-- PNPM or NPM
+[![Translation status](https://hosted.weblate.org/widget/invoicerr/horizontal-auto.svg)](https://hosted.weblate.org/engage/invoicerr/)
 
-### Steps
+## Contributors
 
-1. Clone the project:  
-   ```bash
-   git clone https://github.com/invoicerr-app/invoicerr.git
-   cd invoicerr
-   ```
+Maintainer: [Roméo Chevrier](https://github.com/Impre-visible) (@Impre-visible).
 
-2. Backend setup:  
-   ```bash
-   cd backend
-   npm install
-   npx prisma generate
-   npm run start
-   ```
+With contributions from
+[Quentin Marques](https://github.com/Kent1mrqs),
+[Guillaume Ouint](https://github.com/GuillaumeOuint),
+[Luís Rodrigues](https://github.com/luismsrodrigues),
+[Ruben Dorozala](https://github.com/winterrific),
+[Guillaume Aubert](https://github.com/Guillaume1868),
+[Jonas Ghyllebert](https://github.com/jghyllebert),
+[Dmitry Warkentin](https://github.com/kerogenesis),
+[Fabio Orlandi](https://github.com/Fob-io),
+[Mike Meijndert](https://github.com/Mindert123),
+[Victor Fernandez](https://github.com/zdebugon),
+[Tom Ruff](https://github.com/WuffusXR),
+[T13o](https://github.com/TheInfamousToTo),
+[javlk](https://github.com/javlk83),
+[MakoPhil](https://github.com/MakoPhil),
+[anasdwc](https://github.com/anasdwc),
+[nlimeres](https://github.com/nlimeres)
+and [richipargo](https://github.com/richipargo),
+plus everyone who has translated the interface on Weblate.
 
-3. Frontend setup (in a new terminal):  
-   ```bash
-   cd frontend
-   npm install
-   npm run start
-   ```
+## Security
 
-4. Open in your browser:  
-   - Frontend: `http://localhost:5173`  
-   - API: `http://localhost:3000`
+Private vulnerability reporting is enabled: open a
+[security advisory](https://github.com/invoicerr-app/invoicerr/security/advisories/new) rather than a
+public issue. Please do not report a vulnerability in an issue, a pull request or a discussion.
 
----
+## Community
 
-## 🧪 Lancer les tests end-to-end (Cypress)
+[Issues](https://github.com/invoicerr-app/invoicerr/issues) for bugs and feature requests,
+[Discussions](https://github.com/invoicerr-app/invoicerr/discussions) for questions and ideas.
 
-Pour lancer les tests e2e localement ou en CI :
+## License
 
-1. Démarrer le backend et le frontend avec les variables de test :
-   ```bash
-   cd backend && npm run start:test &
-   cd frontend && npm run start:test &
-   ```
-   (Assurez-vous d'avoir un .env.test dans chaque dossier)
-
-2. Dans un autre terminal, lancer Cypress :
-   ```bash
-   cd e2e
-   npm install
-   npm run e2e:open # ou npm run e2e:run
-   ```
-
-En CI, le workflow GitHub Actions fait ces étapes automatiquement.
-
----
-
-## 📸 Screenshots
-
-<details>
-<summary>Dashboard</summary>
-  
-![Dashboard Page](https://github.com/user-attachments/assets/18e8af88-cf02-4e35-975a-d57f58d062c6)
-  
-</details>
-
-<details>
-<summary>Quotes</summary>
-
-![Quotes Page](https://github.com/user-attachments/assets/588d5cd2-6af3-4cb9-81d3-8faa9f3d30f4)
-
-</details>
-
-<details>
-<summary>Invoices</summary>
-  
-![Invoices Page](https://github.com/user-attachments/assets/8e5134b7-c401-4ff6-bdb9-cfe54b532b29)
-
-</details>
-
-<details>
-<summary>Clients</summary>
-
-![Clients Page](https://github.com/user-attachments/assets/1e9e42be-8c21-4c84-96dd-ce8dca17c32e)
-
-</details>
-
-<details>
-<summary>Settings</summary>
-  
-![Settings Page](https://github.com/user-attachments/assets/b8913f41-109a-4e31-a1b8-3c46a1039414)
-
-</details>
-
-## 🧰 Technologies
-
-- <img src="https://ziadoua.github.io/m3-Markdown-Badges/badges/React/react1.svg"/>
-- <img src="https://ziadoua.github.io/m3-Markdown-Badges/badges/NestJS/nestjs1.svg"/>
-- <img src="https://ziadoua.github.io/m3-Markdown-Badges/badges/TypeScript/typescript1.svg"/>
-- <img src="https://ziadoua.github.io/m3-Markdown-Badges/badges/Prisma/prisma1.svg"/>
-- <img src="https://ziadoua.github.io/m3-Markdown-Badges/badges/SQLite/sqlite1.svg"/>
-- <img src="https://ziadoua.github.io/m3-Markdown-Badges/badges/PostgreSQL/postgresql1.svg"/>
-- <img src="https://ziadoua.github.io/m3-Markdown-Badges/badges/TailwindCSS/tailwindcss1.svg"/>
-- <img src="https://ziadoua.github.io/m3-Markdown-Badges/badges/Docker/docker1.svg"/>
-
-## ⚖️ License
-
-This project is dual-licensed:
-- Open Source: [AGPL-3.0](./LICENSE)
-- Commercial: [COMMERCIAL-LICENSE](./COMMERCIAL-LICENSE)
-
-Contact me for commercial use.
+[AGPL-3.0](./LICENSE) — free for any use, commercial included. If you run a modified version as a
+network service, you offer its source to the people using it (section 13). That is the whole deal;
+there is no second licence and no paid tier of the software itself.

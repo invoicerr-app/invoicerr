@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { resolveCountryCode } from "@/lib/watermark"
@@ -12,8 +11,8 @@ export function cn(...inputs: ClassValue[]) {
  * This keeps data-cy attributes out of production builds
  */
 export function dataCy(value: string): Record<string, string> {
-  if (import.meta.env.VITE_E2E_TESTING === 'true') {
-    return { 'data-cy': value }
+  if (import.meta.env.VITE_E2E_TESTING === "true") {
+    return { "data-cy": value }
   }
   return {}
 }
@@ -33,7 +32,10 @@ function resolveAmountLocale(country?: string | null): string {
 
 /** Formats a monetary amount with a thousands separator adapted to the company's country, keeping 2 decimal places. */
 export function formatAmount(value: number, country?: string | null): string {
-  return value.toLocaleString(resolveAmountLocale(country), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return value.toLocaleString(resolveAmountLocale(country), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 /** Turns free text into a safe, lowercase, hyphenated filename segment (accents stripped). */

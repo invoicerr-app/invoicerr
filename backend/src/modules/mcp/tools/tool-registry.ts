@@ -1,24 +1,25 @@
 import { ToolDescriptor } from './types';
-import { createArticleTool } from './create-article.tool';
 import { createClientTool } from './create-client.tool';
-import { createInvoiceFromQuoteTool } from './create-invoice-from-quote.tool';
-import { createInvoiceTool } from './create-invoice.tool';
-import { createQuoteTool } from './create-quote.tool';
-import { getInvoicePdfTool } from './get-invoice-pdf.tool';
-import { getQuotePdfTool } from './get-quote-pdf.tool';
+import { getDocumentTool } from './get-document.tool';
+import { getDocumentPdfLinkTool } from './get-document-pdf-link.tool';
 import { listArticlesTool } from './list-articles.tool';
 import { listClientsTool } from './list-clients.tool';
+import { listDocumentsTool } from './list-documents.tool';
+import { listDocumentTypesTool } from './list-document-types.tool';
+import { runDocumentActionTool } from './run-document-action.tool';
 
-// Every new tool is one file + one entry here — mcp-server.factory.ts is the
-// only place that touches the SDK's registration API.
+// Every new tool is one file + one entry here — mcp-server.factory.ts is the only place that
+// touches the SDK's registration API (same discipline the removed compliance engine's own registry
+// held, git tag `avant-refonte-documents`). Five GENERIC, per-descriptor tools (the new model, item
+// 23) plus the three ENTITY tools the removed compliance engine already had (clients/articles are
+// not document types).
 export const TOOL_REGISTRY: ToolDescriptor<any>[] = [
-    createQuoteTool,
-    createInvoiceTool,
-    createInvoiceFromQuoteTool,
-    createClientTool,
-    createArticleTool,
-    listArticlesTool,
-    listClientsTool,
-    getQuotePdfTool,
-    getInvoicePdfTool,
+  listDocumentTypesTool,
+  listDocumentsTool,
+  getDocumentTool,
+  runDocumentActionTool,
+  getDocumentPdfLinkTool,
+  listClientsTool,
+  createClientTool,
+  listArticlesTool,
 ];

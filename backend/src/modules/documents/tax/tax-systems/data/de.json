@@ -1,0 +1,11 @@
+{
+  "countryCode": "DE",
+  "kind": "VAT",
+  "standardRate": 19,
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "(1) Die Steuer beträgt für jeden steuerpflichtigen Umsatz 19 Prozent der Bemessungsgrundlage (§§ 10, 11, 25 Abs. 3 und § 25a Abs. 3 und 4).",
+    "sourceCheckedAt": "2026-09-13"
+  },
+  "notes": "PROVENANCE REPLACED (2026-09-13), rate unchanged (19%): this entry used to cite the HTTP JSON response body of the European Commission's Taxes in Europe Database (TEDB, DG TAXUD) — an official but non-statutory source, consulted 2026-09-01. The repository now holds the statute itself, quoted verbatim by vat-rates/data/de.json's own 'de-standard' entry: UStG § 12 Abs. 1, read live on 2026-09-13 at https://www.gesetze-im-internet.de/ustg_1980/__12.html (see that file's entry and its own notes for the full retrieval method — curl + iso-8859-1 decoding, not a fetch-summary). The `sourceText` and `sourceCheckedAt` above are copied byte-for-byte from that entry, never retyped or translated. Both citations agree on the same figure (19%); nothing about the rate changed, only which source is cited — a statute a reader can check beats a reproduced JSON payload. Consumer note (unchanged from the prior citation): this table exists to unblock `documents/tax/tax-engine.ts#ossDestinationVat` (per `resolve-invoice-tax.ts`'s own header, \"OSS with no destination rate table\"), which reads only `dest.standardRate` — never `reducedRates` — and `DocumentLine` (`documents/tax/types.ts`) carries no per-line product category a reduced rate could even be selected against; that is why reducedRates are still deliberately not modeled here."
+}

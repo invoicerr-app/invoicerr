@@ -22,12 +22,12 @@ If you ask it to create a quote or invoice for a client that already exists, it 
 
 ### 1. Create an API key with the right permissions
 
-Go to **Settings → Account & Team → API Keys**, create a new key, and tick the permissions you want the assistant to have:
+Go to **Settings → Integrations → API Keys**, create a new key, and pick the scopes you want the assistant to have from the **Scopes** list (each one is a raw `resource:action` token, not a friendly checkbox label):
 
-- **Create quotes** / **Create invoices** / **Create clients** / **Create articles** — lets it add new records for you
-- **Read articles** — lets it look up your existing catalog
-- **Read clients** — lets it look up your existing clients before creating a new one (avoids duplicates)
-- **Read quotes** / **Read invoices** — lets it fetch a PDF copy of a quote or invoice
+- **`quotes:write`** / **`invoices:write`** / **`clients:write`** / **`articles:write`** — lets it add new records for you
+- **`articles:read`** — lets it look up your existing catalog
+- **`clients:read`** — lets it look up your existing clients before creating a new one (avoids duplicates)
+- **`quotes:read`** / **`invoices:read`** — lets it fetch a PDF copy of a quote or invoice
 
 Grant only what you actually want an assistant acting on: you can always come back and adjust a key's permissions later. Copy the key somewhere safe — it's only shown once.
 
@@ -43,5 +43,5 @@ Once connected, enable the tool server for a chat (the "+" next to the message b
 
 ## Good to know
 
-- Fetching a PDF also gives you a direct link, valid for **1 hour**, that you can open yourself even if the chat app doesn't show an inline preview — no login needed to open it, just don't share it with anyone you don't want seeing that document.
+- Fetching a PDF also gives you a direct link, valid for **30 days**, that you can open yourself even if the chat app doesn't show an inline preview — no login needed to open it, so don't share it with anyone you don't want seeing that document. You can revoke it early from the document's own "share link" dialog in the app.
 - Anything the assistant creates shows up in Invoicerr exactly like anything created through the app itself — same numbering, same webhooks, same audit trail (`API key last used` in Settings).

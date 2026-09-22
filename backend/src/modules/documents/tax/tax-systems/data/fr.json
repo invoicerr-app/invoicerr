@@ -1,0 +1,12 @@
+{
+  "countryCode": "FR",
+  "kind": "VAT",
+  "hasDomesticZeroRate": false,
+  "schemes": ["STANDARD", "FRANCHISE_BASE"],
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "Pour leurs livraisons de biens et leurs prestations de services, les assujettis établis en France bénéficient d'une franchise qui les dispense du paiement de la taxe sur la valeur ajoutée lorsqu'ils n'ont pas réalisé en France un chiffre d'affaires, évalué dans les conditions prévues à l'article 293 D, excédant les plafonds suivants […].",
+    "sourceCheckedAt": "2026-09-01"
+  },
+  "notes": "PROMOTION (2026-09-01): this envelope moves from `unverified` to `legal`, with the citation above — CGI art. 293 B, I, read directly on 2026-09-01 at codes.droit.org (https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf) — the SAME reading already cited as `legal` by vat-rates/data/fr.json's own 'fr-exempt-293b' entry and by country-identifiers/data/fr.json's own VAT scheme. This citation confirms verbatim the FRANCHISE_BASE regime (« les assujettis établis en France bénéficient d'une franchise qui les dispense du paiement de la taxe sur la valeur ajoutée » under a turnover threshold) — that is all that is promoted here, nothing beyond what this reading actually established. `hasDomesticZeroRate: false`, by contrast, remains a FINDING OF ABSENCE, not a citation: the CGI's consolidated text (codes.droit.org, checked 2026-09-01) contains no article numbered « 278 ter » (consistent with its repeal on 2023-01-01), and a full-text search of that same consolidated CGI for any VAT provision stating a 0% rate (« taux de 0 % »/« taux nul ») found none — but no text positively asserts that no 0% VAT rate exists in France, so there is nothing to cite verbatim for THIS specific fact. Since the schema carries only one provenance per file (never per field), the promotion established above for `schemes` applies to the WHOLE envelope — a deliberate product decision, not an oversight: what would settle `hasDomesticZeroRate` itself remains an authoritative negative confirmation (e.g. a BOFiP page exhaustively listing « les taux de TVA ») that was not blocked from automated access."
+}

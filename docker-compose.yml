@@ -3,14 +3,25 @@ services:
     image: ghcr.io/invoicerr-app/invoicerr:latest
     ports:
       - "80:80"
+    volumes:
+      # Legal archives and received invoices — see DOCUMENTS_ARCHIVE_DIR below for why this is not
+      # optional. Swap it for a bind mount to a real backed-up path if you have one; a named volume
+      # is only the safe default, and it survives `docker compose up` after an image pull, not a
+      # `docker compose down -v`.
+      - documents_data:/data
     environment:
       - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
 
-      - APP_URL=https://invoicerr.example.com # Required for email templates, as it redirects to the app
+      - APP_URL=https://invoicerr.example.com # Required for email templates (redirects to the app) and is also better-auth's own base URL
       - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com # Comma-separated list of allowed origins for CORS
 
-      # Required for email features - choose ONE provider below
-      # Option 1: SMTP (default, MAIL_PROVIDER can be omitted)
+      # INSTANCE-level mail - choose ONE provider below. A company can
+      # also set its OWN mail server in Settings -> Mail; that always wins over whatever is set here
+      # for that one company. Leave MAIL_PROVIDER unset to auto-detect: RESEND_API_KEY present picks
+      # Resend (wins even if SMTP_* is also set), otherwise SMTP is used.
+
+      # Option 1: SMTP (default, MAIL_PROVIDER can be omitted). Brevo has no dedicated provider any
+      # more — use its own SMTP relay (smtp-relay.brevo.com) here instead.
       - MAIL_PROVIDER=smtp
       - SMTP_HOST=smtp-relay.example.com
       - SMTP_USER="username@example.com"
@@ -19,29 +30,93 @@ services:
       - SMTP_PORT=587 # Change this to your SMTP port (default is 587 for TLS)
       - SMTP_SECURE=false # Set to true if your SMTP server requires a secure connection (default is false)
 
-      # Option 2: Brevo (set MAIL_PROVIDER=brevo and comment out the SMTP_* variables above)
-      # - MAIL_PROVIDER=brevo
-      # - BREVO_API_KEY="your_brevo_api_key"
+      # Option 2: Resend (set MAIL_PROVIDER=resend and comment out the SMTP_* variables above)
+      # - MAIL_PROVIDER=resend
+      # - RESEND_API_KEY="your_resend_api_key" # https://resend.com/api-keys
       # - MAIL_FROM="user-from@example.com" # Sender address, falls back to SMTP_FROM/SMTP_USER if unset
 
-      # OIDC Configuration (example for Authentik)
-      - OIDC_ISSUER="https://auth.chevrier.dev"
+      # Optional: instance-wide fallback language (en/fr/it/pl/de/pt) for any document or system email
+      # whose client/company/user never chose one of their own — see the Document Language page in the
+      # docs. Left unset, everything renders in English exactly as before.
+      # - DEFAULT_LOCALE=fr
+
+      # OIDC. Endpoints come EITHER from discovery OR from the manual variables, never both:
+      # OIDC_DISCOVERY_URL is checked first, and when it is set the three manual endpoints are not
+      # read at all. Pick one option; the other stays commented so a copy-paste cannot silently set
+      # variables that get dropped.
       - OIDC_NAME="Pocket ID"
-      # Endpoints for OIDC
-      - OIDC_AUTHORIZATION_ENDPOINT="https://auth.chevrier.dev/authorize"
-      - OIDC_TOKEN_ENDPOINT="https://auth.chevrier.dev/token"
-      - OIDC_USERINFO_ENDPOINT="https://auth.chevrier.dev/userinfo"
-      - OIDC_TOKEN_REVOKE_ENDPOINT="https://auth.chevrier.dev/revoke"
-      - OIDC_END_SESSION_ENDPOINT="https://auth.chevrier.dev/end_session"
-      - OIDC_JWKS_URI="https://auth.chevrier.dev/.well-known/jwks.json"
-      # Client ID and Secret for OIDC
+
+      # Option A — discovery.
+      - OIDC_DISCOVERY_URL="https://auth.example.com/.well-known/openid-configuration"
+
+      # Option B — manual, for an IdP with no discovery document: uncomment these three AND comment
+      # out OIDC_DISCOVERY_URL above.
+      # - OIDC_AUTHORIZATION_ENDPOINT="https://auth.example.com/authorize"
+      # - OIDC_TOKEN_ENDPOINT="https://auth.example.com/token"
+      # - OIDC_USERINFO_ENDPOINT="https://auth.example.com/userinfo"
+
+      # Signs the user out at the IdP too. Without it, sign-out clears only the local session.
+      - OIDC_END_SESSION_ENDPOINT="https://auth.example.com/end_session"
+      # OIDC_CLIENT_ID is what decides whether this provider is registered at all. OIDC_NAME is its
+      # id and lands in a URL path segment (/api/auth/callback/<id>), sanitised to URL-safe
+      # characters, defaulting to "oidc".
       - OIDC_CLIENT_ID="your-client-id"
       - OIDC_CLIENT_SECRET="your-client-secret"
 
-      # Optional, but recommended for docker deployments
-      - JWT_SECRET="your_jwt_secret" # Used for JWT authentication, can be any random string
+      # OIDC_ONLY: "1"/"true" makes this instance SINGLE-SIGN-ON ONLY — no email/password sign-in or
+      # sign-up, and set-password is refused server-side. DEFAULT OFF. Works with the provider above
+      # and/or with the per-company ones customers register themselves (company settings -> SSO). The
+      # backend refuses to boot if it is set while NO provider exists, since nobody could then sign in.
+      # - OIDC_ONLY=true
+
+      # SECRETS — the values go in a .env file next to this one, NEVER on these lines. This file is
+      # committed to a public repository. `cp .env.example .env` and fill it in; Compose reads it
+      # automatically for the ${...} below. An orchestrator's own secrets mechanism works too, same
+      # variable names. Generate each with: openssl rand -hex 32.
+      #
+      # BETTER_AUTH_SECRET signs every session cookie/JWT — on a known value anyone can forge a
+      # session for any userId. The backend already refuses to boot in production without it; the
+      # `:?` just moves that refusal earlier, with a message that says what to do.
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in a .env file next to docker-compose.yml — see .env.example}
+      # Legacy alias, for deployments that already set it. ONE of the two suffices: the guard checks
+      # the effective value (BETTER_AUTH_SECRET || JWT_SECRET), not each variable.
+      # - JWT_SECRET=${JWT_SECRET:-}
+
+      # Encrypts every secret this app stores at rest (AES-256-GCM): each company's channel
+      # credentials (KSeF/PDP/SdI), its SSO provider secret, its signing certificate, and its webhook
+      # HMAC secrets. Left empty, isEncryptionAvailable() returns false and each of those SAVE
+      # endpoints answers 503 — nothing is ever written unencrypted, so the features disable
+      # themselves rather than degrade. Optional rather than `:?` on purpose: an instance that stores
+      # none of them runs fine without it, and an existing deployment must not be bricked by an
+      # upgrade. Changing it later makes everything already stored undecryptable — treat it like a
+      # database password, not a toggle.
+      - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY:-}
+
+      # Where the archived documents live. Both default IN CODE to `<cwd>/...`, which inside a
+      # container is the writable layer — destroyed on every image pull. Unset, this file therefore
+      # discarded, at each upgrade, the documents the law requires keeping for six to eleven years
+      # plus every received invoice. Hence these paths and the named volume at the bottom of the file.
+      - DOCUMENTS_ARCHIVE_DIR=/data/documents-archive
+      - DOCUMENTS_INBOUND_DIR=/data/documents-inbound
+
+      # Document-action async queue (BullMQ/Redis) — an async "send" and, later, recurring documents
+      # both go through it. Redis is REQUIRED for the backend to boot at all,
+      # never an optional extra. WORKER_INLINE=true (default here) makes this single container also
+      # consume its own queue jobs (mono/self-host deployment). For a scaled deployment with a
+      # dedicated worker service, see docker-compose.scale.yml.
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - WORKER_INLINE=true
+
+      # OCR of scanned received invoices. OPTIONAL and OFF by default: without it a scanned PDF is
+      # stored with empty fields for a human to fill in. To enable it, uncomment this line and start
+      # with `docker compose --profile ocr up`. Everything stays on this machine — no API key, no
+      # third party, the PDF never leaves the internal compose network.
+      # - OCR_SERVICE_URL=http://ocr:9998
     depends_on:
       - invoicerr_db
+      - redis
 
   invoicerr_db:
     image: postgres:15
@@ -52,6 +127,40 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  # OCR of scanned received invoices — our own image (github.com/invoicerr-app/ocr-image): ocrmypdf
+  # plus the Tesseract language packs this product's markets need. Adding a language is one apt line
+  # in that repo. Opt-in: started only by `docker compose --profile ocr up`, and reached only through
+  # OCR_SERVICE_URL above. The app talks to it directly — the engine does the OCR, the backend turns
+  # the text into an editable proposal (`backend/src/ocr-service/local-client.ts`).
+  ocr:
+    image: ghcr.io/invoicerr-app/ocr-image:latest
+    profiles: ["ocr"]
+    restart: unless-stopped
+
+  redis:
+    image: bitnami/redis:latest
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # bitnami/redis refuses to start with an empty REDIS_PASSWORD unless this is set.
+      # Self-host default is no password (single-host docker network); set REDIS_PASSWORD
+      # to enable auth.
+      ALLOW_EMPTY_PASSWORD: "yes"
+      REDIS_AOF_ENABLED: "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    volumes:
+      - redis-data:/bitnami
+
 volumes:
   db_data:
+    driver: local
+  redis-data:
+    driver: local
+  # Archived documents + received invoices. Losing this volume loses the archive itself, which the
+  # database cannot rebuild: the rows carry the hashes and the retention dates, the files are here.
+  documents_data:
     driver: local

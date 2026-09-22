@@ -1,0 +1,74 @@
+{{/*
+Bundled Redis — rendered ONLY when redis.external.host is empty (the default). Plain
+Deployment+PVC, deliberately not the Bitnami subchart (keeps this chart dependency-free: `helm
+lint`/`helm dependency` never needs network access to a chart repo). Matches docker-compose.yml's
+own bundled Redis (same image, same ALLOW_EMPTY_PASSWORD/AOF settings) — a single replica, since
+BullMQ's Redis is stateful and this chart does not attempt Redis clustering/Sentinel. Point
+`redis.external.host` at a managed Redis instead for production HA.
+*/}}
+{{- if not .Values.redis.external.host }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "redis") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "redis") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    # A rolling update on a single-replica stateful Redis would try to bring up the new pod (which
+    # would then fight the old one over the same PVC, on RWO storage) before tearing the old one
+    # down. Recreate is simpler and correct for one replica.
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "redis") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "redis") | nindent 8 }}
+    spec:
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          ports:
+            - name: redis
+              containerPort: 6379
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: REDIS_PASSWORD
+                  optional: true
+            # bitnami/redis refuses to start with an empty REDIS_PASSWORD unless this is set. Same
+            # self-host default as docker-compose.yml: no password on the in-cluster network unless
+            # REDIS_PASSWORD is supplied via the Secret above.
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: REDIS_AOF_ENABLED
+              value: "yes"
+          {{- if .Values.redis.persistence.enabled }}
+          volumeMounts:
+            - name: redis-data
+              mountPath: /bitnami
+          {{- end }}
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+      {{- if .Values.redis.persistence.enabled }}
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: {{ include "invoicerr.componentFullname" (dict "context" . "component" "redis") }}
+      {{- end }}
+{{- end }}

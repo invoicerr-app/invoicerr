@@ -1,0 +1,20 @@
+{
+  "countryCode": "DE",
+  "rules": [
+    {
+      "label": "umsatzsteuerlich",
+      "years": 8,
+      "origin": "issueDateYearEnd",
+      "legalRef": "UStG § 14b Abs. 1 Satz 1 und 3",
+      "notes": "Raw text retrieved on 2026-09-13 via curl -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ustg_1980/__14b.html (HTTP 200). Satz 1: « Der Unternehmer hat ein Doppel der Rechnung, die er selbst oder ein Dritter in seinem Namen und für seine Rechnung ausgestellt hat, sowie alle Rechnungen, die er erhalten oder die ein Leistungsempfänger oder in dessen Namen und für dessen Rechnung ein Dritter ausgestellt hat, acht Jahre aufzubewahren. » — EIGHT years, not ten (the reduction from ten to eight years is in force; do not \"correct\" it back to the old ten-year duration some older sources still cite). Satz 3, the origin: « Die Aufbewahrungsfrist beginnt mit dem Schluss des Kalenderjahres, in dem die Rechnung ausgestellt worden ist; § 147 Abs. 3 der Abgabenordnung bleibt unberührt. » — the end of the CALENDAR year of issuance, never the moment of archiving. The last clause (« § 147 Abs. 3 ... bleibt unberührt » = \"remains unaffected\") is the text itself stating that the Abgabenordnung's own obligation (see the \"abgabenrechtlich\" rule below) applies IN ADDITION, not instead — the same simultaneity compute-retention.ts already documents for France."
+    },
+    {
+      "label": "abgabenrechtlich",
+      "years": 8,
+      "origin": "issueDateYearEnd",
+      "legalRef": "AO § 147 Abs. 3 Satz 1 (facture = Buchungsbeleg, Abs. 1 Nr. 4), Abs. 4",
+      "notes": "Raw text retrieved on 2026-09-13 via curl -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ao_1977/__147.html (HTTP 200). Abs. 1 lists the categories: Nr. 1 (books/inventories/annual accounts...), Nr. 2/3 (Handels- oder Geschäftsbriefe received/sent — general business correspondence), Nr. 4 (Buchungsbelege — accounting vouchers), Nr. 4a (customs documents), Nr. 5 (other records relevant for taxation). Abs. 3 Satz 1: « Die in Absatz 1 Nummer 1 und 4a aufgeführten Unterlagen sind zehn Jahre, die in Absatz 1 Nummer 4 aufgeführten Unterlagen acht Jahre und die sonstigen in Absatz 1 aufgeführten Unterlagen sechs Jahre aufzubewahren... » — an invoice is an ACCOUNTING VOUCHER (Buchungsbeleg, Nr. 4: it documents a transaction and underlies a ledger entry), not a mere business letter (Nr. 2/3) nor a customs document (Nr. 4a): it therefore falls under the EIGHT-year tier, not ten — picking ten years because it is the largest number in the sentence would be exactly the mistake this module exists to avoid. Abs. 4, the origin: « Die Aufbewahrungsfrist beginnt mit dem Schluss des Kalenderjahrs, in dem ... der Buchungsbeleg entstanden ist... » — the end of the calendar year in which the accounting voucher was drawn up, so the same origin (end of the year of issuance) as the UStG rule above. The two rules above yield the SAME duration (8 years) via two distinct texts that the text itself declares simultaneous (« § 147 Abs. 3 ... bleibt unberührt » in the UStG rule) — declared here as two separate rules rather than merged, to stay faithful to what each text actually says rather than assuming they will always coincide."
+    }
+  ],
+  "notes": "Two distinct texts (UStG § 14b and AO § 147) each impose EIGHT years from the end of the calendar year of issuance — see the per-rule notes above for the demonstration that an invoice does fall under the AO's eight-year tier (Buchungsbeleg, Abs. 1 Nr. 4) and not the ten-year tier (Nr. 1/4a, reserved for books/annual accounts/customs documents). Sources consulted as RAW TEXT on 2026-09-13: gesetze-im-internet.de/ustg_1980/__14b.html and gesetze-im-internet.de/ao_1977/__147.html (both HTTP 200)."
+}

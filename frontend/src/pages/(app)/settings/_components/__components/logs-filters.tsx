@@ -1,13 +1,15 @@
 "use client"
 
-import { Search, RefreshCw, Calendar } from "lucide-react"
+import { Calendar, RefreshCw, Search } from "lucide-react"
+import { useTranslation } from "react-i18next"
+
 import type { LogLevel } from "../logs.settings"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type LogsFiltersProps = {
   levelFilter: LogLevel[]
@@ -26,12 +28,28 @@ type LogsFiltersProps = {
 
 const LOG_LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"]
 
-const levelColors: Record<LogLevel, string> = {
-  DEBUG: "bg-muted text-muted-foreground",
-  INFO: "bg-blue-500/10 text-blue-500",
-  WARN: "bg-yellow-500/10 text-yellow-500",
-  ERROR: "bg-red-500/10 text-red-500",
-  FATAL: "bg-purple-500/10 text-purple-500",
+/** The chip a log LEVEL renders as, everywhere one appears (this bar's own toggle, the table row, the
+ *  detail dialog) — mapped onto the semantic tokens rather than a raw palette colour so light/dark and
+ *  the app's own accent stay in sync. Duplicated per-file (this screen has no shared module of its
+ *  own in scope) rather than centralized. FATAL is the one level a plain `Badge` variant can't reach
+ *  (solid `destructive` is already spent on it) — everything below it, including ERROR, gets the
+ *  softer destructive fill so FATAL still reads as the loudest row on screen. */
+function levelBadgeProps(level: LogLevel): {
+  variant?: "secondary" | "warning" | "info" | "destructive"
+  className?: string
+} {
+  switch (level) {
+    case "DEBUG":
+      return { variant: "secondary" }
+    case "INFO":
+      return { variant: "info" }
+    case "WARN":
+      return { variant: "warning" }
+    case "ERROR":
+      return { className: "border-transparent bg-destructive-soft text-destructive-soft-foreground" }
+    case "FATAL":
+      return { variant: "destructive" }
+  }
 }
 
 export function LogsFilters({
@@ -48,6 +66,8 @@ export function LogsFilters({
   filteredCount,
   onRefresh,
 }: LogsFiltersProps) {
+  const { t } = useTranslation()
+
   function toggleLevel(level: LogLevel) {
     if (levelFilter.includes(level)) {
       setLevelFilter(levelFilter.filter((l) => l !== level))
@@ -75,117 +95,139 @@ export function LogsFilters({
     levelFilter.length > 0 || categoryFilter.length > 0 || searchQuery || dateRange.from || dateRange.to
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search logs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2 bg-transparent">
-              <Calendar className="h-4 w-4" />
-              {dateRange.from ? (
-                dateRange.to ? (
-                  <>
-                    {dateRange.from.toLocaleDateString()} - {dateRange.to.toLocaleDateString()}
-                  </>
-                ) : (
-                  dateRange.from.toLocaleDateString()
-                )
-              ) : (
-                "Date Range"
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <div className="p-3 space-y-2">
-              <div>
-                <label className="text-sm font-medium">From</label>
-                <CalendarComponent
-                  mode="single"
-                  selected={dateRange.from || undefined}
-                  onSelect={(date) => setDateRange({ ...dateRange, from: date || null })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">To</label>
-                <CalendarComponent
-                  mode="single"
-                  selected={dateRange.to || undefined}
-                  onSelect={(date) => setDateRange({ ...dateRange, to: date || null })}
-                />
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <Button onClick={onRefresh} variant="outline" size="icon">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-
-        {hasActiveFilters && (
-          <Button onClick={clearFilters} variant="ghost">
-            Clear Filters
-          </Button>
-        )}
+    <div className="flex flex-wrap items-center gap-3 border-b pb-4">
+      <div className="relative min-w-[200px] flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder={t("settings.logs.filters.searchPlaceholder")}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Level:</span>
-          <div className="flex gap-1.5">
-            {LOG_LEVELS.map((level) => (
-              <Badge
-                key={level}
-                variant={levelFilter.includes(level) ? "default" : "outline"}
-                className={`cursor-pointer ${levelFilter.includes(level) ? levelColors[level] : ""}`}
+      <div className="flex items-center gap-1.5">
+        {LOG_LEVELS.map((level) => {
+          const active = levelFilter.includes(level)
+          const { variant, className } = levelBadgeProps(level)
+          return (
+            // A real <button> under the badge's own styling (`asChild`), not a <span onClick> — a
+            // toggle a mouse user can click must also be reachable and operable by keyboard, and
+            // `aria-pressed` is what tells assistive tech this chip is a two-state filter, not a
+            // static label.
+            <Badge
+              key={level}
+              asChild
+              variant={active ? variant : "outline"}
+              className={cnCursor(active ? className : undefined)}
+            >
+              <button
+                type="button"
+                aria-pressed={active}
                 onClick={() => toggleLevel(level)}
+                data-cy={`logs-level-filter-${level.toLowerCase()}`}
               >
                 {level}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        {categories.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Category:</span>
-            <Select
-              value={categoryFilter[0] || "all"}
-              onValueChange={(value) => {
-                if (value === "all") {
-                  setCategoryFilter([])
-                } else {
-                  toggleCategory(value)
-                }
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        <div className="ml-auto text-sm text-muted-foreground">
-          Showing {filteredCount.toLocaleString()} of {totalLogs.toLocaleString()} logs
-        </div>
+              </button>
+            </Badge>
+          )
+        })}
       </div>
+
+      {categories.length > 0 && (
+        <Select
+          value={categoryFilter[0] || "all"}
+          onValueChange={(value) => {
+            if (value === "all") {
+              setCategoryFilter([])
+            } else {
+              toggleCategory(value)
+            }
+          }}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder={t("settings.logs.filters.allCategories")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("settings.logs.filters.allCategories")}</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" size="sm">
+            <Calendar />
+            {dateRange.from ? (
+              dateRange.to ? (
+                <>
+                  {dateRange.from.toLocaleDateString()} - {dateRange.to.toLocaleDateString()}
+                </>
+              ) : (
+                dateRange.from.toLocaleDateString()
+              )
+            ) : (
+              t("settings.logs.filters.dateRange")
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <div className="grid gap-2 p-3">
+            <div>
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {t("settings.logs.filters.dateFrom")}
+              </span>
+              <CalendarComponent
+                mode="single"
+                selected={dateRange.from || undefined}
+                onSelect={(date) => setDateRange({ ...dateRange, from: date || null })}
+              />
+            </div>
+            <div>
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {t("settings.logs.filters.dateTo")}
+              </span>
+              <CalendarComponent
+                mode="single"
+                selected={dateRange.to || undefined}
+                onSelect={(date) => setDateRange({ ...dateRange, to: date || null })}
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <Button
+        type="button"
+        onClick={onRefresh}
+        variant="outline"
+        size="icon"
+        aria-label={t("settings.common.refresh")}
+        tooltip={t("settings.common.refresh")}
+      >
+        <RefreshCw />
+      </Button>
+
+      {hasActiveFilters && (
+        <Button type="button" onClick={clearFilters} variant="ghost" size="sm">
+          {t("settings.logs.filters.clear")}
+        </Button>
+      )}
+
+      <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+        {t("settings.logs.filters.showing", { filtered: filteredCount, total: totalLogs })}
+      </span>
     </div>
   )
+}
+
+/** `cursor-pointer` on every level chip (they are all clickable toggles) — kept as a tiny helper only
+ *  so the ternary above stays readable next to the variant/className pair it already returns. */
+function cnCursor(className?: string) {
+  return ["cursor-pointer", className].filter(Boolean).join(" ")
 }

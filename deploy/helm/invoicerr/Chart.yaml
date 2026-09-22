@@ -1,0 +1,18 @@
+apiVersion: v2
+name: invoicerr
+description: >-
+  Self-hosted invoicing and per-country e-invoicing compliance. One image, two roles
+  (api: nginx + Nest API; worker: BullMQ document-action queue consumer), optional
+  bundled Postgres/Redis for dev/kind installs, and S3-compatible legal archive storage
+  for production.
+type: application
+version: 0.1.0
+appVersion: "1.4.6b"
+home: https://github.com/invoicerr-app/invoicerr
+sources:
+  - https://github.com/invoicerr-app/invoicerr
+keywords:
+  - invoicing
+  - e-invoicing
+  - compliance
+  - nestjs

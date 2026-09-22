@@ -1,0 +1,66 @@
+{
+  "countryCode": "FR",
+  "rates": [
+    {
+      "id": "fr-standard",
+      "rate": 20,
+      "label": "Taux normal",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Le taux normal de la taxe sur la valeur ajoutée est fixé à 20 %.",
+        "sourceCheckedAt": "2026-09-01"
+      },
+      "notes": "CGI art. 278. Read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf — Légifrance itself continued to refuse every automated request. The two converging secondary sources already cited on 2026-08-31 (entreprendre.service-public.gouv.fr F23567, and the avant-refonte-documents git tag) are confirmed by the text itself. Former rate: 19.6% until 2014-01-01 (Finance Act for 2014 — loi de finances pour 2014, art. 68) — not carried over here, since this catalog does not model temporality (see this file's own header comment). SCHEDULED REPEAL (noted on 2026-09-13): art. 278 is repealed as of 2027-01-01, along with the entire CGI art. 278-0 bis to 279 bis block, by Ordonnance n°2025-1247 of 17 December 2025, art. 9 — VAT leaves the CGI for a new Code des impositions sur les biens et services (tax code on goods and services, CIBS). Confirmed directly on the article's own Légifrance record (LEGIARTI000026950057): « Abrogé par Ordonnance n°2025-1247 du 17 décembre 2025 - art. 9 ». What is NOT established: the CIBS article number that will carry this rate forward — the full text of art. 9 of the ordonnance (JORFTEXT000053091516) could not be retrieved (the reading stopped before the substantive body), so no successor number is put forward or cited here. What would settle the question: retrieving that full text, or the ordonnance's CGI→CIBS concordance table. Same caveat as for the Italian 2027-01-01 repeal already noted in vat-rates/data/it.json: this catalog has no temporal field (no validFrom/validTo in schema.ts), nothing will flag this change automatically — whoever next touches this file after 2027-01-01 is responsible for re-pointing the citation."
+    },
+    {
+      "id": "fr-intermediate",
+      "rate": 10,
+      "label": "Taux intermédiaire",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La taxe sur la valeur ajoutée est perçue au taux réduit de 10 % en ce qui concerne les livraisons portant sur les produits suivants : […] 3° bis Produits suivants : a) bois de chauffage ; […] (art. 278 bis) — La taxe sur la valeur ajoutée est perçue au taux réduit de 10 % en ce qui concerne : a. Les prestations relatives à la fourniture d'un hébergement dans le cadre du secteur hôtelier […] b quater. les transports de voyageurs (art. 279).",
+        "sourceCheckedAt": "2026-09-01"
+      },
+      "notes": "CGI art. 278 bis AND art. 279 — the DIVERGENCE flagged on 2026-08-31 is now RESOLVED, not ignored: both read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf, these are not two competing candidates for the SAME fact but two PARALLEL provisions each setting the same 10% rate for different categories: art. 278 bis covers deliveries of goods (firewood, horticultural products, agricultural fertilizers/soil amendments, etc.), art. 279 covers supplies of services (hotel accommodation, classified campsites, passenger transport, company canteens, spa/thermal treatment, etc.). The two secondary sources from 2026-08-31 were therefore each right, without knowing it precisely. Légifrance itself continued to refuse every automated request. SCHEDULED REPEAL (noted on 2026-09-13): art. 278 bis AND 279 are repealed as of 2027-01-01, along with the entire CGI art. 278-0 bis to 279 bis block, by Ordonnance n°2025-1247 of 17 December 2025, art. 9 — VAT leaves the CGI for a new Code des impositions sur les biens et services (tax code on goods and services, CIBS). Confirmed directly on art. 279's own Légifrance record (LEGIARTI000053562872): « Abrogé par Ordonnance n°2025-1247 du 17 décembre 2025 - art. 9 ». What is NOT established: the CIBS article number(s) that will carry this rate forward — the full text of art. 9 of the ordonnance (JORFTEXT000053091516) could not be retrieved (the reading stopped before the substantive body), so no successor number is put forward or cited here. What would settle the question: retrieving that full text, or the ordonnance's CGI→CIBS concordance table. Same caveat as for the Italian 2027-01-01 repeal already noted in vat-rates/data/it.json: this catalog has no temporal field (no validFrom/validTo in schema.ts), nothing will flag this change automatically — whoever next touches this file after 2027-01-01 is responsible for re-pointing the citation."
+    },
+    {
+      "id": "fr-reduced",
+      "rate": 5.5,
+      "label": "Taux réduit",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La taxe sur la valeur ajoutée est perçue au taux réduit de 5,5 % en ce qui concerne :",
+        "sourceCheckedAt": "2026-09-01"
+      },
+      "notes": "CGI art. 278-0 bis. Read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf — Légifrance itself continued to refuse every automated request. The three converging sources already cited on 2026-08-31 (entreprendre.service-public.gouv.fr F23567, FR-France.md, and the avant-refonte-documents git tag) are confirmed by the text itself."
+    },
+    {
+      "id": "fr-particular",
+      "rate": 2.1,
+      "label": "Taux particulier",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La taxe sur la valeur ajoutée est perçue au taux de 2,10 % en ce qui concerne les recettes réalisées aux entrées des premières représentations théâtrales d'oeuvres dramatiques, lyriques, musicales ou chorégraphiques nouvellement créées […] (art. 281 quater) — La taxe sur la valeur ajoutée est perçue au taux de 2,10 % pour les livraisons portant sur les préparations magistrales, médicaments officinaux, médicaments ou produits pharmaceutiques […] (art. 281 octies) — […] sont soumis à la taxe sur la valeur ajoutée au taux de 2,1 % dans les départements de la France métropolitaine […] (art. 298 septies).",
+        "sourceCheckedAt": "2026-09-01"
+      },
+      "notes": "CGI art. 281 quater, 281 octies AND 298 septies — the DIVERGENCE flagged on 2026-08-31 between three candidate article numbers is now RESOLVED, not ignored: all three were read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf, and each sets the same 2.10% rate for a DIFFERENT category, without contradicting one another: art. 281 quater covers admission to live performances (theatre, circus); art. 281 octies covers reimbursable medicines/preparations made to prescription; art. 298 septies covers press publications (2.1% in mainland France, 1.05% in the overseas départements cited). The hypothesis put forward on 2026-08-31 ('the three might each target a different category at the same rate, without being contradictory') is confirmed by the text. Légifrance itself continued to refuse every automated request."
+    },
+    {
+      "id": "fr-exempt-293b",
+      "rate": 0,
+      "label": "Non applicable — franchise en base (art. 293 B du CGI)",
+      "category": "EXEMPT",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Pour leurs livraisons de biens et leurs prestations de services, les assujettis établis en France bénéficient d'une franchise qui les dispense du paiement de la taxe sur la valeur ajoutée lorsqu'ils n'ont pas réalisé en France un chiffre d'affaires, évalué dans les conditions prévues à l'article 293 D, excédant les plafonds suivants […].",
+        "sourceCheckedAt": "2026-09-01"
+      },
+      "notes": "CGI art. 293 B, I. Read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf — Légifrance itself continued to refuse every automated request. Confirms the franchise-en-base (VAT exemption) scheme already cited (as a secondary source) on 2026-08-31 via documentation/compliance/FR-France.md §4.C. This is still not a VAT rate in the strict sense but an exemption scheme below turnover thresholds, included in this list because it is a common choice when issuing an invoice. The exact mandatory MENTION to be carried on the invoice ('TVA non applicable, art. 293 B du CGI', cited by FR-France.md) remains an administrative-doctrine wording — its literal wording was not found in the text of the article itself, only the SCHEME (the exemption) was; this file in any case does not carry a mention wording, only the rate (0)."
+    }
+  ],
+  "notes": "UPDATE (2026-09-01, item 21): all five entries are now 'legal', not 'unverified' — each rate was re-checked against its exact text on codes.droit.org (a Légifrance mirror; Légifrance itself continued to refuse every automated request this session as in the previous one), and cites the CGI article that sets it verbatim (see each entry). Two divergences flagged on 2026-08-31 between secondary sources (10%: 278 bis vs 279; 2.1%: 281 quater vs 281 octies vs 298 septies) turned out to be PARALLEL provisions targeting different categories at the same rate, never a contradiction — see each entry for the detail. This file still does not model the temporality of rates (no validFrom/validTo, unlike the old catalog): only the rates CURRENTLY in force are listed, because nothing in this document (a simple choice in a form) yet consumes an effective date — see descriptors/company-view.ts. 2027-01-01 REPEAL (noted on 2026-09-13): see the notes on the fr-standard and fr-intermediate entries — Ordonnance n°2025-1247 of 17 December 2025, art. 9, repeals the whole CGI art. 278-0 bis to 279 bis block (including the art. 278 and 279 cited here) in favor of a new Code des impositions sur les biens et services (tax code on goods and services, CIBS); the successor CIBS article number is NOT identified to date, for want of being able to retrieve the full text of art. 9 of the ordonnance."
+}

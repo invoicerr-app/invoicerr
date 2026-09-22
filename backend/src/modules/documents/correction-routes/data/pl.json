@@ -1,0 +1,105 @@
+{
+  "countryCode": "PL",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Interdite EN TANT QUE DOCUMENT DISTINCT — pas interdite en substance. Il n'existe pas d'instrument séparé : l'art. 106j ust. 1 donne UN instrument pour les deux sens, et l'énumération FA(3) RodzajFaktury est fermée — {VAT, KOR, ZAL, ROZ, UPR, KOR_ZAL, KOR_ROZ} — sans type « avoir ». Source : Art. 106j ust. 1 ustawy o VAT ; broszura FA(3), Ministerstwo Finansów.",
+        "sourceCheckedAt": "2026-08-29"
+      }
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Idem — même instrument unique : « podstawa opodatkowania lub kwota podatku wskazana w fakturze uległa zmianie » est neutre quant au SENS de la variation ; le remède est un KOR. Source : Art. 106j ust. 1 pkt 1.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Contrast with Italy: EXACTLY THE OPPOSITE symmetry — Poland handles both upward and downward corrections through the SAME document, Italy through two documents, one mandatory (DEBIT_NOTE) and the other optional (CREDIT_NOTE)."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« podatnik WYSTAWIA fakturę korygującą » — obligation, pas faculté, pour les 5 cas de l'art. 106j ust. 1, dont pkt 5 « stwierdzono pomyłkę w jakiejkolwiek pozycji faktury ». Un verrou de forme s'y ajoute : ust. 2 pkt 2a impose d'y porter le numéro KSeF de la facture corrigée — SAUF, exception statutaire lue dans le même point : « z wyjątkiem faktur korygujących wystawianych do faktur, dla których nie został nadany numer identyfikujący w Krajowym Systemie e-Faktur » (« sauf pour les factures correctives visant des factures auxquelles aucun numéro KSeF n'a été attribué »), et ust. 4 impose la forme structurée. Source : Art. 106j ust. 1, ust. 2 pkt 2a (avec son exception), ust. 4 — ustawa o VAT, tekst jednolity Dz.U. 2025 poz. 775 (isap.sejm.gov.pl, vérifié 2026-09-16, texte brut).",
+        "sourceCheckedAt": "2026-09-16"
+      },
+      "notes": "This is THE Polish route (switchover on 2026-02-01, repeal of art. 106k, the buyer's own nota korygująca disappears — see the YAML's own headline). IMPLEMENTED as of 2026-09-16 (KOR pattern) — `correctsInvoiceId` (descriptors/invoice.descriptor.ts) links the correction to the original invoice; `formats/national/fa3-provider.ts` builds it as a real `RodzajFaktury = KOR` FA(3) document, choosing between the schema's own `NrKSeF`/`NrKSeFN` branches per the exception this citation now carries (see `formats/national/fa3-kor.ts`'s own header); `transports/ksef-transport.ts` submits it like any other FA(3). The screen: the SAME 'Correct' dialog every route already uses (custom/invoice-correction-routes-button.tsx) navigates to the invoice creation screen pre-linked, where Poland's own `country-fields/data/pl.json` overlay adds a conditionally-required `correctionReason` field. `correctionReason` itself is a PRODUCT choice, not this citation's own legal claim — see that overlay file's own header: art. 106j ust. 2a leaves the reason optional."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable au NIP de l'acheteur erroné : « należy wystawić fakturę korygującą \"do zera\" i nową fakturę pierwotną zawierającą poprawne dane ». Exécuté AU MOYEN de factures correctives, jamais par une annulation — la voie existe, le mécanisme d'annulation non. Source : Podręcznik KSeF 2.0 cz. II, § 1.6.4 (06/08/2026).",
+        "sourceCheckedAt": "2026-08-29"
+      }
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Po przesłaniu pliku faktury do KSeF nie jest możliwe jej edytowanie… Jedyną formą poprawienia błędu… jest wystawienie faktury korygującej w KSeF » — applicable à toute facture acceptée par KSeF. Source : Podręcznik KSeF 2.0 cz. II, § 1.6.2.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "The YAML's own CANONICAL INVERSION: the exact opposite of France and Italy, which IMPOSE it (required) in their respective rejection cases. The same route is required there and forbidden here — this is the best justification for a per-country status rather than a single shared model."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« W KSeF nie jest możliwe anulowanie wystawionej faktury ». Corroboré par un négatif vérifié : la chaîne « anulow » apparaît ZÉRO fois dans le texte consolidé de l'ustawa o VAT (~1 Mo), et zéro fois dans la broszura FA(3) ; aucun type d'annulation dans FA(3). Source : Podręcznik KSeF 2.0 cz. II, § 1.6.3 ; tekst jednolity Dz.U. 2025 poz. 775.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "The YAML flags a residual defect of the OLD, demolished engine (pl.ts declared requiresAuthorityAck: true, unfounded — out of scope for C1, with no effect on this file mechanism)."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Documenté par un EXEMPLE de l'administration : facture du 7/02/2026 rejetée, corrigée, renvoyée le même jour sous le MÊME numéro, acceptée hors ordre chronologique — « nie jest to… przesłanka zobowiązująca podatnika do wystawienia faktury korygującej, w celu poprawienia nadanego pierwotnie numeru faktury, wskazanego w polu P_2 ». Applicable après rejet du XML. Source : Podręcznik KSeF 2.0 cz. II, § 1.6.7 et Przykład 5.",
+        "sourceCheckedAt": "2026-08-29"
+      }
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Not researched for Poland: nobody has yet verified, against a primary Polish legal text, whether a correction can be made by a simple register annotation, without issuing any document. This remains to be established before an answer can be given."
+      }
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the French research, discovered_by: FR research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
+      }
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
+      }
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
+      }
+    }
+  ],
+  "notes": "Poland — HEADLINE: the nota korygująca (the buyer's own instrument, outside the eleven canonical routes — BUYER_CORRECTION_NOTE in the YAML) is REMOVED as of 2026-02-01 (ustawa of 16/06/2023, Dz.U. 2023 poz. 1598 art. 1 pkt 15, « uchyla się art. 106k » ; date set by the ustawa of 09/05/2024, Dz.U. 2024 poz. 852 art. 1 pkt 6 lit. a) — since that date, the Polish BUYER no longer has ANY correction instrument, everything starts from the seller. The file above transcribes the POST-2026-02-01 state (the only one in force as of this transcription's date); the earlier regime (BUYER_CORRECTION_NOTE, open under conditions) is not modeled — out of scope for C1 (no temporal versioning in this file mechanism v1). Additional TEMPORAL fact not modeled: the KSeF channel itself remains optional until 2026-03-31 (large taxpayers, art. 145l) or until 2026-12-31 (small taxpayers, art. 145m) — a different switchover from the correction model's own."
+}

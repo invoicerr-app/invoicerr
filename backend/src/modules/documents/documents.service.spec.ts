@@ -1,0 +1,663 @@
+import { vi, type Mock } from 'vitest';
+
+import { ConflictException } from '@nestjs/common';
+
+import * as companyEmailTemplates from './actions/company-email-templates';
+import { ActionExtensionRegistry } from './actions/action-extensions';
+import { ActionRegistry } from './actions/action-registry';
+import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
+import { registerDuplicateExtension } from './actions/duplicate-extension';
+import { registerQuoteActions } from './actions/quote-actions';
+import { ContributionRegistry } from './contributions/contribution-registry';
+import * as countryPolicy from './country-policy/country-policy';
+import { DocumentsService } from './documents.service';
+import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
+import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
+import { DocumentTypeRegistry } from './descriptors/type-registry';
+import * as takeNumber from './numbering/take-number';
+import * as persistence from './persistence';
+import { EntityReferenceRegistry } from './references/reference-registry';
+import * as renderInstancePdf from './rendering/render-instance-pdf';
+import { TransportRegistry } from './transports/transport-registry';
+
+vi.mock('./persistence');
+// The quote's "send" now renders a PDF and attaches it (actions/send-document-email.ts) — mocked at
+// its own entry point for the exact same reason `./numbering/take-number` right below already is:
+// this file is about the generic action machinery, not PDF rendering or Puppeteer (see
+// rendering/render-html.spec.ts and actions/send-document-email.spec.ts for those), and leaving it
+// unmocked would make a "send" test here hit a real database AND launch a real headless browser.
+vi.mock('./rendering/render-instance-pdf');
+vi.mock('./actions/company-email-templates');
+// Legal archiving — `actions/async-send.ts`'s phase-2 delivery now calls
+// `archiveDeliveredArtifactsIfAny` (archive/archive-on-send.ts) once "sent" is persisted, which
+// reaches PAST persistence.ts straight to Prisma (`archive/persistence.ts`, `country-policy/
+// country-policy.ts#resolveCompanyCountryCode`) — the EXACT same reason `./numbering/take-number`
+// below is mocked: this file is about the generic action machinery, not archiving (that mechanism
+// has its own coverage — see archive/*.spec.ts), and leaving it unmocked would make a "send" test
+// here hit a real database with a fake companyId/documentId.
+vi.mock('./archive/archive-on-send');
+// The real quote descriptor now declares `numbering: { onEnterStatus: 'sent' }` (quote.descriptor.ts)
+// — mocked wholesale here for the exact same reason `./persistence` is: this file is about the
+// generic action machinery, not numbering (that mechanism has its own coverage — see
+// documents.service.numbering.spec.ts and numbering/sequence.live.spec.ts), and
+// `takeDocumentNumberForTransition` reaches PAST persistence.ts straight to Prisma, so leaving it
+// unmocked would make a "send" test here hit a real database with a fake companyId. Resolving to
+// `undefined` (its own "nothing to do" case, see sequence.ts) keeps every test below exercising
+// exactly what it already tested before numbering existed.
+vi.mock('./numbering/take-number');
+// Country policy is proven for real, against the real decision code, in
+// country-policy/country-policy.spec.ts (mocking only the Prisma client) and in
+// documents.service.country-policy.spec.ts (proving DocumentsService.runAction respects the
+// decision). This file is about the generic action machinery, not policy — defaulting to "allowed"
+// (reset before EVERY test, since `afterEach(() => vi.resetAllMocks())` below would otherwise wipe
+// this implementation after the first test that runs) keeps every test below exercising exactly what
+// it already tested before country policy existed.
+vi.mock('./country-policy/country-policy');
+
+/**
+ * Wires the SAME building blocks documents.module.ts wires (real quote descriptor, real core field
+ * kinds, real quote action registration, real "duplicate" third-party extension) directly into
+ * `new DocumentsService(...)`, the way every other test in this codebase constructs a service — no
+ * Nest TestingModule needed. Only the Prisma boundary (persistence.ts) is mocked, so this never
+ * touches a real database; `mailService` is a fake so this never touches real SMTP either — the real
+ * SMTP round-trip is send-quote.live.spec.ts, not this file (see MEMORY on why a green mocked suite
+ * alone is never evidence of a working external integration).
+ */
+function buildService() {
+  const typeRegistry = new DocumentTypeRegistry();
+  typeRegistry.register(buildQuoteDescriptor());
+
+  const fieldKindRegistry = new FieldKindRegistry();
+  registerCoreFieldKinds(fieldKindRegistry);
+
+  const clientsService = { getClientById: vi.fn().mockResolvedValue(null) };
+  const mailService = {
+    sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+  };
+
+  const referenceRegistry = new EntityReferenceRegistry();
+
+  // "send" is asynchronous (actions/async-send.ts) — a fake dispatcher, no BullMQ,
+  // no Nest, no Redis: the tests below only ever need to know WHAT was enqueued, never that it was
+  // genuinely consumed (that proof is queue/__tests__/document-action-queue.redis.spec.ts).
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
+
+  const actionRegistry = new ActionRegistry();
+  registerQuoteActions(actionRegistry, {
+    clientsService: clientsService as never,
+    mailService: mailService as never,
+    typeRegistry,
+    referenceRegistry,
+    queueDispatcher,
+  });
+  // "convert-to-invoice" IS registered here — see actions/convert-to-invoice.ts. It stopped being
+  // the live "declared but not implemented" example the day it got a real handler; that role now
+  // belongs to the invoice's "export-accounting" (documents.service.invoice.spec.ts).
+  registerConvertToInvoiceAction(actionRegistry);
+
+  const actionExtensionRegistry = new ActionExtensionRegistry();
+  // Exactly what documents.module.ts does to attach a third-party action to an EXISTING type: no
+  // edit to quote.descriptor.ts or quote-actions.ts was needed to add this.
+  registerDuplicateExtension('quote', actionExtensionRegistry, actionRegistry);
+
+  // The quote's own actions never touch a transport — an empty registry proves that (any accidental
+  // read would throw UnknownTransportError, not silently succeed).
+  const transportRegistry = new TransportRegistry();
+
+  const service = new DocumentsService(
+    typeRegistry,
+    fieldKindRegistry,
+    actionRegistry,
+    actionExtensionRegistry,
+    referenceRegistry,
+    transportRegistry,
+    new ContributionRegistry(),
+  );
+  return { service, clientsService, mailService, queueDispatcher };
+}
+
+const validQuoteData = {
+  client: 'client-1',
+  issueDate: '2026-01-01',
+  currency: 'EUR',
+  lines: [{ description: 'Widget', quantity: 2, unitPrice: 9.9 }],
+};
+
+describe('DocumentsService — the quote type, wired exactly as documents.module.ts wires it', () => {
+  beforeEach(() => {
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
+    // Default "send" composes fine — real PDF/company-template lookups replaced with a fake render
+    // result, same discipline as the two mocks right above. Individual tests below override these
+    // when the render outcome itself is what they're proving (none are, today — see
+    // actions/send-document-email.spec.ts for that coverage).
+    (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({
+      pdf: Buffer.from('%PDF-fake'),
+      totals: {
+        currency: 'EUR',
+        lines: [],
+        netMinor: 0,
+        vatMinor: 0,
+        grossMinor: 0,
+        vatBreakdown: [],
+        warnings: [],
+      },
+      referenceLabels: {},
+      companyName: 'Test Co',
+    });
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+  });
+  afterEach(() => vi.resetAllMocks());
+
+  it('lists the quote type', () => {
+    expect(buildService().service.listTypes()).toEqual([{ id: 'quote', label: 'Quote' }]);
+  });
+
+  it('rejects an unknown document type instead of returning something empty', () => {
+    expect(() => buildService().service.getType('invoice')).toThrow(/Unknown document type "invoice"/);
+  });
+
+  it('runs "save-draft": implemented, validated, and persisted through the shared persistence layer', async () => {
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', { data: validQuoteData });
+
+    expect(result.changed).toBe(true);
+    expect(result.document).toMatchObject({ id: 'doc-1', status: 'draft' });
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'quote',
+      undefined,
+      'draft',
+      validQuoteData,
+    );
+  });
+
+  // "Client reference / PO number" — `clientReference` is an ordinary
+  // OPTIONAL top-level field on the descriptor (quote.descriptor.ts), so it needs no special-cased
+  // persistence path: it round-trips through the exact same generic `data` JSON blob every other
+  // field already does. This is the "bites" proof at the storage layer — the PDF's
+  // own rendering of it is covered separately in rendering/render-html.spec.ts.
+  it('persists an optional clientReference verbatim', async () => {
+    const dataWithReference = { ...validQuoteData, clientReference: 'PO-2026-00042' };
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: dataWithReference,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', {
+      data: dataWithReference,
+    });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'quote',
+      undefined,
+      'draft',
+      dataWithReference,
+    );
+  });
+
+  // Not required (quote.descriptor.ts) — a document that omits it altogether must keep validating and
+  // saving exactly as it always did before this field existed.
+  it('validates and saves fine when clientReference is omitted entirely', async () => {
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-2',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', { data: validQuoteData });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as Record<string, unknown>).clientReference).toBeUndefined();
+  });
+
+  // THE MUTATION TARGET: `runAction` strips every caller-supplied `__`-prefixed sidecar key BEFORE
+  // validation or persistence — "save-draft" included, not merely "send" (descriptors/validate.ts's
+  // own `stripSidecarKeys`, this method's own header). A fabricated `__crossBorderMentions` here would
+  // otherwise survive into the persisted `data` untouched (a quote has no field named `__anything`, so
+  // nothing about the descriptor's own validation would ever have caught it) and, from there, into
+  // anything that later reads the SAME persisted document — a printed PDF included, since rendering
+  // reads straight off `DocumentInstance.data`, never a separate, independently-checked source.
+  it('"save-draft" strips a forged __crossBorderMentions sidecar before it is ever persisted', async () => {
+    const poisonedData = {
+      ...validQuoteData,
+      __crossBorderMentions: [{ code: 'X', text: 'Autoliquidation — fabricated by the caller' }],
+    };
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    await service.runAction('company-1', 'quote', 'save-draft', { data: poisonedData });
+
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'quote',
+      undefined,
+      'draft',
+      validQuoteData, // the SAME data, minus the sidecar — never the poisoned object.
+    );
+    const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4] as Record<string, unknown>;
+    expect(persistedData).not.toHaveProperty('__crossBorderMentions');
+  });
+
+  // THE MUTATION TARGET: the sidecar-strip skip above is gated on the current status ALONE being
+  // "sending" — never on which action is actually running. "save-draft" declares
+  // `{ from: 'always', to: 'draft' }` (quote.descriptor.ts's own `SAVE_DRAFT_TRANSITIONS`), so it is
+  // reachable on a record that is CURRENTLY "sending" (a real window: between "send"'s own phase-1
+  // enqueue and the worker's phase-2 delivery) — a caller racing "save-draft" against that window must
+  // still have its sidecars stripped, exactly as it would on a "draft" record, or the ONE case this
+  // skip is meant for (the worker's own replay of "send") would accidentally cover a second, genuinely
+  // caller-controlled write too.
+  it('"save-draft" still strips a forged sidecar even while the record is currently "sending" — the skip is for "send"\'s own worker replay, never for another action that merely happens to run at the same status', async () => {
+    const poisonedData = {
+      ...validQuoteData,
+      __crossBorderMentions: [{ code: 'X', text: 'Autoliquidation — fabricated by the caller' }],
+      lines: [{ ...validQuoteData.lines[0], __crossBorderCategory: 'AE' }],
+    };
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'sending',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    await service.runAction('company-1', 'quote', 'save-draft', {
+      documentId: 'doc-1',
+      data: poisonedData,
+    });
+
+    const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4] as Record<string, unknown>;
+    expect(persistedData).not.toHaveProperty('__crossBorderMentions');
+    expect((persistedData.lines as Record<string, unknown>[])[0]).not.toHaveProperty('__crossBorderCategory');
+  });
+
+  it('blocks "save-draft" on invalid data before ever touching persistence', async () => {
+    await expect(
+      buildService().service.runAction('company-1', 'quote', 'save-draft', { data: {} }),
+    ).rejects.toThrow(/Invalid document data/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
+  it('blocks "send" before the document is even saved — it has no status to match "draft" yet', async () => {
+    await expect(
+      buildService().service.runAction('company-1', 'quote', 'send', { data: validQuoteData }),
+    ).rejects.toThrow(/not available before the document has been saved/);
+    expect(persistence.findOwnedDocument).not.toHaveBeenCalled();
+  });
+
+  // The 409 that must stay proven: a scripted client cannot get further than the
+  // UI would by posting directly for a status the action does not allow. "sent" is a real status a
+  // quote can be in, and "convert-to-invoice" genuinely requires "draft" or "sent" — this uses a
+  // status OUTSIDE that list, so the request must be refused before the handler is ever reached.
+  it('refuses an action for a status outside its availableWhen list — 409, not a silent bypass', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'archived',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const action = service.runAction('company-1', 'quote', 'convert-to-invoice', {
+      documentId: 'doc-1',
+      data: validQuoteData,
+    });
+
+    await expect(action).rejects.toBeInstanceOf(ConflictException);
+    await expect(action).rejects.toThrow(/not available for a document with status "archived"/);
+  });
+
+  it('rejects an action nobody declared on this type at all', async () => {
+    await expect(
+      buildService().service.runAction('company-1', 'quote', 'archive', { data: validQuoteData }),
+    ).rejects.toThrow(/has no action "archive"/);
+  });
+
+  describe('"convert-to-invoice" — implemented, unlike "export-accounting" on the invoice', () => {
+    it('creates a new invoice draft, carrying the quote data over and linking back with `origin`', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'quote-doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as Mock).mockResolvedValue({
+        id: 'invoice-doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: { ...validQuoteData, origin: { entity: 'quote', id: 'quote-doc-1' } },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'quote', 'convert-to-invoice', {
+        documentId: 'quote-doc-1',
+        data: validQuoteData,
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'invoice-doc-1', typeId: 'invoice', status: 'draft' });
+      // A NEW document (undefined id), of the OTHER type, created as a draft — never an update of the
+      // quote itself, and never anything other than "draft" (this is a brand-new record to finish).
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        undefined,
+        'draft',
+        expect.objectContaining({
+          client: 'client-1',
+          currency: 'EUR',
+          lines: validQuoteData.lines,
+          origin: { entity: 'quote', id: 'quote-doc-1' },
+        }),
+      );
+    });
+
+    it('is still refused with a 409 before ever being saved — "before" is not in its availableWhen list', async () => {
+      await expect(
+        buildService().service.runAction('company-1', 'quote', 'convert-to-invoice', {
+          data: validQuoteData,
+        }),
+      ).rejects.toThrow(/not available before the document has been saved/);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('"send" — implemented through the quote\'s own send-by-email mechanism, no special case', () => {
+    it('validates its own params with the SAME field-kind vocabulary as document data', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service, mailService } = buildService();
+      const action = service.runAction('company-1', 'quote', 'send', {
+        documentId: 'doc-1',
+        data: validQuoteData,
+        params: {}, // missing the required "recipient"
+      });
+
+      await expect(action).rejects.toThrow(/Invalid document data/);
+      expect(mailService.sendForCompany).not.toHaveBeenCalled();
+    });
+
+    it('phase 1: once params are valid, persists "sending" and ENQUEUES — never calls MailService synchronously', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service, mailService, queueDispatcher } = buildService();
+      const result = await service.runAction('company-1', 'quote', 'send', {
+        documentId: 'doc-1',
+        data: validQuoteData,
+        params: { recipient: 'client@example.com' },
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending' });
+      expect(mailService.sendForCompany).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        'sending',
+        validQuoteData,
+        ['draft', 'send_failed'],
+      );
+      expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
+        companyId: 'company-1',
+        typeId: 'quote',
+        documentId: 'doc-1',
+        actionId: 'send',
+        payload: { data: validQuoteData, params: { recipient: 'client@example.com' } },
+      });
+    });
+
+    it('phase 2 (the worker\'s replay, record already "sending"): sends the email and marks the document "sent"', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sent',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
+      });
+
+      const { service, mailService, queueDispatcher } = buildService();
+      const result = await service.runAction('company-1', 'quote', 'send', {
+        documentId: 'doc-1',
+        data: validQuoteData,
+        params: { recipient: 'client@example.com' },
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sent' });
+      expect(result.message).toMatch(/client@example\.com/);
+      // Subject/body now come from quote.descriptor.ts's own `email` template, interpolated with the
+      // (mocked) render result — 'Test Co' proves the real template pipeline ran, not a re-implementation.
+      // The PDF (also mocked) is attached, never a bare text-only email.
+      // `sendForCompany`, not the plain `sendMail` — the company → instance → named refusal cascade,
+      // addressed by THIS company's own id (never a hardcoded string, never the instance's provider
+      // called directly).
+      expect(mailService.sendForCompany).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({
+          to: 'client@example.com',
+          subject: expect.stringContaining('Test Co'),
+          attachments: [expect.objectContaining({ contentType: 'application/pdf' })],
+        }),
+      );
+      // `null, undefined, undefined`: no lastActionError, no transport reference, and no provider id
+      // — the "email" transport's result never carries either (see transport-registry.ts's own
+      // `DocumentTransportResult.reference`/`.providerId`).
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        'sent',
+        null,
+        undefined,
+        undefined,
+      );
+      // Never re-enqueued — the worker's own replay is what got here in the first place.
+      expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
+    });
+
+    it("pre-fills the recipient param default from the document's client", async () => {
+      const { service, clientsService } = buildService();
+      clientsService.getClientById.mockResolvedValue({
+        id: 'client-1',
+        contactEmail: 'client-1@example.com',
+      });
+
+      const defaults = await service.resolveActionParamsDefaults('company-1', 'quote', 'send', {
+        data: validQuoteData,
+      });
+
+      expect(defaults).toEqual({ recipient: 'client-1@example.com' });
+      expect(clientsService.getClientById).toHaveBeenCalledWith('company-1', 'client-1');
+    });
+
+    it('returns no defaults when the client has no contact email on file', async () => {
+      const { service, clientsService } = buildService();
+      clientsService.getClientById.mockResolvedValue({ id: 'client-1', contactEmail: null });
+
+      const defaults = await service.resolveActionParamsDefaults('company-1', 'quote', 'send', {
+        data: validQuoteData,
+      });
+
+      expect(defaults).toEqual({});
+    });
+
+    it('returns {} (not an error) for an action with no registered defaults resolver', async () => {
+      const { service } = buildService();
+      const defaults = await service.resolveActionParamsDefaults('company-1', 'quote', 'save-draft', {
+        data: validQuoteData,
+      });
+      expect(defaults).toEqual({});
+    });
+  });
+
+  describe('extensibility — a third party attaches "duplicate" to the quote type', () => {
+    it('appears in the type descriptor served to the frontend, alongside the native actions', () => {
+      const descriptor = buildService().service.getType('quote');
+      expect(descriptor.actions.map((a) => a.id)).toEqual(
+        expect.arrayContaining(['save-draft', 'send', 'convert-to-invoice', 'duplicate']),
+      );
+    });
+
+    it('runs through the exact same runAction path as a native action', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as Mock).mockResolvedValue({
+        id: 'doc-2',
+        typeId: 'quote',
+        status: 'draft',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'quote', 'duplicate', {
+        documentId: 'doc-1',
+        data: validQuoteData,
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'doc-2', status: 'draft' });
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        undefined,
+        'draft',
+        validQuoteData,
+      );
+    });
+
+    it('still gets refused by the 409 status check — extension actions are not a shortcut', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'archived',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      await expect(
+        service.runAction('company-1', 'quote', 'duplicate', { documentId: 'doc-1', data: validQuoteData }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('a plugin declaring an id that collides with a native action fails loudly at boot', () => {
+      const typeRegistry = new DocumentTypeRegistry();
+      typeRegistry.register(buildQuoteDescriptor());
+      const fieldKindRegistry = new FieldKindRegistry();
+      registerCoreFieldKinds(fieldKindRegistry);
+      const referenceRegistry = new EntityReferenceRegistry();
+      const actionRegistry = new ActionRegistry();
+      registerQuoteActions(actionRegistry, {
+        clientsService: { getClientById: vi.fn() } as never,
+        mailService: { sendForCompany: vi.fn() } as never,
+        typeRegistry,
+        referenceRegistry,
+        queueDispatcher: { enqueueAction: vi.fn() },
+      });
+      const actionExtensionRegistry = new ActionExtensionRegistry();
+      // "send" already exists natively on the quote descriptor — this is the misconfiguration.
+      actionExtensionRegistry.register('quote', { id: 'send', label: 'Rogue send', availableWhen: 'always' });
+
+      const service = new DocumentsService(
+        typeRegistry,
+        fieldKindRegistry,
+        actionRegistry,
+        actionExtensionRegistry,
+        referenceRegistry,
+        new TransportRegistry(),
+        new ContributionRegistry(),
+      );
+
+      expect(() => service.onModuleInit()).toThrow(/declared both natively and as an extension/);
+    });
+  });
+});

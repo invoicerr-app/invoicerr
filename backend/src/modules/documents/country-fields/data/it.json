@@ -1,0 +1,23 @@
+{
+  "countryCode": "IT",
+  "overlays": [
+    {
+      "typeId": "invoice",
+      "operations": [
+        {
+          "op": "add",
+          "path": "lines",
+          "field": {
+            "key": "supplyType",
+            "kind": "select",
+            "label": "Supply type",
+            "required": false,
+            "options": [{ "value": "GOODS", "label": "Goods" }, { "value": "SERVICES", "label": "Services" }],
+            "helpText": "Whether this line is a delivery of goods or a supply of services — it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services."
+          }
+        }
+      ]
+    }
+  ],
+  "notes": "Italy's FIRST field overlay — the SAME `supplyType` line subfield France's own `fr.json` already adds, in the same shape: kind 'select', values GOODS/SERVICES, OPTIONAL, added to `invoice.lines` rather than to the trunk `descriptors/invoice.descriptor.ts`, which stays country-blind. WHY THE FIELD IS IDENTICAL IN ALL FIVE COUNTRIES RATHER THAN A PER-COUNTRY VARIANT: what reads it — `tax/resolve-invoice-tax.ts`, feeding `tax/tax-engine.ts#determineLineTax` — branches on the goods/services distinction of Directive 2006/112/EC (arts. 32, 33(a) and 59c for an intra-Community distance sale of goods, art. 45 for a service), which binds every member state identically; the same reasoning `tax/types.ts`'s own `DistanceSalesRegime` states for art. 59c ('art. 59c applies identically in all of them'). Italy's transposition defines the two in the directive's own terms — « Costituiscono cessioni di beni gli atti a titolo oneroso che importano trasferimento della proprietà ovvero costituzione o trasferimento di diritti reali di godimento su beni di ogni genere » (DPR 26 ottobre 1972, n. 633, art. 2, primo comma) against « Costituiscono prestazioni di servizi le prestazioni verso corrispettivo dipendenti da contratti d'opera, appalto, trasporto, mandato, spedizione, agenzia, mediazione, deposito e in genere da obbligazioni di fare, di non fare e di permettere quale ne sia la fonte » (same decree, art. 3, primo comma). Read in raw text on 2026-09-21 at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:presidente.repubblica:decreto:1972-10-26;633 , act updated to 11/08/2026); the article bodies load from a session-bound endpoint, so a bare fetch of the act URL returns the navigation shell only — carry the session cookie from that first request. WHAT IS DELIBERATELY NOT MIRRORED FROM FRANCE: the French overlay's own `helpText` names BT-23 (« cadre de facturation »), which is a FRENCH obligation — `formats/semantic/business-process.ts#resolveFrenchBusinessProcessCode` derives that code only for a seller whose country has an active BT-23 rule in `content-requirements/`, and France is the only country with one — so an Italian seller declaring a supply type changes the exported document not at all; it changes the TAX determination, which is what this file's own help text names instead. NO RETROACTIVE EFFECT ON STORED DOCUMENTS: the field is OPTIONAL and nothing back-fills it. `resolve-invoice-tax.ts` narrows a line's raw `supplyType` to GOODS/SERVICES and treats anything else — including absent — as SERVICES, emitting a named warning; that fallback is untouched here, so every invoice stored before this file existed resolves exactly as it did before, and only a line a user explicitly marks as goods reaches the distance-sales branch. DIGITAL IS NOT OFFERED, on purpose: `tax/types.ts`'s own `SupplyType` has a third value, but `resolve-invoice-tax.ts` narrows a stored value to GOODS/SERVICES only, so a 'DIGITAL' option would be silently discarded on the way in — offering it would need that narrowing widened first, for all five countries including France."
+}

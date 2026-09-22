@@ -1,0 +1,52 @@
+Invoicerr has been installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+1. Check pod status (the api pod runs Prisma migrations on first boot — see step 3 below — so give
+   it a little longer than a normal readiness check before assuming something is wrong):
+
+     kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+2. Access the app:
+{{- if .Values.ingress.enabled }}
+
+   Ingress is enabled. Once DNS for {{ .Values.ingress.host }} points at your ingress controller and
+   cert-manager has issued the certificate (ClusterIssuer: {{ .Values.ingress.clusterIssuer }}):
+
+     https://{{ .Values.ingress.host }}
+{{- else }}
+
+   Ingress is disabled. Port-forward the api Service instead:
+
+     kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "invoicerr.componentFullname" (dict "context" . "component" "api") }} 8080:{{ .Values.api.service.port }}
+
+   Then open http://localhost:8080
+{{- end }}
+
+3. First boot runs Prisma migrations (backend/src/prisma/sync-schema.ts, api pod only) before nginx
+   starts and the readiness probe can pass. If the api pod is slow to become Ready, this is the
+   first place to look:
+
+     kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=api
+
+{{- if not .Values.existingSecret }}
+{{- if .Values.generateSecret.enabled }}
+
+4. generateSecret.enabled is ON — this install is using a chart-generated Secret populated straight
+   from plaintext values.yaml values. This is a DEV/KIND-ONLY convenience and is UNSAFE for any real
+   deployment (those values are readable via `helm get values`, in this Secret object, and in your
+   values files/CI logs). Switch to `existingSecret` before deploying anywhere that matters.
+{{- else }}
+
+4. WARNING: neither `existingSecret` nor `generateSecret.enabled` is set. Every Deployment in this
+   release references a Secret named "{{ include "invoicerr.secretName" . }}" that this chart did
+   NOT create. Create it yourself before the pods can start successfully — see values.yaml's own
+   `existingSecret` comment for the exact keys required — or re-run `helm upgrade` with
+   `--set existingSecret=<your-secret-name>` once it exists.
+{{- end }}
+{{- end }}
+
+{{- if .Values.postgresql.enabled }}
+
+5. postgresql.enabled=true — you are using this chart's bundled, single-replica, DEV/KIND-ONLY
+   Postgres. It has no HA, no backups, and no point-in-time recovery. Do not use it in production;
+   point at an external, managed Postgres (existingSecret's DATABASE_URL) instead.
+{{- end }}

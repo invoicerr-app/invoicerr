@@ -1,4 +1,13 @@
 {
+  // Every spec starts with a bare `export {};`. TypeScript treats a file with no top-level import
+  // or export as a GLOBAL SCRIPT, so each spec's own `const api` / `const apiUrl` and its local
+  // helper functions all landed in one shared scope. `tsc --noEmit` then reported 71 errors -- 47
+  // "Cannot redeclare block-scoped variable", 24 "Duplicate function implementation" -- none of
+  // which named a real defect, and which together meant this project simply could not be
+  // typechecked: a genuine type error in a spec was only ever discovered by running it, and CI
+  // never ran tsc here at all. The marker is inert at runtime, Cypress compiling each spec
+  // separately regardless. Keep it when adding a spec, or the whole project stops typechecking
+  // again.
   "compilerOptions": {
     "target": "ES6",
     "lib": ["ES6", "DOM"],

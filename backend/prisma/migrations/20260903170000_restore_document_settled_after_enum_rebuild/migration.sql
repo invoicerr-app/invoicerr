@@ -1,0 +1,20 @@
+-- Repairs an ORDERING MINE laid by two migrations written in parallel:
+--   * 20260902234040_payment_conversion_and_document_settled runs
+--     `ALTER TYPE "WebhookEvent" ADD VALUE 'DOCUMENT_SETTLED'` -- timestamped 23:40 on the 2nd.
+--   * 20260903000000_generic_document_webhook_events REBUILDS the WebhookEvent type
+--     (CREATE TYPE _new / cast / rename, the only way to remove values in Postgres) from the value
+--     list AS IT STOOD when that file was written -- WITHOUT DOCUMENT_SETTLED, which did not exist
+--     yet.
+-- On this repository's two live databases the rebuild really did run before the ADD VALUE, in commit
+-- order, and everything is sound. But on a FRESH database -- CI, a new install, or the one
+-- sync-schema.ts brings up to date -- `migrate deploy` replays the directories in LEXICOGRAPHIC
+-- timestamp order: the ADD VALUE first, then the rebuild, which DESTROYS the value by recreating the
+-- type without it. Proven on a throwaway database on 2026-09-03: the whole deploy reported
+-- "successful", and pg_enum came out with no DOCUMENT_SETTLED. The first settled document would have
+-- crashed the webhook dispatch.
+--
+-- Why THIS fix and not another: renaming the earlier directory would break checksum verification on
+-- databases where it is already applied under its current name, and editing the rebuild's CREATE
+-- TYPE would do the same. An ADDITIVE, IDEMPOTENT migration (IF NOT EXISTS) is the only shape that
+-- is an exact no-op on healthy databases AND a complete repair on fresh ones.
+ALTER TYPE "WebhookEvent" ADD VALUE IF NOT EXISTS 'DOCUMENT_SETTLED';

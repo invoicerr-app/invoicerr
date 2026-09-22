@@ -1,0 +1,1593 @@
+import { vi, type Mock } from 'vitest';
+
+import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
+
+import { ActionExtensionRegistry } from './actions/action-extensions';
+import { ActionRegistry } from './actions/action-registry';
+import { registerInvoiceActions } from './actions/invoice-actions';
+import { ContributionRegistry } from './contributions/contribution-registry';
+import * as currencyRatesStore from '../company/currency-rates/currency-rates.store';
+import * as countryPolicy from './country-policy/country-policy';
+import * as b2gRouting from './b2g-routing/b2g-routing';
+import { DocumentsService } from './documents.service';
+import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
+import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
+import { DocumentTypeRegistry } from './descriptors/type-registry';
+import * as takeNumber from './numbering/take-number';
+import * as persistence from './persistence';
+import { EntityReferenceRegistry } from './references/reference-registry';
+import { computeSettlement } from './settlement/compute-settlement';
+import * as settlementCredits from './settlement/credits';
+import * as settlementPayments from './settlement/payments';
+import * as taxLoadAndResolve from './tax/load-and-resolve';
+import { resolveInvoiceCrossBorderTax, UnresolvedBuyerCountryError } from './tax/resolve-invoice-tax';
+import { computeDocumentTotals } from './totals/compute-totals';
+import * as companyTransport from './transports/company-transport';
+import { TransportRegistry } from './transports/transport-registry';
+
+vi.mock('./persistence');
+vi.mock('./transports/company-transport');
+// "record-payment" (invoice-actions.ts) writes through settlement/payments.ts, which reaches Prisma
+// directly — mocked here the same reason `./numbering/take-number` already is just below: it bypasses
+// the mocked `./persistence` entirely, so a test that wants to observe or control it must mock this
+// module too, not assume `./persistence`'s mock covers it.
+vi.mock('./settlement/payments');
+// Same reason, same discipline, for CREDITS (item 8, credit matching) — `resolveCreditsForDocument`
+// (settlement/credits.ts) also reaches Prisma directly. Defaulted to "no credits" in `beforeEach`
+// below so every pre-existing test in this file keeps meaning exactly what it always did; the
+// dedicated credits describe block overrides it to prove the balance actually changes.
+vi.mock('./settlement/credits');
+// Cross-border tax — `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-
+// resolve.ts) ALSO reaches Prisma directly (the seller/buyer country + buyer VAT lookup), same
+// reason, same discipline as every mock above. Defaulted to a permissive PASS-THROUGH in
+// `beforeEach` below (this file's own fixtures never set up a real client/company row, so the real
+// function would otherwise resolve an unknown buyer country and block every "send" — a concern this
+// file does not test; that behaviour is proven directly in `tax/resolve-invoice-tax.spec.ts` and
+// `tax/cross-border-formats.spec.ts` instead).
+vi.mock('./tax/load-and-resolve');
+// See documents.service.spec.ts's own comment on this mock — the real invoice descriptor now
+// declares `numbering: { onEnterStatus: 'sent' }` too (invoice.descriptor.ts), and
+// `takeDocumentNumberForTransition` reaches Prisma directly, bypassing the mocked `./persistence`.
+vi.mock('./numbering/take-number');
+// See documents.service.spec.ts's own comment on this mock — the real decision code is proven
+// elsewhere (country-policy/country-policy.spec.ts, documents.service.country-policy.spec.ts). The
+// default "allowed" is (re-)installed in `beforeEach` below, not just here, since
+// `afterEach(() => vi.resetAllMocks())` would otherwise wipe it after the first test.
+vi.mock('./country-policy/country-policy');
+// B2G routing (`b2g-routing/`) reaches Prisma directly too, same reason as every mock above.
+// Defaulted to `applies: false` in `beforeEach` below — every client in this file's own fixtures is
+// BUSINESS by construction (a bare id string, no real row), so this concern is unrelated to what this
+// file tests; see `actions/invoice-b2g-routing.spec.ts` for the dedicated B2G suite.
+vi.mock('./b2g-routing/b2g-routing');
+// "record-payment" now resolves a dated exchange rate (`loadRatesSafely`,
+// currency-rates.store.ts) whenever the payment's own currency differs from the invoice's; that store
+// reaches Prisma directly too, same reason as every mock above. Defaulted to "no rates at all" in
+// `beforeEach` below (so the pre-existing "refuses a mismatched currency" test keeps meaning exactly
+// what it always did) — the dedicated currency-conversion describe block overrides it.
+vi.mock('../company/currency-rates/currency-rates.store');
+
+/**
+ * Same wiring discipline as documents.service.spec.ts's quote coverage, applied to the invoice — the
+ * SECOND document type written entirely as a descriptor (invoice.descriptor.ts). What this file
+ * exists to prove is not "does DocumentsService work" (already proven for the quote) but "does the
+ * exact same generic machinery work UNMODIFIED for an independently-declared second type": no branch
+ * of DocumentsService, validateAgainstDescriptor, or ActionRegistry knows the word "invoice" — it is
+ * only ever data these registries were handed.
+ *
+ * The invoice's "send" is deliberately NOT the quote's mechanism (see actions/invoice-actions.ts and
+ * actions/send-divergence.spec.ts) — the transport is read from `Company.invoiceTransportId`
+ * (transports/company-transport.ts), mocked here the same way persistence.ts already is.
+ *
+ * `webhooks` (generic `DOCUMENT_*` vocabulary) is OPTIONAL, defaulted to
+ * `undefined` — every pre-existing test in this file constructs `buildService()` with no opinion on
+ * webhooks at all and must keep meaning exactly what it always did (no `DocumentWebhookEmitter` ever
+ * wired, `DOCUMENT_SENT` never fires). Only the dedicated "webhook" describe block below passes one.
+ */
+function buildService(
+  transportRegistry: TransportRegistry = new TransportRegistry(),
+  webhooks?: { dispatch: Mock },
+) {
+  const typeRegistry = new DocumentTypeRegistry();
+  typeRegistry.register(buildInvoiceDescriptor());
+
+  const fieldKindRegistry = new FieldKindRegistry();
+  registerCoreFieldKinds(fieldKindRegistry);
+
+  // "send" is asynchronous (actions/async-send.ts) — a fake dispatcher, no BullMQ,
+  // no Nest, no Redis needed.
+  const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
+
+  const actionRegistry = new ActionRegistry();
+  registerInvoiceActions(actionRegistry, { transportRegistry, queueDispatcher, webhooks });
+  // "record-payment" IS registered (invoice-actions.ts) — its own describe block below. "export-
+  // accounting" is NOT, on purpose — see invoice.descriptor.ts.
+
+  const actionExtensionRegistry = new ActionExtensionRegistry();
+  const referenceRegistry = new EntityReferenceRegistry();
+
+  const service = new DocumentsService(
+    typeRegistry,
+    fieldKindRegistry,
+    actionRegistry,
+    actionExtensionRegistry,
+    referenceRegistry,
+    transportRegistry,
+    new ContributionRegistry(),
+  );
+  return { service, queueDispatcher };
+}
+
+const validInvoiceData = {
+  client: 'client-1',
+  issueDate: '2026-01-01',
+  dueDate: '2026-01-31',
+  currency: 'EUR',
+  lines: [{ description: 'Widget', quantity: 2, unit: 'unit', unitPrice: 9.9, vatRate: '20' }],
+};
+
+const noDueDateInvoiceData = {
+  client: 'client-1',
+  issueDate: '2026-01-01',
+  currency: 'EUR',
+  lines: [{ description: 'Widget', quantity: 2, unit: 'unit', unitPrice: 9.9, vatRate: '20' }],
+};
+
+describe('DocumentsService — the invoice type, the SECOND descriptor-only type', () => {
+  beforeEach(() => {
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
+    (settlementCredits.resolveCreditsForDocument as Mock).mockResolvedValue({
+      credits: [],
+      warnings: [],
+    });
+    (settlementCredits.toSettlementCreditInputs as Mock).mockImplementation((credits) =>
+      credits.map((c: { id: string; amountMinor: number }) => ({ id: c.id, amountMinor: c.amountMinor })),
+    );
+    // `./settlement/payments` is mocked whole (see this file's own top-of-file
+    // comment), so `toSettlementPaymentInputs` needs the SAME "mirror the real implementation" default
+    // `toSettlementCreditInputs` just above already gets — every `listPayments` fixture below now
+    // carries its own `documentAmountMinor` explicitly (see each one), same discipline as a real row.
+    (settlementPayments.toSettlementPaymentInputs as Mock).mockImplementation(
+      (payments: { documentAmountMinor: number }[]) =>
+        payments.map((p) => ({ amountMinor: p.documentAmountMinor })),
+    );
+    // No dated rate configured by default — a currency mismatch still refuses exactly as it did
+    // before T3 (this module never invents a rate); the dedicated currency-conversion describe block
+    // below overrides this to prove a payment WITH a configured rate actually converts.
+    (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([]);
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
+      (_companyId: string, data: Record<string, unknown>) =>
+        Promise.resolve({ data, crossBorder: false, warnings: [] }),
+    );
+    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
+      applies: false,
+      missingIdentifierSchemes: [],
+    });
+  });
+  afterEach(() => vi.resetAllMocks());
+
+  it('is registered', () => {
+    expect(buildService().service.listTypes()).toEqual([{ id: 'invoice', label: 'Invoice' }]);
+  });
+
+  it('its fields validate: a complete invoice is accepted', async () => {
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: validInvoiceData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+      data: validInvoiceData,
+    });
+
+    expect(result.changed).toBe(true);
+    expect(result.document).toMatchObject({ id: 'doc-1', status: 'draft' });
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'invoice',
+      undefined,
+      'draft',
+      validInvoiceData,
+    );
+  });
+
+  // "Client reference / PO number" — an ordinary OPTIONAL top-level
+  // field (invoice.descriptor.ts): round-trips through the exact same generic `data` JSON blob every
+  // other field already does, with no special-cased persistence path. The PDF's own conditional
+  // rendering of it is covered separately in rendering/render-html.spec.ts's own `hideWhenEmpty` block.
+  it('persists an optional clientReference verbatim, and omitting it entirely still validates', async () => {
+    const dataWithReference = { ...validInvoiceData, clientReference: 'PO-2026-00042' };
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: dataWithReference,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+      data: dataWithReference,
+    });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'invoice',
+      undefined,
+      'draft',
+      dataWithReference,
+    );
+  });
+
+  it('its fields validate: an empty invoice is rejected before ever touching persistence', async () => {
+    await expect(
+      buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: {} }),
+    ).rejects.toThrow(/Invalid document data/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
+  // The array-ROW SUBFIELD case of the SAME `min`/`max` enforcement field-kinds.spec.ts already
+  // proves for a top-level field: validateAgainstDescriptor recurses into a row with the exact same
+  // FieldKindRegistry, so a line's own `discountPercent` (0..100 — invoice.descriptor.ts) is checked
+  // no less strictly than a document-level field would be. A discount of -20 that silently INCREASED
+  // the price (via `1 - (-20)/100 = 1.2`, compute-totals.ts) would be exactly this validator's job to
+  // refuse before that arithmetic ever runs.
+  it("a line's discountPercent outside 0..100 is rejected — a -20% cannot slip through as a price increase", async () => {
+    const negativeDiscount = {
+      ...validInvoiceData,
+      lines: [{ ...validInvoiceData.lines[0], discountPercent: -20 }],
+    };
+    await expect(
+      buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: negativeDiscount }),
+    ).rejects.toThrow(/Invalid document data/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+
+    const tooLargeDiscount = {
+      ...validInvoiceData,
+      lines: [{ ...validInvoiceData.lines[0], discountPercent: 120 }],
+    };
+    await expect(
+      buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: tooLargeDiscount }),
+    ).rejects.toThrow(/Invalid document data/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
+  it('accepts a valid in-range discountPercent on a line, and 0/absent are equally fine', async () => {
+    const withDiscount = {
+      ...validInvoiceData,
+      lines: [{ ...validInvoiceData.lines[0], discountPercent: 50 }],
+    };
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: withDiscount,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await buildService().service.runAction('company-1', 'invoice', 'save-draft', {
+      data: withDiscount,
+    });
+    expect(result.changed).toBe(true);
+  });
+
+  // The one requiredness difference from the quote (quote.descriptor.ts's dueDate is optional) —
+  // same 'date' kind, no new kind needed, just a different `required` on this descriptor. The
+  // per-field message lives in the exception's response body (`errors`), not in `.message` itself —
+  // see documents.service.ts's runAction, which always throws the generic "Invalid document data"
+  // as the top-level message and carries the per-field detail alongside it.
+  it('requires a due date — unlike the quote, where it is optional', async () => {
+    const { service } = buildService();
+    expect.assertions(2);
+
+    try {
+      await service.runAction('company-1', 'invoice', 'save-draft', { data: noDueDateInvoiceData });
+    } catch (error) {
+      expect(error).toBeInstanceOf(BadRequestException);
+      const response = (error as BadRequestException).getResponse() as {
+        errors: { key: string; message: string }[];
+      };
+      expect(response.errors).toEqual(
+        expect.arrayContaining([{ key: 'dueDate', message: '"Due date" is required.' }]),
+      );
+    }
+  });
+
+  describe('"origin" — a MULTI-TARGET reference (quote OR invoice), unlike "client"', () => {
+    it('accepts an origin pointing at a quote', async () => {
+      const dataWithOrigin = { ...validInvoiceData, origin: { entity: 'quote', id: 'quote-doc-1' } };
+      (persistence.upsertDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: dataWithOrigin,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+        data: dataWithOrigin,
+      });
+
+      expect(result.changed).toBe(true);
+    });
+
+    it('accepts an origin pointing at ANOTHER invoice — the second declared target', async () => {
+      const dataWithOrigin = { ...validInvoiceData, origin: { entity: 'invoice', id: 'invoice-doc-0' } };
+      (persistence.upsertDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: dataWithOrigin,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+        data: dataWithOrigin,
+      });
+
+      expect(result.changed).toBe(true);
+    });
+
+    it('rejects an origin naming an entity that was never declared as a target', async () => {
+      const dataWithOrigin = { ...validInvoiceData, origin: { entity: 'client', id: 'client-1' } };
+
+      expect.assertions(3);
+      try {
+        await buildService().service.runAction('company-1', 'invoice', 'save-draft', {
+          data: dataWithOrigin,
+        });
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as {
+          errors: { key: string; message: string }[];
+        };
+        expect(response.errors).toContainEqual(
+          expect.objectContaining({ key: 'origin', message: expect.stringMatching(/quote, invoice/) }),
+        );
+      }
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('rejects the OLD bare-id shape — a plain string is no longer enough once more than one target is possible', async () => {
+      const dataWithOrigin = { ...validInvoiceData, origin: 'quote-doc-1' };
+
+      await expect(
+        buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: dataWithOrigin }),
+      ).rejects.toThrow(/Invalid document data/);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+  });
+
+  // The behaviour that must stay proven on THIS second type, not only on the
+  // quote's "convert-to-invoice": a real, declared action on the real invoice descriptor, genuinely
+  // never registered (invoice-actions.ts), is blocked with a clear 501 — never a silent no-op. This
+  // used to be "record-payment"'s role; it moved to "export-accounting" the day "record-payment" got
+  // a real implementation (see invoice.descriptor.ts's own header) — the live case this proves the
+  // mechanism against must always be a genuinely unregistered action, never a stale example.
+  it('blocks "export-accounting" — declared, no implementation registered — with a clear 501', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'sent',
+      data: validInvoiceData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const action = service.runAction('company-1', 'invoice', 'export-accounting', {
+      documentId: 'doc-1',
+      data: validInvoiceData,
+    });
+
+    await expect(action).rejects.toBeInstanceOf(NotImplementedException);
+    await expect(action).rejects.toThrow(/no registered implementation/);
+  });
+
+  it('refuses "record-payment" for a status outside its availableWhen list — 409, not a silent bypass', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: validInvoiceData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    await expect(
+      service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  describe('"record-payment" — implemented: validates, persists, and hands back the balance', () => {
+    const sentInvoice = {
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'sent',
+      data: validInvoiceData, // currency: 'EUR'
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      // Already numbered — a "sent" invoice always is (numbering: { onEnterStatus: 'sent' }). Set
+      // here so runAction's own numbering re-check (documents.service.ts) is a no-op for these
+      // tests, which are about the payment mechanism, not numbering.
+      number: 1,
+      displayNumber: 'INV-2026-0001',
+    };
+
+    beforeEach(() => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(sentInvoice);
+      (settlementPayments.recordPayment as Mock).mockResolvedValue({
+        id: 'payment-1',
+        documentId: 'doc-1',
+        amountMinor: 0,
+        currency: 'EUR',
+        documentAmountMinor: 0,
+        conversionRate: null,
+        conversionRateAsOf: null,
+        conversionSource: null,
+        method: null,
+        paidAt: new Date('2026-08-30'),
+        note: null,
+        createdAt: new Date('2026-08-30'),
+      });
+      (settlementPayments.listPayments as Mock).mockResolvedValue([]);
+    });
+
+    // validInvoiceData's own lines total 2 * 9.9 = 19.8 EUR net, +20% VAT = 23.76 EUR gross —
+    // 2376 minor units. Every test below that needs the gross total spells this out rather than
+    // re-deriving it, so a change to compute-totals.ts's own rounding would fail LOUDLY here instead
+    // of silently shifting what "partial" means.
+    const GROSS_MINOR = 2376;
+
+    it('records a partial payment, converts to minor units with the DOCUMENT currency, and states the new balance', async () => {
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
+        {
+          id: 'payment-1',
+          documentId: 'doc-1',
+          amountMinor: 1000,
+          currency: 'EUR',
+          documentAmountMinor: 1000,
+        },
+      ]);
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 10, currency: 'EUR', paidAt: '2026-08-30', method: 'bank_transfer' },
+      });
+
+      expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: 'company-1',
+          documentId: 'doc-1',
+          amountMinor: 1000, // 10 EUR * 100 (2 decimals)
+          currency: 'EUR',
+          method: 'bank_transfer',
+        }),
+      );
+      expect(result.changed).toBe(true);
+      expect(result.document).toEqual(sentInvoice);
+      // The result SAYS the new balance — outstanding is GROSS_MINOR - 1000 = 1376 -> 13.76 EUR.
+      expect(result.message).toMatch(/13\.76 EUR/);
+      expect(result.message).toMatch(/outstanding/i);
+      // The id of the `DocumentPayment` this call just inserted — see ActionResult.createdPaymentId's
+      // own header: this is what lets a caller (bank reconciliation, the payment webhook) know exactly
+      // which row resulted without diffing `listPayments` before/after and risking a mis-attribution
+      // under two concurrent calls against the same invoice.
+      expect(result.createdPaymentId).toBe('payment-1');
+    });
+
+    it("converts to minor units using the CURRENCY's OWN decimals — JPY has none, not two", async () => {
+      const jpyInvoice = { ...sentInvoice, data: { ...validInvoiceData, currency: 'JPY' } };
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(jpyInvoice);
+
+      const { service } = buildService();
+      await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: jpyInvoice.data,
+        params: { amount: 500, currency: 'JPY', paidAt: '2026-08-30' },
+      });
+
+      expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+        expect.objectContaining({ amountMinor: 500, currency: 'JPY' }), // NOT 50000
+      );
+    });
+
+    it("refuses a payment currency that does not match the document's own — no silent conversion", async () => {
+      const { service } = buildService();
+      const action = service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 10, currency: 'USD', paidAt: '2026-08-30' },
+      });
+
+      await expect(action).rejects.toBeInstanceOf(BadRequestException);
+      await expect(action).rejects.toThrow(/does not match this invoice's own currency/);
+      expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+    });
+
+    it('refuses an amount that is not strictly positive', async () => {
+      const { service } = buildService();
+      const zero = service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 0, currency: 'EUR', paidAt: '2026-08-30' },
+      });
+      await expect(zero).rejects.toBeInstanceOf(BadRequestException);
+      await expect(zero).rejects.toThrow(/greater than zero/);
+      expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+    });
+
+    it('an EXACT full payment settles the invoice — the result says so, never "outstanding"', async () => {
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
+        {
+          id: 'payment-1',
+          documentId: 'doc-1',
+          amountMinor: GROSS_MINOR,
+          currency: 'EUR',
+          documentAmountMinor: GROSS_MINOR,
+        },
+      ]);
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 23.76, currency: 'EUR', paidAt: '2026-08-30' },
+      });
+
+      expect(result.message).toMatch(/fully paid/i);
+      expect(result.message).not.toMatch(/outstanding/i);
+    });
+
+    it('a PRE-EXISTING credit is folded into the balance THIS message states — never contradicting a follow-up read of the settlement screen', async () => {
+      // The invoice (GROSS_MINOR = 2376) was already credited 2000 minor before this payment —
+      // recording a further 376 must be exactly enough to settle it.
+      (settlementCredits.resolveCreditsForDocument as Mock).mockResolvedValue({
+        credits: [{ id: 'cn-1', displayNumber: null, amountMinor: 2000, currency: 'EUR' }],
+        warnings: [],
+      });
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
+        {
+          id: 'payment-1',
+          documentId: 'doc-1',
+          amountMinor: GROSS_MINOR - 2000,
+          currency: 'EUR',
+          documentAmountMinor: GROSS_MINOR - 2000,
+        },
+      ]);
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 3.76, currency: 'EUR', paidAt: '2026-08-30' },
+      });
+
+      expect(result.message).toMatch(/fully paid/i);
+      expect(result.message).not.toMatch(/outstanding/i);
+      expect(settlementCredits.resolveCreditsForDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        expect.anything(),
+        validInvoiceData,
+      );
+    });
+
+    // ── currency conversion at a dated rate ────────────────────────────────────
+    describe("a payment in a currency other than the invoice's own — converted at a DATED rate, never refused when one is configured", () => {
+      it('converts at the exact resolved rate — PINNED to the exact minor-unit amount, never a loose toBeCloseTo', async () => {
+        (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([
+          { from: 'USD', to: 'EUR', rate: 0.9, asOf: new Date('2026-08-01T00:00:00.000Z'), source: 'manual' },
+        ]);
+        // 10.00 USD (minor 1000) @ 0.9 -> major 10 * 0.9 = 9.00 EUR -> minor round(900) = 900. Exact.
+        (settlementPayments.listPayments as Mock).mockResolvedValue([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'USD',
+            documentAmountMinor: 900,
+          },
+        ]);
+
+        const { service } = buildService();
+        const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 10, currency: 'USD', paidAt: '2026-08-30' },
+        });
+
+        expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+          expect.objectContaining({
+            companyId: 'company-1',
+            documentId: 'doc-1',
+            amountMinor: 1000, // the amount ACTUALLY received, in ITS OWN currency (USD) — untouched.
+            currency: 'USD',
+            documentAmountMinor: 900, // the PINNED, settlement-relevant figure, in EUR.
+            conversionRate: 0.9,
+            conversionRateAsOf: new Date('2026-08-01T00:00:00.000Z'),
+            conversionSource: 'manual',
+          }),
+        );
+        // The outstanding balance the result STATES is EXACT: GROSS_MINOR (2376) - 900 = 1476 -> 14.76 EUR —
+        // the DOCUMENT's own currency, never the payment's own USD.
+        expect(result.message).toMatch(/14\.76 EUR/);
+        expect(result.message).toMatch(/outstanding/i);
+      });
+
+      it('refuses, exactly as before T3, when no dated rate is configured for the pair — no silent guess', async () => {
+        (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([]);
+
+        const { service } = buildService();
+        const action = service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 10, currency: 'USD', paidAt: '2026-08-30' },
+        });
+
+        await expect(action).rejects.toBeInstanceOf(BadRequestException);
+        // Still contains the ORIGINAL wording (this is still, at heart, a currency mismatch) — the
+        // pre-existing e2e assertion (24-document-payments.cy.ts) and this file's own earlier test
+        // pin on this exact substring; T3 only adds detail about WHY it still blocks.
+        await expect(action).rejects.toThrow(/does not match this invoice's own currency/);
+        expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+      });
+
+      it('a rate for the WRONG pair (EUR→USD entered, USD→EUR needed) does not answer — still refused', async () => {
+        (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([
+          { from: 'EUR', to: 'USD', rate: 1.1, asOf: new Date('2026-08-01'), source: 'manual' },
+        ]);
+
+        const { service } = buildService();
+        await expect(
+          service.runAction('company-1', 'invoice', 'record-payment', {
+            documentId: 'doc-1',
+            data: validInvoiceData,
+            params: { amount: 10, currency: 'USD', paidAt: '2026-08-30' },
+          }),
+        ).rejects.toThrow(/does not match this invoice's own currency/);
+        expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+      });
+
+      // ── The "dated trap" — a UTC month-boundary payment, pinned exactly ────────────────────────────
+      it("resolves the rate dated to PAIDAT, at a UTC month-boundary — 23:30 UTC the last day of the month must NOT roll into next month's rate", async () => {
+        (currencyRatesStore.loadRatesSafely as Mock).mockResolvedValue([
+          { from: 'USD', to: 'EUR', rate: 0.9, asOf: new Date('2026-08-01T00:00:00.000Z'), source: 'manual' },
+          // Entered for the NEXT month, at UTC midnight exactly — not yet true 30 minutes earlier.
+          {
+            from: 'USD',
+            to: 'EUR',
+            rate: 0.95,
+            asOf: new Date('2026-09-01T00:00:00.000Z'),
+            source: 'manual',
+          },
+        ]);
+        (settlementPayments.listPayments as Mock).mockResolvedValue([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'USD',
+            documentAmountMinor: 900,
+          },
+        ]);
+
+        const { service } = buildService();
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          // 23:30 UTC, the LAST day of August — still August, by 30 minutes.
+          params: { amount: 10, currency: 'USD', paidAt: '2026-08-31T23:30:00.000Z' },
+        });
+
+        expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+          expect.objectContaining({
+            documentAmountMinor: 900, // 10 USD * 0.9, NEVER 0.95 — the August rate, pinned.
+            conversionRate: 0.9,
+            conversionRateAsOf: new Date('2026-08-01T00:00:00.000Z'),
+          }),
+        );
+      });
+    });
+
+    // ── DOCUMENT_SETTLED, exactly once ────────────────────
+    describe('DOCUMENT_SETTLED — fires exactly once, at the write that makes the crossing happen', () => {
+      it('a SINGLE partial payment leaves a remainder — zero DOCUMENT_SETTLED emissions', async () => {
+        const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+        (settlementPayments.listPayments as Mock).mockResolvedValue([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'EUR',
+            documentAmountMinor: 1000,
+          },
+        ]);
+
+        const { service } = buildService(new TransportRegistry(), webhooks);
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 10, currency: 'EUR', paidAt: '2026-08-30' },
+        });
+
+        expect(webhooks.dispatch).not.toHaveBeenCalled();
+      });
+
+      it('TWO payments — partial then final — dispatch DOCUMENT_SETTLED exactly ONCE, at the SECOND, never the first', async () => {
+        const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+        const { service } = buildService(new TransportRegistry(), webhooks);
+
+        // Payment 1: 10.00 EUR of 23.76 EUR due — partial, must NOT cross into settled.
+        (settlementPayments.recordPayment as Mock).mockResolvedValueOnce({
+          id: 'payment-1',
+          documentId: 'doc-1',
+          amountMinor: 1000,
+          currency: 'EUR',
+          documentAmountMinor: 1000,
+          conversionRate: null,
+          conversionRateAsOf: null,
+          conversionSource: null,
+          method: null,
+          paidAt: new Date('2026-08-30'),
+          note: null,
+          createdAt: new Date('2026-08-30'),
+        });
+        (settlementPayments.listPayments as Mock).mockResolvedValueOnce([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'EUR',
+            documentAmountMinor: 1000,
+          },
+        ]);
+
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 10, currency: 'EUR', paidAt: '2026-08-30' },
+        });
+
+        expect(webhooks.dispatch).not.toHaveBeenCalled();
+
+        // Payment 2: the remaining 13.76 EUR — completes it, CROSSES into settled.
+        (settlementPayments.recordPayment as Mock).mockResolvedValueOnce({
+          id: 'payment-2',
+          documentId: 'doc-1',
+          amountMinor: GROSS_MINOR - 1000,
+          currency: 'EUR',
+          documentAmountMinor: GROSS_MINOR - 1000,
+          conversionRate: null,
+          conversionRateAsOf: null,
+          conversionSource: null,
+          method: null,
+          paidAt: new Date('2026-08-31'),
+          note: null,
+          createdAt: new Date('2026-08-31'),
+        });
+        (settlementPayments.listPayments as Mock).mockResolvedValueOnce([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'EUR',
+            documentAmountMinor: 1000,
+          },
+          {
+            id: 'payment-2',
+            documentId: 'doc-1',
+            amountMinor: GROSS_MINOR - 1000,
+            currency: 'EUR',
+            documentAmountMinor: GROSS_MINOR - 1000,
+          },
+        ]);
+
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: (GROSS_MINOR - 1000) / 100, currency: 'EUR', paidAt: '2026-08-31' },
+        });
+
+        expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+        expect(webhooks.dispatch).toHaveBeenCalledWith(
+          'DOCUMENT_SETTLED',
+          expect.objectContaining({
+            documentId: 'doc-1',
+            typeId: 'invoice',
+            companyId: 'company-1',
+            settlement: expect.objectContaining({ settled: true, outstandingMinor: 0 }),
+          }),
+        );
+      });
+
+      // A real coverage gap: `crossedIntoSettled(before, after)`
+      // mutated to `after.settled` alone (dropping the `!before.settled` half) still passed the
+      // "two payments" test above by COINCIDENCE (partial-then-final happens to agree with "after
+      // alone"). This is the test that actually needs the `before` half: an invoice ALREADY settled
+      // (an excess payment recorded on top of a complete one) must NOT re-fire.
+      it('a payment recorded on an ALREADY-settled invoice (an excess on top) does NOT re-fire DOCUMENT_SETTLED', async () => {
+        const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+        const { service } = buildService(new TransportRegistry(), webhooks);
+
+        (settlementPayments.recordPayment as Mock).mockResolvedValueOnce({
+          id: 'payment-extra',
+          documentId: 'doc-1',
+          amountMinor: 500,
+          currency: 'EUR',
+          documentAmountMinor: 500,
+          conversionRate: null,
+          conversionRateAsOf: null,
+          conversionSource: null,
+          method: null,
+          paidAt: new Date('2026-09-01'),
+          note: null,
+          createdAt: new Date('2026-09-01'),
+        });
+        // ALREADY fully paid (GROSS_MINOR) BEFORE this extra payment — the crossing already
+        // happened at whichever earlier payment reached GROSS_MINOR; this one only adds an excess.
+        (settlementPayments.listPayments as Mock).mockResolvedValueOnce([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: GROSS_MINOR,
+            currency: 'EUR',
+            documentAmountMinor: GROSS_MINOR,
+          },
+          {
+            id: 'payment-extra',
+            documentId: 'doc-1',
+            amountMinor: 500,
+            currency: 'EUR',
+            documentAmountMinor: 500,
+          },
+        ]);
+
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 5, currency: 'EUR', paidAt: '2026-09-01' },
+        });
+
+        expect(webhooks.dispatch).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('"send" — reads the company\'s OWN transport configuration, not the quote\'s email mechanism', () => {
+    it('blocks with a 501 when the company has not configured a transport', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue(null);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const action = service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(action).rejects.toBeInstanceOf(NotImplementedException);
+      await expect(action).rejects.toThrow(/no transport is configured/i);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('phase 1: with a transport configured, persists "sending" and ENQUEUES — never calls the transport synchronously', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = { send: vi.fn() };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service, queueDispatcher } = buildService(transportRegistry);
+      const result = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending' });
+      expect(fakeTransport.send).not.toHaveBeenCalled();
+      expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        actionId: 'send',
+        payload: { data: validInvoiceData, params: {} },
+      });
+    });
+
+    it('phase 2 (the worker\'s replay, record already "sending"): delivers through the configured transport and marks the document "sent"', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service, queueDispatcher } = buildService(transportRegistry);
+      const result = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sent' });
+      expect(result.message).toBe('Invoice sent to client-1@example.com.');
+      expect(fakeTransport.send).toHaveBeenCalledWith(
+        expect.objectContaining({ companyId: 'company-1', label: 'Invoice' }),
+      );
+      expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
+    });
+
+    it('phase 2: a transport that DISAPPEARED between enqueue and replay still 501s — never a silent skip', async () => {
+      // Re-resolved lazily inside `deliver()` (invoice-actions.ts's own comment on why) — a company
+      // could reconfigure (or lose) its transport between the first "send" call and the worker's
+      // later replay; this must refuse exactly as loudly as the preflight already does.
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue(null);
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const action = service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(action).rejects.toBeInstanceOf(NotImplementedException);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it('declares no params — there is no user-typed recipient, unlike the quote\'s "send"', () => {
+      const descriptor = buildService().service.getType('invoice');
+      const sendAction = descriptor.actions.find((a) => a.id === 'send');
+      expect(sendAction?.params ?? []).toEqual([]);
+    });
+  });
+
+  /**
+   * The `DOCUMENT_SENT` webhook (the former per-type `INVOICE_SENT` no longer
+   * exists). `async-send.spec.ts`'s own "webhooks" describe block already proves `runAsyncSendAction`
+   * in isolation (fires once, from "sent", never before, never on failure, a dispatch failure never
+   * propagates); THIS describe block proves the two things that only exist ABOVE that isolation
+   * boundary: that `invoice-actions.ts` actually wires `deps.webhooks` through to
+   * `WebhookEvent.DOCUMENT_SENT`, and — the idempotence guarantee —
+   * that `DocumentsService.runAction`'s own status gate is what makes a REDELIVERED job structurally
+   * incapable of dispatching the webhook a second time.
+   */
+  describe('"send" — the DOCUMENT_SENT webhook', () => {
+    it('phase 2: dispatches DOCUMENT_SENT, carrying the row under the FIXED "document" key, once the transport genuinely delivers', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+      const { service } = buildService(transportRegistry, webhooks);
+      const result = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.document).toMatchObject({ status: 'sent' });
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+      expect(webhooks.dispatch).toHaveBeenCalledWith(
+        'DOCUMENT_SENT',
+        expect.objectContaining({
+          documentId: 'doc-1',
+          typeId: 'invoice',
+          companyId: 'company-1',
+          occurredAt: expect.any(String),
+          document: expect.objectContaining({ id: 'doc-1', status: 'sent' }),
+        }),
+      );
+    });
+
+    // THE IDEMPOTENCE PROOF: "exactly one issuance per document, even across
+    // BullMQ retries". The guarantee is STRUCTURAL, not a new lock/table — it lives
+    // entirely in `DocumentsService.runAction`'s own status gate (`isActionAvailable`,
+    // `documents.service.spec.ts` proves that gate in isolation): "send"'s `availableWhen` (derived
+    // from `SEND_TRANSITIONS`, invoice.descriptor.ts) does NOT include "sent" — only
+    // 'draft'/'send_failed'/'sending'. A REDELIVERED/stalled BullMQ job replaying the exact same
+    // `(companyId, typeId, documentId, 'send')` job is the only way `runAction('send')` could ever be
+    // invoked again once "sent" was genuinely persisted — nothing between that write and the job's
+    // normal completion can throw (`events.publish`/`archiveDeliveredArtifactsIfAny`/
+    // `reportOnSendIfObligated`/the webhook dispatch are ALL "never throws" by contract,
+    // see async-send.ts's own header), so BullMQ never naturally retries a "sent" job — a redelivery
+    // is the only remaining path back to `runAction`. That redelivered call hits a `ConflictException`
+    // (409) from `runAction`'s OWN gate BEFORE ever reaching `invoice-actions.ts`'s handler — the
+    // webhook dispatch inside `runAsyncSendAction` never runs a second time.
+    it('a redelivered job (status now "sent") is refused with a 409 BEFORE reaching the handler — the webhook never fires twice', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      const sendingDocument = {
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const sentDocument = { ...sendingDocument, status: 'sent' };
+      (persistence.findOwnedDocument as Mock)
+        // 1st `runAction` invocation (the job's FIRST delivery): `runAction`'s own gate reads
+        // "sending" (call #1), then `runAsyncSendAction` re-reads it (call #2, async-send.ts's own
+        // header explains why it re-reads rather than trusting the gate's copy).
+        .mockResolvedValueOnce(sendingDocument)
+        .mockResolvedValueOnce(sendingDocument)
+        // 2nd `runAction` invocation (a REDELIVERY of the SAME job) — the record now genuinely
+        // reflects what the FIRST invocation already committed: "sent". Only ONE call happens this
+        // time: `runAction`'s own gate throws before the handler (and its own second read) ever runs.
+        .mockResolvedValueOnce(sentDocument);
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(sentDocument);
+
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+      const { service } = buildService(transportRegistry, webhooks);
+
+      const first = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+      expect(first.document).toMatchObject({ status: 'sent' });
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+
+      const second = service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(second).rejects.toBeInstanceOf(ConflictException);
+      // The handler — and therefore the webhook dispatch nested inside it — never ran a second time.
+      expect(fakeTransport.send).toHaveBeenCalledTimes(1);
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('a webhook dispatch failure never turns "send" into a failure — the invoice stays "sent"', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: vi.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+      const { service } = buildService(transportRegistry, webhooks);
+
+      const result = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.document).toMatchObject({ status: 'sent' });
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
+   * The SURGICAL FIX — the bug: `resolveInvoiceCrossBorderTax`
+   * ("tax/resolve-invoice-tax.ts") was only ever applied at `deliver()` (what the client received, what
+   * the archive kept), never to the STORED `instance.data` a "sending"/"sent" record actually carries —
+   * so `computeDocumentTotals`, the settlement balance, and the dashboard's own "pending" total all kept
+   * reading the user's raw, unresolved 20% instead of the resolved 0% reverse-charge. Fixed by having the
+   * preflight's OWN resolution flow into the "sending" write (see async-send.ts's `preflight` header and
+   * invoice-actions.ts's `runInvoiceCrossBorderTaxPreflight`) instead of being computed and discarded.
+   *
+   * `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-resolve.ts) is mocked here exactly like
+   * every other test in this file (it reaches Prisma directly) — but its mock implementation calls the
+   * REAL, pure `resolveInvoiceCrossBorderTax` underneath, so this proves the actual FR→DE reverse-charge
+   * arithmetic, not a hand-rolled fixture standing in for it.
+   */
+  describe('"send" — phase 1 persists the RESOLVED cross-border data, never the raw draft', () => {
+    // 1 line, 12 000 EUR net, SERVICES, FR seller → DE buyer with a valid intra-Community VAT number:
+    // reverse charge (art. 196), category AE, 0% — resolved GROSS must be 12 000.00 EUR (1 200 000
+    // minor units), never the 14 400.00 EUR (1 440 000 minor) the user's own drafted 20% would total.
+    const frDeB2bInvoiceData = {
+      client: 'client-1',
+      issueDate: '2026-01-01',
+      dueDate: '2026-01-31',
+      currency: 'EUR',
+      lines: [
+        {
+          description: 'Conseil stratégique',
+          quantity: 1,
+          unit: 'day',
+          unitPrice: 12000,
+          vatRate: '20', // the user's own draft-time entry — MUST NOT survive into "sending"
+          supplyType: 'SERVICES',
+        },
+      ],
+    };
+
+    // Same as the "send" describe's own "phase 1: with a transport configured..." test above — a
+    // real transport must be REGISTERED (not just returned by `getCompanyInvoiceTransportId`),
+    // otherwise `resolveInvoiceTransport` (invoice-actions.ts) 501s before the preflight this
+    // describe cares about ever gets a chance to run.
+    function buildEmailTransportRegistry(): TransportRegistry {
+      const transportRegistry = new TransportRegistry();
+      transportRegistry.register('email', 'Email', { send: vi.fn() });
+      return transportRegistry;
+    }
+
+    beforeEach(() => {
+      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
+        (_companyId: string, data: Record<string, unknown>) =>
+          Promise.resolve(
+            resolveInvoiceCrossBorderTax({
+              seller: { countryCode: 'FR' },
+              buyer: { countryCode: 'DE' },
+              buyerVat: { value: 'DE136695976', validationStatus: 'VALID' }, // checksum-valid, see vat-syntax.spec.ts
+              data,
+            }),
+          ),
+      );
+    });
+
+    it('THE DEFECT, closed: instance.data persisted at "sending" carries the RESOLVED rate (0%, AE) — computeDocumentTotals on the STORED data is 12 000.00 EUR, never 14 400.00 EUR', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+
+      const { service } = buildService(buildEmailTransportRegistry());
+      await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: frDeB2bInvoiceData,
+      });
+
+      expect(persistence.upsertDocument).toHaveBeenCalledTimes(1);
+      const [, , , persistedStatus, persistedData] = (persistence.upsertDocument as Mock).mock.calls[0] as [
+        string,
+        string,
+        string,
+        string,
+        Record<string, unknown>,
+      ];
+      expect(persistedStatus).toBe('sending');
+
+      const persistedLine = (persistedData.lines as Record<string, unknown>[])[0];
+      expect(persistedLine.vatRate).toBe('0'); // never the drafted "20"
+      expect(persistedLine.__crossBorderCategory).toBe('AE');
+
+      // The STORED document's own totals, computed the
+      // exact same way documents.service.ts's own `computeTotals` endpoint and the settlement screen
+      // do, off the exact same descriptor.
+      const totals = computeDocumentTotals(buildInvoiceDescriptor(), persistedData);
+      expect(totals.grossMinor).toBe(1_200_000); // 12 000.00 EUR
+      expect(totals.grossMinor).not.toBe(1_440_000); // NEVER 14 400.00 EUR (20% of the raw draft)
+    });
+
+    it('a domestic FR→FR invoice is UNCHANGED: still persists the raw, user-typed rate (the resolver never touches it)', async () => {
+      // Overrides this describe's own FR→DE mock — proving the domestic path independently of the
+      // FR→DE fixture, same discipline resolve-invoice-tax.spec.ts's own domestic tests hold.
+      const domesticData = validInvoiceData;
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
+        (_companyId: string, data: Record<string, unknown>) =>
+          Promise.resolve(
+            resolveInvoiceCrossBorderTax({
+              seller: { countryCode: 'FR' },
+              buyer: { countryCode: 'FR' },
+              data,
+            }),
+          ),
+      );
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: domesticData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+
+      const { service } = buildService(buildEmailTransportRegistry());
+      await service.runAction('company-1', 'invoice', 'send', { documentId: 'doc-1', data: domesticData });
+
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'sending',
+        domesticData, // untouched — still 20%, the rate the user actually typed
+        ['draft', 'send_failed'],
+      );
+    });
+
+    it('a "send_failed" retry re-submits the ALREADY-RESOLVED data (what the screen re-sends) and stays stable — idempotent, not corrupted further', async () => {
+      // The document already went through phase 1 once: it now holds the RESOLVED treatment, exactly
+      // what document-list.tsx's own `getData()` would hand back for a row acting on this instance —
+      // computed by actually resolving the draft once (the real resolver, mentions/exemption reason
+      // included), never a hand-rolled approximation of what it produces.
+      const alreadyResolvedData = resolveInvoiceCrossBorderTax({
+        seller: { countryCode: 'FR' },
+        buyer: { countryCode: 'DE' },
+        buyerVat: { value: 'DE136695976', validationStatus: 'VALID' },
+        data: frDeB2bInvoiceData,
+      }).data;
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'send_failed', // NOT "sending" — a fresh phase-1 call, exactly like a first send
+        data: alreadyResolvedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (persistence.upsertDocument as Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+
+      const { service } = buildService(buildEmailTransportRegistry());
+      await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: alreadyResolvedData,
+      });
+
+      const [, , , , persistedData] = (persistence.upsertDocument as Mock).mock.calls[0] as [
+        string,
+        string,
+        string,
+        string,
+        Record<string, unknown>,
+      ];
+      // Stable: re-resolving the already-resolved line reproduces it exactly, never a second rewrite
+      // that drifts (e.g. onto a different category) or corrupts the sidecar keys.
+      expect(persistedData).toEqual(alreadyResolvedData);
+    });
+
+    it('THE SETTLEMENT PROOF: a 12 000 EUR payment against the STORED (resolved) totals settles the invoice — never "partially paid" against the raw 14 400 EUR the user typed', () => {
+      const resolvedData = {
+        ...frDeB2bInvoiceData,
+        lines: [{ ...frDeB2bInvoiceData.lines[0], vatRate: '0', __crossBorderCategory: 'AE' }],
+      };
+      const totals = computeDocumentTotals(buildInvoiceDescriptor(), resolvedData);
+      expect(totals.grossMinor).toBe(1_200_000);
+
+      const settlement = computeSettlement(totals.grossMinor, [{ amountMinor: 1_200_000 }]);
+      expect(settlement.settled).toBe(true);
+      expect(settlement.outstandingMinor).toBe(0);
+
+      // Against the WRONG (unresolved, 20%) total, the SAME 12 000 EUR
+      // payment would have wrongly read as a partial payment — spelled out here so a future change
+      // that reintroduces the defect fails LOUDLY on this exact contrast, not silently.
+      const wrongTotals = computeDocumentTotals(buildInvoiceDescriptor(), frDeB2bInvoiceData);
+      expect(wrongTotals.grossMinor).toBe(1_440_000);
+      const wrongSettlement = computeSettlement(wrongTotals.grossMinor, [{ amountMinor: 1_200_000 }]);
+      expect(wrongSettlement.settled).toBe(false);
+      expect(wrongSettlement.outstandingMinor).toBe(240_000); // the phantom "still owed" 2 400 EUR
+    });
+
+    it('"save-draft" NEVER resolves cross-border tax — a draft stays exactly what the user typed', async () => {
+      (persistence.upsertDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      await service.runAction('company-1', 'invoice', 'save-draft', { data: frDeB2bInvoiceData });
+
+      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        undefined,
+        'draft',
+        frDeB2bInvoiceData, // still 20% — a draft is never rewritten
+      );
+    });
+  });
+
+  /**
+   * The residual `invoice-actions.ts`'s own `registerInvoiceSaveDraftAction`
+   * header documents in full: re-editing an ALREADY-ISSUED invoice (any status other than "draft")
+   * back into a draft — the ONLY transition "save-draft" declares (`{ from: 'always', to: 'draft' }`)
+   * — must re-resolve the buyer country and hard-block exactly like "send" already does, the same
+   * rule f6888eb2/d58caaa5 enforced for the pre-refonte engine's own `editInvoice()`. A brand-new or
+   * still-draft record must stay untouched (proven by the "NEVER resolves cross-border tax" test
+   * just above, and by this describe's own first test).
+   */
+  describe('"save-draft" — re-editing an already-issued invoice re-resolves the buyer country', () => {
+    // Same FR seller / DE buyer / reverse-charge shape as the "send" describe's own
+    // `frDeB2bInvoiceData` above (out of THIS describe's scope) — kept local rather than hoisted,
+    // since this block's own fixtures also need a client-country CHANGE, which that shared const
+    // was never meant to carry.
+    const frDeB2bInvoiceData = {
+      client: 'client-1',
+      issueDate: '2026-01-01',
+      dueDate: '2026-01-31',
+      currency: 'EUR',
+      lines: [
+        {
+          description: 'Conseil stratégique',
+          quantity: 1,
+          unit: 'day',
+          unitPrice: 12000,
+          vatRate: '20', // the user's own draft-time entry — MUST NOT survive a re-edit unresolved
+          supplyType: 'SERVICES',
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      (persistence.upsertDocument as Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+    });
+
+    it('re-saving an EXISTING DRAFT (never issued) as a draft still never resolves cross-border tax', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      await service.runAction('company-1', 'invoice', 'save-draft', {
+        documentId: 'doc-1',
+        data: frDeB2bInvoiceData,
+      });
+
+      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'draft',
+        frDeB2bInvoiceData, // untouched — still a draft-to-draft save
+      );
+    });
+
+    it('re-editing a "sent" invoice back into a draft RE-RESOLVES the buyer country and persists the RESOLVED data', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
+        (_companyId: string, data: Record<string, unknown>) =>
+          Promise.resolve(
+            resolveInvoiceCrossBorderTax({
+              seller: { countryCode: 'FR' },
+              buyer: { countryCode: 'DE' },
+              buyerVat: { value: 'DE136695976', validationStatus: 'VALID' },
+              data,
+            }),
+          ),
+      );
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+        documentId: 'doc-1',
+        data: frDeB2bInvoiceData,
+      });
+
+      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).toHaveBeenCalledWith(
+        'company-1',
+        frDeB2bInvoiceData,
+      );
+      expect(result.document?.status).toBe('draft');
+      // Same resolved rate "send" itself would have produced (0%, reverse charge) — never the
+      // stale/raw 20% the demoted draft would otherwise silently carry forward.
+      const persistedData = result.document?.data as {
+        lines: { vatRate: string; __crossBorderCategory?: string }[];
+      };
+      expect(persistedData.lines[0].vatRate).toBe('0');
+      expect(persistedData.lines[0].__crossBorderCategory).toBe('AE');
+    });
+
+    it('re-editing a "sent" invoice to a buyer whose country cannot be resolved is BLOCKED — named 400, nothing persisted', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockRejectedValue(
+        new UnresolvedBuyerCountryError('the buyer country could not be determined'),
+      );
+
+      const { service } = buildService();
+
+      await expect(
+        service.runAction('company-1', 'invoice', 'save-draft', {
+          documentId: 'doc-1',
+          data: frDeB2bInvoiceData,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      // Blocked BEFORE the demotion to "draft" is ever persisted — no silent loss of the invoice's
+      // already-resolved, already-sent state.
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('a "send_failed" invoice (already numbered, never delivered) gets the SAME re-edit guard as "sent"', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'send_failed',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockRejectedValue(
+        new UnresolvedBuyerCountryError('the buyer country could not be determined'),
+      );
+
+      const { service } = buildService();
+
+      await expect(
+        service.runAction('company-1', 'invoice', 'save-draft', {
+          documentId: 'doc-1',
+          data: frDeB2bInvoiceData,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+  });
+});

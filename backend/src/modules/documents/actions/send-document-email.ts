@@ -1,0 +1,211 @@
+import { MailService } from '@/mail/mail.service';
+import { logger } from '@/logger/logger.service';
+
+import { DocumentTypeRegistry } from '../descriptors/type-registry';
+import { takeDocumentNumberForTransition } from '../numbering/take-number';
+import { appendPaymentMethodsToEmail } from '../payment-methods/email-block';
+import { EntityReferenceRegistry } from '../references/reference-registry';
+import { renderDocumentInstance } from '../rendering/render-instance-pdf';
+import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
+import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
+import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
+import { DocumentInstanceResult } from './action-registry';
+import { getCompanyDocumentEmailTemplates } from './company-email-templates';
+import { buildEmailTemplateParts, renderEmailTemplate, resolveEmailTemplate } from './email-template';
+
+export interface SendDocumentEmailDeps {
+  mailService: MailService;
+  typeRegistry: DocumentTypeRegistry;
+  referenceRegistry: EntityReferenceRegistry;
+  /**
+   * Resolves this company's active signing certificate, if any
+   * (`SigningCertificatesService`, `modules/company/signing-certificates/`). OPTIONAL, defaulting to
+   * `NullSigningCredentials` (always unsigned) below: every pre-existing caller of this function
+   * (`send-document-email.spec.ts`, `send-quote.live.spec.ts`, `email-transport.spec.ts`) constructs
+   * `SendDocumentEmailDeps` without this field, and that MUST keep attaching the exact same unsigned
+   * PDF it always has — see `sign-instance-pdf.ts`'s own header on why "no cert" is a no-op, not a
+   * special case.
+   */
+  signingCertificates?: SigningCredentialsPort;
+}
+
+export interface SendDocumentEmailInput {
+  companyId: string;
+  typeId: string;
+  /** The instance, already written to its post-transition status (e.g. "sent") — see this file's own
+   *  header for why numbering is pulled forward from HERE rather than left to
+   *  documents.service.ts's usual post-handler hook. */
+  document: DocumentInstanceResult;
+  recipient: string;
+  /** Plain data (not an i18n key), the same convention as DocumentTypeDescriptor.label — e.g. "Quote". */
+  label: string;
+}
+
+export interface SendDocumentEmailResult {
+  /** Human-facing outcome string — same convention as ActionResult.message. */
+  message: string;
+  /** Legal archiving — the exact PDF bytes just attached (signed if a
+   *  certificate was configured — see `pdf` below), the ONE artifact this function ever hands back:
+   *  it never builds a structured format, only ever a human-readable PDF. Both the quote's own "send"
+   *  and the invoice's "email" transport return this straight through, so
+   *  `actions/async-send.ts`'s phase-2 delivery can archive the SAME bytes the recipient's mailbox
+   *  actually received — never a freshly re-rendered copy that could silently drift from what was
+   *  really sent. */
+  artifacts: [{ role: 'pdf'; mime: 'application/pdf'; bytes: Uint8Array }];
+}
+
+/**
+ * Sends ONE document instance by email WITH its PDF attached — the shared core behind the quote's
+ * own unconditional "send" (quote-actions.ts) and the invoice's "email" transport
+ * (transports/email-transport.ts). Neither caller is merged into the other by this: each still
+ * decides ON ITS OWN whether/how it is even reachable (the quote always emails; the invoice only
+ * gets here if the company chose the "email" transport — see invoice-actions.ts) and, most
+ * importantly, WHO the recipient is (`input.recipient` — typed by the user for the quote, resolved
+ * from the client's contact email for the invoice). Only the "compose + attach + send" mechanics
+ * below are actually shared — see actions/send-divergence.spec.ts for the guardrail proving the two
+ * callers still never share an ADDRESSING or transport decision.
+ *
+ * ## Numbering — a defensive fallback, not the primary mechanism anymore
+ *
+ * Before the async-send queue, a type's `numbering.onEnterStatus` was the SAME
+ * status "send" delivered to synchronously, so this function had to pull the number FORWARD itself
+ * (documents.service.ts's `runAction` only numbers a document AFTER its handler returns). Since the
+ * queue, `onEnterStatus` is "sending" (see e.g. quote.descriptor.ts) and BOTH callers (actions/async-send.ts's
+ * `runAsyncSendAction`) only ever invoke this function once the record is ALREADY "sending" — meaning
+ * `runAction`'s own post-handler numbering hook already ran, on the FIRST ("sending") call, strictly
+ * before this SECOND call (the actual delivery) is even reachable. In the normal flow `document` is
+ * therefore always already numbered by the time this guard is checked, and it is a no-op. It is kept,
+ * deliberately, as a defensive fallback — never load-bearing, but harmless (`takeDocumentNumberForTransition`
+ * is itself a DB-level "number IS NULL" guard, so calling it on an already-numbered document is
+ * inert) — for any caller that reaches this function DIRECTLY, outside `runAsyncSendAction` entirely
+ * (send-quote.live.spec.ts does exactly that, against a pre-numbered document, to keep this function's
+ * own coverage independent of the action-registry wiring).
+ *
+ * ## PDF failure — fails LOUDLY, never a silent send without the attachment
+ *
+ * If `renderDocumentInstance` throws (e.g. Puppeteer unavailable), this function does NOT catch it
+ * and fall back to sending a bare email: the error propagates straight out, `mailService.sendMail` is
+ * NEVER called, and the caller's whole delivery attempt fails with the render engine's own message. A
+ * commercial email promising a document with no document actually attached is a worse failure mode
+ * than a delayed one — the same "blocked, and says so" discipline invoice-actions.ts already holds
+ * for a missing transport. See actions/send-document-email.spec.ts's "a PDF failure never sends a
+ * bare email" coverage — mocking `renderDocumentInstance` itself (the entry point this function calls
+ * into), never this function's own internals, so the test cannot pass for the wrong reason.
+ *
+ * This propagated error is also exactly what the async-send queue was BUILT to catch: this function is only
+ * ever called from `runAsyncSendAction`'s `deliver` closure (actions/async-send.ts), which never
+ * catches this error either — it propagates all the way out to BullMQ, which retries per its own
+ * backoff and, once every attempt is exhausted, leaves the record "send_failed" with the error
+ * recorded (queue/mark-send-failed.ts) rather than a "sent" document nobody ever received. This is the
+ * fix for the gap this comment used to document here — no longer
+ * something this function's own header needs to carry, since the record is no longer written "sent"
+ * until delivery has genuinely succeeded (see async-send.ts's own header for the full sequencing).
+ */
+export async function sendDocumentInstanceEmail(
+  deps: SendDocumentEmailDeps,
+  input: SendDocumentEmailInput,
+): Promise<SendDocumentEmailResult> {
+  const { companyId, typeId, recipient, label } = input;
+  let document = input.document;
+  const descriptor = deps.typeRegistry.resolve(typeId);
+
+  if (descriptor.numbering?.onEnterStatus === document.status && document.number == null) {
+    const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id);
+    if (numbered) {
+      document = { ...document, ...numbered };
+      // STOCK EFFECT: this is the PRIMARY issuance path for a document with
+      // an async send — the invoice is numbered HERE, in the worker, not in `documents.service.ts`'s
+      // own `runAction` epilogue. Tied to `numbered` being truthy (the atomic once-only winner — see
+      // `takeDocumentNumberForTransition`), so the decrement fires exactly once per document, at the
+      // one site that actually issued the number. `applyStockOnIssuance` never throws (see its own
+      // header), so a stock-bookkeeping hiccup can never stop a send that already numbered the record.
+      await applyStockOnIssuance(companyId, document);
+    }
+  }
+
+  // Reused, not duplicated: the exact HTML->PDF pipeline "GET /documents/:id/pdf" uses, and the
+  // SAME totals/referenceLabels/companyName the email template below is built from — one render,
+  // one totals computation, one reference-label resolution pass for the whole send.
+  const rendered = await renderDocumentInstance(
+    { referenceRegistry: deps.referenceRegistry },
+    companyId,
+    descriptor,
+    document,
+  );
+
+  const companyTemplates = await getCompanyDocumentEmailTemplates(companyId);
+  // `rendered.language` — per-recipient document language: the SAME recipient language the PDF this email
+  // attaches was just rendered in (`rendering/render-instance-pdf.ts`'s own `recipientLanguageFor`),
+  // never a second, independently-resolved value — the PDF and its covering email must never disagree
+  // about which language they went out in.
+  const template = resolveEmailTemplate(descriptor, companyTemplates, rendered.language);
+  const parts = buildEmailTemplateParts({
+    descriptor,
+    displayNumber: document.displayNumber,
+    companyName: rendered.companyName,
+    totals: rendered.totals,
+    referenceLabels: rendered.referenceLabels,
+  });
+  const { subject, body: renderedBody, html: renderedHtml, warnings } = renderEmailTemplate(template, parts);
+
+  // "Payment methods" — the SAME presentations `rendered.pdf` just printed
+  // (`descriptor.usesPaymentMethods`, resolved once by `renderDocumentInstance` above and reused here
+  // — never a second, independently-resolved read), appended AFTER the company's own template was
+  // interpolated — see appendPaymentMethodsToEmail's own header for why this is a glued-on block,
+  // never a `{placeholder}`. A no-op (byte-for-byte the same `body`/`html`) whenever
+  // `rendered.paymentMethods` is empty — a document type that never opted in, or a company with
+  // nothing currently enabled.
+  const { body, html } = appendPaymentMethodsToEmail(
+    renderedBody,
+    renderedHtml,
+    // `?? []` — defensive, not load-bearing for a real render (renderDocumentInstance always sets
+    // this array, empty or not): several pre-existing specs mock `renderDocumentInstance` with a
+    // loosely-typed `jest.Mock` that predates this field and never sets it (see
+    // send-document-email.spec.ts) — those must keep producing byte-for-byte the same email they
+    // always did, never a crash on a field their own mock never populated.
+    rendered.paymentMethods ?? [],
+    rendered.language,
+  );
+
+  for (const warning of warnings) {
+    logger.warn(`Document email template: ${warning}`, {
+      category: 'documents',
+      details: { companyId, typeId, documentId: document.id },
+    });
+  }
+
+  const filename = document.displayNumber ? `${document.displayNumber}.pdf` : `${typeId}-${document.id}.pdf`;
+
+  // Signing — same wiring, same invariants as `documents.service.ts#renderInstancePdf`:
+  // no cert configured → `pdf` unchanged; an active cert that fails to sign THROWS here, which
+  // propagates exactly like a `renderDocumentInstance` failure already does (see this function's own
+  // header, "PDF failure — fails LOUDLY") — never a bare email sent because the signed attachment
+  // could not actually be produced.
+  const pdf = await signRenderedPdfIfConfigured(
+    deps.signingCertificates ?? new NullSigningCredentials(),
+    companyId,
+    rendered.pdf,
+  );
+
+  // BOTH parts whenever the resolved template has an html one: `text` is always sent (the engine
+  // guarantees a text part, deriving it from the html for a template that carries no prose of its own —
+  // see `renderEmailTemplate`), and `html` is added only when it genuinely exists, so a text-only
+  // template still produces the exact same text-only message it always did. MailOptions has supported
+  // both since before this mechanism existed (`mail/types.ts`), so no transport changes to carry it.
+  // The company → instance → named refusal cascade (`MailService#sendForCompany`) — a company with its
+  // own mail server (Settings → Mail) sends its quotes/invoices/credit-notes through it, never the
+  // instance's. A refusal here (including the named "no mail server configured" one) propagates
+  // exactly like a `renderDocumentInstance` failure already does — see this function's own header,
+  // "PDF failure — fails LOUDLY" — all the way to `queue/mark-send-failed.ts`, which records it,
+  // verbatim, as the document's own `send_failed` reason.
+  await deps.mailService.sendForCompany(companyId, {
+    to: recipient,
+    subject,
+    text: body,
+    ...(html ? { html } : {}),
+    attachments: [{ filename, content: pdf, contentType: 'application/pdf' }],
+  });
+
+  const message = `${label} sent to ${recipient}.${warnings.length > 0 ? ` (${warnings.join(' ')})` : ''}`;
+  return { message, artifacts: [{ role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array(pdf) }] };
+}

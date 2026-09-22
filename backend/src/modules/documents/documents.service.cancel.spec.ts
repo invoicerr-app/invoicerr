@@ -1,0 +1,411 @@
+import { vi, type Mock } from 'vitest';
+
+import { ConflictException, ForbiddenException } from '@nestjs/common';
+
+import { ActionExtensionRegistry } from './actions/action-extensions';
+import { ActionRegistry } from './actions/action-registry';
+import { registerInvoiceActions } from './actions/invoice-actions';
+import { ContributionRegistry } from './contributions/contribution-registry';
+import * as countryPolicy from './country-policy/country-policy';
+import { DocumentsService } from './documents.service';
+import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
+import { DocumentTypeRegistry } from './descriptors/type-registry';
+import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
+import * as persistence from './persistence';
+import { EntityReferenceRegistry } from './references/reference-registry';
+import { TransportRegistry } from './transports/transport-registry';
+
+vi.mock('./persistence');
+vi.mock('./country-policy/country-policy');
+
+/**
+ * Proves the WIRING: `DocumentsService#runAction('invoice', 'cancel', ...)`
+ * actually reads `correction-routes/cancel-policy.ts`'s own per-country map (never mocked here — the
+ * REAL catalog, same "compose real country data, mock only Prisma" discipline
+ * `documents.service.correction-routes.spec.ts` already holds), composes it through the exact same
+ * 403/409 machinery `documents.service.country-policy.spec.ts` already proves for every OTHER action,
+ * and that "cancelled" is a genuine TERMINAL status. The per-country MAP itself (who is founded, who
+ * isn't, and WHY) is pinned exhaustively in `correction-routes/cancel-policy.spec.ts` — this file
+ * only proves DocumentsService respects it.
+ */
+function buildService(webhooks?: { dispatch: Mock }) {
+  const typeRegistry = new DocumentTypeRegistry();
+  typeRegistry.register(buildInvoiceDescriptor());
+
+  const fieldKindRegistry = new FieldKindRegistry();
+  registerCoreFieldKinds(fieldKindRegistry);
+
+  const transportRegistry = new TransportRegistry();
+  const actionRegistry = new ActionRegistry();
+  registerInvoiceActions(actionRegistry, {
+    transportRegistry,
+    queueDispatcher: { enqueueAction: vi.fn() },
+    webhooks,
+  });
+
+  return new DocumentsService(
+    typeRegistry,
+    fieldKindRegistry,
+    actionRegistry,
+    new ActionExtensionRegistry(),
+    new EntityReferenceRegistry(),
+    transportRegistry,
+    new ContributionRegistry(),
+  );
+}
+
+/** `runAction` validates `payload.data` against the FULL descriptor's own fields on EVERY action —
+ *  regardless of whether the action touches `data` at all (see documents.service.ts's own comment on
+ *  that gate) — so, exactly like `documents.service.invoice.spec.ts`'s own `validInvoiceData`, every
+ *  "cancel" call below needs a genuinely valid invoice payload, never `{}`. */
+const validInvoiceData = {
+  client: 'client-1',
+  issueDate: '2026-01-01',
+  dueDate: '2026-01-31',
+  currency: 'EUR',
+  lines: [{ description: 'Widget', quantity: 2, unit: 'unit', unitPrice: 9.9, vatRate: '20' }],
+};
+
+function mockDocument(overrides: Partial<{ id: string; status: string }> = {}) {
+  const document = {
+    id: 'doc-1',
+    typeId: 'invoice',
+    status: 'sent',
+    data: {},
+    createdAt: new Date('2026-08-01'),
+    updatedAt: new Date('2026-08-01'),
+    number: 5,
+    displayNumber: 'INV-2026-0005',
+    ...overrides,
+  };
+  (persistence.findOwnedDocument as Mock).mockResolvedValue(document);
+  return document;
+}
+
+describe('DocumentsService.runAction("invoice", "cancel")', () => {
+  afterEach(() => vi.resetAllMocks());
+
+  describe('the per-country gate (correction-routes/cancel-policy.ts, real catalog)', () => {
+    it('FR: cancel succeeds from "sent" — a status-only write, no field rewritten, no renumbering', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+      mockDocument({ status: 'sent' });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'cancelled',
+        data: {},
+        createdAt: new Date('2026-08-01'),
+        updatedAt: new Date('2026-08-02'),
+        number: 5,
+        displayNumber: 'INV-2026-0005',
+      });
+
+      const service = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.document?.status).toBe('cancelled');
+      // The number is never touched by "cancel" (updateDocumentStatus only writes status) — the
+      // exact "never reused, never renumbered" guarantee invoice-actions.ts's own header promises.
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'cancelled',
+        null,
+        undefined,
+        undefined,
+        ['sent', 'send_failed'],
+      );
+    });
+
+    // US used to pair with DE here — its own correction-routes data file was removed by the 5-country
+    // prune (2026-09-10), and with it US's own entry in cancel-policy.ts's
+    // whitelist (now dead code, removed too — see that file's own header). DE alone still proves the
+    // point: FR is not the only country with an unrestricted local cancel.
+    it('DE: also an unrestricted local cancel (no restrictedToStatuses), same as FR', async () => {
+      for (const countryCode of ['DE']) {
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(countryCode);
+        mockDocument({ status: 'sent' });
+        (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'cancelled',
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const service = buildService();
+        const result = await service.runAction('company-1', 'invoice', 'cancel', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+        });
+        expect(result.document?.status).toBe('cancelled');
+      }
+    });
+
+    it('PL: refused with 403 — CANCEL_AND_REPLACE is "required" but has no real local mechanism (corrective invoices only)', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
+      mockDocument({ status: 'sent' });
+
+      const service = buildService();
+      const action = service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(action).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(action).rejects.toThrow(/PL/);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    // ES's own "forbidden" and MX's own "authority-bound, required" nuances (each pinned in detail by
+    // correction-routes/cancel-policy.spec.ts, before their data/xx.json were removed by the
+    // 5-country prune, 2026-09-10) no longer apply here: both countries now have NO correction-routes
+    // file at all, so they fall into the same generic "no file" refusal Belgium exercises just below
+    // — kept as their own test (rather than folded into Belgium's) to document that fact honestly.
+    it('ES and MX: also refused with 403 — both correction-routes files were removed by the prune, so this is now the generic "no file" refusal', async () => {
+      for (const countryCode of ['ES', 'MX']) {
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(countryCode);
+        mockDocument({ status: 'sent' });
+
+        const service = buildService();
+        const action = service.runAction('company-1', 'invoice', 'cancel', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+        });
+        await expect(action).rejects.toBeInstanceOf(ForbiddenException);
+        expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+      }
+    });
+
+    it('a country with no correction-routes file at all (e.g. Belgium) never sees cancel either — 403, named', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('BE');
+      mockDocument({ status: 'sent' });
+
+      const service = buildService();
+      const action = service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+      await expect(action).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(action).rejects.toThrow(/BE/);
+    });
+
+    it('IT: refused with 409 (not 403) from "sent" — the route is founded, just narrowed to "send_failed" (post-scarto only)', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('IT');
+      mockDocument({ status: 'sent' });
+
+      const service = buildService();
+      const action = service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(action).rejects.toBeInstanceOf(ConflictException);
+      await expect(action).rejects.toThrow(/send_failed/);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it('IT: cancel SUCCEEDS from "send_failed" — exactly the status its own data founds', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('IT');
+      mockDocument({ status: 'send_failed' });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'cancelled',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const service = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+      expect(result.document?.status).toBe('cancelled');
+    });
+  });
+
+  describe('the lifecycle (descriptors/invoice.descriptor.ts availableWhen — country-blind)', () => {
+    beforeEach(() => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR'); // founded — isolates the STATUS gate.
+    });
+
+    it('a "draft" invoice cannot be cancelled — 409, nothing to cancel before issuance', async () => {
+      mockDocument({ status: 'draft' });
+      const service = buildService();
+      const action = service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+      await expect(action).rejects.toBeInstanceOf(ConflictException);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it('a "sending" invoice (mid-flight) cannot be cancelled either — 409', async () => {
+      mockDocument({ status: 'sending' });
+      const service = buildService();
+      const action = service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+      await expect(action).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('an ALREADY "cancelled" invoice cannot be cancelled again — 409, cancel is not idempotent by re-click', async () => {
+      mockDocument({ status: 'cancelled' });
+      const service = buildService();
+      const action = service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+      await expect(action).rejects.toBeInstanceOf(ConflictException);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('"cancelled" is TERMINAL — the descriptor never declares a way out of it', () => {
+    it('no action on the invoice descriptor names "cancelled" in its own availableWhen/transitions.from', () => {
+      const descriptor = buildInvoiceDescriptor();
+      for (const action of descriptor.actions) {
+        if (action.availableWhen !== 'always') {
+          expect(action.availableWhen).not.toContain('cancelled');
+        }
+        for (const transition of action.transitions ?? []) {
+          if (transition.from !== 'always') {
+            expect(transition.from).not.toContain('cancelled');
+          }
+        }
+      }
+    });
+  });
+
+  describe('DOCUMENT_CANCELLED webhook (schema.prisma WebhookEvent) — best-effort, fires once cancellation commits', () => {
+    it('dispatches DOCUMENT_CANCELLED, carrying the row under the fixed "document" key, once "cancel" actually commits', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+      mockDocument({ status: 'sent' });
+      const cancelled = {
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'cancelled',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(cancelled);
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+
+      const service = buildService(webhooks);
+      await service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+      expect(webhooks.dispatch).toHaveBeenCalledWith(
+        'DOCUMENT_CANCELLED',
+        expect.objectContaining({
+          documentId: 'doc-1',
+          typeId: 'invoice',
+          companyId: 'company-1',
+          document: cancelled,
+        }),
+      );
+    });
+
+    it('a webhook DISPATCH failure never undoes the cancellation already committed', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+      mockDocument({ status: 'sent' });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'cancelled',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const webhooks = { dispatch: vi.fn().mockRejectedValue(new Error('webhook endpoint down')) };
+
+      const service = buildService(webhooks);
+      const result = await service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.document?.status).toBe('cancelled');
+    });
+
+    it('no webhooks wired at all (undefined) — cancel still succeeds, no crash', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+      mockDocument({ status: 'sent' });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'cancelled',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const service = buildService(undefined);
+      const result = await service.runAction('company-1', 'invoice', 'cancel', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+      expect(result.document?.status).toBe('cancelled');
+    });
+  });
+
+  describe('two concurrent "cancel" calls on the SAME invoice — the compare-and-swap this action now passes', () => {
+    it('the loser gets a 409, never a second DOCUMENT_CANCELLED webhook', async () => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+      mockDocument({ status: 'sent' }); // BOTH concurrent calls read this same, still-"sent" snapshot.
+
+      // `persistence.updateDocumentStatus` is mocked here, not the real `updateMany` — this proves the
+      // ACTION propagates a 409 and never dispatches a second webhook, the same "compare-and-swap
+      // primitive already proven in persistence.spec.ts" split every other caller in this batch holds.
+      let calls = 0;
+      (persistence.updateDocumentStatus as Mock).mockImplementation(async () => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            id: 'doc-1',
+            typeId: 'invoice',
+            status: 'cancelled',
+            data: {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        }
+        throw new ConflictException(
+          'Document "doc-1" is no longer in one of the expected statuses (sent, send_failed) — ' +
+            'another request already changed it concurrently.',
+        );
+      });
+      const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
+      const service = buildService(webhooks);
+
+      const results = await Promise.allSettled([
+        service.runAction('company-1', 'invoice', 'cancel', { documentId: 'doc-1', data: validInvoiceData }),
+        service.runAction('company-1', 'invoice', 'cancel', { documentId: 'doc-1', data: validInvoiceData }),
+      ]);
+
+      // Which of the two literally wins is a scheduling detail (both start from the identical "sent"
+      // snapshot) — what matters is that EXACTLY one does, never both and never neither.
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledTimes(2);
+      // The exact bug this closes: without the CAS, both calls would have committed, each dispatching
+      // its own DOCUMENT_CANCELLED — a third-party integration seeing the cancellation twice.
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+    });
+  });
+});

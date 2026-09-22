@@ -1,1 +1,204 @@
-{}
+{
+    "invoices": {
+        "view": {
+            "fields": {
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections",
+                "linkedDeposits": "Linked Deposit Invoices",
+                "totalDeposited": "Total Deposited"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "actions": {
+                "edit": "Edit Draft",
+                "creditNote": "Credit Note",
+                "correctiveInvoice": "Corrective Invoice",
+                "cancel": "Cancel",
+                "cancelAndReplace": "Cancel & Replace",
+                "send": "Send",
+                "correctSuccess": "Correction issued",
+                "correctError": "Failed to issue correction",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice",
+                "cancelAndReplaceSuccess": "Invoice cancelled and replaced",
+                "cancelAndReplaceError": "Failed to cancel and replace",
+                "sendSuccess": "Invoice sent",
+                "sendError": "Failed to send invoice",
+                "convertToInvoice": "Convert to Invoice",
+                "convertToInvoiceSuccess": "Proforma converted to invoice",
+                "deposit": "Issue Deposit Invoice"
+            }
+        },
+        "list": {
+            "tooltips": {
+                "creditNote": "Issue credit note",
+                "cancel": "Cancel invoice"
+            },
+            "messages": {
+                "correctSuccess": "Credit note issued",
+                "correctError": "Failed to issue credit note",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice"
+            }
+        },
+        "deposit": {
+            "title": "Issue Deposit Invoice",
+            "description": "Create a standalone deposit invoice (facture d'acompte).",
+            "form": {
+                "amount": {
+                    "label": "Deposit Amount",
+                    "placeholder": "Enter deposit amount",
+                    "errors": {
+                        "required": "Amount is required",
+                        "min": "Amount must be greater than 0"
+                    }
+                },
+                "notes": {
+                    "placeholder": "Optional notes for the deposit invoice"
+                }
+            },
+            "actions": {
+                "create": "Create Deposit Invoice"
+            },
+            "messages": {
+                "success": "Deposit invoice created",
+                "error": "Failed to create deposit invoice"
+            }
+        }
+    },
+    "recurringInvoices": {
+        "view": {
+            "title": "Recurring Invoice Details",
+            "description": "Overview of this recurring invoice template",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated Invoices",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes",
+                "generatedInvoices": "Generated Invoices"
+            }
+        }
+    },
+    "clients": {
+        "header": {
+            "subtitle": "Gerenciar clientes",
+            "count": "{{count}} clientes {{found}}",
+            "found": "encontrados"
+        },
+        "search": {
+            "placeholder": "Procurar clientes..."
+        },
+        "actions": {
+            "addNew": "Adicionar novo cliente"
+        },
+        "stats": {
+            "total": "Clientes totais",
+            "active": "Ativo",
+            "inactive": "Inativo"
+        },
+        "emptyState": {
+            "noClients": "Sem clientes",
+            "noResults": "Nenhum cliente encontrado",
+            "startAdding": "Comece criando seu primeiro cliente.",
+            "tryDifferentSearch": "Tente ajustar sua pesquisa"
+        },
+        "list": {
+            "title": "Todos os clientes",
+            "description": "Gerencie e visualize todos os clientes em um lugar só.",
+            "status": {
+                "active": "Ativo",
+                "inactive": "Inativo"
+            },
+            "tooltips": {
+                "view": "Ver detalhes do cliente",
+                "edit": "Editar cliente",
+                "delete": "Apagar cliente"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Adicionar novo cliente",
+                "edit": "Editar cliente"
+            },
+            "fields": {
+                "contactFirstname": {
+                    "label": "Nome",
+                    "placeholder": "Nome"
+                },
+                "contactLastname": {
+                    "label": "Sobrenome",
+                    "placeholder": "Sobrenome"
+                },
+                "name": {
+                    "label": "Empresa",
+                    "placeholder": "Empresa"
+                },
+                "description": {
+                    "label": "Descrição",
+                    "placeholder": "Descrição da empresa"
+                },
+                "legalId": {
+                    "label": "Identidade"
+                },
+                "vat": {
+                    "label": "CNPJ",
+                    "placeholder": "AB.123.CDE/4567-89"
+                },
+                "currency": {
+                    "label": "Moeda"
+                },
+                "contactEmail": {
+                    "label": "Email"
+                },
+                "contactPhone": {
+                    "label": "Telefone"
+                },
+                "address": {
+                    "label": "Endereço"
+                },
+                "addressLine2": {
+                    "label": "Complemento (Opcional)",
+                    "placeholder": "Prédio, apartamento, andar, etc."
+                },
+                "postalCode": {
+                    "label": "CEP"
+                },
+                "city": {
+                    "label": "Cidade"
+                },
+                "state": {
+                    "label": "Estado (Opcional)"
+                },
+                "type": {
+                    "label": "Tipo de Cliente",
+                    "company": "Empresa",
+                    "individual": "Pessoa Física",
+                    "description": "Selecione o tipo de cliente (Pessoa Física ou Jurídica)"
+                },
+                "country": {
+                    "label": "País"
+                }
+            },
+            "validation": {
+                "name": {
+                    "required": "Nome da empresa obrigatório"
+                },
+                "description": {
+                    "required": "Descrição obrigatória",
+                    "maxLength": "Descrição deve conter menos de 500 caracteres"
+                },
+                "vat": {
+                    "required": "CNPJ obrigatório",
+                    "empty": "CNPJ não pode ficar em branco"
+                }
+            }
+        }
+    }
+}

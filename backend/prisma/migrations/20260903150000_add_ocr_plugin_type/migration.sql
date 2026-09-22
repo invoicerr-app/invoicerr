@@ -1,0 +1,15 @@
+-- TODO_PRODUIT.md T5(c) — the reference OCR provider (Mistral Document AI), wired the same way every
+-- other in-app plugin type is: an ADDITIVE enum value, never a rebuild (Postgres CAN add an enum
+-- value without recreating the type — unlike the DROP-VALUE case `20260903000000_generic_document_
+-- webhook_events`'s own migration had to work around). See schema.prisma's own `PluginType` comment
+-- for why this completes a documented-but-never-built extension (PDF_FORMAT/OIDC were documented,
+-- neither was ever added here) rather than inventing a new mechanism.
+--
+-- Hand-written rather than `prisma migrate dev`-generated: this checkout's own migration history has
+-- a PRE-EXISTING, unrelated shadow-database drift (the `WebhookEvent` enum's own `DOCUMENT_SETTLED`
+-- variant — confirmed present in the real, live `invoicerr_db`/`invoicerr_dev` databases via direct
+-- `pg_enum` inspection, so no data or running behaviour is actually wrong) that makes `migrate dev`'s
+-- own drift check refuse to run on EITHER of this repo's two databases. Applied via `migrate deploy`
+-- instead (no shadow-db diffing), the same command this repo's own production entrypoint already
+-- uses (`src/prisma/sync-schema.ts`) — a single, safe, additive `ALTER TYPE` needs nothing more.
+ALTER TYPE "PluginType" ADD VALUE 'OCR';

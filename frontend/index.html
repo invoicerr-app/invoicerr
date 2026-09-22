@@ -1,9 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- PNG fallback for the browsers that don't resolve an SVG favicon (old Safari, some in-app
+         webviews) — rendered from favicon.svg's own small-grid redraw, not a downscale of
+         brand/logo-mark.svg: that 512-space path aliases badly below 32px.
+         The dark pair below is the same redraw in --foreground's dark value (#ebeff2, never pure
+         white) instead of the brand ink (#0f1f2a) — favicon.svg already themes itself via an
+         embedded `prefers-color-scheme` media query, but that only fires for browsers that both
+         render SVG favicons AND evaluate `<style>` media queries inside one; these `media`-scoped
+         PNGs cover the narrower set that understands `media` on a <link rel="icon"> but not the
+         SVG. Unscoped, so it also stands in as the universal fallback for browsers that support
+         neither. -->
+    <link rel="icon" type="image/png" sizes="32x32" media="(prefers-color-scheme: dark)" href="/favicon-32-dark.png" />
+    <link rel="icon" type="image/png" sizes="16x16" media="(prefers-color-scheme: dark)" href="/favicon-16-dark.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Two static tags rather than one: the manifest's own theme_color can't vary with the OS
+      scheme, but this meta tag can — browsers pick whichever `media` query matches, same as a CSS
+      media query. Values match --background in src/index.css, identity "Lagune" (decision
+      2026-09-15): light oklch(0.975 0.005 230) = #f3f7f9, dark oklch(0.175 0.014 230) = #0a1215 —
+      not invented colors.
+    -->
+    <meta name="theme-color" content="#f3f7f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a1215" media="(prefers-color-scheme: dark)" />
+    <!--
+      iOS Safari ignores the manifest's `display: standalone` entirely — these three tags are its
+      own, separate mechanism for the same outcome: no browser chrome once added to the Home
+      Screen, a status bar style to match, and the title shown under the home-screen icon.
+    -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Invoicerr" />
     <title>Invoicerr</title>
   </head>
   <body>

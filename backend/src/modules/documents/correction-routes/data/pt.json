@@ -1,0 +1,109 @@
+{
+  "countryCode": "PT",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Se, depois de efectuado o registo referido no artigo 45.º, for anulada a operação ou reduzido o seu valor tributável em consequência de invalidade, resolução, rescisão ou redução do contrato, pela devolução de mercadorias ou pela concessão de abatimentos ou descontos, o fornecedor do bem ou prestador do serviço pode efectuar a dedução do correspondente imposto até ao final do período de imposto seguinte àquele em que se verificarem as circunstâncias que determinaram a anulação da liquidação ou a redução do seu valor tributável.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "No internal transcription reference exists for Portugal (coverage limited to FR/IT/PL/DE/ES/MX/US): a first direct reading, C1 evidence level, done by this agent, the same situation as hr.json. Source: Código do IVA (CIVA), text as served by the AT on info.portaldasfinancas.gov.pt, art. 78.º n.º 2 — PRIMARY TEXT (static HTML page from the AT, direct curl), read on 2026-09-04 at https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva78.aspx. REINFORCED by n.º 3 of the same article, read the same day: « [...] é facultativa, quando houver imposto liquidado a mais, mas apenas pode ser efectuada no prazo de dois anos » — when the tax was charged IN EXCESS (the sense of a reduction, i.e. the equivalent of a credit note), the correction is OPTIONAL (the seller MAY make it, within a two-year deadline), never mandatory — hence the 'allowed' status rather than 'required'. A PORTUGAL-SPECIFIC FINDING, symmetric to and the opposite of DEBIT_NOTE below (see that entry for the full contrast): the SAME art. 78.º n.º 3 handles BOTH directions (overpaid / underpaid) EXPLICITLY ASYMMETRICALLY — optional in one direction, mandatory in the other — a finer distinction than any found so far in this catalog (which had already noted, for Sweden, a one-sided CREDIT_NOTE REQUIRED requirement; here it is the OPPOSITE: it is the UPWARD correction that is 'required', the downward correction staying 'allowed'). An ADDITIONAL CONDITION was found, read the same day, art. 78.º n.º 5: « [...] a regularização a favor do sujeito passivo só pode ser efectuada quando este tiver na sua posse prova de que o adquirente tomou conhecimento da rectificação ou de que foi reembolsado do imposto, sem o que se considera indevida a respectiva dedução. » — the seller can only benefit from the deduction on condition of PROVING that the buyer became aware of the correction (or was reimbursed) — a purely internal credit note, never communicated to the customer, would therefore NOT allow this deduction (see INTERNAL_CREDIT_NOTE below, where this same provision is treated as a real, unresolved tension). Portuguese law names NO dedicated instrument called « nota de crédito » — it describes a tax EFFECT (the faculty to reduce the base) and two CONDITIONS (the deadline, proof that the customer is aware/was reimbursed), without imposing a single form — the same structural family as the Croatian čl. 33 st. 7 already established by this catalog (hr.json's own CREDIT_NOTE)."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Nos casos de facturas inexactas que já tenham dado lugar ao registo referido no artigo 45.º, a rectificação é obrigatória quando houver imposto liquidado a menos, podendo ser efectuada sem qualquer penalidade até ao final do período seguinte àquele a que respeita a factura a rectificar, e é facultativa, quando houver imposto liquidado a mais, mas apenas pode ser efectuada no prazo de dois anos.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "A PORTUGAL-SPECIFIC FINDING from this task, the most precise in the batch on this route: CIVA art. 78.º n.º 3 — PRIMARY TEXT, the same AT page as CREDIT_NOTE above, read the same day. EXACT READING: « imposto liquidado a menos » literally means \"tax charged SHORT [of what it should have been]\" — that is, an invoice INITIALLY UNDER-BILLED, whose correction will INCREASE the tax due — exactly the sense of a debit note (DEBIT_NOTE: an UPWARD correction of an already-issued invoice, in the sense of the vocabulary this catalog of correction routes uses). For THIS specific sense, the same paragraph says unambiguously « a rectificação é obrigatória » (the correction is MANDATORY) — hence the 'required' status, in EXPLICIT, SYMMETRIC opposition to the 'allowed' status of CREDIT_NOTE above (« é facultativa, quando houver imposto liquidado a mais » — optional in the opposite direction). This is, to this agent's knowledge, the FIRST time in this catalog that one and the same statutory paragraph EXPLICITLY and SEPARATELY settles the two directions of an invoice correction with DIFFERENT and OPPOSING statuses — most countries already covered (HR, EE, BE...) draw CREDIT_NOTE and DEBIT_NOTE from the SAME general assimilation clause, with no status distinction between the two directions. The text still names no instrument called « nota de débito » — it is the FUNCTIONAL consequence of the obligation to correct which, combined with art. 36.º n.º 6 (CORRECTIVE_INVOICE below), imposes the form of a distinct document referencing the original."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "CIVA art. 36.º n.º 6 — PRIMARY TEXT, the same AT page as CREDIT_NOTE/DEBIT_NOTE above (https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx), read on 2026-09-04. This is the MOST DIRECT reading of this paragraph against the vocabulary this catalog of correction routes uses: \"Document that AMENDS the original by reference, without being a credit note\" corresponds very precisely to « documentos retificativos de faturas [...] a referência à fatura a que respeitam e as menções desta que são objeto de alterações » (rectifying documents for invoices [...] the reference to the invoice they concern and the particulars of it that are being amended). REINFORCED by art. 78.º n.º 1 (read the same day, see country-policy/data/pt.json's own invoice.save-draft): « As disposições dos artigos 36.º e seguintes devem ser observadas sempre que, emitida a fatura, o valor tributável de uma operação ou o respetivo imposto venham a sofrer retificação por qualquer motivo » — THIS general clause EXPLICITLY refers back to the art. 36.º n.º 6 mechanism for ANY correction, « por qualquer motivo » (for whatever reason), without distinguishing upward/downward — this is therefore the GENERAL route of which CREDIT_NOTE and DEBIT_NOTE above are each a SPECIFIC CASE of status (optional / mandatory). Status 'allowed' (not 'required') at the level of THIS generic route: nothing imposes THIS particular form over another when neither the strict CREDIT_NOTE case nor the strict DEBIT_NOTE case applies."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Not settled — Portugal does NOT have a real-time clearance system comparable to KSeF/SdI: SAF-T (PT) (Portaria n.º 321-A/2007 and its recasts) is a MONTHLY DECLARATION file submitted after the fact to the AT, never a pre-issuance validation (see country-policy/data/pt.json's own invoice.send for the SOFTWARE certification regime, which is a control on the PROGRAM, not on EACH document at the moment of its issuance). The Decreto-Lei n.º 28/2019 (read in primary text on 2026-09-04, art. 1.º to 42.º reviewed) never once describes a mechanism where the AT would REFUSE a fatura at issuance and then allow its reissuance — art. 4.º-A (added by the Decreto-Lei n.º 49/2025, the AT's own free invoicing applications) does provide for a CANCELLATION notice to the buyer (n.º 5), but this is triggered by the TAXABLE PERSON itself, never by a refusal from the authority. Documented structural absence, not positive proof of non-existence: what would settle it is AT doctrine or an explicit provision confirming the absence of any cancellation/refusal mechanism BY the authority for the Portuguese fatura circuit."
+      },
+      "notes": "Decreto-Lei n.º 28/2019, art. 1.º to 42.º, and Portaria n.º 321-A/2007 (SAF-T (PT)), read in primary text on 2026-09-04 — no clearance/refusal-then-reissue mechanism identified; a non-conclusive structural absence."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Not settled, and a REAL TENSION specific to Portugal was found. CIVA art. 78.º n.º 5 (read in primary text on 2026-09-04, the same page as CREDIT_NOTE above) provides: « Quando o valor tributável de uma operação ou o respectivo imposto sofrerem rectificação para menos, a regularização a favor do sujeito passivo só pode ser efectuada quando este tiver na sua posse prova de que o adquirente tomou conhecimento da rectificação ou de que foi reembolsado do imposto, sem o que se considera indevida a respectiva dedução. » (When the taxable base of a transaction or the corresponding tax undergoes a DOWNWARD correction, the regularization in favor of the taxable person can only be carried out if it holds proof that the buyer became aware of the correction OR was reimbursed the tax — failing that, the deduction is considered improper.) This clause STRUCTURALLY REQUIRES notifying the customer for any reduction the seller wants to be FISCALLY EFFECTIVE — which suggests that a purely internal credit note, never communicated to the customer, would NOT allow the seller to recover the corresponding tax. NO text read, however, states an EXPRESS PROHIBITION of the purely internal entry as such (the taxable person could, in theory, forgo the deduction and communicate nothing): as a matter of discipline (never promoted by reasoning alone), this fact remains 'unverified' rather than 'forbidden' — the same restraint hr.json applies to its own equivalent tension (Zakon o fiskalizaciji čl. 38/48). What would settle it: AT doctrine explicitly confirming that a purely accounting adjustment, with no communication to the customer at all, would remain possible OUTSIDE of any exercise of the corresponding right to deduction."
+      },
+      "notes": "CIVA art. 78.º n.º 5, read in primary text on 2026-09-04 — a real tension documented, not resolved into 'forbidden' as a matter of discipline."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Not settled — the same structural reasoning as CANCEL_AND_REPLACE above: since SAF-T (PT) is a MONTHLY, after-the-fact declarative regime, no procedure for CANCELLATION BY THE AUTHORITY (at the issuer's request or of its own motion) of an already-issued fatura was identified in the Decreto-Lei n.º 28/2019 or in the CIVA (the mechanisms found — CIVA art. 78.º, Decreto-Lei art. 4.º-A — all concern an INITIATIVE by the sujeito passivo itself, never a cancellation DECIDED by the AT). What would settle it: AT doctrine confirming the absence (or existence) of a power to cancel an already-issued fatura of its own motion, beyond the ex officio declared cessation of activity (CIVA art. 34.º n.º 2-3, which concerns the STATUS of the sujeito passivo, not a particular document)."
+      },
+      "notes": "Not researched beyond the texts already read for the other routes (CIVA art. 34.º, 78.º; Decreto-Lei n.º 28/2019 art. 1.º to 42.º) — flagged as probably moot given the absence of clearance, not as settled."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Not settled — the same reasoning as CANCEL_AND_REPLACE/AUTHORITY_ANNULMENT above: this route presupposes a REJECTION scenario by a clearance platform (like KSeF/SdI), a scenario that does not exist for the Portuguese fatura circuit (SAF-T (PT) is an after-the-fact declaration, no validation at issuance). Decreto-Lei n.º 28/2019 art. 7.º n.º 5 (« devendo ser obrigatoriamente registados em base de dados [...] evidenciando igualmente os documentos anulados ») only guarantees that a cancelled document remains TRACKED, never describing a reissuance UNDER THE SAME identity (same date, same number) after any kind of rejection. What would settle it: the same verification as for AUTHORITY_ANNULMENT."
+      },
+      "notes": "Decreto-Lei n.º 28/2019 art. 7.º n.º 5, read in primary text on 2026-09-04 — a traceability mechanism for cancelled documents was found, but it does not match this route's exact definition (no identical reject-then-reissue scenario)."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Not settled — no mechanism comparable to the Croatian čl. 43 (reissuance UNDER THE SAME NUMBER with an added note, for a correction with no tax effect) was identified in the Decreto-Lei n.º 28/2019 or the CIVA read for this task. The only \"repetition\" mechanism identified is art. 4.º-A n.º 3-4 of the Decreto-Lei n.º 28/2019 (added by the Decreto-Lei n.º 49/2025), which concerns the after-the-fact CONSULTATION of already-issued faturas via the AT's own free applications, not an annotated reissuance. What would settle it: AT doctrine or an explicit provision describing a reissuance mechanism under the same number/series for a correction that does not affect the tax calculation."
+      },
+      "notes": "Not researched beyond the texts already read (Decreto-Lei n.º 28/2019, art. 1.º to 42.º) — no conclusive positive or negative finding."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "A correcção de erros materiais ou de cálculo no registo a que se referem os artigos 44.º a 51.º e 65.º, nas declarações mencionadas no artigo 41.º e nas guias ou declarações mencionadas nas alíneas b) e c) do n.º 1 do artigo 67.º é facultativa quando resultar imposto a favor do sujeito passivo, mas só pode ser efectuada no prazo de dois anos, [...] sendo obrigatória quando resulte imposto a favor do Estado.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "A PRECISE PORTUGAL-SPECIFIC FINDING, distinct from CREDIT_NOTE/DEBIT_NOTE/CORRECTIVE_INVOICE above: CIVA art. 78.º n.º 6 — PRIMARY TEXT, the same AT page, read on 2026-09-04. This n.º 6 EXPLICITLY concerns correcting material or calculation errors IN THE ACCOUNTING REGISTER and the VAT RETURN itself (the registers of art. 44.º-51.º/65.º, the returns of art. 41.º) — NOT the fatura sent to the customer (which falls under art. 78.º n.º 1/n.º 3, see CORRECTIVE_INVOICE/DEBIT_NOTE above). This is very precisely the definition of this route that this catalog of correction routes uses (\"Correction made in the registers, WITHOUT issuing any document [to the customer]\"): a purely DECLARATIVE/ACCOUNTING correction, with no rectifying document at all sent to the customer. Status 'allowed' (the mechanism, taken as a whole, EXISTS and is permitted) — a NUANCE WORTH NOTING, not modeled by this schema's single `status` field: the same paragraph distinguishes, as with DEBIT_NOTE/CREDIT_NOTE above, an OPTIONAL correction (when it benefits the taxable person, two-year deadline) from a MANDATORY correction (when it benefits the State) — the same optional/mandatory asymmetry pattern that art. 78.º n.º 3 already applies to the fatura itself, but APPLIED HERE to the REGISTER, not to the commercial document."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Not settled — no scenario was identified where a correction would produce an AUTOMATIC tax effect, BY OPERATION OF LAW ALONE, with no act required at all (neither a document to the customer nor an identifiable entry in the register/return). The closest finding (CIVA art. 78.º n.º 6, see LEDGER_ANNOTATION above) IS itself an identifiable act — a correction of the register or the return — not an effect by operation of law with no action at all. What would settle it: a provision or doctrine describing a Portuguese case where the adjustment occurs with no entry or notification required at all from the taxable person."
+      },
+      "notes": "CIVA art. 78.º n.º 6 (see LEDGER_ANNOTATION) remains the closest finding but corresponds to an identifiable ACT, not an automatic effect — this route therefore remains distinct and unsettled."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Not settled — no mechanism comparable to the Croatian čl. 52 (the RECIPIENT of a document unilaterally rejects it and MUST report its data to the tax authority, with the consequence that the document loses its effect as an invoice for the recipient) was identified in the CIVA or the Decreto-Lei n.º 28/2019 read for this task. CIVA art. 78.º n.º 4 (read in primary text on 2026-09-04, the same page as CREDIT_NOTE above) only organizes the SYMMETRIC counterpart to the SELLER's own regularization: « O adquirente do bem ou destinatário do serviço [...] corrige [...] a dedução efectuada » — the BUYER corrects its OWN deduction when the SELLER has itself carried out a cancellation/reduction/correction — this is a MECHANICAL consequence of the seller's correction, never a UNILATERAL and INITIAL challenge by the recipient that would, on its own initiative, cause a document to lose its effect as an invoice. What would settle it: AT doctrine or a provision describing a Portuguese mechanism for a unilateral rejection of a fatura by its recipient, with its own tax effect."
+      },
+      "notes": "CIVA art. 78.º n.º 4, read in primary text on 2026-09-04 — an adjacent finding (the mirrored adjustment of the buyer's deduction) but it does not match this route's exact definition (no UNILATERAL and INITIAL rejection by the recipient)."
+    }
+  ],
+  "notes": "Portugal (2026-09-04). No internal transcription reference exists for this country (coverage limited to FR/IT/PL/DE/ES/MX/US): this is the FIRST direct reading, C1 evidence level, done by this agent — against the PRIMARY/OFFICIAL TEXT itself (direct curl + pdftotext -layout, never a fetch-summary), across TWO distinct and complementary statutes: the Código do IVA (CIVA, as served by the AT on info.portaldasfinancas.gov.pt) for the underlying tax mechanism (art. 36.º, 78.º), and the Decreto-Lei n.º 28/2019, de 15 de fevereiro (the invoicing regime, official PDF) for the absence of any clearance/authority-refusal mechanism. HEADLINE of this file: FOUR routes sourced 'legal' — CREDIT_NOTE, DEBIT_NOTE, CORRECTIVE_INVOICE (CIVA art. 78.º n.º 2/n.º 3 and art. 36.º n.º 6, the SAME family of correction mechanism as FR/BE/GR/EE/HR already established by this catalog, BUT with a PORTUGAL-SPECIFIC PARTICULARITY unprecedented in this catalog to this agent's knowledge: the SAME paragraph (art. 78.º n.º 3) EXPLICITLY and ASYMMETRICALLY resolves the two directions of the correction — 'obrigatória' when the tax was charged short [DEBIT_NOTE], 'facultativa' when it was charged in excess [CREDIT_NOTE]) and LEDGER_ANNOTATION (CIVA art. 78.º n.º 6 — correcting the register/return itself, with no document to the customer, the FIRST occurrence of this route sourced 'legal' in this catalog to this agent's knowledge, hr.json having left it 'unverified' for lack of as precise a clause). The other six routes (CANCEL_AND_REPLACE, INTERNAL_CREDIT_NOTE, AUTHORITY_ANNULMENT, RESUBMIT_SAME_IDENTITY, ANNOTATED_DUPLICATE, NO_DOCUMENT_BY_LAW, COUNTERPARTY_OBJECTION — seven, in fact) honestly remain 'unverified', each with its own resolutionNote documenting either a real structural absence (no real-time clearance: SAF-T (PT) is an after-the-fact monthly declaration), or a real but inconclusive tension (CIVA art. 78.º n.º 5 for INTERNAL_CREDIT_NOTE). This file does not model any B2G routing (a decision outside this agent's scope; a B2G audit was already carried out on 2026-09-02: PT remains 'not deliverable', CIUS-PT not vendorable — this task found nothing that would change that verdict)."
+}

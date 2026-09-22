@@ -20,7 +20,7 @@ Complete it before anything else: your company name, address, currency, and docu
 
 A good order for getting started:
 
-1. **[Settings → Company](settings/company-branding.md#company)** — your business identity and numbering
+1. **[Settings → Company](settings/company-branding.md)** — your business identity and numbering
 2. **[Clients](clients.md)** — the people and companies you bill
 3. **[Articles](articles.md)** — reusable catalog items for your line items (optional)
 4. **[Payment Methods](billing/payment-methods.md)** — how clients pay you

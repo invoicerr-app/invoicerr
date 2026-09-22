@@ -1,0 +1,53 @@
+{
+  "countryCode": "FR",
+  "invoiceNotes": [
+    {
+      "validFrom": "1900-01-01",
+      "value": {
+        "subjectCode": "PMT",
+        "text": "En cas de retard de paiement, une indemnité forfaitaire pour frais de recouvrement de {recoveryIndemnity} est due (art. L441-10 et D441-5 du code de commerce).",
+        "legalRef": "C. com. art. L441-9 I al. 5, L441-10 II, D441-5",
+        "statutory": true,
+        "notes": "PMT is not backed by any DGFiP rule found in the external specifications v3.2 (numbered G1.xx/G2.xx/G6.xx/P1.xx) — used because superpdp expects it in BG-1 (real rejection fr:213, see ../../transports/pdp/pdp.live.spec.ts), not because a French text names it specifically. The code itself remains within the UNTDID 4451 list accepted by BR-CL-08."
+      }
+    },
+    {
+      "validFrom": "1900-01-01",
+      "value": {
+        "subjectCode": "PMD",
+        "text": "Tout retard de paiement entraîne des pénalités au taux de {lateFeeRate} l'an, exigibles le jour suivant la date de règlement figurant sur la facture, sans qu'un rappel soit nécessaire (art. L441-10 du code de commerce).",
+        "legalRef": "C. com. art. L441-9 I al. 5, L441-10 II",
+        "statutory": true,
+        "notes": "Same nuance as PMT: expected by the platform, not named by any DGFiP text found."
+      }
+    },
+    {
+      "validFrom": "1900-01-01",
+      "value": {
+        "subjectCode": "AAB",
+        "text": "Escompte pour paiement anticipé : néant",
+        "legalRef": "C. com. art. L441-9 I al. 5 ; formulation : service-public F31808",
+        "statutory": true,
+        "notes": "Only AAB is backed by a DGFiP rule found (G1.52). No specific wording is imposed by law for the two mentions above (PMT/PMD): only the CONTENT is (an amount, a rate). The « néant » of the discount is the wording prescribed by administrative doctrine (entreprendre.service-public.gouv.fr, sheet F31808), not by a statute."
+      }
+    }
+  ],
+  "noteValues": {
+    "recoveryIndemnity": [{ "validFrom": "2012-01-01", "value": "40 €" }],
+    "lateFeeRate": [
+      {
+        "validFrom": "2026-01-01",
+        "validTo": "2026-07-01",
+        "value": "12,15 %",
+        "notes": "ECB MRO 2,15 % as of 1 January 2026 → 12,15 %"
+      },
+      {
+        "validFrom": "2026-07-01",
+        "validTo": "2027-01-01",
+        "value": "12,40 %",
+        "notes": "ECB MRO 2,40 % since 17 June 2026, hence in force as of 1 July → 12,40 %. validTo caps this at the NEXT scheduled semi-annual check (L441-10 II reads the rate again on 1 January) rather than left open-ended: an invoice issued on or after 2027-01-01 with no newer entry added here now refuses to emit (see invoice-notes.ts's own UnresolvedInvoiceNotePlaceholderError) instead of silently keeping this stale rate forever."
+      }
+    ]
+  },
+  "notes": "The three mentions from article L441-9 I al. 5 of the Code de commerce, in a single sentence: « Elle précise les conditions d'escompte applicables en cas de paiement à une date antérieure […], le taux des pénalités exigibles le jour suivant la date de règlement inscrite sur la facture ainsi que le montant de l'indemnité forfaitaire pour frais de recouvrement due au créancier en cas de retard de paiement. » All three are statutory: true — the law supplies the value, the user has nothing to enter; a stipulated rate different from the supplementary one would itself be a commercial choice, hence absent here. Sources checked on 2026-08-29 (carried over from the pre-refactor git tag, compliance/profiles/data/fr.ts): C. com. art. L441-9, L441-10 II, D441-5 (via codes.droit.org, consolidation as of 21/08/2026 — legifrance returns 403 to automated requests); entreprendre.service-public.gouv.fr F31808 and F23211; ECB, key interest rates. NUANCE WORTH KNOWING (carried over from the tag): superpdp rejects invoices by invoking a rule « BR-FR-05 » that cannot be found in the DGFiP's external specifications v3.2 (French rules there are numbered G1.xx/G2.xx/G6.xx/P1.xx), and BG-1 is 0..n there, hence optional — carrying them in BG-1 nonetheless remains compliant (all three codes are in the UNTDID 4451 list accepted by BR-CL-08) and this is what satisfies both the legal obligation and the platform's own check. The supplementary rate (lateFeeRate) is the ECB refinancing rate plus 10 points, read on 1 January for the first half-year and on 1 July for the second (L441-10 II) — FROZEN AT ISSUANCE: a July invoice keeps the July rate forever, never recomputed as of the reading date. Legal floor: a stipulated rate may not be lower than 3 times the statutory interest rate (8,25 % in the second half of 2026 per service-public); the supplementary rate is well above it, so applying it satisfies the floor with no calculation needed. TO BE MAINTAINED TWICE A YEAR — when the ECB moves, ADD a dated entry to noteValues.lateFeeRate rather than MODIFYING the last one: every invoice is still judged on the rate actually in force on its own issue date."
+}

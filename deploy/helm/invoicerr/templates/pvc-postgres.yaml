@@ -1,0 +1,17 @@
+{{- if and .Values.postgresql.enabled .Values.postgresql.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "postgres") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "postgres") | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.postgresql.persistence.storageClassName }}
+  storageClassName: {{ .Values.postgresql.persistence.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.postgresql.persistence.size }}
+{{- end }}

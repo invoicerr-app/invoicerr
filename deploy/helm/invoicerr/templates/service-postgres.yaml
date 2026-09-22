@@ -1,0 +1,17 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "postgres") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "postgres") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+      protocol: TCP
+  selector:
+    {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "postgres") | nindent 4 }}
+{{- end }}

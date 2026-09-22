@@ -4,32 +4,49 @@ sidebar_position: 1
 
 # Payment Methods
 
-The **Payment Methods** page stores reusable ways for clients to pay you — for example a business bank account or a PayPal address. You define them once, then attach them to quotes and invoices.
+The **Payment Methods** page is where you turn on the ways clients can pay you. Every enabled
+method prints on your invoices automatically — there is nothing to attach per document.
 
-## Actions
+## How it works
 
-- **Add payment method** — create a new method
-- **Search** — find a method by name, details, or type
-- **Filter** — toggle the **Active** / **Inactive** badges
-- **View** (eye icon) — read-only details
-- **Edit** (pencil icon) — change a method
-- **Delete** (trash icon) — remove a method (asks for confirmation)
+Unlike Clients or Articles, this isn't a list you add entries to. Invoicerr ships a fixed set of
+payment methods, each shown as its own card:
 
-## Creating a payment method
+- **Bank transfer** — IBAN (required) and BIC (optional)
+- **PayPal** — the receiving account's e-mail
+- **Cash** — nothing to configure; the label alone is enough
+- **Cheque** — the payee name a cheque should be made out to
+- **Stripe** — turns on card payments through your connected Stripe account (Settings → Payments)
+- **Mollie** — turns on payments through your connected Mollie account (Settings → Payments)
 
-Click **Add payment method** and fill in:
+## Turning a method on
 
-- **Name** (required) — a label you'll recognize, e.g. *"Bank transfer (business)"*
-- **Details** (optional) — free text such as an IBAN or account number
-- **Type** (required) — one of **Bank transfer**, **PayPal**, **Check**, **Cash**, or **Other** (defaults to Bank transfer)
+Flip the switch on a card. If the method needs information it doesn't have yet (an IBAN, a PayPal
+e-mail…), the switch opens the configuration dialog instead of failing silently — fill it in and
+save, and the method is enabled in the same step. A card already configured just toggles straight
+on or off.
 
-## Statuses
+## Configuring a method
 
-| Status | Meaning |
-| --- | --- |
-| **Active** | Selectable on new quotes and invoices |
-| **Inactive** | Hidden from new documents, kept for history |
+Click **Configure** on any card to open or change its details, whether it's currently on or off. A
+method with nothing to configure (Cash, Stripe, Mollie) shows no fields at all — there's simply
+nothing to fill in.
+
+## What shows on a document
+
+Every card's own preview — the same "field: value" lines your invoices print — appears right on
+the card, so what you see here is exactly what a client sees. **Cash**, **Stripe**, and **Mollie**
+show nothing beyond their own label; **Bank transfer** shows the IBAN/BIC you set; **PayPal** shows
+the account e-mail.
+
+## What this page doesn't do
+
+- **No adding or removing methods.** The set of six is fixed; a method you don't use simply stays off.
+- **No per-document choice.** A quote or invoice doesn't ask "which payment method" — every method
+  you've turned on appears on every document that shows payment methods (invoices).
+- **No search or filter.** There are only ever six cards.
 
 ## First use
 
-With no methods yet, the page shows *"No payment methods yet."* and an **Add payment method** button. Once you have at least one client and one payment method, you're ready to create a [quote](quotes.md).
+Every method starts off. Turn on at least one — Bank transfer or PayPal need no external account,
+just a field or two — before sending your first invoice.

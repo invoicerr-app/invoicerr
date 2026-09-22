@@ -1,187 +1,43 @@
-import 'dotenv/config'
+import 'dotenv/config';
 
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Prisma, PrismaClient } from '../../prisma/generated/prisma/client';
-
+import { Injectable } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { formatPattern } from '@/utils/pdf';
+import { PrismaClient } from '../../prisma/generated/prisma/client';
+import { buildDatabasePoolConfig } from './database-pool-config';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+// `buildDatabasePoolConfig` — see that file's own header — is what stands between this pool and pg's
+// own silent defaults (`max: 10`, no `connectionTimeoutMillis` at all, i.e. no timeout). Bare
+// `{ connectionString }` was the ENTIRE config here before: fine for a serverless Postgres provider
+// fronted by its own connection pooler, wrong the moment the database behind DATABASE_URL is a
+// traditional managed instance with no pooler at all — every one of these `max` connections then
+// becomes a real backend process on the database server.
+const adapter = new PrismaPg(buildDatabasePoolConfig(process.env.DATABASE_URL as string));
 
-// Quote/Invoice carry companyId directly; Payment only carries invoiceId, so
-// its companyId has to be resolved through the invoice it belongs to. Defined
-// as a function (not a const) so it can reference `prisma` below despite
-// being declared above it — same forward-reference pattern already used by
-// the query hooks in this extension.
-async function resolveCompanyId(model: string, record: { companyId?: string; invoiceId?: string }): Promise<string> {
-    if (record.companyId) {
-        return record.companyId;
-    }
-    const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: record.invoiceId! } });
-    return invoice.companyId;
-}
-
-const prisma = new PrismaClient({ adapter }).$extends({
-    query: {
-        $allModels: {
-            async findMany({ model, operation, args, query }) {
-                if (
-                    ['Quote', 'Invoice', 'Payment'].includes(model) &&
-                    args?.where &&
-                    (args.where as Prisma.QuoteWhereInput | Prisma.InvoiceWhereInput | Prisma.PaymentWhereInput).rawNumber! === null
-                ) {
-                    return query(args);
-                }
-
-                // Exécution de la requête
-                const result = await query(args);
-
-                // Mise à jour automatique des rawNumber manquants
-                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
-                    if (model === 'Quote') {
-                        const toUpdate = await prisma.quote.findMany({
-                            where: { rawNumber: null },
-                        });
-                        await Promise.all(
-                            toUpdate.map(async (quote) => {
-                                const formattedNumber = await formatPattern(
-                                    'quote',
-                                    quote.number,
-                                    quote.createdAt,
-                                    quote.companyId,
-                                );
-                                await prisma.quote.update({
-                                    where: { id: quote.id },
-                                    data: { rawNumber: formattedNumber },
-                                });
-                            }),
-                        );
-                    }
-
-                    if (model === 'Invoice') {
-                        const toUpdate = await prisma.invoice.findMany({
-                            where: { rawNumber: null },
-                        });
-                        await Promise.all(
-                            toUpdate.map(async (invoice) => {
-                                const formattedNumber = await formatPattern(
-                                    'invoice',
-                                    invoice.number,
-                                    invoice.createdAt,
-                                    invoice.companyId,
-                                );
-                                await prisma.invoice.update({
-                                    where: { id: invoice.id },
-                                    data: { rawNumber: formattedNumber },
-                                });
-                            }),
-                        );
-                    }
-
-                    if (model === 'Payment') {
-                        const toUpdate = await prisma.payment.findMany({
-                            where: { rawNumber: null },
-                            include: { invoice: true },
-                        });
-                        await Promise.all(
-                            toUpdate.map(async (payment) => {
-                                const formattedNumber = await formatPattern(
-                                    'payment',
-                                    payment.number,
-                                    payment.createdAt,
-                                    payment.invoice.companyId,
-                                );
-                                await prisma.payment.update({
-                                    where: { id: payment.id },
-                                    data: { rawNumber: formattedNumber },
-                                });
-                            }),
-                        );
-                    }
-                }
-
-                return result;
-            },
-
-            async create({ model, args, query }) {
-                const result = (await query(args));
-
-                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
-                    const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.PaymentGetPayload<{}>;
-                    if (!typedResult.rawNumber) {
-                        const companyId = await resolveCompanyId(model, typedResult);
-                        const formattedNumber = await formatPattern(
-                            (model.toLowerCase() as 'quote' | 'invoice' | 'payment'),
-                            typedResult.number,
-                            typedResult.createdAt,
-                            companyId,
-                        );
-                        await prisma[model.toLowerCase()].update({
-                            where: { id: result.id },
-                            data: { rawNumber: formattedNumber },
-                        });
-                    }
-                }
-
-                return result;
-            },
-
-            async update({ model, args, query }) {
-                const result = await query(args);
-
-                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
-                    const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.PaymentGetPayload<{}>;
-                    if (!typedResult.rawNumber) {
-                        const companyId = await resolveCompanyId(model, typedResult);
-                        const formattedNumber = await formatPattern(
-                            (model.toLowerCase() as 'quote' | 'invoice' | 'payment'),
-                            typedResult.number,
-                            typedResult.createdAt,
-                            companyId,
-                        );
-                        await prisma[model.toLowerCase()].update({
-                            where: { id: result.id },
-                            data: { rawNumber: formattedNumber },
-                        });
-                    }
-                }
-
-                return result;
-            },
-        },
-    },
-});
-
+/**
+ * The bare Prisma client.
+ *
+ * It used to carry a query extension that manufactured document NUMBERS — quotes,
+ * invoices, payments: formatting at creation, backfilling old rows, reformatting on update. Those
+ * documents are gone now, and the extension with them. What's left is a plain client, and that's
+ * for the best: that extension was also the one place where every draft ended up receiving the
+ * same manufactured number.
+ */
+const prisma = new PrismaClient({ adapter });
 export default prisma;
 
-// Injectable PrismaService for NestJS dependency injection
+export type ExtendedPrismaClient = PrismaClient;
+
+/**
+ * NestJS injection token. The constructor RETURNS the singleton, so the injected instance IS the
+ * shared client — one single pool for every access path.
+ */
 @Injectable()
-export class PrismaService implements OnModuleInit, OnModuleDestroy {
-    private readonly client = prisma;
-
-    async onModuleInit() {
-        // Connection is handled by the client automatically
-    }
-
-    async onModuleDestroy() {
-        await this.client.$disconnect();
-    }
-
-    // Expose all Prisma models
-    get user() { return this.client.user; }
-    get session() { return this.client.session; }
-    get account() { return this.client.account; }
-    get verification() { return this.client.verification; }
-    get invitationCode() { return this.client.invitationCode; }
-    get company() { return this.client.company; }
-    get userCompany() { return this.client.userCompany; }
-    get client_model() { return this.client.client; }
-    get quote() { return this.client.quote; }
-    get invoice() { return this.client.invoice; }
-    get payment() { return this.client.payment; }
-    get paymentItem() { return this.client.paymentItem; }
-    get recurringInvoice() { return this.client.recurringInvoice; }
-    get paymentMethod() { return this.client.paymentMethod; }
-    get webhook() { return this.client.webhook; }
-    get plugin() { return this.client.plugin; }
+class PrismaServiceToken {
+  constructor() {
+    // biome-ignore lint/correctness/noConstructorReturn: deliberate — the token hands out the singleton
+    return prisma as unknown as PrismaServiceToken;
+  }
 }
+
+export const PrismaService = PrismaServiceToken as unknown as new () => ExtendedPrismaClient;
+export type PrismaService = ExtendedPrismaClient;

@@ -18,13 +18,21 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@/*": [
-        "src/*"
-      ],
+      "@/*": ["src/*"]
     },
-    "moduleResolution": "nodenext"
+    "moduleResolution": "nodenext",
+    // Restricts automatic, no-import-needed global type injection to exactly these two: "node" (every
+    // non-test file's own `process`/`Buffer`/etc.) and "vitest/globals" (Vitest's own ambient
+    // `describe`/`it`/`expect`/`vi`, matching this project's `vitest.config.ts`'s own `globals: true`)
+    // — the direct replacement for what `@types/jest`'s own auto-injection used to cover, now that
+    // Jest and `@types/jest` are gone. Needed for a REAL reason, not belt-and-suspenders: `nest build`
+    // (`tsconfig.build.json` excludes `**/*spec.ts`, so this is about non-test source) type-checks
+    // `transports/live-gate.ts`, which returns `typeof describe` — a plain identifier reference, no
+    // import — so SOME globally-injected declaration of `describe` has to be visible to `tsc` or that
+    // one file fails to compile. Every other `@types/*` package this project uses (express, node-forge,
+    // pg, sanitize-html, …) is still resolved normally through explicit imports — module resolution
+    // for those does not go through this option at all — so narrowing this list costs nothing there.
+    "types": ["node", "vitest/globals"]
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"]
 }

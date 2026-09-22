@@ -1,0 +1,66 @@
+{
+  "countryCode": "PL",
+  "rates": [
+    {
+      "id": "pl-standard",
+      "rate": 23,
+      "label": "Stawka podstawowa",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Art. 41. 1. Stawka podatku wynosi 22 %, z zastrzeżeniem ust. 2–12c, art. 83, art. 119 ust. 7, art. 120 ust. 2 i 3, art. 122 i art. 129 ust. 1. — Art. 146ef. 1. W okresie od dnia 1 stycznia 2024 r. do końca roku, w którym suma wydatków wymienionych w art. 40 ust. 1 pkt 2 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny [...] określonych na ten rok w ustawie budżetowej [...] jest wyższa niż 3 % wartości produktu krajowego brutto [...]: 1) stawka podatku, o której mowa w art. 41 ust. 1 i 13, art. 109 ust. 2, art. 110, art. 120 ust. 3a i art. 138i ust. 4, wynosi 23 %;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, art. 41 ust. 1 (the BASE rate, 22%) AS RAISED to 23% by art. 146ef ust. 1 pkt 1) (the rate CURRENTLY applicable). Read directly on 2026-09-13 on the official consolidated text (tekst jednolity), Dziennik Ustaw 2025 r. poz. 775 (« Obwieszczenie Marszałka Sejmu Rzeczypospolitej Polskiej z dnia 21 maja 2025 r. w sprawie ogłoszenia jednolitego tekstu ustawy o podatku od towarów i usług », dated 2025-06-16), a 228-page PDF at https://dziennikustaw.gov.pl/DU/2025/775/D2025000077501.pdf, retrieved with `curl -L` (a first attempt without `-L` returned only a 302 redirect stub, not the PDF) then converted with `pdftotext -layout`. THIS IS NOT A FIXED RATE: art. 146ef sets up a conditional ANNUAL test (defense spending measured against GDP) which, as soon as it is met in a given year, raises the art. 41 base rates (22%/7%) to 23%/8% until the finance minister publishes, by obwieszczenie in the Monitor Polski, the end of the period — see the publication clause quoted above (art. 146ef ust. 2). This test has been met WITHOUT INTERRUPTION since 2024-01-01; Poland's high defense budget makes its continuation in 2026 very likely according to secondary sources (INFORLEX, LEX — not primary, used here only to corroborate how current the mechanism is, never to establish the figure itself), but NO direct search for the end-of-period obwieszczenie was done on monitorpolski.gov.pl in this task — a silent reversion to 22%/7% at a year change (should defense spending fall back under 3% of GDP) would leave this figure frozen-wrong with nothing in this file's form flagging it, for want of a validFrom/validTo in this schema. The 5% rate of art. 41 ust. 2a (załącznik nr 10) IS NOT touched by art. 146ef — it stays 5% in every case, override or not."
+    },
+    {
+      "id": "pl-reduced-8",
+      "rate": 8,
+      "label": "Stawka obniżona (Załącznik nr 3)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. Dla towarów i usług wymienionych w załączniku nr 3 do ustawy, innych niż klasyfikowane według Polskiej Klasyfikacji Wyrobów i Usług w grupowaniu usługi związane z wyżywieniem (PKWiU 56), stawka podatku wynosi 7 %, z zastrzeżeniem art. 114 ust. 1 i art. 138i ust. 4. — Art. 146ef. 1. W okresie od dnia 1 stycznia 2024 r. do końca roku, w którym suma wydatków wymienionych w art. 40 ust. 1 pkt 2 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny [...] określonych na ten rok w ustawie budżetowej [...] jest wyższa niż 3 % wartości produktu krajowego brutto [...]: [...] 2) stawka podatku, o której mowa w art. 41 ust. 2, art. 120 ust. 2 i 3 oraz tytule załącznika nr 3 do ustawy, wynosi 8 %; [...]",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Ustawa o VAT, art. 41 ust. 2 (the BASE rate, 7%) AS RAISED to 8% by art. 146ef ust. 1 pkt 2) (the rate CURRENTLY applicable). Same direct reading, same PDF/URL/method as pl-standard above. Applies to the goods/services of załącznik nr 3 to the ustawa, whose heading (read in the same PDF) is: « WYKAZ TOWARÓW I USŁUG OPODATKOWANYCH STAWKĄ PODATKU W WYSOKOŚCI 7 % » (coffee/tea, confectionery, processed products, live farm animals, and other broadly processed products — non-exhaustive list, not transcribed here). THIS IS NOT A FIXED RATE: art. 146ef sets up a conditional ANNUAL test (defense spending measured against GDP) which, as soon as it is met in a given year, raises the art. 41 base rates (22%/7%) to 23%/8% until the finance minister publishes, by obwieszczenie in the Monitor Polski, the end of the period — see the publication clause quoted above (art. 146ef ust. 2). This test has been met WITHOUT INTERRUPTION since 2024-01-01; Poland's high defense budget makes its continuation in 2026 very likely according to secondary sources (INFORLEX, LEX — not primary, used here only to corroborate how current the mechanism is, never to establish the figure itself), but NO direct search for the end-of-period obwieszczenie was done on monitorpolski.gov.pl in this task — a silent reversion to 22%/7% at a year change (should defense spending fall back under 3% of GDP) would leave this figure frozen-wrong with nothing in this file's form flagging it, for want of a validFrom/validTo in this schema. The 5% rate of art. 41 ust. 2a (załącznik nr 10) IS NOT touched by art. 146ef — it stays 5% in every case, override or not."
+    },
+    {
+      "id": "pl-super-reduced-5",
+      "rate": 5,
+      "label": "Stawka obniżona (Załącznik nr 10)",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2a. Dla towarów i usług wymienionych w załączniku nr 10 do ustawy, innych niż klasyfikowane według Polskiej Klasyfikacji Wyrobów i Usług w grupowaniu usługi związane z wyżywieniem (PKWiU 56), stawka podatku wynosi 5 %, z zastrzeżeniem art. 138i ust. 4.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Ustawa o VAT, art. 41 ust. 2a — same direct reading, same PDF/URL/method as pl-standard above. THIS RATE IS NOT TOUCHED by the art. 146ef override (see pl-standard's own note on the conditional raise mechanism): 5% is both the base rate AND the currently applicable rate. Applies to the goods/services of załącznik nr 10, whose heading (read in the same PDF) is: « WYKAZ TOWARÓW I USŁUG OPODATKOWANYCH STAWKĄ PODATKU W WYSOKOŚCI 5 % » (meat, fish, dairy products/eggs/honey, vegetables, fruit, cereals — basic/raw foodstuffs, non-exhaustive list, not transcribed here)."
+    },
+    {
+      "id": "pl-zero",
+      "rate": 0,
+      "label": "Stawka 0% (WDT / eksport)",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "3. W wewnątrzwspólnotowej dostawie towarów stawka podatku wynosi 0 %, z zastrzeżeniem art. 42. 4. W eksporcie towarów, o którym mowa w art. 2 pkt 8 lit. a, stawka podatku wynosi 0 %.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Ustawa o VAT, art. 41 ust. 3-4 (ust. 5 to 11, not cited here, extend the same 0% rate to exports by flat-rate farmers and set the evidentiary conditions — the same rule extended, not transcribed). Same direct reading, same PDF/URL/method as pl-standard. A GENUINE ZERO RATE (\"stawka podatku 0%\", an actually stated percentage), distinct from the art. 43 exemption (« Art. 43. 1. Zwalnia się od podatku: [...] »; a separate EXEMPT category, typically with no deduction right, not modeled as a distinct entry in this catalog beyond pl-exempt-113 below). An older secondary source (not verified against the primary text in this task) reports a domestic 0% rate on basic foodstuffs between 2022-02-01 and 2024-03-31 (« tarcza antyinflacyjna », the anti-inflation shield, set by rozporządzenie rather than by this ustawa itself) — the current consolidated text (2025-05-21) carries NO such clause on art. 41 ust. 2a (a flat 5%, with no exception to 0%), which is consistent with the idea that this measure has expired, but this absence does not itself date the expiry via a directly consulted primary source — no entry is created for this historical rate, out of caution."
+    },
+    {
+      "id": "pl-exempt-113",
+      "rate": 0,
+      "label": "Zwolnienie podmiotowe (do 200 000 zł)",
+      "category": "EXEMPT",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Art. 113. 1. Zwalnia się od podatku sprzedaż dokonywaną przez podatnika posiadającego siedzibę działalności gospodarczej na terytorium kraju, u którego wartość sprzedaży, z wyłączeniem podatku, nie przekroczyła w poprzednim ani bieżącym roku podatkowym kwoty 200 000 zł.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Ustawa o VAT, art. 113 ust. 1, as it appears in the 2025-05-21 tekst jednolity (Dz.U. 2025 poz. 775) — same PDF/URL/method as pl-standard above. A SUBJECTIVE exemption by turnover threshold, the same nature as fr-exempt-293b (franchise en base) in vat-rates/data/fr.json — not a VAT rate in the strict sense but a below-threshold exemption scheme, included here because it is a common choice when issuing an invoice. A SCHEDULED AND DATED CHANGE, confirmed by a separate primary source (a one-page PDF, https://dziennikustaw.gov.pl/D2025000089601.pdf, `curl -L` + `pdftotext -layout`): « DZIENNIK USTAW RZECZYPOSPOLITEJ POLSKIEJ, Warszawa, dnia 7 lipca 2025 r., Poz. 896 USTAWA z dnia 24 czerwca 2025 r. o zmianie ustawy o podatku od towarów i usług Art. 1. W ustawie [...] w art. 113 w ust. 1 wyrazy „kwoty 200 000 zł\" zastępuje się wyrazami „kwoty 240 000 zł\". Art. 3. Ustawa wchodzi w życie z dniem 1 stycznia 2026 r. » — that is: the threshold rises from 200 000 zł to 240 000 zł as of 2026-01-01. The `label` field above deliberately carries the threshold in force TODAY (200 000 zł); the new threshold (240 000 zł) is not yet applicable as of the verification date (2026-09-13) and lives in this note rather than in the label, as this schema has no field dedicated to a future effective date (no validFrom/validTo in schema.ts)."
+    }
+  ],
+  "notes": "Poland (2026-09-13). Five entries, all 'legal', SOURCED FROM THE PRIMARY LEGAL TEXT: ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, tekst jednolity Dz.U. 2025 poz. 775 (dziennikustaw.gov.pl, official PDF, `curl -L` + `pdftotext -layout` — isap.sejm.gov.pl returned an anti-bot blocking page, « Pardon Our Interruption », hence the choice of dziennikustaw.gov.pl as the source). THE RATES ENCODED ARE THOSE ACTUALLY APPLIED TODAY — 23%/8%/5% — NOT the base rates of art. 41 (22%/7%/5%): see each pl-standard/pl-reduced-8 entry's own note for the art. 146ef conditional raise mechanism (an annual test tied to defense spending/GDP), which has NO equivalent in this schema (no field for a condition or a formula — just `rate: number`). THE ZERO RATE (WDT/export, art. 41 ust. 3-4) IS DISTINCT from the subjective threshold exemption (art. 113) AND from the general exemption by transaction type (art. 43) — see pl-zero's own note. WHAT HAS NOT BEEN ESTABLISHED, documented honestly rather than guessed: (1) no direct search for the art. 146ef end-of-period obwieszczenie was done on monitorpolski.gov.pl — the continuation of 23%/8% beyond end-2026 is therefore NOT guaranteed by this research; (2) the exact date/instrument of the end of the domestic 0% rate on basic foodstuffs (2022-2024) was not traced to a primary source — see pl-zero; (3) no exhaustive check of amendments to the ustawa between 2025-05-21 (the date of the tekst jednolity used here) and today was done beyond the art. 113 amendment itself found and cited on pl-exempt-113 — a change to the rates within this 16-month window would go undetected by this research. This catalog does not model temporality (no validFrom/validTo field in schema.ts)."
+}

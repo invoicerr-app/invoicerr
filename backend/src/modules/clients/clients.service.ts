@@ -1,201 +1,501 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 
-import { EditClientsDto } from '@/modules/clients/dto/clients.dto';
+/**
+ * How stale a verdict may be before it is asked again.
+ *
+ * A VAT registration can be withdrawn, so "valid as of 2019" is not a fact about today. Ninety days
+ * is a deliberate, arbitrary-but-stated choice: long enough that a client edited twice in a week
+ * does not hammer VIES, short enough that a deregistration surfaces within a quarter. An
+ * UNAVAILABLE verdict is retried on the next edit whatever its age — it was never an answer.
+ */
+const REVALIDATE_AFTER_DAYS = 90;
+
+function needsRevalidation(row?: { validationStatus: string | null; validatedAt: Date | null }): boolean {
+  if (!row) return true;
+  if (row.validationStatus !== 'VALID') return true;
+  if (!row.validatedAt) return true;
+  const ageDays = (Date.now() - row.validatedAt.getTime()) / 86_400_000;
+  return ageDays > REVALIDATE_AFTER_DAYS;
+}
+
+/** No real client email/name/country is anywhere near this long — a value past it is either a client
+ *  that will never exist or a caller poking at the endpoint, not a legitimate lookup. Bounding it here
+ *  (rather than accepting whatever a GET query string hands over) keeps `findDuplicates`'s own
+ *  case-insensitive match a fixed-cost equality check, never a growing one. */
+const MAX_MATCH_VALUE_LENGTH = 300;
+
+/** Trims `value` and returns it only if non-empty and within `MAX_MATCH_VALUE_LENGTH` — an oversized
+ *  input is treated exactly like an ABSENT one (never a thrown 400), matching `findDuplicates`'s own
+ *  "this only ever informs" contract: a garbage-length query param does not get a different error
+ *  experience than simply not having typed anything usable yet. */
+function boundedOrUndefined(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed.length > MAX_MATCH_VALUE_LENGTH) return undefined;
+  return trimmed;
+}
+
+import {
+  ClientDuplicateMatch,
+  DuplicateMatchReason,
+  EditClientsDto,
+  FindDuplicatesQuery,
+  IdentifierEntry,
+} from '@/modules/clients/dto/clients.dto';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { WebhookEvent } from '../../../prisma/generated/prisma/client';
+import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { VatValidationPort } from '../documents/tax/vat-validation';
+import { validateVat } from '../documents/tax/vat-syntax';
+import { assertIdentifierValueMatchesPattern } from '../documents/country-identifiers/validate-identifier-value';
+import { assertClientCustomFieldValuesValid } from '../documents/company-custom-fields/persistence';
+import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 
 @Injectable()
 export class ClientsService {
+  constructor(
+    private readonly webhookDispatcher: WebhookDispatcherService,
+    @Inject('VAT_VALIDATION_CLIENT') private readonly vatValidationClient: VatValidationPort,
+  ) {}
 
-    constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
+  /** Single client by id, scoped to the company — used by the document descriptor system's generic
+   *  entity-reference resolution (a 'reference' field only stores an id; resolving it to a label
+   *  for display, e.g. a quote's client, goes through here). */
+  async getClientById(companyId: string, id: string) {
+    return prisma.client.findFirst({ where: { id, companyId }, include: { partyIdentifiers: true } });
+  }
+
+  /**
+   * Client account statement — the client's own statement (open/settled
+   * invoices, the credit notes correcting them, the total owed, and an aged balance), computed by
+   * settlement/client-statement.ts's `resolveClientStatement`. 404s the same way every other
+   * single-client read on this service does when `id` doesn't exist or belongs to another company —
+   * a client id is never enough on its own; every one of this file's own reads scopes by `companyId`
+   * first, and this is no exception (`resolveClientStatement` itself never touches `Client` at all,
+   * so skipping this check would let a guessed id from ANOTHER tenant's client silently read invoices
+   * whose own `data.client` happens to match it — this check is what keeps that structurally
+   * impossible, not merely a filter that could be forgotten).
+   */
+  async getStatement(companyId: string, id: string): Promise<ClientStatement> {
+    const client = await prisma.client.findFirst({ where: { id, companyId } });
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+    return resolveClientStatement(companyId, id);
+  }
+
+  async getClients(companyId: string, page: string) {
+    const pageNumber = parseInt(page, 10) || 1;
+    const pageSize = 10;
+    const skip = (pageNumber - 1) * pageSize;
+
+    const clients = await prisma.client.findMany({
+      where: { companyId },
+      skip,
+      take: pageSize,
+      orderBy: {
+        name: 'asc',
+      },
+      include: { partyIdentifiers: true },
+    });
+
+    const totalClients = await prisma.client.count({ where: { companyId } });
+
+    return { pageCount: Math.ceil(totalClients / pageSize), clients };
+  }
+
+  /**
+   * `options.excludeSuppliers` filters out `isSupplier: true` clients when
+   * set (the invoice's/quote's own "client" reference entity — see
+   * `references/client-reference.provider.ts`'s own header on why); every OTHER caller (the plain
+   * `/clients/search` combobox screens use directly, the MCP `list_clients` tool, the "supplier"
+   * reference entity) passes nothing and keeps today's behaviour — every client, unfiltered by role,
+   * exactly like `kind` (GOVERNMENT) already never filters here either.
+   */
+  async searchClients(companyId: string, query: string, options?: { excludeSuppliers?: boolean }) {
+    const supplierFilter = options?.excludeSuppliers ? { isSupplier: false } : {};
+
+    if (!query) {
+      return prisma.client.findMany({
+        where: { companyId, isActive: true, ...supplierFilter },
+        take: 10,
+        orderBy: {
+          name: 'asc',
+        },
+        include: { partyIdentifiers: true },
+      });
     }
 
-    async getClients(companyId: string, page: string) {
-        const pageNumber = parseInt(page, 10) || 1;
-        const pageSize = 10;
-        const skip = (pageNumber - 1) * pageSize;
+    const results = await prisma.client.findMany({
+      where: {
+        companyId,
+        isActive: true,
+        ...supplierFilter,
+        OR: [
+          { name: { contains: query } },
+          { contactFirstname: { contains: query } },
+          { contactLastname: { contains: query } },
+          { contactEmail: { contains: query } },
+          { contactPhone: { contains: query } },
+          { address: { contains: query } },
+          { postalCode: { contains: query } },
+          { city: { contains: query } },
+          { country: { contains: query } },
+        ],
+      },
+      take: 10,
+      orderBy: {
+        name: 'asc',
+      },
+      include: { partyIdentifiers: true },
+    });
 
-        const clients = await prisma.client.findMany({
-            where: { companyId },
-            skip,
-            take: pageSize,
-            orderBy: {
-                name: 'asc',
-            },
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_SEARCHED, {
+        companyId,
+        query,
+        results: results.length,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch CLIENT_SEARCHED webhook', { category: 'client', details: { error } });
+    }
+
+    return results;
+  }
+
+  /**
+   * Non-blocking duplicate detection for the client wizard (create AND edit) — never a DB-level
+   * unique constraint: the owner explicitly accepts genuine duplicates (a franchise's two branches
+   * sharing one billing inbox, a common name repeated across unrelated companies), so this only ever
+   * INFORMS, never refuses a write. Two independent match rules, either one enough to surface a row:
+   *   - the same `contactEmail`, case-insensitive (a typo'd casing must not hide an existing record);
+   *   - the same `name` AND the same `country`, both case-insensitive (name alone is too common a
+   *     collision — "Martin" — to warn on by itself; country narrows it to "the same business
+   *     entity", not just a shared surname across unrelated clients).
+   * Returns `[]` — never throws, never 400s — when neither criterion is usable (no `email`, and no
+   * `name`+`country` pair, or a value so long it can only be garbage — see `MAX_MATCH_VALUE_LENGTH`
+   * below): a partially-filled wizard has nothing to check yet, and that is a normal state, not an
+   * error — this endpoint stays a hint, never a gate a caller could get a 400 stuck on.
+   */
+  async findDuplicates(companyId: string, query: FindDuplicatesQuery): Promise<ClientDuplicateMatch[]> {
+    const email = boundedOrUndefined(query.email);
+    const name = boundedOrUndefined(query.name);
+    const country = boundedOrUndefined(query.country);
+    const excludeId = boundedOrUndefined(query.excludeId);
+    const hasNameCountry = !!name && !!country;
+    if (!email && !hasNameCountry) return [];
+
+    const or: Prisma.ClientWhereInput[] = [];
+    if (email) or.push({ contactEmail: { equals: email, mode: 'insensitive' } });
+    if (hasNameCountry) {
+      or.push({
+        name: { equals: name, mode: 'insensitive' },
+        country: { equals: country, mode: 'insensitive' },
+      });
+    }
+
+    const rows = await prisma.client.findMany({
+      where: {
+        companyId,
+        isActive: true,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+        OR: or,
+      },
+      select: { id: true, name: true, contactEmail: true, country: true },
+      take: 10,
+      orderBy: { name: 'asc' },
+    });
+
+    return rows.map((row) => {
+      const matchedOn: DuplicateMatchReason[] = [];
+      if (email && row.contactEmail && row.contactEmail.toLowerCase() === email.toLowerCase()) {
+        matchedOn.push('email');
+      }
+      if (
+        hasNameCountry &&
+        row.name.toLowerCase() === name!.toLowerCase() &&
+        row.country.toLowerCase() === country!.toLowerCase()
+      ) {
+        matchedOn.push('name_country');
+      }
+      return { id: row.id, name: row.name, contactEmail: row.contactEmail, country: row.country, matchedOn };
+    });
+  }
+
+  private async upsertPartyIdentifiers(
+    clientId: string,
+    identifiers: IdentifierEntry[] | undefined,
+    // VIES is addressed per member state, so the client's country is needed to ask at all.
+    countryCode: string | null | undefined,
+  ) {
+    if (!identifiers) return;
+
+    const existing = await prisma.partyIdentifier.findMany({
+      where: { clientId },
+    });
+
+    // Every entry is checked against its country's declared `pattern` BEFORE any write below — an
+    // invalid entry later in the array must never leave an earlier one already deleted/upserted
+    // while the call as a whole still fails (see validate-identifier-value.ts's own header for why
+    // this refuses rather than warns, and why an unchanged value is exempt).
+    for (const entry of identifiers) {
+      const before = existing.find((r) => r.scheme === entry.scheme);
+      await assertIdentifierValueMatchesPattern({
+        countryCode,
+        scheme: entry.scheme,
+        value: entry.value,
+        previousValue: before?.value,
+      });
+    }
+
+    const incomingSchemes = new Set(identifiers.map((i) => i.scheme));
+
+    for (const row of existing) {
+      if (!incomingSchemes.has(row.scheme)) {
+        await prisma.partyIdentifier.delete({ where: { id: row.id } });
+      }
+    }
+
+    for (const entry of identifiers) {
+      const before = existing.find((r) => r.scheme === entry.scheme);
+      const row = await prisma.partyIdentifier.upsert({
+        where: { clientId_scheme: { clientId, scheme: entry.scheme } },
+        create: { clientId, scheme: entry.scheme, value: entry.value },
+        update: { value: entry.value },
+      });
+
+      // Validate the VAT number HERE — when it is entered or changed — and never at issuance.
+      // Validating at issuance would make emitting an invoice depend on a third-party service that
+      // is regularly saturated, which is exactly what the port's UNAVAILABLE verdict exists to
+      // avoid. Here a slow or failing VIES only delays a form submission.
+      //
+      // A changed value invalidates any previous verdict: it is a different number.
+      const valueChanged = before?.value !== entry.value;
+      if (entry.scheme === 'VAT' && countryCode && (valueChanged || needsRevalidation(before))) {
+        // Cross-border ("transfrontalier") — the SYNTAX gate runs FIRST, before ever asking
+        // VIES: a syntactically wrong number is B2C, named,
+        // without spending a network round-trip on a number that cannot possibly be valid. Only a
+        // number that PASSES its own country's format is worth asking the European Commission about.
+        const iso = guessCountryCode(countryCode) ?? countryCode.toUpperCase();
+        const syntax = validateVat(entry.value, iso);
+
+        if (!syntax.valid) {
+          await prisma.partyIdentifier.update({
+            where: { id: row.id },
+            data: { validationStatus: 'INVALID', validatedAt: new Date(), validationSource: 'syntax-check' },
+          });
+          logger.warn('VAT number failed its own syntax check — treated as unverified (B2C)', {
+            category: 'client',
+            details: { clientId, value: entry.value, countryCode: iso, reason: syntax.reason },
+          });
+          continue;
+        }
+
+        const result = await this.vatValidationClient.validate(iso, entry.value);
+        await prisma.partyIdentifier.update({
+          where: { id: row.id },
+          data: {
+            validationStatus: result.status,
+            validatedAt: result.checkedAt,
+            validationSource: result.source,
+          },
         });
+        if (result.status !== 'VALID') {
+          logger.warn('VAT number not verified', {
+            category: 'client',
+            details: { clientId, value: entry.value, countryCode: iso, status: result.status },
+          });
+        }
+      }
+    }
+  }
 
-        const totalClients = await prisma.client.count({ where: { companyId } });
+  async createClient(companyId: string, editClientsDto: EditClientsDto) {
+    const { id, identifiers, ...data } = editClientsDto;
 
-        return { pageCount: Math.ceil(totalClients / pageSize), clients };
+    const type = (data as any).type || 'COMPANY';
+
+    if (type === 'INDIVIDUAL') {
+      data.name = ``;
+      if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
+        logger.error('First name is required for individual clients', { category: 'client' });
+        throw new BadRequestException('First name is required for individual clients');
+      }
+      if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
+        logger.error('Last name is required for individual clients', { category: 'client' });
+        throw new BadRequestException('Last name is required for individual clients');
+      }
+    } else {
+      data.contactFirstname = undefined;
+      data.contactLastname = undefined;
+      if (!data.name || (data.name as string).trim() === '') {
+        logger.error('Company name is required for company clients', { category: 'client' });
+        throw new BadRequestException('Company name is required for company clients');
+      }
     }
 
-    async searchClients(companyId: string, query: string) {
-        if (!query) {
-            return prisma.client.findMany({
-                where: { companyId, isActive: true },
-                take: 10,
-                orderBy: {
-                    name: 'asc',
-                },
-            });
-        }
-
-        const results = await prisma.client.findMany({
-            where: {
-                companyId,
-                isActive: true,
-                OR: [
-                    { name: { contains: query } },
-                    { contactFirstname: { contains: query } },
-                    { contactLastname: { contains: query } },
-                    { contactEmail: { contains: query } },
-                    { contactPhone: { contains: query } },
-                    { address: { contains: query } },
-                    { postalCode: { contains: query } },
-                    { city: { contains: query } },
-                    { country: { contains: query } },
-                ],
-            },
-            take: 10,
-            orderBy: {
-                name: 'asc',
-            },
+    // Checked BEFORE the client row itself is created: `upsertPartyIdentifiers` cannot run first (it
+    // needs a `clientId` that does not exist yet), and letting a bad identifier surface only after
+    // create would leave an orphan client behind — a resubmit after fixing it would then duplicate
+    // the record rather than complete it.
+    if (identifiers) {
+      for (const entry of identifiers) {
+        await assertIdentifierValueMatchesPattern({
+          countryCode: data.countryCode ?? data.country,
+          scheme: entry.scheme,
+          value: entry.value,
         });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_SEARCHED, {
-                query,
-                results: results.length,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch CLIENT_SEARCHED webhook', { category: 'client', details: { error } });
-        }
-
-        return results;
+      }
     }
 
-    async createClient(companyId: string, editClientsDto: EditClientsDto) {
-        const { id, ...data } = editClientsDto;
+    // Custom fields — checked BEFORE create for the same reason
+    // the identifier pattern check just above is: a client row with an invalid custom field value on
+    // file, however briefly, is worse than refusing the write outright.
+    await assertClientCustomFieldValuesValid(companyId, data.customFields as Record<string, unknown>);
 
-        const type = (data as any).type || 'COMPANY';
+    const newClient = await prisma.client.create({ data: { ...data, companyId } });
 
-        if (type === 'INDIVIDUAL') {
-            data.name = ``;
-            if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
-                logger.error('First name is required for individual clients', { category: 'client' });
-                throw new BadRequestException('First name is required for individual clients');
-            }
-            if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
-                logger.error('Last name is required for individual clients', { category: 'client' });
-                throw new BadRequestException('Last name is required for individual clients');
-            }
-        } else {
-            data.contactFirstname = undefined;
-            data.contactLastname = undefined;
-            if (!data.name || (data.name as string).trim() === '') {
-                logger.error('Company name is required for company clients', { category: 'client' });
-                throw new BadRequestException('Company name is required for company clients');
-            }
-            if (!data.legalId || (data.legalId as string).trim() === '') {
-                logger.error('SIRET/SIREN (legalId) is required for company clients', { category: 'client' });
-                throw new BadRequestException('SIRET/SIREN (legalId) is required for company clients');
-            }
-        }
+    await this.upsertPartyIdentifiers(newClient.id, identifiers, newClient.countryCode ?? newClient.country);
 
-        const newClient = await prisma.client.create({ data: { ...data, companyId } });
+    logger.info('Client created', { category: 'client', details: { clientId: newClient.id } });
 
-        logger.info('Client created', { category: 'client', details: { clientId: newClient.id } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
-                client: newClient,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch CLIENT_CREATED webhook', { category: 'client', details: { error } });
-        }
-
-        return newClient;
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
+        companyId,
+        client: newClient,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch CLIENT_CREATED webhook', { category: 'client', details: { error } });
     }
 
-    async editClientsInfo(companyId: string, editClientsDto: EditClientsDto) {
-        if (!editClientsDto.id) {
-            logger.error('Client ID is required for editing', { category: 'client' });
-            throw new BadRequestException('Client ID is required for editing');
-        }
+    return newClient;
+  }
 
-        const existingClient = await prisma.client.findFirst({ where: { id: editClientsDto.id, companyId } });
-        if (!existingClient) {
-            logger.error('Client not found', { category: 'client', details: { id: editClientsDto.id } });
-            throw new NotFoundException('Client not found');
-        }
-
-        const data = { ...editClientsDto } as any;
-        // Prefer explicit type in payload, otherwise fall back to existing client's type
-        const type = data.type || existingClient.type || 'COMPANY';
-
-        if (type === 'INDIVIDUAL') {
-            if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
-                logger.error('First name is required for individual clients', { category: 'client' });
-                throw new BadRequestException('First name is required for individual clients');
-            }
-            if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
-                logger.error('Last name is required for individual clients', { category: 'client' });
-                throw new BadRequestException('Last name is required for individual clients');
-            }
-        } else {
-            if (!data.name || (data.name as string).trim() === '') {
-                logger.error('Company name is required for company clients', { category: 'client' });
-                throw new BadRequestException('Company name is required for company clients');
-            }
-            if (!data.legalId || (data.legalId as string).trim() === '') {
-                logger.error('SIRET/SIREN (legalId) is required for company clients', { category: 'client' });
-                throw new BadRequestException('SIRET/SIREN (legalId) is required for company clients');
-            }
-        }
-
-        const updatedClient = await prisma.client.update({
-            where: { id: editClientsDto.id },
-            data: { ...editClientsDto, isActive: true },
-        });
-
-        logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, {
-                client: updatedClient,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch CLIENT_UPDATED webhook', { category: 'client', details: { error } });
-        }
-
-        return updatedClient;
+  async editClientsInfo(companyId: string, editClientsDto: EditClientsDto) {
+    if (!editClientsDto.id) {
+      logger.error('Client ID is required for editing', { category: 'client' });
+      throw new BadRequestException('Client ID is required for editing');
     }
 
-    async deleteClient(companyId: string, id: string) {
-        const existingClient = await prisma.client.findFirst({ where: { id, companyId } });
-
-        if (!existingClient) {
-            logger.error('Client not found', { category: 'client', details: { id } });
-            throw new NotFoundException('Client not found');
-        }
-
-        const deletedClient = await prisma.client.update({
-            where: { id },
-            data: { isActive: false },
-        });
-
-        logger.info('Client deleted', { category: 'client', details: { clientId: id } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_DELETED, {
-                client: existingClient,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch CLIENT_DELETED webhook', { category: 'client', details: { error } });
-        }
-
-        return deletedClient;
+    const existingClient = await prisma.client.findFirst({
+      where: { id: editClientsDto.id, companyId },
+    });
+    if (!existingClient) {
+      logger.error('Client not found', { category: 'client', details: { id: editClientsDto.id } });
+      throw new NotFoundException('Client not found');
     }
+
+    const { identifiers, ...dataFields } = editClientsDto;
+    const data = { ...dataFields } as any;
+    // Prefer explicit type in payload, otherwise fall back to existing client's type
+    const type = data.type || existingClient.type || 'COMPANY';
+
+    if (type === 'INDIVIDUAL') {
+      if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
+        logger.error('First name is required for individual clients', { category: 'client' });
+        throw new BadRequestException('First name is required for individual clients');
+      }
+      if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
+        logger.error('Last name is required for individual clients', { category: 'client' });
+        throw new BadRequestException('Last name is required for individual clients');
+      }
+    } else {
+      if (!data.name || (data.name as string).trim() === '') {
+        logger.error('Company name is required for company clients', { category: 'client' });
+        throw new BadRequestException('Company name is required for company clients');
+      }
+    }
+
+    // Custom fields — checked BEFORE the write, same reasoning as
+    // `createClient`'s own check above. `undefined` (the caller never sent `customFields` at all) is
+    // treated the same as `{}` by `assertClientCustomFieldValuesValid` — a plain edit that never
+    // touches custom fields never trips a "missing required field" error for one it wasn't editing.
+    await assertClientCustomFieldValuesValid(companyId, dataFields.customFields);
+
+    // Explicit allow-list, never `...dataFields`: there is no runtime request validation anywhere in
+    // this API (no ValidationPipe, no class-validator — `EditClientsDto` is a TypeScript `interface`,
+    // erased at compile time), so `dataFields` is really the raw, caller-supplied JSON body with
+    // `identifiers` deleted — `id` is still in there. Spreading it wholesale would let a caller
+    // rewrite THIS record's own primary key (`data.id` differing from the `where: { id }` above) or
+    // reassign it to another tenant entirely (`Client.companyId`, not even a field on this DTO but
+    // just as happily accepted by an unchecked spread). Every column this endpoint is actually
+    // allowed to write is named once, here.
+    const updatedClient = await prisma.client.update({
+      where: { id: editClientsDto.id },
+      data: {
+        description: dataFields.description,
+        foundedAt: dataFields.foundedAt,
+        name: dataFields.name,
+        contactFirstname: dataFields.contactFirstname,
+        contactLastname: dataFields.contactLastname,
+        contactEmail: dataFields.contactEmail,
+        contactPhone: dataFields.contactPhone,
+        address: dataFields.address,
+        addressLine2: dataFields.addressLine2,
+        postalCode: dataFields.postalCode,
+        city: dataFields.city,
+        state: dataFields.state,
+        country: dataFields.country,
+        countryCode: dataFields.countryCode,
+        language: dataFields.language,
+        currency: dataFields.currency,
+        type: dataFields.type,
+        kind: dataFields.kind,
+        isSupplier: dataFields.isSupplier,
+        isActive: true,
+        // A submitted `customFields` REPLACES the stored value wholesale — the same "a submitted form
+        // is a full snapshot, never a patch" convention `payment-methods/persistence.ts`'s own
+        // `config` write already holds — never merged key-by-key. `undefined` (never sent) leaves the
+        // column untouched, Prisma's own "absent key" semantics for `update`.
+        customFields: dataFields.customFields,
+      },
+    });
+
+    await this.upsertPartyIdentifiers(
+      updatedClient.id,
+      identifiers,
+      updatedClient.countryCode ?? updatedClient.country,
+    );
+
+    logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
+
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, {
+        companyId,
+        client: updatedClient,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch CLIENT_UPDATED webhook', { category: 'client', details: { error } });
+    }
+
+    return updatedClient;
+  }
+
+  async deleteClient(companyId: string, id: string) {
+    const existingClient = await prisma.client.findFirst({ where: { id, companyId } });
+
+    if (!existingClient) {
+      logger.error('Client not found', { category: 'client', details: { id } });
+      throw new NotFoundException('Client not found');
+    }
+
+    const deletedClient = await prisma.client.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
+    logger.info('Client deleted', { category: 'client', details: { clientId: id } });
+
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_DELETED, {
+        companyId,
+        client: existingClient,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch CLIENT_DELETED webhook', { category: 'client', details: { error } });
+    }
+
+    return deletedClient;
+  }
 }

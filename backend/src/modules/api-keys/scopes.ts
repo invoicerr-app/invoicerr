@@ -1,20 +1,71 @@
-// One scope per MCP tool that mutates or reads company data (see
-// backend/src/modules/mcp/). Deliberately coarse — no per-tool granularity
-// beyond resource:action. A plain string array rather than a Postgres enum
-// so adding a new scope later is a pure app-code change, no migration.
+// One scope per resource:action pair a company-scoped API key (or the MCP server built on top of
+// it, see backend/src/modules/mcp/) may be granted. Deliberately coarse — no per-tool granularity
+// beyond resource:action. A plain string array rather than a Postgres enum so adding a new scope
+// later is a pure app-code change, no migration.
+//
+// "quotes"/"invoices"/"credit-notes"/"expenses"/"received-invoices" are the five DOCUMENT TYPES the
+// document engine registers today (documents-core.module.ts's buildDocumentTypeRegistry) — their
+// scope NAMES are not a coincidence: the MCP tool layer (mcp/tools/scope-mapping.ts) computes the
+// scope a given `typeId` needs by pluralising it ("quote" -> "quotes:read", "credit-note" ->
+// "credit-notes:write", ...) rather than hand-mapping each one, so this array is the ONLY place a
+// new document type's own MCP access has to be declared — never a second, drifting list. "clients"
+// and "articles" are real business ENTITIES the MCP tools read/write directly (list_clients,
+// create_client, list_articles), not document types resolved through DocumentTypeRegistry — kept
+// distinct from the five above for exactly that reason (see scope-mapping.ts's own header).
 export const API_KEY_SCOPES = [
-    'quotes:write',
-    'invoices:write',
-    'clients:write',
-    'articles:write',
-    'articles:read',
-    'quotes:read',
-    'invoices:read',
-    'clients:read',
+  'quotes:write',
+  'invoices:write',
+  'clients:write',
+  'articles:write',
+  'articles:read',
+  'quotes:read',
+  'invoices:read',
+  'clients:read',
+  // The document engine grew two more shipped types
+  // (credit-note, expense, received-invoice) since the scopes above were first declared; the MCP
+  // module's generic, per-descriptor tools (list_documents/get_document/run_document_action) reach
+  // every registered type, not just the original four, so every type needs its own read/write pair
+  // here or `scopeForDocumentType` (mcp/tools/scope-mapping.ts) has nothing to grant for it.
+  'credit-notes:write',
+  'credit-notes:read',
+  'expenses:write',
+  'expenses:read',
+  'received-invoices:write',
+  'received-invoices:read',
+  // Added when `@RequiresScope` (utils/scope-check.ts) was wired into `AuthGuard` and applied to the
+  // REST controllers themselves, not just the MCP layer — until then `hasScope()` had exactly one
+  // real caller in the whole backend, so a key minted for one narrow purpose still reached every
+  // REST route its holder's CompanyRole allowed. These four resources have no per-descriptor shape
+  // the way a document type does (they are each exactly one controller), so one read/write pair
+  // apiece is the whole story: `company` covers BOTH `company.controller.ts` (this company's own
+  // settings) and `companies.controller.ts` (creation/membership) — the two route prefixes a caller
+  // would call "my company", not two separately-grantable concerns.
+  'company:read',
+  'company:write',
+  'api-keys:read',
+  'api-keys:write',
+  'webhooks:read',
+  'webhooks:write',
+  'billing:read',
+  'billing:write',
+  // Time tracking — projects and the time entries logged against them (`modules/time-tracking/`).
+  // Its OWN pair rather than a fold onto `invoices:*`: a key minted to log an hour must not thereby
+  // gain the power to issue an invoice, and the two resources have nothing else in common. The one
+  // route that crosses the line, `POST /time-entries/generate-invoice`, reads entries AND creates an
+  // invoice, so it names `invoices:write` instead — `@RequiresScope` is an any-of check and cannot
+  // express "both", which makes gating it on the heavier consequence the only honest reading.
+  //
+  // Neither half is a document type: no `DocumentTypeDescriptor` resolves a project, so
+  // `scopeForDocumentType` can never compute either name. Both are therefore listed in the exclusion
+  // list of `utils/scope-check.ts`, WITHOUT which they would silently join `DOCUMENT_READ_SCOPES`/
+  // `DOCUMENT_WRITE_SCOPES` (derived as "everything here minus that list") and a key granted nothing
+  // but `time-tracking:read` would satisfy the coarse "holds ANY document scope" fallback.
+  'time-tracking:read',
+  'time-tracking:write',
 ] as const;
 
-export type ApiKeyScope = typeof API_KEY_SCOPES[number];
+export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
 export function isApiKeyScope(value: string): value is ApiKeyScope {
-    return (API_KEY_SCOPES as readonly string[]).includes(value);
+  return (API_KEY_SCOPES as readonly string[]).includes(value);
 }

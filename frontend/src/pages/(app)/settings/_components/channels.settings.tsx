@@ -1,0 +1,552 @@
+"use client"
+
+import { CheckCircle2, Loader2, Radio, XCircle } from "lucide-react"
+import { useState } from "react"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useDocumentTransports } from "@/hooks/queries"
+import { useGet, usePut, useDelete } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { SettingsListSkeleton, SettingsPage, SettingsRowMenu, SettingsSection } from "./settings-section"
+
+type ChannelEnvironment = "TEST" | "PROD"
+
+interface ChannelProvenance {
+  kind: "legal" | "unverified"
+  resolutionNote?: string
+  sourceText?: string
+  sourceCheckedAt?: string
+}
+interface ConfiguredChannel {
+  providerId: string
+  channel: string
+  environment: ChannelEnvironment
+  isActive: boolean
+}
+interface SuggestedChannel {
+  providerId: string
+  // A country's own policy on this channel: "suggested" is the original,
+  // non-binding hint; "mandated" (with `mandatedFrom`) means an invoice issued on or after that date
+  // is REFUSED at the backend preflight if sent through anything else (see invoice-actions.ts's own
+  // header). Both fields optional so an older response shape still type-checks — nothing here
+  // assumes every provider entry has been through the new schema.
+  requirement?: "suggested" | "mandated"
+  mandatedFrom?: string
+  provenance: ChannelProvenance
+}
+// A NEW concept, never a transport: a declaration provider (e.g. Portugal's AT "comunicação de
+// faturas") never carries an invoice to its buyer, it requires the SELLER to declare its data to a
+// tax authority AFTER issuance. Kept as its OWN array (`reportingObligations`), never folded into
+// `suggested` above — see `channels.service.ts#reportingObligations`'s own header for why that would
+// misrepresent the fact.
+interface ReportingObligation {
+  providerId: string
+  appliesTo: "invoice" | "credit-note"
+  provenance: ChannelProvenance
+}
+interface ChannelsResponse {
+  configured: ConfiguredChannel[]
+  suggested: SuggestedChannel[]
+  reportingObligations: ReportingObligation[]
+}
+
+/** Friendly display names for known providers — `TransportRegistry.list()`'s own label ("PDP
+ *  (France)") is written for the invoice-transport PICKER, not this settings screen; falls back to
+ *  the bare id (uppercased) for a provider this screen has no opinion about yet. */
+const PROVIDER_LABELS: Record<string, string> = {
+  pdp: "PDP",
+  ksef: "KSeF",
+  sdi: "SdI",
+  "chorus-pro": "Chorus Pro",
+}
+
+/** Every provider id this screen renders as a DECLARATION (never a delivery channel) — the visual
+ *  distinction, unconditional on the badge (never dependent on
+ *  whether `reportingObligations` actually named it for THIS company's country: a company that
+ *  already connected one of these before moving its registered country elsewhere still sees it
+ *  correctly labeled, never silently relabeled as an ordinary channel). NAV (Hungary) and myDATA
+ *  (Greece) used to be the two entries here — both deleted outright along with the rest of their
+ *  countries' scope (2026-09-12, see `documentation/docs/developer-guide/live-testing.md`), leaving this set
+ *  temporarily empty until a future declaration provider ships. */
+const REPORTING_PROVIDER_IDS = new Set<string>([])
+
+/**
+ * One provider's config field — the settings-screen half of what the PDP integration had hard-coded
+ * directly into `ChannelRow`'s own JSX. KSeF/SdI generalize it: a THIRD PARTY
+ * provider (this screen's `providerIds` already unions `TransportRegistry.list()` with whatever is
+ * configured/suggested — see this file's own `ChannelsSettings` header) declares its config shape
+ * HERE, once, rather than needing a new branch in the render function the way PDP's own fields used
+ * to be. `environment` (TEST/PROD) is NOT one of these — it is already a generic, provider-agnostic
+ * concept every `CompanyChannelConfig` row carries (see `channels.service.ts`'s own header), rendered
+ * identically for every provider below.
+ */
+interface ChannelFieldSpec {
+  /** The key this field is stored under in the encrypted `config` blob — e.g. "clientId". */
+  key: string
+  labelKey: string
+  labelDefault: string
+  type: "text" | "password"
+  placeholder?: string
+  /** Lets a field's own backend credential shape mark itself as genuinely optional (left blank, the
+   *  provider falls back to a fixed default) — `handleConnect`'s own "every field required" check
+   *  below skips any field carrying this flag. No provider currently declares one; kept for the next
+   *  provider whose credential shape needs it. */
+  optional?: boolean
+}
+
+/** One entry per provider `TransportRegistry` can hand a company — see `ChannelFieldSpec`'s own
+ *  header. Adding a FOURTH national channel is exactly one more entry here, never a new branch in
+ *  `ChannelRow`'s render below. */
+const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
+  pdp: [
+    {
+      key: "baseUrl",
+      labelKey: "settings.channels.fields.baseUrl",
+      labelDefault: "API base URL",
+      type: "text",
+      placeholder: "https://api.superpdp.tech",
+    },
+    {
+      key: "clientId",
+      labelKey: "settings.channels.fields.clientId",
+      labelDefault: "Client ID",
+      type: "text",
+    },
+    {
+      key: "clientSecret",
+      labelKey: "settings.channels.fields.clientSecret",
+      labelDefault: "Client secret",
+      type: "password",
+    },
+  ],
+  // KSeF (PL). `nip`/`ksefToken` are the ONLY provider-specific fields
+  // `ksef-transport.ts#extractCredentials` reads; the environment selector below (generic, already
+  // rendered for every provider) is what the transport reads as TEST/PROD.
+  ksef: [
+    {
+      key: "nip",
+      labelKey: "settings.channels.fields.ksefNip",
+      labelDefault: "NIP",
+      type: "text",
+      placeholder: "5260001246",
+    },
+    {
+      key: "ksefToken",
+      labelKey: "settings.channels.fields.ksefToken",
+      labelDefault: "KSeF token",
+      type: "password",
+    },
+  ],
+  // SdI (IT) — now "implemented-awaiting-accreditation" (a real SdICoop SOAP client
+  // exists, `transports/sdi/sdicoop-client.ts` — see that file's own header). Exactly the four fields
+  // `sdi-transport.ts#extractCredentials` reads: idTrasmittente/certificate/`endpoint` are required to
+  // be "connected"; certificatePassword is read through when present without being required (a real
+  // PFX legitimately can carry an empty one — see that file's own header). `endpoint` is the
+  // SdIRiceviFile HTTPS URL AdE's own Sistema di Accreditamento hands the accredited intermediary —
+  // never a fixed constant this screen could default to (see `sdicoop-client.ts`'s own header on why).
+  sdi: [
+    {
+      key: "idTrasmittente",
+      labelKey: "settings.channels.fields.sdiIdTrasmittente",
+      labelDefault: "IdTrasmittente",
+      type: "text",
+      placeholder: "IT01234567890",
+    },
+    {
+      key: "endpoint",
+      labelKey: "settings.channels.fields.sdiEndpoint",
+      labelDefault: "SdIRiceviFile endpoint URL",
+      type: "text",
+      placeholder: "https://sdi.example.it/ricevi_file",
+    },
+    {
+      key: "certificate",
+      labelKey: "settings.channels.fields.sdiCertificate",
+      labelDefault: "PFX certificate (base64)",
+      type: "password",
+    },
+    {
+      key: "certificatePassword",
+      labelKey: "settings.channels.fields.sdiCertificatePassword",
+      labelDefault: "Certificate password",
+      type: "password",
+    },
+  ],
+  // Chorus Pro (FR, B2G) — makes the channel the B2G FR routing rule (`b2g-routing/data/fr.json`)
+  // has named since 3cb39f91 actually connectable. Exactly the four fields
+  // `chorus-pro-transport.ts#extractChorusProCredentials` reads: TWO independent credential layers
+  // (see documentation/docs/developer-guide/credentials-guide.md, PISTE section) — a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
+  // Chorus Pro "compte technique" (`technicalAccountLogin`/`technicalAccountPassword`), both required
+  // to be "connected". The environment selector below (generic, already rendered for every provider)
+  // picks sandbox vs prod — `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS` targets the PISTE
+  // sandbox independently verified reachable (TEST) or the production PISTE host (PROD);
+  // there is no separate URL field here, unlike PDP/SdI, since Chorus Pro's own OAuth/API hosts are a
+  // fixed platform fact, never a user-editable endpoint.
+  "chorus-pro": [
+    {
+      key: "clientId",
+      labelKey: "settings.channels.fields.chorusProClientId",
+      labelDefault: "PISTE client ID",
+      type: "text",
+      placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    },
+    {
+      key: "clientSecret",
+      labelKey: "settings.channels.fields.chorusProClientSecret",
+      labelDefault: "PISTE client secret",
+      type: "password",
+    },
+    {
+      key: "technicalAccountLogin",
+      labelKey: "settings.channels.fields.chorusProTechnicalAccountLogin",
+      labelDefault: "Chorus Pro technical account login (compte technique)",
+      type: "text",
+      placeholder: "TECH_1_xxxxxx@cpro.fr",
+    },
+    {
+      key: "technicalAccountPassword",
+      labelKey: "settings.channels.fields.chorusProTechnicalAccountPassword",
+      labelDefault: "Chorus Pro technical account password",
+      type: "password",
+    },
+  ],
+  // ANAF (RO), FACe (ES), NAV (HU) and myDATA (GR) used to have their field specs here. All four
+  // channels/providers were deleted outright from the backend along with the rest of their
+  // countries' scope (2026-09-12, see `documentation/docs/developer-guide/live-testing.md`) — none of RO/ES/HU/GR is
+  // in this product's scope any more, so offering a configuration form for them here would be
+  // pure fiction: nothing on the backend would ever route through what a user typed in. A company
+  // that connected one of these before the deletion still sees its row (via `configuredMap` in
+  // `ChannelsSettings` below) so it can be disconnected cleanly — see `fields.length === 0`'s own
+  // "no configurable fields yet" fallback just below.
+}
+
+/**
+ * One channel's connect/disconnect card, now GENERIC by provider (PDP's own three fields used to be
+ * hard-coded directly here; KSeF and SdI needed a second and third shape,
+ * so the field LIST moved to `PROVIDER_FIELDS` above and this component only ever renders
+ * whatever that list declares — no branch on `providerId` anywhere in this function). `GET/PUT/DELETE
+ * /api/company/channels/:providerId` (`modules/company/channels/`): the PUT body is encrypted at rest
+ * server-side and NEVER echoed back — see `channels.service.ts`'s own header — so this component
+ * never has a decrypted secret to pre-fill an edit form with; "Edit" always starts blank.
+ */
+function ChannelRow({
+  providerId,
+  configured,
+  suggested,
+  reportingObligation,
+  onChanged,
+}: {
+  providerId: string
+  configured?: ConfiguredChannel
+  suggested?: SuggestedChannel
+  reportingObligation?: ReportingObligation
+  onChanged: () => void
+}) {
+  const { t } = useTranslation()
+  const fields = PROVIDER_FIELDS[providerId] ?? []
+  const [config, setConfig] = useState<Record<string, string>>(() =>
+    Object.fromEntries(fields.map((f) => [f.key, ""])),
+  )
+  const [environment, setEnvironment] = useState<ChannelEnvironment>("TEST")
+  const [editing, setEditing] = useState(!configured?.isActive)
+
+  const isConnected = !!configured?.isActive
+  const isReporting = REPORTING_PROVIDER_IDS.has(providerId)
+
+  const { trigger: upsert, loading: connecting } = useMutationWithToast(
+    usePut(`/api/company/channels/${providerId}`),
+    t("settings.channels.messages.connectError", "Failed to connect the channel"),
+  )
+  const { trigger: disconnectChannel, loading: disconnecting } = useMutationWithToast(
+    useDelete(`/api/company/channels/${providerId}`),
+    t("settings.channels.messages.disconnectError", "Failed to disconnect the channel"),
+  )
+
+  const handleConnect = async () => {
+    const missing = fields.filter((f) => !f.optional && !config[f.key]?.trim())
+    if (missing.length > 0) {
+      toast.error(
+        t("settings.channels.messages.fieldsRequired", "{{fields}} are all required", {
+          fields: fields.map((f) => t(f.labelKey, f.labelDefault)).join(", "),
+        }),
+      )
+      return
+    }
+    const result = await upsert({ environment, config })
+    if (!result) return // error already toasted by the wrapper
+    toast.success(t("settings.channels.messages.connectSuccess", "Channel connected"))
+    setConfig(Object.fromEntries(fields.map((f) => [f.key, ""])))
+    setEditing(false)
+    onChanged()
+  }
+
+  const handleDisconnect = async () => {
+    const result = await disconnectChannel()
+    if (!result) return // error already toasted by the wrapper
+    toast.success(t("settings.channels.messages.disconnectSuccess", "Channel disconnected"))
+    setEditing(true)
+    onChanged()
+  }
+
+  const label = PROVIDER_LABELS[providerId] ?? providerId.toUpperCase()
+  // The chip states requirement #3 asks for: `success` once actually connected, `warning` when this
+  // company's own country wants the channel (suggested or mandated) but it isn't connected yet, and
+  // `secondary` (muted) when the channel is merely AVAILABLE — no country-specific reason to bother.
+  const statusVariant = isConnected ? "success" : suggested ? "warning" : "secondary"
+
+  return (
+    <SettingsSection
+      dataCy={`channel-${providerId}`}
+      title={
+        <>
+          {isConnected ? (
+            <CheckCircle2 className="size-4 shrink-0 text-success-foreground" aria-hidden="true" />
+          ) : (
+            <XCircle className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+          {label}
+          <Badge variant={statusVariant} data-cy={`channel-${providerId}-status`}>
+            {isConnected
+              ? t("settings.channels.status.connected", "Connected ({{environment}})", {
+                  environment: configured?.environment,
+                })
+              : t("settings.channels.status.notConnected", "Not connected")}
+          </Badge>
+          {/* The concept-distinguishing badge: NEVER a delivery channel, whatever its own
+              connected/not-connected status reads above. Shown unconditionally for a provider this
+              screen classifies as declarative (`REPORTING_PROVIDER_IDS`), independent of
+              `reportingObligations` (a company that already connected one before moving its own
+              registered country elsewhere still sees it correctly labeled). */}
+          {isReporting && (
+            <Badge variant="outline" data-cy={`channel-${providerId}-declarative`}>
+              {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
+            </Badge>
+          )}
+          {suggested && (
+            <Badge variant="outline" data-cy={`channel-${providerId}-suggested`}>
+              {t("settings.channels.status.suggested", "Suggested for your country")}
+            </Badge>
+          )}
+          {/* A STRONGER, visually distinct badge for a channel the country MANDATES, never replacing
+              the "suggested" badge above (a mandate is a strengthened suggestion, not a contradiction
+              of it — see this file's own header on `requirement`). Shown unconditionally whenever the
+              file declares `mandated`, regardless of whether `mandatedFrom` has actually been reached
+              yet — the date itself is spelled out in the badge text so nothing here depends on today's
+              wall-clock date to be TRUTHFUL. */}
+          {suggested?.requirement === "mandated" && (
+            <Badge variant="destructive" data-cy={`channel-${providerId}-mandated`}>
+              {t("settings.channels.status.mandated", "Mandatory from {{date}}", {
+                date: suggested.mandatedFrom,
+              })}
+            </Badge>
+          )}
+        </>
+      }
+      description={
+        (suggested &&
+          (suggested.provenance.kind === "unverified"
+            ? suggested.provenance.resolutionNote
+            : suggested.provenance.sourceText)) ||
+        (reportingObligation &&
+          (reportingObligation.provenance.kind === "unverified"
+            ? reportingObligation.provenance.resolutionNote
+            : reportingObligation.provenance.sourceText))
+      }
+      aside={
+        isConnected && !editing ? (
+          <SettingsRowMenu
+            dataCy={`channel-${providerId}-menu`}
+            items={[
+              {
+                label: t("settings.channels.actions.edit", "Edit"),
+                onSelect: () => setEditing(true),
+                dataCy: `channel-${providerId}-edit-button`,
+              },
+              {
+                label: t("settings.channels.actions.disconnect", "Disconnect"),
+                onSelect: handleDisconnect,
+                disabled: disconnecting,
+                destructive: true,
+                dataCy: `channel-${providerId}-disconnect-button`,
+              },
+            ]}
+          />
+        ) : undefined
+      }
+      footer={
+        editing ? (
+          <div className="flex justify-end gap-2">
+            {isConnected && (
+              <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                {t("settings.channels.actions.cancel", "Cancel")}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleConnect}
+              disabled={connecting || fields.length === 0}
+              data-cy={`channel-${providerId}-connect-button`}
+            >
+              {connecting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                t("settings.channels.actions.connect", "Connect")
+              )}
+            </Button>
+          </div>
+        ) : undefined
+      }
+    >
+      {editing &&
+        (fields.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t("settings.channels.messages.noFields", "This channel has no configurable fields yet.")}
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor={`${providerId}-environment`}>
+                {t("settings.channels.fields.environment", "Environment")}
+              </Label>
+              <Select value={environment} onValueChange={(v) => setEnvironment(v as ChannelEnvironment)}>
+                <SelectTrigger
+                  id={`${providerId}-environment`}
+                  className="w-full"
+                  data-cy={`channel-${providerId}-environment-select`}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent data-cy={`channel-${providerId}-environment-options`}>
+                  <SelectItem value="TEST" data-cy={`channel-${providerId}-environment-option-test`}>
+                    {t("settings.channels.fields.environmentTest", "Test (sandbox)")}
+                  </SelectItem>
+                  <SelectItem value="PROD" data-cy={`channel-${providerId}-environment-option-prod`}>
+                    {t("settings.channels.fields.environmentProd", "Production")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {fields.map((field) => (
+              <div className="space-y-1.5" key={field.key}>
+                <Label htmlFor={`${providerId}-${field.key}`}>{t(field.labelKey, field.labelDefault)}</Label>
+                <Input
+                  id={`${providerId}-${field.key}`}
+                  data-cy={`channel-${providerId}-${field.key.toLowerCase()}-input`}
+                  type={field.type}
+                  placeholder={field.placeholder}
+                  value={config[field.key] ?? ""}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+        ))}
+    </SettingsSection>
+  )
+}
+
+/**
+ * Company settings → Channels (`/settings/channels`) — connect/disconnect a
+ * national transmission channel. `GET /api/company/channels` returns both what is already
+ * `configured` (status only, never a secret — see `channels.service.ts`'s own header) and what this
+ * company's OWN country `suggested` (advisory — the data comes
+ * from `transports/channel-suggestion/data/*.json`, never a hard-coded country check here — a PL
+ * company sees KSeF suggested, an IT company sees SdI, a FR company sees PDP, all from the same three
+ * lines of JSON).
+ *
+ * The provider list itself is the union of every registered TRANSPORT (`GET /api/documents/
+ * transports`, excluding "email" — a plain address, not a channel needing credentials) with whatever
+ * is already configured or suggested: a provider a company already connected keeps showing even if
+ * it were ever deregistered, and a suggested-but-not-yet-registered provider (unreachable today)
+ * would still be visible rather than silently dropped.
+ *
+ * Once connected, the provider becomes a normal option in the EXISTING invoice-transport picker
+ * (`company.settings.tsx`'s own `invoiceTransportId` select, "company-invoice-transport-select") —
+ * nothing here writes to that column: a company picks its transport there exactly as it always did,
+ * this screen only ever decides whether that transport can actually deliver anything.
+ */
+export default function ChannelsSettings() {
+  const { t } = useTranslation()
+  const {
+    data: channels,
+    loading: channelsLoading,
+    mutate,
+  } = useGet<ChannelsResponse>("/api/company/channels")
+  const { data: transports, isLoading: transportsLoading } = useDocumentTransports()
+
+  // `ChannelRow` below freezes its own `editing` state from `configured?.isActive` at MOUNT time
+  // (`useState(!configured?.isActive)`, never revisited except on an explicit connect/disconnect) —
+  // correct once `channels` has actually loaded, wrong for good if this component (and so
+  // `ChannelRow`) first mounts with `channels` still `undefined` (`configuredMap` then empty,
+  // `configured` `undefined`, `editing` locked to `true`). `transports` and `channels` are two
+  // INDEPENDENT queries; `providerIds` used to be built the moment EITHER resolved, so whichever
+  // settled first decided every row's fate. Proven live (CI run 35095971350, spec 31's own "disconnects
+  // the chorus-pro channel via the screen": the status badge correctly read "Connected" — that text is
+  // recomputed every render, never frozen — but `[data-cy="channel-chorus-pro-menu"]` never existed,
+  // because `editing` had locked `true` on a first paint that raced ahead of `channels`). Gating the
+  // whole list on BOTH queries having resolved is what removes the race, rather than special-casing
+  // `ChannelRow`'s own initializer.
+  if (channelsLoading || transportsLoading) {
+    return (
+      <SettingsPage
+        title={t("settings.channels.title", "Channels")}
+        description={t(
+          "settings.channels.description",
+          "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
+        )}
+        dataCy="channels-section"
+      >
+        <SettingsListSkeleton rows={2} />
+      </SettingsPage>
+    )
+  }
+
+  const knownProviderIds = (transports ?? []).map((tr) => tr.id).filter((id) => id !== "email")
+  const configuredMap = new Map((channels?.configured ?? []).map((c) => [c.providerId, c] as const))
+  const suggestedMap = new Map((channels?.suggested ?? []).map((s) => [s.providerId, s] as const))
+  // A reporting provider is offered ONLY when this company's own country
+  // actually carries the obligation (unlike `knownProviderIds` above, listed for every company
+  // regardless of country): unlike a delivery channel, connecting one for a country with no such
+  // obligation would be pure noise, never a genuine option. `configuredMap` still keeps a PREVIOUSLY
+  // connected one visible even if the company's registered country later changed.
+  const reportingMap = new Map((channels?.reportingObligations ?? []).map((r) => [r.providerId, r] as const))
+  const providerIds = Array.from(
+    new Set([...knownProviderIds, ...configuredMap.keys(), ...suggestedMap.keys(), ...reportingMap.keys()]),
+  )
+
+  return (
+    <SettingsPage
+      title={t("settings.channels.title", "Channels")}
+      description={t(
+        "settings.channels.description",
+        "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
+      )}
+      dataCy="channels-section"
+    >
+      {providerIds.map((id) => (
+        <ChannelRow
+          key={id}
+          providerId={id}
+          configured={configuredMap.get(id)}
+          suggested={suggestedMap.get(id)}
+          reportingObligation={reportingMap.get(id)}
+          onChanged={mutate}
+        />
+      ))}
+
+      {providerIds.length === 0 && (
+        <EmptyState
+          icon={Radio}
+          title={t("settings.channels.emptyState", "No national channel available yet")}
+        />
+      )}
+    </SettingsPage>
+  )
+}

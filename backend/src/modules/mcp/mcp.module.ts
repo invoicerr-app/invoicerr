@@ -1,13 +1,19 @@
 import { ArticlesModule } from '@/modules/articles/articles.module';
 import { ClientsModule } from '@/modules/clients/clients.module';
-import { InvoicesModule } from '@/modules/invoices/invoices.module';
+import { DocumentsModule } from '@/modules/documents/documents.module';
 import { McpController } from './mcp.controller';
 import { Module } from '@nestjs/common';
-import { PdfLinksModule } from '@/modules/pdf-links/pdf-links.module';
-import { QuotesModule } from '@/modules/quotes/quotes.module';
 
+/**
+ * The MCP server module. `DocumentsModule` re-exports `DocumentsCoreModule` wholesale
+ * (see that file's own header), which is where `DocumentsService`/`ShareLinksService` actually live
+ * — imported here for exactly those two. `ClientsModule`/`ArticlesModule` are imported directly:
+ * `list_clients`/`create_client`/`list_articles` read those services straight, the same way the
+ * removed compliance engine's own `McpModule` did (git tag `avant-refonte-documents`) — those two
+ * entities were never part of the demolition the documents module was rebuilt on top of.
+ */
 @Module({
-    imports: [QuotesModule, InvoicesModule, ClientsModule, ArticlesModule, PdfLinksModule],
-    controllers: [McpController],
+  imports: [DocumentsModule, ClientsModule, ArticlesModule],
+  controllers: [McpController],
 })
-export class McpModule { }
+export class McpModule {}

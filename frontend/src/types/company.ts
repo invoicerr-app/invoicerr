@@ -1,39 +1,107 @@
+import type { PartyIdentifier } from "./client"
+
 export type CompanyRole = "OWNER" | "ADMIN" | "MEMBER"
 
 export interface CompanyMembership {
-    id: string
-    name: string
-    role: CompanyRole
+  id: string
+  name: string
+  role: CompanyRole
 }
 
 export interface CompanyMember {
-    userId: string
-    email: string
-    firstname: string
-    lastname: string
-    role: CompanyRole
-    joinedAt: string
+  userId: string
+  email: string
+  firstname: string
+  lastname: string
+  role: CompanyRole
+  joinedAt: string
 }
 
 export interface Company {
-    id: string
-    description?: string | null
-    legalId?: string | null
-    foundedAt: Date | string
-    name: string
-    currency: string
-    VAT?: string | null
-    exemptVat?: boolean
-    address: string
-    addressLine2?: string | null
-    postalCode: string
-    city: string
-    state?: string | null
-    country: string
-    phone: string
-    email: string
-    quoteStartingNumber: number
-    quoteNumberFormat: string
-    invoiceStartingNumber: number
-    invoiceNumberFormat: string
+  id: string
+  description?: string | null
+  foundedAt: Date | string
+  name: string
+  currency: string
+  exemptVat?: boolean
+  /** Where this company's intra-Community DISTANCE SALES to consumers are taxed: "ORIGIN" (its own
+   *  country) or "DESTINATION" (the buyer's). Null/unset means never declared, which is not a
+   *  default the product picks — sending a cross-border B2C sale of goods inside the EU is refused,
+   *  by name, until it is declared (see backend's Company.distanceSalesRegime schema.prisma comment
+   *  for the Directive articles, and documents/tax/resolve-invoice-tax.ts for the block). */
+  distanceSalesRegime?: string | null
+  address: string
+  addressLine2?: string | null
+  postalCode: string
+  city: string
+  state?: string | null
+  country: string
+  countryCode?: string | null
+  // The FALLBACK document language for a client with no `Client.language` of its own. See the
+  // backend's `Company.language` schema.prisma comment and
+  // documents/rendering/language/resolve-recipient-language.ts.
+  language?: string | null
+  phone: string
+  email: string
+  /** BT-84 (Payment account identifier) — the seller's own receiving account, optional. Required by
+   *  XRechnung's own BR-DE-1 (backend/src/modules/documents/formats/xrechnung-provider.ts); absent
+   *  for every other syntax. Never auto-filled — see Company.iban's own schema.prisma comment. */
+  iban?: string | null
+  /** Per-document-type number FORMAT, keyed by a `DocumentTypeDescriptor` id — e.g.
+   *  `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here falls back to the backend's own
+   *  shipped default (`documents/numbering/format-number.ts#defaultNumberFormatFor`), never a hole —
+   *  only in who chose it. Written through `PUT /api/company/number-format`
+   *  (`company.settings.tsx`'s "Number formats" card, `atcud.settings.tsx`'s own card), never through
+   *  this same `POST /api/company/info` object — see backend's `company.service.ts#editCompanyInfo`
+   *  for why that write path allow-lists its columns instead of accepting this one from the body. */
+  numberFormats?: Record<string, string> | null
+  partyIdentifiers?: PartyIdentifier[]
+  /** Which registered document transport (GET /api/documents/transports) the invoice "send" action
+   *  uses — e.g. "email". Null/unset means no transport is configured: sending blocks until one is
+   *  chosen (see backend/src/modules/documents/actions/invoice-actions.ts). Never a country/channel
+   *  the app infers — it is only ever this stored choice. */
+  invoiceTransportId?: string | null
+  /** Opts the company INTO multi-currency consolidation — null/unset means every
+   *  dashboard aggregate stays grouped by currency, unchanged (see backend's Company.referenceCurrency
+   *  comment in schema.prisma). */
+  referenceCurrency?: string | null
+  /** Internal approval workflow ("internal approval workflow beyond a threshold") — the "send"
+   *  approval-threshold gate. MINOR units, in the company's OWN `currency` above (a rough guardrail,
+   *  never currency-converted — see backend's documents/approval/approval-gate.ts). Null/unset means
+   *  no approval is ever required, for any role, at any amount. */
+  approvalThresholdMinor?: number | null
+  /** Gates the daily reminder sweep (backend's `reminders/reminder-sweep-runner.ts`) — sends
+   *  escalating overdue-payment reminders (7/14/30 days) to clients. Off by default; see backend's
+   *  Company.remindersEnabled comment in schema.prisma. */
+  remindersEnabled?: boolean
+  /** Which registered payment provider (GET /api/company/channels, `payments/payment-provider-
+   *  registry.ts`) the client portal's "Pay" link opens a checkout session against — "stripe" |
+   *  "mollie" | "paypal". Null/unset falls back to "stripe" (backend's `Company.paymentProviderId`
+   *  schema.prisma comment) — never a country/channel this app infers, only this stored choice.
+   *  Written by its OWN small selector on the Payments settings screen (`payments.settings.tsx`),
+   *  never this big form. */
+  paymentProviderId?: string | null
+}
+
+/** A manually-entered exchange rate — GET/POST /api/company/currency-rates. See backend's
+ *  CurrencyRate model (schema.prisma) for the full contract: no auto-derived inverse, `asOf`
+ *  resolution picks the most recent one not in the future. */
+export interface CurrencyRate {
+  id: string
+  companyId: string
+  from: string
+  to: string
+  rate: number
+  asOf: string
+  source: string
+  createdAt: string
+}
+
+/** GET /api/company/currency-rates/gaps — a pair this company entered by hand that the daily sweep
+ *  has never been able to refresh from either automatic source (ECB, or the open.er-api.com
+ *  fallback). See the backend's `currency-rates.store.ts#listCurrencyRatePairsWithoutAutomaticRate`
+ *  for the full contract. */
+export interface CurrencyRatePairGap {
+  from: string
+  to: string
 }

@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Quote Signing
 
-The **Quote Signing** page is the client-facing side of the quote process. When you send a quote for signature, your client receives an email with a secure link to `/signature/[id]` — no account required.
+The **Quote Signing** page is the client-facing side of the quote process. When you send a quote for signature, your client receives an email with a secure link to `/signature/[token]` — no account required.
 
 ## The signing flow
 
