@@ -60,22 +60,31 @@ all change how long a real fix takes; a promised date that then slips would be w
   example; a report that a service is exploitable when that guidance is deliberately ignored isn't a
   new finding.
 
-## Known unpatched issue on the current release line
+## Known unpatched issues on the current release line
 
-**GHSA-g76v-ff9h-j6r2** (medium severity) was reported through the private channel above and confirmed.
-It affects the currently published release line (the `v1.4.x` tags). The fix depends on a change that
-only lands with the next major version, currently in development, and is **not** being backported to
-1.x.
+Three advisories are published against the `v1.4.x` line. **None of them is patched on 1.x**, and no
+interim patch is planned: each fix depends on changes that only land with the next major version,
+currently in development. If you self-host a `v1.x` instance today, all three affect it until you
+upgrade.
 
-If you run a `v1.x` self-hosted instance today, this issue affects it until you upgrade once the next
-major version ships — there is no interim patch planned for the 1.x line. Detail beyond what's stated
-here is available on request through the same reporting channel while the advisory itself isn't yet
-public.
+| Advisory | Severity | Affects | What it is |
+| --- | --- | --- | --- |
+| [GHSA-7vg5-q3gv-jx97](https://github.com/invoicerr-app/invoicerr/security/advisories/GHSA-7vg5-q3gv-jx97) | High | `<= 1.4.6b` | Webhook delivery performs server-side requests to administrator-supplied URLs with no outbound-URL guard, which turns every webhook-firing event into an authenticated request against whatever the instance itself can reach. |
+| [GHSA-vhjw-gwc5-pjfp](https://github.com/invoicerr-app/invoicerr/security/advisories/GHSA-vhjw-gwc5-pjfp) | High | `<= v1.4.5c` | The one-time code that proves a client's identity before they sign a quote does not stand up to a determined guess. |
+| [GHSA-g76v-ff9h-j6r2](https://github.com/invoicerr-app/invoicerr/security/advisories/GHSA-g76v-ff9h-j6r2) | Medium | `>= 1.4.6a` | A payment method belonging to one company can be reached from another. |
 
-This section exists because a security policy that stays silent about a known, deliberately-unpatched
-issue on the version people are actually running would not be much of a policy — see the project's own
-[breach-response procedure](./documentation/internal/BREACH-RESPONSE-PROCEDURE.md) for how a report
-like this one is handled operationally once personal data, rather than just code, is what's at risk.
+Each advisory carries the detail; this table exists so that the list is visible from the policy
+rather than only from the Security tab.
+
+**What you can do while you wait.** The first one is the only one with a meaningful workaround: it is
+reachable only through webhook configuration, so an instance whose administrators add no webhook — or
+only webhooks pointing at addresses outside its own network — is not exposed by it. The other two are
+reachable through normal use and have none.
+
+A security policy that stayed silent about known, deliberately-unpatched issues on the version people
+are actually running would not be much of a policy. How a report is handled operationally once
+personal data, rather than just code, is what's at risk is set out in the project's own
+[breach-response procedure](./documentation/internal/BREACH-RESPONSE-PROCEDURE.md).
 
 ## Supported versions
 
