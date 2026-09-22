@@ -3,7 +3,7 @@ title: Transparenz des internationalen Datenzugriffs
 language: de
 ---
 
-:::warning Entwurf
+:::warning[Entwurf]
 Entwurf — noch nicht anwaltlich geprüft.
 :::
 

@@ -5,7 +5,7 @@ version: 2026-09-21
 effectiveDate: 2026-09-21
 ---
 
-:::warning Draft
+:::warning[Draft]
 Draft — not yet reviewed by counsel.
 :::
 

@@ -3,7 +3,7 @@ title: Política de Reembolso e Cancelamento
 language: pt
 ---
 
-:::warning Draft
+:::warning[Draft]
 Rascunho — ainda não revisto por um advogado.
 :::
 

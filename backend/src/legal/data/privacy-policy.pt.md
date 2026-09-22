@@ -3,7 +3,7 @@ title: Política de Privacidade
 language: pt
 ---
 
-:::warning Draft
+:::warning[Draft]
 Rascunho — ainda não revisto por um advogado.
 :::
 

@@ -3,7 +3,7 @@ title: Politique de Remboursement et de Résiliation
 language: fr
 ---
 
-:::warning Brouillon
+:::warning[Brouillon]
 Brouillon — non encore validé par un avocat.
 :::
 

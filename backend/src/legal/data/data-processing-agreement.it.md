@@ -3,7 +3,7 @@ title: Accordo sul Trattamento dei Dati
 language: it
 ---
 
-:::warning Bozza
+:::warning[Bozza]
 Bozza — non ancora verificata da un legale.
 :::
 

@@ -2040,7 +2040,7 @@ function renderBonusSections(cc, locale) {
 
 function notConfiguredCallout(name, mechanismPlain, locale) {
   const S = STRINGS[locale].country;
-  return [`:::info ${S.notConfiguredTitle}`, '', S.notConfiguredBody(name, mechanismPlain), '', ':::', ''].join('\n');
+  return [`:::info[${S.notConfiguredTitle}]`, '', S.notConfiguredBody(name, mechanismPlain), '', ':::', ''].join('\n');
 }
 
 /** country-policy, in plain words — see country-policy/data/*.json: every shipped country today

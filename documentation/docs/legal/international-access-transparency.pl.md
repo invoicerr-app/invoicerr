@@ -3,7 +3,7 @@ title: Przejrzystość Międzynarodowego Dostępu
 language: pl
 ---
 
-:::warning Wersja robocza
+:::warning[Wersja robocza]
 Wersja robocza — jeszcze niezweryfikowana przez prawnika.
 :::
 

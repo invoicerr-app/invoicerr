@@ -3,7 +3,7 @@ title: Mentions Légales
 language: fr
 ---
 
-:::warning Brouillon
+:::warning[Brouillon]
 Brouillon — non encore validé par un avocat.
 :::
 

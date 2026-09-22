@@ -3,7 +3,7 @@ title: Auftragsverarbeitungsvertrag (AVV)
 language: de
 ---
 
-:::warning Entwurf
+:::warning[Entwurf]
 Entwurf — noch nicht anwaltlich geprüft.
 :::
 

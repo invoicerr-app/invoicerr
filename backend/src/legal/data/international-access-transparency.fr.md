@@ -3,7 +3,7 @@ title: Transparence sur l'Accès International
 language: fr
 ---
 
-:::warning Brouillon
+:::warning[Brouillon]
 Brouillon — non encore validé par un avocat.
 :::
 

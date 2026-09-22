@@ -10,7 +10,7 @@ repository instead of `docker-compose.yml`. It deploys the same image in two rol
 queue consumer) — as independently-scaled Deployments, plus Redis, an optional OCR service, and an
 Ingress.
 
-:::info Reference deployment
+:::info[Reference deployment]
 This guide follows the setup this project actually runs in production: **Scaleway Kubernetes
 Kapsule** (Paris), **Scaleway Object Storage** for the legal document archive, and **Scaleway
 Managed Database for PostgreSQL** (Paris) for the database — one provider, one region, for every
@@ -33,7 +33,7 @@ same way — swap the provider-specific values where noted.
 - A Postgres database, unless you only need `postgresql.enabled: true`'s bundled, single-replica,
   **dev/kind-only** Postgres (no HA, no backups — never use it for anything real).
 
-:::warning HTTPS is a prerequisite, and it fails looking like a login bug
+:::warning[HTTPS is a prerequisite, and it fails looking like a login bug]
 `backend/src/lib/auth.ts` configures better-auth with
 `advanced.useSecureCookies: process.env.NODE_ENV === 'production'`, and the published image sets
 `ENV NODE_ENV=production` (repository `Dockerfile`, runtime stage). Every session cookie this
@@ -59,7 +59,7 @@ scheme included** — `matchesOriginPattern` reduces to `pattern === getOrigin(u
 `Access-Control-Allow-Origin` header on the rest, so the browser throws the response away.
 :::
 
-:::warning Why `archive.storage` defaults to `s3`
+:::warning[Why `archive.storage` defaults to `s3`]
 `backend/src/modules/documents/archive/**` is the legal document archive — content-hash-addressed,
 WORM-discipline storage that a country's retention law can require for years. Its `local` mode
 writes to the pod's own filesystem: safe on a single instance, but the moment there is more than
@@ -351,7 +351,7 @@ Never commit these values. For a real operation, prefer a secrets manager
 Secret rather than a plaintext `kubectl create` typed by hand — the command above is the quickest
 path for a first install.
 
-:::warning Rotating a value in this Secret does not restart the pods that read it
+:::warning[Rotating a value in this Secret does not restart the pods that read it]
 `deployment-api.yaml`/`deployment-worker.yaml` only render `podAnnotations` you set yourself
 (`values.yaml`'s own `api.podAnnotations`/`worker.podAnnotations`) — there is no checksum annotation
 computed from the Secret's own content, the pattern many charts use to force a rollout when a Secret

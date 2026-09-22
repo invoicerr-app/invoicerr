@@ -3,7 +3,7 @@ title: Cookies et Politique d'Utilisation Acceptable
 language: fr
 ---
 
-:::warning Brouillon
+:::warning[Brouillon]
 Brouillon — non encore validé par un avocat.
 :::
 

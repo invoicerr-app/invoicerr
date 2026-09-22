@@ -3,7 +3,7 @@ title: Umowa Powierzenia Przetwarzania Danych
 language: pl
 ---
 
-:::warning Wersja robocza
+:::warning[Wersja robocza]
 Wersja robocza — jeszcze niezweryfikowana przez prawnika.
 :::
 

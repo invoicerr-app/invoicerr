@@ -3,7 +3,7 @@ title: Politica di Rimborso e Disdetta
 language: it
 ---
 
-:::warning Bozza
+:::warning[Bozza]
 Bozza — non ancora verificata da un legale.
 :::
 

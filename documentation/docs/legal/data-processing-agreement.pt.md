@@ -3,7 +3,7 @@ title: Acordo de Tratamento de Dados
 language: pt
 ---
 
-:::warning Draft
+:::warning[Draft]
 Rascunho — ainda não revisto por um advogado.
 :::
 

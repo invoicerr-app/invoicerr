@@ -3,7 +3,7 @@ title: Transparência sobre o Acesso Internacional
 language: pt
 ---
 
-:::warning Rascunho
+:::warning[Rascunho]
 Rascunho — ainda não revisto por um advogado.
 :::
 

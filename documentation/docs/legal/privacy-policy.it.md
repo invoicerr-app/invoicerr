@@ -3,7 +3,7 @@ title: Informativa sulla Privacy
 language: it
 ---
 
-:::warning Bozza
+:::warning[Bozza]
 Bozza — non ancora verificata da un legale.
 :::
 

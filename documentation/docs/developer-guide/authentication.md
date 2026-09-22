@@ -49,7 +49,7 @@ correctly shows no button.
 | `OIDC_END_SESSION_ENDPOINT` | Optional. Powers RP-Initiated Logout: without it, signing out of Invoicerr only clears the local session and never logs the user out at the IdP. |
 | `OIDC_ONLY` | `"1"`/`"true"` (case-insensitive) disables email/password sign-in and sign-up instance-wide, and `POST /api/auth-extended/set-password` is refused. Default off. The backend **refuses to boot** if this is set while no OIDC provider exists at all — neither the environment one nor any company-registered one (`assertOidcOnlyHasProvider`, `sso-registrar.service.ts`) — since nobody could then sign in, and configuring the first provider itself requires being signed in. |
 
-:::info Legacy `OIDC_JWKS_URI` alias
+:::info[Legacy `OIDC_JWKS_URI` alias]
 `OIDC_DISCOVERY_URL` used to be named `OIDC_JWKS_URI` — a misleading name, since this value is always
 fetched as an OpenID **discovery document**, never a bare JWKS. The old name is still read as a
 functional alias (`resolveOidcEndpoints()` checks `OIDC_DISCOVERY_URL || OIDC_JWKS_URI`, current name
