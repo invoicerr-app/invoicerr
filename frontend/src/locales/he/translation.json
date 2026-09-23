@@ -1709,7 +1709,8 @@
         },
         "header": {
             "found": "",
-            "count": ""
+            "count": "",
+            "subtitle": "ניהול לקוחות"
         },
         "actions": {
             "addNew": ""
