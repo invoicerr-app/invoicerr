@@ -85,7 +85,8 @@
                     "label": "Land"
                 },
                 "addressLine2": {
-                    "label": "Adresregel 2 (Optioneel)"
+                    "label": "Adresregel 2 (Optioneel)",
+                    "placeholder": ""
                 },
                 "state": {
                     "label": "Staat/Provincie (Optioneel)",
@@ -232,8 +233,11 @@
                     "label": "Korting (%)",
                     "errors": {
                         "min": "Korting kan niet negatief zijn",
-                        "max": "Korting kan niet hoger zijn dan 100%"
-                    }
+                        "max": "Korting kan niet hoger zijn dan 100%",
+                        "required": ""
+                    },
+                    "description": "",
+                    "placeholder": ""
                 },
                 "validUntil": {
                     "label": "Geldig tot",
@@ -247,7 +251,8 @@
                         }
                     },
                     "description": {
-                        "hint": "Tip: gebruik **vet** en *cursief* om te benadrukken."
+                        "hint": "Tip: gebruik **vet** en *cursief* om te benadrukken.",
+                        "placeholder": ""
                     },
                     "quantity": {
                         "placeholder": "Hoeveelheid",
@@ -272,7 +277,9 @@
                             "required": "BTW percentage is vereist",
                             "min": "BTW percentage moet positief zijn"
                         }
-                    }
+                    },
+                    "addItem": "",
+                    "label": ""
                 },
                 "notes": {
                     "label": "Notities",
@@ -311,8 +318,114 @@
                 "discountAmount": "Kortingsbedrag",
                 "totalHT": "Totaal (excl. BTW)",
                 "totalVAT": "BTW bedrag",
-                "totalTTC": "Totaal (incl. BTW)"
+                "totalTTC": "Totaal (incl. BTW)",
+                "signature": ""
             }
+        },
+        "views": {
+            "table": "",
+            "list": ""
+        },
+        "table": {
+            "filters": {
+                "client": "",
+                "allYears": "",
+                "clientPlaceholder": "",
+                "allMonths": "",
+                "clientNoResults": "",
+                "month": "",
+                "year": ""
+            },
+            "columns": {
+                "totalTTC": "",
+                "client": "",
+                "status": "",
+                "createdAt": "",
+                "validUntil": "",
+                "number": ""
+            },
+            "emptyState": "",
+            "actions": {
+                "export": ""
+            }
+        },
+        "createInvoiceDialog": {
+            "title": "",
+            "percentOfQuoteLabel": "",
+            "actions": {
+                "cancel": "",
+                "confirm": ""
+            },
+            "errors": {
+                "quantityExceedsRemaining": "",
+                "quoteFullyInvoiced": ""
+            },
+            "percentageLabel": "",
+            "maxPercentageHint": "",
+            "description": "",
+            "totalSelectedLabel": "",
+            "itemAmountLabel": "",
+            "remainingTotalLabel": "",
+            "fields": {
+                "quantity": {
+                    "label": ""
+                }
+            },
+            "alreadyInvoicedBadge": "",
+            "remainingLabel": "",
+            "amountLabel": ""
+        },
+        "progression": {
+            "stepLabel": "",
+            "confirmations": {
+                "cancel": "",
+                "send": {
+                    "title": "",
+                    "description": ""
+                },
+                "resend": {
+                    "description": "",
+                    "title": ""
+                },
+                "confirm": ""
+            },
+            "noAction": "",
+            "steps": {
+                "sent": "",
+                "draft": "",
+                "signed": ""
+            },
+            "title": "",
+            "actions": {
+                "resend": "",
+                "send": "",
+                "createInvoice": ""
+            },
+            "emptyState": ""
+        },
+        "delete": {
+            "actions": {
+                "cancel": "",
+                "delete": ""
+            },
+            "title": "",
+            "description": ""
+        },
+        "filters": {
+            "all": "",
+            "signed": "",
+            "sent": "",
+            "draft": ""
+        },
+        "sendConfirmation": {
+            "description": "",
+            "title": "",
+            "cancel": "",
+            "confirm": "",
+            "emailLabel": ""
+        },
+        "pdf": {
+            "title": ""
         }
     },
     "unavailable": {
@@ -329,6 +442,11 @@
             "placeholder": "Selecteer je valuta",
             "searchPlaceholder": "Zoek valuta...",
             "noResults": "Geen valuta gevonden"
+        },
+        "country-select": {
+            "searchPlaceholder": "",
+            "noResults": "",
+            "placeholder": ""
         }
     },
     "payments": {
@@ -349,14 +467,20 @@
                 "title": "Bonnummer {{number}}",
                 "invoice": "Factuur",
                 "totalItemCount": "Totaal aantal items",
-                "totalPaid": "Totaal betaald"
+                "totalPaid": "Totaal betaald",
+                "client": "Klant",
+                "validUntil": "Geldig Tot",
+                "issued": "Uitgegeven",
+                "totalTTC": "Totaal (incl. BTW)",
+                "totalHT": "Totaal (excl. BTW)"
             },
             "tooltips": {
                 "viewPdf": "Bekijk PDF",
                 "downloadPdf": "Download PDF",
                 "edit": "Pas bon aan",
                 "sendToClient": "Verstuur naar klant",
-                "delete": "Verwijder bon"
+                "delete": "Verwijder bon",
+                "view": "Bekijk bon"
             },
             "messages": {
                 "emailSent": "Bon succesvol naar klant verstuurd.",
@@ -364,7 +488,14 @@
             },
             "actions": {
                 "addNew": "Voeg nieuwe bon toe"
-            }
+            },
+            "status": {
+                "signed": "Ondertekend",
+                "sent": "Verzonden",
+                "draft": "Concept"
+            },
+            "description": "Beheers alle bonnen op één plek.",
+            "title": "Alle bonnen"
         },
         "upsert": {
             "title": {
@@ -373,9 +504,137 @@
             },
             "form": {
                 "client": {
-                    "label": "Klant"
+                    "label": "Klant",
+                    "errors": {
+                        "required": "Klant is vereist."
+                    }
+                },
+                "paidAt": {
+                    "placeholder": "",
+                    "label": ""
+                },
+                "items": {
+                    "noResults": "",
+                    "placeholder": "",
+                    "vatRate": {
+                        "errors": {
+                            "min": "",
+                            "required": ""
+                        }
+                    },
+                    "quantity": {
+                        "errors": {
+                            "invalid": "",
+                            "min": "",
+                            "required": ""
+                        }
+                    },
+                    "label": "",
+                    "description": {
+                        "errors": {
+                            "required": ""
+                        }
+                    },
+                    "errors": {
+                        "negativeTotal": ""
+                    },
+                    "unitPrice": {
+                        "errors": {
+                            "min": "",
+                            "required": "",
+                            "invalid": ""
+                        }
+                    },
+                    "addButton": ""
+                },
+                "invoice": {
+                    "placeholder": "",
+                    "label": "",
+                    "noResults": ""
+                },
+                "amount": {
+                    "placeholder": "",
+                    "label": ""
+                },
+                "paymentDetails": {
+                    "placeholder": "",
+                    "description": "",
+                    "label": ""
+                },
+                "paymentMethod": {
+                    "description": "",
+                    "placeholder": "",
+                    "label": ""
                 }
+            },
+            "actions": {
+                "cancel": "",
+                "save": "",
+                "create": "",
+                "edit": ""
             }
+        },
+        "delete": {
+            "description": "",
+            "actions": {
+                "delete": "",
+                "cancel": ""
+            },
+            "title": ""
+        },
+        "stats": {
+            "draft": "Concept",
+            "sent": "Verzonden",
+            "total": "Totale Bonnen",
+            "signed": "Ondertekend"
+        },
+        "header": {
+            "count": "{{count}} bonnen {{found}}",
+            "subtitle": "Beheer je bonnen",
+            "found": "Gevonden"
+        },
+        "table": {
+            "filters": {
+                "clientNoResults": "",
+                "month": "",
+                "year": "",
+                "invoice": "",
+                "allMonths": "",
+                "clientPlaceholder": "",
+                "invoicePlaceholder": "",
+                "invoiceNoResults": "",
+                "allYears": "",
+                "client": ""
+            },
+            "columns": {
+                "number": "",
+                "invoice": "",
+                "paidAt": "",
+                "client": "",
+                "paymentMethod": "",
+                "totalPaid": ""
+            },
+            "emptyState": "",
+            "actions": {
+                "export": ""
+            }
+        },
+        "tabs": {
+            "table": "",
+            "list": ""
+        },
+        "sendConfirmation": {
+            "cancel": "",
+            "title": "",
+            "confirm": "",
+            "emailLabel": "",
+            "description": ""
+        },
+        "breakdown": {
+            "label": ""
+        },
+        "pdf": {
+            "title": ""
         }
     },
     "invoices": {
@@ -384,7 +643,22 @@
                 "correctsInvoice": "Corrects Invoice",
                 "corrections": "Corrections",
                 "linkedDeposits": "Linked Deposit Invoices",
-                "totalDeposited": "Total Deposited"
+                "totalDeposited": "Total Deposited",
+                "number": "",
+                "updatedAt": "",
+                "discountRate": "",
+                "createdAt": "",
+                "discountAmount": "",
+                "paymentMethod": "",
+                "totalVAT": "",
+                "totalHT": "",
+                "title": "",
+                "client": "",
+                "totalTTC": "",
+                "notes": "",
+                "paidAt": "",
+                "status": "",
+                "dueDate": ""
             },
             "messages": {
                 "cancellationNotAllowed": "Cancellation not allowed"
@@ -407,19 +681,74 @@
                 "convertToInvoice": "Convert to Invoice",
                 "convertToInvoiceSuccess": "Proforma converted to invoice",
                 "deposit": "Issue Deposit Invoice"
+            },
+            "description": "",
+            "title": "",
+            "status": {
+                "draft": "",
+                "unpaid": "",
+                "overdue": "",
+                "archived": "",
+                "paid": "",
+                "sent": ""
             }
         },
         "list": {
             "tooltips": {
                 "creditNote": "Issue credit note",
-                "cancel": "Cancel invoice"
+                "cancel": "Cancel invoice",
+                "edit": "",
+                "sendByEmail": "",
+                "downloadPdf": "",
+                "exportPdf": "",
+                "delete": ""
             },
             "messages": {
                 "correctSuccess": "Credit note issued",
                 "correctError": "Failed to issue credit note",
                 "cancelSuccess": "Invoice cancelled",
-                "cancelError": "Failed to cancel invoice"
-            }
+                "cancelError": "Failed to cancel invoice",
+                "archiveError": "",
+                "sendByEmailSuccess": "",
+                "archiveSuccess": "",
+                "markAsPaidError": "",
+                "markAsPaidSuccess": ""
+            },
+            "item": {
+                "upcomingTitle": "",
+                "issued": "",
+                "totalTTC": "",
+                "nextInvoiceDate": "",
+                "client": "",
+                "payment": "",
+                "title": "",
+                "totalHT": "",
+                "due": ""
+            },
+            "downloadFormats": {
+                "xrechnung": "",
+                "cii": "",
+                "facturx": "",
+                "ubl": "",
+                "pdf": "",
+                "zugferd": ""
+            },
+            "description": "",
+            "actions": {
+                "addNew": "",
+                "downloadPdf": "",
+                "downloadXml": ""
+            },
+            "status": {
+                "unpaid": "",
+                "overdue": "",
+                "upcoming": "",
+                "draft": "",
+                "paid": "",
+                "archived": "",
+                "sent": ""
+            },
+            "title": ""
         },
         "deposit": {
             "title": "Issue Deposit Invoice",
@@ -444,6 +773,254 @@
                 "success": "Deposit invoice created",
                 "error": "Failed to create deposit invoice"
             }
+        },
+        "filters": {
+            "all": "",
+            "recurring": "",
+            "oneTime": ""
+        },
+        "header": {
+            "found": "",
+            "subtitle": "",
+            "count": ""
+        },
+        "progression": {
+            "percentPaid": "",
+            "confirmations": {
+                "cancel": "",
+                "confirm": "",
+                "paymentReceived": {
+                    "title": "",
+                    "description": ""
+                },
+                "archive": {
+                    "description": "",
+                    "title": ""
+                },
+                "send": {
+                    "title": "",
+                    "description": ""
+                },
+                "resend": {
+                    "description": "",
+                    "title": ""
+                }
+            },
+            "actions": {
+                "archive": "",
+                "resend": "",
+                "send": "",
+                "paymentReceived": ""
+            },
+            "steps": {
+                "archived": "",
+                "partiallyPaid": "",
+                "sent": "",
+                "draft": "",
+                "paid": ""
+            },
+            "emptyState": "",
+            "stepLabel": "",
+            "title": "",
+            "noAction": ""
+        },
+        "upsert": {
+            "form": {
+                "items": {
+                    "quantity": {
+                        "errors": {
+                            "invalid": "",
+                            "required": "",
+                            "min": ""
+                        },
+                        "placeholder": "",
+                        "unit": ""
+                    },
+                    "type": {
+                        "hour": "",
+                        "label": "",
+                        "day": "",
+                        "deposit": "",
+                        "service": "",
+                        "product": ""
+                    },
+                    "label": "",
+                    "description": {
+                        "errors": {
+                            "required": ""
+                        },
+                        "hint": "",
+                        "placeholder": ""
+                    },
+                    "vatRate": {
+                        "errors": {
+                            "required": "",
+                            "min": ""
+                        },
+                        "placeholder": ""
+                    },
+                    "name": {
+                        "errors": {
+                            "required": ""
+                        },
+                        "placeholder": ""
+                    },
+                    "unitPrice": {
+                        "errors": {
+                            "min": "",
+                            "invalid": "",
+                            "required": ""
+                        },
+                        "placeholder": ""
+                    },
+                    "addItem": ""
+                },
+                "paymentMethod": {
+                    "placeholder": "",
+                    "description": "",
+                    "label": ""
+                },
+                "discountRate": {
+                    "errors": {
+                        "min": "",
+                        "required": "",
+                        "max": ""
+                    },
+                    "label": "",
+                    "description": "",
+                    "placeholder": ""
+                },
+                "quote": {
+                    "errors": {
+                        "required": ""
+                    },
+                    "label": "",
+                    "placeholder": ""
+                },
+                "client": {
+                    "noOptions": "",
+                    "label": "",
+                    "placeholder": "",
+                    "errors": {
+                        "required": ""
+                    }
+                },
+                "paymentDetails": {
+                    "placeholder": "",
+                    "description": "",
+                    "label": ""
+                },
+                "dueDate": {
+                    "label": "",
+                    "placeholder": ""
+                },
+                "notes": {
+                    "label": "",
+                    "placeholder": ""
+                },
+                "currency": {
+                    "label": ""
+                }
+            },
+            "actions": {
+                "save": "",
+                "create": "",
+                "cancel": ""
+            },
+            "title": {
+                "edit": "",
+                "create": ""
+            },
+            "tabs": {
+                "invoice": "",
+                "recurring": ""
+            }
+        },
+        "actions": {
+            "addNew": ""
+        },
+        "delete": {
+            "actions": {
+                "delete": "",
+                "cancel": ""
+            },
+            "description": "",
+            "title": ""
+        },
+        "table": {
+            "columns": {
+                "number": "",
+                "client": "",
+                "totalTTC": "",
+                "createdAt": "",
+                "status": "",
+                "dueDate": ""
+            },
+            "actions": {
+                "export": ""
+            },
+            "filters": {
+                "clientPlaceholder": "",
+                "clientNoResults": "",
+                "client": "",
+                "allMonths": "",
+                "year": "",
+                "allYears": "",
+                "month": ""
+            },
+            "emptyState": ""
+        },
+        "stats": {
+            "sent": "",
+            "total": "",
+            "paid": ""
+        },
+        "statusFilters": {
+            "draft": "",
+            "paid": "",
+            "archived": "",
+            "sent": "",
+            "all": ""
+        },
+        "sendConfirmation": {
+            "confirm": "",
+            "emailLabel": "",
+            "cancel": ""
+        },
+        "paymentReceived": {
+            "percentLabel": "",
+            "fields": {
+                "amount": {
+                    "placeholder": "",
+                    "label": "",
+                    "errors": {
+                        "required": "",
+                        "tooHigh": ""
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "",
+                "cancel": ""
+            },
+            "description": "",
+            "title": ""
+        },
+        "emptyState": {
+            "noInvoices": "",
+            "tryDifferentSearch": "",
+            "startAdding": "",
+            "noResults": ""
+        },
+        "pdf": {
+            "title": ""
+        },
+        "views": {
+            "list": "",
+            "table": ""
+        },
+        "search": {
+            "placeholder": ""
         }
     },
     "recurringInvoices": {
@@ -463,6 +1040,698 @@
                 "notes": "Notes",
                 "generatedInvoices": "Generated Invoices"
             }
+        },
+        "frequency": {
+            "quadmonthly": "",
+            "annually": "",
+            "biweekly": "",
+            "bimonthly": "",
+            "semiannually": "",
+            "quarterly": "",
+            "monthly": "",
+            "weekly": ""
+        },
+        "upsert": {
+            "form": {
+                "client": {
+                    "placeholder": "",
+                    "label": "",
+                    "noOptions": "",
+                    "errors": {
+                        "required": ""
+                    }
+                },
+                "items": {
+                    "type": {
+                        "product": "",
+                        "service": "",
+                        "label": "",
+                        "day": "",
+                        "hour": "",
+                        "deposit": ""
+                    },
+                    "name": {
+                        "placeholder": "",
+                        "errors": {
+                            "required": ""
+                        }
+                    },
+                    "description": {
+                        "errors": {
+                            "required": ""
+                        },
+                        "placeholder": "",
+                        "hint": ""
+                    },
+                    "quantity": {
+                        "unit": "",
+                        "errors": {
+                            "invalid": "",
+                            "required": "",
+                            "min": ""
+                        },
+                        "placeholder": ""
+                    },
+                    "vatRate": {
+                        "errors": {
+                            "min": "",
+                            "required": ""
+                        },
+                        "placeholder": ""
+                    },
+                    "unitPrice": {
+                        "errors": {
+                            "invalid": "",
+                            "required": "",
+                            "min": ""
+                        },
+                        "placeholder": ""
+                    },
+                    "addItem": "",
+                    "label": ""
+                },
+                "autoSend": {
+                    "description": "",
+                    "label": ""
+                },
+                "frequency": {
+                    "description": "",
+                    "errors": {
+                        "required": ""
+                    },
+                    "placeholder": "",
+                    "label": ""
+                },
+                "count": {
+                    "label": "",
+                    "description": "",
+                    "placeholder": ""
+                },
+                "until": {
+                    "description": "",
+                    "label": "",
+                    "placeholder": ""
+                },
+                "paymentDetails": {
+                    "label": "",
+                    "description": "",
+                    "placeholder": ""
+                },
+                "paymentMethod": {
+                    "description": "",
+                    "label": "",
+                    "placeholder": ""
+                },
+                "quote": {
+                    "label": "",
+                    "placeholder": ""
+                },
+                "notes": {
+                    "placeholder": "",
+                    "label": ""
+                },
+                "currency": {
+                    "label": ""
+                }
+            },
+            "title": {
+                "edit": "",
+                "create": ""
+            },
+            "actions": {
+                "save": "",
+                "create": "",
+                "cancel": ""
+            }
+        },
+        "list": {
+            "item": {
+                "totalHT": "",
+                "payment": "",
+                "totalTTC": "",
+                "client": ""
+            },
+            "description": "",
+            "tooltips": {
+                "edit": "",
+                "delete": "",
+                "view": ""
+            },
+            "title": "",
+            "messages": {
+                "manual_process_success": "",
+                "manual_process_error": ""
+            },
+            "actions": {
+                "addNew": ""
+            }
+        },
+        "emptyState": {
+            "noInvoices": "",
+            "startAdding": ""
+        },
+        "actions": {
+            "addNew": ""
         }
+    },
+    "sidebar": {
+        "theme": {
+            "dark": "",
+            "toggleTheme": "",
+            "system": "",
+            "light": ""
+        },
+        "navigation": {
+            "dashboard": "",
+            "clients": "",
+            "stats": "",
+            "settings": "",
+            "paymentMethods": "",
+            "articles": ""
+        },
+        "companyDialog": {
+            "description": "",
+            "goButton": "",
+            "title": ""
+        },
+        "menu": "",
+        "userMenu": {
+            "account": "",
+            "logout": ""
+        },
+        "company": {
+            "plan": ""
+        }
+    },
+    "settings": {
+        "company": {
+            "form": {
+                "phone": {
+                    "description": "",
+                    "errors": {
+                        "format": "",
+                        "minLength": ""
+                    },
+                    "placeholder": "",
+                    "label": ""
+                },
+                "address": {
+                    "description": "",
+                    "placeholder": "",
+                    "errors": {
+                        "empty": ""
+                    },
+                    "label": ""
+                },
+                "email": {
+                    "errors": {
+                        "required": "",
+                        "format": ""
+                    },
+                    "placeholder": "",
+                    "label": "",
+                    "description": ""
+                },
+                "invoicePDFFormat": {
+                    "placeholder": "",
+                    "options": {
+                        "facturx": "",
+                        "ubl": "",
+                        "cii": "",
+                        "pdf": "",
+                        "xrechnung": "",
+                        "zugferd": ""
+                    },
+                    "description": "",
+                    "label": "",
+                    "errors": {
+                        "required": ""
+                    }
+                },
+                "exemptVat": {
+                    "description": "",
+                    "label": ""
+                },
+                "postalCode": {
+                    "placeholder": "",
+                    "errors": {
+                        "format": ""
+                    },
+                    "label": ""
+                },
+                "legalId": {
+                    "errors": {
+                        "required": "",
+                        "empty": "",
+                        "maxLength": ""
+                    },
+                    "description": "",
+                    "label": "",
+                    "placeholder": ""
+                },
+                "description": {
+                    "errors": {
+                        "maxLength": ""
+                    },
+                    "description": "",
+                    "label": "",
+                    "placeholder": ""
+                },
+                "currency": {
+                    "label": "",
+                    "errors": {
+                        "select": "",
+                        "required": ""
+                    },
+                    "description": ""
+                },
+                "country": {
+                    "placeholder": "",
+                    "description": "",
+                    "label": "",
+                    "errors": {
+                        "empty": ""
+                    }
+                },
+                "state": {
+                    "placeholder": "",
+                    "description": "",
+                    "label": ""
+                },
+                "vat": {
+                    "errors": {
+                        "format": "",
+                        "maxLength": "",
+                        "required": "",
+                        "empty": ""
+                    },
+                    "placeholder": "",
+                    "description": "",
+                    "label": ""
+                },
+                "saving": "",
+                "quoteNumberFormat": {
+                    "label": "",
+                    "placeholder": "",
+                    "errors": {
+                        "format": "",
+                        "required": "",
+                        "maxLength": ""
+                    },
+                    "description": ""
+                },
+                "company": {
+                    "label": "",
+                    "errors": {
+                        "required": "",
+                        "empty": "",
+                        "maxLength": ""
+                    },
+                    "placeholder": "",
+                    "description": ""
+                },
+                "dateFormat": {
+                    "placeholder": "",
+                    "description": "",
+                    "label": "",
+                    "errors": {
+                        "required": ""
+                    }
+                },
+                "city": {
+                    "errors": {
+                        "empty": ""
+                    },
+                    "label": "",
+                    "placeholder": ""
+                },
+                "invoiceNumberFormat": {
+                    "placeholder": "",
+                    "label": "",
+                    "description": "",
+                    "errors": {
+                        "required": "",
+                        "maxLength": "",
+                        "format": ""
+                    }
+                },
+                "addressLine2": {
+                    "label": "",
+                    "description": "",
+                    "placeholder": ""
+                },
+                "saveSettings": "",
+                "foundedAt": {
+                    "errors": {
+                        "future": ""
+                    },
+                    "placeholder": "",
+                    "label": "",
+                    "description": ""
+                }
+            },
+            "other": {
+                "title": "",
+                "description": ""
+            },
+            "contact": {
+                "title": "",
+                "description": ""
+            },
+            "messages": {
+                "updateError": "",
+                "updateSuccess": ""
+            },
+            "address": {
+                "description": "",
+                "title": ""
+            },
+            "description": "",
+            "numberFormats": {
+                "description": "",
+                "title": ""
+            },
+            "title": "",
+            "basicInfo": "",
+            "basicInfoDescription": ""
+        },
+        "invitations": {
+            "list": {
+                "usedBy": "",
+                "expiresAt": "",
+                "createdAt": "",
+                "actions": "",
+                "title": "",
+                "noExpiry": "",
+                "code": "",
+                "status": "",
+                "empty": "",
+                "description": ""
+            },
+            "messages": {
+                "deleteSuccess": "",
+                "deleteError": "",
+                "codeCopied": "",
+                "createSuccess": "",
+                "fetchError": "",
+                "createError": ""
+            },
+            "create": {
+                "button": "",
+                "description": "",
+                "expiresIn": "",
+                "title": "",
+                "creating": "",
+                "expiresPlaceholder": ""
+            },
+            "status": {
+                "active": "",
+                "used": "",
+                "expired": ""
+            }
+        },
+        "webhooks": {
+            "card": {
+                "events": "",
+                "delete": "",
+                "edit": "",
+                "editPrompt": ""
+            },
+            "create": {
+                "title": "",
+                "url": "",
+                "type": "",
+                "button": "",
+                "description": "",
+                "events": ""
+            },
+            "description": "",
+            "title": ""
+        },
+        "dangerZone": {
+            "messages": {
+                "actionError": "",
+                "unexpectedError": "",
+                "actionSuccess": "",
+                "actionFailed": "",
+                "otpSentError": "",
+                "otpSentSuccess": ""
+            },
+            "modal": {
+                "description": "",
+                "confirm": "",
+                "cancel": "",
+                "title": "",
+                "otpPlaceholder": "",
+                "otpLabel": ""
+            },
+            "description": "",
+            "title": ""
+        },
+        "tabs": {
+            "emailTemplates": "",
+            "webhooks": "",
+            "dangerZone": "",
+            "company": "",
+            "apiKeys": "",
+            "logs": "",
+            "invitations": ""
+        },
+        "emailTemplates": {
+            "preview": {
+                "archive": "",
+                "from": "",
+                "reply": "",
+                "to": "",
+                "subject": "",
+                "forward": ""
+            },
+            "editor": {
+                "htmlPlaceholder": "",
+                "body": "",
+                "subjectPlaceholder": "",
+                "variablesTip": "",
+                "htmlTip": "",
+                "availableVariables": "",
+                "subject": ""
+            },
+            "messages": {
+                "saveSuccess": "",
+                "saveError": ""
+            },
+            "title": "",
+            "description": "",
+            "saveButton": ""
+        },
+        "apiKeys": {
+            "create": {
+                "name": "",
+                "description": "",
+                "title": "",
+                "namePlaceholder": "",
+                "button": ""
+            },
+            "title": "",
+            "description": "",
+            "createdKeyNotice": "",
+            "card": {
+                "lastUsed": "",
+                "neverUsed": "",
+                "revoke": ""
+            },
+            "swaggerLink": "",
+            "createdKeyTitle": ""
+        },
+        "title": ""
+    },
+    "articles": {
+        "upsert": {
+            "messages": {
+                "updateError": "",
+                "deleteError": "",
+                "deleteSuccess": "",
+                "updateSuccess": "",
+                "addSuccess": "",
+                "addError": ""
+            },
+            "title": {
+                "edit": "",
+                "create": ""
+            }
+        },
+        "list": {
+            "add": ""
+        },
+        "picker": {
+            "noResults": "",
+            "placeholder": ""
+        },
+        "actions": {
+            "cancel": "",
+            "edit": "",
+            "deleting": "",
+            "add": "",
+            "save": "",
+            "delete": ""
+        },
+        "fields": {
+            "vatRate": {
+                "label": ""
+            },
+            "type": {
+                "hour": "",
+                "service": "",
+                "deposit": "",
+                "product": "",
+                "day": "",
+                "label": ""
+            },
+            "name": {
+                "placeholder": "",
+                "label": ""
+            },
+            "description": {
+                "label": "",
+                "placeholder": ""
+            },
+            "unitPrice": {
+                "label": ""
+            }
+        },
+        "description": "",
+        "title": "",
+        "search": {
+            "placeholder": ""
+        },
+        "delete": {
+            "description": ""
+        },
+        "empty": ""
+    },
+    "auth": {
+        "signup": {
+            "form": {
+                "createButton": "",
+                "creatingAccount": "",
+                "password": {
+                    "placeholder": "",
+                    "label": "",
+                    "requirements": ""
+                },
+                "email": {
+                    "placeholder": "",
+                    "label": ""
+                },
+                "firstname": {
+                    "placeholder": "",
+                    "label": ""
+                },
+                "invitationCode": {
+                    "hint": "",
+                    "label": "",
+                    "placeholder": ""
+                },
+                "lastname": {
+                    "label": "",
+                    "placeholder": ""
+                }
+            },
+            "errors": {
+                "passwordSpecial": "",
+                "lastnameMinLength": "",
+                "invitationCodeRequired": "",
+                "invalidInvitationCode": "",
+                "invalidEmail": "",
+                "genericError": "",
+                "passwordLetter": "",
+                "firstnameMinLength": "",
+                "passwordMinLength": "",
+                "passwordNumber": ""
+            },
+            "title": "",
+            "hasAccount": "",
+            "description": "",
+            "messages": {
+                "accountCreated": ""
+            },
+            "signInLink": ""
+        },
+        "login": {
+            "oidc": "",
+            "errors": {
+                "passwordRequired": "",
+                "invalidEmail": ""
+            },
+            "oidcLink": "",
+            "title": "",
+            "description": "",
+            "signUpLink": "",
+            "messages": {
+                "loginError": "",
+                "loginSuccess": ""
+            },
+            "form": {
+                "password": {
+                    "label": ""
+                },
+                "loginButton": "",
+                "loggingIn": "",
+                "email": {
+                    "label": ""
+                }
+            },
+            "noAccount": ""
+        },
+        "serverUnavailable": {
+            "description": "",
+            "title": ""
+        }
+    },
+    "paymentMethods": {
+        "description": ""
+    },
+    "errorBoundary": {
+        "reload": "",
+        "title": "",
+        "description": ""
+    },
+    "folderSelect": {
+        "placeholder": "",
+        "folderName": "",
+        "selectThisFolder": "",
+        "title": "",
+        "newFolder": "",
+        "cancel": "",
+        "loading": "",
+        "noSubdirectories": "",
+        "browse": "",
+        "create": ""
+    },
+    "stats": {
+        "controls": {
+            "range": "",
+            "year": "",
+            "tabs": {
+                "monthly": "",
+                "yearly": ""
+            }
+        },
+        "description": "",
+        "revenue": "",
+        "noData": "",
+        "deposits": "",
+        "month": "",
+        "year": "",
+        "title": "",
+        "yearly": {
+            "title": ""
+        },
+        "invoiced": "",
+        "monthly": {
+            "title": ""
+        }
+    },
+    "dashboard": {
+        "title": ""
     }
 }
