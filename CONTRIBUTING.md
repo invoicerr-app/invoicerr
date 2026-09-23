@@ -108,6 +108,29 @@ server: it copies the assets declared in `nest-cli.json` once at startup, and th
 files it already knows about for edits. If you add a new per-country data file and the running
 backend doesn't see it, restart it.
 
+### Refusing to commit a credential
+
+This repository ships a `pre-commit` hook that rejects a commit carrying a key. Git never installs
+hooks on its own, so turn it on once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+It runs [gitleaks](https://github.com/gitleaks/gitleaks) against the **staged** content when the
+binary is on your PATH, and falls back to a shorter list of explicit patterns when it is not — so a
+machine without gitleaks is still covered, just less well. Installing gitleaks is recommended.
+
+If you use `git worktree`, note that `core.hooksPath` is resolved relative to each working
+directory: a relative path finds nothing from a worktree that has no `.githooks`, and git skips a
+missing hook **silently**. Point it at an absolute path if you work from worktrees.
+
+`git commit --no-verify` bypasses it, for the rare case where you mean to commit a sample that
+looks like a secret.
+
+This hook exists because a real key was committed and pushed on 2026-09-23 and had to be revoked:
+nothing stood between writing it into a file and pushing it.
+
 ## Coding conventions
 
 - **Biome is the only linter/formatter** — there is no ESLint or Prettier. Backend: single quotes,

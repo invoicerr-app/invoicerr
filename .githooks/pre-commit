@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Refuses a commit that carries a credential.
+#
+# Written after a real leak: on 2026-09-23 a Scaleway API key was interpolated into a values file
+# by a load-test script, committed and pushed. The key had to be revoked. Nothing had stood between
+# writing it and pushing it.
+#
+# Uses gitleaks when it is on PATH (it reads the staged content, not the working tree), and falls
+# back to explicit patterns otherwise, so a machine without gitleaks is still covered.
+#
+# Enable it per clone (hooks are never installed by git itself):
+#   git config core.hooksPath .githooks
+#
+# To commit something this flags on purpose, and only then:
+#   git commit --no-verify
+set -uo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --redact --no-banner; then
+    echo
+    echo "pre-commit: gitleaks found a credential in what you are about to commit (above, redacted)."
+    echo "Move the value into a file outside the repository and read it from there."
+    exit 1
+  fi
+else
+  echo "pre-commit: gitleaks not found, falling back to pattern matching (weaker)." >&2
+fi
+
+# Patterns worth refusing even when gitleaks has already passed: the Scaleway shapes this
+# organisation actually uses, which gitleaks' own rules do not all cover.
+patterns=(
+  'SCW[A-Z0-9]{16,}'                                   # Scaleway access key
+  'whsec_[A-Za-z0-9]{16,}'                             # webhook signing secret
+  '-----BEGIN [A-Z ]*PRIVATE KEY-----'                 # any private key
+  '(ghp|gho|ghs|ghu)_[A-Za-z0-9]{30,}'                 # GitHub token
+  'AKIA[0-9A-Z]{16}'                                   # AWS access key
+  '(SecretAccessKey|SECRET_KEY|secretKey)["'"'"']?\s*[:=]\s*["'"'"'][A-Za-z0-9/+=_-]{20,}'
+)
+found=0
+for p in "${patterns[@]}"; do
+  if git diff --cached -U0 | grep -nEq "^\+.*${p}"; then
+    echo "pre-commit: refusing this commit, a value matching /${p}/ is staged."
+    found=1
+  fi
+done
+[ "$found" -eq 0 ] || exit 1
+exit 0
