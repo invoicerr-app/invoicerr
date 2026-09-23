@@ -1,106 +1,106 @@
 {
     "errorBoundary": {
-        "title": "Coś poszło nie tak",
-        "description": "Podczas wyświetlania tej strony wystąpił nieoczekiwany błąd. Możesz spróbować odświeżyć stronę.",
-        "reload": "Odśwież stronę"
+        "title": "",
+        "description": "",
+        "reload": ""
     },
     "clients": {
         "search": {
-            "placeholder": "Szukaj klientów..."
+            "placeholder": ""
         },
         "actions": {
-            "addNew": "Dodaj nowego klienta"
+            "addNew": ""
         },
         "stats": {
-            "active": "Aktywni",
-            "inactive": "Nieaktywni",
-            "total": "Łączna liczba klientów"
+            "active": "",
+            "inactive": "",
+            "total": ""
         },
         "emptyState": {
-            "noClients": "Brak klientów",
-            "noResults": "Nie znaleziono klientów",
-            "startAdding": "Zacznij od utworzenia pierwszego klienta.",
-            "tryDifferentSearch": "Spróbuj zmienić kryteria wyszukiwania."
+            "noClients": "",
+            "noResults": "",
+            "startAdding": "",
+            "tryDifferentSearch": ""
         },
         "list": {
             "status": {
-                "active": "Aktywny",
-                "inactive": "Nieaktywny"
+                "active": "",
+                "inactive": ""
             },
             "tooltips": {
-                "view": "Zobacz szczegóły klienta",
-                "edit": "Edytuj klienta",
-                "delete": "Usuń klienta"
+                "view": "",
+                "edit": "",
+                "delete": ""
             },
-            "title": "Wszyscy klienci",
-            "description": "Zarządzaj wszystkimi klientami i przeglądaj ich w jednym miejscu."
+            "title": "",
+            "description": ""
         },
         "upsert": {
             "title": {
-                "create": "Dodaj nowego klienta",
-                "edit": "Edytuj klienta"
+                "create": "",
+                "edit": ""
             },
             "fields": {
                 "contactFirstname": {
-                    "label": "Imię",
-                    "placeholder": "Wpisz imię"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "contactLastname": {
-                    "label": "Nazwisko",
-                    "placeholder": "Wpisz nazwisko"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "name": {
-                    "label": "Nazwa firmy",
-                    "placeholder": "Wpisz nazwę firmy"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "description": {
-                    "label": "Opis",
-                    "placeholder": "Wpisz opis firmy"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "currency": {
-                    "label": "Waluta"
+                    "label": ""
                 },
                 "foundedAt": {
-                    "label": "Data założenia",
-                    "placeholder": "Wybierz datę założenia"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "contactEmail": {
-                    "label": "E-mail",
-                    "placeholder": "Wpisz adres e-mail"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "contactPhone": {
-                    "label": "Telefon",
-                    "placeholder": "Wpisz numer telefonu"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "address": {
-                    "label": "Adres",
-                    "placeholder": "Wpisz ulicę i numer"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "addressLine2": {
-                    "label": "Adres — linia 2 (opcjonalnie)",
-                    "placeholder": "Mieszkanie, lokal, budynek, piętro itp."
+                    "label": "",
+                    "placeholder": ""
                 },
                 "postalCode": {
-                    "label": "Kod pocztowy",
-                    "placeholder": "Wpisz kod pocztowy"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "city": {
-                    "label": "Miasto",
-                    "placeholder": "Wpisz miasto"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "state": {
-                    "label": "Województwo/region (opcjonalnie)",
-                    "placeholder": "Wpisz województwo lub region"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "type": {
-                    "label": "Typ klienta",
-                    "company": "Firma",
-                    "individual": "Osoba fizyczna",
-                    "description": "Wybierz, czy klient jest osobą fizyczną, czy firmą"
+                    "label": "",
+                    "company": "",
+                    "individual": "",
+                    "description": ""
                 },
                 "country": {
-                    "label": "Kraj",
-                    "placeholder": "Wpisz kraj"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "identifiers": {
                     "label": "Identyfikatory specyficzne dla kraju"
@@ -117,67 +117,67 @@
                     "label": "Schemat Peppol"
                 },
                 "legalId": {
-                    "label": "Identyfikator prawny",
-                    "placeholder": "Wpisz identyfikator prawny"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "vat": {
-                    "label": "Numer VAT",
-                    "placeholder": "Wpisz numer VAT (np. PL1234567890)"
+                    "label": "",
+                    "placeholder": ""
                 }
             },
             "validation": {
                 "name": {
-                    "required": "Nazwa firmy jest wymagana"
+                    "required": ""
                 },
                 "description": {
-                    "maxLength": "Opis nie może przekraczać 500 znaków",
-                    "required": "Opis jest wymagany"
+                    "maxLength": "",
+                    "required": ""
                 },
                 "foundedAt": {
-                    "future": "Data założenia nie może być w przyszłości"
+                    "future": ""
                 },
                 "contactFirstname": {
-                    "required": "Imię jest wymagane"
+                    "required": ""
                 },
                 "contactLastname": {
-                    "required": "Nazwisko jest wymagane"
+                    "required": ""
                 },
                 "contactPhone": {
-                    "format": "Nieprawidłowy format numeru telefonu",
-                    "minLength": "Numer telefonu musi mieć co najmniej 8 znaków"
+                    "format": "",
+                    "minLength": ""
                 },
                 "contactEmail": {
-                    "required": "E-mail jest wymagany",
-                    "format": "Nieprawidłowy format adresu e-mail"
+                    "required": "",
+                    "format": ""
                 },
                 "address": {
-                    "required": "Adres jest wymagany"
+                    "required": ""
                 },
                 "postalCode": {
-                    "format": "Nieprawidłowy format kodu pocztowego"
+                    "format": ""
                 },
                 "city": {
-                    "required": "Miasto jest wymagane"
+                    "required": ""
                 },
                 "country": {
-                    "required": "Kraj jest wymagany"
+                    "required": ""
                 },
                 "legalId": {
-                    "required": "Identyfikator prawny jest wymagany",
-                    "empty": "Identyfikator prawny nie może być pusty",
-                    "maxLength": "Identyfikator prawny musi mieć mniej niż 50 znaków"
+                    "required": "",
+                    "empty": "",
+                    "maxLength": ""
                 },
                 "vat": {
-                    "required": "Numer VAT jest wymagany",
-                    "empty": "Numer VAT nie może być pusty",
-                    "maxLength": "Numer VAT musi mieć mniej niż 15 znaków",
-                    "format": "Format numeru VAT jest nieprawidłowy (np. PL1234567890)"
+                    "required": "",
+                    "empty": "",
+                    "maxLength": "",
+                    "format": ""
                 }
             },
             "actions": {
-                "cancel": "Anuluj",
-                "create": "Utwórz klienta",
-                "save": "Zapisz zmiany",
+                "cancel": "",
+                "create": "",
+                "save": "",
                 "lookupCompany": "Wyszukaj"
             },
             "messages": {
@@ -190,270 +190,270 @@
             }
         },
         "view": {
-            "title": "Szczegóły klienta",
-            "description": "Zobacz wszystkie istotne informacje o tym kliencie.",
+            "title": "",
+            "description": "",
             "fields": {
-                "companyName": "Nazwa firmy",
-                "contactPerson": "Osoba kontaktowa",
-                "email": "E-mail",
-                "phone": "Telefon",
-                "address": "Adres",
-                "addressLine2": "Adres — linia 2",
-                "postalCode": "Kod pocztowy",
-                "city": "Miasto",
-                "state": "Województwo/region",
-                "country": "Kraj"
+                "companyName": "",
+                "contactPerson": "",
+                "email": "",
+                "phone": "",
+                "address": "",
+                "addressLine2": "",
+                "postalCode": "",
+                "city": "",
+                "state": "",
+                "country": ""
             }
         },
         "delete": {
-            "title": "Usuń klienta",
-            "description": "Czy na pewno chcesz usunąć tego klienta? Tej operacji nie można cofnąć.",
+            "title": "",
+            "description": "",
             "actions": {
-                "cancel": "Anuluj",
-                "delete": "Usuń klienta"
+                "cancel": "",
+                "delete": ""
             },
             "messages": {
                 "error": "Nie udało się usunąć klienta"
             }
         },
         "header": {
-            "subtitle": "Zarządzaj swoimi klientami",
-            "count": "{{count}} klientów {{found}}",
-            "found": "znalezionych"
+            "subtitle": "",
+            "count": "",
+            "found": ""
         }
     },
     "quotes": {
         "search": {
-            "placeholder": "Szukaj ofert..."
+            "placeholder": ""
         },
         "actions": {
-            "addNew": "Dodaj nową ofertę"
+            "addNew": ""
         },
         "filters": {
-            "draft": "Szkic",
-            "sent": "Wysłana",
-            "signed": "Podpisana",
-            "all": "Wszystkie"
+            "draft": "",
+            "sent": "",
+            "signed": "",
+            "all": ""
         },
         "emptyState": {
-            "noQuotes": "Brak ofert",
-            "noResults": "Nie znaleziono ofert",
-            "startAdding": "Zacznij od utworzenia pierwszej oferty.",
-            "tryDifferentSearch": "Spróbuj zmienić kryteria wyszukiwania."
+            "noQuotes": "",
+            "noResults": "",
+            "startAdding": "",
+            "tryDifferentSearch": ""
         },
         "list": {
             "status": {
-                "draft": "Szkic",
-                "sent": "Wysłana",
-                "expired": "Wygasła",
-                "signed": "Podpisana"
+                "draft": "",
+                "sent": "",
+                "expired": "",
+                "signed": ""
             },
             "item": {
-                "title": "Oferta {{number}} {{title}}",
-                "client": "Klient",
-                "issued": "Wystawiono",
-                "validUntil": "Ważna do",
-                "totalHT": "Suma netto",
-                "totalTTC": "Suma brutto"
+                "title": "",
+                "client": "",
+                "issued": "",
+                "validUntil": "",
+                "totalHT": "",
+                "totalTTC": ""
             },
             "tooltips": {
-                "viewPdf": "Zobacz PDF",
-                "downloadPdf": "Pobierz PDF",
-                "edit": "Edytuj ofertę",
-                "sendSignature": "Wyślij do podpisu",
-                "resendSignature": "Wyślij ponownie do podpisu",
-                "createInvoice": "Utwórz fakturę z oferty",
-                "delete": "Usuń ofertę",
-                "view": "Zobacz szczegóły oferty"
+                "viewPdf": "",
+                "downloadPdf": "",
+                "edit": "",
+                "sendSignature": "",
+                "resendSignature": "",
+                "createInvoice": "",
+                "delete": "",
+                "view": ""
             },
             "actions": {
-                "addNew": "Dodaj nową ofertę"
+                "addNew": ""
             },
             "messages": {
-                "sendSignatureError": "Nie udało się wysłać oferty do podpisu",
-                "sendSignatureSuccess": "Oferta została wysłana do podpisu",
-                "invoiceCreated": "Faktura z oferty została utworzona",
-                "invoiceCreateError": "Nie udało się utworzyć faktury z oferty"
+                "sendSignatureError": "",
+                "sendSignatureSuccess": "",
+                "invoiceCreated": "",
+                "invoiceCreateError": ""
             },
-            "title": "Wszystkie oferty",
-            "description": "Zarządzaj wszystkimi ofertami i przeglądaj je w jednym miejscu."
+            "title": "",
+            "description": ""
         },
         "progression": {
-            "title": "Postęp",
-            "emptyState": "Brak ofert do wyświetlenia.",
-            "noAction": "Brak działań",
+            "title": "",
+            "emptyState": "",
+            "noAction": "",
             "steps": {
-                "draft": "Szkic",
-                "sent": "Wysłana",
-                "signed": "Podpisana"
+                "draft": "",
+                "sent": "",
+                "signed": ""
             },
-            "stepLabel": "Krok {{current}} / {{total}}",
+            "stepLabel": "",
             "actions": {
-                "send": "Wyślij",
-                "resend": "Wyślij ponownie",
-                "createInvoice": "Utwórz fakturę"
+                "send": "",
+                "resend": "",
+                "createInvoice": ""
             },
             "confirmations": {
                 "send": {
-                    "title": "Wyślij ofertę",
-                    "description": "Czy na pewno chcesz wysłać ofertę {{number}} do {{client}}?"
+                    "title": "",
+                    "description": ""
                 },
                 "resend": {
-                    "title": "Wyślij ofertę ponownie",
-                    "description": "Czy na pewno chcesz ponownie wysłać ofertę {{number}} do {{client}}?"
+                    "title": "",
+                    "description": ""
                 },
-                "cancel": "Anuluj",
-                "confirm": "Potwierdź"
+                "cancel": "",
+                "confirm": ""
             }
         },
         "views": {
-            "list": "Lista",
-            "table": "Tabela"
+            "list": "",
+            "table": ""
         },
         "table": {
             "columns": {
-                "number": "Numer",
-                "client": "Klient",
-                "status": "Status",
-                "totalTTC": "Suma brutto",
-                "createdAt": "Utworzono",
-                "validUntil": "Ważna do"
+                "number": "",
+                "client": "",
+                "status": "",
+                "totalTTC": "",
+                "createdAt": "",
+                "validUntil": ""
             },
             "filters": {
-                "client": "Klient",
-                "clientPlaceholder": "Wszyscy klienci",
-                "clientNoResults": "Nie znaleziono klienta",
-                "year": "Rok",
-                "month": "Miesiąc",
-                "allYears": "Wszystkie lata",
-                "allMonths": "Wszystkie miesiące"
+                "client": "",
+                "clientPlaceholder": "",
+                "clientNoResults": "",
+                "year": "",
+                "month": "",
+                "allYears": "",
+                "allMonths": ""
             },
             "actions": {
-                "export": "Eksportuj"
+                "export": ""
             },
-            "emptyState": "Żadna oferta nie pasuje do tych filtrów."
+            "emptyState": ""
         },
         "createInvoiceDialog": {
-            "title": "Utwórz fakturę z oferty",
-            "description": "Wybierz pozycje do zafakturowania z oferty {{number}}.",
-            "percentageLabel": "Procent do zafakturowania",
-            "amountLabel": "Kwota do zafakturowania",
-            "maxPercentageHint": "Można jeszcze zafakturować do {{percent}}% oferty.",
-            "alreadyInvoicedBadge": "Już zafakturowano",
-            "remainingLabel": "Pozostało: {{remaining}}",
-            "remainingTotalLabel": "Pozostało {{amount}} {{currency}}",
-            "totalSelectedLabel": "Suma: {{amount}} {{currency}}",
-            "percentOfQuoteLabel": "{{percent}}% oferty",
-            "itemAmountLabel": "{{amount}} {{currency}}",
+            "title": "",
+            "description": "",
+            "percentageLabel": "",
+            "amountLabel": "",
+            "maxPercentageHint": "",
+            "alreadyInvoicedBadge": "",
+            "remainingLabel": "",
+            "remainingTotalLabel": "",
+            "totalSelectedLabel": "",
+            "percentOfQuoteLabel": "",
+            "itemAmountLabel": "",
             "actions": {
-                "confirm": "Utwórz fakturę",
-                "cancel": "Anuluj"
+                "confirm": "",
+                "cancel": ""
             },
             "errors": {
-                "quoteFullyInvoiced": "Ta oferta została już w całości zafakturowana.",
-                "quantityExceedsRemaining": "Żądana ilość przekracza pozostałą ilość do zafakturowania."
+                "quoteFullyInvoiced": "",
+                "quantityExceedsRemaining": ""
             },
             "fields": {
                 "quantity": {
-                    "label": "Ilość"
+                    "label": ""
                 }
             }
         },
         "upsert": {
             "title": {
-                "create": "Utwórz nową ofertę",
-                "edit": "Edytuj ofertę"
+                "create": "",
+                "edit": ""
             },
             "form": {
                 "title": {
-                    "label": "Tytuł",
-                    "placeholder": "Wpisz tytuł oferty"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "client": {
-                    "label": "Klient",
-                    "placeholder": "Wybierz klienta",
+                    "label": "",
+                    "placeholder": "",
                     "errors": {
-                        "required": "Wybierz klienta"
+                        "required": ""
                     },
-                    "noOptions": "Brak dostępnych klientów. Najpierw utwórz klienta."
+                    "noOptions": ""
                 },
                 "currency": {
-                    "label": "Waluta"
+                    "label": ""
                 },
                 "discountRate": {
-                    "label": "Rabat (%)",
-                    "placeholder": "Wpisz procent rabatu",
-                    "description": "Naliczany przed obliczeniem VAT.",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Rabat jest wymagany",
-                        "min": "Rabat nie może być ujemny",
-                        "max": "Rabat nie może przekraczać 100%"
+                        "required": "",
+                        "min": "",
+                        "max": ""
                     }
                 },
                 "validUntil": {
-                    "label": "Ważna do",
-                    "placeholder": "Wybierz datę ważności"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "items": {
-                    "label": "Pozycje oferty",
-                    "addItem": "Dodaj pozycję",
+                    "label": "",
+                    "addItem": "",
                     "name": {
-                        "placeholder": "Nazwa pozycji",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Nazwa jest wymagana"
+                            "required": ""
                         }
                     },
                     "description": {
-                        "placeholder": "Opis pozycji",
-                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia.",
+                        "placeholder": "",
+                        "hint": "",
                         "errors": {
-                            "required": "Opis jest wymagany"
+                            "required": ""
                         }
                     },
                     "quantity": {
-                        "placeholder": "Ilość",
-                        "unit": "szt.",
+                        "placeholder": "",
+                        "unit": "",
                         "errors": {
-                            "required": "Ilość jest wymagana",
-                            "min": "Ilość musi wynosić co najmniej 1",
-                            "invalid": "Nieprawidłowa ilość"
+                            "required": "",
+                            "min": "",
+                            "invalid": ""
                         }
                     },
                     "unitPrice": {
-                        "placeholder": "Cena jednostkowa",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Cena jednostkowa jest wymagana",
-                            "min": "Cena jednostkowa musi być dodatnia",
-                            "invalid": "Nieprawidłowa cena jednostkowa"
+                            "required": "",
+                            "min": "",
+                            "invalid": ""
                         }
                     },
                     "vatRate": {
-                        "placeholder": "VAT %",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Stawka VAT jest wymagana",
-                            "min": "Stawka VAT musi być dodatnia"
+                            "required": "",
+                            "min": ""
                         }
                     }
                 },
                 "notes": {
-                    "label": "Uwagi",
-                    "placeholder": "Dodatkowe uwagi lub warunki"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "paymentMethod": {
-                    "label": "Metoda płatności",
-                    "placeholder": "Wybierz metodę płatności",
-                    "description": "Preferowana metoda płatności dla tej oferty (np. przelew bankowy, czek itp.)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 },
                 "paymentDetails": {
-                    "label": "Szczegóły płatności",
-                    "placeholder": "Wpisz szczegóły płatności",
-                    "description": "Dodatkowe informacje dotyczące płatności (np. IBAN, instrukcje itp.)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 }
             },
             "actions": {
-                "cancel": "Anuluj",
-                "create": "Utwórz ofertę",
-                "save": "Zapisz zmiany"
+                "cancel": "",
+                "create": "",
+                "save": ""
             },
             "messages": {
                 "saveError": "Nie udało się zapisać oferty",
@@ -462,50 +462,50 @@
             }
         },
         "view": {
-            "title": "Oferta {{number}}",
-            "description": "Zobacz wszystkie szczegóły tej oferty.",
+            "title": "",
+            "description": "",
             "status": {
-                "draft": "Szkic",
-                "sent": "Wysłana",
-                "expired": "Wygasła",
-                "signed": "Podpisana"
+                "draft": "",
+                "sent": "",
+                "expired": "",
+                "signed": ""
             },
             "fields": {
-                "title": "Tytuł",
-                "status": "Status",
-                "createdAt": "Utworzono",
-                "validUntil": "Ważna do",
-                "signedAt": "Podpisano dnia",
-                "client": "Klient",
-                "signedBy": "Podpisana przez",
-                "discountRate": "Stawka rabatu",
-                "discountAmount": "Kwota rabatu",
-                "totalHT": "Suma netto",
-                "totalVAT": "Kwota VAT",
-                "totalTTC": "Suma brutto",
-                "signature": "Podpis"
+                "title": "",
+                "status": "",
+                "createdAt": "",
+                "validUntil": "",
+                "signedAt": "",
+                "client": "",
+                "signedBy": "",
+                "discountRate": "",
+                "discountAmount": "",
+                "totalHT": "",
+                "totalVAT": "",
+                "totalTTC": "",
+                "signature": ""
             }
         },
         "sendConfirmation": {
-            "title": "Wyślij ofertę do podpisu",
-            "description": "Ta oferta zostanie wysłana do podpisu na adres e-mail klienta.",
-            "emailLabel": "Odbiorca:",
-            "confirm": "Wyślij",
-            "cancel": "Anuluj"
+            "title": "",
+            "description": "",
+            "emailLabel": "",
+            "confirm": "",
+            "cancel": ""
         },
         "delete": {
-            "title": "Usuń ofertę",
-            "description": "Czy na pewno chcesz usunąć tę ofertę? Tej operacji nie można cofnąć.",
+            "title": "",
+            "description": "",
             "actions": {
-                "cancel": "Anuluj",
-                "delete": "Usuń ofertę"
+                "cancel": "",
+                "delete": ""
             },
             "messages": {
                 "error": "Nie udało się usunąć oferty"
             }
         },
         "pdf": {
-            "title": "Oferta {{number}} - PDF",
+            "title": "",
             "edit": {
                 "toggle": "Edytuj",
                 "saveQuote": "Zapisz ofertę",
@@ -514,53 +514,53 @@
             }
         },
         "header": {
-            "subtitle": "Zarządzaj swoimi ofertami",
-            "count": "{{count}} ofert {{found}}",
-            "found": "znalezionych"
+            "subtitle": "",
+            "count": "",
+            "found": ""
         },
         "stats": {
-            "total": "Łączna liczba ofert",
-            "draft": "Szkice",
-            "signed": "Podpisane"
+            "total": "",
+            "draft": "",
+            "signed": ""
         }
     },
     "invoices": {
         "search": {
-            "placeholder": "Szukaj faktur..."
+            "placeholder": ""
         },
         "actions": {
-            "addNew": "Dodaj nową fakturę"
+            "addNew": ""
         },
         "filters": {
-            "all": "Wszystkie",
-            "oneTime": "Jednorazowe",
-            "recurring": "Cykliczne"
+            "all": "",
+            "oneTime": "",
+            "recurring": ""
         },
         "progression": {
-            "title": "Postęp",
-            "emptyState": "Brak faktur do wyświetlenia.",
+            "title": "",
+            "emptyState": "",
             "steps": {
-                "draft": "Szkic",
+                "draft": "",
                 "issued": "Wystawiona",
                 "pendingClearance": "Oczekuje na akceptację",
                 "cleared": "Zaakceptowana",
                 "delivered": "Dostarczona",
-                "sent": "Wysłana",
-                "paid": "Opłacona",
-                "archived": "Zarchiwizowana",
-                "partiallyPaid": "Częściowo opłacona",
+                "sent": "",
+                "paid": "",
+                "archived": "",
+                "partiallyPaid": "",
                 "cancelled": "Anulowana",
                 "corrected": "Skorygowana"
             },
-            "percentPaid": "Opłacono {{percent}}%",
-            "stepLabel": "Krok {{current}} / {{total}}",
+            "percentPaid": "",
+            "stepLabel": "",
             "noNumberYet": "Brak numeru",
             "actions": {
                 "issue": "Wystaw",
-                "send": "Wyślij",
-                "resend": "Wyślij ponownie",
-                "paymentReceived": "Płatność otrzymana",
-                "archive": "Archiwizuj"
+                "send": "",
+                "resend": "",
+                "paymentReceived": "",
+                "archive": ""
             },
             "confirmations": {
                 "issue": {
@@ -568,116 +568,116 @@
                     "description": "Czy na pewno chcesz wystawić fakturę {{number}}? Dokument zostanie zablokowany i otrzyma numer urzędowy."
                 },
                 "send": {
-                    "title": "Wyślij fakturę",
-                    "description": "Czy na pewno chcesz wysłać fakturę {{number}} do {{client}}?"
+                    "title": "",
+                    "description": ""
                 },
                 "resend": {
-                    "title": "Wyślij fakturę ponownie",
-                    "description": "Czy na pewno chcesz ponownie wysłać fakturę {{number}} do {{client}}?"
+                    "title": "",
+                    "description": ""
                 },
                 "paymentReceived": {
-                    "title": "Płatność otrzymana",
-                    "description": "Czy na pewno otrzymano płatność za fakturę {{number}}?"
+                    "title": "",
+                    "description": ""
                 },
                 "archive": {
-                    "title": "Archiwizuj fakturę",
-                    "description": "Czy na pewno chcesz zarchiwizować fakturę {{number}}? Ta operacja jest nieodwracalna."
+                    "title": "",
+                    "description": ""
                 },
-                "confirm": "Potwierdź",
-                "cancel": "Anuluj"
+                "confirm": "",
+                "cancel": ""
             },
-            "noAction": "Brak działań"
+            "noAction": ""
         },
         "views": {
-            "list": "Lista",
-            "table": "Tabela"
+            "list": "",
+            "table": ""
         },
         "table": {
             "columns": {
-                "number": "Numer",
-                "client": "Klient",
-                "status": "Status",
-                "totalTTC": "Suma brutto",
-                "createdAt": "Utworzono",
-                "dueDate": "Termin płatności"
+                "number": "",
+                "client": "",
+                "status": "",
+                "totalTTC": "",
+                "createdAt": "",
+                "dueDate": ""
             },
             "filters": {
-                "client": "Klient",
-                "clientPlaceholder": "Wszyscy klienci",
-                "clientNoResults": "Nie znaleziono klienta",
-                "year": "Rok",
-                "month": "Miesiąc",
-                "allYears": "Wszystkie lata",
-                "allMonths": "Wszystkie miesiące"
+                "client": "",
+                "clientPlaceholder": "",
+                "clientNoResults": "",
+                "year": "",
+                "month": "",
+                "allYears": "",
+                "allMonths": ""
             },
             "actions": {
-                "export": "Eksportuj"
+                "export": ""
             },
-            "emptyState": "Żadna faktura nie pasuje do tych filtrów."
+            "emptyState": ""
         },
         "statusFilters": {
-            "draft": "Szkic",
+            "draft": "",
             "issued": "Wystawiona",
-            "sent": "Wysłana",
-            "paid": "Opłacona",
-            "archived": "Zarchiwizowana",
+            "sent": "",
+            "paid": "",
+            "archived": "",
             "cancelled": "Anulowana",
             "corrected": "Skorygowana",
-            "all": "Wszystkie"
+            "all": ""
         },
         "emptyState": {
-            "noInvoices": "Brak faktur",
-            "noResults": "Nie znaleziono faktur",
-            "startAdding": "Zacznij od utworzenia pierwszej faktury.",
-            "tryDifferentSearch": "Spróbuj zmienić kryteria wyszukiwania."
+            "noInvoices": "",
+            "noResults": "",
+            "startAdding": "",
+            "tryDifferentSearch": ""
         },
         "list": {
             "status": {
-                "draft": "Szkic",
+                "draft": "",
                 "issued": "Wystawiona",
-                "sent": "Wysłana",
-                "unpaid": "Nieopłacona",
-                "overdue": "Zaległa",
-                "paid": "Opłacona",
-                "upcoming": "Nadchodząca",
-                "archived": "Zarchiwizowana",
+                "sent": "",
+                "unpaid": "",
+                "overdue": "",
+                "paid": "",
+                "upcoming": "",
+                "archived": "",
                 "cancelled": "Anulowana",
                 "corrected": "Skorygowana",
                 "pending_clearance": "Oczekuje na akceptację",
                 "cleared": "Zaakceptowana"
             },
             "item": {
-                "title": "Faktura {{number}} {{title}}",
-                "upcomingTitle": "Następna faktura - {{client}}",
-                "client": "Klient",
-                "issued": "Wystawiono",
-                "due": "Termin",
-                "nextInvoiceDate": "Następna faktura",
-                "payment": "Płatność",
-                "totalHT": "Suma netto",
-                "totalTTC": "Suma brutto"
+                "title": "",
+                "upcomingTitle": "",
+                "client": "",
+                "issued": "",
+                "due": "",
+                "nextInvoiceDate": "",
+                "payment": "",
+                "totalHT": "",
+                "totalTTC": ""
             },
             "tooltips": {
-                "exportPdf": "Eksportuj PDF",
-                "downloadPdf": "Pobierz PDF",
-                "edit": "Edytuj fakturę",
-                "delete": "Usuń fakturę",
+                "exportPdf": "",
+                "downloadPdf": "",
+                "edit": "",
+                "delete": "",
                 "issue": "Wystaw fakturę",
                 "creditNote": "Wystaw fakturę korygującą",
                 "cancel": "Anuluj fakturę",
-                "sendByEmail": "Wyślij fakturę e-mailem"
+                "sendByEmail": ""
             },
             "actions": {
-                "addNew": "Dodaj nową fakturę",
-                "downloadPdf": "Pobierz PDF",
-                "downloadXml": "Pobierz XML"
+                "addNew": "",
+                "downloadPdf": "",
+                "downloadXml": ""
             },
             "messages": {
-                "markAsPaidSuccess": "Faktura została oznaczona jako opłacona",
-                "markAsPaidError": "Nie udało się oznaczyć faktury jako opłaconej",
-                "sendByEmailSuccess": "Faktura została wysłana do klienta",
-                "archiveSuccess": "Faktura została zarchiwizowana",
-                "archiveError": "Nie udało się zarchiwizować faktury",
+                "markAsPaidSuccess": "",
+                "markAsPaidError": "",
+                "sendByEmailSuccess": "",
+                "archiveSuccess": "",
+                "archiveError": "",
                 "issueSuccess": "Faktura została wystawiona",
                 "issueError": "Nie udało się wystawić faktury",
                 "correctSuccess": "Faktura korygująca wystawiona",
@@ -686,118 +686,118 @@
                 "cancelError": "Nie udało się anulować faktury",
                 "sendByEmailError": "Nie udało się wysłać faktury e-mailem"
             },
-            "title": "Wszystkie faktury",
-            "description": "Zarządzaj wszystkimi fakturami i przeglądaj je w jednym miejscu.",
+            "title": "",
+            "description": "",
             "downloadFormats": {
-                "pdf": "Standardowy PDF",
-                "facturx": "Factur-X",
-                "zugferd": "ZUGFeRD",
-                "xrechnung": "XRechnung",
-                "ubl": "UBL",
-                "cii": "CII"
+                "pdf": "",
+                "facturx": "",
+                "zugferd": "",
+                "xrechnung": "",
+                "ubl": "",
+                "cii": ""
             }
         },
         "upsert": {
             "title": {
-                "create": "Utwórz nową fakturę",
-                "edit": "Edytuj fakturę"
+                "create": "",
+                "edit": ""
             },
             "tabs": {
-                "invoice": "Faktura",
-                "recurring": "Faktura cykliczna",
+                "invoice": "",
+                "recurring": "",
                 "proforma": "Proforma",
                 "final": "Faktura końcowa"
             },
             "form": {
                 "quote": {
-                    "label": "Z oferty",
-                    "placeholder": "Wybierz ofertę",
+                    "label": "",
+                    "placeholder": "",
                     "errors": {
-                        "required": "Wybierz ofertę"
+                        "required": ""
                     }
                 },
                 "client": {
-                    "label": "Klient",
-                    "placeholder": "Wybierz klienta",
+                    "label": "",
+                    "placeholder": "",
                     "errors": {
-                        "required": "Wybierz klienta"
+                        "required": ""
                     },
-                    "noOptions": "Brak dostępnych klientów. Najpierw utwórz klienta."
+                    "noOptions": ""
                 },
                 "currency": {
-                    "label": "Waluta"
+                    "label": ""
                 },
                 "discountRate": {
-                    "label": "Rabat (%)",
-                    "placeholder": "Wpisz procent rabatu",
-                    "description": "Naliczany przed obliczeniem VAT.",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Rabat jest wymagany",
-                        "min": "Rabat nie może być ujemny",
-                        "max": "Rabat nie może przekraczać 100%"
+                        "required": "",
+                        "min": "",
+                        "max": ""
                     }
                 },
                 "dueDate": {
-                    "label": "Termin płatności",
-                    "placeholder": "Wybierz termin płatności"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "items": {
-                    "label": "Pozycje faktury",
-                    "addItem": "Dodaj pozycję",
+                    "label": "",
+                    "addItem": "",
                     "name": {
-                        "placeholder": "Nazwa pozycji",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Nazwa jest wymagana"
+                            "required": ""
                         }
                     },
                     "description": {
-                        "placeholder": "Opis pozycji",
-                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia.",
+                        "placeholder": "",
+                        "hint": "",
                         "errors": {
-                            "required": "Opis jest wymagany"
+                            "required": ""
                         }
                     },
                     "quantity": {
-                        "placeholder": "Ilość",
-                        "unit": "szt.",
+                        "placeholder": "",
+                        "unit": "",
                         "errors": {
-                            "required": "Ilość jest wymagana",
-                            "min": "Ilość musi wynosić co najmniej 1",
-                            "invalid": "Nieprawidłowa ilość"
+                            "required": "",
+                            "min": "",
+                            "invalid": ""
                         }
                     },
                     "unitPrice": {
-                        "placeholder": "Cena jednostkowa",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Cena jednostkowa jest wymagana",
-                            "min": "Cena jednostkowa musi być dodatnia",
-                            "invalid": "Nieprawidłowa cena jednostkowa"
+                            "required": "",
+                            "min": "",
+                            "invalid": ""
                         }
                     },
                     "vatRate": {
-                        "placeholder": "VAT %",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Stawka VAT jest wymagana",
-                            "min": "Stawka VAT musi być dodatnia"
+                            "required": "",
+                            "min": ""
                         }
                     },
                     "type": {
-                        "label": "Typ",
-                        "hour": "Godzina",
-                        "day": "Dzień",
-                        "deposit": "Zaliczka",
-                        "service": "Usługa",
-                        "product": "Produkt"
+                        "label": "",
+                        "hour": "",
+                        "day": "",
+                        "deposit": "",
+                        "service": "",
+                        "product": ""
                     }
                 },
                 "notes": {
-                    "label": "Uwagi",
-                    "placeholder": "Dodatkowe uwagi lub warunki"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "paymentMethod": {
-                    "label": "Metoda płatności",
-                    "placeholder": "Wybierz metodę płatności",
-                    "description": "Preferowana metoda płatności (np. przelew bankowy, czek itp.)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 },
                 "deposits": {
                     "label": "Powiązane zaliczki",
@@ -806,15 +806,15 @@
                     "none": "Brak niepowiązanych faktur zaliczkowych dla tego klienta."
                 },
                 "paymentDetails": {
-                    "label": "Szczegóły płatności",
-                    "placeholder": "Wpisz szczegóły płatności",
-                    "description": "Dodatkowe informacje dotyczące płatności (np. IBAN, instrukcje itp.)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 }
             },
             "actions": {
-                "cancel": "Anuluj",
-                "create": "Utwórz fakturę",
-                "save": "Zapisz zmiany",
+                "cancel": "",
+                "create": "",
+                "save": "",
                 "createProforma": "Utwórz proformę",
                 "createFinal": "Utwórz fakturę końcową"
             },
@@ -825,37 +825,37 @@
             }
         },
         "view": {
-            "title": "Faktura {{number}}",
-            "description": "Zobacz wszystkie szczegóły tej faktury.",
+            "title": "",
+            "description": "",
             "status": {
-                "draft": "Szkic",
+                "draft": "",
                 "issued": "Wystawiona",
-                "sent": "Wysłana",
-                "unpaid": "Nieopłacona",
-                "overdue": "Zaległa",
-                "paid": "Opłacona",
-                "archived": "Zarchiwizowana",
+                "sent": "",
+                "unpaid": "",
+                "overdue": "",
+                "paid": "",
+                "archived": "",
                 "cancelled": "Anulowana",
                 "corrected": "Skorygowana",
                 "pending_clearance": "Oczekuje na akceptację",
                 "cleared": "Zaakceptowana"
             },
             "fields": {
-                "number": "Numer faktury",
-                "title": "Tytuł",
-                "status": "Status",
-                "createdAt": "Utworzono",
-                "dueDate": "Termin płatności",
-                "paidAt": "Opłacono dnia",
-                "updatedAt": "Zaktualizowano",
-                "client": "Klient",
-                "paymentMethod": "Metoda płatności",
-                "discountRate": "Stawka rabatu",
-                "discountAmount": "Kwota rabatu",
-                "totalHT": "Suma netto",
-                "totalVAT": "Kwota VAT",
-                "totalTTC": "Suma brutto",
-                "notes": "Uwagi",
+                "number": "",
+                "title": "",
+                "status": "",
+                "createdAt": "",
+                "dueDate": "",
+                "paidAt": "",
+                "updatedAt": "",
+                "client": "",
+                "paymentMethod": "",
+                "discountRate": "",
+                "discountAmount": "",
+                "totalHT": "",
+                "totalVAT": "",
+                "totalTTC": "",
+                "notes": "",
                 "complianceStatus": "Status zgodności",
                 "correctsInvoice": "Koryguje fakturę",
                 "corrections": "Korekty",
@@ -899,42 +899,42 @@
         "sendConfirmation": {
             "title": "Wyślij fakturę e-mailem",
             "description": "Ta faktura zostanie wysłana na adres e-mail klienta.",
-            "emailLabel": "Odbiorca:",
-            "confirm": "Wyślij",
-            "cancel": "Anuluj"
+            "emailLabel": "",
+            "confirm": "",
+            "cancel": ""
         },
         "paymentReceived": {
-            "title": "Płatność otrzymana",
-            "description": "Wpisz kwotę otrzymaną za tę fakturę.",
-            "percentLabel": "Zostanie opłacone {{percent}}% faktury",
+            "title": "",
+            "description": "",
+            "percentLabel": "",
             "fields": {
                 "amount": {
-                    "label": "Otrzymana kwota",
-                    "placeholder": "Wpisz otrzymaną kwotę",
+                    "label": "",
+                    "placeholder": "",
                     "errors": {
-                        "required": "Kwota musi być większa niż 0",
-                        "tooHigh": "Kwota nie może przekraczać pozostałego salda"
+                        "required": "",
+                        "tooHigh": ""
                     }
                 }
             },
             "actions": {
-                "confirm": "Potwierdź",
-                "cancel": "Anuluj"
+                "confirm": "",
+                "cancel": ""
             }
         },
         "delete": {
-            "title": "Usuń fakturę",
-            "description": "Czy na pewno chcesz usunąć tę fakturę? Tej operacji nie można cofnąć.",
+            "title": "",
+            "description": "",
             "actions": {
-                "cancel": "Anuluj",
-                "delete": "Usuń fakturę"
+                "cancel": "",
+                "delete": ""
             },
             "messages": {
                 "error": "Nie udało się usunąć faktury"
             }
         },
         "pdf": {
-            "title": "Faktura {{number}} - PDF"
+            "title": ""
         },
         "deposit": {
             "title": "Wystaw fakturę zaliczkową",
@@ -961,36 +961,36 @@
             }
         },
         "header": {
-            "subtitle": "Zarządzaj swoimi fakturami",
-            "count": "{{count}} faktur {{found}}",
-            "found": "znalezionych"
+            "subtitle": "",
+            "count": "",
+            "found": ""
         },
         "stats": {
-            "total": "Łączna liczba faktur",
-            "sent": "Wysłane",
-            "paid": "Opłacone"
+            "total": "",
+            "sent": "",
+            "paid": ""
         }
     },
     "recurringInvoices": {
         "frequency": {
-            "weekly": "Co tydzień",
-            "biweekly": "Co 2 tygodnie",
-            "monthly": "Co miesiąc",
-            "bimonthly": "Co 2 miesiące",
-            "quarterly": "Co 3 miesiące",
-            "quadmonthly": "Co 4 miesiące",
-            "semiannually": "Co 6 miesięcy",
-            "annually": "Co rok"
+            "weekly": "",
+            "biweekly": "",
+            "monthly": "",
+            "bimonthly": "",
+            "quarterly": "",
+            "quadmonthly": "",
+            "semiannually": "",
+            "annually": ""
         },
         "list": {
             "actions": {
-                "addNew": "Dodaj nową fakturę cykliczną"
+                "addNew": ""
             },
             "item": {
-                "client": "Klient",
-                "payment": "Metoda płatności",
+                "client": "",
+                "payment": "",
                 "frequency": "Częstotliwość",
-                "totalTTC": "Suma brutto",
+                "totalTTC": "",
                 "nextRun": "Następne uruchomienie",
                 "lastRun": "Ostatnie uruchomienie",
                 "generatedCount": "Wygenerowano",
@@ -998,16 +998,16 @@
                 "autoIssue": "Automatyczne wystawianie",
                 "autoSend": "Automatyczna wysyłka",
                 "skipNext": "Pomiń następną",
-                "totalHT": "Suma netto"
+                "totalHT": ""
             },
             "tooltips": {
-                "view": "Zobacz szczegóły",
-                "edit": "Edytuj",
+                "view": "",
+                "edit": "",
                 "pause": "Wstrzymaj",
                 "resume": "Wznów",
                 "skipNext": "Pomiń następny cykl",
                 "endNow": "Zakończ teraz",
-                "delete": "Usuń"
+                "delete": ""
             },
             "messages": {
                 "pauseSuccess": "Faktura cykliczna wstrzymana",
@@ -1018,127 +1018,127 @@
                 "pauseError": "Nie udało się wstrzymać faktury cyklicznej",
                 "resumeError": "Nie udało się wznowić faktury cyklicznej",
                 "skipNextError": "Nie udało się pominąć następnego cyklu",
-                "manual_process_success": "Ręczne przetwarzanie zostało uruchomione",
-                "manual_process_error": "Nie udało się uruchomić ręcznego przetwarzania"
+                "manual_process_success": "",
+                "manual_process_error": ""
             },
-            "title": "Faktury cykliczne",
-            "description": "Zarządzaj fakturami cyklicznymi i automatyzuj fakturowanie."
+            "title": "",
+            "description": ""
         },
         "upsert": {
             "title": {
-                "create": "Utwórz nową fakturę cykliczną",
-                "edit": "Edytuj fakturę cykliczną"
+                "create": "",
+                "edit": ""
             },
             "form": {
                 "quote": {
-                    "label": "Z oferty",
-                    "placeholder": "Wybierz ofertę"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "client": {
-                    "label": "Klient",
-                    "placeholder": "Wybierz klienta",
+                    "label": "",
+                    "placeholder": "",
                     "errors": {
-                        "required": "Wybierz klienta"
+                        "required": ""
                     },
-                    "noOptions": "Brak dostępnych klientów. Najpierw utwórz klienta."
+                    "noOptions": ""
                 },
                 "currency": {
-                    "label": "Waluta"
+                    "label": ""
                 },
                 "notes": {
-                    "label": "Uwagi",
-                    "placeholder": "Dodatkowe uwagi lub warunki"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "paymentMethod": {
-                    "label": "Metoda płatności",
-                    "placeholder": "Wybierz metodę płatności",
-                    "description": "Preferowana metoda płatności dla tej faktury cyklicznej (np. przelew bankowy, czek itp.)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 },
                 "frequency": {
-                    "label": "Częstotliwość",
-                    "placeholder": "Wybierz częstotliwość",
-                    "description": "Jak często będą generowane faktury",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Częstotliwość jest wymagana"
+                        "required": ""
                     }
                 },
                 "count": {
-                    "label": "Liczba wystąpień",
-                    "placeholder": "Wpisz liczbę wystąpień",
-                    "description": "Łączna liczba generowanych faktur (puste = bez ograniczeń)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 },
                 "until": {
-                    "label": "Data zakończenia",
-                    "placeholder": "Wybierz datę zakończenia",
-                    "description": "Data, po której faktury przestaną być generowane (puste = bez ograniczeń)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 },
                 "autoIssue": {
                     "label": "Automatyczne wystawianie",
                     "description": "Automatycznie nadaj numer i wystaw fakturę po wygenerowaniu (SZKIC → WYSTAWIONA)"
                 },
                 "autoSend": {
-                    "label": "Automatyczna wysyłka",
-                    "description": "Automatycznie wyślij fakturę do klienta po wygenerowaniu"
+                    "label": "",
+                    "description": ""
                 },
                 "items": {
-                    "label": "Pozycje faktury cyklicznej",
-                    "addItem": "Dodaj pozycję",
+                    "label": "",
+                    "addItem": "",
                     "name": {
-                        "placeholder": "Nazwa pozycji",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Nazwa jest wymagana"
+                            "required": ""
                         }
                     },
                     "description": {
-                        "placeholder": "Opis pozycji",
-                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia.",
+                        "placeholder": "",
+                        "hint": "",
                         "errors": {
-                            "required": "Opis jest wymagany"
+                            "required": ""
                         }
                     },
                     "quantity": {
-                        "placeholder": "Ilość",
-                        "unit": "szt.",
+                        "placeholder": "",
+                        "unit": "",
                         "errors": {
-                            "required": "Ilość jest wymagana",
-                            "min": "Ilość musi wynosić co najmniej 1",
-                            "invalid": "Nieprawidłowa ilość"
+                            "required": "",
+                            "min": "",
+                            "invalid": ""
                         }
                     },
                     "unitPrice": {
-                        "placeholder": "Cena jednostkowa",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Cena jednostkowa jest wymagana",
-                            "min": "Cena jednostkowa musi być dodatnia",
-                            "invalid": "Nieprawidłowa cena jednostkowa"
+                            "required": "",
+                            "min": "",
+                            "invalid": ""
                         }
                     },
                     "vatRate": {
-                        "placeholder": "VAT %",
+                        "placeholder": "",
                         "errors": {
-                            "required": "Stawka VAT jest wymagana",
-                            "min": "Stawka VAT musi być dodatnia"
+                            "required": "",
+                            "min": ""
                         }
                     },
                     "type": {
-                        "label": "Typ",
-                        "hour": "Godzina",
-                        "day": "Dzień",
-                        "deposit": "Zaliczka",
-                        "service": "Usługa",
-                        "product": "Produkt"
+                        "label": "",
+                        "hour": "",
+                        "day": "",
+                        "deposit": "",
+                        "service": "",
+                        "product": ""
                     }
                 },
                 "paymentDetails": {
-                    "label": "Szczegóły płatności",
-                    "placeholder": "Wpisz szczegóły płatności",
-                    "description": "Dodatkowe informacje dotyczące płatności (np. IBAN, instrukcje itp.)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 }
             },
             "actions": {
-                "cancel": "Anuluj",
-                "create": "Utwórz fakturę cykliczną",
-                "save": "Zapisz zmiany"
+                "cancel": "",
+                "create": "",
+                "save": ""
             },
             "messages": {
                 "saveError": "Nie udało się zapisać faktury cyklicznej"
@@ -1173,15 +1173,15 @@
             "title": "Usuń fakturę cykliczną"
         },
         "emptyState": {
-            "noInvoices": "Brak faktur cyklicznych",
-            "startAdding": "Zacznij od utworzenia pierwszej faktury cyklicznej."
+            "noInvoices": "",
+            "startAdding": ""
         },
         "actions": {
-            "addNew": "Dodaj nową fakturę cykliczną"
+            "addNew": ""
         }
     },
     "dashboard": {
-        "title": "Pulpit",
+        "title": "",
         "revenue": {
             "title": "Przegląd przychodów",
             "description": "Śledź swoje wyniki finansowe w czasie",
@@ -1218,72 +1218,72 @@
         }
     },
     "articles": {
-        "description": "Zarządzaj katalogiem produktów i usług wielokrotnego użytku.",
-        "empty": "Brak artykułów",
+        "description": "",
+        "empty": "",
         "actions": {
-            "cancel": "Anuluj",
-            "add": "Dodaj",
-            "save": "Zapisz zmiany",
-            "edit": "Edytuj",
-            "delete": "Usuń",
-            "deleting": "Usuwanie..."
+            "cancel": "",
+            "add": "",
+            "save": "",
+            "edit": "",
+            "delete": "",
+            "deleting": ""
         },
         "search": {
-            "placeholder": "Szukaj artykułów..."
+            "placeholder": ""
         },
         "list": {
-            "add": "Dodaj artykuł"
+            "add": ""
         },
         "picker": {
-            "placeholder": "Dodaj z katalogu...",
-            "noResults": "Nie znaleziono artykułów"
+            "placeholder": "",
+            "noResults": ""
         },
         "fields": {
             "name": {
-                "label": "Nazwa",
-                "placeholder": "np. Godzina tworzenia stron WWW"
+                "label": "",
+                "placeholder": ""
             },
             "description": {
-                "label": "Opis",
-                "placeholder": "Tekst wstawiany do pozycji dokumentu"
+                "label": "",
+                "placeholder": ""
             },
             "type": {
-                "label": "Typ",
-                "hour": "Godzina",
-                "day": "Dzień",
-                "deposit": "Zaliczka",
-                "service": "Usługa",
-                "product": "Produkt"
+                "label": "",
+                "hour": "",
+                "day": "",
+                "deposit": "",
+                "service": "",
+                "product": ""
             },
             "unitPrice": {
-                "label": "Cena jednostkowa"
+                "label": ""
             },
             "vatRate": {
-                "label": "VAT (%)"
+                "label": ""
             }
         },
         "upsert": {
             "title": {
-                "create": "Dodaj artykuł",
-                "edit": "Edytuj artykuł"
+                "create": "",
+                "edit": ""
             },
             "messages": {
-                "addSuccess": "Artykuł dodany",
-                "addError": "Nie udało się dodać artykułu",
-                "updateSuccess": "Artykuł zaktualizowany",
-                "updateError": "Nie udało się zaktualizować artykułu",
-                "deleteSuccess": "Artykuł usunięty",
-                "deleteError": "Nie udało się usunąć artykułu"
+                "addSuccess": "",
+                "addError": "",
+                "updateSuccess": "",
+                "updateError": "",
+                "deleteSuccess": "",
+                "deleteError": ""
             }
         },
         "delete": {
-            "description": "Czy na pewno chcesz usunąć \"{{name}}\"? Tej operacji nie można cofnąć."
+            "description": ""
         },
-        "title": "Artykuły"
+        "title": ""
     },
     "paymentMethods": {
         "title": "Metody płatności",
-        "description": "Zarządzaj metodami płatności wielokrotnego użytku.",
+        "description": "",
         "empty": "Brak metod płatności.",
         "actions": {
             "cancel": "Anuluj",
@@ -1380,57 +1380,57 @@
         }
     },
     "settings": {
-        "title": "Ustawienia",
+        "title": "",
         "tabs": {
-            "company": "Firma",
+            "company": "",
             "pdfTemplates": "Szablony PDF",
-            "emailTemplates": "Szablony e-mail",
+            "emailTemplates": "",
             "account": "Konto",
-            "logs": "Logi",
-            "invitations": "Zaproszenia",
-            "dangerZone": "Strefa zagrożenia",
+            "logs": "",
+            "invitations": "",
+            "dangerZone": "",
             "plugins": "Wtyczki",
-            "webhooks": "Webhooki",
-            "apiKeys": "Klucze API",
+            "webhooks": "",
+            "apiKeys": "",
             "channels": "E-fakturowanie",
             "signing": "Certyfikaty podpisu",
             "members": "Członkowie"
         },
         "invitations": {
             "create": {
-                "title": "Utwórz kod zaproszenia",
-                "description": "Wygeneruj nowy kod zaproszenia, aby zaprosić kogoś do utworzenia konta",
-                "expiresIn": "Wygasa za (dni)",
-                "expiresPlaceholder": "Pozostaw puste, aby kod nie wygasał",
-                "button": "Wygeneruj kod",
-                "creating": "Generowanie...",
+                "title": "",
+                "description": "",
+                "expiresIn": "",
+                "expiresPlaceholder": "",
+                "button": "",
+                "creating": "",
                 "role": "Rola"
             },
             "list": {
-                "title": "Twoje kody zaproszeń",
-                "description": "Zarządzaj utworzonymi kodami zaproszeń",
-                "code": "Kod",
-                "status": "Status",
-                "createdAt": "Utworzono",
-                "expiresAt": "Wygasa",
-                "usedBy": "Użyty przez",
-                "actions": "Akcje",
-                "empty": "Nie utworzono jeszcze żadnych kodów zaproszeń",
-                "noExpiry": "Nigdy",
+                "title": "",
+                "description": "",
+                "code": "",
+                "status": "",
+                "createdAt": "",
+                "expiresAt": "",
+                "usedBy": "",
+                "actions": "",
+                "empty": "",
+                "noExpiry": "",
                 "role": "Rola"
             },
             "status": {
-                "active": "Aktywny",
-                "used": "Użyty",
-                "expired": "Wygasły"
+                "active": "",
+                "used": "",
+                "expired": ""
             },
             "messages": {
-                "createSuccess": "Kod zaproszenia został utworzony",
-                "createError": "Nie udało się utworzyć kodu zaproszenia",
-                "deleteSuccess": "Kod zaproszenia usunięty",
-                "deleteError": "Nie udało się usunąć kodu zaproszenia",
-                "codeCopied": "Kod skopiowany do schowka",
-                "fetchError": "Nie udało się załadować kodów zaproszeń"
+                "createSuccess": "",
+                "createError": "",
+                "deleteSuccess": "",
+                "deleteError": "",
+                "codeCopied": "",
+                "fetchError": ""
             },
             "roles": {
                 "owner": "Właściciel",
@@ -1439,117 +1439,117 @@
             }
         },
         "company": {
-            "title": "Ustawienia firmy",
-            "description": "Zarządzaj danymi swojej firmy",
-            "basicInfo": "Podstawowe informacje",
-            "basicInfoDescription": "Najważniejsze dane o Twojej firmie",
+            "title": "",
+            "description": "",
+            "basicInfo": "",
+            "basicInfoDescription": "",
             "address": {
-                "title": "Dane adresowe",
-                "description": "Fizyczna lokalizacja Twojej firmy"
+                "title": "",
+                "description": ""
             },
             "contact": {
-                "title": "Dane kontaktowe",
-                "description": "Jak klienci mogą się skontaktować z Twoją firmą"
+                "title": "",
+                "description": ""
             },
             "numberFormats": {
-                "title": "Formaty numeracji",
-                "description": "Dostosuj formaty numeracji ofert i faktur"
+                "title": "",
+                "description": ""
             },
             "other": {
-                "title": "Pozostałe ustawienia",
-                "description": "Dodatkowe ustawienia Twojej firmy"
+                "title": "",
+                "description": ""
             },
             "form": {
                 "company": {
-                    "label": "Nazwa firmy",
-                    "placeholder": "Wpisz nazwę firmy",
-                    "description": "Prawna nazwa Twojej działalności",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Nazwa firmy jest wymagana",
-                        "empty": "Nazwa firmy nie może być pusta",
-                        "maxLength": "Nazwa firmy nie może przekraczać 100 znaków"
+                        "required": "",
+                        "empty": "",
+                        "maxLength": ""
                     }
                 },
                 "description": {
-                    "label": "Opis",
-                    "placeholder": "Krótki opis Twojej firmy",
-                    "description": "Krótki opis działalności firmy",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "maxLength": "Opis nie może przekraczać 500 znaków"
+                        "maxLength": ""
                     }
                 },
                 "foundedAt": {
-                    "label": "Data założenia",
-                    "placeholder": "Wybierz datę założenia",
-                    "description": "Kiedy powstała Twoja firma",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "future": "Data założenia nie może być w przyszłości"
+                        "future": ""
                     }
                 },
                 "currency": {
-                    "label": "Waluta",
-                    "description": "Domyślna waluta faktur i ofert",
+                    "label": "",
+                    "description": "",
                     "errors": {
-                        "required": "Waluta jest wymagana",
-                        "select": "Wybierz walutę"
+                        "required": "",
+                        "select": ""
                     }
                 },
                 "address": {
-                    "label": "Adres",
-                    "placeholder": "Wpisz ulicę i numer",
-                    "description": "Adres siedziby Twojej firmy",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "empty": "Adres jest wymagany"
+                        "empty": ""
                     }
                 },
                 "addressLine2": {
-                    "label": "Adres — linia 2 (opcjonalnie)",
-                    "placeholder": "Mieszkanie, lokal, budynek, piętro itp.",
-                    "description": "Dodatkowe informacje adresowe (opcjonalnie)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 },
                 "postalCode": {
-                    "label": "Kod pocztowy",
-                    "placeholder": "Wpisz kod pocztowy",
+                    "label": "",
+                    "placeholder": "",
                     "errors": {
-                        "format": "Nieprawidłowy format kodu pocztowego"
+                        "format": ""
                     }
                 },
                 "city": {
-                    "label": "Miasto",
-                    "placeholder": "Wpisz miasto",
+                    "label": "",
+                    "placeholder": "",
                     "errors": {
-                        "empty": "Miasto jest wymagane"
+                        "empty": ""
                     }
                 },
                 "state": {
-                    "label": "Województwo/region (opcjonalnie)",
-                    "placeholder": "Wpisz województwo lub region",
-                    "description": "Stan lub województwo (np. CA, TX, Ontario)"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 },
                 "country": {
-                    "label": "Kraj",
-                    "description": "Określa dostępną wyszukiwarkę firm (np. SIRET dla Francji)",
+                    "label": "",
+                    "description": "",
                     "errors": {
-                        "empty": "Kraj jest wymagany"
+                        "empty": ""
                     },
-                    "placeholder": "Wpisz kraj"
+                    "placeholder": ""
                 },
                 "phone": {
-                    "label": "Telefon",
-                    "placeholder": "Wpisz numer telefonu",
-                    "description": "Główny numer telefonu Twojej firmy",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "minLength": "Numer telefonu musi mieć co najmniej 8 znaków",
-                        "format": "Nieprawidłowy format numeru telefonu"
+                        "minLength": "",
+                        "format": ""
                     }
                 },
                 "email": {
-                    "label": "E-mail",
-                    "placeholder": "Wpisz adres e-mail",
-                    "description": "Główny adres e-mail Twojej firmy",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "E-mail jest wymagany",
-                        "format": "Nieprawidłowy format adresu e-mail"
+                        "required": "",
+                        "format": ""
                     }
                 },
                 "quoteStartingNumber": {
@@ -1561,13 +1561,13 @@
                     }
                 },
                 "quoteNumberFormat": {
-                    "label": "Format numeru oferty",
-                    "placeholder": "Wpisz format numeru oferty (np. Q-{year}-{number})",
-                    "description": "Format numerów ofert",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Format numeru oferty jest wymagany",
-                        "maxLength": "Format numeru oferty nie może przekraczać 100 znaków",
-                        "format": "Nieprawidłowy format numeru oferty. Użyj {year}, {month}, {day}, {number} z opcjonalnym dopełnieniem (np. {number:4})"
+                        "required": "",
+                        "maxLength": "",
+                        "format": ""
                     }
                 },
                 "invoiceStartingNumber": {
@@ -1579,13 +1579,13 @@
                     }
                 },
                 "invoiceNumberFormat": {
-                    "label": "Format numeru faktury",
-                    "placeholder": "Wpisz format numeru faktury (np. INV-{year}-{number})",
-                    "description": "Format numerów faktur",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Format numeru faktury jest wymagany",
-                        "maxLength": "Format numeru faktury nie może przekraczać 100 znaków",
-                        "format": "Nieprawidłowy format numeru faktury. Użyj {year}, {month}, {day}, {number} z opcjonalnym dopełnieniem (np. {number:4})"
+                        "required": "",
+                        "maxLength": "",
+                        "format": ""
                     }
                 },
                 "paymentStartingNumber": {
@@ -1607,41 +1607,41 @@
                     }
                 },
                 "invoicePDFFormat": {
-                    "label": "Format PDF faktury",
-                    "placeholder": "Wybierz format PDF faktury",
-                    "description": "Wybierz format plików PDF faktur wysyłanych do klientów",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "options": {
-                        "pdf": "Standardowy PDF",
-                        "facturx": "Factur-X",
-                        "zugferd": "ZUGFeRD",
-                        "xrechnung": "XRechnung",
-                        "ubl": "UBL",
-                        "cii": "CII"
+                        "pdf": "",
+                        "facturx": "",
+                        "zugferd": "",
+                        "xrechnung": "",
+                        "ubl": "",
+                        "cii": ""
                     },
                     "errors": {
                         "format": "Nieprawidłowy format PDF faktury",
-                        "required": "Format PDF faktury jest wymagany"
+                        "required": ""
                     }
                 },
                 "dateFormat": {
-                    "label": "Format daty",
-                    "placeholder": "Wybierz format daty",
-                    "description": "Wybierz sposób wyświetlania dat w ofertach i fakturach",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Format daty jest wymagany",
+                        "required": "",
                         "format": "Nieprawidłowy format daty",
                         "maxLength": "Format daty nie może przekraczać 50 znaków"
                     }
                 },
                 "exemptVat": {
-                    "label": "Zwolnienie z VAT",
-                    "description": "Wyświetlaj notę prawną „VAT nie ma zastosowania, art. 293 B CGI” na przyszłych dokumentach, jeśli opcja jest włączona, a krajem firmy jest Francja."
+                    "label": "",
+                    "description": ""
                 },
                 "identifiers": {
                     "label": "Identyfikatory specyficzne dla kraju"
                 },
-                "saving": "Zapisywanie...",
-                "saveSettings": "Zapisz ustawienia",
+                "saving": "",
+                "saveSettings": "",
                 "peppol": {
                     "label": "Peppol / Routing elektroniczny (opcjonalnie)"
                 },
@@ -1654,30 +1654,30 @@
                     "label": "Schemat Peppol"
                 },
                 "legalId": {
-                    "label": "Identyfikator prawny",
-                    "placeholder": "Wpisz identyfikator prawny",
-                    "description": "Numer rejestrowy Twojej firmy",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Identyfikator prawny jest wymagany",
-                        "empty": "Identyfikator prawny nie może być pusty",
-                        "maxLength": "Identyfikator prawny musi mieć mniej niż 50 znaków"
+                        "required": "",
+                        "empty": "",
+                        "maxLength": ""
                     }
                 },
                 "vat": {
-                    "label": "Numer VAT",
-                    "placeholder": "Wpisz numer VAT (np. PL1234567890)",
-                    "description": "Numer identyfikacyjny VAT Twojej firmy",
+                    "label": "",
+                    "placeholder": "",
+                    "description": "",
                     "errors": {
-                        "required": "Numer VAT jest wymagany",
-                        "empty": "Numer VAT nie może być pusty",
-                        "maxLength": "Numer VAT musi mieć mniej niż 15 znaków",
-                        "format": "Format numeru VAT jest nieprawidłowy (np. PL1234567890)"
+                        "required": "",
+                        "empty": "",
+                        "maxLength": "",
+                        "format": ""
                     }
                 }
             },
             "messages": {
-                "updateSuccess": "Ustawienia firmy zostały zaktualizowane",
-                "updateError": "Nie udało się zaktualizować ustawień firmy"
+                "updateSuccess": "",
+                "updateError": ""
             }
         },
         "account": {
@@ -1761,8 +1761,8 @@
             }
         },
         "dangerZone": {
-            "title": "Strefa zagrożenia",
-            "description": "Nieodwracalne i destrukcyjne operacje",
+            "title": "",
+            "description": "",
             "resetApp": {
                 "title": "Zresetuj dane aplikacji",
                 "description": "Usuń wszystkie oferty, faktury i klientów, zachowując konto",
@@ -1774,24 +1774,24 @@
                 "button": "Zresetuj bazę danych"
             },
             "modal": {
-                "title": "Potwierdź niebezpieczną operację",
-                "description": "Wpisz kod weryfikacyjny wysłany na Twój e-mail, aby potwierdzić tę operację.",
-                "otpLabel": "Kod weryfikacyjny",
-                "otpPlaceholder": "0000-0000",
+                "title": "",
+                "description": "",
+                "otpLabel": "",
+                "otpPlaceholder": "",
                 "warningApp": "To zresetuje wszystkie dane aplikacji",
                 "warningAppDescription": "Wszystkie oferty, faktury i klienci zostaną trwale usunięci",
                 "warningDatabase": "To usunie całe Twoje konto",
                 "warningDatabaseDescription": "Twoje konto i wszystkie dane zostaną trwale usunięte",
-                "cancel": "Anuluj",
-                "confirm": "Potwierdź operację"
+                "cancel": "",
+                "confirm": ""
             },
             "messages": {
-                "otpSentSuccess": "Kod weryfikacyjny wysłany na Twój e-mail",
-                "otpSentError": "Nie udało się wysłać kodu weryfikacyjnego",
-                "actionSuccess": "Operacja zakończona pomyślnie",
-                "actionError": "Nie udało się wykonać operacji",
-                "actionFailed": "Operacja nie powiodła się",
-                "unexpectedError": "Wystąpił nieoczekiwany błąd"
+                "otpSentSuccess": "",
+                "otpSentError": "",
+                "actionSuccess": "",
+                "actionError": "",
+                "actionFailed": "",
+                "unexpectedError": ""
             }
         },
         "plugins": {
@@ -1952,47 +1952,47 @@
             }
         },
         "emailTemplates": {
-            "title": "Szablony e-mail",
-            "description": "Dostosuj szablony e-maili dla faktur i ofert",
+            "title": "",
+            "description": "",
             "editor": {
-                "subject": "Temat",
-                "subjectPlaceholder": "Wpisz temat e-maila",
-                "body": "Treść e-maila",
-                "htmlPlaceholder": "Wpisz treść HTML...",
-                "htmlTip": "Możesz używać znaczników HTML do formatowania",
-                "availableVariables": "Dostępne zmienne",
-                "variablesTip": "Użyj tych zmiennych w szablonie, otaczając je podwójnymi nawiasami klamrowymi"
+                "subject": "",
+                "subjectPlaceholder": "",
+                "body": "",
+                "htmlPlaceholder": "",
+                "htmlTip": "",
+                "availableVariables": "",
+                "variablesTip": ""
             },
             "preview": {
-                "from": "Od",
-                "to": "Do",
-                "subject": "Temat",
-                "reply": "Odpowiedz",
-                "forward": "Przekaż dalej",
-                "archive": "Archiwizuj"
+                "from": "",
+                "to": "",
+                "subject": "",
+                "reply": "",
+                "forward": "",
+                "archive": ""
             },
-            "saveButton": "Zapisz szablon",
+            "saveButton": "",
             "messages": {
-                "saveSuccess": "Szablon {{name}} został zapisany",
-                "saveError": "Nie udało się zapisać szablonu"
+                "saveSuccess": "",
+                "saveError": ""
             }
         },
         "webhooks": {
-            "title": "Ustawienia webhooków",
-            "description": "Zarządzaj wychodzącymi webhookami dla zdarzeń w aplikacji",
+            "title": "",
+            "description": "",
             "create": {
-                "title": "Utwórz webhook",
-                "description": "Utwórz nowy webhook, aby odbierać zdarzenia",
-                "url": "Adres URL webhooka",
-                "type": "Typ",
-                "events": "Zdarzenia",
-                "button": "Utwórz webhook"
+                "title": "",
+                "description": "",
+                "url": "",
+                "type": "",
+                "events": "",
+                "button": ""
             },
             "card": {
-                "events": "Nasłuchiwane zdarzenia: {{events}}",
-                "edit": "Edytuj",
-                "delete": "Usuń",
-                "editPrompt": "Wpisz nowy adres URL webhooka"
+                "events": "",
+                "edit": "",
+                "delete": "",
+                "editPrompt": ""
             },
             "createdSecretNotice": "Ten sekret zostanie wyświetlony tylko raz. Przechowuj go w bezpiecznym miejscu.",
             "createdSecretTitle": "Sekret webhooka",
@@ -2003,23 +2003,23 @@
             }
         },
         "apiKeys": {
-            "title": "Klucze API",
-            "description": "Zarządzaj kluczami API do uwierzytelniania CLI lub klientów zewnętrznych",
-            "swaggerLink": "Dokumentacja API",
-            "createdKeyTitle": "Klucz API utworzony",
-            "createdKeyNotice": "Ten klucz zostanie wyświetlony tylko raz. Przechowuj go w bezpiecznym miejscu.",
+            "title": "",
+            "description": "",
+            "swaggerLink": "",
+            "createdKeyTitle": "",
+            "createdKeyNotice": "",
             "create": {
-                "title": "Utwórz klucz API",
-                "description": "Wygeneruj nowy klucz API",
-                "name": "Nazwa",
-                "namePlaceholder": "np. CLI na moim laptopie",
-                "button": "Utwórz klucz API",
+                "title": "",
+                "description": "",
+                "name": "",
+                "namePlaceholder": "",
+                "button": "",
                 "scopes": "Zakresy uprawnień"
             },
             "card": {
-                "lastUsed": "Ostatnio użyty: {{date}}",
-                "neverUsed": "Nigdy nie użyty",
-                "revoke": "Unieważnij",
+                "lastUsed": "",
+                "neverUsed": "",
+                "revoke": "",
                 "noScopes": "Nie przyznano żadnych zakresów uprawnień"
             }
         },
@@ -2100,371 +2100,371 @@
     },
     "sidebar": {
         "navigation": {
-            "dashboard": "Pulpit",
+            "dashboard": "",
             "quotes": "Oferty",
             "invoices": "Faktury",
             "payments": "Płatności",
-            "clients": "Klienci",
-            "articles": "Artykuły",
-            "paymentMethods": "Metody płatności",
-            "stats": "Statystyki",
-            "settings": "Ustawienia",
+            "clients": "",
+            "articles": "",
+            "paymentMethods": "",
+            "stats": "",
+            "settings": "",
             "receivedInvoices": "Faktury otrzymane",
             "compliance": "Zgodność",
             "expenses": "Wydatki"
         },
         "company": {
-            "plan": "Entreprise",
+            "plan": "",
             "switcherLabel": "Twoje firmy",
             "createNew": "Utwórz nową firmę",
             "manage": "Zarządzaj firmą"
         },
-        "menu": "Menu",
+        "menu": "",
         "theme": {
-            "toggleTheme": "Przełącz motyw",
-            "light": "Jasny",
-            "dark": "Ciemny",
-            "system": "Systemowy"
+            "toggleTheme": "",
+            "light": "",
+            "dark": "",
+            "system": ""
         },
         "userMenu": {
-            "account": "Konto",
-            "logout": "Wyloguj się"
+            "account": "",
+            "logout": ""
         },
         "companyDialog": {
-            "title": "Uzupełnij dane firmy",
-            "description": "Uzupełnij informacje o swojej firmie, aby dalej korzystać z aplikacji.",
-            "goButton": "Przejdź do ustawień firmy"
+            "title": "",
+            "description": "",
+            "goButton": ""
         }
     },
     "auth": {
         "serverUnavailable": {
-            "title": "Usługa tymczasowo niedostępna",
-            "description": "Nie można połączyć się z serwerem. Sprawdź logi."
+            "title": "",
+            "description": ""
         },
         "login": {
-            "title": "Zaloguj się",
-            "description": "Wpisz dane logowania, aby uzyskać dostęp do konta",
+            "title": "",
+            "description": "",
             "form": {
                 "email": {
-                    "label": "E-mail"
+                    "label": ""
                 },
                 "password": {
-                    "label": "Hasło"
+                    "label": ""
                 },
-                "loggingIn": "Logowanie...",
-                "loginButton": "Zaloguj się"
+                "loggingIn": "",
+                "loginButton": ""
             },
-            "noAccount": "Nie masz konta?",
-            "signUpLink": "Zarejestruj się",
+            "noAccount": "",
+            "signUpLink": "",
             "messages": {
-                "loginSuccess": "Zalogowano pomyślnie",
-                "loginError": "Nieprawidłowe dane logowania"
+                "loginSuccess": "",
+                "loginError": ""
             },
-            "oidc": "Zaloguj się przez OIDC.",
-            "oidcLink": "Logowanie OIDC",
+            "oidc": "",
+            "oidcLink": "",
             "errors": {
-                "invalidEmail": "Wpisz prawidłowy adres e-mail",
-                "passwordRequired": "Hasło jest wymagane"
+                "invalidEmail": "",
+                "passwordRequired": ""
             }
         },
         "signup": {
-            "title": "Utwórz konto",
-            "description": "Utwórz nowe konto, aby rozpocząć",
+            "title": "",
+            "description": "",
             "form": {
                 "firstname": {
-                    "label": "Imię",
-                    "placeholder": "Wpisz swoje imię"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "lastname": {
-                    "label": "Nazwisko",
-                    "placeholder": "Wpisz swoje nazwisko"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "email": {
-                    "label": "E-mail",
-                    "placeholder": "Wpisz swój e-mail"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "password": {
-                    "label": "Hasło",
-                    "placeholder": "Utwórz hasło",
-                    "requirements": "Wymagania dotyczące hasła:"
+                    "label": "",
+                    "placeholder": "",
+                    "requirements": ""
                 },
                 "invitationCode": {
-                    "label": "Kod zaproszenia",
-                    "placeholder": "Wpisz kod zaproszenia",
-                    "hint": "Do rejestracji potrzebny jest kod zaproszenia od istniejącego użytkownika"
+                    "label": "",
+                    "placeholder": "",
+                    "hint": ""
                 },
-                "creatingAccount": "Tworzenie konta...",
-                "createButton": "Utwórz konto"
+                "creatingAccount": "",
+                "createButton": ""
             },
-            "hasAccount": "Masz już konto?",
-            "signInLink": "Zaloguj się",
+            "hasAccount": "",
+            "signInLink": "",
             "errors": {
-                "invitationCodeRequired": "Do rejestracji wymagany jest kod zaproszenia",
-                "invalidInvitationCode": "Nieprawidłowy lub wygasły kod zaproszenia",
-                "genericError": "Wystąpił błąd podczas tworzenia konta",
-                "firstnameMinLength": "Imię musi mieć co najmniej 2 znaki",
-                "lastnameMinLength": "Nazwisko musi mieć co najmniej 2 znaki",
-                "invalidEmail": "Wpisz prawidłowy adres e-mail",
-                "passwordMinLength": "Hasło musi mieć co najmniej 8 znaków",
-                "passwordLetter": "Hasło musi zawierać co najmniej jedną literę",
-                "passwordNumber": "Hasło musi zawierać co najmniej jedną cyfrę",
-                "passwordSpecial": "Hasło musi zawierać co najmniej jeden znak specjalny"
+                "invitationCodeRequired": "",
+                "invalidInvitationCode": "",
+                "genericError": "",
+                "firstnameMinLength": "",
+                "lastnameMinLength": "",
+                "invalidEmail": "",
+                "passwordMinLength": "",
+                "passwordLetter": "",
+                "passwordNumber": "",
+                "passwordSpecial": ""
             },
             "messages": {
-                "accountCreated": "Konto zostało utworzone"
+                "accountCreated": ""
             },
-            "oidc": "Zarejestruj się przez OIDC.",
-            "oidcLink": "Rejestracja OIDC"
+            "oidc": "",
+            "oidcLink": ""
         }
     },
     "unavailable": {
-        "title": "Niedostępne na telefonie/tablecie",
-        "description": "Ta funkcja jest dostępna tylko na komputerach, aby zapewnić optymalne działanie."
+        "title": "",
+        "description": ""
     },
     "component": {
         "currency-select": {
-            "placeholder": "Wybierz walutę",
-            "searchPlaceholder": "Szukaj walut...",
-            "noResults": "Nie znaleziono walut"
+            "placeholder": "",
+            "searchPlaceholder": "",
+            "noResults": ""
         },
         "country-select": {
-            "placeholder": "Wybierz kraj",
-            "searchPlaceholder": "Szukaj krajów...",
-            "noResults": "Nie znaleziono krajów"
+            "placeholder": "",
+            "searchPlaceholder": "",
+            "noResults": ""
         }
     },
     "common": {
-        "loading": "Ładowanie...",
-        "finish": "Zakończ",
-        "valueWithCurrency": "{{amount}}{{currency}}",
+        "loading": "",
+        "finish": "",
+        "valueWithCurrency": "",
         "cancel": "Anuluj",
-        "previous": "Wstecz",
-        "next": "Dalej",
+        "previous": "",
+        "next": "",
         "units": {
-            "day": "Dzień",
-            "week": "Tydzień",
-            "month": "Miesiąc",
-            "year": "Rok"
+            "day": "",
+            "week": "",
+            "month": "",
+            "year": ""
         }
     },
     "payments": {
         "breakdown": {
-            "label": "Podział na pozycje"
+            "label": ""
         },
         "search": {
-            "placeholder": "Szukaj płatności..."
+            "placeholder": ""
         },
         "actions": {
-            "addNew": "Dodaj nową płatność"
+            "addNew": ""
         },
         "emptyState": {
-            "noPayments": "Brak płatności",
-            "noResults": "Nie znaleziono płatności",
-            "startAdding": "Zacznij od utworzenia pierwszej płatności.",
-            "tryDifferentSearch": "Spróbuj zmienić kryteria wyszukiwania."
+            "noPayments": "",
+            "noResults": "",
+            "startAdding": "",
+            "tryDifferentSearch": ""
         },
         "list": {
             "item": {
-                "title": "Płatność {{number}}",
-                "invoice": "Faktura",
-                "totalItemCount": "Łączna liczba pozycji",
-                "totalPaid": "Łącznie zapłacono",
+                "title": "",
+                "invoice": "",
+                "totalItemCount": "",
+                "totalPaid": "",
                 "noInvoice": "Brak faktury",
-                "client": "Klient",
-                "issued": "Wystawiono",
-                "validUntil": "Ważna do",
-                "totalHT": "Suma netto",
-                "totalTTC": "Suma brutto"
+                "client": "",
+                "issued": "",
+                "validUntil": "",
+                "totalHT": "",
+                "totalTTC": ""
             },
             "tooltips": {
-                "viewPdf": "Zobacz PDF",
-                "downloadPdf": "Pobierz PDF",
-                "edit": "Edytuj płatność",
-                "sendToClient": "Wyślij do klienta",
-                "delete": "Usuń płatność",
-                "view": "Zobacz płatność"
+                "viewPdf": "",
+                "downloadPdf": "",
+                "edit": "",
+                "sendToClient": "",
+                "delete": "",
+                "view": ""
             },
             "messages": {
-                "emailSent": "Płatność została wysłana do klienta.",
-                "emailError": "Nie udało się wysłać płatności do klienta."
+                "emailSent": "",
+                "emailError": ""
             },
             "actions": {
-                "addNew": "Dodaj nową płatność"
+                "addNew": ""
             },
-            "title": "Wszystkie płatności",
-            "description": "Zarządzaj wszystkimi płatnościami i przeglądaj je w jednym miejscu.",
+            "title": "",
+            "description": "",
             "status": {
-                "draft": "Szkic",
-                "sent": "Wysłana",
-                "signed": "Podpisana"
+                "draft": "",
+                "sent": "",
+                "signed": ""
             }
         },
         "upsert": {
             "title": {
-                "edit": "Edytuj płatność",
-                "create": "Utwórz płatność"
+                "edit": "",
+                "create": ""
             },
             "form": {
                 "client": {
-                    "label": "Klient",
+                    "label": "",
                     "errors": {
-                        "required": "Klient jest wymagany."
+                        "required": ""
                     }
                 },
                 "amount": {
-                    "label": "Łączna kwota",
-                    "placeholder": "Wpisz kwotę płatności"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "items": {
-                    "label": "Pozycje",
+                    "label": "",
                     "quantity": {
                         "errors": {
-                            "required": "Ilość jest wymagana.",
-                            "min": "Ilość musi wynosić co najmniej 1.",
-                            "invalid": "Nieprawidłowa ilość."
+                            "required": "",
+                            "min": "",
+                            "invalid": ""
                         }
                     },
                     "unitPrice": {
                         "errors": {
-                            "required": "Cena jednostkowa jest wymagana.",
-                            "min": "Cena jednostkowa musi wynosić co najmniej 0.",
-                            "invalid": "Nieprawidłowa cena jednostkowa."
+                            "required": "",
+                            "min": "",
+                            "invalid": ""
                         }
                     },
                     "vatRate": {
                         "errors": {
-                            "required": "Stawka VAT jest wymagana.",
-                            "min": "Stawka VAT musi wynosić co najmniej 0."
+                            "required": "",
+                            "min": ""
                         }
                     },
                     "errors": {
-                        "negativeTotal": "Suma płatności za tę fakturę nie może być ujemna"
+                        "negativeTotal": ""
                     },
-                    "placeholder": "Dodaj pozycje do płatności",
-                    "noResults": "Nie znaleziono pozycji",
-                    "addButton": "Dodaj pozycję",
+                    "placeholder": "",
+                    "noResults": "",
+                    "addButton": "",
                     "description": {
                         "errors": {
-                            "required": "Opis jest wymagany."
+                            "required": ""
                         }
                     }
                 },
                 "invoice": {
-                    "label": "Faktura",
-                    "placeholder": "Wybierz fakturę",
-                    "noResults": "Nie znaleziono faktur"
+                    "label": "",
+                    "placeholder": "",
+                    "noResults": ""
                 },
                 "paymentMethod": {
-                    "label": "Metoda płatności",
-                    "placeholder": "Wpisz metodę płatności",
-                    "description": "Metoda użyta do dokonania płatności"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 },
                 "paidAt": {
-                    "label": "Data płatności",
-                    "placeholder": "Wybierz datę płatności"
+                    "label": "",
+                    "placeholder": ""
                 },
                 "paymentDetails": {
-                    "label": "Szczegóły płatności",
-                    "placeholder": "Wpisz szczegóły płatności",
-                    "description": "Dodatkowe informacje o płatności"
+                    "label": "",
+                    "placeholder": "",
+                    "description": ""
                 }
             },
             "actions": {
-                "cancel": "Anuluj",
-                "save": "Zapisz zmiany",
-                "create": "Utwórz płatność",
-                "edit": "Edytuj płatność"
+                "cancel": "",
+                "save": "",
+                "create": "",
+                "edit": ""
             },
             "messages": {
                 "saveError": "Nie udało się zapisać płatności"
             }
         },
         "sendConfirmation": {
-            "title": "Wyślij płatność do klienta",
-            "description": "Ta płatność zostanie wysłana na adres e-mail klienta.",
-            "emailLabel": "Odbiorca:",
-            "confirm": "Wyślij",
-            "cancel": "Anuluj"
+            "title": "",
+            "description": "",
+            "emailLabel": "",
+            "confirm": "",
+            "cancel": ""
         },
         "delete": {
-            "title": "Usuń płatność",
-            "description": "Czy na pewno chcesz usunąć tę płatność? Tej operacji nie można cofnąć.",
+            "title": "",
+            "description": "",
             "actions": {
-                "cancel": "Anuluj",
-                "delete": "Usuń"
+                "cancel": "",
+                "delete": ""
             },
             "messages": {
                 "error": "Nie udało się usunąć płatności"
             }
         },
         "pdf": {
-            "title": "Płatność {{number}} - PDF"
+            "title": ""
         },
         "tabs": {
-            "list": "Lista",
-            "table": "Tabela"
+            "list": "",
+            "table": ""
         },
         "table": {
             "columns": {
-                "number": "Numer",
-                "invoice": "Faktura",
-                "client": "Klient",
-                "totalPaid": "Zapłacona kwota",
-                "paidAt": "Data płatności",
-                "paymentMethod": "Metoda płatności"
+                "number": "",
+                "invoice": "",
+                "client": "",
+                "totalPaid": "",
+                "paidAt": "",
+                "paymentMethod": ""
             },
             "filters": {
-                "invoice": "Faktura",
-                "invoicePlaceholder": "Wszystkie faktury",
-                "invoiceNoResults": "Nie znaleziono faktury",
-                "client": "Klient",
-                "clientPlaceholder": "Wszyscy klienci",
-                "clientNoResults": "Nie znaleziono klienta",
-                "year": "Rok",
-                "month": "Miesiąc",
-                "allYears": "Wszystkie lata",
-                "allMonths": "Wszystkie miesiące"
+                "invoice": "",
+                "invoicePlaceholder": "",
+                "invoiceNoResults": "",
+                "client": "",
+                "clientPlaceholder": "",
+                "clientNoResults": "",
+                "year": "",
+                "month": "",
+                "allYears": "",
+                "allMonths": ""
             },
             "actions": {
-                "export": "Eksportuj"
+                "export": ""
             },
-            "emptyState": "Żadna płatność nie pasuje do tych filtrów."
+            "emptyState": ""
         },
         "header": {
-            "subtitle": "Zarządzaj swoimi płatnościami",
-            "count": "{{count}} płatności {{found}}",
-            "found": "znalezionych"
+            "subtitle": "",
+            "count": "",
+            "found": ""
         },
         "stats": {
-            "total": "Łączna liczba płatności",
-            "draft": "Szkice",
-            "sent": "Wysłane",
-            "signed": "Podpisane"
+            "total": "",
+            "draft": "",
+            "sent": "",
+            "signed": ""
         }
     },
     "stats": {
-        "title": "Statystyki",
-        "description": "Przeglądaj zafakturowane kwoty, przychody i zaliczki według miesięcy i lat.",
-        "noData": "Brak danych dla wybranego okresu.",
+        "title": "",
+        "description": "",
+        "noData": "",
         "controls": {
-            "year": "Rok",
-            "range": "Zakres lat",
+            "year": "",
+            "range": "",
             "tabs": {
-                "monthly": "Miesięcznie",
-                "yearly": "Rocznie"
+                "monthly": "",
+                "yearly": ""
             }
         },
         "monthly": {
-            "title": "Statystyki miesięczne"
+            "title": ""
         },
         "yearly": {
-            "title": "Statystyki roczne"
+            "title": ""
         },
-        "month": "Miesiąc",
-        "year": "Rok",
-        "invoiced": "Zafakturowano (brutto)",
-        "revenue": "Przychód (netto)",
-        "deposits": "Wpłaty (opłacone faktury)"
+        "month": "",
+        "year": "",
+        "invoiced": "",
+        "revenue": "",
+        "deposits": ""
     },
     "webhook": {
         "instructions": {
@@ -2536,16 +2536,16 @@
         }
     },
     "folderSelect": {
-        "placeholder": "Wybierz folder...",
-        "title": "Wybierz folder",
-        "newFolder": "Nowy folder",
-        "folderName": "Nazwa folderu...",
-        "create": "Utwórz",
-        "cancel": "Anuluj",
-        "selectThisFolder": "Wybierz ten folder",
-        "noSubdirectories": "Nie znaleziono podfolderów",
-        "loading": "Ładowanie folderów...",
-        "browse": "Przeglądaj"
+        "placeholder": "",
+        "title": "",
+        "newFolder": "",
+        "folderName": "",
+        "create": "",
+        "cancel": "",
+        "selectThisFolder": "",
+        "noSubdirectories": "",
+        "loading": "",
+        "browse": ""
     },
     "actions": {
         "add": "Dodaj"
@@ -2672,5 +2672,5 @@
             "description": "Czy na pewno chcesz usunąć „{{description}}”? Tej operacji nie można cofnąć."
         }
     },
-    "noOptions": "Brak dostępnych opcji. Utwórz nowego klienta."
+    "noOptions": ""
 }
