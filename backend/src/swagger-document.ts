@@ -9,24 +9,18 @@
  * Swagger itself is disabled by default in production (`main.ts`'s own `swaggerEnabled` gate) — see
  * `api-reference.md`.
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 
 import { DocumentBuilder, type OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 
+import { readBackendPackageJsonVersion } from '@/lib/app-version';
+
 export function buildSwaggerDocument(app: INestApplication): OpenAPIObject {
   // Resolve relative to this file, not cwd: entrypoint.sh `cd`s into backend/src before starting
-  // node, but package.json only ever lives at the backend root. With tsc output at dist/src/,
-  // __dirname can be either src/ (ts-node) or dist/src/ (compiled), so try both depths.
-  const { version } = JSON.parse(
-    readFileSync(
-      [join(__dirname, '..', '..', 'package.json'), join(__dirname, '..', 'package.json')]
-        .find(existsSync)!
-        .replace(/\\/g, '/'),
-      'utf-8',
-    ),
-  );
+  // node, but package.json only ever lives at the backend root — see `lib/app-version.ts`'s own
+  // header for the twin-path lookup this now shares with `modules/version/`'s update check instead
+  // of duplicating it a second time.
+  const version = readBackendPackageJsonVersion();
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Invoicerr API')
