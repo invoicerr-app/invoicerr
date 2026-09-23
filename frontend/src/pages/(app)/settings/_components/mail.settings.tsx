@@ -33,11 +33,37 @@ import {
 import type { SetCompanyMailSettingsInput } from "@/hooks/queries"
 import { SettingsFormFooter, SettingsPage, SettingsSection, useSavedFlash } from "./settings-section"
 
-/** Same pragmatic pattern as the backend's own `mail/is-valid-email.ts` — deliberately NOT an exact
- *  RFC 5322 grammar, just enough to catch a typo before the request goes out. A best-effort ECHO
- *  only: the server (`company-mail-settings.service.ts#setReplyTo`) is still the real gate, same
- *  discipline `buildSchema`'s own comment documents for host/port above. */
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/**
+ * Same pragmatic check as the backend's own `mail/is-valid-email.ts` — deliberately NOT an exact
+ * RFC 5322 grammar, just enough to catch a typo before the request goes out. A best-effort ECHO
+ * only: the server (`company-mail-settings.service.ts#setReplyTo`) is still the real gate, same
+ * discipline `buildSchema`'s own comment documents for host/port above.
+ *
+ * Deliberately NOT a regex, mirroring the backend fix: the obvious `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`
+ * is exactly the pattern CodeQL flagged as a polynomial-ReDoS on PR #424 (server side, where it
+ * actually mattered) — the ambiguity between the two `[^\s@]+` quantifiers around the dot lets the
+ * engine try every split point on a non-matching input. Plain string parsing can't backtrack.
+ */
+function containsWhitespace(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i)
+    if (code === 0x20 || (code >= 0x09 && code <= 0x0d)) return true
+  }
+  return false
+}
+
+function isPlausibleEmail(value: string): boolean {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) return false
+  if (containsWhitespace(trimmed)) return false
+
+  const atIndex = trimmed.indexOf("@")
+  if (atIndex <= 0 || atIndex === trimmed.length - 1) return false
+  if (atIndex !== trimmed.lastIndexOf("@")) return false
+
+  const labels = trimmed.slice(atIndex + 1).split(".")
+  return labels.length >= 2 && labels.every((label) => label.length > 0)
+}
 
 /** Display label for a configured provider — the settings-screen equivalent of
  *  `channels.settings.tsx`'s own `PROVIDER_LABELS`. */
@@ -413,7 +439,7 @@ function buildReplyToSchema(t: (key: string, fallback: string) => string) {
     replyTo: z
       .string()
       // Empty is valid — it CLEARS the override (see `onSubmit` below), never a required field.
-      .refine((val) => val.trim() === "" || EMAIL_PATTERN.test(val.trim()), {
+      .refine((val) => val.trim() === "" || isPlausibleEmail(val), {
         message: t("settings.mail.replyTo.validation.invalid", "Enter a valid e-mail address"),
       }),
   })
