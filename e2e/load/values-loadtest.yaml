@@ -1,0 +1,61 @@
+# Helm values for the throwaway load-test cluster (see README.md). Not for anything real: the
+# bundled Postgres is dev-only, secrets are generated at install time, and every file stays on
+# the node's own disk. Nothing leaves the cluster: mail goes to an in-cluster Mailpit.
+image:
+  # v2.0.0-alpha.1, multi-arch index (amd64, arm64, arm/v7). The dev image is amd64-only.
+  repository: ghcr.io/invoicerr-app/invoicerr@sha256:0dcf85882c8ab56dc5eaaca8283572e695dd833b6c7b2a1ae383e44fa4e7c966
+  tag: ""
+
+# The beta's shape: 1 api, 3 workers.
+api:
+  replicaCount: 1
+  service:
+    # A Scaleway LB in front of the api pod, so k6 runs from outside the node without routing
+    # every request through the Kubernetes API server (kubectl port-forward).
+    type: LoadBalancer
+worker:
+  replicaCount: 3
+
+generateSecret:
+  enabled: true
+
+app:
+  appUrl: "http://placeholder.invalid" # overridden at install with the LB address
+  corsOrigins: "http://placeholder.invalid"
+  # LB (TCP) -> in-pod nginx -> Nest: nginx is the only HTTP hop, and k6 sends one X-Forwarded-For
+  # per virtual user so each gets its own throttler bucket, as distinct real users would.
+  trustProxyHops: "2"
+  extraEnv:
+    - {name: MAIL_PROVIDER, value: smtp}
+    - {name: SMTP_HOST, value: mailpit}
+    - {name: SMTP_PORT, value: "1025"}
+    - {name: SMTP_SECURE, value: "false"}
+    - {name: SMTP_FROM, value: noreply@load.test}
+
+archive:
+  storage: local
+documents:
+  inbound:
+    storage: local
+
+postgresql:
+  enabled: true
+  # Off, as for Redis below: on Scaleway block storage the chart's bundled Postgres mounts the volume
+  # root as PGDATA and initdb refuses its lost+found; bundled Redis (bitnami, non-root) cannot write
+  # to a root-owned volume because the chart sets no fsGroup. Both only ever ran on kind. A
+  # throwaway run does not need either to survive a restart.
+  persistence:
+    enabled: false
+redis:
+  persistence:
+    enabled: false
+
+ocr:
+  enabled: true
+  image:
+    # The ocr-image `latest` that gained arm64 on 2026-09-22, pinned. The template renders
+    # `repository:tag`, so the digest rides on the tag.
+    tag: "latest@sha256:720481a4b66c9f5652142e123ae61a6582a49d6a14ec36f233ae21e74f1c22c8"
+
+ingress:
+  enabled: false
