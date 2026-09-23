@@ -95,7 +95,16 @@ describe('Settings > Seats', () => {
 		if (saasMode) this.skip();
 		cy.login();
 		cy.visit('/settings');
-		cy.get('aside', { timeout: 15000 }).should('exist').and('not.contain.text', 'Seats');
+		// `[data-cy="settings-nav"]` is the settings nav container (issue #313 replaced the old
+		// single-column `<aside>` list with a grid of tiles, same container `data-cy`), see
+		// `72-billing-hidden.cy.ts`'s own identical pattern for the SaaS-only "billing" tab. Both
+		// checks, not just one: the text check catches "Seats" appearing anywhere in the nav under a
+		// different tile, the identity (`data-cy`) check catches the tile existing but its label
+		// merely being blank or relocalized, and `settings-nav-company` (a tab that is NEVER hidden)
+		// is the positive control, so a broken/empty nav fails this test instead of vacuously passing it.
+		cy.get('[data-cy="settings-nav"]', { timeout: 15000 }).should('exist').and('not.contain.text', 'Seats');
+		cy.get('[data-cy="settings-nav-company"]').should('exist');
+		cy.get('[data-cy="settings-nav-seats"]').should('not.exist');
 	});
 
 	describe('SaaS mode', () => {

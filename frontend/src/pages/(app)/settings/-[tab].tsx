@@ -298,13 +298,15 @@ export default function Settings() {
   const Content = CONTENT[currentTab]
 
   return (
-    // `min-h-0` here (and on `aside`/`main` below) overrides flexbox's default `min-height: auto`,
-    // which otherwise floors a flex item's height at its own content size — without it, a tall tab
-    // (Company, Seats) forced this whole row taller than the viewport, so it was the OUTER app shell
-    // that ended up scrolling as one piece (sidebar dragged along with it) instead of `main` alone.
-    <div className="flex h-full min-h-0 flex-col lg:flex-row">
-      {/* Below `lg` the rail becomes a grouped picker: one control, always in reach, instead of a
-          21-entry list pushing the content a screen down. */}
+    // `min-h-0` here (and on the scroll region below) overrides flexbox's default `min-height:
+    // auto`, which otherwise floors a flex item's height at its own content size: without it, a
+    // tall tab (Company, Seats) forced this whole column taller than the viewport, so it was the
+    // OUTER app shell that ended up scrolling as one piece instead of this page alone.
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Below `lg` the nav stays a grouped picker: one control, always in reach. A grid of 21
+          tiles would push the content several screens down at phone/tablet width, where the
+          dropdown's own grouped, searchable list is still the better fit; the grid below only
+          earns its keep once the viewport is wide enough for several columns at once. */}
       <div className="border-b px-4 py-3 lg:hidden">
         <Select value={currentTab} onValueChange={(value) => navigate(`/settings/${value}`)}>
           <SelectTrigger
@@ -348,35 +350,47 @@ export default function Settings() {
         </Select>
       </div>
 
-      {/* The desktop rail: real links (middle-click, keyboard, screen reader all work), grouped
-          under small-caps labels, the active one on the accent ground rather than a filled block —
-          it is a "you are here", not a button to press. */}
-      {/* Its own `overflow-y-auto`, independent of `main`'s below: a sidebar this tall only ever
-          scrolls on a very short screen, but it must never be main's overflow dragging it along. */}
-      <aside className="hidden w-60 min-h-0 shrink-0 overflow-y-auto border-r bg-sidebar/60 lg:block">
-        <nav aria-label={t("settings.common.navLabel")} className="px-3 py-5" data-cy="settings-nav">
-          {groups.map((group) => (
-            <div key={group.id} className="mb-5 last:mb-0">
-              <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                {t(`settings.nav.groups.${group.id}`)}
-              </p>
-              <ul className="grid gap-0.5">
-                {group.tabs.map((item) => {
-                  const active = item.value === currentTab
-                  const danger = item.value === "danger"
-                  return (
-                    <li key={item.value}>
+      {/* Nav and content now share one scroll region (instead of the old side-by-side rail with
+          its own independent scroll) since the nav is a modest-height header rather than a
+          full-height column. */}
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        {/* The desktop nav: a grid of tiles instead of a single-column list, so all 21 sections
+            are scannable at a glance rather than read top to bottom. Real links (middle-click,
+            keyboard, screen reader all work), grouped under small-caps labels. The active tile
+            reuses the same "selected tile" language as the branding preset picker
+            (`border-primary ring-1 ring-primary`) rather than inventing a new one. `sticky` so
+            switching section from partway down a long form (Company, Seats) never requires
+            scrolling back to the top first. */}
+        <nav
+          aria-label={t("settings.common.navLabel")}
+          className="sticky top-0 z-10 hidden border-b bg-sidebar/85 px-4 py-5 backdrop-blur supports-[backdrop-filter]:bg-sidebar/70 lg:block sm:px-6"
+          data-cy="settings-nav"
+        >
+          <div className="mx-auto flex max-w-4xl flex-col gap-5">
+            {groups.map((group) => (
+              <div key={group.id}>
+                <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t(`settings.nav.groups.${group.id}`)}
+                </p>
+                <div className="grid grid-cols-3 gap-2 xl:grid-cols-4">
+                  {group.tabs.map((item) => {
+                    const active = item.value === currentTab
+                    const danger = item.value === "danger"
+                    return (
                       <Link
+                        key={item.value}
                         to={`/settings/${item.value}`}
                         aria-current={active ? "page" : undefined}
                         data-cy={`settings-nav-${item.value}`}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm outline-none transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                          "flex items-center gap-2.5 rounded-md border p-3 text-sm outline-none transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50",
                           active
-                            ? "bg-accent font-medium text-accent-foreground"
-                            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                            ? "border-primary bg-accent font-medium text-accent-foreground ring-1 ring-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
                           danger && !active && "text-destructive/80 hover:text-destructive",
-                          danger && active && "bg-destructive-soft text-destructive-soft-foreground",
+                          danger &&
+                            active &&
+                            "border-destructive bg-destructive-soft text-destructive-soft-foreground ring-destructive",
                         )}
                       >
                         <item.icon
@@ -386,23 +400,20 @@ export default function Settings() {
                         />
                         <span className="truncate">{label(item)}</span>
                       </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </nav>
-      </aside>
 
-      <main
-        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-6"
-        data-cy={`settings-tab-${currentTab}`}
-      >
-        <div className="mx-auto max-w-4xl">
-          <Content />
-        </div>
-      </main>
+        <main className="px-4 py-6 sm:px-6" data-cy={`settings-tab-${currentTab}`}>
+          <div className="mx-auto max-w-4xl">
+            <Content />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
