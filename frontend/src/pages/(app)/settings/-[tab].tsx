@@ -299,13 +299,13 @@ export default function Settings() {
 
   return (
     // `min-h-0` here (and on the scroll region below) overrides flexbox's default `min-height:
-    // auto`, which otherwise floors a flex item's height at its own content size — without it, a
+    // auto`, which otherwise floors a flex item's height at its own content size: without it, a
     // tall tab (Company, Seats) forced this whole column taller than the viewport, so it was the
     // OUTER app shell that ended up scrolling as one piece instead of this page alone.
     <div className="flex h-full min-h-0 flex-col">
       {/* Below `lg` the nav stays a grouped picker: one control, always in reach. A grid of 21
           tiles would push the content several screens down at phone/tablet width, where the
-          dropdown's own grouped, searchable list is still the better fit — the grid below only
+          dropdown's own grouped, searchable list is still the better fit; the grid below only
           earns its keep once the viewport is wide enough for several columns at once. */}
       <div className="border-b px-4 py-3 lg:hidden">
         <Select value={currentTab} onValueChange={(value) => navigate(`/settings/${value}`)}>

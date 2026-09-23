@@ -129,7 +129,7 @@ describe('Settings E2E', () => {
         /**
          * The desktop nav (`settings-nav`, `hidden lg:block`) used to render as a single-column
          * `<ul>` list; it is now a grid of tiles (issue #313). `cy.viewport` puts the runner above
-         * the `lg` breakpoint (1024px) so this control is actually on screen — the mobile picker
+         * the `lg` breakpoint (1024px) so this control is actually on screen; the mobile picker
          * above already covers the width where it stays a dropdown.
          */
         describe('desktop grid', () => {
@@ -144,7 +144,7 @@ describe('Settings E2E', () => {
                 cy.get('[data-cy="settings-nav-company"]').should('have.attr', 'aria-current', 'page');
 
                 // One tab from each of five of the six groups (company/invoicing/compliance/team/
-                // integrations) — "danger" is covered separately below. `seats`/`billing`/`atcud`
+                // integrations); "danger" is covered separately below. `seats`/`billing`/`atcud`
                 // are deliberately skipped: all three are conditionally hidden (self-hosted has no
                 // billing, and the seeded company is French, not Portuguese), so clicking them here
                 // would depend on backend flags this spec has no business asserting on.
@@ -169,10 +169,10 @@ describe('Settings E2E', () => {
 
             it('is keyboard-reachable: a tile takes focus directly and activates from there', () => {
                 cy.visit('/settings/company');
-                // A real `<a href>`, not a click-only handler — focusable on its own, with no
+                // A real `<a href>`, not a click-only handler; focusable on its own, with no
                 // `tabindex` trickery needed. `cy.focused().type('{enter}')` is deliberately NOT used
                 // to activate it: Electron's own Enter-on-link default action is not reliably
-                // triggered by Cypress's synthetic keypress here (measured — the tile keeps its
+                // triggered by Cypress's synthetic keypress here (measured: the tile keeps its
                 // focus ring but the URL never changes), which is a known Cypress/Electron gap, not
                 // a signal about the app. What this DOES prove is what actually matters for a
                 // keyboard/screen-reader user: the tile is reachable by focus alone, and activating
