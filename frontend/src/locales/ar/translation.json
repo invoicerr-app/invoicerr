@@ -8,7 +8,8 @@
         },
         "stats": {
             "active": "تفعيل",
-            "inactive": "تعطيل"
+            "inactive": "تعطيل",
+            "total": "عدد العملاء"
         },
         "emptyState": {
             "noClients": "لا يوجدعملاء",
@@ -23,7 +24,14 @@
             },
             "tooltips": {
                 "view": "عرض تفاصيل العملاء"
-            }
+            },
+            "title": "جميع العملاء",
+            "description": "اعرض وقم بادارة جميع العملاء من مكان واحد."
+        },
+        "header": {
+            "found": "وجد",
+            "count": "{{count}} العملاء {{found}}",
+            "subtitle": "ادارة العملاء"
         }
     },
     "invoices": {
