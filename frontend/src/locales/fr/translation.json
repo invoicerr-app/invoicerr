@@ -1410,7 +1410,7 @@
             "dangerZone": "Zone de danger",
             "plugins": "Plugins",
             "webhooks": "Webhooks",
-            "apiKeys": "Clés API",
+            "apiKeys": "",
             "channels": "Facturation électronique",
             "signing": "Certificats de signature",
             "members": "Membres"
@@ -2008,10 +2008,10 @@
                 "button": "Créer le webhook"
             },
             "card": {
-                "events": "Écoute les événements :",
-                "edit": "Modifier",
-                "delete": "Supprimer",
-                "editPrompt": "Saisissez la nouvelle URL du webhook"
+                "events": "Écoute les événements : {{events}}",
+                "edit": "",
+                "delete": "",
+                "editPrompt": ""
             },
             "createdSecretNotice": "Ce secret ne sera affiché qu'une seule fois. Conservez-le en lieu sûr.",
             "createdSecretTitle": "Secret du webhook",
@@ -2022,23 +2022,23 @@
             }
         },
         "apiKeys": {
-            "title": "Clés API",
-            "description": "Gérez les clés API pour authentifier la CLI ou des clients tiers auprès de l'API",
-            "swaggerLink": "Documentation de l'API",
-            "createdKeyTitle": "Clé API créée",
-            "createdKeyNotice": "Cette clé ne sera affichée qu'une seule fois. Conservez-la en lieu sûr.",
+            "title": "",
+            "description": "",
+            "swaggerLink": "",
+            "createdKeyTitle": "",
+            "createdKeyNotice": "",
             "create": {
-                "title": "Créer une clé API",
-                "description": "Générer une nouvelle clé API",
-                "name": "Nom",
-                "namePlaceholder": "ex. CLI sur mon ordinateur portable",
-                "button": "Créer une clé API",
+                "title": "",
+                "description": "",
+                "name": "",
+                "namePlaceholder": "",
+                "button": "",
                 "scopes": "Scopes"
             },
             "card": {
-                "lastUsed": "Dernière utilisation : {{date}}",
-                "neverUsed": "Jamais utilisée",
-                "revoke": "Révoquer",
+                "lastUsed": "",
+                "neverUsed": "",
+                "revoke": "",
                 "noScopes": "Aucun scope accordé"
             }
         },
