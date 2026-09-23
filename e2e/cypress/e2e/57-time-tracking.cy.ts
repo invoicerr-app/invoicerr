@@ -78,13 +78,23 @@ describe("Time tracking — logging hours, billing them, and the double-billing 
 
 		cy.get('[data-cy="project-name-input"]').type(projectName);
 		setNumberInput('[data-cy="project-hourly-rate-input"]', "100");
+		// Wait on the mutation itself, not the clock — same discipline
+		// 68-expense-categories.cy.ts's own header documents ("every save request is named with
+		// cy.intercept/cy.wait ... checked BEFORE" the next assertion runs). A raised timeout (10s,
+		// this spec's own PR #425) still failed on PR #426: CI backend logs for all four failures
+		// (2026-09-22 x2, 2026-09-23 x2) show the backend's own BullMQ sweep ticking cleanly on its
+		// 5-second schedule right through the stall, so the Node process itself was never
+		// event-loop-starved — the delay sits between the browser issuing the request and the
+		// response actually reaching it (a saturated runner's own network/scheduling queue, not the
+		// handler's business logic), which no in-process backend timer would ever show. Waiting on
+		// the response directly removes the guesswork: the assertion now blocks on the one real event
+		// that gates the dialog closing (ProjectUpsert's onSubmit calls onOpenChange(false) the
+		// instant the mutation resolves, no animation involved) instead of a fixed clock racing it.
+		cy.intercept("POST", `${api}/api/projects`).as("createProject");
 		cy.get('[data-cy="project-submit"]').click();
-		// Explicit timeout, matching the rest of the suite's own convention for a dialog that only
-		// closes once its own write has round-tripped (e.g. 51-installments.cy.ts's identical
-		// "not.exist" after a params-dialog confirm) — the implicit 4s default was observed flaking
-		// on a loaded CI runner (POST /api/projects queued behind everything else fighting for CPU),
-		// never on the product itself: ProjectUpsert's onSubmit calls onOpenChange(false) the instant
-		// the mutation resolves, with no animation or extra delay gating the unmount.
+		cy.wait("@createProject", { timeout: 15000 }).then((interception) => {
+			expect(interception.response?.statusCode, "POST /api/projects must succeed").to.eq(201);
+		});
 		cy.get('[data-cy="project-dialog"]', { timeout: 10000 }).should("not.exist");
 
 		// Select the freshly created project.
@@ -102,10 +112,14 @@ describe("Time tracking — logging hours, billing them, and the double-billing 
 			cy.continueSteppedDialog("time-entry-dialog"); // task -> duration
 			setNumberInput('[data-cy="time-entry-hours-input"]', hours);
 			cy.continueSteppedDialog("time-entry-dialog"); // duration -> billing
+			// Same reasoning as "project-dialog" above: wait on the mutation itself
+			// (TimeEntryUpsert's own onSubmit calls onOpenChange(false) the instant it resolves, no
+			// animation involved), not on a clock racing an unbounded network queueing delay.
+			cy.intercept("POST", `${api}/api/time-entries`).as("createTimeEntry");
 			cy.get('[data-cy="time-entry-submit"]').click();
-			// Same reasoning as "project-dialog" above: TimeEntryUpsert's own onSubmit calls
-			// onOpenChange(false) the instant its mutation resolves, no animation involved — the
-			// implicit 4s default is what was flaking under CI load, not this dialog being slow.
+			cy.wait("@createTimeEntry", { timeout: 15000 }).then((interception) => {
+				expect(interception.response?.statusCode, "POST /api/time-entries must succeed").to.eq(201);
+			});
 			cy.get('[data-cy="time-entry-dialog"]', { timeout: 10000 }).should("not.exist");
 		};
 		// 2h + 3h at 100/h → 500 total, split across two lines (never merged into one).
@@ -120,9 +134,16 @@ describe("Time tracking — logging hours, billing them, and the double-billing 
 		cy.get('[data-cy="generate-invoice-button"]').click();
 		cy.get('[data-cy="generate-invoice-dialog"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="generate-invoice-total"]').should("contain.text", "500");
-		cy.get('[data-cy="generate-invoice-confirm"]').click();
 		// Same reasoning as "project-dialog" above: GenerateInvoiceDialog's own onConfirm calls
-		// onOpenChange(false) the instant its mutation resolves, no animation involved.
+		// onOpenChange(false) the instant its mutation resolves, no animation involved — wait on that
+		// mutation directly rather than a clock racing the same unbounded network queueing delay.
+		cy.intercept("POST", `${api}/api/time-entries/generate-invoice`).as("generateInvoice");
+		cy.get('[data-cy="generate-invoice-confirm"]').click();
+		cy.wait("@generateInvoice", { timeout: 15000 }).then((interception) => {
+			expect(interception.response?.statusCode, "POST /api/time-entries/generate-invoice must succeed").to.eq(
+				201,
+			);
+		});
 		cy.get('[data-cy="generate-invoice-dialog"]', { timeout: 10000 }).should("not.exist");
 
 		// ASSERT VIA API — the exact shape billed, and the double-billing attempt.
