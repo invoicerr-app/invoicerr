@@ -702,10 +702,6 @@
         "archive": "Archive"
       },
       "confirmations": {
-        "issue": {
-          "title": "Issue invoice",
-          "description": "Are you sure you want to issue invoice {{number}}? The document will be locked and a legal number will be assigned."
-        },
         "send": {
           "title": "Send invoice",
           "description": "Are you sure you want to send invoice {{number}} to {{client}}?"
@@ -4605,6 +4601,13 @@
       "actionParams": {
         "title": "{{label}}",
         "description": "This action needs a few details before it runs.",
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      },
+      "lockConfirmation": {
+        "title": "{{label}}",
+        "description": "{{label}} will lock this document: it can no longer be edited afterwards.",
+        "descriptionWithNumbering": "{{label}} will lock this document and assign its legal number: it can no longer be edited afterwards.",
         "confirm": "Confirm",
         "cancel": "Cancel"
       },

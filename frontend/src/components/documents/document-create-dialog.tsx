@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
+import { actionAssignsNumber } from "@/components/documents/action-presentation"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { DocumentField } from "@/components/documents/document-field"
 import { DocumentTotals, useDocumentTotals } from "@/components/documents/document-totals"
 import type {
@@ -415,6 +417,27 @@ export function DocumentCreateDialog({
           submitting={state.runner.isRunning}
           onCancel={state.runner.cancelPendingAction}
           onConfirm={(params) => state.runner.executeAction(pendingAction.id, params)}
+        />
+      )}
+
+      {state.runner.pendingLockConfirm && (
+        <ConfirmationDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) state.runner.cancelPendingLockConfirm()
+          }}
+          title={t("documents.form.lockConfirmation.title", { label: state.runner.pendingLockConfirm.label })}
+          description={t(
+            actionAssignsNumber(effectiveDescriptor, state.runner.pendingLockConfirm, state.currentStatus)
+              ? "documents.form.lockConfirmation.descriptionWithNumbering"
+              : "documents.form.lockConfirmation.description",
+            { label: state.runner.pendingLockConfirm.label },
+          )}
+          confirmLabel={t("documents.form.lockConfirmation.confirm")}
+          cancelLabel={t("documents.form.lockConfirmation.cancel")}
+          onConfirm={state.runner.confirmPendingLock}
+          loading={state.runner.isRunning}
+          dataCy="document-create-lock-confirm"
         />
       )}
     </>

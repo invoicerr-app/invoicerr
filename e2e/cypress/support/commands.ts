@@ -491,11 +491,34 @@ Cypress.Commands.add('openDocumentActionsMenu', () => {
 });
 
 /**
+ * Confirms the detail page's own lock-confirmation dialog (`document-detail-lock-confirm`,
+ * DocumentActionLockConfirmHost in document-form.tsx) IF ONE OPENED — most actions never lock the
+ * record (`actionLocksDocument`, action-presentation.ts), so the overwhelming majority of calls find
+ * nothing here and move on immediately. `cy.wait(50)`: the SAME short buffer
+ * `openDocumentRowMenu` above already needs for a Radix layer's own mount/dismiss timing — a dialog
+ * driven by a `setState` inside the very click handler that just ran is normally already in the DOM
+ * by the next command, but this closes the one-tick gap seen elsewhere in this file rather than
+ * assuming it can never happen here too.
+ */
+function confirmDetailLockIfPresent(): void {
+    const selector = '[data-cy="document-detail-lock-confirm-confirm"]';
+    cy.wait(50, { log: false });
+    cy.get('body', { log: false }).then(($body) => {
+        if ($body.find(selector).length > 0) {
+            cy.get(selector).should('be.visible').click();
+        }
+    });
+}
+
+/**
  * Runs one declared action from the detail page, wherever the page put it: the header's primary
  * button when `document-action-<id>` is visible on its own, otherwise the same selector inside the
  * "Actions" menu (opened first). Which one it is depends on the record's status and on whether the
  * form has unsaved edits (action-presentation.ts's `pickPrimaryAction`) — a spec should not have to
- * know, the same way a user does not: the label reads the same in both places.
+ * know, the same way a user does not: the label reads the same in both places. Also transparently
+ * confirms the lock-confirmation dialog when the action opens one (see confirmDetailLockIfPresent
+ * above) — a spec calling this command for "send" never has to know whether THIS record's country
+ * locks it or not, the same way its own user would not either.
  * @example cy.runDocumentAction('send')
  */
 Cypress.Commands.add('runDocumentAction', (actionId: string) => {
@@ -508,6 +531,7 @@ Cypress.Commands.add('runDocumentAction', (actionId: string) => {
         cy.openDocumentActionsMenu();
         cy.get(selector, { timeout: 10000 }).should('be.visible').click();
     });
+    confirmDetailLockIfPresent();
 });
 
 /**
@@ -576,6 +600,10 @@ Cypress.Commands.add('openDocumentRowMenu', (documentId: string) => {
  * out from under the captured element reference. `force: true` skips that wait and clicks
  * immediately against the CURRENT DOM instead, which is what a real user's own, much faster click
  * would land on too.
+ * Also transparently confirms the row's own lock-confirmation dialog
+ * (`document-row-lock-confirm-<id>`, DocumentRowActions in document-list.tsx) when the action opens
+ * one — see `confirmDetailLockIfPresent` above for why this never asks the caller whether THIS
+ * record's country locks it or not.
  * @example cy.runDocumentRowAction(quoteId, 'send')
  */
 Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: string) => {
@@ -588,6 +616,13 @@ Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: stri
         }
         cy.openDocumentRowMenu(documentId);
         cy.get(selector, { timeout: 10000 }).should('be.visible').click({ force: true });
+    });
+    const lockConfirmSelector = `[data-cy="document-row-lock-confirm-${documentId}-confirm"]`;
+    cy.wait(50, { log: false });
+    cy.get('body', { log: false }).then(($body) => {
+        if ($body.find(lockConfirmSelector).length > 0) {
+            cy.get(lockConfirmSelector).should('be.visible').click();
+        }
     });
 });
 

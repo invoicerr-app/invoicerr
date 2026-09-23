@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import { actionLocksDocument } from "@/components/documents/action-presentation"
 import type { DocumentActionDescriptor, DocumentInstance } from "@/components/documents/types"
 import { useResolveActionParamsDefaults, useRunDocumentAction } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
@@ -9,6 +10,17 @@ import { ApiError } from "@/hooks/use-api-query"
 interface UseDocumentActionRunnerOptions {
   typeId: string
   documentId?: string
+  /** Every action this record's type declares, in descriptor order — read ONLY to work out whether
+   *  running one of them is about to LOCK the record (`actionLocksDocument`, see
+   *  action-presentation.ts's own header) before it actually runs. Which actions are OFFERED at all
+   *  stays entirely the caller's own concern (its own filtering upstream); omitted entirely, the lock
+   *  check is skipped — a caller with nothing meaningful to say about "the rest of this type's
+   *  actions" (there is none today) simply never sees the confirmation. */
+  actions?: DocumentActionDescriptor[]
+  /** The record's own CURRENT status, paired with `actions` above for the lock check — the same
+   *  'undefined means brand-new, never saved' convention `isActionAvailable`/`findSaveAction` already
+   *  use. Irrelevant when `actions` is omitted. */
+  status?: string
   /** Read lazily, at the moment an action actually runs — a live react-hook-form's current values
    *  for a mounted form (use-document-form.ts), or simply an already-saved instance's own
    *  `data` for a list row acting directly on it (document-list.tsx). Neither caller owns the
@@ -48,6 +60,8 @@ interface UseDocumentActionRunnerOptions {
 export function useDocumentActionRunner({
   typeId,
   documentId,
+  actions,
+  status,
   getData,
   validate,
   onActionSuccess,
@@ -56,6 +70,11 @@ export function useDocumentActionRunner({
   const { t } = useTranslation()
   const [pendingAction, setPendingAction] = useState<DocumentActionDescriptor | undefined>()
   const [pendingDefaults, setPendingDefaults] = useState<Record<string, unknown>>({})
+  // Set only for an action `actionLocksDocument` says is about to lock the record — one MORE gate
+  // than `pendingAction` above, checked FIRST (see `handleAction`): a locking action that also
+  // declares `params` still gets both, in order (lock confirmation, then the params dialog), never
+  // the two conflated into one step.
+  const [pendingLockConfirm, setPendingLockConfirm] = useState<DocumentActionDescriptor | undefined>()
 
   const runAction = useRunDocumentAction()
   const resolveDefaults = useResolveActionParamsDefaults()
@@ -94,13 +113,10 @@ export function useDocumentActionRunner({
     }
   }
 
-  const handleAction = async (action: DocumentActionDescriptor) => {
-    const valid = validate ? await validate() : true
-    if (!valid) {
-      toast.error(t("documents.form.messages.invalid"))
-      return
-    }
-
+  // Everything `handleAction` used to do once past the lock check (below) — split out so the lock
+  // confirmation's own "Confirm" button can resume exactly here, without re-running `validate()` a
+  // second time on a form that has not changed since the first check.
+  const runOrCollectParams = async (action: DocumentActionDescriptor) => {
     if (!action.params || action.params.length === 0) {
       await executeAction(action.id, {})
       return
@@ -123,12 +139,41 @@ export function useDocumentActionRunner({
     setPendingAction(action)
   }
 
+  const handleAction = async (action: DocumentActionDescriptor) => {
+    const valid = validate ? await validate() : true
+    if (!valid) {
+      toast.error(t("documents.form.messages.invalid"))
+      return
+    }
+
+    // Locking is checked BEFORE params, deliberately: what the record is about to lose (the ability
+    // to edit it) is a fact about running the action at all, not about the particular inputs a
+    // params dialog would go on to collect — see actionLocksDocument's own header for why this never
+    // names "send" or "invoice" itself.
+    if (actions && actionLocksDocument(actions, action, status)) {
+      setPendingLockConfirm(action)
+      return
+    }
+
+    await runOrCollectParams(action)
+  }
+
+  const confirmPendingLock = async () => {
+    const action = pendingLockConfirm
+    if (!action) return
+    setPendingLockConfirm(undefined)
+    await runOrCollectParams(action)
+  }
+
   return {
     pendingAction,
     pendingDefaults,
+    pendingLockConfirm,
     isRunning: runAction.isPending,
     handleAction,
     executeAction,
+    confirmPendingLock,
     cancelPendingAction: () => setPendingAction(undefined),
+    cancelPendingLockConfirm: () => setPendingLockConfirm(undefined),
   }
 }

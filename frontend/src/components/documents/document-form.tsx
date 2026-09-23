@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
-import { transitionHint } from "@/components/documents/action-presentation"
+import { actionAssignsNumber, transitionHint } from "@/components/documents/action-presentation"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { DocumentField } from "@/components/documents/document-field"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
 import type { DocumentFormState } from "@/components/documents/use-document-form"
@@ -142,6 +143,37 @@ export function DocumentActionParamsHost({ state }: { state: DocumentFormState }
       submitting={runner.isRunning}
       onCancel={runner.cancelPendingAction}
       onConfirm={(params) => runner.executeAction(pending.id, params)}
+    />
+  )
+}
+
+/** The confirmation the action runner opens for an action `actionLocksDocument` says is about to
+ *  lock the record (see use-document-action-runner.ts's own header) — mounted once per screen, next
+ *  to `DocumentActionParamsHost` above. Never names "send" or any one type: whatever action and
+ *  whatever country policy produced this is what the runner already decided; this only renders it. */
+export function DocumentActionLockConfirmHost({ state }: { state: DocumentFormState }) {
+  const { t } = useTranslation()
+  const { runner, effectiveDescriptor, currentStatus } = state
+  const pending = runner.pendingLockConfirm
+  if (!pending) return null
+  return (
+    <ConfirmationDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) runner.cancelPendingLockConfirm()
+      }}
+      title={t("documents.form.lockConfirmation.title", { label: pending.label })}
+      description={t(
+        actionAssignsNumber(effectiveDescriptor, pending, currentStatus)
+          ? "documents.form.lockConfirmation.descriptionWithNumbering"
+          : "documents.form.lockConfirmation.description",
+        { label: pending.label },
+      )}
+      confirmLabel={t("documents.form.lockConfirmation.confirm")}
+      cancelLabel={t("documents.form.lockConfirmation.cancel")}
+      onConfirm={runner.confirmPendingLock}
+      loading={runner.isRunning}
+      dataCy="document-detail-lock-confirm"
     />
   )
 }

@@ -3,6 +3,15 @@ import type { TFunction } from "i18next"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
 import { isActionAvailable, resolveTransitionTarget, statusLabel } from "@/components/documents/types"
 
+/** The possible resulting status(es) of `action` from `fromStatus`, always as an array — the single-
+ *  status and multi-status shapes of `resolveTransitionTarget`'s own return value collapsed into one
+ *  form for the two predicates below, which only ever need to check membership. */
+function transitionTargets(action: DocumentActionDescriptor, fromStatus: string | undefined): string[] {
+  const target = resolveTransitionTarget(action, fromStatus)
+  if (!target) return []
+  return Array.isArray(target) ? target : [target]
+}
+
 /**
  * Pure, render-free rules for HOW a document's declared actions are presented — which one is the
  * single primary button, which one is "the save", what the transition caption under a button says.
@@ -40,6 +49,47 @@ export function findSaveAction(
       ? target.length === 1 && target[0] === currentStatus
       : target === currentStatus
   })
+}
+
+/**
+ * Whether running `action` from `currentStatus` is about to LOCK the record — turn its own "save"
+ * (`findSaveAction` above, whatever it is called for this type) from available to unavailable. This
+ * reads ONLY the country policy's already-composed facts (`policyRestrictedToStatuses`, via
+ * `isActionAvailable` — see that function's own header): no action id, type id or country is ever
+ * named here, so a country whose policy does NOT narrow re-editing never shows a warning (nothing is
+ * about to lock), and a type whose "save" is restricted by a FUTURE country file gets the warning for
+ * free, with no change needed on this side. The backend's policy data stays the one source of truth
+ * for WHETHER a record locks; this only asks it.
+ *
+ * `false` when the record is ALREADY locked in `currentStatus` (a retry from a failed send, say) —
+ * nothing NEW is being locked by this particular click, so warning again would only be noise, not a
+ * fact. `false` too, obviously, for an action with no transition at all (its effect lands on a
+ * different record, or nowhere) or one that keeps the save action available in every status it can
+ * lead to.
+ */
+export function actionLocksDocument(
+  actions: DocumentActionDescriptor[],
+  action: DocumentActionDescriptor,
+  currentStatus: string | undefined,
+): boolean {
+  const saveAction = findSaveAction(actions, currentStatus)
+  if (!saveAction || !isActionAvailable(saveAction, currentStatus)) return false
+  const targets = transitionTargets(action, currentStatus)
+  return targets.length > 0 && targets.every((status) => !isActionAvailable(saveAction, status))
+}
+
+/** Whether running `action` from `currentStatus` will assign this record its type's own number —
+ *  reads the descriptor's own `numbering.onEnterStatus` (see `DocumentTypeDescriptor.numbering`'s own
+ *  header) rather than naming a type or an action: a type with no `numbering` at all is never
+ *  numbered, whatever action runs. Used only to word the lock-confirmation dialog accurately — never
+ *  to decide whether the record actually gets numbered, which stays entirely the backend's job. */
+export function actionAssignsNumber(
+  descriptor: DocumentTypeDescriptor,
+  action: DocumentActionDescriptor,
+  currentStatus: string | undefined,
+): boolean {
+  if (!descriptor.numbering) return false
+  return transitionTargets(action, currentStatus).includes(descriptor.numbering.onEnterStatus)
 }
 
 /**

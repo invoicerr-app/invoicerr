@@ -29,6 +29,7 @@ import {
 } from "@/components/documents/document-downloads"
 import {
   DocumentActionButton,
+  DocumentActionLockConfirmHost,
   DocumentActionParamsHost,
   DocumentFormFields,
 } from "@/components/documents/document-form"
@@ -133,6 +134,7 @@ export function DocumentDetail({ descriptor, instance }: DocumentDetailProps) {
         onDiscard={() => state.form.reset(snapshot)}
       />
       <DocumentActionParamsHost state={state} />
+      <DocumentActionLockConfirmHost state={state} />
     </Form>
   )
 }
