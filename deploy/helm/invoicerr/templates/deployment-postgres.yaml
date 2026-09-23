@@ -38,6 +38,19 @@ spec:
               value: {{ .Values.postgresql.auth.password | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.postgresql.auth.database | quote }}
+            {{- if .Values.postgresql.persistence.enabled }}
+            # The PVC is mounted at /var/lib/postgresql/data itself, NOT at PGDATA — `initdb` refuses
+            # to initialize a directory that already has anything in it, and every real block-storage
+            # provisioner (Scaleway included) hands out a volume that already contains a `lost+found`
+            # directory at its root. HIT FOR REAL on a Scaleway Kapsule cluster, 2026-09-22:
+            # `initdb: error: directory "/var/lib/postgresql/data" exists but is not empty ... It
+            # contains a lost+found directory`. kind's local-path provisioner does not create
+            # `lost+found`, which is why this never showed up there. Pointing PGDATA at a fresh
+            # subdirectory of the mount gives `initdb` something genuinely empty to work with,
+            # regardless of what the provisioner already put at the mount point's own root.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            {{- end }}
           {{- if .Values.postgresql.persistence.enabled }}
           volumeMounts:
             - name: postgres-data
@@ -53,6 +66,15 @@ spec:
               command: ["pg_isready", "-U", {{ .Values.postgresql.auth.username | quote }}]
             initialDelaySeconds: 15
             periodSeconds: 15
+            # OBSERVED on a real Scaleway Kapsule cluster during a load test, 2026-09-22: at the
+            # Kubernetes default timeoutSeconds of 1s, `pg_isready` running against a genuinely
+            # saturated (not dead) Postgres missed that window, Kubernetes counted it as a failed
+            # probe, and — with no failureThreshold cushion either — restarted Postgres mid-load-test,
+            # wiping the database it was testing against. A busy database is not a dead database:
+            # give `pg_isready` real headroom to answer, and require several consecutive misses, not
+            # one, before concluding the process is actually gone.
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             {{- toYaml .Values.postgresql.resources | nindent 12 }}
       {{- if .Values.postgresql.persistence.enabled }}
