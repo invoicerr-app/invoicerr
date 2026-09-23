@@ -79,6 +79,7 @@ export {
   type SelectableRowsResult,
 } from "./use-document-types"
 export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
+export { useVersionInfo, type VersionInfo } from "./use-version"
 export {
   useUploadReceivedInvoice,
   useReceivedInvoiceOcrResult,

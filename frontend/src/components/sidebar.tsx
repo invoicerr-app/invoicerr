@@ -51,7 +51,7 @@ import { authClient } from "@/lib/auth"
 import { useEffect, useRef, useState } from "react"
 import { usePost } from "@/hooks/use-fetch"
 
-import { useAvailableDocumentTypes, useCompanies, useCompany } from "@/hooks/queries"
+import { useAvailableDocumentTypes, useCompanies, useCompany, useVersionInfo } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "react-i18next"
 
@@ -64,6 +64,7 @@ export function Sidebar() {
   const { companies, activeCompanyId, isPending: companiesLoading } = useCompanies()
 
   const { data: company } = useCompany()
+  const { data: versionInfo } = useVersionInfo()
   const navigate = useNavigate()
 
   const { setOpen: setOnboardingOpen } = useOnboardingDialog()
@@ -500,6 +501,34 @@ export function Sidebar() {
             </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
+
+        {/* The installed version (issue #371) — read from the real build (VersionService, backend),
+            never typed by hand here. Hidden in icon-collapsed mode the same way every other label in
+            this sidebar already is; skipped entirely while the query hasn't answered yet (no
+            skeleton — this is decorative, not something worth a loading flash for). The "update
+            available" badge only ever appears once the backend's own comparison says so (stable vs
+            pre-release policy lives there, not in this component) — clicking it opens the GitHub
+            release notes in a new tab rather than navigating the app away. */}
+        {versionInfo && (
+          <div className="flex items-center gap-1.5 px-2 pb-1 pt-1 group-data-[collapsible=icon]:hidden">
+            <span className="truncate text-[11px] text-sidebar-foreground/60" data-cy="sidebar-app-version">
+              {t("sidebar.version.label", { version: versionInfo.currentVersion })}
+            </span>
+            {versionInfo.updateAvailable && versionInfo.latestUrl && (
+              <a
+                href={versionInfo.latestUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={t("sidebar.version.updateTooltip", { version: versionInfo.latestVersion })}
+                data-cy="sidebar-update-available"
+              >
+                <Badge variant="info" className="cursor-pointer">
+                  {t("sidebar.version.updateAvailable")}
+                </Badge>
+              </a>
+            )}
+          </div>
+        )}
       </SidebarFooter>
     </RootSidebar>
   )
