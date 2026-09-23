@@ -631,7 +631,8 @@
                 "delete": "Rechnung löschen",
                 "issue": "Rechnung ausstellen",
                 "creditNote": "Gutschrift ausstellen",
-                "cancel": "Rechnung stornieren"
+                "cancel": "Rechnung stornieren",
+                "sendByEmail": "Sende Rechnung per Email"
             },
             "actions": {
                 "addNew": "Neue Rechnung hinzufügen",
@@ -1413,12 +1414,15 @@
                         "maxLength": "Handelsregister Nr. muss weniger als 50 Zeichen umfassen"
                     },
                     "description": "Die gesetzliche Handelsregister Nr. Ihres Unternehmens",
-                    "label": "Handelsregister Nr."
+                    "label": "Handelsregister Nr.",
+                    "placeholder": "Handelsregister Nr. eingeben"
                 },
                 "vat": {
                     "errors": {
                         "format": "Das Format der Mehrwertsteuernummer ist ungültig (z. B. FR12345678901)",
-                        "required": "MwSt.-Nummer ist erforderlich"
+                        "required": "MwSt.-Nummer ist erforderlich",
+                        "maxLength": "Die Umsatzsteuernummer muss weniger als 15 Zeichen umfassen.",
+                        "empty": "Die Umsatzsteuernummer darf nicht leer sein."
                     },
                     "placeholder": "Mehrwertsteuernummer eingeben (z. B. FR12345678901)",
                     "description": "Die Umsatzsteuer-Identifikationsnummer Ihres Unternehmens",
@@ -1727,7 +1731,7 @@
                 "button": "Erstelle Webhook"
             },
             "card": {
-                "events": "Warte auf Ereignisse:",
+                "events": "Warte auf Ereignisse: {{events}}",
                 "edit": "Bearbeiten",
                 "delete": "Löschen",
                 "editPrompt": "Geben Sie eine neue webhook URL ein"
@@ -1765,7 +1769,8 @@
                 "createError": "Generieren des Einladungscodes fehlgeschlagen",
                 "deleteSuccess": "Einladungscode gelöscht",
                 "deleteError": "Generieren des Einladungs-Codes fehlgeschlagen",
-                "codeCopied": "Code in Zwischenablage kopiert"
+                "codeCopied": "Code in Zwischenablage kopiert",
+                "fetchError": "Laden der Einladungscodes fehlgeschlagen"
             }
         },
         "apiKeys": {
