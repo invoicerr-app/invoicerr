@@ -158,6 +158,10 @@ const NO_SCOPE_IS_CORRECT: Record<string, string> = {
   'SireneController#getCompanyBySiret':
     'Proxies the French public SIRENE registry for one SIRET. Same shape as the lookup above: no ' +
     'company row is read, so no company resource can be named.',
+  'VersionController#get':
+    'Answers the installed version and whether GitHub has published a newer one — identical for ' +
+    'every company/user on the instance (issue #371). Reads no company row, same shape as ' +
+    "CountryReadinessController's routes above.",
 };
 
 /**

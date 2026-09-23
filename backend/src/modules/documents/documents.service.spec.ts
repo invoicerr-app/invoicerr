@@ -232,6 +232,58 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     expect((result.document?.data as Record<string, unknown>).clientReference).toBeUndefined();
   });
 
+  // Issue #145 — the quote line's own optional `date` (quote.descriptor.ts, added alongside the
+  // invoice's identical field for consistency — see that file's own comment on why). Same "ordinary
+  // optional field, no special-cased persistence path" proof as `clientReference` above, at the LINE
+  // level rather than the document level — the PDF's own conditional column rendering is covered in
+  // rendering/render-html.spec.ts, the format bridges' non-leak in formats/shared-build.spec.ts.
+  it('persists an optional per-line `date` on the quote, and a line without one still validates', async () => {
+    const dataWithLineDate = {
+      ...validQuoteData,
+      lines: [{ ...validQuoteData.lines[0], date: '2026-02-10' }],
+    };
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: dataWithLineDate,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', {
+      data: dataWithLineDate,
+    });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as typeof dataWithLineDate).lines[0].date).toBe('2026-02-10');
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'quote',
+      undefined,
+      'draft',
+      dataWithLineDate,
+    );
+  });
+
+  it('validates and saves fine when no line sets a `date` at all — the ordinary, pre-existing shape', async () => {
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-2',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', { data: validQuoteData });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as typeof validQuoteData).lines[0]).not.toHaveProperty('date');
+  });
+
   // THE MUTATION TARGET: `runAction` strips every caller-supplied `__`-prefixed sidecar key BEFORE
   // validation or persistence — "save-draft" included, not merely "send" (descriptors/validate.ts's
   // own `stripSidecarKeys`, this method's own header). A fabricated `__crossBorderMentions` here would

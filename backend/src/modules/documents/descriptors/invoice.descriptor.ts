@@ -48,10 +48,10 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * a one-line flag for whichever second country's pass has to decide whether it moves into
  * country-fields/, not a claim that it definitely will.
  *
- * A line now carries SIX fields — description, quantity, unit, unit price, VAT rate, discount —
- * the minimum the business itself imposes everywhere.
+ * A line now carries SEVEN fields — description, quantity, unit, unit price, VAT rate, discount,
+ * date — the minimum the business itself imposes everywhere.
  * Two of them (`unit`, `vatRate`) were new at that pass; `discountPercent` was added in a LATER one
- * (see below).
+ * (see below); `date` in a LATER one still (see its own bullet below).
  *
  *  - `unit` — STRUCTURAL, not legal, so it carries no citation (see this file's own closing note on
  *    that distinction). EN 16931 (the base format for France's e-invoicing reform — see
@@ -93,8 +93,37 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  *    recurses with the SAME registry per row). This is the bullet that used to say "deliberately NOT
  *    added" for exactly this reason ("no concrete need yet"); the need arrived, so the field did.
  *
+ *  - `date` (kind: 'date', OPTIONAL, `hideWhenEmpty: true`) — issue #145: "when was the work on
+ *    THIS line actually done", distinct from `issueDate` (when the document itself was drawn up) and
+ *    `dueDate` (the payment deadline) — a consultant billing a month of work in one invoice, on
+ *    different days per line, has no other field that records this. Deliberately NOT required: the
+ *    issue itself frames it as "an optional feature for those who don't date their work" — most
+ *    lines on most invoices need no date beyond the document's own `issueDate`.
+ *    `hideWhenEmpty: true` is not the ordinary top-level flag here (`hideWhenEmpty`'s own comment,
+ *    types.ts, only ever describes a top-level field's row) — inside an 'array' row it is a NEW,
+ *    narrower meaning `rendering/render-html.ts`'s own 'array' case now implements: the COLUMN itself
+ *    disappears from the printed table when NO row in the document sets a value, rather than every
+ *    row printing an empty cell. This is what keeps a document saved before this field existed
+ *    rendering byte-for-byte as it always did — an old `lines` array has no row carrying `date` at
+ *    all, so the column never appears — while a document that dates SOME lines and not others still
+ *    gets one shared column, the undated lines showing the ordinary em-dash placeholder, never a
+ *    ragged or reflowed table. See that file's own comment on the 'array' case for the mechanism.
+ *    Deliberately NOT threaded into any e-invoicing format: `formats/shared-build.ts#extractLines`
+ *    and `formats/national/national-lines.ts#extractNationalLines` — the ONLY two choke points every
+ *    format provider (CII, UBL, Factur-X, XRechnung, Peppol BIS, FA(3)/KSeF, FatturaPA) builds a
+ *    line from — read a fixed, named set of keys off each row and never spread the row itself, so an
+ *    unmapped key is structurally invisible to them, not merely untested. EN 16931 has no per-line
+ *    single-date fact this would honestly correspond to (BG-26's own BT-134/BT-135 is a START/END
+ *    *period*, a different cardinality and a different question — "over what period was this line
+ *    supplied", not "on what single day was it delivered"); inventing a start=end=this mapping to
+ *    populate it was considered and rejected as exactly the kind of guess this repository's own
+ *    format bridges are built to avoid (see this file's own note on `unit`/`vatRate` citations, and
+ *    `formats/shared-build.ts`'s own header on why each extraction is named, not generic). A future
+ *    pass that genuinely wants BG-26 can add it deliberately, on its own evidence — this field stays
+ *    a PDF-only, bookkeeping-convenience fact until then.
+ *
  *  - `articleId` (kind: 'hiddenReference', OPTIONAL) — basic stock management, added alongside the
- *    SIX business fields above, not a seventh one of them: it carries
+ *    SEVEN business fields above, not an eighth one of them: it carries
  *    no designation/price/tax fact of its own, only WHICH catalog article (if any) this line came
  *    from, so `documents/stock/apply-stock-on-issuance.ts` can find it again at issuance. Filled by
  *    the SAME `prefillFrom` mechanism as `description`/`unitPrice`/`vatRate` below (see `map`) — never
@@ -559,6 +588,18 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
             min: 0,
             max: 100,
             helpText: 'Percentage discount applied to this line, before VAT.',
+          },
+          {
+            // See this file's own header, "The line shape" — issue #145, `hideWhenEmpty` given a
+            // second, column-level meaning inside an 'array' row by rendering/render-html.ts, and
+            // deliberately NOT mapped into any e-invoicing format (formats/shared-build.ts /
+            // formats/national/national-lines.ts).
+            key: 'date',
+            kind: 'date',
+            label: 'Work date',
+            required: false,
+            hideWhenEmpty: true,
+            helpText: 'When the work on this line was actually done, if it differs from the invoice date.',
           },
         ],
       },
