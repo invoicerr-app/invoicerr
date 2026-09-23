@@ -45,22 +45,49 @@ zwei Rollen:
 ## 3. Was wir als Verantwortlicher erheben und warum
 
 Wir erheben alle nachstehenden Daten **direkt von Ihnen**, entweder wenn Sie sie bereitstellen
-(Registrierung, Konfiguration, Support) oder automatisch bei der Nutzung des Dienstes (Verbindungs-
-und Sicherheitsdaten).
+(Registrierung, Konfiguration, Support oder das unterhalb der Tabelle beschriebene
+Wartelisten-Formular) oder automatisch bei der Nutzung des Dienstes (Verbindungs- und
+Sicherheitsdaten).
 
 | Daten | Beispiele | Zweck | Rechtsgrundlage (Art. 6 DSGVO) |
 | --- | --- | --- | --- |
 | Kontodaten | Name, E-Mail-Adresse, gehashtes Passwort, Sitzungstoken | ermöglicht Ihnen die Anmeldung und Nutzung des Dienstes | Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO) |
 | Unternehmensdaten | Firmenname, Anschrift, von Ihnen konfigurierte nationale Kennungen (z. B. SIREN/USt-IdNr.) | Betrieb des Arbeitsbereichs Ihres Unternehmens, Befüllung der von Ihnen ausgestellten Dokumente | Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO) |
 | Abonnementdaten | Tarif, Anzahl der Plätze, Abonnementstatus, Testzeiträume | Verwaltung Ihres Abonnements; Polar verarbeitet und speichert Ihre Zahlungsmethode und Rechnungsanschrift als Vertragshändler (Merchant of Record) — siehe Abschnitt 5 | Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO) |
-| Verbindungs- und Sicherheitsdaten | IP-Adresse, Zeitstempel von Authentifizierungsereignissen, Anwendungsprotokolle | Missbrauchserkennung, Aufrechterhaltung der Sicherheit des Dienstes, Diagnose von Vorfällen | Berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO) |
+| Verbindungs- und Sicherheitsdaten | IP-Adresse, Zeitstempel von Authentifizierungsereignissen, Anwendungsprotokolle, der kurzlebige Zähler je IP-Adresse, der das Wartelisten-Formular schützt | Missbrauchserkennung, Aufrechterhaltung der Sicherheit des Dienstes, Diagnose von Vorfällen | Berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO) |
 | Nachweis der Annahme | welches Rechtsdokument und welche Fassung Sie angenommen haben, wann, sowie die IP-Adresse und der Browser-User-Agent, von denen aus dies geschah | belegen, dass Sie der Fassung zugestimmt haben, die zum Zeitpunkt Ihrer Zustimmung galt | Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO) und unser berechtigtes Interesse, diese Zustimmung nachweisen zu können (Art. 6 Abs. 1 lit. f DSGVO) |
 | Support-Kommunikation | Inhalt der E-Mails, die Sie an contact@invoicerr.app senden | Bearbeitung Ihrer Anfrage | Berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO), oder Vertragserfüllung, sofern die Anfrage Ihr Abonnement betrifft |
 | Rechnungsunterlagen für unsere eigene Buchhaltung | Identität Ihres Unternehmens und die ihm in Rechnung gestellten Gebühren | unsere eigene gesetzliche Buchführungspflicht | Rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c DSGVO) |
+| Wartelistendaten | E-Mail-Adresse, Land, Unternehmensgröße, Datum und Uhrzeit der Anmeldung | Ihnen mitteilen, wann die gehostete Version des Dienstes startet | Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), erteilt durch Absenden des Formulars und jederzeit widerrufbar; Datum und Uhrzeit der Anmeldung sind der Nachweis dieser Einwilligung (Art. 7 Abs. 1 DSGVO) |
 
 Wir versenden keine Marketing-E-Mails, die über transaktionale Mitteilungen zu Ihrem Konto und
 Abonnement hinausgehen (z. B. Anmelde-, Abrechnungs- und Diensthinweise) — es gibt keinen gesonderten
 Marketing-Einwilligungsprozess zu beschreiben.
+
+**Die Warteliste.** Die gehostete Version des Dienstes ist noch nicht gestartet. Bis dahin liefert
+**my.invoicerr.app** anstelle des Dienstes ein Wartelisten-Formular aus, und die drei Felder, die
+dieses Formular abfragt (Ihre E-Mail-Adresse, Ihr Land und Ihre Unternehmensgröße), werden zu einem
+einzigen Zweck verarbeitet: Ihnen mitzuteilen, wann die gehostete Version startet. Es handelt sich
+weder um einen Newsletter noch um einen Marketing-Verteiler. Nichts, was Sie dort hinterlassen, wird
+zur Profilbildung verwendet, mit anderen Daten zusammengeführt, verkauft oder an jemanden außerhalb
+der in Abschnitt 4 genannten Unterauftragsverarbeiter weitergegeben. Neben diesen drei Feldern wird
+ein viertes Element gespeichert, Datum und Uhrzeit Ihrer Anmeldung, das einzige, das Sie nicht selbst
+eingegeben haben: Es ist der Nachweis Ihrer Einwilligung, den wir nach **Art. 7 Abs. 1 DSGVO**
+erbringen können müssen, solange wir uns auf diese Einwilligung stützen. Mehr von dem, was Sie uns
+mitteilen, wird nicht gespeichert. Die Seite liest zwar die Sprache Ihres Browsers und die Seite, von
+der Sie gekommen sind, jedoch ausschließlich, um die anzuzeigende Sprachfassung zu bestimmen, und
+speichert beides nicht; Ihr Browser-User-Agent wird überhaupt nicht gespeichert. Ihre IP-Adresse
+hingegen schon, und zwar aus einem einzigen Grund: Jede Übermittlung kostet uns einen gespeicherten
+Eintrag und eine E-Mail, weshalb Übermittlungen je IP-Adresse gezählt werden, um einen Missbrauch des
+Formulars zu verhindern. Dieser Zähler gehört zu den Verbindungs- und Sicherheitsdaten, die die
+Tabelle oben bereits beschreibt, auf derselben Grundlage, unserem berechtigten Interesse an der
+Nutzbarkeit des Dienstes (**Art. 6 Abs. 1 lit. f DSGVO**). Er ist ein vom Wartelisteneintrag
+getrennter Datensatz, beide werden nie zusammengeführt, und er verfällt von selbst etwa eine Stunde
+nach der Übermittlung, die er gezählt hat. Ihr Eintrag
+wird in **Cloudflare Workers KV** vorgehalten, und eine Kopie davon wird über **Resend** an
+**contact@invoicerr.app** gesendet (beide in Abschnitt 4 beschrieben), für den in Abschnitt 6
+genannten Zeitraum. Schreiben Sie jederzeit an
+**contact@invoicerr.app**, um ihn löschen zu lassen; eine Begründung ist nicht erforderlich.
 
 ## 4. Unterauftragsverarbeiter
 
@@ -71,13 +98,17 @@ die jeweils im Rahmen ihrer eigenen Datenverarbeitungsbedingungen beauftragt wur
   (Merchant of Record)** für Ihr Abonnement (Allgemeine Geschäftsbedingungen (AGB), Abschnitt 7.1) und
   ist selbst Verantwortlicher für die Zahlungsdetails, die sie direkt von Ihnen erhebt.
 - **Resend** — Zustellung transaktionaler E-Mails, die vom Dienst versendet werden (Anmeldelinks,
-  Benachrichtigungen).
+  Benachrichtigungen), sowie Zustellung der Kopie jedes Wartelisteneintrags an
+  **contact@invoicerr.app** (Abschnitt 3).
 - **Cloudflare, Inc.** — eingehendes E-Mail-Routing für Korrespondenz an **contact@invoicerr.app**
   (ausschließlich Support-Korrespondenz; Cloudflare sieht niemals die Daten, die in den über den
-  Dienst erstellten Dokumenten enthalten sind).
+  Dienst erstellten Dokumenten enthalten sind), sowie die in Abschnitt 3 beschriebene Warteliste: die
+  unter **my.invoicerr.app** ausgelieferte Seite läuft als Cloudflare Worker, und jeder
+  Wartelisteneintrag wird in **Cloudflare Workers KV** gespeichert.
 - **Google LLC (Gmail)** — das Postfach, in dem an **contact@invoicerr.app** gesendete
-  Support-Korrespondenz empfangen wird (ausschließlich Support-Korrespondenz; Google sieht niemals die
-  Daten, die in den über den Dienst erstellten Dokumenten enthalten sind).
+  Support-Korrespondenz empfangen wird und in dem die in Abschnitt 3 beschriebene Kopie jedes
+  Wartelisteneintrags eingeht (ausschließlich Korrespondenz; Google sieht niemals die Daten, die in
+  den über den Dienst erstellten Dokumenten enthalten sind).
 - **Scaleway SAS** — Infrastruktur-Hosting für die **Produktionsumgebung** des Dienstes: der
   Kubernetes-Cluster, auf dem er läuft, die verwaltete PostgreSQL-Datenbank, in der die in Abschnitt 3
   beschriebenen Unternehmens- und Kontodaten sowie die von Ihnen über den Dienst erstellten Dokumente
@@ -173,6 +204,16 @@ speichert, betrifft ein Unternehmen außerhalb der EU.
   haben, der Sie zugestimmt haben; sie wird mit Ihrem Konto gelöscht.
 - **Support-Kommunikation** wird so lange aufbewahrt, wie es zur Bearbeitung Ihrer Anfrage erforderlich
   ist, sowie für einen angemessenen Zeitraum danach, falls Sie sich erneut melden.
+- **Wartelisteneinträge** werden bis zum Start der gehosteten Version des Dienstes und für **zwölf
+  Monate** danach aufbewahrt, in jedem Fall aber **nicht länger als ein Jahr nach Ihrer Anmeldung**,
+  wobei die frühere der beiden Fristen maßgeblich ist; danach werden sie gelöscht. Die Jahresfrist
+  läuft ab Ihrer Anmeldung und beginnt neu, wenn Sie das Formular erneut absenden: Eine frühe
+  Anmeldung kann also vor der ersten Frist wegfallen, niemals danach. Das umfasst die im Formular
+  hinterlassene E-Mail-Adresse, das Land und die Unternehmensgröße sowie Datum und Uhrzeit, zu denen
+  Sie sie hinterlassen haben (Abschnitt 3). Der Zähler je IP-Adresse, der das Formular schützt und in
+  Abschnitt 3 beschrieben ist, ist ein getrennter Datensatz mit einer eigenen Lebensdauer von etwa
+  einer Stunde. Eine Nachricht an **contact@invoicerr.app** löscht Ihren Eintrag jederzeit vorher und
+  ist zugleich der Weg, die ihm zugrunde liegende Einwilligung zu widerrufen.
 
 ## 7. Sicherheit
 
@@ -193,6 +234,11 @@ gespeichert haben (**Art. 15**); auf deren Berichtigung (**Art. 16**); auf deren
 werden innerhalb der von der DSGVO für einen Verantwortlichen vorgesehenen Frist antworten. Sie haben
 außerdem das Recht, sich bei der französischen Datenschutzbehörde, der **CNIL** (www.cnil.fr), oder
 bei der Aufsichtsbehörde Ihres eigenen EU-Mitgliedstaats zu beschweren.
+
+Soweit wir uns auf Ihre Einwilligung stützen, was heute allein die in Abschnitt 3 beschriebene
+Warteliste betrifft, können Sie diese jederzeit widerrufen (**Art. 7 Abs. 3 DSGVO**), indem Sie an
+**contact@invoicerr.app** schreiben. Der Widerruf ist so einfach wie die Erteilung und berührt nicht
+die Rechtmäßigkeit der vor dem Widerruf erfolgten Verarbeitung.
 
 Das Recht auf Löschung (**Art. 17**) hat eine Grenze, die wir anwenden und die Sie kennen sollten,
 bevor Sie es geltend machen: Verlangt ein Gesetz weiterhin die Aufbewahrung eines archivierten
@@ -221,7 +267,9 @@ Liste, Zweck und Dauer jedes Elements sowie dafür, warum kein Einwilligungsbann
 ## 10. Von uns betriebene Websites
 
 Der Dienst selbst läuft unter **my.invoicerr.app**, gehostet von Scaleway wie in Abschnitt 4
-beschrieben. Getrennt vom Dienst veröffentlichen wir zwei öffentliche, statische Websites, die beide
+beschrieben. Bis zum Start der gehosteten Version liefert diese Adresse die in Abschnitt 3
+beschriebene Wartelisten-Seite aus, die auf Cloudflare und nicht auf Scaleway läuft.
+Getrennt vom Dienst veröffentlichen wir zwei öffentliche, statische Websites, die beide
 über **GitHub Pages** ausgeliefert werden — einen Hosting-Dienst, betrieben von **GitHub, Inc.**, 88
 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, einer hundertprozentigen Tochtergesellschaft
 der Microsoft Corporation:

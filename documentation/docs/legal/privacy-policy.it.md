@@ -42,22 +42,46 @@ Come i Termini di Servizio (Sezione 15.1), la presente Informativa distingue due
 ## 3. Cosa raccogliamo, in qualità di titolare del trattamento, e perché
 
 Raccogliamo tutti i dati indicati di seguito **direttamente da Lei**, sia quando li fornisce
-(registrazione, configurazione, assistenza) sia automaticamente mentre utilizza il Servizio (dati di
-connessione e sicurezza).
+(registrazione, configurazione, assistenza o il modulo della lista d'attesa descritto sotto la
+tabella) sia automaticamente mentre utilizza il Servizio (dati di connessione e sicurezza).
 
 | Dati | Esempi | Finalità | Base giuridica (art. 6 del GDPR) |
 | --- | --- | --- | --- |
 | Dati di account | nome, email, password con hash, token di sessione | consentirLe di accedere e utilizzare il Servizio | Esecuzione di un contratto (art. 6, par. 1, lett. b) |
 | Dati dell'Azienda | ragione sociale, indirizzo, identificativi nazionali configurati (es. SIREN/partita IVA) | gestire l'area di lavoro della Sua Azienda, compilare i documenti che emette | Esecuzione di un contratto (art. 6, par. 1, lett. b) |
 | Dati di abbonamento | piano, numero di posti, stato dell'abbonamento, date di prova | gestire il Suo abbonamento; Polar tratta e conserva il Suo metodo di pagamento e l'indirizzo di fatturazione in qualità di merchant of record — vedi Sezione 5 | Esecuzione di un contratto (art. 6, par. 1, lett. b) |
-| Dati di connessione e sicurezza | indirizzo IP, timestamp degli eventi di autenticazione, log applicativi | rilevare abusi, mantenere sicuro il Servizio, diagnosticare incidenti | Legittimo interesse (art. 6, par. 1, lett. f) |
+| Dati di connessione e sicurezza | indirizzo IP, timestamp degli eventi di autenticazione, log applicativi, il contatore di breve durata per indirizzo IP che protegge il modulo della lista d'attesa | rilevare abusi, mantenere sicuro il Servizio, diagnosticare incidenti | Legittimo interesse (art. 6, par. 1, lett. f) |
 | Prova dell'accettazione | quale documento legale e quale versione Lei ha accettato, quando, nonché l'indirizzo IP e lo user agent del browser da cui l'ha accettato | dimostrare che Lei ha accettato il testo in vigore nel momento in cui lo ha accettato | Esecuzione di un contratto (art. 6, par. 1, lett. b) e nostro legittimo interesse a poterne dare prova (art. 6, par. 1, lett. f) |
 | Comunicazioni di supporto | il contenuto delle email inviate a contact@invoicerr.app | rispondere alla Sua richiesta | Legittimo interesse (art. 6, par. 1, lett. f), oppure esecuzione di un contratto se la richiesta riguarda il Suo abbonamento |
 | Registrazioni di fatturazione per la nostra contabilità | l'identità della Sua Azienda e le Tariffe ad essa fatturate | il nostro obbligo contabile di legge | Obbligo legale (art. 6, par. 1, lett. c) |
+| Dati della lista d'attesa | indirizzo email, paese, dimensione dell'azienda, data e ora dell'iscrizione | avvisarLa dell'apertura della versione ospitata del Servizio | Consenso (art. 6, par. 1, lett. a), prestato inviando il modulo e revocabile in qualsiasi momento; la data e l'ora dell'iscrizione costituiscono la prova di tale consenso (art. 7, par. 1) |
 
 Non inviamo email di marketing al di là di quelle transazionali relative al Suo account e al Suo
 abbonamento (ad es. accesso, fatturazione e comunicazioni di servizio) — non esiste un flusso
 separato di consenso al marketing da descrivere.
+
+**La lista d'attesa.** La versione ospitata del Servizio non è ancora aperta. Fino all'apertura,
+**my.invoicerr.app** mostra un modulo di lista d'attesa al posto del Servizio, e i tre campi che quel
+modulo richiede (il Suo indirizzo email, il Suo paese e la dimensione della Sua azienda) sono trattati
+per un solo scopo: avvisarLa dell'apertura della versione ospitata. Non è una newsletter e non è una
+lista di marketing. Nulla di quanto Lei lascia lì viene usato per profilarLa, combinato con altri
+dati, venduto o comunicato a chiunque al di fuori dei sub-responsabili indicati nella Sezione 4.
+Accanto a quei tre campi viene conservato un quarto elemento, la data e l'ora della Sua iscrizione,
+l'unico che Lei non ha digitato: è la prova del Suo consenso, che l'**art. 7, par. 1** ci impone di
+poter fornire finché ci basiamo su tale consenso. Nient'altro di quanto Lei ci comunica viene
+conservato. La pagina legge sì la lingua del Suo browser e la pagina da cui è arrivato, ma solo per
+scegliere la versione linguistica da mostrarLe, e non conserva né l'una né l'altra; lo user agent del
+Suo browser non viene conservato affatto. Il Suo indirizzo IP sì, per una sola ragione: ogni invio ci
+costa un'iscrizione conservata e un'email, perciò gli invii vengono contati per indirizzo IP per
+impedire abusi del modulo. Quel contatore rientra nei dati di connessione e sicurezza che la tabella
+qui sopra già descrive, sulla stessa base, il nostro legittimo interesse a mantenere utilizzabile il
+Servizio (**art. 6, par. 1, lett. f**). È una registrazione distinta dalla Sua iscrizione, le due non
+vengono mai messe in relazione, e scade da sé circa un'ora dopo l'invio che ha contato. La Sua
+iscrizione è conservata in **Cloudflare
+Workers KV** e una copia è inviata a **contact@invoicerr.app** tramite **Resend** (entrambi
+descritti nella Sezione 4), per il periodo indicato nella Sezione 6. Scriva a
+**contact@invoicerr.app** in qualsiasi momento per farla
+cancellare; non deve fornire alcuna motivazione.
 
 ## 4. Sub-responsabili del trattamento
 
@@ -67,13 +91,18 @@ trattamento, ciascuno vincolato dai propri termini di trattamento dei dati:
 - **Polar Software Inc.** — elaborazione dei pagamenti e fatturazione; agisce come **merchant of
   record** per il Suo abbonamento (Termini di Servizio, Sezione 7.1) ed è essa stessa titolare del
   trattamento per i dati di pagamento che raccoglie direttamente da Lei.
-- **Resend** — invio delle email transazionali inviate dal Servizio (link di accesso, notifiche).
+- **Resend** — invio delle email transazionali inviate dal Servizio (link di accesso, notifiche) e
+  invio della copia di ogni iscrizione alla lista d'attesa indirizzata a **contact@invoicerr.app**
+  (Sezione 3).
 - **Cloudflare, Inc.** — instradamento della posta elettronica in entrata per la corrispondenza
   inviata a **contact@invoicerr.app** (solo corrispondenza di supporto; Cloudflare non vede mai i
-  dati contenuti nei documenti che Lei crea tramite il Servizio).
+  dati contenuti nei documenti che Lei crea tramite il Servizio), nonché la lista d'attesa descritta
+  nella Sezione 3: la pagina servita su **my.invoicerr.app** funziona come Cloudflare Worker e ogni
+  iscrizione è conservata in **Cloudflare Workers KV**.
 - **Google LLC (Gmail)** — la casella di posta in cui viene ricevuta la corrispondenza di supporto
-  inviata a **contact@invoicerr.app** (solo corrispondenza di supporto; Google non vede mai i dati
-  contenuti nei documenti che Lei crea tramite il Servizio).
+  inviata a **contact@invoicerr.app** e in cui arriva la copia di ogni iscrizione alla lista d'attesa
+  descritta nella Sezione 3 (solo corrispondenza; Google non vede mai i dati contenuti nei documenti
+  che Lei crea tramite il Servizio).
 - **Scaleway SAS** — hosting dell'infrastruttura per l'**ambiente di produzione** del Servizio: il
   cluster Kubernetes su cui viene eseguito, il database PostgreSQL gestito che conserva i dati
   dell'Azienda e dell'account descritti nella Sezione 3, nonché i documenti che Lei crea tramite il
@@ -168,6 +197,16 @@ coinvolge un'entità extra-UE.
   proprio la versione che ha accettato; viene eliminata insieme al Suo account.
 - **Le comunicazioni di supporto** vengono conservate per il tempo necessario a risolvere la Sua
   richiesta e per un periodo ragionevole successivo, nel caso Lei debba fare seguito.
+- **Le iscrizioni alla lista d'attesa** sono conservate fino all'apertura della versione ospitata del
+  Servizio e per **dodici mesi** dopo di essa, e in ogni caso **non oltre un anno dalla Sua
+  iscrizione**, prevalendo il primo dei due termini; poi vengono cancellate. Il limite di un anno
+  decorre dalla Sua iscrizione e riparte se invia di nuovo il modulo: un'iscrizione remota può quindi
+  venire meno prima del primo termine, mai dopo. Ciò riguarda l'indirizzo email, il paese e la
+  dimensione dell'azienda lasciati nel modulo, nonché la data e l'ora in cui li ha lasciati
+  (Sezione 3). Il contatore per indirizzo IP che protegge il modulo, descritto nella Sezione 3, è una
+  registrazione distinta, con una propria durata di circa un'ora. Scrivere a
+  **contact@invoicerr.app** cancella la Sua iscrizione in qualsiasi momento prima di allora ed è anche
+  il modo per revocare il consenso su cui essa si fonda.
 
 ## 7. Sicurezza
 
@@ -186,6 +225,11 @@ nostro legittimo interesse (**art. 21**). Può esercitare ciascuno di questi dir
 **contact@invoicerr.app**; risponderemo entro i termini che il GDPR stabilisce per un titolare del
 trattamento. Ha inoltre il diritto di presentare un reclamo all'autorità francese di protezione dei
 dati, la **CNIL** (www.cnil.fr), oppure all'autorità di controllo del Suo Stato membro dell'UE.
+
+Quando ci basiamo sul Suo consenso, il che oggi riguarda soltanto la lista d'attesa descritta nella
+Sezione 3, Lei può revocarlo in qualsiasi momento (**art. 7, par. 3**) scrivendo a
+**contact@invoicerr.app**. Revocare è semplice quanto prestare il consenso e non pregiudica la
+liceità del trattamento effettuato prima della revoca.
 
 Il diritto alla cancellazione (**art. 17**) incontra un limite che applichiamo e che Lei dovrebbe
 conoscere prima di esercitarlo: quando una norma impone ancora la conservazione di un documento
@@ -214,7 +258,9 @@ consenso.
 ## 10. Siti web che gestiamo
 
 Il Servizio stesso viene eseguito su **my.invoicerr.app**, ospitato da Scaleway come descritto
-nella Sezione 4. Separatamente dal Servizio, pubblichiamo due siti web pubblici e statici, entrambi
+nella Sezione 4. Fino all'apertura della versione ospitata, quell'indirizzo mostra la pagina della
+lista d'attesa descritta nella Sezione 3, servita da Cloudflare e non da Scaleway.
+Separatamente dal Servizio, pubblichiamo due siti web pubblici e statici, entrambi
 serviti da **GitHub Pages** — un servizio di hosting gestito da **GitHub, Inc.**, 88 Colin P. Kelly
 Jr. Street, San Francisco, CA 94107, USA, una controllata al 100% di Microsoft Corporation:
 
