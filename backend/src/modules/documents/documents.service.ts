@@ -90,7 +90,7 @@ import {
   isActionAvailable,
   WidgetLocation,
 } from './descriptors/types';
-import { stripSidecarKeys, validateAgainstDescriptor } from './descriptors/validate';
+import { dropEmptyRows, stripSidecarKeys, validateAgainstDescriptor } from './descriptors/validate';
 import { RunActionDto } from './dto/documents.dto';
 import { FormatProviderRegistry, UnknownFormatError } from './formats/format-registry';
 import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
@@ -1141,6 +1141,18 @@ export class DocumentsService implements OnModuleInit {
     // itself — sees the SAME cleaned object, with no raw copy left for anything to read by mistake.
     if (!(currentStatus === 'sending' && actionId === 'send')) {
       payload.data = stripSidecarKeys(fields, payload.data ?? {});
+    }
+
+    // Issue #365 ("empty line items should not survive a save") — dropped BEFORE validation, same
+    // gate and same reasoning as the sidecar strip right above (an admitted replay's `payload.data` is
+    // this module's own already-resolved data, already put through this exact pass once at enqueue
+    // time; running it again would be a harmless no-op at best, so it is skipped for the same
+    // "never touch the worker's own replayed data twice" reason). See
+    // `descriptors/validate.ts#dropEmptyRows`'s own header for what "empty" means, field by field, and
+    // why a half-filled row is deliberately left for `validateAgainstDescriptor` below to judge on its
+    // own merits rather than silently discarded here too.
+    if (!(currentStatus === 'sending' && actionId === 'send')) {
+      payload.data = dropEmptyRows(fields, payload.data ?? {});
     }
 
     // Every one of these four checks re-validates `payload.data`/`payload.params` against the

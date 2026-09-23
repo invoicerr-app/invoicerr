@@ -280,6 +280,106 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     expect(result.changed).toBe(true);
   });
 
+  // Issue #365, "empty line items should not survive a save" — proved here against the REAL invoice
+  // line shape (description/quantity/unit/unitPrice/vatRate all required), not just the generic
+  // `dropEmptyRows` unit itself (descriptors/validate.spec.ts).
+  describe('issue #365 — a line with nothing typed in is dropped before it can block the save', () => {
+    it('drops a fully untouched line ("+ Add line", never edited) and persists only the real one', async () => {
+      const withAnEmptyLine = {
+        ...validInvoiceData,
+        lines: [
+          ...validInvoiceData.lines,
+          {
+            description: undefined,
+            quantity: undefined,
+            unit: undefined,
+            unitPrice: undefined,
+            vatRate: undefined,
+          },
+        ],
+      };
+      (persistence.upsertDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await buildService().service.runAction('company-1', 'invoice', 'save-draft', {
+        data: withAnEmptyLine,
+      });
+
+      expect(result.changed).toBe(true);
+      // The second, all-blank line never reaches persistence — only the one real line does.
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        undefined,
+        'draft',
+        validInvoiceData,
+      );
+    });
+
+    it('keeps a line the user half-filled on purpose — it still has to be completed, never silently dropped', async () => {
+      const halfFilled = {
+        ...validInvoiceData,
+        lines: [
+          ...validInvoiceData.lines,
+          // Only a price was typed in — description/quantity/unit/vatRate never touched.
+          { description: undefined, quantity: undefined, unit: undefined, unitPrice: 42, vatRate: undefined },
+        ],
+      };
+      expect.assertions(3);
+      try {
+        await buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: halfFilled });
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as {
+          errors: { key: string; message: string }[];
+        };
+        // Proves the row was KEPT, not dropped: it is still validated, and still asks for exactly
+        // what it is missing, at its own (second-row) index.
+        expect(response.errors).toEqual(
+          expect.arrayContaining([{ key: 'lines[1].description', message: '"Designation" is required.' }]),
+        );
+      }
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('refuses a document made only of empty lines rather than saving it with an empty lines array', async () => {
+      const onlyEmptyLines = {
+        ...validInvoiceData,
+        lines: [
+          {
+            description: undefined,
+            quantity: undefined,
+            unit: undefined,
+            unitPrice: undefined,
+            vatRate: undefined,
+          },
+          { description: '', quantity: 0, unit: '', unitPrice: 0, vatRate: '' },
+        ],
+      };
+      expect.assertions(3);
+      try {
+        await buildService().service.runAction('company-1', 'invoice', 'save-draft', {
+          data: onlyEmptyLines,
+        });
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as {
+          errors: { key: string; message: string }[];
+        };
+        expect(response.errors).toEqual(
+          expect.arrayContaining([{ key: 'lines', message: '"Lines" must have at least 1 row(s).' }]),
+        );
+      }
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+  });
+
   // The one requiredness difference from the quote (quote.descriptor.ts's dueDate is optional) —
   // same 'date' kind, no new kind needed, just a different `required` on this descriptor. The
   // per-field message lives in the exception's response body (`errors`), not in `.message` itself —

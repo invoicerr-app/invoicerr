@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 
+import { dropEmptyRows } from "@/components/documents/empty-rows"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
 import { isActionAvailable } from "@/components/documents/types"
@@ -260,11 +261,38 @@ export function useDocumentForm({
     )
   }, [isGoodsReceipt, currentDocumentId, goodsReceiptPurchaseOrder, form])
 
+  // Issue #365, "empty line items should not survive a save" — see empty-rows.ts's own header for
+  // what "empty" means, field by field. Run at the START of every action attempt (below, as the
+  // first thing `validate` does — use-document-action-runner.ts's `handleAction` always calls
+  // `validate` before anything else, "save-draft" included), so a line the user added via "+ Add
+  // line" and never touched — or cleared back to nothing — is gone from the LIVE form BEFORE
+  // `form.trigger()` ever gets to ask it for its own required fields. Writing through `form.setValue`
+  // on the array field's own name, never a second `useFieldArray().replace()`, is deliberate: see the
+  // goods-receipt PO-prefill effect above for the full, live-verified reason only `setValue` reaches
+  // `array-field.tsx`'s own, SEPARATE `useFieldArray` subscription — that's what makes the row
+  // actually disappear from what is rendered, not just from whatever gets posted. Only ever WRITES
+  // when a field's row count actually changed, so an action attempt that found nothing to drop never
+  // flips `isDirty` on its own.
+  const pruneEmptyLines = () => {
+    const current = form.getValues() as Record<string, unknown>
+    const pruned = dropEmptyRows(effectiveDescriptor.fields, current)
+    for (const field of effectiveDescriptor.fields) {
+      if (field.kind !== "array" || !field.fields?.length) continue
+      const before = current[field.key]
+      const after = pruned[field.key]
+      if (!Array.isArray(before) || !Array.isArray(after) || before.length === after.length) continue
+      form.setValue(field.key as never, after as never, { shouldDirty: true, shouldValidate: false })
+    }
+  }
+
   const runner = useDocumentActionRunner({
     typeId: descriptor.id,
     documentId: currentDocumentId,
     getData: () => form.getValues(),
-    validate: () => form.trigger(),
+    validate: () => {
+      pruneEmptyLines()
+      return form.trigger()
+    },
     onActionSuccess: (result, actionId) => {
       // See extractLineTotalWarnings's own header — this is why the SAVE round-trip alone (never a
       // client-side recomputation) already reacts: `result.data` is this exact record's own,
@@ -317,6 +345,14 @@ export function useDocumentForm({
     availableActions,
     showSettlement,
     runner,
+    // Exposed (not just used internally by `runner.validate` above) for
+    // document-create-dialog.tsx's own wizard: `SteppedDialog` validates the CURRENT step's own
+    // fields on every "Continue" click, entirely independently of `runner.handleAction` (that only
+    // ever runs on the wizard's LAST step) — see that component's own `onBeforeValidate`. Without
+    // wiring this there too, an empty line added on the wizard's "Lines" step would already fail
+    // ITS OWN per-step `form.trigger(['lines'])` and block advancing to "Options" long before
+    // `runner.handleAction`'s copy of this same pass ever got a chance to run.
+    pruneEmptyLines,
   }
 }
 
