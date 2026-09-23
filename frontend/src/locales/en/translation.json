@@ -3288,6 +3288,11 @@
       "title": "Complete Company Setup",
       "description": "Please complete your company information to continue using the application.",
       "goButton": "Go to Company Settings"
+    },
+    "version": {
+      "label": "{{version}}",
+      "updateAvailable": "Update available",
+      "updateTooltip": "{{version}} is available. Click to see the release notes"
     }
   },
   "auth": {
