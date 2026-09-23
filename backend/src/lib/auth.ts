@@ -40,6 +40,7 @@ import { syncPolarMemberEmailForUser } from '../modules/billing/member-email-syn
 import { MailService } from '../mail/mail.service';
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
 import { createPendingSignupStore, createRedisClientForPendingSignups } from './pending-signup-store';
+import { CLIENT_IP_HEADER } from './client-ip-header';
 import { devOnlyOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
 
@@ -380,6 +381,30 @@ export const auth = betterAuth({
   advanced: {
     useSecureCookies: process.env.NODE_ENV === 'production',
     defaultCookieAttributes: { sameSite: 'lax', httpOnly: true },
+    // Per-client rate limiting fix, proven live 2026-09-22 (150 concurrent `GET /api/auth/get-session`
+    // from 150 distinct client addresses served/refused the exact same 100/50 split as the same 150
+    // calls from ONE address). better-auth's bundled rate limiter resolves the client address via
+    // `getIP()` (`@better-auth/core/dist/utils/ip.mjs`), which by default reads `X-Forwarded-For` and
+    // refuses to trust it at all once it carries more than one entry — which it always does here,
+    // because this app's own nginx (`nginx.conf`) APPENDS its own peer address to whatever
+    // `X-Forwarded-For` it received rather than overwriting it. `ipAddressHeaders` points `getIP` at a
+    // header this process controls instead: `create-app.ts`'s own `injectClientIpHeaderMiddleware()`
+    // overwrites `CLIENT_IP_HEADER` on every request with Express's own resolved `req.ip`
+    // (never appended, never trusted from the client — see that file's own header for why that matters)
+    // before better-auth's handler ever runs.
+    //
+    // Option name and shape (`ipAddress?: { ipAddressHeaders?: string[]; ... }` under `advanced`)
+    // verified against the installed better-auth 1.7.4 typings directly — the bundled `.d.mts` is the
+    // only documentation this dependency ships (see `lib/auth.ts`'s own sibling comments on
+    // `sendVerificationEmail` for the same practice) —
+    // `node_modules/@better-auth/core/dist/types/init-options.d.mts:232-243`
+    // (`BetterAuthAdvancedOptions['ipAddress']['ipAddressHeaders']`), and the consumer that actually
+    // reads it is `getIP()` in `node_modules/@better-auth/core/dist/utils/ip.mjs`
+    // (`options.advanced?.ipAddress?.ipAddressHeaders || DEFAULT_IP_HEADERS`), called from
+    // `node_modules/better-auth/dist/api/rate-limiter/index.mjs:239`.
+    ipAddress: {
+      ipAddressHeaders: [CLIENT_IP_HEADER],
+    },
   },
   emailAndPassword: {
     // OIDC_ONLY (instance-wide, DEFAULT OFF — `sso-policy.ts#isOidcOnly`) turns this into a

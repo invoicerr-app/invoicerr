@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { skipBodyParserFor } from './lib/body-parser-auth-skip';
 import { createAuthRateLimitMiddleware, createRedisAuthRateLimitCounterStore } from './lib/auth-rate-limit';
+import { injectClientIpHeaderMiddleware } from './lib/client-ip-header';
 import { devOnlyOrigins } from './lib/dev-origins';
 import { createLibRedisClient } from './lib/redis-connection';
 import { resolveTrustProxyHops } from './lib/trust-proxy';
@@ -73,6 +74,19 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   });
   app.use(cookieParser());
   app.setGlobalPrefix('api');
+
+  // Per-client rate limiting fix (measured live 2026-09-22 — see `lib/client-ip-header.ts`'s own header
+  // for the full defect and mechanism): overwrite a dedicated, always-single-value header with
+  // Express's own resolved `req.ip` on every request, BEFORE anything downstream reads it — the auth
+  // rate-limit middleware just below already reads `req.ip` directly so does not need this header, but
+  // better-auth's own handler (mounted later, only once `NestApplication.init()` runs, per this file's
+  // own comment on that ordering) does: its bundled rate limiter defaults to reading the RAW,
+  // multi-valued `X-Forwarded-For` this app's own nginx always appends to (`nginx.conf`), which it then
+  // refuses to trust at all. `lib/auth.ts`'s own `advanced.ipAddress.ipAddressHeaders` is what points
+  // better-auth at this header instead. `req.ip` is already correct here because `trust proxy` (set
+  // just above) is a property on the Express `app` instance, not a middleware — it applies to every
+  // `req.ip` access regardless of where in the chain this middleware is registered.
+  app.use(injectClientIpHeaderMiddleware());
 
   // better-auth must read its OWN request body itself: `@thallesp/nestjs-better-auth`'s handler
   // wraps the raw Node request in a Web-standard `Request` (`toNodeHandler`, `better-auth/node`) and
