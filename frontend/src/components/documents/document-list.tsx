@@ -24,11 +24,13 @@ import "@/components/documents/custom-registrations"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import {
+  actionAssignsNumber,
   extraActionGates,
   pickPrimaryAction,
   secondaryActions,
   transitionHint,
 } from "@/components/documents/action-presentation"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
 import { getDocumentCustomComponents } from "@/components/documents/custom-slots"
 import {
@@ -243,13 +245,24 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
   const { t } = useTranslation()
   const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false)
   const [shareLinkDialogOpen, setShareLinkDialogOpen] = useState(false)
-  const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
-    useDocumentActionRunner({
-      typeId: descriptor.id,
-      documentId: instance.id,
-      getData: () => instance.data,
-      onActionSuccess,
-    })
+  const {
+    pendingAction,
+    pendingDefaults,
+    pendingLockConfirm,
+    isRunning,
+    handleAction,
+    executeAction,
+    confirmPendingLock,
+    cancelPendingAction,
+    cancelPendingLockConfirm,
+  } = useDocumentActionRunner({
+    typeId: descriptor.id,
+    documentId: instance.id,
+    actions: descriptor.actions,
+    status: instance.status,
+    getData: () => instance.data,
+    onActionSuccess,
+  })
 
   // "download-xml" / "share-link" / the recurrence gate — all declared on the descriptor for the
   // status/country-policy gates, none of them a POST through `runAction`: "download-xml" is a plain
@@ -448,6 +461,27 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           submitting={isRunning}
           onCancel={cancelPendingAction}
           onConfirm={(params) => executeAction(pendingAction.id, params)}
+        />
+      )}
+
+      {pendingLockConfirm && (
+        <ConfirmationDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) cancelPendingLockConfirm()
+          }}
+          title={t("documents.form.lockConfirmation.title", { label: pendingLockConfirm.label })}
+          description={t(
+            actionAssignsNumber(descriptor, pendingLockConfirm, instance.status)
+              ? "documents.form.lockConfirmation.descriptionWithNumbering"
+              : "documents.form.lockConfirmation.description",
+            { label: pendingLockConfirm.label },
+          )}
+          confirmLabel={t("documents.form.lockConfirmation.confirm")}
+          cancelLabel={t("documents.form.lockConfirmation.cancel")}
+          onConfirm={confirmPendingLock}
+          loading={isRunning}
+          dataCy={`document-row-lock-confirm-${instance.id}`}
         />
       )}
 

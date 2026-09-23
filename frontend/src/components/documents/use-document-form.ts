@@ -288,6 +288,8 @@ export function useDocumentForm({
   const runner = useDocumentActionRunner({
     typeId: descriptor.id,
     documentId: currentDocumentId,
+    actions: effectiveDescriptor.actions,
+    status: currentStatus,
     getData: () => form.getValues(),
     validate: () => {
       pruneEmptyLines()

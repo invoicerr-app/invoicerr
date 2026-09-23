@@ -194,8 +194,17 @@ describe("A document's asynchronous send goes through the queue — all the way 
 					// by the next polling tick, which cannot arrive before ~60s after this click (the
 					// `refetchInterval` is re-evaluated — and its 60s window restarted — right after
 					// the click, via the invalidation `useRunDocumentAction` already triggers).
+					// This company is FR (resetAndSeed's own default, never overridden above), and FR
+					// restricts "invoice.save-draft" to the "draft" status (country-policy/data/fr.json)
+					// — so this very first send opens the row's own lock-confirmation dialog first
+					// (document-list.tsx's DocumentRowActions, `actionLocksDocument` in
+					// action-presentation.ts). `sendClickedAt` is captured on the CONFIRM click, not the
+					// one that only opens the dialog: that confirm is the real moment the POST fires,
+					// which is what the SSE timing budget below actually measures from.
 					let sendClickedAt = 0;
-					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 })
+					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+					cy.get(`[data-cy="document-row-lock-confirm-${invoiceId}-confirm"]`, { timeout: 5000 })
+						.should("be.visible")
 						.click()
 						.then(() => {
 							sendClickedAt = Date.now();
