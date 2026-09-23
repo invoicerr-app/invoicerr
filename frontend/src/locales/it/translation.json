@@ -9,12 +9,12 @@
             "placeholder": "Cerca clienti..."
         },
         "actions": {
-            "addNew": "Aggiungi nuovo cliente"
+            "addNew": "Aggiungi Nuovi Clienti"
         },
         "stats": {
-            "active": "Attivi",
-            "inactive": "Inattivi",
-            "total": "Totale clienti"
+            "active": "Attivo",
+            "inactive": "Inattivo",
+            "total": "Clienti Totali"
         },
         "emptyState": {
             "noClients": "Nessun cliente",
@@ -28,16 +28,16 @@
                 "inactive": "Inattivo"
             },
             "tooltips": {
-                "view": "Vedi i dettagli del cliente",
-                "edit": "Modifica cliente",
+                "view": "Visualizza i dettagli del cliente",
+                "edit": "Modifca cliente",
                 "delete": "Elimina cliente"
             },
-            "title": "Tutti i clienti",
+            "title": "Tutti i Clienti",
             "description": "Gestisci e visualizza tutti i tuoi clienti in un unico posto."
         },
         "upsert": {
             "title": {
-                "create": "Aggiungi nuovo cliente",
+                "create": "Aggiungi Nuovo Cliente",
                 "edit": ""
             },
             "fields": {
@@ -219,7 +219,7 @@
         "header": {
             "subtitle": "Gestisci i tuoi clienti",
             "count": "{{count}} clienti {{found}}",
-            "found": "trovati"
+            "found": "trovato"
         }
     },
     "quotes": {
