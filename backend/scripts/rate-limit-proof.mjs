@@ -19,7 +19,10 @@ const signup = await fetch(`${base}/api/auth/sign-up/email`, {
   body: JSON.stringify({ name: 'Rate Limit', firstname: 'Rate', lastname: 'Limit', email, password }),
 });
 if (!signup.ok) throw new Error(`sign-up -> ${signup.status} ${await signup.text()}`);
-const cookie = signup.headers.getSetCookie().find((c) => c.includes('session_token=')).split(';')[0];
+const cookie = signup.headers
+  .getSetCookie()
+  .find((c) => c.includes('session_token='))
+  .split(';')[0];
 
 async function burst(label, n, addr) {
   const codes = {};
