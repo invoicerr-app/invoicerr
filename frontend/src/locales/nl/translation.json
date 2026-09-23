@@ -25,7 +25,8 @@
                 "view": "Bekijk klantgegevens",
                 "edit": "Bewerk klant",
                 "delete": "Verwijder klant"
-            }
+            },
+            "description": "Bekijk en onderhoud en al uw klanten in één plaats."
         },
         "upsert": {
             "title": {
@@ -91,6 +92,13 @@
                 "state": {
                     "label": "Staat/Provincie (Optioneel)",
                     "placeholder": "Voer staat of provincie in"
+                },
+                "legalId": {
+                    "placeholder": "Voer KVK-nummer in",
+                    "label": "KVK-nummer"
+                },
+                "vat": {
+                    "placeholder": "Vul BTW-nummer in (bvb. NL123456789B01)"
                 }
             },
             "validation": {
@@ -127,6 +135,11 @@
                 },
                 "country": {
                     "required": "Land is verplicht"
+                },
+                "legalId": {
+                    "maxLength": "BSN moet minimaal 50 karakters lang zijn",
+                    "required": "BSN nummer is vereist",
+                    "empty": "BSN nummer mag niet leeg zijn"
                 }
             },
             "actions": {
@@ -196,7 +209,8 @@
                 "sendSignature": "Verzenden ter ondertekening",
                 "resendSignature": "Opnieuw verzenden ter ondertekening",
                 "createInvoice": "Factuur maken van offerte",
-                "delete": "Verwijder offerte"
+                "delete": "Verwijder offerte",
+                "view": "Bekijk offerte details"
             },
             "actions": {
                 "addNew": "Voeg nieuwe offerte toe"
@@ -252,7 +266,10 @@
                     },
                     "description": {
                         "hint": "Tip: gebruik **vet** en *cursief* om te benadrukken.",
-                        "placeholder": ""
+                        "placeholder": "",
+                        "errors": {
+                            "required": "Omschrijving is vereist"
+                        }
                     },
                     "quantity": {
                         "placeholder": "Hoeveelheid",
@@ -289,6 +306,11 @@
                     "label": "Betaalmethode",
                     "placeholder": "Selecteer betaalmethode",
                     "description": "Voorkeur betaalmethode voor deze offerte (bijv. bankoverschrijving, cheque, etc.)"
+                },
+                "paymentDetails": {
+                    "description": "Additionele informatie voor betaling ( zoals IBAN, instructies, etc.)",
+                    "placeholder": "Voer betaalgegevens in",
+                    "label": "Betaalgegevens"
                 }
             },
             "actions": {
@@ -435,7 +457,15 @@
     "common": {
         "finish": "Klaar",
         "loading": "Laden...",
-        "valueWithCurrency": "{{amount}}{{currency}}"
+        "valueWithCurrency": "{{amount}}{{currency}}",
+        "units": {
+            "year": "Jaar",
+            "month": "Maand",
+            "day": "Dag",
+            "week": "Week"
+        },
+        "next": "Volgende",
+        "previous": "Vorige"
     },
     "component": {
         "currency-select": {
@@ -1654,7 +1684,9 @@
             "messages": {
                 "accountCreated": ""
             },
-            "signInLink": ""
+            "signInLink": "",
+            "oidc": "Registreet met OIDC.",
+            "oidcLink": "OIDC Registratie"
         },
         "login": {
             "oidc": "",
@@ -1733,5 +1765,6 @@
     },
     "dashboard": {
         "title": ""
-    }
+    },
+    "noOptions": "Geen opties beschikbaar. Maak een nieuwe klant aan."
 }
