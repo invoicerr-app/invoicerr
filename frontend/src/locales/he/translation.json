@@ -85,5 +85,10 @@
                 "generatedInvoices": "Generated Invoices"
             }
         }
+    },
+    "clients": {
+        "header": {
+            "subtitle": "ניהול לקוחות"
+        }
     }
 }
