@@ -8,7 +8,8 @@
         },
         "stats": {
             "active": "Actief",
-            "inactive": "Inactief"
+            "inactive": "Inactief",
+            "total": "Aantal Klanten"
         },
         "emptyState": {
             "noClients": "Nog geen klanten",
@@ -26,7 +27,8 @@
                 "edit": "Bewerk klant",
                 "delete": "Verwijder klant"
             },
-            "description": "Bekijk en onderhoud en al uw klanten in één plaats."
+            "description": "Bekijk en onderhoud en al uw klanten in één plaats.",
+            "title": "Alle Klanten"
         },
         "upsert": {
             "title": {
@@ -80,10 +82,12 @@
                 "type": {
                     "label": "Type Klant",
                     "company": "Bedrijf",
-                    "individual": "Individu"
+                    "individual": "Individu",
+                    "description": "Selecteer of de klant een individu of bedrijf is"
                 },
                 "country": {
-                    "label": "Land"
+                    "label": "Land",
+                    "placeholder": "Vul land in"
                 },
                 "addressLine2": {
                     "label": "Adresregel 2 (Optioneel)",
@@ -98,7 +102,8 @@
                     "label": "KVK-nummer"
                 },
                 "vat": {
-                    "placeholder": "Vul BTW-nummer in (bvb. NL123456789B01)"
+                    "placeholder": "Vul BTW-nummer in (bvb. NL123456789B01)",
+                    "label": "BTW-nummer"
                 }
             },
             "validation": {
@@ -106,7 +111,8 @@
                     "required": "Bedrijfsnaam is verplicht"
                 },
                 "description": {
-                    "maxLength": "Omschrijving moet minder dan 500 karakters tellen"
+                    "maxLength": "Omschrijving moet minder dan 500 karakters tellen",
+                    "required": "Omschrijving is verplicht"
                 },
                 "foundedAt": {
                     "future": "Opstartdatum kan niet in de toekomst zijn"
@@ -118,7 +124,8 @@
                     "required": "Familienaam is verplicht"
                 },
                 "contactPhone": {
-                    "format": "Ongeldig telefoonnummer"
+                    "format": "Ongeldig telefoonnummer",
+                    "minLength": "Telefoonnummer moet op zijn minst 8 karakters bevatten"
                 },
                 "contactEmail": {
                     "required": "Emailadres is verplicht",
@@ -140,6 +147,12 @@
                     "maxLength": "BSN moet minimaal 50 karakters lang zijn",
                     "required": "BSN nummer is vereist",
                     "empty": "BSN nummer mag niet leeg zijn"
+                },
+                "vat": {
+                    "empty": "BTW-nummer kan niet leeg zijn",
+                    "required": "BTW-nummer is verplicht",
+                    "format": "BTW-nummer is ongeldig (vb. FR12345678901)",
+                    "maxLength": "BTW-nummer moet minder dan 15 karakters bevatten"
                 }
             },
             "actions": {
@@ -172,6 +185,11 @@
                 "cancel": "Annuleren",
                 "delete": "Verwijder Klant"
             }
+        },
+        "header": {
+            "found": "gevonden",
+            "count": "{{count}} klanten {{found}}",
+            "subtitle": "Onderhoud klantenbestand"
         }
     },
     "quotes": {
@@ -220,7 +238,9 @@
                 "sendSignatureSuccess": "Offerte voor ondertekening succesvol verzonden",
                 "invoiceCreated": "Factuur succesvol aangemaakt op basis van offerte",
                 "invoiceCreateError": "Fout bij het maken van een factuur op basis van de offerte"
-            }
+            },
+            "title": "Alle offertes",
+            "description": "Beheer en bekijk al uw offertes in één plaats."
         },
         "upsert": {
             "title": {
@@ -448,6 +468,16 @@
         },
         "pdf": {
             "title": ""
+        },
+        "header": {
+            "count": "{{count}} offertes {{found}}",
+            "subtitle": "Beheer uw offertes",
+            "found": "gevonden"
+        },
+        "stats": {
+            "total": "Aantal Offertes",
+            "draft": "Ontwerp",
+            "signed": "Getekend"
         }
     },
     "unavailable": {
