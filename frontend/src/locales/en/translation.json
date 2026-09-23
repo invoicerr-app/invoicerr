@@ -4074,6 +4074,9 @@
               },
               "discountPercent": {
                 "label": "Discount %"
+              },
+              "date": {
+                "label": "Work date"
               }
             }
           }
@@ -4201,6 +4204,9 @@
               },
               "discountPercent": {
                 "label": "Discount %"
+              },
+              "date": {
+                "label": "Work date"
               }
             }
           }

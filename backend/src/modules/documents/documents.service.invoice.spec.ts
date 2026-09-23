@@ -227,6 +227,50 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     );
   });
 
+  // Issue #145 — an optional per-line `date` ("when the work was done"), same discipline as
+  // `clientReference` right above: an ordinary optional field on the generic `data` JSON blob, no
+  // special-cased persistence path. The PDF's own conditional (column-level) rendering is covered in
+  // rendering/render-html.spec.ts's own "hideWhenEmpty on an array row SUBFIELD" block; the format
+  // bridges' non-leak is covered in formats/shared-build.spec.ts,
+  // formats/national/national-lines.spec.ts and formats/providers.spec.ts.
+  it('persists a per-line `date` verbatim on the line that carries one, and a document with none still validates', async () => {
+    const dataWithLineDate = {
+      ...validInvoiceData,
+      lines: [
+        { ...validInvoiceData.lines[0], date: '2026-01-15' },
+        { description: 'Consulting', quantity: 1, unit: 'day', unitPrice: 500, vatRate: '20' },
+      ],
+    };
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: dataWithLineDate,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+      data: dataWithLineDate,
+    });
+
+    expect(result.changed).toBe(true);
+    const persistedLines = (result.document?.data as typeof dataWithLineDate).lines;
+    expect(persistedLines[0].date).toBe('2026-01-15');
+    // The second line never set one — omitting it on a per-line basis is exactly as valid as omitting
+    // it on every line (the ordinary `validInvoiceData` fixture, exercised by the very first test in
+    // this file, has no `date` on its own single line at all).
+    expect(persistedLines[1]).not.toHaveProperty('date');
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'invoice',
+      undefined,
+      'draft',
+      dataWithLineDate,
+    );
+  });
+
   it('its fields validate: an empty invoice is rejected before ever touching persistence', async () => {
     await expect(
       buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: {} }),

@@ -517,6 +517,115 @@ describe('renderDocumentHtml', () => {
     });
   });
 
+  // A SUBFIELD of an 'array' row opting into `hideWhenEmpty` (e.g. invoice/quote line `date` —
+  // issue #145) gets a NARROWER meaning than the top-level flag just above: the whole COLUMN
+  // disappears from the printed table when NO row in the document sets a value, not merely an
+  // empty cell on the rows that lack it. This is what keeps a document saved before such a field
+  // existed rendering byte-for-byte as before — an old `lines` array never carries the key at all.
+  describe('hideWhenEmpty on an array row SUBFIELD (column suppression)', () => {
+    const descriptor: DocumentTypeDescriptor = {
+      id: 'test',
+      label: 'Test',
+      fields: [
+        {
+          key: 'lines',
+          kind: 'array',
+          label: 'Lines',
+          fields: [
+            { key: 'description', kind: 'text', label: 'Description' },
+            { key: 'date', kind: 'date', label: 'Work date', hideWhenEmpty: true },
+          ],
+        },
+      ],
+      actions: [],
+    };
+
+    it('omits the column entirely when no row sets a value — an old document renders exactly as before', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { lines: [{ description: 'Widget' }, { description: 'Gadget' }] },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('Work date');
+      // Still a table — the OTHER subfield's own column is unaffected.
+      expect(html).toContain('<table');
+      expect(html).toContain('Description');
+    });
+
+    it('omits the column when every row explicitly carries an empty value', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [
+              { description: 'Widget', date: '' },
+              { description: 'Gadget', date: null },
+            ],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('Work date');
+    });
+
+    it('adds the column for EVERY row once ANY one row sets a value — the undated rows show the ordinary em-dash, never a ragged table', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [{ description: 'Widget', date: '2026-05-01' }, { description: 'Gadget' }],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Work date');
+      expect(html).toContain('2026-05-01');
+      // Two rows, two <td> cells under the "Work date" column: one with the date, one with '—'.
+      const rowCount = (html.match(/<tr style="border-bottom: 1px solid #eee;">/g) ?? []).length;
+      expect(rowCount).toBe(2);
+      expect(html).toContain('—');
+    });
+
+    it('never hides a subfield column that does not opt in, even when every row leaves it unset', () => {
+      const untouched: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [
+              { key: 'description', kind: 'text', label: 'Description' },
+              { key: 'discountPercent', kind: 'number', label: 'Discount %' },
+            ],
+          },
+        ],
+        actions: [],
+      };
+      const html = renderDocumentHtml({
+        descriptor: untouched,
+        instance: { ...baseInstance, data: { lines: [{ description: 'Widget' }] } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Discount %');
+      expect(html).toContain('—');
+    });
+  });
+
   describe('XSS prevention', () => {
     it('escapes HTML in text values', () => {
       const descriptor: DocumentTypeDescriptor = {

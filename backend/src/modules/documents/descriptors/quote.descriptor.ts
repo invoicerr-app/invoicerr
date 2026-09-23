@@ -13,7 +13,8 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
 /**
  * The quote document type, entirely as data: no bespoke service, no controller of its own. Fields:
  * client (reference), issue date, due date, currency, notes, and repeatable lines (designation,
- * quantity, unit price, VAT rate, a per-line discount). Actions: save the draft and send by email
+ * quantity, unit price, VAT rate, a per-line discount, an optional work date). Actions: save the
+ * draft and send by email
  * (both implemented, see actions/quote-actions.ts — sending a QUOTE by email is this type's own
  * nature, not a mechanism it shares with the invoice, see invoice-actions.ts), convert-to-invoice
  * (implemented, see actions/convert-to-invoice.ts — it used to be the live "declared but not
@@ -272,6 +273,25 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             min: 0,
             max: 100,
             helpText: 'Percentage discount applied to this line, before VAT.',
+          },
+          {
+            // Same field as the invoice's own (invoice.descriptor.ts's "The line shape" header,
+            // issue #145) — added here too, for consistency, and because `convert-to-invoice`
+            // (actions/convert-to-invoice.ts) copies `lines` VERBATIM: a quote line already carrying
+            // a work date (a proposal for work planned on a specific day) keeps that value once it
+            // becomes a real invoice line, exactly like `articleId` above already does. A quote's own
+            // work is typically NOT yet done (the client hasn't accepted it), so this is read as "the
+            // planned/expected date" here rather than invoice.descriptor.ts's "date actually worked" —
+            // the field records a date, not which of the two meanings applies; nothing in this
+            // descriptor forces either reading. `hideWhenEmpty: true` — same column-level meaning
+            // inside an 'array' row, see invoice.descriptor.ts's own bullet and
+            // rendering/render-html.ts's 'array' case for the mechanism.
+            key: 'date',
+            kind: 'date',
+            label: 'Work date',
+            required: false,
+            hideWhenEmpty: true,
+            helpText: 'When the work on this line is due, or was done, if it differs from the quote date.',
           },
         ],
       },
