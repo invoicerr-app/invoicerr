@@ -60,4 +60,12 @@ export interface CompanyMailSettingsStatus {
   configured: boolean;
   kind?: 'smtp' | 'resend';
   fromAddress?: string;
+  /**
+   * This company's own Reply-To override (`Company.mailReplyTo`) — INDEPENDENT of `configured`
+   * above: a company can set this without ever running its own mail server. `null` when unset: the
+   * instance's own `MAIL_REPLY_TO` applies at send time instead, or no Reply-To header at all when
+   * that is unset too (today's behaviour, unchanged) — see `mail.service.ts#resolveEffectiveReplyTo`.
+   * Never a secret — always returned, never omitted like `fromAddress` is when unconfigured.
+   */
+  replyTo: string | null;
 }

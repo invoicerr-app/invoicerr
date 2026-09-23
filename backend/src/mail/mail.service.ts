@@ -12,9 +12,13 @@ import {
   assertTenantSmtpEndpoint,
   describeSmtpFailure,
 } from '@/mail/mail-endpoint-guard';
+import { isValidEmailAddress } from '@/mail/is-valid-email';
 import { sanitizeEmailHtml } from '@/mail/sanitize-email-html';
 import { toTransportAttachments } from '@/mail/attachments';
-import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
+import {
+  resolveCompanyMailSettings,
+  resolveCompanyReplyTo,
+} from '@/modules/company/mail-settings/company-mail-settings.resolver';
 
 export type { MailOptions, MailAttachment, SmtpOverrides } from '@/mail/types';
 
@@ -84,6 +88,35 @@ export const NO_MAIL_SERVER_CONFIGURED_MESSAGE =
   'No mail server is configured: this company has none set in Settings → Mail, and this instance ' +
   'has neither RESEND_API_KEY nor SMTP_HOST configured either. Configure one before sending.';
 
+/** The instance-level step of the Reply-To cascade — trimmed, and only returned when it actually
+ *  looks like an e-mail address: an operator-set `MAIL_REPLY_TO` is never validated at "save" time
+ *  (there is no save, it is an env var read at boot — see the constructor's own warning below), so a
+ *  typo here degrades to "no Reply-To header" rather than shipping a broken one on every send. */
+function resolveInstanceReplyTo(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const value = env.MAIL_REPLY_TO?.trim();
+  return value && isValidEmailAddress(value) ? value : undefined;
+}
+
+/**
+ * The Reply-To cascade, resolved ONCE, centrally: an explicit value already on `options` (no caller
+ * sets one today, but the contract stays open for one that might — a signature request replying to
+ * the requester, say) wins outright; otherwise the COMPANY's own override
+ * (`Company.mailReplyTo`, validated at write time by
+ * `company-mail-settings.service.ts#setReplyTo` — see that column's own schema.prisma comment) wins
+ * over the INSTANCE's own `MAIL_REPLY_TO`; with neither set, `undefined` — no Reply-To header goes
+ * out at all, today's behaviour, unchanged. Every transport below (the company's own SMTP/Resend, the
+ * instance's, the one-shot transport `deliverViaSmtp` builds) just forwards whatever ends up on
+ * `options.replyTo` after this runs — see `sanitizedMailOptions`, and each provider's own `sendMail`.
+ */
+function resolveEffectiveReplyTo(
+  explicit: string | undefined,
+  companyReplyTo: string | null | undefined,
+): string | undefined {
+  if (explicit) return explicit;
+  if (companyReplyTo) return companyReplyTo;
+  return resolveInstanceReplyTo();
+}
+
 /**
  * Filters `options.html` through `sanitizeEmailHtml`'s allow-list right before it reaches a real
  * transport. `sanitizeEmailHtml` otherwise only runs on the WRITE path for a company's OWN stored
@@ -106,6 +139,7 @@ function sanitizedMailOptions(options: MailOptions): MailOptions {
   return {
     to: options.to,
     from: options.from,
+    replyTo: options.replyTo,
     subject: options.subject,
     text: options.text,
     html: options.html === undefined ? undefined : sanitizeEmailHtml(options.html),
@@ -118,6 +152,19 @@ export class MailService {
   private readonly provider: IMailProvider;
 
   constructor() {
+    // Validated HERE, once at boot, purely as a diagnostic — an env var has no "save" step to refuse
+    // a bad value at, unlike a company's own `replyTo` (`company-mail-settings.service.ts#setReplyTo`,
+    // which DOES throw). `resolveInstanceReplyTo` already degrades a typo'd value to "no Reply-To"
+    // on every send regardless of this warning; this is what tells an operator WHY.
+    const configuredReplyTo = process.env.MAIL_REPLY_TO?.trim();
+    if (configuredReplyTo && !isValidEmailAddress(configuredReplyTo)) {
+      logger.warn(
+        `MAIL_REPLY_TO is set to "${configuredReplyTo}", which is not a valid e-mail address — it ` +
+          'will be ignored on every send.',
+        { category: 'mail' },
+      );
+    }
+
     const selected = resolveInstanceMailProviderId();
     switch (selected) {
       case 'resend':
@@ -200,6 +247,7 @@ export class MailService {
       await transporter.sendMail({
         from: overrides.fromAddress,
         to: safe.to,
+        replyTo: safe.replyTo,
         subject: safe.subject,
         text: safe.text,
         html: safe.html,
@@ -240,9 +288,15 @@ export class MailService {
       return { message: 'Email sent successfully' };
     }
 
-    // Global provider path (SMTP_* env vars / Resend).
+    // Global provider path (SMTP_* env vars / Resend) — no company in play here (this is `sendMail`,
+    // not `sendForCompany`), so the Reply-To cascade has only two steps: an explicit value already on
+    // `options`, else the instance's own `MAIL_REPLY_TO`.
+    const optionsWithReplyTo: MailOptions = {
+      ...options,
+      replyTo: resolveEffectiveReplyTo(options.replyTo, undefined),
+    };
     try {
-      await this.provider.sendMail(sanitizedMailOptions(options));
+      await this.provider.sendMail(sanitizedMailOptions(optionsWithReplyTo));
     } catch (error) {
       logger.error('Failed to send email. Please check your mail provider configuration.', {
         category: 'mail',
@@ -288,12 +342,29 @@ export class MailService {
    * `resolveCompanyMailSettings`) — a PEC mailbox is a certified, protocol-mandated inbox for SdI
    * traffic specifically, not a general outgoing mail server a company might also want its invoices or
    * OTPs to go through, so it is never a candidate for this cascade's company-level branch.
+   *
+   * Also resolves the Reply-To cascade (`resolveEffectiveReplyTo`) — its own, separate axis from the
+   * mail-SERVER cascade above: a company's `mailReplyTo` can win even when it sends through the
+   * INSTANCE's own provider, and the instance's `MAIL_REPLY_TO` can still apply even when the company
+   * runs its own SMTP/Resend server. Resolved once, up front, and threaded into every branch below.
    */
   async sendForCompany(companyId: string, options: MailOptions): Promise<{ message: string }> {
-    const companySettings = await resolveCompanyMailSettings(companyId);
+    // Both reads happen regardless of which branch below ends up sending: the Reply-To cascade
+    // (`resolveCompanyReplyTo`) is INDEPENDENT of the mail-server cascade (`resolveCompanyMailSettings`)
+    // — a company can set one without the other (see `Company.mailReplyTo`'s own schema.prisma
+    // comment) — so every branch, including the instance-fallback one at the bottom, needs the SAME
+    // resolved value.
+    const [companySettings, companyReplyTo] = await Promise.all([
+      resolveCompanyMailSettings(companyId),
+      resolveCompanyReplyTo(companyId),
+    ]);
+    const optionsWithReplyTo: MailOptions = {
+      ...options,
+      replyTo: resolveEffectiveReplyTo(options.replyTo, companyReplyTo),
+    };
 
     if (companySettings?.kind === 'smtp') {
-      await this.deliverViaSmtp(options, {
+      await this.deliverViaSmtp(optionsWithReplyTo, {
         host: companySettings.host,
         port: companySettings.port,
         secure: companySettings.secure,
@@ -310,7 +381,7 @@ export class MailService {
         defaultFrom: companySettings.fromAddress,
       });
       try {
-        await provider.sendMail(sanitizedMailOptions(options));
+        await provider.sendMail(sanitizedMailOptions(optionsWithReplyTo));
       } catch (error) {
         // Resend's own text is kept verbatim, unlike the SMTP branch above: this provider dials ONE
         // fixed public API (`api.resend.com`) that no tenant chooses, so its answer describes the
@@ -330,7 +401,7 @@ export class MailService {
     }
 
     try {
-      await this.provider.sendMail(sanitizedMailOptions(options));
+      await this.provider.sendMail(sanitizedMailOptions(optionsWithReplyTo));
     } catch (error) {
       // The instance provider's own failure must not reach a TENANT raw either: this is the OPERATOR's
       // mail server, so a raw nodemailer error here would describe the hosting infrastructure (its

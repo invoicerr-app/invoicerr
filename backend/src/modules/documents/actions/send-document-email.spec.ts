@@ -32,6 +32,10 @@ vi.mock('nodemailer', async () => {
 // test here keeps using a bare fake `mailService` object, never touching this at all.
 vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
   resolveCompanyMailSettings: vi.fn(),
+  // No test in this file exercises the Reply-To cascade itself (that is `mail.service.spec.ts`'s own
+  // job) -- present only so `MailService#sendForCompany` (which now reads both resolvers) does not
+  // throw "no such export" under Vitest's wholesale module mock.
+  resolveCompanyReplyTo: vi.fn(),
 }));
 
 const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
