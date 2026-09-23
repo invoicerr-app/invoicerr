@@ -68,9 +68,11 @@ describe("stepper navigation — pure", () => {
 function Harness({
   onSubmit,
   initialMaxReached,
+  onBeforeValidate,
 }: {
   onSubmit: (v: Record<string, unknown>) => void
   initialMaxReached?: number
+  onBeforeValidate?: () => void
 }) {
   const schema = z.object({ name: z.string().min(1, "Required") })
   const form = useForm({ resolver: zodResolver(schema), defaultValues: { name: "" } })
@@ -106,6 +108,7 @@ function Harness({
       title="Harness dialog"
       dataCy="harness"
       initialMaxReached={initialMaxReached}
+      onBeforeValidate={onBeforeValidate}
     />
   )
 }
@@ -264,5 +267,53 @@ describe("<SteppedDialog> — behavior", () => {
 
     expect(screen.getByText("step b content")).toBeInTheDocument()
     expect(screen.queryByLabelText("name")).not.toBeInTheDocument()
+  })
+
+  // Issue #365, "empty line items should not survive a save" — the mechanism document-create-
+  // dialog.tsx relies on to prune an empty line BEFORE the "Lines" step's own per-field `trigger()`
+  // gets a chance to block on it (use-document-form.ts's `pruneEmptyLines`, wired here as
+  // `onBeforeValidate`). Proved generically, with no document/line concept in this file at all: a
+  // caller's fix-up hook runs before ANY validation for the click, current-step gate included.
+  it("onBeforeValidate runs before the current step's own validation, letting a caller fix the form up first", async () => {
+    const onSubmit = vi.fn()
+    const onBeforeValidate = vi.fn()
+    render(<Harness onSubmit={onSubmit} onBeforeValidate={onBeforeValidate} />)
+
+    // "name" is left empty on purpose — without the hook this would fail validation and stay on
+    // step "a" (see the very first test above). The harness doesn't even implement a real fix-up:
+    // this only proves ORDER and that the hook actually fires, the same way `RowPrefillPicker`-style
+    // callers only need "called before validation runs", not any particular effect.
+    fireEvent.click(screen.getByTestId("harness-continue"))
+    expect(onBeforeValidate).toHaveBeenCalledTimes(1)
+    // Still refused (the harness's hook doesn't fill anything in) — proves this isn't a validation
+    // bypass, only an ORDERING hook: "still empty" -> "Required" -> still on step "a".
+    expect(await screen.findByText("Required")).toBeInTheDocument()
+  })
+
+  it("onBeforeValidate can fix the form up so a step passes validation it would otherwise fail", async () => {
+    const onSubmit = vi.fn()
+    render(
+      <Harness
+        onSubmit={onSubmit}
+        onBeforeValidate={() => {
+          const input = screen.getByLabelText("name") as HTMLInputElement
+          fireEvent.change(input, { target: { value: "Fixed up" } })
+        }}
+      />,
+    )
+
+    // "name" starts empty; the hook fills it in the instant "Continue" is clicked, before
+    // `form.trigger(['name'])` runs — advances exactly as if the user had typed it themselves.
+    fireEvent.click(screen.getByTestId("harness-continue"))
+    expect(await screen.findByText("step b content")).toBeInTheDocument()
+  })
+
+  it("omitting onBeforeValidate changes nothing — existing callers keep working with no hook at all", async () => {
+    const onSubmit = vi.fn()
+    render(<Harness onSubmit={onSubmit} />)
+
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Léa" } })
+    fireEvent.click(screen.getByTestId("harness-continue"))
+    expect(await screen.findByText("step b content")).toBeInTheDocument()
   })
 })

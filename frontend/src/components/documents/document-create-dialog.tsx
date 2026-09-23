@@ -405,6 +405,13 @@ export function DocumentCreateDialog({
         onSubmit={() => {
           if (primaryAction) state.runner.handleAction(primaryAction)
         }}
+        // Issue #365, "empty line items should not survive a save" — see use-document-form.ts's own
+        // `pruneEmptyLines` header. `runner.handleAction`'s OWN copy of this same pass (wired into
+        // its `validate`) only ever runs from the wizard's LAST step (`onSubmit` above); this is what
+        // makes an empty row added on the EARLIER "Lines" step disappear before ITS OWN per-step
+        // `form.trigger(['lines'])` gets a chance to block "Continue" on that row's now-unreachable
+        // required fields.
+        onBeforeValidate={state.pruneEmptyLines}
         dataCy="document-create-dialog"
       />
 
