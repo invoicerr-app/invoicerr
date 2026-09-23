@@ -79,7 +79,13 @@ describe("Time tracking — logging hours, billing them, and the double-billing 
 		cy.get('[data-cy="project-name-input"]').type(projectName);
 		setNumberInput('[data-cy="project-hourly-rate-input"]', "100");
 		cy.get('[data-cy="project-submit"]').click();
-		cy.get('[data-cy="project-dialog"]').should("not.exist");
+		// Explicit timeout, matching the rest of the suite's own convention for a dialog that only
+		// closes once its own write has round-tripped (e.g. 51-installments.cy.ts's identical
+		// "not.exist" after a params-dialog confirm) — the implicit 4s default was observed flaking
+		// on a loaded CI runner (POST /api/projects queued behind everything else fighting for CPU),
+		// never on the product itself: ProjectUpsert's onSubmit calls onOpenChange(false) the instant
+		// the mutation resolves, with no animation or extra delay gating the unmount.
+		cy.get('[data-cy="project-dialog"]', { timeout: 10000 }).should("not.exist");
 
 		// Select the freshly created project.
 		cy.contains("button", projectName, { timeout: 10000 }).click();
@@ -97,7 +103,10 @@ describe("Time tracking — logging hours, billing them, and the double-billing 
 			setNumberInput('[data-cy="time-entry-hours-input"]', hours);
 			cy.continueSteppedDialog("time-entry-dialog"); // duration -> billing
 			cy.get('[data-cy="time-entry-submit"]').click();
-			cy.get('[data-cy="time-entry-dialog"]').should("not.exist");
+			// Same reasoning as "project-dialog" above: TimeEntryUpsert's own onSubmit calls
+			// onOpenChange(false) the instant its mutation resolves, no animation involved — the
+			// implicit 4s default is what was flaking under CI load, not this dialog being slow.
+			cy.get('[data-cy="time-entry-dialog"]', { timeout: 10000 }).should("not.exist");
 		};
 		// 2h + 3h at 100/h → 500 total, split across two lines (never merged into one).
 		logEntry("2", "Homepage layout");
@@ -112,7 +121,9 @@ describe("Time tracking — logging hours, billing them, and the double-billing 
 		cy.get('[data-cy="generate-invoice-dialog"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="generate-invoice-total"]').should("contain.text", "500");
 		cy.get('[data-cy="generate-invoice-confirm"]').click();
-		cy.get('[data-cy="generate-invoice-dialog"]').should("not.exist");
+		// Same reasoning as "project-dialog" above: GenerateInvoiceDialog's own onConfirm calls
+		// onOpenChange(false) the instant its mutation resolves, no animation involved.
+		cy.get('[data-cy="generate-invoice-dialog"]', { timeout: 10000 }).should("not.exist");
 
 		// ASSERT VIA API — the exact shape billed, and the double-billing attempt.
 		cy.request(`${api}/api/clients/search?query=`).then((clientsRes) => {
