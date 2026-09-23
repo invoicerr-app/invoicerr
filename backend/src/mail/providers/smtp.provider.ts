@@ -29,6 +29,11 @@ export class SmtpMailProvider implements IMailProvider {
     await this.transporter.sendMail({
       from: options.from || process.env.SMTP_FROM || process.env.SMTP_USER,
       to: options.to,
+      // Already the fully-resolved cascade value (explicit > company > instance MAIL_REPLY_TO) —
+      // see `mail.service.ts#resolveEffectiveReplyTo`. This provider never reads MAIL_REPLY_TO
+      // itself; `undefined` here means the cascade genuinely resolved to nothing, not that this class
+      // forgot to check.
+      replyTo: options.replyTo,
       subject: options.subject,
       text: options.text,
       html: options.html,

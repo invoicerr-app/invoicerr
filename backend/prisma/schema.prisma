@@ -345,6 +345,21 @@ model Company {
   // own comment holds.
   billingEmail String?
 
+  // Reply-To address applied to every outgoing message SENT FOR THIS COMPANY — the company-level
+  // step of the Reply-To cascade (instance `MAIL_REPLY_TO` env var, then this column, see
+  // `mail/mail.service.ts`'s own `resolveEffectiveReplyTo`). Independent of whether this company also
+  // overrides its own mail SERVER (`CompanyChannelConfig`, `modules/company/mail-settings/`): a
+  // company can want replies routed to a distinct address without running its own SMTP/Resend at
+  // all, so this lives here rather than inside that encrypted, provider-shaped blob — like
+  // `billingEmail` right above, this is not a secret. NULL (every existing company, and the default
+  // for a new one) means "no override" — the instance's own `MAIL_REPLY_TO` applies, or no Reply-To
+  // header at all when that is unset too (today's behaviour, unchanged). Validated as an e-mail
+  // address at WRITE time (`mail/is-valid-email.ts`, `company-mail-settings.service.ts#setReplyTo`),
+  // never re-validated at send time — a hand-edited/corrupted value is just treated as unset there
+  // (`company-mail-settings.resolver.ts#resolveCompanyReplyTo`), the same defensive posture
+  // `isCompanyMailSettings` already holds for the encrypted config blob.
+  mailReplyTo String?
+
   // BT-84 (Payment account identifier) — the seller's OWN receiving account, threaded into
   // `formats/semantic/build-semantic-invoice.ts` as `cac:PaymentMeans/cac:PayeeFinancialAccount`
   // (BG-16/BG-17) whenever set. Optional, and never invented: XRechnung's BR-DE-1 (a PAYMENT

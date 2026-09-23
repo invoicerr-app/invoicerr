@@ -26,11 +26,18 @@ import { ApiError } from "@/hooks/use-api-query"
 import {
   useClearCompanyMailSettings,
   useCompanyMailSettings,
+  useSetCompanyMailReplyTo,
   useSetCompanyMailSettings,
   useTestCompanyMailSettings,
 } from "@/hooks/queries"
 import type { SetCompanyMailSettingsInput } from "@/hooks/queries"
-import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsFormFooter, SettingsPage, SettingsSection, useSavedFlash } from "./settings-section"
+
+/** Same pragmatic pattern as the backend's own `mail/is-valid-email.ts` — deliberately NOT an exact
+ *  RFC 5322 grammar, just enough to catch a typo before the request goes out. A best-effort ECHO
+ *  only: the server (`company-mail-settings.service.ts#setReplyTo`) is still the real gate, same
+ *  discipline `buildSchema`'s own comment documents for host/port above. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Display label for a configured provider — the settings-screen equivalent of
  *  `channels.settings.tsx`'s own `PROVIDER_LABELS`. */
@@ -397,6 +404,118 @@ function MailSettingsForm({
   )
 }
 
+interface ReplyToFormValues {
+  replyTo: string
+}
+
+function buildReplyToSchema(t: (key: string, fallback: string) => string) {
+  return z.object({
+    replyTo: z
+      .string()
+      // Empty is valid — it CLEARS the override (see `onSubmit` below), never a required field.
+      .refine((val) => val.trim() === "" || EMAIL_PATTERN.test(val.trim()), {
+        message: t("settings.mail.replyTo.validation.invalid", "Enter a valid e-mail address"),
+      }),
+  })
+}
+
+/**
+ * This company's own Reply-To override — its OWN section, deliberately separate from
+ * `MailSettingsForm` above: independent setting, independent lifecycle (`PUT .../reply-to` never
+ * requires a full SMTP/Resend config, and clearing the mail server above does not touch this one —
+ * see `use-company-mail-settings.ts#useSetCompanyMailReplyTo`'s own header). `values` (not
+ * `defaultValues`) keeps the field in sync whenever `status.replyTo` changes underneath it —
+ * including right after THIS form's own save, which invalidates the same query.
+ */
+function MailReplyToSection({ replyTo }: { replyTo: string | null }) {
+  const { t } = useTranslation()
+  const setReplyTo = useSetCompanyMailReplyTo()
+  const [saved, flash] = useSavedFlash()
+
+  const schema = useMemo(() => buildReplyToSchema(t), [t])
+  const form = useForm<ReplyToFormValues>({
+    resolver: zodResolver(schema),
+    values: { replyTo: replyTo ?? "" },
+  })
+
+  const save = (value: string | null) => {
+    setReplyTo.mutate(
+      { replyTo: value },
+      {
+        onSuccess: () => {
+          toast.success(
+            value
+              ? t("settings.mail.replyTo.messages.saveSuccess", "Reply-To address saved")
+              : t("settings.mail.replyTo.messages.clearSuccess", "Reply-To address cleared"),
+          )
+          flash()
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof ApiError
+              ? error.message
+              : t("settings.mail.replyTo.messages.saveError", "Failed to save the Reply-To address"),
+          )
+        },
+      },
+    )
+  }
+
+  const onSubmit = form.handleSubmit((values) => {
+    const trimmed = values.replyTo.trim()
+    save(trimmed === "" ? null : trimmed)
+  })
+
+  return (
+    <SettingsSection
+      title={t("settings.mail.replyTo.title", "Reply-To address")}
+      description={t(
+        "settings.mail.replyTo.description",
+        "Applied to every message this company sends, winning over the instance's own Reply-To if it has one. Leave empty for no Reply-To header.",
+      )}
+      dataCy="mail-settings-reply-to-section"
+    >
+      <Form {...form}>
+        <form onSubmit={onSubmit} noValidate data-cy="mail-settings-reply-to-form">
+          <FormField
+            control={form.control}
+            name="replyTo"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("settings.mail.replyTo.label", "Reply-To address")}</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="replies@example.com"
+                    data-cy="mail-settings-reply-to-input"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <SettingsFormFooter saved={saved} className="mt-4">
+            {replyTo && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => save(null)}
+                loading={setReplyTo.isPending}
+                dataCy="mail-settings-reply-to-clear-button"
+              >
+                {t("settings.mail.replyTo.actions.clear", "Clear")}
+              </Button>
+            )}
+            <Button type="submit" loading={setReplyTo.isPending} dataCy="mail-settings-reply-to-save-button">
+              {t("settings.mail.actions.save", "Save")}
+            </Button>
+          </SettingsFormFooter>
+        </form>
+      </Form>
+    </SettingsSection>
+  )
+}
+
 /**
  * Company settings → Mail (`/settings/mail`). The backend's own
  * société → instance → refus-nommé cascade (`MailService#sendForCompany`) already governs every
@@ -541,6 +660,8 @@ export default function MailSettings() {
         }
         dataCy="mail-settings-status-card"
       />
+
+      {!isLoading && status && <MailReplyToSection replyTo={status.replyTo} />}
 
       {showForm && !isLoading && (
         <MailSettingsForm

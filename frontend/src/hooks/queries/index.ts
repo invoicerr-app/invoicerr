@@ -26,6 +26,7 @@ export {
   useSetCompanyMailSettings,
   useClearCompanyMailSettings,
   useTestCompanyMailSettings,
+  useSetCompanyMailReplyTo,
   type CompanyMailSettingsStatus,
   type SetCompanyMailSettingsInput,
   type SetCompanyMailSmtpSettings,

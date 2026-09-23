@@ -2494,6 +2494,22 @@
         "testError": "Failed to send the test email",
         "revertSuccess": "Reverted to the instance mail server",
         "revertError": "Failed to revert to the instance mail server"
+      },
+      "replyTo": {
+        "title": "Reply-To address",
+        "label": "Reply-To address",
+        "description": "Applied to every message this company sends, winning over the instance's own Reply-To if it has one. Leave empty for no Reply-To header.",
+        "validation": {
+          "invalid": "Enter a valid e-mail address"
+        },
+        "actions": {
+          "clear": "Clear"
+        },
+        "messages": {
+          "saveSuccess": "Reply-To address saved",
+          "clearSuccess": "Reply-To address cleared",
+          "saveError": "Failed to save the Reply-To address"
+        }
       }
     },
     "webhooks": {
