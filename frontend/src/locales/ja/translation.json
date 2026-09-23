@@ -85,5 +85,12 @@
                 "generatedInvoices": "Generated Invoices"
             }
         }
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "書類を読み取り中…完了すると自動的に項目が入力されます。今のうちに入力を始めても構いません。"
+            }
+        }
     }
 }

@@ -255,5 +255,12 @@
                 "generatedInvoices": "Generated Invoices"
             }
         }
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Dokument se čte… pole se vyplní, jakmile bude hotovo. Můžete už začít psát."
+            }
+        }
     }
 }

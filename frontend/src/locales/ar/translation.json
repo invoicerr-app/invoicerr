@@ -112,5 +112,12 @@
                 "generatedInvoices": "Generated Invoices"
             }
         }
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "جارٍ قراءة المستند… ستُملأ الحقول تلقائيًا عند الانتهاء. يمكنك البدء بالكتابة من الآن."
+            }
+        }
     }
 }

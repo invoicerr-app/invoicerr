@@ -4719,7 +4719,8 @@
         "supplierAmbiguous": "More than one client shares this supplier's VAT number or name — choose the right one by hand.",
         "ocrUnavailable": "No OCR extractor available for this document — enter the fields manually.",
         "ocrExtracted": "Fields extracted via OCR — please review before saving.",
-        "ocrFailed": "OCR extraction failed: {{message}}"
+        "ocrFailed": "OCR extraction failed: {{message}}",
+        "ocrPending": "Reading the document… fields will fill in when it is done. You can already start typing."
       },
       "receivedInvoiceDownload": {
         "button": "Download original file",

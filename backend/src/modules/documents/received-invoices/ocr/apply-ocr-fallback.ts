@@ -31,12 +31,21 @@ import { ExtractorNotReadyError, receivedDocumentExtractorRegistry } from './ext
  *    real provider error (quota, invalid key, timeout, a malformed response). NEVER swallowed: the
  *    message is the provider's own (or this client's own named wrapper around it — see
  *    `plugins/ocr/providers/local/local.ts`), always surfaced to the screen.
+ *  - `pending`: OCR was handed off to the dedicated `received-invoice-ocr` BullMQ queue instead of
+ *    running inside this request (`received-invoices.service.ts#upload`, when `needsOcr(...)` holds
+ *    AND a configured extractor exists — see that function's own header). NEVER produced by
+ *    `applyOcrFallback` itself, which stays fully synchronous — only the upload response carries this
+ *    variant, immediately, with `extraction: { syntax: null, fields: {} }` and `supplierMatch`
+ *    computed from those same empty fields (nothing has been read yet). The frontend polls
+ *    `GET /documents/received-invoices/upload/:fileRef/ocr` until the job's own result — one of the
+ *    four outcomes above — replaces this one.
  */
 export type OcrOutcome =
   | { outcome: 'not-attempted' }
   | { outcome: 'unavailable' }
   | { outcome: 'extracted'; extractorId: string }
-  | { outcome: 'failed'; extractorId: string; message: string };
+  | { outcome: 'failed'; extractorId: string; message: string }
+  | { outcome: 'pending' };
 
 export interface OcrFallbackResult {
   /** `structural.syntax` unchanged when OCR was not attempted or did not answer; `'OCR'` once an
@@ -60,10 +69,31 @@ function looksLikePdf(mime: string, fileName: string): boolean {
 }
 
 /**
+ * Whether a deposit is a CANDIDATE for OCR at all — the exact condition `applyOcrFallback` below has
+ * always used to decide whether to even resolve an extractor, extracted into its own function so
+ * `received-invoices.service.ts#upload` can make the SAME decision BEFORE this function ever runs, to
+ * decide whether to enqueue a background job instead of calling it synchronously. Kept here (not
+ * duplicated a second time the way `looksLikePdf` itself deliberately IS duplicated from
+ * `extraction.ts` — see that local's own comment) because both callers need this exact, single
+ * decision to never drift apart: `applyOcrFallback` and `upload()` disagreeing on "does this deposit
+ * even want OCR" would mean either a job enqueued for a file OCR would never have attempted anyway, or
+ * a synchronous call reaching an extractor `upload()` never gave a chance to enqueue.
+ */
+export function needsOcr(structural: ExtractionResult, mime: string, fileName: string): boolean {
+  return structural.syntax === null && looksLikePdf(mime, fileName);
+}
+
+/**
  * Applies the OCR fallback on top of whatever `extraction.ts` already read. Never throws — every
  * failure mode (no extractor, a declined extractor, a provider error) is folded into `OcrOutcome`
  * for the caller to surface, exactly the same "a document with nothing extractable is still a valid,
  * honest outcome" discipline `extraction.ts`'s own header holds for structural extraction.
+ *
+ * Fully SYNCHRONOUS by construction — this function itself never enqueues anything and never returns
+ * `{ outcome: 'pending' }` (see that variant's own header on `OcrOutcome`): it is called either
+ * directly, inside the upload request, when no configured extractor exists at all (the self-hosted
+ * default), or from inside the async OCR job itself (`ocr/run-ocr-job.ts`), never both for the same
+ * deposit.
  */
 export async function applyOcrFallback(
   structural: ExtractionResult,
@@ -71,7 +101,7 @@ export async function applyOcrFallback(
   mime: string,
   fileName: string,
 ): Promise<OcrFallbackResult> {
-  if (structural.syntax !== null || !looksLikePdf(mime, fileName)) {
+  if (!needsOcr(structural, mime, fileName)) {
     return { syntax: structural.syntax, fields: structural.fields, ocr: { outcome: 'not-attempted' } };
   }
 

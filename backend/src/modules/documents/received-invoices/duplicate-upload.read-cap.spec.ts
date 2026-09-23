@@ -38,8 +38,12 @@ const INBOX_SIZE = 600;
 const PDF_BYTES = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(256, 0x20)]);
 const PDF_HASH = createHash('sha256').update(PDF_BYTES).digest('hex');
 
+/** Nothing here ever reaches OCR (every deposit in this file is a plain, structureless PDF and
+ *  nothing is registered into `receivedDocumentExtractorRegistry` in THIS spec file — see
+ *  `apply-ocr-fallback.no-extractor.spec.ts`'s own header on why each spec file gets its own,
+ *  pristine module registry), so a bare stub that is never actually called is enough here. */
 function service() {
-  return new ReceivedInvoicesService();
+  return new ReceivedInvoicesService({ enqueue: vi.fn(), getResult: vi.fn() } as never);
 }
 
 beforeEach(() => {

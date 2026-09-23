@@ -1876,5 +1876,12 @@
         "selectThisFolder": "Diesen Ordner auswählen",
         "noSubdirectories": "Keine Unterordner gefunden",
         "loading": "Verzeichnisse werden geladen..."
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Dokument wird gelesen… Felder werden automatisch ausgefüllt, sobald es fertig ist. Sie können schon jetzt mit der Eingabe beginnen."
+            }
+        }
     }
 }

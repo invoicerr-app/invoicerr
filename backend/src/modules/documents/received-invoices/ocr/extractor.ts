@@ -72,6 +72,20 @@ export interface ReceivedDocumentExtractor {
    * never swallowed.
    */
   extract(bytes: Uint8Array, mime: string): Promise<ExtractedInvoiceProposal>;
+  /**
+   * OPTIONAL, cheap, SYNCHRONOUS readiness hint — deliberately distinct from `supports(mime)` above
+   * (which never changes at runtime) and from `extract()`'s own `ExtractorNotReadyError` (which needs
+   * a full round trip to discover). `received-invoices.service.ts#upload` calls this BEFORE deciding
+   * whether to enqueue an OCR job at all: `false` keeps a self-hosted instance with nothing configured
+   * on the EXACT SAME synchronous path it always had (`extract()` never even gets a chance to run in
+   * the background only to immediately decline). `true`, or the method being absent entirely
+   * (`undefined`), means "assume it's worth trying" — an extractor that can only truly know per
+   * DOCUMENT (see `fake-extractor.ts`'s own implementation) simply always returns `true` here and
+   * keeps deciding for real inside `extract()`, exactly as it already did before this method existed.
+   * Never awaited, never allowed to throw its own way into the upload request — a provider whose own
+   * check needs I/O should fold that into `extract()`'s existing `ExtractorNotReadyError` path instead.
+   */
+  isConfigured?(): boolean;
 }
 
 /** Thrown by `ReceivedDocumentExtractor.extract()` for "I am registered but not ready right now" —

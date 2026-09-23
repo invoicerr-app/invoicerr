@@ -85,5 +85,12 @@
                 "generatedInvoices": "Generated Invoices"
             }
         }
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Läser dokumentet… fälten fylls i automatiskt när det är klart. Du kan redan börja skriva."
+            }
+        }
     }
 }

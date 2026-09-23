@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { FileUp, Upload } from "lucide-react"
@@ -10,9 +10,11 @@ import {
 import { DocumentCreateDialog } from "@/components/documents/document-create-dialog"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Spinner } from "@/components/ui/spinner"
 import { ApiError } from "@/hooks/use-api-query"
 import {
   buildFileUploadForm,
+  useReceivedInvoiceOcrResult,
   useUploadReceivedInvoice,
   type UploadReceivedInvoicePreview,
 } from "@/hooks/queries"
@@ -40,6 +42,50 @@ function buildInitialData(preview: UploadReceivedInvoicePreview): Record<string,
 }
 
 /**
+ * ONE honest message per outcome — shared between the synchronous path (`handleFile` below, called
+ * the instant the upload responds) and the async OCR path (the poll-completion effect further down,
+ * called once the background job's own `status` turns `"done"`): both ultimately carry the exact same
+ * `extraction`/`supplierMatch`/`ocr` triple (see `hooks/queries/use-received-invoices.ts`'s own header
+ * on why the polled route mirrors the upload response), so there is exactly one place deciding what
+ * to say about it, never two copies that could drift.
+ *
+ * "otherwise... the screen says so": a MATCHED supplier is already visible through the pre-filled
+ * "Linked supplier" field itself (no toast needed); anything else, once the file WAS recognized (a
+ * plain scanned PDF with nothing to match has nothing to say here), gets a named message so an
+ * empty/ambiguous link is never mistaken for a missed one. OCR: `not-attempted` and `pending` both say
+ * nothing here — `not-attempted` has no OCR story to tell (the pre-OCR behaviour, proven UNCHANGED),
+ * `pending` isn't resolved yet (the "reading the document…" notice covers that state instead, until
+ * THIS function runs again once the poll reports `done`); `unavailable` covers BOTH "no OCR service
+ * deployed for this instance" and "a declining extractor" as the SAME honest absence; `extracted`
+ * flags the fields below as AI-read so the human reviews rather than trusting them blindly; `failed`
+ * NAMES the provider's own error — never swallowed.
+ */
+function notifyExtractionOutcome(
+  t: ReturnType<typeof useTranslation>["t"],
+  {
+    extraction,
+    supplierMatch,
+    ocr,
+  }: Pick<UploadReceivedInvoicePreview, "extraction" | "supplierMatch" | "ocr">,
+) {
+  if (extraction.syntax && supplierMatch.outcome !== "matched") {
+    if (supplierMatch.outcome === "ambiguous") {
+      toast.info(t("documents.custom.receivedInvoiceUpload.supplierAmbiguous"))
+    } else {
+      toast.info(t("documents.custom.receivedInvoiceUpload.supplierNotMatched"))
+    }
+  }
+
+  if (ocr.outcome === "unavailable") {
+    toast.info(t("documents.custom.receivedInvoiceUpload.ocrUnavailable"))
+  } else if (ocr.outcome === "extracted") {
+    toast.info(t("documents.custom.receivedInvoiceUpload.ocrExtracted"))
+  } else if (ocr.outcome === "failed") {
+    toast.error(t("documents.custom.receivedInvoiceUpload.ocrFailed", { message: ocr.message }))
+  }
+}
+
+/**
  * The entry point into creating a received-invoice: a file (PDF, or XML CII/
  * UBL, or Factur-X) is uploaded FIRST, structurally extracted best-effort, and the result seeds a
  * normal `DocumentCreateDialog` — the user reviews/edits exactly like any other document type's
@@ -50,6 +96,15 @@ function buildInitialData(preview: UploadReceivedInvoicePreview): Record<string,
  * Two dialogs, two stages, deliberately not merged into one: the upload step has no document fields
  * to show yet (only a file picker), and the review step has no file picker to show anymore (the file
  * is already stored — see the descriptor's own header on why `fileRef` is never a re-typable field).
+ *
+ * OCR of a scanned PDF can now run as a BACKGROUND job rather than inside the upload request itself
+ * (that request used to take up to 60s under load): an `outcome: "pending"` upload still opens the
+ * review dialog immediately, empty where OCR would have filled it, and polls
+ * `useReceivedInvoiceOcrResult` for the real result while showing a "reading the document…" notice
+ * (`DocumentCreateDialog`'s own `notice` prop). If the user saves before the job finishes, the
+ * BACKEND fills the saved record's own empty fields itself and publishes a document event — this
+ * screen has nothing to do in that case but stop polling, which closing the dialog already achieves
+ * (see `onOpenChange` below, the single point both a close AND a successful save funnel through).
  */
 function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
   const { t } = useTranslation()
@@ -57,8 +112,19 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [preview, setPreview] = useState<UploadReceivedInvoicePreview | null>(null)
+  // The fileRef of an `outcome: "pending"` upload's still-running background OCR job — `null`
+  // whenever there is nothing left to poll for (no upload yet, the job already finished, the job
+  // 404'd, or the review dialog closed/saved — see the poll-completion effect and `onOpenChange`
+  // below, the two places this is cleared). Doubles as "is the reading notice shown right now": both
+  // read off this single flag rather than keeping a second boolean in sync with it.
+  const [pendingOcrFileRef, setPendingOcrFileRef] = useState<string | null>(null)
+  // The OCR job's own fields, once it finishes — handed to `DocumentCreateDialog` as `lateData` (see
+  // that prop's own header on `use-document-form.ts`): merged into the form WITHOUT overwriting
+  // anything already typed, unlike `initialData` below which only ever seeds the form at open time.
+  const [lateData, setLateData] = useState<Record<string, unknown> | undefined>(undefined)
 
   const upload = useUploadReceivedInvoice()
+  const ocrPoll = useReceivedInvoiceOcrResult(pendingOcrFileRef)
 
   // `use-document-form.ts`'s own reset effect keys off `initialData`'s OBJECT IDENTITY, not its
   // content, specifically so a background refetch (`refetchOnWindowFocus`, an SSE tick) never wipes
@@ -69,8 +135,30 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
   // higher up the tree) — each one silently reset the review form back to the extracted values,
   // discarding whatever the user had just corrected. Memoizing on `preview`'s own reference (which
   // only ever changes via `setPreview` above) is what keeps the object — and the form — stable across
-  // every OTHER re-render.
+  // every OTHER re-render. For a `pending` upload, `preview.extraction.fields` is the empty
+  // placeholder the contract promises (`{ syntax: null, fields: {} }`) — nothing to seed yet, the
+  // fields the OCR job eventually finds arrive later through `lateData` instead.
   const initialData = useMemo(() => (preview ? buildInitialData(preview) : undefined), [preview])
+
+  // Reacts to the background OCR job this dialog is waiting on — mirrors `notifyExtractionOutcome`'s
+  // own header on why a `pending` upload says nothing itself: this is where that story concludes,
+  // whichever way it goes.
+  useEffect(() => {
+    if (!pendingOcrFileRef) return
+    if (ocrPoll.data?.status === "done") {
+      setLateData(ocrPoll.data.extraction.fields)
+      notifyExtractionOutcome(t, ocrPoll.data)
+      setPendingOcrFileRef(null) // stops the poll (query disables) and removes the notice.
+      return
+    }
+    // A 404 (job unknown/expired — see `useReceivedInvoiceOcrResult`'s own header) is TERMINAL: there
+    // is nothing left to merge and nothing honest to say (the OCR outcome is simply unknown now), so
+    // this just drops the "reading…" state rather than showing an error for something the user never
+    // asked about directly.
+    if (ocrPoll.isError) {
+      setPendingOcrFileRef(null)
+    }
+  }, [ocrPoll.data, ocrPoll.isError, pendingOcrFileRef, t])
 
   const resetUploadDialog = () => {
     setDragOver(false)
@@ -83,34 +171,17 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
       setUploadDialogOpen(false)
       resetUploadDialog()
       setPreview(result)
+      setLateData(undefined)
+      // Only a `pending` outcome has anything left to wait for — every other outcome (including
+      // `not-attempted`) is already final the instant the upload responds, exactly as before.
+      setPendingOcrFileRef(result.ocr.outcome === "pending" ? result.fileRef : null)
 
-      // "otherwise... the screen says so": a MATCHED outcome is already visible
-      // through the pre-filled "Linked supplier" field itself (no toast needed); anything else, once
-      // the file WAS recognized (a plain scanned PDF with nothing to match has nothing to say here),
-      // gets a named message so an empty/ambiguous link is never mistaken for a missed one.
-      if (result.extraction.syntax && result.supplierMatch.outcome !== "matched") {
-        if (result.supplierMatch.outcome === "ambiguous") {
-          toast.info(t("documents.custom.receivedInvoiceUpload.supplierAmbiguous"))
-        } else {
-          toast.info(t("documents.custom.receivedInvoiceUpload.supplierNotMatched"))
-        }
-      }
-
-      // OCR of an unstructured PDF, ONE honest message per outcome:
-      // `not-attempted` says nothing (a structured deposit, or a non-PDF, has no OCR story to tell —
-      // the pre-OCR behaviour, proven UNCHANGED); `unavailable` covers BOTH "no OCR
-      // service deployed for this instance" and "a declining extractor" as the SAME honest absence
-      // (see `use-received-invoices.ts`'s own `OcrOutcome` header for why the two are never told
-      // apart on screen — self-host's default, always-present case); `extracted` flags the fields
-      // below as AI-read so the human reviews rather than trusting them blindly; `failed` NAMES the
-      // provider's own error — never swallowed.
-      if (result.ocr.outcome === "unavailable") {
-        toast.info(t("documents.custom.receivedInvoiceUpload.ocrUnavailable"))
-      } else if (result.ocr.outcome === "extracted") {
-        toast.info(t("documents.custom.receivedInvoiceUpload.ocrExtracted"))
-      } else if (result.ocr.outcome === "failed") {
-        toast.error(t("documents.custom.receivedInvoiceUpload.ocrFailed", { message: result.ocr.message }))
-      }
+      // Safe to call unconditionally for EVERY outcome, `pending` included: `extraction.syntax` is
+      // `null` and `ocr.outcome` is `"pending"` in that case (the upload contract's own empty
+      // placeholder), so none of `notifyExtractionOutcome`'s branches fire — the "reading the
+      // document…" notice is the only thing shown until the poll effect above calls this again with
+      // the real outcome.
+      notifyExtractionOutcome(t, result)
     } catch (error) {
       // A 413 is refused by multer at the multipart wire itself (limits.fileSize), before this file
       // ever reaches ReceivedInvoicesService — its own body carries the generic "File too large"
@@ -213,8 +284,30 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
         <DocumentCreateDialog
           descriptor={descriptor}
           open
-          onOpenChange={(open) => !open && setPreview(null)}
+          onOpenChange={(open) => {
+            if (open) return
+            // Closing the dialog OR a successful save (`DocumentCreateDialog`'s own
+            // `onActionSuccess` calls this with `false` too) both fall through here — either way
+            // there is nothing left to wait for: a save-before-completion is filled in by the
+            // BACKEND itself (see this component's own module header), so the only thing left for
+            // this screen to do is stop asking.
+            setPreview(null)
+            setPendingOcrFileRef(null)
+            setLateData(undefined)
+          }}
           initialData={initialData}
+          lateData={lateData}
+          notice={
+            pendingOcrFileRef ? (
+              <div
+                className="mb-4 flex items-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground"
+                data-cy="received-invoice-ocr-pending"
+              >
+                <Spinner />
+                <span>{t("documents.custom.receivedInvoiceUpload.ocrPending")}</span>
+              </div>
+            ) : undefined
+          }
         />
       )}
     </>
