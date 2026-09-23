@@ -42,6 +42,15 @@ function escapeHtmlSafe(value: string): string {
   }
 }
 
+/** The SAME emptiness test `hideWhenEmpty`'s top-level check (further below) and
+ *  `validate.ts#isMissing` both already use — undefined/null/'' only, so a legitimately falsy value
+ *  (0, false) is never treated as empty. Named and exported from neither: this is the one place an
+ *  'array' row needs it too (see the 'array' case's own subfield-column filter, just below), so it
+ *  is a local helper shared by both call sites in THIS file rather than duplicated inline twice. */
+function isEmptyFieldValue(value: unknown): boolean {
+  return value === undefined || value === null || value === '';
+}
+
 /**
  * Render a single field's value as HTML, by kind. Returns the HTML representation of the value,
  * or a visible error marker for unknown kinds.
@@ -127,7 +136,21 @@ function renderFieldValue(
       // populated `articleId` is exactly the case that must still never print), so there is neither a
       // header column nor a per-row cell for one, ever, regardless of value. See types.ts's own
       // `entity` doc comment ("ALSO the target hint for 'hiddenReference'") for the full rationale.
-      const subFields = (field.fields ?? []).filter((subField) => subField.kind !== 'hiddenReference');
+      //
+      // A SECOND, narrower filter follows: a subfield that opts into `hideWhenEmpty` (e.g. the
+      // invoice/quote line's own `date` — invoice.descriptor.ts) gets NO COLUMN AT ALL — not merely
+      // an empty cell — when EVERY row in THIS document leaves it unset. This is what keeps a
+      // document saved before such a field existed rendering byte-for-byte as it always did: an old
+      // `lines` array has no row with the key at all, so the column never appears, exactly as if the
+      // field had never been declared. The moment ANY row in the document sets a value, the column
+      // appears for every row — a row that still lacks it prints the ordinary em-dash placeholder,
+      // never a broken or ragged table. A subfield that does NOT opt in keeps the universal
+      // always-a-column behavior unchanged, same as every top-level field's own `hideWhenEmpty`.
+      const subFields = (field.fields ?? [])
+        .filter((subField) => subField.kind !== 'hiddenReference')
+        .filter(
+          (subField) => !subField.hideWhenEmpty || rows.some((row) => !isEmptyFieldValue(row[subField.key])),
+        );
       let html = '<table style="border-collapse: collapse; width: 100%; margin-top: 8px;">';
       // Header
       html += '<thead><tr style="border-bottom: 1px solid #ccc;">';
