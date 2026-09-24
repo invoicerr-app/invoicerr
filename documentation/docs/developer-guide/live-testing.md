@@ -40,6 +40,7 @@ Hard-success contract (enforced per-spec):
 | SdI via PEC (IT) | `PEC_LIVE=1` | `PEC_ID_TRASMITTENTE`, `PEC_ADDRESS`, `PEC_SMTP_HOST`, `PEC_SMTP_PORT`, `PEC_IMAP_HOST`, `PEC_IMAP_PORT`, `PEC_USERNAME`, `PEC_PASSWORD` | `transports/sdi-pec/pec.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no PEC mailbox exists in this checkout**, and unlike SdICoop this channel needs NO accreditation at all (see `credentials-guide.md` §4bis and `pec-protocol.ts`'s own header for the primary-source citations) — provisioning any PEC mailbox is the only blocker to a real round-trip |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | `chorus-pro/choruspro.live.spec.ts` | ✅ **Full qualification round-trip proven live 2026-09-14** — a real Factur-X deposit reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP: []`), after two earlier deposits were rejected and fixed (see `credentials-guide.md` §3 and commits `67a94d58`/`7de5a90c`/`ecce4d35`). Proven in **qualification only** — no production PISTE application or Chorus Pro production raccordement exists, and nothing after `IN_INTEGRE` (a public buyer's own `MISE_A_DISPOSITION`/`MANDATEE`/`MISE_EN_PAIEMENT`) has been exercised. |
 | Invopop (GOBL pivot) | `INVOPOP_LIVE=1` | `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID` (`INVOPOP_BASE_URL` optional, normally unset) | `invopop/invopop.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real GOBL `bill/invoice` deposited as silo entry `01a0d28d-5c3e-7af6-8d08-f2c412a9ac28` in the `invoicerr` sandbox workspace, workflow job `01a0d28d-5c3e-77a1-8874-9112b9fa3e85` completed `status: OK` with NO `faults`, the envelope came back `signed: true` with a real ES256 signature, and the platform's own recomputed `payable` (`290.00 EUR`) matched this product's own totals exactly. Proven in **sandbox only** - production needs a paid Developer tier and a live workspace. NOT proven: any country-specific transmission step (the workflow used here signs and stops), and no conformity poller exists for this channel. |
+| A-Cube (also a Peppol access point) | `ACUBE_LIVE=1` | `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD` (`PDP_ACUBE_ENVIRONMENT` optional, defaults to the sandbox) | `acube/acube.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real FatturaPA, built by this repository's own `fatturapa-provider.ts` and gated by the real vendored `Schema_VFPR12.xsd`, deposited through `POST /invoices` on `it-sandbox.api.acubeapi.com` and answered `202 {"uuid": "01a0d284-f0ac-76fb-af3d-0b359d20ad2a"}`; the uuid was then **read back off the platform** (`GET /invoices/{uuid}` → `marking: "waiting"`, `transmission_format: "FPR12"`, `document_type: "TD01"`, the deposited payload echoed back with our own invoice number in it). Sandbox only: A-Cube does not forward a sandbox deposit to SdI at all, so no cleared/rejected SdI verdict is reachable here and none is asserted. Production terms are not published - nothing about the production host has been attempted. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa.live.spec.ts` | ✅ **Proven live** — a real TST DER from FreeTSA (`https://freetsa.org/tsr`) embedded as a genuine XAdES-T `SignatureTimeStamp`; no credential needed (FreeTSA is public/anonymous). First proven 2026-06-30; re-run 2026-09-14 — `TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr npx jest tsa.live --no-coverage --runInBand` → 3/3, exit 0 (`HttpTsaClient`, `XadesSigningProvider` level-T, the env-built signing registry) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | Company lookup, through the onboarding wizard UI (same provider chain, driven by Cypress rather than calling the service directly) | `COMPANY_LOOKUP_LIVE=1` (passed as `--env COMPANY_LOOKUP_LIVE=1` to Cypress — note Cypress delivers it as a NUMBER, so the spec compares with `String(...)`, not `===`) | _(none, same reason as above)_ | `e2e/cypress/e2e/18-onboarding-wizard.cy.ts` (one `it` inside a shared `describe`, not a separate file — its title itself states the gate) | ✅ Proven live (created 2026-08-30; re-run 2026-09-14) — `4/4` passing with the gate open, EDF's real SIRET pre-filling the form and the persisted company read back from the database. Not run by any CI workflow (neither `cypress.yml`'s default `Tests` job nor a Cypress equivalent of `compliance-live.yml`, which does not exist) — offline, this test shows as Cypress "Pending", by design, same as the row above. |
@@ -233,6 +234,14 @@ CHORUSPRO_LIVE=1 CHORUSPRO_CLIENT_ID=<id> CHORUSPRO_CLIENT_SECRET=<secret> \
   CHORUSPRO_TECH_LOGIN=<login> CHORUSPRO_TECH_PASSWORD=<password> \
   npx vitest run choruspro.live --no-file-parallelism
 
+# A-Cube (also a Peppol access point) - round-trip proven 2026-09-24 (deposit accepted, uuid
+# read back off the platform). DB-FREE: this spec never sets DATABASE_URL and never touches Prisma.
+# QUOTE THE PASSWORD IN SINGLE QUOTES - an A-Cube password legitimately contains `#`, and an
+# unquoted shell assignment silently truncates the value there, which then looks like an
+# authentication bug rather than a shell bug.
+ACUBE_LIVE=1 PDP_ACUBE_EMAIL=<account e-mail> PDP_ACUBE_PASSWORD='<account password>' \
+  npx vitest run acube.live --no-file-parallelism
+
 # RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
 TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
   npx vitest run tsa.live --no-file-parallelism
@@ -320,7 +329,71 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
   - `.env.pdp.local` — `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET`
   - `.env.sdi.local` — `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD`
   - `.env.invopop.local` - `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID`
+  - `.env.acube.local` - `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD`, `PDP_ACUBE_ENVIRONMENT`
 - Load with: `set -a; . .env.<channel>.local; set +a`
+- **A-Cube is the one exception to that load command.** Its password legitimately contains `#`, and
+  `set -a; . file` hands the line to the shell, which treats everything from an unquoted `#` onward
+  as a comment - the variable is then silently set to a TRUNCATED value and every login fails with a
+  message that says nothing about truncation. Either single-quote the value inside the file
+  (`PDP_ACUBE_PASSWORD='...'`), or read the file rather than source it.
+
+---
+
+### A-Cube (also a Peppol access point) - sandbox account
+
+A-Cube gives a sandbox away with no purchase obligation: a work e-mail at `acubeapi.com/sandbox`,
+an activation link, a password. Nothing to sign. **Production terms are not published** - worth
+asking before anything depends on it.
+
+```bash
+ACUBE_LIVE=1 \
+  PDP_ACUBE_EMAIL=<account e-mail> \
+  PDP_ACUBE_PASSWORD='<account password>' \
+  [PDP_ACUBE_ENVIRONMENT=sandbox] \
+  npx vitest run acube.live --no-file-parallelism
+```
+
+| Env var | Purpose |
+|---|---|
+| `PDP_ACUBE_EMAIL` | The A-Cube account's own e-mail - required by the gate |
+| `PDP_ACUBE_PASSWORD` | The A-Cube account's own password - required by the gate. **Single-quote it**, see above |
+| `PDP_ACUBE_ENVIRONMENT` | `sandbox` (default) or `production` - anything other than `production` is read as the sandbox |
+
+**Authentication is a password exchange, not an API key.** `POST https://common.api.acubeapi.com/login`
+with a JSON body of `email`, `password` and `environment` answers a 24-hour RS256 JWT, presented as
+`Authorization: Bearer <token>` afterwards. There is no per-integration key concept: the credentials
+that open the API are the credentials that open the web console. Two consequences worth stating
+plainly - use a dedicated, generated password that serves nothing else, and treat this value in a
+company's channel config as account-wide rather than scope-limited (the settings copy in
+`acube-transport.ts` says so to the user).
+
+**The environment is a HOST, not a request parameter** (verified live, 2026-09-24, both halves): a
+sandbox token against `https://it-sandbox.api.acubeapi.com/invoices` answers `200`, and the SAME
+token against `https://it.api.acubeapi.com/invoices` answers
+`401 {"code":401,"message":"Invalid JWT Token"}`. Mixing the two is a hard refusal, never a silent
+cross-environment send.
+
+**Only the Italian jurisdiction is implemented on the wire**, because FatturaPA is the payload this
+repository already builds and already gates against the real Agenzia delle Entrate XSD. The same
+login already returns roles for `fr.`, `de.`, `pl.` and `peppol.api.acubeapi.com` (read out of the
+real token), so widening it is a row in `acube-client.ts`'s own `JURISDICTION_HOSTS` plus a format
+decision - not a second authentication design. Nothing Peppol is built today.
+
+> **Italy is nonetheless OUT OF SCOPE for this transport, by decision.** Italian sending stays on
+> `sdi-pec`, which is sourced and where this product receives the notifiche itself. An Italian
+> company selecting `acube` is refused at send time by `channel-policy/data/it.json` (its `sdi`
+> mandate lists only `sdi-pec` as equivalent) - that refusal is intended, not a defect to fix.
+> The round-trip above proves the wire works, nothing more.
+>
+> What the legal research established, in both directions: Italian law does allow a third party to
+> transmit on the seller's behalf (Provvedimento Agenzia delle Entrate 30 aprile 2018, prot. n.
+> 89757, punto 5.1) and such an intermediary needs no professional registration. A-Cube **claims**
+> on its commercial pages to be "accreditati con SdI", but nothing public confirms it: the Agenzia
+> delle Entrate publishes no register, and accreditation is a bilateral Accordo di Servizio. The one
+> objective clue points at **reception only** - their documentation asks you to register their
+> codice destinatario, and per the AdE's own process a codice destinatario is issued only for a
+> channel accredited in reception; accreditation in **transmission** is a separate box, and nothing
+> public says they hold it.
 
 ---
 
@@ -539,6 +612,7 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ optional `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. |
 | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) — `SDI_ENDPOINT` (the accredited `SdIRiceviFile` URL) and the PFX are both assigned/issued during that accreditation, never a fixed constant (see [Credentials Guide](./credentials-guide.md) §4). Code side: implemented-awaiting-accreditation (`sdicoop-client.ts`), never yet run against the real endpoint. |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
+| `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD` | A-Cube (also a Peppol access point) | **acubeapi.com/sandbox** - a work e-mail, an activation link, a password. Nothing to sign, no purchase obligation. These are ACCOUNT credentials, not a per-integration key, so use a dedicated generated password (see the A-Cube section above). ✅ round-trip proven 2026-09-24. |
 | `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |
 | _(none)_ | Email (document "send" SMTP) | The local Mailpit container the dev/test stack already runs — no secret needed. ✅ proven (see the summary table above). |
 
