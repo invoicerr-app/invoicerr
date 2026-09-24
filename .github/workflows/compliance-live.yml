@@ -11,22 +11,24 @@ name: Compliance live tests
 # (GitLab equivalent: Settings → CI/CD → Variables. Forgejo/Gitea: Settings → Actions → Secrets.)
 # A channel with no secrets set is silently skipped — fill them in channel by channel.
 #
-# CRON CAVEAT: GitHub only fires `schedule` triggers from the repository's DEFAULT branch (main).
-# While this workflow lives on a feature branch, the nightly cron below is inert — use the
-# "Run workflow" button (workflow_dispatch) instead, targeting that branch explicitly. The cron
-# starts firing automatically once this file is merged to main. See
-# documentation/docs/developer-guide/live-testing.md for the full
-# list of repo secrets needed for a completely green (real round-trip) run — with none of them set,
-# every creds-gated spec below self-skips, so nothing in this job actually runs (the Peppol channel,
-# whose peppol.sh leg used to be the one creds-free spec here, was removed from the product
-# 2026-09-15 — see live-testing.md/credentials-guide.md for the current channel list).
+# CRON CAVEAT: GitHub only fires `schedule` triggers from the repository's DEFAULT branch, which in
+# this repository is `dev`, not `main`. The nightly cron below is therefore LIVE already - it fired on
+# 2026-09-23 and 2026-09-24 (runs 35835437074 and 35972649692), both red. On any other branch it stays
+# inert and the "Run workflow" button (workflow_dispatch) is the way in. See
+# documentation/docs/developer-guide/live-testing.md for the full list of repo secrets needed for a
+# completely green (real round-trip) run. With NONE of them set, every creds-gated spec below
+# self-skips; the only row that still runs is the RFC 3161 TSA one, which needs no credential (the
+# Peppol channel, whose peppol.sh leg used to be the other creds-free spec here, was removed from the
+# product 2026-09-15 - see live-testing.md/credentials-guide.md for the current channel list). The
+# last step of the job fails if even that one did not run, so a green here always means at least one
+# real round-trip happened.
 
 on:
   workflow_dispatch:        # manual button in the Actions tab
   schedule:
-    - cron: '0 3 * * *'     # nightly 03:00 UTC — only fires from the default branch (main); see cron caveat above
+    - cron: '0 3 * * *'     # nightly 03:00 UTC - only fires from the default branch (`dev` here); see cron caveat above
 
-# Every step below only checks out this repo, runs jest, and reads secrets already scoped to this
+# Every step below only checks out this repo, runs Vitest, and reads secrets already scoped to this
 # job's own env block — nothing here pushes a package, comments on a PR, or otherwise needs the
 # GITHUB_TOKEN for anything beyond cloning. `contents: read` is the whole ask.
 permissions:
@@ -40,8 +42,9 @@ jobs:
     # Real Postgres only. pdp-conformity.live.spec.ts, sequence.live.spec.ts and send-quote.live.spec.ts
     # create real Company/DocumentInstance rows through the `prisma` singleton (never a mocked client) —
     # every other spec in this job is provider-level (no DB) and simply ignores this service. No Redis
-    # service: none of the spec files `npx jest live` below actually matches instantiates a BullMQ/ioredis
-    # connection or boots a Nest module that would (verified file-by-file, 2026-09-13) — it used to be
+    # service: none of the 31 `*.live.spec.ts` files the run step below matches instantiates a
+    # BullMQ/ioredis connection or boots a Nest module that would (verified file-by-file, 2026-09-13;
+    # re-checked 2026-09-24 against the exact file list the current filter produces) - it used to be
     # needed by a queue-driven pipeline spec that no longer exists in this codebase (see below).
     services:
       postgres:
@@ -76,7 +79,14 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoicerr_test?schema=public
 
       # --- TSA (RFC 3161) — e.g. https://freetsa.org/tsr ---
-      TSA_URL: ${{ secrets.TSA_URL }}
+      # The ONLY row here that needs no credential at all: FreeTSA is public and anonymous, so the
+      # fallback below is a constant, not a secret leaking into the file. It is deliberate - it is
+      # what makes this job's green mean something. With every other row gated on a real credential,
+      # a repository that lost or never set them would run ZERO live specs and still exit 0; the
+      # "assert at least one live spec actually executed" step at the end turns that state red, and
+      # this fallback is what keeps it from being red for the wrong reason. `secrets.TSA_URL` still
+      # wins when set, so pointing the job at another RFC 3161 responder stays a secret change.
+      TSA_URL: ${{ secrets.TSA_URL || 'https://freetsa.org/tsr' }}
 
       # --- PL KSeF ---
       KSEF_AUTH_TOKEN:   ${{ secrets.KSEF_AUTH_TOKEN }}
@@ -89,7 +99,7 @@ jobs:
 
       # --- FR B2G — Chorus Pro (PISTE OAuth2) ---
       # Still-live, still-wired channel (transports/chorus-pro/) — moved here from the now-deleted
-      # national-portals-live job, since its own live spec is matched by THIS job's `npx jest live`
+      # national-portals-live job, since its own live spec is matched by THIS job's `.live.spec.ts`
       # pattern already and only needed its flag/creds actually declared somewhere to ever fire.
       # HONEST STATUS (see choruspro.live.spec.ts's own header): skipped, always, today — this repo
       # holds no PISTE account of any kind. CHORUSPRO_TECH_LOGIN/PASSWORD are read too but are NOT part
@@ -106,6 +116,16 @@ jobs:
       SDI_ENDPOINT:        ${{ secrets.SDI_ENDPOINT }}
       SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
       SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
+
+      # --- IT A-Cube (also a Peppol access point) - ACCOUNT e-mail + password, not an API key: the
+      # platform has no per-integration key concept, so the secret below opens the web console too.
+      # The round-trip was proven for real on 2026-09-24 from a developer machine (see
+      # live-testing.md); these two secrets do NOT exist in this repository yet, so this row
+      # self-skips here exactly like every other unfilled channel above.
+      ACUBE_LIVE: '1'
+      PDP_ACUBE_EMAIL:    ${{ secrets.PDP_ACUBE_EMAIL }}
+      PDP_ACUBE_PASSWORD: ${{ secrets.PDP_ACUBE_PASSWORD }}
+      PDP_ACUBE_ENVIRONMENT: 'sandbox'
 
       # --- Online payment — Stripe → Mollie → PayPal (2026-09-15). All
       # three self-skip with no secrets set, same as every other row here; none has ever run for real
@@ -151,8 +171,59 @@ jobs:
       - name: Apply migrations (empty dev DB)
         run: cd backend && npx prisma migrate deploy
 
-      # --forceExit: a real Prisma connection pool — used directly by several specs above, never
-      # mocked — is an open handle jest would otherwise warn about; harmless once the job's own
-      # container teardown reclaims it, but forceExit keeps this step from hanging on it.
+      # Vitest, not Jest. Jest and ts-jest were removed from backend/package.json by the 2026-09-19
+      # migration (see backend/vitest.config.ts's own header), so the `npx jest live` this step used
+      # to run had no local binary to resolve: npx silently DOWNLOADED jest@30 from the registry and
+      # ran it with no config and no TypeScript transform. Every suite then died on a parse error and
+      # ZERO tests executed - measured on the 2026-09-24 nightly, run 35972649692: "Test Suites: 35
+      # failed, 35 total / Tests: 0 total".
+      #
+      # `.live.spec.ts` and not `live`: a bare `live` is a substring match over the whole path, and it
+      # also swept in `src/live-spec-naming.spec.ts` plus the three webhook `*delivery*` specs (de-LIVE-ry)
+      # - one of which needs a real Redis this job deliberately does not provision. The dot form matches
+      # exactly the 31 files the repo's own naming convention guarantees (`src/live-spec-naming.spec.ts`
+      # is the tripwire that keeps that convention true).
+      #
+      # --no-file-parallelism: the same flag live-testing.md prescribes for every single-spec run.
+      # Live specs deposit real documents on real platforms and several create real Company rows in the
+      # Postgres above; running them concurrently would interleave authority calls and fixtures.
+      #
+      # Jest's --no-coverage/--ci/--forceExit have no place here: coverage is off unless asked for,
+      # Vitest detects CI on its own, and the `forks` pool already terminates each spec's child process
+      # (with it, the real Prisma connection pool that made --forceExit necessary under Jest).
+      #
+      # --reporter=json feeds the next step. Do not drop it: the exit code alone cannot distinguish
+      # "every gate opened and passed" from "every gate self-skipped".
       - name: Run gated live specs
-        run: cd backend && npx jest live --no-coverage --ci --forceExit
+        run: |
+          cd backend
+          npx vitest run .live.spec.ts \
+            --no-file-parallelism \
+            --reporter=default \
+            --reporter=json \
+            --outputFile.json=live-results.json
+
+      # A green that proves nothing is worse than a red. Vitest exits 0 when all 31 suites self-skip,
+      # which is precisely the state a repository with no credentials left would sit in forever, in
+      # silence. Executed == 0 therefore fails the job: it means no *_LIVE flag above reached a spec
+      # with its credentials present, not that everything is fine. A row that skips because its own
+      # secret is absent stays correct and expected - this only fires when NOTHING ran at all.
+      - name: Assert at least one live spec actually executed
+        run: |
+          cd backend
+          node -e '
+            const report = require("./live-results.json");
+            const executed = report.numPassedTests + report.numFailedTests;
+            console.log(
+              `live specs: ${executed} executed (${report.numPassedTests} passed, ` +
+                `${report.numFailedTests} failed), ${report.numPendingTests} skipped by their gate.`,
+            );
+            if (executed === 0) {
+              console.error(
+                "No live spec executed: every gate self-skipped. This job proved nothing. Check the " +
+                  "*_LIVE flags in this workflow and the repository secrets each one depends on " +
+                  "(documentation/docs/developer-guide/live-testing.md lists them channel by channel).",
+              );
+              process.exit(1);
+            }
+          '

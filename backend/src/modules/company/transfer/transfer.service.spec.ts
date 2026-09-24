@@ -164,8 +164,18 @@ describe('TransferService', () => {
 
     it('never blocks its own response on the notification e-mail actually being sent — a real network wait on ONLY the "account exists" branch is itself a timing side-channel', async () => {
       let releaseMailSend: () => void = () => {};
+      // Whether the gate has been opened — the ONE fact this test reads to know the response did not
+      // wait for the send. It replaces a `Promise.race` against a 200ms `setTimeout`, which asked the
+      // wrong question: it compared the mail send to a WALL CLOCK, so a CI worker whose Postgres
+      // round-trips (this service really writes rows) took longer than 200ms reported 'timeout' and
+      // failed a service that had behaved perfectly (run 35989078564, 2026-09-24, on a PR touching
+      // e2e specs only). Nothing here measures time any more.
+      let mailSendReleased = false;
       const mailGate = new Promise<void>((resolve) => {
-        releaseMailSend = resolve;
+        releaseMailSend = () => {
+          mailSendReleased = true;
+          resolve();
+        };
       });
       const mail = { sendForCompany: vi.fn().mockImplementation(() => mailGate.then(() => ({}))) };
       const service = new TransferService(mail as never);
@@ -183,14 +193,17 @@ describe('TransferService', () => {
           otp,
         );
 
-        // The mail send never resolves during this race — if `initiateTransfer` awaited it before
-        // responding, `resultPromise` could never win, and this test would time out rather than fail
-        // cleanly. Winning here proves the send genuinely runs in the background.
-        const winner = await Promise.race([
-          resultPromise.then(() => 'transfer' as const),
-          new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 200)),
-        ]);
-        expect(winner).toBe('transfer');
+        // The gate is still shut, so the mail send is still pending. Awaiting the response here is
+        // therefore the whole test: it settles ONLY because `initiateTransfer` does `void
+        // this.mailService.sendForCompany(...)` (transfer.service.ts) instead of awaiting it. Put the
+        // `await` back into the service and this line never settles — vitest fails THIS test on its
+        // own per-test timeout, naming it, which is the regression signal. It is a slower failure
+        // than the stopwatch was, and a truthful one: it cannot fail for any other reason.
+        await resultPromise;
+        // The send was actually STARTED (a service that simply never mailed would also return fast)…
+        expect(mail.sendForCompany).toHaveBeenCalledTimes(1);
+        // …and the response came back while it was still in flight.
+        expect(mailSendReleased).toBe(false);
 
         releaseMailSend();
         await resultPromise;

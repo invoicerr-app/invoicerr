@@ -81,6 +81,7 @@ import {
   RealStripeCheckoutClient,
 } from './payments/providers/stripe/stripe-checkout-client';
 import { StripeProvider } from './payments/providers/stripe/stripe-provider';
+import { buildAcubeTransport } from './transports/acube-transport';
 import { buildBillitTransport } from './transports/billit-transport';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
@@ -292,6 +293,21 @@ function buildTransportRegistry(
     'SdI via PEC (Italy)',
     buildSdiPecTransport({ channelCredentials, fatturapaFormatProvider, mailService }),
   );
+  // "acube" (`transports/acube-transport.ts`) - A-Cube, an Italian e-invoicing provider that is also
+  // a Peppol access point. It deposits the SAME FatturaPA "sdi"/"sdi-pec" build, through a REST API
+  // instead of SDICoop or PEC, and its sandbox round-trip is proven live (2026-09-24). ITALY IS OUT
+  // OF SCOPE for it nonetheless, by decision: `channel-policy/data/it.json`'s `sdi` mandate names
+  // only "sdi-pec" as equivalent, so an Italian company choosing this transport is refused at send -
+  // intended, not a defect, and read that transport's own header before touching either file. Own
+  // `fatturapaFormatProvider` reference, same "stateless, no reason to couple two registries"
+  // reasoning every transport above already holds.
+  // The label is deliberately jurisdiction-NEUTRAL, unlike every other entry in this registry. A
+  // label is what a company picks from in its own settings; the header explaining the refusal is not
+  // something it ever reads. "A-Cube (Italy)" would therefore invite exactly the mistake the policy
+  // above blocks - read "Italy", choose it for Italy, get refused at send with no idea why. No
+  // capability qualifier either: "Peppol access point" would be true of the ACCOUNT and false of
+  // this transport, which builds FatturaPA and nothing else today.
+  registry.register('acube', 'A-Cube', buildAcubeTransport({ channelCredentials, fatturapaFormatProvider }));
   // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
   // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
   // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
