@@ -371,11 +371,27 @@ token against `https://it.api.acubeapi.com/invoices` answers
 `401 {"code":401,"message":"Invalid JWT Token"}`. Mixing the two is a hard refusal, never a silent
 cross-environment send.
 
-**Only the Italian jurisdiction is implemented**, because FatturaPA is the payload this repository
-already builds and already gates against the real Agenzia delle Entrate XSD. The same login already
-returns roles for `fr.`, `de.`, `pl.` and `peppol.api.acubeapi.com` (read out of the real token),
-so widening it is a row in `acube-client.ts`'s own `JURISDICTION_HOSTS` plus a format decision -
-not a second authentication design. Nothing Peppol is built today.
+**Only the Italian jurisdiction is implemented on the wire**, because FatturaPA is the payload this
+repository already builds and already gates against the real Agenzia delle Entrate XSD. The same
+login already returns roles for `fr.`, `de.`, `pl.` and `peppol.api.acubeapi.com` (read out of the
+real token), so widening it is a row in `acube-client.ts`'s own `JURISDICTION_HOSTS` plus a format
+decision - not a second authentication design. Nothing Peppol is built today.
+
+> **Italy is nonetheless OUT OF SCOPE for this transport, by decision.** Italian sending stays on
+> `sdi-pec`, which is sourced and where this product receives the notifiche itself. An Italian
+> company selecting `acube` is refused at send time by `channel-policy/data/it.json` (its `sdi`
+> mandate lists only `sdi-pec` as equivalent) - that refusal is intended, not a defect to fix.
+> The round-trip above proves the wire works, nothing more.
+>
+> What the legal research established, in both directions: Italian law does allow a third party to
+> transmit on the seller's behalf (Provvedimento Agenzia delle Entrate 30 aprile 2018, prot. n.
+> 89757, punto 5.1) and such an intermediary needs no professional registration. A-Cube **claims**
+> on its commercial pages to be "accreditati con SdI", but nothing public confirms it: the Agenzia
+> delle Entrate publishes no register, and accreditation is a bilateral Accordo di Servizio. The one
+> objective clue points at **reception only** - their documentation asks you to register their
+> codice destinatario, and per the AdE's own process a codice destinatario is issued only for a
+> channel accredited in reception; accreditation in **transmission** is a separate box, and nothing
+> public says they hold it.
 
 ---
 

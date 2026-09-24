@@ -1,15 +1,47 @@
 /**
- * The "acube" transport - A-Cube (`acubeapi.com`), an Italian platform registered by the DGFiP that
- * is also a Peppol access point. Same `DocumentTransport` interface `pdp-transport.ts`,
- * `ksef-transport.ts` and `sdi-transport.ts` implement, registered the same way
- * (`TransportRegistry.register` in `documents-core.module.ts`) - nothing anywhere special-cases it,
- * a company opts in through `Company.invoiceTransportId` like for any other channel.
+ * The "acube" transport - A-Cube (`acubeapi.com`), an Italian e-invoicing provider that is also a
+ * Peppol access point. Same `DocumentTransport` interface `pdp-transport.ts`, `ksef-transport.ts`
+ * and `sdi-transport.ts` implement, registered the same way (`TransportRegistry.register` in
+ * `documents-core.module.ts`) - nothing anywhere special-cases it, a company opts in through
+ * `Company.invoiceTransportId` like for any other channel.
  *
  * STATUS: ✅ **round-trip proven live against the sandbox on 2026-09-24** - a real FatturaPA built by
  * this repository's own `formats/national/fatturapa-provider.ts`, gated by the real vendored
  * `Schema_VFPR12.xsd`, deposited through `acube/acube-client.ts` and answered with a real uuid, then
  * read back from the platform. See `documentation/docs/developer-guide/live-testing.md` for the
- * captured response and `acube/acube.live.spec.ts` for the spec that produced it.
+ * captured response and `acube/acube.live.spec.ts` for the spec that produced it. A proven SANDBOX
+ * round-trip, which is a statement about the wire and nothing more - read the scope section below
+ * before concluding anything about Italy from it.
+ *
+ * ## ITALY IS OUT OF SCOPE FOR THIS TRANSPORT - by decision, not by omission
+ *
+ * An Italian company that selects "acube" is REFUSED AT SEND TIME, by
+ * `transports/channel-policy/data/it.json`: that country's `sdi` mandate lists `equivalentProviderIds:
+ * ["sdi-pec"]`, and `actions/invoice-actions.ts` blocks any send whose `invoiceTransportId` is neither
+ * the mandate's own `providerId` nor in that list. **That refusal is intended and must stay.** Italian
+ * sending stays on "sdi-pec" (`transports/sdi-pec-transport.ts`), which is sourced and where this
+ * product receives the notifiche itself. Do not "fix" this by adding "acube" to that list.
+ *
+ * What the legal research actually established, stated in both directions rather than rounded off:
+ *  - Italian law DOES allow a third party to transmit on the seller's behalf - Provvedimento Agenzia
+ *    delle Entrate 30 aprile 2018, prot. n. 89757, punto 5.1 - and such an intermediary needs no
+ *    professional registration.
+ *  - A-Cube CLAIMS on its commercial pages to be "accreditati con SdI". Nothing public confirms it:
+ *    the Agenzia delle Entrate publishes no register of accredited channels, and accreditation takes
+ *    the form of a bilateral Accordo di Servizio.
+ *  - The one objective clue points at RECEPTION ONLY: their documentation asks you to register their
+ *    codice destinatario, and per the AdE's own accreditation process a codice destinatario is issued
+ *    only for a channel accredited in reception. Accreditation in TRANSMISSION is a separate box, and
+ *    nothing public says they hold it.
+ *
+ * An earlier version of this header called A-Cube "registered by the DGFiP". That was wrong and is
+ * recorded here so nobody re-derives it: the DGFiP is the FRENCH tax administration and its
+ * immatriculation concerns French plateformes agréées, which says nothing whatsoever about Italy.
+ *
+ * **Why the connector is kept anyway.** The same account is a Peppol access point, and the token this
+ * integration already obtains carries `ROLE_WRITER` for the Peppol, French, German and Polish hosts
+ * (observed live - see `acube/acube-client.ts`'s header). Those jurisdictions are what this transport
+ * is for; the Italian path is the one that is proven on the wire and closed by policy.
  *
  * ## Why FatturaPA, and why the same bytes twice
  *

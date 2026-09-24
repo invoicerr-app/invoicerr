@@ -291,11 +291,14 @@ function buildTransportRegistry(
     'SdI via PEC (Italy)',
     buildSdiPecTransport({ channelCredentials, fatturapaFormatProvider, mailService }),
   );
-  // "acube" (`transports/acube-transport.ts`) - A-Cube, an Italian platform registered by the DGFiP
-  // that is also a Peppol access point. It deposits the SAME FatturaPA "sdi"/"sdi-pec" build, through
-  // a REST API instead of SDICoop or PEC, and - unlike both of those - its round-trip is proven live
-  // (2026-09-24, see that file's own header). Own `fatturapaFormatProvider` reference, same
-  // "stateless, no reason to couple two registries" reasoning every transport above already holds.
+  // "acube" (`transports/acube-transport.ts`) - A-Cube, an Italian e-invoicing provider that is also
+  // a Peppol access point. It deposits the SAME FatturaPA "sdi"/"sdi-pec" build, through a REST API
+  // instead of SDICoop or PEC, and its sandbox round-trip is proven live (2026-09-24). ITALY IS OUT
+  // OF SCOPE for it nonetheless, by decision: `channel-policy/data/it.json`'s `sdi` mandate names
+  // only "sdi-pec" as equivalent, so an Italian company choosing this transport is refused at send -
+  // intended, not a defect, and read that transport's own header before touching either file. Own
+  // `fatturapaFormatProvider` reference, same "stateless, no reason to couple two registries"
+  // reasoning every transport above already holds.
   registry.register(
     'acube',
     'A-Cube (Italy)',

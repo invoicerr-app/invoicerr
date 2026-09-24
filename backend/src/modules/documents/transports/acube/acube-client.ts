@@ -1,8 +1,14 @@
 /**
  * HTTP client for the A-Cube API (`acubeapi.com`) - the platform behind the "acube" transport
- * (`transports/acube-transport.ts`). A-Cube is an Italian provider registered by the DGFiP and, on
- * the same account, a Peppol access point; this client speaks ONE jurisdiction today (Italy, the
- * `gov-it` invoicing API), for the reason the host table below states.
+ * (`transports/acube-transport.ts`). A-Cube is an Italian e-invoicing provider and, on the same
+ * account, a Peppol access point; this client speaks ONE jurisdiction today (Italy, the `gov-it`
+ * invoicing API), for the reason the host table below states.
+ *
+ * **Speaking that API is not the same thing as being allowed to use it.** Italy is OUT OF SCOPE for
+ * this transport by decision - `acube-transport.ts`'s own header carries the sourced reasoning and
+ * the channel-policy refusal that enforces it. This file is the wire; that file is the scope. (An
+ * earlier version of this header said "registered by the DGFiP"; that was wrong - the DGFiP is the
+ * French tax administration and its immatriculation says nothing about Italy.)
  *
  * ## What was observed first-hand, and what was only read
  *
