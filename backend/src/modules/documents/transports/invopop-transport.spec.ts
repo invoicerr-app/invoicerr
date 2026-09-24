@@ -209,6 +209,13 @@ describe('buildInvopopTransport', () => {
     expect(result.message).toMatch(/still running/);
   });
 
+  it('refuses a document with no currency rather than picking one on its behalf', async () => {
+    const noCurrency = { ...CTX, document: { ...CTX.document, data: { ...(CTX.document.data as object) } } };
+    delete (noCurrency.document.data as Record<string, unknown>).currency;
+    await expect(buildInvopopTransport(buildDeps()).send(noCurrency)).rejects.toThrow(/no currency/);
+    expect(mockPutSiloEntry).not.toHaveBeenCalled();
+  });
+
   it("refuses a document whose client is not this company's", async () => {
     mockedPrisma.client.findFirst.mockResolvedValue(null);
     await expect(buildInvopopTransport(buildDeps()).send(CTX)).rejects.toThrow(/no valid client on file/);

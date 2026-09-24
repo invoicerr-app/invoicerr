@@ -175,7 +175,19 @@ export function buildInvopopTransport(deps: InvopopTransportDeps): DocumentTrans
       }
 
       const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, data);
-      const currency = totals.currency || (typeof data.currency === 'string' ? data.currency : 'EUR');
+      // No default. A currency this transport picked for the document would reach the platform as a
+      // fact the invoice never carried, and the payable check further down would still pass (both
+      // engines would have computed the same numbers at the same precision), so a wrong-currency
+      // invoice would go out with nothing to catch it. The descriptor makes `currency` required, so
+      // this is unreachable for a document that passed validation - which is exactly why refusing
+      // costs nothing and guessing costs a silent error.
+      const currency = totals.currency || (typeof data.currency === 'string' ? data.currency : '');
+      if (!currency) {
+        throw new BadRequestException(
+          `Cannot deposit to Invopop: the ${ctx.label.toLowerCase()} carries no currency, and this ` +
+            "transport never picks one on a document's behalf.",
+        );
+      }
 
       const rawLines = Array.isArray(data.lines) ? (data.lines as Record<string, unknown>[]) : [];
       // `data.lines[i]` and `totals.lines[i]` are the same row by index - the invoice descriptor has
