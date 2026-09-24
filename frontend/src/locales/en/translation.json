@@ -2586,6 +2586,8 @@
         "environment": "Environment",
         "environmentProd": "Production",
         "environmentTest": "Test (sandbox)",
+        "iopoleClientId": "Client ID (your Iopole account e-mail)",
+        "iopoleCustomerId": "Customer ID",
         "ksefNip": "NIP",
         "ksefToken": "KSeF token",
         "peppolAccessPointUrl": "Access Point URL",

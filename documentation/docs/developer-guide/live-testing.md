@@ -36,6 +36,7 @@ Hard-success contract (enforced per-spec):
 | PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
 | PDP reception (FR) — inbound e-invoices | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (same credentials as the row above — one PDP account only, see below) | `pdp/pdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16** — a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `PdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡/🔴 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) is proven NOT reachable on this sandbox** — every code tried (`fr:203`/`fr:205`/`fr:206`/`fr:211`/`fr:212`) and every plausible path variant answered a generic 404 — see the dedicated section below |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
+| Iopole (FR) | `IOPOLE_LIVE=1` | `PDP_IOPOLE_CLIENT_ID`, `PDP_IOPOLE_CLIENT_SECRET`, `PDP_IOPOLE_CUSTOMER_ID` (`PDP_IOPOLE_API_BASE` / `PDP_IOPOLE_TOKEN_URL` optional - the hosts are fixed constants in `iopole-transport.ts#IOPOLE_URLS`) | `iopole/iopole.live.spec.ts` | ✅ **Round-trip proven 2026-09-24** - real Factur-X deposit accepted (`201 {"type":"INVOICE","id":"01a0d29b-37d0-750d-9f8f-5d35664fca90"}`) and a real positive verdict read back from the platform: `SUBMITTED` (destType `PPF` and `OPERATOR`) → `RECEIVED` (networkCode 202) → `ISSUED`, no rejection. Reproduced on a second, independent deposit before the assertion was tightened. See the dedicated section below. |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | SdI via PEC (IT) | `PEC_LIVE=1` | `PEC_ID_TRASMITTENTE`, `PEC_ADDRESS`, `PEC_SMTP_HOST`, `PEC_SMTP_PORT`, `PEC_IMAP_HOST`, `PEC_IMAP_PORT`, `PEC_USERNAME`, `PEC_PASSWORD` | `transports/sdi-pec/pec.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no PEC mailbox exists in this checkout**, and unlike SdICoop this channel needs NO accreditation at all (see `credentials-guide.md` §4bis and `pec-protocol.ts`'s own header for the primary-source citations) — provisioning any PEC mailbox is the only blocker to a real round-trip |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | `chorus-pro/choruspro.live.spec.ts` | ✅ **Full qualification round-trip proven live 2026-09-14** — a real Factur-X deposit reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP: []`), after two earlier deposits were rejected and fixed (see `credentials-guide.md` §3 and commits `67a94d58`/`7de5a90c`/`ecce4d35`). Proven in **qualification only** — no production PISTE application or Chorus Pro production raccordement exists, and nothing after `IN_INTEGRE` (a public buyer's own `MISE_A_DISPOSITION`/`MANDATEE`/`MISE_EN_PAIEMENT`) has been exercised. |
@@ -190,6 +191,79 @@ Hard-success contract (enforced per-spec):
 > (`triggerPdpReceptionSweep`, using the `bullmq` package directly — never a stub of the sweep
 > runner itself) rather than waiting on its own 5-minute default interval.
 
+### Iopole (FR) - a second French transmission platform, 2026-09-24
+
+> Iopole (`iopole.com`) is registered by the DGFiP, French, and exposes a REST API that accepts UBL,
+> CII and Factur-X - the three shapes the documents module already produces. It is wired as an
+> ordinary transport (`transports/iopole-transport.ts` + `transports/iopole/iopole-client.ts`),
+> registered under the id `iopole`, opted into through `Company.invoiceTransportId` like every other
+> one. Sandbox: `api.ppd.iopole.fr`. Production: `api.iopole.com`.
+>
+> **The credentials** live under the `PDP_IOPOLE_` prefix (three required, two optional):
+>
+> | Variable | What it is | Where a company reads its own |
+> |---|---|---|
+> | `PDP_IOPOLE_CLIENT_ID` | **The account's e-mail address.** Unusual for OAuth2, and correct: the delivered token carries it back as its own `client_id` claim, with `preferred_username: service-account-<that e-mail>`. Do not "fix" it. | the Iopole account itself |
+> | `PDP_IOPOLE_CLIENT_SECRET` | the OAuth2 `client_credentials` secret | Iopole console |
+> | `PDP_IOPOLE_CUSTOMER_ID` | sent as the `customer-id` HTTP header on **every** call, not only at authentication | `GET /v1/config/customer/id` |
+> | `PDP_IOPOLE_API_BASE` | optional override of the fixed API host | - |
+> | `PDP_IOPOLE_TOKEN_URL` | optional override of the fixed token endpoint | - |
+>
+> **Three things the platform documentation does not say, or says wrong** - each verified live, each
+> recorded in `iopole/iopole-client.ts`'s own header so nobody re-discovers them:
+>
+> 1. **The `client_id` is an e-mail address** (above).
+> 2. **The token lasts 1740 seconds, not the 3600 the documentation claims.** The client derives its
+>    expiry from the response alone and never from a compiled-in default; a response with no usable
+>    `expires_in` expires the token immediately rather than assuming an hour. A hardcoded 3600 would
+>    hand out a dead token for eleven minutes, and the symptom (an intermittent 401 on an unrelated
+>    call) names nothing about the cause.
+> 3. **`customer-id` is required on every call.** The platform's own OpenAPI document marks the
+>    header `required: false` on every operation, which is wrong in practice for an operator account.
+>    It is **not** the sandbox scope that appears in the token's `scope` claim (`iopole_<8 chars>`);
+>    the two look alike and swapping them fails late, on a call that will not say why.
+>
+> A fourth gap was found by running the round trip rather than by reading anything:
+> `GET /v1/invoice/{id}` answers with an **array of one** metadata object where the OpenAPI document
+> declares a single object. The client accepts both shapes.
+>
+> **Source of truth for the endpoints**: the platform's own OpenAPI document, fetched from the
+> SANDBOX host (`GET https://api.ppd.iopole.fr/v1/api/operator/invoicing`), not the prose
+> documentation - which is a client-rendered page that serves no content to a plain HTTP client.
+>
+> **The two parties in the live spec are not invented.** They are two of the four business entities
+> this project's sandbox account actually has registered on the `DOMESTIC_FR` network, read from
+> `GET /v1/config/business/entity`: AIGLE TRANSPORT (SIREN `789275732`) and BARKOCZY (SIREN
+> `841480502`), whose directory addresses are `0225:789275732` and `0225:841480502`. Neither carries
+> an explicit `PEPPOL_ENDPOINT` identifier, deliberately: with a French `LEGAL_ID` on file,
+> `build-semantic-invoice.ts#endpointFor` already derives exactly `0225:<SIREN>`, which is what the
+> sandbox directory registered. The VAT numbers are computed from those SIRENs, not made up.
+>
+> **What is proven**: a real Factur-X PDF/A-3, built by the production recipe and gated by the real
+> vendored EN 16931 Schematron, deposited through `POST /v1/invoice`, accepted with a real invoice
+> id, read back through `GET /v1/invoice/{id}`, and followed to a genuine positive verdict in the
+> platform's own status history. The verdict landed in well under a second on every deposit measured,
+> and the spec polls for it rather than sleeping - a loop that stopped at "the history is no longer
+> empty" read only `SUBMITTED`, which says the request went out and nothing about whether it was
+> accepted. That is the first of the two false greens the superpdp box above records, reproduced here
+> verbatim before it was fixed.
+>
+> **What is NOT proven, and is not claimed**:
+> - **Nothing in production.** Only the `ppd` sandbox has ever been reached.
+> - **No conformity poller.** Following the verdict as a background job belongs in
+>   `conformity/pollers/` and is separate work; `GET /v1/invoice/{id}/status-history` is the endpoint
+>   it would be built on, and only the live spec reads it today. The transport therefore sets
+>   `providerId: 'iopole'` for the record's own honesty, and the sweep never selects it - exactly the
+>   position `sdi` holds.
+> - **No reception (inbound) side**, unlike the `pdp` channel.
+> - **No webhook, and no participant registration.** This project's sandbox account holds the `user`
+>   role, which per Iopole's own documentation allows sending an invoice, sending a status and
+>   reading the directory, but not declaring a webhook or adding a participant. Neither was attempted
+>   and neither is worked around.
+> - **Nothing ran through `iopole-transport.ts#send()` itself.** The live spec is DB-free by design
+>   (the same choice `pdp.live.spec.ts` makes) and composes the same DB-free building blocks by hand;
+>   the orchestration around them is covered by `iopole-transport.spec.ts`, with mocks.
+
 ## Running a single live spec
 
 ```bash
@@ -201,6 +275,13 @@ KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
 # PDP superpdp (FR) — round-trip proven: deposited, validated, issued, received (see the box above)
 set -a; . .env.pdp.local; set +a
 PDP_LIVE=1 npx vitest run pdp.live --no-file-parallelism
+
+# Iopole (FR) - round-trip proven 2026-09-24: Factur-X deposited, accepted, and followed to a real
+# positive verdict (SUBMITTED -> RECEIVED/202 -> ISSUED). See the dedicated section above.
+# DB-FREE - no DATABASE_URL needed. PDP_IOPOLE_API_BASE/PDP_IOPOLE_TOKEN_URL are optional: the hosts
+# are fixed constants in iopole-transport.ts#IOPOLE_URLS.
+set -a; . /path/to/pdp-sandbox.env; set +a
+IOPOLE_LIVE=1 npx vitest run iopole.live --no-file-parallelism
 
 # PDP reception (FR) — inbound e-invoices: self-addressed deposit -> direction=in -> download ->
 # extract -> real received-invoice -> approve -> record-payment (see the dedicated section above).

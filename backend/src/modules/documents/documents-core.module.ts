@@ -85,6 +85,7 @@ import { buildAcubeTransport } from './transports/acube-transport';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
 import { buildInvopopTransport } from './transports/invopop-transport';
+import { buildIopoleTransport } from './transports/iopole-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
 import { buildPdpReceptionStatusPusher } from './transports/pdp/pdp-reception';
@@ -273,6 +274,20 @@ function buildTransportRegistry(
     'pdp',
     'PDP (France)',
     buildPdpTransport({
+      channelCredentials,
+      facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
+    }),
+  );
+  // "iopole" (France) - a second, independent French transmission platform alongside "pdp" above
+  // (issue #432). Registered exactly like every sibling: nothing about a platform is special-cased,
+  // a company opts in through `Company.invoiceTransportId`. Own `facturxFormatProvider` instance,
+  // the same "stateless, no reason to couple two registries" reasoning "pdp" above already holds,
+  // and with NO override: unlike "chorus-pro" below, Iopole reads BT-23 and the parties' legal
+  // identifiers the ordinary EN 16931 way - see `transports/iopole-transport.ts`'s own header.
+  registry.register(
+    'iopole',
+    'Iopole (France)',
+    buildIopoleTransport({
       channelCredentials,
       facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
     }),
