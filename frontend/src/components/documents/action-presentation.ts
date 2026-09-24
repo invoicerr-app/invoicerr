@@ -78,6 +78,26 @@ export function actionLocksDocument(
   return targets.length > 0 && targets.every((status) => !isActionAvailable(saveAction, status))
 }
 
+/**
+ * Whether SELECTING `action` from a menu is about to open a DIALOG rather than running immediately
+ * — the same two gates `useDocumentActionRunner#handleAction` checks, in the same order, mirrored
+ * here PURELY so a menu item's `onSelect` can decide SYNCHRONOUSLY (before the action actually
+ * runs) whether to arm `useSuppressCloseAutoFocus`'s `suppressNextRestore()` (see that hook's own
+ * header for why the close-autofocus race, issue #451 defect 1, must only ever be suppressed for a
+ * close that is actually about to hand off to a dialog): a locking action opens the lock
+ * confirmation dialog, and an action that declares `params` opens the params dialog — both are known
+ * from the descriptor alone, no network round-trip needed. `false` for an action that just runs (a
+ * toast, no dialog) — suppressing the restore there would strand a keyboard user's focus nowhere.
+ */
+export function actionOpensDialog(
+  actions: DocumentActionDescriptor[],
+  action: DocumentActionDescriptor,
+  currentStatus: string | undefined,
+): boolean {
+  if (actionLocksDocument(actions, action, currentStatus)) return true
+  return !!action.params && action.params.length > 0
+}
+
 /** Whether running `action` from `currentStatus` will assign this record its type's own number —
  *  reads the descriptor's own `numbering.onEnterStatus` (see `DocumentTypeDescriptor.numbering`'s own
  *  header) rather than naming a type or an action: a type with no `numbering` at all is never

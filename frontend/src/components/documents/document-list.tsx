@@ -25,6 +25,7 @@ import "@/components/documents/custom-registrations"
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import {
   actionAssignsNumber,
+  actionOpensDialog,
   extraActionGates,
   pickPrimaryAction,
   secondaryActions,
@@ -54,6 +55,7 @@ import type {
 } from "@/components/documents/types"
 import { isActionAvailable, statusLabel } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
+import { useSuppressCloseAutoFocus } from "@/hooks/use-suppress-close-auto-focus"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
 import { useReferenceResolve, useReferenceSearch, useResolvedCompanyCustomFields } from "@/hooks/queries"
@@ -245,6 +247,11 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
   const { t } = useTranslation()
   const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false)
   const [shareLinkDialogOpen, setShareLinkDialogOpen] = useState(false)
+  // Issue #451, defect 1 — see use-suppress-close-auto-focus.ts's own header. Armed only by the
+  // menu entries below that actually open a dialog (share link, recurrence, a locking/params
+  // action), never for a plain-running action or a keyboard Escape close, so the trigger still gets
+  // its focus back exactly when a keyboard user needs it to.
+  const { suppressNextRestore, onCloseAutoFocus } = useSuppressCloseAutoFocus()
   const {
     pendingAction,
     pendingDefaults,
@@ -372,6 +379,7 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           align="end"
           className="min-w-56"
           data-cy={`document-row-menu-content-${instance.id}`}
+          onCloseAutoFocus={onCloseAutoFocus}
         >
           {secondary.map((action) => {
             const hint = transitionHint(t, descriptor, action, instance.status)
@@ -380,7 +388,12 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
               <DropdownMenuItem
                 key={action.id}
                 disabled={!!blocked}
-                onSelect={() => handleAction(action)}
+                onSelect={() => {
+                  // Issue #451, defect 1 — known SYNCHRONOUSLY, from the descriptor alone (see
+                  // `actionOpensDialog`'s own header), never from the action's actual result.
+                  if (actionOpensDialog(descriptor.actions, action, instance.status)) suppressNextRestore()
+                  handleAction(action)
+                }}
                 data-cy={`document-row-action-${action.id}-${instance.id}`}
               >
                 <div className="flex flex-col gap-0.5">
@@ -434,7 +447,10 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           {gates.shareLink && (
             <DropdownMenuItem
               disabled={!!gates.shareLink.policyBlockedReason}
-              onSelect={() => setShareLinkDialogOpen(true)}
+              onSelect={() => {
+                suppressNextRestore()
+                setShareLinkDialogOpen(true)
+              }}
               data-cy={`document-share-link-button-${instance.id}`}
             >
               <Link2 aria-hidden="true" />
@@ -444,7 +460,10 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
 
           {gates.recurrence && (
             <DropdownMenuItem
-              onSelect={() => setRecurrenceDialogOpen(true)}
+              onSelect={() => {
+                suppressNextRestore()
+                setRecurrenceDialogOpen(true)
+              }}
               data-cy={`document-recurrence-button-${instance.id}`}
             >
               <Repeat aria-hidden="true" />

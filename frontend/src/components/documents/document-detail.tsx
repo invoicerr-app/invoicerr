@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next"
 import "@/components/documents/custom-registrations"
 
 import {
+  actionOpensDialog,
   extraActionGates,
   findSaveAction,
   pickPrimaryAction,
@@ -53,6 +54,7 @@ import type {
 } from "@/components/documents/types"
 import { statusLabel } from "@/components/documents/types"
 import { type DocumentFormState, useDocumentForm } from "@/components/documents/use-document-form"
+import { useSuppressCloseAutoFocus } from "@/hooks/use-suppress-close-auto-focus"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -431,6 +433,9 @@ function DocumentDetailActions({
   const [shareLinkOpen, setShareLinkOpen] = useState(false)
   const gates = extraActionGates(descriptor, instance.status)
   const customExtras = getDocumentCustomComponents(descriptor.id, "list-row-extra")
+  // Issue #451, defect 1 — see use-suppress-close-auto-focus.ts's own header and
+  // document-list.tsx's identical wiring for the full reasoning.
+  const { suppressNextRestore, onCloseAutoFocus } = useSuppressCloseAutoFocus()
 
   return (
     <>
@@ -448,7 +453,12 @@ function DocumentDetailActions({
             <ChevronDown className="size-4" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-56" data-cy="document-actions-menu-content">
+        <DropdownMenuContent
+          align="end"
+          className="min-w-56"
+          data-cy="document-actions-menu-content"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
           {secondary.map((action) => {
             const hint = transitionHint(t, descriptor, action, state.currentStatus)
             const blocked = action.policyBlockedReason
@@ -458,7 +468,12 @@ function DocumentDetailActions({
               <DropdownMenuItem
                 key={action.id}
                 disabled={!!blocked}
-                onSelect={() => state.runner.handleAction(action)}
+                onSelect={() => {
+                  // Issue #451, defect 1 — known SYNCHRONOUSLY, from the descriptor alone.
+                  if (actionOpensDialog(descriptor.actions, action, state.currentStatus))
+                    suppressNextRestore()
+                  state.runner.handleAction(action)
+                }}
                 data-cy={`document-action-${action.id}`}
               >
                 <div className="flex flex-col gap-0.5">
@@ -519,7 +534,10 @@ function DocumentDetailActions({
           {gates.shareLink && (
             <DropdownMenuItem
               disabled={!!gates.shareLink.policyBlockedReason}
-              onSelect={() => setShareLinkOpen(true)}
+              onSelect={() => {
+                suppressNextRestore()
+                setShareLinkOpen(true)
+              }}
               data-cy="document-share-link-button"
             >
               <Link2 aria-hidden="true" />
@@ -528,7 +546,13 @@ function DocumentDetailActions({
           )}
 
           {gates.recurrence && (
-            <DropdownMenuItem onSelect={() => setRecurrenceOpen(true)} data-cy="document-recurrence-button">
+            <DropdownMenuItem
+              onSelect={() => {
+                suppressNextRestore()
+                setRecurrenceOpen(true)
+              }}
+              data-cy="document-recurrence-button"
+            >
               <Repeat aria-hidden="true" />
               {t("documents.schedules.rowAction.tooltip")}
             </DropdownMenuItem>
