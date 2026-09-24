@@ -153,6 +153,54 @@ Cypress.Commands.add('waitForLayerTeardown', (contentSelector: string, settledFo
 });
 
 /**
+ * Picks one option in a document form's own `SearchSelect` field and does NOT return until that
+ * picker has finished tearing down (`waitForLayerTeardown` above). The three-line "click the
+ * trigger, wait for the options, click one" this replaces left the caller free to open its NEXT
+ * layer -- very often a `DatePicker`, since "client/issueDate/dueDate/currency" is the invoice
+ * wizard's own first step -- inside the window where the picker's deferred focus restore dismisses
+ * it again.
+ *
+ * `option` picks WHICH entry: 'first' (the default, what almost every caller wants from a seeded
+ * list of one) or an option's own `data-cy` suffix, i.e. its slugified label.
+ * @example cy.pickDocumentFieldOption('currency', 'eur')
+ */
+Cypress.Commands.add('pickDocumentFieldOption', (fieldKey: string, option: string = 'first') => {
+    const wrapper = `[data-cy="document-field-${fieldKey}-input"]`;
+    const options = `[data-cy="document-field-${fieldKey}-input-options"]`;
+    cy.openSearchSelect(`document-field-${fieldKey}-input`);
+    if (option === 'first') {
+        cy.get(`${options} button`).first().click();
+    } else {
+        cy.get(`[data-cy^="document-field-${fieldKey}-input-option-${option}"]`).first().click();
+    }
+    cy.waitForLayerTeardown(options, `${wrapper} button`);
+});
+
+/**
+ * Picks a client in a document form and waits for BOTH things that pick sets in motion:
+ *  1. the picker's own teardown (`pickDocumentFieldOption` above), and
+ *  2. the descriptor refetch it triggers -- `use-document-form.ts` watches the single-target
+ *     'reference' to "client" and re-fetches `GET /api/documents/types/<type>?clientId=…`, because
+ *     the per-country field overlays (country-fields/) depend on the buyer. When that response
+ *     lands, `effectiveDescriptor` is replaced and every rendered field node is rebuilt: a calendar
+ *     opened in between is unmounted mid-command, which is the `[data-cy=date-picker-today]` never
+ *     found that CI hit on PR #446.
+ * The intercept is registered before the click that causes the request, which is the only order
+ * that works.
+ *
+ * Only for a form that HAS a client field. A supplier picker (purchase-order, goods-receipt) drives
+ * no refetch at all -- `cy.pickDocumentFieldOption('supplier')` is what those want, since waiting
+ * here for a request nobody makes is a timeout, not a safety net.
+ * @example cy.pickDocumentClient()
+ */
+Cypress.Commands.add('pickDocumentClient', (option: string = 'first') => {
+    const apiUrl = Cypress.env('apiUrl') || 'http://localhost:4000';
+    cy.intercept({ method: 'GET', url: `${apiUrl}/api/documents/types/*?clientId=*` }).as('clientAwareDescriptor');
+    cy.pickDocumentFieldOption('client', option);
+    cy.wait('@clientAwareDescriptor', { timeout: 20000 });
+});
+
+/**
  * Opens a `DatePicker` popover (frontend/src/components/date-picker.tsx, a Radix `Popover`) and
  * waits for it to have actually mounted, retrying the trigger click (bounded) if it didn't --
  * factored out of `pickToday` so a caller that needs the popover open for something OTHER than the
@@ -263,7 +311,13 @@ Cypress.Commands.add('pickToday', (triggerSelector: string) => {
     // DOM is gone, not that this listener has been torn down -- so it is not by itself enough. The
     // same "short fixed wait after closing a Radix popover" already covers `selectCountry`'s own
     // Radix combobox (right above) for the identical class of race.
-    cy.wait(50);
+    //
+    // That fixed 50ms was a guess at how long the teardown takes. It is now an assertion on the
+    // teardown itself: the content is gone (above) and focus is back on this DatePicker's own
+    // trigger, which is the `FocusScope` unmount cleanup having actually run — see
+    // `waitForLayerTeardown` above for the traced sequence and for what opening the next layer
+    // inside that window does to it.
+    cy.focused({ timeout: 10000 }).should('match', triggerSelector);
 });
 
 /**
@@ -287,12 +341,10 @@ Cypress.Commands.add('pickDate', (triggerSelector: string, iso: string) => {
     // 15th used by the caller above is unique in the grid without filtering by month.
     cy.get('[data-day]').contains(new RegExp(`^${day}$`)).first().click({ force: true });
     cy.get('[data-cy="date-picker-today"]').should('not.exist');
-    // Same fixed wait `pickToday` above carries after its own close click, for the identical race:
-    // the closed popover's `DismissableLayer` detaches its outside-pointerdown listener in a passive
-    // effect's cleanup, not synchronously with `setOpen(false)` — a caller's very next trigger click
-    // (e.g. the currency `SearchSelect` right after a due date, in the wizard's Details step) can
-    // still be swallowed by that stale listener if it fires before the cleanup flushes.
-    cy.wait(50);
+    // Same teardown assertion `pickToday` above ends on, for the identical race: the caller's very
+    // next trigger click (e.g. the currency `SearchSelect` right after a due date, in the wizard's
+    // Details step) must not fire while this popover is still handing focus back.
+    cy.focused({ timeout: 10000 }).should('match', triggerSelector);
 });
 
 /**

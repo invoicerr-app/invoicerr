@@ -28,9 +28,12 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.get('[data-cy="document-create-dialog"]', { timeout: 15000 }).should("be.visible");
 
 		// ---- Details step ----
-		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		// Picking the client is not just a value change: the screen re-fetches its own descriptor
+		// with that client (the country field overlays depend on the buyer) and rebuilds every field
+		// node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+		// rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+		// unmounted or dismissed under the command driving it.
+		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickDate('[data-cy="document-field-dueDate-input"]', "2030-06-15");
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
@@ -129,9 +132,12 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="document-create-dialog"]', { timeout: 15000 }).should("be.visible");
 
-		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		// Picking the client is not just a value change: the screen re-fetches its own descriptor
+		// with that client (the country field overlays depend on the buyer) and rebuilds every field
+		// node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+		// rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+		// unmounted or dismissed under the command driving it.
+		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickDate('[data-cy="document-field-dueDate-input"]', "2030-06-15");
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });

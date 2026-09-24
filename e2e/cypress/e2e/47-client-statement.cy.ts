@@ -123,7 +123,13 @@ describe("Client account statement — aged balance, on screen", () => {
 						});
 
 					// 2) On screen: the statement opens from the client record and displays total + buckets + lines.
+					// The row this clicks exists only once `GET /api/clients` has answered, and the row is
+					// re-rendered when it does. Clicking as soon as `cy.get` first sees it opens a Radix layer on
+					// a node the page has not finished settling — the family of races
+					// support/commands.ts#waitForLayerTeardown documents. Waited on, not hoped for.
+					cy.intercept({ method: "GET", pathname: "/api/clients" }).as("clientsList");
 					cy.visit("/clients");
+					cy.wait("@clientsList", { timeout: 20000 });
 					cy.get(`[data-cy="client-row-menu-${CLIENT_EMAIL}"]`, { timeout: 15000 }).click();
 					cy.get(`[data-cy="statement-client-button-${CLIENT_EMAIL}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="client-statement"]', { timeout: 10000 }).should("be.visible");

@@ -28,6 +28,32 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
+/**
+ * Opens one invoice's "Correct" dialog from the list screen, waiting for the list itself rather
+ * than for the button alone.
+ *
+ * The five callers below used to `cy.visit` and then click the button `{ force: true }` as soon as
+ * `cy.get` found it. `force` skips Cypress's own actionability wait, so the click lands on whatever
+ * node happens to be there at that instant — including one the list is about to replace, because
+ * this button renders from the list response AND from the type descriptor, and the row re-renders
+ * when either lands (plus again, for the "sending" caller, when SSE flips the status). A click on a
+ * node that is then replaced does nothing at all, and the failure surfaces one command later as a
+ * dialog that never opened.
+ *
+ * Waiting for the list request is what makes the rows real before anything is clicked; the click is
+ * then an ordinary one, free to retry against the CURRENT DOM the way a user's own would.
+ * `timeout` exists for the one caller whose invoice is still mid-send when it visits: there the
+ * button genuinely appears later, once the worker has moved the record out of "sending".
+ */
+function openCorrectionDialog(invoiceId: string, timeout = 15000) {
+	cy.intercept({ method: "GET", pathname: "/api/documents", query: { typeId: "invoice" } }).as(
+		"invoiceListForCorrection",
+	);
+	cy.visit("/documents/invoice");
+	cy.wait("@invoiceListForCorrection", { timeout: 20000 });
+	cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, { timeout }).click();
+}
+
 function createClient(name: string) {
 	return cy
 		.request({
@@ -315,11 +341,7 @@ describe("Correct — the screen, browser level", () => {
 		createClient(clientName).then((clientId) => {
 			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
 				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
-					cy.visit("/documents/invoice");
-
-					cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
-						timeout: 15000,
-					}).click({ force: true });
+					openCorrectionDialog(invoiceId);
 					cy.get('[data-cy="document-correction-dialog"]', {
 						timeout: 5000,
 					}).should("be.visible");
@@ -433,11 +455,7 @@ describe("Correct — the screen, browser level", () => {
 		createClient("Client Non Implémenté SARL").then((clientId) => {
 			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
 				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
-					cy.visit("/documents/invoice");
-
-					cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
-						timeout: 15000,
-					}).click({ force: true });
+					openCorrectionDialog(invoiceId);
 					cy.get('[data-cy="document-correction-dialog"]', {
 						timeout: 5000,
 					}).should("be.visible");
@@ -502,11 +520,7 @@ describe("Cancellation — a country that grounds it, a country that doesn't", (
 								"la facture a bien un numéro avant annulation",
 							).to.be.a("string");
 
-							cy.visit("/documents/invoice");
-
-							cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
-								timeout: 15000,
-							}).click({ force: true });
+							openCorrectionDialog(invoiceId);
 							cy.get('[data-cy="document-correction-dialog"]', {
 								timeout: 5000,
 							}).should("be.visible");
@@ -596,15 +610,14 @@ describe("Cancellation — a country that grounds it, a country that doesn't", (
 						]);
 					});
 
-					cy.visit("/documents/invoice");
-
 					// A generous timeout (the pattern from 28-document-async-send.cy.ts): the "Correct"
 					// button only appears once the invoice is "sent"/"send_failed" (isIssued, never
 					// "sending" — invoice-correction-routes-button.tsx), and delivery is still in
-					// progress at the moment of this visit.
-					cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
-						timeout: 30000,
-					}).click({ force: true });
+					// progress at the moment of this visit. This is the one caller whose row is
+					// genuinely re-rendered AFTER the first list response (SSE flips the status), which
+					// is exactly why its click must stay an ordinary, retrying one — see
+					// `openCorrectionDialog`'s own header on what `{ force: true }` did here.
+					openCorrectionDialog(invoiceId, 30000);
 					cy.get('[data-cy="document-correction-dialog"]', {
 						timeout: 5000,
 					}).should("be.visible");
@@ -773,10 +786,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 					).to.be.oneOf([200, 201]);
 				});
 
-				cy.visit("/documents/invoice");
-				cy.get(`[data-cy="document-correction-button-${originalId}"]`, {
-					timeout: 20000,
-				}).click({ force: true });
+				openCorrectionDialog(originalId, 20000);
 				cy.get('[data-cy="document-correction-dialog"]', {
 					timeout: 5000,
 				}).should("be.visible");

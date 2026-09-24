@@ -64,9 +64,10 @@ function openExpenseCreateDialog() {
 }
 
 function pickSelectOption(fieldKey: string, optionSlug: string) {
-	cy.get(`[data-cy="document-field-${fieldKey}-input"] button`).first().click({ force: true });
-	cy.get(`[data-cy="document-field-${fieldKey}-input-options"]`, { timeout: 10000 }).should("be.visible");
-	cy.get(`[data-cy^="document-field-${fieldKey}-input-option-${optionSlug}"]`).first().click();
+	// Same reason as 62-expense-attachments.cy.ts's own copy of this helper: the shared command is
+	// what waits for the picker's teardown, and `fillMinimalExpenseNativeFields` below opens a date
+	// picker on the line right after this one.
+	cy.pickDocumentFieldOption(fieldKey, optionSlug);
 }
 
 /** Archive/restore live in the row's "..." menu (`settings-section.tsx`'s `SettingsRowMenu` grammar,

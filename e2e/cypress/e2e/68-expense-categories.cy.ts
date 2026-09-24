@@ -125,7 +125,14 @@ describe("Expense categories — Settings screen, and the API it drives", () => 
 			const targetId = target!.id;
 			const originalKey = target!.key;
 
+			// Same reason as the clients list elsewhere in this suite: this row renders from
+			// `GET /api/documents/expense-categories` and is re-rendered when it lands, so the dialog
+			// below is opened on a settled row rather than on whatever `cy.get` first saw.
+			cy.intercept({ method: "GET", pathname: "/api/documents/expense-categories" }).as(
+				"expenseCategoriesList",
+			);
 			cy.visit("/settings/expenseCategories");
+			cy.wait("@expenseCategoriesList", { timeout: 20000 });
 			cy.get(`[data-cy="expense-category-rename-button-${targetId}"]`, { timeout: 10000 }).click();
 			cy.get('[data-cy="expense-category-rename-dialog"]').should("be.visible");
 			cy.get('[data-cy="expense-category-rename-label-input"]').clear().type("Team Offsite");

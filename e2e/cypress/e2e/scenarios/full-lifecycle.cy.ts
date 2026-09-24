@@ -1144,7 +1144,15 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 	it(`the correction route ${s.company.country}'s own law allows is the one the UI actually offers — never a fabricated one`, () => {
 		expect(invoiceId, "the main invoice from the previous tests").to.be.a("string");
 
+		// The "Correct" button renders from the list response AND from the type descriptor, and the
+		// row is re-rendered when either lands. Waiting for the list is what makes the row real
+		// before it is clicked, instead of clicking whatever `cy.get` first saw — the same wait
+		// 43-correction-routes.cy.ts's own `openCorrectionDialog` carries for this exact button.
+		cy.intercept({ method: "GET", pathname: "/api/documents", query: { typeId: "invoice" } }).as(
+			"invoiceListForCorrection",
+		);
 		cy.visit("/documents/invoice");
+		cy.wait("@invoiceListForCorrection", { timeout: 20000 });
 		cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, { timeout: 15000 }).click();
 		cy.get('[data-cy="document-correction-dialog"]', { timeout: 10000 }).should("be.visible");
 		// `.should("exist")`, never "be.visible" — the eleven-route list is routinely TALLER than the

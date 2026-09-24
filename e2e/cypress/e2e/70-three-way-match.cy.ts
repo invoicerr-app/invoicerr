@@ -42,9 +42,11 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="document-create-dialog"]', { timeout: 5000 }).should("be.visible");
 
-		cy.get('[data-cy="document-field-supplier-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-supplier-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-supplier-input-options"] button').first().click();
+		// The picker that closes here still owes the page a deferred focus restore, and the calendar
+		// opened right below is what that restore dismisses when it lands late
+		// (support/commands.ts#waitForLayerTeardown). A supplier drives no descriptor refetch, unlike
+		// a client, so the teardown is all there is to wait for here.
+		cy.pickDocumentFieldOption('supplier');
 
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 

@@ -1128,7 +1128,13 @@ describe("Supplier role", () => {
 
 		// Edit round-trip: flip the switch back off — every step is already "done" in edit mode
 		// (`initialMaxReached`), so jump straight to Summary instead of walking every step again.
+		// The row this clicks exists only once `GET /api/clients` has answered, and the row is
+		// re-rendered when it does. Clicking as soon as `cy.get` first sees it opens a Radix layer on
+		// a node the page has not finished settling — the family of races
+		// support/commands.ts#waitForLayerTeardown documents. Waited on, not hoped for.
+		cy.intercept({ method: "GET", pathname: "/api/clients" }).as("clientsList");
 		cy.visit("/clients");
+		cy.wait("@clientsList", { timeout: 20000 });
 		cy.get('[data-cy="edit-client-button-typed-fields@example.com"]', { timeout: 10000 }).click();
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 		cy.get('[data-cy="client-is-supplier-switch"]').click();
