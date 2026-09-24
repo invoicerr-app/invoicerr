@@ -34,6 +34,7 @@
  *   INVOPOP_LIVE=1      Invopop (GOBL pivot) round-trip (requires INVOPOP_API_KEY + INVOPOP_WORKFLOW_ID)
  *   ACUBE_LIVE=1        A-Cube (IT, also a Peppol access point) round-trip - a free sandbox
  *                       account's own e-mail + password, no accreditation and nothing to sign
+ *   BILLIT_LIVE=1       Billit (BE, Peppol access point) round-trip
  */
 // Return type is `typeof describe.skip`, not `typeof describe`: Vitest's `describe` is
 // `SuiteAPI` (the chainable suite function plus `skipIf`/`runIf`), while `describe.skip` is the

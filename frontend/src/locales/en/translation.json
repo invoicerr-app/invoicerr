@@ -2577,6 +2577,8 @@
       "emptyState": "No national channel available yet",
       "fields": {
         "baseUrl": "API base URL",
+        "billitApiKey": "API key",
+        "billitPartyId": "PartyID",
         "chorusProClientId": "PISTE client ID",
         "chorusProClientSecret": "PISTE client secret",
         "chorusProTechnicalAccountLogin": "Chorus Pro technical account login (compte technique)",
