@@ -114,6 +114,45 @@ Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
 });
 
 /**
+ * Waits for a Radix layer that was JUST DISMISSED to have finished tearing down, before the caller
+ * opens another layer on top of it. Two facts, both observable, neither of them a sleep:
+ *  1. the dismissed layer's content is GONE from the DOM -- `Presence` keeps it mounted for the
+ *     whole exit animation (`data-[state=closed]:animate-out` on every content in components/ui/),
+ *     so "the entry was clicked" is nowhere near "the menu is gone";
+ *  2. focus has SETTLED on the element the caller names -- `@radix-ui/react-focus-scope` (1.1.10,
+ *     dist/index.mjs) restores focus to the dismissed layer's trigger from the unmount cleanup's own
+ *     `setTimeout(..., 0)`, i.e. one macrotask AFTER the unmount in (1), never synchronously with
+ *     it; and when that trigger sits OUTSIDE a modal dialog that is still open (a row menu's entry
+ *     that opened one), the dialog's own trapped `FocusScope` immediately bounces focus back inside
+ *     it. Hence "where focus ends up", named by the caller, rather than "the trigger": both moves
+ *     have to have happened, and the second one only exists in some of these hand-offs.
+ *
+ * Opening a popover in the window between (1) and (2) is what silently closes it again: the restore
+ * fires while the NEW layer is already open, moves focus out of it, and its `DismissableLayer`
+ * dismisses on focus-outside. Traced live on 2026-09-24 against a real stack, spec 29's own
+ * sequence, with a `focusin` recorder on `document` (times relative to the recurrence dialog being
+ * visible):
+ *     21ms  focusin  -> DIV[data-cy=document-row-menu-content-<id>]   (menu still animating out)
+ *     55ms  focusin  -> INPUT[placeholder="Search..."]                (cadence popover just opened)
+ *     99ms  focusout <- INPUT[placeholder="Search..."]
+ *    100ms  focusin  -> BUTTON[data-cy=document-row-menu-<id>]        (the menu's deferred restore)
+ *    141ms  popover gone
+ * which is exactly the failure CI reported on PR #447: `cy.click()` on the "Yearly" option "failed
+ * because the page updated while this command was executing" -- the option had been visible a
+ * moment earlier, the assertion right before it passed, and the popover was dismissed while Cypress
+ * was still waiting for the button to become actionable.
+ *
+ * Asserting on a NAMED element rather than on "focus is anywhere" is deliberate: it is the one fact
+ * that PROVES the deferred restore already ran. If a future Radix version leaves focus somewhere
+ * else, this fails loudly on that named element instead of degrading back into a flake.
+ * @example cy.waitForLayerTeardown(`[data-cy="document-row-menu-content-${id}"]`, '[data-cy="document-field-cadence-input"] button')
+ */
+Cypress.Commands.add('waitForLayerTeardown', (contentSelector: string, settledFocusSelector: string) => {
+    cy.get(contentSelector, { timeout: 10000 }).should('not.exist');
+    cy.focused({ timeout: 10000 }).should('match', settledFocusSelector);
+});
+
+/**
  * Opens a `DatePicker` popover (frontend/src/components/date-picker.tsx, a Radix `Popover`) and
  * waits for it to have actually mounted, retrying the trigger click (bounded) if it didn't --
  * factored out of `pickToday` so a caller that needs the popover open for something OTHER than the

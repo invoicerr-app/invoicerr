@@ -116,10 +116,26 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 
 				// A real click — never a direct call to the schedule creation API, which
 				// would bypass the screen.
-				// The entry lives in the row's "more" menu — open the first row's, then click it.
-				cy.get('[data-cy^="document-row-menu-"]').first().scrollIntoView().click();
-				cy.get('[data-cy^="document-recurrence-button-"]', { timeout: 10000 }).first().click();
+				// The entry lives in the row's "more" menu — open THIS invoice's row menu (by id,
+				// never `.first()`: the list is sorted by `updatedAt` and a later seed/sweep could
+				// put another row on top), then click it.
+				cy.openDocumentRowMenu(sourceInvoiceId);
+				cy.get(`[data-cy="document-recurrence-button-${sourceInvoiceId}"]`, { timeout: 10000 }).click();
 				cy.get('[data-cy="create-recurrence-dialog"]', { timeout: 10000 }).should("be.visible");
+				// The dialog being visible is NOT the end of the menu's own teardown: its content
+				// survives its exit animation, and the focus restore its FocusScope schedules runs one
+				// macrotask later still. Opening the cadence popover inside that window is what CI hit
+				// on PR #447 — the restore landed on the row-menu trigger while the popover was open,
+				// focus left the popover, and Radix dismissed it under the click Cypress was still
+				// waiting to make actionable. See `waitForLayerTeardown` (support/commands.ts) for the
+				// recorded `focusin` sequence. Focus settles on the cadence trigger, not on the row
+				// menu's own: the restore puts it back on that trigger, which sits OUTSIDE this modal
+				// dialog, and the dialog's trapped FocusScope pulls it straight back to its own first
+				// tabbable control — which is the very control the next command clicks.
+				cy.waitForLayerTeardown(
+					`[data-cy="document-row-menu-content-${sourceInvoiceId}"]`,
+					'[data-cy="document-field-cadence-input"] button',
+				);
 
 				// Cadence: "Yearly", not the default value ("Monthly") — with a first occurrence
 				// chosen 2 MONTHS in the past (see below), a monthly cycle would require several
@@ -129,6 +145,14 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 				cy.openSelect(
 					'[data-cy="document-field-cadence-input"] button',
 					'[data-cy="document-field-cadence-input-option-yearly"]',
+				);
+
+				// The cadence popover that just closed owes the page a focus restore of its own, for
+				// the exact same reason the row menu did above — and this time the layer opened on top
+				// of it is the calendar. Waited on, not slept through.
+				cy.waitForLayerTeardown(
+					'[data-cy="document-field-cadence-input-options"]',
+					'[data-cy="document-field-cadence-input"] button',
 				);
 
 				// Same open-side race `cy.pickToday` guards against (a still-detaching outside-pointerdown
