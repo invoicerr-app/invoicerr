@@ -48,7 +48,7 @@ describe('CredentialAccessAudit', () => {
     });
 
     const parsed = Date.parse(captured[0].timestamp);
-    expect(isNaN(parsed)).toBe(false);
+    expect(Number.isNaN(parsed)).toBe(false);
   });
 
   it('stopCapture() clears the buffer so further emits go to logger (no error)', () => {
