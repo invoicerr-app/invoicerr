@@ -1,6 +1,6 @@
 /**
  * The country channel mandate ("the channel a country imposes") — the WIRING inside
- * `invoice-actions.ts`'s "send": `resolveCompanyCountryCode` and `activeChannelMandateFor`
+ * `invoice-actions.ts`'s "send": `resolveCompanyCountryCode` and `activeChannelMandateForOperation`
  * (`channel-policy/mandate.ts`) are both
  * mocked here, the same way `documents.service.invoice.spec.ts` already mocks
  * `country-policy/country-policy` wholesale — this file's job is "does invoice-actions.ts react
@@ -108,7 +108,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
 
   it('BLOCKS at the preflight when the company is configured for a DIFFERENT transport — never persisted, message names channel + source', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
@@ -134,7 +134,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
 
   it('BLOCKS the same way when NO transport is configured at all — names the mandate, not the generic "no transport" message', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue(null);
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
@@ -155,7 +155,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
 
   it('BLOCKS, naming both the mandate AND the underlying reason, when the mandated channel IS chosen but its own preflight refuses (not connected)', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('pdp');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
 
@@ -186,7 +186,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
 
   it('ALLOWS the send once the mandated channel is chosen AND ready — the mandate does not block what it requires', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('pdp');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
     (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
@@ -211,7 +211,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
 
   it('a country with NO active mandate leaves the company entirely free to choose — unaffected by the mandate machinery', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('DE');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(undefined);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(undefined);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
     (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
@@ -238,7 +238,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
       'channel-policy/schema.ts\'s own "equivalentProviderIds" header)',
     async () => {
       (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('IT');
-      (mandate.activeChannelMandateFor as Mock).mockReturnValue({
+      (mandate.activeChannelMandateForOperation as Mock).mockReturnValue({
         providerId: 'sdi',
         mandatedFrom: '2019-01-01',
         equivalentProviderIds: ['sdi-pec'],
@@ -274,7 +274,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
 
   it("deliver() (the worker's replay, phase 2) ALSO respects the mandate — a mismatch is refused even if the preflight somehow let it through", async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(FR_MANDATE);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
     // The company switched its transport to "email" AFTER the job was enqueued — deliver() must
     // still honor the mandate at the moment it actually runs, not trust whatever preflight decided.
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');

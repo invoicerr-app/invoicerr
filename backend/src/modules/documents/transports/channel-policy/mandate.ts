@@ -39,11 +39,18 @@
  */
 import { LegalProvenance } from '../../country-policy/schema';
 import { ChannelPolicyCatalog, defaultChannelPolicyCatalog } from './registry';
+import { ChannelPolicyFact, ChannelPolicyScope } from './schema';
 
 export interface ActiveChannelMandate {
   providerId: string;
   mandatedFrom: string;
   provenance: LegalProvenance;
+  /** Passed through verbatim from `ChannelPolicyFact.scope` - WHICH invoices this mandate binds.
+   *  Carried on the result (rather than consumed and discarded) so a caller holding an
+   *  `ActiveChannelMandate` can still see that the mandate it is looking at is a CONDITIONAL one:
+   *  `activeChannelMandateFor` below answers the country-level question and applies no narrowing at
+   *  all, so its result would otherwise look identical to an unconditional mandate. */
+  scope?: ChannelPolicyScope;
   /** Passed through verbatim from `ChannelPolicyFact.equivalentProviderIds` (schema.ts's own header) —
    *  other transport ids that ALSO satisfy this mandate. Absent for every mandate that has exactly one
    *  satisfying transport (still the overwhelming majority, e.g. FR/pdp). This file only carries the
@@ -101,6 +108,19 @@ function isOnOrAfter(issueDate: string | undefined, mandatedFrom: string): boole
  * entries (the FIRST active one in file order wins — the same "in file order" convention
  * `registry.ts`'s own `factsFor` already documents); no shipped file does this today.
  *
+ * ## THIS FUNCTION APPLIES NO `scope` NARROWING, AND MUST NEVER BE USED TO GATE A SEND
+ *
+ * It answers the COUNTRY-LEVEL question - "does this country declare a mandated channel, and has
+ * that mandate come into force for an invoice issued on this date" - which is exactly what
+ * `company/channels/channels.service.ts` (the settings screen's "your country requires this channel"
+ * prompt) needs and all it can answer: that screen has no invoice and no buyer, so there is no
+ * operation to narrow against. A mandate narrowed by `ChannelPolicyFact.scope` (e.g.
+ * `parties: 'domestic'`) is still genuinely declared and in force for the country, and the settings
+ * screen is still right to tell the company to connect the channel.
+ *
+ * Deciding whether a mandate binds ONE PARTICULAR INVOICE is `activeChannelMandateForOperation`
+ * below, and that is the only one `actions/invoice-actions.ts`'s send preflight calls.
+ *
  * `catalog` defaults to the shipped singleton (`defaultChannelPolicyCatalog`) — every real caller
  * (`invoice-actions.ts`, `channels.service.ts`) relies on that default and never passes one. The
  * parameter exists purely for `mandate.spec.ts` to exercise the date arithmetic against a FIXTURE
@@ -120,13 +140,89 @@ export function activeChannelMandateFor(
     // 'legal' provenance; a fact that failed either check never made it into the catalog at all, so
     // the non-null assertions below are backed by that load-time gate, not by hope.
     if (isOnOrAfter(issueDate, fact.mandatedFrom!)) {
-      return {
-        providerId: fact.providerId,
-        mandatedFrom: fact.mandatedFrom!,
-        provenance: fact.provenance as LegalProvenance,
-        equivalentProviderIds: fact.equivalentProviderIds,
-      };
+      return toActiveMandate(fact);
     }
+  }
+  return undefined;
+}
+
+function toActiveMandate(fact: ChannelPolicyFact): ActiveChannelMandate {
+  return {
+    providerId: fact.providerId,
+    mandatedFrom: fact.mandatedFrom!,
+    provenance: fact.provenance as LegalProvenance,
+    equivalentProviderIds: fact.equivalentProviderIds,
+    scope: fact.scope,
+  };
+}
+
+/** The one operation a channel mandate is evaluated against: who issues, who receives, and when.
+ *  `buyerCountryCode` is `undefined` when the invoice's own client cannot be resolved to an ISO code
+ *  - see `activeChannelMandateForOperation` for why that case is deliberately treated as domestic. */
+export interface ChannelMandateOperation {
+  /** The ISSUING company's own country, already resolved to an ISO 3166-1 alpha-2 code. */
+  sellerCountryCode: string;
+  /** The country the BUYER is established in, already resolved to an ISO 3166-1 alpha-2 code, or
+   *  `undefined` when it could not be resolved at all. */
+  buyerCountryCode?: string;
+  /** The INVOICE's own `issueDate`, never the server's clock - see this file's header. */
+  issueDate?: string;
+}
+
+function isDomestic(operation: ChannelMandateOperation): boolean {
+  const buyer = (operation.buyerCountryCode ?? '').trim().toUpperCase();
+  // An UNRESOLVED buyer country is treated as domestic, i.e. the mandate still binds. This is the
+  // fail-CLOSED direction on purpose: the alternative - "we could not tell, so assume the buyer is
+  // abroad and let the invoice leave through any channel" - would let an unknown client silently
+  // defeat a legal obligation, which is the one outcome that cannot be walked back once the invoice
+  // is out. It also costs nothing in practice: this same "send" preflight already hard-blocks an
+  // invoice whose buyer country cannot be resolved, one check further down
+  // (`tax/resolve-invoice-tax.ts`'s own `UnresolvedBuyerCountryError`, a USER DECISION of
+  // 2026-09-01), so an invoice reaching delivery with no buyer country does not exist today.
+  if (!buyer) return true;
+  return buyer === operation.sellerCountryCode.trim().toUpperCase();
+}
+
+/**
+ * The (at most one) channel mandate that binds ONE PARTICULAR INVOICE - the seller's country, the
+ * invoice's own issue date, AND the fact's own `ChannelPolicyFact.scope`. This is what
+ * `actions/invoice-actions.ts`'s "send" preflight calls; `activeChannelMandateFor` above answers a
+ * strictly wider, country-level question and must not be used to gate a send.
+ *
+ * ## Why a national channel mandate is not a property of the seller alone
+ *
+ * A national e-invoicing mandate governs a DOMESTIC operation. Both mandates shipped today say so in
+ * the statutory text this catalog already quotes: France's plateforme agréée obligation is framed
+ * between taxable persons established in France (CGI art. 289 bis), and Italy's SdI obligation
+ * applies to supplies "tra soggetti residenti o stabiliti nel territorio dello Stato" (D.Lgs.
+ * 127/2015 art. 1 comma 3). A French seller invoicing a buyer established in Italy is outside the
+ * French invoicing mandate by construction - and it is not caught by the Italian one either, which
+ * binds only parties established in Italy and puts the reporting of that inbound transaction on the
+ * ITALIAN buyer, not on the French supplier. Deciding a mandate from the seller's country and the
+ * date alone therefore refused a lawful invoice, which is a product failure of the exact kind
+ * `channel-policy/data/pl.json`'s own notes already argue against for Poland's KSeF timetable.
+ *
+ * ## What this function deliberately does NOT do
+ *
+ * It does not implement, discharge, or even represent the DECLARATION each side may still owe its
+ * own administration once the invoicing mandate falls away (France: e-reporting, CGI art. 290;
+ * Italy: the art. 1 comma 3-bis transmission of data on operations with non-established subjects).
+ * Those are separate obligations with their own means and their own deadlines. `reporting/` is where
+ * such an obligation would live in this codebase, and its own data files already state which of
+ * France's facts are unexecutable placeholders there. Nothing here should be read as "the product
+ * handles the reporting side" - it does not.
+ */
+export function activeChannelMandateForOperation(
+  operation: ChannelMandateOperation,
+  catalog: ChannelPolicyCatalog = defaultChannelPolicyCatalog,
+): ActiveChannelMandate | undefined {
+  for (const fact of catalog.factsFor(operation.sellerCountryCode)) {
+    if (fact.requirement !== 'mandated') continue;
+    if (!isOnOrAfter(operation.issueDate, fact.mandatedFrom!)) continue;
+    // A fact with no `scope` binds unconditionally - the behaviour every fact had before `scope` was
+    // read at all (schema.ts's own header on that field).
+    if (fact.scope?.parties === 'domestic' && !isDomestic(operation)) continue;
+    return toActiveMandate(fact);
   }
   return undefined;
 }

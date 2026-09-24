@@ -118,7 +118,7 @@ honest gap rather than a guess.
 | B2G routing | `b2g-routing/data/` | When this country is the **government client's** country: which transport + format, which client identifiers/document fields it needs. | Yes — `boot-upsert.ts`, unconditionally re-upserted on **every** backend boot (`OnModuleInit`). |
 | Correction routes | `correction-routes/data/` | For each of the 11 canonical correction routes (credit note, corrective invoice, cancel-and-replace, …), is it `required`/`allowed`/`forbidden`/`unverified` for this country. | No — read live from the file. |
 | Local cancel (derived) | `correction-routes/cancel-policy.ts` | Whether *this app* can actually realize `CANCEL_AND_REPLACE` locally for this country (a whitelist cross-checked against the correction-routes data above). | No — pure function over the file above. |
-| Channel policy | `transports/channel-policy/data/` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? | No — read live from the file. |
+| Channel policy | `transports/channel-policy/data/` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? A `mandated` fact may narrow itself with `scope: { "parties": "domestic" }`, meaning it binds only an invoice whose buyer is established in the same country - which is what both national mandates shipped today actually say. | No - read live from the file. |
 | Tax system | `tax/tax-systems/data/` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). | No — read live from the file. |
 | Country identifiers | `country-identifiers/data/` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply. | Yes — auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
 | Country field overlay | `country-fields/data/` | Adds/modifies/removes a **field** on an existing document type's shape for this country. | No — read live from the file. |
@@ -194,8 +194,20 @@ up front:
   provenance and a `mandatedFrom` date — the schema throws at load if you mark something mandated
   on an `unverified` claim. If you're not yet confident the channel is genuinely *required* rather
   than merely usual, stay `suggested` — see `it.json`/`pl.json`'s own `suggested` entries, both
-  still `unverified` today but honestly so; the mandate mechanism is binary (mandated or
-  suggested) and has no way to encode a conditional or partial exception.
+  still `unverified` today but honestly so.
+  The mandate mechanism understands exactly ONE narrowing, and no other: `scope: { "parties":
+  "domestic" }`, which makes the fact bind only when the buyer is established in the same country.
+  Declare it whenever the statute you quote restricts itself to operations between parties
+  established there, as France's CGI art. 289 bis and Italy's D.Lgs. 127/2015 art. 1 comma 3 both do
+  - without it the mandate would refuse a lawful cross-border invoice. `scope` is a **closed** shape:
+  any other key, or any other value, throws at load rather than being ignored, because a silently
+  ignored narrowing is a legal block left armed (or disarmed) by accident. Every other kind of
+  conditional or partial exception - a turnover threshold, a taxpayer status, a transaction type -
+  still has no way to be encoded, and a fact that would need one stays `suggested`: see `pl.json`'s
+  own notes for a worked example of that choice.
+  Narrowing the invoicing mandate does not discharge whatever DECLARATION the same law may still
+  require for the cross-border operation (France's e-reporting, Italy's art. 1 comma 3-bis). That
+  belongs to `reporting/`, and neither is implemented today.
 - `content-requirements/data/<cc>.json` facts are **always** `legal` — there is no `unverified`
   escape hatch for a content requirement; if you can't source it yet, don't ship it.
 - `tax/tax-systems/data/<cc>.json` may omit `standardRate` for a VAT/GST country **if**

@@ -5,7 +5,7 @@
  * same split `country-policy.spec.ts` vs. `schema.spec.ts` already keeps for the sibling module.
  */
 import { ChannelPolicyCatalog } from './registry';
-import { activeChannelMandateFor } from './mandate';
+import { activeChannelMandateFor, activeChannelMandateForOperation } from './mandate';
 
 // `activeChannelMandateFor` reads the SHIPPED, singleton catalog by default — this first block
 // exercises it against the real, shipped `fr.json` (item 11's actual data), rather than only ever a
@@ -195,5 +195,107 @@ describe('activeChannelMandateFor — date arithmetic, on an injected fixture ca
       'alt-channel-a',
       'alt-channel-b',
     ]);
+  });
+});
+
+/**
+ * `activeChannelMandateForOperation` - the scope narrowing, against the REAL, SHIPPED catalog. A
+ * fixture-only suite would prove nothing about the bug this mechanism exists to fix: what was broken
+ * in production is that `data/fr.json`'s own mandate bound an invoice it has no business binding, so
+ * the shipped file itself is what has to be asserted on here.
+ */
+describe('activeChannelMandateForOperation - a national mandate governs DOMESTIC operations only', () => {
+  it('FR seller -> FR buyer, on or after 2026-09-01: the PDP mandate binds, exactly as before', () => {
+    const mandate = activeChannelMandateForOperation({
+      sellerCountryCode: 'FR',
+      buyerCountryCode: 'FR',
+      issueDate: '2026-09-15',
+    });
+    expect(mandate?.providerId).toBe('pdp');
+    expect(mandate?.scope).toEqual({ parties: 'domestic' });
+  });
+
+  it('FR seller -> IT buyer, same date: NO mandate - the French obligation does not reach a buyer established abroad', () => {
+    expect(
+      activeChannelMandateForOperation({
+        sellerCountryCode: 'FR',
+        buyerCountryCode: 'IT',
+        issueDate: '2026-09-15',
+      }),
+    ).toBeUndefined();
+  });
+
+  it('IT seller -> IT buyer binds, IT seller -> FR buyer does not - the rule is general, never a French special case', () => {
+    expect(
+      activeChannelMandateForOperation({
+        sellerCountryCode: 'IT',
+        buyerCountryCode: 'IT',
+        issueDate: '2026-09-15',
+      })?.providerId,
+    ).toBe('sdi');
+    expect(
+      activeChannelMandateForOperation({
+        sellerCountryCode: 'IT',
+        buyerCountryCode: 'FR',
+        issueDate: '2026-09-15',
+      }),
+    ).toBeUndefined();
+  });
+
+  it('the buyer country is compared case-insensitively and trimmed - "fr " is still France', () => {
+    expect(
+      activeChannelMandateForOperation({
+        sellerCountryCode: 'FR',
+        buyerCountryCode: 'fr ',
+        issueDate: '2026-09-15',
+      })?.providerId,
+    ).toBe('pdp');
+  });
+
+  it('an UNKNOWN buyer country is treated as domestic - fail-closed, an unresolved client never disarms a mandate', () => {
+    expect(
+      activeChannelMandateForOperation({ sellerCountryCode: 'FR', issueDate: '2026-09-15' })?.providerId,
+    ).toBe('pdp');
+  });
+
+  it('the date gate still applies independently of the scope: FR -> FR before 2026-09-01 is free', () => {
+    expect(
+      activeChannelMandateForOperation({
+        sellerCountryCode: 'FR',
+        buyerCountryCode: 'FR',
+        issueDate: '2026-08-31',
+      }),
+    ).toBeUndefined();
+  });
+
+  it('a mandate with NO scope at all binds every operation, cross border included - the pre-existing default', () => {
+    const unscoped = new ChannelPolicyCatalog([
+      {
+        countryCode: 'ZZ',
+        facts: [
+          {
+            providerId: 'fixture-channel',
+            requirement: 'mandated',
+            mandatedFrom: '2030-06-15',
+            provenance: { kind: 'legal', sourceText: 'Fixture legal text.', sourceCheckedAt: '2026-08-27' },
+          },
+        ],
+      },
+    ]);
+    expect(
+      activeChannelMandateForOperation(
+        { sellerCountryCode: 'ZZ', buyerCountryCode: 'YY', issueDate: '2030-06-15' },
+        unscoped,
+      )?.providerId,
+    ).toBe('fixture-channel');
+  });
+
+  it('the country-level `activeChannelMandateFor` is deliberately UNCHANGED - the settings screen still sees the mandate', () => {
+    // The two functions answer different questions on purpose (see `mandate.ts`'s own headers):
+    // "does this country mandate a channel" (settings screen, buyer-blind) versus "does that mandate
+    // bind THIS invoice" (send preflight). This assertion is the guard against someone "fixing" the
+    // first one by folding the narrowing into it, which would quietly stop telling a French company
+    // to connect its PDP at all.
+    expect(activeChannelMandateFor('FR', '2026-09-15')?.providerId).toBe('pdp');
   });
 });

@@ -83,7 +83,7 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
 
   beforeEach(() => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(null);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(null);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
       applies: false,

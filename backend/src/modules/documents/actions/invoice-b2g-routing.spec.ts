@@ -2,7 +2,7 @@
  * The B2G routing PRECEDENCE — the WIRING inside `invoice-actions.ts`'s "send": `resolveClientB2gRouting`
  * (`b2g-routing/b2g-routing.ts`) is mocked wholesale here, the exact same style
  * `invoice-channel-mandate.spec.ts` already established for `channel-policy/mandate.ts`'s
- * `activeChannelMandateFor` — this file's job is "does invoice-actions.ts react correctly to a B2G
+ * `activeChannelMandateForOperation` - this file's job is "does invoice-actions.ts react correctly to a B2G
  * decision", never "is the DE/xrechnung rule's own data right" (that is `b2g-routing/data/all.spec.ts`'s
  * job) nor "does the DB read resolve identifiers correctly" (that is `b2g-routing/b2g-routing.spec.ts`'s
  * job). Calls the registered "send" handler directly, bypassing `DocumentsService.runAction`'s own
@@ -139,7 +139,7 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
   it('a BUSINESS client (applies: false) is completely unaffected — regression: existing behavior unchanged', async () => {
     mockB2g({ applies: false });
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue(undefined);
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(undefined);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(undefined);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
     (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
@@ -294,14 +294,14 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
 
   // MUTATION GUARD #1 — "B2G precedence ignored (the company's own choice wins)" — this test fails the
   // instant `resolveInvoiceTransport` stops short-circuiting on `b2g.applies` (or is reordered after
-  // the seller-country mandate check): `mandate.activeChannelMandateFor` would then actually run and
+  // the seller-country mandate check): `mandate.activeChannelMandateForOperation` would then actually run and
   // this assertion on `toHaveBeenCalled()` — or the refusal message itself — would flip.
   it("PRECEDENCE: a government client of an uncovered-transport country BLOCKS naming that country's OWN channel — the seller-country mandate is NEVER EVEN CONSULTED, even when one is active for this company", async () => {
     mockB2g({ applies: true, countryCode: 'FR', rule: FR_RULE_UNIMPLEMENTED, missingIdentifierSchemes: [] });
     // This company's OWN country mandates "pdp" — irrelevant: the recipient's B2G regime
-    // wins, so `activeChannelMandateFor` must never even be called.
+    // wins, so `activeChannelMandateForOperation` must never even be called.
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue({
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue({
       providerId: 'pdp',
       mandatedFrom: '2026-09-01',
       provenance: {
@@ -333,7 +333,7 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
     await expect(action).rejects.toThrow(/Code de la commande publique/);
     // The precedence proof: the seller's own FR/PDP mandate machinery is skipped ENTIRELY for a B2G
     // client — never merely overridden by a message that happens to look right.
-    expect(mandate.activeChannelMandateFor).not.toHaveBeenCalled();
+    expect(mandate.activeChannelMandateForOperation).not.toHaveBeenCalled();
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
 
