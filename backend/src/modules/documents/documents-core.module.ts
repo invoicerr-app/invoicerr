@@ -81,6 +81,7 @@ import {
   RealStripeCheckoutClient,
 } from './payments/providers/stripe/stripe-checkout-client';
 import { StripeProvider } from './payments/providers/stripe/stripe-provider';
+import { buildAcubeTransport } from './transports/acube-transport';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
@@ -289,6 +290,16 @@ function buildTransportRegistry(
     'sdi-pec',
     'SdI via PEC (Italy)',
     buildSdiPecTransport({ channelCredentials, fatturapaFormatProvider, mailService }),
+  );
+  // "acube" (`transports/acube-transport.ts`) - A-Cube, an Italian platform registered by the DGFiP
+  // that is also a Peppol access point. It deposits the SAME FatturaPA "sdi"/"sdi-pec" build, through
+  // a REST API instead of SDICoop or PEC, and - unlike both of those - its round-trip is proven live
+  // (2026-09-24, see that file's own header). Own `fatturapaFormatProvider` reference, same
+  // "stateless, no reason to couple two registries" reasoning every transport above already holds.
+  registry.register(
+    'acube',
+    'A-Cube (Italy)',
+    buildAcubeTransport({ channelCredentials, fatturapaFormatProvider }),
   );
   // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
   // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see

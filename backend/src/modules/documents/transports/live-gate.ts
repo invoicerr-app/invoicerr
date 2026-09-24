@@ -30,6 +30,8 @@
  *   SDI_LIVE=1          SdI (IT) round-trip (requires AdE accreditation + PFX)
  *   PEC_LIVE=1          SdI-via-PEC (IT) round-trip (a real PEC mailbox — NO accreditation required)
  *   PORTAL_LIVE=1       National portal round-trip (requires PORTAL_ID + portal-specific creds)
+ *   ACUBE_LIVE=1        A-Cube (IT, also a Peppol access point) round-trip - a free sandbox
+ *                       account's own e-mail + password, no accreditation and nothing to sign
  */
 // Return type is `typeof describe.skip`, not `typeof describe`: Vitest's `describe` is
 // `SuiteAPI` (the chainable suite function plus `skipIf`/`runIf`), while `describe.skip` is the

@@ -106,6 +106,16 @@ jobs:
       SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
       SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
 
+      # --- IT A-Cube (also a Peppol access point) - ACCOUNT e-mail + password, not an API key: the
+      # platform has no per-integration key concept, so the secret below opens the web console too.
+      # The round-trip was proven for real on 2026-09-24 from a developer machine (see
+      # live-testing.md); these two secrets do NOT exist in this repository yet, so this row
+      # self-skips here exactly like every other unfilled channel above.
+      ACUBE_LIVE: '1'
+      PDP_ACUBE_EMAIL:    ${{ secrets.PDP_ACUBE_EMAIL }}
+      PDP_ACUBE_PASSWORD: ${{ secrets.PDP_ACUBE_PASSWORD }}
+      PDP_ACUBE_ENVIRONMENT: 'sandbox'
+
       # --- Online payment — Stripe → Mollie → PayPal (2026-09-15). All
       # three self-skip with no secrets set, same as every other row here; none has ever run for real
       # in this repo (see live-testing.md's own table).
