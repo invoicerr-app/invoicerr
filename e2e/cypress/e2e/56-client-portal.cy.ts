@@ -106,7 +106,13 @@ function createSentQuote(clientId: string, unitPrice: number) {
  *  create) and returns the raw token read straight off the on-screen input — the same "read the
  *  actual copyable value, never guess it" discipline `37-document-share-link.cy.ts` already holds. */
 function inviteToPortalFromScreen(email: string): Cypress.Chainable<{ url: string; token: string }> {
+	// The row this clicks exists only once `GET /api/clients` has answered, and the row is
+	// re-rendered when it does. Clicking as soon as `cy.get` first sees it opens a Radix layer on
+	// a node the page has not finished settling — the family of races
+	// support/commands.ts#waitForLayerTeardown documents. Waited on, not hoped for.
+	cy.intercept({ method: "GET", pathname: "/api/clients" }).as("clientsList");
 	cy.visit("/clients");
+	cy.wait("@clientsList", { timeout: 20000 });
 	cy.get(`[data-cy="client-row-menu-${email}"]`, { timeout: 15000 }).click();
 	cy.get(`[data-cy="portal-access-client-button-${email}"]`, { timeout: 15000 }).click();
 	cy.get('[data-cy="portal-access-dialog"]', { timeout: 15000 }).should("be.visible");

@@ -100,9 +100,12 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.get('[data-cy="document-field-dueDate"]').should("contain.text", "Due date");
 		cy.get('[data-cy="document-field-currency"]').should("contain.text", "Currency");
 
-		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		// Picking the client is not just a value change: the screen re-fetches its own descriptor
+		// with that client (the country field overlays depend on the buyer) and rebuilds every field
+		// node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+		// rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+		// unmounted or dismissed under the command driving it.
+		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickToday('[data-cy="document-field-dueDate-input"]');
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
@@ -164,9 +167,12 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		// "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the wizard's own "Details"
 		// step, ahead of "Lines" — nothing this test actually reads, just what has to be filled to
 		// reach the row the vatRate field lives on (document-create-dialog.tsx's `buildFieldGroups`).
-		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		// Picking the client is not just a value change: the screen re-fetches its own descriptor
+		// with that client (the country field overlays depend on the buyer) and rebuilds every field
+		// node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+		// rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+		// unmounted or dismissed under the command driving it.
+		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickToday('[data-cy="document-field-dueDate-input"]');
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });

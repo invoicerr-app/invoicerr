@@ -29,6 +29,15 @@ describe("Create client from the document wizard's own client picker", () => {
 		const notes = "Note déjà saisie avant la création du client";
 
 		cy.intercept("POST", `${api}/api/clients`).as("createClient");
+		// The client created below is also SELECTED when the nested dialog closes, and selecting one
+		// makes the screen re-fetch its own descriptor with that client (`use-document-form.ts` —
+		// the per-country field overlays depend on the buyer). That response rebuilds every rendered
+		// field node, so it is waited on before the wizard moves to its next step rather than left to
+		// land in the middle of one. Registered here, before anything can cause it.
+		cy.intercept({
+			method: "GET",
+			url: `${api}/api/documents/types/invoice?clientId=*`,
+		}).as("clientAwareDescriptor");
 
 		cy.visit("/documents/invoice");
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
@@ -117,6 +126,10 @@ describe("Create client from the document wizard's own client picker", () => {
 			"contain.text",
 			clientName,
 		);
+		// The trigger carrying the name proves the FORM took the value; it says nothing about the
+		// descriptor refetch that value set off (see this test's own intercept above). Waited on here
+		// so the field rebuild it causes lands now, and not under the "Lines" step below.
+		cy.wait("@clientAwareDescriptor", { timeout: 20000 });
 
 		cy.continueDocumentWizard(); // Details -> Lines
 		cy.get('[data-cy="document-field-lines-add-row"]').click();

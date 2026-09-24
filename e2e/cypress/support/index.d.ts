@@ -124,6 +124,24 @@ declare namespace Cypress {
         waitForLayerTeardown(contentSelector: string, settledFocusSelector: string): Chainable<void>
 
         /**
+         * Picks one option in a document form's own `SearchSelect` field and waits for that picker
+         * to have finished tearing down before returning, so the caller's next layer (very often a
+         * `DatePicker`) is not opened inside the window where the deferred focus restore dismisses
+         * it. `option` is 'first' (default) or an option's own slugified-label `data-cy` suffix.
+         * @example cy.pickDocumentFieldOption('currency', 'eur')
+         */
+        pickDocumentFieldOption(fieldKey: string, option?: string): Chainable<void>
+
+        /**
+         * Picks a client in a document form and waits for the picker's teardown AND for the
+         * client-aware descriptor refetch that pick triggers (`use-document-form.ts`), which
+         * rebuilds every rendered field node when it lands. Never for a supplier picker: that one
+         * drives no refetch, so this would wait for a request nobody makes.
+         * @example cy.pickDocumentClient()
+         */
+        pickDocumentClient(option?: string): Chainable<void>
+
+        /**
          * Opens a `SearchSelect` (components/search-input.tsx) popover WITHOUT picking an option —
          * for callers that type a filter into it afterward (CurrencySelect and friends) instead of
          * clicking a fixed entry. Same bounded-retry open-side guard as `openSelect`/`openDatePicker`

@@ -25,9 +25,12 @@ describe("Empty line items are dropped on save, a half-filled one is not", () =>
 		cy.get('[data-cy="document-create-dialog"]', { timeout: 15000 }).should("be.visible");
 
 		// ---- Details step: client / issueDate / dueDate / currency (all `required`) ----
-		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		// Picking the client is not just a value change: the screen re-fetches its own descriptor
+		// with that client (the country field overlays depend on the buyer) and rebuilds every field
+		// node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+		// rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+		// unmounted or dismissed under the command driving it.
+		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		// A fixed, far-future, mid-month day — never "today" no matter when this runs, and never
 		// ambiguous with an outside-month leading/trailing grid cell (see `pickDate`'s own header).

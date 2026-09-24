@@ -229,11 +229,12 @@ describe('Articles E2E', () => {
             // The "client" reference field — same generic SearchSelect pattern every other spec in
             // this suite uses for one (see 20-document-totals.cy.ts's own comment on why the BUTTON,
             // not the container, is what opens the popover).
-            cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-            cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should(
-                'be.visible',
-            );
-            cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+            // Picking the client is not just a value change: the screen re-fetches its own descriptor
+            // with that client (the country field overlays depend on the buyer) and rebuilds every field
+            // node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+            // rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+            // unmounted or dismissed under the command driving it.
+            cy.pickDocumentClient();
 
             // "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the invoice wizard's own
             // "Details" step (document-create-dialog.tsx's `buildFieldGroups`) — same fill as
