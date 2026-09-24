@@ -3,11 +3,11 @@
  * `transports/invopop-transport.ts`. Dependency-free (bare `fetch`), the same shape
  * `pdp/pdp-client.ts` already holds for superpdp, so nothing here needs a vendor SDK.
  *
- * THE MODEL, in the platform's own words (docs.invopop.com/llms.md, read 2026-09-24): you PUT a GOBL
- * document into the SILO, which wraps it in an envelope and stores it as an ENTRY; you then PUT a JOB
- * that runs a published WORKFLOW over that entry. The workflow's steps (number, sign, convert to the
- * local syntax, hand to the tax authority or network, render a PDF) are what actually transmits.
- * There is no single "deposit this invoice" call: the two writes below ARE the deposit.
+ * THE MODEL, in the platform's own words (https://docs.invopop.com/llms.md, read 2026-09-24): a GOBL
+ * document is PUT into the SILO, which wraps it in an envelope and stores it as an ENTRY; a JOB is
+ * then PUT that runs a published WORKFLOW over that entry. The workflow's steps (number, sign,
+ * convert to the local syntax, hand to the tax authority or network, render a PDF) are what actually
+ * transmits. There is no single "deposit this invoice" call: the two writes below ARE the deposit.
  *
  * VERIFIED LIVE 2026-09-24 against the sandbox workspace (see `invopop.live.spec.ts`, and
  * `documentation/docs/developer-guide/live-testing.md` for the captured round trip):
