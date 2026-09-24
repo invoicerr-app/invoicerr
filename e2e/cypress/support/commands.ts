@@ -145,6 +145,24 @@ Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
  * Asserting on a NAMED element rather than on "focus is anywhere" is deliberate: it is the one fact
  * that PROVES the deferred restore already ran. If a future Radix version leaves focus somewhere
  * else, this fails loudly on that named element instead of degrading back into a flake.
+ *
+ * ## Since the product fix for #451 (PR #456): (1) is unchanged, (2) changed meaning
+ * `frontend/src/lib/close-auto-focus-guard.ts`, wired into every shared menu/popover/select content
+ * and into `SearchSelect`, cancels the deferred restore when focus already sits on a connected
+ * element other than <body> at the moment it fires -- i.e. when it would STEAL focus from a layer
+ * the user already moved to. Otherwise the restore runs exactly as before. So:
+ *  - (1) still holds and is still the wait: the dismissed content leaves the DOM in both worlds.
+ *  - (2) is no longer a race guard -- opening the next layer inside the window no longer dismisses
+ *    it -- but it is kept as an ASSERTION of the keyboard behaviour the guard must preserve. Measured
+ *    on a real stack (Chromium, 2026-09-24): after a row-menu entry opens a dialog, focus is already
+ *    on the dialog's first tabbable control (its own `FocusScope` mount-autofocus runs before the
+ *    menu's deferred restore, which the guard then cancels); after a pick with nothing else opened,
+ *    the restore runs and focus is back on the picker's trigger. Both are the element callers name.
+ *    If the guard ever regresses into suppressing the restore outright, focus ends on <body> and
+ *    this fails loudly -- which is exactly how the first version of #456 was caught.
+ * Consequence: NO spec using this command can see the race come back (guard deleted, they all
+ * stay green). The regression guard for that is `84-layer-focus-restore.cy.ts`, which makes the
+ * race deterministic instead of waiting it out.
  * @example cy.waitForLayerTeardown(`[data-cy="document-row-menu-content-${id}"]`, '[data-cy="document-field-cadence-input"] button')
  */
 Cypress.Commands.add('waitForLayerTeardown', (contentSelector: string, settledFocusSelector: string) => {
