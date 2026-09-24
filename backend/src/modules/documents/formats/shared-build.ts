@@ -160,10 +160,13 @@ function extractBuyerReference(data: Record<string, unknown>): string | undefine
  *
  * `options.customizationId` is the ONE thing `peppol-bis-provider.ts`/`xrechnung-provider.ts` pass
  * that `cii-provider.ts`/`ubl-provider.ts`/`facturx-provider.ts` never do — see
- * `SemanticInvoiceInput.customizationId`'s own header. `options.businessProcessCodeOverride` and
- * `options.legalIdOverride` are its BT-23/BT-29-BT-30-BT-46-BT-47 siblings, passed ONLY by the Chorus
- * Pro-configured `facturx-provider.ts` instance — see `SemanticInvoiceInput.businessProcessCodeOverride`'s
- * and `SemanticInvoiceInput.legalIdOverride`'s own headers for why. Every other extraction below
+ * `SemanticInvoiceInput.customizationId`'s own header. `options.businessProcessCodeOverride` has TWO
+ * callers today: the Chorus Pro-configured `facturx-provider.ts` instance (its own, Chorus-specific
+ * "Cadre de facturation" vocabulary) and `peppol-bis-provider.ts` (the fixed Peppol BIS Billing
+ * profile URN, GH-448) — see `SemanticInvoiceInput.businessProcessCodeOverride`'s own header for both.
+ * `options.legalIdOverride` is its BT-29-BT-30-BT-46-BT-47 sibling, passed ONLY by the Chorus
+ * Pro-configured `facturx-provider.ts` instance — see `SemanticInvoiceInput.legalIdOverride`'s own
+ * header for why. Every other extraction below
  * (buyer reference, cross-border mentions, lines) is already syntax/profile-agnostic and stays exactly
  * as it was.
  */

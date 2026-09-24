@@ -7,6 +7,7 @@
  */
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
+import { ciiFormatProvider } from './cii-provider';
 import { DocumentFormatParty } from './format-provider';
 import { peppolBisFormatProvider } from './peppol-bis-provider';
 import { EN16931_UBL_SCH, PEPPOL_BIS_UBL_SCH, validateSchematron } from './vendored/validate-schematron';
@@ -182,5 +183,48 @@ describe('peppol-bis-provider — the master proof (fixture computed by hand)', 
     const xml = Buffer.from(result.bytes).toString('utf-8');
     const noteMatches = [...xml.matchAll(/<cbc:Note>/g)];
     expect(noteMatches.length).toBeLessThanOrEqual(1);
+  }, 30_000);
+
+  // GH-448 — a French seller ON OR AFTER the 2026-09-01 CGI-reform mandate has
+  // `business-process.ts#resolveFrenchBusinessProcessCode` write a French BT-23 code (B1/S1/M1/...)
+  // into `cbc:ProfileID`. PEPPOL-EN16931-R001/R007 require that SAME element to carry a genuine
+  // `urn:fdc:peppol.eu:2017:poacc:billing:NN:1.0` business-process URN — the two requirements
+  // collide on the one wire slot, and the French value always loses that fight against the vendored
+  // delta. Before the fix, this document (mandate-dated, so `resolveFrenchBusinessProcessCode`
+  // actually fires) fails the Peppol BIS gate outright.
+  it('GH-448: a French seller ON OR AFTER the mandate still gets the Peppol BIS billing profile URN in cbc:ProfileID, not the French CGI code', async () => {
+    const mandateDocument = {
+      ...DOCUMENT,
+      data: { ...DOCUMENT_DATA, issueDate: '2026-09-24', dueDate: '2026-10-24' },
+    };
+
+    const result = await peppolBisFormatProvider.build(descriptor, mandateDocument, FRENCH_SELLER, BUYER);
+
+    // The real gate: 0 error means both the base EN 16931 Schematron and the Peppol BIS delta
+    // (R001/R007 included) accepted the document.
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+
+    const xml = Buffer.from(result.bytes).toString('utf-8');
+    expect(xml).toContain('<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>');
+  }, 30_000);
+
+  // Regression guard for the GH-448 fix: the French CII/Factur-X channel — the one BT-23's French
+  // CGI-reform derivation actually targets — must keep emitting the French code, unaffected by
+  // Peppol BIS now overriding its own copy of the same wire slot.
+  it('GH-448 regression guard: the SAME mandate-dated French seller document, built via the CII provider, still carries the French CGI code (no supplyType declared → M1)', async () => {
+    const mandateDocument = {
+      ...DOCUMENT,
+      data: { ...DOCUMENT_DATA, issueDate: '2026-09-24', dueDate: '2026-10-24' },
+    };
+
+    const result = await ciiFormatProvider.build(descriptor, mandateDocument, FRENCH_SELLER, BUYER);
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+
+    const xml = Buffer.from(result.bytes).toString('utf-8');
+    expect(xml).toMatch(
+      /<(?:ram:)?BusinessProcessSpecifiedDocumentContextParameter>\s*<(?:ram:)?ID>M1<\/(?:ram:)?ID>/,
+    );
   }, 30_000);
 });
