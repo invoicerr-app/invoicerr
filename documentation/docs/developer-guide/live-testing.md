@@ -471,28 +471,45 @@ Unlike SdI's SDICoop channel, NOTHING here needs AdE accreditation. What remains
 ## Running in GitHub Actions
 
 Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
-- The `live` job runs `npx jest live` against a disposable Postgres + Redis, which sweeps in every
-  `*.live.spec.ts` / `*-live.spec.ts` file matched above (KSeF, PDP, SdI, TSA, Chorus Pro), each
-  self-gating on its own flag and credentials.
-- **Not yet reconciled with this architecture, named honestly rather than fixed silently**: the
-  workflow file's own env block still sets flags this codebase no longer reads (`EMAIL_LIVE`,
-  `PDP_AFNOR_LIVE`, `COMPLIANCE_LIVE_DB_TESTS`) — harmless (nothing consumes them) rather than
-  wrong. Its separate `national-portals-live` job still runs `npx jest portal-live`, a pattern that
-  matches no file in this repository (`portal-live.spec.ts` no longer exists) — that job runs and
-  currently finds nothing to execute. This is a defect in the workflow file itself, out of scope for
-  this guide to fix.
+- The `live` job runs, against a disposable Postgres:
+  ```
+  cd backend && npx vitest run .live.spec.ts --no-file-parallelism \
+    --reporter=default --reporter=json --outputFile.json=live-results.json
+  ```
+  That filter matches exactly the 31 `*.live.spec.ts` files (KSeF, PDP, SdI, TSA, Chorus Pro, the
+  payment providers, Polar, the S3/MinIO and OCR round-trips…), each self-gating on its own flag and
+  credentials. No Redis service: none of those 31 files opens a BullMQ/ioredis connection.
+- A second step then reads `live-results.json` and **fails the job when zero live tests executed**.
+  Vitest exits 0 when every suite self-skips, so the exit code alone cannot tell "all gates opened
+  and passed" from "nothing ran at all" - and the second of those is the failure mode this job
+  actually spent months in. A single channel skipping for want of its own secret is still correct and
+  expected; only an entirely empty run is red.
+- **Fixed 2026-09-24 (was: `npx jest live`).** Jest and ts-jest left `backend/package.json` with the
+  2026-09-19 Vitest migration, so that command had no local binary: `npx` downloaded `jest@30` from
+  the registry and ran it with no config and no TypeScript transform. Nightly run `35972649692`
+  (2026-09-24) reported `Test Suites: 35 failed, 35 total` / `Tests: 0 total` - a red job that never
+  executed a single live spec, which is also why the older `*-live.spec.ts` (hyphen) half of the old
+  pattern is gone from the command above: `src/live-spec-naming.spec.ts` now guarantees no such file
+  exists.
+- **Still not reconciled, named honestly rather than fixed silently**: the workflow's env block sets
+  a few flags this codebase no longer reads (`EMAIL_LIVE`, `PDP_AFNOR_LIVE`,
+  `COMPLIANCE_LIVE_DB_TESTS`) - harmless (nothing consumes them) rather than wrong. The
+  `national-portals-live` job those notes used to describe no longer exists in the file at all.
 
-> **Cron caveat:** GitHub only fires the `schedule` trigger from the repository's **default branch**
-> (typically `main`). On a feature branch, the nightly `cron: '0 3 * * *'` entry above is inert —
-> use the **"Run workflow"** button (`workflow_dispatch`) targeting that branch instead; the cron
-> starts firing automatically once the workflow file is merged to the default branch.
+> **Cron caveat:** GitHub only fires the `schedule` trigger from the repository's **default branch**,
+> which in this repository is **`dev`**, not `main` - so the nightly `cron: '0 3 * * *'` is already
+> firing (runs `35835437074` and `35972649692`). On any other branch it is inert; use the
+> **"Run workflow"** button (`workflow_dispatch`) targeting that branch instead.
 >
-> **What "green" means with zero secrets configured:** every creds-gated spec (KSeF, PDP, SdI, TSA,
+> **What "green" means with zero secrets configured:** every creds-gated spec (KSeF, PDP, SdI,
 > Chorus Pro) self-skips via `liveDescribe` — see the hard-success contract at the top of this file,
-> enforced by each spec, not by the gate. Only the genuinely creds-free specs actually run and must
-> pass: Email/Mailpit (`DOCUMENTS_MAIL_LIVE`, though the workflow does not currently set this flag —
-> see the caveat above). A fully green *real-round-trip* matrix (KSeF CLEARED, PDP PENDING/CLEARED,
-> SdI CLEARED, …) additionally needs the repo secrets listed in the table below — see also
+> enforced by each spec, not by the gate. One row still runs with no secret at all: the RFC 3161 TSA
+> one, whose `TSA_URL` falls back to the public `https://freetsa.org/tsr` in the workflow when the
+> secret of that name is unset. That is deliberate - it is what keeps the "at least one live spec
+> executed" step above from failing a repository that simply has no credentials yet, while still
+> failing one where the credentials silently stopped reaching the specs. A fully green
+> *real-round-trip* matrix (KSeF CLEARED, PDP PENDING/CLEARED, SdI CLEARED, …) additionally needs the
+> repo secrets listed in the table below - see also
 > [Credentials Guide](./credentials-guide.md) for the per-platform setup walkthrough.
 
 > **`*_LIVE` and `*_ENVIRONMENT` are constants in the workflow — do NOT add them as GitHub secrets.**
