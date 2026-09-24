@@ -1,4 +1,4 @@
-![Invoicerr](./Invoicerr_banner.webp)
+![Invoicerr](https://raw.githubusercontent.com/invoicerr-app/brand/main/social/banner.webp)
 
 Open-source invoicing you host yourself: quotes, invoices, payments and the paperwork that follows —
 including the e-invoicing rules of the country you bill from.
