@@ -160,6 +160,9 @@ Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
  *    the restore runs and focus is back on the picker's trigger. Both are the element callers name.
  *    If the guard ever regresses into suppressing the restore outright, focus ends on <body> and
  *    this fails loudly -- which is exactly how the first version of #456 was caught.
+ * Consequence: NO spec using this command can see the race come back (guard deleted, they all
+ * stay green). The regression guard for that is `84-layer-focus-restore.cy.ts`, which makes the
+ * race deterministic instead of waiting it out.
  * @example cy.waitForLayerTeardown(`[data-cy="document-row-menu-content-${id}"]`, '[data-cy="document-field-cadence-input"] button')
  */
 Cypress.Commands.add('waitForLayerTeardown', (contentSelector: string, settledFocusSelector: string) => {
