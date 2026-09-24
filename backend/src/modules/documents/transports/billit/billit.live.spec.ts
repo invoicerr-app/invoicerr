@@ -38,23 +38,27 @@
  * for anyone whose own sandbox has a better one.
  *
  * ROUND-TRIP PROVEN 2026-09-24, and reproduced before this header was written: two independent runs
- * of THIS spec deposited for real and came back with `InboxItemID` 1117002 and 1117004. Delivery is
+ * of THIS spec deposited for real and came back with `InboxItemID` 1117029 and 1117033. Delivery is
  * not inferred from the 200 either - the receiver ANSWERED. `GET /peppol/inbox` carries one IMR
  * (Peppol invoice message response) per deposit, `SenderPeppolID: 0208:0563846944` back to
  * `ReceiverPeppolID: 9957:FR54982187676`, which is this company. The deposit really left the
  * platform and really reached the far end of the Peppol test network.
  *
- * TWO THINGS THAT COST A DAY TO FIND, both recorded here so nobody pays for them twice:
+ * IT IS ALSO THE ONLY PLACE GH-448 / PR #452 IS PROVEN AGAINST A REAL PLATFORM. The seller below is
+ * FRENCH and the invoice is dated TODAY, so it falls inside the French BT-23 mandate (from
+ * 2026-09-01). `business-process.ts` therefore derives a French CGI code for it - measured, on the
+ * CII channel, as `S1` - while `peppol-bis-provider.ts` overrides `cbc:ProfileID` with the fixed
+ * Peppol Billing profile URN `urn:fdc:peppol.eu:2017:poacc:billing:01:1.0`. That is exactly what
+ * went on the wire in the accepted deposits above. Until this spec ran, that fix was only ever
+ * judged by the vendored Schematron; now a real Peppol access point has accepted the result. Do not
+ * pin this date back to dodge the mandate: an invoice dated a day early exercises a case no user has.
  *
- *  1. THE SUPPLIER IN THE DOCUMENT MUST BE THE BILLIT COMPANY ITSELF - see the `seller` fixture's
- *     own comment below. A supplier Billit cannot match to the `partyID` header is refused with a
- *     generic HTTP 400 that names nothing at all. The same document with the right supplier is
- *     accepted. Billit's own `/orders` route reports the underlying reason properly where
- *     `/peppol/sendxml` does not, so when this spec fails opaquely, POST a throwaway order and read
- *     ITS message log: that is where the real sentence is.
- *  2. A FRENCH SELLER DATED ON OR AFTER 2026-09-01 CANNOT BE BUILT AT ALL - see the `issueDate`
- *     comment below. That is a limitation of THIS codebase (BT-23 landing in `cbc:ProfileID`), not
- *     of Billit, and it is why the date is pinned rather than `new Date()`.
+ * ONE MORE THING THAT COST A DAY, recorded so nobody pays for it twice: THE SUPPLIER IN THE DOCUMENT
+ * MUST BE THE BILLIT COMPANY ITSELF - see the `seller` fixture's own comment below. A supplier
+ * Billit cannot match to the `partyID` header is refused with a generic HTTP 400 that names nothing
+ * at all. The same document with the right supplier is accepted. Billit's own `/orders` route
+ * reports the underlying reason properly where `/peppol/sendxml` does not, so when this spec fails
+ * opaquely, POST a throwaway order and read ITS message log: that is where the real sentence is.
  *
  * TRIAL EXPIRY: the sandbox account this runs against is a 14-day trial opened 2026-09-24, so it
  * stops being runnable on 2026-10-08 unless Billit extends it. See the live-testing guide.
@@ -139,22 +143,18 @@ describeLive('Billit live round-trip (sandbox) - Peppol BIS UBL deposit accepted
       status: 'sent',
       data: {
         client: 'live-client',
-        // PINNED, AND THE PIN IS THE POINT. The seller above is FRENCH, and France mandates BT-23
-        // from 2026-09-01 (`content-requirements/data/fr.json`, CGI ann. II art. 242 nonies A I 8 bis).
-        // `formats/semantic/business-process.ts` writes that French code into UBL's `cbc:ProfileID`,
-        // which Peppol reserves for its OWN process URNs, so a French invoice dated on or after that
-        // day is rejected by our own vendored Peppol delta before it ever reaches Billit:
-        //   PEPPOL-EN16931-R007: Business process MUST be in the format
-        //   'urn:fdc:peppol.eu:2017:poacc:billing:NN:1.0' ...
-        // 2026-08-31 is ONE DAY before the mandate, so the temporal gate correctly resolves no code
-        // and `@e-invoice-eu/core`'s own default (the Peppol URN) stands - the SAME "the gate refuses
-        // to fire a day early" fact `pdp/pdp.live.spec.ts` already leans on, in the opposite
-        // direction. This is a documented limitation of the CODEBASE, not of Billit, and it is NOT a
-        // claim that a post-mandate French invoice can go out over Peppol today: it cannot, and the
-        // live-testing guide says so in its own section. The day BT-23 gets a per-syntax home (the
-        // way Chorus Pro already has `businessProcessCodeOverride`), unpin this.
-        issueDate: '2026-08-31',
-        dueDate: '2026-08-31',
+        // TODAY, DELIBERATELY - this invoice is INSIDE the French mandate, which is the case a
+        // French user actually has. The seller above is French, so `business-process.ts` derives a
+        // French BT-23 code (CGI ann. II art. 242 nonies A I 8 bis, mandated from 2026-09-01) for
+        // this document, and `peppol-bis-provider.ts` discards it in favour of the fixed Peppol
+        // Billing profile URN `urn:fdc:peppol.eu:2017:poacc:billing:01:1.0` (Peppol BIS Billing 3.0
+        // §13.2), which is what `cbc:ProfileID` is allowed to carry on this syntax. That is the fix
+        // from GH-448 / PR #452, and THIS spec is where it stops being a Schematron result and
+        // becomes a fact about a real platform: the deposit below is a mandated French invoice
+        // accepted by a real Peppol access point. Do not pin this date back: an invoice dated a day
+        // before the mandate exercises a case nobody has.
+        issueDate: new Date().toISOString().slice(0, 10),
+        dueDate: new Date().toISOString().slice(0, 10),
         currency: 'EUR',
         // PEPPOL-EN16931-R003 - a buyer reference or a purchase order MUST be provided. `data.buyerReference`
         // is the key `formats/shared-build.ts#extractBuyerReference` reads generically, whatever

@@ -42,7 +42,7 @@ Hard-success contract (enforced per-spec):
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | `chorus-pro/choruspro.live.spec.ts` | ✅ **Full qualification round-trip proven live 2026-09-14** — a real Factur-X deposit reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP: []`), after two earlier deposits were rejected and fixed (see `credentials-guide.md` §3 and commits `67a94d58`/`7de5a90c`/`ecce4d35`). Proven in **qualification only** — no production PISTE application or Chorus Pro production raccordement exists, and nothing after `IN_INTEGRE` (a public buyer's own `MISE_A_DISPOSITION`/`MANDATEE`/`MISE_EN_PAIEMENT`) has been exercised. |
 | Invopop (GOBL pivot) | `INVOPOP_LIVE=1` | `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID` (`INVOPOP_BASE_URL` optional, normally unset) | `invopop/invopop.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real GOBL `bill/invoice` deposited as silo entry `01a0d28d-5c3e-7af6-8d08-f2c412a9ac28` in the `invoicerr` sandbox workspace, workflow job `01a0d28d-5c3e-77a1-8874-9112b9fa3e85` completed `status: OK` with NO `faults`, the envelope came back `signed: true` with a real ES256 signature, and the platform's own recomputed `payable` (`290.00 EUR`) matched this product's own totals exactly. Proven in **sandbox only** - production needs a paid Developer tier and a live workspace. NOT proven: any country-specific transmission step (the workflow used here signs and stops), and no conformity poller exists for this channel. |
 | A-Cube (also a Peppol access point) | `ACUBE_LIVE=1` | `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD` (`PDP_ACUBE_ENVIRONMENT` optional, defaults to the sandbox) | `acube/acube.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real FatturaPA, built by this repository's own `fatturapa-provider.ts` and gated by the real vendored `Schema_VFPR12.xsd`, deposited through `POST /invoices` on `it-sandbox.api.acubeapi.com` and answered `202 {"uuid": "01a0d284-f0ac-76fb-af3d-0b359d20ad2a"}`; the uuid was then **read back off the platform** (`GET /invoices/{uuid}` → `marking: "waiting"`, `transmission_format: "FPR12"`, `document_type: "TD01"`, the deposited payload echoed back with our own invoice number in it). Sandbox only: A-Cube does not forward a sandbox deposit to SdI at all, so no cleared/rejected SdI verdict is reachable here and none is asserted. Production terms are not published - nothing about the production host has been attempted. |
-| Billit (BE, Peppol access point) | `BILLIT_LIVE=1` | `BILLIT_API_BASE`, `BILLIT_API_KEY`, `BILLIT_PARTY_ID` (`BILLIT_RECEIVER_ENDPOINT` optional) | `billit/billit.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real Peppol BIS Billing 3.0 UBL, built by the real `peppol-bis-provider.ts` and gated by the real EN 16931 + Peppol Schematron rulesets, deposited through `POST /peppol/sendxml` and accepted: `InboxItemID` **1117002**, reproduced on a second independent run as **1117004**. Delivery is not inferred from the 200: the receiver ANSWERED, and `GET /peppol/inbox` carries one IMR per deposit from `0208:0563846944` back to `9957:FR54982187676`. Two findings cost a day and are written up in the dedicated section below - the supplier in the document must BE the Billit company, and a French seller dated on or after 2026-09-01 cannot be built at all (our own BT-23/`cbc:ProfileID` clash, not Billit's). ⚠️ The sandbox is a 14-day trial opened 2026-09-24: this stops being runnable on **2026-10-08**. |
+| Billit (BE, Peppol access point) | `BILLIT_LIVE=1` | `BILLIT_API_BASE`, `BILLIT_API_KEY`, `BILLIT_PARTY_ID` (`BILLIT_RECEIVER_ENDPOINT` optional) | `billit/billit.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real Peppol BIS Billing 3.0 UBL, built by the real `peppol-bis-provider.ts` and gated by the real EN 16931 + Peppol Schematron rulesets, deposited through `POST /peppol/sendxml` and accepted: `InboxItemID` **1117029**, reproduced on a second independent run as **1117033**. Delivery is not inferred from the 200: the receiver ANSWERED, and `GET /peppol/inbox` carries one IMR per deposit from `0208:0563846944` back to `9957:FR54982187676`. The invoice is a **mandated French** one dated the day it ran, so this is also the only place GH-448 / PR #452 (the Peppol `cbc:ProfileID` fix) is proven against a real platform rather than only against the vendored Schematron. The one thing that cost a day is written up in the dedicated section below: the supplier in the document must BE the Billit company. ⚠️ The sandbox is a 14-day trial opened 2026-09-24: this stops being runnable on **2026-10-08**. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa.live.spec.ts` | ✅ **Proven live** — a real TST DER from FreeTSA (`https://freetsa.org/tsr`) embedded as a genuine XAdES-T `SignatureTimeStamp`; no credential needed (FreeTSA is public/anonymous). First proven 2026-06-30; re-run 2026-09-14 — `TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr npx jest tsa.live --no-coverage --runInBand` → 3/3, exit 0 (`HttpTsaClient`, `XadesSigningProvider` level-T, the env-built signing registry) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | Company lookup, through the onboarding wizard UI (same provider chain, driven by Cypress rather than calling the service directly) | `COMPANY_LOOKUP_LIVE=1` (passed as `--env COMPANY_LOOKUP_LIVE=1` to Cypress — note Cypress delivers it as a NUMBER, so the spec compares with `String(...)`, not `===`) | _(none, same reason as above)_ | `e2e/cypress/e2e/18-onboarding-wizard.cy.ts` (one `it` inside a shared `describe`, not a separate file — its title itself states the gate) | ✅ Proven live (created 2026-08-30; re-run 2026-09-14) — `4/4` passing with the gate open, EDF's real SIRET pre-filling the form and the persisted company read back from the database. Not run by any CI workflow (neither `cypress.yml`'s default `Tests` job nor a Cypress equivalent of `compliance-live.yml`, which does not exist) — offline, this test shows as Cypress "Pending", by design, same as the row above. |
@@ -659,11 +659,11 @@ vendored Peppol delta, nothing mocked:
 Billit participant lookup: { identifier: '0208:0563846944', registered: true,
   documentTypes: [ 'BISv3Invoice', 'IMR', 'MLR', 'BISv3CreditNote', ... ] }
 Peppol BIS UBL built and validated, bytes: 4002
-Billit /peppol/sendxml response: 1117002
-DEPOSIT ACCEPTED - InboxItemID: 1117002 receiver: 0208 0563846944
+Billit /peppol/sendxml response: 1117029
+DEPOSIT ACCEPTED - InboxItemID: 1117029 receiver: 0208 0563846944
 ```
 
-Reproduced on a second independent run: `InboxItemID` **1117004**.
+Reproduced on a second independent run: `InboxItemID` **1117033**.
 
 Note the response body is a **bare integer**, not a JSON object - `billit-client.ts#extractInboxItemId`
 accepts both shapes for exactly this reason.
@@ -703,29 +703,30 @@ Two facts, both from Billit's own documentation, both worth knowing before anyon
    after which this live spec stops being runnable at all until the account is extended or replaced.
    If you are reading this after that date and the spec fails on authentication, that is why.
 
-### A French seller cannot currently produce a valid Peppol BIS document
+### This is also where the Peppol `cbc:ProfileID` fix is proven live
 
-Found while building this connector, and **not** a Billit problem - a pre-existing interaction inside
-this repository. For a French seller with an issue date on or after 2026-09-01, the French BT-23
-business-process code (`formats/semantic/business-process.ts`, mandated by CGI ann. II art. 242
-nonies A, I, 8° bis) is written into UBL's `cbc:ProfileID`, which Peppol reserves for its own process
-URNs. The vendored Peppol delta then rejects the document:
+The Billit sandbox company is **French**, and the live spec dates its invoice the day it runs, so
+every deposit above is a **mandated French invoice** (the French BT-23 obligation runs from
+2026-09-01, `content-requirements/data/fr.json`, CGI ann. II art. 242 nonies A I 8 bis).
 
-```
-PEPPOL-EN16931-R007: Business process MUST be in the format
-'urn:fdc:peppol.eu:2017:poacc:billing:NN:1.0' where NN indicates the process number.
-```
+That is the exact case GH-448 was about. `formats/semantic/business-process.ts` derives a French CGI
+category for such an invoice, and `cbc:ProfileID` is where UBL carries BT-23 - but Peppol reserves
+that element for its own process URNs, so the French code failed `PEPPOL-EN16931-R007` outright. PR
+#452 fixed it by having `peppol-bis-provider.ts` pass `businessProcessCodeOverride` with the fixed
+Peppol Billing profile identifier (Peppol BIS Billing 3.0 §13.2), leaving the CII/Factur-X channel
+untouched.
 
-**This is why `billit.live.spec.ts` pins its `issueDate` to `2026-08-31`** rather than using
-`new Date()`: one day before the mandate, the temporal gate correctly resolves no code and
-`@e-invoice-eu/core`'s own default (the Peppol URN) stands, so the document builds and the real
-deposit goes through. The pin is documented in the spec itself and is **not** a claim that a
-post-mandate French invoice can go out over Peppol. It cannot, today.
+Measured on this repository's own output for the seller and date the live spec uses:
 
-The Billit sandbox company is French, so this bites the moment the pin is removed. Fixing it is its
-own piece of work: BT-23 needs a per-syntax home, the way Chorus Pro already has
-`businessProcessCodeOverride`. It is deliberately not fixed here, and it affects `download-xml` in
-Peppol BIS syntax for every French seller too, not just this transport.
+| Syntax | BT-23 carries | Why |
+|---|---|---|
+| Peppol BIS UBL (`cbc:ProfileID`) | `urn:fdc:peppol.eu:2017:poacc:billing:01:1.0` | Peppol BIS Billing 3.0 §13.2, forced by the override from #452 |
+| CII / Factur-X (`BusinessProcessSpecifiedDocumentContextParameter/ram:ID`) | `S1` | the French CGI category, unchanged - the fix is scoped per syntax, not per seller |
+
+**And a real Peppol access point accepted the first one.** Before this spec ran, #452 was judged only
+by the vendored Schematron, which is our own copy of the rules; now the document it produces has been
+taken by Billit and answered by the receiver. If that fix ever regresses, this is the test that will
+say so against something other than ourselves.
 
 ## SdI prerequisites (currently deferred — code is implemented-awaiting-accreditation)
 
