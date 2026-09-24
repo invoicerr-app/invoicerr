@@ -10,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useSuppressCloseAutoFocus } from "@/hooks/use-suppress-close-auto-focus"
 
 /**
  * Reproduces GitHub issue #451, defect 1: `@radix-ui/react-focus-scope`'s own unmount cleanup
@@ -18,8 +17,14 @@ import { useSuppressCloseAutoFocus } from "@/hooks/use-suppress-close-auto-focus
  * package's `focus-scope.tsx`) — one macrotask AFTER the layer that triggered it (here, the row's
  * "more" menu) has already closed. A popover opened INSIDE that window (a date picker inside the
  * dialog a menu entry just opened) gets dismissed on focus-outside the moment that deferred restore
- * lands: it moves DOM focus to the row menu's own trigger button, which sits OUTSIDE the popover,
- * and the popover's own `DismissableLayer` reads that as "focus left the popover" and dismisses it.
+ * lands, UNLESS something guards against it: it moves DOM focus to the row menu's own trigger
+ * button, which sits OUTSIDE the popover, and the popover's own `DismissableLayer` reads that as
+ * "focus left the popover" and dismisses it.
+ *
+ * `DropdownMenuContent` (`components/ui/dropdown-menu.tsx`) wires `lib/close-auto-focus-guard.ts`'s
+ * shared guard unconditionally, so every menu in the app gets this for free — no per-call-site
+ * arming (unlike the previous, since-reverted fix, which required every dialog-opening menu entry to
+ * call `suppressNextRestore()` itself).
  *
  * Two jsdom gaps this test works around, proven against the installed packages (not guessed):
  *  - jsdom has no `PointerEvent` at all, and Radix's `DropdownMenuTrigger` opens on `pointerdown`,
@@ -36,12 +41,12 @@ import { useSuppressCloseAutoFocus } from "@/hooks/use-suppress-close-auto-focus
  * `document.activeElement` becomes the row menu's own trigger once the deferred restore fires — the
  * exact fact the issue's own trace names ("100ms focusin BUTTON[data-cy=document-row-menu-<id>]").
  * A real browser's `DismissableLayer` then reads that focus-outside move and dismisses the calendar
- * (the "141ms popover gone" the issue also records, and what the fix ultimately prevents in
- * production); jsdom's focus/blur plumbing does not reliably reproduce that SECOND, downstream step
- * even once the trigger IS wrongly refocused (proven empirically against the installed Radix
- * packages: forcing the restore to fire here does not, on its own, unmount the calendar in this
- * environment) — so asserting on the calendar's presence alone would pass even unfixed, a false
- * green. Asserting on WHERE focus lands is what the fix actually controls either way. */
+ * (the "141ms popover gone" the issue also records, and what the guard prevents in production);
+ * jsdom's focus/blur plumbing does not reliably reproduce that SECOND, downstream step even once the
+ * trigger IS wrongly refocused (proven empirically against the installed Radix packages: forcing the
+ * restore to fire here does not, on its own, unmount the calendar in this environment) — so asserting
+ * on the calendar's presence alone would pass even unfixed, a false green. Asserting on WHERE focus
+ * lands is what the guard actually controls either way. */
 beforeEach(() => {
   vi.stubGlobal(
     "ResizeObserver",
@@ -67,7 +72,6 @@ beforeEach(() => {
 
 function RowMenuHarness() {
   const [dialogOpen, setDialogOpen] = useState(false)
-  const { suppressNextRestore, onCloseAutoFocus } = useSuppressCloseAutoFocus()
 
   return (
     <>
@@ -77,14 +81,8 @@ function RowMenuHarness() {
             Row menu
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent onCloseAutoFocus={onCloseAutoFocus}>
-          <DropdownMenuItem
-            data-cy="open-dialog-item"
-            onSelect={() => {
-              suppressNextRestore()
-              setDialogOpen(true)
-            }}
-          >
+        <DropdownMenuContent>
+          <DropdownMenuItem data-cy="open-dialog-item" onSelect={() => setDialogOpen(true)}>
             Open dialog
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -119,8 +117,8 @@ async function flushMicrotasks() {
   await Promise.resolve()
 }
 
-describe("<DropdownMenuContent> — a popover opened by a menu entry's own dialog survives the menu's deferred focus restore", () => {
-  it("never yanks focus back to the row menu's own trigger once a calendar is open inside the dialog it opened", async () => {
+describe("<DropdownMenuContent> — close-autofocus guard (issue #451)", () => {
+  it("race: never yanks focus back to the row menu's own trigger once a calendar is open inside the dialog it opened", async () => {
     render(<RowMenuHarness />)
 
     openRowMenu()
@@ -128,8 +126,9 @@ describe("<DropdownMenuContent> — a popover opened by a menu entry's own dialo
     await flushMicrotasks()
 
     // The dialog mounted synchronously (`setDialogOpen(true)`, flushed by `fireEvent`'s own `act()`)
-    // — open the date picker inside it BEFORE the menu's deferred restore has had a macrotask to
-    // run in.
+    // — its own FocusScope autofocuses something inside it (dialog content itself, absent another
+    // tabbable candidate) BEFORE the menu's deferred restore has had a macrotask to run in. Open the
+    // date picker inside it too, to match the live trace exactly.
     fireEvent.click(screen.getByTestId("dialog-date-input"))
     expect(screen.getByTestId("date-picker-today")).toBeInTheDocument()
     const rowMenuTrigger = screen.getByTestId("row-menu-trigger")
@@ -145,7 +144,21 @@ describe("<DropdownMenuContent> — a popover opened by a menu entry's own dialo
     expect(screen.getByTestId("date-picker-today")).toBeInTheDocument()
   })
 
-  it("still returns focus to the row menu's own trigger on a PLAIN close (Escape) — no keyboard regression", async () => {
+  it("a11y: a menu entry that opens a dialog ends with focus inside the dialog, not on <body>", async () => {
+    render(<RowMenuHarness />)
+
+    openRowMenu()
+    fireEvent.click(screen.getByTestId("open-dialog-item"))
+    await flushMicrotasks()
+
+    const dialogContent = screen.getByTestId("dialog-date-input").closest('[role="dialog"]')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(document.activeElement).not.toBe(document.body)
+    expect(dialogContent?.contains(document.activeElement)).toBe(true)
+  })
+
+  it("a11y: still returns focus to the row menu's own trigger on a PLAIN close (Escape) — no keyboard regression", async () => {
     render(<RowMenuHarness />)
 
     openRowMenu()

@@ -6,7 +6,7 @@ import { useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useSuppressCloseAutoFocus } from "@/hooks/use-suppress-close-auto-focus"
+import { guardCloseAutoFocus } from "@/lib/close-auto-focus-guard"
 
 interface Option {
   label: string
@@ -55,11 +55,6 @@ export default function SearchSelect({
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
-  // Issue #451, defect 2 — see use-suppress-close-auto-focus.ts's own header: closing THIS popover
-  // by picking an option (never by Escape/outside-click) must not let its deferred close-autofocus
-  // restore steal focus back from whatever the user opens next (a SIBLING field's own picker,
-  // opened right after — the exact race that made a just-picked-client's date-picker vanish).
-  const { suppressNextRestore, onCloseAutoFocus } = useSuppressCloseAutoFocus()
 
   const handleSearchChange = (search: string) => {
     setSearchValue(search)
@@ -85,7 +80,6 @@ export default function SearchSelect({
       onValueChange?.(newValue)
     } else {
       onValueChange?.(optionValue)
-      suppressNextRestore()
       setIsOpen(false)
     }
   }
@@ -162,7 +156,10 @@ export default function SearchSelect({
             sideOffset={4}
             className="z-50 w-[var(--radix-popover-trigger-width)] bg-popover border rounded-md shadow-md outline-hidden"
             onOpenAutoFocus={(e) => e.preventDefault()}
-            onCloseAutoFocus={onCloseAutoFocus}
+            // Issue #451 — see lib/close-auto-focus-guard.ts's own header. This component bypasses
+            // ui/popover.tsx (its own `PopoverPrimitive.Content` directly), so it needs its own
+            // wiring rather than inheriting PopoverContent's.
+            onCloseAutoFocus={(event) => guardCloseAutoFocus(event)}
             {...(dataCyValue ? dataCy(dataCyValue) : {})}
           >
             <div className="p-2 border-b">
@@ -209,10 +206,6 @@ export default function SearchSelect({
                 <button
                   type="button"
                   onClick={() => {
-                    // Same race as an ordinary option pick above — the footer action's own handler
-                    // (e.g. "+ Create new…") typically opens ANOTHER dialog right on the heels of
-                    // this close.
-                    suppressNextRestore()
                     setIsOpen(false)
                     footerAction.onClick()
                   }}
