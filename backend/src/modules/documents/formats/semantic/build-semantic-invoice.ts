@@ -260,12 +260,15 @@ export interface SemanticInvoiceInput {
   /**
    * BT-23 (Business process type) override — bypasses `resolveFrenchBusinessProcessCode` entirely
    * (the CGI ann. II art. 242 nonies A "goods/services/mixed" derivation this file's own header
-   * documents) and writes this value into `cbc:ProfileID` verbatim instead. Exists for TWO callers
+   * documents) and writes this value into `cbc:ProfileID` verbatim instead. Exists for THREE callers
    * today: `facturx-provider.ts`'s Chorus Pro-specific instance (wired via
-   * `FacturxProviderDeps.businessProcessCodeOverride`, `documents-core.module.ts`) and
+   * `FacturxProviderDeps.businessProcessCodeOverride`, `documents-core.module.ts`),
    * `peppol-bis-provider.ts` (GH-448 — the fixed Peppol BIS Billing profile URN, Peppol BIS Billing
    * 3.0 §13.2, must win over a mandated French seller's own derived CGI code on that syntax; see that
-   * file's own header, "PEPPOL-EN16931-R001/R007").
+   * file's own header, "PEPPOL-EN16931-R001/R007") and `xrechnung-provider.ts` (the same
+   * collision judged against a DIFFERENT specification: XRechnung 3.0.2 §11.27 makes BT-23 mandatory
+   * and names that same Peppol billing URN as its own Default-Wert; see that file's own header,
+   * "BT-23").
    *
    * WHY a second, unrelated meaning for the SAME wire element: `BusinessProcessSpecifiedDocumentContextParameter/ID`
    * is ALSO where Chorus Pro's OWN, older "Cadre (Mode de Facturation)" business concept lives — a
