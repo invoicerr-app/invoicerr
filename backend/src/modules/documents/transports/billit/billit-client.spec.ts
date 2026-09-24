@@ -73,7 +73,24 @@ describe('BillitClient', () => {
         '{"errors":[{"Code":"TheCustomerDoesNotSupportPeppolForType_0_","Description":"The customer does not support Peppol for type Invoice"}]}',
       );
       await expect(new BillitClient(CREDENTIALS).sendPeppolXml('<Invoice/>')).rejects.toThrow(BillitApiError);
-      await expect(new BillitClient(CREDENTIALS).sendPeppolXml('<Invoice/>')).rejects.toThrow(/HTTP 400/);
+      await expect(new BillitClient(CREDENTIALS).sendPeppolXml('<Invoice/>')).rejects.toThrow(
+        /HTTP 400 \(TheCustomerDoesNotSupportPeppolForType_0_\): The customer does not support Peppol/,
+      );
+    });
+
+    // A document breaking the same Peppol rule in two places comes back with ONE ENTRY PER XML
+    // LOCATION - observed live 2026-09-24. Keeping only the first would hide half the reason the
+    // deposit was refused, which is exactly what the seller needs in order to fix it.
+    it('keeps EVERY entry of a multi-error refusal, never just the first', async () => {
+      stubFetch(
+        400,
+        '{"errors":[' +
+          '{"Code":"GenericError","Description":"Validation error: [PEPPOL-COMMON-R043] at Party.EndpointID"},' +
+          '{"Code":"GenericError","Description":"Validation error: [PEPPOL-COMMON-R043] at PartyLegalEntity.CompanyID"}]}',
+      );
+      await expect(new BillitClient(CREDENTIALS).sendPeppolXml('<Invoice/>')).rejects.toThrow(
+        /Party\.EndpointID \| .*PartyLegalEntity\.CompanyID/,
+      );
     });
 
     // A gateway-level failure answers with an HTML error page, not JSON - observed live against an

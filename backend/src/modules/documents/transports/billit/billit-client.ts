@@ -77,19 +77,37 @@ export class BillitApiError extends Error {
   }
 }
 
-/** Billit answers a business refusal with a JSON object carrying `Code` and `Description`, but a
- *  gateway-level failure with an HTML error page (observed live: an unknown path returns IIS's own
- *  404 page, not JSON). Parsing is therefore best-effort and NEVER throws over the body shape - the
- *  status code alone is already enough to fail loudly, and a mangled body must not turn a clean
- *  "Billit refused this" into an opaque JSON parse error. */
+/**
+ * Billit answers a business refusal with `{"errors":[{"Code":..,"Description":..}]}` - an ARRAY, and
+ * genuinely more than one entry at a time (a document breaking the same Peppol rule in two places
+ * comes back with one entry per XML location, observed live 2026-09-24). Every entry is kept: the
+ * first one alone is often the least useful of them.
+ *
+ * Not every failure has that shape. A gateway-level one answers with an HTML error page (observed
+ * live: an unknown path returns IIS's own 404 page, not JSON), and some endpoints answer a flat
+ * `{"Message":..}`. Parsing is therefore best-effort and NEVER throws over the body shape: the
+ * status code alone is already enough to fail loudly, and a mangled body must not turn a clean
+ * "Billit refused this" into an opaque JSON parse error.
+ */
 function describeFailure(status: number, body: string): BillitApiError {
   let code: string | undefined;
   let description = body.slice(0, 500);
+
+  const readEntry = (entry: Record<string, unknown>): string | undefined => {
+    if (code === undefined && typeof entry.Code === 'string') code = entry.Code;
+    if (typeof entry.Description === 'string') return entry.Description;
+    if (typeof entry.Message === 'string') return entry.Message;
+    return undefined;
+  };
+
   try {
     const parsed = JSON.parse(body) as Record<string, unknown>;
-    if (typeof parsed.Code === 'string') code = parsed.Code;
-    if (typeof parsed.Description === 'string') description = parsed.Description;
-    else if (typeof parsed.Message === 'string') description = parsed.Message;
+    const entries = Array.isArray(parsed.errors) ? parsed.errors : [parsed];
+    const described = entries
+      .filter((e): e is Record<string, unknown> => typeof e === 'object' && e !== null)
+      .map(readEntry)
+      .filter((d): d is string => !!d);
+    if (described.length > 0) description = described.join(' | ');
   } catch {
     // Not JSON - `description` keeps the raw (truncated) body, which is more useful than nothing.
   }
