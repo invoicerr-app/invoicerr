@@ -84,19 +84,17 @@ const CTX: DocumentTransportContext = {
 };
 
 describe('extractAcubeCredentials', () => {
-  it('maps the ROW\'s own environment onto the platform environment, never a second config field', () => {
+  it("maps the ROW's own environment onto the platform environment, never a second config field", () => {
     expect(extractAcubeCredentials({ ...CONNECTED_CONFIG })?.environment).toBe('sandbox');
-    expect(
-      extractAcubeCredentials({ ...CONNECTED_CONFIG, environment: 'PROD' as const })?.environment,
-    ).toBe('production');
+    expect(extractAcubeCredentials({ ...CONNECTED_CONFIG, environment: 'PROD' as const })?.environment).toBe(
+      'production',
+    );
   });
 
   it('returns null when either half of the password exchange is missing', () => {
     expect(extractAcubeCredentials({ ...CONNECTED_CONFIG, config: { email: 'a@b.test' } })).toBeNull();
     expect(extractAcubeCredentials({ ...CONNECTED_CONFIG, config: { password: 'x' } })).toBeNull();
-    expect(
-      extractAcubeCredentials({ ...CONNECTED_CONFIG, config: { email: '', password: 'x' } }),
-    ).toBeNull();
+    expect(extractAcubeCredentials({ ...CONNECTED_CONFIG, config: { email: '', password: 'x' } })).toBeNull();
   });
 });
 
