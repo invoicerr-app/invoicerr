@@ -39,6 +39,7 @@ Hard-success contract (enforced per-spec):
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | SdI via PEC (IT) | `PEC_LIVE=1` | `PEC_ID_TRASMITTENTE`, `PEC_ADDRESS`, `PEC_SMTP_HOST`, `PEC_SMTP_PORT`, `PEC_IMAP_HOST`, `PEC_IMAP_PORT`, `PEC_USERNAME`, `PEC_PASSWORD` | `transports/sdi-pec/pec.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no PEC mailbox exists in this checkout**, and unlike SdICoop this channel needs NO accreditation at all (see `credentials-guide.md` §4bis and `pec-protocol.ts`'s own header for the primary-source citations) — provisioning any PEC mailbox is the only blocker to a real round-trip |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | `chorus-pro/choruspro.live.spec.ts` | ✅ **Full qualification round-trip proven live 2026-09-14** — a real Factur-X deposit reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP: []`), after two earlier deposits were rejected and fixed (see `credentials-guide.md` §3 and commits `67a94d58`/`7de5a90c`/`ecce4d35`). Proven in **qualification only** — no production PISTE application or Chorus Pro production raccordement exists, and nothing after `IN_INTEGRE` (a public buyer's own `MISE_A_DISPOSITION`/`MANDATEE`/`MISE_EN_PAIEMENT`) has been exercised. |
+| Invopop (GOBL pivot) | `INVOPOP_LIVE=1` | `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID` (`INVOPOP_BASE_URL` optional, normally unset) | `invopop/invopop.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real GOBL `bill/invoice` deposited as silo entry `01a0d28d-5c3e-7af6-8d08-f2c412a9ac28` in the `invoicerr` sandbox workspace, workflow job `01a0d28d-5c3e-77a1-8874-9112b9fa3e85` completed `status: OK` with NO `faults`, the envelope came back `signed: true` with a real ES256 signature, and the platform's own recomputed `payable` (`290.00 EUR`) matched this product's own totals exactly. Proven in **sandbox only** - production needs a paid Developer tier and a live workspace. NOT proven: any country-specific transmission step (the workflow used here signs and stops), and no conformity poller exists for this channel. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa.live.spec.ts` | ✅ **Proven live** — a real TST DER from FreeTSA (`https://freetsa.org/tsr`) embedded as a genuine XAdES-T `SignatureTimeStamp`; no credential needed (FreeTSA is public/anonymous). First proven 2026-06-30; re-run 2026-09-14 — `TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr npx jest tsa.live --no-coverage --runInBand` → 3/3, exit 0 (`HttpTsaClient`, `XadesSigningProvider` level-T, the env-built signing registry) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | Company lookup, through the onboarding wizard UI (same provider chain, driven by Cypress rather than calling the service directly) | `COMPANY_LOOKUP_LIVE=1` (passed as `--env COMPANY_LOOKUP_LIVE=1` to Cypress — note Cypress delivers it as a NUMBER, so the spec compares with `String(...)`, not `===`) | _(none, same reason as above)_ | `e2e/cypress/e2e/18-onboarding-wizard.cy.ts` (one `it` inside a shared `describe`, not a separate file — its title itself states the gate) | ✅ Proven live (created 2026-08-30; re-run 2026-09-14) — `4/4` passing with the gate open, EDF's real SIRET pre-filling the form and the persisted company read back from the database. Not run by any CI workflow (neither `cypress.yml`'s default `Tests` job nor a Cypress equivalent of `compliance-live.yml`, which does not exist) — offline, this test shows as Cypress "Pending", by design, same as the row above. |
@@ -318,6 +319,7 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
   - `.env.ksef.local` — `KSEF_AUTH_TOKEN`, `KSEF_NIP`
   - `.env.pdp.local` — `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET`
   - `.env.sdi.local` — `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD`
+  - `.env.invopop.local` - `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID`
 - Load with: `set -a; . .env.<channel>.local; set +a`
 
 ---
@@ -363,6 +365,67 @@ SIRET). In short:
   terminal state `IN_INTEGRE` with `listeErreurDP: []` — **proven live 2026-09-14**, in qualification.
   Nothing past that terminal state (a real public buyer's own processing) has been exercised, and no
   production round-trip exists.
+
+---
+
+### Invopop (GOBL pivot) - sandbox, proven 2026-09-24
+
+```bash
+# Invopop sandbox workspace
+INVOPOP_LIVE=1 \
+  INVOPOP_API_KEY=<workspace_api_key> \
+  INVOPOP_WORKFLOW_ID=<published_workflow_uuid> \
+  npx vitest run src/modules/documents/transports/invopop/invopop.live.spec.ts
+```
+
+| Env var | Purpose |
+|---|---|
+| `INVOPOP_API_KEY` | The workspace API key (a JWT). Required by the gate. It carries the workspace with it, so it is also what decides sandbox or live. |
+| `INVOPOP_WORKFLOW_ID` | The UUID of a **published** workflow for schema `bill/invoice` in that same workspace. Required by the gate: a silo entry with no workflow to run has been transmitted nowhere. |
+| `INVOPOP_BASE_URL` | Optional. Defaults to `https://api.invopop.com`, which serves every workspace. |
+
+**How to obtain credentials:**
+1. Sign up at [invopop.com](https://invopop.com) and open the Console. A sandbox workspace is
+   self-serve, with no sales call and no company registration.
+2. Console → Configuration → API Keys → create a key. It is scoped to that one workspace.
+3. Console → Workflows → **Load template** (or `PUT /transform/v1/workflows/{uuid}` with a workflow
+   JSON) for schema `bill/invoice`, publish it, and copy its id. The workflow used for the proven
+   round trip below is a single `silo.close` ("Sign envelope") step, which is the smallest thing that
+   proves the platform accepted, built, enveloped and signed the document.
+4. Check which workspace the key belongs to before depositing anything:
+   `GET /access/v1/workspace` answers `"sandbox": true` or `false`.
+
+**Three things that will waste an afternoon if nobody wrote them down:**
+- **There is no separate sandbox host.** `https://api.invopop.com` serves every workspace and the
+  TOKEN decides which one. The spec refuses to run against a workspace whose `sandbox` flag is not
+  true; that check is the only guard there is.
+- **A `403` from this API is not an authentication failure.** The edge sits behind Cloudflare, which
+  answers `403` with a body of `error code: 1010` to a client whose signature it does not like,
+  valid token or not. A genuinely bad or missing token answers `401` with
+  `{"message":"missing authorization token"}`. This is why `invopop-client.ts` sends an explicit
+  `User-Agent` on every request and why `InvopopApiError` names a 403 as a BLOCKED CLIENT. Do not
+  remove that header as noise.
+- **The token does not expire** (`scope: admin`, `exp: 0`). There is no refresh cycle to build.
+
+**What the test verifies (the hard-success contract for this channel):**
+- `GET /utils/v1/ping` answers `pong`, and `GET /access/v1/workspace` answers `sandbox: true`.
+- `PUT /silo/v1/entries/{uuid}` stores a real GOBL `bill/invoice` and returns a non-empty entry id.
+  An empty id is a FAILURE, never a silent success.
+- `PUT /transform/v1/jobs/{uuid}?wait=30` runs the published workflow. A job carrying `faults` is a
+  FAILURE **even when its `status` reads `OK`**: the platform's own documentation states that a job
+  whose step failed and whose error branch then ran reports exactly that combination. Reading success
+  off `status` alone would be a false green of the kind this guide exists to prevent.
+- `GET /silo/v1/entries/{uuid}` comes back `signed: true` after the signing step.
+- The platform's recomputed `totals.payable` equals this product's own `grossMinor`. GOBL recalculates
+  every total and, by its own documentation, silently replaces any supplied one with no error, so the
+  returned number is the only signal there is that the two engines agree.
+
+**What the round trip did NOT prove:** any country-specific conversion or transmission step (the
+workflow used signs and stops, and no government app was enabled on the sandbox workspace); a
+production deposit (that needs a paid Developer tier and a live workspace); and any post-deposit
+conformity tracking, since no poller is registered for the `invopop` provider id in
+`conformity/pollers/`. That poller is named, separate work, the same remainder the PDP channel
+carried before its own was built.
 
 ---
 
