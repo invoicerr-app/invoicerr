@@ -842,7 +842,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 
 			// The PDF path — Chromium-provisioned, playwright-based renderer (see CLAUDE.md). Never
 			// status-gated (`documents.service.ts#renderInstancePdf` reads the record as-is, whatever its
-			// status), so this works identically for "sent" and for the two Italian legs' "send_failed". A single
+			// status), so this works identically for "sent" and for the it-it leg's own "send_failed". A single
 			// re-download after "sent" is enough to prove the path works for every leg; 35 already proves
 			// a SECOND, post-edit re-render for the one leg that specifically needs it.
 			//
@@ -1094,21 +1094,35 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 						expect(pdp!.mandatedFrom).to.eq("2026-09-01");
 						expect(pdp!.effectiveNow, "the mandate has already come into force").to.eq(true);
 					} else if (scenarioId === "it-it" || scenarioId === "it-pt") {
-						// Italy — `channel-policy/data/it.json` now declares SdI `mandated` from 2019-01-01,
+						// Italy - `channel-policy/data/it.json` declares SdI `mandated` from 2019-01-01,
 						// `provenance.kind: 'legal'`, sourced to D.Lgs. 127/2015 art. 1 comma 3 (armed
-						// 2026-09-13 — see that file's own `provenance`/`notes`). The previous test's own
-						// two-step proof (blocked via "email", unblocked by connecting+choosing "sdi", real
-						// delivery still fails against a fake endpoint) IS the consequence of this now being
-						// `mandated` — the invoice settles on "send_failed", never "sent", and never a silent
-						// "email" success the way a merely-`suggested` fact used to allow.
+						// 2026-09-13 - see that file's own `provenance`/`notes`).
+						//
+						// BOTH Italian legs assert these four facts, and that is the point of asserting them
+						// HERE rather than through a send: this endpoint is the SETTINGS screen's own
+						// question ("does your country require a channel"), which `mandate.ts`'s
+						// `activeChannelMandateFor` answers at COUNTRY level and which no buyer narrows.
+						// An Italian company is told to connect SdI whoever it happens to be invoicing.
 						const sdi = suggested.find((c) => c.providerId === "sdi");
 						expect(sdi, "sdi is declared for Italy").to.exist;
 						expect(sdi!.requirement, "MANDATED since 2019-01-01, not merely suggested").to.eq("mandated");
 						expect(sdi!.mandatedFrom).to.eq("2019-01-01");
 						expect(sdi!.effectiveNow, "the mandate has already come into force").to.eq(true);
+
+						// What that declared mandate actually DOES to an invoice is where the two legs part,
+						// and the status below is the proof of it. `it-it` is domestic (Italian buyer), so
+						// comma 3 binds: the previous test's own two-step proof (blocked via "email",
+						// unblocked by connecting+choosing "sdi", real delivery then failing against a fake
+						// endpoint) settles it on "send_failed", never a silent "email" success. `it-pt`'s
+						// buyer is Portuguese, and comma 3 binds only supplies "tra soggetti residenti o
+						// stabiliti nel territorio dello Stato" - the mandate does not reach that operation
+						// (`channel-policy/data/it.json`'s own `scope.parties`), so it sends via "email" and
+						// genuinely reaches "sent". A declared mandate and a bound invoice are two different
+						// facts, and this pair is what keeps them from being confused again.
+						const expectedInvoiceStatus = scenarioId === "it-it" ? "send_failed" : "sent";
 						cy.request(`${api}/api/documents/${invoiceId}?typeId=invoice`)
 							.its("body.status")
-							.should("eq", "send_failed");
+							.should("eq", expectedInvoiceStatus);
 					} else if (scenarioId === "pl-de") {
 						// Poland — `channel-policy/data/pl.json` now carries a real `legal` citation (art.
 						// 106ga ust. 1) but DELIBERATELY stays `requirement: 'suggested'` — see that file's own
