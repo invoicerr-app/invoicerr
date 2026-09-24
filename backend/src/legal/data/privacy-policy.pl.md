@@ -44,22 +44,47 @@ Podobnie jak Regulamin Świadczenia Usług (sekcja 15.1), niniejsza Polityka roz
 ## 3. Jakie dane zbieramy jako administrator i dlaczego
 
 Wszystkie poniższe dane zbieramy **bezpośrednio od Ciebie** — albo gdy nam je przekazujesz
-(rejestracja, konfiguracja, wsparcie techniczne), albo automatycznie w trakcie korzystania z Usługi
-(dane dotyczące połączenia i bezpieczeństwa).
+(rejestracja, konfiguracja, wsparcie techniczne albo formularz listy oczekujących opisany pod
+tabelą), albo automatycznie w trakcie korzystania z Usługi (dane dotyczące połączenia i
+bezpieczeństwa).
 
 | Dane | Przykłady | Cel | Podstawa prawna (art. 6 RODO) |
 | --- | --- | --- | --- |
 | Dane konta | imię i nazwisko, adres e-mail, zahaszowane hasło, tokeny sesji | umożliwienie logowania i korzystania z Usługi | Wykonanie umowy (art. 6 ust. 1 lit. b)) |
 | Dane firmy | nazwa firmy, adres, konfigurowane przez Ciebie krajowe identyfikatory (np. SIREN/VAT) | obsługa przestrzeni roboczej Twojej Firmy, wypełnianie wystawianych przez Ciebie dokumentów | Wykonanie umowy (art. 6 ust. 1 lit. b)) |
 | Dane subskrypcji | plan, liczba miejsc, status subskrypcji, daty okresu próbnego | obsługa Twojej subskrypcji; Polar przetwarza i przechowuje Twoją metodę płatności oraz adres rozliczeniowy jako sprzedawca formalny (merchant of record) — zob. sekcja 5 | Wykonanie umowy (art. 6 ust. 1 lit. b)) |
-| Dane dotyczące połączenia i bezpieczeństwa | adres IP, znaczniki czasu zdarzeń uwierzytelniania, dzienniki aplikacji | wykrywanie nadużyć, zapewnienie bezpieczeństwa Usługi, diagnozowanie incydentów | Prawnie uzasadniony interes (art. 6 ust. 1 lit. f)) |
+| Dane dotyczące połączenia i bezpieczeństwa | adres IP, znaczniki czasu zdarzeń uwierzytelniania, dzienniki aplikacji, krótkotrwały licznik według adresu IP chroniący formularz listy oczekujących | wykrywanie nadużyć, zapewnienie bezpieczeństwa Usługi, diagnozowanie incydentów | Prawnie uzasadniony interes (art. 6 ust. 1 lit. f)) |
 | Dowód akceptacji | który dokument prawny i którą jego wersję zaakceptowałeś, kiedy, a także adres IP i identyfikator przeglądarki (user agent), z których dokonano akceptacji | wykazanie, że zaakceptowałeś tekst obowiązujący w chwili akceptacji | Wykonanie umowy (art. 6 ust. 1 lit. b)) oraz nasz prawnie uzasadniony interes polegający na możliwości udowodnienia tej akceptacji (art. 6 ust. 1 lit. f)) |
 | Korespondencja pomocy technicznej | treść wiadomości e-mail wysyłanych na adres contact@invoicerr.app | udzielenie odpowiedzi na Twoje zgłoszenie | Prawnie uzasadniony interes (art. 6 ust. 1 lit. f)), lub wykonanie umowy, jeżeli zgłoszenie dotyczy Twojej subskrypcji |
 | Zapisy fakturowe na potrzeby naszej własnej księgowości | dane identyfikacyjne Twojej Firmy oraz Opłaty jej naliczone | nasz własny ustawowy obowiązek prowadzenia księgowości | Obowiązek prawny (art. 6 ust. 1 lit. c)) |
+| Dane z listy oczekujących | adres e-mail, kraj, wielkość firmy, data i godzina zapisu | powiadomienie Cię o uruchomieniu hostowanej wersji Usługi | Zgoda (art. 6 ust. 1 lit. a)), wyrażona przez przesłanie formularza i możliwa do wycofania w dowolnym momencie; data i godzina zapisu stanowią dowód wyrażenia tej zgody (art. 7 ust. 1) |
 
 Nie wysyłamy wiadomości marketingowych wykraczających poza komunikaty transakcyjne dotyczące
 Twojego konta i subskrypcji (np. powiadomienia o logowaniu, rozliczeniach i Usłudze) — nie istnieje
 odrębny mechanizm zgody marketingowej do opisania.
+
+**Lista oczekujących.** Hostowana wersja Usługi nie została jeszcze uruchomiona. Do czasu
+uruchomienia pod adresem **my.invoicerr.app** wyświetlany jest formularz listy oczekujących zamiast
+Usługi, a trzy pola, o które ten formularz prosi (Twój adres e-mail, kraj i wielkość firmy), są
+przetwarzane w jednym celu: aby powiadomić Cię o uruchomieniu wersji hostowanej. Nie jest to
+newsletter ani lista marketingowa. Nic, co tam zostawisz, nie służy do profilowania Cię, nie jest
+łączone z innymi danymi, sprzedawane ani udostępniane komukolwiek poza dalszymi podmiotami
+przetwarzającymi wymienionymi w sekcji 4. Obok tych trzech pól przechowywany jest czwarty element,
+data i godzina Twojego zapisu, jedyny, którego sam nie wpisałeś: jest on dowodem wyrażenia zgody,
+który **art. 7 ust. 1** nakazuje nam móc przedstawić tak długo, jak długo opieramy się na tej
+zgodzie. Nic więcej z tego, co nam podajesz, nie jest przechowywane. Strona odczytuje wprawdzie
+język Twojej przeglądarki oraz stronę, z której przyszedłeś, ale wyłącznie po to, by wybrać wersję
+językową do wyświetlenia, i nie przechowuje żadnej z nich; identyfikatora Twojej przeglądarki nie
+przechowujemy w ogóle. Twojego adresu IP tak, i to z jednego powodu: każde przesłanie formularza
+kosztuje nas jeden przechowywany wpis i jedną wiadomość e-mail, dlatego przesłania są zliczane według
+adresu IP, aby zapobiec nadużywaniu formularza. Ten licznik stanowi dane dotyczące połączenia i
+bezpieczeństwa, które tabela powyżej już opisuje, na tej samej podstawie, czyli naszym prawnie
+uzasadnionym interesie w utrzymaniu użyteczności Usługi (**art. 6 ust. 1 lit. f)**). Jest zapisem
+odrębnym od Twojego wpisu na listę, obu nigdy się ze sobą nie łączy, a wygasa sam po około godzinie
+od przesłania, które zliczył. Twój wpis jest przechowywany w **Cloudflare Workers KV**, a jego kopia
+jest wysyłana na adres **contact@invoicerr.app** za pośrednictwem **Resend** (oba opisane w
+sekcji 4), przez okres wskazany w sekcji 6. Napisz na adres
+**contact@invoicerr.app** w dowolnym momencie, aby go usunąć; nie musisz podawać powodu.
 
 ## 4. Dalsze podmioty przetwarzające
 
@@ -71,13 +96,17 @@ przetwarzającym, z których każdy związany jest własnymi warunkami przetwarz
   sekcja 7.1) i sam jest administratorem danych dotyczących płatności, które zbiera bezpośrednio od
   Ciebie.
 - **Resend** — dostarczanie wiadomości e-mail transakcyjnych wysyłanych przez Usługę (linki
-  logowania, powiadomienia).
+  logowania, powiadomienia) oraz dostarczanie kopii każdego wpisu na listę oczekujących wysyłanej na
+  adres **contact@invoicerr.app** (sekcja 3).
 - **Cloudflare, Inc.** — routing przychodzącej poczty e-mail dla korespondencji wysyłanej na adres
   **contact@invoicerr.app** (wyłącznie korespondencja pomocy technicznej; Cloudflare nigdy nie widzi
-  danych zawartych w dokumentach tworzonych przez Ciebie za pośrednictwem Usługi).
+  danych zawartych w dokumentach tworzonych przez Ciebie za pośrednictwem Usługi), a także lista
+  oczekujących opisana w sekcji 3: strona serwowana pod adresem **my.invoicerr.app** działa jako
+  Cloudflare Worker, a każdy wpis jest przechowywany w **Cloudflare Workers KV**.
 - **Google LLC (Gmail)** — skrzynka pocztowa, do której trafia korespondencja pomocy technicznej
-  wysyłana na adres **contact@invoicerr.app** (wyłącznie korespondencja pomocy technicznej; Google
-  nigdy nie widzi danych zawartych w dokumentach tworzonych przez Ciebie za pośrednictwem Usługi).
+  wysyłana na adres **contact@invoicerr.app** oraz kopia każdego wpisu na listę oczekujących opisana
+  w sekcji 3 (wyłącznie korespondencja; Google nigdy nie widzi danych zawartych w dokumentach
+  tworzonych przez Ciebie za pośrednictwem Usługi).
 - **Scaleway SAS** — hosting infrastruktury **środowiska produkcyjnego** Usługi: klaster Kubernetes, na
   którym działa, zarządzana baza danych PostgreSQL przechowująca dane Firmy i konta opisane w sekcji 3
   oraz dokumenty tworzone przez Ciebie za pośrednictwem Usługi, oraz magazyn obiektowy przechowujący
@@ -171,6 +200,16 @@ obejmuje podmiotu spoza UE.
 - **Korespondencja pomocy technicznej** jest przechowywana tak długo, jak jest to konieczne do
   rozpatrzenia Twojego zgłoszenia, oraz przez rozsądny okres po jego zakończeniu na wypadek dalszej
   korespondencji.
+- **Wpisy na liście oczekujących** są przechowywane do momentu uruchomienia hostowanej wersji Usługi
+  oraz przez **dwanaście miesięcy** po nim, a w każdym przypadku **nie dłużej niż rok od Twojego
+  zapisu**, przy czym rozstrzyga wcześniejszy z tych dwóch terminów; następnie są usuwane. Roczny
+  termin biegnie od Twojego zapisu i zaczyna biec na nowo, jeżeli ponownie prześlesz formularz:
+  wczesny zapis może więc zniknąć przed pierwszym terminem, nigdy po nim. Dotyczy to adresu e-mail,
+  kraju i wielkości firmy pozostawionych w formularzu, a także daty i godziny ich pozostawienia
+  (sekcja 3). Licznik według adresu IP, który chroni formularz i jest opisany w sekcji 3, stanowi
+  odrębny zapis o własnym czasie życia wynoszącym około godziny. Napisanie na adres
+  **contact@invoicerr.app** usuwa Twój wpis w dowolnym momencie wcześniej i jest zarazem sposobem na
+  wycofanie zgody, na której wpis się opiera.
 
 ## 7. Bezpieczeństwo
 
@@ -190,6 +229,11 @@ interesie (**art. 21**). Możesz skorzystać z każdego z tych praw, pisząc na 
 **contact@invoicerr.app**; odpowiemy w terminie przewidzianym przez RODO dla administratora danych.
 Masz również prawo wniesienia skargi do francuskiego organu ochrony danych osobowych, **CNIL**
 (www.cnil.fr), lub do organu nadzorczego właściwego dla Twojego państwa członkowskiego UE.
+
+Jeżeli opieramy się na Twojej zgodzie, co dziś dotyczy wyłącznie listy oczekujących opisanej w
+sekcji 3, możesz ją wycofać w dowolnym momencie (**art. 7 ust. 3**), pisząc na adres
+**contact@invoicerr.app**. Wycofanie zgody jest równie łatwe jak jej udzielenie i nie wpływa na
+zgodność z prawem przetwarzania dokonanego przed jej wycofaniem.
 
 Prawo do usunięcia danych (**art. 17**) ma granicę, którą stosujemy i o której warto wiedzieć przed
 złożeniem żądania: jeżeli przepis nadal wymaga przechowywania zarchiwizowanego dokumentu, **art. 17
@@ -219,7 +263,9 @@ zgody.
 ## 10. Strony internetowe, które prowadzimy
 
 Sama Usługa działa pod adresem **my.invoicerr.app**, hostowanym przez Scaleway zgodnie z opisem w
-sekcji 4. Niezależnie od Usługi publikujemy dwie publiczne, statyczne strony internetowe, obie
+sekcji 4. Do czasu uruchomienia wersji hostowanej pod tym adresem wyświetlana jest strona listy
+oczekujących opisana w sekcji 3, serwowana przez Cloudflare, a nie przez Scaleway.
+Niezależnie od Usługi publikujemy dwie publiczne, statyczne strony internetowe, obie
 obsługiwane przez **GitHub Pages** — usługę hostingową prowadzoną przez **GitHub, Inc.**, 88 Colin
 P. Kelly Jr. Street, San Francisco, CA 94107, USA, spółkę zależną w całości należącą do Microsoft
 Corporation:

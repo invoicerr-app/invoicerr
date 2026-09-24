@@ -42,22 +42,46 @@ Tal como os Termos de Serviço (Secção 15.1), esta Política distingue dois pa
 ## 3. O Que Recolhemos, na Qualidade de Responsável pelo Tratamento, e Porquê
 
 Recolhemos todos os dados abaixo **diretamente de si**, quer quando os fornece (registo, configuração,
-apoio ao cliente), quer automaticamente à medida que utiliza o Serviço (dados de ligação e de
-segurança).
+apoio ao cliente, ou o formulário de lista de espera descrito abaixo da tabela), quer
+automaticamente à medida que utiliza o Serviço (dados de ligação e de segurança).
 
 | Dados | Exemplos | Finalidade | Fundamento jurídico (artigo 6.º do RGPD) |
 | --- | --- | --- | --- |
 | Dados de conta | nome, email, palavra-passe encriptada (hash), tokens de sessão | permitir-lhe iniciar sessão e utilizar o Serviço | Execução de um contrato (art. 6.º, n.º 1, alínea b)) |
 | Dados da Empresa | nome da empresa, morada, identificadores nacionais que configura (por exemplo, SIREN/NIF) | gerir o espaço de trabalho da sua Empresa, preencher os documentos que emite | Execução de um contrato (art. 6.º, n.º 1, alínea b)) |
 | Dados de subscrição | plano, número de lugares (seats), estado da subscrição, datas do período experimental | gerir a sua subscrição; a Polar processa e armazena o seu meio de pagamento e morada de faturação na qualidade de merchant of record — ver Secção 5 | Execução de um contrato (art. 6.º, n.º 1, alínea b)) |
-| Dados de ligação e de segurança | endereço IP, registos temporais dos eventos de autenticação, registos (logs) da aplicação | detetar abusos, manter o Serviço seguro, diagnosticar incidentes | Interesse legítimo (art. 6.º, n.º 1, alínea f)) |
+| Dados de ligação e de segurança | endereço IP, registos temporais dos eventos de autenticação, registos (logs) da aplicação, o contador efémero por endereço IP que protege o formulário da lista de espera | detetar abusos, manter o Serviço seguro, diagnosticar incidentes | Interesse legítimo (art. 6.º, n.º 1, alínea f)) |
 | Prova de aceitação | qual o documento legal e a versão que aceitou, quando, bem como o endereço IP e o agente de utilizador do navegador a partir dos quais o aceitou | demonstrar que aceitou o texto em vigor no momento em que o aceitou | Execução de um contrato (art. 6.º, n.º 1, alínea b)) e o nosso interesse legítimo em poder fazer prova dessa aceitação (art. 6.º, n.º 1, alínea f)) |
 | Comunicações de apoio ao cliente | o conteúdo dos emails que envia para contact@invoicerr.app | responder ao seu pedido | Interesse legítimo (art. 6.º, n.º 1, alínea f)), ou execução de um contrato quando o pedido diz respeito à sua subscrição |
 | Registos de faturação para a nossa própria contabilidade | a identidade da sua Empresa e os montantes que lhe são faturados | a nossa própria obrigação legal de contabilidade | Obrigação legal (art. 6.º, n.º 1, alínea c)) |
+| Dados da lista de espera | endereço de email, país, dimensão da empresa, data e hora da inscrição | avisá-lo da abertura da versão alojada do Serviço | Consentimento (art. 6.º, n.º 1, alínea a)), dado ao submeter o formulário e retirável a qualquer momento; a data e a hora da inscrição constituem o registo desse consentimento (art. 7.º, n.º 1) |
 
 Não enviamos mensagens de marketing por email para além das comunicações transacionais relativas à sua
 conta e subscrição (por exemplo, avisos de início de sessão, de faturação e do serviço) — não existe
 um fluxo de consentimento de marketing separado a descrever.
+
+**A lista de espera.** A versão alojada do Serviço ainda não abriu. Até abrir, **my.invoicerr.app**
+apresenta um formulário de lista de espera em vez do Serviço, e os três campos que esse formulário
+pede (o seu endereço de email, o seu país e a dimensão da sua empresa) são tratados com uma única
+finalidade: avisá-lo da abertura da versão alojada. Não é uma newsletter nem uma lista de marketing.
+Nada do que aí deixa é usado para traçar o seu perfil, cruzado com outros dados, vendido ou
+partilhado com quem quer que seja para além dos subcontratantes indicados na Secção 4. Ao lado desses
+três campos é conservado um quarto elemento, a data e a hora da sua inscrição, o único que não
+escreveu: é o registo do seu consentimento, que o **artigo 7.º, n.º 1** exige que possamos apresentar
+enquanto nos basearmos nesse consentimento. Nada mais do que nos indica é conservado. A página lê, é
+certo, o idioma do seu navegador e a página de onde veio, mas apenas para escolher a versão
+linguística a apresentar-lhe, e não conserva nenhuma das duas; o agente de utilizador do seu navegador
+não é conservado de todo. O seu endereço IP é, por uma única razão: cada submissão custa-nos um
+registo conservado e um email, pelo que as submissões são contadas por endereço IP para impedir o
+abuso do formulário. Esse contador constitui dados de ligação e de segurança do tipo que a tabela
+acima já descreve, com o mesmo fundamento, o nosso interesse legítimo em manter o Serviço utilizável
+(**art. 6.º, n.º 1, alínea f)**). É um registo separado da sua inscrição, os dois nunca são
+associados, e expira por si só cerca de uma hora após a submissão que contou. O seu registo é
+conservado em **Cloudflare
+Workers KV** e uma cópia do mesmo é enviada para **contact@invoicerr.app** através da **Resend**
+(ambos descritos na Secção 4), durante o período indicado na Secção 6. Escreva para
+**contact@invoicerr.app** a qualquer momento
+para o eliminar; não tem de apresentar qualquer justificação.
 
 ## 4. Subcontratantes
 
@@ -68,13 +92,17 @@ vinculado pelos seus próprios termos de tratamento de dados:
   da sua subscrição (Termos de Serviço, Secção 7.1) e é, ela própria, responsável pelo tratamento dos
   dados de pagamento que recolhe diretamente de si.
 - **Resend** — entrega de emails transacionais enviados pelo Serviço (ligações de início de sessão,
-  notificações).
+  notificações) e entrega da cópia de cada registo na lista de espera enviada para
+  **contact@invoicerr.app** (Secção 3).
 - **Cloudflare, Inc.** — encaminhamento de correio eletrónico de entrada para a correspondência
   enviada para **contact@invoicerr.app** (apenas correspondência de apoio ao cliente; a Cloudflare
-  nunca vê os dados contidos nos documentos que cria através do Serviço).
+  nunca vê os dados contidos nos documentos que cria através do Serviço), bem como a lista de espera
+  descrita na Secção 3: a página servida em **my.invoicerr.app** funciona como um Cloudflare Worker e
+  cada registo é conservado em **Cloudflare Workers KV**.
 - **Google LLC (Gmail)** — a caixa de correio onde é recebida a correspondência de apoio ao cliente
-  enviada para **contact@invoicerr.app** (apenas correspondência de apoio ao cliente; a Google nunca vê
-  os dados contidos nos documentos que cria através do Serviço).
+  enviada para **contact@invoicerr.app** e onde chega a cópia de cada registo na lista de espera
+  descrita na Secção 3 (apenas correspondência; a Google nunca vê os dados contidos nos documentos que
+  cria através do Serviço).
 - **Scaleway SAS** — alojamento da infraestrutura do **ambiente de produção** do Serviço: o cluster
   Kubernetes onde este é executado, a base de dados PostgreSQL gerida que armazena os dados da Empresa
   e da conta descritos na Secção 3, bem como os documentos que cria através do Serviço, e o
@@ -167,6 +195,16 @@ entidade fora da UE.
   eliminada juntamente com a sua conta.
 - As **comunicações de apoio ao cliente** são conservadas durante o tempo necessário para resolver o
   seu pedido e por um período razoável adicional, caso pretenda dar seguimento ao assunto.
+- Os **registos na lista de espera** são conservados até à abertura da versão alojada do Serviço e
+  durante **doze meses** após essa abertura, e em qualquer caso **não mais do que um ano após a sua
+  inscrição**, prevalecendo o primeiro dos dois prazos; depois são eliminados. O prazo de um ano
+  conta-se a partir da sua inscrição e recomeça se voltar a submeter o formulário: uma inscrição
+  antiga pode assim desaparecer antes do primeiro prazo, nunca depois. Isto abrange o endereço de
+  email, o país e a dimensão da empresa deixados no formulário, bem como a data e a hora em que os
+  deixou (Secção 3). O contador por endereço IP que protege o formulário, descrito na Secção 3, é um
+  registo separado, com uma vida própria de cerca de uma hora. Escrever para
+  **contact@invoicerr.app** elimina o seu registo a qualquer momento antes disso e é também a forma de
+  retirar o consentimento em que assenta.
 
 ## 7. Segurança
 
@@ -185,6 +223,11 @@ direitos escrevendo para **contact@invoicerr.app**; responderemos dentro do praz
 um responsável pelo tratamento. Tem também o direito de apresentar reclamação junto da autoridade
 francesa de proteção de dados, a **CNIL** (www.cnil.fr), ou junto da autoridade de controlo do seu
 próprio Estado-Membro da UE.
+
+Quando nos baseamos no seu consentimento, o que hoje diz respeito apenas à lista de espera descrita
+na Secção 3, pode retirá-lo a qualquer momento (**artigo 7.º, n.º 3**) escrevendo para
+**contact@invoicerr.app**. Retirar o consentimento é tão fácil como dá-lo e não afeta a licitude do
+tratamento efetuado antes dessa retirada.
 
 O direito ao apagamento (**artigo 17.º**) tem um limite que aplicamos e que deve conhecer antes de o
 exercer: quando um diploma legal continua a exigir a conservação de um documento arquivado, o
@@ -213,7 +256,9 @@ finalidade e a duração de cada elemento, e os motivos pelos quais não é apre
 ## 10. Sites Que Operamos
 
 O próprio Serviço é executado em **my.invoicerr.app**, alojado pela Scaleway conforme descrito na
-Secção 4. Separadamente do Serviço, publicamos dois sites públicos e estáticos, ambos servidos pelo
+Secção 4. Até à abertura da versão alojada, esse endereço apresenta a página da lista de espera
+descrita na Secção 3, servida pela Cloudflare e não pela Scaleway.
+Separadamente do Serviço, publicamos dois sites públicos e estáticos, ambos servidos pelo
 **GitHub Pages** — um serviço de alojamento operado pela **GitHub, Inc.**, 88 Colin P. Kelly Jr.
 Street, San Francisco, CA 94107, EUA, uma subsidiária integral da Microsoft Corporation:
 
