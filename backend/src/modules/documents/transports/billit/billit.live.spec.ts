@@ -37,19 +37,24 @@
  * is a public Peppol participant identifier, never a secret; `BILLIT_RECEIVER_ENDPOINT` overrides it
  * for anyone whose own sandbox has a better one.
  *
- * WHAT THIS SPEC DOES TODAY, STATED PLAINLY: it FAILS at step 3. Everything before the deposit was
- * run for real on 2026-09-24 and passed - both headers authenticate, the participant lookup answers,
- * and the document this repository builds clears Billit's OWN copy of the Peppol rules (proven by
- * feeding it a deliberately malformed Belgian enterprise number and getting
- * `[PEPPOL-COMMON-R043]` back by name, then getting past that stage once corrected). The deposit
- * itself is refused because the SANDBOX COMPANY RECORD carries no VAT number, which Billit states in
- * its own words on the order message log: "The VAT Number of your company () cannot be used to send
- * via Peppol, change your VAT number in your company record". Billit's OWN documented example
- * document is refused identically, which is how we know the refusal is the account and not this
- * repository's UBL. Setting that VAT number is a change to the Billit company record that only the
- * account owner can make (see the live-testing guide's Billit section). This spec is deliberately
- * NOT weakened to pass in the meantime: a live spec that goes green without a real deposit proves
- * nothing about the integration, which is exactly the false green this project keeps paying for.
+ * ROUND-TRIP PROVEN 2026-09-24, and reproduced before this header was written: two independent runs
+ * of THIS spec deposited for real and came back with `InboxItemID` 1117002 and 1117004. Delivery is
+ * not inferred from the 200 either - the receiver ANSWERED. `GET /peppol/inbox` carries one IMR
+ * (Peppol invoice message response) per deposit, `SenderPeppolID: 0208:0563846944` back to
+ * `ReceiverPeppolID: 9957:FR54982187676`, which is this company. The deposit really left the
+ * platform and really reached the far end of the Peppol test network.
+ *
+ * TWO THINGS THAT COST A DAY TO FIND, both recorded here so nobody pays for them twice:
+ *
+ *  1. THE SUPPLIER IN THE DOCUMENT MUST BE THE BILLIT COMPANY ITSELF - see the `seller` fixture's
+ *     own comment below. A supplier Billit cannot match to the `partyID` header is refused with a
+ *     generic HTTP 400 that names nothing at all. The same document with the right supplier is
+ *     accepted. Billit's own `/orders` route reports the underlying reason properly where
+ *     `/peppol/sendxml` does not, so when this spec fails opaquely, POST a throwaway order and read
+ *     ITS message log: that is where the real sentence is.
+ *  2. A FRENCH SELLER DATED ON OR AFTER 2026-09-01 CANNOT BE BUILT AT ALL - see the `issueDate`
+ *     comment below. That is a limitation of THIS codebase (BT-23 landing in `cbc:ProfileID`), not
+ *     of Billit, and it is why the date is pinned rather than `new Date()`.
  *
  * TRIAL EXPIRY: the sandbox account this runs against is a 14-day trial opened 2026-09-24, so it
  * stops being runnable on 2026-10-08 unless Billit extends it. See the live-testing guide.
@@ -93,17 +98,28 @@ describeLive('Billit live round-trip (sandbox) - Peppol BIS UBL deposit accepted
 
     // 2) The document - the SAME provider `billit-transport.ts` uses in production.
     const timestamp = Date.now();
+    // THE SELLER MUST BE THE BILLIT COMPANY ITSELF. Billit resolves the sender of a
+    // `/peppol/sendxml` deposit from the supplier carried IN the document and matches it against the
+    // company the `partyID` header names; a supplier it cannot match that way is refused with a
+    // generic, unhelpful HTTP 400. Proven the hard way on 2026-09-24: the identical document with a
+    // fictional Belgian supplier was refused, and with THIS identity was accepted. So these values
+    // are not decoration, they are the sandbox company's own registered identity
+    // (`GET /party/<partyID>` answers `"VATNumber":"FR54982187676"`), and anyone running this spec
+    // against a DIFFERENT Billit account has to put THEIR company here. Nothing here is a secret:
+    // a VAT number is public by construction.
     const seller: DocumentFormatParty = {
       name: 'Invoicerr',
-      address: 'Teststraat 31',
-      city: 'Merchtem',
-      postalCode: '1785',
-      country: 'Belgium',
-      email: 'seller@example.be',
+      address: '1 rue de la Facture',
+      city: 'Lyon',
+      postalCode: '69001',
+      country: 'France',
+      email: 'seller@example.fr',
       partyIdentifiers: [
-        { scheme: 'VAT', value: 'BE0437295992' },
-        { scheme: 'LEGAL_ID', value: '0437295992' },
-        { scheme: 'PEPPOL_ENDPOINT', value: '0208:0437295992' },
+        { scheme: 'VAT', value: 'FR54982187676' },
+        // BT-34, EAS 9957 (French VAT number) - the routing identity Billit sends under. Set
+        // explicitly rather than left to `build-semantic-invoice.ts#endpointFor`'s own fallback,
+        // which would derive a SIREN-shaped address this company has not registered.
+        { scheme: 'PEPPOL_ENDPOINT', value: '9957:FR54982187676' },
       ],
     };
     const buyer: DocumentFormatParty = {
@@ -123,8 +139,22 @@ describeLive('Billit live round-trip (sandbox) - Peppol BIS UBL deposit accepted
       status: 'sent',
       data: {
         client: 'live-client',
-        issueDate: new Date().toISOString().slice(0, 10),
-        dueDate: new Date().toISOString().slice(0, 10),
+        // PINNED, AND THE PIN IS THE POINT. The seller above is FRENCH, and France mandates BT-23
+        // from 2026-09-01 (`content-requirements/data/fr.json`, CGI ann. II art. 242 nonies A I 8 bis).
+        // `formats/semantic/business-process.ts` writes that French code into UBL's `cbc:ProfileID`,
+        // which Peppol reserves for its OWN process URNs, so a French invoice dated on or after that
+        // day is rejected by our own vendored Peppol delta before it ever reaches Billit:
+        //   PEPPOL-EN16931-R007: Business process MUST be in the format
+        //   'urn:fdc:peppol.eu:2017:poacc:billing:NN:1.0' ...
+        // 2026-08-31 is ONE DAY before the mandate, so the temporal gate correctly resolves no code
+        // and `@e-invoice-eu/core`'s own default (the Peppol URN) stands - the SAME "the gate refuses
+        // to fire a day early" fact `pdp/pdp.live.spec.ts` already leans on, in the opposite
+        // direction. This is a documented limitation of the CODEBASE, not of Billit, and it is NOT a
+        // claim that a post-mandate French invoice can go out over Peppol today: it cannot, and the
+        // live-testing guide says so in its own section. The day BT-23 gets a per-syntax home (the
+        // way Chorus Pro already has `businessProcessCodeOverride`), unpin this.
+        issueDate: '2026-08-31',
+        dueDate: '2026-08-31',
         currency: 'EUR',
         // PEPPOL-EN16931-R003 - a buyer reference or a purchase order MUST be provided. `data.buyerReference`
         // is the key `formats/shared-build.ts#extractBuyerReference` reads generically, whatever

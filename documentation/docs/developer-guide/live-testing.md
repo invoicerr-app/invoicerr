@@ -41,7 +41,7 @@ Hard-success contract (enforced per-spec):
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | `chorus-pro/choruspro.live.spec.ts` | ✅ **Full qualification round-trip proven live 2026-09-14** — a real Factur-X deposit reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP: []`), after two earlier deposits were rejected and fixed (see `credentials-guide.md` §3 and commits `67a94d58`/`7de5a90c`/`ecce4d35`). Proven in **qualification only** — no production PISTE application or Chorus Pro production raccordement exists, and nothing after `IN_INTEGRE` (a public buyer's own `MISE_A_DISPOSITION`/`MANDATEE`/`MISE_EN_PAIEMENT`) has been exercised. |
 | Invopop (GOBL pivot) | `INVOPOP_LIVE=1` | `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID` (`INVOPOP_BASE_URL` optional, normally unset) | `invopop/invopop.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real GOBL `bill/invoice` deposited as silo entry `01a0d28d-5c3e-7af6-8d08-f2c412a9ac28` in the `invoicerr` sandbox workspace, workflow job `01a0d28d-5c3e-77a1-8874-9112b9fa3e85` completed `status: OK` with NO `faults`, the envelope came back `signed: true` with a real ES256 signature, and the platform's own recomputed `payable` (`290.00 EUR`) matched this product's own totals exactly. Proven in **sandbox only** - production needs a paid Developer tier and a live workspace. NOT proven: any country-specific transmission step (the workflow used here signs and stops), and no conformity poller exists for this channel. |
 | A-Cube (also a Peppol access point) | `ACUBE_LIVE=1` | `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD` (`PDP_ACUBE_ENVIRONMENT` optional, defaults to the sandbox) | `acube/acube.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real FatturaPA, built by this repository's own `fatturapa-provider.ts` and gated by the real vendored `Schema_VFPR12.xsd`, deposited through `POST /invoices` on `it-sandbox.api.acubeapi.com` and answered `202 {"uuid": "01a0d284-f0ac-76fb-af3d-0b359d20ad2a"}`; the uuid was then **read back off the platform** (`GET /invoices/{uuid}` → `marking: "waiting"`, `transmission_format: "FPR12"`, `document_type: "TD01"`, the deposited payload echoed back with our own invoice number in it). Sandbox only: A-Cube does not forward a sandbox deposit to SdI at all, so no cleared/rejected SdI verdict is reachable here and none is asserted. Production terms are not published - nothing about the production host has been attempted. |
-| Billit (BE, Peppol access point) | `BILLIT_LIVE=1` | `BILLIT_API_BASE`, `BILLIT_API_KEY`, `BILLIT_PARTY_ID` (`BILLIT_RECEIVER_ENDPOINT` optional) | `billit/billit.live.spec.ts` | 🟡 **Authenticated and validated live 2026-09-24, deposit blocked by one account setting** - both headers authenticate for real (`GET /party/1163540` → HTTP 200), the Peppol directory lookup answers for real, `POST /orders` created a real invoice (OrderID `3327952`, HTTP 200) and `POST /orders/commands/send` was accepted (HTTP 200). Billit then refused to transmit and said why, verbatim, in the order's own message log: *"The VAT Number of your company () cannot be used to send via Peppol, change your VAT number in your company record"*. The sandbox company record carries no VAT number, so `POST /peppol/sendxml` fails the same way - identically for Billit's OWN documented sample document, which is how we know the refusal is the account and not our UBL. Setting that VAT number is a change to the Billit company record, which only the account owner can make. See the dedicated section below. |
+| Billit (BE, Peppol access point) | `BILLIT_LIVE=1` | `BILLIT_API_BASE`, `BILLIT_API_KEY`, `BILLIT_PARTY_ID` (`BILLIT_RECEIVER_ENDPOINT` optional) | `billit/billit.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real Peppol BIS Billing 3.0 UBL, built by the real `peppol-bis-provider.ts` and gated by the real EN 16931 + Peppol Schematron rulesets, deposited through `POST /peppol/sendxml` and accepted: `InboxItemID` **1117002**, reproduced on a second independent run as **1117004**. Delivery is not inferred from the 200: the receiver ANSWERED, and `GET /peppol/inbox` carries one IMR per deposit from `0208:0563846944` back to `9957:FR54982187676`. Two findings cost a day and are written up in the dedicated section below - the supplier in the document must BE the Billit company, and a French seller dated on or after 2026-09-01 cannot be built at all (our own BT-23/`cbc:ProfileID` clash, not Billit's). ⚠️ The sandbox is a 14-day trial opened 2026-09-24: this stops being runnable on **2026-10-08**. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa.live.spec.ts` | ✅ **Proven live** — a real TST DER from FreeTSA (`https://freetsa.org/tsr`) embedded as a genuine XAdES-T `SignatureTimeStamp`; no credential needed (FreeTSA is public/anonymous). First proven 2026-06-30; re-run 2026-09-14 — `TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr npx jest tsa.live --no-coverage --runInBand` → 3/3, exit 0 (`HttpTsaClient`, `XadesSigningProvider` level-T, the env-built signing registry) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | Company lookup, through the onboarding wizard UI (same provider chain, driven by Cypress rather than calling the service directly) | `COMPANY_LOOKUP_LIVE=1` (passed as `--env COMPANY_LOOKUP_LIVE=1` to Cypress — note Cypress delivers it as a NUMBER, so the spec compares with `String(...)`, not `===`) | _(none, same reason as above)_ | `e2e/cypress/e2e/18-onboarding-wizard.cy.ts` (one `it` inside a shared `describe`, not a separate file — its title itself states the gate) | ✅ Proven live (created 2026-08-30; re-run 2026-09-14) — `4/4` passing with the gate open, EDF's real SIRET pre-filling the form and the persisted company read back from the database. Not run by any CI workflow (neither `cypress.yml`'s default `Tests` job nor a Cypress equivalent of `compliance-live.yml`, which does not exist) — offline, this test shows as Cypress "Pending", by design, same as the row above. |
@@ -539,37 +539,76 @@ participant identifier the live spec deposits to, defaulting to `0208:0563846944
 verified registered on the Peppol TEST network for `BISv3Invoice` on 2026-09-24. Override it if your
 own sandbox has a better receiver.
 
-### What was proven live on 2026-09-24, and what stopped it
+### The company you send as, and why the first attempts failed
 
-Proven, by reading Billit's own responses:
+**The supplier carried IN the document must BE the Billit company the `partyID` header names.**
+Billit resolves the sender that way and refuses anything it cannot match, with a generic HTTP 400
+whose body names nothing:
 
-- Both headers authenticate. `GET /party/1163540` returned HTTP 200 and the company record.
-- The Peppol directory answers. `GET /peppol/participantInformation/0208:0563846944` returned HTTP
-  200, `"Registered": true`, with `BISv3Invoice` among the document types.
-- Billit runs the Peppol rules on a submitted UBL before accepting it, and names the rule it broke:
-  a document with a malformed Belgian enterprise number came back as
-  `[PEPPOL-COMMON-R043]-Belgian enterprise number MUST be stated in the correct format.` with the XML
-  location. The document this repository builds passes that stage.
-- `POST /orders` created a real invoice in the sandbox (HTTP 200, OrderID `3327952`) and
-  `POST /orders/commands/send` with `Transporttype: "Peppol"` was accepted (HTTP 200).
+```
+{"errors":[{"Code":"GenericError","Description":"Processing of the HTTP request resulted in an
+  exception. Please see the HTTP response returned by the 'Response' property of this exception
+  for details."}]}
+```
 
-What stopped the transmission, quoted from the order's own message log:
+That message is useless, and it is the same one you get for several unrelated causes. **When you
+hit it, do not guess: POST a throwaway order and read its message log.** `POST /orders` then
+`POST /orders/commands/send` with `Transporttype: "Peppol"` both answer HTTP 200 regardless, but
+`GET /orders/{id}` afterwards carries a `Messages[]` entry with the real sentence in it. That is how
+the two causes below were identified, an hour apart:
 
-> "The VAT Number of your company () cannot be used to send via Peppol, change your VAT number in
-> your company record"
+| What the order message log said | What it meant |
+|---|---|
+| `"The VAT Number of your company () cannot be used to send via Peppol, change your VAT number in your company record"` | The company record had no VAT number. The empty `()` is Billit interpolating the missing value. Note it is the party's top-level `VATNumber` field that matters, **not** `Identifiers`, which stays `[]` even for a company that has one. |
+| _(no message - the send succeeded)_ | Once `VATNumber` was set, `/orders` delivered, and `/peppol/sendxml` still failed until the UBL's own supplier was changed to that same identity. |
 
-The sandbox company record carries **no VAT number at all** (`"Identifiers": []` on the party, and
-the empty parentheses in Billit's message are the missing value). Billit refuses to transmit for a
-company it cannot identify on the network, so `POST /peppol/sendxml` fails at the same gate - and it
-fails **identically for Billit's own documented example document** once that example's check digits
-are corrected, which is how we know the refusal is the account rather than the document this
-repository builds.
+So the sequence to get a new account sending is: set the company's **VAT number** (and, for a French
+company, its **Siren** - https://docs.billit.be/docs/create-account-and-french-integration), then put
+that identity in the document you deposit. Their France setup adds two further steps (the
+"Electronic invoicing in France" integration tile, which generates the CTC, and an automatic Peppol
+registration the next day at 10:00) - **not needed for the Peppol test network**, where the round
+trip below worked without them, but needed for the French annuaire in production.
 
-Fixing it is one change to the Billit company record (set the company VAT number, then have the
-company verified - https://docs.billit.be/docs/verification-of-a-non-belgian-company), and only the
-account owner can make it. Until then `billit.live.spec.ts` runs and **fails at the deposit**, which
-is the honest outcome: it is not weakened to pass, because a live spec that passes without a real
-deposit proves nothing.
+### Round-trip proven live on 2026-09-24
+
+Run through the real `peppol-bis-provider.ts`, the real EN 16931 UBL Schematron and the real
+vendored Peppol delta, nothing mocked:
+
+```
+Billit participant lookup: { identifier: '0208:0563846944', registered: true,
+  documentTypes: [ 'BISv3Invoice', 'IMR', 'MLR', 'BISv3CreditNote', ... ] }
+Peppol BIS UBL built and validated, bytes: 4002
+Billit /peppol/sendxml response: 1117002
+DEPOSIT ACCEPTED - InboxItemID: 1117002 receiver: 0208 0563846944
+```
+
+Reproduced on a second independent run: `InboxItemID` **1117004**.
+
+Note the response body is a **bare integer**, not a JSON object - `billit-client.ts#extractInboxItemId`
+accepts both shapes for exactly this reason.
+
+**Delivery is not inferred from the HTTP 200.** The receiver answered. `GET /peppol/inbox` carries
+one IMR (Peppol invoice message response) per deposit:
+
+```json
+{"InboxItems":[
+  {"InboxItemID":1117009,"SenderPeppolID":"0208:0563846944","PeppolDocumentType":"IMR",
+   "ReceiverPeppolID":"9957:FR54982187676","ReceiverCompanyID":"FR54982187676",
+   "CreationDate":"2026-09-24T13:51:36.48533","PeppolFileID":"0a47bff7-3730-4cb3-b019-01a0d341be79"}]}
+```
+
+`9957:FR54982187676` is this sandbox company. The document reached the far end of the Peppol test
+network and the far end replied.
+
+Billit also runs the Peppol rules itself before accepting anything, and unlike the generic 400 above
+it names the rule when it is a content problem - one entry per XML location:
+
+```
+[PEPPOL-COMMON-R043]-Belgian enterprise number MUST be stated in the correct format.
+  Thrown at XML location: Invoice.AccountingSupplierParty.Party.EndpointID
+```
+
+Reading every entry rather than only the first is `billit-client.ts#describeFailure`'s job.
 
 ### The path to production is not open today
 
@@ -596,9 +635,16 @@ PEPPOL-EN16931-R007: Business process MUST be in the format
 'urn:fdc:peppol.eu:2017:poacc:billing:NN:1.0' where NN indicates the process number.
 ```
 
-So a French seller cannot send through this transport today, while a Belgian one can. This is its own
-piece of work (BT-23 needs a per-syntax home, the way Chorus Pro already has
-`businessProcessCodeOverride`) and is deliberately not fixed here.
+**This is why `billit.live.spec.ts` pins its `issueDate` to `2026-08-31`** rather than using
+`new Date()`: one day before the mandate, the temporal gate correctly resolves no code and
+`@e-invoice-eu/core`'s own default (the Peppol URN) stands, so the document builds and the real
+deposit goes through. The pin is documented in the spec itself and is **not** a claim that a
+post-mandate French invoice can go out over Peppol. It cannot, today.
+
+The Billit sandbox company is French, so this bites the moment the pin is removed. Fixing it is its
+own piece of work: BT-23 needs a per-syntax home, the way Chorus Pro already has
+`businessProcessCodeOverride`. It is deliberately not fixed here, and it affects `download-xml` in
+Peppol BIS syntax for every French seller too, not just this transport.
 
 ## SdI prerequisites (currently deferred — code is implemented-awaiting-accreditation)
 
