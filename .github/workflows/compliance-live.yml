@@ -68,6 +68,7 @@ jobs:
       STRIPE_LIVE: '1'        # Online payment — see its own block below
       MOLLIE_LIVE: '1'        # Online payment — see its own block below
       PAYPAL_LIVE: '1'        # Online payment — see its own block below
+      INVOPOP_LIVE: '1'       # Invopop (GOBL pivot) - see its own block below
 
       # --- Real Postgres for the specs that touch the `prisma` singleton directly (see the
       # `services:` comment above for which ones and why) — a fresh, empty, freshly-migrated DB is
@@ -115,6 +116,15 @@ jobs:
       PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
       PAYPAL_WEBHOOK_ID:    ${{ secrets.PAYPAL_WEBHOOK_ID }}
       PAYPAL_ENVIRONMENT: 'sandbox'
+
+      # --- Invopop (GOBL pivot, any country the workspace is set up for) ---
+      # INVOPOP_API_KEY is a workspace token and carries the workspace with it: there is no separate
+      # sandbox host, so the token itself is what decides sandbox or live. The spec refuses to run
+      # against a workspace whose own `sandbox` flag is not true, which is the only guard there is.
+      # INVOPOP_WORKFLOW_ID names a PUBLISHED workflow in that same workspace - without one there is
+      # nothing to run a deposited entry through. INVOPOP_BASE_URL is optional and normally unset.
+      INVOPOP_API_KEY:     ${{ secrets.INVOPOP_API_KEY }}
+      INVOPOP_WORKFLOW_ID: ${{ secrets.INVOPOP_WORKFLOW_ID }}
 
       # Encryption key for any credential-store round-trip the specs may touch.
       CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
