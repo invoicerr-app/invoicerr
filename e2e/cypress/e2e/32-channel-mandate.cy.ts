@@ -15,6 +15,14 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     SATISFIES the mandate: the send is no longer refused for that reason — it then fails, as in
  *     31, at the real deposit against a fake server (fake baseUrl), never at the mandate.
  *
+ * This spec is the DOMESTIC proof, and only works because it is domestic: the seeded company is
+ * French and the seeded baseline client is French too (`cy.resetAndSeed`, country "FR"). A national
+ * channel mandate binds only an operation between parties established in the same country - CGI art.
+ * 289 bis I, now carried as `scope: { "parties": "domestic" }` in `channel-policy/data/fr.json` - so
+ * every block below depends on that pairing. Changing the seeded client's country would silently turn
+ * this whole file green for the wrong reason. The CROSS-BORDER direction (a French seller invoicing a
+ * Polish client, NOT blocked) is proven by `scenarios/full-lifecycle.cy.ts`'s own `fr-pl` leg.
+ *
  * The regression this file explicitly guards against: an invoice ISSUED BEFORE the mandate goes out
  * freely via any transport — the mandate never bites on the server's current date, it
  * bites on the document's ISSUE date (see `channel-policy/mandate.ts`'s own header). This is also

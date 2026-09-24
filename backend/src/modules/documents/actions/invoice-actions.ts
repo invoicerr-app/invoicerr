@@ -10,7 +10,7 @@ import {
   resolveClientB2gRouting,
 } from '../b2g-routing/b2g-routing';
 import { loadRatesSafely } from '../../company/currency-rates/currency-rates.store';
-import { resolveCompanyCountryCode } from '../country-policy/country-policy';
+import { resolveClientCountryCode, resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { stripSidecarKeys } from '../descriptors/validate';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
@@ -25,7 +25,7 @@ import { listPayments, recordPayment, toSettlementPaymentInputs } from '../settl
 import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
 import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
 import { computeDocumentTotals } from '../totals/compute-totals';
-import { ActiveChannelMandate, activeChannelMandateFor } from '../transports/channel-policy/mandate';
+import { ActiveChannelMandate, activeChannelMandateForOperation } from '../transports/channel-policy/mandate';
 import { getCompanyInvoiceTransportId } from '../transports/company-transport';
 import {
   DocumentTransport,
@@ -54,22 +54,44 @@ export interface InvoiceActionDeps {
 
 /**
  * "country-mandated channel" — resolves the issuing company's own COUNTRY and asks
- * whether it MANDATES a channel for an invoice issued on `issueDate` (`channel-policy/mandate.ts`,
- * evaluated against the invoice's own issue date, never the server's clock — see that file's own
- * header). Undefined for any company whose country's own channel-policy fact does not (yet) declare
- * a `requirement: 'mandated'` — see `channel-policy/data/*.json` for which countries currently do, a
+ * whether it MANDATES a channel for THIS invoice (`channel-policy/mandate.ts`, evaluated against the
+ * invoice's own issue date, never the server's clock - see that file's own header). Undefined for
+ * any company whose country's own channel-policy fact does not (yet) declare a
+ * `requirement: 'mandated'` - see `channel-policy/data/*.json` for which countries currently do, a
  * set this function never enumerates itself so that arming a new one stays a data change, never a
  * code change here — and for any company whose country cannot even be resolved — exactly the same
  * "no permissive fallback, but also no invented block" posture `country-policy.ts`'s own
  * `resolveCompanyCountryCode` callers already hold elsewhere in this module.
+ *
+ * THE BUYER'S OWN COUNTRY IS PART OF THE QUESTION, not a refinement of it: a national channel
+ * mandate governs a DOMESTIC operation (France's CGI art. 289 bis binds emission through a
+ * plateforme agréée between taxable persons established in France; Italy's D.Lgs. 127/2015 art. 1
+ * comma 3 binds SdI invoicing "tra soggetti residenti o stabiliti nel territorio dello Stato"), so
+ * an invoice to a client established abroad is outside it. Hence `resolveClientCountryCode` here and
+ * `activeChannelMandateForOperation` rather than the country-level `activeChannelMandateFor` - see
+ * that function's own header for the full reasoning, including why an UNRESOLVED buyer country is
+ * treated as domestic (fail-closed) and why the DECLARATION each side may still owe its own
+ * administration (France's e-reporting, CGI art. 290; Italy's comma 3-bis data transmission) is
+ * neither discharged nor represented by this product.
+ *
+ * This is a DIFFERENT use of the buyer's country from `resolveClientB2gRouting`'s, which asks
+ * whether the client is a public body and applies ITS country's own B2G regime - see this file's own
+ * B2G section header for that precedence. Here the buyer's country only ever NARROWS the seller's
+ * own mandate; it never imports the buyer country's mandate in its place.
  */
 async function resolveActiveInvoiceMandate(
   companyId: string,
   issueDate: string | undefined,
+  clientId: string | undefined,
 ): Promise<{ countryCode: string; mandate: ActiveChannelMandate } | undefined> {
   const countryCode = await resolveCompanyCountryCode(companyId);
   if (!countryCode) return undefined;
-  const mandate = activeChannelMandateFor(countryCode, issueDate);
+  const buyerCountryCode = await resolveClientCountryCode(companyId, clientId);
+  const mandate = activeChannelMandateForOperation({
+    sellerCountryCode: countryCode,
+    buyerCountryCode,
+    issueDate,
+  });
   return mandate ? { countryCode, mandate } : undefined;
 }
 
@@ -332,7 +354,7 @@ async function resolveInvoiceTransport(
 
   const transportId = await getCompanyInvoiceTransportId(companyId);
 
-  const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
+  const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate, clientId);
   // A mandate is satisfied by its own `providerId` OR by any of its `equivalentProviderIds`
   // (`channel-policy/schema.ts`'s own header) — e.g. Italy's "sdi" mandate is equally discharged by
   // "sdi-pec" (`transports/sdi-pec-transport.ts`), a different transport implementing the SAME legal
@@ -420,7 +442,7 @@ async function runInvoiceSendPreflight(
       throw new NotImplementedException(b2gChannelNotReadyMessage(b2g.countryCode!, b2g.rule, message));
     }
 
-    const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
+    const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate, clientId);
     if (activeMandate) {
       throw new NotImplementedException(
         mandateChannelNotReadyMessage(activeMandate.countryCode, activeMandate.mandate, message),

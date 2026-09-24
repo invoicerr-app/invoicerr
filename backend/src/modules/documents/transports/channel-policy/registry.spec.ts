@@ -147,6 +147,69 @@ describe('channel policy files — loaded, not hard-coded', () => {
     ).not.toThrow();
   });
 
+  // `scope` used to be a free-form `Record<string, unknown>` that nothing read. It is now read, and
+  // it DISARMS a mandate, so the four tests below exist to keep it closed: an ignored key or value
+  // here would mean a narrowing an author believed they declared silently doing nothing (or, the
+  // other way round, a mandate staying armed on an invoice a data file meant to release).
+  it('a "scope" with an unknown key is REJECTED at load rather than ignored', () => {
+    expect(() =>
+      assertValidChannelPolicyFact(
+        {
+          providerId: 'pdp',
+          requirement: 'mandated',
+          mandatedFrom: '2026-09-01',
+          scope: { role: 'B2B' } as never,
+          provenance: { kind: 'legal', sourceText: 'Some exact legal text.', sourceCheckedAt: '2026-08-27' },
+        },
+        'fixture',
+      ),
+    ).toThrow(/unknown "scope" key "role"/);
+  });
+
+  it('a "scope.parties" with an unknown value is REJECTED at load', () => {
+    expect(() =>
+      assertValidChannelPolicyFact(
+        {
+          providerId: 'pdp',
+          requirement: 'mandated',
+          mandatedFrom: '2026-09-01',
+          scope: { parties: 'cross-border' } as never,
+          provenance: { kind: 'legal', sourceText: 'Some exact legal text.', sourceCheckedAt: '2026-08-27' },
+        },
+        'fixture',
+      ),
+    ).toThrow(/only value this format understands today is "domestic"/);
+  });
+
+  it('an EMPTY "scope" is REJECTED - a narrowing that narrows nothing is a mistake, not a default', () => {
+    expect(() =>
+      assertValidChannelPolicyFact(
+        {
+          providerId: 'pdp',
+          requirement: 'mandated',
+          mandatedFrom: '2026-09-01',
+          scope: {},
+          provenance: { kind: 'legal', sourceText: 'Some exact legal text.', sourceCheckedAt: '2026-08-27' },
+        },
+        'fixture',
+      ),
+    ).toThrow(/empty "scope"/);
+  });
+
+  it('the two shipped mandates both declare `scope.parties: "domestic"` - the statutory restriction each one quotes', () => {
+    // Not a style assertion: `fr.json`'s own `sourceText` is about the plateforme agréée between
+    // parties established in France, and `it.json`'s quotes "tra soggetti residenti o stabiliti nel
+    // territorio dello Stato" verbatim. Dropping this field from either file would silently restore
+    // the bug this whole mechanism exists to fix.
+    const mandatesWithScope = ALL_CHANNEL_POLICY_FILES.flatMap((file) =>
+      file.facts.filter((fact) => fact.requirement === 'mandated'),
+    );
+    expect(mandatesWithScope.length).toBeGreaterThan(0);
+    for (const fact of mandatesWithScope) {
+      expect(fact.scope).toEqual({ parties: 'domestic' });
+    }
+  });
+
   it('a fact with no valid "requirement" is rejected', () => {
     expect(() =>
       assertValidChannelPolicyFact(

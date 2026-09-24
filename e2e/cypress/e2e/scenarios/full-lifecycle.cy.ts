@@ -163,11 +163,16 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  * screen-driven, by `35-cross-border-tax.cy.ts`. Re-running either dedicated proof six more times here
  * (once per leg) would spend CI time restating a passing test, not finding a new failure mode — this
  * file instead exercises the hard block none of the numbered specs reach: `transports/
- * channel-policy/mandate.ts`'s date-gated MANDATE override — `fr-pl`'s second invoice (below) proves
- * it for France/PDP, and `it-it`/`it-pt` (armed 2026-09-13, D.Lgs. 127/2015 art. 1 comma 3) prove the
- * SAME mechanism for Italy/SdI, on their own MAIN invoice this time (Italy's mandate has been active
- * since 2019 — there is no "before the mandate" date left to pick for an Italian seller the way
- * fr-pl's second invoice picks "today" — see `connectFakeSdiAndMakeItTheTransport`'s own header).
+ * channel-policy/mandate.ts`'s date-gated MANDATE override - `it-it` (armed 2026-09-13, D.Lgs.
+ * 127/2015 art. 1 comma 3) proves it for Italy/SdI on its own MAIN invoice (Italy's mandate has been
+ * active since 2019, so there is no "before the mandate" date left to pick for an Italian seller -
+ * see `connectFakeSdiAndMakeItTheTransport`'s own header).
+ *
+ * Every OTHER leg of this file is CROSS BORDER, and a national channel mandate governs domestic
+ * operations only (`channel-policy/schema.ts`'s own `scope.parties`) - so no mandate bites on them,
+ * including `fr-pl` and `it-pt`, whose sellers are established in the two countries that do mandate a
+ * channel. `fr-pl`'s second invoice (below) is what proves that direction, and the DOMESTIC block it
+ * used to assert lives in `32-channel-mandate.cy.ts`, whose seeded client is French.
  *
  * ## House discipline this file follows (see 21/31/35 for the precedent)
  *
@@ -419,11 +424,15 @@ function sendInvoiceViaScreen(invoiceId: string) {
  * 2026-09-13 (D.Lgs. 127/2015 art. 1 comma 3 — see that file's own `provenance`). Every leg's own
  * main invoice below is issued 2026-08-20 — chosen (see the top-of-file NOTE) to sit BEFORE France's
  * own PDP mandate (2026-09-01) so the shared "sends via email, reaches Sent" shape holds for every
- * OTHER leg — but Italy's mandate has been active since 2019, so for `it-it`/`it-pt` that same date is
- * always inside the mandate window; there is no "before" date left to pick for an Italian seller. The
- * two Italian legs therefore need the SAME two-step shape `32-channel-mandate.cy.ts` already
- * established for France (blocked by email, unblocked by connecting+choosing the mandated channel),
- * not the FR-pl trick of a second, separately-dated invoice — see this file's own header for why.
+ * OTHER leg - but Italy's mandate has been active since 2019, so for `it-it` that same date is always
+ * inside the mandate window; there is no "before" date left to pick for an Italian seller. That leg
+ * therefore needs the SAME two-step shape `32-channel-mandate.cy.ts` already established for France
+ * (blocked by email, unblocked by connecting+choosing the mandated channel), not the fr-pl trick of a
+ * second, separately-dated invoice - see this file's own header for why.
+ *
+ * `it-pt` has the same Italian seller but a PORTUGUESE buyer, and art. 1 comma 3 binds only supplies
+ * "tra soggetti residenti o stabiliti nel territorio dello Stato" - so that leg is NOT mandated and
+ * keeps the plain email shape. Only `it-it` uses the helper below.
  * Real SdI credentials do not exist in CI (`31-national-channels.cy.ts`'s own header: SdI is
  * "implemented-awaiting-accreditation"), so — exactly like that spec's own SdI leg — this connects
  * FAKE credentials whose `endpoint` points at a closed port (immediate ECONNREFUSED, never a network
@@ -757,8 +766,17 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		createInvoiceDraft(buyerClientId, "2026-08-20", "2026-09-20", String(s.item.vatRate)).then((id) => {
 			invoiceId = id;
 
-			const isItalianSeller = scenarioId === "it-it" || scenarioId === "it-pt";
-			if (isItalianSeller) {
+			// `it-it`, NOT `it-pt`: a national channel mandate governs DOMESTIC operations only
+			// (`channel-policy/schema.ts`'s own `scope.parties` field, armed for both shipped
+			// mandates). D.Lgs. 127/2015 art. 1 comma 3 binds SdI invoicing "tra soggetti residenti o
+			// stabiliti nel territorio dello Stato", so `it-it` (Italian buyer) is bound and `it-pt`
+			// (Portuguese buyer) is not - that leg therefore follows the same plain "sends via email,
+			// reaches Sent" shape as every other cross-border leg in this file. What the Italian
+			// seller still owes for that cross-border operation is a DECLARATION to its own
+			// administration (art. 1 comma 3-bis), not a routing of the invoice, and this product
+			// models no such declaration for Italy at all - see `reporting/`'s own data files.
+			const isDomesticMandatedSeller = scenarioId === "it-it";
+			if (isDomesticMandatedSeller) {
 				// STEP 1 — the mandate blocks the baseline "email" transport (see this file's own
 				// `connectFakeSdiAndMakeItTheTransport` header for why this leg cannot simply pick a
 				// "before the mandate" date the way every other leg does). Never persisted past "draft" —
@@ -787,12 +805,12 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			}
 			sendInvoiceViaScreen(id);
 
-			const expectedStatus = isItalianSeller ? "Send failed" : "Sent";
+			const expectedStatus = isDomesticMandatedSeller ? "Send failed" : "Sent";
 			cy.get(`[data-cy="document-list-row-${id}"]`, { timeout: 40000 })
 				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
 				.should("contain.text", expectedStatus);
 
-			if (isItalianSeller) {
+			if (isDomesticMandatedSeller) {
 				cy.get(`[data-cy="document-row-last-error-${id}"]`)
 					.should("contain.text", "SdI")
 					// The failure is the fake, unreachable endpoint — never the mandate any more, since the
@@ -801,7 +819,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					.and("not.contain.text", "requires invoices");
 			}
 
-			const expectedFinalStatus = isItalianSeller ? "send_failed" : "sent";
+			const expectedFinalStatus = isDomesticMandatedSeller ? "send_failed" : "sent";
 			cy.request(`${api}/api/documents/${id}?typeId=invoice`)
 				.its("body")
 				.then((doc) => {
@@ -824,7 +842,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 
 			// The PDF path — Chromium-provisioned, playwright-based renderer (see CLAUDE.md). Never
 			// status-gated (`documents.service.ts#renderInstancePdf` reads the record as-is, whatever its
-			// status), so this works identically for "sent" and for the two Italian legs' "send_failed". A single
+			// status), so this works identically for "sent" and for the it-it leg's own "send_failed". A single
 			// re-download after "sent" is enough to prove the path works for every leg; 35 already proves
 			// a SECOND, post-edit re-render for the one leg that specifically needs it.
 			//
@@ -1076,21 +1094,35 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 						expect(pdp!.mandatedFrom).to.eq("2026-09-01");
 						expect(pdp!.effectiveNow, "the mandate has already come into force").to.eq(true);
 					} else if (scenarioId === "it-it" || scenarioId === "it-pt") {
-						// Italy — `channel-policy/data/it.json` now declares SdI `mandated` from 2019-01-01,
+						// Italy - `channel-policy/data/it.json` declares SdI `mandated` from 2019-01-01,
 						// `provenance.kind: 'legal'`, sourced to D.Lgs. 127/2015 art. 1 comma 3 (armed
-						// 2026-09-13 — see that file's own `provenance`/`notes`). The previous test's own
-						// two-step proof (blocked via "email", unblocked by connecting+choosing "sdi", real
-						// delivery still fails against a fake endpoint) IS the consequence of this now being
-						// `mandated` — the invoice settles on "send_failed", never "sent", and never a silent
-						// "email" success the way a merely-`suggested` fact used to allow.
+						// 2026-09-13 - see that file's own `provenance`/`notes`).
+						//
+						// BOTH Italian legs assert these four facts, and that is the point of asserting them
+						// HERE rather than through a send: this endpoint is the SETTINGS screen's own
+						// question ("does your country require a channel"), which `mandate.ts`'s
+						// `activeChannelMandateFor` answers at COUNTRY level and which no buyer narrows.
+						// An Italian company is told to connect SdI whoever it happens to be invoicing.
 						const sdi = suggested.find((c) => c.providerId === "sdi");
 						expect(sdi, "sdi is declared for Italy").to.exist;
 						expect(sdi!.requirement, "MANDATED since 2019-01-01, not merely suggested").to.eq("mandated");
 						expect(sdi!.mandatedFrom).to.eq("2019-01-01");
 						expect(sdi!.effectiveNow, "the mandate has already come into force").to.eq(true);
+
+						// What that declared mandate actually DOES to an invoice is where the two legs part,
+						// and the status below is the proof of it. `it-it` is domestic (Italian buyer), so
+						// comma 3 binds: the previous test's own two-step proof (blocked via "email",
+						// unblocked by connecting+choosing "sdi", real delivery then failing against a fake
+						// endpoint) settles it on "send_failed", never a silent "email" success. `it-pt`'s
+						// buyer is Portuguese, and comma 3 binds only supplies "tra soggetti residenti o
+						// stabiliti nel territorio dello Stato" - the mandate does not reach that operation
+						// (`channel-policy/data/it.json`'s own `scope.parties`), so it sends via "email" and
+						// genuinely reaches "sent". A declared mandate and a bound invoice are two different
+						// facts, and this pair is what keeps them from being confused again.
+						const expectedInvoiceStatus = scenarioId === "it-it" ? "send_failed" : "sent";
 						cy.request(`${api}/api/documents/${invoiceId}?typeId=invoice`)
 							.its("body.status")
-							.should("eq", "send_failed");
+							.should("eq", expectedInvoiceStatus);
 					} else if (scenarioId === "pl-de") {
 						// Poland — `channel-policy/data/pl.json` now carries a real `legal` citation (art.
 						// 106ga ust. 1) but DELIBERATELY stays `requirement: 'suggested'` — see that file's own
@@ -1115,27 +1147,41 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			);
 
 		if (scenarioId === "fr-pl") {
-			// THE decisive proof the France mandate is a real, ENFORCED block, not just a settings-screen
-			// hint: a second draft, issued ON OR AFTER 2026-09-01 (today, by this branch's own forward-
-			// moving timeline — see this file's header), with the transport still "email" (never changed
-			// to "pdp") — `invoice-actions.ts#resolveInvoiceTransport`'s own mandate check runs BEFORE the
-			// company's free choice is even consulted and throws, SYNCHRONOUSLY, before anything is
-			// persisted or queued (its own header: "a doomed send is refused before anything is persisted").
+			// THE decisive proof that a national channel mandate does NOT bite on a CROSS-BORDER
+			// operation. This block used to assert the opposite - a second draft issued on or after
+			// 2026-09-01 was refused, naming "pdp" - which was the live conformity bug: France's
+			// plateforme agréée obligation applies "lorsque l'émetteur de la facture et son
+			// destinataire sont des assujettis qui sont établis ou ont leur domicile ou leur résidence
+			// habituelle en France" (CGI art. 289 bis I, version in force since 2026-02-21), and this
+			// leg's buyer is a POLISH company. The invoice is therefore lawful through any transport,
+			// and the product used to refuse it outright.
+			//
+			// The domestic half of the same mechanism - a French seller invoicing a FRENCH client,
+			// genuinely blocked and genuinely unblocked by connecting PDP - is proven end to end by
+			// `32-channel-mandate.cy.ts`, whose seeded client is French. This leg proves the other
+			// direction, which no other spec can: it is the only one pairing a French seller with a
+			// foreign buyer.
+			//
+			// What France still owes for this operation is e-reporting (CGI art. 290 I 1°, which
+			// explicitly covers supplies exempt under art. 262 ter I - precisely the ones art. 289 bis
+			// V excludes from e-invoicing). That is a declaration, not a channel, and this product does
+			// not perform it: `reporting/data/fr.json`'s two e-reporting facts name an UNREGISTERED
+			// provider on purpose. Nothing in this test should be read as proving otherwise.
 			const today = new Date().toISOString().slice(0, 10);
 			createInvoiceDraft(buyerClientId, today, "2026-12-31", "0").then((mandateTestId) => {
 				sendInvoiceViaScreen(mandateTestId);
 
-				cy.get("[data-sonner-toast]", { timeout: 10000 })
-					.should("contain.text", "2026-09-01")
-					.and("contain.text", "pdp");
+				cy.get(`[data-cy="document-list-row-${mandateTestId}"]`, { timeout: 40000 })
+					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+					.should("contain.text", "Sent");
 
 				cy.request(`${api}/api/documents/${mandateTestId}?typeId=invoice`)
 					.its("body.status")
 					.then((status) => {
 						expect(
 							status,
-							'never persisted past "draft" — the mandate blocks at preflight, before "sending" is even entered',
-						).to.eq("draft");
+							"a French seller may invoice a foreign customer through its own chosen transport",
+						).to.eq("sent");
 					});
 			});
 		}
@@ -1225,11 +1271,13 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			);
 			cy.get('[data-cy="document-correction-route-DEBIT_NOTE-button"]').should("not.be.disabled").click();
 			cy.get('[data-cy="document-correction-not-implemented"]', { timeout: 5000 }).should("be.visible");
-			// "send_failed", not "sent" — this seller is Italian too (see it-it's own branch above for
-			// why: the armed SdI mandate makes "send_failed" this leg's own genuine final status, via
-			// the same connect-SdI-then-real-fake-endpoint-failure path). The "not implemented" panel
+			// "sent", not "send_failed" - this seller is Italian, but this leg's BUYER is Portuguese,
+			// and Italy's SdI mandate binds only operations between subjects established in Italy
+			// (D.Lgs. 127/2015 art. 1 comma 3, now carried as `scope.parties: "domestic"` in
+			// `channel-policy/data/it.json`). Unlike it-it, this leg is therefore never forced onto
+			// SdI, sends via plain email and genuinely reaches "sent". The "not implemented" panel
 			// never touches the record either way, so whatever status test 2 left it in is what survives.
-			cy.request(`${api}/api/documents/${invoiceId}?typeId=invoice`).its("body.status").should("eq", "send_failed");
+			cy.request(`${api}/api/documents/${invoiceId}?typeId=invoice`).its("body.status").should("eq", "sent");
 		} else if (scenarioId === "pt-de") {
 			// Portugal — CANCEL_AND_REPLACE stays "unverified" (`correction-routes/data/pt.json`: no
 			// clearance/refusal-then-reissue mechanism was FOUND in the primary Decreto-Lei text read for

@@ -137,7 +137,11 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
 - `correction-routes/` — credit-note vs. cancel-and-replace, per country (`cancel-policy.ts`).
 - `b2g-routing/` — which transport + format a government buyer requires, per country.
 - `transports/channel-policy/` — per-channel mandate rules, evaluated against the invoice's own
-  `issueDate`, never the server clock (`mandate.ts`).
+  `issueDate`, never the server clock (`mandate.ts`), **and against whether the operation is
+  domestic**: a `mandated` fact carrying `scope: { parties: 'domestic' }` binds only an invoice whose
+  buyer is established in the same country, which is what both shipped mandates (FR/pdp, IT/sdi)
+  actually say. `activeChannelMandateFor` answers the country-level question (settings screen);
+  `activeChannelMandateForOperation` is the only one that may gate a send.
 - `tax/` — `tax-engine.ts` is the cross-border tax determination engine, composing the seller's and
   buyer's `tax-systems/` catalogs into a per-line `TaxTreatment` (still **composition**, never an N×N
   country-pair matrix); `resolve-invoice-tax.ts` wires it into "send", hard-blocking on an unresolved
