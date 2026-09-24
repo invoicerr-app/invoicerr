@@ -299,11 +299,13 @@ function buildTransportRegistry(
   // intended, not a defect, and read that transport's own header before touching either file. Own
   // `fatturapaFormatProvider` reference, same "stateless, no reason to couple two registries"
   // reasoning every transport above already holds.
-  registry.register(
-    'acube',
-    'A-Cube (Italy)',
-    buildAcubeTransport({ channelCredentials, fatturapaFormatProvider }),
-  );
+  // The label is deliberately jurisdiction-NEUTRAL, unlike every other entry in this registry. A
+  // label is what a company picks from in its own settings; the header explaining the refusal is not
+  // something it ever reads. "A-Cube (Italy)" would therefore invite exactly the mistake the policy
+  // above blocks - read "Italy", choose it for Italy, get refused at send with no idea why. No
+  // capability qualifier either: "Peppol access point" would be true of the ACCOUNT and false of
+  // this transport, which builds FatturaPA and nothing else today.
+  registry.register('acube', 'A-Cube', buildAcubeTransport({ channelCredentials, fatturapaFormatProvider }));
   // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
   // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
   // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
