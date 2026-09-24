@@ -113,6 +113,17 @@ declare namespace Cypress {
         openSelect(triggerSelector: string, optionSelector: string): Chainable<void>
 
         /**
+         * Waits for a Radix layer that was just dismissed (a "more" menu whose entry was clicked, a
+         * `SearchSelect` whose option was picked) to have FINISHED tearing down, before another
+         * layer is opened on top of it: its content gone from the DOM, and the deferred focus
+         * restore its own `FocusScope` schedules on unmount already landed on the element named by
+         * `settledFocusSelector`. Opening a popover before that restore fires is what silently
+         * closes it again — see the implementation for the traced sequence.
+         * @example cy.waitForLayerTeardown('[data-cy="document-row-menu-content-abc"]', '[data-cy="document-field-cadence-input"] button')
+         */
+        waitForLayerTeardown(contentSelector: string, settledFocusSelector: string): Chainable<void>
+
+        /**
          * Opens a `SearchSelect` (components/search-input.tsx) popover WITHOUT picking an option —
          * for callers that type a filter into it afterward (CurrencySelect and friends) instead of
          * clicking a fixed entry. Same bounded-retry open-side guard as `openSelect`/`openDatePicker`

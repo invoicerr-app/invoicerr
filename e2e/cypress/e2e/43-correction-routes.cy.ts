@@ -805,6 +805,20 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				// Details: client / issueDate / dueDate / currency — every field this descriptor
 				// REQUIRES (`correctsInvoiceId` itself is optional at the descriptor level, so it does
 				// NOT land here — see document-create-dialog.tsx's own buildFieldGroups).
+				//
+				// Picking a client is never just "a value changed" on this screen: `use-document-form.ts`
+				// watches that field and RE-FETCHES the descriptor with `?clientId=…`, because the
+				// per-country field overlays (country-fields/) depend on the buyer. When that response
+				// lands, `effectiveDescriptor` is replaced and the whole field list is rebuilt — every
+				// field node below is a NEW node. Registered before the pick, waited on right after,
+				// so nothing is clicked while that rebuild is still in flight. Traced live on
+				// 2026-09-24 with the response held back: the calendar this test opens next was still
+				// on screen when the descriptor landed, and the rebuild unmounted it under the test —
+				// which is the "`[data-cy=date-picker-today]` … never found" CI hit this on (PR #446).
+				cy.intercept({
+					method: "GET",
+					url: `${api}/api/documents/types/invoice?clientId=*`,
+				}).as("clientAwareDescriptor");
 				cy.get('[data-cy="document-field-client-input"] button')
 					.first()
 					.click({ force: true });
@@ -815,6 +829,14 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 					'[data-cy="document-field-client-input-options"] button',
 					"Klient Korekta",
 				).click();
+				// The picker that just closed still owes the page its own deferred focus restore
+				// (support/commands.ts#waitForLayerTeardown) — opening the calendar before it fires is
+				// what lets that restore dismiss the calendar on the spot.
+				cy.waitForLayerTeardown(
+					'[data-cy="document-field-client-input-options"]',
+					'[data-cy="document-field-client-input"] button',
+				);
+				cy.wait("@clientAwareDescriptor", { timeout: 20000 });
 				cy.pickToday('[data-cy="document-field-issueDate-input"]');
 				cy.pickToday('[data-cy="document-field-dueDate-input"]');
 				cy.get('[data-cy="document-field-currency-input"] button')
