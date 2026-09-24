@@ -83,6 +83,7 @@ import {
 import { StripeProvider } from './payments/providers/stripe/stripe-provider';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
+import { buildInvopopTransport } from './transports/invopop-transport';
 import { buildIopoleTransport } from './transports/iopole-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
@@ -337,6 +338,10 @@ function buildTransportRegistry(
       }),
     }),
   );
+  // "invopop" - takes NO format provider, unlike every other structured transport above: the platform
+  // speaks GOBL, its own JSON pivot, and converts to the local syntax itself. See
+  // `transports/invopop-transport.ts`'s own header.
+  registry.register('invopop', 'Invopop (GOBL)', buildInvopopTransport({ channelCredentials }));
   // "anaf" (Romania) and "face" (Spain, B2G) used to be registered here — both deleted outright
   // along with the rest of their countries' scope (2026-09-10, see
   // `documentation/docs/developer-guide/live-testing.md`), never left dormant.

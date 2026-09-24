@@ -31,6 +31,7 @@
  *   SDI_LIVE=1          SdI (IT) round-trip (requires AdE accreditation + PFX)
  *   PEC_LIVE=1          SdI-via-PEC (IT) round-trip (a real PEC mailbox — NO accreditation required)
  *   PORTAL_LIVE=1       National portal round-trip (requires PORTAL_ID + portal-specific creds)
+ *   INVOPOP_LIVE=1      Invopop (GOBL pivot) round-trip (requires INVOPOP_API_KEY + INVOPOP_WORKFLOW_ID)
  */
 // Return type is `typeof describe.skip`, not `typeof describe`: Vitest's `describe` is
 // `SuiteAPI` (the chainable suite function plus `skipIf`/`runIf`), while `describe.skip` is the
