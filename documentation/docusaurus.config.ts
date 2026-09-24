@@ -166,8 +166,19 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    // The Open Graph / Twitter card. This is the one image in this config that is deliberately
+    // NOT a local file: it is the organisation-wide card, kept once in invoicerr-app/brand, so the
+    // docs, the landing page and the GitHub profile cannot drift into three different cards. It is
+    // safe here and nowhere else because a social card is fetched by crawlers, which refetch and
+    // re-host it, never by the page itself -- no reader ever waits on raw.githubusercontent.com to
+    // render docs.invoicerr.app. Every other asset above (favicons, navbar logo) stays local for
+    // exactly that reason. An absolute URL is also what Open Graph consumers require; Docusaurus
+    // resolves a bare path against `url` above, but passes an absolute one through untouched.
+    // The card is 1200x600, not the 1200x630 the major networks crop to (see landing/SEO.md in the
+    // landing repository). Kept as is on purpose: it is byte-identical to the card invoicerr.app
+    // already serves, and one shared card that letterboxes on some crawlers beats two cards that
+    // disagree. Re-export happens once, in brand, and every consumer picks it up here.
+    image: 'https://raw.githubusercontent.com/invoicerr-app/brand/main/social/og.jpg',
     colorMode: {
       respectPrefersColorScheme: true,
     },
