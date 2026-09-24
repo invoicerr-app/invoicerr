@@ -26,6 +26,7 @@
  *   KSEF_LIVE=1         KSeF (PL) round-trip
  *   PDP_LIVE=1          PDP superpdp (FR) round-trip
  *   PDP_AFNOR_LIVE=1    PDP AFNOR-style flow (FR) round-trip
+ *   IOPOLE_LIVE=1       Iopole (FR) round-trip
  *   EMAIL_LIVE=1        Email SMTP round-trip (Ethereal — no creds needed)
  *   SDI_LIVE=1          SdI (IT) round-trip (requires AdE accreditation + PFX)
  *   PEC_LIVE=1          SdI-via-PEC (IT) round-trip (a real PEC mailbox — NO accreditation required)

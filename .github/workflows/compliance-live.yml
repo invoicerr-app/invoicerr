@@ -62,6 +62,7 @@ jobs:
       # Flags ON — the per-spec credential gate decides what actually runs.
       KSEF_LIVE: '1'
       PDP_LIVE: '1'
+      IOPOLE_LIVE: '1'        # FR - Iopole, see its own block below
       SDI_LIVE: '1'
       TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
       CHORUSPRO_LIVE: '1'     # FR B2G (PISTE OAuth2) — see its own block below
@@ -85,6 +86,17 @@ jobs:
       PDP_BASE_URL:      ${{ secrets.PDP_BASE_URL }}
       PDP_CLIENT_ID:     ${{ secrets.PDP_CLIENT_ID }}
       PDP_CLIENT_SECRET: ${{ secrets.PDP_CLIENT_SECRET }}
+
+      # --- FR Iopole ---
+      # The round trip is PROVEN against the `ppd` sandbox (2026-09-24, see live-testing.md's own
+      # Iopole section), but these three repository secrets do NOT exist yet: until someone sets
+      # them, the gate self-skips silently, exactly like every other unfilled row here. No
+      # PDP_IOPOLE_API_BASE / PDP_IOPOLE_TOKEN_URL on purpose - both hosts are fixed constants in
+      # `iopole-transport.ts#IOPOLE_URLS`, and the spec's env overrides exist for a local operator,
+      # not for CI.
+      PDP_IOPOLE_CLIENT_ID:     ${{ secrets.PDP_IOPOLE_CLIENT_ID }}
+      PDP_IOPOLE_CLIENT_SECRET: ${{ secrets.PDP_IOPOLE_CLIENT_SECRET }}
+      PDP_IOPOLE_CUSTOMER_ID:   ${{ secrets.PDP_IOPOLE_CUSTOMER_ID }}
 
       # --- FR B2G — Chorus Pro (PISTE OAuth2) ---
       # Still-live, still-wired channel (transports/chorus-pro/) — moved here from the now-deleted

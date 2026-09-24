@@ -62,6 +62,7 @@ interface ChannelsResponse {
  *  the bare id (uppercased) for a provider this screen has no opinion about yet. */
 const PROVIDER_LABELS: Record<string, string> = {
   pdp: "PDP",
+  iopole: "Iopole",
   ksef: "KSeF",
   sdi: "SdI",
   "chorus-pro": "Chorus Pro",
@@ -124,6 +125,37 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelKey: "settings.channels.fields.clientSecret",
       labelDefault: "Client secret",
       type: "password",
+    },
+  ],
+  // Iopole (FR). Exactly the three fields `iopole-transport.ts#extractIopoleCredentials` reads, and
+  // no URL field: Iopole's own API and OAuth hosts are a fixed platform fact
+  // (`iopole-transport.ts#IOPOLE_URLS`), picked by the generic environment selector below the way
+  // Chorus Pro's already are, never a user-editable endpoint the way PDP's and SdI's are.
+  // `clientId` IS the account's e-mail address - unusual for OAuth2, verified live on 2026-09-24,
+  // and the placeholder says so, because a user who "corrects" it to a uuid gets an authentication
+  // failure that names nothing. `customerId` is mandatory on every Iopole API call, not just at
+  // authentication, and is NOT the sandbox scope that appears in the token's `scope` claim - the two
+  // look alike. A company reads its own from Iopole's `GET /v1/config/customer/id`.
+  iopole: [
+    {
+      key: "clientId",
+      labelKey: "settings.channels.fields.iopoleClientId",
+      labelDefault: "Client ID (your Iopole account e-mail)",
+      type: "text",
+      placeholder: "you@example.com",
+    },
+    {
+      key: "clientSecret",
+      labelKey: "settings.channels.fields.clientSecret",
+      labelDefault: "Client secret",
+      type: "password",
+    },
+    {
+      key: "customerId",
+      labelKey: "settings.channels.fields.iopoleCustomerId",
+      labelDefault: "Customer ID",
+      type: "text",
+      placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     },
   ],
   // KSeF (PL). `nip`/`ksefToken` are the ONLY provider-specific fields
