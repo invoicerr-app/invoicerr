@@ -81,6 +81,7 @@ import {
   RealStripeCheckoutClient,
 } from './payments/providers/stripe/stripe-checkout-client';
 import { StripeProvider } from './payments/providers/stripe/stripe-provider';
+import { buildBillitTransport } from './transports/billit-transport';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
@@ -321,6 +322,19 @@ function buildTransportRegistry(
         legalIdOverride: 'full',
       }),
     }),
+  );
+  // "billit" (Belgium, and a Peppol access point for everyone else) - the FIRST transport in this
+  // registry that speaks generic Peppol rather than one country's own authority protocol, which is
+  // also what opens Belgium, a country this product does not otherwise ship. It deposits the SAME
+  // `peppolBisFormatProvider` artifact `download-xml` already serves (shared module-level instance:
+  // that provider is a stateless object literal, unlike the `buildFacturxFormatProvider(...)`
+  // factories above, so there is nothing to give it an instance of its own for). See
+  // `transports/billit-transport.ts`'s own header for what it deliberately does NOT do - no poller,
+  // and no French "plateforme agreee" flow.
+  registry.register(
+    'billit',
+    'Billit (Peppol)',
+    buildBillitTransport({ channelCredentials, peppolBisFormatProvider }),
   );
   // "anaf" (Romania) and "face" (Spain, B2G) used to be registered here — both deleted outright
   // along with the rest of their countries' scope (2026-09-10, see

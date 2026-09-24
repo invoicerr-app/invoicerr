@@ -65,6 +65,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   ksef: "KSeF",
   sdi: "SdI",
   "chorus-pro": "Chorus Pro",
+  billit: "Billit",
 }
 
 /** Every provider id this screen renders as a DECLARATION (never a delivery channel) — the visual
@@ -215,6 +216,35 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelKey: "settings.channels.fields.chorusProTechnicalAccountPassword",
       labelDefault: "Chorus Pro technical account password",
       type: "password",
+    },
+  ],
+  // Billit (BE, and a Peppol access point for everyone else). Exactly the three fields
+  // `billit-transport.ts#extractBillitCredentials` reads. `partyId` has NO default on purpose: Billit's
+  // PartyID differs between sandbox and production, and an account covering several companies has one
+  // PartyID per company while the SAME key covers them all - so it is per-company configuration, never
+  // a constant. `baseUrl` is a field for the same reason PDP has one: sandbox and production are
+  // different hosts, and the environment selector below only tells the BACKEND which row this is, it
+  // cannot invent a hostname.
+  billit: [
+    {
+      key: "baseUrl",
+      labelKey: "settings.channels.fields.baseUrl",
+      labelDefault: "API base URL",
+      type: "text",
+      placeholder: "https://api.sandbox.billit.be/v1",
+    },
+    {
+      key: "apiKey",
+      labelKey: "settings.channels.fields.billitApiKey",
+      labelDefault: "API key",
+      type: "password",
+    },
+    {
+      key: "partyId",
+      labelKey: "settings.channels.fields.billitPartyId",
+      labelDefault: "PartyID",
+      type: "text",
+      placeholder: "1163540",
     },
   ],
   // ANAF (RO), FACe (ES), NAV (HU) and myDATA (GR) used to have their field specs here. All four
