@@ -14,7 +14,10 @@ import { DocumentTypeDescriptor } from './descriptors/types';
 import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import * as unsettledInvoices from './settlement/unsettled-invoices';
 import { TransportRegistry } from './transports/transport-registry';
+
+vi.mock('./settlement/unsettled-invoices');
 
 /**
  * Proves `DocumentsService.listDocuments` — the descriptor-resolution half of `GET /documents`'s
@@ -273,5 +276,70 @@ describe('DocumentsService.listDocuments', () => {
     await expect(service.listDocuments('company-1', 'nope', DEFAULT_QUERY)).rejects.toThrow(
       'Unknown document type "nope".',
     );
+  });
+
+  /**
+   * `settlement` is checked and applied entirely inside this service: the SHAPE check (is it
+   * "unsettled"/"overdue" at all) already lives in `dto/list-documents.dto.spec.ts`. What belongs
+   * here is the "only valid with typeId=invoice" restriction, and that the resolved id set is handed
+   * straight to `persistence.listDocumentsPage` as `ids`, the mechanism `settlement/unsettled-invoices.ts`
+   * (mocked here) shares with invoice-contributions.ts's own dashboard tiles.
+   */
+  describe('settlement filter', () => {
+    it('refuses settlement without a typeId at all', async () => {
+      const service = buildService(INVOICE_LIKE_DESCRIPTOR);
+      await expect(
+        service.listDocuments('company-1', undefined, { ...DEFAULT_QUERY, settlement: 'unsettled' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(persistence.listDocumentsPage).not.toHaveBeenCalled();
+    });
+
+    it('refuses settlement on a typeId other than "invoice"', async () => {
+      const service = buildService(EXPENSE_LIKE_DESCRIPTOR);
+      await expect(
+        service.listDocuments('company-1', 'expense', { ...DEFAULT_QUERY, settlement: 'unsettled' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(persistence.listDocumentsPage).not.toHaveBeenCalled();
+    });
+
+    it('resolves "unsettled" through filterUnsettledInvoices and restricts the list to those ids', async () => {
+      const service = buildService(INVOICE_LIKE_DESCRIPTOR);
+      const invoices = [{ id: 'inv-1' }, { id: 'inv-2' }];
+      (persistence.listAllDocuments as Mock).mockResolvedValue(invoices);
+      (unsettledInvoices.filterUnsettledInvoices as Mock).mockResolvedValue([
+        { id: 'inv-1', data: { dueDate: '2099-01-01' } },
+      ]);
+
+      await service.listDocuments('company-1', 'invoice', { ...DEFAULT_QUERY, settlement: 'unsettled' });
+
+      expect(persistence.listAllDocuments).toHaveBeenCalledWith('company-1', { typeId: 'invoice' });
+      expect(unsettledInvoices.filterUnsettledInvoices).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ id: 'invoice' }),
+        invoices,
+      );
+      expect(persistence.listDocumentsPage).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ ids: ['inv-1'] }),
+      );
+    });
+
+    it('narrows "overdue" further, to only the unsettled invoices isOverdueInvoice also accepts', async () => {
+      const service = buildService(INVOICE_LIKE_DESCRIPTOR);
+      const notOverdue = { id: 'inv-not-overdue', data: {} };
+      const overdue = { id: 'inv-overdue', data: { dueDate: '2020-01-01' } };
+      (persistence.listAllDocuments as Mock).mockResolvedValue([notOverdue, overdue]);
+      (unsettledInvoices.filterUnsettledInvoices as Mock).mockResolvedValue([notOverdue, overdue]);
+      (unsettledInvoices.isOverdueInvoice as Mock).mockImplementation(
+        (invoice: { id: string }) => invoice.id === 'inv-overdue',
+      );
+
+      await service.listDocuments('company-1', 'invoice', { ...DEFAULT_QUERY, settlement: 'overdue' });
+
+      expect(persistence.listDocumentsPage).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ ids: ['inv-overdue'] }),
+      );
+    });
   });
 });

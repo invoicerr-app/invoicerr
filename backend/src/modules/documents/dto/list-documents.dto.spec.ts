@@ -92,4 +92,21 @@ describe('parseListDocumentsQuery', () => {
     expect(parseListDocumentsQuery({ order: 'desc' }).order).toBe('desc');
     expect(() => parseListDocumentsQuery({ order: 'ASC' })).toThrow(BadRequestException);
   });
+
+  it('leaves settlement absent when not passed', () => {
+    expect(parseListDocumentsQuery({}).settlement).toBeUndefined();
+  });
+
+  it('accepts "unsettled"/"overdue" for settlement', () => {
+    expect(parseListDocumentsQuery({ settlement: 'unsettled' }).settlement).toBe('unsettled');
+    expect(parseListDocumentsQuery({ settlement: 'overdue' }).settlement).toBe('overdue');
+  });
+
+  it(
+    'refuses a settlement value outside the whitelist (this parse step knows nothing about typeId; ' +
+      'the "only valid with typeId=invoice" restriction lives in documents.service.ts)',
+    () => {
+      expect(() => parseListDocumentsQuery({ settlement: 'paid' })).toThrow(BadRequestException);
+    },
+  );
 });

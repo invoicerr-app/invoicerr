@@ -3,7 +3,7 @@ import { fromMinor, toMinor } from '@/utils/financial';
 import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
-import { MetricWidget, TableWidget, Widget } from './widgets';
+import { MetricWidget, MetricWidgetLink, TableWidget, Widget } from './widgets';
 
 /**
  * The SECOND real contribution, calqued on invoice-contributions.ts (see that file's own header for
@@ -49,6 +49,17 @@ function monthKey(value: unknown): string | null {
   return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+/** `"2026-08"` -> `{ dateFrom: "2026-08-01", dateTo: "2026-08-31" }`: the exact UTC calendar-month
+ *  boundaries `monthKey` itself buckets by, deliberately duplicated from
+ *  invoice-contributions.ts's own identical helper rather than shared (this file's own header on why
+ *  each contribution stays self-contained), used to point the "Expenses this month" tile's `link` at
+ *  precisely the same month the figure sums. */
+function monthRange(key: string): { dateFrom: string; dateTo: string } {
+  const [year, month] = key.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return { dateFrom: `${key}-01`, dateTo: `${key}-${String(lastDay).padStart(2, '0')}` };
+}
+
 /**
  * DASHBOARD: "the expenses for the month" — the exact wording the user asked for.
  *
@@ -71,7 +82,10 @@ export const buildExpenseDashboardWidgets: ContributionHandler = async ({ compan
   // — including, for a company with steady activity, part of the very month being totalled.
   const expenses = await listAllDocuments(companyId, { typeId: 'expense' });
   const now = new Date();
-  const thisMonth = monthKey(now.toISOString());
+  // `now.toISOString()` is always a valid, parseable date: `monthKey`'s `null` case is only ever
+  // reached for a document's own stored, possibly-malformed data, never for a value this function
+  // builds itself from the live clock.
+  const thisMonth = monthKey(now.toISOString()) as string;
   // Last month's key, on the same UTC clock as `thisMonth` — feeds `previousValue` below.
   const lastMonth = monthKey(
     new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString(),
@@ -97,12 +111,18 @@ export const buildExpenseDashboardWidgets: ContributionHandler = async ({ compan
     // Any other month (or an unparseable date): excluded from both.
   }
 
+  // The expense descriptor's own `date` field is exactly what `list-filters.ts#resolveDateFieldKey`
+  // picks for this type (no `issueDate` on it): the same field this file's own `monthKey` buckets
+  // by, so the link filters the list to precisely the month the figure sums.
+  const thisMonthLink: MetricWidgetLink = { typeId: 'expense', ...monthRange(thisMonth) };
+
   if (totalsByCurrency.size === 0) {
     const emptyMonthMetric: MetricWidget = {
       id: 'expense:this-month',
       kind: 'metric',
       label: 'Expenses this month',
       value: 0,
+      link: thisMonthLink,
     };
     return [emptyMonthMetric];
   }
@@ -119,6 +139,7 @@ export const buildExpenseDashboardWidgets: ContributionHandler = async ({ compan
         unit: currency,
         value: Number(total.toFixed(2)),
         previousValue: Number((lastMonthTotalsByCurrency.get(currency) ?? 0).toFixed(2)),
+        link: thisMonthLink,
       }),
     );
 };
@@ -185,6 +206,9 @@ export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler 
     // The exact rate(s), their date, and their source — never a bare converted number. See
     // WidgetBase.warnings' own comment (contributions/widgets.ts).
     warnings: consolidated.notes,
+    // Same month, same list, as every per-currency tile it consolidates: all of them already carry
+    // this identical link.
+    link: perCurrencyWidgets[0].link,
   };
 
   return [...widgets, consolidatedMetric];

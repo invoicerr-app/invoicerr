@@ -32,10 +32,36 @@ export interface WidgetBase {
   warnings?: string[];
 }
 
+/**
+ * Where a metric's tile links to when clicked: a LIST destination, not a URL. The frontend still
+ * owns how `/documents/:typeId` reads its own query params (status/dateFrom/dateTo/settlement), this
+ * only names WHICH list and WHICH filters on it reproduce the exact same figure.
+ *
+ * A metric carries `link` ONLY when a list exists whose rows are exactly the documents the figure
+ * aggregates over (same status filter, same date range, same settlement rule): a metric with no
+ * such list (e.g. invoice:count, a full-history total the statistics table already lists in a
+ * different shape) stays linkless. Never a fake or approximate link: "click through to see these"
+ * must show precisely the set the number was computed from, or not be offered at all.
+ */
+export interface MetricWidgetLink {
+  /** The document type the linked list shows, at `/documents/:typeId`. */
+  typeId: string;
+  /** Same OR-ed multi-status filter `GET /documents`'s own `status` param takes. */
+  status?: string[];
+  /** `YYYY-MM-DD`, inclusive: matches `GET /documents`'s own `dateFrom`/`dateTo` contract. */
+  dateFrom?: string;
+  dateTo?: string;
+  /** `GET /documents`'s own `settlement` filter (list-documents.dto.ts), only ever set together
+   *  with `typeId: 'invoice'`, the only type that filter is valid for. */
+  settlement?: 'unsettled' | 'overdue';
+}
+
 /** A single number and its label — "Pending invoices: 4", "This month's expenses: 128.00 EUR". */
 export interface MetricWidget extends WidgetBase {
   kind: 'metric';
   value: number;
+  /** See `MetricWidgetLink`'s own header: absent on a metric with no exactly-matching list. */
+  link?: MetricWidgetLink;
   /** Optional plain-text suffix — a currency code, a unit — shown after `value`. For an ORDINARY
    *  metric this is never a computed currency conversion, only a label for whatever `value` already
    *  is — the one declared exception is `approx: true` below. */

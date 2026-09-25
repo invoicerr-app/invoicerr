@@ -571,6 +571,35 @@ describe('persistence — listDocumentsPage', () => {
     );
   });
 
+  it("applies ids as an IN clause, ANDed with every other filter (the settlement filter's own mechanism)", async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await listDocumentsPage('company-1', { ...baseOptions, status: ['sent'], ids: ['inv-1', 'inv-2'] });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          companyId: 'company-1',
+          typeId: 'invoice',
+          status: { in: ['sent'] },
+          id: { in: ['inv-1', 'inv-2'] },
+        },
+      }),
+    );
+  });
+
+  it('never applies an id restriction at all when ids is absent', async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await listDocumentsPage('company-1', baseOptions);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { companyId: 'company-1', typeId: 'invoice' } }),
+    );
+  });
+
   it('q builds an OR of displayNumber contains + one string_contains per text field + one equals per matched client id', async () => {
     findMany.mockResolvedValue([]);
     count.mockResolvedValue(0);

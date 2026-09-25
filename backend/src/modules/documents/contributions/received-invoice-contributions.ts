@@ -3,7 +3,7 @@ import { fromMinor, toMinor } from '@/utils/financial';
 import { listAllDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
-import { MetricWidget, Widget } from './widgets';
+import { MetricWidget, MetricWidgetLink, Widget } from './widgets';
 
 /** `data.grossAmount` if it is actually a number, 0 otherwise — the same "a still-being-filled
  *  record is a normal state to aggregate over, not an error" rule expense-contributions.ts's own
@@ -32,11 +32,13 @@ export const buildReceivedInvoiceDashboardWidgets: ContributionHandler = async (
     status: ['received'],
   });
 
+  const pendingLink: MetricWidgetLink = { typeId: 'received-invoice', status: ['received'] };
   const countMetric: MetricWidget = {
     id: 'received-invoice:pending-count',
     kind: 'metric',
     label: 'Received invoices pending review',
     value: pending.length,
+    link: pendingLink,
   };
 
   const totalsByCurrency = new Map<string, number>();
@@ -59,6 +61,7 @@ export const buildReceivedInvoiceDashboardWidgets: ContributionHandler = async (
       label: `Received invoices pending (${currency})`,
       unit: currency,
       value: Number(total.toFixed(2)),
+      link: pendingLink,
     }));
 
   return [countMetric, ...amountMetrics];
@@ -102,6 +105,7 @@ export const buildReceivedInvoiceDashboardWidgetsWithConsolidation: Contribution
     approx: true,
     value: Number(fromMinor(consolidated.totalMinor, consolidated.currency).toFixed(2)),
     warnings: consolidated.notes,
+    link: perCurrencyWidgets[0].link,
   };
 
   return [...widgets, consolidatedMetric];

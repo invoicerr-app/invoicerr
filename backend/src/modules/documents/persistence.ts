@@ -429,6 +429,15 @@ export interface ListDocumentsPageOptions {
   q?: string;
   searchTextFieldKeys?: string[];
   searchClientIds?: string[];
+  /** Restricts the result to exactly these ids, ANDed with every other filter above: the mechanism
+   *  behind `GET /documents`'s own `settlement` filter (list-documents.dto.ts,
+   *  documents.service.ts). The caller resolves WHICH invoices are "unsettled"/"overdue"
+   *  (`settlement/unsettled-invoices.ts`, a predicate no SQL WHERE clause can express: it needs
+   *  payments and credit notes composed in application code, exactly like the JSON-path date filter
+   *  above), then hands the resulting id set here rather than this module knowing anything about
+   *  settlement. Absent applies no restriction at all, the pre-existing, unrestricted shape of every
+   *  other caller. */
+  ids?: string[];
 }
 
 export interface ListDocumentsPageResult {
@@ -517,6 +526,7 @@ export async function listDocumentsPage(
       ? { data: { path: [options.clientFieldKey], equals: options.clientId } }
       : {}),
     ...(searchOr.length > 0 ? { OR: searchOr } : {}),
+    ...(options.ids ? { id: { in: options.ids } } : {}),
   };
   // `id` is the tiebreaker on BOTH paths (see `compareBySortField` below for the in-memory copy):
   // without it, rows sharing a sort value have no defined order, so paging through a list sorted by

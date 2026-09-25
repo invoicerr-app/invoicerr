@@ -99,7 +99,12 @@ import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
 import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
 import { resolveClientFieldKey, resolveDateFieldKey, resolveSearchTextFieldKeys } from './list-filters';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
-import { findOwnedDocument, listDocumentsPage, ListDocumentsPageResult } from './persistence';
+import {
+  findOwnedDocument,
+  listAllDocuments,
+  listDocumentsPage,
+  ListDocumentsPageResult,
+} from './persistence';
 import { applyStockOnIssuance } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
@@ -110,6 +115,7 @@ import {
   toSettlementCreditInputs,
 } from './settlement/credits';
 import { DocumentPaymentResult, listPayments, toSettlementPaymentInputs } from './settlement/payments';
+import { filterUnsettledInvoices, isOverdueInvoice } from './settlement/unsettled-invoices';
 import {
   EntityReferenceOption,
   EntityReferenceRegistry,
@@ -845,7 +851,10 @@ export class DocumentsService implements OnModuleInit {
    * declare, so ALL FOUR require `typeId` (refused with a named 400 otherwise, never silently
    * ignored) and any one of them naming a field the type doesn't have is its own named 400 too —
    * "0 results" would look identical to "this filter matched nothing" and a caller could never tell
-   * the two apart.
+   * the two apart. `settlement` gets the SAME "requires typeId" treatment, but narrower still: it
+   * only ever means something for "invoice" (`settlement/unsettled-invoices.ts` is invoice-specific,
+   * same "this file already names its type" reasoning as `credits.ts`'s own), so any OTHER typeId
+   * (including none at all) is refused too, rather than silently matching nothing.
    */
   async listDocuments(
     companyId: string,
@@ -857,6 +866,9 @@ export class DocumentsService implements OnModuleInit {
       throw new BadRequestException(
         "clientId/dateFrom/dateTo/q each read one document type's own descriptor — pass typeId.",
       );
+    }
+    if (query.settlement && typeId !== 'invoice') {
+      throw new BadRequestException('"settlement" is only valid when typeId is "invoice".');
     }
 
     let clientFieldKey: string | undefined;
@@ -882,6 +894,28 @@ export class DocumentsService implements OnModuleInit {
     const searchClientIds =
       query.q && clientFieldKey ? await this.resolveClientIdsMatchingName(companyId, query.q) : undefined;
 
+    // `settlement` cannot be pushed into SQL (the underlying predicate composes payments and credit
+    // notes across documents, see `settlement/unsettled-invoices.ts`'s own header), so it is resolved
+    // to a plain id set here and handed to persistence.ts as an `ids` restriction: the exact same
+    // "resolve outside, restrict by id" shape `searchClientIds` above already uses for a `Client` name
+    // match. Uses the SAME `filterUnsettledInvoices`/`isOverdueInvoice` the "pending"/"overdue"
+    // dashboard tiles call (invoice-contributions.ts), so a tile's own `link` and this filter can never
+    // disagree on which invoices they mean.
+    let settlementIds: string[] | undefined;
+    if (query.settlement) {
+      const invoiceDescriptor = this.mergedDescriptor('invoice');
+      const invoices = await listAllDocuments(companyId, { typeId: 'invoice' });
+      const unsettled = await filterUnsettledInvoices(companyId, invoiceDescriptor, invoices);
+      if (query.settlement === 'unsettled') {
+        settlementIds = unsettled.map((invoice) => invoice.id);
+      } else {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        settlementIds = unsettled
+          .filter((invoice) => isOverdueInvoice(invoice, todayIso))
+          .map((invoice) => invoice.id);
+      }
+    }
+
     return listDocumentsPage(companyId, {
       typeId,
       page: query.page,
@@ -897,6 +931,7 @@ export class DocumentsService implements OnModuleInit {
       q: query.q,
       searchTextFieldKeys,
       searchClientIds,
+      ids: settlementIds,
     });
   }
 

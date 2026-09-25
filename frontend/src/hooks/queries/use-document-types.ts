@@ -136,6 +136,9 @@ export interface DocumentInstancesFilters {
   /** `YYYY-MM-DD`, inclusive — matches the backend's own `dateFrom`/`dateTo` contract. */
   dateFrom?: string
   dateTo?: string
+  /** `GET /documents`'s own `settlement` filter (backend's `dto/list-documents.dto.ts`), only ever
+   *  meaningful with `typeId: "invoice"`; the backend 400s otherwise. */
+  settlement?: "unsettled" | "overdue"
   q?: string
   sort?: "updatedAt" | "createdAt" | "number" | "status"
   order?: "asc" | "desc"
@@ -160,6 +163,7 @@ function buildDocumentListParams(typeId: string, filters: DocumentInstancesFilte
   if (filters.clientId) params.set("clientId", filters.clientId)
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
   if (filters.dateTo) params.set("dateTo", filters.dateTo)
+  if (filters.settlement) params.set("settlement", filters.settlement)
   if (filters.q) params.set("q", filters.q)
   if (filters.sort) params.set("sort", filters.sort)
   if (filters.order) params.set("order", filters.order)
