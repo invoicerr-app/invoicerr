@@ -123,6 +123,15 @@
       }
     },
     {
+      "typeId": "quote",
+      "actionId": "accept-manually",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "NO legal research was performed for this entry, unlike several neighboring rules above which cite primary texts actually read - this note says so plainly rather than implying a search that did not happen. Allowed on a narrower basis than provenance: this action records an ISSUER-SIDE FACT ONLY - who marked a sent quote accepted, when, and by what means - and changes no fiscal fact and produces no document a third party ever receives, the same kind of internal record quote.duplicate above already sits on. WHAT WOULD SETTLE THIS: a text conditioning the evidentiary value, or the validity, of a quote's acceptance on the channel through which it was obtained. code civil art. 1113 et seq. (offre et acceptation) and art. 1366-1367 (force probante de l'ecrit electronique) would be the place to start reading for this specific question - named here as a starting point ONLY, not as a source: neither has actually been read for this entry."
+      }
+    },
+    {
       "typeId": "invoice",
       "actionId": "record-payment",
       "allowed": true,

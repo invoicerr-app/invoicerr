@@ -62,6 +62,7 @@ export {
   useDocumentTaxWarnings,
   useDocumentArchives,
   useVerifyDocumentArchive,
+  useDocumentManualAcceptance,
   useCorrectionRoutes,
   useDocumentAuthorityEvents,
   useRunDocumentAction,

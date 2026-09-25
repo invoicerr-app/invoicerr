@@ -113,7 +113,9 @@ export class PortalService {
   }
 
   /** Every quote this client may see — `clientVisible` statuses only (today: "sent", "signed",
-   *  "refused" — see quote.descriptor.ts), derived from the descriptor, never hardcoded here. */
+   *  "accepted" (issue #421 - a manual acceptance is exactly as visible to the client as an
+   *  e-signed one, see quote.descriptor.ts's own comment on that status), "refused" - see
+   *  quote.descriptor.ts), derived from the descriptor, never hardcoded here. */
   async listQuotes(companyId: string, clientId: string): Promise<PortalQuoteRow[]> {
     const descriptor = this.documentsService.getType('quote');
     const visible = clientVisibleStatusIds(descriptor);

@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, Download, FileCode, Link2, Repeat } from "lucide-react"
+import { ArrowLeft, ChevronDown, Download, FileCode, Link2, Repeat, UserCheck } from "lucide-react"
 import { useState } from "react"
 import { useWatch } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
@@ -17,6 +17,7 @@ import {
 } from "@/components/documents/action-presentation"
 import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
 import { getDocumentCustomComponents } from "@/components/documents/custom-slots"
+import { DocumentAcceptanceSection } from "@/components/documents/document-acceptance-section"
 import { DocumentArchiveSection } from "@/components/documents/document-archive-section"
 import {
   DocumentConformityListIndicator,
@@ -44,6 +45,7 @@ import { DocumentTotals, formatTotal, useDocumentTotals } from "@/components/doc
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { hasUnsavedChanges } from "@/components/documents/form-dirty"
 import { isEmptyFieldValue, resolveListFields } from "@/components/documents/list-fields"
+import { MarkQuoteAcceptedDialog } from "@/components/documents/mark-quote-accepted-dialog"
 import { SectionCard } from "@/components/documents/section-card"
 import { ShareLinkDialog } from "@/components/documents/share-link-dialog"
 import type {
@@ -51,7 +53,7 @@ import type {
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
-import { statusLabel } from "@/components/documents/types"
+import { isActionAvailable, statusLabel } from "@/components/documents/types"
 import { type DocumentFormState, useDocumentForm } from "@/components/documents/use-document-form"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -229,6 +231,16 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
               gated on "sent" here, since the component's own emptiness check already carries that
               fact (a draft has no archive yet, whatever its type). */}
           <DocumentArchiveSection typeId={descriptor.id} documentId={instance.id} />
+          {/* Issue #421 - which of the two ways this quote was accepted, worded so neither can be
+              mistaken for the other. Renders nothing outside "signed"/"accepted" (that component's
+              own emptiness check), so this is never gated here on the type either - a type with
+              neither status simply never matches. */}
+          <DocumentAcceptanceSection
+            typeId={descriptor.id}
+            documentId={instance.id}
+            status={liveInstance.status}
+            updatedAt={instance.updatedAt}
+          />
           {/* Conformity tracking — same gate as the archive section right above (any type/status
               once it has at least one event; renders nothing otherwise, see that component's own
               header): a document sent by email, or by a channel with no poller (e.g. "sdi"), never
@@ -429,8 +441,17 @@ function DocumentDetailActions({
   const { t } = useTranslation()
   const [recurrenceOpen, setRecurrenceOpen] = useState(false)
   const [shareLinkOpen, setShareLinkOpen] = useState(false)
+  const [markAcceptedOpen, setMarkAcceptedOpen] = useState(false)
   const gates = extraActionGates(descriptor, instance.status)
   const customExtras = getDocumentCustomComponents(descriptor.id, "list-row-extra")
+  // Issue #421 - declared on the descriptor for the status/policy gates only (excluded from the
+  // generic action list, `use-document-form.ts`'s own header) and served through its own dedicated
+  // dialog instead, the same shape "share-link" already has right above.
+  const acceptManuallyAction = descriptor.actions.find((action) => action.id === "accept-manually")
+  const showAcceptManually =
+    !!acceptManuallyAction &&
+    !acceptManuallyAction.policyBlockedReason &&
+    isActionAvailable(acceptManuallyAction, instance.status)
 
   return (
     <>
@@ -533,6 +554,16 @@ function DocumentDetailActions({
               {t("documents.schedules.rowAction.tooltip")}
             </DropdownMenuItem>
           )}
+
+          {showAcceptManually && (
+            <DropdownMenuItem
+              onSelect={() => setMarkAcceptedOpen(true)}
+              data-cy="document-accept-manually-button"
+            >
+              <UserCheck aria-hidden="true" />
+              {t("documents.acceptance.menuLabel")}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -572,6 +603,15 @@ function DocumentDetailActions({
           documentId={instance.id}
           open={shareLinkOpen}
           onOpenChange={setShareLinkOpen}
+        />
+      )}
+
+      {showAcceptManually && markAcceptedOpen && (
+        <MarkQuoteAcceptedDialog
+          documentId={instance.id}
+          data={instance.data}
+          open={markAcceptedOpen}
+          onOpenChange={setMarkAcceptedOpen}
         />
       )}
     </>

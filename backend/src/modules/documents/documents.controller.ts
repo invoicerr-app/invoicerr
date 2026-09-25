@@ -32,6 +32,8 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { ActiveRole } from '@/decorators/active-role.decorator';
 import { Roles } from '@/decorators/roles.decorator';
+import { User } from '@/decorators/user.decorator';
+import { CurrentUser } from '@/types/user';
 import { RequiresDocumentTypeScope } from '@/utils/scope-check';
 
 import {
@@ -725,11 +727,20 @@ export class DocumentsController {
     @Param('typeId') typeId: string,
     @Param('actionId') actionId: string,
     @Body() body: RunActionDto,
-    // Undefined only for API-key auth (see ActiveRole's own header) — `documentsService.runAction`
+    // Undefined only for API-key auth (see ActiveRole's own header) - `documentsService.runAction`
     // treats that exactly like OWNER/ADMIN for the approval-threshold gate (never re-gated).
     @ActiveRole() role: CompanyRole | undefined,
+    // Both session AND API-key auth set `request.user` (`guards/auth.guard.ts`) - unlike `role`
+    // above, this is never undefined for an authenticated call. See ActionContext.actor's own header
+    // (actions/action-registry.ts) for why an action that needs to know WHO ran it (issue #421's
+    // manual quote acceptance) reads this rather than a caller-supplied `params` field.
+    @User() user: CurrentUser,
   ) {
-    return this.documentsService.runAction(companyId, typeId, actionId, body, role);
+    return this.documentsService.runAction(companyId, typeId, actionId, body, role, false, {
+      id: user.id,
+      name: `${user.firstname} ${user.lastname}`.trim(),
+      email: user.email,
+    });
   }
 
   @Post('types/:typeId/actions/:actionId/params/defaults')
@@ -1022,6 +1033,28 @@ export class DocumentsController {
     @Query('typeId') typeId: string,
   ) {
     return this.documentsService.listAuthorityEvents(companyId, typeId, id);
+  }
+
+  @Get(':id/manual-acceptance')
+  @RequiresDocumentTypeScope('read')
+  @ApiOperation({
+    summary: "A quote's own manual-acceptance record, if any",
+    description:
+      'Issue #421 - the manifest actually archived when the issuer marked this quote accepted by ' +
+      'some means other than the e-signature flow (method, actor, note, timestamp). `null` for a ' +
+      'document never manually accepted. Never confused with an e-signature: that flow leaves no ' +
+      'entry here at all.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Manual-acceptance record retrieved, or null' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  getManualAcceptance(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.getManualAcceptance(companyId, typeId, id);
   }
 
   @Post(':id/archives/:archiveId/verify')

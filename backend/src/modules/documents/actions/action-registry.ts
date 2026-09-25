@@ -23,6 +23,19 @@ export interface ActionContext {
    * keep ignoring it exactly as before.
    */
   currentStatus?: string;
+  /**
+   * The authenticated human running this action - undefined for the two kinds of caller that have no
+   * one to name: the async "send" worker's own replay (`queue/processors/document-action.processor.ts`,
+   * a BullMQ job, not an HTTP request) and any other internal/scripted call that never went through
+   * `documents.controller.ts#runAction`. Every ordinary HTTP call (session OR API-key auth - both set
+   * `request.user`, see `guards/auth.guard.ts`) DOES carry one, threaded through
+   * `documents.service.ts#runAction`'s own trailing `actor` parameter. Added for issue #421
+   * ("accept a quote manually"): recording WHO marked a quote accepted, not just that it happened, is
+   * exactly the kind of fact `data`/`params` were never meant to carry (a caller-supplied `params.who`
+   * could not be trusted the way the session/API-key identity already is). A handler that doesn't need
+   * to know who ran it (every one before this issue) simply never reads this field.
+   */
+  actor?: { id: string; name: string; email: string };
 }
 
 export interface DocumentInstanceResult {
