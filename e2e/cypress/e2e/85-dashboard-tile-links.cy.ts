@@ -44,6 +44,8 @@ function createClient(name: string) {
 			url: `${api}/api/clients`,
 			body: {
 				name,
+				// "email" transport refuses a client with no contact email: the send ends "send_failed".
+				contactEmail: "billing@example.com",
 				address: "1 Rue Quelconque",
 				postalCode: "75002",
 				city: "Paris",
@@ -53,9 +55,9 @@ function createClient(name: string) {
 			},
 		})
 		.then((res) => {
-			expect(res.status, "client créé par API").to.be.oneOf([200, 201]);
+			expect(res.status, "client created through the API").to.be.oneOf([200, 201]);
 			const id = res.body?.id as string;
-			expect(id, "le client créé a un identifiant").to.be.a("string");
+			expect(id, "the created client has an id").to.be.a("string");
 			return id;
 		});
 }
@@ -91,7 +93,7 @@ function setInvoiceTransport(transportId: string) {
 			body: { invoiceTransportId: transportId },
 		})
 		.then((res) => {
-			expect(res.status, "transport configuré").to.be.oneOf([200, 201]);
+			expect(res.status, "transport configured").to.be.oneOf([200, 201]);
 		});
 }
 
@@ -103,9 +105,9 @@ function saveDraft(data: Record<string, unknown>) {
 			body: { data },
 		})
 		.then((saved) => {
-			expect(saved.status, "brouillon de facture créé").to.be.oneOf([200, 201]);
+			expect(saved.status, "invoice draft created").to.be.oneOf([200, 201]);
 			const id = saved.body?.document?.id as string;
-			expect(id, "le brouillon a un identifiant").to.be.a("string");
+			expect(id, "the draft has an id").to.be.a("string");
 			return id;
 		});
 }
@@ -118,8 +120,11 @@ function sendInvoice(invoiceId: string, data: Record<string, unknown>) {
 			body: { documentId: invoiceId, data },
 		})
 		.then((res) => {
-			expect(res.status, "phase 1 de l'envoi (synchrone)").to.be.oneOf([200, 201]);
-		});
+			expect(res.status, "send, synchronous phase").to.be.oneOf([200, 201]);
+		})
+		// The send finishes on the queue: "record-payment" and the dashboard figures both need the
+		// invoice actually "sent", not still "sending" (a payment on it is a 409 until then).
+		.then(() => cy.waitForDocumentStatus(`${api}/api/documents/${invoiceId}?typeId=invoice`, ["sent"]));
 }
 
 function recordFullPayment(invoiceId: string, data: Record<string, unknown>, paidAt: string) {
@@ -134,7 +139,7 @@ function recordFullPayment(invoiceId: string, data: Record<string, unknown>, pai
 			},
 		})
 		.then((res) => {
-			expect(res.status, "paiement intégral enregistré").to.be.oneOf([200, 201]);
+			expect(res.status, "full payment recorded").to.be.oneOf([200, 201]);
 		});
 }
 
@@ -317,12 +322,13 @@ describe("Dashboard tile links (#419)", () => {
 				cy.get(`[data-cy="widget-${widget.id}-link"]`).should("not.exist");
 			}
 
-			// The count of `-link` anchors on screen equals exactly the count the API sent: catches an
+			// The count of widget `-link` anchors on screen equals exactly the count the API sent (scoped to
+			// `widget-` ids: the sidebar's own `sidebar-*-link` entries share the suffix). Catches an
 			// extra link on some other widget id this test did not enumerate (a stray "-link" suffix
 			// reused for something unrelated) that the per-id checks above would silently miss, and,
 			// since every dashboard metric happens to carry a link today, is what actually proves "no
 			// over-linking" in this test run, not just "every widget I named individually looks right".
-			cy.get('[data-cy$="-link"]').should("have.length", metricsWithLink.length);
+			cy.get('[data-cy^="widget-"][data-cy$="-link"]').should("have.length", metricsWithLink.length);
 		});
 	});
 });

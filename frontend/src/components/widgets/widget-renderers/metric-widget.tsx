@@ -121,11 +121,11 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
   const cardBody = (
     <>
       <CardHeader className="gap-0 px-4">
-        <CardTitle className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          <span className="min-w-0 truncate">{metric.label}</span>
+        <CardTitle className="flex items-start justify-between gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="min-w-0">{metric.label}</span>
           {metric.link && (
             <ChevronRight
-              className="size-3.5 shrink-0 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5"
+              className="mt-px size-3.5 shrink-0 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5"
               aria-hidden="true"
             />
           )}
@@ -170,7 +170,8 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           data-widget-kind="metric"
           className={cn(
             "cursor-pointer gap-2 border-l-4 py-4 transition-colors duration-150",
-            "hover:border-primary/40 hover:bg-accent/40",
+            // Background and shadow only: the left border carries the tile's tone and must survive a hover.
+            "hover:bg-accent/40 hover:shadow-md",
             "group-focus-visible:ring-2 group-focus-visible:ring-ring",
             TONE_BORDER[tone],
           )}
