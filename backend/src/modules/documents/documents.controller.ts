@@ -41,6 +41,7 @@ import {
   MAX_ATTACHMENT_BYTES,
 } from './attachments/attachments.service';
 import { DocumentsService } from './documents.service';
+import { parseDashboardQuery, RawDashboardQuery } from './dto/dashboard-query.dto';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
 import {
   DOCUMENT_LIST_DEFAULT_PAGE_SIZE,
@@ -414,11 +415,30 @@ export class DocumentsController {
     description:
       'Every widget every document type contributes to the dashboard — see contributions/. A type ' +
       'that declares a dashboard contribution but has none implemented shows up as an explicit ' +
-      '"unimplemented" widget, never a silent gap.',
+      '"unimplemented" widget, never a silent gap. `dateFrom`/`dateTo` (issue #418) restrict every ' +
+      'period-aware widget to that inclusive range, resolved by the frontend from whatever preset ' +
+      "the person picked (the browser's own local calendar) - this endpoint only ever sees concrete " +
+      'dates. Omitted entirely, the response is byte-identical to before this feature existed.',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    required: false,
+    type: String,
+    description: 'YYYY-MM-DD, inclusive. Requires dateTo.',
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    required: false,
+    type: String,
+    description: 'YYYY-MM-DD, inclusive. Requires dateFrom.',
   })
   @ApiResponse({ status: 200, description: 'Widgets retrieved' })
-  listDashboardWidgets(@ActiveCompany() companyId: string) {
-    return this.documentsService.collectWidgets(companyId, 'dashboard');
+  @ApiResponse({
+    status: 400,
+    description: 'A malformed date, dateFrom after dateTo, or only one of the two given',
+  })
+  listDashboardWidgets(@ActiveCompany() companyId: string, @Query() rawQuery: RawDashboardQuery) {
+    return this.documentsService.collectWidgets(companyId, 'dashboard', parseDashboardQuery(rawQuery));
   }
 
   @Get('statistics')

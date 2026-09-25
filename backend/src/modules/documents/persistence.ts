@@ -450,8 +450,12 @@ export interface ListDocumentsPageResult {
 /** `"YYYY-MM-DD"` -> the UTC midnight of that day, in milliseconds — the exact same conversion
  *  `accounting-export.service.ts#dayMs` already holds for the identical param shape, duplicated
  *  rather than imported (a sibling, single-purpose concern; see `dateValueInRange`'s own header for
- *  why this whole file doesn't reuse that module instead). */
-function dayMs(dateStr: string): number {
+ *  why this whole file doesn't reuse that module instead). Exported (issue #418) so the dashboard's
+ *  own period-scoped contributions (contributions/invoice-contributions.ts and friends) compute the
+ *  SAME `[fromMs, toMs]` bounds `dateValueInRange` below compares against, rather than a second,
+ *  possibly-drifting conversion of the same `YYYY-MM-DD` string - THE CONSISTENCY RULE a period tile
+ *  and the list its `link` opens both depend on. */
+export function dayMs(dateStr: string): number {
   const [year, month, day] = dateStr.split('-').map(Number);
   return Date.UTC(year, month - 1, day);
 }
@@ -461,10 +465,17 @@ function dayMs(dateStr: string): number {
  *  inclusive, compared at UTC day boundaries — the exact same rule
  *  `accounting-export.service.ts#issueDateInRange` already applies to the SAME kind of field.
  *  Missing/unparseable -> excluded: a document with no readable date cannot honestly be placed in
- *  ANY range — an honest default, never a guess. Duplicated here rather than imported from that
- *  service (a sibling, single-purpose concern — persistence.ts owes accounting-export nothing, and a
- *  future change to one's own rounding must not silently reach into the other). */
-function dateValueInRange(dateValue: unknown, fromMs: number | undefined, toMs: number | undefined): boolean {
+ *  ANY range - an honest default, never a guess. Duplicated here rather than imported from that
+ *  service (a sibling, single-purpose concern - persistence.ts owes accounting-export nothing, and a
+ *  future change to one's own rounding must not silently reach into the other). Exported (issue
+ *  #418) so a dashboard contribution restricting itself to the active period uses this EXACT
+ *  predicate - never a re-implemented one that could silently disagree with what `GET /documents`'s
+ *  own `dateFrom`/`dateTo` filter (just above) matches. */
+export function dateValueInRange(
+  dateValue: unknown,
+  fromMs: number | undefined,
+  toMs: number | undefined,
+): boolean {
   if (typeof dateValue !== 'string') return false;
   const parsed = new Date(dateValue);
   if (Number.isNaN(parsed.getTime())) return false;
@@ -498,11 +509,11 @@ function buildSearchOr(options: ListDocumentsPageOptions): Prisma.DocumentInstan
  * over the whole set rather than showing one page of it.
  *
  * Two different execution paths, chosen by whether a date-range filter is present:
- *  - No date filter: `status`/`clientId`/`searchOr` are already ordinary Prisma WHERE clauses
+ * - No date filter: `status`/`clientId`/`searchOr` are already ordinary Prisma WHERE clauses
  *    (a real column, an exact JSON-path `equals`, and `string_contains`/`equals` OR terms
  *    respectively — all three push down to SQL cleanly), so pagination is a plain `skip`/`take` +
  *    `count`, exactly the fast path a table this size deserves.
- *  - A date filter is present: `dateFieldKey` names a field living inside the JSON `data` blob,
+ * - A date filter is present: `dateFieldKey` names a field living inside the JSON `data` blob,
  *    which Prisma/Postgres has no trustworthy ORDER BY or range comparison for that agrees with this
  *    codebase's own notion of "a valid date" (see `dateValueInRange`'s own header — a malformed
  *    value must read as EXCLUDED, never as an arbitrary lexicographic sort position a raw jsonb

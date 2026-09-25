@@ -1,5 +1,14 @@
+import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
-import { countDocuments, listRecentDocuments } from '../persistence';
+import { DashboardPeriod } from '../dto/dashboard-query.dto';
+import { resolveDateFieldKey } from '../list-filters';
+import {
+  countDocuments,
+  dateValueInRange,
+  dayMs,
+  listAllDocuments,
+  listRecentDocuments,
+} from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { fromMinor } from '@/utils/financial';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
@@ -23,6 +32,28 @@ const DRAFT_SHORT_LIST_LIMIT = 5;
 /** Built once, not per row: a descriptor is a plain, stateless data structure — see
  *  descriptors/quote.descriptor.ts. */
 const QUOTE_DESCRIPTOR = buildQuoteDescriptor();
+
+/** The quote's own issuance-date field - `'issueDate'` (`list-filters.ts#resolveDateFieldKey`) -
+ *  resolved once, the SAME field `GET /documents`'s own `dateFrom`/`dateTo` filter uses for this
+ *  type (issue #418's THE CONSISTENCY RULE). */
+const QUOTE_DATE_FIELD_KEY = resolveDateFieldKey(QUOTE_DESCRIPTOR);
+
+/** Every quote from `all` whose own `QUOTE_DATE_FIELD_KEY` value falls within `period`'s inclusive
+ *  range - the exact same `dateValueInRange`/`dayMs` pair `GET /documents`'s own filter applies (see
+ *  invoice-contributions.ts's own identical `restrictToPeriod` for the full reasoning, deliberately
+ *  duplicated rather than shared: each contribution file stays self-contained per this module's own
+ *  convention). `period` undefined -> `all`, the SAME reference, unchanged. */
+function restrictToPeriod(
+  all: DocumentInstanceResult[],
+  period: DashboardPeriod | undefined,
+): DocumentInstanceResult[] {
+  if (!period || !QUOTE_DATE_FIELD_KEY) return all;
+  const fromMs = dayMs(period.dateFrom);
+  const toMs = dayMs(period.dateTo);
+  return all.filter((quote) =>
+    dateValueInRange((quote.data as Record<string, unknown> | null)?.[QUOTE_DATE_FIELD_KEY], fromMs, toMs),
+  );
+}
 
 /**
  * A quote's own gross (tax-included) total, for the statistics table's "Total" column — reuses
@@ -54,16 +85,39 @@ function quoteGrossTotal(data: Record<string, unknown>): { amount: number; curre
  * unlike invoice-contributions.ts's own pending list (which re-sorts by DUE date, because urgency,
  * not recency, is what that one means).
  */
-export const buildQuoteDashboardWidgets: ContributionHandler = async ({ companyId }) => {
+export const buildQuoteDashboardWidgets: ContributionHandler = async ({ companyId, period }) => {
   // The shortlist reads DRAFTS ONLY, filtered in SQL, so the five it shows are genuinely this
   // company's five most recent drafts. Filtering `status === 'draft'` in memory over a capped page of
   // every quote meant a company whose recent activity was all sent quotes got an EMPTY "Draft quotes"
   // widget while having plenty. The open-quote count beside it is counted in SQL for the same reason:
   // a count taken over a page counts the page.
-  const [draftQuotes, openCount] = await Promise.all([
-    listRecentDocuments(companyId, { typeId: 'quote', status: ['draft'], take: DRAFT_SHORT_LIST_LIMIT }),
-    countDocuments(companyId, 'quote', ['draft', 'sent']),
-  ]);
+  //
+  // With NO period set, this stays exactly that: two SQL-pushed reads, byte-identical to before issue
+  // #418. A period ALSO restricts by the quote's own resolved date field (`QUOTE_DATE_FIELD_KEY`,
+  // `restrictToPeriod`'s own header) - a filter no SQL WHERE clause here expresses (the date lives
+  // inside the JSON `data` blob, same reasoning as `persistence.ts`'s own date-filtered list path), so
+  // the period path instead reads every matching quote (`listAllDocuments`, never a capped page - a
+  // period-restricted count/shortlist over a capped read would silently understate itself exactly the
+  // way `persistence.ts`'s own header warns against) and restricts/sorts/caps in memory.
+  let draftQuotes: DocumentInstanceResult[];
+  let openCount: number;
+  if (!period) {
+    [draftQuotes, openCount] = await Promise.all([
+      listRecentDocuments(companyId, { typeId: 'quote', status: ['draft'], take: DRAFT_SHORT_LIST_LIMIT }),
+      countDocuments(companyId, 'quote', ['draft', 'sent']),
+    ]);
+  } else {
+    const [allDrafts, allOpen] = await Promise.all([
+      listAllDocuments(companyId, { typeId: 'quote', status: ['draft'] }),
+      listAllDocuments(companyId, { typeId: 'quote', status: ['draft', 'sent'] }),
+    ]);
+    // `listAllDocuments` already orders most-recently-updated first (persistence.ts's own default),
+    // same order `listRecentDocuments` returns above - restricting first, then slicing, keeps the
+    // shortlist meaning "the 5 most recent drafts IN THE PERIOD", not "the 5 most recent drafts,
+    // then filtered", which could silently show fewer than 5 even when more exist in the period.
+    draftQuotes = restrictToPeriod(allDrafts, period).slice(0, DRAFT_SHORT_LIST_LIMIT);
+    openCount = restrictToPeriod(allOpen, period).length;
+  }
 
   const draftItems = draftQuotes.map((quote) => {
     const data = (quote.data ?? {}) as Record<string, unknown>;
@@ -102,9 +156,11 @@ export const buildQuoteDashboardWidgets: ContributionHandler = async ({ companyI
     kind: 'metric',
     label: 'Open quotes',
     value: openCount,
-    // Same statuses `countDocuments` above just counted: a draft or a sent quote awaiting an
-    // outcome, per this function's own header.
-    link: { typeId: 'quote', status: ['draft', 'sent'] } satisfies MetricWidgetLink,
+    // Same statuses `openCount` above just counted (via `countDocuments` when no period is set,
+    // `restrictToPeriod`'s own length otherwise): a draft or a sent quote awaiting an outcome, per
+    // this function's own header. `...period` (issue #418) carries the active period onto the link
+    // too, absent when no period is set, the pre-#418 shape.
+    link: { typeId: 'quote', status: ['draft', 'sent'], ...period } satisfies MetricWidgetLink,
   };
 
   return [openMetric, widget];

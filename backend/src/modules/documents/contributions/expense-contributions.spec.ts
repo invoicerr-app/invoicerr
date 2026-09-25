@@ -11,7 +11,13 @@ import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget, TableWidget } from './widgets';
 
-vi.mock('../persistence');
+// `dayMs`/`dateValueInRange` are kept REAL - see invoice-contributions.spec.ts's own identical
+// comment for why a blanket `vi.mock('../persistence')` would silently break issue #418's
+// period-restriction helper.
+vi.mock('../persistence', async () => {
+  const actual = await vi.importActual<typeof import('../persistence')>('../persistence');
+  return { ...actual, listAllDocuments: vi.fn(), listRecentDocuments: vi.fn(), countDocuments: vi.fn() };
+});
 
 const listAllDocuments = persistence.listAllDocuments as Mock;
 const listRecentDocuments = persistence.listRecentDocuments as Mock;
@@ -148,6 +154,60 @@ describe('buildExpenseDashboardWidgets', () => {
         label: 'Expenses this month',
         value: 0,
         link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
+      },
+    ]);
+  });
+});
+
+// Issue #418: a period replaces the "this month vs last month" comparison with a plain sum over the
+// period, under a distinct id, with no previousValue.
+describe('buildExpenseDashboardWidgets with a period set', () => {
+  beforeEach(() => {
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
+  });
+
+  const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+
+  it('sums only expenses whose date is IN the period, per currency, under a distinct id', async () => {
+    seedDocuments([
+      expense({ id: 'in-period', data: { amount: 100, currency: 'EUR', date: '2026-08-15' } }),
+      expense({ id: 'before-period', data: { amount: 9999, currency: 'EUR', date: '2026-07-31' } }),
+      expense({ id: 'after-period', data: { amount: 9999, currency: 'EUR', date: '2026-09-01' } }),
+    ]);
+
+    const widgets = (await buildExpenseDashboardWidgets({ companyId: 'c1', period })) as MetricWidget[];
+
+    expect(widgets.find((w) => w.id === 'expense:this-month')).toBeUndefined();
+    expect(widgets.find((w) => w.id === 'expense:this-month:EUR')).toBeUndefined();
+    const eur = widgets.find((w) => w.id === 'expense:in-period:EUR');
+    expect(eur).toMatchObject({ label: 'Expenses in period (EUR)', unit: 'EUR', value: 100 });
+    expect(eur).not.toHaveProperty('previousValue');
+  });
+
+  it('boundary dates are inclusive', async () => {
+    seedDocuments([
+      expense({ id: 'first-day', data: { amount: 10, currency: 'EUR', date: '2026-08-01' } }),
+      expense({ id: 'last-day', data: { amount: 20, currency: 'EUR', date: '2026-08-31' } }),
+    ]);
+
+    const widgets = (await buildExpenseDashboardWidgets({ companyId: 'c1', period })) as MetricWidget[];
+    expect(widgets.find((w) => w.id === 'expense:in-period:EUR')).toMatchObject({ value: 30 });
+  });
+
+  it('an empty period produces ONE currency-less zero metric, with the period in its link', async () => {
+    seedDocuments([]);
+
+    const widgets = await buildExpenseDashboardWidgets({ companyId: 'c1', period });
+
+    expect(widgets).toEqual([
+      {
+        id: 'expense:in-period',
+        kind: 'metric',
+        label: 'Expenses in period',
+        value: 0,
+        link: { typeId: 'expense', ...period },
       },
     ]);
   });

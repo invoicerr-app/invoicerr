@@ -1,7 +1,16 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
+import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
+import { DashboardPeriod } from '../dto/dashboard-query.dto';
+import { resolveDateFieldKey } from '../list-filters';
+import {
+  countDocuments,
+  dateValueInRange,
+  dayMs,
+  listAllDocuments,
+  listRecentDocuments,
+} from '../persistence';
 import { filterUnsettledInvoices, isOverdueInvoice } from '../settlement/unsettled-invoices';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
@@ -34,8 +43,17 @@ import {
  *  itself (this file's own arithmetic) stays independent of it, unchanged. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
-/** How many months the "invoices issued" curve covers — a small, fixed window; a real settings
- *  screen for this is future work, not something to half-build here for one widget. */
+/** The invoice's own issuance-date field - `'issueDate'` (`list-filters.ts#resolveDateFieldKey`),
+ *  resolved once, the same way `INVOICE_DESCRIPTOR` itself is built once. THE field every
+ *  period-scoped figure below restricts itself by (issue #418), and the exact same one
+ *  `GET /documents`'s own `dateFrom`/`dateTo` filter resolves for this type - never a second,
+ *  independently-chosen field that could quietly disagree with the list a tile's `link` opens. */
+const INVOICE_DATE_FIELD_KEY = resolveDateFieldKey(INVOICE_DESCRIPTOR);
+
+/** How many months the "invoices issued" curve covers - a small, fixed window; a real settings
+ *  screen for this is future work, not something to half-build here for one widget. Still the
+ *  default WHEN NO PERIOD IS SET (issue #418): a period, when picked, replaces this trailing window
+ *  with one spanning exactly the period's own calendar months (see `monthsSpanning` below). */
 const CURVE_MONTHS = 6;
 
 /** How many rows the STATISTICS table below lists — a display cap, and the only one left in this
@@ -98,8 +116,63 @@ function recentMonths(now: Date): { key: string; label: string }[] {
   return months;
 }
 
+/** Every calendar month from `dateFrom`'s own month through `dateTo`'s own month, INCLUSIVE, oldest
+ *  first - the period-driven replacement for `recentMonths` above (issue #418): the curve becomes
+ *  "one point per month the period covers" instead of a trailing window fixed at `CURVE_MONTHS`. Same
+ *  `{ key, label }` shape as `recentMonths` so the curve's own point-building code needs no branch of
+ *  its own - only WHICH month list feeds it differs. A one-month period (e.g. "This month") still
+ *  produces exactly one point, never zero. */
+function monthsSpanning(dateFrom: string, dateTo: string): { key: string; label: string }[] {
+  const [fromYear, fromMonth] = dateFrom.split('-').map(Number);
+  const [toYear, toMonth] = dateTo.split('-').map(Number);
+  const months: { key: string; label: string }[] = [];
+  let year = fromYear;
+  let month = fromMonth; // 1-indexed, matching monthKey's own %02d convention below.
+  while (year < toYear || (year === toYear && month <= toMonth)) {
+    const d = new Date(Date.UTC(year, month - 1, 1));
+    months.push({
+      key: `${year}-${String(month).padStart(2, '0')}`,
+      label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+    });
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return months;
+}
+
 /**
- * DASHBOARD: pending invoices (a short list) and the invoices curve (a time series) —
+ * Every invoice from `all` whose own `INVOICE_DATE_FIELD_KEY` value falls within `period`'s inclusive
+ * range - THE CONSISTENCY RULE (issue #418): reuses `persistence.ts`'s own `dateValueInRange`/`dayMs`
+ * pair, the EXACT predicate `GET /documents`'s own `dateFrom`/`dateTo` filter applies, against the
+ * EXACT field `list-filters.ts#resolveDateFieldKey` names for this type - so a period-scoped tile and
+ * the list its `link` opens can never independently drift on which invoices are "in" the period.
+ *
+ * `period` undefined -> returns `all`, the SAME array reference, unchanged: every period-aware figure
+ * below stays byte-identical to its pre-#418 behavior whenever no period is set. `INVOICE_DATE_FIELD_KEY`
+ * unresolved would mean the same (never reached in practice - the invoice descriptor always declares
+ * `issueDate` - but a doubly-defensive `undefined` guard here costs nothing and never guesses).
+ */
+function restrictToPeriod(
+  all: DocumentInstanceResult[],
+  period: DashboardPeriod | undefined,
+): DocumentInstanceResult[] {
+  if (!period || !INVOICE_DATE_FIELD_KEY) return all;
+  const fromMs = dayMs(period.dateFrom);
+  const toMs = dayMs(period.dateTo);
+  return all.filter((invoice) =>
+    dateValueInRange(
+      (invoice.data as Record<string, unknown> | null)?.[INVOICE_DATE_FIELD_KEY],
+      fromMs,
+      toMs,
+    ),
+  );
+}
+
+/**
+ * DASHBOARD: pending invoices (a short list) and the invoices curve (a time series) -
  * the exact two examples the task cites.
  *
  * The curve COUNTS invoices per month; it deliberately does NOT sum their amounts. Invoices can be
@@ -110,12 +183,19 @@ function recentMonths(now: Date): { key: string; label: string }[] {
  * well-defined regardless of currency; "how much revenue" is not, without a conversion rate this
  * branch has no business inventing.
  */
-export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ companyId }) => {
+export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ companyId, period }) => {
   // Every invoice, paged until exhausted: each figure below (the pending list and its per-currency
   // totals, the overdue totals, the curve, "issued this month") is an aggregate over ALL of this
   // company's invoices, and a capped read made every one of them silently understate itself as soon
   // as the company had more invoices than the cap.
   const invoices = await listAllDocuments(companyId, { typeId: 'invoice' });
+
+  // The period-restricted subset (issue #418) - `invoices` itself, unchanged, whenever no period is
+  // set (`restrictToPeriod`'s own header). "Pending"/"overdue"/"pending total" all restrict THEMSELVES
+  // to this subset before applying their own status/settlement rule on top; "issued in period" and
+  // the curve compute their own restriction separately below (a flow metric and a per-month curve
+  // need different windows than a stock-like "pending" figure).
+  const periodInvoices = restrictToPeriod(invoices, period);
 
   // A "draft" is not yet issued at all, so it is never "pending" in the sense a reader of this
   // widget means — that part is unchanged. What changed once payments (and now credits —
@@ -136,7 +216,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // "excludes a 'cancelled' invoice" test proves it. The STATISTICS table below (`buildInvoice
   // StatisticsWidgets`) deliberately keeps counting it — that table is a full audit list of every
   // invoice ever issued, "cancelled" included, exactly like "draft"/"send_failed" already are.
-  const pendingInvoices = await filterUnsettledInvoices(companyId, INVOICE_DESCRIPTOR, invoices);
+  const pendingInvoices = await filterUnsettledInvoices(companyId, INVOICE_DESCRIPTOR, periodInvoices);
 
   const pendingItems: ShortListItem[] = pendingInvoices
     .map((invoice) => {
@@ -179,8 +259,14 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   const todayIso = new Date().toISOString().slice(0, 10);
   // The same `settlement=overdue` filter, on every one of this metric's own variants below: per
   // `MetricWidgetLink`'s own header, a metric carries a link only when a list exists whose rows are
-  // exactly the documents the figure aggregates.
-  const overdueLink: MetricWidgetLink = { typeId: 'invoice', status: ['sent'], settlement: 'overdue' };
+  // exactly the documents the figure aggregates. `...period` (issue #418) carries the active period
+  // onto the link too - absent (spreading `undefined`) when no period is set, the pre-#418 shape.
+  const overdueLink: MetricWidgetLink = {
+    typeId: 'invoice',
+    status: ['sent'],
+    settlement: 'overdue',
+    ...period,
+  };
   const overdueTotalsByCurrency = new Map<string, number>();
   for (const invoice of pendingInvoices) {
     const data = (invoice.data ?? {}) as Record<string, unknown>;
@@ -218,7 +304,12 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // curve above: NEVER summed across currencies. `id` is prefixed `invoice:pending-total:` so
   // buildInvoiceDashboardWidgetsWithConsolidation (below) can find exactly these widgets, and only
   // these, to feed multi-currency consolidation.
-  const pendingLink: MetricWidgetLink = { typeId: 'invoice', status: ['sent'], settlement: 'unsettled' };
+  const pendingLink: MetricWidgetLink = {
+    typeId: 'invoice',
+    status: ['sent'],
+    settlement: 'unsettled',
+    ...period,
+  };
   const pendingTotalsByCurrency = new Map<string, number>();
   for (const invoice of pendingInvoices) {
     const data = (invoice.data ?? {}) as Record<string, unknown>;
@@ -236,7 +327,14 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
       link: pendingLink,
     }));
 
-  const months = recentMonths(new Date());
+  // The curve's own month list: the trailing `CURVE_MONTHS` window by default, or - once a period is
+  // set (issue #418) - every calendar month the period spans instead (`monthsSpanning`'s own header).
+  // Either way `countsByMonth` below is built over EVERY invoice (never `periodInvoices`): the curve
+  // answers "how busy was each month", by issue date, whatever the invoice's status - restricting the
+  // candidate SET to the period would be redundant (the month list already only ever asks about
+  // months the period covers) and would complicate the "count by month key" arithmetic for no
+  // observable difference.
+  const months = period ? monthsSpanning(period.dateFrom, period.dateTo) : recentMonths(new Date());
   const countsByMonth = new Map<string, number>();
   for (const invoice of invoices) {
     const key = monthKey((invoice.data as Record<string, unknown> | null)?.issueDate);
@@ -251,65 +349,106 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
     points: months.map(({ key, label }) => ({ label, value: countsByMonth.get(key) ?? 0 })),
   };
 
-  // "Issued this month" — what was actually invoiced this calendar month, per currency, next to
-  // last month's figure in the same currency (`previousValue`) so the tile can show a direction.
-  // Only invoices that REACHED "sent" count: a draft is not issued, a "send_failed" one never left,
-  // and a "cancelled" one is void (the same exclusion the pending list applies above). The curve
-  // just above deliberately keeps counting every invoice by date, whatever its status — it answers
-  // "how busy was each month", this answers "what did we invoice"; two questions, two widgets.
-  const thisMonthKey = months[months.length - 1].key;
-  const lastMonthKey = months[months.length - 2].key;
-  const issuedByCurrency = new Map<string, { thisMonth: number; lastMonth: number }>();
-  for (const invoice of invoices) {
-    if (invoice.status !== 'sent') continue;
-    const data = (invoice.data ?? {}) as Record<string, unknown>;
-    const key = monthKey(data.issueDate);
-    if (key !== thisMonthKey && key !== lastMonthKey) continue;
-    const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
-    const bucket = issuedByCurrency.get(currency) ?? { thisMonth: 0, lastMonth: 0 };
-    if (key === thisMonthKey) bucket.thisMonth += invoiceTotal(data);
-    else bucket.lastMonth += invoiceTotal(data);
-    issuedByCurrency.set(currency, bucket);
+  // "Issued this month" (no period set) / "Issued in period" (period set) - what was actually
+  // invoiced, per currency. Only invoices that REACHED "sent" count: a draft is not issued, a
+  // "send_failed" one never left, and a "cancelled" one is void (the same exclusion the pending list
+  // applies above). The curve just above deliberately keeps counting every invoice by date, whatever
+  // its status - it answers "how busy was each month", this answers "what did we invoice"; two
+  // questions, two widgets.
+  //
+  // Two entirely separate branches, not one parameterized over "which window": the UNSET path below
+  // is untouched, byte-for-byte, from before issue #418 (a trailing "this month vs last month"
+  // comparison with a `previousValue`) - the PERIOD path is a different question ("what was invoiced
+  // in this arbitrary range") that has no well-defined "previous period" of its own (a caller picking
+  // "Last 30 days" has no single obvious "period before that" to compare against - see this file's
+  // own `id`/label choice below), so it never emits one. A future "compare to previous period" widget
+  // is its own piece of work, not something to half-build here by guessing what "previous" means for
+  // a custom range.
+  let issuedWidgets: MetricWidget[];
+  if (!period) {
+    const thisMonthKey = months[months.length - 1].key;
+    const lastMonthKey = months[months.length - 2].key;
+    const issuedByCurrency = new Map<string, { thisMonth: number; lastMonth: number }>();
+    for (const invoice of invoices) {
+      if (invoice.status !== 'sent') continue;
+      const data = (invoice.data ?? {}) as Record<string, unknown>;
+      const key = monthKey(data.issueDate);
+      if (key !== thisMonthKey && key !== lastMonthKey) continue;
+      const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
+      const bucket = issuedByCurrency.get(currency) ?? { thisMonth: 0, lastMonth: 0 };
+      if (key === thisMonthKey) bucket.thisMonth += invoiceTotal(data);
+      else bucket.lastMonth += invoiceTotal(data);
+      issuedByCurrency.set(currency, bucket);
+    }
+    // Same month boundaries the figure itself buckets by (`monthKey`/`monthRange`), so the tile's own
+    // link never drifts from the number it decorates.
+    const issuedLink: MetricWidgetLink = {
+      typeId: 'invoice',
+      status: ['sent'],
+      ...monthRange(thisMonthKey),
+    };
+    issuedWidgets =
+      issuedByCurrency.size === 0
+        ? [
+            {
+              id: 'invoice:issued-this-month',
+              kind: 'metric',
+              label: 'Invoiced this month',
+              value: 0,
+              link: issuedLink,
+            },
+          ]
+        : [...issuedByCurrency.entries()]
+            .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+            .map(([currency, { thisMonth, lastMonth }]) => ({
+              id: `invoice:issued-this-month:${currency}`,
+              kind: 'metric',
+              label: `Invoiced this month (${currency})`,
+              unit: currency,
+              value: Number(thisMonth.toFixed(2)),
+              previousValue: Number(lastMonth.toFixed(2)),
+              link: issuedLink,
+            }));
+  } else {
+    // A DISTINCT id (`invoice:issued-in-period`, never `invoice:issued-this-month`) - deliberately:
+    // the two figures answer different questions (a fixed calendar month vs. an arbitrary caller-
+    // chosen range) and giving them the same id would make a consumer (a test, an i18n key, a future
+    // "pin this metric") unable to tell which one it was actually looking at, especially since both
+    // can never be present in the same response (this branch replaces the other, never adds to it).
+    const sentInPeriod = periodInvoices.filter((invoice) => invoice.status === 'sent');
+    const issuedByCurrency = new Map<string, number>();
+    for (const invoice of sentInPeriod) {
+      const data = (invoice.data ?? {}) as Record<string, unknown>;
+      const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
+      issuedByCurrency.set(currency, (issuedByCurrency.get(currency) ?? 0) + invoiceTotal(data));
+    }
+    const issuedLink: MetricWidgetLink = { typeId: 'invoice', status: ['sent'], ...period };
+    issuedWidgets =
+      issuedByCurrency.size === 0
+        ? [
+            {
+              id: 'invoice:issued-in-period',
+              kind: 'metric',
+              label: 'Invoiced in period',
+              value: 0,
+              link: issuedLink,
+            },
+          ]
+        : [...issuedByCurrency.entries()]
+            .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+            .map(([currency, total]) => ({
+              id: `invoice:issued-in-period:${currency}`,
+              kind: 'metric',
+              label: `Invoiced in period (${currency})`,
+              unit: currency,
+              value: Number(total.toFixed(2)),
+              link: issuedLink,
+            }));
   }
-  // Same month boundaries the figure itself buckets by (`monthKey`/`monthRange`), so the tile's own
-  // link never drifts from the number it decorates.
-  const issuedLink: MetricWidgetLink = {
-    typeId: 'invoice',
-    status: ['sent'],
-    ...monthRange(thisMonthKey),
-  };
-  const issuedThisMonthWidgets: MetricWidget[] =
-    issuedByCurrency.size === 0
-      ? [
-          {
-            id: 'invoice:issued-this-month',
-            kind: 'metric',
-            label: 'Invoiced this month',
-            value: 0,
-            link: issuedLink,
-          },
-        ]
-      : [...issuedByCurrency.entries()]
-          .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
-          .map(([currency, { thisMonth, lastMonth }]) => ({
-            id: `invoice:issued-this-month:${currency}`,
-            kind: 'metric',
-            label: `Invoiced this month (${currency})`,
-            unit: currency,
-            value: Number(thisMonth.toFixed(2)),
-            previousValue: Number(lastMonth.toFixed(2)),
-            link: issuedLink,
-          }));
 
   // Metrics first, then the list, then the curve — the reading order of a dashboard (headline
   // figures before detail). The frontend groups by `kind` anyway; this order is for API readers.
-  return [
-    ...issuedThisMonthWidgets,
-    ...pendingTotalWidgets,
-    ...overdueTotalWidgets,
-    pendingWidget,
-    curveWidget,
-  ];
+  return [...issuedWidgets, ...pendingTotalWidgets, ...overdueTotalWidgets, pendingWidget, curveWidget];
 };
 
 /**
@@ -357,8 +496,9 @@ export const buildInvoiceDashboardWidgetsWithConsolidation: ContributionHandler 
     value: Number(fromMinor(consolidated.totalMinor, consolidated.currency).toFixed(2)),
     warnings: consolidated.notes,
     // The consolidated figure is a currency-converted SUM of the exact same set the per-currency
-    // `invoice:pending-total:*` tiles above already link to: same list, same filter.
-    link: { typeId: 'invoice', status: ['sent'], settlement: 'unsettled' },
+    // `invoice:pending-total:*` tiles above already link to: same list, same filter - `...ctx.period`
+    // carries the active period onto it too (issue #418), same as those tiles' own link.
+    link: { typeId: 'invoice', status: ['sent'], settlement: 'unsettled', ...ctx.period },
   };
 
   return [...widgets, consolidatedMetric];
@@ -431,4 +571,4 @@ export function registerInvoiceContributions(registry: ContributionRegistry): vo
 // Re-exported for tests that want to prove the arithmetic directly, the same way
 // actions/email-template.ts exports its own pure pieces for email-template.spec.ts.
 export type { Widget };
-export { invoiceTotal, monthKey, monthRange, recentMonths };
+export { invoiceTotal, monthKey, monthRange, monthsSpanning, recentMonths };

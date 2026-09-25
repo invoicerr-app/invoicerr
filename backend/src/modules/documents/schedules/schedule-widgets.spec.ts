@@ -61,4 +61,17 @@ describe('buildUpcomingSchedulesWidget', () => {
     expect(widget.items[0].id).toBe('s0');
     expect(widget.items[4].id).toBe('s4');
   });
+
+  // Issue #418: `nextRunAt` is deliberately NEVER restricted by the active period (this file's own
+  // header) - a warning says so instead, and the item list itself is untouched by the period.
+  it('a period never restricts nextRunAt, but adds a warning explaining why', () => {
+    const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+    const soon = schedule({ id: 'a', nextRunAt: new Date('2026-09-10T00:00:00.000Z') }); // outside the period
+    const withoutPeriod = buildUpcomingSchedulesWidget([soon], { invoice: 'Invoice' });
+    const withPeriod = buildUpcomingSchedulesWidget([soon], { invoice: 'Invoice' }, period);
+
+    expect(withPeriod.items).toEqual(withoutPeriod.items);
+    expect(withoutPeriod.warnings).toBeUndefined();
+    expect(withPeriod.warnings).toEqual([expect.stringContaining('does not apply')]);
+  });
 });

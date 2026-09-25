@@ -1,6 +1,10 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
-import { listAllDocuments } from '../persistence';
+import { DocumentInstanceResult } from '../actions/action-registry';
+import { buildReceivedInvoiceDescriptor } from '../descriptors/received-invoice.descriptor';
+import { DashboardPeriod } from '../dto/dashboard-query.dto';
+import { resolveDateFieldKey } from '../list-filters';
+import { dateValueInRange, dayMs, listAllDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
 import { MetricWidget, MetricWidgetLink, Widget } from './widgets';
@@ -14,6 +18,34 @@ function grossAmount(data: Record<string, unknown>): number {
   return typeof data.grossAmount === 'number' ? data.grossAmount : 0;
 }
 
+/** The received invoice's own `issueDate` field - resolvable (`list-filters.ts#resolveDateFieldKey`)
+ *  even though it is OPTIONAL on this type (a plain scanned PDF may carry no extracted date at all,
+ *  same reasoning as `grossAmount` above): a record with no readable date is simply excluded once a
+ *  period is set, the exact same "can't honestly be placed in ANY range" rule
+ *  `persistence.ts#dateValueInRange` already applies for `GET /documents`'s own filter - never
+ *  guessed into either side of the boundary. */
+const RECEIVED_INVOICE_DATE_FIELD_KEY = resolveDateFieldKey(buildReceivedInvoiceDescriptor());
+
+/** Every received invoice from `all` whose own `RECEIVED_INVOICE_DATE_FIELD_KEY` value falls within
+ *  `period`'s inclusive range - see invoice-contributions.ts's own identical `restrictToPeriod` for
+ *  the full reasoning, duplicated per file rather than shared. `period` undefined -> `all`, the SAME
+ *  reference, unchanged. */
+function restrictToPeriod(
+  all: DocumentInstanceResult[],
+  period: DashboardPeriod | undefined,
+): DocumentInstanceResult[] {
+  if (!period || !RECEIVED_INVOICE_DATE_FIELD_KEY) return all;
+  const fromMs = dayMs(period.dateFrom);
+  const toMs = dayMs(period.dateTo);
+  return all.filter((invoice) =>
+    dateValueInRange(
+      (invoice.data as Record<string, unknown> | null)?.[RECEIVED_INVOICE_DATE_FIELD_KEY],
+      fromMs,
+      toMs,
+    ),
+  );
+}
+
 /**
  * DASHBOARD: "received invoices pending" — a COUNT of every instance still at "received" (i.e., not
  * yet approved or rejected — see received-invoice.descriptor.ts's own lifecycle), plus, when at
@@ -22,17 +54,20 @@ function grossAmount(data: Record<string, unknown>): number {
  * from the response even when every pending record has an unset amount — "0 recorded so far" is
  * still a real, useful fact for an empty-looking dashboard.
  */
-export const buildReceivedInvoiceDashboardWidgets: ContributionHandler = async ({ companyId }) => {
+export const buildReceivedInvoiceDashboardWidgets: ContributionHandler = async ({ companyId, period }) => {
   // "received" pushed into SQL, paged until exhausted: both the count and the per-currency sums
   // below are aggregates over every pending received invoice. Filtering a capped page in memory made
   // a supplier invoice awaiting review for a long time drop out of the pending count and out of the
   // amount due — the oldest ones first, which are exactly the ones a reviewer needs to see.
-  const pending = await listAllDocuments(companyId, {
+  const allPending = await listAllDocuments(companyId, {
     typeId: 'received-invoice',
     status: ['received'],
   });
+  // Restricted by the type's own resolved date field once a period is set (issue #418) - `allPending`
+  // itself, unchanged, whenever no period is set (`restrictToPeriod`'s own header).
+  const pending = restrictToPeriod(allPending, period);
 
-  const pendingLink: MetricWidgetLink = { typeId: 'received-invoice', status: ['received'] };
+  const pendingLink: MetricWidgetLink = { typeId: 'received-invoice', status: ['received'], ...period };
   const countMetric: MetricWidget = {
     id: 'received-invoice:pending-count',
     kind: 'metric',
