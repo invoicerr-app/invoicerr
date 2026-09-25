@@ -1,1 +1,2260 @@
-{}
+{
+    "errorBoundary": {
+        "title": "Yella wayen ur neddi ara",
+        "reload": "Smiren asebter"
+    },
+    "clients": {
+        "stats": {
+            "active": "Irmed",
+            "inactive": "Insa",
+            "suppliers": "Imefkiyen"
+        },
+        "list": {
+            "status": {
+                "active": "Irmed",
+                "inactive": "Insa"
+            },
+            "kind": {
+                "government": "Anabaḍ"
+            },
+            "filters": {
+                "all": "Akk"
+            },
+            "rowMenu": "Ugar n tigawin"
+        },
+        "statement": {
+            "columns": {
+                "type": "Anaw",
+                "document": "Isemli",
+                "paid": "Yettwaxleṣ",
+                "status": "Addad"
+            },
+            "type": {
+                "invoice": "Tafatuṛt"
+            }
+        },
+        "portalAccess": {
+            "copy": "Nɣel",
+            "close": "Mdel"
+        },
+        "upsert": {
+            "sections": {
+                "classification": "Assinew",
+                "identity": "Tamagit",
+                "contact": "Anermis",
+                "address": "Tansa"
+            },
+            "fields": {
+                "contactFirstname": {
+                    "label": "Isem n twacult"
+                },
+                "contactLastname": {
+                    "label": "Isem n twacult"
+                },
+                "name": {
+                    "label": "Isem n teṛmist"
+                },
+                "description": {
+                    "label": "Aglam"
+                },
+                "currency": {
+                    "label": "Tadrimt"
+                },
+                "contactEmail": {
+                    "label": "Imayl",
+                    "placeholder": "Sekcem tansa imayl"
+                },
+                "contactPhone": {
+                    "label": "Tiliɣri",
+                    "placeholder": "Sekcem uṭṭun n tiliɣri"
+                },
+                "address": {
+                    "label": "Tansa"
+                },
+                "postalCode": {
+                    "label": "Tangalt n lbusṭa"
+                },
+                "city": {
+                    "label": "Tiɣremt",
+                    "placeholder": "Sekcem-d tamdint"
+                },
+                "type": {
+                    "company": "Taṛmist",
+                    "individual": "Yiwen n umdan"
+                },
+                "country": {
+                    "label": "Tamurt"
+                }
+            },
+            "stepped": {
+                "steps": {
+                    "identity": "Tamagit",
+                    "address": "Tansa",
+                    "recap": "Agzul"
+                },
+                "recap": {
+                    "typeLabel": "Anaw",
+                    "nameLabel": "Isem"
+                }
+            },
+            "actions": {
+                "cancel": "Semmet",
+                "save": "Sekles isnifal"
+            },
+            "customFields": {
+                "heading": "Urtan yugnen"
+            }
+        },
+        "view": {
+            "actions": {
+                "close": "Mdel",
+                "edit": "Ẓreg"
+            },
+            "sections": {
+                "contact": "Anermis",
+                "address": "Tansa",
+                "documents": "Isemliyen"
+            },
+            "fields": {
+                "companyName": "Isem n teṛmist",
+                "email": "Imayl",
+                "phone": "Tiliɣri",
+                "address": "Tansa",
+                "addressLine2": "Izirig 2 n tansa",
+                "postalCode": "Tangalt n lbusṭa",
+                "city": "Tiɣremt",
+                "state": "Aɣir/Tamnaḍt",
+                "country": "Tamurt"
+            }
+        },
+        "delete": {
+            "title": "Kkes amsaɣ",
+            "actions": {
+                "cancel": "Semmet",
+                "delete": "Kkes amsaɣ"
+            }
+        }
+    },
+    "quotes": {
+        "filters": {
+            "draft": "Arewway",
+            "sent": "Yettwazen",
+            "signed": "Qqen",
+            "all": "Akk"
+        },
+        "list": {
+            "status": {
+                "draft": "Arewway",
+                "sent": "Yettwazen",
+                "expired": "Yemmut",
+                "signed": "Qqen"
+            },
+            "item": {
+                "client": "Amsaɣ",
+                "issued": "Yeffeɣ-d"
+            },
+            "tooltips": {
+                "viewPdf": "Wali a PDF",
+                "downloadPdf": "Sader PDF"
+            }
+        },
+        "progression": {
+            "noAction": "Ulac tigawt",
+            "steps": {
+                "draft": "Arewway",
+                "sent": "Yettwazen",
+                "signed": "Qqen"
+            },
+            "actions": {
+                "send": "Azen",
+                "resend": "Ales tuzna"
+            },
+            "confirmations": {
+                "cancel": "Semmet",
+                "confirm": "Sentem"
+            }
+        },
+        "views": {
+            "list": "Tabdart",
+            "table": "Tafelwit"
+        },
+        "table": {
+            "columns": {
+                "number": "Uṭṭun",
+                "client": "Amsaɣ",
+                "status": "Addad"
+            },
+            "filters": {
+                "client": "Amsaɣ",
+                "year": "Aseggas",
+                "month": "Ayyur"
+            },
+            "actions": {
+                "export": "Sifeḍ"
+            }
+        },
+        "createInvoiceDialog": {
+            "actions": {
+                "cancel": "Semmet"
+            },
+            "fields": {
+                "quantity": {
+                    "label": "Tasmekta"
+                }
+            }
+        },
+        "upsert": {
+            "form": {
+                "title": {
+                    "label": "Azwel"
+                },
+                "client": {
+                    "label": "Amsaɣ"
+                },
+                "currency": {
+                    "label": "Tadrimt"
+                },
+                "items": {
+                    "addItem": "Rnu aferdis",
+                    "name": {
+                        "placeholder": "Isem n uferdis"
+                    }
+                },
+                "notes": {
+                    "label": "Tizmilin"
+                },
+                "paymentMethod": {
+                    "label": "Tarrayt n usellek"
+                }
+            },
+            "actions": {
+                "cancel": "Semmet",
+                "save": "Sekles isnifal"
+            }
+        },
+        "view": {
+            "status": {
+                "draft": "Arewway",
+                "sent": "Yettwazen",
+                "expired": "Yemmut",
+                "signed": "Qqen"
+            },
+            "fields": {
+                "title": "Azwel",
+                "status": "Addad",
+                "createdAt": "Inulfa-d",
+                "client": "Amsaɣ",
+                "signature": "Azmul"
+            }
+        },
+        "sendConfirmation": {
+            "confirm": "Azen",
+            "cancel": "Semmet"
+        },
+        "delete": {
+            "actions": {
+                "cancel": "Semmet"
+            }
+        },
+        "pdf": {
+            "edit": {
+                "toggle": "Ẓreg",
+                "saveSettings": "Sekles iɣewwaren"
+            }
+        },
+        "stats": {
+            "draft": "Arewway",
+            "signed": "Qqen"
+        }
+    },
+    "invoices": {
+        "filters": {
+            "all": "Akk",
+            "oneTime": "Tikkelt kan",
+            "recurring": "Tuɣalin",
+            "kinds": {
+                "invoice": "Tifaturin"
+            }
+        },
+        "progression": {
+            "steps": {
+                "draft": "Arewway",
+                "issued": "Yeffeɣ-d",
+                "delivered": "Yawweḍ",
+                "sent": "Yettwazen",
+                "paid": "Yettwaxleṣ",
+                "archived": "Yeɣber",
+                "cancelled": "Tettwasemmet"
+            },
+            "actions": {
+                "issue": "Ugur",
+                "send": "Azen",
+                "resend": "Ales tuzna",
+                "archive": "Tarcivt"
+            },
+            "confirmations": {
+                "confirm": "Sentem",
+                "cancel": "Semmet"
+            },
+            "noAction": "Ulac tigawt"
+        },
+        "views": {
+            "list": "Tabdart",
+            "table": "Tafelwit"
+        },
+        "table": {
+            "columns": {
+                "number": "Uṭṭun",
+                "client": "Amsaɣ",
+                "status": "Addad"
+            },
+            "filters": {
+                "client": "Amsaɣ",
+                "year": "Aseggas",
+                "month": "Ayyur"
+            },
+            "actions": {
+                "export": "Sifeḍ"
+            }
+        },
+        "statusFilters": {
+            "draft": "Arewway",
+            "issued": "Yeffeɣ-d",
+            "sent": "Yettwazen",
+            "paid": "Tettwaxlaṣ",
+            "archived": "Tettwaɣber",
+            "cancelled": "Tettwasemmet",
+            "all": "Akk",
+            "rejected": "Ur yeddi ara"
+        },
+        "list": {
+            "status": {
+                "draft": "Arewway",
+                "issued": "Yeffeɣ-d",
+                "sent": "Tettwazen",
+                "unpaid": "Ur yettwaxleṣ ara",
+                "paid": "Tettwaxlaṣ",
+                "upcoming": "Iteddu-d",
+                "archived": "Yeɣber",
+                "cancelled": "Yettwasemmet",
+                "rejected": "Tettwagi"
+            },
+            "item": {
+                "client": "Amsaɣ",
+                "issued": "Yeffeɣ-d",
+                "due": "Tagara",
+                "payment": "Axelleṣ"
+            },
+            "tooltips": {
+                "downloadPdf": "Sader PDF",
+                "cancel": "Semmet tafatuṛt"
+            },
+            "actions": {
+                "downloadPdf": "Sader PDF",
+                "downloadXml": "Sider XML"
+            },
+            "downloadFormats": {
+                "zugferd": "ZUGFeRD",
+                "xrechnung": "XRechnung",
+                "ubl": "UBL",
+                "cii": "CII"
+            }
+        },
+        "upsert": {
+            "tabs": {
+                "invoice": "Tafaturt"
+            },
+            "form": {
+                "client": {
+                    "label": "Amsaɣ"
+                },
+                "currency": {
+                    "label": "Azamul n tedrimt"
+                },
+                "items": {
+                    "addItem": "Rnu aferdis",
+                    "name": {
+                        "placeholder": "Isem n uferdis"
+                    },
+                    "type": {
+                        "label": "Anaw",
+                        "hour": "Asrag",
+                        "day": "Ass",
+                        "service": "Ameẓlu",
+                        "product": "Afaris"
+                    },
+                    "vatExemptionReason": {
+                        "label": "Taɣẓint"
+                    }
+                },
+                "notes": {
+                    "label": "Tizmilin"
+                },
+                "paymentMethod": {
+                    "label": "Tarrayt n usellek"
+                }
+            },
+            "actions": {
+                "cancel": "Semmet",
+                "save": "Sekles isnifal"
+            }
+        },
+        "view": {
+            "status": {
+                "draft": "Arewway",
+                "issued": "Yeffeɣ-d",
+                "sent": "Tettwazen",
+                "unpaid": "Ur yettwaxleṣ ara",
+                "paid": "Tettwaxlaṣ",
+                "archived": "Yeɣber",
+                "cancelled": "Tettwasemmet"
+            },
+            "fields": {
+                "title": "Azwel",
+                "status": "Addad",
+                "createdAt": "Inulfa-d",
+                "updatedAt": "Asnifel",
+                "client": "Amsaɣ",
+                "paymentMethod": "Tarrayt n usellek",
+                "notes": "Tirawin"
+            },
+            "actions": {
+                "cancel": "Semmet",
+                "send": "Tuzna",
+                "sendByEmail": "Azen s yimayl",
+                "print": "Siggez",
+                "refreshStatus": "Smiren addad",
+                "retryTransmission": "Ɛreḍ tikelt-nniḍen",
+                "edit": "Ẓreg arewway"
+            },
+            "compliance": {
+                "archival": {
+                    "title": "Tuṭṭfa"
+                },
+                "obligations": {
+                    "layer": {
+                        "RECEPTION": "Armas",
+                        "ARCHIVAL": "Aḥraz"
+                    }
+                }
+            }
+        },
+        "sendConfirmation": {
+            "confirm": "Tuzna",
+            "cancel": "Semmet"
+        },
+        "paymentReceived": {
+            "actions": {
+                "confirm": "Sentem",
+                "cancel": "Semmet"
+            }
+        },
+        "delete": {
+            "actions": {
+                "cancel": "Semmet"
+            }
+        },
+        "stats": {
+            "sent": "Yuzen",
+            "paid": "Yettwaxleṣ"
+        }
+    },
+    "recurringInvoices": {
+        "frequency": {
+            "biweekly": "Yal 2 n imalasen",
+            "monthly": "Yal ayyur",
+            "annually": "Yal aseggas"
+        },
+        "list": {
+            "item": {
+                "client": "Amsaɣ",
+                "payment": "Tarrayt n usellek",
+                "generatedCount": "Ittwarna",
+                "paused": "Yettṛaǧu"
+            },
+            "tooltips": {
+                "view": "Wali s telqayt",
+                "edit": "Taẓrigt",
+                "pause": "Ḥbes",
+                "resume": "Agzul",
+                "delete": "Kkes"
+            }
+        },
+        "upsert": {
+            "form": {
+                "client": {
+                    "label": "Amsaɣ"
+                },
+                "currency": {
+                    "label": "Azamul n tedrimt"
+                },
+                "notes": {
+                    "label": "Tirawin"
+                },
+                "paymentMethod": {
+                    "label": "Tarrayt n usellek"
+                },
+                "count": {
+                    "label": ""
+                },
+                "until": {
+                    "label": "Azemz n tagara"
+                },
+                "items": {
+                    "addItem": "Rnu aferdis",
+                    "name": {
+                        "placeholder": "Isem n uferdis"
+                    },
+                    "type": {
+                        "label": "Anaw",
+                        "hour": "Asrag",
+                        "day": "Deg ass",
+                        "service": "Ameẓlu",
+                        "product": "Afaris"
+                    },
+                    "vatExemptionReason": {
+                        "label": "Acuɣer"
+                    }
+                }
+            },
+            "actions": {
+                "cancel": "Semmet",
+                "save": "Sekles isnifal"
+            }
+        },
+        "view": {
+            "fields": {
+                "client": "Amsaɣ",
+                "paymentMethod": "Tarrayt n usellek",
+                "totalVAT": "Asulay n tebzert VAT",
+                "notes": "Tirawin"
+            }
+        },
+        "delete": {
+            "actions": {
+                "cancel": "Semmet"
+            }
+        }
+    },
+    "dashboard": {
+        "title": "Tafelwit"
+    },
+    "widgets": {
+        "metric": {
+            "unchanged": "Ulac abeddel",
+            "variationPercent": "{{sign}}{{percent}}%"
+        },
+        "period": {
+            "ariaLabel": "Tawala",
+            "thisMonth": "Aggur-a",
+            "last3Months": "3 wayyuren yezrin",
+            "last12Months": "12 wayyuren yezrin",
+            "allTime": "Si tazwara"
+        }
+    },
+    "articles": {
+        "actions": {
+            "cancel": "Semmet",
+            "add": "Rnu",
+            "save": "Sekles isnifal",
+            "edit": "Taẓrigt",
+            "delete": "Kkes",
+            "deleting": "Tukksa..."
+        },
+        "filters": {
+            "all": "Akk"
+        },
+        "fields": {
+            "name": {
+                "label": "Isem"
+            },
+            "description": {
+                "label": "Aglam"
+            },
+            "type": {
+                "label": "Anaw",
+                "hour": "Asrag",
+                "day": "Deg ass",
+                "service": "Ameẓlu",
+                "product": "Afaris"
+            },
+            "lowStockThreshold": {
+                "placeholder": "Ulac alɣu"
+            }
+        },
+        "upsert": {
+            "title": {
+                "edit": "Ẓreg amagrad"
+            },
+            "steps": {
+                "identity": "Tamagit",
+                "stock": "Tigawt"
+            }
+        },
+        "title": "Imagraden"
+    },
+    "timeTracking": {
+        "actions": {
+            "cancel": "Semmet",
+            "add": "Rnu",
+            "save": "Sekles isnifal",
+            "edit": "Taẓrigt",
+            "delete": "Kkes",
+            "archive": "Tarcivt",
+            "unarchive": "Kkes aɣbar"
+        },
+        "units": {
+            "hourShort": "asrag"
+        },
+        "projects": {
+            "title": "Ifarisen",
+            "archivedBadge": "Yeɣber",
+            "fields": {
+                "client": {
+                    "label": "Amsaɣ"
+                },
+                "name": {
+                    "label": "Isem n usenfaṛ"
+                },
+                "description": {
+                    "label": "Asnummel"
+                },
+                "hourlyRate": {
+                    "placeholder": "tanila n uḍris"
+                }
+            },
+            "upsert": {
+                "title": {
+                    "edit": "Ẓreg asenfar"
+                }
+            },
+            "messages": {
+                "addSuccess": "Isem n usenfaṛ"
+            }
+        },
+        "entries": {
+            "columns": {
+                "date": "Azemz",
+                "description": "Asnummel",
+                "hours": "Isragen",
+                "amount": "Tallayt",
+                "status": "addad"
+            },
+            "status": {
+                "billed": "Yettwafter"
+            },
+            "fields": {
+                "date": {
+                    "label": "Azemz"
+                },
+                "hours": {
+                    "label": "Durada"
+                },
+                "description": {
+                    "label": "Asnummel"
+                }
+            },
+            "upsert": {
+                "steps": {
+                    "task": "Tiwuriwin",
+                    "duration": "Durada",
+                    "billing": "Aftar"
+                },
+                "projectLabel": "Asenfar"
+            }
+        },
+        "generateInvoice": {
+            "total": "Uɣrid",
+            "columns": {
+                "description": "Asnummel",
+                "hours": "Isragen",
+                "total": "Uɣrid"
+            }
+        }
+    },
+    "bankReconciliation": {
+        "import": {
+            "browse": "Snirem",
+            "currency": "Azamul n tedrimt",
+            "steps": {
+                "file": "Afaylu",
+                "columns": "Tigejda",
+                "preview": "Timeẓriwt",
+                "import": "Ssekcem"
+            },
+            "mapping": {
+                "none": "Ula d yiwen",
+                "dateFormat": "Amasal n izemzan",
+                "decimalSeparator": "Anabraz amrawan"
+            },
+            "preview": {
+                "total": "Uɣrid"
+            },
+            "recap": {
+                "file": "Afaylu",
+                "currency": "Azamul n tedrimt",
+                "lines": "Izirigen"
+            },
+            "result": {
+                "title": "Akter yemmed"
+            },
+            "submit": "Ssekcem"
+        },
+        "lines": {
+            "date": "Azemz",
+            "amount": "Tallayt",
+            "label": "Tabzimt",
+            "status": "addad"
+        }
+    },
+    "paymentMethods": {
+        "enabled": "Ittwarmed",
+        "disabled": "Yensa",
+        "configure": "Seɣwer",
+        "dialog": {
+            "cancel": "Semmet",
+            "save": "Kles"
+        },
+        "messages": {
+            "updateSuccess": "Tarrayt n usellek tettwawalqem"
+        }
+    },
+    "settings": {
+        "title": "Iɣewwaren",
+        "common": {
+            "saved": "Yekles",
+            "rowMenu": "Ugar n tigawin",
+            "refresh": "Mucceḍ",
+            "remove": "Sfeḍ",
+            "delete": "Kkes",
+            "copy": "Nɣel",
+            "loading": "La d-yessalay…",
+            "sourceLabel": "Aqbalu"
+        },
+        "nav": {
+            "groups": {
+                "company": "Takebbanit",
+                "team": "Tarbaɛt",
+                "integrations": "Aseddu",
+                "danger": "Amihi"
+            }
+        },
+        "tabs": {
+            "company": "Taṛmist",
+            "mail": "Tirawt",
+            "logs": "Aɣmis",
+            "invitations": "Tinubgiwin",
+            "webhooks": "Webhooks",
+            "payments": "Asellek",
+            "members": "Iɛiggalen",
+            "customFields": "Urtan yugnen",
+            "sso": "SSO"
+        },
+        "branding": {
+            "loading": "La d-yessalay…",
+            "presets": {
+                "title": "Aṣeggem uzwir"
+            },
+            "logo": {
+                "label": "Logo",
+                "loading": "La d-yessalay…"
+            },
+            "accentColor": {
+                "label": "Ini n uɣdebbu"
+            },
+            "font": {
+                "label": "Taseftit",
+                "default": "Lexṣas"
+            },
+            "actions": {
+                "save": "Kles"
+            },
+            "preview": {
+                "title": "Timeẓriwt"
+            }
+        },
+        "accountingExport": {
+            "form": {
+                "from": "Sɣur"
+            },
+            "messages": {
+                "error": "Asifeḍ ur yeddi ara"
+            }
+        },
+        "dataExport": {
+            "messages": {
+                "error": "Asifeḍ ur yeddi ara"
+            }
+        },
+        "invitations": {
+            "title": "Tinubgiwin",
+            "create": {
+                "role": "Tamlilt"
+            },
+            "list": {
+                "code": "Angal",
+                "status": "addad",
+                "createdAt": "Inulfa-d",
+                "expiresAt": "Ad yemmet",
+                "actions": "Tigawin",
+                "noExpiry": "Warǧin",
+                "role": "Tamlilt"
+            },
+            "status": {
+                "active": "Irmed",
+                "used": "Yettwaseqdec",
+                "expired": "Ifut"
+            },
+            "roles": {
+                "owner": "Bab",
+                "admin": "Anedbal",
+                "member": "Membre"
+            }
+        },
+        "company": {
+            "basicInfo": "Talɣut tazadurt",
+            "address": {
+                "title": "Isalen n tansa"
+            },
+            "other": {
+                "title": "Iɣewwaṛen-nniḍen"
+            },
+            "currencyRates": {
+                "form": {
+                    "from": "Sɣur",
+                    "rate": "Aktum"
+                },
+                "table": {
+                    "rate": "Aktum",
+                    "source": "Aqbalu"
+                }
+            },
+            "form": {
+                "company": {
+                    "label": "Isem n teṛmist"
+                },
+                "description": {
+                    "label": "Asnummel"
+                },
+                "currency": {
+                    "label": "Azamul n tedrimt",
+                    "errors": {
+                        "select": "Ttxil fren tadrimt"
+                    }
+                },
+                "address": {
+                    "label": "Tansa"
+                },
+                "postalCode": {
+                    "label": "Tangalt n lpusṭa"
+                },
+                "city": {
+                    "label": "Aɣrem",
+                    "placeholder": "Sekcem tamdint"
+                },
+                "country": {
+                    "label": "Tamurt"
+                },
+                "phone": {
+                    "label": "Tiliɣri",
+                    "placeholder": "Sekcem uṭṭun n tiliɣri"
+                },
+                "email": {
+                    "label": "Imayl",
+                    "placeholder": "Sekcem tansa imayl"
+                },
+                "iban": {
+                    "label": "IBAN"
+                },
+                "dateFormat": {
+                    "label": "Amasal n uzemz"
+                },
+                "identifiers": {
+                    "onFile": {
+                        "remove": "Sfeḍ"
+                    }
+                },
+                "saving": "Asekles...",
+                "saveSettings": "Sekes iɣewwaṛen",
+                "invoicePDFFormat": {
+                    "options": {
+                        "facturx": "Factur-X",
+                        "zugferd": "ZUGFeRD",
+                        "xrechnung": "XRechnung",
+                        "ubl": "UBL",
+                        "cii": "CII"
+                    }
+                }
+            },
+            "onboarding": {
+                "stepLabelCountry": "Tamurt",
+                "stepLabelIdentifier": "Asulay",
+                "stepLabelCompany": "Taṛmist",
+                "stepLabelChannels": "Ibuda",
+                "summary": {
+                    "country": "Tamurt",
+                    "identifier": "Asulay"
+                },
+                "retry": "Ɛreḍ tikelt-nniḍen"
+            }
+        },
+        "dangerZone": {
+            "modal": {
+                "otpLabel": "Tangalt n usenqed",
+                "cancel": "Semmet",
+                "otpPlaceholder": "0000-0000"
+            },
+            "messages": {
+                "actionFailed": "Tigawt agi texser"
+            }
+        },
+        "transferCompany": {
+            "title": "Beddel imawlan n uzegrir",
+            "current": {
+                "requestedAt": "Asuter yettwazen",
+                "expiresAt": "Ad yemmet"
+            },
+            "form": {
+                "submit": "Beddel imawlan n uzegrir"
+            },
+            "otpDialog": {
+                "otpLabel": "Tangalt n usenqed",
+                "cancel": "Semmet",
+                "confirm": "Azen assuter",
+                "otpPlaceholder": "0000-0000"
+            },
+            "cancelDialog": {
+                "cancel": "Ḥerz-it"
+            }
+        },
+        "instanceReset": {
+            "modal": {
+                "otpLabel": "Tangalt n usenqed",
+                "cancel": "Semmet",
+                "otpPlaceholder": "0000-0000"
+            }
+        },
+        "emailTemplates": {
+            "system": {
+                "families": {
+                    "VERIFICATION_CODE": "Tangalt n usenqed"
+                }
+            },
+            "source": {
+                "shippedDefault": "Lexṣas"
+            },
+            "editor": {
+                "edit": "Taẓrigt",
+                "close": "Mdel",
+                "subject": "Amgay"
+            },
+            "preview": {
+                "from": "Sɣur",
+                "subject": "Amgay",
+                "reply": "Efk-d tiririt",
+                "forward": "ɣer zdat",
+                "archive": "Tarcivt"
+            },
+            "resetButton": "Wennez ɣer umezwer"
+        },
+        "mail": {
+            "title": "Tirawt",
+            "status": {
+                "loading": "La d-yessalay…"
+            },
+            "form": {
+                "provider": "Imfeki",
+                "port": "Tawwurt",
+                "username": "Isem n useqdac",
+                "password": "Awal n uɛeddi"
+            },
+            "actions": {
+                "save": "Sekles",
+                "cancel": "Semmet",
+                "edit": "Ẓreg"
+            }
+        },
+        "webhooks": {
+            "create": {
+                "url": "URL n usmel web",
+                "type": "Anaw",
+                "events": "Événements"
+            },
+            "card": {
+                "edit": "Ẓreg",
+                "delete": "Kkes"
+            },
+            "createdSecretTitle": ""
+        },
+        "apiKeys": {
+            "swaggerLink": "Tasemlit n API",
+            "create": {
+                "name": "Isem",
+                "scopes": ""
+            },
+            "card": {
+                "neverUsed": "Urǧin yettwaseqdac"
+            },
+            "messages": {
+                "copied": "Ittwanɣel ɣeṛ ɣef afus"
+            }
+        },
+        "channels": {
+            "actions": {
+                "cancel": "Semmet",
+                "connect": "Qqen",
+                "disconnect": "Senser",
+                "edit": "Taẓrigt"
+            },
+            "fields": {
+                "clientId": "Asulay ID n wemsaɣ",
+                "clientSecret": "Tuffirt n umsaɣ",
+                "environment": "Tawennaḍt",
+                "peppolApiKey": "Tasarutt API"
+            },
+            "mandatePrompt": {
+                "cta": "Qqen tura"
+            },
+            "prompt": {
+                "cta": "Qqen tura"
+            },
+            "status": {
+                "notConnected": "Ur yeqqin ara"
+            },
+            "title": "Ibuda"
+        },
+        "payments": {
+            "actions": {
+                "cancel": "Semmet",
+                "connect": "Qqen",
+                "copy": "Nɣel",
+                "disconnect": "Gzem tuqqna",
+                "edit": "Taẓrigt"
+            },
+            "fields": {
+                "apiKey": "Tasarutt API",
+                "clientId": "Asulay ID n wemsaɣ",
+                "clientSecret": "Tuffirt n umsaɣ",
+                "environment": "Tawennaḍt",
+                "environmentProd": "Srid",
+                "environmentTest": "Sekyed",
+                "secretKey": "Tasarutt tabaḍnit"
+            },
+            "messages": {
+                "copied": "Ittwanɣel ɣeṛ ɣef afus"
+            },
+            "status": {
+                "notConnected": "Ur yeqqin ara"
+            },
+            "title": "Asellek",
+            "webhookUrl": {
+                "label": "URL n usmel web"
+            }
+        },
+        "signing": {
+            "actions": {
+                "deactivate": "Ssexsi"
+            },
+            "expires": "Ad yemmet",
+            "serial": "Amazrar",
+            "status": {
+                "active": "Irmed",
+                "expired": "Ifut",
+                "inactive": "Insa"
+            },
+            "upload": {
+                "environment": "Tawennaṭ",
+                "error": "Tuccḍa deg usili",
+                "label": "Tabzimt",
+                "submit": "Azen"
+            }
+        },
+        "atcud": {
+            "numberFormat": {
+                "save": "Kles"
+            },
+            "series": {
+                "save": "Kles"
+            }
+        },
+        "members": {
+            "list": {
+                "name": "Isem",
+                "email": "Imayl",
+                "role": "Tamlilt",
+                "actions": "Tigawin"
+            }
+        },
+        "seats": {
+            "viewOffice": "Tanarit",
+            "viewList": "Umuɣ",
+            "list": {
+                "member": "Aɛeggal",
+                "role": "Tamlilt",
+                "status": "addad",
+                "actions": "Senkez",
+                "statusWaiting": "Araǧu"
+            }
+        },
+        "sso": {
+            "status": {
+                "configured": "Irmed",
+                "inactive": "Insa"
+            },
+            "redirectUri": {
+                "label": "URI n uwelleh"
+            },
+            "fields": {
+                "label": "Isem n uskan",
+                "clientId": "Asulay ID n wemsaɣ",
+                "clientSecret": "Tuffirt n umsaɣ"
+            },
+            "actions": {
+                "save": "Kles",
+                "edit": "Taẓrigt",
+                "cancel": "Semmet",
+                "remove": "Sfeḍ",
+                "copy": "Nɣel"
+            },
+            "domains": {
+                "status": {
+                    "verified": "Ittwasenqeḍ",
+                    "pending": "Ittraǧu"
+                },
+                "actions": {
+                    "verify": "Sentem"
+                },
+                "messages": {
+                    "verifySuccess": "Isem n taɣult yettasenqed"
+                },
+                "addPlaceholder": "acme.com"
+            },
+            "messages": {
+                "copied": "Ittwanɣel ɣeṛ ɣef afus"
+            }
+        },
+        "customFields": {
+            "title": "Urtan yugnen",
+            "form": {
+                "targetDocument": "Arraten",
+                "label": "Tabzimt",
+                "kind": "Genre",
+                "options": "Tinefrunin",
+                "optionValuePlaceholder": "Agbur",
+                "optionLabelPlaceholder": "Tabzimt",
+                "addOption": "Rnu taxtiṛt",
+                "required": "Yettwasra",
+                "targetClient": "Imsaɣen"
+            },
+            "kinds": {
+                "text": "Aḍris",
+                "number": "Uṭṭun",
+                "money": "Tallayt",
+                "date": "Azemz"
+            },
+            "list": {
+                "loading": "La d-yessalay…",
+                "required": "Yettwasra",
+                "archived": "Yeɣber",
+                "edit": "Ẓreg",
+                "archive": "Tarcivt",
+                "restore": "Err-it-id"
+            },
+            "edit": {
+                "title": "Ẓreg urti udmawan",
+                "save": "Sekles"
+            },
+            "messages": {
+                "updated": "Urti yugnen yettwaleqqem."
+            }
+        },
+        "expenseCategories": {
+            "form": {
+                "label": "Tabzimt"
+            },
+            "list": {
+                "title": "Taggayin",
+                "loading": "La d-yessalay…",
+                "archived": "Yeɣber",
+                "rename": "Beddel isem",
+                "archive": "Tarcivt"
+            },
+            "rename": {
+                "save": "Kles"
+            }
+        },
+        "logs": {
+            "title": "Aɣmis",
+            "filters": {
+                "dateRange": "Azemz n ujerred",
+                "dateFrom": "Sɣur",
+                "allCategories": "Akk taggayin",
+                "clear": "Sfeḍ imsizedgen"
+            },
+            "table": {
+                "timestamp": "Asragemz",
+                "level": "Aswir",
+                "category": "Taggayt",
+                "message": "Izen",
+                "userId": "Asulay ID n useqdac",
+                "path": "Abrid",
+                "previous": "Uzwir",
+                "next": "Uḍfir"
+            },
+            "details": {
+                "title": "Talqayt n uɣmis",
+                "timestamp": "Asragemz",
+                "category": "Taggayt",
+                "userId": "Asulay ID n useqdac",
+                "path": "Abrid",
+                "message": "Izen",
+                "logId": "Asulay n uɣmis",
+                "notAvailable": "N/D"
+            }
+        },
+        "billing": {
+            "currentPlan": "Aɣawas amiran",
+            "interval": {
+                "MONTH": "S waggur",
+                "YEAR": "S useggass"
+            },
+            "status": {
+                "TRIAL": "Asekyed",
+                "ACTIVE": "Irmed",
+                "PAST_DUE": "Axelles yecceḍ",
+                "BLOCKED": "Ittwaḥder",
+                "ZIPPED": "Tukksa taɣuḍart",
+                "DELETED": "Ittwakkes"
+            },
+            "billingEmail": {
+                "save": "Kles"
+            }
+        }
+    },
+    "account": {
+        "pageTitle": "Amiḍan-iw",
+        "nav": {
+            "profile": "Amaɣnu",
+            "security": "Taɣellist",
+            "preferences": "Ismenyifen",
+            "danger": "Tamnaḍt tamihawt"
+        },
+        "profile": {
+            "title": "Amaɣnu",
+            "form": {
+                "firstname": {
+                    "label": "Isem amenzu"
+                },
+                "lastname": {
+                    "label": "Isem n tmagit"
+                },
+                "save": "Sekles isenfal",
+                "saving": "Asekles..."
+            },
+            "email": {
+                "title": "Tansa imayl",
+                "newLabel": "Tansa imayl tamaynut",
+                "newPlaceholder": "kečč@amedya.com",
+                "sending": "Tuzna..."
+            }
+        },
+        "security": {
+            "password": {
+                "title": "Awal n uɛeddi",
+                "description": "Beddel awal-ik n uɛeddi",
+                "loading": "Yessalay-ed…",
+                "form": {
+                    "currentPassword": {
+                        "label": "Awal n uɛeddi amiran"
+                    },
+                    "password": {
+                        "label": "Awal n uɛeddi amaynut",
+                        "labelNew": "Awal n uɛeddi"
+                    },
+                    "confirmPassword": {
+                        "label": "Sentem awal n uɛeddi",
+                        "errors": {
+                            "match": "Awalen uffiren mgarraden"
+                        }
+                    },
+                    "submit": "Leqqem awal n uɛeddi",
+                    "submitNew": "Sbadu awal uffir",
+                    "submitting": "Aleqqem ala yetteddu..."
+                }
+            }
+        },
+        "preferences": {
+            "language": {
+                "title": "Tutlayt"
+            },
+            "theme": {
+                "title": "Asentel"
+            }
+        },
+        "leaveCompany": {
+            "dialog": {
+                "cancel": "Semmet"
+            }
+        },
+        "danger": {
+            "card": {
+                "title": "Kkes amiḍan-iw",
+                "button": "Kkes amiḍan-iw"
+            },
+            "dialog": {
+                "title": "Kkes amiḍan-ik·im?",
+                "passwordPlaceholder": "Sekcem awal-ik(im) n uɛeddi",
+                "cancel": "Semmet",
+                "confirm": "Kkes amiḍan-iw",
+                "confirming": "Tukksa..."
+            }
+        },
+        "transfers": {
+            "history": {
+                "title": "Amezruy"
+            },
+            "status": {
+                "pending": "Ittraǧu",
+                "accepted": "Yettwaqbel",
+                "expired": "Ifut",
+                "canceled": "Ittwafsex"
+            },
+            "list": {
+                "expiresAt": "Ad yemmet",
+                "createdAt": "Asuter yettwazen",
+                "accept": "Qbel"
+            },
+            "confirm": {
+                "cancel": "Semmet"
+            }
+        }
+    },
+    "sidebar": {
+        "navigation": {
+            "dashboard": "Tafelwit n tedbelt",
+            "articles": "Imagraden",
+            "paymentMethods": "Tarrayin n uxelleṣ",
+            "stats": "Taddadanin",
+            "settings": "Iɣewwaren",
+            "documents": "Arraten"
+        },
+        "groups": {
+            "data": "Isefka"
+        },
+        "company": {
+            "plan": "Takebbanit"
+        },
+        "menu": "Umuɣ",
+        "theme": {
+            "light": "Aceɛlal",
+            "dark": "Ubrik",
+            "system": "Anagraw"
+        },
+        "userMenu": {
+            "account": "Amiḍan-iw",
+            "logout": "Ffeɣ"
+        }
+    },
+    "auth": {
+        "betaBanner": {
+            "title": "Biṭa"
+        },
+        "password": {
+            "show": "Sken-d awal n uɛeddi",
+            "hide": "Ffer awal n uɛeddi"
+        },
+        "login": {
+            "title": "Qqen",
+            "form": {
+                "email": {
+                    "label": "Imayl"
+                },
+                "password": {
+                    "label": "Awal n uɛeddi"
+                },
+                "loggingIn": "Tuqqna...",
+                "loginButton": "Kcem"
+            },
+            "noAccount": "Ur tesɛiḍ ara amiḍan?",
+            "signUpLink": "Kcem",
+            "messages": {
+                "loginError": "Yir inekcam"
+            },
+            "errors": {
+                "invalidEmail": "Ma ulac aɣilif, sekcem tansa imayl tameɣtut"
+            }
+        },
+        "signup": {
+            "title": "Snulfu-d amiḍan",
+            "form": {
+                "firstname": {
+                    "label": "Isem n twacult"
+                },
+                "lastname": {
+                    "label": "Isem n twacult"
+                },
+                "email": {
+                    "label": "Imayl",
+                    "placeholder": "Sekcem imayl-ik·im"
+                },
+                "password": {
+                    "label": "Awal n uɛeddi",
+                    "placeholder": "Rnu awal uffir",
+                    "strength": {
+                        "label": "Tazmert n wawal n uɛeddi:",
+                        "weak": "D uḍɛif",
+                        "fair": "Uɣdim",
+                        "good": "Yelha",
+                        "strong": "Iǧhed"
+                    }
+                },
+                "createButton": "Snulfu-d amiḍan",
+                "acceptLegal": {
+                    "terms": "Tiwtilin n useqdec",
+                    "privacy": "Tasertit n tbaḍnit"
+                }
+            },
+            "hasAccount": "Ɣur-k yakan amiḍan?",
+            "signInLink": "Qqen",
+            "errors": {
+                "invalidEmail": "Ma ulac aɣilif, sekcem tansa imayl tameɣtut"
+            }
+        }
+    },
+    "component": {
+        "rich-text-editor": {
+            "paragraph": "Taseddaṛt",
+            "heading1": "Aqerru 1",
+            "heading2": "Aqerru 2",
+            "heading3": "Aqerru 3",
+            "bold": "Azuran",
+            "italic": "Uknan",
+            "underline": "Iderrer",
+            "bulletList": "Tabdart s tlilac",
+            "orderedList": "Tabdart s wuṭṭunen",
+            "blockquote": "Tanebdurt",
+            "link": "Aseɣwen",
+            "removeLink": "Kkes aseɣwen",
+            "linkUrlPlaceholder": "https://example.com",
+            "linkApply": "Snes",
+            "undo": "Sesfex"
+        },
+        "date-picker": {
+            "today": "Ass-a"
+        },
+        "document-language-select": {
+            "automatic": "S wudem awurman",
+            "languages": {
+                "en": "Taglizit",
+                "fr": "Tafransist",
+                "it": "Taṭelyanit",
+                "pl": "Tapulunit",
+                "de": "Tahulandit",
+                "pt": "Tapurtugit"
+            }
+        },
+        "country-readiness-alert": {
+            "issue": {
+                "none": "Ula yiwen"
+            }
+        }
+    },
+    "common": {
+        "loading": "Yessalay-ed…",
+        "finish": "Ifuk",
+        "cancel": "Semmet",
+        "previous": "Uzwir",
+        "next": "Kemmel",
+        "back": "Uɣal",
+        "units": {
+            "day": "Deg ass",
+            "week": "Dduṛt",
+            "month": "Ayyur",
+            "year": "Aseggwass"
+        },
+        "markdownNotes": {
+            "edit": "Taẓrigt",
+            "preview": "Timeẓriwt"
+        },
+        "emptyState": {
+            "noResultsTitle": "Ula d yiwen n ugmuḍ",
+            "clearFilters": "Sfeḍ imsizedgen",
+            "clearSearch": "Sfeḍ anadi",
+            "retry": "Ɛreḍ tikelt-nniḍen"
+        }
+    },
+    "payments": {
+        "list": {
+            "item": {
+                "invoice": "Tafaturt",
+                "client": "Amsaɣ",
+                "issued": "Yeffeɣ-d"
+            },
+            "tooltips": {
+                "viewPdf": "Wali a PDF",
+                "downloadPdf": "Sader PDF"
+            },
+            "status": {
+                "draft": "Tamerkast",
+                "sent": "Yuzen",
+                "signed": "Qqen"
+            }
+        },
+        "upsert": {
+            "form": {
+                "client": {
+                    "label": "Amsaɣ"
+                },
+                "items": {
+                    "label": "Iferdisen",
+                    "noResults": "Ulac isefka",
+                    "addButton": "Rnu aferdis"
+                },
+                "invoice": {
+                    "label": "Tafaturt"
+                },
+                "paymentMethod": {
+                    "label": "Tarrayt n usellek"
+                }
+            },
+            "actions": {
+                "cancel": "Semmet",
+                "save": "Sekles isnifal"
+            }
+        },
+        "sendConfirmation": {
+            "confirm": "Tuzna",
+            "cancel": "Semmet"
+        },
+        "delete": {
+            "actions": {
+                "cancel": "Semmet",
+                "delete": "Kkes"
+            }
+        },
+        "tabs": {
+            "list": "Umuɣ",
+            "table": "Tadabut"
+        },
+        "table": {
+            "columns": {
+                "number": "Uṭṭun",
+                "invoice": "Tafaturt",
+                "client": "Amsaɣ",
+                "paymentMethod": "Tarrayt n usellek"
+            },
+            "filters": {
+                "invoice": "Tafaturt",
+                "client": "Amsaɣ",
+                "year": "Aseggwass",
+                "month": "Aggur"
+            },
+            "actions": {
+                "export": "Ssufeɣ"
+            }
+        },
+        "header": {
+            "subtitle": "Sefrek lexlaṣ-ik"
+        },
+        "stats": {
+            "draft": "Tamerkast",
+            "sent": "Yuzen",
+            "signed": "Qqen"
+        }
+    },
+    "stats": {
+        "title": "Addaden",
+        "controls": {
+            "year": "Aseggwass"
+        },
+        "month": "Aggur",
+        "year": "Aseggwass"
+    },
+    "receivedInvoices": {
+        "columns": {
+            "date": "Azemz",
+            "sender": "Amazan",
+            "amount": "Tallayt",
+            "status": "addad",
+            "channel": "Abadu",
+            "actions": "Tigawin"
+        },
+        "status": {
+            "RECEIVED": "Yettwarmes",
+            "ACCEPTED": "Yettwaqbel",
+            "REJECTED": "Yettwagwi"
+        },
+        "actions": {
+            "accept": "Qbel",
+            "reject": "Ggami",
+            "view": "Askan"
+        },
+        "detail": {
+            "currency": "Azamul n tedrimt",
+            "channel": "Abadu",
+            "receivedAt": "Yettwarmes deg"
+        }
+    },
+    "folderSelect": {
+        "title": "Fren akaram",
+        "newFolder": "Rnu akaram",
+        "create": "Snulfu-d",
+        "cancel": "Semmet",
+        "browse": "Snirem"
+    },
+    "actions": {
+        "add": "Rnu"
+    },
+    "compliance": {
+        "devStateMachine": {
+            "archival": {
+                "anywhere": "Melmi tebɣiḍ",
+                "integrity": ""
+            },
+            "artifacts": {
+                "role": "Tamlilt",
+                "syntax": "Taseddast"
+            },
+            "channels": {
+                "title": "Ibuda"
+            },
+            "classification": {
+                "title": "Assinew"
+            },
+            "graph": {
+                "description": "Aglam",
+                "from": "Sɣur",
+                "guardKey": "Taɛessast",
+                "on": "Tadyant",
+                "statesLabel": "addaden",
+                "trigger": "trigger"
+            },
+            "lifecycle": {
+                "cancellation": "Asefsex",
+                "cancellationAllowed": "ittusireg",
+                "cancellationForbidden": "Yegdel",
+                "direction": "Tanila",
+                "route": "Abrid",
+                "status": "Addad",
+                "transmission": "Asaka"
+            },
+            "numbering": {
+                "model": "Tamudemt",
+                "title": "Asiḍen"
+            },
+            "obligations": {
+                "blocking": "Asewḥel",
+                "blockingYes": "Ih",
+                "deadline": "Azemz n taggara",
+                "kind": "Tawsit",
+                "layer": "Tissi",
+                "model": "Tamudemt"
+            },
+            "reporting": {
+                "none": "Ula d yiwen"
+            },
+            "supplyTypes": {
+                "GOODS": "Ilzazen",
+                "MIXED": "Uxliḍ",
+                "SERVICES": "Imeẓla"
+            },
+            "taxSystem": {
+                "category": "Taggayt",
+                "rate": "Aktum"
+            }
+        },
+        "pipeline": {
+            "actions": {
+                "refresh": "Mucceḍ"
+            },
+            "columns": {
+                "actions": "Tigawtin",
+                "channel": "Abadu",
+                "document": "Isemli",
+                "kind": "Tawsit",
+                "lastEvent": "Tadyant taneggarut",
+                "status": "Addad"
+            },
+            "filters": {
+                "allChannels": "Akk tizririn"
+            }
+        },
+        "reports": {
+            "columns": {
+                "createdAt": "Yettwasnulfa-d",
+                "kind": "Tawsit",
+                "period": "Tawala",
+                "status": "addad"
+            },
+            "title": "Aneqqis"
+        },
+        "title": "Tuddsa"
+    },
+    "clientPortal": {
+        "signOut": "Senser",
+        "statement": {
+            "due": "Tagara",
+            "downloadPdf": "Sader PDF",
+            "pay": "Xelleṣ",
+            "columns": {
+                "document": "isemli",
+                "amount": "Tallayt",
+                "status": "addad"
+            }
+        },
+        "quotes": {
+            "accept": "Accept",
+            "refuse": "Agwi",
+            "status": {
+                "signed": "Accepted",
+                "refused": "yettwagi"
+            },
+            "columns": {
+                "document": "isemli",
+                "amount": "Tallayt",
+                "status": "addad",
+                "actions": "Tigawtin"
+            }
+        }
+    },
+    "publicPage": {
+        "poweredBy": "Irfed-it"
+    },
+    "documents": {
+        "index": {
+            "title": "Isemliyen"
+        },
+        "descriptors": {
+            "invoice": {
+                "label": "Tafaturt",
+                "fields": {
+                    "client": {
+                        "label": "Amsaɣ"
+                    },
+                    "issueDate": {
+                        "label": "Azemz"
+                    },
+                    "currency": {
+                        "label": "Azamul n tedrimt"
+                    },
+                    "notes": {
+                        "label": "Tirawin"
+                    },
+                    "lines": {
+                        "label": "Izirigen",
+                        "fields": {
+                            "description": {
+                                "label": ""
+                            },
+                            "quantity": {
+                                "label": "Tasmekta"
+                            },
+                            "unit": {
+                                "label": "Aferdis"
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Sekles arewway"
+                    },
+                    "send": {
+                        "label": "Tuzna"
+                    },
+                    "cancel": {
+                        "label": "Semmet"
+                    },
+                    "record-payment": {
+                        "params": {
+                            "amount": {
+                                "label": "Tallayt"
+                            },
+                            "currency": {
+                                "label": "Azamul n tedrimt"
+                            },
+                            "method": {
+                                "label": "Tarrayt",
+                                "options": {
+                                    "card": "Takarḍa",
+                                    "cash": "Ṣerf",
+                                    "other": "Wiyaḍ"
+                                }
+                            },
+                            "note": {
+                                "label": "Talɣut"
+                            }
+                        }
+                    },
+                    "download-xml": {
+                        "params": {
+                            "syntax": {
+                                "label": "Taseddast"
+                            }
+                        }
+                    },
+                    "share-link": {
+                        "label": "Fren aseɣwen"
+                    }
+                },
+                "statuses": {
+                    "draft": "Arewway",
+                    "sending": "Tuzzna",
+                    "sent": "Yuzen",
+                    "send_failed": "Tuzzna tecceḍ",
+                    "cancelled": "Tettwasemmet"
+                }
+            },
+            "quote": {
+                "label": "Guillemet",
+                "fields": {
+                    "client": {
+                        "label": "Amsaɣ"
+                    },
+                    "issueDate": {
+                        "label": "Azemz"
+                    },
+                    "currency": {
+                        "label": "Azamul n tedrimt"
+                    },
+                    "notes": {
+                        "label": "Tirawin"
+                    },
+                    "lines": {
+                        "label": "Izirigen",
+                        "fields": {
+                            "description": {
+                                "label": ""
+                            },
+                            "quantity": {
+                                "label": "Tasmekta"
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Sekles arewway"
+                    },
+                    "send": {
+                        "label": "Tuzna"
+                    },
+                    "request-installments": {
+                        "params": {
+                            "milestones": {
+                                "label": "Imecwaṛen",
+                                "fields": {
+                                    "percent": {
+                                        "label": "Afmiḍi"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "share-link": {
+                        "label": "Fren aseɣwen"
+                    }
+                },
+                "statuses": {
+                    "draft": "Tamerkast",
+                    "sending": "Tuzzna",
+                    "sent": "Yuzen",
+                    "send_failed": "Tuzzna tecceḍ",
+                    "signed": "Qqen"
+                },
+                "widgets": {
+                    "quote:all": {
+                        "label": "akk tibdarin"
+                    }
+                }
+            },
+            "credit-note": {
+                "fields": {
+                    "invoice": {
+                        "label": "Tafaturt"
+                    },
+                    "issueDate": {
+                        "label": "Azemz"
+                    },
+                    "currency": {
+                        "label": "Azamul n tedrimt"
+                    },
+                    "notes": {
+                        "label": "Tirawin"
+                    },
+                    "reason": {
+                        "label": "Taɣẓint"
+                    },
+                    "lines": {
+                        "label": "Izirigen",
+                        "fields": {
+                            "description": {
+                                "label": ""
+                            },
+                            "quantity": {
+                                "label": "Tasmekta"
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Sekles arewway"
+                    },
+                    "send": {
+                        "label": "Tuzna"
+                    },
+                    "share-link": {
+                        "label": "Fren aseɣwen"
+                    }
+                },
+                "statuses": {
+                    "draft": "Tamerkast",
+                    "sending": "Tuzzna",
+                    "sent": "Yuzen",
+                    "send_failed": "Tuzzna tecceḍ"
+                }
+            },
+            "expense": {
+                "fields": {
+                    "description": {
+                        "label": "Asnummel"
+                    },
+                    "amount": {
+                        "label": "Tallayt"
+                    },
+                    "currency": {
+                        "label": "Azamul n tedrimt"
+                    },
+                    "date": {
+                        "label": "Azemz"
+                    },
+                    "category": {
+                        "label": "Catégorie",
+                        "options": {
+                            "travel": "Voyage",
+                            "accommodation": "Asezdeɣ",
+                            "marketing": "Talzuzit",
+                            "utilities": "Ifecka",
+                            "other": "Wiyaḍ"
+                        }
+                    },
+                    "attachment": {
+                        "label": "Awwaḍ"
+                    },
+                    "distanceKm": {
+                        "label": "Ameccaq (km)"
+                    },
+                    "notes": {
+                        "label": "Tirawin"
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Sekles"
+                    },
+                    "delete": {
+                        "label": "Kkes"
+                    }
+                },
+                "statuses": {
+                    "draft": "Arewway"
+                }
+            },
+            "received-invoice": {
+                "fields": {
+                    "currency": {
+                        "label": "Azamul n tedrimt"
+                    },
+                    "lines": {
+                        "label": "Izirigen",
+                        "fields": {
+                            "description": {
+                                "label": ""
+                            },
+                            "quantity": {
+                                "label": "Tasmekta"
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "receive": {
+                        "label": "Sekles"
+                    },
+                    "approve": {
+                        "label": "Qbel"
+                    },
+                    "reject": {
+                        "label": "Ggami"
+                    },
+                    "delete": {
+                        "label": "Kkes"
+                    }
+                },
+                "statuses": {
+                    "received": "Yettwarmes",
+                    "approved": "Yettwaqbel",
+                    "rejected": "Yettwagwi"
+                }
+            },
+            "purchase-order": {
+                "fields": {
+                    "issueDate": {
+                        "label": "Azemz"
+                    },
+                    "currency": {
+                        "label": "Azamul n tedrimt"
+                    },
+                    "reference": {
+                        "label": "tamsisɣlet"
+                    },
+                    "notes": {
+                        "label": "Tirawin"
+                    },
+                    "lines": {
+                        "label": "Izirigen",
+                        "fields": {
+                            "description": {
+                                "label": ""
+                            },
+                            "quantity": {
+                                "label": "Tasmekta"
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Sekles arewway"
+                    },
+                    "send": {
+                        "label": "Tuzna"
+                    },
+                    "cancel-order": {
+                        "label": "Semmet"
+                    }
+                },
+                "statuses": {
+                    "draft": "Tamerkast",
+                    "sending": "Tuzzna",
+                    "sent": "Yuzen",
+                    "send_failed": "Tuzzna tecceḍ",
+                    "cancelled": "Yettwasemmet"
+                }
+            }
+        },
+        "schedules": {
+            "cadence": {
+                "weekly": "s dduṛt",
+                "monthly": "S waggur",
+                "quarterly": "Yal tlata n wagguren",
+                "yearly": "S useggass"
+            },
+            "dialog": {
+                "thenSend": "Azen imir imir",
+                "confirm": "Créer",
+                "cancel": "Semmet"
+            },
+            "list": {
+                "disabled": "Yensa"
+            }
+        },
+        "form": {
+            "reference": {
+                "searchPlaceholder": "Nadi…",
+                "noResults": "Ulac tanmeɣrut"
+            },
+            "array": {
+                "addRow": "Rnu izirig",
+                "removeRow": "Kkes izirig",
+                "prefillNoResults": "Ulac tanmeɣrut"
+            },
+            "rowSelection": {
+                "removeMissing": "Sfeḍ"
+            },
+            "file": {
+                "browse": "Fren afaylu",
+                "remove": "Sfeḍ",
+                "loadingPreview": "Asali n teskant...",
+                "openFile": "Ldi-d afaylu",
+                "uploadError": "Tuccḍa deg usili"
+            },
+            "transitionFromNew": "Amaynut",
+            "newButton": "Amaynut",
+            "actionParams": {
+                "confirm": "Sentem",
+                "cancel": "Semmet",
+                "title": "{{label}}"
+            },
+            "messages": {
+                "actionSuccess": "Ittuselkem."
+            },
+            "customFields": {
+                "heading": "Urtan udmawanen"
+            },
+            "stepped": {
+                "stepsNav": "Imecwaṛen",
+                "discardTitle": "Sefsex ibeddilen?",
+                "keepEditing": "Kemmel abeddel",
+                "discardConfirm": "Agi",
+                "steps": {
+                    "details": "Talqayt",
+                    "lines": "Izirigen",
+                    "options": "Tixtiṛiyin",
+                    "recap": "Agzul"
+                },
+                "recap": {
+                    "clientLabel": "Amsaɣ",
+                    "lineCountLabel": "Izirigen",
+                    "notesTitle": "Tizmilin"
+                }
+            },
+            "transitionOr": "naɣ"
+        },
+        "list": {
+            "title": "Yekles",
+            "columns": {
+                "status": "addad",
+                "updatedAt": "Asnifel",
+                "actions": "Tigawin",
+                "amount": "Uɣrid"
+            },
+            "searchPlaceholder": "Nadi…",
+            "tooltips": {
+                "open": "Ldin"
+            },
+            "fieldValue": {
+                "yes": "Ih",
+                "attachmentOpen": "Ldin"
+            },
+            "downloadPdf": "Sader PDF",
+            "shareLink": "Fren aseɣwen",
+            "processing": "Asesfer…",
+            "rowMenu": "Ugar n tigawin",
+            "sort": {
+                "label": "Smizzwer s",
+                "updatedDesc": "Yettuleqqem melmi kan"
+            },
+            "filters": {
+                "all": "Akk",
+                "dateFrom": "Sɣur",
+                "clear": "Teṣfa tignewt"
+            }
+        },
+        "custom": {
+            "receivedInvoiceUpload": {
+                "button": "Azen",
+                "browse": "Snirem ifuyla",
+                "error": "Tuccḍa deg usili"
+            },
+            "receivedInvoiceDownload": {
+                "error": "Asider ur yeddi ara"
+            }
+        },
+        "totals": {
+            "net": "Aẓetta",
+            "gross": "Uɣrid"
+        },
+        "settlement": {
+            "title": "Tifra",
+            "paid": "Yettwaxleṣ",
+            "paymentsTitle": "Asellek",
+            "badge": {
+                "unpaid": "Ur yettwaxleṣ ara"
+            }
+        },
+        "archive": {
+            "verify": "Sentem"
+        },
+        "shareLink": {
+            "copy": "Nɣel",
+            "revoke": "Ḥwi",
+            "close": "Mdel"
+        },
+        "publicSignature": {
+            "signButton": "Creḍ",
+            "documentPreviewLabel": "Taskant n isemli",
+            "downloadButton": "Asider",
+            "confirmSign": {
+                "title": "Ulac tuɣalin ar deffir",
+                "back": "Uɣal"
+            },
+            "steps": {
+                "review": "Asenqed",
+                "verify": "Sentem",
+                "signed": "Qqen"
+            }
+        },
+        "conformity": {
+            "badge": {
+                "rejected": "Yettwagwi"
+            }
+        },
+        "correction": {
+            "button": "Igerrez",
+            "confirmCancel": {
+                "title": "Ulac tuɣalin ar deffir",
+                "back": "Uɣal"
+            },
+            "status": {
+                "allowed": "ittusireg",
+                "forbidden": "Yegdel"
+            }
+        },
+        "reconciliation": {
+            "verdict": {
+                "accepted": "Accepted"
+            },
+            "columns": {
+                "description": "Ligne",
+                "ordered": "S umizzwer",
+                "received": "Yettwarmes",
+                "totalVariance": "Awliwel",
+                "verdict": "addad"
+            }
+        },
+        "detail": {
+            "actions": "Tigawin",
+            "unsavedChanges": "Ibeddilen ur nettwasekles ara",
+            "discard": "Agi"
+        }
+    },
+    "declarations": {
+        "table": {
+            "document": "Isemli",
+            "country": "Tamurt",
+            "provider": "Imfeki",
+            "status": "addad",
+            "date": "Azemz",
+            "error": "Tuccḍa"
+        },
+        "status": {
+            "accepted": "Accepted",
+            "rejected": "Yettwagwi",
+            "blocked": "Ittwaḥder",
+            "failed": "Ur iddi ara"
+        }
+    },
+    "seatGate": {
+        "signOut": "Senser"
+    },
+    "pwaInstall": {
+        "dismiss": "Zgel",
+        "android": {
+            "install": "Sebded"
+        }
+    },
+    "legal": {
+        "links": {
+            "navLabel": "Asaḍuf",
+            "terms": "Irmawen",
+            "privacy": "Tusligt",
+            "legalNotice": "Tamawt tusḍift",
+            "cookies": "Inagan n tuqqna"
+        },
+        "document": {
+            "language": "Llengua"
+        }
+    }
+}
