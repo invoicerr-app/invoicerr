@@ -23,6 +23,10 @@ vi.mock('@/prisma/prisma.service', async () => {
 });
 vi.mock('../settlement/payments', () => ({
   sumPaidMinorByDocument: vi.fn().mockResolvedValue(new Map()),
+  // Issue #417's "Collections" tile reads this too - defaulted to "no payments at all" so this
+  // file's own read-cap fixtures (which never record a payment) keep meaning exactly what they did
+  // before that tile existed.
+  listPaymentsInRange: vi.fn().mockResolvedValue([]),
 }));
 
 const { buildInvoiceDashboardWidgets, buildInvoiceStatisticsWidgets } = await import(
