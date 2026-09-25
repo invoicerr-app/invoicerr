@@ -16,6 +16,7 @@ import {
   resolveDashboardPeriod,
 } from "@/lib/dashboard-period"
 import { languageToLocale } from "@/lib/i18n"
+import { cn } from "@/lib/utils"
 
 /** The period selector's own header (issue #418): kept in URL search params (`period`, plus
  *  `dateFrom`/`dateTo` for "custom") - reload and the back button from a tile's own filtered list
@@ -44,6 +45,12 @@ function DashboardPeriodSelector() {
 
   const range = resolveDashboardPeriod(selection)
   const locale = languageToLocale(i18n.language)
+  // Both bounds are YYYY-MM-DD, so a plain string comparison orders them.
+  const customRangeInverted =
+    selection.preset === "custom" &&
+    !!selection.dateFrom &&
+    !!selection.dateTo &&
+    selection.dateFrom > selection.dateTo
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -77,7 +84,7 @@ function DashboardPeriodSelector() {
               applyPatch({ period: "custom", dateFrom: toCalendarDate(date), dateTo: selection.dateTo })
             }
             placeholder={t("dashboard.period.customFrom")}
-            className="w-auto sm:w-36"
+            className="w-auto sm:w-44"
             data-cy="dashboard-period-custom-from"
           />
           <DatePicker
@@ -86,19 +93,30 @@ function DashboardPeriodSelector() {
               applyPatch({ period: "custom", dateFrom: selection.dateFrom, dateTo: toCalendarDate(date) })
             }
             placeholder={t("dashboard.period.customTo")}
-            className="w-auto sm:w-36"
+            className="w-auto sm:w-44"
             data-cy="dashboard-period-custom-to"
           />
         </div>
       )}
 
-      <span className="text-sm text-muted-foreground" data-cy="dashboard-period-range">
+      {/* A custom range that does not resolve (a bound missing, or the start after the end) falls back
+          to "all time" for the data, as dashboard-period.ts decides. The line below must then say WHY,
+          never "Showing all time" next to two filled date pickers: that reads as the dates having been
+          applied. Seen on the #418 screenshots with an inverted range. */}
+      <span
+        className={cn("text-sm text-muted-foreground", customRangeInverted && "text-destructive")}
+        data-cy="dashboard-period-range"
+      >
         {range
           ? t("dashboard.period.activeRange", {
               from: format(fromCalendarDate(range.dateFrom) as Date, "PPP", { locale }),
               to: format(fromCalendarDate(range.dateTo) as Date, "PPP", { locale }),
             })
-          : t("dashboard.period.activeRangeAll")}
+          : customRangeInverted
+            ? t("dashboard.period.customInverted")
+            : selection.preset === "custom"
+              ? t("dashboard.period.customIncomplete")
+              : t("dashboard.period.activeRangeAll")}
       </span>
     </div>
   )
