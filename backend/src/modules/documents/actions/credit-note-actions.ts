@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
@@ -302,12 +302,25 @@ async function assertCreditNoteCurrencyMatchesInvoice(
  * credit-note's analogous case, not a coincidence: both types need extra checks the generic
  * mechanism has no business knowing about, and both reuse `performSaveDraft` for the actual
  * persistence so the two never drift.
+ *
+ * FOURTH guard, added for issue #468: a credit note is legally an invoice (CGI art. 289, I, 5), so
+ * once it has left "draft" it is issued and must never be rewritten. `credit-note.descriptor.ts`'s
+ * "save-draft" now declares `lockedStatuses` for every status but "draft", so
+ * `documents.service.ts#runAction` already refuses this before ANY handler runs - the check right
+ * below can only ever fire for a caller that reached this handler WITHOUT going through `runAction`'s
+ * gates, the same defense-in-depth discipline `invoice-actions.ts`'s own save-draft handler holds.
  */
 function registerCreditNoteSaveDraftAction(
   registry: ActionRegistry,
   webhooks?: DocumentWebhookEmitter,
 ): void {
   registry.register('credit-note', 'save-draft', async (ctx) => {
+    if (ctx.documentId && ctx.currentStatus && ctx.currentStatus !== 'draft') {
+      throw new ConflictException(
+        `Action "save-draft" of document type "credit-note" is refused once the document has left ` +
+          `draft (status "${ctx.currentStatus}"): an issued document is never rewritten.`,
+      );
+    }
     assertCreditNoteAmountSourceIsUnambiguous(ctx.data);
     await assertFreeCreditNoteAllowedForCountry(ctx.companyId, ctx.data);
     await assertCreditNoteCurrencyMatchesInvoice(ctx.companyId, ctx.data);

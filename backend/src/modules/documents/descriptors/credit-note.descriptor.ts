@@ -143,22 +143,30 @@ const SEND_TRANSITIONS: DocumentActionTransition[] = [
   { from: ['sending'], to: ['sent', 'send_failed'] },
 ];
 
+/** This type's own declared statuses - see `invoice.descriptor.ts`'s own `INVOICE_STATUSES` for why
+ *  this is a named constant rather than inlined in `statuses:` below: `SAVE_DRAFT_LOCKED_STATUSES` is
+ *  DERIVED from it, so a status added here later is locked by default. Issue #468: a credit note is
+ *  legally an invoice (CGI art. 289, I, 5), so once it has left "draft" it is issued and must never
+ *  be rewritten by "save-draft" - the same rule as the invoice, for the same legal reason. */
+const CREDIT_NOTE_STATUSES = [
+  { id: 'draft', label: 'Draft' },
+  { id: 'sending', label: 'Sending' },
+  // `clientVisible` - see `DocumentStatusDescriptor`'s own header. A credit note has no `client`
+  // field of its own (only `invoice`, above) - the client portal resolves which client a credit
+  // note belongs to through the invoice it corrects, the same join
+  // `settlement/credits.ts#creditsForInvoiceFromNotes` already performs for the statement. A FREE
+  // credit note (no `invoice`) resolves to no client at all and is simply never shown there - see
+  // that same join, which only ever matches a note against ONE named invoice id.
+  { id: 'sent', label: 'Sent', clientVisible: true },
+  { id: 'send_failed', label: 'Send failed' },
+];
+const SAVE_DRAFT_LOCKED_STATUSES = CREDIT_NOTE_STATUSES.map((s) => s.id).filter((id) => id !== 'draft');
+
 export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'credit-note',
     label: 'Credit note',
-    statuses: [
-      { id: 'draft', label: 'Draft' },
-      { id: 'sending', label: 'Sending' },
-      // `clientVisible` — see `DocumentStatusDescriptor`'s own header. A credit note has no `client`
-      // field of its own (only `invoice`, above) — the client portal resolves which client a credit
-      // note belongs to through the invoice it corrects, the same join
-      // `settlement/credits.ts#creditsForInvoiceFromNotes` already performs for the statement. A FREE
-      // credit note (no `invoice`) resolves to no client at all and is simply never shown there — see
-      // that same join, which only ever matches a note against ONE named invoice id.
-      { id: 'sent', label: 'Sent', clientVisible: true },
-      { id: 'send_failed', label: 'Send failed' },
-    ],
+    statuses: CREDIT_NOTE_STATUSES,
     initialStatus: 'draft',
     // See types.ts's own comment on `DocumentTypeDescriptor.email` — declared for consistency with
     // every other shipped type, even though this type's own "send" (see this file's own "Actions"
@@ -349,6 +357,10 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         label: 'Save draft',
         transitions: SAVE_DRAFT_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
+        // Issue #468: an issued credit note is legally an invoice (CGI art. 289, I, 5) and must never
+        // be rewritten - code-level guard, independent of country policy (there was previously no
+        // country-data line protecting a credit note at all). See `SAVE_DRAFT_LOCKED_STATUSES`.
+        lockedStatuses: SAVE_DRAFT_LOCKED_STATUSES,
       },
       {
         id: 'send',

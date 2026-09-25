@@ -1,4 +1,4 @@
-import { BadRequestException, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
 
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
@@ -546,50 +546,41 @@ async function runInvoiceAtcudPreflight(companyId: string): Promise<void> {
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /**
- * The residual the f6888eb2/d58caaa5 pair left open. Those two commits hard-
- * blocked an UNRESOLVED BUYER COUNTRY at every ISSUED-producing path of the pre-refonte engine
- * (`issueInvoice`, `correctInvoice`, …) and then, in a follow-up, closed the one path that could
- * still slip past that guard: `editInvoice()` recomputing tax on an ALREADY-ISSUED invoice for an
- * `immutableAfter: 'NEVER'` jurisdiction (US/FALLBACK) with no country check at all. That engine, and
- * `editInvoice()` itself, no longer exist (this branch's documents/ rewrite) — but the SAME shape of
- * hole exists again here, one layer down:
+ * HISTORY (issue #468 closed this for good - kept for anyone doing archaeology on why this handler
+ * once looked very different): the f6888eb2/d58caaa5 pair hard-blocked an UNRESOLVED BUYER COUNTRY at
+ * every ISSUED-producing path of the pre-refonte engine (`issueInvoice`, `correctInvoice`, …) and then
+ * closed the one path that could still slip past that guard - `editInvoice()` recomputing tax on an
+ * ALREADY-ISSUED invoice with no country check at all. That engine no longer exists, but the SAME
+ * shape of hole reopened here, one layer down: `invoice.descriptor.ts`'s "save-draft" transition is
+ * `{ from: 'always', to: 'draft' }`, so nothing in the TYPE stopped it from demoting an ALREADY-SENT
+ * invoice back to "draft" and rewriting it - only the country policy DATA narrowed `save-draft` to
+ * `statuses: ["draft"]` (all five shipped files do, nothing forced a sixth to); a country's policy file
+ * permitting "save-draft" unconditionally would have reopened the exact same under-charge shape (edit an already-sent invoice's client to
+ * a country the resolver can no longer match and click Save: the record demoted to "draft" carrying
+ * whatever was typed, no re-resolution, no block). This file used to plug THAT specific hole with a
+ * narrow fix: re-run `runInvoiceCrossBorderTaxPreflight` whenever `ctx.currentStatus` was a real,
+ * non-draft status, so a re-edit at least got the buyer country re-resolved before being persisted.
  *
- *  - `invoice.descriptor.ts`'s "save-draft" transition is `{ from: 'always', to: 'draft' }` — it can
- *    demote an ALREADY-SENT invoice back to "draft" (`quote-contributions.ts`'s own comment documents
- *    this as an accepted, real state: a sent record re-saved as a draft "keeps the number it already
- *    earned"). `generic-actions.ts`'s `performSaveDraft` never touches tax at all — by design, so a
- *    genuinely NEW or STILL-draft record stays country-less-safe (the exact posture
- *    `resolve-invoice-tax.ts`'s own header, and `documents.service.invoice.spec.ts`'s own
- *    "'save-draft' NEVER resolves cross-border tax" test, hold on purpose).
- *  - For FRANCE, this demotion is already refused outright: `country-policy/data/fr.json`'s own
- *    `invoice.save-draft` rule narrows `statuses` to `["draft"]` (CGI art. 289, I.5 — an issued
- *    invoice is corrected by a DISTINCT document, never rewritten), so `documents.service.ts#runAction`
- *    409s before this handler is ever called.
- *  - Nothing in `country-policy` itself closes this generally: ANY country whose own policy file
- *    permits "save-draft" unconditionally (no `statuses` narrowing on it, unlike FR's own rule
- *    above) reopens the SAME under-charge shape as the old `editInvoice()` residual: edit an
- *    already-"sent" invoice's client to one whose country cannot be resolved (or simply to a
- *    different country the resolved data no longer matches) and click Save — the record demotes to
- *    "draft" carrying WHATEVER the form submitted, no re-resolution, no block. (US's own policy file
- *    used to be exactly that missing-narrowing case, until the 5-country prune removed it,
- *    2026-09-10 — every country shipped today narrows this the same way FR does, per its own data
- *    file, but nothing enforces that a future one must.)
- *
- * The fix reuses `runInvoiceCrossBorderTaxPreflight` VERBATIM — the exact same resolution path
- * "send"'s own preflight/deliver already call — rather than inventing a second buyer-country check:
- * only when `ctx.currentStatus` is a REAL, already-persisted, NON-DRAFT status (a genuine re-edit of
- * an issued invoice, never a brand-new or still-draft record) does this run the same recompute +
- * hard-block "send" already performs, BEFORE the demoted draft is ever persisted. A resolvable buyer
- * country still saves fine — this is a backstop for the under-charge shape, not a ban on editing an
- * issued invoice (that policy question belongs to country-policy, e.g. FR's own rule above, not here).
+ * Issue #468 replaced that narrow fix with the actual one: `invoice.descriptor.ts`'s "save-draft" now
+ * declares `lockedStatuses` (every status but "draft"), so `documents.service.ts#runAction` refuses the
+ * action outright - 409, before ANY handler runs - the moment `ctx.currentStatus !== 'draft'`. There is
+ * therefore no re-edit left for this handler to ever see: the tax-preflight backstop above is
+ * unreachable now, by construction, not merely by convention. The check right below is not a workaround
+ * kept "just in case" - it is defense in depth (this file's own established discipline: a handler never
+ * trusts the 409 guard alone) against a caller that reaches this handler WITHOUT going through
+ * `runAction`'s gates, whether that is a coding mistake today or a future addition.
  */
 function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: DocumentWebhookEmitter): void {
   registry.register('invoice', 'save-draft', async (ctx) => {
-    const reEditingAnIssuedInvoice = !!ctx.documentId && !!ctx.currentStatus && ctx.currentStatus !== 'draft';
-    const data = reEditingAnIssuedInvoice
-      ? await runInvoiceCrossBorderTaxPreflight(ctx.companyId, ctx.data)
-      : ctx.data;
-    return performSaveDraft(ctx.companyId, 'invoice', ctx.documentId, data, webhooks);
+    // Same message `documents.service.ts#runAction` throws for the exact same reason - see this
+    // function's own header for why this can only ever fire if a caller skipped `runAction`.
+    if (ctx.documentId && ctx.currentStatus && ctx.currentStatus !== 'draft') {
+      throw new ConflictException(
+        `Action "save-draft" of document type "invoice" is refused once the document has left draft ` +
+          `(status "${ctx.currentStatus}"): an issued document is never rewritten.`,
+      );
+    }
+    return performSaveDraft(ctx.companyId, 'invoice', ctx.documentId, ctx.data, webhooks);
   });
 }
 

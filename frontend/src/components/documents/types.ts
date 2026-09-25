@@ -151,6 +151,15 @@ export interface DocumentActionDescriptor {
    * never to decide whether the action is offered at all, which stays `availableWhen`'s job alone.
    */
   transitions?: DocumentActionTransition[]
+  /**
+   * Mirrors the backend's `DocumentActionDescriptor.lockedStatuses` (descriptors/types.ts, issue
+   * #468) - statuses of an EXISTING record from which the TYPE ITSELF refuses this action, no matter
+   * what any country policy says (e.g. "save-draft" on an issued invoice/credit-note, or a
+   * signed/accepted quote). A SEPARATE fact from `policyRestrictedToStatuses`: this one can never be
+   * widened by country data, so the screen must never offer the action, and must explain why, when
+   * this fires - see `document-detail.tsx`'s `document-save-locked-notice`.
+   */
+  lockedStatuses?: string[]
 }
 
 /** One entry of `DocumentActionDescriptor.transitions` — see that field's own comment. */
@@ -437,6 +446,14 @@ export function isActionAvailable(action: DocumentActionDescriptor, status: stri
     action.availableWhen === "always" || (status !== undefined && action.availableWhen.includes(status))
   if (!availableByDescriptor) return false
 
+  // `lockedStatuses` (issue #468) - mirrors the backend's own `isActionAvailable` (descriptors/
+  // types.ts): a code-level lock, never a country-policy one, and never applicable to a brand-new,
+  // never-saved record (`status === undefined`). Checked BEFORE the country policy below, which
+  // returns early: a country file that allows more statuses than the type does must never reopen
+  // on screen what the backend refuses.
+  if (status !== undefined && action.lockedStatuses?.includes(status)) {
+    return false
+  }
   if (status !== undefined && action.policyRestrictedToStatuses) {
     return action.policyRestrictedToStatuses.includes(status)
   }

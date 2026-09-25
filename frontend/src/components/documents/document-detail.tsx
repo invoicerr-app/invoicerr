@@ -12,6 +12,7 @@ import {
   extraActionGates,
   findSaveAction,
   pickPrimaryAction,
+  saveDraftLockNotice,
   secondaryActions,
   transitionHint,
 } from "@/components/documents/action-presentation"
@@ -169,6 +170,10 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
   const primary = pickPrimaryAction(actions, currentStatus, isDirty)
   const secondary = secondaryActions(actions, primary)
   const saveAction = findSaveAction(actions, currentStatus)
+  // Issue #468 (and the pre-existing France invoice case) - see `saveDraftLockNotice`'s own header:
+  // reads the FULL descriptor, not `availableActions`, since the whole point is to explain why
+  // "save-draft" is MISSING from that filtered list.
+  const saveLockedMessage = saveDraftLockNotice(t, descriptor, currentStatus)
 
   const liveInstance: DocumentInstance = {
     ...instance,
@@ -196,6 +201,17 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
           <AlertDescription>
             {t("documents.list.lastActionError", { message: instance.lastActionError })}
           </AlertDescription>
+        </Alert>
+      )}
+
+      {saveLockedMessage && (
+        // Issue #468 - the "Save draft"-shaped action (whatever its label) has silently DISAPPEARED
+        // from `availableActions` (isActionAvailable already refuses it, `use-document-form.ts`),
+        // which by itself just looks like the feature vanished. This says WHY, and what to do
+        // instead - same wording whether the type's own `lockedStatuses` fired or a country policy's
+        // `policyRestrictedToStatuses` did (see `saveDraftLockNotice`'s own header).
+        <Alert data-cy="document-save-locked-notice">
+          <AlertDescription>{saveLockedMessage}</AlertDescription>
         </Alert>
       )}
 

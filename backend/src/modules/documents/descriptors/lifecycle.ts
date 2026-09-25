@@ -154,6 +154,32 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
         }
       }
     }
+
+    // `lockedStatuses` (types.ts, issue #468) - the type-level "no matter what any country policy
+    // says" narrowing. Same two checks the rest of this function already runs on every other status
+    // list: every entry must be a status this type actually declares (a typo here would otherwise
+    // silently lock nothing, the same "declared but never wired" gap every other check here catches),
+    // and it must never lock the type's OWN `initialStatus` - a brand-new record is never subject to
+    // `lockedStatuses` at all (see `isActionAvailable`: it only ever narrows an EXISTING record), but
+    // an action locked at `initialStatus` would make every record unwritable the instant it is first
+    // saved into that status, which is never what a descriptor author intends.
+    if (action.lockedStatuses) {
+      for (const status of action.lockedStatuses) {
+        if (!statusSet.has(status)) {
+          throw new Error(
+            `Document type "${descriptor.id}", action "${action.id}": "lockedStatuses" names status ` +
+              `"${status}", which is not declared in "statuses" (${statusIds.join(', ')}).`,
+          );
+        }
+        if (status === descriptor.initialStatus) {
+          throw new Error(
+            `Document type "${descriptor.id}", action "${action.id}": "lockedStatuses" locks ` +
+              `"${status}", which is this type's own "initialStatus" - that would make every record ` +
+              'of this type uneditable from the moment it is first saved.',
+          );
+        }
+      }
+    }
   }
 }
 

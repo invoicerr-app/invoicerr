@@ -20,7 +20,7 @@ import { computeSettlement } from './settlement/compute-settlement';
 import * as settlementCredits from './settlement/credits';
 import * as settlementPayments from './settlement/payments';
 import * as taxLoadAndResolve from './tax/load-and-resolve';
-import { resolveInvoiceCrossBorderTax, UnresolvedBuyerCountryError } from './tax/resolve-invoice-tax';
+import { resolveInvoiceCrossBorderTax } from './tax/resolve-invoice-tax';
 import { computeDocumentTotals } from './totals/compute-totals';
 import * as companyTransport from './transports/company-transport';
 import { TransportRegistry } from './transports/transport-registry';
@@ -1565,15 +1565,19 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   });
 
   /**
-   * The residual `invoice-actions.ts`'s own `registerInvoiceSaveDraftAction`
-   * header documents in full: re-editing an ALREADY-ISSUED invoice (any status other than "draft")
-   * back into a draft — the ONLY transition "save-draft" declares (`{ from: 'always', to: 'draft' }`)
-   * — must re-resolve the buyer country and hard-block exactly like "send" already does, the same
-   * rule f6888eb2/d58caaa5 enforced for the pre-refonte engine's own `editInvoice()`. A brand-new or
-   * still-draft record must stay untouched (proven by the "NEVER resolves cross-border tax" test
-   * just above, and by this describe's own first test).
+   * Issue #468 superseded the whole shape this describe block used to test (see git history / tag
+   * `avant-refonte-documents`-adjacent history for the old version, and `invoice-actions.ts`'s own
+   * `registerInvoiceSaveDraftAction` header for the full HISTORY note): re-editing an already-issued
+   * invoice used to be ALLOWED, with a narrower backstop that re-resolved the buyer country before
+   * persisting the demotion to "draft" (a partial fix for an under-charge risk). That backstop is now
+   * moot - `invoice.descriptor.ts`'s "save-draft" declares `lockedStatuses` for every status but
+   * "draft", so `documents.service.ts#runAction` refuses the action OUTRIGHT (409) the moment
+   * `currentStatus !== 'draft'`, before any handler (and therefore before any tax preflight) ever
+   * runs. This describe block now proves THAT refusal instead - a still-draft record stays untouched
+   * (proven by the "NEVER resolves cross-border tax" test just above, and by this describe's own
+   * first test).
    */
-  describe('"save-draft" — re-editing an already-issued invoice re-resolves the buyer country', () => {
+  describe('"save-draft" - issue #468: re-editing an already-issued invoice is refused outright', () => {
     // Same FR seller / DE buyer / reverse-charge shape as the "send" describe's own
     // `frDeB2bInvoiceData` above (out of THIS describe's scope) — kept local rather than hoisted,
     // since this block's own fixtures also need a client-country CHANGE, which that shared const
@@ -1636,7 +1640,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       );
     });
 
-    it('re-editing a "sent" invoice back into a draft RE-RESOLVES the buyer country and persists the RESOLVED data', async () => {
+    it('re-editing a "sent" invoice is refused OUTRIGHT - the descriptor\'s own `lockedStatuses`, never reaching the tax preflight', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
@@ -1647,68 +1651,25 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
-      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
-        (_companyId: string, data: Record<string, unknown>) =>
-          Promise.resolve(
-            resolveInvoiceCrossBorderTax({
-              seller: { countryCode: 'FR' },
-              buyer: { countryCode: 'DE' },
-              buyerVat: { value: 'DE136695976', validationStatus: 'VALID' },
-              data,
-            }),
-          ),
-      );
 
       const { service } = buildService();
-      const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+
+      const action = service.runAction('company-1', 'invoice', 'save-draft', {
         documentId: 'doc-1',
         data: frDeB2bInvoiceData,
       });
 
-      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).toHaveBeenCalledWith(
-        'company-1',
-        frDeB2bInvoiceData,
+      await expect(action).rejects.toBeInstanceOf(ConflictException);
+      await expect(action).rejects.toThrow(
+        /Action "save-draft" of document type "invoice" is refused once the document has left draft \(status "sent"\): an issued document is never rewritten\./,
       );
-      expect(result.document?.status).toBe('draft');
-      // Same resolved rate "send" itself would have produced (0%, reverse charge) — never the
-      // stale/raw 20% the demoted draft would otherwise silently carry forward.
-      const persistedData = result.document?.data as {
-        lines: { vatRate: string; __crossBorderCategory?: string }[];
-      };
-      expect(persistedData.lines[0].vatRate).toBe('0');
-      expect(persistedData.lines[0].__crossBorderCategory).toBe('AE');
-    });
-
-    it('re-editing a "sent" invoice to a buyer whose country cannot be resolved is BLOCKED — named 400, nothing persisted', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'invoice',
-        status: 'sent',
-        data: frDeB2bInvoiceData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        number: 1,
-        displayNumber: 'INV-2026-0001',
-      });
-      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockRejectedValue(
-        new UnresolvedBuyerCountryError('the buyer country could not be determined'),
-      );
-
-      const { service } = buildService();
-
-      await expect(
-        service.runAction('company-1', 'invoice', 'save-draft', {
-          documentId: 'doc-1',
-          data: frDeB2bInvoiceData,
-        }),
-      ).rejects.toBeInstanceOf(BadRequestException);
-
-      // Blocked BEFORE the demotion to "draft" is ever persisted — no silent loss of the invoice's
-      // already-resolved, already-sent state.
+      // Refused before the handler is ever reached - the tax preflight this describe block used to
+      // exercise for a re-edit (see this describe's own header) never runs at all any more.
+      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).not.toHaveBeenCalled();
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
     });
 
-    it('a "send_failed" invoice (already numbered, never delivered) gets the SAME re-edit guard as "sent"', async () => {
+    it('a "send_failed" invoice (already numbered, never delivered) gets the SAME outright refusal as "sent"', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
@@ -1719,9 +1680,33 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
-      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockRejectedValue(
-        new UnresolvedBuyerCountryError('the buyer country could not be determined'),
+
+      const { service } = buildService();
+
+      const action = service.runAction('company-1', 'invoice', 'save-draft', {
+        documentId: 'doc-1',
+        data: frDeB2bInvoiceData,
+      });
+
+      await expect(action).rejects.toBeInstanceOf(ConflictException);
+      await expect(action).rejects.toThrow(
+        /Action "save-draft" of document type "invoice" is refused once the document has left draft \(status "send_failed"\): an issued document is never rewritten\./,
       );
+      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('a "cancelled" invoice gets the same outright refusal too - every status but "draft" locks it', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'cancelled',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
 
       const { service } = buildService();
 
@@ -1730,7 +1715,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
           documentId: 'doc-1',
           data: frDeB2bInvoiceData,
         }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toBeInstanceOf(ConflictException);
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
     });
   });

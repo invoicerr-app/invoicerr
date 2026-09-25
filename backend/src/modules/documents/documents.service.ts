@@ -1097,6 +1097,18 @@ export class DocumentsService implements OnModuleInit {
       existingData = (existing.data ?? {}) as Record<string, unknown>;
     }
     if (!isActionAvailable(action, currentStatus)) {
+      // Issue #468: when the refusal comes from `lockedStatuses` (a type-level, country-blind lock -
+
+      // see that field's own comment, types.ts), the message says so explicitly and distinctly from
+      // the generic "not available for this status" 409 below and from country-policy's own
+      // `restrictedToStatuses` 409 further down - a scripted client (and e2e) can then tell WHICH
+      // gate refused it, which is exactly what proves the CODE guard fired, not merely country data.
+      if (currentStatus !== undefined && action.lockedStatuses?.includes(currentStatus)) {
+        throw new ConflictException(
+          `Action "${actionId}" of document type "${typeId}" is refused once the document has left ` +
+            `draft (status "${currentStatus}"): an issued document is never rewritten.`,
+        );
+      }
       throw new ConflictException(
         currentStatus === undefined
           ? `Action "${actionId}" is not available before the document has been saved.`

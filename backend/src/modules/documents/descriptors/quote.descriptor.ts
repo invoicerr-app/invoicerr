@@ -327,6 +327,17 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         label: 'Save draft',
         transitions: SAVE_DRAFT_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
+        // Issue #468: unlike the invoice/credit-note, a quote's lock is NOT "everything but draft" -
+
+        // "sent" stays editable on purpose (fixing a typo on a quote the client hasn't answered yet
+        // is normal and lawful, and re-sending it is just this same "save-draft" followed by "send"
+        // again). Only "signed" (the client's own OTP-signed, non-repudiable acceptance) and
+        // "accepted" (issue #421's manual-acceptance record of the same fact by another means) lock
+        // it - both represent an agreement that has already been reached, so its terms must not
+        // silently change under it. "refused" is deliberately left OUT too: a declined quote carries
+        // no legal weight (nothing was signed or accepted), so re-editing and re-sending it is a
+        // normal "try again" flow, not a rewrite of anything binding.
+        lockedStatuses: ['signed', 'accepted'],
       },
       {
         id: 'send',
