@@ -227,7 +227,9 @@ Cypress.Commands.add('pickDocumentClient', (option: string = 'first') => {
  * and a trigger sitting under the fold of a tall dialog can open a popover that's itself off-screen.
  * Readiness is checked on `[data-cy="date-picker-today"]`: the "Today" footer button is part of the
  * SAME popover content regardless of what the caller clicks next, so its visibility is a valid proxy
- * for "the popover is open" for every caller, not just `pickToday`.
+ * for "the popover is open and positioned" for every caller, not just `pickToday`. Its absence is NOT
+ * proof the popover failed to open, though (see `pollForOpen` below), which is why a retry also checks
+ * the popover's own Radix state first.
  * @example cy.openDatePicker('[data-cy="document-field-issueDate-input"]')
  */
 Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
@@ -251,11 +253,33 @@ Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
     const OPEN_POLL_MS = 100;
     const OPEN_TIMEOUT_MS = 800;
     const MAX_ATTEMPTS = 3;
-    const isOpen = () =>
+    // "Ready" stays what it always was: "Today" visible, i.e. the popover mounted AND positioned.
+    // Callers act on the content right away (spec 52 picks a month in its `<select>` on the next
+    // line), and answering sooner, on the open state alone, let spec 52's `select("Aug")` land on a
+    // calendar that then still showed September.
+    //
+    // What changed is WHEN a retry may fire. date-picker.tsx caps the popover to the available height
+    // and scrolls inside it, so an OPEN calendar can clip its own footer: measured on issue #459
+    // (43-correction-routes, Chromium 141 under CPU load), the popover was `data-state="open"` with
+    // "Today" at y=651..683 inside a content box ending at y=668, for the whole poll window. The retry
+    // click then landed on the trigger of an open popover, which TOGGLES IT CLOSED; the closing popover
+    // passed the next poll (still mounted for its exit animation, briefly unclipped), and `pickToday`'s
+    // click on "Today" hit a node the end of that animation removed: "the page updated while this
+    // command was executing". A popover Radix reports open is therefore never clicked again: it is
+    // treated as opened once the poll window ends, and `pickToday` scrolls "Today" into view itself.
+    const todayVisible = () =>
         cy.get('body').then(($body) => $body.find('[data-cy="date-picker-today"]:visible').length > 0);
+    const radixOpen = () =>
+        cy
+            .get('body')
+            .then(
+                ($body) =>
+                    $body.find('[data-cy="date-picker-today"]').closest('[data-state]').attr('data-state') === 'open',
+            );
     const pollForOpen = (elapsedMs: number): Cypress.Chainable<boolean> =>
-        isOpen().then((visible) => {
-            if (visible || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(visible);
+        todayVisible().then((visible) => {
+            if (visible) return cy.wrap(true);
+            if (elapsedMs >= OPEN_TIMEOUT_MS) return radixOpen();
             cy.wait(OPEN_POLL_MS);
             return pollForOpen(elapsedMs + OPEN_POLL_MS);
         });
