@@ -276,8 +276,20 @@ describe("Company Settings E2E", () => {
 		});
 
 		it("refuses to submit with an invalid email (native HTML5 constraint), then accepts it once fixed", () => {
+			cy.intercept("GET", `${api}/api/company/info`).as("loadCompany");
 			cy.visit("/settings/company");
 			cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("be.visible");
+
+			// WAIT FOR THE FORM TO BE HYDRATED BEFORE TOUCHING IT, the same guard the cases above
+			// carry, for a different symptom. The inputs render empty from `defaultValues` and the
+			// stored profile lands later through `form.reset()`. When that reset fell between the
+			// `clear()` and the first keystroke (issue #459: 4 runs in 5 under Chromium 141, measured
+			// by logging the POST body), the field was still pristine (empty against an empty
+			// default), so the reset wrote "contact@acme.org" back into it and Cypress typed at the
+			// caret: the form sent "not-an-emailontact@acme.org". That string passes the browser's
+			// email constraint, so the save went through and the assertion below read `valid: true`.
+			cy.wait("@loadCompany", { timeout: 15000 });
+			cy.get('[data-cy="company-email-input"]', { timeout: 15000 }).should("not.have.value", "");
 
 			cy.intercept("POST", `${api}/api/company/info`).as("saveCompany");
 
@@ -286,6 +298,9 @@ describe("Company Settings E2E", () => {
 			// here (verified against a real run) — `validity.valid` on the input element itself is
 			// the actual, honest proof a malformed email was refused.
 			cy.get('[data-cy="company-email-input"]').clear().type("not-an-email");
+			// Pins what is being refused: the exact string typed, never a concatenation with a value
+			// written into the field by something else while the test was typing.
+			cy.get('[data-cy="company-email-input"]').should("have.value", "not-an-email");
 			cy.get('[data-cy="company-submit-btn"]').click();
 			cy.get('[data-cy="company-email-input"]').then(($input) => {
 				expect(
