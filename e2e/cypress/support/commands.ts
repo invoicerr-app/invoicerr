@@ -225,9 +225,8 @@ Cypress.Commands.add('pickDocumentClient', (option: string = 'first') => {
  * "Today" button (spec 29's `.rdp-button_previous` clicks) gets the same race protection instead of
  * reimplementing it. `scrollIntoView()` on the trigger first, because the popover anchors below it
  * and a trigger sitting under the fold of a tall dialog can open a popover that's itself off-screen.
- * Readiness is checked on `[data-cy="date-picker-today"]`: the "Today" footer button is part of the
- * SAME popover content regardless of what the caller clicks next, so its visibility is a valid proxy
- * for "the popover is open" for every caller, not just `pickToday`.
+ * Readiness is the popover's OWN open state: the content holding `[data-cy="date-picker-today"]`
+ * carrying Radix's `data-state="open"`. Never that button's visibility (see `isOpen` below).
  * @example cy.openDatePicker('[data-cy="document-field-issueDate-input"]')
  */
 Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
@@ -251,11 +250,25 @@ Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
     const OPEN_POLL_MS = 100;
     const OPEN_TIMEOUT_MS = 800;
     const MAX_ATTEMPTS = 3;
+    // OPEN means Radix says open, not "the Today button is visible". date-picker.tsx caps the popover
+    // to the available height and scrolls inside it, so an open calendar can legitimately clip its own
+    // footer: measured on issue #459 (43-correction-routes, Chromium 141 under CPU load), the popover
+    // was `data-state="open"` with "Today" at y=651..683 inside a content box ending at y=668. The old
+    // `:visible` check read that as "did not open" and fired the retry click below, and a click on the
+    // trigger of an OPEN popover TOGGLES IT CLOSED. The closing popover then passed the next poll
+    // (still mounted for its exit animation, briefly unclipped), and `pickToday`'s click on "Today"
+    // landed on a node the end of that animation removed: "the page updated while this command was
+    // executing". A retry must only ever fire on a popover that is genuinely not open.
     const isOpen = () =>
-        cy.get('body').then(($body) => $body.find('[data-cy="date-picker-today"]:visible').length > 0);
+        cy
+            .get('body')
+            .then(
+                ($body) =>
+                    $body.find('[data-cy="date-picker-today"]').closest('[data-state]').attr('data-state') === 'open',
+            );
     const pollForOpen = (elapsedMs: number): Cypress.Chainable<boolean> =>
-        isOpen().then((visible) => {
-            if (visible || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(visible);
+        isOpen().then((open) => {
+            if (open || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(open);
             cy.wait(OPEN_POLL_MS);
             return pollForOpen(elapsedMs + OPEN_POLL_MS);
         });
