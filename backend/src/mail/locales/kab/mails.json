@@ -1,0 +1,139 @@
+{
+    "demo": {
+        "greeting": "",
+        "itemCount": "",
+        "englishOnly": ""
+    },
+    "layout": {
+        "greeting": "",
+        "signOffText": "",
+        "signOffHtml": "",
+        "sentFrom": ""
+    },
+    "signatureRequest": {
+        "subject": "",
+        "intro": "",
+        "documentLine": "",
+        "signatureIdLine": "",
+        "reviewLinkIntro": "",
+        "contactText": "",
+        "title": "",
+        "documentLabel": "",
+        "signatureIdLabel": "",
+        "clickBelow": "",
+        "buttonLabel": "",
+        "contactHtml": ""
+    },
+    "verificationCode": {
+        "subject": "",
+        "codeIntroText": "",
+        "codeIntroHtml": "",
+        "expiryText": "",
+        "expiryHtml": "",
+        "ignoreNotice": ""
+    },
+    "billingWarning": {
+        "manageLine": "",
+        "ctaLabel": "",
+        "blockedZip": {
+            "subject": "",
+            "heading": "",
+            "introText": "",
+            "introHtml": ""
+        },
+        "deletion": {
+            "subject": "",
+            "heading": "",
+            "textBody": "",
+            "htmlBody": ""
+        }
+    },
+    "legalChanged": {
+        "subjectSingular": "",
+        "subjectPlural": "",
+        "titlesTwo": "",
+        "titlesMany": "",
+        "heading": "",
+        "introText": "",
+        "introHtml": "",
+        "acceptNotice": "",
+        "acceptButton": ""
+    },
+    "ownershipTransfer": {
+        "request": {
+            "subject": "",
+            "textIntro": "",
+            "expiryNotice": "",
+            "reviewLinkIntro": "",
+            "ignoreNotice": "",
+            "heading": "",
+            "htmlIntro": "",
+            "buttonLabel": ""
+        },
+        "finalized": {
+            "subjectNewOwner": "",
+            "subjectFormerOwner": "",
+            "bodyLineNewOwner": "",
+            "bodyLineFormerOwner": "",
+            "heading": ""
+        },
+        "ended": {
+            "subjectExpired": "",
+            "subjectCanceled": "",
+            "bodyExpired": "",
+            "bodyCanceled": "",
+            "heading": ""
+        }
+    },
+    "dataExport": {
+        "subject": ""
+    },
+    "dangerOtp": {
+        "subject": "",
+        "body": ""
+    },
+    "dangerDeleteCompany": {
+        "body": ""
+    },
+    "instanceResetOtp": {
+        "subject": "",
+        "body": ""
+    },
+    "changeEmail": {
+        "subject": "",
+        "textIntro": "",
+        "htmlIntro": "",
+        "ignoreNotice": "",
+        "buttonLabel": ""
+    },
+    "mailSettingsTest": {
+        "subject": "",
+        "body": ""
+    },
+    "billingZipExport": {
+        "body": ""
+    },
+    "reminders": {
+        "tier7": {
+            "subject": "",
+            "body": ""
+        },
+        "tier14": {
+            "subject": "",
+            "body": ""
+        },
+        "tier30": {
+            "subject": "",
+            "body": ""
+        }
+    },
+    "portalInvite": {
+        "subject": "",
+        "introText": "",
+        "openPortalIntro": "",
+        "buttonLabel": "",
+        "privacyNotice": "",
+        "signOffText": "",
+        "signOffHtml": ""
+    }
+}
