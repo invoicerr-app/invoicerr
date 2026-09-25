@@ -11,6 +11,7 @@ import {
   listAllDocuments,
   listRecentDocuments,
 } from '../persistence';
+import { listPaymentsInRange } from '../settlement/payments';
 import { filterUnsettledInvoices, isOverdueInvoice } from '../settlement/unsettled-invoices';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
@@ -446,9 +447,113 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
             }));
   }
 
+  // "Collected this month" (no period) / "Collected in period" (period set) - CASH ACTUALLY
+  // RECEIVED (issue #417), distinct from "Invoiced ..." above: that one counts by ISSUE date (what
+  // was billed), this one counts by PAYMENT date (`DocumentPayment.paidAt` - when the money
+  // arrived). An invoice issued in March and paid in August counts in August here, in March there.
+  // Reads `listPaymentsInRange` (settlement/payments.ts) - `paidAt` is a real DateTime column,
+  // filtered in SQL - rather than restricting `invoices`/`periodInvoices` above, which are both
+  // scoped by ISSUE date (buried in the JSON `data` field) and would answer the wrong question
+  // entirely for this tile.
+  //
+  // Sums the payment's OWN `amountMinor`/`currency` (what actually arrived), never
+  // `documentAmountMinor` (the document-currency-converted figure `computeSettlement` uses instead -
+  // see `settlement/payments.ts`'s own `toSettlementPaymentInputs` header) - see `DocumentPayment`'s
+  // own schema.prisma comment: "cash actually collected" is a fact about the money the customer
+  // sent, not a figure re-expressed in the invoice's own currency. Grouped by that SAME currency,
+  // same never-mix-currencies discipline as every other total in this file.
+  //
+  // Only payments against invoices that are STILL "sent" count (`issuedInvoiceIds` below). This
+  // excludes: (a) a `received-invoice`'s own payments (money going OUT, a different document type
+  // entirely - `invoices` above is already scoped to `typeId: 'invoice'` by `listAllDocuments`, so a
+  // `received-invoice` payment's `documentId` is simply never a key of `issuedInvoiceIds`, but the
+  // exclusion is spelled out here because `DocumentPayment.documentId` carries no type discriminator
+  // of its own, see that model's own comment); (b) a payment recorded against an invoice that has
+  // SINCE been cancelled - the same "cancelled is void, never counted" rule
+  // `filterUnsettledInvoices`'s own header states for "pending", applied here for the same reason: a
+  // cancelled invoice no longer legally exists, so cash still sitting against it is not this
+  // company's revenue collection any more. A genuine refund is out of scope for this schema either
+  // way - `record-payment` only ever accepts a strictly positive `amount` (actions/invoice-actions.ts's
+  // own guard), so there is no negative/reversing payment row to net a refund against. A
+  // draft/sending/send_failed invoice can never have a payment in the first place
+  // (`record-payment`'s own `availableWhen: ['sent']`), so `status === 'sent'` is the exact, not
+  // merely approximate, set of invoices this tile may honestly attribute cash to.
+  //
+  // NO `link` on any of these - unlike every other metric above, there is no list of PAYMENTS
+  // anywhere in this app a click could open (the frontend's own "payments" screens are payment
+  // METHODS/billing settings, never a list of recorded payments) - see `MetricWidgetLink`'s own
+  // header: a metric never carries a link with no exactly-matching list behind it. Static tiles, on
+  // purpose - inventing a link to the invoice list (filtered by ISSUE date) would show a different
+  // set of documents than the ones this figure actually sums.
+  const issuedInvoiceIds = new Set(
+    invoices.filter((invoice) => invoice.status === 'sent').map((invoice) => invoice.id),
+  );
+  let collectedWidgets: MetricWidget[];
+  if (!period) {
+    const thisMonthKey = months[months.length - 1].key;
+    const lastMonthKey = months[months.length - 2].key;
+    const windowFrom = new Date(`${monthRange(lastMonthKey).dateFrom}T00:00:00.000Z`);
+    const windowTo = new Date(`${monthRange(thisMonthKey).dateTo}T23:59:59.999Z`);
+    const paymentsInWindow = await listPaymentsInRange(companyId, windowFrom, windowTo);
+    const collectedByCurrency = new Map<string, { thisMonth: number; lastMonth: number }>();
+    for (const payment of paymentsInWindow) {
+      if (!issuedInvoiceIds.has(payment.documentId)) continue;
+      const key = monthKey(payment.paidAt.toISOString());
+      if (key !== thisMonthKey && key !== lastMonthKey) continue;
+      const bucket = collectedByCurrency.get(payment.currency) ?? { thisMonth: 0, lastMonth: 0 };
+      if (key === thisMonthKey) bucket.thisMonth += payment.amountMinor;
+      else bucket.lastMonth += payment.amountMinor;
+      collectedByCurrency.set(payment.currency, bucket);
+    }
+    collectedWidgets =
+      collectedByCurrency.size === 0
+        ? [{ id: 'invoice:collected-this-month', kind: 'metric', label: 'Collected this month', value: 0 }]
+        : [...collectedByCurrency.entries()]
+            .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+            .map(([currency, { thisMonth, lastMonth }]) => ({
+              id: `invoice:collected-this-month:${currency}`,
+              kind: 'metric',
+              label: `Collected this month (${currency})`,
+              unit: currency,
+              value: Number(fromMinor(thisMonth, currency).toFixed(2)),
+              previousValue: Number(fromMinor(lastMonth, currency).toFixed(2)),
+            }));
+  } else {
+    const windowFrom = new Date(`${period.dateFrom}T00:00:00.000Z`);
+    const windowTo = new Date(`${period.dateTo}T23:59:59.999Z`);
+    const paymentsInPeriod = await listPaymentsInRange(companyId, windowFrom, windowTo);
+    const collectedByCurrency = new Map<string, number>();
+    for (const payment of paymentsInPeriod) {
+      if (!issuedInvoiceIds.has(payment.documentId)) continue;
+      collectedByCurrency.set(
+        payment.currency,
+        (collectedByCurrency.get(payment.currency) ?? 0) + payment.amountMinor,
+      );
+    }
+    collectedWidgets =
+      collectedByCurrency.size === 0
+        ? [{ id: 'invoice:collected-in-period', kind: 'metric', label: 'Collected in period', value: 0 }]
+        : [...collectedByCurrency.entries()]
+            .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+            .map(([currency, total]) => ({
+              id: `invoice:collected-in-period:${currency}`,
+              kind: 'metric',
+              label: `Collected in period (${currency})`,
+              unit: currency,
+              value: Number(fromMinor(total, currency).toFixed(2)),
+            }));
+  }
+
   // Metrics first, then the list, then the curve — the reading order of a dashboard (headline
   // figures before detail). The frontend groups by `kind` anyway; this order is for API readers.
-  return [...issuedWidgets, ...pendingTotalWidgets, ...overdueTotalWidgets, pendingWidget, curveWidget];
+  return [
+    ...issuedWidgets,
+    ...collectedWidgets,
+    ...pendingTotalWidgets,
+    ...overdueTotalWidgets,
+    pendingWidget,
+    curveWidget,
+  ];
 };
 
 /**
@@ -459,49 +564,91 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
  * the currency-rates store — so nothing about its own tests needs to change for this feature to
  * exist. `registerInvoiceContributions` below registers THIS wrapper for the dashboard location.
  *
- * Only the `invoice:pending-total:*` metrics (this file's own, just above) feed consolidation — the
- * shortList and timeSeries widgets have no per-currency total to convert in the first place.
+ * Only the `invoice:pending-total:*` and `invoice:collected-{this-month,in-period}:*` metrics (this
+ * file's own, just above) feed consolidation - the shortList and timeSeries widgets have no
+ * per-currency total to convert in the first place. Both families are consolidated independently
+ * (their own `consolidateByCurrency` call each, sharing the one `referenceCurrency`/`rates` read):
+ * "pending" and "collected" answer different questions (owed vs. actually received) and a currency
+ * missing a rate for one must never suppress the other's otherwise-honest consolidated total.
  */
 export const buildInvoiceDashboardWidgetsWithConsolidation: ContributionHandler = async (ctx) => {
   const widgets = await buildInvoiceDashboardWidgets(ctx);
 
-  const perCurrencyWidgets = widgets.filter(
+  const pendingCurrencyWidgets = widgets.filter(
     (widget): widget is MetricWidget =>
       widget.kind === 'metric' && widget.id.startsWith('invoice:pending-total:'),
   );
-  if (perCurrencyWidgets.length === 0) return widgets;
+  // Matches EITHER id family (issue #417's tile is `-this-month:` with no period set, `-in-period:`
+  // once one is) - the two never coexist in one response (`collectedWidgets`'s own if/else above),
+  // so this is never ambiguous about which figure it is consolidating.
+  const collectedCurrencyWidgets = widgets.filter(
+    (widget): widget is MetricWidget =>
+      widget.kind === 'metric' &&
+      (widget.id.startsWith('invoice:collected-this-month:') ||
+        widget.id.startsWith('invoice:collected-in-period:')),
+  );
+  if (pendingCurrencyWidgets.length === 0 && collectedCurrencyWidgets.length === 0) return widgets;
 
   const { referenceCurrency, rates } = await loadCurrencyContext(ctx.companyId);
-  const amounts = perCurrencyWidgets.map((widget) => ({
-    currency: widget.unit as string,
-    totalMinor: toMinor(widget.value, widget.unit as string),
-  }));
-  const { consolidated, warnings } = consolidateByCurrency(amounts, referenceCurrency, rates, new Date());
+  const now = new Date(); // Shared instant for both consolidations below - same rate resolution.
+  const extraWidgets: MetricWidget[] = [];
 
-  if (warnings.length > 0) {
-    for (const widget of perCurrencyWidgets) widget.warnings = warnings;
-    return widgets;
+  if (pendingCurrencyWidgets.length > 0) {
+    const amounts = pendingCurrencyWidgets.map((widget) => ({
+      currency: widget.unit as string,
+      totalMinor: toMinor(widget.value, widget.unit as string),
+    }));
+    const { consolidated, warnings } = consolidateByCurrency(amounts, referenceCurrency, rates, now);
+
+    if (warnings.length > 0) {
+      for (const widget of pendingCurrencyWidgets) widget.warnings = warnings;
+    } else if (consolidated) {
+      extraWidgets.push({
+        id: 'invoice:pending-total:consolidated',
+        kind: 'metric',
+        label: 'Pending invoices total (consolidated, converted)',
+        unit: `${consolidated.currency} (converted)`,
+        approx: true,
+        value: Number(fromMinor(consolidated.totalMinor, consolidated.currency).toFixed(2)),
+        warnings: consolidated.notes,
+        // The consolidated figure is a currency-converted SUM of the exact same set the per-currency
+        // `invoice:pending-total:*` tiles above already link to: same list, same filter -
+        // `...ctx.period` carries the active period onto it too (issue #418), same as those tiles'
+        // own link.
+        link: { typeId: 'invoice', status: ['sent'], settlement: 'unsettled', ...ctx.period },
+      });
+    }
+    // `!consolidated && warnings.length === 0` -> no referenceCurrency set at all: the default,
+    // unchanged behavior (nothing pushed, nothing warned).
   }
 
-  if (!consolidated) {
-    return widgets; // No referenceCurrency set — the default, unchanged behavior.
+  if (collectedCurrencyWidgets.length > 0) {
+    const amounts = collectedCurrencyWidgets.map((widget) => ({
+      currency: widget.unit as string,
+      totalMinor: toMinor(widget.value, widget.unit as string),
+    }));
+    const { consolidated, warnings } = consolidateByCurrency(amounts, referenceCurrency, rates, now);
+
+    if (warnings.length > 0) {
+      for (const widget of collectedCurrencyWidgets) widget.warnings = warnings;
+    } else if (consolidated) {
+      extraWidgets.push({
+        id: 'invoice:collected:consolidated',
+        kind: 'metric',
+        label: ctx.period
+          ? 'Collected in period (consolidated, converted)'
+          : 'Collected this month (consolidated, converted)',
+        unit: `${consolidated.currency} (converted)`,
+        approx: true,
+        value: Number(fromMinor(consolidated.totalMinor, consolidated.currency).toFixed(2)),
+        warnings: consolidated.notes,
+        // NO `link` - same reasoning as the per-currency collected tiles: no payments list exists
+        // anywhere in the app for a click to open, converted total or not.
+      });
+    }
   }
 
-  const consolidatedMetric: MetricWidget = {
-    id: 'invoice:pending-total:consolidated',
-    kind: 'metric',
-    label: 'Pending invoices total (consolidated, converted)',
-    unit: `${consolidated.currency} (converted)`,
-    approx: true,
-    value: Number(fromMinor(consolidated.totalMinor, consolidated.currency).toFixed(2)),
-    warnings: consolidated.notes,
-    // The consolidated figure is a currency-converted SUM of the exact same set the per-currency
-    // `invoice:pending-total:*` tiles above already link to: same list, same filter - `...ctx.period`
-    // carries the active period onto it too (issue #418), same as those tiles' own link.
-    link: { typeId: 'invoice', status: ['sent'], settlement: 'unsettled', ...ctx.period },
-  };
-
-  return [...widgets, consolidatedMetric];
+  return [...widgets, ...extraWidgets];
 };
 
 /**

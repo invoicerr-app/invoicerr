@@ -61,6 +61,7 @@ function seedDocuments(rows: DocumentInstanceResult[]): void {
 }
 
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
+const listPaymentsInRange = settlementPayments.listPaymentsInRange as Mock;
 const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 
 function invoice(
@@ -100,6 +101,7 @@ describe('buildInvoiceDashboardWidgets', () => {
     listRecentDocuments.mockReset();
     countDocuments.mockReset();
     sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
+    listPaymentsInRange.mockReset().mockResolvedValue([]);
     listCreditNotes.mockReset().mockResolvedValue([]);
   });
 
@@ -436,6 +438,7 @@ describe('buildInvoiceDashboardWidgets with a period set', () => {
     listRecentDocuments.mockReset();
     countDocuments.mockReset();
     sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
+    listPaymentsInRange.mockReset().mockResolvedValue([]);
     listCreditNotes.mockReset().mockResolvedValue([]);
   });
 
@@ -578,6 +581,233 @@ describe('buildInvoiceDashboardWidgets with a period set', () => {
 
     expect(curve.points).toHaveLength(2);
     expect(curve.points[1].value).toBe(1); // June, the invoice's own month
+  });
+});
+
+describe('Collections - cash actually received (issue #417)', () => {
+  /** A `DocumentPaymentResult`-shaped fixture - only the fields this tile actually reads
+   *  (`documentId`, `amountMinor`, `currency`, `paidAt`) matter; the rest are filler so the object
+   *  satisfies the real shape `listPaymentsInRange` returns. */
+  function payment(overrides: { documentId: string; amountMinor: number; currency: string; paidAt: string }) {
+    return {
+      id: `pay-${overrides.documentId}-${overrides.paidAt}`,
+      documentAmountMinor: overrides.amountMinor,
+      conversionRate: null,
+      conversionRateAsOf: null,
+      conversionSource: null,
+      method: null,
+      note: null,
+      createdAt: new Date(overrides.paidAt),
+      ...overrides,
+      paidAt: new Date(overrides.paidAt),
+    };
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers().setSystemTime(new Date('2026-08-30')); // "this month" = 2026-08
+    listAllDocuments.mockReset();
+    sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
+    listPaymentsInRange.mockReset().mockResolvedValue([]);
+    listCreditNotes.mockReset().mockResolvedValue([]);
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("counts a payment by its PAYMENT date, not the invoice's own issue date - no period set", async () => {
+    seedDocuments([
+      // Issued in March (well outside "this month"), but PAID this month: must count.
+      invoice({
+        id: 'issued-march-paid-august',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-03-01', lines: [{ quantity: 1, unitPrice: 500 }] },
+      }),
+      // Issued THIS month, but not paid until well AFTER the window closes (a payment can never
+      // precede its own invoice's issueDate - 2026-08-05 issued, paid 2026-09-10): must NOT count
+      // in "this month" collected, since the window is [last month, this month] = [July, August].
+      invoice({
+        id: 'issued-august-paid-september',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-05', lines: [{ quantity: 1, unitPrice: 900 }] },
+      }),
+    ]);
+    listPaymentsInRange.mockResolvedValue([
+      payment({
+        documentId: 'issued-march-paid-august',
+        amountMinor: 50000,
+        currency: 'EUR',
+        paidAt: '2026-08-15',
+      }),
+      payment({
+        documentId: 'issued-august-paid-september',
+        amountMinor: 90000,
+        currency: 'EUR',
+        paidAt: '2026-09-10',
+      }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month:EUR')).toMatchObject({
+      kind: 'metric',
+      unit: 'EUR',
+      value: 500, // only the March-issued invoice's August payment
+      label: 'Collected this month (EUR)',
+    });
+  });
+
+  it('never mixes currencies into one sum', async () => {
+    seedDocuments([
+      invoice({
+        id: 'eur-invoice',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 100 }] },
+      }),
+      invoice({
+        id: 'usd-invoice',
+        status: 'sent',
+        data: { currency: 'USD', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 200 }] },
+      }),
+    ]);
+    listPaymentsInRange.mockResolvedValue([
+      payment({ documentId: 'eur-invoice', amountMinor: 10000, currency: 'EUR', paidAt: '2026-08-10' }),
+      payment({ documentId: 'usd-invoice', amountMinor: 20000, currency: 'USD', paidAt: '2026-08-11' }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month:EUR')).toMatchObject({ value: 100 });
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month:USD')).toMatchObject({ value: 200 });
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month')).toBeUndefined();
+  });
+
+  it('the default window (no period) is the current calendar month by PAYMENT date, same clock as "issued this month"', async () => {
+    seedDocuments([]);
+
+    await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    // 2026-08-30 "now" -> this month is August, last month July: the exact window
+    // "Invoiced this month"/"last month" already compares against, applied here to `paidAt` instead
+    // of `issueDate`.
+    expect(listPaymentsInRange).toHaveBeenCalledWith(
+      'c1',
+      new Date('2026-07-01T00:00:00.000Z'),
+      new Date('2026-08-31T23:59:59.999Z'),
+    );
+  });
+
+  it('a custom period restricts the payment window to exactly that period, inclusive', async () => {
+    seedDocuments([]);
+
+    await buildInvoiceDashboardWidgets({
+      companyId: 'c1',
+      period: { dateFrom: '2026-05-01', dateTo: '2026-05-15' },
+    });
+
+    expect(listPaymentsInRange).toHaveBeenCalledWith(
+      'c1',
+      new Date('2026-05-01T00:00:00.000Z'),
+      new Date('2026-05-15T23:59:59.999Z'),
+    );
+  });
+
+  it('an invoice issued outside the period but paid inside it counts, under the period id', async () => {
+    seedDocuments([
+      invoice({
+        id: 'old-invoice',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-01-01', lines: [{ quantity: 1, unitPrice: 750 }] },
+      }),
+    ]);
+    listPaymentsInRange.mockResolvedValue([
+      payment({ documentId: 'old-invoice', amountMinor: 75000, currency: 'EUR', paidAt: '2026-08-15' }),
+    ]);
+
+    const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1', period });
+
+    expect(widgets.find((w) => w.id === 'invoice:collected-in-period:EUR')).toMatchObject({
+      value: 750,
+      label: 'Collected in period (EUR)',
+    });
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month:EUR')).toBeUndefined();
+  });
+
+  it('only counts payments against invoices that are STILL "sent" - excludes a cancelled invoice', async () => {
+    seedDocuments([
+      invoice({
+        id: 'cancelled-invoice',
+        status: 'cancelled',
+        data: { currency: 'EUR', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 400 }] },
+      }),
+    ]);
+    listPaymentsInRange.mockResolvedValue([
+      payment({ documentId: 'cancelled-invoice', amountMinor: 40000, currency: 'EUR', paidAt: '2026-08-10' }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month:EUR')).toBeUndefined();
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month')).toMatchObject({ value: 0 });
+  });
+
+  it("excludes a payment whose documentId is not one of this company's invoices (e.g. a received-invoice)", async () => {
+    seedDocuments([
+      invoice({
+        id: 'real-invoice',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 400 }] },
+      }),
+    ]);
+    listPaymentsInRange.mockResolvedValue([
+      // Never a key of `issuedInvoiceIds` - `invoices` above is scoped to typeId 'invoice' only, so
+      // a payment against a received-invoice (money going OUT) simply never matches.
+      payment({
+        documentId: 'a-received-invoice',
+        amountMinor: 999900,
+        currency: 'EUR',
+        paidAt: '2026-08-10',
+      }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month:EUR')).toBeUndefined();
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month')).toMatchObject({ value: 0 });
+  });
+
+  it('a partially paid invoice counts only the amount actually paid, not the invoice total', async () => {
+    seedDocuments([
+      invoice({
+        id: 'partial-invoice',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 1200 }] },
+      }),
+    ]);
+    listPaymentsInRange.mockResolvedValue([
+      payment({ documentId: 'partial-invoice', amountMinor: 50000, currency: 'EUR', paidAt: '2026-08-10' }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    expect(widgets.find((w) => w.id === 'invoice:collected-this-month:EUR')).toMatchObject({ value: 500 });
+  });
+
+  it('every metric carries no `link` - no payments list exists anywhere in this app to open', async () => {
+    seedDocuments([
+      invoice({
+        id: 'inv-1',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 100 }] },
+      }),
+    ]);
+    listPaymentsInRange.mockResolvedValue([
+      payment({ documentId: 'inv-1', amountMinor: 10000, currency: 'EUR', paidAt: '2026-08-10' }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    const collected = widgets.find((w) => w.id === 'invoice:collected-this-month:EUR') as MetricWidget;
+    expect(collected.link).toBeUndefined();
   });
 });
 
