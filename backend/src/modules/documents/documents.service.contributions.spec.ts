@@ -79,6 +79,49 @@ describe('DocumentsService.collectWidgets', () => {
       expect.objectContaining({ kind: 'unimplemented', typeId: 'expense', location: 'statistics' }),
     ]);
   });
+
+  // Issue #418: the dashboard's own period, when given, reaches both a type's own contribution
+  // handler AND the "upcoming recurrences" widget (as its own `warnings`, never a restriction -
+  // schedules/schedule-widgets.ts's own header).
+  it('threads the period through to the contribution handler and the schedule widget', async () => {
+    (schedulePersistence.listSchedules as Mock).mockResolvedValue([]);
+    const contributionRegistry = new ContributionRegistry();
+    let receivedPeriod: unknown;
+    contributionRegistry.register('invoice', 'dashboard', async (ctx) => {
+      receivedPeriod = ctx.period;
+      return [];
+    });
+    const service = buildService([descriptor({ contributions: ['dashboard'] })], contributionRegistry);
+
+    const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+    const widgets = await service.collectWidgets('company-1', 'dashboard', period);
+
+    expect(receivedPeriod).toEqual(period);
+    expect(widgets).toEqual([
+      {
+        id: 'document-schedule:upcoming',
+        kind: 'shortList',
+        label: 'Upcoming recurrences',
+        warnings: [expect.stringContaining('does not apply')],
+        items: [],
+      },
+    ]);
+  });
+
+  it('no period given -> undefined reaches the handler, exactly the pre-#418 shape', async () => {
+    (schedulePersistence.listSchedules as Mock).mockResolvedValue([]);
+    const contributionRegistry = new ContributionRegistry();
+    let receivedPeriod: unknown = 'not-yet-called';
+    contributionRegistry.register('invoice', 'dashboard', async (ctx) => {
+      receivedPeriod = ctx.period;
+      return [];
+    });
+    const service = buildService([descriptor({ contributions: ['dashboard'] })], contributionRegistry);
+
+    await service.collectWidgets('company-1', 'dashboard');
+
+    expect(receivedPeriod).toBeUndefined();
+  });
 });
 
 describe('DocumentsService.listAvailableTypes', () => {

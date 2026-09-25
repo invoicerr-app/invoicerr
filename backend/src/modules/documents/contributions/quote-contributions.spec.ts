@@ -10,7 +10,13 @@ import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget, ShortListWidget, TableWidget } from './widgets';
 
-vi.mock('../persistence');
+// `dayMs`/`dateValueInRange` are kept REAL - see invoice-contributions.spec.ts's own identical
+// comment for why a blanket `vi.mock('../persistence')` would silently break issue #418's
+// period-restriction helper.
+vi.mock('../persistence', async () => {
+  const actual = await vi.importActual<typeof import('../persistence')>('../persistence');
+  return { ...actual, listAllDocuments: vi.fn(), listRecentDocuments: vi.fn(), countDocuments: vi.fn() };
+});
 
 const listAllDocuments = persistence.listAllDocuments as Mock;
 const listRecentDocuments = persistence.listRecentDocuments as Mock;
@@ -152,6 +158,68 @@ describe('buildQuoteDashboardWidgets', () => {
     // The rows carry the status and the type that lets the dashboard badge and open them.
     expect(shortList.documentTypeId).toBe('quote');
     expect(shortList.items[0]).toMatchObject({ id: 'd1', status: 'draft' });
+  });
+});
+
+// Issue #418: "quote:open-count"/"quote:draft" restrict themselves by the quote's own resolved date
+// field (`issueDate`) once a period is set.
+describe('buildQuoteDashboardWidgets with a period set', () => {
+  beforeEach(() => {
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
+  });
+
+  const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+
+  it('the draft shortlist and the open count only include quotes issued IN the period', async () => {
+    seedDocuments([
+      quote({ id: 'in-period', status: 'draft', data: { issueDate: '2026-08-15' } }),
+      quote({ id: 'before-period', status: 'draft', data: { issueDate: '2026-07-31' } }),
+      quote({
+        id: 'sent-in-period',
+        status: 'sent',
+        displayNumber: 'QUO-1',
+        data: { issueDate: '2026-08-20' },
+      }),
+      quote({
+        id: 'sent-after-period',
+        status: 'sent',
+        displayNumber: 'QUO-2',
+        data: { issueDate: '2026-09-01' },
+      }),
+    ]);
+
+    const widgets = await buildQuoteDashboardWidgets({ companyId: 'c1', period });
+    const shortList = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(shortList.items.map((i) => i.id)).toEqual(['in-period']);
+    expect(widgets.find((w) => w.id === 'quote:open-count')).toMatchObject({ value: 2 });
+  });
+
+  it('boundary dates are inclusive', async () => {
+    seedDocuments([
+      quote({ id: 'first-day', status: 'draft', data: { issueDate: '2026-08-01' } }),
+      quote({ id: 'last-day', status: 'draft', data: { issueDate: '2026-08-31' } }),
+    ]);
+
+    const widgets = await buildQuoteDashboardWidgets({ companyId: 'c1', period });
+    const shortList = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(shortList.items.map((i) => i.id).sort()).toEqual(['first-day', 'last-day']);
+  });
+
+  it('the "open quotes" link carries the period', async () => {
+    seedDocuments([quote({ id: 'd1', status: 'draft', data: { issueDate: '2026-08-15' } })]);
+
+    const widgets = await buildQuoteDashboardWidgets({ companyId: 'c1', period });
+    const openMetric = widgets.find((w) => w.id === 'quote:open-count');
+
+    expect((openMetric as MetricWidget).link).toMatchObject({
+      typeId: 'quote',
+      status: ['draft', 'sent'],
+      ...period,
+    });
   });
 });
 

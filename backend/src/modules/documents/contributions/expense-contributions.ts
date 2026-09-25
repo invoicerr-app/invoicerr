@@ -1,6 +1,16 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
-import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
+import { DocumentInstanceResult } from '../actions/action-registry';
+import { buildExpenseDescriptor } from '../descriptors/expense.descriptor';
+import { DashboardPeriod } from '../dto/dashboard-query.dto';
+import { resolveDateFieldKey } from '../list-filters';
+import {
+  countDocuments,
+  dateValueInRange,
+  dayMs,
+  listAllDocuments,
+  listRecentDocuments,
+} from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
 import { MetricWidget, MetricWidgetLink, TableWidget, Widget } from './widgets';
@@ -24,7 +34,33 @@ import { MetricWidget, MetricWidgetLink, TableWidget, Widget } from './widgets';
  *  totals do NOT use it: a sum over a page is a wrong sum. */
 const STATISTICS_TABLE_ROW_LIMIT = 500;
 
-/** `data.amount` if it is actually a number, 0 otherwise — the same "a still-being-filled draft is a
+/** Built once - see `list-filters.ts#resolveDateFieldKey`'s own header: `'date'` for this type (the
+ *  expense descriptor has no `issueDate`), the exact field `GET /documents`'s own `dateFrom`/`dateTo`
+ *  filter already resolves for it, so a period-scoped expense figure and the list its `link` opens
+ *  can never disagree (issue #418's THE CONSISTENCY RULE). */
+const EXPENSE_DATE_FIELD_KEY = resolveDateFieldKey(buildExpenseDescriptor());
+
+/** Every expense from `all` whose own `EXPENSE_DATE_FIELD_KEY` value falls within `period`'s
+ *  inclusive range - see invoice-contributions.ts's own identical `restrictToPeriod` for the full
+ *  reasoning, deliberately duplicated per file rather than shared (this file's own header on why each
+ *  contribution stays self-contained). `period` undefined -> `all`, the SAME reference, unchanged. */
+function restrictToPeriod(
+  all: DocumentInstanceResult[],
+  period: DashboardPeriod | undefined,
+): DocumentInstanceResult[] {
+  if (!period || !EXPENSE_DATE_FIELD_KEY) return all;
+  const fromMs = dayMs(period.dateFrom);
+  const toMs = dayMs(period.dateTo);
+  return all.filter((expense) =>
+    dateValueInRange(
+      (expense.data as Record<string, unknown> | null)?.[EXPENSE_DATE_FIELD_KEY],
+      fromMs,
+      toMs,
+    ),
+  );
+}
+
+/** `data.amount` if it is actually a number, 0 otherwise - the same "a still-being-filled draft is a
  *  normal state to aggregate over, not an error" rule invoice-contributions.ts's own `invoiceTotal`
  *  applies to a missing line amount. */
 function expenseAmount(data: Record<string, unknown>): number {
@@ -76,70 +112,116 @@ function monthRange(key: string): { dateFrom: string; dateTo: string } {
  * thin air), so this is the ONE metric with no currency at all — value 0, plain "Expenses this
  * month" label, no `unit` — a currency-less zero shown honestly rather than a guessed one.
  */
-export const buildExpenseDashboardWidgets: ContributionHandler = async ({ companyId }) => {
+export const buildExpenseDashboardWidgets: ContributionHandler = async ({ companyId, period }) => {
   // Every expense, paged until exhausted: this month's and last month's totals are sums, and a sum
   // computed over the most recently touched N rows silently drops whatever fell outside that window
   // — including, for a company with steady activity, part of the very month being totalled.
   const expenses = await listAllDocuments(companyId, { typeId: 'expense' });
-  const now = new Date();
-  // `now.toISOString()` is always a valid, parseable date: `monthKey`'s `null` case is only ever
-  // reached for a document's own stored, possibly-malformed data, never for a value this function
-  // builds itself from the live clock.
-  const thisMonth = monthKey(now.toISOString()) as string;
-  // Last month's key, on the same UTC clock as `thisMonth` — feeds `previousValue` below.
-  const lastMonth = monthKey(
-    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString(),
-  );
 
-  const totalsByCurrency = new Map<string, number>();
-  // Last month's totals, per currency, only for the currencies present THIS month: `previousValue`
-  // sits next to a current figure, it never creates a tile of its own for a currency that has
-  // nothing this month (that would be last month's dashboard, not this one's).
-  const lastMonthTotalsByCurrency = new Map<string, number>();
-  for (const expense of expenses) {
-    const data = (expense.data ?? {}) as Record<string, unknown>;
-    const month = monthKey(data.date);
-    const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
-    if (month === thisMonth) {
-      totalsByCurrency.set(currency, (totalsByCurrency.get(currency) ?? 0) + expenseAmount(data));
-    } else if (month === lastMonth) {
-      lastMonthTotalsByCurrency.set(
-        currency,
-        (lastMonthTotalsByCurrency.get(currency) ?? 0) + expenseAmount(data),
-      );
+  // Two entirely separate branches, not one parameterized over "which window" - see
+  // invoice-contributions.ts's own identical `issuedWidgets` split for the full reasoning: the UNSET
+  // path below is untouched, byte-for-byte, from before issue #418 (a "this month vs last month"
+  // comparison with `previousValue`); the PERIOD path answers a different question ("how much was
+  // spent in this arbitrary range") with no well-defined "previous period" of its own, so it never
+  // emits one.
+  if (!period) {
+    const now = new Date();
+    // `now.toISOString()` is always a valid, parseable date: `monthKey`'s `null` case is only ever
+    // reached for a document's own stored, possibly-malformed data, never for a value this function
+    // builds itself from the live clock.
+    const thisMonth = monthKey(now.toISOString()) as string;
+    // Last month's key, on the same UTC clock as `thisMonth` - feeds `previousValue` below.
+    const lastMonth = monthKey(
+      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString(),
+    );
+
+    const totalsByCurrency = new Map<string, number>();
+    // Last month's totals, per currency, only for the currencies present THIS month: `previousValue`
+    // sits next to a current figure, it never creates a tile of its own for a currency that has
+    // nothing this month (that would be last month's dashboard, not this one's).
+    const lastMonthTotalsByCurrency = new Map<string, number>();
+    for (const expense of expenses) {
+      const data = (expense.data ?? {}) as Record<string, unknown>;
+      const month = monthKey(data.date);
+      const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
+      if (month === thisMonth) {
+        totalsByCurrency.set(currency, (totalsByCurrency.get(currency) ?? 0) + expenseAmount(data));
+      } else if (month === lastMonth) {
+        lastMonthTotalsByCurrency.set(
+          currency,
+          (lastMonthTotalsByCurrency.get(currency) ?? 0) + expenseAmount(data),
+        );
+      }
+      // Any other month (or an unparseable date): excluded from both.
     }
-    // Any other month (or an unparseable date): excluded from both.
+
+    // The expense descriptor's own `date` field is exactly what `list-filters.ts#resolveDateFieldKey`
+    // picks for this type (no `issueDate` on it): the same field this file's own `monthKey` buckets
+    // by, so the link filters the list to precisely the month the figure sums.
+    const thisMonthLink: MetricWidgetLink = { typeId: 'expense', ...monthRange(thisMonth) };
+
+    if (totalsByCurrency.size === 0) {
+      const emptyMonthMetric: MetricWidget = {
+        id: 'expense:this-month',
+        kind: 'metric',
+        label: 'Expenses this month',
+        value: 0,
+        link: thisMonthLink,
+      };
+      return [emptyMonthMetric];
+    }
+
+    // Sorted by currency code so the response is deterministic across calls/tests - the ordering
+    // itself carries no meaning (there is no "primary" currency here).
+    return [...totalsByCurrency.entries()]
+      .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+      .map(
+        ([currency, total]): MetricWidget => ({
+          id: `expense:this-month:${currency}`,
+          kind: 'metric',
+          label: `Expenses this month (${currency})`,
+          unit: currency,
+          value: Number(total.toFixed(2)),
+          previousValue: Number((lastMonthTotalsByCurrency.get(currency) ?? 0).toFixed(2)),
+          link: thisMonthLink,
+        }),
+      );
   }
 
-  // The expense descriptor's own `date` field is exactly what `list-filters.ts#resolveDateFieldKey`
-  // picks for this type (no `issueDate` on it): the same field this file's own `monthKey` buckets
-  // by, so the link filters the list to precisely the month the figure sums.
-  const thisMonthLink: MetricWidgetLink = { typeId: 'expense', ...monthRange(thisMonth) };
+  // PERIOD path - a DISTINCT id (`expense:in-period`, never `expense:this-month`), parallel to
+  // invoice-contributions.ts's own `invoice:issued-in-period` decision: the two figures answer
+  // different questions and can never both be present in the same response (this branch replaces the
+  // other, never adds to it), so sharing an id would make a consumer unable to tell which one it saw.
+  const periodExpenses = restrictToPeriod(expenses, period);
+  const periodLink: MetricWidgetLink = { typeId: 'expense', ...period };
+  const totalsByCurrency = new Map<string, number>();
+  for (const expense of periodExpenses) {
+    const data = (expense.data ?? {}) as Record<string, unknown>;
+    const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
+    totalsByCurrency.set(currency, (totalsByCurrency.get(currency) ?? 0) + expenseAmount(data));
+  }
 
   if (totalsByCurrency.size === 0) {
-    const emptyMonthMetric: MetricWidget = {
-      id: 'expense:this-month',
+    const emptyPeriodMetric: MetricWidget = {
+      id: 'expense:in-period',
       kind: 'metric',
-      label: 'Expenses this month',
+      label: 'Expenses in period',
       value: 0,
-      link: thisMonthLink,
+      link: periodLink,
     };
-    return [emptyMonthMetric];
+    return [emptyPeriodMetric];
   }
 
-  // Sorted by currency code so the response is deterministic across calls/tests — the ordering
-  // itself carries no meaning (there is no "primary" currency here).
   return [...totalsByCurrency.entries()]
     .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
     .map(
       ([currency, total]): MetricWidget => ({
-        id: `expense:this-month:${currency}`,
+        id: `expense:in-period:${currency}`,
         kind: 'metric',
-        label: `Expenses this month (${currency})`,
+        label: `Expenses in period (${currency})`,
         unit: currency,
         value: Number(total.toFixed(2)),
-        previousValue: Number((lastMonthTotalsByCurrency.get(currency) ?? 0).toFixed(2)),
-        link: thisMonthLink,
+        link: periodLink,
       }),
     );
 };
@@ -193,10 +275,15 @@ export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler 
     return widgets; // No referenceCurrency set — the default, unchanged behavior.
   }
 
+  // `ctx.period` (issue #418) picks the SAME id/label split the base handler itself applies to its
+  // own per-currency metrics above ("this month" vs "in period") - this consolidated figure is a
+  // converted sum of exactly those, so it must say which question it is answering too.
   const consolidatedMetric: MetricWidget = {
-    id: 'expense:this-month:consolidated',
+    id: ctx.period ? 'expense:in-period:consolidated' : 'expense:this-month:consolidated',
     kind: 'metric',
-    label: 'Expenses this month (consolidated, converted)',
+    label: ctx.period
+      ? 'Expenses in period (consolidated, converted)'
+      : 'Expenses this month (consolidated, converted)',
     unit: `${consolidated.currency} (converted)`,
     // Rendered with a leading "≈" (metric-widget.tsx) — a converted figure is, by construction, an
     // approximation of the rate it used, never claimed as exact the way an ORIGINAL currency amount
@@ -206,7 +293,7 @@ export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler 
     // The exact rate(s), their date, and their source — never a bare converted number. See
     // WidgetBase.warnings' own comment (contributions/widgets.ts).
     warnings: consolidated.notes,
-    // Same month, same list, as every per-currency tile it consolidates: all of them already carry
+    // Same window, same list, as every per-currency tile it consolidates: all of them already carry
     // this identical link.
     link: perCurrencyWidgets[0].link,
   };

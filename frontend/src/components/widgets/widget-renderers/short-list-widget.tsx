@@ -93,6 +93,18 @@ export function ShortListWidgetRenderer({ widget }: WidgetRendererProps) {
             ))}
           </ul>
         )}
+        {/* Same "always shown, never thrown" convention as the metric renderer's own warnings list
+            (metric-widget.tsx) - e.g. the dashboard's active period not applying to this particular
+            list (schedules/schedule-widgets.ts's "upcoming recurrences"). */}
+        {shortList.warnings?.length ? (
+          <ul className="mt-2 space-y-0.5" data-cy={`widget-${shortList.id}-warnings`}>
+            {shortList.warnings.map((warning) => (
+              <li key={warning} className="text-xs text-muted-foreground">
+                {warning}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </CardContent>
     </Card>
   )

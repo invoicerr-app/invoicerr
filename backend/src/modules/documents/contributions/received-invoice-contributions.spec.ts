@@ -6,7 +6,13 @@ import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget } from './widgets';
 
-vi.mock('../persistence');
+// `dayMs`/`dateValueInRange` are kept REAL - see invoice-contributions.spec.ts's own identical
+// comment for why a blanket `vi.mock('../persistence')` would silently break issue #418's
+// period-restriction helper.
+vi.mock('../persistence', async () => {
+  const actual = await vi.importActual<typeof import('../persistence')>('../persistence');
+  return { ...actual, listAllDocuments: vi.fn() };
+});
 
 const listAllDocuments = persistence.listAllDocuments as Mock;
 
@@ -102,5 +108,75 @@ describe('buildReceivedInvoiceDashboardWidgets', () => {
         link: { typeId: 'received-invoice', status: ['received'] },
       },
     ]);
+  });
+});
+
+// Issue #418: restricted by the type's own resolved date field (`issueDate`) once a period is set.
+describe('buildReceivedInvoiceDashboardWidgets with a period set', () => {
+  beforeEach(() => listAllDocuments.mockReset());
+
+  const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+
+  it('only counts/sums records whose issueDate is IN the period', async () => {
+    seedDocuments([
+      receivedInvoice({
+        id: 'in-period',
+        status: 'received',
+        data: { grossAmount: 100, currency: 'EUR', issueDate: '2026-08-15' },
+      }),
+      receivedInvoice({
+        id: 'before-period',
+        status: 'received',
+        data: { grossAmount: 9999, currency: 'EUR', issueDate: '2026-07-31' },
+      }),
+      receivedInvoice({
+        id: 'after-period',
+        status: 'received',
+        data: { grossAmount: 9999, currency: 'EUR', issueDate: '2026-09-01' },
+      }),
+    ]);
+
+    const widgets = (await buildReceivedInvoiceDashboardWidgets({
+      companyId: 'c1',
+      period,
+    })) as MetricWidget[];
+
+    expect(widgets.find((w) => w.id === 'received-invoice:pending-count')).toMatchObject({ value: 1 });
+    expect(widgets.find((w) => w.id === 'received-invoice:pending-amount:EUR')).toMatchObject({ value: 100 });
+  });
+
+  it('a record with no issueDate at all is excluded once a period is set - never guessed into range', async () => {
+    seedDocuments([
+      receivedInvoice({ id: 'no-date', status: 'received', data: { grossAmount: 50, currency: 'EUR' } }),
+    ]);
+
+    const widgets = (await buildReceivedInvoiceDashboardWidgets({
+      companyId: 'c1',
+      period,
+    })) as MetricWidget[];
+
+    expect(widgets.find((w) => w.id === 'received-invoice:pending-count')).toMatchObject({ value: 0 });
+  });
+
+  it('the link carries the period', async () => {
+    seedDocuments([
+      receivedInvoice({
+        id: 'a',
+        status: 'received',
+        data: { grossAmount: 10, currency: 'EUR', issueDate: '2026-08-15' },
+      }),
+    ]);
+
+    const widgets = (await buildReceivedInvoiceDashboardWidgets({
+      companyId: 'c1',
+      period,
+    })) as MetricWidget[];
+    const count = widgets.find((w) => w.id === 'received-invoice:pending-count');
+
+    expect((count as MetricWidget).link).toMatchObject({
+      typeId: 'received-invoice',
+      status: ['received'],
+      ...period,
+    });
   });
 });

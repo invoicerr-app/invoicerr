@@ -1423,7 +1423,21 @@
     }
   },
   "dashboard": {
-    "title": "Dashboard"
+    "title": "Dashboard",
+    "period": {
+      "label": "Period",
+      "options": {
+        "all": "All time",
+        "this-month": "This month",
+        "this-year": "This year",
+        "last-30-days": "Last 30 days",
+        "custom": "Custom range"
+      },
+      "customFrom": "From",
+      "customTo": "To",
+      "activeRange": "Showing {{from}} to {{to}}",
+      "activeRangeAll": "Showing all time"
+    }
   },
   "widgets": {
     "emptyTitle": "Nothing to show yet",

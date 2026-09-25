@@ -4,6 +4,7 @@ import {
   buildInvoiceDashboardWidgets,
   buildInvoiceStatisticsWidgets,
   invoiceTotal,
+  monthsSpanning,
 } from './invoice-contributions';
 import * as persistence from '../persistence';
 import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
@@ -13,8 +14,16 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
 import { ShortListWidget, TableWidget, TimeSeriesWidget } from './widgets';
 
-vi.mock('../persistence');
-// The "pending" shortList below now excludes SETTLED invoices (settlement/) — mocked here the same
+// `dayMs`/`dateValueInRange` are kept REAL (issue #418's own period-restriction helper reuses them
+// directly, not through a mocked module) - only the actual DB reads below are faked. A blanket
+// `vi.mock('../persistence')` would auto-mock those two pure functions into no-ops returning
+// `undefined`, which `dateValueInRange` treats as "unparseable -> excluded", silently emptying every
+// period-scoped fixture below regardless of its own dates.
+vi.mock('../persistence', async () => {
+  const actual = await vi.importActual<typeof import('../persistence')>('../persistence');
+  return { ...actual, listAllDocuments: vi.fn(), listRecentDocuments: vi.fn(), countDocuments: vi.fn() };
+});
+// The "pending" shortList below now excludes SETTLED invoices (settlement/) - mocked here the same
 // way `../persistence` already is, defaulting to "nothing paid" so every pre-existing test in this
 // file keeps meaning exactly what it always did.
 vi.mock('../settlement/payments');
@@ -414,6 +423,171 @@ describe('buildInvoiceDashboardWidgets', () => {
     const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
     const curve = widgets.find((w) => w.kind === 'timeSeries') as TimeSeriesWidget;
     expect(curve.points.every((p) => p.value === 0)).toBe(true);
+  });
+});
+
+// Issue #418: a period restricts every period-aware figure to invoices whose OWN `issueDate` falls
+// within it - the exact same field/comparison `GET /documents`'s own `dateFrom`/`dateTo` filter
+// applies (THE CONSISTENCY RULE), so a tile and the list its `link` opens always agree.
+describe('buildInvoiceDashboardWidgets with a period set', () => {
+  beforeEach(() => {
+    vi.useFakeTimers().setSystemTime(new Date('2026-08-30'));
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
+    sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
+    listCreditNotes.mockReset().mockResolvedValue([]);
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it('"pending"/"pending-total"/"overdue-total" only count invoices whose issueDate is IN the period', async () => {
+    seedDocuments([
+      invoice({
+        id: 'in-period',
+        status: 'sent',
+        data: {
+          currency: 'EUR',
+          issueDate: '2026-08-15',
+          dueDate: '2026-08-01', // already overdue, system time 2026-08-30
+          lines: [{ quantity: 1, unitPrice: 100 }],
+        },
+      }),
+      invoice({
+        id: 'before-period',
+        status: 'sent',
+        data: {
+          currency: 'EUR',
+          issueDate: '2026-07-31', // one day before the period
+          dueDate: '2026-08-01',
+          lines: [{ quantity: 1, unitPrice: 999 }],
+        },
+      }),
+      invoice({
+        id: 'after-period',
+        status: 'sent',
+        data: {
+          currency: 'EUR',
+          issueDate: '2026-09-01', // one day after the period
+          dueDate: '2026-08-01',
+          lines: [{ quantity: 1, unitPrice: 999 }],
+        },
+      }),
+    ]);
+
+    const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1', period });
+    const pending = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(pending.items.map((i) => i.id)).toEqual(['in-period']);
+    expect(widgets.find((w) => w.id === 'invoice:pending-total:EUR')).toMatchObject({ value: 100 });
+    expect(widgets.find((w) => w.id === 'invoice:overdue-total:EUR')).toMatchObject({ value: 100 });
+  });
+
+  it('boundary dates are inclusive on both ends', async () => {
+    seedDocuments([
+      invoice({
+        id: 'first-day',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 10 }] },
+      }),
+      invoice({
+        id: 'last-day',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-31', lines: [{ quantity: 1, unitPrice: 20 }] },
+      }),
+    ]);
+
+    const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1', period });
+    const pending = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(pending.items.map((i) => i.id).sort()).toEqual(['first-day', 'last-day']);
+  });
+
+  it('every link carries the period, merged with its existing status/settlement', async () => {
+    seedDocuments([
+      invoice({
+        id: 'a',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-15', dueDate: '2026-08-01', lines: [] },
+      }),
+    ]);
+
+    const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1', period });
+
+    const overdueTotal = widgets.find((w) => w.id === 'invoice:overdue-total');
+    expect((overdueTotal as MetricWidget).link).toMatchObject({
+      typeId: 'invoice',
+      status: ['sent'],
+      settlement: 'overdue',
+      ...period,
+    });
+
+    const issued = widgets.find((w) => w.id.startsWith('invoice:issued-in-period'));
+    expect((issued as MetricWidget).link).toMatchObject({ typeId: 'invoice', status: ['sent'], ...period });
+  });
+
+  it('"issued in period" sums sent invoices in the period, under a distinct id, with no previousValue', async () => {
+    seedDocuments([
+      invoice({
+        id: 'sent-in-period',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-10', lines: [{ quantity: 1, unitPrice: 300 }] },
+      }),
+      invoice({
+        id: 'draft-in-period',
+        status: 'draft',
+        data: { currency: 'EUR', issueDate: '2026-08-11', lines: [{ quantity: 1, unitPrice: 5000 }] },
+      }),
+      invoice({
+        id: 'sent-outside-period',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-07-01', lines: [{ quantity: 1, unitPrice: 5000 }] },
+      }),
+    ]);
+
+    const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1', period });
+
+    expect(widgets.find((w) => w.id === 'invoice:issued-this-month')).toBeUndefined();
+    expect(widgets.find((w) => w.id === 'invoice:issued-this-month:EUR')).toBeUndefined();
+    const issued = widgets.find((w) => w.id === 'invoice:issued-in-period:EUR');
+    expect(issued).toMatchObject({
+      kind: 'metric',
+      unit: 'EUR',
+      value: 300,
+      label: 'Invoiced in period (EUR)',
+    });
+    expect(issued).not.toHaveProperty('previousValue');
+  });
+
+  it("the curve spans exactly the period's own calendar months, not the trailing 6-month window", async () => {
+    seedDocuments([
+      invoice({
+        id: 'i1',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-06-10', lines: [{ quantity: 1, unitPrice: 1 }] },
+      }),
+    ]);
+
+    const period = { dateFrom: '2026-05-01', dateTo: '2026-06-30' };
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1', period });
+    const curve = widgets.find((w) => w.kind === 'timeSeries') as TimeSeriesWidget;
+
+    expect(curve.points).toHaveLength(2);
+    expect(curve.points[1].value).toBe(1); // June, the invoice's own month
+  });
+});
+
+describe('monthsSpanning', () => {
+  it('a one-month period produces exactly one point', () => {
+    expect(monthsSpanning('2026-08-01', '2026-08-31')).toEqual([{ key: '2026-08', label: 'Aug 26' }]);
+  });
+
+  it('spans a year boundary inclusive on both ends', () => {
+    expect(monthsSpanning('2025-12-01', '2026-01-31').map((m) => m.key)).toEqual(['2025-12', '2026-01']);
   });
 });
 

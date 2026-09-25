@@ -91,6 +91,7 @@ import {
   WidgetLocation,
 } from './descriptors/types';
 import { dropEmptyRows, stripSidecarKeys, validateAgainstDescriptor } from './descriptors/validate';
+import { DashboardPeriod } from './dto/dashboard-query.dto';
 import { RunActionDto } from './dto/documents.dto';
 import { FormatProviderRegistry, UnknownFormatError } from './formats/format-registry';
 import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
@@ -469,13 +470,24 @@ export class DocumentsService implements OnModuleInit {
    * country-action policy: a widget is an aggregate view, not an operation a country can forbid —
    * see country-policy/country-policy.ts's own header for the (separate) mechanism that DOES gate
    * actions.
+   *
+   * `period` (issue #418) is only ever set by the controller for the "dashboard" location (the
+   * statistics screen has no period selector) and is `undefined` by default - every contribution's
+   * own "no period -> exactly today's behavior" guarantee (see contributions/invoice-contributions.ts
+   * and friends) is what makes threading it through here safe for every EXISTING caller of this
+   * method (the statistics controller route, any future one) without touching them at all.
    */
-  async collectWidgets(companyId: string, location: WidgetLocation): Promise<Widget[]> {
+  async collectWidgets(
+    companyId: string,
+    location: WidgetLocation,
+    period?: DashboardPeriod,
+  ): Promise<Widget[]> {
     const widgets = await collectWidgets({
       companyId,
       location,
       typeRegistry: this.typeRegistry,
       contributionRegistry: this.contributionRegistry,
+      period,
     });
 
     // "Upcoming recurrences" — ADDED alongside every existing widget
@@ -486,7 +498,7 @@ export class DocumentsService implements OnModuleInit {
     if (location === 'dashboard') {
       const schedules = await listSchedules(companyId);
       const typeLabels = Object.fromEntries(this.typeRegistry.list().map((d) => [d.id, d.label]));
-      widgets.push(buildUpcomingSchedulesWidget(schedules, typeLabels));
+      widgets.push(buildUpcomingSchedulesWidget(schedules, typeLabels, period));
     }
 
     return widgets;
@@ -554,9 +566,9 @@ export class DocumentsService implements OnModuleInit {
 
   /**
    * The descriptor a FRONTEND actually renders — `getType` above, but with:
-   *  - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
+   * - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
    *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
-   *  - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
+   * - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
    *    layered on the result of the one before it:
    *     1. `descriptors/company-view.ts#applyCompanyFieldView` — the country field overlay
    *        (add/modify/remove — country-fields/) and the VAT rate catalog (vat-rates/) filling in a
@@ -987,15 +999,15 @@ export class DocumentsService implements OnModuleInit {
   /**
    * Runs one declared action of one document type. Every way this can fail is deliberate and
    * distinct, so the caller (and the frontend) never has to guess which one happened:
-   *  - unknown type / action not declared on it (native OR extension) -> 404
-   *  - the active company's country forbids this action, or has no policy at all -> 403, names the
+   * - unknown type / action not declared on it (native OR extension) -> 404
+   * - the active company's country forbids this action, or has no policy at all -> 403, names the
    *    country and says what would unblock it (see country-policy/country-policy.ts)
-   *  - action declared but not available for the record's current status -> 409 (the descriptor's
+   * - action declared but not available for the record's current status -> 409 (the descriptor's
    *    own `availableWhen`, OR the country policy's own per-status narrowing — schema.ts's
    *    `DocumentActionRuleFact.statuses` — refuses it; both land on the same 409, never a second 403)
-   *  - action declared, available, but no implementation registered -> 501, clearly worded
-   *  - document data or the action's own params don't match their descriptors -> 400, per-field
-   *  - a MEMBER running "send" on a document whose gross total exceeds the
+   * - action declared, available, but no implementation registered -> 501, clearly worded
+   * - document data or the action's own params don't match their descriptors -> 400, per-field
+   * - a MEMBER running "send" on a document whose gross total exceeds the
    *    company's configured approval threshold -> 403, see the gate just before `handler` runs below
    *
    * This is the ONLY place an action actually runs — the HTTP controller has no other route that
@@ -1495,13 +1507,13 @@ export class DocumentsService implements OnModuleInit {
    * Which correction routes this document's own SELLER country declares, and
    * which of them this repo actually implements. Four gates, each distinct and named, the same
    * "a draft with no number refuses, and says so" discipline `downloadDocumentFormat` already holds:
-   *  - unknown typeId at all                     -> 404 (`resolveType`, same as every other endpoint)
-   *  - typeId known but not "invoice"             -> 501 (the correction-routes research this
+   * - unknown typeId at all                     -> 404 (`resolveType`, same as every other endpoint)
+   * - typeId known but not "invoice"             -> 501 (the correction-routes research this
    *    mechanism transcribes only ever covered invoices; V1 does not generalize past that — see
    *    correction-routes/correction-routes.spec.ts for the pinned message)
    *  - the record is still a "draft"              -> 409 (a correction corrects an ISSUED document —
    *    a draft has no number yet, nothing to correct)
-   *  - the seller's country has no correction-routes file at all (unresolved country included) -> 404,
+   * - the seller's country has no correction-routes file at all (unresolved country included) -> 404,
    *    NAMED, never a silent empty list (see `resolveCorrectionRoutesForCountry`'s own header)
    *
    * Ordered cheapest-and-most-structural first: the typeId shape of the request is checked before any
