@@ -76,6 +76,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
         unit: 'EUR',
         value: 100,
         previousValue: 0,
+        link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
       },
     ]);
   });
@@ -88,7 +89,13 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
     const widgets = await buildExpenseDashboardWidgetsWithConsolidation({ companyId: 'c1' });
 
     expect(widgets).toEqual([
-      { id: 'expense:this-month', kind: 'metric', label: 'Expenses this month', value: 0 },
+      {
+        id: 'expense:this-month',
+        kind: 'metric',
+        label: 'Expenses this month',
+        value: 0,
+        link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
+      },
     ]);
     // Never even asked — nothing to consolidate when there is no currency at all this month.
     expect(getReferenceCurrency).not.toHaveBeenCalled();
@@ -125,6 +132,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
       approx: true,
       value: 146,
       warnings: ['USD→EUR @ 0.92 (manual, 2026-08-15)'],
+      link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
     });
     // The ordinary per-currency metrics are still there, untouched, with no warnings attached.
     expect(widgets.find((w) => w.id === 'expense:this-month:EUR')).toEqual({
@@ -134,6 +142,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
       unit: 'EUR',
       value: 100,
       previousValue: 0,
+      link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
     });
   });
 
@@ -174,6 +183,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
         unit: 'EUR',
         value: 100,
         previousValue: 0,
+        link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
       },
     ]);
   });

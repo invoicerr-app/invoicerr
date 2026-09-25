@@ -3,7 +3,7 @@ import { countDocuments, listRecentDocuments } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { fromMinor } from '@/utils/financial';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
-import { MetricWidget, ShortListWidget, TableWidget, Widget } from './widgets';
+import { MetricWidget, MetricWidgetLink, ShortListWidget, TableWidget, Widget } from './widgets';
 
 /**
  * The THIRD real contribution — see invoice-contributions.ts's own header for the model this one
@@ -102,6 +102,9 @@ export const buildQuoteDashboardWidgets: ContributionHandler = async ({ companyI
     kind: 'metric',
     label: 'Open quotes',
     value: openCount,
+    // Same statuses `countDocuments` above just counted: a draft or a sent quote awaiting an
+    // outcome, per this function's own header.
+    link: { typeId: 'quote', status: ['draft', 'sent'] } satisfies MetricWidgetLink,
   };
 
   return [openMetric, widget];

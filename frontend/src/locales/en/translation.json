@@ -1438,7 +1438,8 @@
     "metric": {
       "unchanged": "No change",
       "variationPercent": "{{sign}}{{percent}}%",
-      "variationAbsolute": "{{sign}}{{value}} {{unit}}"
+      "variationAbsolute": "{{sign}}{{value}} {{unit}}",
+      "openList": "Open the list behind \"{{label}}\""
     },
     "period": {
       "ariaLabel": "Period",
@@ -4737,7 +4738,9 @@
         "clientPlaceholder": "Filter by client",
         "dateFrom": "From",
         "dateTo": "To",
-        "clear": "Clear"
+        "clear": "Clear",
+        "settlementUnsettled": "Unpaid only",
+        "settlementOverdue": "Overdue only"
       }
     },
     "custom": {

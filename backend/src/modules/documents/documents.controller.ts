@@ -45,6 +45,7 @@ import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dt
 import {
   DOCUMENT_LIST_DEFAULT_PAGE_SIZE,
   DOCUMENT_LIST_MAX_PAGE_SIZE,
+  DOCUMENT_LIST_SETTLEMENT_VALUES,
   firstValue,
   parseListDocumentsQuery,
   RawListDocumentsQuery,
@@ -769,11 +770,20 @@ export class DocumentsController {
   })
   @ApiQuery({ name: 'sort', required: false, enum: DOCUMENT_LIST_SORT_FIELDS })
   @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'] })
+  @ApiQuery({
+    name: 'settlement',
+    required: false,
+    enum: DOCUMENT_LIST_SETTLEMENT_VALUES,
+    description:
+      'Restricts to invoices matching this settlement state (settlement/unsettled-invoices.ts, the ' +
+      'same predicate the dashboard\'s "pending"/"overdue" tiles use). Requires typeId=invoice.',
+  })
   @ApiResponse({ status: 200, description: 'One page of instances retrieved' })
   @ApiResponse({
     status: 400,
     description:
-      'A malformed page/pageSize/date, an unknown sort field, or a descriptor filter with no typeId',
+      'A malformed page/pageSize/date, an unknown sort field, a descriptor filter with no typeId, or ' +
+      'a settlement filter on a typeId other than "invoice"',
   })
   listDocuments(@ActiveCompany() companyId: string, @Query() rawQuery: RawListDocumentsQuery) {
     const { typeId, ...listQuery } = rawQuery;

@@ -83,6 +83,7 @@ describe('buildReceivedInvoiceDashboardWidgets', () => {
         kind: 'metric',
         label: 'Received invoices pending review',
         value: 1,
+        link: { typeId: 'received-invoice', status: ['received'] },
       },
     ]);
   });
@@ -98,6 +99,7 @@ describe('buildReceivedInvoiceDashboardWidgets', () => {
         kind: 'metric',
         label: 'Received invoices pending review',
         value: 0,
+        link: { typeId: 'received-invoice', status: ['received'] },
       },
     ]);
   });

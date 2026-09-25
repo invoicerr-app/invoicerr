@@ -124,7 +124,13 @@ describe('buildExpenseDashboardWidgets', () => {
     const widgets = await buildExpenseDashboardWidgets({ companyId: 'c1' });
 
     expect(widgets).toEqual([
-      { id: 'expense:this-month', kind: 'metric', label: 'Expenses this month', value: 0 },
+      {
+        id: 'expense:this-month',
+        kind: 'metric',
+        label: 'Expenses this month',
+        value: 0,
+        link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
+      },
     ]);
     // No `unit` at all — not even an empty string — for the currency-less zero.
     expect((widgets[0] as MetricWidget).unit).toBeUndefined();
@@ -136,7 +142,13 @@ describe('buildExpenseDashboardWidgets', () => {
     const widgets = await buildExpenseDashboardWidgets({ companyId: 'c1' });
 
     expect(widgets).toEqual([
-      { id: 'expense:this-month', kind: 'metric', label: 'Expenses this month', value: 0 },
+      {
+        id: 'expense:this-month',
+        kind: 'metric',
+        label: 'Expenses this month',
+        value: 0,
+        link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
+      },
     ]);
   });
 });

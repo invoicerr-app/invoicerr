@@ -59,6 +59,7 @@ import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
 import { useReferenceResolve, useReferenceSearch, useResolvedCompanyCustomFields } from "@/hooks/queries"
 import BetterPagination from "@/components/pagination"
 import SearchSelect from "@/components/search-input"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -853,6 +854,12 @@ interface DocumentListProps {
   /** See `DocumentDateRangeFilterProps.onChange`'s own header — always the FULL range, never a
    *  single key, so a "clear the whole range" click is one call, never two. */
   onDateRangeChange: (range: DocumentDateRange) => void
+  /** `GET /documents`'s own `settlement` filter, never set from a control on THIS screen (it only
+   *  ever arrives via a dashboard metric tile's own link, `[typeId]/index.tsx` reading it out of the
+   *  URL), so the only interaction this component offers is CLEARING it: a removable chip, not a
+   *  picker. */
+  settlement?: "unsettled" | "overdue"
+  onSettlementChange: () => void
   sort: SortKey
   onSortChange: (value: SortKey) => void
   /** Clears search + status + client + date range TOGETHER, in the ONE call the "Clear filters"
@@ -895,6 +902,8 @@ export function DocumentList({
   dateFrom,
   dateTo,
   onDateRangeChange,
+  settlement,
+  onSettlementChange,
   sort,
   onSortChange,
   onClearFilters,
@@ -922,7 +931,8 @@ export function DocumentList({
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
 
-  const hasActiveFilter = !!search || statusFilter.length > 0 || !!clientId || !!dateFrom || !!dateTo
+  const hasActiveFilter =
+    !!search || statusFilter.length > 0 || !!clientId || !!dateFrom || !!dateTo || !!settlement
 
   const toggleStatus = (status: string) => {
     onStatusFilterChange(
@@ -1073,6 +1083,31 @@ export function DocumentList({
             {dateFieldKey && (
               <DocumentDateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onChange={onDateRangeChange} />
             )}
+          </div>
+        )}
+
+        {/* `settlement` never has a control of its own on this screen (see `DocumentListProps.settlement`'s
+            own header): only a removable chip, since it only ever arrives via a dashboard metric's own link. */}
+        {settlement && (
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className="gap-1 py-1 pl-2.5 pr-1"
+              data-cy="document-list-settlement-filter"
+            >
+              {settlement === "overdue"
+                ? t("documents.list.filters.settlementOverdue")
+                : t("documents.list.filters.settlementUnsettled")}
+              <button
+                type="button"
+                onClick={onSettlementChange}
+                aria-label={t("documents.list.filters.clear")}
+                data-cy="document-list-settlement-filter-clear"
+                className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
+              >
+                <X className="size-3" aria-hidden="true" />
+              </button>
+            </Badge>
           </div>
         )}
 

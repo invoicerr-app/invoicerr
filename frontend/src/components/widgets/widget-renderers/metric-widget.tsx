@@ -1,10 +1,12 @@
-import { Minus, TrendingDown, TrendingUp } from "lucide-react"
+import { ChevronRight, Minus, TrendingDown, TrendingUp } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 
 import { decimalsFor } from "@/components/documents/totals-calculator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
+import { buildMetricLinkHref } from "@/components/widgets/metric-link"
 import type { MetricWidget } from "@/components/widgets/types"
 import type { WidgetRendererProps } from "./registry"
 
@@ -101,22 +103,32 @@ function VariationChip({ value, previousValue, unit }: VariationChipProps) {
 /** A single number and its label — "Pending invoices: 4", now a KPI tile: label in the small-caps
  *  treatment every section title in this app uses, the figure itself in the mono tabular face
  *  (identity "Lagune" — a column of these never jitters), and — when the contribution supplied
- *  `previousValue` — a variation chip underneath so a reader sees a direction, not just a number. */
+ *  `previousValue`, a variation chip underneath so a reader sees a direction, not just a number.
+ *
+ *  When the contribution supplied `link`, the whole tile opens the filtered list behind the figure
+ *  (`short-list-widget.tsx`'s own `Link`-wrapped row is the precedent this follows): a visible hover
+ *  affordance (border/background shift, a chevron that appears), a focus-visible ring for keyboard
+ *  navigation, and an `aria-label` naming what the click does, since the tile's own visible text is
+ *  only the number and its label, never "open the list". A metric with no `link` renders exactly as
+ *  it did before this existed: a plain, non-interactive `Card`. */
 export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
+  const { t } = useTranslation()
   // Safe: this component is only ever registered for, and therefore only ever looked up under,
   // kind "metric" — see registry.ts's own comment on this trust boundary.
   const metric = widget as MetricWidget
   const tone = metricTone(metric.id, metric.label)
 
-  return (
-    <Card
-      data-cy={`widget-${metric.id}`}
-      data-widget-kind="metric"
-      className={cn("gap-2 border-l-4 py-4", TONE_BORDER[tone])}
-    >
+  const cardBody = (
+    <>
       <CardHeader className="gap-0 px-4">
-        <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {metric.label}
+        <CardTitle className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="min-w-0 truncate">{metric.label}</span>
+          {metric.link && (
+            <ChevronRight
+              className="size-3.5 shrink-0 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4">
@@ -142,6 +154,40 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           </ul>
         ) : null}
       </CardContent>
+    </>
+  )
+
+  if (metric.link) {
+    return (
+      <Link
+        to={buildMetricLinkHref(metric.link)}
+        className="group block rounded-xl outline-none"
+        aria-label={t("widgets.metric.openList", { label: metric.label })}
+        data-cy={`widget-${metric.id}-link`}
+      >
+        <Card
+          data-cy={`widget-${metric.id}`}
+          data-widget-kind="metric"
+          className={cn(
+            "cursor-pointer gap-2 border-l-4 py-4 transition-colors duration-150",
+            "hover:border-primary/40 hover:bg-accent/40",
+            "group-focus-visible:ring-2 group-focus-visible:ring-ring",
+            TONE_BORDER[tone],
+          )}
+        >
+          {cardBody}
+        </Card>
+      </Link>
+    )
+  }
+
+  return (
+    <Card
+      data-cy={`widget-${metric.id}`}
+      data-widget-kind="metric"
+      className={cn("gap-2 border-l-4 py-4", TONE_BORDER[tone])}
+    >
+      {cardBody}
     </Card>
   )
 }

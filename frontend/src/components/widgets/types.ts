@@ -10,10 +10,28 @@ export interface WidgetBase {
   warnings?: string[]
 }
 
+/**
+ * Where a metric's tile links to when clicked: a LIST destination, not a URL. Mirrors the backend's
+ * own `MetricWidgetLink` (contributions/widgets.ts) exactly: absent means this metric has no list
+ * whose rows are precisely what the figure aggregates over, so the tile renders exactly as it always
+ * has, with no link at all (see metric-link.ts's own `buildMetricLinkHref`, which turns this into the
+ * `/documents/:typeId` URL).
+ */
+export interface MetricWidgetLink {
+  typeId: string
+  status?: string[]
+  /** `YYYY-MM-DD`, inclusive, matching `/documents/:typeId`'s own `dateFrom`/`dateTo` query params. */
+  dateFrom?: string
+  dateTo?: string
+  settlement?: "unsettled" | "overdue"
+}
+
 export interface MetricWidget extends WidgetBase {
   kind: "metric"
   value: number
   unit?: string
+  /** See `MetricWidgetLink`'s own header: absent on a metric with no exactly-matching list. */
+  link?: MetricWidgetLink
   /** Marks `value` as a currency-converted APPROXIMATION rather than an original, exact document
    *  amount — the renderer prefixes it with "≈". See backend's widgets.ts for the full contract. */
   approx?: boolean
