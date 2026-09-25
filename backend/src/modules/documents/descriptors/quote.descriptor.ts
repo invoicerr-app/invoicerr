@@ -67,6 +67,15 @@ const SEND_TRANSITIONS: DocumentActionTransition[] = [
   { from: ['draft', 'send_failed'], to: 'sending' },
   { from: ['sending'], to: ['sent', 'send_failed'] },
 ];
+// Issue #421: "accept a quote manually, without the e-signature code". Only from "sent" - the issue's
+// own wording ("a sent quote can be marked accepted") and the same "one cannot cash a draft" reasoning
+// "request-deposit"/"request-signature" already hold below: a quote the client hasn't received yet has
+// nothing to have been accepted BY. Deliberately NOT also from "send_failed" (a send that never
+// actually reached the client cannot honestly be "accepted" by them either) nor from "signed"/
+// "accepted" themselves (see actions/quote-manual-acceptance.ts's own header on why an ALREADY
+// e-signed or ALREADY manually-accepted quote refuses a second acceptance of either kind, with a 409
+// naming which one already happened).
+const ACCEPT_MANUALLY_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent'], to: 'accepted' }];
 
 export function buildQuoteDescriptor(): DocumentTypeDescriptor {
   return {
@@ -88,7 +97,23 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       // (documents.service.ts's own boot check) is the reason this status must be declared here at
       // all — otherwise every signed quote would read as an undeclared-status anomaly.
       { id: 'signed', label: 'Signed', clientVisible: true },
-      // The client PORTAL's own "decline" — `client-portal/portal.service.ts#refuseQuote`. Reached
+      // Issue #421: the client accepted the quote by some OTHER means (a phone call, a reply email, a
+      // signed paper scan) and the ISSUER records that fact - unlike "signed" right above, this DOES
+      // go through `runAction`/`ActionRegistry` (see the "accept-manually" action below and
+      // actions/quote-manual-acceptance.ts): there IS an authenticated company member to run it as, a
+      // manual acceptance is exactly the kind of company-side write this mechanism already exists for.
+      // A DISTINCT status from "signed", deliberately never reused: the whole point of this status is
+      // that neither the archive, the audit log, the detail page's "Acceptance" section (this app has
+      // no document history/timeline view), nor any consumer of "was this quote accepted" (the
+      // client portal, a webhook, a list filter) can mistake one for the other - see that action's own
+      // header, and its own audit of every place this codebase reads a quote's "signed" status for what
+      // needed to change (nothing did: contributions/quote-contributions.ts's own "open quotes"/"sent"
+      // counts never included "signed" either, so "accepted" needs no new inclusion there; no webhook,
+      // list filter, or the client portal ever branches on "signed" by name - `clientVisible` alone is
+      // what surfaces a status to the portal, which "accepted" gets here for the same reason "signed"
+      // has it: the client's own "yes" is exactly as visible whichever way it was recorded).
+      { id: 'accepted', label: 'Accepted', clientVisible: true },
+      // The client PORTAL's own "decline" - `client-portal/portal.service.ts#refuseQuote`. Reached
       // the EXACT same way "signed" above is: a WRITE outside `runAction`/`ActionRegistry` (there is
       // no company-authenticated caller to run an action AS — a portal session is a CLIENT, not a
       // company member), hand-guarded the identical way `SignaturesService`'s own private
@@ -324,7 +349,15 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'convert-to-invoice',
         label: 'Convert to invoice',
-        availableWhen: ['draft', 'sent'],
+        // "signed"/"accepted" added by issue #421 ("accept a quote manually, without the e-signature
+        // code"): its own acceptance criterion is "conversion to an invoice works from 'accepted' as it
+        // does from 'signed'" - before this change, NEITHER actually appeared here (only "draft"/
+        // "sent" did, a pre-existing gap this fixes as part of the same audit: a company that has an
+        // e-signed OR a manually-accepted quote in hand must be able to invoice it, exactly like one
+        // still merely "sent"). A quote's own e-signature/manual-acceptance status has no bearing on
+        // whether it is fit to become a draft invoice - the SAME copy-lines-and-open-a-draft effect
+        // (actions/convert-to-invoice.ts) applies regardless of which of the four statuses triggered it.
+        availableWhen: ['draft', 'sent', 'signed', 'accepted'],
       },
       {
         id: 'request-deposit',
@@ -403,8 +436,31 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         // action's entire effect is a brand-new `Signature` row plus an email
         // (signatures/signatures.service.ts) — it never changes THIS quote's own status itself. The
         // eventual "sent" -> "signed" transition happens entirely outside `runAction`, the moment the
-        // anonymous client verifies their OTP — see quote.descriptor.ts's own "signed" status comment
+        // anonymous client verifies their OTP - see quote.descriptor.ts's own "signed" status comment
         // above and signatures.service.ts#markSigned.
+      },
+      {
+        id: 'accept-manually',
+        label: 'Mark as accepted',
+        transitions: ACCEPT_MANUALLY_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(ACCEPT_MANUALLY_TRANSITIONS),
+        // The ONE input this action needs - see actions/quote-manual-acceptance.ts's own header for
+        // why "required, non-empty, bounded length" is enforced there rather than trusted to this
+        // descriptor's own generic 'longText' validator (which only checks the value IS a string, not
+        // that it is non-empty - see field-kinds.ts). Declared here anyway, exactly like every other
+        // action's own `params`, for the params-defaults endpoint and the OpenAPI schema - the
+        // frontend renders its OWN dedicated confirmation dialog for this one action rather than the
+        // generic ActionParamsDialog (see `use-document-form.ts`'s own exclusion list, the same one
+        // "share-link"/"download-xml" are already on, and `mark-quote-accepted-dialog.tsx`), so this
+        // never actually reaches that generic renderer.
+        params: [
+          {
+            key: 'note',
+            kind: 'longText',
+            label: 'How did the client accept?',
+            required: true,
+          },
+        ],
       },
       {
         id: 'share-link',

@@ -320,13 +320,18 @@ export function useDocumentForm({
   // routes-button.tsx, with its own irreversibility confirmation), never a second generic button.
   // "download-xml" and "share-link" are excluded for the reason document-list.tsx spells out on its
   // own row cluster: both are declared for the status/policy gates only, and neither is a POST
-  // through `runAction` (a plain GET, a REST resource) — the detail page offers them through their
-  // own dedicated entries instead (document-detail.tsx).
+  // through `runAction` (a plain GET, a REST resource) - the detail page offers them through their
+  // own dedicated entries instead (document-detail.tsx). "accept-manually" (issue #421) joins them
+  // for a DIFFERENT reason: it IS a POST through `runAction`, but the generic `ActionParamsDialog`
+  // cannot enforce a required, non-empty note or carry this action's own "this is not an electronic
+  // signature" warning (see `mark-quote-accepted-dialog.tsx`'s own header) - the detail page offers
+  // it through that dedicated dialog instead.
   const availableActions = descriptor.actions.filter(
     (action) =>
       action.id !== "cancel" &&
       action.id !== "download-xml" &&
       action.id !== "share-link" &&
+      action.id !== "accept-manually" &&
       isActionAvailable(action, currentStatus),
   )
 

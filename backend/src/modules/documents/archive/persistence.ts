@@ -278,6 +278,131 @@ export async function createAuthorityVerdictArchive(
   return count > 0 ? { archived: true } : { archived: false, reason: 'duplicate' };
 }
 
+/**
+ * The manual-acceptance manifest's own shape - written by `actions/quote-manual-acceptance.ts`, read
+ * back by `findManualAcceptanceArchive` below. Declared HERE, not in the `actions/` module that
+ * writes it, so this file's own read side never needs to import back into `actions/` (which itself
+ * imports this file to write one) - the same "define the shared shape on the lower-level side"
+ * discipline `ArchivedArtifactInput` (hashing.ts) already holds for every archive writer.
+ */
+export interface ManualAcceptanceManifest {
+  kind: 'manual-acceptance';
+  documentId: string;
+  actorId: string;
+  actorName: string;
+  actorEmail: string;
+  note: string;
+  /** ISO 8601 - when the issuer recorded the acceptance (server time), never the client's own claimed
+   *  date, which lives inside `note` if they mentioned one at all. */
+  acceptedAt: string;
+}
+
+/** The artifact role a manual-acceptance manifest is stored under - see `DocumentArchiveKind`'s own
+ *  schema comment on the `ACCEPTANCE` kind. Exported so `actions/quote-manual-acceptance.ts` (the
+ *  writer) and this file's own read side below agree on the exact same string without either one
+ *  hand-typing it twice. */
+export const MANUAL_ACCEPTANCE_ROLE = 'manual-acceptance';
+
+/**
+ * Archives ONE manual quote acceptance (issue #421) - the same WORM discipline every archive in this
+ * file holds (content-hashed, `storage.ts`), under its own `kind: ACCEPTANCE` (see that enum's own
+ * schema comment for why VERDICT/DELIVERY were both wrong fits). Unlike `createAuthorityVerdictArchive`
+ * above, this NEVER refuses for lack of a parent: a manual acceptance is itself a genuine event
+ * regardless of whether the quote's own DELIVERY archive exists (a prior `lastArchiveError`, say) -
+ * blocking it on that would make a PRESERVATION problem about an unrelated, earlier write also swallow
+ * a real business action that has nothing to do with it. When a DELIVERY archive DOES exist, its
+ * retention is copied verbatim (same reasoning as VERDICT's own: this evidence is about THAT document,
+ * it has no retention life independent of it); otherwise retention is resolved fresh, the exact same
+ * way `createDocumentArchive` above does for its own first-ever archive of a document.
+ */
+export async function createManualAcceptanceArchive(input: {
+  companyId: string;
+  documentId: string;
+  /** The manifest bytes - `actions/quote-manual-acceptance.ts`'s own JSON, already serialized (this
+   *  file never knows its shape, the same "content is the caller's business" discipline
+   *  `createDocumentArchive` already holds for a DELIVERY's own artifacts). */
+  manifest: Uint8Array;
+}): Promise<DocumentArchiveResult> {
+  const { companyId, documentId, manifest } = input;
+  const artifacts: ArchivedArtifactInput[] = [
+    { role: MANUAL_ACCEPTANCE_ROLE, mime: 'application/json', bytes: manifest },
+  ];
+  const { uri, contentHash } = await persistArtifacts(documentId, artifacts);
+  const archivedAt = new Date();
+
+  const parent = await prisma.documentArchive.findFirst({
+    where: { companyId, documentId, kind: DocumentArchiveKind.DELIVERY },
+    orderBy: { archivedAt: 'desc' },
+  });
+
+  let retentionUntil: Date | null;
+  let retentionBasis: string | null;
+  let retentionCalcVersion: number | null;
+  if (parent) {
+    retentionUntil = parent.retentionUntil;
+    retentionBasis = parent.retentionBasis;
+    retentionCalcVersion = parent.retentionCalcVersion;
+  } else {
+    const countryCode = await resolveCompanyCountryCode(companyId);
+    const retentionFile = defaultRetentionCatalog.fileFor(countryCode);
+    const issueDate = await resolveDocumentIssueDate(companyId, documentId);
+    const resolved = computeRetention(retentionFile, archivedAt, issueDate);
+    retentionUntil = resolved.retentionUntil;
+    retentionBasis = resolved.retentionBasis;
+    retentionCalcVersion = CURRENT_RETENTION_CALC_VERSION;
+  }
+
+  const created = await prisma.documentArchive.create({
+    data: {
+      companyId,
+      documentId,
+      kind: DocumentArchiveKind.ACCEPTANCE,
+      parentArchiveId: parent?.id ?? null,
+      contentHash,
+      uri,
+      artifacts: toArtifactMetas(artifacts) as unknown as Prisma.InputJsonValue,
+      archivedAt,
+      retentionUntil,
+      retentionBasis,
+      retentionCalcVersion,
+    },
+  });
+
+  return toResult(created);
+}
+
+/**
+ * The most recent manual-acceptance manifest actually archived for this document, read back off
+ * storage (never off the `artifacts` metadata column alone, which never carries the note/actor text -
+ * only role/mime/byteLength/sha256, see `StoredArtifactMeta`) - `null` for a document that was never
+ * manually accepted, or whose manifest is no longer readable from storage (the same honest "cannot
+ * prove it" answer `findArchivedPdfArtifact` above gives, never a thrown error over a read this cheap).
+ * Used both by `documents.service.ts`'s own read endpoint (the detail page's "Acceptance" section -
+ * this app has no document history/timeline view; that section is a current-state summary, not a
+ * log) and by this feature's own archive-distinction test - the SAME function proves the manifest was
+ * actually written AND lets it be displayed, rather than two independent readers of the same fact.
+ */
+export async function findManualAcceptanceArchive(
+  companyId: string,
+  documentId: string,
+): Promise<ManualAcceptanceManifest | null> {
+  const archive = await prisma.documentArchive.findFirst({
+    where: { companyId, documentId, kind: DocumentArchiveKind.ACCEPTANCE },
+    orderBy: { archivedAt: 'desc' },
+  });
+  if (!archive) return null;
+
+  const bytes = await readArchivedArtifact(archive.uri, MANUAL_ACCEPTANCE_ROLE, 'application/json');
+  if (!bytes) return null;
+
+  try {
+    return JSON.parse(bytes.toString('utf8')) as ManualAcceptanceManifest;
+  } catch {
+    // Corrupted/truncated bytes - same "cannot prove it, never throw" posture as a missing file.
+    return null;
+  }
+}
+
 /** Every archive for a document, most recent first — a re-send produces several of them (see the
  *  `DocumentArchive` model's own schema comment), never a single "current" one to replace. */
 export async function listDocumentArchives(

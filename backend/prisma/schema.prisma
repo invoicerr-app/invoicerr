@@ -2134,9 +2134,27 @@ model DocumentReminder {
 // already has both. A `kind` discriminator is the sober addition; the two kind-specific extra columns
 // below are both nullable so existing (DELIVERY) rows and the migration that adds this column need no
 // backfill beyond the enum's own default.
+// ## `ACCEPTANCE` - issue #421, "accept a quote manually, without the e-signature"
+//
+// Written ONLY by `actions/quote-manual-acceptance.ts`, the moment the issuer records that a client
+// accepted a quote by some OTHER means (a phone call, a reply email, a signed paper scan) - never by
+// the e-signature flow (`signatures/signatures.service.ts#markSigned`, which touches no archive at
+// all: the client's OTP-verified signature is its own probative record, the `Signature` row itself).
+// A SEPARATE kind was necessary, not merely tidier, for a concrete reason:
+// `archive/persistence.ts#findArchivedPdfArtifact` picks the MOST RECENT row of `kind: DELIVERY` for
+// a document to serve a cached PDF - reusing DELIVERY for a manual-acceptance manifest (a JSON
+// artifact, no `role: 'pdf'` at all) would have made THAT lookup silently pick the wrong row the
+// moment a quote was accepted after being sent, and fall back to a fresh, un-cached render for no
+// reason anyone asked for. Same WORM discipline as VERDICT above: content-hashed, stored under its
+// own `role: 'manual-acceptance'` artifact (`actions/quote-manual-acceptance.ts`), linked to the
+// DELIVERY archive it acts on via `parentArchiveId` when one exists, retention copied from it the
+// same way a VERDICT's is - see that file's own header for why "no parent yet" is tolerated instead
+// of refused (unlike VERDICT's own `'no-deposit-archive'` case): a manual acceptance must never be
+// blocked by a PRESERVATION concern about a delivery that happened earlier and is unrelated to it.
 enum DocumentArchiveKind {
   DELIVERY
   VERDICT
+  ACCEPTANCE
 }
 
 model DocumentArchive {

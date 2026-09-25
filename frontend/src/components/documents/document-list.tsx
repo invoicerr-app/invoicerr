@@ -296,6 +296,11 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           action.id !== "download-xml" &&
           action.id !== "share-link" &&
           action.id !== "cancel" &&
+          // "accept-manually" (issue #421) - same reasoning `use-document-form.ts` spells out for the
+          // detail page: it needs its own dedicated confirmation dialog (required note, an explicit
+          // "not an electronic signature" warning), which the row cluster does not offer. Marking a
+          // quote accepted is a detail-page action, not a one-click row action.
+          action.id !== "accept-manually" &&
           isActionAvailable(action, instance.status),
       )
   const primary = pickPrimaryAction(availableActions, instance.status, false)

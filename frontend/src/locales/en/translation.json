@@ -4035,7 +4035,8 @@
       "status": {
         "sent": "Awaiting your decision",
         "signed": "Accepted",
-        "refused": "Declined"
+        "refused": "Declined",
+        "accepted": "Accepted"
       },
       "columns": {
         "document": "Document",
@@ -4281,6 +4282,14 @@
           },
           "share-link": {
             "label": "Share link"
+          },
+          "accept-manually": {
+            "label": "Mark as accepted",
+            "params": {
+              "note": {
+                "label": "How did the client accept?"
+              }
+            }
           }
         },
         "statuses": {
@@ -4289,7 +4298,8 @@
           "sent": "Sent",
           "send_failed": "Send failed",
           "signed": "Signed",
-          "refused": "Refused"
+          "refused": "Refused",
+          "accepted": "Accepted"
         },
         "widgets": {
           "quote:draft": {
@@ -4950,6 +4960,23 @@
       "discard": "Discard",
       "totalsTitle": "Totals",
       "notFound": "This document could not be found."
+    },
+    "acceptance": {
+      "menuLabel": "Mark as accepted",
+      "dialogTitle": "Mark quote as accepted",
+      "dialogDescription": "Record that the client accepted this quote by some other means.",
+      "dialogWarning": "This records a MANUAL acceptance, not an electronic signature. It carries none of the OTP-signature flow's guarantees (identity verification, non-repudiation) - use it only when you have your own evidence the client actually said yes (a call, a reply email, a signed paper copy).",
+      "noteLabel": "How did the client accept?",
+      "notePlaceholder": "e.g. Accepted by phone on 2026-09-20.",
+      "noteRequired": "Describe how the client accepted before confirming.",
+      "confirm": "Mark as accepted",
+      "cancel": "Cancel",
+      "confirmedToast": "Quote marked as accepted.",
+      "sectionTitle": "Acceptance",
+      "manualLabel": "Accepted manually",
+      "manualEntry": "Marked accepted manually by {{actorName}}: \"{{note}}\"",
+      "signedLabel": "Signed electronically",
+      "signedEntry": "Signed electronically on {{date}}"
     }
   },
   "declarations": {

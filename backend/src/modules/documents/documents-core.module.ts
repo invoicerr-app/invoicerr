@@ -20,6 +20,7 @@ import { registerGoodsReceiptActions } from './actions/goods-receipt-actions';
 import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerPurchaseOrderActions } from './actions/purchase-order-actions';
 import { registerQuoteActions } from './actions/quote-actions';
+import { registerAcceptManuallyAction } from './actions/quote-manual-acceptance';
 import { registerRequestDepositAction } from './actions/request-deposit';
 import { registerRequestInstallmentsAction } from './actions/request-installments';
 import { registerRequestSignatureAction } from './actions/request-signature';
@@ -550,6 +551,9 @@ function buildActionRegistry(
   // provider of THIS module (below), the same "inject the concrete class here, never `import type`"
   // rule every other DI token on this page already follows.
   registerRequestSignatureAction(registry, signaturesService);
+  // Issue #421: "accept a quote manually" - pure function of the registry, needs no extra dependency,
+  // registers exactly like "request-deposit"/"request-installments" above.
+  registerAcceptManuallyAction(registry);
   registerInvoiceActions(registry, {
     transportRegistry,
     queueDispatcher,

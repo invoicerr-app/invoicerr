@@ -48,7 +48,7 @@ describe('PT — country-policy/data/pt.json', () => {
     }
   });
 
-  it('declares exactly the same 31 typeId::actionId pairs as the FR reference file, no duplicates', () => {
+  it('declares exactly the same 32 typeId::actionId pairs as the FR reference file, no duplicates', () => {
     const declared = pt.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
     expect(declared).toEqual(
       [
@@ -65,6 +65,10 @@ describe('PT — country-policy/data/pt.json', () => {
         // quote is a product convenience, not a legally-encumbered act, the same posture
         // 'quote::duplicate' already holds — see this rule's own resolutionNote in pt.json.
         'quote::request-signature',
+        // Issue #421 ("accept a quote manually, without the e-signature code") - same
+        // product/audit-convenience posture as 'quote::duplicate' above, see this rule's own
+        // resolutionNote in pt.json.
+        'quote::accept-manually',
         'invoice::save-draft',
         'invoice::send',
         'invoice::duplicate',
@@ -93,10 +97,10 @@ describe('PT — country-policy/data/pt.json', () => {
         'goods-receipt::delete',
       ].sort(),
     );
-    expect(new Set(declared).size).toBe(31);
+    expect(new Set(declared).size).toBe(32);
   });
 
-  it('allows every one of its 31 rules — PT never itself needs an unblock', () => {
+  it('allows every one of its 32 rules - PT never itself needs an unblock', () => {
     expect(pt.rules.filter((r) => !r.allowed)).toEqual([]);
   });
 

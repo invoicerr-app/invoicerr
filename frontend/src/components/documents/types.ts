@@ -355,6 +355,22 @@ export interface DocumentArchive {
   retentionCalcVersion: number | null
 }
 
+/**
+ * Mirrors the backend's `ManualAcceptanceManifest` (archive/persistence.ts) - issue #421's own
+ * probative record of a quote accepted by some means other than the e-signature flow. Read via
+ * `GET .../manual-acceptance`; `null` for a quote never manually accepted. Deliberately carries
+ * nothing an e-signature record would (no `signedAt`-shaped field, no token/OTP anything) - see
+ * the backend's own header on `actions/quote-manual-acceptance.ts` for why that distinction is the
+ * entire point of this type existing separately from whatever an e-signature's own view might be.
+ */
+export interface ManualAcceptance {
+  actorId: string
+  actorName: string
+  actorEmail: string
+  note: string
+  acceptedAt: string
+}
+
 /** What `POST /documents/:id/archives/:archiveId/verify` returns — mirrors the backend's
  *  `ArchiveVerificationResult`. RE-HASHES the bytes stored on disk on every call; never a cached
  *  verdict. */

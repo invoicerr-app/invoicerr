@@ -26,7 +26,9 @@ import {
   ArchiveVerificationResult,
   DocumentArchiveResult,
   findArchivedPdfArtifact,
+  findManualAcceptanceArchive,
   listDocumentArchives,
+  ManualAcceptanceManifest,
   verifyDocumentArchive,
 } from './archive/persistence';
 import {
@@ -1056,6 +1058,13 @@ export class DocumentsService implements OnModuleInit {
     payload: RunActionDto,
     role?: CompanyRole,
     isQueuedReplay = false,
+    // A THIRD, ADDITIVE trailing parameter - `undefined` for every caller that predates it (the
+    // worker's own replay included, `queue/processors/document-action.processor.ts` has no request
+    // user to name), so nothing about the gates above changes for them. `documents.controller.ts`
+    // is the only caller that passes a real value, straight off `@User()` - see ActionContext.actor's
+    // own header (actions/action-registry.ts) for why a handler must never trust a caller-supplied
+    // "who did this" instead.
+    actor?: { id: string; name: string; email: string },
   ): Promise<ActionResult> {
     const { descriptor, action } = this.resolveAction(typeId, actionId);
 
@@ -1301,9 +1310,10 @@ export class DocumentsService implements OnModuleInit {
       documentId: payload.documentId,
       data,
       params: payload.params ?? {},
-      // Already computed above for the availableWhen/country-policy gates — see ActionContext's own
+      // Already computed above for the availableWhen/country-policy gates - see ActionContext's own
       // comment on why this is handed through rather than re-fetched a second time.
       currentStatus,
+      actor,
     });
 
     // See this method's own header comment on `checkTransitionResult` — a handler is no longer free
@@ -1827,6 +1837,23 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<DocumentAuthorityEventResult[]> {
     await findOwnedDocument(companyId, typeId, id);
     return listAuthorityEvents(companyId, id);
+  }
+
+  /**
+   * "GET .../manual-acceptance" - issue #421. The manual-acceptance manifest actually archived for
+   * this document (`archive/persistence.ts#findManualAcceptanceArchive`), or `null` for a document
+   * that was never manually accepted - never derived from `status === 'accepted'` alone, which would
+   * only prove the STATUS moved, not that the probative record behind it can still be read back.
+   * `findOwnedDocument` first, the same tenant/existence check every other per-document read here
+   * already runs.
+   */
+  async getManualAcceptance(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<ManualAcceptanceManifest | null> {
+    await findOwnedDocument(companyId, typeId, id);
+    return findManualAcceptanceArchive(companyId, id);
   }
 
   /**
