@@ -36,7 +36,7 @@ import { type IdentifierRequirement, useRequiredIdentifiers } from "@/hooks/use-
 import { type B2gRoutingRule, useB2gRoutingRule } from "@/hooks/use-b2g-routing"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { z } from "zod"
+import type { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { FormSection } from "../../_shared/form-dialog"
@@ -47,7 +47,7 @@ import {
   stepForField,
 } from "@/components/ui/stepped-dialog"
 import { ClientPortalAccessDialog } from "./client-portal-access"
-import { isValidPostalCode } from "./postal-code"
+import { buildClientSchema } from "@/lib/client-schema"
 
 interface ClientUpsertProps {
   client?: Client | null
@@ -935,139 +935,15 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   const requiredIdentifiersRef = useRef<IdentifierRequirement[]>([])
   const originalIdentifierValuesRef = useRef<Map<string, string>>(new Map())
 
-  const clientSchema = z
-    .object({
-      type: z.enum(["INDIVIDUAL", "COMPANY"]),
-      // B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to
-      // this client must use, per its own country (see the B2G hint panel on the Fiscalité step).
-      kind: z.enum(["BUSINESS", "GOVERNMENT"]),
-      // The received-invoice reconciliation's own role, a PLAIN boolean
-      // independent from "kind" above (see backend Client.isSupplier's own schema comment for why).
-      isSupplier: z.boolean().optional(),
-      name: z.string().optional(),
-      description: z.string().max(500, t("clients.upsert.validation.description.maxLength")).optional(),
-      currency: z.string().nullable().optional(),
-      foundedAt: z
-        .date()
-        .optional()
-        .refine((date) => !date || date <= new Date(), t("clients.upsert.validation.foundedAt.future")),
-      contactFirstname: z.string().optional(),
-      contactLastname: z.string().optional(),
-      contactPhone: z
-        .string()
-        .optional()
-        .refine((val) => {
-          if (!val) return true
-          return /^[+]?[0-9\s\-()]{8,20}$/.test(val)
-        }, t("clients.upsert.validation.contactPhone.format")),
-      // Optional — only required where it is actually USED (sending a document by email, the portal
-      // invite, dunning reminders); each of those refuses/skips cleanly with its own explicit message
-      // rather than silently guessing an address (see the backend's `email-transport.ts`,
-      // `portal-tokens.service.ts`, `reminder-sweep-runner.ts`). A blank value is accepted outright;
-      // a NON-blank one is still checked for shape, so a typo does not silently save an unusable
-      // address.
-      contactEmail: z
-        .string()
-        .optional()
-        .refine((val) => {
-          if (!val) return true
-          return z.string().email().safeParse(val).success
-        }, t("clients.upsert.validation.contactEmail.format")),
-      address: z.string().min(1, t("clients.upsert.validation.address.required")),
-      addressLine2: z.string().optional(),
-      postalCode: z
-        .string()
-        .refine((val) => isValidPostalCode(val), t("clients.upsert.validation.postalCode.format")),
-      city: z.string().min(1, t("clients.upsert.validation.city.required")),
-      state: z.string().optional(),
-      country: z.string().min(1, t("clients.upsert.validation.country.required")),
-      countryCode: z.string().optional(),
-      // The client's own document language. `null`/unset falls back to
-      // the company's own default, then to English (see DocumentLanguageSelect's own header).
-      language: z.string().nullable().optional(),
-      identifiers: z.array(z.object({ scheme: z.string(), value: z.string() })).optional(),
-      // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
-      peppolSchemeId: z.string().optional(),
-      peppolEndpointId: z.string().optional(),
-      // This company's custom fields — one company-defined CLIENT-target field
-      // per key (the backend's own `assertClientCustomFieldValuesValid` is the actual authority on
-      // required-ness/shape; this schema only needs to let the value through, whatever kind it is).
-      customFields: z.record(z.string(), z.unknown()).optional(),
-    })
-    .superRefine((val, ctx) => {
-      if (val.type === "INDIVIDUAL") {
-        if (!val.contactFirstname || val.contactFirstname.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["contactFirstname"],
-            message:
-              t("clients.upsert.validation.contactFirstname.required") ||
-              "First name is required for individuals",
-          })
-        }
-        if (!val.contactLastname || val.contactLastname.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["contactLastname"],
-            message:
-              t("clients.upsert.validation.contactLastname.required") ||
-              "Last name is required for individuals",
-          })
-        }
-      } else {
-        if (!val.name || val.name.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["name"],
-            message: t("clients.upsert.validation.name.required"),
-          })
-        }
-      }
-
-      // Country-specific identifiers (country-identifiers/ + a GOVERNMENT client's own B2G rule) —
-      // lives IN the schema (rather than a hand-rolled check in `onSubmit`, the pre-wizard shape) so
-      // the Fiscalité step's own "Continue" click (its `fields` list includes "identifiers", see the
-      // `steps` construction below) blocks THERE, with the error next to the actual input, instead of
-      // only surfacing once the wizard reaches the read-only Summary step, where nothing renders it.
-      for (const req of requiredIdentifiersRef.current) {
-        const idx = (val.identifiers ?? []).findIndex((i) => i.scheme === req.scheme)
-        const value = idx >= 0 ? val.identifiers?.[idx]?.value : undefined
-        if (req.required && (!value || value.trim() === "")) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: idx >= 0 ? ["identifiers", idx, "value"] : ["identifiers"],
-            message: `${req.label} is required`,
-          })
-          continue
-        }
-        // A same-origin, best-effort ECHO of the server's own pattern gate — never the enforcement
-        // itself (that only exists server-side, in country-identifiers/validate-identifier-value.ts).
-        // VAT is skipped here for the exact reason it is skipped there: `tax/vat-syntax.ts` owns VAT
-        // syntax exclusively, and a DE-shaped `pattern` on this same catalog entry must never be
-        // second-guessed by a weaker client-side regex. An unchanged legacy value is never
-        // re-validated either — the client-side twin of that same server rule.
-        if (!req.pattern || req.scheme === "VAT") continue
-        if (!value || value.trim() === "") continue
-        if (value === originalIdentifierValuesRef.current.get(req.scheme)) continue
-        let matches = true
-        try {
-          matches = new RegExp(req.pattern).test(value)
-        } catch {
-          matches = true // a malformed pattern never blocks here — the server is the real gate
-        }
-        if (!matches) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["identifiers", idx, "value"],
-            message: t(
-              "clients.upsert.validation.identifiers.patternMismatch",
-              "{{label}} format is invalid",
-              { label: req.label },
-            ),
-          })
-        }
-      }
-    })
+  // The validation rules used to be built inline here; now extracted to `client-schema.ts` so the
+  // CSV import's per-row validation (`csv-import/client-rows.ts`) calls the exact same builder
+  // instead of a hand-copied twin that could silently drift. Behavior is unchanged (same fields,
+  // same superRefine rules, same messages) - see `client-upsert.spec.tsx`, still green.
+  const clientSchema = buildClientSchema(
+    t,
+    requiredIdentifiersRef.current,
+    originalIdentifierValuesRef.current,
+  )
 
   const form = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),

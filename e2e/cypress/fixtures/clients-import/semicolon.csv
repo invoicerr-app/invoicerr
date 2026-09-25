@@ -1,0 +1,2 @@
+type;kind;isSupplier;name;contactFirstname;contactLastname;contactEmail;contactPhone;address;addressLine2;postalCode;city;state;country;countryCode;currency;language;description;foundedAt;identifier:LEGAL_ID;identifier:VAT
+COMPANY;BUSINESS;false;Semicolon Import Co;;;semicolon@example.com;+33100000002;3 Rue Test;;75003;Paris;;France;FR;EUR;fr;;2015-01-01;552100554;FR12345678901

@@ -24,6 +24,7 @@ import {
 import { ClientBadges } from "./_components/client-badges"
 import { ClientDeleteDialog } from "./_components/client-delete"
 import { clientDisplayName } from "./_components/client-display"
+import { ClientImportDialog } from "./_components/client-import-dialog"
 import { ClientPortalAccessDialog } from "./_components/client-portal-access"
 import { ClientStatementDialog } from "./_components/client-statement"
 import { ClientUpsert } from "./_components/client-upsert"
@@ -289,15 +290,17 @@ export default function Clients() {
               dataCy="clients-search"
               className="flex-1 sm:max-w-xs"
             />
-            <Button
-              onClick={() => setCreateClientDialog(true)}
-              aria-label={t("clients.actions.addNew")}
-              className="ml-auto"
-              dataCy="client-add-button"
-            >
-              <Plus aria-hidden="true" />
-              <span className="hidden md:inline">{t("clients.actions.addNew")}</span>
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <ClientImportDialog />
+              <Button
+                onClick={() => setCreateClientDialog(true)}
+                aria-label={t("clients.actions.addNew")}
+                dataCy="client-add-button"
+              >
+                <Plus aria-hidden="true" />
+                <span className="hidden md:inline">{t("clients.actions.addNew")}</span>
+              </Button>
+            </div>
           </div>
 
           {isLoading && <FilterChipSkeleton />}

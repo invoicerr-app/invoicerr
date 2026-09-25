@@ -51,6 +51,7 @@ import { validateVat } from '../documents/tax/vat-syntax';
 import { assertIdentifierValueMatchesPattern } from '../documents/country-identifiers/validate-identifier-value';
 import { assertClientCustomFieldValuesValid } from '../documents/company-custom-fields/persistence';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
+import { assertClientCreatable } from './client-validation';
 
 @Injectable()
 export class ClientsService {
@@ -318,41 +319,23 @@ export class ClientsService {
 
     if (type === 'INDIVIDUAL') {
       data.name = ``;
-      if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
-        logger.error('First name is required for individual clients', { category: 'client' });
-        throw new BadRequestException('First name is required for individual clients');
-      }
-      if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
-        logger.error('Last name is required for individual clients', { category: 'client' });
-        throw new BadRequestException('Last name is required for individual clients');
-      }
     } else {
       data.contactFirstname = undefined;
       data.contactLastname = undefined;
-      if (!data.name || (data.name as string).trim() === '') {
-        logger.error('Company name is required for company clients', { category: 'client' });
-        throw new BadRequestException('Company name is required for company clients');
-      }
     }
 
-    // Checked BEFORE the client row itself is created: `upsertPartyIdentifiers` cannot run first (it
-    // needs a `clientId` that does not exist yet), and letting a bad identifier surface only after
-    // create would leave an orphan client behind — a resubmit after fixing it would then duplicate
-    // the record rather than complete it.
-    if (identifiers) {
-      for (const entry of identifiers) {
-        await assertIdentifierValueMatchesPattern({
-          countryCode: data.countryCode ?? data.country,
-          scheme: entry.scheme,
-          value: entry.value,
-        });
-      }
+    // Name/type, identifier-pattern and custom-field checks - extracted to `client-validation.ts` so
+    // the CSV import's preview endpoint runs the IDENTICAL checks per row instead of a second,
+    // hand-rolled copy that could silently drift. Checked BEFORE the client row itself is created:
+    // `upsertPartyIdentifiers` cannot run first (it needs a `clientId` that does not exist yet), and
+    // letting a bad identifier or custom field surface only after create would leave an orphan client
+    // behind - a resubmit after fixing it would then duplicate the record rather than complete it.
+    try {
+      await assertClientCreatable(companyId, data, identifiers, data.countryCode ?? data.country);
+    } catch (error) {
+      logger.error('Client rejected by pre-create checks', { category: 'client', details: { error } });
+      throw error;
     }
-
-    // Custom fields — checked BEFORE create for the same reason
-    // the identifier pattern check just above is: a client row with an invalid custom field value on
-    // file, however briefly, is worse than refusing the write outright.
-    await assertClientCustomFieldValuesValid(companyId, data.customFields as Record<string, unknown>);
 
     const newClient = await prisma.client.create({ data: { ...data, companyId } });
 

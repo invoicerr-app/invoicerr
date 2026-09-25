@@ -11,6 +11,50 @@
     "actions": {
       "addNew": "Add New Client"
     },
+    "import": {
+      "button": "Import CSV",
+      "title": "Import clients from CSV",
+      "description": "Download the template, fill it in, then upload it here. Nothing is created until you confirm.",
+      "downloadTemplate": "Download template",
+      "dropHint": "Click to choose a CSV file",
+      "confirm": "Import {{count}} client",
+      "confirm_other": "Import {{count}} clients",
+      "summary": {
+        "willCreate": "{{count}} to create",
+        "duplicates": "{{count}} duplicate",
+        "duplicates_other": "{{count}} duplicates",
+        "rejected": "{{count}} rejected"
+      },
+      "preview": {
+        "row": "Row",
+        "name": "Name",
+        "status": "Status",
+        "detail": "Detail",
+        "duplicateOfFileEmail": "Same email as row {{row}} of this file",
+        "duplicateOfFileNameCountry": "Same name and country as row {{row}} of this file",
+        "duplicateOfExistingEmail": "Same email as existing client \"{{name}}\"",
+        "duplicateOfExistingNameCountry": "Same name and country as existing client \"{{name}}\""
+      },
+      "status": {
+        "valid": "Will be created",
+        "duplicate": "Duplicate",
+        "rejected": "Rejected"
+      },
+      "result": {
+        "created": "Created",
+        "duplicates": "Skipped as duplicates",
+        "rejected": "Rejected"
+      },
+      "errors": {
+        "templateDownload": "Failed to download the template",
+        "fileTooLarge": "This file is over the {{maxKb}} KB limit a single import can process",
+        "tooManyRows": "This file has {{count}} rows, over the {{max}}-row limit a single import can process",
+        "empty": "This file has no data rows to import",
+        "parseFailed": "Could not read this file",
+        "previewFailed": "Could not preview this import",
+        "confirmFailed": "Could not complete this import"
+      }
+    },
     "stats": {
       "active": "Active",
       "inactive": "Inactive",
