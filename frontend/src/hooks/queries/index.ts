@@ -5,7 +5,13 @@ export {
   useClientSearch,
   useClientStatement,
   useClientDuplicates,
+  useImportClientsPreview,
+  useImportClientsConfirm,
   type ClientsListResponse,
+  type ClientImportRowResultWire,
+  type ClientImportDuplicateMatchWire,
+  type ClientImportPreviewResponse,
+  type ClientImportConfirmResponse,
 } from "./use-clients"
 export { useCompany } from "./use-company"
 export { useCompanies } from "./use-companies"
