@@ -12,7 +12,9 @@ import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/hooks/use-api-query"
+import { formatTotal } from "@/components/documents/document-totals"
 import {
+  type PublicSignatureOptionTotal,
   usePublicSignature,
   usePublicSignatureDocument,
   useRequestPublicSignatureOtp,
@@ -145,6 +147,53 @@ function DocumentPreview({
 }
 
 /**
+ * Issue #373 ("quotes with options") - the required radio choice between a quote's own 2+ options,
+ * each with its OWN total (never a global one, see the backend's own `PublicSignatureView.options`
+ * header). Rendered nothing at all for `options === null` (fewer than two, or a document type other
+ * than "quote") - the ordinary single-total review this page always showed, byte-for-byte.
+ */
+function SignatureOptionChooser({
+  options,
+  value,
+  onChange,
+}: {
+  options: PublicSignatureOptionTotal[]
+  value: string | undefined
+  onChange: (value: string) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-2 rounded-lg border p-3" data-cy="signature-option-chooser">
+      <p className="text-sm font-medium">{t("documents.publicSignature.chooseOptionLabel")}</p>
+      <div className="space-y-2">
+        {options.map((option) => (
+          <label
+            key={option.name}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-md border p-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+            data-cy="signature-option-item"
+          >
+            <span className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="signature-option"
+                value={option.name}
+                checked={value === option.name}
+                onChange={() => onChange(option.name)}
+                data-cy="signature-option-radio"
+              />
+              {option.name}
+            </span>
+            <span className="amount font-medium" data-cy="signature-option-total">
+              {formatTotal(option.grossMinor, option.currency || "")}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
  * The public `/signature/:token` page: an anonymous client opens the
  * emailed link, reviews the document, asks for a verification code, and submits it. No
  * `@ActiveCompany()`, no session, no sidebar (this route is one of `(app)/_layout.tsx`'s own
@@ -180,6 +229,10 @@ export default function PublicSignaturePage() {
   // confirmation before a signature is sealed, and sealing is exactly the one step in this whole flow
   // that cannot be walked back (no "unsign"). This state gates that second, deliberate step.
   const [confirmSignOpen, setConfirmSignOpen] = useState(false)
+  // Issue #373 ("quotes with options") - required once `view.options` carries 2+ entries, ignored
+  // (stays undefined, never sent) otherwise - see `SignatureOptionChooser`'s own header.
+  const [chosenOption, setChosenOption] = useState<string | undefined>(undefined)
+  const needsOptionChoice = (view?.options?.length ?? 0) >= 2
 
   // Fetched as soon as the request resolves — not gated on the Review step still being the current
   // one — so the SAME "render once, freeze, serve forever" artifact the backend promises
@@ -214,7 +267,7 @@ export default function PublicSignaturePage() {
   const handleSign = () => {
     setSignError(null)
     sign.mutate(
-      { code },
+      { code, ...(chosenOption ? { option: chosenOption } : {}) },
       {
         // No `setConfirmSignOpen(false)` here: a success swaps the whole page to the "signed" branch
         // below (`signedAt` becomes truthy), which unmounts this dialog along with everything else in
@@ -334,6 +387,14 @@ export default function PublicSignaturePage() {
                 </div>
               )}
 
+              {needsOptionChoice && view.options && (
+                <SignatureOptionChooser
+                  options={view.options}
+                  value={chosenOption}
+                  onChange={setChosenOption}
+                />
+              )}
+
               <div className="mx-auto flex max-w-sm items-start gap-2 text-left">
                 <Checkbox
                   id="signature-confirm-read"
@@ -354,7 +415,7 @@ export default function PublicSignaturePage() {
               <Button
                 type="button"
                 className="mx-auto block w-full max-w-sm"
-                disabled={!hasReadDocument}
+                disabled={!hasReadDocument || (needsOptionChoice && !chosenOption)}
                 loading={requestOtp.isPending}
                 onClick={handleRequestOtp}
                 dataCy="signature-request-otp-button"

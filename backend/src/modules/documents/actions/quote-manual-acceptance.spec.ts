@@ -45,6 +45,17 @@ function updatedQuote(overrides: Partial<Record<string, unknown>> = {}) {
 describe('accept-manually (issue #421)', () => {
   afterEach(() => vi.resetAllMocks());
 
+  // Issue #373 ("quotes with options") - `resolveChosenOption` reads the quote's own CURRENT `data`
+  // off `findOwnedDocument`, never the request's own echo of it - a default fixture with no `option`
+  // tags on any line (the overwhelming majority case, unchanged by this feature) so every
+  // pre-existing test here keeps passing without knowing this handler now makes that extra read; the
+  // option-specific tests below override it with a genuinely multi-option quote.
+  beforeEach(() => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(
+      updatedQuote({ status: 'sent', data: { client: 'client-1', lines: [{ description: 'Line' }] } }),
+    );
+  });
+
   it('transitions "sent" -> "accepted" via a compare-and-swap scoped to "sent", never "signed"', async () => {
     (persistence.updateDocumentStatus as Mock).mockResolvedValue(updatedQuote());
     const handler = buildRegistry().resolve('quote', 'accept-manually')!;
@@ -59,6 +70,8 @@ describe('accept-manually (issue #421)', () => {
       actor: ACTOR,
     });
 
+    // Issue #373 - the trailing `undefined` is `chosenOption`: this fixture's quote has fewer than
+    // two options, so `resolveChosenOption` resolves to `undefined` and nothing is written for it.
     expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
       'company-1',
       'quote',
@@ -68,10 +81,103 @@ describe('accept-manually (issue #421)', () => {
       undefined,
       undefined,
       ['sent'],
+      undefined,
     );
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ status: 'accepted' });
     expect(result.message).toContain('accepted manually');
+  });
+
+  describe('issue #373 - a quote offering 2+ options', () => {
+    function multiOptionQuote(status = 'sent') {
+      return updatedQuote({
+        status,
+        data: {
+          client: 'client-1',
+          lines: [
+            { description: 'Basic line', unitPrice: 100, quantity: 1, option: 'Basic' },
+            { description: 'Premium line', unitPrice: 200, quantity: 1, option: 'Premium' },
+          ],
+        },
+      });
+    }
+
+    it('refuses with no option named at all', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(multiOptionQuote());
+      const handler = buildRegistry().resolve('quote', 'accept-manually')!;
+
+      await expect(
+        handler({
+          companyId: 'company-1',
+          typeId: 'quote',
+          documentId: 'quote-1',
+          data: {},
+          params: { note: 'Accepted by phone.' },
+          currentStatus: 'sent',
+          actor: ACTOR,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it("refuses an option that does not name one of the quote's own options", async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(multiOptionQuote());
+      const handler = buildRegistry().resolve('quote', 'accept-manually')!;
+
+      await expect(
+        handler({
+          companyId: 'company-1',
+          typeId: 'quote',
+          documentId: 'quote-1',
+          data: {},
+          params: { note: 'Accepted by phone.', option: 'Deluxe' },
+          currentStatus: 'sent',
+          actor: ACTOR,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it('records the chosen option on the SAME compare-and-swap write, and in the archive manifest', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(multiOptionQuote());
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(
+        updatedQuote({ acceptedOption: 'Premium' }),
+      );
+      (archivePersistence.createManualAcceptanceArchive as Mock).mockResolvedValue({ id: 'archive-1' });
+      const handler = buildRegistry().resolve('quote', 'accept-manually')!;
+
+      const result = await handler({
+        companyId: 'company-1',
+        typeId: 'quote',
+        documentId: 'quote-1',
+        data: {},
+        params: { note: 'Accepted by phone.', option: 'Premium' },
+        currentStatus: 'sent',
+        actor: ACTOR,
+      });
+
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'quote-1',
+        'accepted',
+        null,
+        undefined,
+        undefined,
+        ['sent'],
+        'Premium',
+      );
+      expect(result.message).toContain('Premium');
+
+      const call = (archivePersistence.createManualAcceptanceArchive as Mock).mock.calls[0][0];
+      const manifest = JSON.parse(Buffer.from(call.manifest).toString('utf8'));
+      expect(manifest.option).toMatchObject({
+        name: 'Premium',
+        netMinor: 20000,
+        grossMinor: 20000,
+        lines: [{ description: 'Premium line' }],
+      });
+    });
   });
 
   it('trims the note and rejects an empty one - required, non-empty', async () => {

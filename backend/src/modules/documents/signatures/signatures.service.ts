@@ -30,6 +30,7 @@ import {
 import { persistArtifacts, readArchivedArtifact } from '../archive/storage';
 import { DocumentsService } from '../documents.service';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
+import { computeQuoteOptionTotals, deriveQuoteOptions, resolveChosenOption } from '../options/quote-options';
 import {
   buildDocumentWebhookPayload,
   DOCUMENT_WEBHOOK_EMITTER,
@@ -96,6 +97,18 @@ export interface PublicSignatureView {
    *  never-really-exercised fallback); "request-signature" is only ever available once a quote is
    *  "sent", by which point it is always numbered (quote.descriptor.ts's own `numbering.onEnterStatus`). */
   displayNumber: string | null;
+  /**
+   * Issue #373 ("quotes with options") - this quote's own 2+ options and each one's OWN total, so the
+   * signer can actually see what they are choosing between before picking one; null for a quote with
+   * fewer than two options (nothing to choose, the ordinary single-total case this page shows exactly
+   * as before this feature existed). Computed fresh off the LIVE document data on every resolve - the
+   * data itself is not frozen the way the reviewed PDF is (a "sent" quote stays editable, see
+   * quote.descriptor.ts's own `lockedStatuses` header), only the PDF snapshot and, once signed, the
+   * choice itself are.
+   */
+  options:
+    | { name: string; currency: string | null; netMinor: number; vatMinor: number; grossMinor: number }[]
+    | null;
 }
 
 export interface PublicSignatureDocument {
@@ -206,7 +219,20 @@ export class SignaturesService {
   async resolvePublicSignature(token: string): Promise<PublicSignatureView> {
     const row = await this.resolveActiveOrThrow(token);
     const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId).catch(() => null);
-    return { typeId: row.typeId, displayNumber: document?.displayNumber ?? null };
+    const data = (document?.data ?? {}) as Record<string, unknown>;
+    const perOption = computeQuoteOptionTotals(data);
+    return {
+      typeId: row.typeId,
+      displayNumber: document?.displayNumber ?? null,
+      options:
+        perOption?.map((entry) => ({
+          name: entry.option,
+          currency: entry.totals.currency,
+          netMinor: entry.totals.netMinor,
+          vatMinor: entry.totals.vatMinor,
+          grossMinor: entry.totals.grossMinor,
+        })) ?? null,
+    };
   }
 
   /**
@@ -304,7 +330,11 @@ export class SignaturesService {
    * `otpCodeMatches` at all (no digest comparison is even meaningful against a hash that no longer
    * represents "the current, live challenge").
    */
-  async verifyAndSign(token: string, submittedCode: string): Promise<{ message: string; signedAt: string }> {
+  async verifyAndSign(
+    token: string,
+    submittedCode: string,
+    option?: string,
+  ): Promise<{ message: string; signedAt: string }> {
     const row = await this.resolveActiveOrThrow(token);
 
     const codeIsLive = !!row.otpCodeHash && !!row.otpExpiresAt && row.otpExpiresAt.getTime() > Date.now();
@@ -321,10 +351,18 @@ export class SignaturesService {
       throw new BadRequestException(GENERIC_BLOCK_MESSAGE);
     }
 
+    // Issue #373 ("quotes with options") - the OTP itself never fails on a bad option choice (that
+    // would leak a distinguishable outcome through the deliberately-generic OTP failure path, exactly
+    // the oracle this class's own header warns against); the choice is validated separately, AFTER the
+    // code has already proven this caller genuinely holds the signing right, against the document's
+    // own CURRENT options (see `markSigned`) - `resolveChosenOption` throws a plain, named 400 here, never the generic
+    // block message, because "wrong/missing option" is not a brute-forceable secret the way the OTP
+    // code is.
+    //
     // `signedAt` is the persisted timestamp (`markSignatureSigned`'s own write), echoed back so the
     // public page can show the client WHEN their signature was recorded — the same instant the
     // signature row carries, never a clock the browser read for itself.
-    const signedAt = await this.markSigned(row);
+    const signedAt = await this.markSigned(row, option);
     return { message: 'Document signed.', signedAt: signedAt.toISOString() };
   }
 
@@ -354,7 +392,7 @@ export class SignaturesService {
    * in the meantime) with a 409, the same status-conflict vocabulary every other action in this module
    * already uses for the identical shape of problem.
    */
-  private async markSigned(row: SignatureRecord): Promise<Date> {
+  private async markSigned(row: SignatureRecord, option?: string): Promise<Date> {
     const current = await findOwnedDocument(row.companyId, row.typeId, row.documentId);
     if (current.status !== 'sent') {
       throw new ConflictException(
@@ -362,8 +400,34 @@ export class SignaturesService {
       );
     }
 
-    const updated = await updateDocumentStatus(row.companyId, row.typeId, row.documentId, 'signed');
-    const signed = await markSignatureSigned(row.id);
+    // Issue #373 ("quotes with options") - validated against the document's CURRENT options (the same
+    // live `data` `resolvePublicSignature` reads and lists, re-read here rather than trusted from an
+    // earlier response the client could have held onto across an edit). NOT the frozen preview PDF:
+    // a "sent" quote stays editable until it is signed or accepted (quote.descriptor.ts's
+    // `lockedStatuses`), so an edit made after the signature request can make the page's option list
+    // differ from the PDF the signer reviewed. That gap predates this feature (the lines themselves
+    // already had it); an option name that no longer exists is refused here rather than guessed. `undefined` for every
+    // document type other than "quote", and for a quote with fewer than two options - see
+    // `resolveChosenOption`'s own header.
+    const currentData = (current.data ?? {}) as Record<string, unknown>;
+    const options = deriveQuoteOptions(currentData);
+    const chosenOption = resolveChosenOption(options, option);
+
+    // `chosenOption` travels in the SAME compare-and-swap as the status write - see
+    // `updateDocumentStatus`'s own header on why this must never be a second, separate write.
+    const updated = await updateDocumentStatus(
+      row.companyId,
+      row.typeId,
+      row.documentId,
+      'signed',
+      null,
+      undefined,
+      undefined,
+      undefined,
+      chosenOption,
+    );
+    // The archive-side twin of the SAME fact - see `Signature.chosenOption`'s own schema comment.
+    const signed = await markSignatureSigned(row.id, chosenOption);
 
     try {
       await this.webhooks.dispatch(

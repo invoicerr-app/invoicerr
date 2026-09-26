@@ -145,6 +145,8 @@ export async function sendDocumentInstanceEmail(
     companyName: rendered.companyName,
     totals: rendered.totals,
     referenceLabels: rendered.referenceLabels,
+    // Issue #373 ("quotes with options") - see `buildEmailTemplateParts`'s own `multipleOptions` header.
+    multipleOptions: rendered.hasMultipleOptions,
   });
   const { subject, body: renderedBody, html: renderedHtml, warnings } = renderEmailTemplate(template, parts);
 

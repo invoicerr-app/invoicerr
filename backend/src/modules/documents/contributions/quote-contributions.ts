@@ -10,6 +10,7 @@ import {
   listRecentDocuments,
 } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
+import { deriveQuoteOptions } from '../options/quote-options';
 import { fromMinor } from '@/utils/financial';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { MetricWidget, MetricWidgetLink, ShortListWidget, TableWidget, Widget } from './widgets';
@@ -68,7 +69,14 @@ function restrictToPeriod(
  * Never used to aggregate ACROSS documents — see buildQuoteDashboardWidgets' own comment for why
  * counting, not summing, stays the rule the moment more than one document/currency is involved.
  */
-function quoteGrossTotal(data: Record<string, unknown>): { amount: number; currency: string } {
+function quoteGrossTotal(data: Record<string, unknown>): { amount: number | null; currency: string } {
+  // Issue #373 ("quotes with options") - a quote offering 2+ options has no single gross to report
+  // here: `computeDocumentTotals` over its WHOLE `lines` array would silently sum every option
+  // together, exactly the meaningless number this issue exists to stop printing (this audit's own
+  // finding - see this function's own caller below for how `null` is shown instead).
+  if (deriveQuoteOptions(data).length >= 2) {
+    return { amount: null, currency: '' };
+  }
   const totals = computeDocumentTotals(QUOTE_DESCRIPTOR, data);
   const currency = totals.currency ?? '';
   // fromMinor needs SOME currency to pick a decimal count; an unresolved currency (totals.currency
@@ -194,7 +202,10 @@ export const buildQuoteStatisticsWidgets: ContributionHandler = async ({ company
       dueDate: typeof data.dueDate === 'string' ? data.dueDate : '',
       status: quote.status,
       currency,
-      total: Number(amount.toFixed(2)),
+      // Issue #373 ("quotes with options") - `amount === null` is `quoteGrossTotal`'s own "2+
+      // options, no single total exists" case; a plain, honest string in its place rather than the
+      // sum it would otherwise be tempted to print.
+      total: amount === null ? `${deriveQuoteOptions(data).length} options` : Number(amount.toFixed(2)),
     };
   });
 

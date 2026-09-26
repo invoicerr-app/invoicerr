@@ -322,6 +322,22 @@ export interface DocumentFieldDescriptor {
    * this hint did.
    */
   hideWhenEmpty?: boolean;
+  /**
+   * 'text' only, and only inside an 'array' row's own `fields` (never a top-level field - there are
+   * no "sibling rows" to suggest from outside one): opts THIS row subfield into a plain HTML5
+   * `<datalist>` of values already typed for the SAME subfield on OTHER rows of the SAME array - see
+   * `field-renderers/primitive-fields.tsx#useOptionSuggestions`, the only place that reads this hint.
+   * Deliberately an explicit opt-in, never inferred from "any 'text' subfield inside an array": the
+   * mechanism itself is generic (any array, any 'text' subfield), but the UX change it makes is
+   * real and unrequested on a type that never asked for it - an invoice's own `description` line
+   * would start suggesting every OTHER line's designation mid-typing, which nobody asked this issue
+   * for. Set ONLY on the quote's own `option` line subfield today (issue #373, "quotes with
+   * options") - a company typing "Basic" on one line and "Basic" again on another is exactly the
+   * repetition this hint exists to make less tedious; a quote's own `description` field does NOT set
+   * it, on purpose, even though the mechanism would work for it identically. Absent/false: no
+   * datalist at all, byte-for-byte the render this field always had.
+   */
+  suggestSiblingValues?: true;
   /** 'select': the choices offered. */
   options?: { value: string; label: string }[];
   /**

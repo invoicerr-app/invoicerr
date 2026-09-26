@@ -127,6 +127,14 @@ export async function upsertDocument(
  * `fromStatuses`, when given, is the SAME compare-and-swap `upsertDocument` above now supports (see
  * its own doc comment) — `undefined` (every caller not yet updated to pass its own expected status)
  * stays byte-for-byte the previous, unconditional `update`.
+ *
+ * `acceptedOption`, when given, is written on this SAME call - see `DocumentInstance.acceptedOption`'s
+ * own schema comment: issue #373 ("quotes with options") needs the CHOSEN option recorded in the exact
+ * same compare-and-swap as the status write that accepts the quote (both `signatures.service.ts
+ * #markSigned` and `actions/quote-manual-acceptance.ts` pass it here), never a second, separate write
+ * that could land after a concurrent caller has already moved the record on. `undefined` (every
+ * caller that never accepts a quote at all) leaves the column untouched, exactly like `transportRef`/
+ * `channelProviderId` above.
  */
 export async function updateDocumentStatus(
   companyId: string,
@@ -137,6 +145,7 @@ export async function updateDocumentStatus(
   transportRef?: string,
   channelProviderId?: string,
   fromStatuses?: string[],
+  acceptedOption?: string,
 ): Promise<DocumentInstanceResult> {
   await findOwnedDocument(companyId, typeId, id);
   const data: Prisma.DocumentInstanceUpdateManyMutationInput = {
@@ -144,6 +153,7 @@ export async function updateDocumentStatus(
     lastActionError,
     ...(transportRef !== undefined ? { transportRef } : {}),
     ...(channelProviderId !== undefined ? { channelProviderId } : {}),
+    ...(acceptedOption !== undefined ? { acceptedOption } : {}),
   };
   if (fromStatuses === undefined) {
     return prisma.documentInstance.update({ where: { id }, data });

@@ -115,7 +115,11 @@ export class PublicSignaturesController {
   async sign(
     @Param('token') token: string,
     @Body('code') code: string,
+    // Issue #373 ("quotes with options") - which option the signer chose, required only once the
+    // frozen document itself offers 2+ of them (`SignaturesService.markSigned`'s own
+    // `resolveChosenOption` call is what actually enforces that, not this controller).
+    @Body('option') option?: string,
   ): Promise<{ message: string; signedAt: string }> {
-    return this.signaturesService.verifyAndSign(token, code);
+    return this.signaturesService.verifyAndSign(token, code, option);
   }
 }

@@ -14,6 +14,7 @@ import {
   UnresolvedInvoiceNotePlaceholderError,
 } from '../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../mentions/registry';
+import { computeCommonLineTotals, computeQuoteOptionTotals } from '../options/quote-options';
 import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
 import { PaymentMethodPresentation } from '../payment-methods/types';
 import { EntityReferenceRegistry } from '../references/reference-registry';
@@ -243,6 +244,12 @@ export interface RenderedDocumentInstance {
    *  was just rendered in for the accompanying email's own default template — see
    *  `language/resolve-recipient-language.ts`. Computed once, here, never twice. */
   language: RenderLanguage;
+  /**
+   * Issue #373 ("quotes with options") - whether THIS document offers 2+ options, i.e. whether
+   * `totals` right above is a MEANINGLESS sum a caller must not print as "the total". REUSED by the
+   * send path (`actions/send-document-email.ts`) to keep its own `{totalGross}` placeholder honest -    * see `email-template.ts#buildEmailTemplateParts`'s own `multipleOptions` param.
+   */
+  hasMultipleOptions: boolean;
   /** REUSED by the send path the exact same way `totals`/`referenceLabels`/`companyName` already are
    *  — the SAME "Payment methods" presentations just printed on the PDF, appended to the covering
    *  email (`actions/send-document-email.ts`) so the two never disagree about which methods a company
@@ -277,7 +284,10 @@ export async function renderDocumentInstance(
   deps: RenderDocumentInstanceDeps,
   companyId: string,
   descriptor: DocumentTypeDescriptor,
-  instance: Pick<DocumentInstanceResult, 'id' | 'status' | 'data' | 'createdAt' | 'displayNumber' | 'atcud'>,
+  instance: Pick<
+    DocumentInstanceResult,
+    'id' | 'status' | 'data' | 'createdAt' | 'displayNumber' | 'atcud' | 'acceptedOption'
+  >,
 ): Promise<RenderedDocumentInstance> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -349,6 +359,18 @@ export async function renderDocumentInstance(
   // the redundant VAT row on THIS PDF (draft preview or final) without waiting for that resolution,
   // and without touching a single net/vat/gross figure (see `DocumentTotals.showVat`'s own header).
   const totals = computeDocumentTotals(descriptor, instanceData, { sellerExemptVat: company.exemptVat });
+  // Issue #373 ("quotes with options") - null for every document type other than "quote" (no other
+  // type's line shape ever carries an `option` tag) and for a quote with fewer than two of them: see
+  // `computeQuoteOptionTotals`'s own header. When it is NOT null, `optionGroups` below replaces the
+  // ordinary `totals` in what `renderDocumentHtml` actually prints - see that input's own header on
+  // why a quote with 2+ options shows NO global total.
+  const quoteOptionTotals = computeQuoteOptionTotals(instanceData);
+  // Issue #373 follow-up: a line nobody tagged with an `option` at all ("Setup fee") is COMMON to
+  // every option above (already folded into each one's own `totals` - see that function's own
+  // header) - this is its own, separate, informational total for the PDF's dedicated "Common to all
+  // options" group, never a second option to choose from. Null whenever there is nothing to show one
+  // for (0/1 options, or 2+ options but every line is tagged).
+  const quoteCommonLineTotals = computeCommonLineTotals(instanceData);
   const language = await recipientLanguageFor(companyId, descriptor, company.language, instanceData);
   const paymentMethods = await paymentMethodsFor(
     descriptor,
@@ -392,6 +414,23 @@ export async function renderDocumentInstance(
     company,
     referenceLabels,
     totals,
+    optionGroups: quoteOptionTotals
+      ? {
+          arrayFieldKey: 'lines',
+          groupFieldKey: 'option',
+          acceptedOption: instance.acceptedOption,
+          // The common group, when there is one, comes FIRST - a reader meets "what's in every
+          // option" before "what differs between them". Never gets the "Accepted" badge (see
+          // render-html.ts's own `renderOptionGroupsField`: `isCommon` groups are never matched
+          // against `acceptedOption`).
+          groups: [
+            ...(quoteCommonLineTotals
+              ? [{ label: '', totals: quoteCommonLineTotals.totals, isCommon: true }]
+              : []),
+            ...quoteOptionTotals.map((entry) => ({ label: entry.option, totals: entry.totals })),
+          ],
+        }
+      : undefined,
     language,
     legalMentions,
     paymentQr: await sepaPaymentQrFor(descriptor, company, totals, instanceData, instance.displayNumber),
@@ -411,5 +450,13 @@ export async function renderDocumentInstance(
   // `atcud` at all — every non-Portuguese, or non-invoice, PDF keeps the exact page setup it always had.
   const pdf = await renderPdf(html, instance.atcud ? { footerText: instance.atcud } : {});
 
-  return { pdf, totals, referenceLabels, companyName: company.name, language, paymentMethods };
+  return {
+    pdf,
+    totals,
+    referenceLabels,
+    companyName: company.name,
+    language,
+    paymentMethods,
+    hasMultipleOptions: quoteOptionTotals !== null,
+  };
 }

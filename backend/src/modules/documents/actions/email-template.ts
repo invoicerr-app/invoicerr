@@ -352,12 +352,24 @@ export function buildEmailTemplateParts(input: {
   companyName: string;
   totals: DocumentTotals;
   referenceLabels: Record<string, string>;
+  /**
+   * Issue #373 ("quotes with options") - true when `totals` is a MEANINGLESS sum across 2+ options
+   * (`rendering/render-instance-pdf.ts#RenderedDocumentInstance.hasMultipleOptions`). `totalGross`
+   * below then reads a plain, honest sentence instead of printing that sum - the covering email is
+   * one more place this issue's own audit found `{totalGross}` reaching a reader (the quote's own
+   * shipped default template uses it, `quote.descriptor.ts`'s `email.body`), so it gets the same
+   * "no meaningless total" treatment the PDF and detail page already do. Optional/false for every
+   * OTHER document type, which never has options at all.
+   */
+  multipleOptions?: boolean;
 }): Record<string, string> {
   const parts: Record<string, string> = {
     displayNumber: input.displayNumber ?? '',
     typeLabel: input.descriptor.label,
     companyName: input.companyName,
-    totalGross: formatGrossTotal(input.totals),
+    totalGross: input.multipleOptions
+      ? 'see the attached document for each option and its own total'
+      : formatGrossTotal(input.totals),
   };
 
   const clientField = findClientReferenceField(input.descriptor);

@@ -192,6 +192,151 @@ function renderFieldValue(
   }
 }
 
+/**
+ * The net/VAT-breakdown/gross/warnings ROWS shared by the ordinary single totals section AND, since
+ * issue #373 ("quotes with options"), each per-option group's own mini totals block below - extracted
+ * so the two never drift apart on rounding, VAT-aggregation, or the `showVat` rule (see
+ * `DocumentTotals.showVat`'s own header, compute-totals.ts). Returns the INNER rows only, not the
+ * outer `.totals-section`/label wrapper - callers differ on that (the global section gets its own
+ * heading; a group gets one heading for the whole option, not a second "Totals" label repeated inside
+ * it), so wrapping stays each caller's own job.
+ */
+function renderTotalsRows(
+  totals: DocumentTotals,
+  strings: PdfChromeStrings,
+  // Issue #373 follow-up ("no meaningless common total") - true only for a REAL option's own block,
+  // and only when a common group exists alongside it (`renderOptionGroupsField`'s own call site):
+  // swaps the gross row's label for `strings.totalIncludingCommonLines` so a reader can tell this
+  // figure already folds the common lines in, without the common group printing a total of its own
+  // to point back at. Never true for the ordinary single-total section, or for a common group's own
+  // (line-only) block, which no longer calls this function for its totals at all.
+  totalLabelIncludesCommon = false,
+): string {
+  const currency = totals.currency || ' - ';
+  const decimals = decimalsFor(currency);
+  const showVat = totals.showVat !== false;
+
+  let html = '';
+  if (showVat) {
+    const netDisplay = `${fromMinor(totals.netMinor, currency).toFixed(decimals)} ${currency}`;
+    html += `
+      <div class="totals-row">
+        <span>${escapeHtmlSafe(strings.net)}</span>
+        <span class="totals-amount">${escapeHtmlSafe(netDisplay)}</span>
+      </div>
+`;
+    for (const entry of totals.vatBreakdown) {
+      const baseDisplay = `${fromMinor(entry.baseMinor, currency).toFixed(decimals)} ${currency}`;
+      const vatDisplay = `${fromMinor(entry.vatMinor, currency).toFixed(decimals)} ${currency}`;
+      html += `
+      <div class="totals-row">
+        <span>${escapeHtmlSafe(strings.vatOn(entry.ratePercent.toString(), baseDisplay))}</span>
+        <span class="totals-amount">${escapeHtmlSafe(vatDisplay)}</span>
+      </div>
+`;
+    }
+  }
+
+  const grossDisplay = `${fromMinor(totals.grossMinor, currency).toFixed(decimals)} ${currency}`;
+  const grossLabel = totalLabelIncludesCommon ? strings.totalIncludingCommonLines : strings.total;
+  html += `
+      <div class="totals-row summary">
+        <span>${escapeHtmlSafe(grossLabel)}</span>
+        <span class="totals-amount">${escapeHtmlSafe(grossDisplay)}</span>
+      </div>
+`;
+
+  if (totals.warnings.length > 0) {
+    html += `
+      <div class="warnings-section">
+`;
+    for (const warning of totals.warnings) {
+      html += `        <div class="warning-item">${escapeHtmlSafe(warning)}</div>\n`;
+    }
+    html += `      </div>\n`;
+  }
+
+  return html;
+}
+
+/**
+ * Renders the "lines" array field as several grouped, labelled tables - one per option - instead of
+ * the ordinary single flat table `renderFieldValue`'s 'array' case produces. Reuses that EXACT case
+ * for each group's own table (by handing it a synthetic field descriptor whose `fields` drop the
+ * grouping subfield itself - the option name is already the group's own heading, a redundant column
+ * for it would repeat the same word on every single row): no separate table-rendering logic to keep in
+ * sync with the ordinary one, which is also what makes an old document's own `hideWhenEmpty` column
+ * rules (e.g. the quote line's `date`) apply identically inside a group as they do outside one.
+ */
+function renderOptionGroupsField(
+  field: DocumentFieldDescriptor,
+  value: unknown,
+  optionGroups: NonNullable<RenderDocumentHtmlInput['optionGroups']>,
+  referenceLabels: Record<string, string>,
+  documentData: Record<string, unknown>,
+  strings: PdfChromeStrings,
+  // The company's own accent color (`renderDocumentHtml`'s own `accentColor` local) - applied INLINE
+  // here rather than through a static CSS rule referencing it: a static rule would put the literal
+  // color into the <style> block of EVERY document, options or not, which is exactly the "PDF
+  // unchanged" byte-for-byte guarantee a 0/1-option quote (and every other document type) still holds
+  // - see this file's own `renderDocumentHtml` header on `optionGroups`.
+  accentColor: string,
+): string {
+  const allRows = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
+  const fieldWithoutGroupKey: DocumentFieldDescriptor = {
+    ...field,
+    fields: (field.fields ?? []).filter((subField) => subField.key !== optionGroups.groupFieldKey),
+  };
+
+  let html = '';
+  for (const group of optionGroups.groups) {
+    // Issue #373 follow-up ("common lines") - the ONE synthetic group `render-instance-pdf.ts` ever
+    // builds with `isCommon: true`: its own rows are every line with NO `option` tag at all, never
+    // matched by `row[groupFieldKey] === group.label` (an empty `label` would never equal a genuinely
+    // untagged row's own empty string reliably across browsers' own trim/coercion quirks, so this is
+    // matched explicitly instead). A REAL option's group still matches exactly as before - an empty
+    // (never trimmed-to-empty) `option` value can never accidentally equal one of THOSE labels either,
+    // since `deriveQuoteOptions` never derives an empty string as an option name.
+    const groupRows = group.isCommon
+      ? allRows.filter((row) => {
+          const raw = row[optionGroups.groupFieldKey];
+          return typeof raw !== 'string' || raw.trim() === '';
+        })
+      : allRows.filter((row) => {
+          const raw = row[optionGroups.groupFieldKey];
+          return typeof raw === 'string' && raw.trim() === group.label;
+        });
+    // The common group is never "the accepted option" - it was never a choice to begin with.
+    const isAccepted = !group.isCommon && optionGroups.acceptedOption === group.label;
+    const heading = group.isCommon ? strings.commonToAllOptionsHeading : escapeHtmlSafe(group.label);
+    // Issue #373 follow-up ("no meaningless common total") - the common group prints its OWN lines
+    // only, never a "Total" underneath them: that figure looked like a price the client could pay on
+    // its own, when it is really only ever billed as part of whichever option is chosen. Each REAL
+    // option's own totals block below still folds the common lines' amounts in exactly as before
+    // (`group.totals` is already the MERGED figure, `computeQuoteOptionTotals`'s own header) - only
+    // the label changes, to say so, whenever a common group exists at all alongside it.
+    const hasCommonGroup = optionGroups.groups.some((g) => g.isCommon);
+    const totalsBlock = group.isCommon
+      ? ''
+      : `
+      <div class="totals-section">
+${renderTotalsRows(group.totals, strings, hasCommonGroup)}
+      </div>`;
+
+    html += `
+    <div class="option-group">
+      <div class="option-group-heading" style="color: ${accentColor};">${heading}${
+        isAccepted
+          ? `<span class="accepted-badge">(${escapeHtmlSafe(strings.acceptedOptionBadge)})</span>`
+          : ''
+      }</div>
+      <div class="field-value">${renderFieldValue(fieldWithoutGroupKey, groupRows, referenceLabels, documentData, strings)}</div>${totalsBlock}
+    </div>
+`;
+  }
+  return html;
+}
+
 /** One country-mandated mention to print in the footer block — see `RenderDocumentHtmlInput.legalMentions`.
  *  `legalRef` is deliberately UNUSED by the renderer below: it is carried so a reader of the DATA can
  *  check it, never surfaced on the document itself — the same convention
@@ -231,6 +376,39 @@ export interface RenderDocumentHtmlInput {
   };
   referenceLabels: Record<string, string>;
   totals?: DocumentTotals;
+  /**
+   * Issue #373 ("quotes with options") - when the quote offers 2+ options
+   * (`options/quote-options.ts#computeQuoteOptionTotals`), the caller passes THIS instead of `totals`,
+   * never both: a quote with several options prints NO global total (summing them together would be
+   * exactly the meaningless number this issue exists to stop printing) - see this file's own
+   * `renderDocumentHtml`, which renders each group as its own labelled table with its own totals, in
+   * place of the ordinary single `lines` table + global totals section. `arrayFieldKey`/`groupFieldKey`
+   * name which array field and which of ITS OWN subfields to group by ("lines"/"option" for the quote
+   * today) - kept as data, not hardcoded to "quote", the same "a descriptor is data" discipline this
+   * whole render layer already holds, even though only the quote descriptor declares an `option`
+   * subfield today. Absent (every OTHER document type, and a quote with fewer than two options) means
+   * exactly what it always meant before this field existed: the ordinary single-table, single-totals
+   * render, byte-for-byte.
+   */
+  optionGroups?: {
+    arrayFieldKey: string;
+    groupFieldKey: string;
+    /** The option currently recorded as ACCEPTED (`DocumentInstance.acceptedOption`), so its own group
+     *  gets the "Accepted" badge - null/undefined (not yet chosen, still "draft"/"sent") marks none. */
+    acceptedOption?: string | null;
+    /**
+     * One entry per real option, PLUS an optional leading entry for the lines nobody tagged at all
+     * (`options/quote-options.ts#computeCommonLineTotals`) - `isCommon: true` on that one entry only.
+     * `label` is ignored for it (the heading comes from `PdfChromeStrings.commonToAllOptionsHeading`
+     * instead, so it is translated like every other chrome string this render layer owns); its rows
+     * are matched by "no `option` tag at all", never by label equality - see
+     * `renderOptionGroupsField`'s own header. It never gets the "Accepted" badge (a common line was
+     * never itself a choice) and its OWN totals are purely informational: each REAL option's own
+     * totals already fold the common contribution in (`computeQuoteOptionTotals`'s own header), so
+     * this group exists only so a reader can see where that contribution came from.
+     */
+    groups: { label: string; totals: DocumentTotals; isCommon?: boolean }[];
+  };
   /**
    * The mentions to print in their OWN footer block, resolved by the caller (`render-instance-pdf.ts`'s
    * `legalMentionsFor`, gated on `descriptor.usesLegalMentions`): the country-mandated ones (from the
@@ -512,6 +690,21 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       text-align: right;
       min-width: 120px;
     }
+    .option-group {
+      margin-top: 24px;
+    }
+    .option-group-heading {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .option-group-heading .accepted-badge {
+      font-weight: normal;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+    }
     .warnings-section {
       margin-top: 16px;
       padding: 8px;
@@ -656,6 +849,24 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       continue;
     }
 
+    // Issue #373 ("quotes with options") - the array field this document's own `optionGroups` names
+    // (the quote's "lines") is rendered as several grouped, labelled tables (below), never through the
+    // ordinary single-table `renderFieldValue` path: a flat table would mix every option's lines
+    // together with no indication which total each one belongs to, exactly the confusion this feature
+    // exists to remove.
+    if (input.optionGroups && field.key === input.optionGroups.arrayFieldKey && field.kind === 'array') {
+      html += renderOptionGroupsField(
+        field,
+        value,
+        input.optionGroups,
+        referenceLabels,
+        instance.data,
+        strings,
+        accentColor,
+      );
+      continue;
+    }
+
     const renderedValue = renderFieldValue(field, value, referenceLabels, instance.data, strings);
 
     html += `
@@ -666,67 +877,14 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
 `;
   }
 
-  // Render totals section if provided
-  if (input.totals) {
-    const { totals } = input;
-    const currency = totals.currency || '—';
-    const decimals = decimalsFor(currency);
-    // `showVat === false` is the only case that hides anything here — absent (every fixture/caller
-    // predating this flag) or explicitly `true` renders BYTE-FOR-BYTE what this block always rendered.
-    // See `DocumentTotals.showVat`'s own header (compute-totals.ts) for the rule this reads.
-    const showVat = totals.showVat !== false;
-
+  // Render totals section if provided - never alongside `optionGroups` (see that input's own header:
+  // a quote with 2+ options prints NO global total, only what `renderOptionGroupsField` already wrote
+  // above, one mini totals block per option).
+  if (input.totals && !input.optionGroups) {
     html += `
     <div class="totals-section">
       <div class="totals-label">${escapeHtmlSafe(strings.totals)}</div>
-`;
-
-    if (showVat) {
-      // Net amount
-      const netDisplay = `${fromMinor(totals.netMinor, currency).toFixed(decimals)} ${currency}`;
-      html += `
-      <div class="totals-row">
-        <span>${escapeHtmlSafe(strings.net)}</span>
-        <span class="totals-amount">${escapeHtmlSafe(netDisplay)}</span>
-      </div>
-`;
-
-      // VAT breakdown (one row per rate)
-      for (const entry of totals.vatBreakdown) {
-        const baseDisplay = `${fromMinor(entry.baseMinor, currency).toFixed(decimals)} ${currency}`;
-        const vatDisplay = `${fromMinor(entry.vatMinor, currency).toFixed(decimals)} ${currency}`;
-        html += `
-      <div class="totals-row">
-        <span>${escapeHtmlSafe(strings.vatOn(entry.ratePercent.toString(), baseDisplay))}</span>
-        <span class="totals-amount">${escapeHtmlSafe(vatDisplay)}</span>
-      </div>
-`;
-      }
-    }
-
-    // Gross total — the ONLY row when `showVat` is false: net and gross are the same figure in that
-    // case (see `DocumentTotals.showVat`'s own header), so printing "Net" and "Total" side by side
-    // would just repeat the same amount under two labels for no reason a reader could act on.
-    const grossDisplay = `${fromMinor(totals.grossMinor, currency).toFixed(decimals)} ${currency}`;
-    html += `
-      <div class="totals-row summary">
-        <span>${escapeHtmlSafe(strings.total)}</span>
-        <span class="totals-amount">${escapeHtmlSafe(grossDisplay)}</span>
-      </div>
-`;
-
-    // Warnings (if any)
-    if (totals.warnings.length > 0) {
-      html += `
-      <div class="warnings-section">
-`;
-      for (const warning of totals.warnings) {
-        html += `        <div class="warning-item">${escapeHtmlSafe(warning)}</div>\n`;
-      }
-      html += `      </div>\n`;
-    }
-
-    html += `
+${renderTotalsRows(input.totals, strings)}
     </div>
 `;
   }

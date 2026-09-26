@@ -318,8 +318,46 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             hideWhenEmpty: true,
             helpText: 'When the work on this line is due, or was done, if it differs from the quote date.',
           },
+          // Issue #373 ("quotes with options"): a free-text tag naming which OPTION this line belongs
+          // to - "Basic", "Premium", anything a company types. Deliberately a SUBFIELD on the existing
+          // `lines` row shape, never a nested array of options each carrying its own lines: the generic
+          // descriptor field system has no 'array'-of-'array' kind (types.ts's own `fields` comment -           // "'array': the shape of one row" - is itself a flat list, one level deep, by design), so a
+          // second array level would need a whole new field kind, its own validator, its own PDF/editor
+          // renderer, for a shape this lighter model gets for free out of what already exists. A
+          // quote's own OPTIONS are never stored anywhere of their own: they are the distinct,
+          // non-empty values of THIS field across `lines`, in first-appearance order (see
+          // `options/quote-options.ts#deriveQuoteOptions`, the ONLY place that reads this field's
+          // semantics - everywhere else it is just another 'text' subfield). Optional: a quote with
+          // every line's `option` unset (or all sharing the same one) has zero or one distinct value,
+          // which `deriveQuoteOptions` treats as "no options at all" - today's single-total behavior,
+          // completely unchanged, no new required input for the common case. `hideWhenEmpty` mirrors
+          // `date` right above: a document that never uses options must not print an empty "Option: - "
+          // on every single line.
+          {
+            key: 'option',
+            kind: 'text',
+            label: 'Option',
+            required: false,
+            hideWhenEmpty: true,
+            // A company typing "Basic" on one line and "Basic" again on another is exactly the
+            // repetition this hint exists to make less tedious - see `DocumentFieldDescriptor
+            // .suggestSiblingValues`'s own header for why this is an explicit opt-in rather than a
+            // blanket behavior every 'text' array subfield gets for free.
+            suggestSiblingValues: true,
+            helpText:
+              'Groups this line under a named option (e.g. "Basic", "Premium"). Leave every line\'s ' +
+              'option blank, or the same, for an ordinary quote with a single total; name two or more ' +
+              'distinct options and the client picks one when accepting.',
+          },
         ],
       },
+      // Issue #373: the option the client chose when accepting a quote that offers 2+ of them - see
+      // `DocumentInstance.acceptedOption`'s own schema comment for why this is a DEDICATED COLUMN, not
+      // a field here, and is therefore NEVER listed in `fields` at all: a descriptor field is exactly
+      // what a form renders and `validateAgainstDescriptor` checks, and this must be neither (the two
+      // acceptance handlers write it directly, bypassing the form entirely, the same way `number`/
+      // `displayNumber`/`atcud` already bypass it). This comment lives here, not on a phantom field
+      // entry, precisely so nothing ever mistakes it for one.
     ],
     actions: [
       {
@@ -470,6 +508,19 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             kind: 'longText',
             label: 'How did the client accept?',
             required: true,
+          },
+          // Issue #373 ("quotes with options"): which option the client accepted - OPTIONAL here
+          // (never `required: true`) because whether it is actually needed depends on the QUOTE's own
+          // data (fewer than two options: nothing to choose), a fact this descriptor's static `params`
+          // cannot see. `actions/quote-manual-acceptance.ts`'s own `resolveChosenOption` is what
+          // actually enforces "required once there are 2+ options, refused otherwise" - the same
+          // "declared for the OpenAPI schema, enforced by the handler" split `note` right above
+          // already holds for its own non-emptiness.
+          {
+            key: 'option',
+            kind: 'text',
+            label: 'Which option did the client accept?',
+            required: false,
           },
         ],
       },

@@ -463,6 +463,74 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       ).rejects.toThrow(/not available before the document has been saved/);
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
     });
+
+    describe('issue #373 - a quote offering 2+ options', () => {
+      const multiOptionData = {
+        ...validQuoteData,
+        lines: [
+          { description: 'Basic line', quantity: 1, unitPrice: 100, option: 'Basic' },
+          { description: 'Premium line 1', quantity: 1, unitPrice: 150, option: 'Premium' },
+          { description: 'Premium line 2', quantity: 1, unitPrice: 50, option: 'Premium' },
+        ],
+      };
+
+      it('refuses (409-shaped) from "draft"/"sent" - no option has been accepted yet', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          id: 'quote-doc-1',
+          typeId: 'quote',
+          status: 'sent',
+          data: multiOptionData,
+          acceptedOption: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        await expect(
+          buildService().service.runAction('company-1', 'quote', 'convert-to-invoice', {
+            documentId: 'quote-doc-1',
+            data: multiOptionData,
+          }),
+        ).rejects.toThrow(/offers 2 options \(Basic, Premium\) and none has been accepted yet/);
+        expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      });
+
+      it('carries EXACTLY the accepted option\'s own lines once "signed"/"accepted" recorded one - tag stripped', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          id: 'quote-doc-1',
+          typeId: 'quote',
+          status: 'accepted',
+          data: multiOptionData,
+          acceptedOption: 'Premium',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        (persistence.upsertDocument as Mock).mockResolvedValue({
+          id: 'invoice-doc-1',
+          typeId: 'invoice',
+          status: 'draft',
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const { service } = buildService();
+        const result = await service.runAction('company-1', 'quote', 'convert-to-invoice', {
+          documentId: 'quote-doc-1',
+          data: multiOptionData,
+        });
+
+        expect(result.changed).toBe(true);
+        const [, , , , invoiceData] = (persistence.upsertDocument as Mock).mock.calls[0];
+        expect(invoiceData.lines).toHaveLength(2);
+        expect(invoiceData.lines.map((l: { description: string }) => l.description)).toEqual([
+          'Premium line 1',
+          'Premium line 2',
+        ]);
+        // The `option` tag never reaches the invoice - that subfield exists only on the quote's own
+        // descriptor (see quote.descriptor.ts's own header on the `option` field).
+        expect(invoiceData.lines.every((l: Record<string, unknown>) => !('option' in l))).toBe(true);
+      });
+    });
   });
 
   describe('"send" — implemented through the quote\'s own send-by-email mechanism, no special case', () => {

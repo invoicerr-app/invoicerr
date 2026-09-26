@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { fromMinor } from '@/utils/financial';
 
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
+import { deriveQuoteOptions } from '../options/quote-options';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ActionRegistry } from './action-registry';
 import { createDraftInvoiceFromQuote } from './quote-to-invoice';
@@ -96,6 +97,23 @@ export function registerRequestDepositAction(registry: ActionRegistry): void {
       documentId,
       'request a deposit on',
       (quote, quoteData) => {
+        // Issue #373 ("quotes with options") - "N% of which total?" has no honest answer for a quote
+        // offering 2+ options: this action is only ever `availableWhen: ['sent']` (quote.descriptor.ts),
+        // a status neither acceptance path has reached yet by definition, so NO option can possibly be
+        // accepted at this point - there is no "wait for the choice, then take N% of it" path available
+        // here the way there is for `convert-to-invoice` (which also runs from "signed"/"accepted").
+        // Refused outright, always, for a multi-option quote, rather than silently picking one option
+        // (the first typed, the largest) to take a percentage of - exactly the invented-answer failure
+        // mode this module's own header already refuses for the VAT-rate question just below.
+        const options = deriveQuoteOptions(quoteData);
+        if (options.length >= 2) {
+          throw new BadRequestException(
+            `Quote "${quote.displayNumber ?? quote.id}" offers ${options.length} options ` +
+              `(${options.join(', ')}) - a deposit percentage has no single total to apply to until ` +
+              'the client accepts one; request it again once an option has been chosen.',
+          );
+        }
+
         const currency = typeof quoteData.currency === 'string' ? quoteData.currency : undefined;
         if (!currency) {
           throw new BadRequestException(

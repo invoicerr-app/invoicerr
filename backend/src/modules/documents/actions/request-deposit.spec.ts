@@ -190,6 +190,30 @@ describe('request-deposit', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
+
+  // Issue #373 ("quotes with options") - this action is only ever `availableWhen: ['sent']`
+  // (quote.descriptor.ts), a status neither acceptance path has reached yet, so a 2+-option quote can
+  // never have a chosen total to take a percentage of at the point this action is reachable at all.
+  it('refuses outright for a quote offering 2+ options - there is no single total to take a percentage of', async () => {
+    mockQuote({
+      lines: [
+        { description: 'Basic', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+        { description: 'Premium', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+      ],
+    });
+
+    const handler = buildRegistry().resolve('quote', 'request-deposit')!;
+    await expect(
+      handler({
+        companyId: 'company-1',
+        typeId: 'quote',
+        documentId: 'quote-1',
+        data: {},
+        params: { percent: 30 },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
 });
 
 /**

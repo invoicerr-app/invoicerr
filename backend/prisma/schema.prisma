@@ -1538,6 +1538,24 @@ model DocumentInstance {
   // untouched forever.
   atcud String?
 
+  // Issue #373 ("quotes with options"): the OPTION NAME the client chose when accepting a quote that
+  // offers two or more (`documents/options/quote-options.ts#deriveQuoteOptions` - the distinct,
+  // non-empty `option` tags a quote's own `data.lines` carry, in first-appearance order). A dedicated
+  // COLUMN, not a `data` key, for the exact same reason `atcud`/`displayNumber` are columns rather
+  // than `data` fields: `data` is what the document FORM resubmits on every ordinary "save-draft"
+  // (quote.descriptor.ts's own header on why the manual-acceptance note lives outside `data` too) -   // this must never be silently overwritten by an unrelated later edit, and it must never be
+  // user-editable in the first place (it is not a field on the quote descriptor at all, so no form,
+  // and no `validateAgainstDescriptor` call, ever touches it). Written ONLY by the two acceptance
+  // paths, in the SAME compare-and-swap write as the status change itself:
+  //  - the OTP e-signature (`signatures/signatures.service.ts#markSigned`, "sent" -> "signed");
+  //  - the manual acceptance (`actions/quote-manual-acceptance.ts`, "sent" -> "accepted").
+  // Null for every quote that never carried 2+ options (the overwhelming majority - single-option and
+  // no-option quotes need no choice at all, see `resolveChosenOption`'s own header) and for one that
+  // does but has not yet been accepted either way. Never cleared or reassigned once set - an
+  // agreement, once reached, does not change which option it was reached on (the same "never cleared"
+  // discipline `number`/`displayNumber` already hold once THEY are set).
+  acceptedOption String?
+
   // The error from the most recent FAILED asynchronous action — see documents/queue/ (TODO item 22)
   // and descriptors/lifecycle.ts's own comment on the "sending"/"send_failed" statuses a type with a
   // "send" action declares. Set ONLY by queue/mark-send-failed.ts, once BullMQ has exhausted every
@@ -2618,6 +2636,16 @@ model Signature {
   // `isActive` (not `revokedAt`, unlike `DocumentDownloadToken`) for continuity with the ORIGINAL,
   // now-removed module's own column.
   isActive Boolean @default(true)
+
+  // Issue #373 ("quotes with options") - the OPTION NAME the signer chose, submitted alongside the
+  // OTP code and validated server-side against the frozen document's own derived options
+  // (`documents/options/quote-options.ts#resolveChosenOption`) before `markSigned` writes it here AND
+  // on `DocumentInstance.acceptedOption`, in the SAME write as `signedAt`/`isActive`. Null for a
+  // signature on a document with fewer than two options (no choice was ever meaningful) and, until
+  // signed, for every row - this is the archive-side twin of the manual-acceptance path's own
+  // `ManualAcceptanceManifest.option` (`archive/persistence.ts`), so BOTH acceptance routes record
+  // which option was chosen somewhere that outlives the document's own `data`.
+  chosenOption String?
 
   // The FROZEN "what the signer reviewed" snapshot — both null until the first "GET .../document"
   // call. `documents.service.ts#renderInstancePdf` is built fresh on every call and is NOT

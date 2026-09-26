@@ -67,6 +67,12 @@ export interface DocumentInstanceResult {
    *  `displayNumber` above is (`actions/atcud-issuance.ts`). Null/undefined for every document that is
    *  not a numbered Portuguese invoice, exactly like `displayNumber` itself is absent before numbering. */
   atcud?: string | null;
+  /** See `DocumentInstance.acceptedOption`'s own schema comment - issue #373 ("quotes with
+   *  options"): the option name the client chose when accepting a quote that offers 2+ of them, null
+   *  until an acceptance path writes it (or forever, for a quote that never had 2+ options). Read by
+   *  `options/quote-options.ts#resolveInvoiceableLines` at conversion time and shown read-only on the
+   *  quote's own detail page. */
+  acceptedOption?: string | null;
   /** See `DocumentInstance.lastActionError`'s own schema comment — the error from the most recent
    *  FAILED asynchronous action (queue/mark-send-failed.ts), or null/undefined once cleared by any
    *  later write. Absent from a result that never re-reads this column (most action handlers don't
