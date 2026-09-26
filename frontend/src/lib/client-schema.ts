@@ -62,6 +62,34 @@ export function buildClientSchema(
           if (!val) return true
           return z.string().email().safeParse(val).success
         }, t("clients.upsert.validation.contactEmail.format")),
+      // Several named contacts per client (#415) - the wizard's own CONTACT step
+      // (`client-upsert.tsx`'s `ContactsSection`). Optional/absent for the CSV import's row schema
+      // (a row still carries only the four flat fields above, which stay meaning "the primary
+      // contact" - see `client-import.service.ts`'s own header); the wizard always sends this array,
+      // never the flat fields, once at least one contact row exists.
+      contacts: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            firstName: z.string().optional(),
+            lastName: z.string().optional(),
+            role: z.string().optional(),
+            email: z
+              .string()
+              .optional()
+              .refine((val) => !val || z.string().email().safeParse(val).success, {
+                message: t("clients.upsert.validation.contactEmail.format"),
+              }),
+            phone: z
+              .string()
+              .optional()
+              .refine((val) => !val || /^[+]?[0-9\s\-()]{8,20}$/.test(val), {
+                message: t("clients.upsert.validation.contactPhone.format"),
+              }),
+            isPrimary: z.boolean().optional(),
+          }),
+        )
+        .optional(),
       address: z.string().min(1, t("clients.upsert.validation.address.required")),
       addressLine2: z.string().optional(),
       postalCode: z
@@ -79,6 +107,10 @@ export function buildClientSchema(
     })
     .superRefine((val, ctx) => {
       if (val.type === "INDIVIDUAL") {
+        // The wizard folds the identity step's contactFirstname/contactLastname into the primary
+        // contact at submit time (#415 - see `client-upsert.tsx`'s own `buildContactsPayload`), so
+        // those two top-level fields are still the right thing to validate here regardless of
+        // whether `contacts` is also present.
         if (!val.contactFirstname || val.contactFirstname.trim() === "") {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,

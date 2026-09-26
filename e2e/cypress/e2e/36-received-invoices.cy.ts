@@ -199,7 +199,7 @@ function createClientByScreen(name: string, opts?: { vat?: string }) {
 		.replace(/[\u0300-\u036f]/g, "")
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-");
-	cy.get('[name="contactEmail"]')
+	cy.get('[name="contacts.0.email"]')
 		.clear()
 		.type(`${emailSlug}@example.com`);
 	cy.continueSteppedDialog("client-dialog");

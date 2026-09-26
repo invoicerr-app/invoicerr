@@ -319,7 +319,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]')
+		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("marches-publics@testville.example");
 		cy.continueSteppedDialog("client-dialog");
@@ -432,7 +432,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]')
+		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("rechnungen@testhausen.example");
 		cy.continueSteppedDialog("client-dialog");
@@ -653,7 +653,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]')
+		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("fatturazione@testopoli.example");
 		cy.continueSteppedDialog("client-dialog");
@@ -752,7 +752,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		).click();
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]').clear().type("procurement@nowhere.example");
+		cy.get('[name="contacts.0.email"]').clear().type("procurement@nowhere.example");
 		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();

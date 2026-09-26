@@ -49,6 +49,10 @@ const CLIENT: Client = {
   type: "COMPANY",
   kind: "BUSINESS",
   contactEmail: "billing@acme.test",
+  // #415: the API always returns `contacts` now (ordered primary-first) - this is what the
+  // wizard's own contacts step actually reads to build its rows, `contactEmail` above stays purely
+  // as the derived, read-only flat field a caller unaware of `contacts` would still see.
+  contacts: [{ id: "contact-1", email: "billing@acme.test", isPrimary: true }],
   address: "1 Rue de Paris",
   city: "Paris",
   country: "France",
@@ -167,13 +171,13 @@ describe("<ClientUpsert>", () => {
 
     fireEvent.click(await screen.findByTestId("client-dialog-step-contact"))
     await screen.findByTestId("client-dialog-step-body-contact")
-    fireEvent.change(fieldInput("contactEmail"), { target: { value: "" } })
+    fireEvent.change(fieldInput("contacts.0.email"), { target: { value: "" } })
 
     fireEvent.click(screen.getByTestId("client-dialog-step-recap"))
     fireEvent.click(await screen.findByTestId("client-submit"))
 
     await waitFor(() => expect(patch).toHaveBeenCalled())
-    expect(patch.mock.calls[0][0].contactEmail).toBe("")
+    expect(patch.mock.calls[0][0].contacts[0].email).toBe("")
     expect(toast.error).not.toHaveBeenCalled()
   })
 

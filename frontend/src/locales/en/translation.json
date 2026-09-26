@@ -259,6 +259,14 @@
         "portalAccess": {
           "label": "Client portal",
           "description": "Invite this client to sign in and see their own invoices, quotes and balance."
+        },
+        "contacts": {
+          "label": "Contacts",
+          "add": "Add contact",
+          "remove": "Remove",
+          "role": "Role",
+          "primaryBadge": "Primary",
+          "setPrimary": "Set as primary"
         }
       },
       "stepped": {
@@ -361,7 +369,8 @@
       "sections": {
         "contact": "Contact",
         "address": "Address",
-        "documents": "Documents"
+        "documents": "Documents",
+        "contacts": "Contacts"
       },
       "documents": {
         "empty": "No document yet for this client"
@@ -376,7 +385,9 @@
         "postalCode": "Postal Code",
         "city": "City",
         "state": "State/Province",
-        "country": "Country"
+        "country": "Country",
+        "primary": "Primary",
+        "noContacts": "No contacts"
       }
     },
     "delete": {

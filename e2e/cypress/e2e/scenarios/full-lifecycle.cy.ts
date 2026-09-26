@@ -738,7 +738,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		} else {
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type(s.client.email);
+			cy.get('[name="contacts.0.email"]').clear().type(s.client.email);
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();

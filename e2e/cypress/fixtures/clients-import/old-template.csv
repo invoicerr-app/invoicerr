@@ -1,0 +1,2 @@
+type,kind,isSupplier,name,contactFirstname,contactLastname,contactEmail,contactPhone,address,addressLine2,postalCode,city,state,country,countryCode,currency,language,description,foundedAt,identifier:VAT,identifier:LEGAL_ID
+COMPANY,BUSINESS,false,Old Template SARL,,,old-template@example.com,+33 1 98 76 54 32,9 rue Ancienne,,75010,Paris,,France,FR,EUR,fr,,2015-03-20,FR12345678901,55210055400018

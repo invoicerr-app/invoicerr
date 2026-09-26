@@ -1774,7 +1774,10 @@ export class DocumentsService implements OnModuleInit {
       // (foreign or nonexistent id) already lands on the exact same "no valid client on file" 400
       // just below that a genuinely absent client already produced — never a silent leak.
       clientId
-        ? prisma.client.findFirst({ where: { id: clientId, companyId }, include: { partyIdentifiers: true } })
+        ? prisma.client.findFirst({
+            where: { id: clientId, companyId },
+            include: { partyIdentifiers: true, contacts: true },
+          })
         : Promise.resolve(null),
     ]);
     if (!company) {
