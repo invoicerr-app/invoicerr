@@ -44,6 +44,7 @@ import { DocumentQueueDispatcher } from '../document-queue.dispatcher';
 import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
+import { withDerivedContactFields } from '../../../clients/primary-contact';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
 import { warmUpPdfRenderer } from './queue-test-pdf-warmup';
 
@@ -96,9 +97,16 @@ function buildDocumentsService(queueDispatcher: DocumentQueueDispatcher): Docume
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
+  // Mirrors the real `ClientsService.getClientById` (#415): the contact fields come from the
+  // client's PRIMARY contact, derived by the same pure helper the service uses.
   const clientsService = {
-    getClientById: (companyIdArg: string, id: string) =>
-      prisma.client.findFirst({ where: { id, companyId: companyIdArg } }),
+    getClientById: async (companyIdArg: string, id: string) => {
+      const client = await prisma.client.findFirst({
+        where: { id, companyId: companyIdArg },
+        include: { contacts: true },
+      });
+      return client ? withDerivedContactFields(client) : null;
+    },
   } as never;
   const mailService = new MailService();
   const referenceRegistry = new EntityReferenceRegistry();
