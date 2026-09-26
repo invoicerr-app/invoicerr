@@ -580,7 +580,19 @@ function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: Doc
           `(status "${ctx.currentStatus}"): an issued document is never rewritten.`,
       );
     }
-    return performSaveDraft(ctx.companyId, 'invoice', ctx.documentId, ctx.data, webhooks);
+    return performSaveDraft(
+      ctx.companyId,
+      'invoice',
+      ctx.documentId,
+      ctx.data,
+      webhooks,
+      // The CAS fix for the race a reviewer found on the #468 lock - see `performSaveDraft`'s own
+      // header (generic-actions.ts) and `documents.service.ts#runAction`'s `allowedFromStatuses`
+      // comment for the full "why". Without this, the 409 check just above (stale `ctx.currentStatus`)
+      // was the ONLY guard - a concurrent "send" landing between that read and this write could still
+      // demote an issued invoice back to "draft".
+      ctx.allowedFromStatuses,
+    );
   });
 }
 

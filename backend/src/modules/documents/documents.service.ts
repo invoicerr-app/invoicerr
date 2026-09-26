@@ -80,6 +80,7 @@ import { CountryFieldOverlayCatalog } from './country-fields/registry';
 import { applyCompanyFieldView } from './descriptors/company-view';
 import { FieldKindRegistry } from './descriptors/field-kinds';
 import {
+  allowedFromStatuses as computeAllowedFromStatuses,
   checkTransitionResult,
   findUndeclaredStatusInstances,
   validateLifecycle,
@@ -1068,6 +1069,22 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<ActionResult> {
     const { descriptor, action } = this.resolveAction(typeId, actionId);
 
+    // Reviewer finding #1 on the #468 lock (the CAS race): every status THIS action may legitimately
+    // write FROM, for an EXISTING record - the type's own declared `statuses` minus THIS action's own
+    // `lockedStatuses` (descriptors/types.ts). Handed to the handler as `allowedFromStatuses` so a
+    // generic write like "save-draft" (`performSaveDraft`, actions/generic-actions.ts) can pass it
+    // straight through to `upsertDocument`'s own compare-and-swap (persistence.ts) instead of writing
+    // UNCONDITIONALLY. That was the actual bug: `currentStatus` above is read once, several `await`s
+    // before any handler's own write runs, so a "send" (draft -> sending) or an OTP signature (sent ->
+    // signed) landing in that gap left `isActionAvailable` having checked a status the record no
+    // longer has - the write itself must refuse (409), never silently rewrite an issued document that
+    // moved on in between. Undefined when the type declares no `statuses` at all (an extension/plugin
+    // type with no lifecycle) - keeps `upsertDocument`'s previous, unconditional behavior for that
+    // case, exactly as it was before this fix. For a type whose CURRENT action declares no
+    // `lockedStatuses` (every "save-draft" but the invoice's/credit-note's/quote's own), this is simply
+    // every declared status - still a real compare-and-swap, just not a NARROWING one.
+    const allowedFromStatuses = computeAllowedFromStatuses(descriptor, action);
+
     // ONLY ever populated for `isQueuedReplay` — see this method's own header. A default call
     // (`isQueuedReplay: false`, every EXISTING caller) leaves this `undefined`, so `isAdmittedReplay`
     // below is trivially false and every gate that follows runs in its ORIGINAL, unconditional order.
@@ -1138,6 +1155,53 @@ export class DocumentsService implements OnModuleInit {
         `Action "${actionId}" of document type "${typeId}" is restricted by this company's country ` +
           `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${currentStatus}".`,
       );
+    }
+
+    // Reviewer finding #2 on the #468 lock: a "send" retry of a LOCKED record (today, an invoice or
+    // credit-note stuck at "send_failed" - the one status that survives the type's own "save-draft"
+    // `lockedStatuses` while still being a valid "send" `availableWhen`/`fromStatuses` origin) must
+    // resend EXACTLY what was already stored, never whatever the caller's `data` happens to carry.
+    // The number this record's number FIELD already spent (numbering/sequence.ts's own "never waste a
+    // number") was issued for the STORED content - a form re-submitting `form.getValues()` on retry
+    // (frontend's `use-document-form.ts`) could otherwise silently rewrite a numbered document's lines
+    // after the fact. Decided GENERICALLY, never by naming "invoice"/"credit-note" here: whenever the
+    // record's CURRENT status is one this type's own "save-draft" action locks
+    // (`DocumentActionDescriptor.lockedStatuses`, issue #468), that status is BY DEFINITION "issued,
+    // never rewritten" for this type - "send" is the one OTHER action that can still legitimately run
+    // from it (a retry) and it must honor the exact same rule save-draft already does. A quote is
+    // unaffected: its own "save-draft" lock is `['signed', 'accepted']`, and "send_failed" is not in
+    // it, so a failed quote send keeps carrying whatever the caller just typed, exactly as intended
+    // (see quote.descriptor.ts's own comment on why "sent"/"send_failed" stay editable).
+    //
+    // Deliberately NOT a 409 on a mismatch: `form.getValues()` is not guaranteed to be byte-identical
+    // to the stored JSON (client-side defaults, normalization, a field the screen renders differently
+    // than it was persisted) - refusing on any difference would refuse a legitimate, unmodified retry
+    // as often as it would catch a real edit. The stored content is the one the consumed number was
+    // issued for, so it is simply what runs - `existingData` was already read (a moment ago, from THIS
+    // same row) for `validateReferenceFields` above, so this reuses it rather than a second query.
+    // Replaced on `payload.data` itself, BEFORE the sidecar-strip/dropEmptyRows/validation passes just
+    // below and before the handler's own preflight (tax resolution) ever runs, so every downstream
+    // reader - validation, `resolveInvoiceCrossBorderTaxForCompany`, the "sending" persistence itself -
+    // sees the stored content and nothing the caller just submitted.
+    //
+    // Deliberately EXCLUDES `currentStatus === 'sending'`: that status is already governed end to end
+    // by `actions/async-send.ts`'s own state machine, never by this generic gate. Its own "already
+    // sending" branch never even reads the `data` this method validates just below - it re-fetches
+    // the record itself (`existing.data`, `async-send.ts`'s own `findOwnedDocument` call) and delivers
+    // from THAT, so this method's `payload.data` is inert for that branch regardless of what it holds:
+    // an ADMITTED replay (`isAdmittedReplay`) already skips this whole validation pass, and a
+    // genuinely concurrent second caller landing on "sending" is refused by that file's own in-process/
+    // database claims (see its header, "THE DOUBLE-DELIVERY GUARD") before delivery ever runs. Folding
+    // "sending" into this swap would only risk VALIDATING a swapped-in `existingData` against an
+    // action/type it was never necessarily read for in this shape, for no corresponding safety gain.
+    if (
+      actionId === 'send' &&
+      currentStatus !== undefined &&
+      currentStatus !== 'sending' &&
+      existingData !== undefined &&
+      descriptor.actions.find((a) => a.id === 'save-draft')?.lockedStatuses?.includes(currentStatus)
+    ) {
+      payload.data = existingData;
     }
 
     const handler = this.actionRegistry.resolve(typeId, actionId);
@@ -1325,6 +1389,8 @@ export class DocumentsService implements OnModuleInit {
       // Already computed above for the availableWhen/country-policy gates - see ActionContext's own
       // comment on why this is handed through rather than re-fetched a second time.
       currentStatus,
+      // See this method's own comment on `allowedFromStatuses`, right after `resolveAction` above.
+      allowedFromStatuses,
       actor,
     });
 

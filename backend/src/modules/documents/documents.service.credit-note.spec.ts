@@ -453,6 +453,9 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       // correctedLines isn't an 'array' field itself, so nothing here gets a $rowId stamped onto
       // it — stamping only ever touches 'array' rows (the INVOICE's own lines), never this field.
       validCreditNoteData,
+      // The CAS argument (issue #468 reviewer finding #1) - `documents.service.ts#runAction`'s own
+      // `allowedFromStatuses`: CREDIT_NOTE_STATUSES minus SAVE_DRAFT_LOCKED_STATUSES = ['draft'].
+      ['draft'],
     );
   });
 
@@ -547,6 +550,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         undefined,
         'draft',
         validCreditNoteData,
+        ['draft'], // the CAS argument - see this file's own earlier comment on it.
       );
     });
 
@@ -664,6 +668,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         undefined,
         'draft',
         freeCreditNoteData,
+        ['draft'], // the CAS argument - see this file's own earlier comment on it.
       );
     });
 

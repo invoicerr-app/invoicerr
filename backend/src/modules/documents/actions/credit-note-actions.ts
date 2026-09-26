@@ -324,7 +324,17 @@ function registerCreditNoteSaveDraftAction(
     assertCreditNoteAmountSourceIsUnambiguous(ctx.data);
     await assertFreeCreditNoteAllowedForCountry(ctx.companyId, ctx.data);
     await assertCreditNoteCurrencyMatchesInvoice(ctx.companyId, ctx.data);
-    return performSaveDraft(ctx.companyId, 'credit-note', ctx.documentId, ctx.data, webhooks);
+    return performSaveDraft(
+      ctx.companyId,
+      'credit-note',
+      ctx.documentId,
+      ctx.data,
+      webhooks,
+      // Same CAS fix as `invoice-actions.ts`'s own save-draft handler - see `performSaveDraft`'s own
+      // header (generic-actions.ts) and `documents.service.ts#runAction`'s `allowedFromStatuses`
+      // comment.
+      ctx.allowedFromStatuses,
+    );
   });
 }
 

@@ -142,6 +142,14 @@ describe('Issue #468 - "save-draft" refuses to rewrite an issued document', () =
 				cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
 				cy.openDocumentActionsMenu();
 				cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
+
+				// Point 3 of the reviewer's follow-up: the notice alone used to leave the fields
+				// underneath white and clickable. `document-form-readonly.tsx`'s provider is what makes
+				// the form AGREE with the notice - the marker element proves it fired, and a real field
+				// input proves the effect is not merely cosmetic.
+				cy.get('[data-cy="document-form-readonly"]').should("exist");
+				cy.get('[data-cy="document-field-issueDate-input"]').should("be.disabled");
+				cy.get('[data-cy="document-field-lines-add-row"]').should("be.disabled");
 			});
 		});
 	});
@@ -198,6 +206,11 @@ describe('Issue #468 - "save-draft" refuses to rewrite an issued document', () =
 				.should("be.visible")
 				.and("contain.text", "credit note");
 			cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
+
+			// Point 3 - see the invoice test's own comment just above for the full "why".
+			cy.get('[data-cy="document-form-readonly"]').should("exist");
+			cy.get('[data-cy="document-field-issueDate-input"]').should("be.disabled");
+			cy.get('[data-cy="document-field-lines-add-row"]').should("be.disabled");
 		});
 	});
 
@@ -301,6 +314,13 @@ describe('Issue #468 - "save-draft" refuses to rewrite an issued document', () =
 							.and("contain.text", "signed")
 							.and("contain.text", "create a new quote");
 						cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
+
+						// Point 3 - see the invoice test's own comment (earlier in this file) for the
+						// full "why". The quote's own `issueDate` field is what every fixture in this
+						// file sets, same as the invoice/credit-note ones above.
+						cy.get('[data-cy="document-form-readonly"]').should("exist");
+						cy.get('[data-cy="document-field-issueDate-input"]').should("be.disabled");
+						cy.get('[data-cy="document-field-lines-add-row"]').should("be.disabled");
 					});
 				});
 			});
@@ -362,6 +382,143 @@ describe('Issue #468 - "save-draft" refuses to rewrite an issued document', () =
 				cy.get('[data-cy="document-save-locked-notice"]').should("not.exist");
 				cy.openDocumentActionsMenu();
 				cy.get('[data-cy="document-action-save-draft"]').should("exist");
+
+				// Point 3, the mirror case: nothing is locked, so nothing should be disabled either-
+				// a "sent" quote stays as editable on screen as it already is at the API.
+				cy.get('[data-cy="document-form-readonly"]').should("not.exist");
+				cy.get('[data-cy="document-field-issueDate-input"]').should("not.be.disabled");
+				cy.get('[data-cy="document-field-lines-add-row"]').should("not.be.disabled");
+			});
+		});
+	});
+
+	/**
+	 * Reviewer finding #2 on the #468 lock: a "send_failed" invoice/credit-note is a LOCKED record
+	 * (its own "save-draft" refuses every status but "draft") whose NUMBER is already spent - but
+	 * "send" used to persist whatever `data` a RETRY submitted, which is exactly what a frontend
+	 * re-submitting `form.getValues()` (use-document-form.ts) does on every action. The fix
+	 * (documents.service.ts#runAction, right after the country-policy per-status check) replaces the
+	 * submitted `data` with the STORED one whenever the record's current status is one this type's
+	 * own "save-draft" locks - proven here against a REAL "send_failed" invoice (a client with no
+	 * contactEmail makes the "email" transport fail deterministically, the same fixture
+	 * 28-document-async-send.cy.ts already uses), retried with modified `data` sent directly to the
+	 * API - never through the screen, which doesn't even offer editing a locked record any more
+	 * (the point 3 assertions right above).
+	 */
+	it('a "send_failed" invoice retried with modified `data` keeps the STORED content - the caller\'s edit is silently ignored, never persisted', () => {
+		cy.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: { invoiceTransportId: "email" },
+			failOnStatusCode: false,
+		}).then((res) => {
+			expect(res.status, "transport configured").to.be.oneOf([200, 201]);
+		});
+
+		cy.request({
+			method: "POST",
+			url: `${api}/api/clients`,
+			body: {
+				name: "Send Failed Retry Co",
+				// No contactEmail - makes the "email" transport fail deterministically, every attempt,
+				// exactly like 28-document-async-send.cy.ts's own "No Email Co" fixture.
+				currency: "EUR",
+				country: "France",
+				countryCode: "FR",
+				address: "1 Silent Street",
+				city: "Paris",
+				postalCode: "75003",
+				isActive: true,
+				type: "COMPANY",
+			},
+			failOnStatusCode: false,
+		}).then((created) => {
+			expect(created.status, "client with no email created").to.eq(201);
+			const clientId = created.body.id as string;
+
+			const originalData = {
+				client: clientId,
+				issueDate: "2026-08-31",
+				dueDate: "2026-09-30",
+				currency: "EUR",
+				lines: [
+					{ description: "Original description", quantity: 1, unit: "unit", unitPrice: 80, vatRate: "20" },
+				],
+			};
+
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/invoice/actions/save-draft`,
+				body: { data: originalData },
+			}).then((saved) => {
+				const invoiceId = saved.body?.document?.id as string;
+				expect(invoiceId, "invoice draft created").to.be.a("string");
+
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/send`,
+					body: { documentId: invoiceId, data: originalData },
+				}).then((sent) => {
+					expect(sent.status, "send accepted (queued)").to.be.oneOf([200, 201]);
+				});
+
+				// Real BullMQ attempts (DOCUMENT_ACTION_QUEUE_ATTEMPTS, exponential backoff) - the
+				// same generous budget 28-document-async-send.cy.ts's own "send_failed" test absorbs.
+				cy.waitForDocumentStatus(`${api}/api/documents/${invoiceId}?typeId=invoice`, ["send_failed"]);
+
+				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+					.its("body")
+					.then((before) => {
+						expect(before.status, 'really "send_failed"').to.eq("send_failed");
+						expect(before.number, "already numbered - the number is spent").to.be.a("number");
+
+						const modifiedData = {
+							...originalData,
+							lines: [
+								{
+									...originalData.lines[0],
+									description: "REWRITTEN after the fact - must never be stored",
+									unitPrice: 999999,
+								},
+							],
+						};
+
+						// The retry itself - modified `data`, sent straight to the API, exactly what a
+						// form re-submitting its own current (edited) values would send.
+						cy.request({
+							method: "POST",
+							url: `${api}/api/documents/types/invoice/actions/send`,
+							body: { documentId: invoiceId, data: modifiedData },
+							failOnStatusCode: false,
+						}).then((retry) => {
+							expect(retry.status, "the retry itself is accepted (still queued)").to.be.oneOf([
+								200, 201,
+							]);
+						});
+
+						// It fails again (same client, still no email) - waiting for "send_failed" once
+						// more is what proves the retry actually ran (not merely got queued) before the
+						// assertion below reads the STORED content back.
+						cy.waitForDocumentStatus(`${api}/api/documents/${invoiceId}?typeId=invoice`, [
+							"send_failed",
+						]);
+
+						cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+							.its("body")
+							.then((after) => {
+								expect(
+									after.data?.lines?.[0]?.description,
+									"the STORED description is untouched by the retry's own edit",
+								).to.eq("Original description");
+								expect(
+									after.data?.lines?.[0]?.unitPrice,
+									"the STORED unit price is untouched by the retry's own edit",
+								).to.eq(80);
+								expect(after.number, "the same spent number, never a new one").to.eq(
+									before.number,
+								);
+							});
+					});
 			});
 		});
 	});

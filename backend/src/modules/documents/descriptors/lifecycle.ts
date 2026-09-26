@@ -184,6 +184,23 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
 }
 
 /**
+ * Every status `action` may legitimately write FROM on an EXISTING record: the type's declared
+ * `statuses` minus the action's own `lockedStatuses` (issue #468). `documents.service.ts#runAction`
+ * hands this to the handler as `ActionContext.allowedFromStatuses`, and "save-draft" passes it to
+ * `upsertDocument` as its compare-and-swap, so a status that moved on between runAction's read and the
+ * write (a concurrent "send", an OTP signature) is refused rather than overwritten. One function, so
+ * the runtime and its tests can never compute two different lists. Undefined for a type with no
+ * declared `statuses` (no lifecycle, so no lock and no CAS).
+ */
+export function allowedFromStatuses(
+  descriptor: DocumentTypeDescriptor,
+  action: DocumentActionDescriptor,
+): string[] | undefined {
+  if (!descriptor.statuses) return undefined;
+  return descriptor.statuses.map((s) => s.id).filter((id) => !action.lockedStatuses?.includes(id));
+}
+
+/**
  * The status (or, for a transition declaring more than one honest outcome — see
  * `DocumentActionTransition.to`'s own comment — every status) a transition-bearing action's own
  * declared effect says a record starting at `fromStatus` (undefined = brand new, never saved) must

@@ -4,6 +4,7 @@ import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { actionAssignsNumber, transitionHint } from "@/components/documents/action-presentation"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { DocumentField } from "@/components/documents/document-field"
+import { DocumentFormReadOnlyProvider } from "@/components/documents/document-form-readonly"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
 import type { DocumentFormState } from "@/components/documents/use-document-form"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,18 @@ import { Button } from "@/components/ui/button"
 interface DocumentFormFieldsProps {
   descriptor: DocumentTypeDescriptor
   state: DocumentFormState
+  /**
+   * Issue #468 (point 3, the locked-record review finding): true whenever `action-presentation.ts`'s
+   * `saveDraftLockNotice` fires for this record - an issued invoice/credit-note, a signed/accepted
+   * quote, or a country-policy lock (see that function's own header) - as `document-detail.tsx`
+   * already computes it for the notice above the form. Disables every field (line-item add/remove
+   * buttons included, via `DocumentFormReadOnlyProvider`) so the form no longer LOOKS editable once
+   * the backend would refuse to save it - the notice says WHY, this is what makes the screen AGREE
+   * with it instead of leaving white, clickable inputs under a warning nobody connects to them.
+   * Defaults to `false` - every pre-existing caller (the create dialog, which never has a locked
+   * record to show) keeps rendering exactly as before.
+   */
+  readOnly?: boolean
 }
 
 /**
@@ -26,16 +39,28 @@ interface DocumentFormFieldsProps {
  * banner. `data-cy="document-form"` stays on the `<form>` itself: it is what every screen-driven
  * test reaches for to say "the form is here".
  */
-export function DocumentFormFields({ descriptor, state }: DocumentFormFieldsProps) {
+export function DocumentFormFields({ descriptor, state, readOnly = false }: DocumentFormFieldsProps) {
   const { effectiveDescriptor, lineTotalWarnings } = state
 
   return (
     // Larger gap on mobile — owner feedback (2026-09-16): a flat list of fields with the desktop
     // gap (space-y-4) read as "too compressed" at 390px, unchanged from `sm:` up.
-    <form className="space-y-6 sm:space-y-4" data-cy="document-form" onSubmit={(e) => e.preventDefault()}>
-      {effectiveDescriptor.fields.map((field) => (
-        <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
-      ))}
+    // Read-only (issue #468): the UI kit only fades a disabled control to 50% opacity over a
+    // transparent background, which on this white card reads as still editable. A muted fill on
+    // every disabled control makes a locked form visibly different from an editable one.
+    <form
+      className={`space-y-6 sm:space-y-4${readOnly ? " [&_:is(input,textarea,button):disabled]:bg-muted" : ""}`}
+      data-cy="document-form"
+      onSubmit={(e) => e.preventDefault()}
+    >
+      <DocumentFormReadOnlyProvider value={readOnly}>
+        {/* A plain marker, not a visible one - data-cy hook for the e2e suite (90-save-draft-lock.cy.ts)
+            to assert the form is locked without depending on any one field's own disabled state. */}
+        {readOnly && <span className="hidden" aria-hidden="true" data-cy="document-form-readonly" />}
+        {effectiveDescriptor.fields.map((field) => (
+          <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
+        ))}
+      </DocumentFormReadOnlyProvider>
 
       {/* See use-document-form.ts's extractLineTotalWarnings: a NAMED, never-blocking warning when
           this record's own lines don't sum to its stated totals (rounding tolerance aside).

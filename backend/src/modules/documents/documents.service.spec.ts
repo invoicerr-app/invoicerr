@@ -178,6 +178,10 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       undefined,
       'draft',
       validQuoteData,
+      // The CAS argument (issue #468 reviewer finding #1) - `documents.service.ts#runAction`'s own
+      // `allowedFromStatuses`: every declared status minus the quote's own save-draft `lockedStatuses`
+      // (`['signed', 'accepted']`).
+      ['draft', 'sending', 'sent', 'send_failed', 'refused'],
     );
   });
 
@@ -210,6 +214,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       undefined,
       'draft',
       dataWithReference,
+      ['draft', 'sending', 'sent', 'send_failed', 'refused'], // the CAS argument - see this file's own earlier comment on it.
     );
   });
 
@@ -264,6 +269,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       undefined,
       'draft',
       dataWithLineDate,
+      ['draft', 'sending', 'sent', 'send_failed', 'refused'], // the CAS argument - see this file's own earlier comment on it.
     );
   });
 
@@ -314,6 +320,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       undefined,
       'draft',
       validQuoteData, // the SAME data, minus the sidecar — never the poisoned object.
+      ['draft', 'sending', 'sent', 'send_failed', 'refused'], // the CAS argument - see this file's own earlier comment on it.
     );
     const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4] as Record<string, unknown>;
     expect(persistedData).not.toHaveProperty('__crossBorderMentions');

@@ -235,7 +235,10 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             must clear the sticky "unsaved" bar, not land under it. */}
         <Card className="gap-4 py-5 [&_:focus]:scroll-mb-24">
           <CardContent className="px-5">
-            <DocumentFormFields descriptor={descriptor} state={state} />
+            {/* Issue #468 (point 3) - the same fact `saveLockedMessage` above already reads: the
+                notice explains WHY "save-draft" is missing, this is what stops the fields underneath
+                from still looking editable while it does. */}
+            <DocumentFormFields descriptor={descriptor} state={state} readOnly={!!saveLockedMessage} />
           </CardContent>
         </Card>
 

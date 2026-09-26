@@ -193,6 +193,11 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       undefined,
       'draft',
       validInvoiceData,
+      // The CAS argument (issue #468 reviewer finding #1) - `documents.service.ts#runAction`'s own
+      // `allowedFromStatuses`: INVOICE_STATUSES minus SAVE_DRAFT_LOCKED_STATUSES = ['draft']. Present
+      // even on a never-saved record (`documentId` undefined) - `upsertDocument`'s own create branch
+      // simply ignores it, see persistence.ts's own header.
+      ['draft'],
     );
   });
 
@@ -224,6 +229,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       undefined,
       'draft',
       dataWithReference,
+      ['draft'], // see the previous test's own comment on this CAS argument.
     );
   });
 
@@ -268,6 +274,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       undefined,
       'draft',
       dataWithLineDate,
+      ['draft'], // see the first test in this describe block for what this CAS argument is.
     );
   });
 
@@ -363,6 +370,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         undefined,
         'draft',
         validInvoiceData,
+        ['draft'], // see this file's own earlier comment on this CAS argument.
       );
     });
 
@@ -1518,6 +1526,76 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       expect(persistedData).toEqual(alreadyResolvedData);
     });
 
+    /**
+     * Reviewer finding #2 on the #468 lock: a "send_failed" invoice is a LOCKED record (its own
+     * "save-draft" refuses `lockedStatuses` in every status but "draft" - invoice.descriptor.ts's
+     * `SAVE_DRAFT_LOCKED_STATUSES`), yet "send" used to persist whatever `data` the RETRY submitted-
+     * exactly what a frontend re-submitting `form.getValues()` (`use-document-form.ts`) does on every
+     * action, modified field included. `documents.service.ts#runAction` now replaces `payload.data`
+     * with the STORED data BEFORE validation/preflight/persistence ever see it, whenever the record's
+     * current status is one this type's own "save-draft" locks - see that call site's own comment,
+     * right after the country-policy per-status check. This is the proof: the caller submits a
+     * DIFFERENT description and a DIFFERENT unit price than what is actually stored, and the write
+     * that reaches `upsertDocument` must still carry the ORIGINAL, stored content, byte for byte.
+     */
+    it('a "send_failed" retry IGNORES modified `data` entirely - the stored content is what gets resent, never the caller\'s edit', async () => {
+      const storedData = resolveInvoiceCrossBorderTax({
+        seller: { countryCode: 'FR' },
+        buyer: { countryCode: 'DE' },
+        buyerVat: { value: 'DE136695976', validationStatus: 'VALID' },
+        data: frDeB2bInvoiceData,
+      }).data;
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'send_failed',
+        data: storedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (persistence.upsertDocument as Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+
+      // What a form re-submitting its own current values would send: a genuinely EDITED line - a
+      // different description AND a different unit price - never what was actually stored.
+      const modifiedData = {
+        ...frDeB2bInvoiceData,
+        lines: [{ ...frDeB2bInvoiceData.lines[0], description: 'Edited after the fact', unitPrice: 99999 }],
+      };
+
+      const { service } = buildService(buildEmailTransportRegistry());
+      await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: modifiedData,
+      });
+
+      const [, , , persistedStatus, persistedData] = (persistence.upsertDocument as Mock).mock.calls[0] as [
+        string,
+        string,
+        string,
+        string,
+        Record<string, unknown>,
+      ];
+      expect(persistedStatus).toBe('sending');
+      // The STORED content, untouched - never the caller's edited description/price.
+      expect(persistedData).toEqual(storedData);
+      const persistedLine = (persistedData.lines as Record<string, unknown>[])[0];
+      expect(persistedLine.description).toBe('Conseil stratégique');
+      expect(persistedLine.unitPrice).toBe(12000);
+    });
+
     it('THE SETTLEMENT PROOF: a 12 000 EUR payment against the STORED (resolved) totals settles the invoice — never "partially paid" against the raw 14 400 EUR the user typed', () => {
       const resolvedData = {
         ...frDeB2bInvoiceData,
@@ -1560,6 +1638,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         undefined,
         'draft',
         frDeB2bInvoiceData, // still 20% — a draft is never rewritten
+        ['draft'], // the CAS argument - see this file's own earlier comment on it.
       );
     });
   });
@@ -1637,6 +1716,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         'doc-1',
         'draft',
         frDeB2bInvoiceData, // untouched — still a draft-to-draft save
+        ['draft'], // the CAS argument - see this file's own earlier comment on it.
       );
     });
 
