@@ -1,0 +1,142 @@
+{
+    "demo": {
+        "greeting": "Azul a {{name}}!",
+        "itemCount": "{{count}} n iferdisen",
+        "englishOnly": ""
+    },
+    "layout": {
+        "greeting": "Azul,",
+        "signOffText": "",
+        "signOffHtml": "S leqder meqqren,<br>Tarbaɛt n Invoicerr",
+        "sentFrom": "Imayl-a yettwazen-d seg {appUrl}"
+    },
+    "signatureRequest": {
+        "subject": "Ma ulac aɣilif, sizemlet isemli #{signatureNumber}",
+        "intro": "",
+        "documentLine": "Isemli: {signatureNumber}",
+        "signatureIdLine": "",
+        "reviewLinkIntro": "",
+        "contactText": "",
+        "title": "",
+        "documentLabel": "Isemli:",
+        "signatureIdLabel": "Asulay ID n uzmul:",
+        "clickBelow": "Ma ulac aɣilif, tekki ɣef tqeffalt-a n wadda iwakken ad tsefqdeḍ u ad tzemleḍ isemli:",
+        "buttonLabel": "Sezmel isemli",
+        "contactHtml": "Ma tesɛam kra n yisteqsiyen, ma ulac aɣilif, ur kukrut ara ad aɣ-d-tnermsem."
+    },
+    "verificationCode": {
+        "subject": "",
+        "codeIntroText": "",
+        "codeIntroHtml": "",
+        "expiryText": "",
+        "expiryHtml": "",
+        "ignoreNotice": ""
+    },
+    "billingWarning": {
+        "manageLine": "",
+        "ctaLabel": "",
+        "blockedZip": {
+            "subject": "",
+            "heading": "",
+            "introText": "",
+            "introHtml": ""
+        },
+        "deletion": {
+            "subject": "",
+            "heading": "",
+            "textBody": "",
+            "htmlBody": ""
+        }
+    },
+    "legalChanged": {
+        "subjectSingular": "",
+        "subjectPlural": "",
+        "titlesTwo": "{first} akked {second}",
+        "titlesMany": "{first}, {second} akked {count} nniḍen",
+        "heading": "",
+        "introText": "",
+        "introHtml": "",
+        "acceptNotice": "",
+        "acceptButton": ""
+    },
+    "ownershipTransfer": {
+        "request": {
+            "subject": "",
+            "textIntro": "",
+            "expiryNotice": "",
+            "reviewLinkIntro": "",
+            "ignoreNotice": "",
+            "heading": "",
+            "htmlIntro": "",
+            "buttonLabel": ""
+        },
+        "finalized": {
+            "subjectNewOwner": "Tuɣaleḍ tura d bab n \"{companyName}\"",
+            "subjectFormerOwner": "",
+            "bodyLineNewOwner": "",
+            "bodyLineFormerOwner": "",
+            "heading": ""
+        },
+        "ended": {
+            "subjectExpired": "",
+            "subjectCanceled": "",
+            "bodyExpired": "",
+            "bodyCanceled": "",
+            "heading": ""
+        }
+    },
+    "dataExport": {
+        "subject": ""
+    },
+    "dangerOtp": {
+        "subject": "",
+        "body": ""
+    },
+    "dangerDeleteCompany": {
+        "body": ""
+    },
+    "instanceResetOtp": {
+        "subject": "",
+        "body": ""
+    },
+    "changeEmail": {
+        "subject": "Sentem tansa-ik imayl",
+        "textIntro": "",
+        "htmlIntro": "",
+        "ignoreNotice": "",
+        "buttonLabel": "Sentem tansa n yimayl"
+    },
+    "mailSettingsTest": {
+        "subject": "",
+        "body": ""
+    },
+    "billingZipExport": {
+        "body": ""
+    },
+    "reminders": {
+        "tier7": {
+            "subject": "",
+            "body_one": "Azul,\n\nWa d asmekti ameddukkal dakken tafaṭurt {displayNumber}, n {amountOutstanding}, azemz n uxelleṣ-is yella d {dueDate}, yerna tura iɛedda lawan-is s {{count}} n wussan.\n\nMa ulac aɣilif, xellṣet-tt deg lemkina. Ma yella txellṣem yakan, tzemrem ad tzeglem izen-a.\n\nTanemmirt,\n{companyName}",
+            "body_other": "Azul,\n\nWa d asmekti ameddukkal dakken tafaṭurt {displayNumber}, n {amountOutstanding}, azemz n uxelleṣ-is yella d {dueDate}, yerna tura iɛedda lawan-is s {{count}} n wussan.\n\nMa ulac aɣilif, xellṣet-tt deg lemkina. Ma yella txellṣem yakan, tzemrem ad tzeglem izen-a.\n\nTanemmirt,\n{companyName}"
+        },
+        "tier14": {
+            "subject": "Asmekti wis sin — tafaṭurt {displayNumber} iɛedda lawan n usellek-is",
+            "body_one": "Azul,\n\nTafaṭurt {displayNumber}, n {amountOutstanding}, azemz n uxelleṣ-is yella d {dueDate}, yerna tura iɛedda lawan-is s {{count}} n wussan. Wa d asmekti-nneɣ wis sin — ma ulac aɣilif, xellṣet-tt s zreb ma tzemrem.\n\nMa yella tesɛam uguren deg usellek, ma ulac aɣilif nermset-aɣ-d iwakken ad naf tifrat lwaḥid.\n\n{companyName}",
+            "body_other": "Azul,\n\nTafaṭurt {displayNumber}, n {amountOutstanding}, azemz n uxelleṣ-is yella d {dueDate}, yerna tura iɛedda lawan-is s {{count}} n wussan. Wa d asmekti-nneɣ wis sin — ma ulac aɣilif, xellṣet-tt s zreb ma tzemrem.\n\nMa yella tesɛam uguren deg usellek, ma ulac aɣilif nermset-aɣ-d iwakken ad naf tifrat lwaḥid.\n\n{companyName}"
+        },
+        "tier30": {
+            "subject": "S LEMƔAWLA — tafaṭurt {displayNumber} iɛedda lawan-is s waṭas",
+            "body_one": "Azul,\n\nTafaṭurt {displayNumber}, n {amountOutstanding}, azemz n usellek-is yella d {dueDate}, yerna tura iɛedda lawan-is s {{count}} n wussan. Ɣas akken i nceyyeɛ-awen-d ismektiyen, mazal-itt ur tettwasellek ara.\n\nMa ulac aɣilif, selket tafaṭurt-a TURA KAN iwakken ur wen-d-ttilint ara tigawin nniḍen. Nermset-aɣ-d s lemɣawla ma yella kra iɣef ur nemsefham ara, neɣ ma yella kra n wugur, ar tura, ur d-newwi ara lexber yis-s.\n\n{companyName}",
+            "body_other": "Azul,\n\nTafaṭurt {displayNumber}, n {amountOutstanding}, azemz n usellek-is yella d {dueDate}, yerna tura iɛedda lawan-is s {{count}} n wussan. Ɣas akken i nceyyeɛ-awen-d ismektiyen, mazal-itt ur tettwasellek ara.\n\nMa ulac aɣilif, selket tafaṭurt-a TURA KAN iwakken ur wen-d-ttilint ara tigawin nniḍen. Nermset-aɣ-d s lemɣawla ma yella kra iɣef ur nemsefham ara, neɣ ma yella kra n wugur, ar tura, ur d-newwi ara lexber yis-s.\n\n{companyName}"
+        }
+    },
+    "portalInvite": {
+        "subject": "",
+        "introText": "",
+        "openPortalIntro": "",
+        "buttonLabel": "",
+        "privacyNotice": "",
+        "signOffText": "",
+        "signOffHtml": "S leqder ameqqran,<br>{companyName}"
+    }
+}
