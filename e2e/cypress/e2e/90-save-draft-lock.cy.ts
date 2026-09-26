@@ -144,7 +144,7 @@ describe('Issue #468 - "save-draft" refuses to rewrite an issued document', () =
 				cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
 
 				// Point 3 of the reviewer's follow-up: the notice alone used to leave the fields
-				// underneath white and clickable. `document-form-readonly.tsx`'s provider is what makes
+				// underneath white and clickable. `document-form-readonly.ts`'s provider is what makes
 				// the form AGREE with the notice - the marker element proves it fired, and a real field
 				// input proves the effect is not merely cosmetic.
 				cy.get('[data-cy="document-form-readonly"]').should("exist");
