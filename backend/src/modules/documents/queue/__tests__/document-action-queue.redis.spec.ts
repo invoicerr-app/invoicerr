@@ -354,26 +354,31 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     // a send_failed invoice keeps the number it was given entering "sending"
     expect(numberAfterFailure).toEqual(expect.any(String));
 
-    // Fix the underlying cause: a REAL client, with a real contact email, replaces the dangling id —
-    // `buildDocumentsService`'s own `getClientById` is a genuine DB-backed lookup, so this client
-    // genuinely resolves this time. A genuine re-`send` — the retry IS the action itself
-    // (actions/async-send.ts), never a separate mechanism — with the CORRECTED data.
-    const client = await prisma.client.create({
+    // Fix the underlying cause on the CLIENT record itself: the same client gets a real contact
+    // email. Issue #468 (owner decision on PR #469): a "send_failed" invoice has already consumed its
+    // number, so a retry resends exactly what is stored - it can no longer swap in a different client
+    // (this test used to do that, which was the very rewrite the lock now forbids). The retry below
+    // even submits a different client id to prove it: runAction ignores the submitted `data` and
+    // resends the stored invoice, whose own client now resolves to an email.
+    await prisma.client.update({
+      where: { id: noEmailClient.id },
+      data: { contactEmail: `recovered-${Date.now()}@example.com` },
+    });
+    const otherClient = await prisma.client.create({
       data: {
         companyId,
-        name: 'Recovered Client',
-        contactEmail: `recovered-${Date.now()}@example.com`,
+        name: 'Never Used Client',
+        contactEmail: `never-used-${Date.now()}@example.com`,
         address: '1 Client Street',
         postalCode: '00000',
         city: 'Testville',
         country: 'France',
       },
     });
-    const fixedData = { ...invoiceData, client: client.id };
 
     const retry = await documentsService.runAction(companyId, 'invoice', 'send', {
       documentId,
-      data: fixedData,
+      data: { ...invoiceData, client: otherClient.id },
     });
     expect(retry.document?.status).toBe('sending');
 
@@ -383,7 +388,10 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     // No hole, no duplicate: the number a "send_failed" document already carried is exactly the one
     // it keeps once the retry succeeds — see numbering/take-number.ts's own "number IS NULL" guard.
     expect(settled.displayNumber).toBe(numberAfterFailure);
+    // The stored client, never the one the retry submitted.
+    const stored = await prisma.documentInstance.findUniqueOrThrow({ where: { id: documentId } });
+    expect((stored.data as Record<string, unknown>).client).toBe(noEmailClient.id);
 
-    await prisma.client.delete({ where: { id: client.id } }).catch(() => undefined);
+    await prisma.client.delete({ where: { id: otherClient.id } }).catch(() => undefined);
   });
 });
