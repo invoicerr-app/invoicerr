@@ -191,7 +191,10 @@ describeWithRedis('document-schedule sweep — real Redis, real Postgres, real M
       data: {
         companyId,
         name: 'Schedule Client',
-        contactEmail: `schedule-client-${Date.now()}@example.com`,
+        // #415: `contactEmail` moved off `Client` onto its `contacts` relation.
+        contacts: {
+          create: { email: `schedule-client-${Date.now()}@example.com`, isPrimary: true, position: 0 },
+        },
         address: '1 Client Street',
         postalCode: '00000',
         city: 'Testville',
@@ -276,9 +279,15 @@ describeWithRedis('document-schedule sweep — real Redis, real Postgres, real M
 
   it('with thenSend: true, the duplicate is chained straight through to "sent" — delivered to a real Mailpit', async () => {
     const recipientMarker = `schedule-thensend-${Date.now()}`;
+    // #415: `contactEmail` moved off `Client` onto its `contacts` relation - update the existing
+    // primary contact's email rather than a `Client` column.
     await prisma.client.update({
       where: { id: clientId },
-      data: { contactEmail: `${recipientMarker}@example.com` },
+      data: {
+        contacts: {
+          updateMany: { where: { isPrimary: true }, data: { email: `${recipientMarker}@example.com` } },
+        },
+      },
     });
 
     const schedule = await prisma.documentSchedule.create({

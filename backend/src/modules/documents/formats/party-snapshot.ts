@@ -5,6 +5,8 @@
  * that mapping happens, so a provider never has to know whether it is looking at a seller (always a
  * `Company`) or a buyer (always a `Client`).
  */
+import { ContactLike, derivePrimaryContactFields } from '@/modules/clients/primary-contact';
+
 import { DocumentFormatParty } from './format-provider';
 
 export interface CompanyRowForFormat {
@@ -25,10 +27,10 @@ export interface CompanyRowForFormat {
 
 export interface ClientRowForFormat {
   name: string;
-  contactFirstname?: string | null;
-  contactLastname?: string | null;
-  contactEmail?: string | null;
-  contactPhone?: string | null;
+  // Contact fields moved off `Client` onto its `contacts` relation (#415) - every caller passes the
+  // relation straight through (an `include: { contacts: true }` query, no particular order required:
+  // `derivePrimaryContactFields` finds the primary regardless), never the old flat columns.
+  contacts: ContactLike[];
   address: string;
   addressLine2?: string | null;
   city: string;
@@ -53,18 +55,20 @@ export function companyToFormatParty(company: CompanyRowForFormat): DocumentForm
 }
 
 export function clientToFormatParty(client: ClientRowForFormat): DocumentFormatParty {
+  const primary = derivePrimaryContactFields(client.contacts);
   return {
     // A CLIENT's `name` is required on the schema but a form can still leave it blank for an
     // INDIVIDUAL client that only carries contact first/last names — the same fallback
     // `invoice-rendering.service.ts` used at the reference, reprised here rather than reinvented.
-    name: client.name || [client.contactFirstname, client.contactLastname].filter(Boolean).join(' ') || 'N/A',
+    name:
+      client.name || [primary.contactFirstname, primary.contactLastname].filter(Boolean).join(' ') || 'N/A',
     address: client.address,
     addressLine2: client.addressLine2,
     city: client.city,
     postalCode: client.postalCode,
     country: client.country,
-    email: client.contactEmail,
-    phone: client.contactPhone,
+    email: primary.contactEmail,
+    phone: primary.contactPhone,
     partyIdentifiers: client.partyIdentifiers,
   };
 }

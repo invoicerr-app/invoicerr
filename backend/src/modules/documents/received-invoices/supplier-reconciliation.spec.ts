@@ -42,7 +42,10 @@ async function createClient(companyId: string, name: string, vat?: string) {
       city: 'Clientville',
       country: 'France',
       countryCode: 'FR',
-      contactEmail: uniqueEmail(`client-${name.replace(/\s+/g, '-')}`),
+      // #415: `contactEmail` moved off `Client` onto its `contacts` relation.
+      contacts: {
+        create: { email: uniqueEmail(`client-${name.replace(/\s+/g, '-')}`), isPrimary: true, position: 0 },
+      },
     },
   });
   if (vat) {

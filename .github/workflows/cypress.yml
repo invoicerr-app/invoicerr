@@ -341,6 +341,16 @@ jobs:
           MIGRATION_FRESH_TESTS: '1'
         run: cd backend && npx vitest run prisma/migration-fresh-schema.spec.ts
 
+      # #415 ("several contacts per client") data-preservation tripwire: applies every migration
+      # BEFORE `client_contacts` on its own disposable database, inserts realistic pre-existing
+      # client rows, then applies that one migration and asserts every value survived exactly. Same
+      # gate, same disposable-Postgres reasoning as the enum tripwire directly above; see
+      # `src/prisma/migration-client-contacts.spec.ts`'s own header.
+      - name: Run client-contacts migration data-preservation tripwire (#415)
+        env:
+          MIGRATION_FRESH_TESTS: '1'
+        run: cd backend && npx vitest run prisma/migration-client-contacts.spec.ts
+
   # Six shards, six COMPLETE stacks. This job used to run all 73 specs back to back in one runner:
   # 55, 56, 71, 73 and 73 minutes over the five most recent green runs, while every other job in this
   # workflow finished inside 8 — the whole workflow's wall time was this job's alone. Nothing about

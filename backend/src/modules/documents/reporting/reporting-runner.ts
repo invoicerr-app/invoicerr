@@ -125,7 +125,7 @@ export class ReportingRunner {
       typeof clientId === 'string' && clientId
         ? prisma.client.findFirstOrThrow({
             where: { id: clientId, companyId: data.companyId },
-            include: { partyIdentifiers: true },
+            include: { partyIdentifiers: true, contacts: true },
           })
         : Promise.resolve(undefined),
     ]);

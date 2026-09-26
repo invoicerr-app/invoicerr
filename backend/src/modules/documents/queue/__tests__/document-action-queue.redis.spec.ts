@@ -360,15 +360,19 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     // (this test used to do that, which was the very rewrite the lock now forbids). The retry below
     // even submits a different client id to prove it: runAction ignores the submitted `data` and
     // resends the stored invoice, whose own client now resolves to an email.
+    // #415: `contactEmail` moved off `Client` onto its `contacts` relation. `noEmailClient` has no
+    // contact yet (see the fixture above), so this simply adds a fresh primary one.
     await prisma.client.update({
       where: { id: noEmailClient.id },
-      data: { contactEmail: `recovered-${Date.now()}@example.com` },
+      data: {
+        contacts: { create: { email: `recovered-${Date.now()}@example.com`, isPrimary: true, position: 0 } },
+      },
     });
     const otherClient = await prisma.client.create({
       data: {
         companyId,
         name: 'Never Used Client',
-        contactEmail: `never-used-${Date.now()}@example.com`,
+        contacts: { create: { email: `never-used-${Date.now()}@example.com`, isPrimary: true, position: 0 } },
         address: '1 Client Street',
         postalCode: '00000',
         city: 'Testville',

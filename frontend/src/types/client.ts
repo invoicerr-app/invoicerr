@@ -3,6 +3,21 @@ export interface PartyIdentifier {
   value: string
 }
 
+/** One named contact (#415) - mirrors the backend's `ClientContactDto`/`ClientContact`. A client may
+ *  have zero, one or several; when it has at least one, exactly one must have `isPrimary: true` - the
+ *  primary is what document-delivery emails use. `id` is present on a contact read back from the API
+ *  (ignored if resent on write - a save is always a full replacement of the list, see
+ *  `useClients`'s own `saveClient` header). */
+export interface ClientContact {
+  id?: string
+  firstName?: string | null
+  lastName?: string | null
+  role?: string | null
+  email?: string | null
+  phone?: string | null
+  isPrimary?: boolean
+}
+
 export interface Client {
   id: string
   name: string
@@ -17,6 +32,12 @@ export interface Client {
   // client is linked from a received invoice (auto-match or a manual pick), or by hand on this form.
   isSupplier?: boolean
   foundedAt?: Date
+  // The client's contacts (#415) - zero, one or several, exactly one flagged primary when there is at
+  // least one. Absent (never sent) leaves them untouched on an edit; `[]` means "remove them all".
+  // The four `contact*` fields below are READ-ONLY, server-derived from whichever contact is primary
+  // - kept for every reader that predates this feature (see the backend's own `primary-contact.ts`
+  // header) but never themselves sent on a write once a form has adopted `contacts`.
+  contacts?: ClientContact[]
   contactFirstname?: string
   contactLastname?: string
   // Optional — only required where it is actually USED (sending a document by email, the client

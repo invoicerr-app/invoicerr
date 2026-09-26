@@ -27,7 +27,7 @@ import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, TriangleAlert } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
+import { useFieldArray, useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { Link } from "react-router"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
@@ -48,6 +48,15 @@ import {
 } from "@/components/ui/stepped-dialog"
 import { ClientPortalAccessDialog } from "./client-portal-access"
 import { buildClientSchema } from "@/lib/client-schema"
+
+/** A brand-new client always starts with ONE blank contact row, already flagged primary - the
+ *  common case (a single contact) then needs no "Add contact" click at all, matching this form's
+ *  own pre-#415 UX where the (now-removed) flat email/phone fields were always present. The user is
+ *  still free to remove it down to zero, or add more (#415's own "zero, one or several"). A function,
+ *  not a shared array constant: each `form.reset()` call needs its OWN array instance. */
+function blankPrimaryContact() {
+  return [{ firstName: "", lastName: "", role: "", email: "", phone: "", isPrimary: true }]
+}
 
 interface ClientUpsertProps {
   client?: Client | null
@@ -653,7 +662,11 @@ function FiscalStep({
  */
 function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues>; excludeId?: string }) {
   const { t } = useTranslation()
-  const emailRaw = form.watch("contactEmail" as never) as unknown as string | undefined
+  // The PRIMARY contact's email (#415) - the duplicate rule matches on it specifically, see
+  // `ClientsService.findDuplicates`'s own header.
+  const contactsRaw =
+    (form.watch("contacts" as never) as unknown as { email?: string; isPrimary?: boolean }[]) || []
+  const emailRaw = (contactsRaw.find((c) => c.isPrimary) ?? contactsRaw[0])?.email
   const nameRaw = form.watch("name" as never) as unknown as string | undefined
   const countryRaw = form.watch("country" as never) as unknown as string | undefined
 
@@ -662,10 +675,28 @@ function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues
   const country = useDebouncedValue(countryRaw)
 
   const { data: matches } = useClientDuplicates({ email, name, country, excludeId })
+
+  // #415 regression fix: the warning renders ABOVE the contacts step's own fields, and the
+  // debounced check resolves WHILE the user is still typing in a contact row further down (often
+  // the very email field that triggered it), so inserting this banner shifts that row down. The
+  // browser's own "keep the focused input in view" scroll can then push the JUST-APPEARED banner
+  // half a line above the scrollable dialog body's own clipped top edge (proven by a
+  // `getBoundingClientRect()` capture during the #415 investigation: the banner rendered correctly,
+  // fully opaque and in the DOM, but at `y: -17`, clipped by the scroll container before a user, or
+  // Cypress's own visibility check, could ever see it). Scrolling it into view the moment it
+  // appears is the fix a real user needs just as much as the test does: `block: "nearest"` only
+  // moves the scroll position when the banner is not ALREADY fully visible, so this never fights a
+  // deliberate scroll elsewhere on the step.
+  const warningRef = useRef<HTMLDivElement | null>(null)
+  const hasMatches = !!matches && matches.length > 0
+  useEffect(() => {
+    if (hasMatches) warningRef.current?.scrollIntoView({ block: "nearest" })
+  }, [hasMatches])
+
   if (!matches || matches.length === 0) return null
 
   return (
-    <div className="space-y-2" data-cy="client-duplicate-warning">
+    <div className="space-y-2" data-cy="client-duplicate-warning" ref={warningRef}>
       {matches.map((match) => (
         <Alert key={match.id} variant="warning" data-cy={`client-duplicate-warning-${match.id}`}>
           <TriangleAlert />
@@ -694,6 +725,157 @@ function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues
         </Alert>
       ))}
     </div>
+  )
+}
+
+/**
+ * The client's own contacts (#415) - zero, one or several, exactly one flagged primary once there is
+ * at least one. Structural changes (add/remove) go through `useFieldArray`, which is what keys each
+ * row by its own stable `field.id` rather than its ARRAY INDEX (see this component's own `.map` below)
+ * - removing a MIDDLE row with plain index keys would otherwise let React reuse a SURVIVING row's own
+ * DOM/input state for a DIFFERENT row that merely shifted into its old index, which is exactly the
+ * "wrong row's state after a removal" bug index-keyed lists are known for. Each row's own FIELD
+ * VALUES (not the array's shape) still flow through the ordinary `form.watch("contacts")` read below,
+ * since `useFieldArray`'s own `fields` only carries each row's IDENTITY, not its live edited values.
+ */
+function ContactsSection({ form }: { form: UseFormReturn<FieldValues> }) {
+  const { t } = useTranslation()
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: "contacts" as never })
+  const contacts =
+    (form.watch("contacts" as never) as unknown as {
+      firstName?: string
+      lastName?: string
+      role?: string
+      email?: string
+      phone?: string
+      isPrimary?: boolean
+    }[]) || []
+
+  const addContact = () => {
+    append({ isPrimary: fields.length === 0 } as never)
+  }
+  const removeContact = (index: number) => {
+    const wasPrimary = !!contacts[index]?.isPrimary
+    remove(index)
+    // Removing the primary promotes whichever row is now first, so the list never ends up with
+    // >= 1 contact and none flagged primary. `remove` already re-indexed every later row down by
+    // one, so "now first" is simply index 0 of what remains.
+    if (wasPrimary && contacts.length > 1) {
+      form.setValue("contacts.0.isPrimary" as never, true as never)
+    }
+  }
+  const setPrimary = (index: number) => {
+    fields.forEach((_, i) => {
+      form.setValue(`contacts.${i}.isPrimary` as never, (i === index) as never)
+    })
+  }
+
+  return (
+    <FormSection title={t("clients.upsert.fields.contacts.label", "Contacts")} columns="single">
+      <div className="space-y-4" data-cy="client-contacts-list">
+        {fields.map((rowField, index) => (
+          <div
+            key={rowField.id}
+            className="space-y-3 rounded-lg border p-4"
+            data-cy={`client-contact-row-${index}`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="client-contact-primary"
+                  checked={!!contacts[index]?.isPrimary}
+                  onChange={() => setPrimary(index)}
+                  data-cy={`client-contact-primary-radio-${index}`}
+                />
+                {contacts[index]?.isPrimary
+                  ? t("clients.upsert.fields.contacts.primaryBadge", "Primary")
+                  : t("clients.upsert.fields.contacts.setPrimary", "Set as primary")}
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeContact(index)}
+                dataCy={`client-contact-remove-${index}`}
+              >
+                {t("clients.upsert.fields.contacts.remove", "Remove")}
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name={`contacts.${index}.firstName`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("clients.upsert.fields.contactFirstname.label")}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-cy={`client-contact-firstName-${index}`} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`contacts.${index}.lastName`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("clients.upsert.fields.contactLastname.label")}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-cy={`client-contact-lastName-${index}`} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`contacts.${index}.role`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("clients.upsert.fields.contacts.role", "Role")}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-cy={`client-contact-role-${index}`} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`contacts.${index}.email`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-cy={`client-contact-email-${index}`} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`contacts.${index}.phone`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("clients.upsert.fields.contactPhone.label")}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-cy={`client-contact-phone-${index}`} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="outline" onClick={addContact} dataCy="client-contact-add">
+        {t("clients.upsert.fields.contacts.add", "Add contact")}
+      </Button>
+    </FormSection>
   )
 }
 
@@ -732,33 +914,8 @@ function ContactStep({
   return (
     <div className="space-y-6" data-cy="client-form-contact">
       <DuplicateWarning form={form} excludeId={clientId} />
+      <ContactsSection form={form} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          control={form.control}
-          name="contactEmail"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder={t("clients.upsert.fields.contactEmail.placeholder")} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="contactPhone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("clients.upsert.fields.contactPhone.label")}</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder={t("clients.upsert.fields.contactPhone.placeholder")} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <div className="sm:col-span-2">
           <FormField
             control={form.control}
@@ -833,6 +990,10 @@ function RecapStep({
   requiredIdentifiers: IdentifierRequirement[] | undefined
 }) {
   const { t } = useTranslation()
+  // Keys `contacts` by each row's own stable `field.id` below (`useFieldArray`, same reason
+  // `ContactsSection` uses it) - this recap has no inputs of its own, but a stable key still keeps
+  // React from re-diffing every row's text against the wrong one after a removal.
+  const { fields: contactFields } = useFieldArray({ control: form.control, name: "contacts" as never })
   // `form.watch(name)` resolves to react-hook-form's "watch an ARRAY of names" overload here (the
   // form is loosely typed as `UseFormReturn<FieldValues>`, see this component's own callsite
   // comment on why) — an extra `as unknown` step before the scalar cast is what tells TypeScript
@@ -844,7 +1005,13 @@ function RecapStep({
   const contactLastname = form.watch("contactLastname" as never) as unknown as string | undefined
   const country = form.watch("country" as never) as unknown as string | undefined
   const currency = form.watch("currency" as never) as unknown as string | undefined
-  const contactEmail = form.watch("contactEmail" as never) as unknown as string | undefined
+  const contacts =
+    (form.watch("contacts" as never) as unknown as {
+      firstName?: string
+      lastName?: string
+      email?: string
+      isPrimary?: boolean
+    }[]) || []
   const identifiers = (form.watch("identifiers" as never) as { scheme: string; value: string }[]) || []
 
   const displayName =
@@ -885,10 +1052,30 @@ function RecapStep({
         <dt className="text-muted-foreground">{t("clients.upsert.fields.currency.label")}</dt>
         <dd className="font-mono font-medium tabular-nums text-foreground">{currency || fallback}</dd>
       </div>
-      <div className="flex items-center justify-between gap-4">
-        <dt className="text-muted-foreground">{t("clients.upsert.fields.contactEmail.label")}</dt>
-        <dd className="font-medium text-foreground">{contactEmail || fallback}</dd>
-      </div>
+      {contacts.length > 0 ? (
+        <div className="space-y-1" data-cy="client-upsert-recap-contacts">
+          <dt className="text-muted-foreground">{t("clients.upsert.fields.contacts.label", "Contacts")}</dt>
+          {contacts.map((c, index) => (
+            <dd
+              key={contactFields[index]?.id ?? index}
+              className="flex items-center justify-between gap-4 font-medium text-foreground"
+              data-cy={`client-upsert-recap-contact-${index}`}
+            >
+              <span>{[c.firstName, c.lastName].filter(Boolean).join(" ") || c.email || fallback}</span>
+              {c.isPrimary && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {t("clients.upsert.fields.contacts.primaryBadge", "Primary")}
+                </span>
+              )}
+            </dd>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-muted-foreground">{t("clients.upsert.fields.contacts.label", "Contacts")}</dt>
+          <dd className="font-medium text-foreground">{fallback}</dd>
+        </div>
+      )}
     </dl>
   )
 }
@@ -959,6 +1146,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       contactLastname: "",
       contactPhone: "",
       contactEmail: "",
+      contacts: blankPrimaryContact(),
       address: "",
       addressLine2: "",
       postalCode: "",
@@ -1005,6 +1193,18 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         contactLastname: client.contactLastname || "",
         contactPhone: client.contactPhone || "",
         contactEmail: client.contactEmail || "",
+        // The API returns `contacts` ordered primary-first (#415) - mapped straight into the form's
+        // own shape (`id` kept only so a future per-row diff could use it; the write path always
+        // replaces the whole list, see `writeClientContacts`'s own header).
+        contacts: (client.contacts || []).map((c) => ({
+          id: c.id,
+          firstName: c.firstName || "",
+          lastName: c.lastName || "",
+          role: c.role || "",
+          email: c.email || "",
+          phone: c.phone || "",
+          isPrimary: !!c.isPrimary,
+        })),
         address: client.address || "",
         addressLine2: client.addressLine2 || "",
         postalCode: client.postalCode || "",
@@ -1033,6 +1233,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         contactLastname: "",
         contactPhone: "",
         contactEmail: "",
+        contacts: blankPrimaryContact(),
         address: "",
         addressLine2: "",
         postalCode: "",
@@ -1183,9 +1384,34 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         ? { scheme: "PEPPOL_ENDPOINT", value: `${data.peppolSchemeId}:${data.peppolEndpointId.trim()}` }
         : null
     const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...dataWithoutPeppol } = data
+
+    // The identity step's contactFirstname/contactLastname are authoritative for an INDIVIDUAL
+    // client's PRIMARY contact name (#415 design decision - "the identity step edits the primary
+    // contact") - folded in here, overriding whatever the contacts step's own primary row carries,
+    // so there is never a place where the two could disagree. `isPrimary`/`position` are assigned
+    // here too: exactly one primary (the flagged one, or the first row when none is), in array order.
+    // An INDIVIDUAL client always has at least its own identity as a primary contact, even if the
+    // contacts step's own list is empty (the common case: nothing else to add beyond the person's
+    // own name/email/phone, already captured on the identity/contact steps).
+    const rawContacts =
+      data.type === "INDIVIDUAL" && (!data.contacts || data.contacts.length === 0)
+        ? [{ isPrimary: true }]
+        : data.contacts || []
+    const firstFlagged = rawContacts.findIndex((c) => c.isPrimary)
+    const primaryIndex = firstFlagged >= 0 ? firstFlagged : 0
+    const contacts = rawContacts.map((c, index) => ({
+      firstName: data.type === "INDIVIDUAL" && index === primaryIndex ? data.contactFirstname : c.firstName,
+      lastName: data.type === "INDIVIDUAL" && index === primaryIndex ? data.contactLastname : c.lastName,
+      role: c.role,
+      email: c.email,
+      phone: c.phone,
+      isPrimary: index === primaryIndex,
+    }))
+
     // Filter out empty identifiers so we don't send {scheme, value: ""}
     const payload = {
       ...dataWithoutPeppol,
+      contacts,
       // A founding date is a CALENDAR DAY (`lib/calendar-date.ts`). Left as a `Date`, `JSON.stringify`
       // would serialize it through `toISOString()` and store the PREVIOUS day for every timezone east
       // of Greenwich -- the same shift that moved a document's legal date. Sent as the UTC instant

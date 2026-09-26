@@ -52,6 +52,14 @@ import { assertIdentifierValueMatchesPattern } from '../documents/country-identi
 import { assertClientCustomFieldValuesValid } from '../documents/company-custom-fields/persistence';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 import { assertClientCreatable } from './client-validation';
+import { writeClientContacts } from './contacts/client-contacts';
+import { findPrimaryContact, withDerivedContactFields } from './primary-contact';
+
+/** The one `include`/`orderBy` shape every client read in this file uses for `contacts` - primary
+ *  first, then `position` - so a caller never has to re-sort what came back from Prisma itself. */
+const CONTACTS_INCLUDE = {
+  orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }],
+} satisfies Prisma.Client$contactsArgs;
 
 @Injectable()
 export class ClientsService {
@@ -64,7 +72,11 @@ export class ClientsService {
    *  entity-reference resolution (a 'reference' field only stores an id; resolving it to a label
    *  for display, e.g. a quote's client, goes through here). */
   async getClientById(companyId: string, id: string) {
-    return prisma.client.findFirst({ where: { id, companyId }, include: { partyIdentifiers: true } });
+    const client = await prisma.client.findFirst({
+      where: { id, companyId },
+      include: { partyIdentifiers: true, contacts: CONTACTS_INCLUDE },
+    });
+    return client ? withDerivedContactFields(client) : null;
   }
 
   /**
@@ -98,12 +110,15 @@ export class ClientsService {
       orderBy: {
         name: 'asc',
       },
-      include: { partyIdentifiers: true },
+      include: { partyIdentifiers: true, contacts: CONTACTS_INCLUDE },
     });
 
     const totalClients = await prisma.client.count({ where: { companyId } });
 
-    return { pageCount: Math.ceil(totalClients / pageSize), clients };
+    return {
+      pageCount: Math.ceil(totalClients / pageSize),
+      clients: clients.map(withDerivedContactFields),
+    };
   }
 
   /**
@@ -118,14 +133,15 @@ export class ClientsService {
     const supplierFilter = options?.excludeSuppliers ? { isSupplier: false } : {};
 
     if (!query) {
-      return prisma.client.findMany({
+      const clients = await prisma.client.findMany({
         where: { companyId, isActive: true, ...supplierFilter },
         take: 10,
         orderBy: {
           name: 'asc',
         },
-        include: { partyIdentifiers: true },
+        include: { partyIdentifiers: true, contacts: CONTACTS_INCLUDE },
       });
+      return clients.map(withDerivedContactFields);
     }
 
     const results = await prisma.client.findMany({
@@ -135,10 +151,13 @@ export class ClientsService {
         ...supplierFilter,
         OR: [
           { name: { contains: query } },
-          { contactFirstname: { contains: query } },
-          { contactLastname: { contains: query } },
-          { contactEmail: { contains: query } },
-          { contactPhone: { contains: query } },
+          // Contact fields moved off `Client` itself onto its `contacts` relation (#415) - matched
+          // through `some`, so a client is found whether the term matches its PRIMARY contact or any
+          // other one on file (the search box has no notion of "primary" to filter by).
+          { contacts: { some: { firstName: { contains: query } } } },
+          { contacts: { some: { lastName: { contains: query } } } },
+          { contacts: { some: { email: { contains: query } } } },
+          { contacts: { some: { phone: { contains: query } } } },
           { address: { contains: query } },
           { postalCode: { contains: query } },
           { city: { contains: query } },
@@ -149,7 +168,7 @@ export class ClientsService {
       orderBy: {
         name: 'asc',
       },
-      include: { partyIdentifiers: true },
+      include: { partyIdentifiers: true, contacts: CONTACTS_INCLUDE },
     });
 
     try {
@@ -162,7 +181,7 @@ export class ClientsService {
       logger.error('Failed to dispatch CLIENT_SEARCHED webhook', { category: 'client', details: { error } });
     }
 
-    return results;
+    return results.map(withDerivedContactFields);
   }
 
   /**
@@ -187,8 +206,12 @@ export class ClientsService {
     const hasNameCountry = !!name && !!country;
     if (!email && !hasNameCountry) return [];
 
+    // The email half of the rule matches the PRIMARY contact's email specifically (#415) - a
+    // secondary contact sharing an inbox with an unrelated client is not "the same client"; only the
+    // one document-delivery actually uses is.
     const or: Prisma.ClientWhereInput[] = [];
-    if (email) or.push({ contactEmail: { equals: email, mode: 'insensitive' } });
+    if (email)
+      or.push({ contacts: { some: { isPrimary: true, email: { equals: email, mode: 'insensitive' } } } });
     if (hasNameCountry) {
       or.push({
         name: { equals: name, mode: 'insensitive' },
@@ -203,14 +226,20 @@ export class ClientsService {
         ...(excludeId ? { id: { not: excludeId } } : {}),
         OR: or,
       },
-      select: { id: true, name: true, contactEmail: true, country: true },
+      select: {
+        id: true,
+        name: true,
+        country: true,
+        contacts: { where: { isPrimary: true }, select: { email: true }, take: 1 },
+      },
       take: 10,
       orderBy: { name: 'asc' },
     });
 
     return rows.map((row) => {
+      const primaryEmail = row.contacts[0]?.email ?? null;
       const matchedOn: DuplicateMatchReason[] = [];
-      if (email && row.contactEmail && row.contactEmail.toLowerCase() === email.toLowerCase()) {
+      if (email && primaryEmail && primaryEmail.toLowerCase() === email.toLowerCase()) {
         matchedOn.push('email');
       }
       if (
@@ -220,7 +249,7 @@ export class ClientsService {
       ) {
         matchedOn.push('name_country');
       }
-      return { id: row.id, name: row.name, contactEmail: row.contactEmail, country: row.country, matchedOn };
+      return { id: row.id, name: row.name, contactEmail: primaryEmail, country: row.country, matchedOn };
     });
   }
 
@@ -313,13 +342,22 @@ export class ClientsService {
   }
 
   async createClient(companyId: string, editClientsDto: EditClientsDto) {
-    const { id, identifiers, ...data } = editClientsDto;
+    // `contacts` is pulled out of `data` here (never spread into `prisma.client.create`'s own `data`
+    // - it is a RELATION on `Client`, not a scalar column, and would need a nested-write shape Prisma
+    // never gets from a plain array): `writeClientContacts` below is the only thing that ever writes
+    // it, inside the same transaction as the client row itself.
+    const { id, identifiers, contacts, ...data } = editClientsDto;
 
     const type = (data as any).type || 'COMPANY';
 
     if (type === 'INDIVIDUAL') {
       data.name = ``;
-    } else {
+    } else if (contacts === undefined) {
+      // Legacy-shape callers only (see `EditClientsDto.contacts`'s own header) - a COMPANY client's
+      // named contact is now free to carry any first/last name through the new `contacts` array; this
+      // blanking preserves the OLD API's exact behavior (a flat `contactFirstname`/`contactLastname`
+      // pair on a non-INDIVIDUAL client was always discarded) for a caller that has not adopted the
+      // new shape yet.
       data.contactFirstname = undefined;
       data.contactLastname = undefined;
     }
@@ -331,17 +369,43 @@ export class ClientsService {
     // letting a bad identifier or custom field surface only after create would leave an orphan client
     // behind - a resubmit after fixing it would then duplicate the record rather than complete it.
     try {
-      await assertClientCreatable(companyId, data, identifiers, data.countryCode ?? data.country);
+      await assertClientCreatable(
+        companyId,
+        { ...data, contacts },
+        identifiers,
+        data.countryCode ?? data.country,
+      );
     } catch (error) {
       logger.error('Client rejected by pre-create checks', { category: 'client', details: { error } });
       throw error;
     }
 
-    const newClient = await prisma.client.create({ data: { ...data, companyId } });
+    // The four legacy flat fields are no longer columns on `Client` (#415) - stripped here, right
+    // before the create, so `data` above can still carry them through to `assertClientCreatable`
+    // (which needs them for the INDIVIDUAL-identity check on a legacy-shape payload) without Prisma
+    // ever seeing them as create args.
+    const clientData = { ...data };
+    delete clientData.contactFirstname;
+    delete clientData.contactLastname;
+    delete clientData.contactEmail;
+    delete clientData.contactPhone;
 
-    await this.upsertPartyIdentifiers(newClient.id, identifiers, newClient.countryCode ?? newClient.country);
+    const created = await prisma.$transaction(async (tx) => {
+      const newClient = await tx.client.create({ data: { ...clientData, companyId } });
+      await writeClientContacts(
+        tx,
+        newClient.id,
+        editClientsDto as unknown as Record<string, unknown>,
+        contacts,
+      );
+      return newClient;
+    });
 
-    logger.info('Client created', { category: 'client', details: { clientId: newClient.id } });
+    await this.upsertPartyIdentifiers(created.id, identifiers, created.countryCode ?? created.country);
+
+    const newClient = await this.getClientById(companyId, created.id);
+
+    logger.info('Client created', { category: 'client', details: { clientId: created.id } });
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
@@ -369,17 +433,34 @@ export class ClientsService {
       throw new NotFoundException('Client not found');
     }
 
-    const { identifiers, ...dataFields } = editClientsDto;
+    const { identifiers, contacts, ...dataFields } = editClientsDto;
     const data = { ...dataFields } as any;
     // Prefer explicit type in payload, otherwise fall back to existing client's type
     const type = data.type || existingClient.type || 'COMPANY';
 
     if (type === 'INDIVIDUAL') {
-      if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
+      // Identity for an INDIVIDUAL client is the PRIMARY contact's first/last name (#415 design
+      // decision - see `EditClientsDto.contacts`'s own header). `contacts`, when present, is
+      // authoritative even as `[]` (removing every contact from an INDIVIDUAL client leaves it with
+      // no name, which is exactly the error thrown below) - the flat fields are only consulted for a
+      // caller still on the old shape, matching `writeClientContacts`'s own back-compat rule.
+      const identity =
+        contacts !== undefined
+          ? findPrimaryContact(
+              contacts.map((c) => ({
+                firstName: c.firstName ?? null,
+                lastName: c.lastName ?? null,
+                email: c.email ?? null,
+                phone: c.phone ?? null,
+                isPrimary: !!c.isPrimary,
+              })),
+            )
+          : { firstName: data.contactFirstname, lastName: data.contactLastname };
+      if (!identity?.firstName || (identity.firstName as string).trim() === '') {
         logger.error('First name is required for individual clients', { category: 'client' });
         throw new BadRequestException('First name is required for individual clients');
       }
-      if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
+      if (!identity?.lastName || (identity.lastName as string).trim() === '') {
         logger.error('Last name is required for individual clients', { category: 'client' });
         throw new BadRequestException('Last name is required for individual clients');
       }
@@ -399,40 +480,47 @@ export class ClientsService {
     // Explicit allow-list, never `...dataFields`: there is no runtime request validation anywhere in
     // this API (no ValidationPipe, no class-validator — `EditClientsDto` is a TypeScript `interface`,
     // erased at compile time), so `dataFields` is really the raw, caller-supplied JSON body with
-    // `identifiers` deleted — `id` is still in there. Spreading it wholesale would let a caller
-    // rewrite THIS record's own primary key (`data.id` differing from the `where: { id }` above) or
-    // reassign it to another tenant entirely (`Client.companyId`, not even a field on this DTO but
-    // just as happily accepted by an unchecked spread). Every column this endpoint is actually
-    // allowed to write is named once, here.
-    const updatedClient = await prisma.client.update({
-      where: { id: editClientsDto.id },
-      data: {
-        description: dataFields.description,
-        foundedAt: dataFields.foundedAt,
-        name: dataFields.name,
-        contactFirstname: dataFields.contactFirstname,
-        contactLastname: dataFields.contactLastname,
-        contactEmail: dataFields.contactEmail,
-        contactPhone: dataFields.contactPhone,
-        address: dataFields.address,
-        addressLine2: dataFields.addressLine2,
-        postalCode: dataFields.postalCode,
-        city: dataFields.city,
-        state: dataFields.state,
-        country: dataFields.country,
-        countryCode: dataFields.countryCode,
-        language: dataFields.language,
-        currency: dataFields.currency,
-        type: dataFields.type,
-        kind: dataFields.kind,
-        isSupplier: dataFields.isSupplier,
-        isActive: true,
-        // A submitted `customFields` REPLACES the stored value wholesale — the same "a submitted form
-        // is a full snapshot, never a patch" convention `payment-methods/persistence.ts`'s own
-        // `config` write already holds — never merged key-by-key. `undefined` (never sent) leaves the
-        // column untouched, Prisma's own "absent key" semantics for `update`.
-        customFields: dataFields.customFields,
-      },
+    // `identifiers`/`contacts` deleted - `id` is still in there. Spreading it wholesale would let a
+    // caller rewrite THIS record's own primary key (`data.id` differing from the `where: { id }`
+    // above) or reassign it to another tenant entirely (`Client.companyId`, not even a field on this
+    // DTO but just as happily accepted by an unchecked spread). Every column this endpoint is
+    // actually allowed to write is named once, here. Contact fields are no longer columns on `Client`
+    // at all (#415) - `writeClientContacts`, run inside the same transaction below, is what persists
+    // them, from either `contacts` or the legacy flat fields still present on `editClientsDto`.
+    const updatedClient = await prisma.$transaction(async (tx) => {
+      const updated = await tx.client.update({
+        where: { id: editClientsDto.id },
+        data: {
+          description: dataFields.description,
+          foundedAt: dataFields.foundedAt,
+          name: dataFields.name,
+          address: dataFields.address,
+          addressLine2: dataFields.addressLine2,
+          postalCode: dataFields.postalCode,
+          city: dataFields.city,
+          state: dataFields.state,
+          country: dataFields.country,
+          countryCode: dataFields.countryCode,
+          language: dataFields.language,
+          currency: dataFields.currency,
+          type: dataFields.type,
+          kind: dataFields.kind,
+          isSupplier: dataFields.isSupplier,
+          isActive: true,
+          // A submitted `customFields` REPLACES the stored value wholesale - the same "a submitted form
+          // is a full snapshot, never a patch" convention `payment-methods/persistence.ts`'s own
+          // `config` write already holds - never merged key-by-key. `undefined` (never sent) leaves the
+          // column untouched, Prisma's own "absent key" semantics for `update`.
+          customFields: dataFields.customFields,
+        },
+      });
+      await writeClientContacts(
+        tx,
+        updated.id,
+        editClientsDto as unknown as Record<string, unknown>,
+        contacts,
+      );
+      return updated;
     });
 
     await this.upsertPartyIdentifiers(
@@ -441,22 +529,24 @@ export class ClientsService {
       updatedClient.countryCode ?? updatedClient.country,
     );
 
+    const fullClient = await this.getClientById(companyId, updatedClient.id);
+
     logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, {
         companyId,
-        client: updatedClient,
+        client: fullClient,
       });
     } catch (error) {
       logger.error('Failed to dispatch CLIENT_UPDATED webhook', { category: 'client', details: { error } });
     }
 
-    return updatedClient;
+    return fullClient;
   }
 
   async deleteClient(companyId: string, id: string) {
-    const existingClient = await prisma.client.findFirst({ where: { id, companyId } });
+    const existingClient = await this.getClientById(companyId, id);
 
     if (!existingClient) {
       logger.error('Client not found', { category: 'client', details: { id } });

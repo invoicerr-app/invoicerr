@@ -48,6 +48,7 @@ import { validateVat } from '../../documents/tax/vat-syntax';
 import { VatValidationPort } from '../../documents/tax/vat-validation';
 import { WebhookDispatcherService } from '../../webhooks/webhook-dispatcher.service';
 import { assertClientCreatable } from '../client-validation';
+import { withDerivedContactFields } from '../primary-contact';
 import {
   ClientImportConfirmResult,
   ClientImportPreviewResult,
@@ -186,7 +187,13 @@ export class ClientImportService {
     >();
     if (emails.size > 0 || nameCountryPairs.size > 0) {
       const or: Prisma.ClientWhereInput[] = [];
-      if (emails.size > 0) or.push({ contactEmail: { in: Array.from(emails), mode: 'insensitive' } });
+      // The email half of the rule matches the PRIMARY contact's email specifically (#415) - a
+      // secondary contact's inbox shared with an unrelated existing client is not "the same client".
+      if (emails.size > 0) {
+        or.push({
+          contacts: { some: { isPrimary: true, email: { in: Array.from(emails), mode: 'insensitive' } } },
+        });
+      }
       // Prisma has no "IN over a composite pair" - OR-ing one clause per distinct pair keeps this a
       // single round-trip; the file is capped at MAX_IMPORT_ROWS so this is at most that many small
       // equality clauses, not an unbounded query.
@@ -199,14 +206,17 @@ export class ClientImportService {
       }
       const existing = await prisma.client.findMany({
         where: { companyId, isActive: true, OR: or },
-        select: { id: true, name: true, contactEmail: true, country: true },
+        select: {
+          id: true,
+          name: true,
+          country: true,
+          contacts: { where: { isPrimary: true }, select: { email: true }, take: 1 },
+        },
       });
-      for (const client of existing) {
+      for (const row of existing) {
+        const client = { id: row.id, name: row.name, contactEmail: row.contacts[0]?.email ?? null };
         if (client.contactEmail) existingByEmail.set(client.contactEmail.toLowerCase(), client);
-        existingByNameCountry.set(
-          `${client.name.toLowerCase()}\u0000${client.country.toLowerCase()}`,
-          client,
-        );
+        existingByNameCountry.set(`${row.name.toLowerCase()}\u0000${row.country.toLowerCase()}`, client);
       }
     }
 
@@ -428,6 +438,18 @@ export class ClientImportService {
         // typed text verbatim (this import has no per-locale display-name table to translate it
         // through, unlike the wizard's own `Intl.DisplayNames` picker) - `countryCode` is always the
         // resolved code, never null.
+        // The row's four contact columns still mean "the primary contact" (#415 - the template's own
+        // columns are unchanged, see this module's own header): created as a nested `ClientContact`
+        // row rather than through `writeClientContacts` (that helper is for the two API write paths;
+        // an import already builds its own transaction here) - only when at least one of the four is
+        // filled in, matching the migration's own "no row for an empty legacy contact" rule so an
+        // imported client behaves exactly like one hand-created through the wizard with nothing typed
+        // into the contact step.
+        const hasContact =
+          !!(type === 'INDIVIDUAL' ? row.contactFirstname : undefined) ||
+          !!(type === 'INDIVIDUAL' ? row.contactLastname : undefined) ||
+          !!row.contactEmail ||
+          !!row.contactPhone;
         const client = await tx.client.create({
           data: {
             companyId,
@@ -435,10 +457,18 @@ export class ClientImportService {
             kind: row.kind ?? 'BUSINESS',
             isSupplier: row.isSupplier ?? false,
             name: type === 'INDIVIDUAL' ? '' : (row.name ?? ''),
-            contactFirstname: type === 'INDIVIDUAL' ? row.contactFirstname : undefined,
-            contactLastname: type === 'INDIVIDUAL' ? row.contactLastname : undefined,
-            contactEmail: row.contactEmail || undefined,
-            contactPhone: row.contactPhone || undefined,
+            contacts: hasContact
+              ? {
+                  create: {
+                    firstName: type === 'INDIVIDUAL' ? row.contactFirstname || null : null,
+                    lastName: type === 'INDIVIDUAL' ? row.contactLastname || null : null,
+                    email: row.contactEmail || null,
+                    phone: row.contactPhone || null,
+                    isPrimary: true,
+                    position: 0,
+                  },
+                }
+              : undefined,
             address: row.address ?? '',
             addressLine2: row.addressLine2,
             postalCode: row.postalCode ?? '',
@@ -501,10 +531,13 @@ export class ClientImportService {
       try {
         const full = await prisma.client.findUnique({
           where: { id: client.id },
-          include: { partyIdentifiers: true },
+          include: { partyIdentifiers: true, contacts: true },
         });
         if (full) {
-          await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, { companyId, client: full });
+          await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
+            companyId,
+            client: withDerivedContactFields(full),
+          });
         }
       } catch (error) {
         logger.error('Failed to dispatch CLIENT_CREATED webhook for imported client', {

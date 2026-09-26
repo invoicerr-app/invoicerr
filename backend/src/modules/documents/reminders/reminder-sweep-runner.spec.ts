@@ -132,7 +132,7 @@ beforeEach(() => {
   sumPaidMinorByDocument.mockResolvedValue(new Map());
   listCreditNotes.mockResolvedValue([]);
   companyFindMany.mockResolvedValue([]);
-  clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com' });
+  clientFindFirst.mockResolvedValue({ contacts: [{ email: 'client@example.com', isPrimary: true }] });
   reminderFindMany.mockResolvedValue([]);
   reminderCreate.mockResolvedValue({ id: 'reminder-default' });
   reminderDeleteMany.mockResolvedValue({ count: 1 });
@@ -175,7 +175,10 @@ describe('ReminderSweepRunner.runSweep', () => {
   it("sends the reminder in the CLIENT's own language, even when the company's default differs", async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp', language: 'en' }]);
     seedDocuments([invoice({ data: invoiceData() })]);
-    clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com', language: 'fr' });
+    clientFindFirst.mockResolvedValue({
+      contacts: [{ email: 'client@example.com', isPrimary: true }],
+      language: 'fr',
+    });
 
     const mailService = buildMailService();
     const runner = new ReminderSweepRunner(mailService);
@@ -189,7 +192,10 @@ describe('ReminderSweepRunner.runSweep', () => {
   it("falls back to the COMPANY's own language when the client never set one", async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp', language: 'de' }]);
     seedDocuments([invoice({ data: invoiceData() })]);
-    clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com', language: null });
+    clientFindFirst.mockResolvedValue({
+      contacts: [{ email: 'client@example.com', isPrimary: true }],
+      language: null,
+    });
 
     const mailService = buildMailService();
     const runner = new ReminderSweepRunner(mailService);
@@ -202,7 +208,7 @@ describe('ReminderSweepRunner.runSweep', () => {
   it('falls back all the way to English when NEITHER the client nor the company set a language', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]); // no `language` at all
     seedDocuments([invoice({ data: invoiceData() })]);
-    clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com' }); // no `language` at all
+    clientFindFirst.mockResolvedValue({ contacts: [{ email: 'client@example.com', isPrimary: true }] }); // no `language` at all
 
     const mailService = buildMailService();
     const runner = new ReminderSweepRunner(mailService);
@@ -288,7 +294,7 @@ describe('ReminderSweepRunner.runSweep', () => {
   it('skips (never throws) an invoice whose client has no resolvable contact email', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
     seedDocuments([invoice({ data: invoiceData() })]);
-    clientFindFirst.mockResolvedValue({ contactEmail: null });
+    clientFindFirst.mockResolvedValue({ contacts: [] });
 
     const mailService = buildMailService();
     const runner = new ReminderSweepRunner(mailService);
