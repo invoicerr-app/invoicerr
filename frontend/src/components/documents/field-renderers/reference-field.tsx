@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useFormContext } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
+import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import { getReferenceCreateComponent } from "@/components/documents/reference-create-registry"
 import { isMultiTargetReference, type MultiTargetReferenceValue } from "@/components/documents/types"
 import SearchSelect from "@/components/search-input"
@@ -71,6 +72,7 @@ export function ReferenceField({ field, name }: FieldRendererProps) {
   const multiTarget = isMultiTargetReference(field)
   const targetEntities = field.entities ?? []
   const currentValue = watch(name) as string | MultiTargetReferenceValue | undefined
+  const readOnly = useDocumentFormReadOnly()
 
   // Single-target path — untouched behaviour.
   const singleEntity = multiTarget ? undefined : field.entity
@@ -149,6 +151,7 @@ export function ReferenceField({ field, name }: FieldRendererProps) {
               placeholder={field.label}
               searchPlaceholder={t("documents.form.reference.searchPlaceholder")}
               noResultsText={t("documents.form.reference.noResults")}
+              disabled={readOnly}
               data-cy={inputDataCy}
               footerAction={
                 QuickCreateComponent

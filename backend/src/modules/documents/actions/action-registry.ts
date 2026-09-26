@@ -24,6 +24,19 @@ export interface ActionContext {
    */
   currentStatus?: string;
   /**
+   * Every status THIS action may legitimately persist FROM, for an EXISTING record - the type's own
+   * declared `statuses` (descriptors/types.ts) minus THIS action's own `lockedStatuses`, computed once
+   * by `documents.service.ts#runAction` right after resolving the action (see that call site's own
+   * header for the full "why": a generic write that trusted `currentStatus` alone was a genuine
+   * TOCTOU - a "send" or an OTP signature landing between `runAction`'s status READ and the handler's
+   * own WRITE could still silently demote an issued document). A generic handler that persists `data`
+   * unconditionally on an existing record (today, only "save-draft" - `performSaveDraft`,
+   * generic-actions.ts) passes this straight through to `upsertDocument`'s own `fromStatuses` compare-
+   * and-swap instead of writing unconditionally. `undefined` for a type with no declared `statuses` at
+   * all - the same "no lifecycle, no lock, no CAS" fallback `isActionAvailable` already holds.
+   */
+  allowedFromStatuses?: string[];
+  /**
    * The authenticated human running this action - undefined for the two kinds of caller that have no
    * one to name: the async "send" worker's own replay (`queue/processors/document-action.processor.ts`,
    * a BullMQ job, not an HTTP request) and any other internal/scripted call that never went through

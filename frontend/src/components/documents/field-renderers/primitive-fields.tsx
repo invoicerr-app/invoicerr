@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import { BetterInput } from "@/components/better-input"
 import { DatePicker } from "@/components/date-picker"
+import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import {
   FormControl,
   FormDescription,
@@ -86,6 +87,7 @@ export function useConditionallyRequired(field: FieldRendererProps["field"]): bo
 export function TextField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
   const required = useConditionallyRequired(field)
+  const readOnly = useDocumentFormReadOnly()
   return (
     <FormField
       control={control}
@@ -95,6 +97,7 @@ export function TextField({ field, name }: FieldRendererProps) {
           <BetterInput
             {...rhfField}
             value={rhfField.value ?? ""}
+            disabled={readOnly}
             data-cy={`document-field-${field.key}-input`}
           />
         </FieldChrome>
@@ -106,6 +109,7 @@ export function TextField({ field, name }: FieldRendererProps) {
 export function LongTextField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
   const required = useConditionallyRequired(field)
+  const readOnly = useDocumentFormReadOnly()
   return (
     <FormField
       control={control}
@@ -115,6 +119,7 @@ export function LongTextField({ field, name }: FieldRendererProps) {
           <Textarea
             {...rhfField}
             value={rhfField.value ?? ""}
+            disabled={readOnly}
             data-cy={`document-field-${field.key}-input`}
           />
         </FieldChrome>
@@ -125,6 +130,7 @@ export function LongTextField({ field, name }: FieldRendererProps) {
 
 export function NumberField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
+  const readOnly = useDocumentFormReadOnly()
   return (
     <FormField
       control={control}
@@ -139,6 +145,7 @@ export function NumberField({ field, name }: FieldRendererProps) {
             step="any"
             value={rhfField.value ?? ""}
             onChange={(e) => rhfField.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+            disabled={readOnly}
             data-cy={`document-field-${field.key}-input`}
           />
         </FieldChrome>
@@ -150,6 +157,7 @@ export function NumberField({ field, name }: FieldRendererProps) {
 export function MoneyField({ field, name }: FieldRendererProps) {
   const { control, watch } = useFormContext()
   const currency = field.currencyField ? watch(field.currencyField) : field.currency
+  const readOnly = useDocumentFormReadOnly()
 
   return (
     <FormField
@@ -166,6 +174,7 @@ export function MoneyField({ field, name }: FieldRendererProps) {
             value={rhfField.value ?? ""}
             onChange={(e) => rhfField.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
             postAdornment={currency || undefined}
+            disabled={readOnly}
             data-cy={`document-field-${field.key}-input`}
           />
         </FieldChrome>
@@ -182,6 +191,7 @@ export function MoneyField({ field, name }: FieldRendererProps) {
  *  everywhere east of Greenwich, i.e. in all five countries this product targets. */
 export function DateField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
+  const readOnly = useDocumentFormReadOnly()
   return (
     <FormField
       control={control}
@@ -192,6 +202,7 @@ export function DateField({ field, name }: FieldRendererProps) {
             className="w-full"
             value={fromCalendarDate(rhfField.value)}
             onChange={(date) => rhfField.onChange(toCalendarDate(date))}
+            disabled={readOnly}
             data-cy={`document-field-${field.key}-input`}
           />
         </FieldChrome>
@@ -202,6 +213,7 @@ export function DateField({ field, name }: FieldRendererProps) {
 
 export function BooleanField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
+  const readOnly = useDocumentFormReadOnly()
   return (
     <FormField
       control={control}
@@ -216,6 +228,7 @@ export function BooleanField({ field, name }: FieldRendererProps) {
             <Switch
               checked={!!rhfField.value}
               onCheckedChange={rhfField.onChange}
+              disabled={readOnly}
               data-cy={`document-field-${field.key}-input`}
             />
           </FormControl>
@@ -230,6 +243,7 @@ export function SelectField({ field, name }: FieldRendererProps) {
   const { control, watch, setValue } = useFormContext()
   const allOptions = field.options ?? []
   const [search, setSearch] = useState("")
+  const readOnly = useDocumentFormReadOnly()
 
   // `lockedFromReference` (types.ts): watch the named SIBLING 'reference'
   // field (e.g. a credit note's own "invoice"), and once it resolves to a real id, copy
@@ -269,6 +283,7 @@ export function SelectField({ field, name }: FieldRendererProps) {
             <BetterInput
               {...rhfField}
               value={rhfField.value ?? ""}
+              disabled={readOnly}
               data-cy={`document-field-${field.key}-input`}
             />
           </FieldChrome>
@@ -311,7 +326,7 @@ export function SelectField({ field, name }: FieldRendererProps) {
             onValueChange={(value) => rhfField.onChange(value)}
             onSearchChange={setSearch}
             placeholder={field.label}
-            disabled={isLocked}
+            disabled={isLocked || readOnly}
             data-cy={`document-field-${field.key}-input`}
           />
         </FieldChrome>

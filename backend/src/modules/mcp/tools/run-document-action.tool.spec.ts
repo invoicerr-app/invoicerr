@@ -162,6 +162,9 @@ describe('runDocumentActionTool — the real four gates, via DocumentsService.ru
       undefined,
       'draft',
       expect.objectContaining({ client: 'client-1' }),
+      // runAction's `allowedFromStatuses` (issue #468 CAS), passed on every save-draft; unused by
+      // `upsertDocument` when creating (no documentId), which is this case.
+      expect.arrayContaining(['draft']),
     );
     expect(result.structuredContent).toEqual(
       expect.objectContaining({

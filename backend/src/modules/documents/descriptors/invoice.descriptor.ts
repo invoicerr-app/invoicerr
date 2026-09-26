@@ -314,6 +314,26 @@ const SEND_TRANSITIONS: DocumentActionTransition[] = [
 ];
 const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_failed'], to: 'cancelled' }];
 
+/** This type's own declared statuses - pulled out to a named constant (rather than inlined once in
+ *  `statuses:` below) so `SAVE_DRAFT_LOCKED_STATUSES` can be DERIVED from it instead of hand-typed a
+ *  second time. Issue #468: every status other than "draft" must refuse "save-draft" - an invoice
+ *  that left "draft" has been issued (numbered, sent, or cancelled) and is never rewritten, the same
+ *  "an issued document is never rewritten" rule `credit-note.descriptor.ts` states for its own type.
+ *  Deriving the list means a status added here later is locked BY DEFAULT, never silently left open
+ *  the way a hand-typed list would leave it until someone remembers to update it too. */
+const INVOICE_STATUSES = [
+  { id: 'draft', label: 'Draft' },
+  { id: 'sending', label: 'Sending' },
+  // `clientVisible` - see `DocumentStatusDescriptor`'s own header: this is the ONE status the
+  // client portal (`client-portal/`) ever shows for an invoice. "cancelled" below is deliberately
+  // NOT flagged - see `client-portal/portal.service.ts`'s own header for the "no longer legally
+  // exists" reasoning, carried over from `settlement/client-statement.ts`.
+  { id: 'sent', label: 'Sent', clientVisible: true },
+  { id: 'send_failed', label: 'Send failed' },
+  { id: 'cancelled', label: 'Cancelled' },
+];
+const SAVE_DRAFT_LOCKED_STATUSES = INVOICE_STATUSES.map((s) => s.id).filter((id) => id !== 'draft');
+
 /**
  * "record-payment"'s own params — the exact same field vocabulary the document's own `fields` use
  * (see `DocumentActionDescriptor.params`'s comment in types.ts), never a second, bespoke shape.
@@ -380,17 +400,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'invoice',
     label: 'Invoice',
-    statuses: [
-      { id: 'draft', label: 'Draft' },
-      { id: 'sending', label: 'Sending' },
-      // `clientVisible` — see `DocumentStatusDescriptor`'s own header: this is the ONE status the
-      // client portal (`client-portal/`) ever shows for an invoice. "cancelled" below is deliberately
-      // NOT flagged — see `client-portal/portal.service.ts`'s own header for the "no longer legally
-      // exists" reasoning, carried over from `settlement/client-statement.ts`.
-      { id: 'sent', label: 'Sent', clientVisible: true },
-      { id: 'send_failed', label: 'Send failed' },
-      { id: 'cancelled', label: 'Cancelled' },
-    ],
+    statuses: INVOICE_STATUSES,
     initialStatus: 'draft',
     numbering: { onEnterStatus: 'sending' },
     // See types.ts's own comment on `DocumentTypeDescriptor.email`, and quote.descriptor.ts for the
@@ -610,6 +620,10 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         label: 'Save draft',
         transitions: SAVE_DRAFT_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
+        // Issue #468: code-level guard, independent of any country policy - see
+        // `SAVE_DRAFT_LOCKED_STATUSES`'s own comment above for why it is derived, and
+        // `lockedStatuses`'s own comment (types.ts) for why country data alone was never enough.
+        lockedStatuses: SAVE_DRAFT_LOCKED_STATUSES,
       },
       {
         id: 'send',

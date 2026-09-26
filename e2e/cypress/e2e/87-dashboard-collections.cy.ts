@@ -228,8 +228,13 @@ describe("Dashboard Collections tile (#417) - cash actually received, by payment
 	it("with no period, sums payments by PAYMENT date, per currency, never mixed, with no link", () => {
 		cy.intercept({ method: "GET", pathname: "/api/documents/dashboard" }).as("dashboard");
 		cy.visit("/dashboard");
-		cy.wait("@dashboard", { timeout: 20000 }).then((interception) => {
-			const widgets = interception.response?.body as Array<{ id: string; link?: unknown }>;
+		// The widgets are read with `cy.request`, never from the intercepted body: the browser may
+		// revalidate a dashboard it already holds and get a 304 Not Modified, whose body is empty
+		// (Express's weak ETag plus the browser's conditional GET, the same trap 18-onboarding-wizard,
+		// 65-company-mail-settings and 70-three-way-match already document). Seen in CI and reproduced
+		// locally in Firefox whenever 05-clients.cy.ts runs before this file in the same shard.
+		cy.wait("@dashboard", { timeout: 20000 });
+		cy.request<Array<{ id: string; link?: unknown }>>(`${api}/api/documents/dashboard`).then(({ body: widgets }) => {
 			const collectedEur = widgets.find((w) => w.id === "invoice:collected-this-month:EUR");
 			expect(collectedEur, "a collected-this-month:EUR widget is contributed").to.exist;
 			expect(collectedEur?.link, "the collections tile carries no link (#419)").to.be.undefined;
@@ -277,7 +282,12 @@ describe("Dashboard Collections tile (#417) - cash actually received, by payment
 			expect(url.searchParams.get("dateFrom")).to.eq(monthM2Bounds.dateFrom);
 			expect(url.searchParams.get("dateTo")).to.eq(monthM2Bounds.dateTo);
 
-			const widgets = interception.response?.body as Array<{ id: string }>;
+		});
+		// Same 304 trap as the first test above: the body comes from `cy.request`, same query.
+		cy.request<Array<{ id: string }>>({
+			url: `${api}/api/documents/dashboard`,
+			qs: { dateFrom: monthM2Bounds.dateFrom, dateTo: monthM2Bounds.dateTo },
+		}).then(({ body: widgets }) => {
 			expect(widgets.some((w) => w.id.startsWith("invoice:collected-in-period"))).to.eq(true);
 			expect(widgets.some((w) => w.id.startsWith("invoice:collected-this-month"))).to.eq(false);
 		});

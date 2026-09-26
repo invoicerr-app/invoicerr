@@ -1,6 +1,7 @@
+import type { TFunction } from "i18next"
 import { describe, expect, it } from "vitest"
 
-import { actionAssignsNumber, actionLocksDocument } from "./action-presentation"
+import { actionAssignsNumber, actionLocksDocument, saveDraftLockNotice } from "./action-presentation"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "./types"
 
 /**
@@ -87,5 +88,76 @@ describe("actionAssignsNumber", () => {
     expect(
       actionAssignsNumber(descriptor(lockedActions, { onEnterStatus: "sent" }), saveDraft, "draft"),
     ).toBe(false)
+  })
+})
+
+/** Echoes the key back - enough to prove WHICH key `saveDraftLockNotice` picked without needing the
+ *  real i18next catalog loaded in this unit spec. */
+const echoT = ((key: string) => key) as TFunction
+
+describe("saveDraftLockNotice", () => {
+  // Issue #468 shape: the descriptor's own `lockedStatuses` refuses "save-draft" once the record has
+  // left "draft" - no `policyRestrictedToStatuses` involved at all.
+  const codeLockedSave: DocumentActionDescriptor = {
+    id: "save-draft",
+    label: "Save draft",
+    availableWhen: "always",
+    transitions: [{ from: "always", to: "draft" }],
+    lockedStatuses: ["sending", "sent", "send_failed", "cancelled"],
+  }
+
+  it('returns the invoice-specific key once "save-draft" is locked for the current status', () => {
+    const invoiceDescriptor = descriptor([codeLockedSave, send, cancel])
+    expect(saveDraftLockNotice(echoT, invoiceDescriptor, "sent")).toBe("documents.form.saveLocked.invoice")
+  })
+
+  it('returns the credit-note-specific key for a descriptor id of "credit-note"', () => {
+    const creditNoteDescriptor = {
+      ...descriptor([codeLockedSave, send]),
+      id: "credit-note",
+    } as DocumentTypeDescriptor
+    expect(saveDraftLockNotice(echoT, creditNoteDescriptor, "sent")).toBe(
+      "documents.form.saveLocked.creditNote",
+    )
+  })
+
+  it('returns the quote-specific key for a descriptor id of "quote"', () => {
+    const quoteDescriptor = { ...descriptor([codeLockedSave, send]), id: "quote" } as DocumentTypeDescriptor
+    expect(saveDraftLockNotice(echoT, quoteDescriptor, "sent")).toBe("documents.form.saveLocked.quote")
+  })
+
+  it("falls back to the generic key for a type with no dedicated wording", () => {
+    const pluginDescriptor = {
+      ...descriptor([codeLockedSave, send]),
+      id: "some-plugin-type",
+    } as DocumentTypeDescriptor
+    expect(saveDraftLockNotice(echoT, pluginDescriptor, "sent")).toBe("documents.form.saveLocked.generic")
+  })
+
+  it("returns undefined once 'save-draft' is available again (e.g. a quote's own 'sent' status)", () => {
+    const quoteDescriptor = { ...descriptor([saveDraft, send]), id: "quote" } as DocumentTypeDescriptor
+    // `saveDraft` above only ever carries `policyRestrictedToStatuses: ["draft"]` - swap it out for
+    // an action truly unrestricted, so this proves the "available" branch, not a policy coincidence.
+    const openSave: DocumentActionDescriptor = { ...saveDraft, policyRestrictedToStatuses: undefined }
+    expect(
+      saveDraftLockNotice(echoT, { ...quoteDescriptor, actions: [openSave, send] }, "sent"),
+    ).toBeUndefined()
+  })
+
+  it("returns undefined for a brand-new, never-saved record (status undefined)", () => {
+    const invoiceDescriptor = descriptor([codeLockedSave, send])
+    expect(saveDraftLockNotice(echoT, invoiceDescriptor, undefined)).toBeUndefined()
+  })
+
+  it('returns undefined for a type that declares no "save-draft" action at all', () => {
+    const noSaveDraft = descriptor([send, cancel])
+    expect(saveDraftLockNotice(echoT, noSaveDraft, "sent")).toBeUndefined()
+  })
+
+  it("also fires for the pre-existing country-policy lock (policyRestrictedToStatuses), same wording", () => {
+    // `saveDraft` (this file's own top-level fixture) carries `policyRestrictedToStatuses: ["draft"]`
+    // and NO `lockedStatuses` at all - the France invoice shape this notice already had to cover.
+    const invoiceDescriptor = descriptor([saveDraft, send, cancel])
+    expect(saveDraftLockNotice(echoT, invoiceDescriptor, "sending")).toBe("documents.form.saveLocked.invoice")
   })
 })

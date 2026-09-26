@@ -147,6 +147,47 @@ export function extraActionGates(descriptor: DocumentTypeDescriptor, status: str
 }
 
 /**
+ * Per-type wording for `saveDraftLockNotice` below - one literal `t(...)` call per type so
+ * `i18n:check`'s static scan (a regex over the source tree, not a control-flow analysis) finds every
+ * key as USED regardless of which branch actually runs for a given document, and never flags one as
+ * dead. Keyed by `DocumentTypeDescriptor.id`, never guessed from the action id - a plugin's own type
+ * that reuses "save-draft" without ever declaring `lockedStatuses` (so `saveDraftLockNotice` never
+ * fires for it) needs no entry here at all; one that DOES lock falls back to the generic wording.
+ */
+const SAVE_LOCKED_MESSAGE_BY_TYPE: Record<string, (t: TFunction) => string> = {
+  invoice: (t) => t("documents.form.saveLocked.invoice"),
+  "credit-note": (t) => t("documents.form.saveLocked.creditNote"),
+  quote: (t) => t("documents.form.saveLocked.quote"),
+}
+
+/**
+ * The notice document-detail.tsx shows (`document-save-locked-notice`) when this record's "save"
+ * action (id "save-draft" - the one virtually every document type shares) is DECLARED but currently
+ * REFUSED for an EXISTING record - whether that refusal comes from the type's own `lockedStatuses`
+ * (issue #468 - an issued invoice/credit-note, a signed/accepted quote) or from a country policy's
+ * `policyRestrictedToStatuses` (the pre-existing invoice rule every shipped `country-policy/data/*.json` declares).
+ * Both reasons get the SAME notice: from the screen's point of view the record is locked either way,
+ * and there is nothing actionable in telling the two apart (the backend's own 409 message is what
+ * distinguishes them for a scripted client - see `documents.service.ts#runAction`).
+ *
+ * `undefined` for a brand-new, never-saved record (`currentStatus === undefined` - nothing is locked
+ * yet, there is no status for either gate to have an opinion about), for a type that declares no
+ * "save-draft" action at all, and once that action IS available again (a still-editable draft, or a
+ * "sent" quote - see quote.descriptor.ts's own `lockedStatuses` comment for why "sent" stays open).
+ */
+export function saveDraftLockNotice(
+  t: TFunction,
+  descriptor: DocumentTypeDescriptor,
+  currentStatus: string | undefined,
+): string | undefined {
+  if (currentStatus === undefined) return undefined
+  const saveDraft = descriptor.actions.find((action) => action.id === "save-draft")
+  if (!saveDraft || isActionAvailable(saveDraft, currentStatus)) return undefined
+  const message = SAVE_LOCKED_MESSAGE_BY_TYPE[descriptor.id]
+  return message ? message(t) : t("documents.form.saveLocked.generic")
+}
+
+/**
  * The human-facing "this will move it from X to Y" caption for one action — or undefined when the
  * action declares no transition for the current status (its effect lands on a different record, or
  * nowhere). Mirrors what document-form.tsx's action row used to compute inline; extracted so the

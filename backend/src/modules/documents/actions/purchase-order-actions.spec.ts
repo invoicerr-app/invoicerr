@@ -97,6 +97,10 @@ describe('registerPurchaseOrderActions', () => {
       undefined,
       'draft',
       { supplier: 'client-1' },
+      // `ctx.allowedFromStatuses` - undefined here since this test calls the handler directly with no
+      // such field on its context (only `documents.service.ts#runAction` ever populates it); still an
+      // explicit positional argument `performSaveDraft`/`registerSaveDraftAction` always forward.
+      undefined,
     );
     expect(result.changed).toBe(true);
   });

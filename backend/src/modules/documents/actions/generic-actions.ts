@@ -25,6 +25,17 @@ import { ActionRegistry } from './action-registry';
  * runs — this handler included, `credit-note-actions.ts`'s and `invoice-actions.ts`'s own "save-draft"
  * handlers included — so a check placed there covers every action a document has, "send" included,
  * not merely "save-draft": a check repeated here as well would be strictly redundant.
+ *
+ * `fromStatuses` - the CAS fix for the race a reviewer found on the #468 lock: `runAction` only ever
+ * CHECKED `currentStatus` against `lockedStatuses` before this handler ran; nothing stopped the WRITE
+ * below from still firing if the record moved on (a concurrent "send", an OTP signature) in the
+ * `await`s between that check and this call. Every caller of this function now passes
+ * `ctx.allowedFromStatuses` (`documents.service.ts#runAction`'s own header) straight through to
+ * `upsertDocument`, which turns this into a genuine compare-and-swap (persistence.ts's own
+ * `updateManyConditionally`) instead of an unconditional `update` - a status that moved on since the
+ * read now throws a 409, the row stays exactly as it was. `undefined` (a type with no declared
+ * `statuses`, or a direct test call that predates this fix) preserves the previous, unconditional
+ * write - see `upsertDocument`'s own header for why that stays safe as a fallback.
  */
 export async function performSaveDraft(
   companyId: string,
@@ -32,9 +43,10 @@ export async function performSaveDraft(
   documentId: string | undefined,
   data: Record<string, unknown>,
   webhooks?: DocumentWebhookEmitter,
+  fromStatuses?: string[],
 ) {
   const creating = !documentId;
-  const document = await upsertDocument(companyId, typeId, documentId, 'draft', data);
+  const document = await upsertDocument(companyId, typeId, documentId, 'draft', data, fromStatuses);
   if (creating && webhooks) {
     try {
       await webhooks.dispatch(
@@ -78,8 +90,8 @@ export function registerSaveDraftAction(
   typeId: string,
   webhooks?: DocumentWebhookEmitter,
 ): void {
-  registry.register(typeId, 'save-draft', async ({ companyId, documentId, data }) =>
-    performSaveDraft(companyId, typeId, documentId, data, webhooks),
+  registry.register(typeId, 'save-draft', async ({ companyId, documentId, data, allowedFromStatuses }) =>
+    performSaveDraft(companyId, typeId, documentId, data, webhooks, allowedFromStatuses),
   );
 }
 

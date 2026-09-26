@@ -178,6 +178,10 @@ describe('DocumentsService — wiring expense categories into the expense type',
         undefined,
         'draft',
         expect.objectContaining({ category: 'meals' }),
+        // The CAS argument (issue #468 reviewer finding #1) - `documents.service.ts#runAction`'s own
+        // `allowedFromStatuses`: the expense type declares a single status ("draft"), so this is
+        // simply `['draft']` - no `lockedStatuses` to narrow it further.
+        ['draft'],
       );
     });
 

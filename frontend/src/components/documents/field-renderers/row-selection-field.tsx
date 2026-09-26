@@ -2,6 +2,7 @@ import { useFormContext } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
+import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import {
   FormControl,
   FormDescription,
@@ -56,6 +57,7 @@ export function RowSelectionField({ field, name, documentTypeId }: FieldRenderer
   // sibling `sourceField` resolves, never unconditionally) — the star indicator has to track that,
   // not `field.required` alone, or it would simply never show once "invoice" stopped being mandatory.
   const required = useConditionallyRequired(field)
+  const readOnly = useDocumentFormReadOnly()
 
   const { data, isLoading } = useSelectableRows(documentTypeId, field.key, sourceId)
   const rows = data?.rows ?? []
@@ -105,6 +107,7 @@ export function RowSelectionField({ field, name, documentTypeId }: FieldRenderer
                       className="h-4 w-4 accent-primary"
                       checked={selected.includes(row.id)}
                       onChange={(e) => toggle(row.id, e.target.checked)}
+                      disabled={readOnly}
                       data-cy={`document-field-${field.key}-row-${row.id}-checkbox`}
                     />
                     <span>{previewRow(row.data)}</span>
@@ -123,6 +126,7 @@ export function RowSelectionField({ field, name, documentTypeId }: FieldRenderer
                       variant="ghost"
                       size="sm"
                       onClick={() => toggle(id, false)}
+                      disabled={readOnly}
                       dataCy={`document-field-${field.key}-missing-${id}-remove`}
                     >
                       {t("documents.form.rowSelection.removeMissing")}

@@ -208,6 +208,10 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
         undefined,
         'draft',
         expect.objectContaining({ 'custom:cost_center': 'CC-42' }),
+        // The CAS argument (issue #468 reviewer finding #1) - `documents.service.ts#runAction`'s own
+        // `allowedFromStatuses`: every declared status minus the quote's own save-draft
+        // `lockedStatuses` (`['signed', 'accepted']`).
+        ['draft', 'sending', 'sent', 'send_failed', 'refused'],
       );
     });
 

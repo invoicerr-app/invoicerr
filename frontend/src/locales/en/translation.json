@@ -4696,6 +4696,12 @@
       "unsupportedKind": "Field \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
       "unknownType": "Unknown document type \"{{typeId}}\".",
       "actionBlockedByPolicy": "Not available: {{reason}}",
+      "saveLocked": {
+        "invoice": "This invoice has been issued and can no longer be edited. To correct it, issue a credit note or a new invoice.",
+        "creditNote": "This credit note has been issued and can no longer be edited. To correct it, issue a new credit note.",
+        "quote": "This quote has been signed or accepted and can no longer be edited. To change its terms, create a new quote.",
+        "generic": "This document can no longer be edited in its current status."
+      },
       "transitionHint": "{{from}} → {{to}}",
       "transitionFromNew": "New",
       "editingTitle": "Editing: {{label}}",

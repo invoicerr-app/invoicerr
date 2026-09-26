@@ -536,6 +536,32 @@ export interface DocumentActionDescriptor {
    * copy), and `validateLifecycle` re-derives it at registration to catch a mismatch.
    */
   transitions?: DocumentActionTransition[];
+  /**
+   * Statuses of an EXISTING record from which the TYPE ITSELF refuses this action, no matter what
+   * any country policy says - issue #468. Before this field existed, every descriptor's "save-draft"
+   * declared `SAVE_DRAFT_TRANSITIONS = [{ from: 'always', to: 'draft' }]`, so `availableWhen` was
+   * `'always'` and NOTHING in the type stopped a "save-draft" from demoting an already-issued
+   * document (sent, cancelled, signed...) back to "draft" and silently rewriting it. The only thing
+   * that ever stopped it was per-country DATA (country-policy's own `statuses: ["draft"]` restriction
+   * on `invoice.save-draft`, present in all five shipped country files) - a country that forgot to add that line, or a country the
+   * catalog never covers at all, reopened the hole. A credit note is legally an invoice (CGI art.
+   * 289, I, 5) and had NO such line anywhere, so an issued credit note could always be rewritten. The
+   * fix belongs in CODE, not in one more country file that a sixth country could omit.
+   *
+   * Why not `transitions`/`availableWhen`: both only ever express "every status" (`'always'`,
+   * which ALSO matches a brand-new, never-saved record - see `isActionAvailable`) or a closed list of
+   * EXISTING statuses. There is no way to say "a never-saved record OR exactly these existing
+   * statuses" with either shape - `availableWhen: ['draft']` would revoke the never-saved allowance
+   * too (the exact bug lifecycle.ts's own closing comment documents for `policyRestrictedToStatuses`).
+   * `lockedStatuses` is therefore its own, third, orthogonal fact: it only ever narrows an ALREADY
+   * available action, and only for a record that has actually been saved - `isActionAvailable` checks
+   * it after `availableWhen`, and `status === undefined` (never-saved) never matches it.
+   *
+   * `isActionAvailable` denies the action once `status` is in this list, exactly as a country
+   * policy's `restrictedToStatuses` does - but this one can never be widened or bypassed by data,
+   * because nothing outside this file's own descriptors sets it.
+   */
+  lockedStatuses?: string[];
 }
 
 /** One entry of `DocumentActionDescriptor.transitions` — see that field's own comment, and
@@ -597,8 +623,15 @@ export const CORE_FIELD_KINDS = [
 
 export type CoreFieldKind = (typeof CORE_FIELD_KINDS)[number];
 
-/** Whether `action` may run on a record currently at `status` (undefined = not saved yet). */
+/** Whether `action` may run on a record currently at `status` (undefined = not saved yet). Checks
+ *  `availableWhen` first, then `lockedStatuses` (issue #468) as a second, code-only narrowing that
+ *  only ever applies to an EXISTING record - a never-saved one (`status === undefined`) can never be
+ *  locked, since `lockedStatuses` only ever names statuses a record can actually be persisted at. */
 export function isActionAvailable(action: DocumentActionDescriptor, status: string | undefined): boolean {
-  if (action.availableWhen === 'always') return true;
-  return status !== undefined && action.availableWhen.includes(status);
+  if (action.availableWhen === 'always') {
+    if (status !== undefined && action.lockedStatuses?.includes(status)) return false;
+    return true;
+  }
+  if (status === undefined || !action.availableWhen.includes(status)) return false;
+  return !action.lockedStatuses?.includes(status);
 }

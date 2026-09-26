@@ -199,8 +199,10 @@ describe("Quote manual acceptance (issue #421)", () => {
 					).to.be.true;
 				});
 
-				// Conversion to invoice works from "accepted".
-				cy.get('[data-cy="document-actions-menu"]').click();
+				// Conversion to invoice works from "accepted". It is the page's PRIMARY button now, not a
+				// menu entry: issue #468 locks "save-draft" on an accepted quote, and "save-draft" is
+				// what used to take the primary slot here (action-presentation.ts#pickPrimaryAction), so
+				// "convert-to-invoice" moves up out of the "Actions" menu.
 				cy.get('[data-cy="document-action-convert-to-invoice"]').click();
 				cy.url({ timeout: 15000 }).should("match", /\/documents\/invoice\/[^/]+$/);
 				cy.get('[data-cy="document-status-badge"]').should("contain.text", "Draft");
