@@ -129,13 +129,37 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * the same two transition entries as the quote's and the invoice's own: "draft"/"send_failed" ->
  * "sending", then "sending" -> "sent" OR "send_failed".
  *
- * Numbering: still NOT declared — see types.ts's own comment on `numbering`. Whether an ISSUED credit
- * note needs a legal, sequential number of its own is a real question for actual French bookkeeping,
- * but it is a DIFFERENT concern from credit matching: credit matching asks that a sent credit note reduce what its
- * invoice owes, not that it be numbered. Adding `numbering` here would be exactly the kind of
- * unrequested scope this file's own header already declines elsewhere (no forced negative amounts) —
- * left for whichever need actually calls for it, not guessed at here; the FREE shape above does not
- * change that judgment either.
+ * Numbering: DECLARED (issue #471) - `{ onEnterStatus: 'sending', onlyFrom: ['draft'] }`, the same
+ * "sending" hook the quote's and the invoice's own numbering already hangs off, plus the new
+ * `onlyFrom` restriction (types.ts's own doc comment on that field). This was left undeclared until
+ * now on the theory that credit matching (a sent credit note reduces what its invoice owes) is a
+ * different concern from legal numbering - true, but incomplete: CGI art. 289, I, 5 assimilates ANY
+ * document modifying the initial invoice to an invoice itself, which CGI ann. II art. 242 nonies A, I,
+ * 7° then requires to carry "un numéro unique basé sur une séquence chronologique et continue" - the
+ * same identifiers by SERIES that article already allows justify a DEDICATED credit-note series (the
+ * existing per-`(companyId, typeId)` sequence, numbering/sequence.ts, needs no change at all: a
+ * correcting document is exactly the kind of distinct activity that provision has in mind - see
+ * country-policy/data/fr.json's own credit-note `numbering` fact for the full citation). This is not
+ * FR-only either: PT/DE/IT all require it too (country-policy/'s per-country facts, with provenance  -
+ * DE/IT are UNVERIFIED, honestly flagged rather than guessed at), and only Poland's own
+ * `assertFreeCreditNoteAllowedForCountry` above already makes the point moot there (a Polish credit
+ * note IS an invoice - a KOR - numbered by the invoice's own numbering, never this type's).
+ *
+ * `onlyFrom: ['draft']` exists for exactly one reason: a credit note issued BEFORE this feature shipped
+ * has no number and must NEVER get one retroactively - a number assigned after the fact is not the
+ * number the document was actually issued with, which would be a false legal fact, not a fix. Since
+ * `number` is set once and never cleared, "already numbered" alone cannot tell a legacy record apart
+ * from a brand-new one arriving at "sending" for the very first time; `onlyFrom` is what does, by
+ * requiring the record to be seen leaving "draft" (see `numbering.onlyFrom`'s own header, types.ts, for
+ * the full mechanism and why a "send_failed" retry of a genuinely pre-#471 record is correctly refused
+ * a number while a "send_failed" retry of an already-numbered one stays a harmless no-op either way).
+ * The frontend/PDF honestly label such a record "Issued without a number" rather than showing a blank  -
+ * see document-list.tsx/document-detail.tsx/render-html.ts's own comments.
+ *
+ * "share-link" below is available from the same three post-draft statuses either way: unlike the
+ * invoice's/quote's own "available once numbered" gate, this type's gate stays "not a draft any more"  -
+ * a LEGACY unnumbered credit note (see above) must still be shareable, so gating on `numbering` here
+ * would wrongly hide the link for exactly the records that most need one preserved.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [
@@ -168,6 +192,12 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
     label: 'Credit note',
     statuses: CREDIT_NOTE_STATUSES,
     initialStatus: 'draft',
+    // Issue #471 - see this file's own header, "Numbering", for the full "why" (CGI art. 289, I, 5 /
+    // ann. II art. 242 nonies A, I, 7°, and the other four shipped countries' own facts,
+    // country-policy/). `onlyFrom: ['draft']` protects a credit note issued before this feature
+    // existed from ever being numbered retroactively - see `numbering.onlyFrom`'s own doc comment
+    // (types.ts).
+    numbering: { onEnterStatus: 'sending', onlyFrom: ['draft'] },
     // See types.ts's own comment on `DocumentTypeDescriptor.email` — declared for consistency with
     // every other shipped type, even though this type's own "send" (see this file's own "Actions"
     // paragraph above) never actually reads it: it is a plain status transition, not an email
@@ -374,9 +404,11 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         id: 'share-link',
         label: 'Share link',
         // See invoice.descriptor.ts's own "share-link" comment for the full
-        // reasoning. This type has no `numbering` declared at all (this file's own header, above),
-        // so "available once numbered" doesn't apply here the way it does for the invoice/quote —
-        // the gate that matters is simply "not a draft any more", the same status set anyway.
+        // reasoning, and this file's own header, "Numbering", for why this type deliberately does NOT
+        // gate on `numbering` the way the invoice/quote do even though it now declares one: a LEGACY
+        // credit note (issued before issue #471, never to be numbered retroactively - see
+        // `onlyFrom`) must still be shareable, so the gate that matters here stays "not a draft any
+        // more", the same status set as before.
         availableWhen: ['sending', 'sent', 'send_failed'],
       },
     ],

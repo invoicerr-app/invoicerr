@@ -26,7 +26,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { assertValidProvenance, CountryDocumentPolicyFile } from '../schema';
+import { assertValidNumberingProvenance, assertValidProvenance, CountryDocumentPolicyFile } from '../schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
@@ -57,6 +57,11 @@ function loadCountryFile(code: string): CountryDocumentPolicyFile {
   }
   for (const rule of parsed.rules) {
     assertValidProvenance(rule, `documents/country-policy/data/${code}.json`);
+  }
+  // `numbering` (issue #471) - optional, so absent is fine (no loop iterations); present entries get
+  // the exact same load-time provenance gate `rules` above already holds.
+  for (const fact of parsed.numbering ?? []) {
+    assertValidNumberingProvenance(fact, `documents/country-policy/data/${code}.json`);
   }
   return parsed;
 }

@@ -311,5 +311,16 @@
       }
     }
   ],
-  "notes": "Italy — research from 2026-09-03. The acts internal to the product follow the same reasoning already held by fr.json/us.json for the same actions. The legal weight rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on normattiva.it (the official Italian portal for consolidated texts) for art. 21 comma 1 DPR 633/1972 (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/it.json for the immutability of the issued invoice (invoice.save-draft, CORRECTIVE_INVOICE forbidden — the clearest citation among the five new countries on this fact) and for the credit note (credit-note.send, CREDIT_NOTE allowed) — each one only holds for the exact fact it settles here, never stretched beyond that."
+  "notes": "Italy - research from 2026-09-03. The acts internal to the product follow the same reasoning already held by fr.json/us.json for the same actions. The legal weight rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on normattiva.it (the official Italian portal for consolidated texts) for art. 21 comma 1 DPR 633/1972 (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/it.json for the immutability of the issued invoice (invoice.save-draft, CORRECTIVE_INVOICE forbidden - the clearest citation among the five new countries on this fact) and for the credit note (credit-note.send, CREDIT_NOTE allowed) - each one only holds for the exact fact it settles here, never stretched beyond that.",
+  "numbering": [
+    {
+      "typeId": "credit-note",
+      "requirement": "sequential-number-required",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "art. 21, comma 2, lett. b) DPR 633/1972 requires the invoice to carry « un numero progressivo che la identifichi in modo univoco » (read verbatim as quoted by Agenzia delle Entrate, Risposta n. 505 del 29 ottobre 2020, PDF on agenziaentrate.gov.it, 2026-09-26). No sentence was read that extends art. 21 to the nota di credito of art. 26, comma 2 (art. 26, comma 1 applies art. 21 only to the upward variation - see correction-routes/data/it.json's own DEBIT_NOTE fact). The SdI data model gives every document type, TD04 nota di credito included, a field 2.1.1.4 <Numero>. What would settle it: Circolare 20/E del 29/12/2021 (on art. 26) or the SdI technical specifications, read first-hand, for TD04."
+      },
+      "notes": "Product numbers Italian credit notes anyway - the SdI data model's own mandatory <Numero> field for TD04 is a strong practical signal even without a statutory sentence extending art. 21 to it, pending the first-hand read that would turn this into a `legal` entry."
+    }
+  ]
 }

@@ -107,6 +107,28 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
     );
   }
 
+  // `numbering.onlyFrom` (issue #471) - same two checks `lockedStatuses` below already runs on every
+  // other status list this file validates: every entry must be a status this type actually declares
+  // (a typo would otherwise silently number NOTHING, ever, since no real transition could ever match
+  // it), and it must never be empty (an empty list numbers nothing either, which is indistinguishable
+  // from not declaring `numbering` at all and would only confuse a reader of this descriptor).
+  if (descriptor.numbering?.onlyFrom) {
+    if (descriptor.numbering.onlyFrom.length === 0) {
+      throw new Error(
+        `Document type "${descriptor.id}" declares "numbering.onlyFrom" as an empty array - that ` +
+          'numbers nothing, ever; omit "onlyFrom" entirely instead if that is genuinely intended.',
+      );
+    }
+    for (const from of descriptor.numbering.onlyFrom) {
+      if (!statusSet.has(from)) {
+        throw new Error(
+          `Document type "${descriptor.id}" declares "numbering.onlyFrom" naming status "${from}", ` +
+            `which is not one of its own declared statuses (${statusIds.join(', ')}).`,
+        );
+      }
+    }
+  }
+
   for (const action of descriptor.actions) {
     if (action.transitions) {
       for (const transition of action.transitions) {

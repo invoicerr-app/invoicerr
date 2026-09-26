@@ -1,4 +1,5 @@
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
+import { isNumberingAllowedFrom } from '../numbering/only-from';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 import type { PaymentMethodPresentation } from '../payment-methods/types';
 import type { DocumentTotals } from '../totals/compute-totals';
@@ -623,7 +624,19 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       <div class="document-title">${escapeHtmlSafe(descriptor.label)}</div>
       ${
         descriptor.numbering
-          ? `<div class="document-number">${escapeHtmlSafe(instance.displayNumber ?? strings.draftNoNumberYet)}</div>`
+          ? `<div class="document-number">${escapeHtmlSafe(
+              instance.displayNumber ??
+                // `isNumberingAllowedFrom` (issue #471) - the record's CURRENT status is what a
+                // never-yet-numbered PDF render always sees (a "draft" that has none, or a legacy
+                // credit note whose status left `numbering.onlyFrom` a long time ago): both read the
+                // same predicate the numbering hook itself gates on, so "still awaiting" here means
+                // exactly the same thing it means there. `instance.status === descriptor.initialStatus`
+                // covers the plain-draft case even for a type with no `onlyFrom` at all (quote/invoice).
+                (instance.status === descriptor.initialStatus ||
+                isNumberingAllowedFrom(descriptor.numbering, instance.status)
+                  ? strings.draftNoNumberYet
+                  : strings.issuedWithoutNumber),
+            )}</div>`
           : ''
       }
       ${instance.atcud ? `<div class="document-atcud">${escapeHtmlSafe(instance.atcud)}</div>` : ''}

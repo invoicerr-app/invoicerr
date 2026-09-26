@@ -84,13 +84,44 @@ export interface DocumentTypeDescriptor {
    * which transition edge fired.
    *
    * Absent means this type is NEVER numbered, on any record, by anything — the deliberate state for
-   * "expense" (no status a number would even make sense to hang off) and, today, for "credit-note"
-   * (its lifecycle has no status besides "draft" to enter — see credit-note.descriptor.ts's own
-   * comment on why `numbering` is not declared for it despite a credit note plausibly needing one in
-   * real bookkeeping). This is the numbering equivalent of `contributions`/`statuses` themselves being
-   * optional: a type that never declares a concern gets none of that concern's machinery.
+   * "expense" (no status a number would even make sense to hang off, and no legal text requiring
+   * one). "credit-note" DOES declare this now (issue #471: CGI art. 289, I, 5 assimilates a
+   * correcting document to an invoice, which must carry a sequential number - see
+   * credit-note.descriptor.ts's own header, and country-policy/'s per-country `numbering` facts for
+   * the full picture across the five shipped countries). This is the numbering equivalent of
+   * `contributions`/`statuses` themselves being optional: a type that never declares a concern gets
+   * none of that concern's machinery.
    */
-  numbering?: { onEnterStatus: string };
+  numbering?: {
+    onEnterStatus: string;
+    /**
+     * Restricts numbering to a record whose status IMMEDIATELY BEFORE this transition (never the
+     * type's `initialStatus` alone - a genuinely fresh record has no "before" at all, see below) was
+     * one of these - added for issue #471, so far the ONLY consumer. Absent means "any prior status",
+     * the original, unrestricted behaviour every OTHER numbered type (quote, invoice) still has: their
+     * own SEND_TRANSITIONS already only ever reach `onEnterStatus` from a status this type's own
+     * lifecycle intends to number, so no such list was ever needed for them.
+     *
+     * Exists for exactly one problem: a record that reached `onEnterStatus` BEFORE this type declared
+     * `numbering` at all (a credit note issued before issue #471 shipped) must NEVER be numbered
+     * retroactively - a number handed out after the fact is not the number the document was actually
+     * issued with, and backdating one would be a false legal fact, worse than the honest gap it
+     * replaces. Since `number` is set exactly once and never cleared, such a record is
+     * indistinguishable from a brand-new one by `number == null` alone; the ONLY thing that still
+     * tells them apart is the status the record is arriving FROM. `credit-note.descriptor.ts` sets
+     * this to `['draft']`: numbering fires when the record genuinely leaves "draft" - the same
+     * "sending" arrival a "send_failed" RETRY of an ALREADY-numbered record also reaches, which stays
+     * a no-op regardless (`number` is already set) - but is refused for a legacy record arriving at
+     * "sending" FROM "send_failed" while still unnumbered, because a status that predates this feature
+     * cannot itself be trusted to mean "genuinely leaving draft".
+     *
+     * `documents.service.ts#runAction`'s post-handler hook and `actions/async-send.ts`'s own
+     * `numberOnEnqueue` gate both read this alongside `onEnterStatus` - see each call site's own
+     * comment. Not declared for quote/invoice: leaving it absent keeps their existing, unrestricted
+     * behaviour exactly as it was before this field existed.
+     */
+    onlyFrom?: string[];
+  };
   /**
    * This type's DEFAULT email — subject/body, sent when the document is delivered by mail (the
    * quote's own unconditional "send", the invoice's "email" transport — see actions/generic-actions.ts

@@ -67,6 +67,35 @@ function unnumberedWidgetDescriptor(): DocumentTypeDescriptor {
   return rest;
 }
 
+// Issue #471 - the "credit-note" shape: same lifecycle skeleton as the widget above, but with a
+// THIRD status ("other") the widget itself never declares, reachable through its own "send"-like
+// action ("recover"), so a test can put a fresh record at a status OTHER than "draft" or "sent"
+// without touching a real credit-note descriptor at all - synthetic, on the same "widget" model
+// documents.service.numbering.spec.ts already holds for everything else in this file.
+const RECOVER_TRANSITIONS: DocumentActionTransition[] = [{ from: ['other'], to: 'sent' }];
+
+/** Mirrors `credit-note.descriptor.ts`'s own `numbering: { onEnterStatus: 'sending', onlyFrom:
+ *  ['draft'] }` - same restricted mechanism, on a synthetic type with an extra "other" status
+ *  standing in for "send_failed" (any status this type's own lifecycle can reach "sent" FROM other
+ *  than "draft"). */
+function onlyFromWidgetDescriptor(): DocumentTypeDescriptor {
+  const base = numberedWidgetDescriptor();
+  return {
+    ...base,
+    statuses: [...base.statuses!, { id: 'other', label: 'Other' }],
+    numbering: { onEnterStatus: 'sent', onlyFrom: ['draft'] },
+    actions: [
+      ...base.actions,
+      {
+        id: 'recover',
+        label: 'Recover',
+        transitions: RECOVER_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(RECOVER_TRANSITIONS),
+      },
+    ],
+  };
+}
+
 function buildService(descriptor: DocumentTypeDescriptor, actionRegistry: ActionRegistry) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(descriptor);
@@ -239,5 +268,128 @@ describe('DocumentsService.runAction — numbering wiring', () => {
 
     expect(result.changed).toBe(true);
     expect(result.document?.number ?? null).toBeNull();
+  });
+});
+
+// Issue #471 - `numbering.onlyFrom` (descriptors/types.ts), the mechanism `credit-note.descriptor.ts`
+// declares to make sure a LEGACY credit note (issued before it declared `numbering` at all) is never
+// numbered retroactively. Uses `onlyFromWidgetDescriptor` above rather than the real
+// `buildCreditNoteDescriptor()`: this file's whole point is proving `runAction`'s WIRING in isolation
+// from any one real type's own action handlers (see the file's own header) - the credit note's own
+// end-to-end behaviour (including its real "send" handler) is documents.service.credit-note.spec.ts's
+// job, not this one's.
+describe('DocumentsService.runAction - numbering.onlyFrom wiring (issue #471)', () => {
+  beforeEach(() => {
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+  });
+  afterEach(() => vi.resetAllMocks());
+
+  it('numbers a record entering `onEnterStatus` FROM a status in `onlyFrom` (a genuine "draft -> sent")', async () => {
+    const actionRegistry = new ActionRegistry();
+    registerSendHandler(actionRegistry, 'sent', null);
+
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'widget',
+      status: 'draft',
+      number: null,
+      displayNumber: null,
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
+      number: 1,
+      displayNumber: 'WIDGET-2026-0001',
+    });
+
+    const service = buildService(onlyFromWidgetDescriptor(), actionRegistry);
+    const result = await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });
+
+    expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith('company-1', 'widget', 'doc-1');
+    expect(result.document).toMatchObject({ number: 1, displayNumber: 'WIDGET-2026-0001' });
+  });
+
+  it('NEVER numbers a record entering `onEnterStatus` FROM a status NOT in `onlyFrom` - a legacy, pre-feature record', async () => {
+    const actionRegistry = new ActionRegistry();
+    actionRegistry.register('widget', 'recover', async ({ companyId, typeId, documentId, data }) => ({
+      document: await persistence.upsertDocument(companyId, typeId, documentId, 'sent', data),
+      changed: true,
+    }));
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'widget',
+      status: 'sent',
+      number: null,
+      displayNumber: null,
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // "other" stands in for "send_failed" - a status the record held BEFORE this action ran that is
+    // genuinely reachable, in a real credit note, only for a record issued before `numbering` existed
+    // (see credit-note.descriptor.ts's own "Numbering" header). Still unnumbered, because the type
+    // simply had no `numbering` at all back when it was actually sent.
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'widget',
+      status: 'other',
+      number: null,
+      displayNumber: null,
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const service = buildService(onlyFromWidgetDescriptor(), actionRegistry);
+    const result = await service.runAction('company-1', 'widget', 'recover', {
+      documentId: 'doc-1',
+      data: {},
+    });
+
+    expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
+    expect(result.document?.number ?? null).toBeNull();
+  });
+
+  it('a record already numbered (numbered before "onlyFrom" ever mattered) keeps its number on a later replay, whatever it re-enters FROM', async () => {
+    const actionRegistry = new ActionRegistry();
+    actionRegistry.register('widget', 'recover', async ({ companyId, typeId, documentId, data }) => ({
+      document: await persistence.upsertDocument(companyId, typeId, documentId, 'sent', data),
+      changed: true,
+    }));
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'widget',
+      status: 'sent',
+      number: 1,
+      displayNumber: 'WIDGET-2026-0001',
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // Re-entering "sent" from "other" here too - but this record is ALREADY numbered, so `onlyFrom`
+    // never even gets consulted: `number == null` is false first, the same short-circuit
+    // "never twice" coverage above already proves for the unrestricted case.
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'widget',
+      status: 'other',
+      number: 1,
+      displayNumber: 'WIDGET-2026-0001',
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const service = buildService(onlyFromWidgetDescriptor(), actionRegistry);
+    const result = await service.runAction('company-1', 'widget', 'recover', {
+      documentId: 'doc-1',
+      data: {},
+    });
+
+    expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
+    expect(result.document).toMatchObject({ number: 1, displayNumber: 'WIDGET-2026-0001' });
   });
 });

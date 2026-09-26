@@ -97,6 +97,7 @@ import { DocumentInstanceResult, ActionResult } from './action-registry';
 import { archiveDeliveredArtifactsIfAny } from '../archive/archive-on-send';
 import { ArchivedArtifactInput } from '../archive/hashing';
 import { logger } from '@/logger/logger.service';
+import { isNumberingAllowedFrom } from '../numbering/only-from';
 import { TakenDocumentNumber } from '../numbering/sequence';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
@@ -263,9 +264,10 @@ export interface RunAsyncSendInput {
    */
   webhooks?: DocumentWebhookEmitter;
   /**
-   * Whether THIS type declares `numbering: { onEnterStatus: 'sending' }` (quote/invoice: true;
-   * credit-note: false — see credit-note.descriptor.ts's own comment on why it declares no numbering
-   * at all). `runAsyncSendAction` cannot infer this itself — it never sees a descriptor, only a typeId
+   * Whether THIS type declares `numbering: { onEnterStatus: 'sending' }` (quote/invoice/credit-note,
+   * issue #471: all three, now - see credit-note.descriptor.ts's own "Numbering" header for why the
+   * credit note also needs `numberingOnlyFrom` below, which quote/invoice do not).
+   * `runAsyncSendAction` cannot infer this itself - it never sees a descriptor, only a typeId
    * — so each caller passes it explicitly, reading straight off its own type's descriptor (the same
    * `INVOICE_DESCRIPTOR`-style module-level constant invoice-actions.ts already keeps for this exact
    * purpose). Numbering a type that declares none would silently invent a fact this core has no
@@ -274,6 +276,16 @@ export interface RunAsyncSendInput {
    * `runAction`'s own (now merely defensive) post-handler hook.
    */
   numberOnEnqueue: boolean;
+  /**
+   * Mirrors `DocumentTypeDescriptor.numbering.onlyFrom` (descriptors/types.ts, issue #471) - the same
+   * "each caller reads its own type's descriptor and passes the fact explicitly" discipline
+   * `numberOnEnqueue` above already holds, for the identical reason (this function never sees a
+   * descriptor). Checked against `existing.status` - the status this record held BEFORE this very
+   * call, read from `findOwnedDocument` a few lines up, i.e. exactly the "immediately before this
+   * transition" moment `onlyFrom` itself is defined against. Absent (quote, invoice) means "no
+   * restriction", the same default `isNumberingAllowedFrom` itself holds.
+   */
+  numberingOnlyFrom?: string[];
   /**
    * Optional hook run immediately after THIS call actually WINS the numbering race just above (the
    * exact same `numbered` truthy condition the stock-effect call already gates on — never for the
@@ -304,6 +316,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     deliver,
     preflight,
     numberOnEnqueue,
+    numberingOnlyFrom,
     onNumbered,
     events,
     webhooks,
@@ -542,7 +555,16 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   // `documents.service.ts`'s own post-handler numbering hook ever runs. `number == null` mirrors that
   // same hook's own guard (never re-number an already-numbered record — a "send_failed" retry keeps
   // its original number, no gap, no duplicate).
-  if (numberOnEnqueue && sending.number == null) {
+  // `isNumberingAllowedFrom` (issue #471) - `existing.status` is this record's status strictly BEFORE
+  // this call (read above, before the "sending" write), the exact "immediately before" moment
+  // `numberingOnlyFrom` is defined against. A legacy credit note retried from "send_failed" without
+  // ever having a number (issued before this feature existed) is correctly refused one here - see
+  // `RunAsyncSendInput.numberingOnlyFrom`'s own header.
+  if (
+    numberOnEnqueue &&
+    sending.number == null &&
+    isNumberingAllowedFrom({ onlyFrom: numberingOnlyFrom }, existing.status)
+  ) {
     const numbered = await takeDocumentNumberForTransition(companyId, typeId, sending.id);
     if (numbered) {
       sending = { ...sending, ...numbered };

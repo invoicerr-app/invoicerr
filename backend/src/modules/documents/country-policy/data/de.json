@@ -311,5 +311,16 @@
       }
     }
   ],
-  "notes": "Germany — research from 2026-09-03. The internal-to-the-product acts follow the same reasoning already held by fr.json/us.json for the same actions (no distinct research required, same categories of facts). The heavy legal lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on gesetze-im-internet.de (the official portal of the German federal Ministry of Justice) for § 14 Abs. 1 UStG (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of the citations already read on 2026-08-29 by correction-routes/data/de.json for the immutability of the issued invoice (invoice.save-draft, CORRECTIVE_INVOICE) and for the credit note (credit-note.send, CREDIT_NOTE) — each valid only for the exact fact it settles in this file, never stretched beyond that."
+  "notes": "Germany - research from 2026-09-03. The internal-to-the-product acts follow the same reasoning already held by fr.json/us.json for the same actions (no distinct research required, same categories of facts). The heavy legal lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on gesetze-im-internet.de (the official portal of the German federal Ministry of Justice) for § 14 Abs. 1 UStG (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of the citations already read on 2026-08-29 by correction-routes/data/de.json for the immutability of the issued invoice (invoice.save-draft, CORRECTIVE_INVOICE) and for the credit note (credit-note.send, CREDIT_NOTE) - each valid only for the exact fact it settles in this file, never stretched beyond that.",
+  "numbering": [
+    {
+      "typeId": "credit-note",
+      "requirement": "sequential-number-required",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Read verbatim on gesetze-im-internet.de, 2026-09-26: § 14 Abs. 4 Satz 1 Nr. 4 UStG requires of an invoice « eine fortlaufende Nummer mit einer oder mehreren Zahlenreihen, die zur Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben wird (Rechnungsnummer) », and § 31 Abs. 5 UStDV says of a correcting document « Es gelten die gleichen Anforderungen an Form und Inhalt wie in § 14 des Gesetzes. » Against that, UStAE 14.11 Abs. 1, as TRANSCRIBED (not read first-hand here) in correction-routes/data/de.json, says « Eine neue Rechnungsnummer für dieses Dokument ist nicht erforderlich », and UStAE 17.1 Abs. 3a says a price-reduction document « kann, muss aber nicht » be issued as an invoice at all - so whether a German credit note needs a number OF ITS OWN is not settled by a text read here. What would settle it: UStAE 14.11 and 17.1 read first-hand in the current BMF consolidated version."
+      },
+      "notes": "Numbering it anyway is never contrary to either text read here - a unique identifier is exactly what § 14 Abs. 4 Nr. 4 asks of an invoice, and § 31 Abs. 5 UStDV's own « gleiche Anforderungen » points the same direction - which is why the product numbers German credit notes too, pending the first-hand read that would turn this into a `legal` entry."
+    }
+  ]
 }

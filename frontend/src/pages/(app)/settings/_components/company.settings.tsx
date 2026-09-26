@@ -60,6 +60,12 @@ import type { Company } from "@/types"
  */
 const SHIPPED_DEFAULT_QUOTE_FORMAT = "QUOTE-{year}-{number:4}"
 const SHIPPED_DEFAULT_INVOICE_FORMAT = "INVOICE-{year}-{number:4}"
+/** Issue #471: credit-note.descriptor.ts now declares `numbering` too - same mechanism, same shipped
+ *  default shape as the two above (`defaultNumberFormatFor('credit-note')` uppercases the typeId
+ *  verbatim: "CREDIT-NOTE-{year}-{number:4}", never a shortened "CN-" - there is no per-type override
+ *  point in that function to hang a shorter default off without special-casing one type, which would
+ *  be exactly the kind of type-specific branch the rest of this generic numbering mechanism avoids). */
+const SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT = "CREDIT-NOTE-{year}-{number:4}"
 /** Mirrors the backend's `reconciliation-settings.ts#DEFAULT_TOLERANCE_PERCENT` — shown the first
  *  time this card loads, before `useReconciliationSettings()` itself resolves (see this file's own
  *  `reconciliationSettings` sync effect). */
@@ -173,12 +179,12 @@ export default function CompanySettings() {
         if (!val?.trim()) return true
         return /^[A-Za-z]{2}[0-9]{2}[A-Za-z0-9]{1,30}$/.test(val.replace(/\s+/g, ""))
       }, t("settings.company.form.iban.errors.format")),
-    // These two back `Company.numberFormats.quote`/`.invoice`, not a dedicated column — saved through
-    // `PUT /api/company/number-format` (see this file's own `onSubmit`), never through this form's
-    // main `POST /api/company/info` submission. There is no third "payment" field any more: no
-    // `DocumentTypeDescriptor` by that id exists (only `quote`/`invoice` declare `numbering` at all —
-    // see backend's descriptors/types.ts), so a "payment number format" control would have nothing to
-    // apply to.
+    // These three back `Company.numberFormats.quote`/`.invoice`/`.credit-note`, not a dedicated
+    // column - saved through `PUT /api/company/number-format` (see this file's own `onSubmit`),
+    // never through this form's main `POST /api/company/info` submission. Issue #471 added the third:
+    // credit-note.descriptor.ts now declares `numbering` too (quote/invoice/credit-note - see
+    // backend's descriptors/types.ts), so this card exposes all three, generic over typeId exactly
+    // like the endpoint itself already is.
     quoteNumberFormat: z
       .string()
       .min(1, t("settings.company.form.quoteNumberFormat.errors.required"))
@@ -193,6 +199,13 @@ export default function CompanySettings() {
       .refine((val) => {
         return validateNumberFormat(val)
       }, t("settings.company.form.invoiceNumberFormat.errors.format")),
+    creditNoteNumberFormat: z
+      .string()
+      .min(1, t("settings.company.form.creditNoteNumberFormat.errors.required"))
+      .max(100, t("settings.company.form.creditNoteNumberFormat.errors.maxLength"))
+      .refine((val) => {
+        return validateNumberFormat(val)
+      }, t("settings.company.form.creditNoteNumberFormat.errors.format")),
     invoicePDFFormat: z.string().refine((val) => {
       const validFormats = ["pdf", "facturx", "zugferd", "xrechnung", "ubl", "cii"]
       return validFormats.includes(val.toLowerCase())
@@ -288,6 +301,7 @@ export default function CompanySettings() {
       invoicePDFFormat: "",
       quoteNumberFormat: SHIPPED_DEFAULT_QUOTE_FORMAT,
       invoiceNumberFormat: SHIPPED_DEFAULT_INVOICE_FORMAT,
+      creditNoteNumberFormat: SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT,
       identifiers: [],
       peppolSchemeId: "0088",
       peppolEndpointId: "",
@@ -341,6 +355,10 @@ export default function CompanySettings() {
         // same value `documents/numbering/format-number.ts#defaultNumberFormatFor` would resolve to.
         quoteNumberFormat: data.numberFormats?.quote ?? SHIPPED_DEFAULT_QUOTE_FORMAT,
         invoiceNumberFormat: data.numberFormats?.invoice ?? SHIPPED_DEFAULT_INVOICE_FORMAT,
+        // `numberFormats` is keyed by typeId - "credit-note" (descriptors/credit-note.descriptor.ts's
+        // own `id`), never a camelCase variant, so this reads the bracket form the other two entries'
+        // plain dot-access could not express.
+        creditNoteNumberFormat: data.numberFormats?.["credit-note"] ?? SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT,
         // MINOR (stored) -> MAJOR (form) — the company's OWN currency, same "rough guardrail, not
         // currency-converted" assumption the backend gate documents (approval-gate.ts).
         approvalThreshold:
@@ -541,6 +559,7 @@ export default function CompanySettings() {
       approvalThreshold,
       quoteNumberFormat,
       invoiceNumberFormat,
+      creditNoteNumberFormat,
       reconciliationTolerancePercent,
       ...valuesWithoutPeppol
     } = values
@@ -588,6 +607,12 @@ export default function CompanySettings() {
       if (!quoteSaved) return // error already toasted by the wrapper
       const invoiceSaved = await saveNumberFormat({ typeId: "invoice", pattern: invoiceNumberFormat })
       if (!invoiceSaved) return // error already toasted by the wrapper
+      // Issue #471 - same sequential-write discipline as the two above, same shared JSON blob.
+      const creditNoteSaved = await saveNumberFormat({
+        typeId: "credit-note",
+        pattern: creditNoteNumberFormat,
+      })
+      if (!creditNoteSaved) return // error already toasted by the wrapper
 
       // A THIRD, independent endpoint (see this field's own zod comment) — same sequential-await
       // discipline as the two number-format saves just above, its own try/catch since it goes through
@@ -1128,16 +1153,18 @@ export default function CompanySettings() {
             contentClassName="grid gap-5"
           >
             {/*
-                No "starting number" fields any more, and no third "payment" format field — see this
+                No "starting number" fields any more, and no fourth "payment" format field - see this
                 file's own `SHIPPED_DEFAULT_*` comment. Neither backend field a removed pre-refonte
                 engine used to read (`quoteStartingNumber`/`invoiceStartingNumber`) is honoured by any
                 sequence logic today (`documents/numbering/sequence.ts` always starts a fresh
                 (company, type) counter at 1 — see `bumpSequence`'s own header), so showing a control
                 for either would be exactly the inert-input bug this card was rewritten to stop being.
                 A company migrating from another product and wanting "start my invoice numbering at
-                500" has no way to do that today — a real gap, not implemented here.
+                500" has no way to do that today - a real gap, not implemented here. THREE fields
+                below, not two, since issue #471: credit-note.descriptor.ts now declares `numbering`
+                too.
               */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="quoteNumberFormat"
@@ -1173,6 +1200,30 @@ export default function CompanySettings() {
                     </FormControl>
                     <FormDescription>
                       {t("settings.company.form.invoiceNumberFormat.description")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {/* Issue #471 - credit-note.descriptor.ts now declares `numbering` too, same mechanism,
+                  same per-(company, typeId) sequence, so this card exposes it exactly like the two
+                  above (own PUT call, own shipped default - see SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT's
+                  own comment for why it is not a shortened "CN-"). */}
+              <FormField
+                control={form.control}
+                name="creditNoteNumberFormat"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>{t("settings.company.form.creditNoteNumberFormat.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("settings.company.form.creditNoteNumberFormat.placeholder")}
+                        {...field}
+                        data-cy="company-credit-note-number-format-input"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("settings.company.form.creditNoteNumberFormat.description")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
