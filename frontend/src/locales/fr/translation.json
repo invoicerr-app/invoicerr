@@ -2008,7 +2008,7 @@
                 "button": "Créer le webhook"
             },
             "card": {
-                "events": "Écoute les événements :",
+                "events": "Écoute les événements : {{events}}",
                 "edit": "Modifier",
                 "delete": "Supprimer",
                 "editPrompt": "Saisissez la nouvelle URL du webhook"
