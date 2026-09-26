@@ -37,7 +37,7 @@ function createClientWithLanguage(name: string, contactEmail: string, languageOp
 	cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 	cy.continueSteppedDialog("client-dialog");
 
-	cy.get('[name="contactEmail"]').clear().type(contactEmail);
+	cy.get('[name="contacts.0.email"]').clear().type(contactEmail);
 	// The field under test: an explicit document language, independent of the country picked earlier.
 	cy.get('[data-cy="client-language-select"]').scrollIntoView().click();
 	cy.get(`[data-cy="${languageOptionDataCy}"]`).click();

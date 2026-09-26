@@ -320,7 +320,7 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 		cy.continueSteppedDialog("client-dialog");
 
 		// Custom CLIENT-target fields now live at the end of the Contact & portal step.
-		cy.get('[name="contactEmail"]').clear().type("cf-client@example.com");
+		cy.get('[name="contacts.0.email"]').clear().type("cf-client@example.com");
 		cy.get('[data-cy="client-custom-fields-section"]').scrollIntoView().should("be.visible");
 		pickSelectOption("loyalty_tier", "gold");
 		cy.continueSteppedDialog("client-dialog");
