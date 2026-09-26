@@ -8,7 +8,8 @@
         },
         "stats": {
             "active": "Aktivní",
-            "inactive": "Neaktivní"
+            "inactive": "Neaktivní",
+            "total": "Celkový počet klientů"
         },
         "emptyState": {
             "noClients": "Zatím žádní klienti",
@@ -25,7 +26,9 @@
                 "view": "Zobrazit podrobnosti o klientovi",
                 "edit": "Upravit klienta",
                 "delete": "Smazat klienta"
-            }
+            },
+            "title": "Všichni klienti",
+            "description": "Spravujte a prohlížejte si všechny své klienty na jednom místě."
         },
         "upsert": {
             "title": {
@@ -87,10 +90,20 @@
                 "type": {
                     "label": "Typ klienta",
                     "company": "Společnost",
-                    "individual": "Fyzická osoba"
+                    "individual": "Fyzická osoba",
+                    "description": "Vyberte, zda je klientem jednotlivec nebo firma"
                 },
                 "country": {
-                    "label": "Země"
+                    "label": "Země",
+                    "placeholder": "Zadejte zemi"
+                },
+                "legalId": {
+                    "placeholder": "Zadejte Ičo",
+                    "label": "Ičo"
+                },
+                "vat": {
+                    "placeholder": "Zadejte DIČ (např. CZ12345678901)",
+                    "label": "DIČ"
                 }
             },
             "validation": {
@@ -98,7 +111,8 @@
                     "required": "Název společnosti je povinný"
                 },
                 "description": {
-                    "maxLength": "Popis musí být kratší než 500 znaků"
+                    "maxLength": "Popis musí být kratší než 500 znaků",
+                    "required": "Popis je povinný"
                 },
                 "foundedAt": {
                     "future": "Datum založení nemůže být v budoucnosti"
@@ -110,7 +124,8 @@
                     "required": "Příjmení je povinné"
                 },
                 "contactPhone": {
-                    "format": "Formát telefonního čísla je neplatný"
+                    "format": "Formát telefonního čísla je neplatný",
+                    "minLength": "Telefonní číslo musí mít alespoň 8 znaků"
                 },
                 "contactEmail": {
                     "required": "E-mail je povinný",
@@ -127,6 +142,17 @@
                 },
                 "country": {
                     "required": "Země je povinná"
+                },
+                "vat": {
+                    "empty": "DIČ nesmí být prázdné",
+                    "required": "Je vyžadováno DIČ",
+                    "format": "Formát DIČ je neplatný (např. CZ12345678901)",
+                    "maxLength": "DIČ musí mít méně než 15 znaků"
+                },
+                "legalId": {
+                    "maxLength": "Ičo musí být kratší než 50 znaků",
+                    "required": "Ičo vyžadováno",
+                    "empty": "Pole pro ičo nesmí být prázdné"
                 }
             },
             "actions": {
@@ -159,6 +185,11 @@
                 "cancel": "Zrušit",
                 "delete": "Smazat klienta"
             }
+        },
+        "header": {
+            "found": "nalezeno",
+            "count": "Klienty",
+            "subtitle": "Správa klientů"
         }
     },
     "quotes": {
@@ -167,6 +198,15 @@
         },
         "actions": {
             "addNew": "Vytvořit novou nabídku"
+        },
+        "stats": {
+            "total": "Celkový počet nabídek",
+            "draft": "Návrh"
+        },
+        "header": {
+            "count": "Cenové nabídky",
+            "subtitle": "Spravujte své nabídky",
+            "found": "Založeno"
         }
     },
     "invoices": {
