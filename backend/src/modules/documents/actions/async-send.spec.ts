@@ -119,18 +119,18 @@ describe('runAsyncSendAction', () => {
       });
     });
 
-    it('never numbers a type declaring `numberOnEnqueue: false` (credit-note: no `numbering` at all)', async () => {
+    it('never numbers a type declaring `numberOnEnqueue: false` (expense: no `numbering` at all)', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'cn-1',
-        typeId: 'credit-note',
+        id: 'exp-1',
+        typeId: 'expense',
         status: 'draft',
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
       (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'cn-1',
-        typeId: 'credit-note',
+        id: 'exp-1',
+        typeId: 'expense',
         status: 'sending',
         data: baseInput.data,
         createdAt: new Date(),
@@ -140,8 +140,8 @@ describe('runAsyncSendAction', () => {
 
       await runAsyncSendAction({
         ...baseInput,
-        typeId: 'credit-note',
-        documentId: 'cn-1',
+        typeId: 'expense',
+        documentId: 'exp-1',
         numberOnEnqueue: false,
         queueDispatcher,
         deliver: vi.fn(),
@@ -307,10 +307,10 @@ describe('runAsyncSendAction', () => {
         expect(onNumbered).not.toHaveBeenCalled();
       });
 
-      it('is never called when `numberOnEnqueue` is false — a type with no numbering at all (credit-note)', async () => {
+      it('is never called when `numberOnEnqueue` is false - a type with no numbering at all (expense)', async () => {
         (persistence.findOwnedDocument as Mock).mockResolvedValue({
           id: 'doc-1',
-          typeId: 'credit-note',
+          typeId: 'expense',
           status: 'draft',
           data: baseInput.data,
           createdAt: new Date(),
@@ -318,7 +318,7 @@ describe('runAsyncSendAction', () => {
         });
         (persistence.upsertDocument as Mock).mockResolvedValue({
           id: 'doc-1',
-          typeId: 'credit-note',
+          typeId: 'expense',
           status: 'sending',
           data: baseInput.data,
           createdAt: new Date(),
@@ -328,7 +328,7 @@ describe('runAsyncSendAction', () => {
 
         await runAsyncSendAction({
           ...baseInput,
-          typeId: 'credit-note',
+          typeId: 'expense',
           numberOnEnqueue: false,
           queueDispatcher: { enqueueAction: vi.fn().mockResolvedValue(undefined) },
           deliver: vi.fn(),

@@ -1,5 +1,5 @@
 import { ALL_COUNTRY_POLICY_FILES } from './data/all';
-import { CountryDocumentPolicyFile, DocumentActionRuleFact } from './schema';
+import { CountryDocumentPolicyFile, DocumentActionRuleFact, DocumentNumberingFact } from './schema';
 
 function buildIndex(files: CountryDocumentPolicyFile[]): Record<string, CountryDocumentPolicyFile> {
   const index: Record<string, CountryDocumentPolicyFile> = {};
@@ -48,6 +48,14 @@ export class CountryPolicyCatalog {
    */
   typesFor(countryCode: string): string[] {
     return this.files[(countryCode ?? '').toUpperCase()]?.documentTypes ?? [];
+  }
+
+  /** Every numbering fact declared for a country (issue #471) - see schema.ts's own
+   *  `CountryDocumentPolicyFile.numbering` header for why this is file-only (validated, never
+   *  seeded to a DB table). Empty for a country with no such fact at all, the same "no permissive
+   *  fallback" discipline `rulesFor`/`typesFor` above already hold. */
+  numberingFor(countryCode: string): DocumentNumberingFact[] {
+    return this.files[(countryCode ?? '').toUpperCase()]?.numbering ?? [];
   }
 }
 

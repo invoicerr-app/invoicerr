@@ -52,7 +52,7 @@ import type {
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
-import { isActionAvailable, statusLabel } from "@/components/documents/types"
+import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
@@ -147,19 +147,30 @@ interface DocumentCardNumberProps {
 /**
  * The document's own NUMBER, shown before the row title — see the backend's numbering/ for the
  * full mechanism. Gated on `descriptor.numbering` being declared at all: a type that never numbers
- * its instances (an expense, a credit note today — see their own descriptors) shows nothing here,
- * rather than a permanent, meaningless "no number yet" on every single row. For a NUMBERED type,
- * `displayNumber` is shown verbatim once set; before that (still "draft"), the translated
- * `documents.numbering.noneYet` — NEVER a fabricated number, the one rule this whole mechanism
- * exists to hold (see the backend's numbering/format-number.ts own header on the historical bug).
+ * its instances (an expense) shows nothing here, rather than a permanent, meaningless "no number
+ * yet" on every single row. For a NUMBERED type, `displayNumber` is shown verbatim once set;
+ * otherwise `numberingDisplayState` (types.ts) tells apart a plain draft (still "no number yet")
+ * from a LEGACY record issued before this type declared `numbering` at all - issue #471's own
+ * credit-note migration concern - shown as the distinct `documents.numbering.issuedWithoutNumber`
+ * rather than the same "no number yet" a brand-new draft gets, since the two mean different things.
+ * NEVER a fabricated number either way - the one rule this whole mechanism exists to hold (see the
+ * backend's numbering/format-number.ts own header on the historical bug).
  */
 function DocumentCardNumber({ descriptor, instance }: DocumentCardNumberProps) {
   const { t } = useTranslation()
   if (!descriptor.numbering) return null
 
+  const state = numberingDisplayState(descriptor, instance)
+  const label =
+    state === "numbered"
+      ? instance.displayNumber
+      : state === "awaiting"
+        ? t("documents.numbering.noneYet")
+        : t("documents.numbering.issuedWithoutNumber")
+
   return (
     <span className="font-mono text-xs text-muted-foreground" data-cy={`document-number-${instance.id}`}>
-      {instance.displayNumber ?? t("documents.numbering.noneYet")}
+      {label}
     </span>
   )
 }

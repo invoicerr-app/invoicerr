@@ -1,8 +1,15 @@
 /**
  * Portugal's ATCUD — the DB-touching orchestration `numbering/atcud.ts`'s pure functions are wired
- * into. Two entry points, both invoice-only (`invoice-actions.ts` is the sole caller of either — see
- * `numbering/atcud.ts`'s own header on why "credit-note" cannot participate: it declares no
- * `numbering` at all in this branch):
+ * into. Two entry points, both invoice-only (`invoice-actions.ts` is the sole caller of either).
+ * "credit-note" DOES declare `numbering` now (issue #471: CGI art. 289, I, 5 requires a French
+ * credit note to carry a sequential number, and country-policy/data/pt.json's own numbering fact says
+ * Portugal requires one too, CIVA art. 36.º n.º 6) but deliberately still does NOT get an ATCUD  -
+ * extending `ATCUD_TYPE_ID` below to a second type is out of scope for that issue (see this file's
+ * own `ATCUD_TYPE_ID` comment, and country-policy/data/pt.json's numbering fact for the honest gap
+ * this leaves): `credit-note-actions.ts` never wires `onNumbered` at all, so
+ * `attachAtcudToNumberedInvoice` is never even reachable for a credit note, and its "send" carries no
+ * `preflight` that calls `ensureAtcudIssuable` either - a Portuguese credit note is numbered but never
+ * throws for lack of an ATCUD, since nothing here ever asks it to have one.
  *
  *  - `ensureAtcudIssuable` — the PREFLIGHT gate, run from the invoice "send" action's own preflight
  *    (`invoice-actions.ts`), BEFORE the record ever leaves "draft"/"send_failed" and BEFORE

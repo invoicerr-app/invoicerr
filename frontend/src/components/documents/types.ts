@@ -214,10 +214,49 @@ export interface DocumentTypeDescriptor {
   initialStatus?: string
   /** Mirrors the backend's `DocumentTypeDescriptor.numbering` (descriptors/types.ts) — which status
    *  this type's instances receive a NUMBER on first entering. Absent means this type is NEVER
-   *  numbered (e.g. "expense", "credit-note") — the one flag every number-displaying UI (the list
+   *  numbered (e.g. "expense") - the one flag every number-displaying UI (the list
    *  card, the detail page's header, the PDF) gates on, so a type that never declares this shows no number
-   *  badge at all rather than a permanent "no number yet" placeholder that would never make sense. */
-  numbering?: { onEnterStatus: string }
+   *  badge at all rather than a permanent "no number yet" placeholder that would never make sense.
+   *  `onlyFrom` (issue #471) mirrors the backend field of the same name - see its own doc comment
+   *  there for the full "why" (a legacy, pre-feature credit note must never be numbered
+   *  retroactively) - and is what `numberingDisplayState` below reads to tell "still a draft, no
+   *  number yet" apart from "issued before this feature existed, never to be numbered". */
+  numbering?: { onEnterStatus: string; onlyFrom?: string[] }
+}
+
+/**
+ * The three ways a NUMBERED type's instance can show its number - computed once, here, and read by
+ * every UI that shows one (document-list.tsx's card, document-detail.tsx's header) so the three
+ * never drift into disagreeing about which unnumbered record is a plain draft and which is a legacy
+ * one. Callers must already have checked `descriptor.numbering` themselves (this function has
+ * nothing to say for an unnumbered type at all - see each `numbering` gate at the call site).
+ *
+ *  - `'numbered'`: `displayNumber` is set - show it verbatim, the normal case.
+ *  - `'awaiting'`: no number yet, but this record's CURRENT status is one it could still receive a
+ *    number FROM (`descriptor.initialStatus` itself - a plain draft - or, when `numbering.onlyFrom`
+ *    is declared, any status in that list). Shown as `documents.numbering.noneYet` - the same
+ *    wording this used to be the ONLY case.
+ *  - `'issuedWithoutNumber'`: no number, and the status is neither of the above - the record left its
+ *    "could still be numbered" window while genuinely unnumbered, which only happens for a document
+ *    issued before its type declared `numbering` at all (issue #471's own credit-note migration
+ *    concern: `onlyFrom: ['draft']` refuses to number such a record retroactively - see
+ *    `numbering.onlyFrom`'s own header, backend `descriptors/types.ts`, for why a number assigned
+ *    after the fact would be a false legal fact, not a fix). Shown as
+ *    `documents.numbering.issuedWithoutNumber` - a DISTINCT string from `noneYet`, since the two mean
+ *    different things to whoever reads them (one is "not sent yet", the other is "sent, but from
+ *    before this record's type was numbered at all").
+ */
+export type NumberingDisplayState = "numbered" | "awaiting" | "issuedWithoutNumber"
+
+export function numberingDisplayState(
+  descriptor: Pick<DocumentTypeDescriptor, "numbering" | "initialStatus">,
+  instance: Pick<DocumentInstance, "displayNumber" | "status">,
+): NumberingDisplayState {
+  if (instance.displayNumber) return "numbered"
+  const stillAwaiting =
+    instance.status === descriptor.initialStatus ||
+    (descriptor.numbering?.onlyFrom?.includes(instance.status) ?? false)
+  return stillAwaiting ? "awaiting" : "issuedWithoutNumber"
 }
 
 /** `statuses[].label` for `statusId`, falling back to the raw id when the descriptor names no

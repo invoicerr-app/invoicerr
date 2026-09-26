@@ -691,6 +691,53 @@ export default defineConfig({
         verifyPadesSignatureCoverage(base64: string) {
           return verifyPadesSignatureCoverage(base64);
         },
+
+        /**
+         * Issue #471 - simulates a credit note "sent" BEFORE this feature existed: nulls out
+         * `number`/`displayNumber` on an already-issued record and, when `status` is given, rewrites
+         * its status too (used to put it back at "send_failed" - a real, reachable RETRY starting
+         * point, see credit-note.descriptor.ts's own "Numbering" header on why `onlyFrom: ['draft']`
+         * refuses to number such a record even when "send" runs again). The same "write the row a real
+         * pre-feature state would have left" shape `setStaleLegalAcceptance`/
+         * `setCompanySubscriptionSeats` above already use for a different fact each. There is no route
+         * that could produce a NEW record in this state through the app any more (every credit note
+         * issued from now on gets numbered - `credit-note.descriptor.ts`'s own `numbering`), which is
+         * exactly why a direct DB write is the only way to set one up at all - a MIGRATION scenario,
+         * not a reachable CREATION journey, the same reasoning `resetDatabase`'s own Node-side pg use
+         * already rests on for a fact no API call could set up.
+         */
+        async makeCreditNoteLegacyUnnumbered({
+          documentId,
+          status,
+        }: {
+          documentId: string;
+          status?: string;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rowCount } = await client.query(
+              status
+                ? `UPDATE "DocumentInstance" SET number = NULL, "displayNumber" = NULL, status = $2
+                   WHERE id = $1 AND "typeId" = 'credit-note'`
+                : `UPDATE "DocumentInstance" SET number = NULL, "displayNumber" = NULL
+                   WHERE id = $1 AND "typeId" = 'credit-note'`,
+              status ? [documentId, status] : [documentId],
+            );
+            if (rowCount !== 1) {
+              throw new Error(
+                `makeCreditNoteLegacyUnnumbered: expected exactly one credit-note row for id ${documentId}, matched ${rowCount}`,
+              );
+            }
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
       });
     },
   }

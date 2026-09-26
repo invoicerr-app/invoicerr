@@ -54,7 +54,7 @@ import type {
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
-import { isActionAvailable, statusLabel } from "@/components/documents/types"
+import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { type DocumentFormState, useDocumentForm } from "@/components/documents/use-document-form"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -352,12 +352,18 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h2 className="font-heading text-xl font-semibold tracking-tight">{descriptor.label}</h2>
+          {/* See document-list.tsx's own `DocumentCardNumber` comment for the full "why" of the three
+           *  states `numberingDisplayState` distinguishes - issue #471's legacy credit note is what
+           *  makes "issuedWithoutNumber" a real, distinct case here, not just "no number yet". */}
           {descriptor.numbering && (
             <span
               className={instance.displayNumber ? "font-mono text-lg" : "text-sm text-muted-foreground"}
               data-cy="document-form-number"
             >
-              {instance.displayNumber ?? t("documents.numbering.noneYet")}
+              {instance.displayNumber ??
+                (numberingDisplayState(descriptor, instance) === "awaiting"
+                  ? t("documents.numbering.noneYet")
+                  : t("documents.numbering.issuedWithoutNumber"))}
             </span>
           )}
           <DocumentStatusBadge status={instance.status} label={statusLabel(descriptor, instance.status)} />

@@ -21,6 +21,12 @@ import { computeDocumentTotals } from './totals/compute-totals';
 import { TransportRegistry } from './transports/transport-registry';
 
 vi.mock('./persistence');
+// Issue #471: credit-note.descriptor.ts now declares `numbering`, so "send" (phase 1: draft ->
+// sending) reaches `takeDocumentNumberForTransition` - mocked wholesale, the same discipline
+// documents.service.numbering.spec.ts already holds for this exact module, so tests in THIS file
+// that never cared about numbering before (everything except the dedicated numbering coverage
+// further down) do not have to also start hitting a real Postgres connection to keep passing.
+vi.mock('./numbering/take-number');
 // See documents.service.spec.ts's own comment on this mock — the real decision code is proven
 // elsewhere (country-policy/country-policy.spec.ts, documents.service.country-policy.spec.ts). The
 // default "allowed" is (re-)installed in `beforeEach` below, not just here, since

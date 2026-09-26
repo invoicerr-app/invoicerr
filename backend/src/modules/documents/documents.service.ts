@@ -102,6 +102,7 @@ import { companyToFormatParty, clientToFormatParty } from './formats/party-snaps
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
 import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
 import { resolveClientFieldKey, resolveDateFieldKey, resolveSearchTextFieldKeys } from './list-filters';
+import { isNumberingAllowedFrom } from './numbering/only-from';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
 import {
   findOwnedDocument,
@@ -1436,12 +1437,20 @@ export class DocumentsService implements OnModuleInit {
     // to reach `onEnterStatus`. Scoped to `result.document` being THIS SAME type (never a foreign
     // record a side-effect action like "convert-to-invoice" created) — the same guard
     // `checkTransitionResult` just above already holds for its own concern.
+    // `isNumberingAllowedFrom` (issue #471) - reads `currentStatus`, the status THIS record actually
+    // held before this action ran (not `descriptor.initialStatus`, which is only ever a brand-new
+    // record's starting point, and not necessarily where this particular record came from): a
+    // credit-note declares `numbering.onlyFrom: ['draft']`, so a legacy record arriving here from
+    // "send_failed" while still unnumbered (issued before this feature existed) is correctly refused a
+    // number - see that predicate's own header, and `numbering.onlyFrom`'s own doc comment
+    // (descriptors/types.ts) for the full "why". Absent for quote/invoice, where it is always `true`.
     const enteringNumberedStatus =
       descriptor.numbering !== undefined &&
       result.document !== undefined &&
       result.document.typeId === typeId &&
       result.document.status === descriptor.numbering.onEnterStatus &&
-      result.document.number == null;
+      result.document.number == null &&
+      isNumberingAllowedFrom(descriptor.numbering, currentStatus);
 
     if (enteringNumberedStatus && result.document) {
       const numbered = await takeDocumentNumberForTransition(companyId, typeId, result.document.id);

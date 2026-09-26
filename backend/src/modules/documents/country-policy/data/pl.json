@@ -311,5 +311,17 @@
       }
     }
   ],
-  "notes": "Poland — research from 2026-09-03. THIS IS THE UNBLOCKING TARGETED BY THIS TASK: before this file, a Polish company had EVERY document action blocked (DECISION 1 of country-policy.ts) — no pl.json file existed. The product-internal acts follow the same reasoning already held by fr.json/us.json for the same actions. The legal heavy lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on isap.sejm.gov.pl (the official consolidated text of the Sejm Chancellery, state of the law as of 2026-07-20) for art. 106m/106na of the ustawa o VAT (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/pl.json for the immutability of the issued invoice (invoice.save-draft, INTERNAL_CREDIT_NOTE forbidden — the most explicit citation among the five new countries: « nie jest możliwe jej edytowanie ») and for the credit note (credit-note.send, CREDIT_NOTE forbidden AS A SEPARATE DOCUMENT, the only notable Polish nuance: no separate 'nota kredytowa' instrument) — each valid only for the exact fact it settles here, never stretched beyond that."
+  "notes": "Poland - research from 2026-09-03. THIS IS THE UNBLOCKING TARGETED BY THIS TASK: before this file, a Polish company had EVERY document action blocked (DECISION 1 of country-policy.ts) - no pl.json file existed. The product-internal acts follow the same reasoning already held by fr.json/us.json for the same actions. The legal heavy lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on isap.sejm.gov.pl (the official consolidated text of the Sejm Chancellery, state of the law as of 2026-07-20) for art. 106m/106na of the ustawa o VAT (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/pl.json for the immutability of the issued invoice (invoice.save-draft, INTERNAL_CREDIT_NOTE forbidden - the most explicit citation among the five new countries: « nie jest możliwe jej edytowanie ») and for the credit note (credit-note.send, CREDIT_NOTE forbidden AS A SEPARATE DOCUMENT, the only notable Polish nuance: no separate 'nota kredytowa' instrument) - each valid only for the exact fact it settles here, never stretched beyond that.",
+  "numbering": [
+    {
+      "typeId": "credit-note",
+      "requirement": "type-not-issuable",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+        "sourceCheckedAt": "2026-09-26"
+      },
+      "notes": "art. 106j ust. 2 pkt 2 ustawy o VAT (tekst jednolity, isap.sejm.gov.pl PDF D20040535Lj, read 2026-09-26). The credit-note TYPE is refused outright for a Polish seller (correction-routes/data/pl.json's own CREDIT_NOTE 'forbidden' route, read by credit-note-actions.ts#assertFreeCreditNoteAllowedForCountry) - the Polish correction is a KOR, i.e. an INVOICE carrying correctsInvoiceId, numbered in the invoice's own series by the invoice's own numbering (descriptors/invoice.descriptor.ts). This fact's requirement is therefore already satisfied by the invoice type; there is nothing on the credit-note type itself to number for a Polish seller."
+    }
+  ]
 }
