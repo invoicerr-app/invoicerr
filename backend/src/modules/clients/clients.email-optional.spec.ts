@@ -86,7 +86,7 @@ describe('ClientsService — contactEmail is optional', () => {
     expect(client.contactEmail).toBeNull();
   });
 
-  it('edits a client to REMOVE its email — an explicit blank is accepted, not silently ignored', async () => {
+  it('edits a client to REMOVE its email - an explicit blank is accepted (normalized to null), not silently ignored', async () => {
     const created = await service.createClient(companyId, {
       name: 'Had An Email SARL',
       address: 'Somewhere',
@@ -111,6 +111,10 @@ describe('ClientsService — contactEmail is optional', () => {
       contactEmail: '',
     } as never);
 
-    expect(edited.contactEmail).toBe('');
+    // #415: `contactEmail` is now derived from the primary `ClientContact.email`, and
+    // `writeClientContacts` normalizes a blank string to `null` (`blankToNull`) - the same "blank
+    // means absent" convention every other optional column in this codebase already holds. The
+    // behavior this test pins ("an explicit blank actually clears the stored value") still holds -     // only the exact empty-vs-null representation of "cleared" changed.
+    expect(edited.contactEmail).toBeNull();
   });
 });

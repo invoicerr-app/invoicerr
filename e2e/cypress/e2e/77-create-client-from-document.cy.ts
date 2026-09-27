@@ -89,7 +89,7 @@ describe("Create client from the document wizard's own client picker", () => {
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("123456789");
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]').clear().type(clientEmail);
+		cy.get('[name="contacts.0.email"]').clear().type(clientEmail);
 		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();

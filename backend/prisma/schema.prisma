@@ -815,10 +815,6 @@ model Client {
   name             String
   description      String?
   foundedAt        DateTime? // Date when the client company was founded
-  contactFirstname String?
-  contactLastname  String?
-  contactEmail     String?
-  contactPhone     String?
   address          String
   addressLine2     String? // Second line for address (apartment, suite, etc.)
   postalCode       String
@@ -861,6 +857,20 @@ model Client {
   isActive         Boolean           @default(true)
   partyIdentifiers PartyIdentifier[]
 
+  // Issue #415 - "several named contacts per client" replaced the four flat
+  // `contactFirstname`/`contactLastname`/`contactEmail`/`contactPhone` columns above (removed in the
+  // migration that introduced this relation, which first copies each client's existing single-contact
+  // data into ONE primary `ClientContact` row). A client may have zero, one or several contacts; when
+  // it has at least one, EXACTLY one must be flagged `isPrimary` - enforced by
+  // `clients/contacts/client-contacts.ts#writeClientContacts` (every write to this relation goes
+  // through it, in a transaction) AND, as a second, DB-level backstop, by a partial unique index this
+  // schema cannot express declaratively: `CREATE UNIQUE INDEX "ClientContact_clientId_primary_key" ON
+  // "ClientContact"("clientId") WHERE "isPrimary"` (added by hand in the same migration - see that
+  // migration's own header). The primary contact is what document-delivery emails and every other
+  // "the client's contact" reader use - see `clients/primary-contact.ts`'s own header for the single
+  // helper every one of those readers goes through.
+  contacts ClientContact[]
+
   // The client portal (`client-portal/`) — see ClientPortalToken below. A client can have several
   // across its life (a fresh invite after the previous one expired/was revoked) — never overwritten,
   // the same "one row per grant, soft-revoked" posture DocumentDownloadToken/Signature already hold.
@@ -885,6 +895,29 @@ model Client {
   customFields Json?
 
   @@index([companyId])
+}
+
+// One named contact for a Client (#415). `position` is the display/write order the frontend's own
+// contacts-list editor uses (0-based, reassigned by `writeClientContacts` on every full replace - it
+// is never a stable identity a caller should read meaning into beyond ordering). `isPrimary` - see
+// Client.contacts's own header for the "exactly one, or zero contacts" invariant and where it is
+// enforced (service-level, AND the partial unique index this migration adds by raw SQL since Prisma
+// has no `@@unique` with a `WHERE` clause).
+model ClientContact {
+  id        String   @id @default(cuid())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  firstName String?
+  lastName  String?
+  role      String?
+  email     String?
+  phone     String?
+  isPrimary Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
 }
 
 // Per-country required identifiers (LEGAL_ID, VAT, RFC, CURP, REGON, …)

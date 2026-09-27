@@ -5,6 +5,7 @@ import { logger } from '@/logger/logger.service';
 import { resolveRecipientLanguage } from '@/modules/documents/rendering/language/resolve-recipient-language';
 import { RenderLanguage } from '@/modules/documents/rendering/language/supported-languages';
 import prisma from '@/prisma/prisma.service';
+import { withDerivedContactFields } from '@/modules/clients/primary-contact';
 
 import { buildPortalInviteEmail } from './portal-invite-email';
 import { generatePortalToken } from './portal-token';
@@ -89,11 +90,16 @@ export class PortalTokensService {
    *  the two cases are indistinguishable from the outside, the same discipline every other tenant-
    *  scoped read in this codebase already holds. */
   private async findOwnedClientOrThrow(companyId: string, clientId: string) {
-    const client = await prisma.client.findFirst({ where: { id: clientId, companyId } });
+    // Includes `contacts` and derives the legacy flat fields (#415) - `create()` below reads
+    // `client.contactEmail` exactly as it always has, now resolved from the PRIMARY contact.
+    const client = await prisma.client.findFirst({
+      where: { id: clientId, companyId },
+      include: { contacts: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }] } },
+    });
     if (!client) {
       throw new NotFoundException(`Client "${clientId}" not found for this company.`);
     }
-    return client;
+    return withDerivedContactFields(client);
   }
 
   /**

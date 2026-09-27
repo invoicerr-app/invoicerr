@@ -303,7 +303,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
         clientId
           ? prisma.client.findFirst({
               where: { id: clientId, companyId: ctx.companyId },
-              include: { partyIdentifiers: true },
+              include: { partyIdentifiers: true, contacts: true },
             })
           : Promise.resolve(null),
       ]);

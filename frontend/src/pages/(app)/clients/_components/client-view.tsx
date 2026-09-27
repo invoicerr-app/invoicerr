@@ -142,19 +142,48 @@ export function ClientViewDialog({ client, onOpenChange, onEdit, onStatement }: 
         <IdentifiersLine client={client} />
       </div>
 
-      <DetailSection title={t("clients.view.sections.contact")}>
-        <DetailList>
-          <DetailItem label={t("clients.view.fields.email")}>{client?.contactEmail}</DetailItem>
-          <DetailItem label={t("clients.view.fields.phone")}>{client?.contactPhone}</DetailItem>
-          {client?.type === "COMPANY" && (
+      {client?.type === "COMPANY" && (
+        <DetailSection title={t("clients.view.sections.contact")}>
+          <DetailList>
             <DetailItem label={t("clients.view.fields.companyName")}>{client.name}</DetailItem>
-          )}
-          {(client?.contactFirstname || client?.contactLastname) && (
-            <DetailItem label={t("clients.view.fields.contactPerson")}>
-              {[client?.contactFirstname, client?.contactLastname].filter(Boolean).join(" ")}
-            </DetailItem>
-          )}
-        </DetailList>
+          </DetailList>
+        </DetailSection>
+      )}
+
+      <DetailSection title={t("clients.view.sections.contacts", "Contacts")}>
+        {client?.contacts && client.contacts.length > 0 ? (
+          <ul className="space-y-2" data-cy="client-view-contacts">
+            {client.contacts.map((contact, index) => (
+              <li
+                key={contact.id ?? index}
+                className="flex flex-col gap-0.5 rounded-md border p-3 text-sm"
+                data-cy={`client-view-contact-${index}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-foreground">
+                    {[contact.firstName, contact.lastName].filter(Boolean).join(" ") || " - "}
+                    {contact.role ? ` · ${contact.role}` : ""}
+                  </span>
+                  {contact.isPrimary && (
+                    <span
+                      className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                      data-cy={`client-view-contact-primary-badge-${index}`}
+                    >
+                      {t("clients.view.fields.primary", "Primary")}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {[contact.email, contact.phone].filter(Boolean).join(" · ") || " - "}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {t("clients.view.fields.noContacts", "No contacts")}
+          </p>
+        )}
       </DetailSection>
 
       {hasAddress && (

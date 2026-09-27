@@ -116,7 +116,8 @@ describe('ClientImportService', () => {
           companyId,
           type: 'COMPANY',
           name: 'Existing Co',
-          contactEmail: 'Billing@Existing.example',
+          // #415: the primary contact's own email, not a `Client` column any more.
+          contacts: { create: { email: 'Billing@Existing.example', isPrimary: true, position: 0 } },
           address: 'a',
           postalCode: '75000',
           city: 'Paris',
@@ -333,6 +334,83 @@ describe('ClientImportService', () => {
       await expect(service.confirm(companyId, rows)).rejects.toThrow();
       const created = await prisma.client.findMany({ where: { companyId } });
       expect(created).toHaveLength(0);
+    });
+  });
+
+  // #415: the CSV import's four contact columns still mean "the primary contact" - a row's
+  // contactFirstname/contactLastname/contactEmail/contactPhone become ONE `ClientContact` row,
+  // flagged primary, never a legacy `Client` column (which no longer exists).
+  describe('primary contact created from the row (#415)', () => {
+    it("creates a primary ClientContact from a COMPANY row's four contact columns", async () => {
+      const row = frRow({
+        name: 'Contact Import SARL',
+        contactEmail: 'import-contact@example.com',
+        contactPhone: '+33102030405',
+      });
+      const result = await service.confirm(companyId, [row]);
+      expect(result.created).toBe(1);
+
+      const client = await prisma.client.findFirstOrThrow({
+        where: { companyId, name: 'Contact Import SARL' },
+        include: { contacts: true },
+      });
+      expect(client.contacts).toHaveLength(1);
+      expect(client.contacts[0]).toMatchObject({
+        firstName: null,
+        lastName: null,
+        email: 'import-contact@example.com',
+        phone: '+33102030405',
+        isPrimary: true,
+        position: 0,
+      });
+    });
+
+    it('creates a primary ClientContact carrying first/last name for an INDIVIDUAL row', async () => {
+      const row = frRow({
+        type: 'INDIVIDUAL',
+        name: undefined,
+        contactFirstname: 'Jean',
+        contactLastname: 'Dupont',
+        contactEmail: 'jean.dupont@example.com',
+      });
+      const result = await service.confirm(companyId, [row]);
+      expect(result.created).toBe(1);
+
+      const client = await prisma.client.findFirstOrThrow({
+        where: { companyId, type: 'INDIVIDUAL', name: '' },
+        include: { contacts: true },
+      });
+      expect(client.contacts).toHaveLength(1);
+      expect(client.contacts[0]).toMatchObject({
+        firstName: 'Jean',
+        lastName: 'Dupont',
+        email: 'jean.dupont@example.com',
+        isPrimary: true,
+      });
+    });
+
+    it('creates NO contact row at all when the file has none of the four columns filled in', async () => {
+      const row = frRow({ name: 'No Contact At All SARL' });
+      const result = await service.confirm(companyId, [row]);
+      expect(result.created).toBe(1);
+
+      const client = await prisma.client.findFirstOrThrow({
+        where: { companyId, name: 'No Contact At All SARL' },
+        include: { contacts: true },
+      });
+      expect(client.contacts).toHaveLength(0);
+    });
+
+    it("the duplicate rule matches on the PRIMARY contact's email, exactly like the wizard", async () => {
+      await service.confirm(companyId, [
+        frRow({ name: 'Original Co', contactEmail: 'Shared@Example.com', rowNumber: 2 }),
+      ]);
+
+      const preview = await service.preview(companyId, [
+        frRow({ name: 'Different Name Co', contactEmail: 'shared@example.com', rowNumber: 2 }),
+      ]);
+      expect(preview.rows[0].status).toBe('duplicate');
+      expect(preview.rows[0].duplicateOf?.matchedOn).toBe('email');
     });
   });
 });

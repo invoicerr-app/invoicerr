@@ -1,4 +1,5 @@
 import prisma from '@/prisma/prisma.service';
+import { derivePrimaryContactFields } from '@/modules/clients/primary-contact';
 
 /**
  * Resolves a batch of `Client.id`s to a human-readable label, for the
@@ -6,18 +7,17 @@ import prisma from '@/prisma/prisma.service';
  * note's billable party) is a bare id, never a name.
  *
  * Mirrors `references/client-reference.provider.ts`'s own (unexported) `labelFor` fallback chain
- * exactly — duplicated rather than imported: that file's helper is a private implementation detail of
+ * exactly - duplicated rather than imported: that file's helper is a private implementation detail of
  * the reference-picker adapter, which itself wraps `ClientsService`, a full Nest-injectable service
  * this plain, dependency-free module has no business instantiating by hand (see
  * accounting-export.service.ts's own header on why this whole feature needs no DI at all). A raw,
- * company-scoped `prisma.client` read is the honest, minimal alternative — the same "small dedicated
+ * company-scoped `prisma.client` read is the honest, minimal alternative - the same "small dedicated
  * file, one prisma import" shape `persistence.ts`/`settlement/payments.ts`/`settlement/credits.ts`
  * already hold throughout this module.
  *
- * ONE query for however many distinct client ids the export's rows reference — the same "one query,
+ * ONE query for however many distinct client ids the export's rows reference - the same "one query,
  * many rows" shape `settlement/payments.ts`'s own `sumPaidMinorByDocument` already holds. A client id
- * with no matching row (deleted since, or a data anomaly) is simply absent from the returned map —
- * callers fall back to the raw id, an honest default, never a crash over one bad reference.
+ * with no matching row (deleted since, or a data anomaly) is simply absent from the returned map -  * callers fall back to the raw id, an honest default, never a crash over one bad reference.
  */
 export async function resolveClientLabels(
   companyId: string,
@@ -28,7 +28,11 @@ export async function resolveClientLabels(
 
   const clients = await prisma.client.findMany({
     where: { companyId, id: { in: uniqueIds } },
-    select: { id: true, name: true, contactFirstname: true, contactLastname: true },
+    select: {
+      id: true,
+      name: true,
+      contacts: { select: { firstName: true, lastName: true, email: true, phone: true, isPrimary: true } },
+    },
   });
 
   return new Map(clients.map((client) => [client.id, labelFor(client)]));
@@ -36,9 +40,9 @@ export async function resolveClientLabels(
 
 function labelFor(client: {
   name: string;
-  contactFirstname: string | null;
-  contactLastname: string | null;
+  contacts: Parameters<typeof derivePrimaryContactFields>[0];
 }): string {
   if (client.name) return client.name;
-  return [client.contactFirstname, client.contactLastname].filter(Boolean).join(' ') || '(unnamed client)';
+  const primary = derivePrimaryContactFields(client.contacts);
+  return [primary.contactFirstname, primary.contactLastname].filter(Boolean).join(' ') || '(unnamed client)';
 }

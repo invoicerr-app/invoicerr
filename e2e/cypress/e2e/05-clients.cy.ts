@@ -52,8 +52,8 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("contact@acme.org");
-			cy.get('[name="contactPhone"]').clear().type("+1 23 456 7890");
+			cy.get('[name="contacts.0.email"]').clear().type("contact@acme.org");
+			cy.get('[name="contacts.0.phone"]').clear().type("+1 23 456 7890");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -107,8 +107,8 @@ describe("Clients E2E", () => {
 			).click();
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("jane.doe@freelance.org");
-			cy.get('[name="contactPhone"]').clear().type("+1 98 765 4321");
+			cy.get('[name="contacts.0.email"]').clear().type("jane.doe@freelance.org");
+			cy.get('[name="contacts.0.phone"]').clear().type("+1 98 765 4321");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -242,8 +242,8 @@ describe("Clients E2E", () => {
 
 			// The email field, left BLANK — no error, no block, the Contact step's own "Continue"
 			// accepts it exactly like a filled one.
-			cy.get('[name="contactEmail"]').clear();
-			cy.get('[name="contactPhone"]').clear().type("+1 23 456 7890");
+			cy.get('[name="contacts.0.email"]').clear();
+			cy.get('[name="contacts.0.phone"]').clear().type("+1 23 456 7890");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -278,7 +278,7 @@ describe("Clients E2E", () => {
 				.type("123456789");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("not-an-email");
+			cy.get('[name="contacts.0.email"]').clear().type("not-an-email");
 			cy.get('[data-cy="client-dialog-continue"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/format|invalid|invalide|email/i);
@@ -343,7 +343,7 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-identifier-VAT"]').clear().type("123456");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("bad-vat-syntax@example.com");
+			cy.get('[name="contacts.0.email"]').clear().type("bad-vat-syntax@example.com");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -401,7 +401,7 @@ describe("Clients E2E", () => {
 				.type("123456789");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type(duplicateEmail);
+			cy.get('[name="contacts.0.email"]').clear().type(duplicateEmail);
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -444,7 +444,7 @@ describe("Clients E2E", () => {
 
 			// The SAME email as the previous test's client — the debounced check fires once typing
 			// settles.
-			cy.get('[name="contactEmail"]').clear().type(duplicateEmail);
+			cy.get('[name="contacts.0.email"]').clear().type(duplicateEmail);
 			cy.wait("@checkDuplicates", { timeout: 10000 });
 
 			cy.get('[data-cy="client-duplicate-warning"]', { timeout: 10000 })
@@ -488,7 +488,7 @@ describe("Clients E2E", () => {
 				.type("112233445");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("info@techinnovations.com");
+			cy.get('[name="contacts.0.email"]').clear().type("info@techinnovations.com");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -531,7 +531,7 @@ describe("Clients E2E", () => {
 				.type("DE987654321");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("contact@eusolutions.de");
+			cy.get('[name="contacts.0.email"]').clear().type("contact@eusolutions.de");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -564,7 +564,7 @@ describe("Clients E2E", () => {
 				.type("123456789");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("info@simple.co.uk");
+			cy.get('[name="contacts.0.email"]').clear().type("info@simple.co.uk");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -622,7 +622,7 @@ describe("Clients E2E", () => {
 				.type("987654321");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("info@oreilly.com");
+			cy.get('[name="contacts.0.email"]').clear().type("info@oreilly.com");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -659,7 +659,7 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-identifier-VAT"]').clear().type("FR12345678901");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("contact@societe.fr");
+			cy.get('[name="contacts.0.email"]').clear().type("contact@societe.fr");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -697,7 +697,7 @@ describe("Clients E2E", () => {
 				.type("123456789");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("contact@siren-seul.fr");
+			cy.get('[name="contacts.0.email"]').clear().type("contact@siren-seul.fr");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -731,7 +731,7 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-identifier-VAT"]').clear().type("DE123456789");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("contact@german.de");
+			cy.get('[name="contacts.0.email"]').clear().type("contact@german.de");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -939,7 +939,7 @@ describe("Clients E2E", () => {
 				.type("999888777");
 			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[name="contactEmail"]').clear().type("delete-me@example.com");
+			cy.get('[name="contacts.0.email"]').clear().type("delete-me@example.com");
 			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
@@ -1005,7 +1005,7 @@ describe("Supplier role", () => {
 			.type("555666777");
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]').clear().type("fournisseur-t5b@example.com");
+		cy.get('[name="contacts.0.email"]').clear().type("fournisseur-t5b@example.com");
 		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
@@ -1046,7 +1046,7 @@ describe("Supplier role", () => {
 			.type("112233446");
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]')
+		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("client-ordinaire-t5b@example.com");
 		cy.continueSteppedDialog("client-dialog");
@@ -1107,7 +1107,7 @@ describe("Supplier role", () => {
 		cy.get('[data-cy="client-kind-government"]').click();
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]').clear().type("typed-fields@example.com");
+		cy.get('[name="contacts.0.email"]').clear().type("typed-fields@example.com");
 		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
@@ -1219,7 +1219,7 @@ describe("Italian recipient identifiers (IT_SDI) — FatturaPA routing", () => {
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]').clear().type("fatturazione@ditta-sdi.example");
+		cy.get('[name="contacts.0.email"]').clear().type("fatturazione@ditta-sdi.example");
 		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();

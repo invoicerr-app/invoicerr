@@ -61,6 +61,7 @@ import { DocumentQueueDispatcher } from '../document-queue.dispatcher';
 import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
+import { withDerivedContactFields } from '../../../clients/primary-contact';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
 import { warmUpPdfRenderer } from './queue-test-pdf-warmup';
 
@@ -136,8 +137,8 @@ async function waitForStatus(
  * The producer-side wiring — one `DocumentsService`, built from the exact SAME real descriptors and
  * action registrations `documents-core.module.ts` uses, minus `ClientsModule`/`ArticlesModule` (see
  * this file's own header for why). `getClientById` is the REAL `ClientsService.getClientById`'s own
- * one-line body (`prisma.client.findFirst({ where: { id, companyId } })`, clients.service.ts),
- * reimplemented here directly against the real `prisma` singleton rather than importing the class
+ * body (`prisma.client.findFirst` with the client's contacts, flattened by `withDerivedContactFields`,
+ * clients.service.ts), reimplemented here directly against the real `prisma` singleton rather than importing the class
  * itself — a genuine, DB-backed lookup, not a permanently-empty stub: a dangling client id resolves
  * to null (forcing the invoice's delivery failure below), and a REAL client row created mid-test
  * resolves for real (proving the re-send actually recovers, not merely re-transitions).
@@ -151,9 +152,16 @@ function buildDocumentsService(queueDispatcher: DocumentQueueDispatcher): Docume
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
+  // Mirrors the real `ClientsService.getClientById` (#415): the contact fields come from the
+  // client's PRIMARY contact, derived by the same pure helper the service uses.
   const clientsService = {
-    getClientById: (companyIdArg: string, id: string) =>
-      prisma.client.findFirst({ where: { id, companyId: companyIdArg } }),
+    getClientById: async (companyIdArg: string, id: string) => {
+      const client = await prisma.client.findFirst({
+        where: { id, companyId: companyIdArg },
+        include: { contacts: true },
+      });
+      return client ? withDerivedContactFields(client) : null;
+    },
   } as never;
   const mailService = new MailService();
   const referenceRegistry = new EntityReferenceRegistry();
@@ -360,15 +368,19 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     // (this test used to do that, which was the very rewrite the lock now forbids). The retry below
     // even submits a different client id to prove it: runAction ignores the submitted `data` and
     // resends the stored invoice, whose own client now resolves to an email.
+    // #415: `contactEmail` moved off `Client` onto its `contacts` relation. `noEmailClient` has no
+    // contact yet (see the fixture above), so this simply adds a fresh primary one.
     await prisma.client.update({
       where: { id: noEmailClient.id },
-      data: { contactEmail: `recovered-${Date.now()}@example.com` },
+      data: {
+        contacts: { create: { email: `recovered-${Date.now()}@example.com`, isPrimary: true, position: 0 } },
+      },
     });
     const otherClient = await prisma.client.create({
       data: {
         companyId,
         name: 'Never Used Client',
-        contactEmail: `never-used-${Date.now()}@example.com`,
+        contacts: { create: { email: `never-used-${Date.now()}@example.com`, isPrimary: true, position: 0 } },
         address: '1 Client Street',
         postalCode: '00000',
         city: 'Testville',
