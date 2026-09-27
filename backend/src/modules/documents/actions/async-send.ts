@@ -231,8 +231,15 @@ export interface RunAsyncSendInput {
    * the enqueued job's own payload just below, so `deliver()`'s later re-resolution (see
    * `invoice-actions.ts`'s own header) runs on ALREADY-RESOLVED data — which is why that resolution
    * has to be idempotent (tax/resolve-invoice-tax.spec.ts proves it is).
+   *
+   * `ctx.willNumber` (issue #497) says whether THIS call is about to take a number (the same
+   * `eligibleForAtomicNumbering` decision the status write below acts on, computed once, before this
+   * runs). A gate that only makes sense for a document that is about to be numbered reads it: the
+   * credit note's Portuguese ATCUD preflight (credit-note-actions.ts) must not block a LEGACY credit
+   * note retried from "send_failed" unnumbered (`numberingOnlyFrom`), which will never get a number
+   * and so can never get an ATCUD either.
    */
-  preflight?: () => Promise<Record<string, unknown> | undefined>;
+  preflight?: (ctx: { willNumber: boolean }) => Promise<Record<string, unknown> | undefined>;
   /**
    * Publishes a `{documentId, typeId, kind}` nudge (never the
    * resulting state, see `queue/document-events.ts`'s own header) for the SSE stream
@@ -312,7 +319,7 @@ export interface RunAsyncSendInput {
    * exact same `numbered` truthy condition the stock-effect call already gates on — never for the
    * loser of a concurrent race, never for a "send_failed" retry of an already-numbered record). Exists
    * for a fact that can only be computed from the FROZEN `displayNumber` numbering just produced —
-   * e.g. the invoice's own Portuguese ATCUD (`actions/atcud-issuance.ts#attachAtcudToNumberedInvoice`)
+   * e.g. the invoice's own Portuguese ATCUD (`actions/atcud-issuance.ts#attachAtcudToNumberedDocument`)
    * — which cannot run any earlier: `preflight()` above executes BEFORE a real number exists at all.
    * Kept generic here (never a `typeId === 'invoice'` branch in this file — see this module's own
    * header on why `deliver` is the only thing that is meant to vary by type) so a type with no such
@@ -598,15 +605,6 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     return { document: sent, changed: true, message };
   }
 
-  if (preflight) {
-    // A resolved replacement REPLACES `data` for everything below: the
-    // "sending" write just after this, AND the job payload enqueued further down. `deliver()` later
-    // re-resolves that SAME (already-resolved) value again — see this function's own `preflight`
-    // header on why that has to be, and is, idempotent.
-    const resolved = await preflight();
-    if (resolved) data = resolved;
-  }
-
   // `fromStatuses: ['draft', 'send_failed']` — every type's own SEND_TRANSITIONS starts "send" from
   // exactly these two statuses (this file's own header). Without this guard, two concurrent "send"
   // calls on the SAME draft (a double-click, a second tab) would both still read a pre-"sending"
@@ -632,6 +630,17 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     numberOnEnqueue &&
     existing.number == null &&
     isNumberingAllowedFrom({ onlyFrom: numberingOnlyFrom }, existing.status);
+
+  if (preflight) {
+    // A resolved replacement REPLACES `data` for everything below: the
+    // "sending" write just after this, AND the job payload enqueued further down. `deliver()` later
+    // re-resolves that SAME (already-resolved) value again - see this function's own `preflight`
+    // header on why that has to be, and is, idempotent. Runs AFTER `eligibleForAtomicNumbering` is
+    // decided (a pure read of `existing`, nothing written yet) only so it can be handed over as
+    // `willNumber`, and still BEFORE anything is written or numbered.
+    const resolved = await preflight({ willNumber: eligibleForAtomicNumbering });
+    if (resolved) data = resolved;
+  }
 
   let sending: DocumentInstanceResult;
   let numbered: TakenDocumentNumber | undefined;

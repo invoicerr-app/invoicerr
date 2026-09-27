@@ -179,7 +179,7 @@ describe("Declarations — a Portuguese seller's blocked pt-at declaration is jo
 
 		// ATCUD (Portaria n.º 195/2020) — a Portuguese invoice's "send" preflight hard-blocks (400,
 		// `actions/atcud-issuance.ts#ensureAtcudIssuable`, wired in via `invoice-actions.ts`'s own
-		// `runInvoiceAtcudPreflight`) BEFORE the record ever leaves "draft" unless BOTH of these are
+		// `runAtcudPreflight`) BEFORE the record ever leaves "draft" unless BOTH of these are
 		// configured: this product's own shipped default number format has no "/" at all
 		// (`numbering/atcud.ts`'s own header names it explicitly as NOT ATCUD-compatible), and even a
 		// compatible format still needs its series' AT validation code registered

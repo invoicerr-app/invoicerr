@@ -40,6 +40,40 @@ import { renderDateTokens } from './format-number';
 /** Portaria n.º 195/2020, art. 3.º n.º 1 — no maximum stated. */
 export const ATCUD_MIN_VALIDATION_CODE_LENGTH = 8;
 
+/**
+ * Every document type this product issues that must carry an ATCUD, mapped to its SAF-T (PT)
+ * document type (issue #497). The keys ARE the ATCUD-eligible set: `actions/atcud-issuance.ts` refuses
+ * any other typeId, and `country-policy/data/pt.json` carries one `atcud-required` numbering fact per
+ * key, with its provenance (`country-policy/data/numbering.spec.ts` fails if the two drift apart).
+ *
+ * Why a credit note is here: Decreto-Lei n.º 28/2019, art. 2.º alínea c) ii) defines a « fatura » as
+ * including a document that « constitua um documento retificativo de fatura nos termos legais », art.
+ * 7.º n.º 3 puts the « código único de documento » on « as faturas e demais documentos fiscalmente
+ * relevantes », and Portaria n.º 195/2020, art. 4.º n.º 1 makes the ATCUD mandatory on « todas as
+ * faturas e outros documentos fiscalmente relevantes ». All three read on the AT's own portal
+ * (info.portaldasfinancas.gov.pt, 2026-09-28).
+ *
+ * Why the SAF-T type matters here, not only in a SAF-T file: Portaria n.º 195/2020, art. 2.º alínea b)
+ * makes the document type, « de acordo com as tipologias documentais definidas na estrutura de dados
+ * [SAF-T (PT)] », part of what a company communicates to obtain a series' validation code. A credit
+ * note's series is therefore registered as an "NC" series, distinct from the invoice's "FT" one.
+ * Values from Portaria n.º 302/2016, field 4.1.4.8 (InvoiceType): « "FT" – Fatura, emitida nos termos
+ * do artigo 36.º do Código do IVA » and « "NC" – Nota de crédito », read on the AT's own copy of the
+ * Portaria (info.portaldasfinancas.gov.pt/.../Portaria_302_2016.pdf, 2026-09-28); the same two values
+ * appear in the e-Fatura webservice manual's field 1.6.4, which `reporting/providers/
+ * pt-declaration-provider.ts#ptAtInvoiceTypeFor` reads from this table.
+ */
+export const SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID = {
+  invoice: 'FT',
+  'credit-note': 'NC',
+} as const;
+
+export type AtcudTypeId = keyof typeof SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID;
+
+export function isAtcudTypeId(typeId: string): typeId is AtcudTypeId {
+  return Object.hasOwn(SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID, typeId);
+}
+
 /** Thrown when a company's own number-format pattern for a type cannot lawfully produce an ATCUD
  *  sequential number — see this file's own header, "The design problem". Never thrown for a country
  *  other than Portugal: `actions/atcud-issuance.ts` never even calls into this file for one. */

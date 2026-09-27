@@ -35,7 +35,10 @@ established for each supported country, and says plainly where nothing has been 
 
 The pattern used to number a document type is set per type, and the app falls back to a sensible
 default for any type you have not configured. Portuguese sellers should read the ATCUD section of the
-settings screen, where the invoice series is part of the numbering pattern.
+settings screen, where the series is part of the numbering pattern. Invoices and credit notes each need
+their own ATCUD series there: the AT issues a validation code per series and document type (FT for an
+invoice, NC for a credit note), and a Portuguese credit note cannot be sent until its number format
+ends in `/{number}` and its NC series carries a code.
 
 ## What this page used to describe, and does not any more
 
