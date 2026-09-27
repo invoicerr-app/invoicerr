@@ -14,8 +14,10 @@ import { ClientContactDto } from '../dto/clients.dto';
 
 /** A row with nothing typed into it at all - the same rule the migration's own backfill and the CSV
  *  import already apply (see `writeClientContacts`'s own header). Checked with `.trim()`: pure
- *  whitespace is exactly as "nothing here" as an empty string. */
-function isBlankContact(c: ClientContactDto): boolean {
+ *  whitespace is exactly as "nothing here" as an empty string. Exported because the legacy flat-field
+ *  path in `writeClientContacts` applies the SAME rule to the primary row it has just merged into
+ *  (#478): one definition of "empty contact", whichever payload shape produced it. */
+export function isBlankContact(c: ClientContactDto): boolean {
   return [c.firstName, c.lastName, c.role, c.email, c.phone].every((v) => !v || v.trim() === '');
 }
 

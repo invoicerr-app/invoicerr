@@ -494,4 +494,93 @@ describe('ClientsService - contacts (#415)', () => {
     expect(client.contacts[0]).toMatchObject({ firstName: 'Jean', lastName: 'Dupont', isPrimary: true });
     expect(client.contactFirstname).toBe('Jean');
   });
+
+  describe('legacy four-field call clearing the contact (#478)', () => {
+    const base = {
+      address: 'Somewhere',
+      postalCode: '10000',
+      city: 'Paris',
+      country: 'France',
+      currency: 'EUR',
+      isActive: true,
+    };
+    const clearAll = { contactFirstname: '', contactLastname: '', contactEmail: '', contactPhone: '' };
+
+    it('removes the primary contact instead of storing an empty one', async () => {
+      const created = await service.createClient(companyId, {
+        name: 'Legacy Clear SARL',
+        ...base,
+        contactFirstname: 'Lea',
+        contactEmail: 'lea@example.com',
+      } as never);
+      expect(created.contacts).toHaveLength(1);
+
+      const edited = await service.editClientsInfo(companyId, {
+        id: created.id,
+        name: 'Legacy Clear SARL',
+        ...base,
+        ...clearAll,
+      } as never);
+
+      expect(edited?.contacts).toEqual([]);
+      expect(edited?.contactFirstname).toBeNull();
+      expect(edited?.contactEmail).toBeNull();
+      expect(await prisma.clientContact.count({ where: { clientId: created.id } })).toBe(0);
+    });
+
+    it('promotes the next contact when the cleared primary was not the only one', async () => {
+      const created = await service.createClient(companyId, {
+        name: 'Legacy Clear Promote SARL',
+        ...base,
+        contacts: [
+          { firstName: 'Primary', email: 'p@example.com', isPrimary: true },
+          { firstName: 'Second', email: 's@example.com' },
+          { firstName: 'Third', email: 't@example.com' },
+        ],
+      } as never);
+
+      const edited = await service.editClientsInfo(companyId, {
+        id: created.id,
+        name: 'Legacy Clear Promote SARL',
+        ...base,
+        ...clearAll,
+      } as never);
+
+      expect(edited?.contacts.map((c: { firstName: string }) => c.firstName)).toEqual(['Second', 'Third']);
+      expect(edited?.contactFirstname).toBe('Second');
+      const primaries = await prisma.clientContact.findMany({
+        where: { clientId: created.id, isPrimary: true },
+      });
+      expect(primaries).toHaveLength(1);
+      expect(primaries[0].firstName).toBe('Second');
+    });
+
+    it('keeps the contact when only some fields are cleared, or when it still carries a role', async () => {
+      const created = await service.createClient(companyId, {
+        name: 'Legacy Partial Clear SARL',
+        ...base,
+        contacts: [{ firstName: 'Rolf', role: 'Accountant', phone: '+33122222222' }],
+      } as never);
+
+      const phoneOnly = await service.editClientsInfo(companyId, {
+        id: created.id,
+        name: 'Legacy Partial Clear SARL',
+        ...base,
+        contactPhone: '',
+      } as never);
+      expect(phoneOnly?.contacts).toHaveLength(1);
+      expect(phoneOnly?.contacts[0]).toMatchObject({ firstName: 'Rolf', phone: null });
+
+      // `role` is invisible to a legacy caller, so clearing its four fields leaves a contact that
+      // still says something: not empty by the #474 rule, kept.
+      const roleLeft = await service.editClientsInfo(companyId, {
+        id: created.id,
+        name: 'Legacy Partial Clear SARL',
+        ...base,
+        ...clearAll,
+      } as never);
+      expect(roleLeft?.contacts).toHaveLength(1);
+      expect(roleLeft?.contacts[0]).toMatchObject({ role: 'Accountant', firstName: null, isPrimary: true });
+    });
+  });
 });
