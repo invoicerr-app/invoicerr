@@ -286,4 +286,74 @@ describe('ClientsService - contacts (#415)', () => {
     expect(edited?.contacts).toHaveLength(1);
     expect(edited?.contactFirstname).toBe('Alice');
   });
+
+  // #415 follow-up review, point 3: the wizard's own blank starter row (`blankPrimaryContact` in
+  // `client-upsert.tsx`) is always resent even when the user typed nothing into the Contact step -
+  // the API must drop it rather than store an empty primary contact, exactly like the migration's
+  // backfill and the CSV import already skip an all-empty legacy contact.
+  it('drops an all-blank contact row rather than creating it as an empty primary', async () => {
+    const client = await service.createClient(companyId, {
+      name: 'Blank Contact Row SARL',
+      address: 'Somewhere',
+      postalCode: '10000',
+      city: 'Paris',
+      country: 'France',
+      currency: 'EUR',
+      isActive: true,
+      contacts: [{ firstName: '', lastName: '', role: '', email: '', phone: '', isPrimary: true }],
+    } as never);
+
+    expect(client.contacts).toEqual([]);
+    expect(client.contactEmail).toBeNull();
+    const remaining = await prisma.clientContact.count({ where: { clientId: client.id } });
+    expect(remaining).toBe(0);
+  });
+
+  it('drops only the blank entries, keeping the non-blank ones - a blank flagged primary falls through to the first survivor', async () => {
+    const client = await service.createClient(companyId, {
+      name: 'Mixed Blank Contacts SARL',
+      address: 'Somewhere',
+      postalCode: '10000',
+      city: 'Paris',
+      country: 'France',
+      currency: 'EUR',
+      isActive: true,
+      contacts: [
+        // Whitespace-only, not merely empty string - the same "nothing really typed here" state.
+        { firstName: '  ', lastName: '', role: '', email: '   ', phone: '', isPrimary: true },
+        { firstName: 'Real', lastName: 'Contact', email: 'real@example.com' },
+      ],
+    } as never);
+
+    expect(client.contacts).toHaveLength(1);
+    expect(client.contacts[0]).toMatchObject({ firstName: 'Real', lastName: 'Contact', isPrimary: true });
+    expect(client.contactEmail).toBe('real@example.com');
+  });
+
+  // #415 follow-up review, point 4: a COMPANY client created through the legacy flat
+  // `contactFirstname`/`contactLastname` fields (an API/MCP caller that has not adopted `contacts`)
+  // must have them ignored, exactly like the old, pre-#415 API always did for a non-INDIVIDUAL
+  // client - never stored as the primary contact's name.
+  it('ignores legacy contactFirstname/contactLastname on a COMPANY client create (no `contacts` sent)', async () => {
+    const client = await service.createClient(companyId, {
+      name: 'Legacy Names Ignored SARL',
+      type: 'COMPANY',
+      address: 'Somewhere',
+      postalCode: '10000',
+      city: 'Paris',
+      country: 'France',
+      currency: 'EUR',
+      isActive: true,
+      contactFirstname: 'Should',
+      contactLastname: 'BeIgnored',
+      contactEmail: 'legacy-names@example.com',
+    } as never);
+
+    expect(client.contacts).toHaveLength(1);
+    expect(client.contacts[0].firstName).toBeNull();
+    expect(client.contacts[0].lastName).toBeNull();
+    expect(client.contacts[0].email).toBe('legacy-names@example.com');
+    expect(client.contactFirstname).toBeNull();
+    expect(client.contactLastname).toBeNull();
+  });
 });

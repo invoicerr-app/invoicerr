@@ -1191,8 +1191,19 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         foundedAt: fromCalendarDate(client.foundedAt) ?? undefined,
         contactFirstname: client.contactFirstname || "",
         contactLastname: client.contactLastname || "",
-        contactPhone: client.contactPhone || "",
-        contactEmail: client.contactEmail || "",
+        // The four flat legacy fields still exist on `clientSchema` (the CSV import's own row schema
+        // needs them, see `client-schema.ts`'s own header) but this wizard has no visible input for
+        // `contactPhone`/`contactEmail` any more - the CONTACT step's `ContactsSection` is the only
+        // place a phone or email is edited now. Loading a STORED value that predates today's
+        // stricter contact-row validation (e.g. `01.02.03.04.05`, saved through the API/MCP tool/the
+        // #415 migration before this form ever checked format) into these hidden fields used to
+        // block the Contact step's "Continue" on an error attached to a field nobody could see or
+        // fix (#415 follow-up review, point 2). Left blank here instead: `buildClientSchema`'s
+        // refine treats a blank value as valid, so these two fields can never again fail validation
+        // on their own - the real, VISIBLE contact rows below are what's actually being edited and
+        // validated.
+        contactPhone: "",
+        contactEmail: "",
         // The API returns `contacts` ordered primary-first (#415) - mapped straight into the form's
         // own shape (`id` kept only so a future per-row diff could use it; the write path always
         // replaces the whole list, see `writeClientContacts`'s own header).
@@ -1448,6 +1459,16 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     (_, i) => `identifiers.${i}.value`,
   )
 
+  // Same belt-and-suspenders reasoning as `identifierValuePaths` above, for the Contact step's own
+  // `contacts` array (#415 follow-up review, points 1/2): "Continue" must validate every row's
+  // `email`/`phone` - the only two fields `buildClientSchema`'s per-row refine can fail - not just
+  // the array as a whole, so an invalid value (a freshly typed `bob@`, or one carried over from an
+  // edited client whose stored phone predates this validation) surfaces on the SAME row, right where
+  // the user can fix it, instead of only failing much later at the Summary step's silent "Continue".
+  const contactValuePaths = ((form.watch("contacts") as { email?: string; phone?: string }[]) || []).flatMap(
+    (_, i) => [`contacts.${i}.email`, `contacts.${i}.phone`],
+  )
+
   /**
    * The wizard's own step split (`components/ui/stepped-dialog.tsx`, the shape every "big" dialog in
    * this app now takes). Unlike `document-create-dialog.tsx`'s split (derived from a runtime
@@ -1504,7 +1525,11 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     {
       id: "contact",
       label: t("clients.upsert.stepped.steps.contact", "Contact & portal"),
-      fields: ["contactEmail", "contactPhone", "language"],
+      // `contacts` + each row's own `email`/`phone` path (#415 follow-up review, point 1) - the
+      // legacy `contactEmail`/`contactPhone` this step used to declare have no visible input any
+      // more (see `ContactsSection`) and are never populated by this form either (see the edit-mode
+      // `form.reset` above), so validating them here bought nothing but a silent, unfixable block.
+      fields: ["contacts", ...contactValuePaths, "language"],
       render: () => (
         <ContactStep
           form={form as unknown as UseFormReturn<FieldValues>}

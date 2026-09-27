@@ -7,9 +7,16 @@
  * `contacts` field header):
  *  - `contacts` present (even `[]`): AUTHORITATIVE full replacement - every existing contact row for
  *    this client is deleted and recreated from this array, in array order (`position` reassigned
- *    0..n-1). Exactly one becomes primary: whichever entry says `isPrimary: true` (the FIRST one to,
- *    if a caller sent several - this function chooses, it never throws for a caller's own mistake),
- *    or the first entry when none does. An empty array means "this client now has zero contacts",
+ *    0..n-1). An entry whose firstName, lastName, role, email AND phone are all empty or
+ *    whitespace-only is dropped first (#415 follow-up review, point 3) - the same "no row for an
+ *    empty contact" rule the migration's own backfill and the CSV import already apply, so the API
+ *    behaves the same regardless of caller: a client created with an untouched, never-typed-into
+ *    contact row ends up with zero contacts, not a "- / -" primary. Exactly one of what REMAINS
+ *    becomes primary: whichever entry says `isPrimary: true` (the FIRST one to, if a caller sent
+ *    several - this function chooses, it never throws for a caller's own mistake), or the first
+ *    entry when none does - so a dropped entry that happened to be flagged primary simply falls
+ *    through to the first surviving one, never leaving a client with contacts and no primary. An
+ *    empty array (or an array of only-blank entries) means "this client now has zero contacts",
  *    a valid, intentional state (the issue's own "zero, one or several" wording).
  *  - `contacts` absent, but the raw payload carries at least one of the four legacy flat keys
  *    (`contactFirstname`/`contactLastname`/`contactEmail`/`contactPhone` - checked by KEY PRESENCE,
@@ -48,12 +55,19 @@ export async function writeClientContacts(
     // transaction - never more than one `isPrimary: true` row exists at once, so the partial unique
     // index is never even momentarily violated.
     await tx.clientContact.deleteMany({ where: { clientId } });
-    if (contacts.length === 0) return;
 
-    const firstFlagged = contacts.findIndex((c) => c.isPrimary);
+    // Drop an all-blank entry before anything else is decided from this array (#415 follow-up review,
+    // point 3) - see this function's own header for why. Checked with `.trim()`, not just falsiness:
+    // a row of pure whitespace is exactly as "nothing typed here" as an empty string.
+    const isBlankContact = (c: ClientContactDto) =>
+      [c.firstName, c.lastName, c.role, c.email, c.phone].every((v) => !v || v.trim() === '');
+    const nonBlankContacts = contacts.filter((c) => !isBlankContact(c));
+    if (nonBlankContacts.length === 0) return;
+
+    const firstFlagged = nonBlankContacts.findIndex((c) => c.isPrimary);
     const primaryIndex = firstFlagged >= 0 ? firstFlagged : 0;
 
-    for (const [index, entry] of contacts.entries()) {
+    for (const [index, entry] of nonBlankContacts.entries()) {
       await tx.clientContact.create({
         data: {
           clientId,

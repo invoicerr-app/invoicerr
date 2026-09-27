@@ -392,12 +392,15 @@ export class ClientsService {
 
     const created = await prisma.$transaction(async (tx) => {
       const newClient = await tx.client.create({ data: { ...clientData, companyId } });
-      await writeClientContacts(
-        tx,
-        newClient.id,
-        editClientsDto as unknown as Record<string, unknown>,
-        contacts,
-      );
+      // `data`, not `editClientsDto` (#415 follow-up review, point 4): a COMPANY client created
+      // through the legacy flat fields had its `contactFirstname`/`contactLastname` blanked ABOVE,
+      // on `data`, specifically so they would be ignored - the original `editClientsDto` still
+      // carries whatever the caller sent for those two keys, and handing THAT to
+      // `writeClientContacts` would silently resurrect them into the primary contact it creates,
+      // contradicting the very comment that blanking was meant to satisfy. `data` carries every other
+      // key `editClientsDto` did (only `id`/`identifiers`/`contacts` were ever destructured out of
+      // it), so this is a straight fix, not a behavior change for any other caller shape.
+      await writeClientContacts(tx, newClient.id, data as unknown as Record<string, unknown>, contacts);
       return newClient;
     });
 
