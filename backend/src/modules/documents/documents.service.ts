@@ -13,6 +13,7 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
+import { isArchivedPdfServable } from './rendering/archived-pdf-policy';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
 import { computeQuoteOptionTotals, isQuoteWithOptions, rejectStrayOptionTag } from './options/quote-options';
@@ -1743,14 +1744,31 @@ export class DocumentsService implements OnModuleInit {
    * synchronous 200 with the same bytes, never a 202/polling handoff. A draft, a document delivered
    * through a channel with no plain-PDF artifact (pdp/ksef/sdi/chorus-pro), or one whose archiving
    * itself failed all fall through to the render below exactly as before.
+   *
+   * Issue #490: an archive is served only while it is still the right PDF for the document -
+   * always for an ISSUED document (the archive is the legal copy), otherwise only while the
+   * document's current `data` still hashes to the data the archived PDF was rendered from. A quote
+   * edited back to "draft" after a send therefore renders its edited content instead of the last sent
+   * one. See `rendering/archived-pdf-policy.ts` for the rule and for exactly which statuses count as
+   * issued. Every consumer of this method inherits it: the authenticated download, the public
+   * share-link download, the client portal's `getDocumentPdf` and the ZIP export. The signing page
+   * never comes through here: it serves the DELIVERY archive its signature request is bound to
+   * (`signatures/signatures.service.ts`, issue #477).
    */
   async renderInstancePdf(companyId: string, typeId: string, id: string): Promise<Buffer> {
     const instance = await findOwnedDocument(companyId, typeId, id);
+    const descriptor = this.mergedDescriptor(typeId);
 
-    const archived = await findArchivedPdfArtifact(companyId, id);
+    const archived = await findArchivedPdfArtifact(companyId, id, (archivedDataHash) =>
+      isArchivedPdfServable({
+        descriptor,
+        status: instance.status,
+        currentData: instance.data,
+        archivedDataHash,
+      }),
+    );
     if (archived) return archived;
 
-    const descriptor = this.mergedDescriptor(typeId);
     const { pdf } = await renderDocumentInstance(
       { referenceRegistry: this.referenceRegistry },
       companyId,

@@ -1,6 +1,5 @@
 import { ArrowLeft, ChevronDown, Download, FileCode, Link2, Repeat, UserCheck } from "lucide-react"
 import { useState } from "react"
-import { useWatch } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
@@ -62,6 +61,7 @@ import type {
 } from "@/components/documents/types"
 import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { type DocumentFormState, useDocumentForm } from "@/components/documents/use-document-form"
+import { useUnsavedChanges } from "@/components/documents/use-unsaved-changes"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -157,13 +157,15 @@ interface DocumentDetailBodyProps {
   onDiscard: () => void
 }
 
-/** Split from DocumentDetail only so the hooks that read the form (`useWatch`,
+/** Split from DocumentDetail only so the hooks that read the form (`useUnsavedChanges`,
  *  `useDocumentTotals`) run INSIDE the `<Form>` provider the parent mounts. */
 function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }: DocumentDetailBodyProps) {
   const { t } = useTranslation()
   // Value comparison against the saved baseline, never RHF's own `isDirty` — see form-dirty.ts.
-  const values = useWatch({ control: state.form.control })
-  const isDirty = hasUnsavedChanges(values, baseline)
+  // Never a whole-form `useWatch` here (issue #488): this component is the page body, and
+  // re-rendering it on every keystroke re-rendered every field under it. `useUnsavedChanges`
+  // re-renders it only when the answer flips, see that hook's own header.
+  const isDirty = useUnsavedChanges(state.form, baseline)
   const { currentStatus, currentDisplayNumber, availableActions, showSettlement } = state
 
   // "sending" is the generic queue-processing status the async "send" mechanism introduces

@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto';
-
 import prisma from '@/prisma/prisma.service';
 import { DocumentArchiveKind } from '../../../../prisma/generated/prisma/client';
 
+import { hashDocumentData } from '../archive/document-data-hash';
 import { StoredArtifactMeta } from '../archive/persistence';
 
 /**
@@ -52,25 +51,9 @@ export const DOCUMENT_CHANGED_MESSAGE =
 const DELIVERED_PDF_ROLE = 'pdf';
 const DELIVERED_PDF_MIME = 'application/pdf';
 
-/** Key-sorted, recursive serialization: Postgres `jsonb` does not preserve key order, so hashing a
- *  plain `JSON.stringify` of what was read back would report a change where there is none. */
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (value !== null && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
-
-/** SHA-256 (hex) over the canonical serialization of a document's `data`. */
-export function hashDocumentData(data: unknown): string {
-  return createHash('sha256')
-    .update(canonicalJson(data ?? {}))
-    .digest('hex');
-}
+/** The hash itself lives in `archive/document-data-hash.ts` since issue #490 reused it for the
+ *  DELIVERY archive; re-exported here so every #477 caller keeps its import. */
+export { hashDocumentData };
 
 export interface DeliveredVersion {
   archiveId: string;

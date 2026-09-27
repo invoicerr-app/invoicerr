@@ -250,6 +250,41 @@ describe('archive/persistence', () => {
       await expect(findArchivedPdfArtifact('company-1', 'doc-1')).resolves.toBeNull();
     });
 
+    it("asks `isServable` with the archive's own recorded data hash, and serves nothing when it says no (issue #490)", async () => {
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-1', ...data }));
+      const pdfBytes = new TextEncoder().encode('%PDF-1.7 the version sent before the edit');
+      const written = await createDocumentArchive(
+        {
+          companyId: 'company-1',
+          documentId: 'doc-1',
+          artifacts: [{ role: 'pdf', mime: 'application/pdf', bytes: pdfBytes }],
+          documentDataHash: 'hash-of-v1',
+        },
+        FR_CATALOG,
+      );
+      // `createDocumentArchive` wrote the hash onto the row itself.
+      expect(createArchive).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ documentDataHash: 'hash-of-v1' }) }),
+      );
+      findFirstArchive.mockResolvedValue({
+        id: 'archive-1',
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        uri: written.uri,
+        artifacts: written.artifacts,
+        documentDataHash: 'hash-of-v1',
+      });
+
+      const refuse = vi.fn(() => false);
+      await expect(findArchivedPdfArtifact('company-1', 'doc-1', refuse)).resolves.toBeNull();
+      expect(refuse).toHaveBeenCalledWith('hash-of-v1');
+
+      const accept = vi.fn(() => true);
+      const served = await findArchivedPdfArtifact('company-1', 'doc-1', accept);
+      expect(Buffer.from(served!)).toEqual(Buffer.from(pdfBytes));
+    });
+
     it('returns null when this document has no DELIVERY archive at all (a draft, or an archiving failure)', async () => {
       findFirstArchive.mockResolvedValue(null);
 
