@@ -190,6 +190,17 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "6 - As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações",
+        "sourceCheckedAt": "2026-09-27"
+      },
+      "notes": "Issue #472. CIVA art. 36.º n.º 6, re-read on info.portaldasfinancas.gov.pt (civa_rep/Pages/iva36.aspx) on 2026-09-27, the text this file's own credit-note `numbering` fact already quotes. The EN 16931 export carries what it asks of a correcting document: its own date and number (BT-2, BT-1) and « a referência à fatura a que respeitam » (BG-3). Same scope as invoice.download-xml above: a voluntary EN 16931 export, not the format Portuguese law establishes. WHAT PORTUGAL NEEDS BEYOND WHAT EXISTS, NOT BUILT HERE: (1) in SAF-T (PT) a credit note is its own document type - `InvoiceType` NC, « NC para Nota de credito » in the SAFTPT1.04_01.xsd documentation, read 2026-09-27 from a GitHub MIRROR of that schema (fredericoregateiro/saft), NOT from the AT portal first-hand, whose download link answered with an HTML page; to settle: the schema or Portaria n.º 302/2016 read on portaldasfinancas.gov.pt / dre.pt; (2) the ATCUD, which this product does not attach to a credit note (this file's own credit-note `numbering` fact, honest gap left by issue #471)."
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,

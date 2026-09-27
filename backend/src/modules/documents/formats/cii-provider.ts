@@ -5,7 +5,12 @@
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
-import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
+import {
+  DocumentFormatBuildOptions,
+  DocumentFormatBuildResult,
+  DocumentFormatParty,
+  DocumentFormatProvider,
+} from './format-provider';
 import { applyFrenchBusinessProcess } from './semantic/business-process';
 import { splitCiiIncludedNotes } from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
@@ -17,8 +22,12 @@ async function build(
   document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
+  _companyId?: string,
+  options?: DocumentFormatBuildOptions,
 ): Promise<DocumentFormatBuildResult> {
-  const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client);
+  const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
+    creditNote: options?.creditNote,
+  });
   // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved a
   // BT-23 code (see `business-process.ts`'s own header) — `undefined` for every other seller, exactly
   // the pre-existing behaviour.

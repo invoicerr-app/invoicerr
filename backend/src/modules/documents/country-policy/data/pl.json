@@ -193,6 +193,17 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "download-xml",
+      "allowed": false,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+        "sourceCheckedAt": "2026-09-26"
+      },
+      "notes": "Issue #472. Same citation, same read and same date as this file's own credit-note rules and `numbering` fact (art. 106j ust. 2 pkt 2 ustawy o VAT, reused). NOTHING IS NEEDED IN POLAND BEYOND THE EXISTING KOR: the Polish correction is a faktura korygująca, built by formats/national/fa3-provider.ts as RodzajFaktury KOR on an INVOICE carrying correctsInvoiceId, numbered in the invoice series - and FA(3) has no credit-note document type to map this one to. A credit-note document (only a legacy one can exist for a Polish seller, the type is refused at save) therefore gets no electronic file: the credit note's own download-xml does not even offer fa3, and fa3-provider.ts refuses a credit note outright."
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,

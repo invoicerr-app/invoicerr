@@ -4429,6 +4429,22 @@
           "send": {
             "label": "Send"
           },
+          "download-xml": {
+            "label": "Download normalized XML",
+            "params": {
+              "syntax": {
+                "label": "Syntax",
+                "options": {
+                  "cii": "CII (UN/CEFACT Cross Industry Invoice)",
+                  "ubl": "UBL 2.1",
+                  "facturx": "Factur-X (PDF/A-3 with embedded CII)",
+                  "fatturapa": "FatturaPA - Italian SdI national schema",
+                  "peppol-bis": "Peppol BIS Billing 3.0",
+                  "xrechnung": "XRechnung 3.0 (KoSIT, Germany)"
+                }
+              }
+            }
+          },
           "share-link": {
             "label": "Share link"
           }

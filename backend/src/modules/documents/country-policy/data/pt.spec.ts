@@ -48,7 +48,7 @@ describe('PT — country-policy/data/pt.json', () => {
     }
   });
 
-  it('declares exactly the same 32 typeId::actionId pairs as the FR reference file, no duplicates', () => {
+  it('declares exactly the same 33 typeId::actionId pairs as the FR reference file, no duplicates', () => {
     const declared = pt.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
     expect(declared).toEqual(
       [
@@ -78,6 +78,8 @@ describe('PT — country-policy/data/pt.json', () => {
         'invoice::share-link',
         'credit-note::save-draft',
         'credit-note::send',
+        // Issue #472 - see this rule's own notes in pt.json (CIVA art. 36.º n.º 6).
+        'credit-note::download-xml',
         'credit-note::share-link',
         'expense::save-draft',
         'expense::delete',
@@ -97,10 +99,10 @@ describe('PT — country-policy/data/pt.json', () => {
         'goods-receipt::delete',
       ].sort(),
     );
-    expect(new Set(declared).size).toBe(32);
+    expect(new Set(declared).size).toBe(33);
   });
 
-  it('allows every one of its 32 rules - PT never itself needs an unblock', () => {
+  it('allows every one of its 33 rules - PT never itself needs an unblock', () => {
     expect(pt.rules.filter((r) => !r.allowed)).toEqual([]);
   });
 
