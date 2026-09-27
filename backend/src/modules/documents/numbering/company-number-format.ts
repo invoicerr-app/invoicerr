@@ -137,7 +137,7 @@ export function assertNumberSatisfies(resolved: ResolvedNumberFormat): (displayN
     const violations = numberViolations(displayNumber, resolved.constraints);
     if (violations.length > 0) {
       throw new NumberFormatViolationError(
-        `The next "${resolved.typeId}" number breaks a ${resolved.countryCode} rule: ` +
+        `The next "${resolved.typeId}" number breaks a rule of country ${resolved.countryCode}: ` +
           `${violations.map((v) => `${v.message} (${v.constraintId})`).join('; ')}. ` +
           'Refused before it was issued; no number was spent.',
       );
