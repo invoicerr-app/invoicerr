@@ -297,14 +297,17 @@ describe('archive/persistence', () => {
         expect.objectContaining({ role: 'manual-acceptance', mime: 'application/json' }),
       ]);
 
-      // Read back through the SAME `documentArchive.findFirst` a real query (kind: ACCEPTANCE) would
+      // Read back through the SAME `documentArchive.findMany` a real query (kind: ACCEPTANCE) would
       // return - proves the READ side filters by kind too, never picking up a DELIVERY/VERDICT row.
-      findFirstArchive.mockResolvedValueOnce({
-        id: 'archive-acc-1',
-        companyId: 'company-1',
-        documentId: 'doc-1',
-        uri: written.uri,
-      });
+      findManyArchives.mockResolvedValueOnce([
+        {
+          id: 'archive-acc-1',
+          companyId: 'company-1',
+          documentId: 'doc-1',
+          uri: written.uri,
+          artifacts: createCall.artifacts,
+        },
+      ]);
 
       const manifest = await findManualAcceptanceArchive('company-1', 'doc-1');
       expect(manifest).not.toBeNull();
@@ -365,8 +368,33 @@ describe('archive/persistence', () => {
     });
 
     it('returns null for a document that was never manually accepted', async () => {
-      findFirstArchive.mockResolvedValueOnce(null);
+      findManyArchives.mockResolvedValueOnce([]);
       await expect(findManualAcceptanceArchive('company-1', 'doc-1')).resolves.toBeNull();
+    });
+
+    it('issue #477 - skips a more recent e-signature ACCEPTANCE row, never reading it as a manual one', async () => {
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-acc-4', ...data }));
+      findFirstArchive.mockResolvedValueOnce(null);
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      const manual = await createManualAcceptanceArchive({
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        manifest: manifestBytes(),
+      });
+
+      findManyArchives.mockResolvedValueOnce([
+        {
+          id: 'archive-esign',
+          uri: 'file:///nowhere/e-signature',
+          artifacts: [{ role: 'e-signature', mime: 'application/json', byteLength: 2, sha256: 'x' }],
+        },
+        { id: 'archive-acc-4', uri: manual.uri, artifacts: manual.artifacts },
+      ]);
+
+      await expect(findManualAcceptanceArchive('company-1', 'doc-1')).resolves.toMatchObject({
+        kind: 'manual-acceptance',
+        actorName: 'Jane Doe',
+      });
     });
   });
 

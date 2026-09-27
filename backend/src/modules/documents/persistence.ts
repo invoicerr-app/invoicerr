@@ -77,21 +77,27 @@ export async function upsertDocument(
   status: string,
   data: Record<string, unknown>,
   fromStatuses?: string[],
+  options: { startNewDelivery?: boolean } = {},
 ): Promise<DocumentInstanceResult> {
   const jsonData = data as Prisma.InputJsonValue;
+  // Issue #477 - `startNewDelivery` clears `deliveryConfirmedAt` on this SAME write. Only
+  // `actions/async-send.ts` passes it, and only for a send that starts from "draft": see that call
+  // site for why a draft always starts a new delivery episode.
+  const deliveryReset = options.startNewDelivery ? { deliveryConfirmedAt: null } : {};
 
   if (documentId) {
     await findOwnedDocument(companyId, typeId, documentId);
     if (fromStatuses === undefined) {
       return prisma.documentInstance.update({
         where: { id: documentId },
-        data: { status, data: jsonData, lastActionError: null },
+        data: { status, data: jsonData, lastActionError: null, ...deliveryReset },
       });
     }
     const count = await updateManyConditionally(companyId, typeId, documentId, fromStatuses, {
       status,
       data: jsonData,
       lastActionError: null,
+      ...deliveryReset,
     });
     if (count === 0) {
       throw new ConflictException(

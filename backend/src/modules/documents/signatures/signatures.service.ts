@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  forwardRef,
-  HttpException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Inject, Injectable } from '@nestjs/common';
 
 import { MailTemplateType, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
@@ -27,8 +20,8 @@ import {
   renderEmailTemplate,
 } from '../actions/email-template';
 
-import { persistArtifacts, readArchivedArtifact } from '../archive/storage';
-import { DocumentsService } from '../documents.service';
+import { createESignatureAcceptanceArchive, ESignatureAcceptanceManifest } from '../archive/persistence';
+import { readArchivedArtifact } from '../archive/storage';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import {
   computeQuoteOptionTotals,
@@ -44,9 +37,15 @@ import {
 import { generateOtpCode, hashOtpCode, otpCodeMatches } from './otp';
 import { generateSignatureToken, hashSignatureToken } from './signature-token';
 import {
+  DOCUMENT_CHANGED_CODE,
+  DOCUMENT_CHANGED_MESSAGE,
+  hashDocumentData,
+  isBoundVersionCurrent,
+  resolveCurrentDeliveredVersion,
+} from './signed-version';
+import {
   createSignatureForDocument,
   findSignatureByTokenHash,
-  freezeDocumentPdfSnapshot,
   markSignatureSigned,
   mintOtpChallenge,
   recordFailedAttempt,
@@ -106,14 +105,23 @@ export interface PublicSignatureView {
    * Issue #373 ("quotes with options") - this quote's own 2+ options and each one's OWN total, so the
    * signer can actually see what they are choosing between before picking one; null for a quote with
    * fewer than two options (nothing to choose, the ordinary single-total case this page shows exactly
-   * as before this feature existed). Computed fresh off the LIVE document data on every resolve - the
-   * data itself is not frozen the way the reviewed PDF is (a "sent" quote stays editable, see
-   * quote.descriptor.ts's own `lockedStatuses` header), only the PDF snapshot and, once signed, the
-   * choice itself are.
+   * as before this feature existed). Issue #477: computed off the `data` this request was BOUND to
+   * (`Signature.documentData`), never the live document, so the options listed are always the ones
+   * printed on the PDF this same page shows.
    */
   options:
     | { name: string; currency: string | null; netMinor: number; vatMinor: number; grossMinor: number }[]
     | null;
+  /**
+   * Issue #477 - true once the document has changed since this request was sent (see
+   * `signed-version.ts` for exactly what counts), or for a request created before version binding
+   * existed. The page then shows why the link can no longer be used instead of the signing form;
+   * every write path (`requestOtp`, `verifyAndSign`) refuses on its own regardless of what the page
+   * does with this flag.
+   */
+  changed: boolean;
+  /** Issue #477 - the delivered version this request is bound to; null only for an unbound legacy row. */
+  version: { archiveId: string; contentHash: string } | null;
 }
 
 export interface PublicSignatureDocument {
@@ -122,12 +130,13 @@ export interface PublicSignatureDocument {
   documentId: string;
 }
 
-/** The archive artifact `role` this snapshot is stored under (`archive/hashing.ts`'s own header: role
- *  IS the delivered format, never a generic label) — distinct from every role a real conformity
- *  archive ever writes ('pdf', 'facturx', 'fa3', 'fatturapa'…), so a signature preview can never land
- *  on the same content-hash directory as an official archived artifact for the same document. */
-const DOCUMENT_SNAPSHOT_ROLE = 'signature-preview';
-const DOCUMENT_SNAPSHOT_MIME = 'application/pdf';
+/** Issue #477 - the refusal every public entry point gives for a request whose document changed. A
+ *  409 (the document moved on, the same vocabulary `markSigned`'s status guard already uses), with a
+ *  stable `code` the page matches on. Not an oracle in the sense this class's own header warns about:
+ *  it only ever reaches a caller who holds a live, 256-bit token, and says nothing about the OTP. */
+function documentChangedError(): ConflictException {
+  return new ConflictException({ message: DOCUMENT_CHANGED_MESSAGE, code: DOCUMENT_CHANGED_CODE });
+}
 
 /**
  * The NARROW slice of `ClientsService` this file actually needs — injected through a Nest DI TOKEN
@@ -162,20 +171,10 @@ export class SignaturesService {
     @Inject(CLIENT_CONTACT_LOOKUP) private readonly clientsService: ClientContactLookup,
     private readonly mailService: MailService,
     @Inject(DOCUMENT_WEBHOOK_EMITTER) private readonly webhooks: DocumentWebhookEmitter,
-    // A DIRECT constructor dependency on the concrete class — unlike `clientsService` above, this is
-    // safe on the ESM-import front: `documents.service.ts` itself never imports
-    // `ClientsService`/`WebhookDispatcherService` (the chain that drags in the pure-ESM
-    // `@teever/ez-hook` package — see `CLIENT_CONTACT_LOOKUP`'s own header), so nothing about
-    // importing it here reintroduces THAT jest limitation. `PublicDocumentsController` already
-    // injects the same class the identical way. It DOES, however, close a real Nest DI cycle —
-    // `forwardRef` is required here, not optional decoration: `DocumentsService` depends on the
-    // `ACTION_REGISTRY` token, whose own factory (`documents-core.module.ts#buildActionRegistry`)
-    // depends on THIS class to register the "request-signature" action — see that factory's own
-    // matching `forwardRef(() => SignaturesService)` comment for the full "why" and why deferring
-    // resolution is safe here (this constructor never calls anything on `documentsService` before
-    // Nest has finished constructing every provider — only `getPublicDocument`, invoked much later by
-    // an actual HTTP request, ever touches it).
-    @Inject(forwardRef(() => DocumentsService)) private readonly documentsService: DocumentsService,
+    // Issue #477 removed the fourth dependency this constructor had, `DocumentsService` (injected
+    // through a `forwardRef` to break an ACTION_REGISTRY -> SignaturesService -> DocumentsService ->
+    // ACTION_REGISTRY cycle): its one use was `getPublicDocument` rendering the PDF, which now reads
+    // the bound DELIVERY archive instead and never renders.
   ) {}
 
   /**
@@ -201,8 +200,32 @@ export class SignaturesService {
       );
     }
 
+    // Issue #477 - bind this request to the exact version the client was sent BEFORE anything is
+    // minted or mailed. Both paths that create a request (the "request-signature" action and the
+    // client portal's `requestQuoteSignature`) reach this one method, and neither archives anything
+    // itself: the PDF is archived by the quote's own "send" (`archive/archive-on-send.ts`), and a
+    // request with no archived version to bind to is refused with the reason rather than bound to a
+    // fresh render the client never received.
+    const resolution = await resolveCurrentDeliveredVersion(companyId, document);
+    if (!resolution.found) {
+      throw new ConflictException(
+        `Cannot request a signature for ${typeId} "${documentId}": ${resolution.reason}`,
+      );
+    }
+
     const { token, tokenHash } = generateSignatureToken();
-    const signature = await createSignatureForDocument({ companyId, typeId, documentId, tokenHash });
+    const signature = await createSignatureForDocument({
+      companyId,
+      typeId,
+      documentId,
+      tokenHash,
+      version: {
+        deliveryArchiveId: resolution.version.archiveId,
+        deliveryContentHash: resolution.version.contentHash,
+        documentData: data,
+        documentDataHash: hashDocumentData(data),
+      },
+    });
 
     await this.sendSignatureRequestEmail({
       companyId,
@@ -224,7 +247,9 @@ export class SignaturesService {
   async resolvePublicSignature(token: string): Promise<PublicSignatureView> {
     const row = await this.resolveActiveOrThrow(token);
     const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId).catch(() => null);
-    const data = (document?.data ?? {}) as Record<string, unknown>;
+    const changed = !document || !(await isBoundVersionCurrent(row, document.data));
+    // Issue #477: the BOUND data, never `document.data` - see `PublicSignatureView.options`.
+    const data = (row.documentData ?? {}) as Record<string, unknown>;
     // Review point #4 ("option mode is not restricted to quotes") - `request-signature` is only ever
     // registered for typeId "quote" (`actions/request-signature.ts`), so `row.typeId` is always
     // "quote" in practice, but this method never trusted that alone anywhere else in this class either
@@ -242,75 +267,47 @@ export class SignaturesService {
           vatMinor: entry.totals.vatMinor,
           grossMinor: entry.totals.grossMinor,
         })) ?? null,
+      changed,
+      version:
+        row.deliveryArchiveId && row.deliveryContentHash
+          ? { archiveId: row.deliveryArchiveId, contentHash: row.deliveryContentHash }
+          : null,
     };
   }
 
   /**
-   * The document a signer reviews before verifying an OTP — see schema.prisma's own comment on
-   * `Signature.documentPdfUri`/`documentPdfHash` for WHY this cannot simply call
-   * `documentsService.renderInstancePdf` fresh on every call the way the authenticated download and
-   * the share-link download both do: that render is not byte-stable once a company has an active
-   * PAdES certificate, so two renders of the "same" document can legitimately disagree. This method
-   * renders EXACTLY ONCE per signature row — on whichever call, from whichever viewer, gets there
-   * first — freezes those bytes to durable storage, and serves that SAME frozen copy forever after,
-   * which is what actually makes "what the signer saw" and "what gets sealed by verifyAndSign" the
-   * same artifact rather than two independent facts that happen to usually agree.
+   * The document a signer reviews before verifying an OTP. Issue #477: the PDF the client was SENT,
+   * read straight from the DELIVERY archive this request is bound to (`Signature.deliveryArchiveId`),
+   * byte for byte, on every call. Never a render: a fresh render reflects the document as it is now,
+   * which is exactly what a signature must not silently follow.
    *
-   * That ONE render call is itself `documentsService.renderInstancePdf` — which now serves an
-   * already-archived PDF instead of launching Chromium whenever the underlying document already has
-   * one (e.g. a quote that was already emailed before a signature was separately requested for it).
-   * No behavior change here: this method still freezes whatever `renderInstancePdf` hands back,
-   * archived or freshly rendered, exactly once.
+   * A row created before the binding existed is refused like a changed document (it has no version
+   * to show). Bytes that are no longer readable from storage are a hard error, never replaced by a
+   * render: serving something other than the bound version would break the one promise this page
+   * makes, and an operator-caused loss of archived bytes has to surface rather than be papered over.
    */
   async getPublicDocument(token: string): Promise<PublicSignatureDocument> {
     const row = await this.resolveActiveOrThrow(token);
+    if (!row.deliveryArchiveId) {
+      throw documentChangedError();
+    }
 
-    if (row.documentPdfUri) {
-      const cached = await readArchivedArtifact(
-        row.documentPdfUri,
-        DOCUMENT_SNAPSHOT_ROLE,
-        DOCUMENT_SNAPSHOT_MIME,
-      );
-      if (cached) {
-        return { bytes: cached, typeId: row.typeId, documentId: row.documentId };
-      }
-      // The row NAMES a snapshot, but its bytes are no longer readable from storage (e.g. an operator
-      // wiped `.documents-archive` by hand) — this row's own "one frozen artifact, forever" promise is
-      // already broken, and `freezeDocumentPdfSnapshot`'s `documentPdfUri: null` guard would refuse to
-      // overwrite a URI that is still SET, however dead. Rather than build a second repair path for an
-      // operator-caused corruption this rare, serve a fresh render (still the current, correct
-      // document content) and say so loudly — this is the one case in this method where two calls
-      // could legitimately disagree byte-for-byte, and it must never fail silently.
-      logger.warn('Signature document snapshot is unreadable from storage — re-rendering', {
+    const archive = await prisma.documentArchive.findFirst({
+      where: { id: row.deliveryArchiveId, companyId: row.companyId, documentId: row.documentId },
+      select: { uri: true },
+    });
+    const bytes = archive ? await readArchivedArtifact(archive.uri, 'pdf', 'application/pdf') : null;
+    if (!bytes) {
+      logger.error('The delivered PDF a signature request is bound to is unreadable from storage', {
         category: 'documents',
         companyId: row.companyId,
-        details: { signatureId: row.id, uri: row.documentPdfUri },
+        details: { signatureId: row.id, deliveryArchiveId: row.deliveryArchiveId },
       });
-      return {
-        bytes: await this.documentsService.renderInstancePdf(row.companyId, row.typeId, row.documentId),
-        typeId: row.typeId,
-        documentId: row.documentId,
-      };
+      throw new ConflictException(
+        'The document this signature request refers to is no longer available. Ask the sender for a new signature link.',
+      );
     }
-
-    const pdf = await this.documentsService.renderInstancePdf(row.companyId, row.typeId, row.documentId);
-    const { uri, contentHash } = await persistArtifacts(row.documentId, [
-      { role: DOCUMENT_SNAPSHOT_ROLE, mime: DOCUMENT_SNAPSHOT_MIME, bytes: pdf },
-    ]);
-    const frozen = await freezeDocumentPdfSnapshot(row.id, { uri, hash: contentHash });
-
-    // A concurrent first view may have frozen a DIFFERENT render and won the race (first-write-wins —
-    // see `freezeDocumentPdfSnapshot`'s own header) — serve whatever the row actually ended up
-    // pointing at, not necessarily this call's own render, so every viewer converges on ONE snapshot.
-    if (frozen.documentPdfUri === uri) {
-      return { bytes: pdf, typeId: row.typeId, documentId: row.documentId };
-    }
-    const winner = await readArchivedArtifact(
-      frozen.documentPdfUri!,
-      DOCUMENT_SNAPSHOT_ROLE,
-      DOCUMENT_SNAPSHOT_MIME,
-    );
-    return { bytes: winner ?? pdf, typeId: row.typeId, documentId: row.documentId };
+    return { bytes, typeId: row.typeId, documentId: row.documentId };
   }
 
   /**
@@ -322,6 +319,8 @@ export class SignaturesService {
    */
   async requestOtp(token: string): Promise<{ message: string }> {
     const row = await this.resolveActiveOrThrow(token);
+    // Issue #477 - no code is ever mailed for a request that can no longer be signed.
+    await this.assertBoundVersionCurrent(row);
     const code = generateOtpCode();
     const { minted } = await mintOtpChallenge(row.id, hashOtpCode(code));
     if (!minted) {
@@ -346,6 +345,12 @@ export class SignaturesService {
     option?: string,
   ): Promise<{ message: string; signedAt: string }> {
     const row = await this.resolveActiveOrThrow(token);
+
+    // Issue #477 - checked BEFORE the code, so a signer whose quote changed while they held a code
+    // is told why, and never burns one of their lifetime attempts on a request that can no longer
+    // succeed anyway. `markSigned` checks again right before its write (the document can change in
+    // between); this first check is for the signer's sake, the second one is the guarantee.
+    await this.assertBoundVersionCurrent(row);
 
     const codeIsLive = !!row.otpCodeHash && !!row.otpExpiresAt && row.otpExpiresAt.getTime() > Date.now();
     const matches = codeIsLive && otpCodeMatches(submittedCode ?? '', row.otpCodeHash as string);
@@ -389,6 +394,15 @@ export class SignaturesService {
    * successful sign also flips `isActive` to false on the same write (`markSignatureSigned`) — two
    * independent reasons for the SAME conclusion, not one relying on the other never regressing.
    */
+  /** Issue #477 - refuses (409, `DOCUMENT_CHANGED_CODE`) a request whose document changed since it
+   *  was sent, or that was never bound to a version. See `signed-version.ts`. */
+  private async assertBoundVersionCurrent(row: SignatureRecord): Promise<void> {
+    const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId);
+    if (!(await isBoundVersionCurrent(row, document.data))) {
+      throw documentChangedError();
+    }
+  }
+
   private async resolveActiveOrThrow(token: string): Promise<SignatureRecord> {
     const row = await findSignatureByTokenHash(hashSignatureToken(token));
     if (!row?.isActive || row.lockedAt || row.signedAt) {
@@ -408,23 +422,26 @@ export class SignaturesService {
    */
   private async markSigned(row: SignatureRecord, option?: string): Promise<Date> {
     const current = await findOwnedDocument(row.companyId, row.typeId, row.documentId);
+    // Issue #477 - before the status guard, so an EDITED quote (which "save-draft" also moves back to
+    // "draft") reads as "the document changed", the true reason, not as a bare status conflict.
+    if (!(await isBoundVersionCurrent(row, current.data))) {
+      throw documentChangedError();
+    }
     if (current.status !== 'sent') {
       throw new ConflictException(
         `Cannot sign a document with status "${current.status}" — it is no longer awaiting signature.`,
       );
     }
 
-    // Issue #373 ("quotes with options") - validated against the document's CURRENT options (the same
-    // live `data` `resolvePublicSignature` reads and lists, re-read here rather than trusted from an
-    // earlier response the client could have held onto across an edit). NOT the frozen preview PDF:
-    // a "sent" quote stays editable until it is signed or accepted (quote.descriptor.ts's
-    // `lockedStatuses`), so an edit made after the signature request can make the page's option list
-    // differ from the PDF the signer reviewed. That gap predates this feature (the lines themselves
-    // already had it); an option name that no longer exists is refused here rather than guessed. `undefined` for every
-    // document type other than "quote", and for a quote with fewer than two options - see
-    // `resolveChosenOption`'s own header.
-    const currentData = (current.data ?? {}) as Record<string, unknown>;
-    const options = deriveQuoteOptions(currentData);
+    // Issue #373 ("quotes with options"), bound by issue #477: validated against the options of the
+    // version this request is BOUND to (`Signature.documentData`, the data the delivered PDF was
+    // rendered from), never the live document. The check just above already proved the live data
+    // still hashes to it, and the compare-and-swap below (`knownUpdatedAt`) refuses any edit landing
+    // between that check and the write, so the choice recorded is always one the signer's PDF shows.
+    // `undefined` for every document type other than "quote", and for a quote with fewer than two
+    // options - see `resolveChosenOption`'s own header.
+    const boundData = (row.documentData ?? {}) as Record<string, unknown>;
+    const options = deriveQuoteOptions(boundData);
     const chosenOption = resolveChosenOption(options, option);
 
     // `chosenOption` travels in the SAME compare-and-swap as the status write - see
@@ -456,6 +473,7 @@ export class SignaturesService {
     );
     // The archive-side twin of the SAME fact - see `Signature.chosenOption`'s own schema comment.
     const signed = await markSignatureSigned(row.id, chosenOption);
+    await this.archiveESignatureAcceptance(row, signed.signedAt ?? new Date(), boundData, chosenOption);
 
     try {
       await this.webhooks.dispatch(
@@ -478,6 +496,68 @@ export class SignaturesService {
       });
     }
     return signed.signedAt ?? new Date();
+  }
+
+  /**
+   * Issue #477 - the WORM record of "this client signed THIS delivered version": an ACCEPTANCE
+   * archive (`role: 'e-signature'`) naming the bound DELIVERY archive by id and content hash in its
+   * own bytes, next to the signature id, the signing time and the chosen option frozen with its
+   * lines and totals. Written AFTER the signature took, and never throws, for the same reason the
+   * manual acceptance's own archive write never does (`actions/quote-manual-acceptance.ts`): the
+   * signature is an established fact by now, a storage failure must not undo it. The `Signature` row
+   * already names the same version (`deliveryArchiveId`/`deliveryContentHash`); a failure here is
+   * logged as an error so the missing archive is never silent.
+   */
+  private async archiveESignatureAcceptance(
+    row: SignatureRecord,
+    signedAt: Date,
+    boundData: Record<string, unknown>,
+    chosenOption: string | undefined,
+  ): Promise<void> {
+    try {
+      if (!row.deliveryArchiveId || !row.deliveryContentHash || !row.documentDataHash) {
+        throw new Error('the signature request is not bound to a delivered version');
+      }
+      const optionTotals = chosenOption
+        ? (computeQuoteOptionTotals(boundData) ?? []).find((entry) => entry.option === chosenOption)
+        : undefined;
+      const manifest: ESignatureAcceptanceManifest = {
+        kind: 'e-signature',
+        documentId: row.documentId,
+        signatureId: row.id,
+        signedAt: signedAt.toISOString(),
+        deliveredVersion: { archiveId: row.deliveryArchiveId, contentHash: row.deliveryContentHash },
+        documentDataHash: row.documentDataHash,
+        ...(optionTotals
+          ? {
+              option: {
+                name: optionTotals.option,
+                lines: optionTotals.lines,
+                netMinor: optionTotals.totals.netMinor,
+                vatMinor: optionTotals.totals.vatMinor,
+                grossMinor: optionTotals.totals.grossMinor,
+                currency: optionTotals.totals.currency,
+              },
+            }
+          : {}),
+      };
+      await createESignatureAcceptanceArchive({
+        companyId: row.companyId,
+        documentId: row.documentId,
+        manifest: Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'),
+        parentArchiveId: row.deliveryArchiveId,
+      });
+    } catch (error) {
+      logger.error('Failed to archive an e-signature acceptance - the signature itself still stands', {
+        category: 'documents',
+        companyId: row.companyId,
+        details: {
+          signatureId: row.id,
+          documentId: row.documentId,
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
   }
 
   /**

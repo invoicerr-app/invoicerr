@@ -643,7 +643,22 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // `numberingOnlyFrom` refuses it (a LEGACY credit note, issued before #471, retried from
     // "send_failed" - see `RunAsyncSendInput.numberingOnlyFrom`'s own header). Plain status write,
     // exactly as before this fix.
-    sending = await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft', 'send_failed']);
+    //
+    // Issue #477: a send that starts from "draft" on a record that was ALREADY delivered once is a
+    // NEW delivery, and must clear `deliveryConfirmedAt` on the same write. The only way a delivered
+    // record gets back to "draft" is "save-draft" (the quote's own, which stays available on a "sent"
+    // quote so a typo can be fixed and the quote sent again - quote.descriptor.ts): the content has
+    // been reopened, and whatever was confirmed delivered before is not what this send delivers.
+    // Leaving the mark in place made phase 2 below read the OLD delivery as this one's and skip
+    // `deliver()` entirely: the edited quote was never emailed and never archived, and a signature
+    // request issued afterwards would have been bound to the previous PDF. A "send_failed" retry
+    // keeps the mark exactly as before (the case this column exists for: delivery happened, only the
+    // final status write failed), and `fromStatuses` narrows to "draft" so the reset can never land
+    // on a record that concurrently became "send_failed".
+    const startNewDelivery = existing.status === 'draft' && existing.deliveryConfirmedAt != null;
+    sending = startNewDelivery
+      ? await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft'], { startNewDelivery })
+      : await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft', 'send_failed']);
   }
 
   // The fact is ACQUIRED right above (Postgres already holds "sending", numbered atomically with it

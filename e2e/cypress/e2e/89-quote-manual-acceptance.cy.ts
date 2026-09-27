@@ -277,7 +277,8 @@ describe("Quote manual acceptance (issue #421)", () => {
 						cy.get('[data-cy="document-acceptance-manual"]').should("not.exist");
 
 						// Never confused with a manual acceptance: no manual-acceptance record exists for
-						// this quote at all, and its archive carries no ACCEPTANCE row.
+						// this quote at all. Since issue #477 the e-signature writes an ACCEPTANCE archive of
+						// its own, under the `e-signature` artifact role, never `manual-acceptance`.
 						cy.request({
 							url: `${api}/api/documents/${quoteId}/manual-acceptance?typeId=quote`,
 						}).then((res) => {
@@ -291,10 +292,12 @@ describe("Quote manual acceptance (issue #421)", () => {
 						});
 						cy.request({ url: `${api}/api/documents/${quoteId}/archives?typeId=quote` }).then(
 							(res) => {
-								const kinds = (res.body as Array<{ kind: string }>).map((a) => a.kind);
-								expect(kinds, "no ACCEPTANCE archive row for an e-signed quote").to.not.include(
-									"ACCEPTANCE",
-								);
+								const roles = (res.body as Array<{ kind: string; artifacts: Array<{ role: string }> }>)
+									.filter((a) => a.kind === "ACCEPTANCE")
+									.flatMap((a) => a.artifacts.map((artifact) => artifact.role));
+								expect(roles, "the e-signed quote's ACCEPTANCE archive is the e-signature's").to.deep.eq([
+									"e-signature",
+								]);
 							},
 						);
 					});

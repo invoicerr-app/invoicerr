@@ -2,7 +2,11 @@ import { BadRequestException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
-import { createManualAcceptanceArchive, ManualAcceptanceManifest } from '../archive/persistence';
+import {
+  createManualAcceptanceArchive,
+  findCurrentDeliveredVersion,
+  ManualAcceptanceManifest,
+} from '../archive/persistence';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import { computeQuoteOptionTotals, deriveQuoteOptions, resolveChosenOption } from '../options/quote-options';
 import { ActionRegistry } from './action-registry';
@@ -148,6 +152,17 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
       note,
       acceptedAt: acceptedAt.toISOString(),
       ...(optionSnapshot ? { option: optionSnapshot } : {}),
+      // Issue #477 - which delivered PDF this acceptance refers to. Manual acceptance has no
+      // client-facing page and no link that could go stale: the issuer records, for the quote as it
+      // stands now, a fact they observed elsewhere, and any edit of a "sent" quote moves it back to
+      // "draft", where this action is not available. So nothing is REFUSED here (the #421 rule that
+      // a preservation concern never blocks a manual acceptance still holds); the manifest only NAMES
+      // the version, or says it could not (`null`).
+      deliveredVersion: await findCurrentDeliveredVersion(
+        ctx.companyId,
+        ctx.documentId,
+        current.deliveryConfirmedAt ?? null,
+      ),
     };
 
     // The AUDIT TRAIL - see this file's own header, point 2. Awaited (unlike the archive write right

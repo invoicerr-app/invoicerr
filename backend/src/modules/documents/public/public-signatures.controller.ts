@@ -40,8 +40,10 @@ export class PublicSignaturesController {
     summary: 'Resolve a signature request by its raw token — no session required',
     description:
       'Returns the minimal facts the /signature/:token page needs to render (which document type, ' +
-      'its display number) — nothing about the client or the document CONTENT. An unknown, locked, ' +
-      'or already-signed token answers the exact same 400 as every other route on this controller.',
+      'its display number, the options of the bound version, the delivered version this request is ' +
+      'bound to, and `changed`: true once the document changed since the request was sent, issue ' +
+      '#477). An unknown, locked, or already-signed token answers the exact same 400 as every other ' +
+      'route on this controller.',
   })
   @ApiParam({ name: 'token', type: String })
   @ApiResponse({ status: 200, description: 'Signature request resolved' })
@@ -56,10 +58,10 @@ export class PublicSignaturesController {
   @ApiOperation({
     summary: 'The exact PDF this signature will seal — no session required',
     description:
-      'Serves the SAME artifact `sign` seals: rendered once, on whichever call reaches it first, and ' +
-      "served byte-for-byte identical on every later call (SignaturesService.getPublicDocument's own " +
-      'header) — never a fresh render per request, which a company with an active signing certificate ' +
-      'could not guarantee to stay byte-identical to what an earlier viewer saw. Deliberately the SAME ' +
+      'Serves the PDF the client was SENT, read from the DELIVERY archive this request is bound to ' +
+      "(issue #477, SignaturesService.getPublicDocument's own header), byte for byte on every call, " +
+      'never a render. 409 with code DOCUMENT_CHANGED_SINCE_REQUEST for a request bound to no version. ' +
+      'Deliberately the SAME ' +
       '400, with the SAME body, for an unknown, locked, signed, or expired token as every other route ' +
       "on this controller — see this controller's own header. `Cache-Control: private, no-store` " +
       "because this is a specific, unauthenticated party's own document, never something a shared " +
@@ -92,6 +94,7 @@ export class PublicSignaturesController {
   @ApiParam({ name: 'token', type: String })
   @ApiResponse({ status: 200, description: 'A verification code was emailed' })
   @ApiResponse({ status: 400, description: 'Unknown/locked/used token, or the resend cap was reached' })
+  @ApiResponse({ status: 409, description: 'The document changed since the request was sent (issue #477)' })
   async requestOtp(@Param('token') token: string): Promise<{ message: string }> {
     return this.signaturesService.requestOtp(token);
   }
@@ -112,11 +115,17 @@ export class PublicSignaturesController {
   @ApiParam({ name: 'token', type: String })
   @ApiResponse({ status: 200, description: 'Document signed' })
   @ApiResponse({ status: 400, description: 'Invalid, expired, locked, or already-used — indistinguishable' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'The document changed since the request was sent (code DOCUMENT_CHANGED_SINCE_REQUEST, issue ' +
+      '#477), or it is no longer awaiting a signature',
+  })
   async sign(
     @Param('token') token: string,
     @Body('code') code: string,
     // Issue #373 ("quotes with options") - which option the signer chose, required only once the
-    // frozen document itself offers 2+ of them (`SignaturesService.markSigned`'s own
+    // bound version (issue #477) itself offers 2+ of them (`SignaturesService.markSigned`'s own
     // `resolveChosenOption` call is what actually enforces that, not this controller).
     @Body('option') option?: string,
   ): Promise<{ message: string; signedAt: string }> {
