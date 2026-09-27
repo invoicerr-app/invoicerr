@@ -33,12 +33,32 @@ established for each supported country, and says plainly where nothing has been 
 
 ### Document numbering
 
-The pattern used to number a document type is set per type, and the app falls back to a sensible
-default for any type you have not configured. Portuguese sellers should read the ATCUD section of the
-settings screen, where the series is part of the numbering pattern. Invoices and credit notes each need
-their own ATCUD series there: the AT issues a validation code per series and document type (FT for an
-invoice, NC for a credit note), and a Portuguese credit note cannot be sent until its number format
-ends in `/{number}` and its NC series carries a code.
+Document number formats are not a setting. They are fixed per country and per document type, from the
+rules that constrain them: the tax law (a unique, sequential number), the e-invoicing formats (for
+example FatturaPA's 20-character limit in Italy) and the clearance platforms (for example Chorus Pro's
+20 characters for French public buyers). The **Number Formats** card of the company settings shows, for
+each numbered document type, the format that applies, the next number it will print, and every rule
+behind it with its source. Nothing on that card can be edited, and the API refuses a change.
+
+| Country | Invoice | Credit note | Quote, purchase order, goods receipt |
+| --- | --- | --- | --- |
+| France, Germany, Italy, Poland | `INVOICE-{year}-{number:4}` | `CN-{year}-{number:4}` | `QUOTE-…`, `PURCHASE-ORDER-…`, `GOODS-RECEIPT-…` (`-{year}-{number:4}`) |
+| Portugal | `FT A/{number}` | `NC A/{number}` | as above |
+
+The counter of a series never restarts, including at the start of a year: `{year}` only prints the
+year the number was issued in.
+
+**A series you started before formats became fixed** is kept, because an issued series has to stay
+continuous. The card marks it "Your running series, kept". The one exception is a series whose format
+breaks a rule of your country (the old credit-note format `CREDIT-NOTE-{year}-{number:4}` is 21
+characters, too long for FatturaPA and Chorus Pro): the country format then applies from the next
+number, the counter going on where it stood, so no number is reused and none is skipped. The card says
+so on that document type.
+
+Portuguese sellers register, in the ATCUD section of the settings screen, the AT validation code of each
+series before its first document: the AT issues one per series and document type, so series `FT A` for
+invoices and series `NC A` for credit notes. The ATCUD section shows which series the next document
+belongs to.
 
 ## What this page used to describe, and does not any more
 

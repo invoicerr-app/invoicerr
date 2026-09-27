@@ -34,6 +34,12 @@
  * This is the "require a compatible format" option the task brief poses as one of two defensible
  * choices; the other (silently inventing which digits are "the" sequential number) is not implemented
  * anywhere in this file, on purpose.
+ *
+ * Since issue #496 no company chooses its pattern any more: Portugal's own formats
+ * (`country-policy/data/pt.json`'s `numberFormats`, "FT A/{number}" and "NC A/{number}") are
+ * ATCUD-compatible by construction, checked at load time against pt.json's own "TYPE SERIES/NUMBER"
+ * constraint, and a running series that is not compatible gives way to them
+ * (`numbering/company-number-format.ts`). The refusal described above stays as the defensive check.
  */
 import { renderDateTokens } from './format-number';
 

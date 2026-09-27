@@ -71,7 +71,7 @@ describe('ensureAtcudIssuable — the load-bearing preflight gate, before any nu
   // Issue #496: with no running series, Portugal's own format ("FT A/{number}", country-policy/data/
   // pt.json) applies - ATCUD-compatible out of the box, so the only thing left to configure is the AT
   // validation code of series "FT A". The old shared default had no "/" at all and blocked here.
-  it("a Portuguese company with no running series gets Portugal's own format: series \"FT A\", no per-year code", async () => {
+  it('a Portuguese company with no running series gets Portugal\'s own format: series "FT A", no per-year code', async () => {
     mockCompany('Portugal', null);
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({ validationCode: 'JCVPTS0J' });
 
@@ -205,7 +205,7 @@ describe("the credit note (issue #497): its own format, its own NC series, never
 
   // Issue #496: a Portuguese credit note left without a running series is numbered in Portugal's own
   // NC format, so the series to register is "NC A" - never a format the company has to configure.
-  it("a credit note with no running series gets Portugal's own NC format: series \"NC A\"", async () => {
+  it('a credit note with no running series gets Portugal\'s own NC format: series "NC A"', async () => {
     mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
     await expect(ensureAtcudIssuable('company-1', 'credit-note', PT_DATE)).rejects.toThrow(
