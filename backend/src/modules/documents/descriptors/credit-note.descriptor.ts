@@ -401,6 +401,40 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         // not a delivery, so there is no recipient (or anything else) to type in here.
       },
       {
+        id: 'download-xml',
+        label: 'Download normalized XML',
+        // Issue #472 - a credit note is an invoice in law (CGI art. 289, I, 5), so it has to be
+        // producible in the same structured formats: EN 16931 type code 381 with a reference to the
+        // corrected invoice (BG-3), and FatturaPA TD04. Reached the same way as the invoice's own
+        // "download-xml" (a plain GET, never `runAction` - see invoice.descriptor.ts's own comment),
+        // through the same four gates (documents.service.ts#downloadDocumentFormat), plus one that only
+        // this type can trip: a LEGACY credit note sits in "sent" with no number (see this file's own
+        // header, "Numbering") and is refused a file rather than given one with an invented number.
+        // Same three post-draft statuses as "share-link" below, for the same reason.
+        //
+        // `fa3` is deliberately NOT offered: Polish law has no credit-note document, only the faktura
+        // korygująca, which is an INVOICE carrying `correctsInvoiceId` (formats/national/
+        // fa3-provider.ts's own header, "A credit note is refused here"). Every other syntax the
+        // invoice offers is offered here too, with the same "no country gate in this list" rule.
+        availableWhen: ['sending', 'sent', 'send_failed'],
+        params: [
+          {
+            key: 'syntax',
+            kind: 'select',
+            label: 'Syntax',
+            required: true,
+            options: [
+              { value: 'cii', label: 'CII (UN/CEFACT Cross Industry Invoice)' },
+              { value: 'ubl', label: 'UBL 2.1' },
+              { value: 'facturx', label: 'Factur-X (PDF/A-3 with embedded CII)' },
+              { value: 'fatturapa', label: 'FatturaPA - Italian SdI national schema' },
+              { value: 'peppol-bis', label: 'Peppol BIS Billing 3.0' },
+              { value: 'xrechnung', label: 'XRechnung 3.0 (KoSIT, Germany)' },
+            ],
+          },
+        ],
+      },
+      {
         id: 'share-link',
         label: 'Share link',
         // See invoice.descriptor.ts's own "share-link" comment for the full

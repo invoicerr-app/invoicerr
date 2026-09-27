@@ -191,6 +191,17 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(5) Eine Rechnung kann berichtigt werden, wenn a) sie nicht alle Angaben nach § 14 Abs. 4 oder § 14a des Gesetzes enthält oder b) Angaben in der Rechnung unzutreffend sind. Es müssen nur die fehlenden oder unzutreffenden Angaben durch ein Dokument, das spezifisch und eindeutig auf die Rechnung bezogen ist, übermittelt werden. Es gelten die gleichen Anforderungen an Form und Inhalt wie in § 14 des Gesetzes.",
+        "sourceCheckedAt": "2026-09-27"
+      },
+      "notes": "Issue #472. § 31 Abs. 5 UStDV, read verbatim on gesetze-im-internet.de (ustdv_1980/__31.html) on 2026-09-27. Read with § 14 Abs. 1 Satz 3 UStG, read on the same page set the same day: « Eine elektronische Rechnung ist eine Rechnung, die in einem strukturierten elektronischen Format ausgestellt, übermittelt und empfangen wird und eine elektronische Verarbeitung ermöglicht. » A correcting document takes the same FORM as the invoice it corrects, so where the invoice is a structured e-invoice the correction is one too. NO DISTINCT GERMAN DOCUMENT TYPE IS NEEDED BEYOND EN 16931's own: the KoSIT XRechnung delta this repository vendors (formats/vendored/de/XRechnung-UBL-validation-preprocessed.sch, itplr-kosit/xrechnung-schematron v2.5.0) lists the credit note among the codes BT-3 may carry, rule BR-DE-17: « 326 (Partial invoice), 380 (Commercial invoice), 384 (Corrected invoice), 389 (Self-billed invoice) und 381 (Credit note) [...] », and the credit-note export passes that delta with 0 error (formats/credit-note-formats.spec.ts). TERMINOLOGY TRAP, same page: the German « Gutschrift » of § 14 Abs. 2 Satz 5 UStG is a document issued by the RECIPIENT of the supply (self-billing, UNTDID 389), not a seller's credit note; this action never emits 389, and nothing in this product should translate this document type as « Gutschrift » in a tax sense. Whether a German credit note needs a number of its own stays the open question this file's own credit-note `numbering` fact records - unchanged by this rule."
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,

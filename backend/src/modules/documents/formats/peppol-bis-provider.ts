@@ -69,7 +69,12 @@
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
-import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
+import {
+  DocumentFormatBuildOptions,
+  DocumentFormatBuildResult,
+  DocumentFormatParty,
+  DocumentFormatProvider,
+} from './format-provider';
 import { mergePeppolNotesInObject } from './semantic/peppol-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
@@ -91,10 +96,13 @@ async function build(
   document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
+  _companyId?: string,
+  options?: DocumentFormatBuildOptions,
 ): Promise<DocumentFormatBuildResult> {
   const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
     customizationId: PEPPOL_BIS_CUSTOMIZATION_ID,
     businessProcessCodeOverride: PEPPOL_BIS_BILLING_PROFILE_ID,
+    creditNote: options?.creditNote,
   });
 
   const service = newEuInvoiceService();
@@ -108,7 +116,7 @@ async function build(
     postProcessor: async (data) => mergePeppolNotesInObject(data as Record<string, unknown>),
   })) as string;
 
-  const structural = validateStructural(xml, 'ubl');
+  const structural = validateStructural(xml, 'ubl', options?.creditNote ? 'credit-note' : 'invoice');
   if (!structural.valid) {
     return { bytes: new TextEncoder().encode(xml), validation: { valid: false, errors: structural.errors } };
   }

@@ -23,6 +23,20 @@
  * `fatturapa-provider.spec.ts`, adapted to this module's own fixture shape) for the sourcing already
  * established there. Nothing here asserts a NEW tax rule.
  *
+ * ## TD04 - the nota di credito (issue #472)
+ *
+ * A credit note is built with `TipoDocumento` `TD04` - the vendored XSD's own `TipoDocumentoType`
+ * enumerates it with the documentation "Nota di credito" (`vendored/it/Schema_VFPR12.xsd`, the
+ * Agenzia delle Entrate schema this provider is judged by) - and a `DatiFattureCollegate` block
+ * naming the corrected invoice (`IdDocumento` = its number, `Data` = its issue date), the
+ * `DatiDocumentiCorrelatiType` slot the same XSD declares for "fatture collegate". Amounts stay
+ * POSITIVE: `TD04` is what makes the document a reduction, the same convention EN 16931's 381 holds.
+ * `DatiPagamento` is omitted for `TD04`: its only content here is a fixed "pay by bank transfer, full
+ * amount" instruction (`TP02`/`MP05`) that describes the BUYER paying the seller, which is the
+ * opposite of what a credit note does; the element is optional (`minOccurs="0"` in the same XSD).
+ * Only the caller that knows it holds a credit note sets `options.creditNote`
+ * (`../credit-note-source.ts`); every invoice keeps `TD01` and its `DatiPagamento`, byte for byte.
+ *
  * ## FPA12 vs FPR12 — the two named gaps `3cb39f91` left open, closed here
  *
  * `b2g-routing/data/it.json` already reads, verbatim, the Specifiche tecniche del formato
@@ -77,8 +91,13 @@ import { DocumentInstanceResult } from '../../actions/action-registry';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { defaultVatRateCatalog, findVatRateById } from '../../vat-rates/registry';
-import { toDateOnly } from '../shared-build';
-import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from '../format-provider';
+import { requireDisplayNumber, toDateOnly } from '../shared-build';
+import {
+  DocumentFormatBuildOptions,
+  DocumentFormatBuildResult,
+  DocumentFormatParty,
+  DocumentFormatProvider,
+} from '../format-provider';
 import { validateXsd } from '../vendored/validate-xsd';
 import { escapeXmlTree } from './fatturapa-xml-guard';
 import { extractNationalLines, NationalLine } from './national-lines';
@@ -202,6 +221,8 @@ async function build(
   document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
+  _companyId?: string,
+  options?: DocumentFormatBuildOptions,
 ): Promise<DocumentFormatBuildResult> {
   const { fpa2xml } = await import('@digitalia/fatturapa');
 
@@ -211,7 +232,9 @@ async function build(
   const currency = totals.currency || 'EUR';
 
   const issueDate = toDateOnly(data.issueDate);
-  const invoiceNumber = document.displayNumber ?? 'DRAFT';
+  // Never a `'DRAFT'` placeholder - see `shared-build.ts#requireDisplayNumber`'s own header.
+  const invoiceNumber = requireDisplayNumber(document);
+  const correctedInvoice = options?.creditNote?.correctedInvoice;
 
   // ── identifiers ──────────────────────────────────────────────────
   const vatId = getIdentifier(company, 'VAT') || '';
@@ -363,12 +386,20 @@ async function build(
       FatturaElettronicaBody: {
         DatiGenerali: {
           DatiGeneraliDocumento: {
-            TipoDocumento: 'TD01',
+            // TD04 "Nota di credito" for a credit note - see this file's own header, "TD04".
+            TipoDocumento: correctedInvoice ? 'TD04' : 'TD01',
             Divisa: currency,
             Data: issueDate,
             Numero: invoiceNumber,
             ImportoTotaleDocumento: fmtAmount(totaleDocumento, 2),
           },
+          ...(correctedInvoice
+            ? {
+                DatiFattureCollegate: [
+                  { IdDocumento: correctedInvoice.displayNumber, Data: correctedInvoice.issueDate },
+                ],
+              }
+            : {}),
         },
         DatiBeniServizi: {
           DettaglioLinee: lines.map((line) =>
@@ -376,13 +407,18 @@ async function build(
           ),
           DatiRiepilogo: riepilogoList,
         },
-        DatiPagamento: {
-          CondizioniPagamento: 'TP02',
-          DettaglioPagamento: {
-            ModalitaPagamento: 'MP05',
-            ImportoPagamento: fmtAmount(totaleDocumento, 2),
-          },
-        },
+        // Omitted for TD04 - see this file's own header, "TD04".
+        ...(correctedInvoice
+          ? {}
+          : {
+              DatiPagamento: {
+                CondizioniPagamento: 'TP02',
+                DettaglioPagamento: {
+                  ModalitaPagamento: 'MP05',
+                  ImportoPagamento: fmtAmount(totaleDocumento, 2),
+                },
+              },
+            }),
       },
     },
   };

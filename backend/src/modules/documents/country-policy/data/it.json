@@ -191,6 +191,16 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Issue #472. The FORMAT fact is read first-hand, not the statute: the Agenzia delle Entrate FatturaPA schema this repository vendors and validates every FatturaPA file against (formats/vendored/it/Schema_VFPR12.xsd, version 1.2) enumerates `TipoDocumento` value TD04 with the documentation « Nota di credito », and declares `DatiFattureCollegate` (type DatiDocumentiCorrelatiType: IdDocumento, Data) as the slot for the invoices a document relates to - read 2026-09-27. The provider builds TD04 with that block naming the corrected invoice, and the file passes the XSD (formats/credit-note-formats.spec.ts). The statutory basis of the nota di credito is art. 26, comma 2, DPR 633/72, already cited by this file's own credit-note.send rule (reused, not re-read here). What would make this `legal`: the Provvedimento del Direttore dell'Agenzia delle Entrate n. 89757 del 30 aprile 2018, Allegato A (Specifiche tecniche), read first-hand for TD04 and for whether DatiFattureCollegate is mandatory on a TD04 - not read in this session."
+      },
+      "notes": "KNOWN LIMIT, tested (formats/credit-note-formats.spec.ts): FatturaPA's `Numero` is at most 20 characters (String20Type), and the shipped default credit-note number \"CREDIT-NOTE-2026-0001\" is 21. The XSD gate refuses such a file rather than truncate the legal number; an Italian seller needs a shorter credit-note series (Company.numberFormats) before a TD04 can be produced."
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,

@@ -13,6 +13,7 @@ import { registerInvoiceActions } from './actions/invoice-actions';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import * as countryPolicy from './country-policy/country-policy';
 import { DocumentsService } from './documents.service';
+import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
@@ -59,6 +60,7 @@ beforeAll(async () => {
 function buildService() {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildInvoiceDescriptor());
+  typeRegistry.register(buildCreditNoteDescriptor());
 
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
@@ -235,4 +237,160 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     expect(result.mime).toBe('application/xml');
     expect(result.filename).toBe('INV-2026-0001-ubl.xml');
   }, 30_000);
+});
+
+/**
+ * Issue #472 - a credit note through the same gates, built from the invoice it corrects
+ * (`formats/credit-note-source.ts`): the corrected invoice's buyer and selected lines, priced with the
+ * invoice's own descriptor, BT-3 381 and BG-3 naming that invoice.
+ */
+describe('DocumentsService#downloadDocumentFormat - a credit note (issue #472)', () => {
+  /** The invoice: two lines, the second discounted 10%. Its row ids are what `correctedLines` points at. */
+  const INVOICE_DATA = {
+    client: 'client-1',
+    issueDate: '2026-08-30',
+    dueDate: '2026-09-30',
+    currency: 'EUR',
+    lines: [
+      { $rowId: 'row-a', description: 'Conseil', quantity: 10, unit: 'hour', unitPrice: 1200, vatRate: '20' },
+      {
+        $rowId: 'row-b',
+        description: 'Formation',
+        quantity: 2,
+        unit: 'day',
+        unitPrice: 800,
+        vatRate: '20',
+        discountPercent: 10,
+      },
+    ],
+  };
+  /** Credits ONLY the discounted line: 2 x 800 - 10% = 1440.00 net, 288.00 VAT, 1728.00 gross - the
+   *  figure `settlement/credits.ts#computeCreditedAmountMinor` subtracts from the invoice too. */
+  const CREDIT_NOTE_DATA = {
+    invoice: 'inv-1',
+    correctedLines: ['row-b'],
+    issueDate: '2026-09-20',
+    currency: 'EUR',
+    reason: 'Formation annulée',
+    lines: [],
+  };
+
+  function mockDocuments(
+    creditNote: Partial<{ status: string; displayNumber: string | null; data: unknown }> = {},
+    invoice: Partial<{ displayNumber: string | null; data: unknown }> = {},
+  ) {
+    (persistence.findOwnedDocument as Mock).mockImplementation(
+      async (_companyId, typeId: string, id: string) =>
+        typeId === 'invoice'
+          ? {
+              id,
+              typeId: 'invoice',
+              status: 'sent',
+              data: INVOICE_DATA,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              displayNumber: 'INVOICE-2026-0007',
+              number: 7,
+              ...invoice,
+            }
+          : {
+              id,
+              typeId: 'credit-note',
+              status: 'sent',
+              data: CREDIT_NOTE_DATA,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              displayNumber: 'CREDIT-NOTE-2026-0001',
+              number: 1,
+              ...creditNote,
+            },
+    );
+  }
+
+  beforeEach(() => {
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    prismaMock.company.findUnique.mockResolvedValue(SELLER_ROW);
+    prismaMock.client.findFirst.mockResolvedValue(BUYER_ROW);
+  });
+  afterEach(() => vi.resetAllMocks());
+
+  it('serves a real, validated UBL <CreditNote> (381) naming the corrected invoice, for the corrected line only', async () => {
+    mockDocuments();
+    const { service } = buildService();
+    const { bytes, filename } = await service.downloadDocumentFormat(
+      'company-1',
+      'credit-note',
+      'cn-1',
+      'ubl',
+    );
+    const xml = Buffer.from(bytes).toString('utf-8');
+
+    expect(filename).toBe('CREDIT-NOTE-2026-0001-ubl.xml');
+    expect(xml).toMatch(/<CreditNote[ >]/);
+    expect(xml).toContain('<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>');
+    expect(xml).toContain('<cbc:ID>CREDIT-NOTE-2026-0001</cbc:ID>');
+    expect(xml).toContain('<cbc:IssueDate>2026-09-20</cbc:IssueDate>');
+    expect(xml).toMatch(
+      /<cac:InvoiceDocumentReference>\s*<cbc:ID>INVOICE-2026-0007<\/cbc:ID>\s*<cbc:IssueDate>2026-08-30<\/cbc:IssueDate>/,
+    );
+    // The invoice's own discount counts (invoice descriptor pricing), and only the selected row.
+    expect(xml).toContain('<cbc:TaxExclusiveAmount currencyID="EUR">1440.00</cbc:TaxExclusiveAmount>');
+    expect(xml).toContain('<cbc:PayableAmount currencyID="EUR">1728.00</cbc:PayableAmount>');
+    expect(xml).not.toContain('Conseil');
+    // The buyer is the corrected invoice's client, looked up tenant-scoped.
+    expect(prismaMock.client.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'client-1', companyId: 'company-1' } }),
+    );
+  }, 30_000);
+
+  it('serves a real, validated CII (TypeCode 381, InvoiceReferencedDocument)', async () => {
+    mockDocuments();
+    const { service } = buildService();
+    const { bytes } = await service.downloadDocumentFormat('company-1', 'credit-note', 'cn-1', 'cii');
+    const xml = Buffer.from(bytes).toString('utf-8');
+    expect(xml).toContain('<ram:TypeCode>381</ram:TypeCode>');
+    expect(xml).toContain('<ram:IssuerAssignedID>INVOICE-2026-0007</ram:IssuerAssignedID>');
+  }, 30_000);
+
+  it('409: a LEGACY credit note (sent, issued without a number) gets no file at all', async () => {
+    mockDocuments({ displayNumber: null });
+    const { service } = buildService();
+    await expect(service.downloadDocumentFormat('company-1', 'credit-note', 'cn-1', 'ubl')).rejects.toThrow(
+      ConflictException,
+    );
+    await expect(service.downloadDocumentFormat('company-1', 'credit-note', 'cn-1', 'ubl')).rejects.toThrow(
+      /issued without a number/,
+    );
+  });
+
+  it('400: a FREE credit note (no invoice) has no buyer, so no file - and says so', async () => {
+    mockDocuments({
+      data: {
+        issueDate: '2026-09-20',
+        currency: 'EUR',
+        reason: 'Geste',
+        lines: [{ description: 'x', quantity: 1, unitPrice: 10, vatRate: '20' }],
+      },
+    });
+    const { service } = buildService();
+    await expect(service.downloadDocumentFormat('company-1', 'credit-note', 'cn-1', 'ubl')).rejects.toThrow(
+      /FREE credit note/,
+    );
+  });
+
+  it('400: a corrected invoice with no number of its own cannot be referenced (BG-3)', async () => {
+    mockDocuments({}, { displayNumber: null });
+    const { service } = buildService();
+    await expect(service.downloadDocumentFormat('company-1', 'credit-note', 'cn-1', 'ubl')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('501: fa3 is not offered for a credit note, even though the registry could know it', async () => {
+    mockDocuments();
+    const { service } = buildService();
+    await expect(service.downloadDocumentFormat('company-1', 'credit-note', 'cn-1', 'fa3')).rejects.toThrow(
+      /not offered for document type "credit-note"/,
+    );
+  });
 });

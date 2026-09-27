@@ -205,6 +205,17 @@
       "notes": "Regulation (EU) 2016/679 (GDPR), art. 4, 2) and art. 32, 1 — same reasoning and same texts as invoice.share-link above, applied to the credit note, which names the same persons as the invoice it corrects. Read on 2026-09-12 on EUR-Lex, French version, https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32016R0679 . SOURCED ABSENCE ON THE TAX SIDE: the research carried out for invoice.share-link applies here without addition — CGI art. 289, VI governs only the making-available of the invoice to its recipient, art. 289 bis, I the issuance and receipt channel, LPF art. L. 102 C the storage location; none reaches the sharing by link of a document already communicated. A credit note is moreover subject to the same correction regime as its invoice (CGI art. 289, I, 5), which bears on the content and effect of the document, not on its distribution. Tax sources read on 2026-09-12: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, LPF edition 2026-09-01; Légifrance again 403 to automated requests."
     },
     {
+      "typeId": "credit-note",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Tout document ou message qui modifie la facture initiale, émise en application de cet article, et qui fait référence à la facture initiale de façon spécifique et non équivoque est assimilé à une facture. Il doit comporter l'ensemble des mentions prévues au II. »",
+        "sourceCheckedAt": "2026-09-26"
+      },
+      "notes": "Issue #472. CGI art. 289, I, 5 - the same text, same read and same date as this file's own credit-note `numbering` fact (reused, not re-read by this task). A credit note is an invoice in law, so the structured-message form invoice.download-xml above already rests on (CGI art. 289, VII, 3°) applies to it as much as to the invoice it corrects. The export carries what this text asks of a correcting document: EN 16931 type code 381 and BG-3 (BT-25, the corrected invoice's own number; BT-26, its issue date) - the reference « de façon spécifique et non équivoque ». Same limits as invoice.download-xml: a voluntary export whose form is legally recognized, never an act of transmission through the accredited platform art. 289 bis requires. A FREE credit note (no invoice) is refused an export (documents.service.ts#downloadDocumentFormat, formats/credit-note-source.ts): it has no buyer to put in the file."
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,

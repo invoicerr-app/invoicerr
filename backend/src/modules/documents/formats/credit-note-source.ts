@@ -1,0 +1,129 @@
+/**
+ * Issue #472 - what a CREDIT NOTE hands a format provider: the same five things an invoice hands it
+ * (descriptor, document, seller, buyer, company id), resolved from the invoice it corrects, plus the
+ * two facts that make the file a credit note (`DocumentFormatBuildOptions.creditNote` - BT-3 381 and
+ * BG-3 in EN 16931, TD04 and `DatiFattureCollegate` in FatturaPA).
+ *
+ * ## Why the invoice's descriptor prices a credit note
+ *
+ * A LINKED credit note owns no amounts of its own: `correctedLines` is a `rowSelection`, a pointer at
+ * rows of the corrected invoice's own `lines` (`credit-note.descriptor.ts`, "Two shapes, one type").
+ * The amount it credits is already defined, in one place, by `settlement/credits.ts#
+ * computeCreditedAmountMinor`: those selected rows, priced with the INVOICE's own descriptor (which is
+ * what makes the invoice's per-line `discountPercent` count - the credit note's own `lines` subfields
+ * declare no discount). This file prices the file the same way, so the total a credit-note XML
+ * declares (BT-112/BT-115, `ImportoTotaleDocumento`) is, to the cent, the amount settlement subtracts
+ * from the invoice. A second pricing path would be a second answer to the same question.
+ *
+ * ## What is refused, and why
+ *
+ *  - A FREE credit note (no `invoice`). This type has no `client` field (`credit-note.descriptor.ts`,
+ *    "Actions"): its buyer is the corrected invoice's client, so a free note has no buyer at all, and
+ *    EN 16931 makes the buyer mandatory (BT-44 Buyer name, BG-8 Buyer postal address, both 1..1) - as
+ *    does FatturaPA (`CessionarioCommittente`, 1..1 in the vendored XSD). No file can be built without
+ *    inventing a buyer; the refusal says so instead.
+ *  - A corrected invoice with no number of its own. BG-3's BT-25 is 1..1 inside BG-3, and a reference
+ *    to "an invoice" with no number is not the "référence à la facture initiale de façon spécifique et
+ *    non équivoque" CGI art. 289, I, 5 asks of a correcting document.
+ *  - The credit note's own missing number is refused by `shared-build.ts#requireDisplayNumber` and by
+ *    `documents.service.ts#downloadDocumentFormat`'s own gate, not here.
+ */
+import { BadRequestException } from '@nestjs/common';
+
+import { DocumentInstanceResult } from '../actions/action-registry';
+import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { DocumentTypeDescriptor } from '../descriptors/types';
+import { findOwnedDocument } from '../persistence';
+import { rowIdOf } from '../row-selection/row-selection';
+import { CorrectedInvoiceReference } from './format-provider';
+import { toDateOnly } from './shared-build';
+
+const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
+
+export interface CreditNoteFormatSource {
+  /** The INVOICE descriptor - see this file's own header, "Why the invoice's descriptor". */
+  pricingDescriptor: DocumentTypeDescriptor;
+  /**
+   * Invoice-shaped data for the build: the corrected invoice's selected lines and client, the
+   * credit note's OWN issue date, currency and notes. In memory only, never persisted.
+   */
+  pricingData: Record<string, unknown>;
+  /** The corrected invoice's own issue date, as stored - what cross-border tax is resolved against
+   *  (`documents.service.ts#downloadDocumentFormat`): a reduction follows the tax treatment of the
+   *  supply it reduces, not whatever the rules say on the day the note is issued. */
+  correctedInvoiceIssueDate: unknown;
+  correctedInvoice: CorrectedInvoiceReference;
+}
+
+/** The credit note's own free text for BT-22: its `notes`, then its `reason` (the "why" a reader of
+ *  a credit note needs most), each only when set. */
+function creditNoteNotes(data: Record<string, unknown>): string | undefined {
+  const parts = [data.notes, data.reason]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim());
+  return parts.length > 0 ? parts.join('\n') : undefined;
+}
+
+export async function resolveCreditNoteFormatSource(
+  companyId: string,
+  creditNote: Pick<DocumentInstanceResult, 'data'>,
+): Promise<CreditNoteFormatSource> {
+  const data = (creditNote.data ?? {}) as Record<string, unknown>;
+  const invoiceId = typeof data.invoice === 'string' && data.invoice.trim() ? data.invoice : undefined;
+  if (!invoiceId) {
+    throw new BadRequestException(
+      'Cannot build an electronic credit note for a FREE credit note: it corrects no invoice, so it ' +
+        'has no buyer (a credit note takes its buyer from the invoice it corrects), and every ' +
+        'electronic invoice format requires one (EN 16931 BT-44/BG-8, FatturaPA ' +
+        'CessionarioCommittente). Only a credit note linked to an invoice can be exported.',
+    );
+  }
+
+  const invoice = await findOwnedDocument(companyId, 'invoice', invoiceId);
+  const invoiceData = (invoice.data ?? {}) as Record<string, unknown>;
+  if (!invoice.displayNumber) {
+    throw new BadRequestException(
+      'Cannot build an electronic credit note: the invoice it corrects has no number of its own, so ' +
+        'the mandatory reference to it (EN 16931 BG-3/BT-25) cannot be written.',
+    );
+  }
+
+  const selected = new Set(
+    Array.isArray(data.correctedLines)
+      ? (data.correctedLines as unknown[]).filter((id): id is string => typeof id === 'string')
+      : [],
+  );
+  const invoiceLines = Array.isArray(invoiceData.lines) ? (invoiceData.lines as unknown[]) : [];
+  const lines = invoiceLines.filter((line) => {
+    const rowId = rowIdOf(line);
+    return rowId !== undefined && selected.has(rowId);
+  });
+  if (lines.length === 0) {
+    throw new BadRequestException(
+      'Cannot build an electronic credit note: none of the lines it corrects exist on the invoice any ' +
+        'more, so it would credit nothing.',
+    );
+  }
+
+  const notes = creditNoteNotes(data);
+  return {
+    pricingDescriptor: INVOICE_DESCRIPTOR,
+    pricingData: {
+      client: invoiceData.client,
+      issueDate: data.issueDate,
+      // The invoice's currency, never the note's own label: the credited amount is denominated in it
+      // by construction (settlement/credits.ts's own header on `CreditsForDocument.warnings`).
+      currency: invoiceData.currency,
+      // BT-10 follows the corrected invoice: a German public buyer's Leitweg-ID routes the correction
+      // exactly as it routed the invoice.
+      ...(invoiceData.buyerReference !== undefined ? { buyerReference: invoiceData.buyerReference } : {}),
+      ...(notes ? { notes } : {}),
+      lines,
+    },
+    correctedInvoiceIssueDate: invoiceData.issueDate,
+    correctedInvoice: {
+      displayNumber: invoice.displayNumber,
+      issueDate: toDateOnly(invoiceData.issueDate),
+    },
+  };
+}

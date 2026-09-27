@@ -67,7 +67,12 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
-import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
+import {
+  DocumentFormatBuildOptions,
+  DocumentFormatBuildResult,
+  DocumentFormatParty,
+  DocumentFormatProvider,
+} from './format-provider';
 import { applyFrenchBusinessProcess, applyFrenchBusinessProcessInObject } from './semantic/business-process';
 import { splitCiiIncludedNotes, splitCiiIncludedNotesInObject } from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
@@ -116,6 +121,7 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
     company: DocumentFormatParty,
     client: DocumentFormatParty,
     companyId?: string,
+    options?: DocumentFormatBuildOptions,
   ): Promise<DocumentFormatBuildResult> {
     if (!companyId) {
       // Unreachable through `documents.service.ts` (it always passes its own `companyId` — see
@@ -127,6 +133,7 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
     const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
       businessProcessCodeOverride: deps.businessProcessCodeOverride,
       legalIdOverride: deps.legalIdOverride,
+      creditNote: options?.creditNote,
     });
     const service = newEuInvoiceService();
     // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved
@@ -161,8 +168,11 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
     const { pdf } = await renderDocumentInstance(
       { referenceRegistry: deps.referenceRegistry },
       companyId,
-      descriptor,
-      document,
+      // Issue #472 - a credit note's PDF is the credit note AS ISSUED (its own descriptor, title and
+      // number), never the INVOICE-shaped pricing input `descriptor`/`document` carry for it - see
+      // `DocumentFormatBuildOptions.humanReadable`'s own header.
+      options?.humanReadable?.descriptor ?? descriptor,
+      options?.humanReadable?.document ?? document,
     );
 
     const embedded = (await service.generate(euInvoice, {

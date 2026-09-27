@@ -13,8 +13,12 @@ import { logger } from '@/logger/logger.service';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { computeDocumentTotals } from '../totals/compute-totals';
-import { DocumentFormatParty } from './format-provider';
-import { buildSemanticInvoice, SemanticLineInput } from './semantic/build-semantic-invoice';
+import { CorrectedInvoiceReference, DocumentFormatParty } from './format-provider';
+import {
+  buildSemanticInvoice,
+  SemanticBuildError,
+  SemanticLineInput,
+} from './semantic/build-semantic-invoice';
 
 /**
  * Logger for `@e-invoice-eu/core`: quiet on narration, loud on the one thing worth knowing — REPRISED
@@ -56,6 +60,30 @@ export function toDateOnly(value: unknown): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return new Date().toISOString().slice(0, 10);
   return parsed.toISOString().slice(0, 10);
+}
+
+/**
+ * BT-1 (or FatturaPA's `Numero`, FA(3)'s `P_2`) - the document's OWN legal number, or a refusal.
+ * There used to be a `?? 'DRAFT'` fallback at each of the three call sites, on the theory that the
+ * caller's own 409 gate (`documents.service.ts#downloadDocumentFormat`) made it unreachable. Issue
+ * #472 made it reachable in the one case that matters: a credit note ISSUED before issue #471 gave
+ * the type a number ("Issued without a number", `credit-note.descriptor.ts`'s own "Numbering"
+ * header) sits in "sent" - a status the download is available from - with no number at all, and would
+ * have produced a file whose legal number is the literal word "DRAFT". A file carrying an invented
+ * number is worse than no file, so this throws the same `SemanticBuildError` every other "cannot even
+ * attempt to build" case here throws (a 400 at the download, a failed delivery at a transport).
+ * Exported for `national/fatturapa-provider.ts` and `national/fa3-provider.ts`.
+ */
+export function requireDisplayNumber(document: Pick<DocumentInstanceResult, 'displayNumber'>): string {
+  const number = document.displayNumber?.trim();
+  if (!number) {
+    throw new SemanticBuildError(
+      'Cannot build an electronic invoice file for a document that has no legal number (BT-1): ' +
+        'a structured invoice or credit note must carry the number it was issued with, and none ' +
+        'will be invented in its place.',
+    );
+  }
+  return number;
 }
 
 /**
@@ -177,17 +205,19 @@ export function buildEuInvoiceForDocument(
   document: Pick<DocumentInstanceResult, 'data' | 'displayNumber'>,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
-  options?: { customizationId?: string; businessProcessCodeOverride?: string; legalIdOverride?: 'full' },
+  options?: {
+    customizationId?: string;
+    businessProcessCodeOverride?: string;
+    legalIdOverride?: 'full';
+    creditNote?: { correctedInvoice: CorrectedInvoiceReference };
+  },
 ) {
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractLines(data);
 
   return buildSemanticInvoice({
-    // `document.displayNumber` is guaranteed non-null here — the caller only reaches a format
-    // provider once `documents.service.ts#downloadDocumentFormat`'s own 409 gate (an un-numbered
-    // document, still "draft") has already passed.
-    displayNumber: document.displayNumber ?? 'DRAFT',
+    displayNumber: requireDisplayNumber(document),
     issueDate: toDateOnly(data.issueDate),
     notes: typeof data.notes === 'string' && data.notes.trim() ? data.notes : undefined,
     seller: company,
@@ -199,5 +229,6 @@ export function buildEuInvoiceForDocument(
     customizationId: options?.customizationId,
     businessProcessCodeOverride: options?.businessProcessCodeOverride,
     legalIdOverride: options?.legalIdOverride,
+    creditNote: options?.creditNote,
   });
 }

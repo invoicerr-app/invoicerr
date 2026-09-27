@@ -101,6 +101,7 @@ import { FormatProviderRegistry, UnknownFormatError } from './formats/format-reg
 import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
 import { companyToFormatParty, clientToFormatParty } from './formats/party-snapshot';
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
+import { resolveCreditNoteFormatSource } from './formats/credit-note-source';
 import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
 import { resolveClientFieldKey, resolveDateFieldKey, resolveSearchTextFieldKeys } from './list-filters';
 import { isNumberingAllowedFrom } from './numbering/only-from';
@@ -1826,6 +1827,32 @@ export class DocumentsService implements OnModuleInit {
           `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${instance.status}".`,
       );
     }
+    // Issue #472 - a status the action is available from does not guarantee a number: a credit note
+    // issued before issue #471 gave the type a numbering sits in "sent" with none, and must never be
+    // numbered after the fact (`credit-note.descriptor.ts`, "Numbering"). No number, no file - never a
+    // file carrying a placeholder where the legal number goes (`shared-build.ts#requireDisplayNumber`
+    // refuses the same thing again at the builder, for every other caller).
+    if (!instance.displayNumber) {
+      throw new ConflictException(
+        'Cannot download an electronic invoice file for a document issued without a number: the file ' +
+          'must carry the legal number the document was issued with (EN 16931 BT-1), and none will be ' +
+          'invented after the fact.',
+      );
+    }
+
+    // Issue #472 - the syntax must be one THIS type's own action offers, not merely one the registry
+    // knows: a credit note deliberately does not offer `fa3` (credit-note.descriptor.ts), and a
+    // scripted client asking for it anyway gets the same 501 an unregistered syntax gets, rather than
+    // reaching a builder that was never meant to see this type.
+    const offeredSyntaxes = action.params
+      ?.find((param) => param.key === 'syntax')
+      ?.options?.map((option) => option.value);
+    if (offeredSyntaxes && !offeredSyntaxes.includes(syntax)) {
+      throw new NotImplementedException(
+        `Document format "${syntax}" is not offered for document type "${typeId}" - offered formats: ` +
+          `${offeredSyntaxes.join(', ')}.`,
+      );
+    }
 
     let provider: DocumentFormatProvider;
     try {
@@ -1843,7 +1870,13 @@ export class DocumentsService implements OnModuleInit {
       throw error;
     }
 
-    const data = (instance.data ?? {}) as Record<string, unknown>;
+    // Issue #472 - a credit note is built from the invoice it corrects (its buyer, its selected lines,
+    // priced with the invoice's own descriptor) - see `formats/credit-note-source.ts`'s own header.
+    // Every other type builds from its own data, exactly as before.
+    const creditNoteSource =
+      typeId === 'credit-note' ? await resolveCreditNoteFormatSource(companyId, instance) : undefined;
+    const buildDescriptor = creditNoteSource?.pricingDescriptor ?? descriptor;
+    const data = creditNoteSource?.pricingData ?? ((instance.data ?? {}) as Record<string, unknown>);
     const clientId = typeof data.client === 'string' ? data.client : undefined;
     const [company, client] = await Promise.all([
       prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } }),
@@ -1876,7 +1909,13 @@ export class DocumentsService implements OnModuleInit {
     // for why this same rewrite ALSO has to happen there (every transport, not just this download
     // button, must agree on the resolved treatment).
     let dataForBuild = data;
-    if (typeId === 'invoice') {
+    if (typeId === 'invoice' || creditNoteSource) {
+      // Issue #472 - a credit note carries the tax treatment of the supply it reduces: it is resolved
+      // against the CORRECTED INVOICE's own issue date (the date its treatment was fixed at), then the
+      // credit note's own date is put back for BT-2 below. An invoice resolves against its own date.
+      const taxData = creditNoteSource
+        ? { ...data, issueDate: creditNoteSource.correctedInvoiceIssueDate }
+        : data;
       const buyerVatRow = client.partyIdentifiers.find((pi) => pi.scheme === 'VAT');
       try {
         dataForBuild = resolveInvoiceCrossBorderTax({
@@ -1899,8 +1938,11 @@ export class DocumentsService implements OnModuleInit {
           buyerVat: buyerVatRow
             ? { value: buyerVatRow.value, validationStatus: buyerVatRow.validationStatus }
             : undefined,
-          data,
+          data: taxData,
         }).data;
+        if (creditNoteSource) {
+          dataForBuild = { ...dataForBuild, issueDate: data.issueDate };
+        }
       } catch (error) {
         if (isInvoiceTaxBlockError(error)) {
           throw new BadRequestException({ message: error.message, errors: [error.message] });
@@ -1908,16 +1950,22 @@ export class DocumentsService implements OnModuleInit {
         throw error;
       }
     }
-    const instanceForBuild = dataForBuild === data ? instance : { ...instance, data: dataForBuild };
+    const instanceForBuild = dataForBuild === instance.data ? instance : { ...instance, data: dataForBuild };
 
     let buildResult: DocumentFormatBuildResult;
     try {
       buildResult = await provider.build(
-        descriptor,
+        buildDescriptor,
         instanceForBuild,
         companyToFormatParty(company),
         clientToFormatParty(client),
         companyId,
+        creditNoteSource
+          ? {
+              creditNote: { correctedInvoice: creditNoteSource.correctedInvoice },
+              humanReadable: { descriptor, document: instance },
+            }
+          : undefined,
       );
     } catch (error) {
       if (error instanceof SemanticBuildError) {

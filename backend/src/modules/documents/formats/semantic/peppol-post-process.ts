@@ -57,9 +57,8 @@
 export function mergePeppolNotesInObject(data: Record<string, unknown>): void {
   // The UBL formatter's own `generate()` produces exactly one of these two root keys (`Invoice` for
   // an invoice, `CreditNote` once it rewrites the tree for a credit-note type code) — see
-  // `@e-invoice-eu/core`'s own `FormatUBLService#generate`. `peppol-bis-provider.ts` only ever builds
-  // the invoice branch today (its own semantic bridge always sets `cbc:InvoiceTypeCode: '380'` — see
-  // `build-semantic-invoice.ts`'s header), so the `CreditNote` branch is defensive, not yet reachable.
+  // `@e-invoice-eu/core`'s own `FormatUBLService#generate`. Issue #472 made the `CreditNote` branch
+  // reachable: a credit note is built with type code 381 (`build-semantic-invoice.ts`'s header, "BT-3").
   const root = (data.Invoice ?? data.CreditNote) as Record<string, unknown> | undefined;
   if (!root) return; // neither key present — nothing this function knows how to touch, safe no-op
 
