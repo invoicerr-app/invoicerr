@@ -951,7 +951,8 @@ export function DocumentList({
   // moved server-side — the one thing worth naming explicitly given that move.
   const amounts = useMemo(() => {
     const byId = new Map<string, RowAmount | null>()
-    for (const instance of items) byId.set(instance.id, resolveRowAmount(descriptor, instance.data))
+    for (const instance of items)
+      byId.set(instance.id, resolveRowAmount(descriptor, instance.data, instance.acceptedOption))
     return byId
   }, [descriptor, items])
 

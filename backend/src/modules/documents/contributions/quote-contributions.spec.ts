@@ -87,6 +87,31 @@ describe('quoteGrossTotal', () => {
     expect(currency).toBe('USD');
     expect(optionsCount).toBe(2);
   });
+
+  // Issue #479: once an option is accepted, the row reports that option's total, common lines
+  // included, instead of "2 options".
+  const optionQuote = {
+    currency: 'EUR',
+    lines: [
+      { description: 'Setup', quantity: 1, unitPrice: 50, vatRate: '20' },
+      { description: 'A', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+      { description: 'B', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+    ],
+  };
+
+  it("reports the ACCEPTED option's own total, common lines included, once one is accepted", () => {
+    const { amount, currency, optionsCount } = quoteGrossTotal(optionQuote, 'Premium');
+    // (50 + 200) net, +20% VAT = 300 gross.
+    expect(amount).toBeCloseTo(300);
+    expect(currency).toBe('EUR');
+    expect(optionsCount).toBeUndefined();
+  });
+
+  it('keeps "N options" when the accepted option no longer exists on the quote', () => {
+    const { amount, optionsCount } = quoteGrossTotal(optionQuote, 'Gold');
+    expect(amount).toBeNull();
+    expect(optionsCount).toBe(2);
+  });
 });
 
 describe('buildQuoteDashboardWidgets', () => {

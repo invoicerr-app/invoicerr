@@ -45,6 +45,7 @@ import { DocumentTaxWarningsSection } from "@/components/documents/document-tax-
 import {
   DocumentTotals,
   formatTotal,
+  acceptedOptionTotals,
   useDocumentOptionTotals,
   useDocumentTotals,
 } from "@/components/documents/document-totals"
@@ -407,7 +408,7 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
               </span>
             )
           })}
-          <HeadlineAmount descriptor={descriptor} />
+          <HeadlineAmount descriptor={descriptor} acceptedOption={instance.acceptedOption} />
         </div>
       </div>
 
@@ -419,14 +420,22 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
 /** The live gross total, in the mono figures face — the one number a reader looks for first.
  *  Absent for a type with nothing to total (see useDocumentTotals), and - issue #373 ("quotes with
  *  options") - absent for a quote offering 2+ options: there is no single gross to headline until the
- *  client picks one, and the per-option totals card below is where each option's own total lives. */
-function HeadlineAmount({ descriptor }: { descriptor: DocumentTypeDescriptor }) {
+ *  client picks one, and the per-option totals card below is where each option's own total lives.
+ *  Issue #479: once an option IS picked (`acceptedOption`), that option's own total is the headline. */
+function HeadlineAmount({
+  descriptor,
+  acceptedOption,
+}: {
+  descriptor: DocumentTypeDescriptor
+  acceptedOption?: string | null
+}) {
   const optionTotals = useDocumentOptionTotals(descriptor)
   const totals = useDocumentTotals(descriptor)
-  if (optionTotals || !totals) return null
+  const headline = optionTotals ? acceptedOptionTotals(optionTotals, acceptedOption) : totals
+  if (!headline) return null
   return (
     <span className="amount text-base font-semibold text-foreground" data-cy="document-detail-amount">
-      {formatTotal(totals.grossMinor, totals.currency || "")}
+      {formatTotal(headline.grossMinor, headline.currency || "")}
     </span>
   )
 }

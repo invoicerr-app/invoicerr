@@ -208,6 +208,23 @@ export function computeDocumentOptionTotals(
 }
 
 /**
+ * Issue #479 - the frontend mirror of the backend's own `options/quote-options.ts#acceptedOptionTotals`:
+ * the totals of the option a quote was ACCEPTED for, picked out of `computeDocumentOptionTotals`'
+ * own result so the summary places (list amount, detail header) show exactly the figure the
+ * per-option totals card prints for that option. Null when there are no options, when nothing has
+ * been accepted yet, or when `acceptedOption` no longer names one of the CURRENT options (the quote
+ * was edited after acceptance - the caller then keeps showing no single amount, rather than a figure
+ * for an option that no longer exists).
+ */
+export function acceptedOptionTotals(
+  optionTotals: DocumentOptionTotals[] | null,
+  acceptedOption: string | null | undefined,
+): ClientDocumentTotals | null {
+  if (!optionTotals || !acceptedOption) return null
+  return optionTotals.find((entry) => entry.option === acceptedOption)?.totals ?? null
+}
+
+/**
  * Issue #373 follow-up ("common lines") - the frontend mirror of the backend's own
  * `computeCommonLineTotals`: the common (untagged) lines' OWN informational total, shown alongside
  * the per-option blocks so a reader can see where each option's own common contribution came from.
