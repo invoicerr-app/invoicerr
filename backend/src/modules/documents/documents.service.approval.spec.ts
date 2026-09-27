@@ -247,13 +247,19 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as Mock).mockResolvedValue({
-      id: 'doc-1',
-      typeId: 'quote',
-      status: 'sending',
-      data: multiOptionData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    // "send" from "draft" takes the atomic status+number write (PR #473), not `upsertDocument`.
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: {
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: multiOptionData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
+      },
+      numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
     });
     // Sum would be 1300 EUR (over threshold); the highest single option is 700 EUR (under it).
     (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(100000);
