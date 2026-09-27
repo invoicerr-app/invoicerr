@@ -19,18 +19,27 @@ import { BadRequestException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
+import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveDocumentCustomFieldDescriptors } from '../company-custom-fields/persistence';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
 import { PaymentMethodPresentation } from '../payment-methods/types';
 import { DocumentTotals } from '../totals/compute-totals';
+import { renderPdf } from './render-pdf';
 import {
   legalMentionsFor,
   paymentMethodsFor,
   renderDocumentInstance,
   sepaPaymentQrFor,
 } from './render-instance-pdf';
+
+// The option-groups test below (review point #3) needs the FINAL composed HTML - never launches
+// real Chromium: `renderPdf` is mocked so the html string it was called with can be captured, the
+// same "capture what the pipeline actually produced, skip the rendering engine itself" split this
+// file's own header already draws for legalMentionsFor/sepaPaymentQrFor.
+vi.mock('./render-pdf');
+const mockedRenderPdf = renderPdf as MockedFunction<typeof renderPdf>;
 
 // `paymentMethodsFor` needs neither Prisma nor Puppeteer EITHER, once its one real dependency
 // (`resolveEnabledPaymentMethodPresentations`, which DOES touch Prisma — see persistence.spec.ts for
@@ -366,5 +375,89 @@ describe('renderDocumentInstance — an unresolvable legal-mention placeholder b
         },
       ),
     ).rejects.toThrow(BadRequestException);
+  });
+});
+
+/**
+ * Review point #3 ("wrong VAT line for VAT-exempt companies") - `computeQuoteOptionTotals` used to
+ * be called without `sellerExemptVat`, so a franchise-base seller (art. 293 B CGI) whose lines still
+ * carried a non-zero rate printed "VAT 20%" under EVERY option, even though the ordinary single-total
+ * path (`computeDocumentTotals(..., { sellerExemptVat: company.exemptVat })` right above it) already
+ * hid that same row. Proven against the REAL quote descriptor and the REAL render-html.ts pipeline -
+ * `renderPdf` mocked only to capture the html it was handed, never the composition itself.
+ */
+describe("renderDocumentInstance - a VAT-exempt company's quote with 2+ options (review point #3)", () => {
+  const quoteDescriptor = buildQuoteDescriptor();
+
+  const exemptCompany = {
+    name: 'Dupont Consulting',
+    address: '12 Rue de la Paix',
+    city: 'Paris',
+    postalCode: '75002',
+    country: 'France',
+    iban: null,
+    language: null,
+    exemptVat: true,
+    brandingAccentColor: null,
+    brandingFont: null,
+    brandingLogoId: null,
+  };
+
+  const quoteWithOptions = {
+    id: 'quote-1',
+    status: 'sent' as const,
+    data: {
+      currency: 'EUR',
+      issueDate: '2026-06-30',
+      lines: [
+        { description: 'Basic package', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+        { description: 'Premium package', quantity: 1, unitPrice: 300, vatRate: '20', option: 'Premium' },
+      ],
+    },
+    createdAt: new Date(),
+    displayNumber: 'Q-2026-0001',
+    atcud: null,
+    acceptedOption: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedResolveCustomFields.mockResolvedValue([]);
+    mockedRenderPdf.mockResolvedValue(Buffer.from('pdf-bytes'));
+  });
+
+  it('prints NO "VAT 20%" line under either option once the company is VAT-exempt', async () => {
+    (prisma.company.findUnique as Mock).mockResolvedValue(exemptCompany);
+
+    await renderDocumentInstance(
+      { referenceRegistry: new EntityReferenceRegistry() },
+      'company-1',
+      quoteDescriptor,
+      quoteWithOptions,
+    );
+
+    expect(mockedRenderPdf).toHaveBeenCalledTimes(1);
+    const html = mockedRenderPdf.mock.calls[0][0];
+    expect(html).not.toContain('VAT 20%');
+    // The gross figures still print - only the VAT breakdown row is hidden, same as the single-total
+    // exempt path (`render-html.spec.ts`'s own "showVat: false" describe block). The arithmetic itself
+    // is untouched by the exemption flag (the stray non-zero rate is a data fact, not zeroed here) -
+    // Basic's own 100.00 net still grosses to 120.00, Premium's 300.00 net to 360.00.
+    expect(html).toContain('120.00 EUR');
+    expect(html).toContain('360.00 EUR');
+  });
+
+  it('prints "VAT 20%" under each option for the SAME quote when the company is NOT exempt', async () => {
+    (prisma.company.findUnique as Mock).mockResolvedValue({ ...exemptCompany, exemptVat: false });
+
+    await renderDocumentInstance(
+      { referenceRegistry: new EntityReferenceRegistry() },
+      'company-1',
+      quoteDescriptor,
+      quoteWithOptions,
+    );
+
+    const html = mockedRenderPdf.mock.calls[0][0];
+    expect(html).toContain('VAT 20%');
   });
 });

@@ -1800,3 +1800,59 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
   });
 });
+
+/**
+ * Review point #4 ("option mode is not restricted to quotes") - an invoice's line shape declares no
+ * `option` subfield (invoice.descriptor.ts), so `rejectStrayOptionTag` (documents.service.ts#runAction,
+ * called alongside `validateAgainstDescriptor`) must refuse an `option`-tagged line before it is ever
+ * persisted, rather than silently keeping a key that would otherwise make the PDF/email/totals paths
+ * downstream mistake this invoice for a quote with options.
+ */
+describe('DocumentsService - an `option` tag on a non-quote type is refused, never silently kept', () => {
+  beforeEach(() => {
+    (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
+      (_companyId: string, data: Record<string, unknown>) =>
+        Promise.resolve({ data, crossBorder: false, warnings: [] }),
+    );
+    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
+      applies: false,
+      missingIdentifierSchemes: [],
+    });
+  });
+  afterEach(() => vi.resetAllMocks());
+
+  it('refuses "save-draft" (400, naming the field) when a line carries an option tag', async () => {
+    const { service } = buildService();
+    const dataWithStrayOption = {
+      ...validInvoiceData,
+      lines: [{ ...validInvoiceData.lines[0], option: 'Basic' }],
+    };
+
+    await expect(
+      service.runAction('company-1', 'invoice', 'save-draft', { data: dataWithStrayOption }),
+    ).rejects.toThrow(BadRequestException);
+    await expect(
+      service.runAction('company-1', 'invoice', 'save-draft', { data: dataWithStrayOption }),
+    ).rejects.toThrow(/"lines\[0\].option" is not a field this document type declares/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
+  it('leaves an ordinary invoice (no option tag anywhere) completely unaffected', async () => {
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: validInvoiceData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+      data: validInvoiceData,
+    });
+    expect(result.changed).toBe(true);
+  });
+});

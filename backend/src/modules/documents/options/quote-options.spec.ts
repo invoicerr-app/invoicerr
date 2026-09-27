@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
+import { DocumentFieldDescriptor } from '../descriptors/types';
 import {
   commonLinesOf,
   computeCommonLineTotals,
   computeQuoteOptionTotals,
   deriveQuoteOptions,
+  isQuoteWithOptions,
+  rejectStrayOptionTag,
   resolveChosenOption,
   resolveInvoiceableLines,
   stripOptionTag,
@@ -142,6 +145,32 @@ describe('computeQuoteOptionTotals', () => {
   });
 });
 
+describe('computeQuoteOptionTotals - sellerExemptVat forwarding (review point #3)', () => {
+  it('hides the VAT breakdown under EVERY option, exactly like the single-total path, when the seller is VAT-exempt', () => {
+    const data = {
+      currency: 'EUR',
+      lines: [
+        line({ option: 'Basic', unitPrice: 100, vatRate: '20' }),
+        line({ option: 'Premium', unitPrice: 200, vatRate: '20' }),
+      ],
+    };
+    // Without the option - the pre-fix bug: `showVat` stays true (the default) for every option,
+    // even though the same data through `computeDocumentTotals` with `sellerExemptVat: true` would
+    // print no VAT line at all.
+    const withoutExemption = computeQuoteOptionTotals(data)!;
+    expect(withoutExemption.every((r) => r.totals.showVat !== false)).toBe(true);
+
+    const withExemption = computeQuoteOptionTotals(data, { sellerExemptVat: true })!;
+    expect(withExemption).not.toBeNull();
+    expect(withExemption.every((r) => r.totals.showVat === false)).toBe(true);
+    // The arithmetic itself never changes - only the display flag (`DocumentTotals.showVat`'s own
+    // header): a franchise-base seller's stored rate is still whatever was typed.
+    expect(withExemption.find((r) => r.option === 'Basic')!.totals.grossMinor).toBe(
+      withoutExemption.find((r) => r.option === 'Basic')!.totals.grossMinor,
+    );
+  });
+});
+
 describe('commonLinesOf / computeCommonLineTotals', () => {
   it('is empty/null when the quote has fewer than two options - the common concept does not apply yet', () => {
     const data = { currency: 'EUR', lines: [line()] };
@@ -171,6 +200,74 @@ describe('commonLinesOf / computeCommonLineTotals', () => {
     expect(common!.lines.map((l) => l.description)).toEqual(['Setup fee']);
     expect(common!.totals.netMinor).toBe(5000);
     expect(common!.totals.grossMinor).toBe(6000);
+  });
+
+  it('forwards sellerExemptVat to the common group too (review point #3)', () => {
+    const data = {
+      currency: 'EUR',
+      lines: [
+        line({ option: 'Basic', unitPrice: 100, vatRate: '20' }),
+        line({ description: 'Setup fee', unitPrice: 50, vatRate: '20' }),
+        line({ option: 'Premium', unitPrice: 300, vatRate: '20' }),
+      ],
+    };
+    expect(computeCommonLineTotals(data)!.totals.showVat).not.toBe(false);
+    expect(computeCommonLineTotals(data, { sellerExemptVat: true })!.totals.showVat).toBe(false);
+  });
+});
+
+describe('isQuoteWithOptions (review point #4)', () => {
+  it('is false for any typeId other than "quote", even when the data carries 2+ option tags', () => {
+    const data = {
+      lines: [line({ option: 'Basic' }), line({ option: 'Premium' })],
+    };
+    expect(isQuoteWithOptions('invoice', data)).toBe(false);
+    expect(isQuoteWithOptions('credit-note', data)).toBe(false);
+    expect(isQuoteWithOptions('purchase-order', data)).toBe(false);
+  });
+
+  it('is false for "quote" with fewer than two options, true for 2+', () => {
+    expect(isQuoteWithOptions('quote', { lines: [line()] })).toBe(false);
+    expect(
+      isQuoteWithOptions('quote', { lines: [line({ option: 'Basic' }), line({ option: 'Premium' })] }),
+    ).toBe(true);
+  });
+});
+
+describe('rejectStrayOptionTag (review point #4)', () => {
+  const linesField: DocumentFieldDescriptor = {
+    key: 'lines',
+    kind: 'array',
+    label: 'Lines',
+    required: true,
+    fields: [{ key: 'description', kind: 'text', label: 'Description', required: false }],
+  };
+  const linesFieldWithOption: DocumentFieldDescriptor = {
+    ...linesField,
+    fields: [...linesField.fields!, { key: 'option', kind: 'text', label: 'Option', required: false }],
+  };
+
+  it('refuses (named 400) an option tag on a row of a field whose descriptor never declares one', () => {
+    expect(() =>
+      rejectStrayOptionTag([linesField], { lines: [{ description: 'x', option: 'Basic' }] }),
+    ).toThrow(/"lines\[0\].option" is not a field this document type declares/);
+  });
+
+  it('is a no-op for a blank/unset option tag - nothing to refuse', () => {
+    expect(() => rejectStrayOptionTag([linesField], { lines: [{ description: 'x' }] })).not.toThrow();
+    expect(() =>
+      rejectStrayOptionTag([linesField], { lines: [{ description: 'x', option: '  ' }] }),
+    ).not.toThrow();
+  });
+
+  it('never refuses when the field DOES declare an `option` subfield (the quote itself)', () => {
+    expect(() =>
+      rejectStrayOptionTag([linesFieldWithOption], { lines: [{ description: 'x', option: 'Basic' }] }),
+    ).not.toThrow();
+  });
+
+  it('is a no-op for a document type with no array field at all', () => {
+    expect(() => rejectStrayOptionTag([], { anything: 'x' })).not.toThrow();
   });
 });
 

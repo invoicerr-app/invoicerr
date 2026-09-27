@@ -30,7 +30,12 @@ import {
 import { persistArtifacts, readArchivedArtifact } from '../archive/storage';
 import { DocumentsService } from '../documents.service';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
-import { computeQuoteOptionTotals, deriveQuoteOptions, resolveChosenOption } from '../options/quote-options';
+import {
+  computeQuoteOptionTotals,
+  deriveQuoteOptions,
+  isQuoteWithOptions,
+  resolveChosenOption,
+} from '../options/quote-options';
 import {
   buildDocumentWebhookPayload,
   DOCUMENT_WEBHOOK_EMITTER,
@@ -220,7 +225,12 @@ export class SignaturesService {
     const row = await this.resolveActiveOrThrow(token);
     const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId).catch(() => null);
     const data = (document?.data ?? {}) as Record<string, unknown>;
-    const perOption = computeQuoteOptionTotals(data);
+    // Review point #4 ("option mode is not restricted to quotes") - `request-signature` is only ever
+    // registered for typeId "quote" (`actions/request-signature.ts`), so `row.typeId` is always
+    // "quote" in practice, but this method never trusted that alone anywhere else in this class either
+    // (see `resolveActiveOrThrow`'s own header) - `isQuoteWithOptions` makes the gate explicit rather
+    // than implicit in how the row was created.
+    const perOption = isQuoteWithOptions(row.typeId, data) ? computeQuoteOptionTotals(data) : null;
     return {
       typeId: row.typeId,
       displayNumber: document?.displayNumber ?? null,

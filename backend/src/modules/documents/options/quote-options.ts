@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
-import { computeDocumentTotals, DocumentTotals } from '../totals/compute-totals';
+import { DocumentFieldDescriptor } from '../descriptors/types';
+import { computeDocumentTotals, ComputeTotalsOptions, DocumentTotals } from '../totals/compute-totals';
 
 /**
  * Issue #373 ("quotes with options"): a quote can carry two or more named options, each with its own
@@ -66,6 +67,26 @@ export function deriveQuoteOptions(data: Record<string, unknown> | null | undefi
 }
 
 /**
+ * The ONE predicate every option-mode path (PDF render, email placeholder, portal, statistics,
+ * approval threshold, acceptance, conversion, frontend summary/detail/list) must gate on - this
+ * round's review finding: the option path used to be switched on by the presence of an `option` tag
+ * on lines alone, trusting that no OTHER document type would ever carry one. That assumption held
+ * only because the descriptor system happened to never declare an `option` subfield anywhere but the
+ * quote, never because anything enforced it - an invoice created straight through the API, its
+ * `data.lines` hand-crafted to include an `option` key, would have `deriveQuoteOptions` derive real
+ * options for it too, `computeQuoteOptionTotals` build a QUOTE descriptor over INVOICE data, and every
+ * caller above silently take the wrong branch. `typeId === 'quote'` is checked FIRST (a cheap string
+ * compare) so `deriveQuoteOptions` - which walks every line - is never even asked to interpret a
+ * document type it was never meant to.
+ */
+export function isQuoteWithOptions(
+  typeId: string,
+  data: Record<string, unknown> | null | undefined,
+): boolean {
+  return typeId === 'quote' && deriveQuoteOptions(data).length >= 2;
+}
+
+/**
  * Every line that counts toward THIS option - its own tagged lines PLUS every common (untagged)
  * line, in ORIGINAL relative order (a single filter pass over `quoteLines`, never two arrays
  * concatenated - concatenating tagged-then-common would silently reorder a common line typed
@@ -96,13 +117,23 @@ export interface QuoteOptionTotals {
  * own totals ever disagreeing with its rounding/VAT-aggregation rules. There is deliberately no
  * GLOBAL total alongside these: summing several options together (the client will only ever pay for
  * ONE) would be exactly the meaningless number this issue exists to stop printing.
+ *
+ * `totalsOptions` is forwarded verbatim to every one of these `computeDocumentTotals` calls - in
+ * particular `sellerExemptVat` (`ComputeTotalsOptions`'s own header): a franchise-base seller
+ * (art. 293 B CGI) whose lines still carry a non-zero rate must never print "VAT 20%" under an
+ * option any more than the single-total path does (`render-instance-pdf.ts`'s own call passes the
+ * SAME `company.exemptVat` to both this function and its own `computeDocumentTotals` call - this
+ * round's review finding: the omission here was a wrong legal mention on a sent document).
  */
-export function computeQuoteOptionTotals(data: Record<string, unknown>): QuoteOptionTotals[] | null {
+export function computeQuoteOptionTotals(
+  data: Record<string, unknown>,
+  totalsOptions?: ComputeTotalsOptions,
+): QuoteOptionTotals[] | null {
   const options = deriveQuoteOptions(data);
   if (options.length < 2) return null;
   return options.map((option) => {
     const lines = linesForOption(data, option);
-    const totals = computeDocumentTotals(QUOTE_DESCRIPTOR, { ...data, lines });
+    const totals = computeDocumentTotals(QUOTE_DESCRIPTOR, { ...data, lines }, totalsOptions);
     return { option, lines, totals };
   });
 }
@@ -114,15 +145,17 @@ export function computeQuoteOptionTotals(data: Record<string, unknown>): QuoteOp
  * COMMON's own total plus an option's own visible rows add up to that option's own printed total
  * (`computeQuoteOptionTotals` already folds the common contribution into EVERY option's own totals
  * above). Null whenever `computeQuoteOptionTotals` itself would be (fewer than two options) or when
- * there are no common lines at all to show a group for.
+ * there are no common lines at all to show a group for. `totalsOptions` - same forwarding, same
+ * reason, as `computeQuoteOptionTotals`'s own header just above.
  */
 export function computeCommonLineTotals(
   data: Record<string, unknown>,
+  totalsOptions?: ComputeTotalsOptions,
 ): { lines: QuoteLine[]; totals: DocumentTotals } | null {
   if (deriveQuoteOptions(data).length < 2) return null;
   const lines = commonLinesOf(data);
   if (lines.length === 0) return null;
-  const totals = computeDocumentTotals(QUOTE_DESCRIPTOR, { ...data, lines });
+  const totals = computeDocumentTotals(QUOTE_DESCRIPTOR, { ...data, lines }, totalsOptions);
   return { lines, totals };
 }
 
@@ -217,4 +250,42 @@ export function resolveInvoiceableLines(
     );
   }
   return stripOptionTag(linesForOption(quoteData, acceptedOption));
+}
+
+/**
+ * Refuses (400, naming the field) an `option` key on any row of any 'array' field whose OWN
+ * subfields do not declare one - this round's review finding: the line validator
+ * (`descriptors/validate.ts#validateAgainstDescriptor`) only ever checks fields the descriptor
+ * DECLARES, so an invoice (or any other type) sent through the API with `lines[].option` set would
+ * silently keep that key, losing its global total on the PDF and its Factur-X export, getting totals
+ * computed with the quote's own rules wherever a caller forgot `typeId === 'quote'`, and sending an
+ * email whose total is replaced by the options sentence - none of which is what an invoice, whose
+ * line shape has no notion of "option" at all, is supposed to do.
+ *
+ * Descriptor-driven, never hardcoded to a `typeId` check: a field's own `fields` (its row shape)
+ * already says whether `option` is a real, declared subfield (only quote.descriptor.ts's `lines` does
+ * today) - so this generalizes for free to any future document type that legitimately reuses the same
+ * subfield, without this function ever needing to name "quote" itself. Called from
+ * `documents.service.ts#runAction` alongside `validateAgainstDescriptor`, for save-draft and send
+ * alike, on the SAME `payload.data` that function already validates.
+ */
+export function rejectStrayOptionTag(fields: DocumentFieldDescriptor[], data: Record<string, unknown>): void {
+  for (const field of fields) {
+    if (field.kind !== 'array' || !field.fields?.length) continue;
+    const declaresOption = field.fields.some((subField) => subField.key === 'option');
+    if (declaresOption) continue;
+
+    const rows = data[field.key];
+    if (!Array.isArray(rows)) continue;
+    rows.forEach((row, index) => {
+      if (row === null || typeof row !== 'object' || Array.isArray(row)) return;
+      const raw = (row as Record<string, unknown>).option;
+      if (typeof raw === 'string' && raw.trim()) {
+        throw new BadRequestException(
+          `"${field.key}[${index}].option" is not a field this document type declares - an option ` +
+            'tag is only meaningful on a quote (issue #373).',
+        );
+      }
+    });
+  }
 }

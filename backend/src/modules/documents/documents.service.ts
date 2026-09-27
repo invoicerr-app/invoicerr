@@ -15,7 +15,7 @@ import { SigningCertificatesService } from '@/modules/company/signing-certificat
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
-import { computeQuoteOptionTotals } from './options/quote-options';
+import { computeQuoteOptionTotals, isQuoteWithOptions, rejectStrayOptionTag } from './options/quote-options';
 import {
   APPROVAL_REQUIRED_MESSAGE,
   requiresApproval,
@@ -1297,6 +1297,11 @@ export class DocumentsService implements OnModuleInit {
     // category this exact record already carries, a required custom field added after the fact) —
     // never on anything about the data itself, which has not changed.
     if (!isAdmittedReplay) {
+      // Issue #373 follow-up (review point #4, "option mode is not restricted to quotes") - the line
+      // validator right below only ever checks fields the descriptor DECLARES, so it would silently
+      // keep an `option` key on a type whose descriptor never declares one. Refused here, loudly,
+      // before that data is ever persisted - see `rejectStrayOptionTag`'s own header.
+      rejectStrayOptionTag(fields, payload.data ?? {});
       const dataErrors = validateAgainstDescriptor(fields, payload.data ?? {}, this.fieldKindRegistry);
       // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares
       // none (the loop inside just finds nothing), never a DB round-trip for the quote or the invoice.
@@ -1382,10 +1387,11 @@ export class DocumentsService implements OnModuleInit {
       // so what matters is whether the MOST EXPENSIVE option a MEMBER could send this quote for
       // exceeds the threshold - never the sum of offers the client was never going to accept all of.
       // `computeQuoteOptionTotals` already folds every common (untagged) line into each option's own
-      // total, so this is that option's real gross, not just its tagged rows. `typeId === 'quote'`
+      // total, so this is that option's real gross, not just its tagged rows. `isQuoteWithOptions`
       // guards this: `computeQuoteOptionTotals` always builds a QUOTE descriptor internally, so it
-      // must never be asked to interpret another type's `data`.
-      const optionTotals = typeId === 'quote' ? computeQuoteOptionTotals(data) : null;
+      // must never be asked to interpret another type's `data` (review point #4 - the SAME predicate
+      // every other option-mode path below now shares, rather than each re-deriving its own check).
+      const optionTotals = isQuoteWithOptions(typeId, data) ? computeQuoteOptionTotals(data) : null;
       const grossMinor = optionTotals
         ? Math.max(...optionTotals.map((entry) => entry.totals.grossMinor))
         : computeDocumentTotals(descriptor, data).grossMinor;

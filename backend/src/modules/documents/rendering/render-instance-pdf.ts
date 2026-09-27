@@ -14,7 +14,11 @@ import {
   UnresolvedInvoiceNotePlaceholderError,
 } from '../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../mentions/registry';
-import { computeCommonLineTotals, computeQuoteOptionTotals } from '../options/quote-options';
+import {
+  computeCommonLineTotals,
+  computeQuoteOptionTotals,
+  isQuoteWithOptions,
+} from '../options/quote-options';
 import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
 import { PaymentMethodPresentation } from '../payment-methods/types';
 import { EntityReferenceRegistry } from '../references/reference-registry';
@@ -358,19 +362,32 @@ export async function renderDocumentInstance(
   // every line to 0% (`tax/resolve-invoice-tax.ts#applyDomesticTaxScheme`) — `sellerExemptVat` hides
   // the redundant VAT row on THIS PDF (draft preview or final) without waiting for that resolution,
   // and without touching a single net/vat/gross figure (see `DocumentTotals.showVat`'s own header).
-  const totals = computeDocumentTotals(descriptor, instanceData, { sellerExemptVat: company.exemptVat });
-  // Issue #373 ("quotes with options") - null for every document type other than "quote" (no other
-  // type's line shape ever carries an `option` tag) and for a quote with fewer than two of them: see
-  // `computeQuoteOptionTotals`'s own header. When it is NOT null, `optionGroups` below replaces the
-  // ordinary `totals` in what `renderDocumentHtml` actually prints - see that input's own header on
-  // why a quote with 2+ options shows NO global total.
-  const quoteOptionTotals = computeQuoteOptionTotals(instanceData);
+  const totalsOptions = { sellerExemptVat: company.exemptVat };
+  const totals = computeDocumentTotals(descriptor, instanceData, totalsOptions);
+  // Issue #373 ("quotes with options") - `isQuoteWithOptions` gates this on the document actually
+  // BEING a quote (`descriptor.id === 'quote'`), not merely on its lines happening to carry an
+  // `option` tag - review point #4 ("option mode is not restricted to quotes"): the old
+  // `computeQuoteOptionTotals(instanceData)` call trusted that no OTHER type's line shape would ever
+  // carry that tag, which `rejectStrayOptionTag` (documents.service.ts#runAction) now actually
+  // enforces at write time, but this render path must never rely on that alone either. When it is NOT
+  // null, `optionGroups` below replaces the ordinary `totals` in what `renderDocumentHtml` actually
+  // prints - see that input's own header on why a quote with 2+ options shows NO global total.
+  // `totalsOptions` (review point #3, "wrong VAT line for VAT-exempt companies") - forwarded here the
+  // SAME way it is to the single-total `totals` right above: a franchise-base seller whose lines still
+  // carry a non-zero rate must not print "VAT 20%" under an option any more than it does under the
+  // single total.
+  const quoteOptionTotals = isQuoteWithOptions(descriptor.id, instanceData)
+    ? computeQuoteOptionTotals(instanceData, totalsOptions)
+    : null;
   // Issue #373 follow-up: a line nobody tagged with an `option` at all ("Setup fee") is COMMON to
   // every option above (already folded into each one's own `totals` - see that function's own
   // header) - this is its own, separate, informational total for the PDF's dedicated "Common to all
   // options" group, never a second option to choose from. Null whenever there is nothing to show one
-  // for (0/1 options, or 2+ options but every line is tagged).
-  const quoteCommonLineTotals = computeCommonLineTotals(instanceData);
+  // for (0/1 options, or 2+ options but every line is tagged), or whenever the document is not a
+  // quote at all (same `isQuoteWithOptions` gate as `quoteOptionTotals` above).
+  const quoteCommonLineTotals = quoteOptionTotals
+    ? computeCommonLineTotals(instanceData, totalsOptions)
+    : null;
   const language = await recipientLanguageFor(companyId, descriptor, company.language, instanceData);
   const paymentMethods = await paymentMethodsFor(
     descriptor,

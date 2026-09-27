@@ -1299,6 +1299,32 @@ describe('renderDocumentHtml', () => {
       expect(html).not.toContain('VAT 20% on');
       expect(html).not.toContain('>Net<');
     });
+
+    // Review point #5 ("the missing-currency placeholder changed for every document") - `dev` prints
+    // '—' (`git show origin/dev:.../render-html.ts`'s own `const currency = totals.currency || '—';`)
+    // for a document whose `totals.currency` is null/empty; the shared `renderTotalsRows` extraction
+    // (issue #373) briefly fell back to ' - ' instead, on the ordinary single-total path too - fixed
+    // back to the exact dev literal.
+    it('falls back to "—" (never " - ") when totals.currency is null, on the ordinary single-total path', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: null,
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+        },
+      });
+
+      expect(html).toContain('100.00 —');
+      expect(html).not.toContain(' - ');
+    });
   });
 
   describe('optionGroups (issue #373, "quotes with options")', () => {

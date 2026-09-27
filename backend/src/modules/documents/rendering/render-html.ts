@@ -212,7 +212,7 @@ function renderTotalsRows(
   // (line-only) block, which no longer calls this function for its totals at all.
   totalLabelIncludesCommon = false,
 ): string {
-  const currency = totals.currency || ' - ';
+  const currency = totals.currency || '—';
   const decimals = decimalsFor(currency);
   const showVat = totals.showVat !== false;
 
