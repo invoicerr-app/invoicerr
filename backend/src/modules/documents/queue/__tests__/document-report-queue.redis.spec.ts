@@ -250,6 +250,8 @@ describeWithRedis('document-report queue — real Redis, real Postgres', () => {
         typeId: 'invoice',
         status: 'sent',
         displayNumber: 'INV-INTEGRATION-0001',
+        // Issue #501: "pt-at" declares the document's own ATCUD and refuses one without it.
+        atcud: 'ATCUD:ITESTCODE-1',
         data: {
           issueDate: new Date().toISOString(),
           currency: 'EUR',
@@ -288,6 +290,8 @@ describeWithRedis('document-report queue — real Redis, real Postgres', () => {
         typeId: 'invoice',
         status: 'sent',
         displayNumber: 'INV-INTEGRATION-0002',
+        // Issue #501: "pt-at" declares the document's own ATCUD and refuses one without it.
+        atcud: 'ATCUD:ITESTCODE-2',
         data: {
           issueDate: new Date().toISOString(),
           currency: 'EUR',
