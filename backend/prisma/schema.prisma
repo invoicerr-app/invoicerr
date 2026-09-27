@@ -2270,6 +2270,15 @@ model DocumentArchive {
   // ... }` — see `archive/verdict-artifact.ts`.
   artifacts Json
 
+  // Issue #490: SHA-256 over the document's `data` the archived PDF was rendered from, computed with
+  // the SAME canonical hash an e-signature binds to (`archive/document-data-hash.ts`, issue #477).
+  // DELIVERY rows only. `documents.service.ts#renderInstancePdf` serves the archived PDF of a document
+  // that is not issued yet only while its current `data` still hashes to this value, so a quote
+  // edited back to "draft" downloads its edited content instead of the last sent one. NULL for every
+  // row written before this column existed and for every non-DELIVERY row: nothing proves which data
+  // those bytes came from, so an unissued document with a NULL here is rendered fresh. No backfill.
+  documentDataHash String?
+
   archivedAt DateTime @default(now())
 
   // The country-is-data retention rule (⚖, archive/retention/, same file-
@@ -2357,6 +2366,12 @@ model PendingDocumentArchive {
   // above records metadata for, plus the payload itself, which that column deliberately never
   // carries (its bytes are already at `uri`; these have nowhere else to be yet).
   artifacts Json
+
+  // Issue #490: the `documentDataHash` the DocumentArchive row written from these bytes must carry
+  // (see that column). Captured at delivery time, never recomputed at retry time: the document may
+  // have been edited between the failed attempt and the sweep, and these bytes still come from the
+  // data as it was when they were delivered.
+  documentDataHash String?
 
   // When archiving first failed for THESE bytes — the start of the gap an auditor would measure, and
   // what the escalated message on `DocumentInstance.lastArchiveError` quotes. Reset when a newer

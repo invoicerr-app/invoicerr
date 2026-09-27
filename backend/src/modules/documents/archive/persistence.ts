@@ -136,6 +136,9 @@ export async function createDocumentArchive(
     companyId: string;
     documentId: string;
     artifacts: ArchivedArtifactInput[];
+    /** Issue #490 - hash of the `data` these artifacts were rendered from (`document-data-hash.ts`),
+     *  see `DocumentArchive.documentDataHash`'s own schema comment. Omitted/null when unknown. */
+    documentDataHash?: string | null;
   },
   retentionCatalog: RetentionCatalog = defaultRetentionCatalog,
 ): Promise<DocumentArchiveResult> {
@@ -163,6 +166,7 @@ export async function createDocumentArchive(
       contentHash,
       uri,
       artifacts: artifactMetas as unknown as Prisma.InputJsonValue,
+      documentDataHash: input.documentDataHash ?? null,
       archivedAt,
       retentionUntil,
       retentionBasis,
@@ -544,13 +548,23 @@ export async function listDocumentArchives(
  * `lastArchiveError`), for one delivered through "ksef"/"sdi" (their own archived artifact is XML,
  * never a PDF), and for the credit note's transport-less "send" (nothing archived at all) — the
  * caller falls back to rendering fresh in every one of those cases, exactly as it always has.
+ *
+ * Issue #490: `isServable`, when given, is asked with the archive's own recorded `documentDataHash`
+ * BEFORE any byte is read from storage, and a `false` answers `null` like every case above - that is
+ * how `renderInstancePdf` refuses an archive that no longer matches an unissued document's current
+ * data (`rendering/archived-pdf-policy.ts`) without paying for a storage read it would then discard.
  */
-export async function findArchivedPdfArtifact(companyId: string, documentId: string): Promise<Buffer | null> {
+export async function findArchivedPdfArtifact(
+  companyId: string,
+  documentId: string,
+  isServable?: (archivedDataHash: string | null) => boolean,
+): Promise<Buffer | null> {
   const archive = await prisma.documentArchive.findFirst({
     where: { companyId, documentId, kind: DocumentArchiveKind.DELIVERY },
     orderBy: { archivedAt: 'desc' },
   });
   if (!archive) return null;
+  if (isServable && !isServable(archive.documentDataHash ?? null)) return null;
 
   const metas = (archive.artifacts ?? []) as unknown as StoredArtifactMeta[];
   const pdfMeta = metas.find((meta) => meta.role === 'pdf' && meta.mime === 'application/pdf');

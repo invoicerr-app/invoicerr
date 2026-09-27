@@ -57,6 +57,36 @@ describe('archiveDeliveredArtifactsIfAny', () => {
     expect(journalArchive).not.toHaveBeenCalled();
   });
 
+  it('writes the hash of the data the PDF was rendered from onto the archive, and journals it on failure (issue #490)', async () => {
+    const artifacts = [{ role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array([1, 2, 3]) }];
+    createArchive.mockResolvedValue({ id: 'archive-1' });
+
+    await archiveDeliveredArtifactsIfAny({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      artifacts,
+      documentDataHash: 'hash-1',
+    });
+    expect(createArchive).toHaveBeenCalledWith({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      artifacts,
+      documentDataHash: 'hash-1',
+    });
+
+    createArchive.mockRejectedValue(new Error('disk full'));
+    updateDocument.mockResolvedValue({});
+    await archiveDeliveredArtifactsIfAny({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      artifacts,
+      documentDataHash: 'hash-1',
+    });
+    expect(journalArchive).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ documentDataHash: 'hash-1' }) }),
+    );
+  });
+
   it('never throws when archiving fails — logs it and records lastArchiveError instead', async () => {
     const artifacts = [{ role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array([1]) }];
     createArchive.mockRejectedValue(new Error('disk full'));

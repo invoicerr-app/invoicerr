@@ -22,6 +22,7 @@ interface FakePendingRow {
   companyId: string;
   documentId: string;
   artifacts: unknown;
+  documentDataHash?: string | null;
   firstFailedAt: Date;
   attempts: number;
   lastError: string;
@@ -217,6 +218,7 @@ describe('a legal archiving failure is retried, and stops being silent when retr
       companyId: COMPANY,
       documentId: DOCUMENT,
       artifacts: DELIVERED,
+      documentDataHash: 'hash-of-the-delivered-data',
     });
 
     // Before the backoff has elapsed the row is not even looked at — the schedule is the schedule,
@@ -236,6 +238,10 @@ describe('a legal archiving failure is retried, and stops being silent when retr
       // Round-tripped through the journal's base64 and back to the exact delivered bytes — an
       // archive of anything else would hash to something the delivery never produced.
       artifacts: DELIVERED,
+      // Issue #490: the hash of the data those bytes were rendered from, journaled at delivery time
+      // and handed to the archive the retry writes - never recomputed from the document as it is at
+      // retry time, which may have been edited since.
+      documentDataHash: 'hash-of-the-delivered-data',
     });
     // The work is done: nothing left owed, and the document no longer claims a gap.
     expect(db.pending.size).toBe(0);
