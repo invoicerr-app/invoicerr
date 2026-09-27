@@ -829,7 +829,10 @@ export class DocumentsController {
   @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Compute document totals',
-    description: 'Computes net, VAT, and gross totals (in minor units) for a document instance.',
+    description:
+      'Computes net, VAT, and gross totals (in minor units) for a document instance. For a quote with ' +
+      "options, `options` lists each option's own totals (common lines included) and the top-level " +
+      'net/VAT/gross are those of the accepted option, or null while none is accepted.',
   })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })
@@ -857,6 +860,10 @@ export class DocumentsController {
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })
   @ApiResponse({ status: 200, description: 'Settlement computed' })
+  @ApiResponse({
+    status: 409,
+    description: 'A quote with options and no accepted option: there is no single total to settle against',
+  })
   @ApiResponse({ status: 404, description: 'Not found for this company/type' })
   getSettlement(
     @ActiveCompany() companyId: string,

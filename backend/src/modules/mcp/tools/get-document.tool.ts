@@ -22,13 +22,18 @@ const inputSchema = {
  * today: only the invoice registers a "record-payment" action, so calling it for any other type
  * would just be an extra round-trip that always comes back with empty payments/credits — an economy,
  * not a correctness rule (`getSettlement`'s own header says it degrades safely for any type).
+ * For a quote with options the totals follow issue #487's rule (`totals/document-totals-view.ts`):
+ * one entry per option in `totals.options`, and a single top-level total only once an option is
+ * accepted, the same figures the web app shows.
  * `findOwnedDocument`'s tenant-scoped 404 (via `DocumentsService.getDocument`) applies unchanged.
  */
 export const getDocumentTool: ToolDescriptor<typeof inputSchema> = {
   name: 'get_document',
   description:
     'Get one document instance in full — its stored data, computed totals, and (for an invoice) ' +
-    'its payment settlement. 404s if it does not exist for the active company/type.',
+    "its payment settlement. For a quote with options, totals.options holds each option's own " +
+    'totals, and the top-level net/VAT/gross are null until an option is accepted (then they are ' +
+    "that option's). 404s if it does not exist for the active company/type.",
   isRegistered: (scopes) => hasAnyScope([...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES], scopes),
   inputSchema,
   handler: async (ctx, input) => {
