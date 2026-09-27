@@ -839,18 +839,9 @@ function buildEntityReferenceRegistry(
     {
       provide: ACTION_REGISTRY,
       useFactory: buildActionRegistry,
-      // Since `SignaturesService.getPublicDocument` (its own header) needs
-      // `DocumentsService.renderInstancePdf`, `SignaturesService` now depends on `DocumentsService`,
-      // which itself depends on this very `ACTION_REGISTRY` token (documents.service.ts's own
-      // `@Inject(ACTION_REGISTRY)`) — a genuine 3-hop cycle (ACTION_REGISTRY -> SignaturesService ->
-      // DocumentsService -> ACTION_REGISTRY), not merely a TypeScript import-order nuisance. The break
-      // lives entirely on `SignaturesService`'s OWN side — its `@Inject(forwardRef(() => DocumentsService))`
-      // (see that class's own header) makes Nest construct it with a LAZY, back-patched reference to
-      // `DocumentsService` rather than blocking on it, which is what lets `SignaturesService` finish
-      // constructing (and this factory proceed) without ever needing `DocumentsService` — and
-      // therefore `ACTION_REGISTRY` itself — to exist first. `FactoryProvider.inject`'s own TypeScript
-      // signature does not accept a `ForwardReference` entry (`InjectionToken | OptionalFactoryDependency`
-      // only), so this array stays exactly as it always was — nothing to mark here.
+      // Issue #477: `SignaturesService` no longer depends on `DocumentsService` (its public page serves
+      // the bound DELIVERY archive instead of rendering), so the ACTION_REGISTRY -> SignaturesService ->
+      // DocumentsService -> ACTION_REGISTRY cycle that used to need a `forwardRef` on its side is gone.
       inject: [
         ClientsService,
         MailService,

@@ -28,6 +28,13 @@ export interface PublicSignatureView {
   /** Issue #373 ("quotes with options") - this quote's own 2+ options and each one's OWN total, null
    *  for a quote with fewer than two. See the backend's own `PublicSignatureView.options` header. */
   options: PublicSignatureOptionTotal[] | null
+  /** Issue #477 - true once the document changed since this link was sent (or the link predates
+   *  version binding): the link can no longer be used to sign. See the backend's own
+   *  `signatures/signed-version.ts` for exactly what counts as a change. */
+  changed: boolean
+  /** Issue #477 - the delivered version this link is bound to, null only for a link issued before
+   *  version binding existed. */
+  version: { archiveId: string; contentHash: string } | null
 }
 
 const publicSignatureKey = (token: string) => ["public-signature", token]

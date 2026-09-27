@@ -2187,10 +2187,13 @@ model DocumentReminder {
 // backfill beyond the enum's own default.
 // ## `ACCEPTANCE` - issue #421, "accept a quote manually, without the e-signature"
 //
-// Written ONLY by `actions/quote-manual-acceptance.ts`, the moment the issuer records that a client
-// accepted a quote by some OTHER means (a phone call, a reply email, a signed paper scan) - never by
-// the e-signature flow (`signatures/signatures.service.ts#markSigned`, which touches no archive at
-// all: the client's OTP-verified signature is its own probative record, the `Signature` row itself).
+// Written by `actions/quote-manual-acceptance.ts`, the moment the issuer records that a client
+// accepted a quote by some OTHER means (a phone call, a reply email, a signed paper scan), under
+// `role: 'manual-acceptance'`. Since issue #477 it is ALSO written by the e-signature flow
+// (`signatures/signatures.service.ts#markSigned`), under `role: 'e-signature'`: the `Signature` row
+// is an ordinary, mutable database row, and "which delivered version did the client sign" deserved
+// the same WORM record a manual acceptance already had. Both manifests name the DELIVERY archive
+// (id and content hash) the acceptance refers to, verbatim in their own bytes.
 // A SEPARATE kind was necessary, not merely tidier, for a concrete reason:
 // `archive/persistence.ts#findArchivedPdfArtifact` picks the MOST RECENT row of `kind: DELIVERY` for
 // a document to serve a cached PDF - reusing DELIVERY for a manual-acceptance manifest (a JSON
@@ -2229,6 +2232,10 @@ model DocumentArchive {
   parentArchive   DocumentArchive?  @relation("DocumentArchiveVerdictOf", fields: [parentArchiveId], references: [id], onDelete: SetNull)
   parentArchiveId String?
   verdictArchives DocumentArchive[] @relation("DocumentArchiveVerdictOf")
+
+  // Issue #477: the signature requests bound to THIS delivered version (`Signature.deliveryArchiveId`).
+  // Only ever a DELIVERY row.
+  boundSignatures Signature[] @relation("SignatureDeliveryArchive")
 
   // VERDICT rows only: `${documentId}|${providerId}|${statusCode}` — the dedup key that makes
   // archiving a terminal verdict idempotent under a re-poll or a redelivered queue job (the identical
@@ -2689,8 +2696,31 @@ model Signature {
   // is that store's own URI, `documentPdfHash` its SHA-256. Every later view reads back these exact
   // bytes rather than rendering again, which is what actually makes "what the signer saw" and "what
   // gets sealed" the same artifact, not merely two renders that are expected to agree.
+  //
+  // Issue #477: only rows created BEFORE the version binding below existed ever set these two. A
+  // bound request serves the delivered PDF straight from its DELIVERY archive (`deliveryArchiveId`)
+  // and never renders or freezes a copy of its own; these columns stay as the evidence of what every
+  // earlier signer reviewed.
   documentPdfUri  String?
   documentPdfHash String?
+
+  // Issue #477, "an e-signature must bind to the exact version the client read". A request is bound,
+  // when it is created (`signatures.service.ts#requestSignature`), to ONE delivered version of the
+  // document: the DELIVERY archive holding the PDF the client was sent (`deliveryArchiveId`, with its
+  // `contentHash` copied into `deliveryContentHash` so the evidence survives even if the foreign key
+  // is ever nulled), plus the document's own `data` as it stood at that moment (`documentData`, and
+  // `documentDataHash` over a canonical, key-sorted serialization of it). The signing page shows that
+  // PDF, `markSigned` validates the client's choice (the chosen option) against `documentData`, never
+  // against the live document, and a request whose document has since changed (its `data` no longer
+  // hashes to `documentDataHash`, or a newer DELIVERY archive replaced the bound one) is refused with
+  // `DOCUMENT_CHANGED_CODE` - see `signatures/signed-version.ts` for exactly what counts as a change.
+  // All four are NULL for a row created before this binding existed, and such a row is never
+  // signable: nothing proves which version its signer read.
+  deliveryArchive     DocumentArchive? @relation("SignatureDeliveryArchive", fields: [deliveryArchiveId], references: [id], onDelete: SetNull)
+  deliveryArchiveId   String?
+  deliveryContentHash String?
+  documentData        Json?
+  documentDataHash    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
