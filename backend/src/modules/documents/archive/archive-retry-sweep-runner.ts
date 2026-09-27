@@ -151,7 +151,14 @@ export class ArchiveRetrySweepRunner {
   private async retryOne(row: DuePendingArchive, now: Date): Promise<'archived' | 'failed' | 'escalated'> {
     try {
       const artifacts = decodePendingArtifacts(row.artifacts);
-      await createDocumentArchive({ companyId: row.companyId, documentId: row.documentId, artifacts });
+      await createDocumentArchive({
+        companyId: row.companyId,
+        documentId: row.documentId,
+        artifacts,
+        // Issue #490: the hash journaled at delivery time, never one of the document's CURRENT data -
+        // it may have been edited since, and these bytes were rendered from what it was then.
+        documentDataHash: row.documentDataHash,
+      });
       // Order matters: the journal row goes FIRST, so a failure of the `lastArchiveError` clear just
       // below can never leave a row that would be archived a second time on the next pass. The
       // archive itself is already written and durable by this point either way.

@@ -40,6 +40,8 @@ export interface DuePendingArchive {
   companyId: string;
   documentId: string;
   artifacts: unknown;
+  /** Issue #490 - see `PendingDocumentArchive.documentDataHash`'s own schema comment. */
+  documentDataHash: string | null;
   firstFailedAt: Date;
   attempts: number;
   lastError: string;
@@ -100,6 +102,9 @@ export async function journalFailedArchive(input: {
   companyId: string;
   documentId: string;
   artifacts: ArchivedArtifactInput[];
+  /** Issue #490 - the hash of the data these bytes were rendered from, carried to the archive the
+   *  retry eventually writes (see `PendingDocumentArchive.documentDataHash`). */
+  documentDataHash?: string | null;
   error: string;
   now?: Date;
 }): Promise<void> {
@@ -108,6 +113,7 @@ export async function journalFailedArchive(input: {
   const shared = {
     companyId: input.companyId,
     artifacts,
+    documentDataHash: input.documentDataHash ?? null,
     firstFailedAt: now,
     // 1, not 0: the attempt that just failed at send time is an archiving attempt like any other, and
     // the escalation threshold counts every one of them.
@@ -141,6 +147,7 @@ export async function findDuePendingArchives(now: Date, take: number): Promise<D
     companyId: row.companyId,
     documentId: row.documentId,
     artifacts: row.artifacts,
+    documentDataHash: row.documentDataHash,
     firstFailedAt: row.firstFailedAt,
     attempts: row.attempts,
     lastError: row.lastError,
