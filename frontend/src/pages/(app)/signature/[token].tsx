@@ -24,6 +24,20 @@ import {
 type SignatureStep = "review" | "verify" | "signed"
 const STEP_ORDER: SignatureStep[] = ["review", "verify", "signed"]
 
+/** Round 3 review, point 4 ("after a refused option, the client cannot choose again") - the backend's
+ *  own `quote-options.ts#OPTION_NO_LONGER_VALID_CODE`, hand-mirrored here (no shared package between
+ *  the two projects - the same convention `billing.settings.tsx`'s own `BILLING_EMAIL_TAKEN_CODE`
+ *  already documents). Thrown by `resolveChosenOption` ONLY for "this name is not one of the quote's
+ *  CURRENT options" - the issuer renamed or removed the one this visitor chose before requesting the
+ *  code, while every OTHER sign refusal (wrong/expired code, locked, already signed) keeps its plain,
+ *  generic message and no code at all. */
+const OPTION_NO_LONGER_VALID_CODE = "OPTION_NO_LONGER_VALID"
+
+function signErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) return undefined
+  return (error.body as { code?: string } | undefined)?.code
+}
+
 /** The same "fait / en cours / à venir" dot-and-line stepper the company-onboarding wizard uses
  *  (`components/onboarding.tsx`) — three fixed steps here (no branching, unlike onboarding), so no
  *  step count/labels are computed, only which of the three is current. */
@@ -215,7 +229,7 @@ export default function PublicSignaturePage() {
   const { t } = useTranslation()
   const { token = "" } = useParams()
 
-  const { data: view, isLoading, error } = usePublicSignature(token)
+  const { data: view, isLoading, error, refetch: refetchView } = usePublicSignature(token)
   const requestOtp = useRequestPublicSignatureOtp(token)
   const sign = useSignPublicSignature(token)
 
@@ -233,6 +247,12 @@ export default function PublicSignaturePage() {
   // (stays undefined, never sent) otherwise - see `SignatureOptionChooser`'s own header.
   const [chosenOption, setChosenOption] = useState<string | undefined>(undefined)
   const needsOptionChoice = (view?.options?.length ?? 0) >= 2
+  // Round 3 review, point 4 - set once `handleSign` is refused with `OPTION_NO_LONGER_VALID_CODE` (the
+  // issuer renamed/removed the chosen option while this visitor held a live code). Never cleared back
+  // to false: once it fires, the chooser stays visible in the Verify step for the rest of this visit,
+  // which is exactly where a client who has already requested a code needs it to reappear - this page
+  // never had a chooser anywhere but the pre-OTP Review step before this fix.
+  const [optionsChanged, setOptionsChanged] = useState(false)
 
   // Fetched as soon as the request resolves — not gated on the Review step still being the current
   // one — so the SAME "render once, freeze, serve forever" artifact the backend promises
@@ -278,6 +298,22 @@ export default function PublicSignaturePage() {
           // the visitor actually sees — leaving the confirmation open would bury a "wrong code" refusal
           // behind a dialog that has nothing to say about it.
           setConfirmSignOpen(false)
+
+          // Round 3 review, point 4 ("after a refused option, the client cannot choose again") - THIS
+          // one refusal is not "wrong code": the backend refused the OPTION, after the code had already
+          // verified (`quote-options.ts#resolveChosenOption`'s own header), which is also why it never
+          // consumes an OTP attempt - the code just typed stays live, so there is no need to send the
+          // visitor back to Review for a fresh one. Refetch `view` for the CURRENT options/totals, drop
+          // the now-invalid pick, and let the chooser reappear right here in the Verify step - never
+          // treated as the generic `signError` line below, which would just repeat "invalid option" with
+          // no way for the visitor to act on it.
+          if (signErrorCode(err) === OPTION_NO_LONGER_VALID_CODE) {
+            setChosenOption(undefined)
+            setOptionsChanged(true)
+            void refetchView()
+            return
+          }
+
           setSignError(err instanceof ApiError ? err.message : t("documents.publicSignature.genericError"))
         },
       },
@@ -433,6 +469,27 @@ export default function PublicSignaturePage() {
 
           {otpRequested && (
             <div className="mx-auto w-full max-w-sm space-y-4">
+              {optionsChanged && (
+                <p
+                  className="text-center text-sm text-destructive"
+                  data-cy="signature-options-changed-message"
+                >
+                  {t("documents.publicSignature.optionsChangedError")}
+                </p>
+              )}
+
+              {/* Round 3 review, point 4 - the ONE place this page shows the chooser outside the
+                  Review step: only ever rendered once a sign attempt was refused for naming an option
+                  the quote no longer offers (`optionsChanged`), with the FRESH options `refetchView`
+                  just brought back - never the stale ones this visitor originally picked from. */}
+              {optionsChanged && needsOptionChoice && view.options && (
+                <SignatureOptionChooser
+                  options={view.options}
+                  value={chosenOption}
+                  onChange={setChosenOption}
+                />
+              )}
+
               <div className="flex justify-center">
                 <InputOTP maxLength={8} value={code} onChange={(value) => setCode(value.replace(/\D/g, ""))}>
                   <InputOTPGroup data-cy="signature-otp-input">
@@ -456,7 +513,11 @@ export default function PublicSignaturePage() {
               <Button
                 type="button"
                 className="w-full"
-                disabled={code.length !== 8}
+                // `needsOptionChoice && !chosenOption` (not just `optionsChanged`) - a quote that lost
+                // an option entirely (dropped to fewer than two) between the code request and now
+                // stops needing a choice at all, exactly like the Review step's own request-code button
+                // already gates it, so this never blocks on a chooser that would not even be rendered.
+                disabled={code.length !== 8 || (needsOptionChoice && !chosenOption)}
                 onClick={() => setConfirmSignOpen(true)}
                 dataCy="signature-sign-button"
               >

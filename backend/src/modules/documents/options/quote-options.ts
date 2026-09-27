@@ -184,10 +184,25 @@ export function resolveChosenOption(options: string[], chosen: unknown): string 
     );
   }
   if (!options.includes(trimmed)) {
-    throw new BadRequestException(`"${trimmed}" is not one of this quote's options (${options.join(', ')}).`);
+    // Round 3 review, point 4 ("after a refused option, the client cannot choose again") - a public
+    // signer who chose an option before requesting an OTP can have it renamed/removed by the issuer
+    // (a "sent" quote stays editable) while they wait for the code, and the OTP-verify page had no way
+    // to tell THIS refusal apart from a wrong code - it can only resend the same now-invalid name
+    // forever. `OPTION_NO_LONGER_VALID_CODE` is a stable, machine-readable signal ADDED to this one
+    // exception's body, on top of - never in place of - the message above: the status (400) and the
+    // message are unchanged, so every existing caller that only reads `.message` keeps working exactly
+    // as before. Same pattern `billing/seats-view.ts`'s own `SEAT_TAKEN_CODE` already uses (an exported
+    // constant, hand-mirrored on the frontend - no shared package between the two projects).
+    throw new BadRequestException({
+      message: `"${trimmed}" is not one of this quote's options (${options.join(', ')}).`,
+      code: OPTION_NO_LONGER_VALID_CODE,
+    });
   }
   return trimmed;
 }
+
+/** See `resolveChosenOption`'s own comment on the branch that throws it. */
+export const OPTION_NO_LONGER_VALID_CODE = 'OPTION_NO_LONGER_VALID';
 
 /** Strips the `option` tag off every line - the invoice descriptor's own `lines` row shape has no
  *  such subfield at all, so a value copied verbatim would be silently ignored by

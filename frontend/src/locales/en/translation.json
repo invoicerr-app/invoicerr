@@ -4913,6 +4913,7 @@
       "unavailableTitle": "Link unavailable",
       "unavailableDescription": "This signature link is invalid, expired, or has already been used.",
       "genericError": "Something went wrong. Please try again.",
+      "optionsChangedError": "This quote's options have changed since you made your choice. Please choose again from the current options below.",
       "documentPreviewLabel": "Document preview",
       "documentLoadError": "Could not load the document to review. Please try again.",
       "previewUnavailable": "Your browser can't display the document here.",

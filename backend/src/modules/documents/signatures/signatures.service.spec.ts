@@ -509,6 +509,48 @@ describe('SignaturesService', () => {
         expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
       });
 
+      // Round 3 review, point 4 ("after a refused option, the client cannot choose again") - proves
+      // the two facts the frontend fix relies on: the refusal carries `OPTION_NO_LONGER_VALID_CODE`
+      // (what the public page matches on to know to show the chooser again rather than treat this
+      // like a wrong code) AND the OTP itself survives the refusal untouched, no failed attempt is
+      // recorded and the row stays active - so a retry with the SAME code, once a still-valid option
+      // is named, succeeds. Simulates "the issuer renamed Premium to Gold while the client waited for
+      // the code" by swapping `findOwnedDocument`'s own mock between the two `verifyAndSign` calls -
+      // `markSigned` re-reads the document fresh on every call rather than trusting an earlier read.
+      it('carries a stable code, and leaves the OTP itself valid, when the chosen option no longer exists', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(MULTI_OPTION_QUOTE);
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+
+        const RENAMED_QUOTE = {
+          ...MULTI_OPTION_QUOTE,
+          data: {
+            ...MULTI_OPTION_QUOTE.data,
+            lines: MULTI_OPTION_QUOTE.data.lines.map((line) =>
+              line.option === 'Premium' ? { ...line, option: 'Gold' } : line,
+            ),
+          },
+        };
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(RENAMED_QUOTE);
+
+        const failure = await service.verifyAndSign(token, code, 'Premium').catch((err) => err);
+        expect(failure).toBeInstanceOf(BadRequestException);
+        expect((failure as BadRequestException).getResponse()).toMatchObject({
+          code: 'OPTION_NO_LONGER_VALID',
+        });
+        expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+        // Neither a failed OTP attempt nor a lock - this refusal never reached `recordFailedAttempt`
+        // (it happens inside `markSigned`, entirely after the OTP match already succeeded).
+        expect(rows()[0].otpFailedAttempts).toBe(0);
+        expect(rows()[0].isActive).toBe(true);
+
+        // The SAME code, now naming the CURRENT option, still works - no fresh mint was needed.
+        await service.verifyAndSign(token, code, 'Gold');
+        expect(rows()[0].chosenOption).toBe('Gold');
+        expect(rows()[0].signedAt).not.toBeNull();
+      });
+
       it('signs with a valid option, writing it on the SAME write as "signed" and on the Signature row', async () => {
         (persistence.findOwnedDocument as Mock).mockResolvedValue(MULTI_OPTION_QUOTE);
         const { service, mailService } = buildService();

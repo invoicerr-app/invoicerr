@@ -367,7 +367,11 @@ export class SignaturesService {
     // code has already proven this caller genuinely holds the signing right, against the document's
     // own CURRENT options (see `markSigned`) - `resolveChosenOption` throws a plain, named 400 here, never the generic
     // block message, because "wrong/missing option" is not a brute-forceable secret the way the OTP
-    // code is.
+    // code is. Nothing above this point ran yet when that throw happens (it is inside `markSigned`,
+    // called below) - in particular `recordFailedAttempt` never runs for it, so the OTP this caller
+    // just proved live stays live: a client refused for THIS reason can retry with the SAME code once
+    // it picks a valid option (`resolveChosenOption`'s own `OPTION_NO_LONGER_VALID_CODE` is what the
+    // frontend matches on to know to offer that retry instead of just repeating the stale choice).
     //
     // `signedAt` is the persisted timestamp (`markSignatureSigned`'s own write), echoed back so the
     // public page can show the client WHEN their signature was recorded — the same instant the
