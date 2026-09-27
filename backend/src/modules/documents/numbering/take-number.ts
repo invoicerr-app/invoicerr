@@ -10,8 +10,9 @@
  */
 import prisma from '@/prisma/prisma.service';
 
+import { DocumentInstanceResult } from '../actions/action-registry';
 import { resolveNumberFormat } from './format-number';
-import { TakenDocumentNumber, takeDocumentNumber } from './sequence';
+import { TakenDocumentNumber, takeDocumentNumber, takeDocumentNumberWithStatusTransition } from './sequence';
 
 /**
  * Takes the next number for `(companyId, typeId)` and writes it onto `documentId` — see sequence.ts's
@@ -36,4 +37,45 @@ export async function takeDocumentNumberForTransition(
   const pattern = resolveNumberFormat(company?.numberFormats as Record<string, unknown> | null, typeId);
 
   return takeDocumentNumber(companyId, typeId, documentId, pattern);
+}
+
+/**
+ * The atomic sibling of `takeDocumentNumberForTransition` above - same format-resolution-first
+ * discipline (a bad pattern refuses the whole call before anything is written, never after the
+ * status has already moved), but wraps `sequence.ts#takeDocumentNumberWithStatusTransition` instead
+ * of `takeDocumentNumber`: the "draft"/"send_failed" -> "sending" write and the numbering write land
+ * as ONE transaction, closing the gap PR #473's review point 1 named (see that function's own header
+ * for the full "why"). `actions/async-send.ts`'s phase-1 branch calls this INSTEAD OF
+ * `persistence.ts#upsertDocument` whenever this call is actually eligible to number the record
+ * (`numberOnEnqueue && isNumberingAllowedFrom(...)` - computed by the caller, this function has no
+ * opinion of its own about `onlyFrom`), never both.
+ *
+ * `numbered` can come back `undefined` (PR #473 review point 2, round 2): the caller's own
+ * eligibility check reads a pre-transaction snapshot that can go stale under a genuine race (see
+ * `sequence.ts#takeDocumentNumberWithStatusTransition`'s own header) - the status transition still
+ * lands, but nothing is renumbered when the row already carries a number by the time this runs.
+ */
+export async function takeDocumentNumberForTransitionWithStatus(
+  companyId: string,
+  typeId: string,
+  documentId: string,
+  fromStatuses: string[],
+  toStatus: string,
+  data: Record<string, unknown>,
+): Promise<{ document: DocumentInstanceResult; numbered: TakenDocumentNumber | undefined }> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { numberFormats: true },
+  });
+  const pattern = resolveNumberFormat(company?.numberFormats as Record<string, unknown> | null, typeId);
+
+  return takeDocumentNumberWithStatusTransition(
+    companyId,
+    typeId,
+    documentId,
+    fromStatuses,
+    toStatus,
+    data,
+    pattern,
+  );
 }

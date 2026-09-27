@@ -18,6 +18,7 @@
  * own seed.ts used, and `InvitationsService.spec` before that.
  */
 import {
+  assertValidNumberingProvenance,
   assertValidProvenance,
   DocumentActionRuleFact,
   LegalProvenance,
@@ -148,6 +149,15 @@ export async function seedCountryPolicies(
   for (const countryCode of countries) {
     for (const rule of catalog.rulesFor(countryCode)) {
       assertValidProvenance(rule, `seedCountryPolicies(${countryCode})`);
+    }
+    // `numbering` (issue #471) - VALIDATE ONLY, never written to any table: see schema.ts's own
+    // `CountryDocumentPolicyFile.numbering` header for why this fact is file-only today (nothing
+    // outside the descriptor layer reads a country's numbering requirement at runtime yet). Still
+    // gets the exact same "fail the whole seed before writing a single row" ordering as `rules`
+    // above, so a malformed numbering fact is caught here too, not silently ignored because nothing
+    // happens to persist it.
+    for (const fact of catalog.numberingFor(countryCode)) {
+      assertValidNumberingProvenance(fact, `seedCountryPolicies(${countryCode})`);
     }
   }
 

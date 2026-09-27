@@ -14,6 +14,7 @@ import { vi, type Mock } from 'vitest';
 import { NotImplementedException } from '@nestjs/common';
 
 import * as persistence from '../persistence';
+import * as takeNumber from '../numbering/take-number';
 import * as countryPolicy from '../country-policy/country-policy';
 import * as mandate from '../transports/channel-policy/mandate';
 import * as b2gRouting from '../b2g-routing/b2g-routing';
@@ -80,7 +81,20 @@ function sendingDocument() {
     data: documentData,
     createdAt: new Date(),
     updatedAt: new Date(),
+    // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts): invoice
+    // has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
+    number: 1,
+    displayNumber: 'INV-2026-0001',
   };
+}
+
+/** PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is eligible
+ *  for the ATOMIC status+number write (async-send.ts) - replaces `persistence.upsertDocument`. */
+function mockAtomicNumbering() {
+  (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+    document: sendingDocument(),
+    numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+  });
 }
 
 function buildRegistry(transportRegistry = new TransportRegistry()) {
@@ -189,7 +203,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
     (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('pdp');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
+    mockAtomicNumbering();
 
     const transportRegistry = new TransportRegistry();
     const fakePreflight = vi.fn().mockResolvedValue(undefined);
@@ -214,7 +228,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
     (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(undefined);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
+    mockAtomicNumbering();
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('email', 'Email', { send: vi.fn() });
@@ -251,7 +265,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
       });
       (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('sdi-pec');
       (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-      (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
+      mockAtomicNumbering();
 
       const transportRegistry = new TransportRegistry();
       const fakePreflight = vi.fn().mockResolvedValue(undefined);

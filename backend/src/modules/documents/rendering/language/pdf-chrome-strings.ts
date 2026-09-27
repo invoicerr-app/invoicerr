@@ -40,6 +40,12 @@ export interface PdfChromeStrings {
   yes: string;
   no: string;
   draftNoNumberYet: string;
+  /** Shown INSTEAD of `draftNoNumberYet` for a numbered document that has none - issue #471: a
+   *  document issued before its type declared `numbering` at all (a legacy credit note) must never
+   *  be numbered retroactively (see `numbering.onlyFrom`'s own header, backend
+   *  `descriptors/types.ts`) - this is what `render-html.ts` prints for it instead, a distinct
+   *  string from "draft, no number yet" since the two mean different things. */
+  issuedWithoutNumber: string;
   scanToPaySepa: string;
   /** Heading of the "Payment methods" section — see `render-html.ts`'s own `paymentMethods` input and
    *  `descriptors/types.ts#usesPaymentMethods`. Each METHOD's own `label` (below the heading) stays
@@ -63,6 +69,7 @@ const EN: PdfChromeStrings = {
   yes: 'Yes',
   no: 'No',
   draftNoNumberYet: 'Draft — no number yet',
+  issuedWithoutNumber: 'Issued without a number',
   scanToPaySepa: 'Scan to pay (SEPA)',
   paymentMethodsHeading: 'Payment methods',
   customFieldsHeading: 'Additional fields',
@@ -78,6 +85,7 @@ const FR: PdfChromeStrings = {
   yes: 'Oui',
   no: 'Non',
   draftNoNumberYet: 'Brouillon — pas encore de numéro',
+  issuedWithoutNumber: 'Émis sans numéro',
   scanToPaySepa: 'Scannez pour payer (SEPA)',
   paymentMethodsHeading: 'Moyens de paiement',
   customFieldsHeading: 'Champs supplémentaires',
@@ -93,6 +101,7 @@ const IT: PdfChromeStrings = {
   yes: 'Sì',
   no: 'No',
   draftNoNumberYet: 'Bozza — numero non ancora assegnato',
+  issuedWithoutNumber: 'Emesso senza numero',
   scanToPaySepa: 'Scansiona per pagare (SEPA)',
   paymentMethodsHeading: 'Metodi di pagamento',
   customFieldsHeading: 'Campi aggiuntivi',
@@ -108,6 +117,7 @@ const PL: PdfChromeStrings = {
   yes: 'Tak',
   no: 'Nie',
   draftNoNumberYet: 'Wersja robocza — brak numeru',
+  issuedWithoutNumber: 'Wystawiono bez numeru',
   scanToPaySepa: 'Zeskanuj, aby zapłacić (SEPA)',
   paymentMethodsHeading: 'Metody płatności',
   customFieldsHeading: 'Dodatkowe pola',
@@ -123,6 +133,7 @@ const DE: PdfChromeStrings = {
   yes: 'Ja',
   no: 'Nein',
   draftNoNumberYet: 'Entwurf — noch keine Nummer',
+  issuedWithoutNumber: 'Ohne Nummer ausgestellt',
   scanToPaySepa: 'Zum Bezahlen scannen (SEPA)',
   paymentMethodsHeading: 'Zahlungsmethoden',
   customFieldsHeading: 'Zusätzliche Felder',
@@ -138,6 +149,7 @@ const PT: PdfChromeStrings = {
   yes: 'Sim',
   no: 'Não',
   draftNoNumberYet: 'Rascunho — sem número ainda',
+  issuedWithoutNumber: 'Emitido sem número',
   scanToPaySepa: 'Digitalize para pagar (SEPA)',
   paymentMethodsHeading: 'Formas de pagamento',
   customFieldsHeading: 'Campos adicionais',

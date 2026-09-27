@@ -2183,6 +2183,16 @@
             "format": "Invoice number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
           }
         },
+        "creditNoteNumberFormat": {
+          "label": "Credit Note Number Format",
+          "placeholder": "Enter credit note number format (e.g., CN-{year}-{number})",
+          "description": "Format for credit note numbers - a credit note is legally an invoice and needs its own sequential number, in its own series, separate from the invoice one",
+          "errors": {
+            "required": "Credit note number format is required",
+            "maxLength": "Credit note number format must be less than 100 characters",
+            "format": "Credit note number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
+          }
+        },
         "invoicePDFFormat": {
           "label": "Invoice PDF Format",
           "placeholder": "Select invoice PDF format",
@@ -4623,7 +4633,8 @@
       }
     },
     "numbering": {
-      "noneYet": "Draft — no number yet"
+      "noneYet": "Draft — no number yet",
+      "issuedWithoutNumber": "Issued without a number"
     },
     "schedules": {
       "rowAction": {

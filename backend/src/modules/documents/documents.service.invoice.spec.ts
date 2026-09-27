@@ -1063,13 +1063,21 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'invoice',
-        status: 'sending',
-        data: validInvoiceData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is
+      // eligible for the ATOMIC status+number write (async-send.ts) - replaces
+      // `persistence.upsertDocument` for that call.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'sending',
+          data: validInvoiceData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
       });
 
       const { service, queueDispatcher } = buildService(transportRegistry);
@@ -1105,6 +1113,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         data: validInvoiceData,
         createdAt: new Date(),
         updatedAt: new Date(),
+        // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts):
+        // invoice has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -1142,6 +1154,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         data: validInvoiceData,
         createdAt: new Date(),
         updatedAt: new Date(),
+        // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts):
+        // invoice has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
 
       const { service } = buildService();
@@ -1187,6 +1203,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         data: validInvoiceData,
         createdAt: new Date(),
         updatedAt: new Date(),
+        // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts):
+        // invoice has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -1247,6 +1267,9 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         data: validInvoiceData,
         createdAt: new Date(),
         updatedAt: new Date(),
+        // Already numbered - see this describe block's own first test for why.
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       };
       const sentDocument = { ...sendingDocument, status: 'sent' };
       (persistence.findOwnedDocument as Mock)
@@ -1297,6 +1320,9 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         data: validInvoiceData,
         createdAt: new Date(),
         updatedAt: new Date(),
+        // Already numbered - see the previous test's own comment.
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -1389,14 +1415,21 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockImplementation(
-        async (_companyId, _typeId, _documentId, status, data) => ({
-          id: 'doc-1',
-          typeId: 'invoice',
-          status,
-          data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+      // PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is
+      // eligible for the ATOMIC status+number write - replaces `persistence.upsertDocument`.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, _fromStatuses, toStatus, data) => ({
+          document: {
+            id: 'doc-1',
+            typeId: 'invoice',
+            status: toStatus,
+            data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: 1,
+            displayNumber: 'INV-2026-0001',
+          },
+          numbered: { number: 1, displayNumber: 'INV-2026-0001' },
         }),
       );
 
@@ -1406,14 +1439,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         data: frDeB2bInvoiceData,
       });
 
-      expect(persistence.upsertDocument).toHaveBeenCalledTimes(1);
-      const [, , , persistedStatus, persistedData] = (persistence.upsertDocument as Mock).mock.calls[0] as [
-        string,
-        string,
-        string,
-        string,
-        Record<string, unknown>,
-      ];
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledTimes(1);
+      const [, , , , persistedStatus, persistedData] = (
+        takeNumber.takeDocumentNumberForTransitionWithStatus as Mock
+      ).mock.calls[0] as [string, string, string, string[], string, Record<string, unknown>];
       expect(persistedStatus).toBe('sending');
 
       const persistedLine = (persistedData.lines as Record<string, unknown>[])[0];
@@ -1450,27 +1479,34 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockImplementation(
-        async (_companyId, _typeId, _documentId, status, data) => ({
-          id: 'doc-1',
-          typeId: 'invoice',
-          status,
-          data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+      // PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is
+      // eligible for the ATOMIC status+number write - replaces `persistence.upsertDocument`.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, _fromStatuses, toStatus, data) => ({
+          document: {
+            id: 'doc-1',
+            typeId: 'invoice',
+            status: toStatus,
+            data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: 1,
+            displayNumber: 'INV-2026-0001',
+          },
+          numbered: { number: 1, displayNumber: 'INV-2026-0001' },
         }),
       );
 
       const { service } = buildService(buildEmailTransportRegistry());
       await service.runAction('company-1', 'invoice', 'send', { documentId: 'doc-1', data: domesticData });
 
-      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
         'company-1',
         'invoice',
         'doc-1',
+        ['draft', 'send_failed'],
         'sending',
         domesticData, // untouched — still 20%, the rate the user actually typed
-        ['draft', 'send_failed'],
       );
     });
 

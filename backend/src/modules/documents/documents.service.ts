@@ -102,6 +102,7 @@ import { companyToFormatParty, clientToFormatParty } from './formats/party-snaps
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
 import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
 import { resolveClientFieldKey, resolveDateFieldKey, resolveSearchTextFieldKeys } from './list-filters';
+import { isNumberingAllowedFrom } from './numbering/only-from';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
 import {
   findOwnedDocument,
@@ -109,7 +110,7 @@ import {
   listDocumentsPage,
   ListDocumentsPageResult,
 } from './persistence';
-import { applyStockOnIssuance } from './stock/apply-stock-on-issuance';
+import { applyStockOnIssuance, declaresArticleReference } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
 import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
@@ -634,6 +635,41 @@ export class DocumentsService implements OnModuleInit {
    * own per-country whitelist, cross-checked against the loaded route's own status, can. See
    * `cancel-policy.ts`'s own header for the full per-country reasoning.
    */
+  /**
+   * PR #473 review point 2 (orchestrator follow-up): a REFUSED credit-note decision (either
+   * `save-draft` or `send`) only ever quotes the LAW (country-policy/data/pl.json's own art. 106j
+   * ust. 2 pkt 2 citation) - it never says what to do INSTEAD. This appends that pointer, generically,
+   * whenever the refusal is genuinely the "no credit note instrument at all" one: the seller's own
+   * `correction-routes` CREDIT_NOTE route is itself `'forbidden'` - the SAME fact
+   * `credit-note-actions.ts#assertCreditNoteAllowedForCountry` reads for its own belt-and-braces
+   * refusal, never a second, PL-specific string here. Never branches on a country id - a future
+   * country whose own correction-routes file reaches the same conclusion gets the same pointer for
+   * free. Shared between `resolveActionPolicy` (the actual "send"/"save-draft" 403) and
+   * `describeTypeForCompany` (the screen's own `policyBlockedReason`) so the API and the screen never
+   * say two different things about the same refusal - the same "never drift apart" discipline this
+   * class's own header already holds for country policy and status.
+   *
+   * `resolveCorrectionRoutesForCountry` reads the in-memory catalog (no extra query) - `countryCode`
+   * is the only thing either caller has to resolve first, and both already do, for their own reasons.
+   */
+  private appendCorrectiveInvoiceGuidance(
+    typeId: string,
+    decision: CountryPolicyDecision,
+    countryCode: string | undefined,
+  ): CountryPolicyDecision {
+    if (decision.allowed || typeId !== 'credit-note' || !countryCode || !decision.reason) return decision;
+    const creditNoteRoute = resolveCorrectionRoutesForCountry(countryCode)?.routes.find(
+      (route) => route.routeId === 'CREDIT_NOTE',
+    );
+    if (creditNoteRoute?.status !== 'forbidden') return decision;
+    return {
+      ...decision,
+      reason:
+        `${decision.reason} Use a corrective invoice instead: create an invoice with "Corrects ` +
+        'invoice" set to the invoice being corrected (FA(3) KOR).',
+    };
+  }
+
   private async resolveActionPolicy(
     companyId: string,
     typeId: string,
@@ -643,7 +679,12 @@ export class DocumentsService implements OnModuleInit {
       const countryCode = await resolveCompanyCountryCode(companyId);
       return resolveCancelPolicyForCountry(countryCode);
     }
-    return evaluateCountryPolicy(companyId, typeId, actionId);
+    const decision = await evaluateCountryPolicy(companyId, typeId, actionId);
+    if (typeId === 'credit-note' && !decision.allowed) {
+      const countryCode = await resolveCompanyCountryCode(companyId);
+      return this.appendCorrectiveInvoiceGuidance(typeId, decision, countryCode);
+    }
+    return decision;
   }
 
   async describeTypeForCompany(
@@ -699,7 +740,7 @@ export class DocumentsService implements OnModuleInit {
       ...descriptor,
       fields,
       actions: descriptor.actions.map((action, index) => {
-        const decision = decisions[index];
+        const decision = this.appendCorrectiveInvoiceGuidance(typeId, decisions[index], countryCode);
         if (!decision.allowed) return { ...action, policyBlockedReason: decision.reason };
         // The country policy allows the action but narrows it to specific statuses (schema.ts's
         // `DocumentActionRuleFact.statuses`) — carried as its OWN field, `policyRestrictedToStatuses`,
@@ -1436,12 +1477,20 @@ export class DocumentsService implements OnModuleInit {
     // to reach `onEnterStatus`. Scoped to `result.document` being THIS SAME type (never a foreign
     // record a side-effect action like "convert-to-invoice" created) — the same guard
     // `checkTransitionResult` just above already holds for its own concern.
+    // `isNumberingAllowedFrom` (issue #471) - reads `currentStatus`, the status THIS record actually
+    // held before this action ran (not `descriptor.initialStatus`, which is only ever a brand-new
+    // record's starting point, and not necessarily where this particular record came from): a
+    // credit-note declares `numbering.onlyFrom: ['draft']`, so a legacy record arriving here from
+    // "send_failed" while still unnumbered (issued before this feature existed) is correctly refused a
+    // number - see that predicate's own header, and `numbering.onlyFrom`'s own doc comment
+    // (descriptors/types.ts) for the full "why". Absent for quote/invoice, where it is always `true`.
     const enteringNumberedStatus =
       descriptor.numbering !== undefined &&
       result.document !== undefined &&
       result.document.typeId === typeId &&
       result.document.status === descriptor.numbering.onEnterStatus &&
-      result.document.number == null;
+      result.document.number == null &&
+      isNumberingAllowedFrom(descriptor.numbering, currentStatus);
 
     if (enteringNumberedStatus && result.document) {
       const numbered = await takeDocumentNumberForTransition(companyId, typeId, result.document.id);
@@ -1465,10 +1514,20 @@ export class DocumentsService implements OnModuleInit {
         // so a stock hiccup can never block an otherwise legally-issued document.
         //
         // NOTE: the PRIMARY issuance path (async send) numbers the document in the worker,
-        // `actions/send-document-email.ts` (its OWN `if (numbered)` block) — so a SENT invoice's real
+        // `actions/send-document-email.ts` (its OWN `if (numbered)` block) - so a SENT invoice's real
         // decrement happens THERE, not here. This site covers any OTHER action that numbers a document
         // synchronously through `runAction`.
-        await applyStockOnIssuance(companyId, numberedDocument);
+        //
+        // GATED on `declaresArticleReference(descriptor)` (PR #473 round 3, point 2b): the "reads
+        // data.lines type-agnostically" claim above is about the FORMAT (never a typeId check), not
+        // about running unconditionally - a type whose descriptor declares no article-reference field
+        // on its lines at all (the credit note) must never have this effect applied, whatever its
+        // lines happen to carry (an undeclared key the line validator kept, e.g.). This is the SAME
+        // descriptor already resolved above for `enteringNumberedStatus`/`isNumberingAllowedFrom`,
+        // never a second lookup.
+        if (declaresArticleReference(descriptor)) {
+          await applyStockOnIssuance(companyId, numberedDocument);
+        }
       }
     }
 

@@ -18,6 +18,7 @@ import { vi, type Mock } from 'vitest';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import * as persistence from '../persistence';
+import * as takeNumber from '../numbering/take-number';
 import * as countryPolicy from '../country-policy/country-policy';
 import * as mandate from '../transports/channel-policy/mandate';
 import * as b2gRouting from '../b2g-routing/b2g-routing';
@@ -111,7 +112,21 @@ function sendingDocument(data: Record<string, unknown> = documentData) {
     data,
     createdAt: new Date(),
     updatedAt: new Date(),
+    // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts): invoice
+    // has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
+    number: 1,
+    displayNumber: 'INV-2026-0001',
   };
+}
+
+/** PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is eligible
+ *  for the ATOMIC status+number write (async-send.ts) - replaces `persistence.upsertDocument` for
+ *  that call. Every phase-1 test below that used to mock `upsertDocument` mocks this instead. */
+function mockAtomicNumbering(data: Record<string, unknown> = documentData) {
+  (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+    document: sendingDocument(data),
+    numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+  });
 }
 
 function buildRegistry(transportRegistry = new TransportRegistry()) {
@@ -142,7 +157,7 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
     (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(undefined);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
+    mockAtomicNumbering();
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('email', 'Email', { send: vi.fn() });
@@ -342,7 +357,7 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
     // The company itself chose "email" — B2G still forces "sdi".
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
+    mockAtomicNumbering();
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('email', 'Email', { send: vi.fn() });

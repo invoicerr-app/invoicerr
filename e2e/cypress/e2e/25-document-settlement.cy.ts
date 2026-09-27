@@ -316,10 +316,19 @@ describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAF
 			"contain.text",
 			"72.00 EUR",
 		);
-		cy.get(`[data-cy="document-settlement-credit-${creditNoteId}"]`).should(
-			"contain.text",
-			creditNoteId,
-		);
+		// The identifier shown is the credit note's own number (issue #471: a sent credit note is
+		// numbered in its own series), read back from the API rather than hard-coded.
+		cy.request({ url: `${api}/api/documents/${creditNoteId}?typeId=credit-note` })
+			.its("body.displayNumber")
+			.then((displayNumber) => {
+				expect(displayNumber, "the sent credit note carries its own number").to.match(
+					/^CREDIT-NOTE-\d{4}-\d{4}$/,
+				);
+				cy.get(`[data-cy="document-settlement-credit-${creditNoteId}"]`).should(
+					"contain.text",
+					displayNumber as string,
+				);
+			});
 
 		// Block 3: the balance itself — paid and credited stay two distinct lines.
 		cy.get('[data-cy="document-settlement-paid"]').should(

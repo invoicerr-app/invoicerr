@@ -1,4 +1,5 @@
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
+import { numberingDisplayState } from '../numbering/display-state';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 import type { PaymentMethodPresentation } from '../payment-methods/types';
 import type { DocumentTotals } from '../totals/compute-totals';
@@ -623,7 +624,23 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       <div class="document-title">${escapeHtmlSafe(descriptor.label)}</div>
       ${
         descriptor.numbering
-          ? `<div class="document-number">${escapeHtmlSafe(instance.displayNumber ?? strings.draftNoNumberYet)}</div>`
+          ? `<div class="document-number">${escapeHtmlSafe(
+              instance.displayNumber ??
+                // PR #473 review point 3: this USED to read `isNumberingAllowedFrom` directly, which
+                // answers a different question ("would this status be allowed to number on ITS OWN
+                // next transition") and, for a type with no `numbering.onlyFrom` (quote, invoice,
+                // purchase order, goods receipt), returns true for EVERY status - so a document stuck
+                // "sending" without a number (the race review point 1 of this PR closes) printed
+                // "Draft, no number yet" here while the screen already showed "Issued without a
+                // number" for the SAME record, directly contradicting this file's own promise that the
+                // two must never disagree. `numberingDisplayState` (numbering/display-state.ts) is now
+                // the ONE rule both this PDF and the frontend's own `numberingDisplayState`
+                // (types.ts) compute from - see that file's own header for why it is a mirrored
+                // formula, not literal shared code, across the backend/frontend boundary.
+                (numberingDisplayState(descriptor, instance) === 'awaiting'
+                  ? strings.draftNoNumberYet
+                  : strings.issuedWithoutNumber),
+            )}</div>`
           : ''
       }
       ${instance.atcud ? `<div class="document-atcud">${escapeHtmlSafe(instance.atcud)}</div>` : ''}

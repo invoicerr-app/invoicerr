@@ -111,6 +111,13 @@ describe('country-policy/data — the shipped FR/DE/IT/PL/PT files', () => {
   // The NEW "which types this country has" layer (schema.ts's `documentTypes`) — a separate
   // declaration from `rules` above, so it needs its own coverage guard the same way `rules` already
   // has one just above.
+  //
+  // PR #473 review round 2: this test used to carve Poland out for "credit-note" - a Polish seller
+  // has no credit note INSTRUMENT (the faktura korygująca is an INVOICE, not this type), but that is
+  // a `rules` question (`credit-note.save-draft`/`send`, both `allowed: false` for PL below), never a
+  // `documentTypes` one. Dropping "credit-note" from PL's own `documentTypes` here made an
+  // ALREADY-ISSUED Polish credit note unreachable in the app (no sidebar entry, no list) - the
+  // carve-out is reverted: every kept country, PL included, declares every document type.
   it('every kept country declares every document type the core registers today', () => {
     for (const code of ['FR', 'DE', 'IT', 'PL', 'PT']) {
       const file = fileFor(code);
@@ -286,16 +293,19 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
   });
 
   it('credit-note.send is sourced per country from the correction-routes CREDIT_NOTE fact already read there — never re-invented here', () => {
-    for (const code of ['DE', 'IT', 'PL']) {
+    for (const code of ['DE', 'IT']) {
       const rule = fileFor(code).rules.find((r) => r.typeId === 'credit-note' && r.actionId === 'send')!;
       expect(rule.provenance.kind).toBe('legal');
       expect(rule.allowed).toBe(true);
     }
-    // Poland's own nuance: no separate "nota kredytowa" instrument —
-    // a reduction is a faktura korygująca (the SAME instrument as an increase, art. 106j).
-    expect(
-      fileFor('PL').rules.find((r) => r.typeId === 'credit-note' && r.actionId === 'send')?.notes,
-    ).toMatch(/faktura korygująca/);
+    // Poland's own nuance: no separate "nota kredytowa" instrument at all - PR #473 (owner decision)
+    // reversed the EARLIER `allowed: true` this rule used to carry here (a linked credit note was
+    // wrongly let through): a reduction is a faktura korygująca (the SAME instrument as an increase,
+    // art. 106j), never this document type, linked or not.
+    const plRule = fileFor('PL').rules.find((r) => r.typeId === 'credit-note' && r.actionId === 'send')!;
+    expect(plRule.provenance.kind).toBe('legal');
+    expect(plRule.allowed).toBe(false);
+    expect(plRule.notes).toMatch(/faktura korygująca/);
   });
 
   it('each of the three surviving added files carries at least one honest, resolvable `unverified` entry — not a wall-to-wall "legal" claim', () => {

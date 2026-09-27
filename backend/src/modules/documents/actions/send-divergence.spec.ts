@@ -94,6 +94,10 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       data: documentData,
       createdAt: new Date(),
       updatedAt: new Date(),
+      // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts): quote
+      // has no `numbering.onlyFrom`, so a genuine "sending" quote always carries a number.
+      number: 1,
+      displayNumber: 'QUOTE-2026-0001',
     });
     (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'doc-1',
@@ -159,6 +163,10 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       data: documentData,
       createdAt: new Date(),
       updatedAt: new Date(),
+      // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts):
+      // invoice has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
+      number: 1,
+      displayNumber: 'INV-2026-0001',
     });
     (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'doc-1',
@@ -203,13 +211,20 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as Mock).mockResolvedValue({
-      id: 'doc-1',
-      typeId: 'quote',
-      status: 'sending',
-      data: documentData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    // PR #473 review point 1: quote has no `numbering.onlyFrom`, so "send" from "draft" is eligible
+    // for the ATOMIC status+number write (async-send.ts) - replaces `persistence.upsertDocument`.
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: {
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: documentData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
+      },
+      numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
     });
 
     const mailService = { sendForCompany: vi.fn() };

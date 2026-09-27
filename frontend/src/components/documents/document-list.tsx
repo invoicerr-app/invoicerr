@@ -25,6 +25,8 @@ import "@/components/documents/custom-registrations"
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import {
   actionAssignsNumber,
+  canCreateDocument,
+  createBlockedReasons,
   extraActionGates,
   pickPrimaryAction,
   secondaryActions,
@@ -52,7 +54,7 @@ import type {
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
-import { isActionAvailable, statusLabel } from "@/components/documents/types"
+import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
@@ -147,19 +149,30 @@ interface DocumentCardNumberProps {
 /**
  * The document's own NUMBER, shown before the row title — see the backend's numbering/ for the
  * full mechanism. Gated on `descriptor.numbering` being declared at all: a type that never numbers
- * its instances (an expense, a credit note today — see their own descriptors) shows nothing here,
- * rather than a permanent, meaningless "no number yet" on every single row. For a NUMBERED type,
- * `displayNumber` is shown verbatim once set; before that (still "draft"), the translated
- * `documents.numbering.noneYet` — NEVER a fabricated number, the one rule this whole mechanism
- * exists to hold (see the backend's numbering/format-number.ts own header on the historical bug).
+ * its instances (an expense) shows nothing here, rather than a permanent, meaningless "no number
+ * yet" on every single row. For a NUMBERED type, `displayNumber` is shown verbatim once set;
+ * otherwise `numberingDisplayState` (types.ts) tells apart a plain draft (still "no number yet")
+ * from a LEGACY record issued before this type declared `numbering` at all - issue #471's own
+ * credit-note migration concern - shown as the distinct `documents.numbering.issuedWithoutNumber`
+ * rather than the same "no number yet" a brand-new draft gets, since the two mean different things.
+ * NEVER a fabricated number either way - the one rule this whole mechanism exists to hold (see the
+ * backend's numbering/format-number.ts own header on the historical bug).
  */
 function DocumentCardNumber({ descriptor, instance }: DocumentCardNumberProps) {
   const { t } = useTranslation()
   if (!descriptor.numbering) return null
 
+  const state = numberingDisplayState(descriptor, instance)
+  const label =
+    state === "numbered"
+      ? instance.displayNumber
+      : state === "awaiting"
+        ? t("documents.numbering.noneYet")
+        : t("documents.numbering.issuedWithoutNumber")
+
   return (
     <span className="font-mono text-xs text-muted-foreground" data-cy={`document-number-${instance.id}`}>
-      {instance.displayNumber ?? t("documents.numbering.noneYet")}
+      {label}
     </span>
   )
 }
@@ -923,6 +936,14 @@ export function DocumentList({
   const clientFieldKey = useMemo(() => resolveClientFieldKey(descriptor), [descriptor])
   const dateFieldKey = useMemo(() => resolveDateFieldKey(descriptor), [descriptor])
 
+  // Whether the "New <type>" button below could actually save anything right now - see
+  // `canCreateDocument`'s own header (PR #473 review point 2, round 2: a Polish credit note is
+  // LISTED but its "save-draft"/"send" are both policy-blocked; opening the create dialog anyway
+  // would only walk someone through every field before refusing at the very last step). Generic:
+  // reads the descriptor's own actions, never a type id or country.
+  const creatable = useMemo(() => canCreateDocument(descriptor), [descriptor])
+  const createBlockedReason = useMemo(() => createBlockedReasons(descriptor), [descriptor])
+
   // One amount per CURRENT-PAGE row — a reading aid on the row itself, never a list-wide total: see
   // list-amount.ts's own `resolveRowAmount` header. There is no "total of this list" figure computed
   // anywhere in this component (there never was one beyond a single row's own amount), so there is
@@ -996,7 +1017,18 @@ export function DocumentList({
         // `secondary`, not `default`: the header's own "New <type>" stays the page's one filled
         // button — this is the same action, offered a second time where the eye lands.
         action={
-          <Button type="button" variant="secondary" onClick={onCreate} dataCy="document-create-button-empty">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCreate}
+            disabled={!creatable}
+            tooltip={
+              !creatable && createBlockedReason
+                ? t("documents.form.actionBlockedByPolicy", { reason: createBlockedReason })
+                : undefined
+            }
+            dataCy="document-create-button-empty"
+          >
             <Plus aria-hidden="true" />
             {createLabel}
           </Button>
@@ -1052,7 +1084,17 @@ export function DocumentList({
                 <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
               ))}
 
-              <Button onClick={onCreate} aria-label={createLabel} dataCy="document-create-button">
+              <Button
+                onClick={onCreate}
+                aria-label={createLabel}
+                disabled={!creatable}
+                tooltip={
+                  !creatable && createBlockedReason
+                    ? t("documents.form.actionBlockedByPolicy", { reason: createBlockedReason })
+                    : undefined
+                }
+                dataCy="document-create-button"
+              >
                 <Plus aria-hidden="true" />
                 <span className="hidden md:inline">{createLabel}</span>
               </Button>

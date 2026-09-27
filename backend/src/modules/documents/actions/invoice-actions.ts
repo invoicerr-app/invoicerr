@@ -22,6 +22,7 @@ import { resolvePaymentConversion } from '../settlement/convert-payment';
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
 import { crossedIntoSettled, emitDocumentSettled } from '../settlement/document-settled';
 import { listPayments, recordPayment, toSettlementPaymentInputs } from '../settlement/payments';
+import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
 import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
 import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
 import { computeDocumentTotals } from '../totals/compute-totals';
@@ -544,6 +545,10 @@ async function runInvoiceAtcudPreflight(companyId: string): Promise<void> {
  * the one spot that would need to start asking `DocumentTypeRegistry` instead.
  */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
+/** PR #473 review point 2: computed once, off this same constant - the invoice's own `lines` field
+ *  declares an `articleId` (`kind: 'hiddenReference'`, `entity: 'article'`), so this is `true` (and
+ *  stays true automatically if that field ever moves or is renamed, unlike a hardcoded literal). */
+const INVOICE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(INVOICE_DESCRIPTOR);
 
 /**
  * HISTORY (issue #468 closed this for good - kept for anyone doing archaeology on why this handler
@@ -686,6 +691,7 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
         // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
         webhooks: deps.webhooks,
         numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
+        declaresArticleReference: INVOICE_DECLARES_ARTICLE_REFERENCE,
         // The country-mandate check runs as part of THIS preflight — see
         // `runInvoiceSendPreflight`'s own header. `data.issueDate` is the submitted field value at
         // ENQUEUE time; `descriptors/invoice.descriptor.ts` requires it, so by the time "send" can even
