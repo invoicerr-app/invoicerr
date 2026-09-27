@@ -28,6 +28,8 @@ export interface SignatureRecord {
   lockedAt: Date | null;
   signedAt: Date | null;
   isActive: boolean;
+  /** See `Signature.chosenOption`'s own schema comment - issue #373 ("quotes with options"). */
+  chosenOption: string | null;
   documentPdfUri: string | null;
   documentPdfHash: string | null;
   createdAt: Date;
@@ -135,11 +137,17 @@ export async function recordFailedAttempt(id: string): Promise<{ locked: boolean
 
 /** The terminal, successful write — `signedAt` AND `isActive: false` on the SAME call (schema.prisma's
  *  own header: a completed signature must never be replayable, the identical reasoning the lifetime
- *  lock above already holds). */
-export async function markSignatureSigned(id: string): Promise<SignatureRecord> {
+ *  lock above already holds). `chosenOption`, when given, travels on this SAME write - see
+ *  `Signature.chosenOption`'s own schema comment (issue #373, "quotes with options"); `undefined` for
+ *  a signature on a document with fewer than two options leaves the column untouched (null). */
+export async function markSignatureSigned(id: string, chosenOption?: string): Promise<SignatureRecord> {
   return prisma.signature.update({
     where: { id },
-    data: { signedAt: new Date(), isActive: false },
+    data: {
+      signedAt: new Date(),
+      isActive: false,
+      ...(chosenOption !== undefined ? { chosenOption } : {}),
+    },
   });
 }
 

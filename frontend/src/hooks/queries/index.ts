@@ -106,6 +106,7 @@ export {
   useRequestPublicSignatureOtp,
   useSignPublicSignature,
   type PublicSignatureView,
+  type PublicSignatureOptionTotal,
 } from "./use-public-signature"
 export {
   usePortalAccess,

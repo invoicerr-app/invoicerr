@@ -10,6 +10,7 @@ import {
   listRecentDocuments,
 } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
+import { deriveQuoteOptions } from '../options/quote-options';
 import { fromMinor } from '@/utils/financial';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { MetricWidget, MetricWidgetLink, ShortListWidget, TableWidget, Widget } from './widgets';
@@ -68,7 +69,24 @@ function restrictToPeriod(
  * Never used to aggregate ACROSS documents — see buildQuoteDashboardWidgets' own comment for why
  * counting, not summing, stays the rule the moment more than one document/currency is involved.
  */
-function quoteGrossTotal(data: Record<string, unknown>): { amount: number; currency: string } {
+function quoteGrossTotal(data: Record<string, unknown>): {
+  amount: number | null;
+  currency: string;
+  optionsCount?: number;
+} {
+  // Issue #373 ("quotes with options") - a quote offering 2+ options has no single gross to report
+  // here: `computeDocumentTotals` over its WHOLE `lines` array would silently sum every option
+  // together, exactly the meaningless number this issue exists to stop printing (this audit's own
+  // finding - see this function's own caller below for how `null` is shown instead).
+  const options = deriveQuoteOptions(data);
+  if (options.length >= 2) {
+    // The document's OWN currency field - never `''` (this used to leave the statistics table's
+    // "Currency" column blank for exactly these rows, this issue's own audit finding). There is no
+    // single TOTAL to report for a multi-option quote, but every option shares the one currency the
+    // quote itself was written in, which IS knowable without picking an option.
+    const currency = typeof data.currency === 'string' ? data.currency : '';
+    return { amount: null, currency, optionsCount: options.length };
+  }
   const totals = computeDocumentTotals(QUOTE_DESCRIPTOR, data);
   const currency = totals.currency ?? '';
   // fromMinor needs SOME currency to pick a decimal count; an unresolved currency (totals.currency
@@ -188,13 +206,21 @@ export const buildQuoteStatisticsWidgets: ContributionHandler = async ({ company
 
   const rows = quotes.map((quote) => {
     const data = (quote.data ?? {}) as Record<string, unknown>;
-    const { amount, currency } = quoteGrossTotal(data);
+    const { amount, currency, optionsCount } = quoteGrossTotal(data);
     return {
       issueDate: typeof data.issueDate === 'string' ? data.issueDate : '',
       dueDate: typeof data.dueDate === 'string' ? data.dueDate : '',
       status: quote.status,
       currency,
-      total: Number(amount.toFixed(2)),
+      // Issue #373 ("quotes with options") - `amount === null` is `quoteGrossTotal`'s own "2+
+      // options, no single total exists" case. The row carries `optionsCount` (a NUMBER, structured
+      // data) rather than a pre-rendered English string here - the same "backend sends the fact,
+      // the frontend translates it" split `status` already gets via `DocumentStatusBadge`
+      // (table-widget.tsx), and the same shape the client portal already uses for the identical fact
+      // (`PortalQuoteRow.optionCount` / `clientPortal.quotes.optionCount`) - so `total` is left absent
+      // rather than an untranslated "N options" literal, and the frontend's own table renderer fills
+      // in the translated label from `optionsCount`.
+      ...(optionsCount !== undefined ? { optionsCount } : { total: Number((amount ?? 0).toFixed(2)) }),
     };
   });
 

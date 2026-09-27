@@ -1301,6 +1301,212 @@ describe('renderDocumentHtml', () => {
       expect(html).not.toContain('VAT 20% on');
       expect(html).not.toContain('>Net<');
     });
+
+    // Review point #5 ("the missing-currency placeholder changed for every document") - `dev` prints
+    // '—' (`git show origin/dev:.../render-html.ts`'s own `const currency = totals.currency || '—';`)
+    // for a document whose `totals.currency` is null/empty; the shared `renderTotalsRows` extraction
+    // (issue #373) briefly fell back to ' - ' instead, on the ordinary single-total path too - fixed
+    // back to the exact dev literal.
+    it('falls back to "—" (never " - ") when totals.currency is null, on the ordinary single-total path', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: null,
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+        },
+      });
+
+      expect(html).toContain('100.00 —');
+      expect(html).not.toContain(' - ');
+    });
+  });
+
+  describe('optionGroups (issue #373, "quotes with options")', () => {
+    const quoteDescriptor: DocumentTypeDescriptor = {
+      id: 'quote',
+      label: 'Quote',
+      fields: [
+        {
+          key: 'lines',
+          kind: 'array',
+          label: 'Lines',
+          fields: [
+            { key: 'description', kind: 'text', label: 'Designation' },
+            { key: 'option', kind: 'text', label: 'Option' },
+          ],
+        },
+      ],
+      actions: [],
+    };
+
+    const basicTotals = {
+      currency: 'EUR',
+      lines: [],
+      netMinor: 10000,
+      vatMinor: 0,
+      grossMinor: 10000,
+      vatBreakdown: [],
+      warnings: [],
+      showVat: false,
+    };
+    const premiumTotals = { ...basicTotals, netMinor: 30000, grossMinor: 30000 };
+
+    it('renders one labelled group per option, its own rows only, and NO global totals section', () => {
+      const html = renderDocumentHtml({
+        descriptor: quoteDescriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [
+              { description: 'Basic package', option: 'Basic' },
+              { description: 'Premium package', option: 'Premium' },
+            ],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+        optionGroups: {
+          arrayFieldKey: 'lines',
+          groupFieldKey: 'option',
+          groups: [
+            { label: 'Basic', totals: basicTotals },
+            { label: 'Premium', totals: premiumTotals },
+          ],
+        },
+      });
+
+      expect(html).toContain('Basic');
+      expect(html).toContain('Premium');
+      expect(html).toContain('Basic package');
+      expect(html).toContain('Premium package');
+      expect(html).toContain('100.00 EUR'); // Basic's own total
+      expect(html).toContain('300.00 EUR'); // Premium's own total
+      // No global totals section anywhere on a 2+-option render.
+      expect(html).not.toContain('class="totals-label"');
+      // No common group here - each real option's own gross row keeps the PLAIN "Total" label.
+      expect(html).not.toContain('including common lines');
+    });
+
+    it('marks the accepted option, and ONLY that one, with the "Accepted" badge', () => {
+      const html = renderDocumentHtml({
+        descriptor: quoteDescriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [
+              { description: 'Basic package', option: 'Basic' },
+              { description: 'Premium package', option: 'Premium' },
+            ],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+        optionGroups: {
+          arrayFieldKey: 'lines',
+          groupFieldKey: 'option',
+          acceptedOption: 'Premium',
+          groups: [
+            { label: 'Basic', totals: basicTotals },
+            { label: 'Premium', totals: premiumTotals },
+          ],
+        },
+      });
+
+      expect((html.match(/Accepted/g) ?? []).length).toBe(1);
+      // The badge sits right after "Premium", never after "Basic".
+      expect(html).toMatch(/Premium(?:(?!<\/div>).)*Accepted/s);
+    });
+
+    // Issue #373 follow-up: a line nobody tagged with an `option` at all ("Setup fee") gets its OWN
+    // "Common to all options" group - never silently dropped from the PDF, and never mistaken for the
+    // accepted option.
+    describe('the common-lines group (isCommon)', () => {
+      const commonTotals = { ...basicTotals, netMinor: 5000, grossMinor: 5000 };
+
+      it('renders a "Common to all options" heading with only the untagged rows', () => {
+        const html = renderDocumentHtml({
+          descriptor: quoteDescriptor,
+          instance: {
+            ...baseInstance,
+            data: {
+              lines: [
+                { description: 'Setup fee' }, // no `option` at all
+                { description: 'Basic package', option: 'Basic' },
+                { description: 'Premium package', option: 'Premium' },
+              ],
+            },
+          },
+          company: baseCompany,
+          referenceLabels: {},
+          optionGroups: {
+            arrayFieldKey: 'lines',
+            groupFieldKey: 'option',
+            groups: [
+              { label: '', totals: commonTotals, isCommon: true },
+              { label: 'Basic', totals: basicTotals },
+              { label: 'Premium', totals: premiumTotals },
+            ],
+          },
+        });
+
+        expect(html).toContain('Common to all options');
+        expect(html).toContain('Setup fee');
+        // "Setup fee" never appears a second time under either real option's own group - it is
+        // listed ONCE, in its own dedicated group, not duplicated under every option.
+        expect((html.match(/Setup fee/g) ?? []).length).toBe(1);
+        expect(html).toContain('Basic package');
+        expect(html).toContain('Premium package');
+        // Orchestrator review follow-up ("no meaningless common total"): the common group's OWN
+        // figure (50.00 EUR, `commonTotals.grossMinor`) never prints anywhere - only its lines do.
+        expect(html).not.toContain('50.00 EUR');
+        // Each REAL option's own total still folds the common lines in (the figure is unchanged,
+        // `basicTotals`/`premiumTotals` are already the merged numbers a real caller would pass), but
+        // its label now says so, once per real option, since a common group exists alongside them.
+        expect((html.match(/Total \(including common lines\)/g) ?? []).length).toBe(2);
+        expect(html).toContain('100.00 EUR'); // Basic's own (already-merged) total
+        expect(html).toContain('300.00 EUR'); // Premium's own (already-merged) total
+      });
+
+      it('never gets the "Accepted" badge, even when `acceptedOption` happens to be an empty string', () => {
+        const html = renderDocumentHtml({
+          descriptor: quoteDescriptor,
+          instance: {
+            ...baseInstance,
+            data: {
+              lines: [
+                { description: 'Setup fee' },
+                { description: 'Basic package', option: 'Basic' },
+                { description: 'Premium package', option: 'Premium' },
+              ],
+            },
+          },
+          company: baseCompany,
+          referenceLabels: {},
+          optionGroups: {
+            arrayFieldKey: 'lines',
+            groupFieldKey: 'option',
+            acceptedOption: 'Basic',
+            groups: [
+              { label: '', totals: commonTotals, isCommon: true },
+              { label: 'Basic', totals: basicTotals },
+              { label: 'Premium', totals: premiumTotals },
+            ],
+          },
+        });
+
+        expect((html.match(/Accepted/g) ?? []).length).toBe(1);
+        expect(html).toMatch(/Basic(?:(?!<\/div>).)*Accepted/s);
+        expect(html).not.toMatch(/Common to all options(?:(?!<\/div>).)*Accepted/s);
+      });
+    });
   });
 
   // Per-recipient document language ("langue du document par destinataire") — `language` translates ONLY this

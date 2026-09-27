@@ -12,11 +12,22 @@ import { ApiError, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
  * exactly the same split `share-links`'s own public PDF route already has.
  */
 
+export interface PublicSignatureOptionTotal {
+  name: string
+  currency: string | null
+  netMinor: number
+  vatMinor: number
+  grossMinor: number
+}
+
 export interface PublicSignatureView {
   typeId: string
   /** The document's own frozen display number, or null for the (never really exercised in practice)
    *  case where numbering somehow never took — see the backend's own `PublicSignatureView` header. */
   displayNumber: string | null
+  /** Issue #373 ("quotes with options") - this quote's own 2+ options and each one's OWN total, null
+   *  for a quote with fewer than two. See the backend's own `PublicSignatureView.options` header. */
+  options: PublicSignatureOptionTotal[] | null
 }
 
 const publicSignatureKey = (token: string) => ["public-signature", token]
@@ -77,7 +88,7 @@ export function useRequestPublicSignatureOtp(token: string) {
  *  locked, already used, unknown token) answers the exact same message. `signedAt` is the persisted
  *  write's own timestamp (never the browser's clock) — the public page's own "signed on …" line. */
 export function useSignPublicSignature(token: string) {
-  return useApiMutation<{ code: string }, { message: string; signedAt: string }>(
+  return useApiMutation<{ code: string; option?: string }, { message: string; signedAt: string }>(
     "POST",
     `/api/public/signatures/${encodeURIComponent(token)}/sign`,
   )

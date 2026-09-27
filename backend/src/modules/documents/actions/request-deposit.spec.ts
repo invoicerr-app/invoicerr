@@ -190,6 +190,35 @@ describe('request-deposit', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
+
+  // Issue #373 ("quotes with options") - this action is only ever `availableWhen: ['sent']`
+  // (quote.descriptor.ts), a status neither acceptance path has reached yet, so a 2+-option quote can
+  // never have a chosen total to take a percentage of at the point this action is reachable at all.
+  it('refuses outright for a quote offering 2+ options - there is no single total to take a percentage of', async () => {
+    mockQuote({
+      lines: [
+        { description: 'Basic', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+        { description: 'Premium', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+      ],
+    });
+
+    const handler = buildRegistry().resolve('quote', 'request-deposit')!;
+    const action = handler({
+      companyId: 'company-1',
+      typeId: 'quote',
+      documentId: 'quote-1',
+      data: {},
+      params: { percent: 30 },
+    });
+    await expect(action).rejects.toBeInstanceOf(BadRequestException);
+    // Issue #373 follow-up, points 3/4 - the message used to say "request it again once an option
+    // has been chosen", which can never happen: this action is only available at "sent", and
+    // choosing an option is exactly what moves the quote off "sent". It must state the real,
+    // permanent limitation instead, never a retry that can never succeed.
+    await expect(action).rejects.toThrow('not supported for a quote with options');
+    await expect(action).rejects.not.toThrow(/once an option has been chosen/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
 });
 
 /**

@@ -147,5 +147,8 @@
     "privacyNotice": "Mantieni questo link riservato — chiunque lo possieda può visualizzare il tuo account.",
     "signOffText": "Cordiali saluti,\n{companyName}",
     "signOffHtml": "Cordiali saluti,<br>{companyName}"
+  },
+  "documents": {
+    "multipleOptionsTotal": "consulta il documento allegato per ogni opzione e il relativo totale"
   }
 }

@@ -71,6 +71,22 @@ describe('quoteGrossTotal', () => {
   it('a quote with no usable lines totals to 0, not a crash', () => {
     expect(quoteGrossTotal({}).amount).toBe(0);
   });
+
+  // Issue #373 follow-up, point 7: a quote offering 2+ options used to report `currency: ''`,
+  // blanking the statistics table's own Currency column for exactly these rows.
+  it("carries the quote's own currency for a quote with 2+ options, never blank", () => {
+    const { amount, currency, optionsCount } = quoteGrossTotal({
+      currency: 'USD',
+      lines: [
+        { description: 'A', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+        { description: 'B', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+      ],
+    });
+
+    expect(amount).toBeNull();
+    expect(currency).toBe('USD');
+    expect(optionsCount).toBe(2);
+  });
 });
 
 describe('buildQuoteDashboardWidgets', () => {
@@ -262,6 +278,40 @@ describe('buildQuoteStatisticsWidgets', () => {
 
     expect(table.rows).toEqual([
       { issueDate: '2026-01-01', dueDate: '2026-01-31', status: 'sent', currency: 'EUR', total: 120 },
+    ]);
+  });
+
+  // Issue #373 follow-up, point 7: no more blank currency / untranslated "N options" prose - the row
+  // carries the real currency and a structured `optionsCount` the frontend translates itself (the
+  // same split `status` already gets via DocumentStatusBadge).
+  it('a quote with 2+ options: real currency, structured optionsCount, no `total`', async () => {
+    seedDocuments([
+      quote({
+        id: 'q1',
+        status: 'sent',
+        data: {
+          issueDate: '2026-01-01',
+          dueDate: '2026-01-31',
+          currency: 'USD',
+          lines: [
+            { description: 'A', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+            { description: 'B', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+          ],
+        },
+      }),
+    ]);
+
+    const widgets = await buildQuoteStatisticsWidgets({ companyId: 'c1' });
+    const table = widgets.find((w) => w.kind === 'table') as TableWidget;
+
+    expect(table.rows).toEqual([
+      {
+        issueDate: '2026-01-01',
+        dueDate: '2026-01-31',
+        status: 'sent',
+        currency: 'USD',
+        optionsCount: 2,
+      },
     ]);
   });
 });

@@ -152,6 +152,21 @@ exports[`renderDocumentHtml > branding (chantier B, 2026-09-15) > pins the full 
       text-align: right;
       min-width: 120px;
     }
+    .option-group {
+      margin-top: 24px;
+    }
+    .option-group-heading {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .option-group-heading .accepted-badge {
+      font-weight: normal;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+    }
     .warnings-section {
       margin-top: 16px;
       padding: 8px;

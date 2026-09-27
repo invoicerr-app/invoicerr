@@ -3,6 +3,7 @@ import { buildExpenseDescriptor } from '../descriptors/expense.descriptor';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
+import { SUPPORTED_RENDER_LANGUAGES } from '../rendering/language/supported-languages';
 import { DocumentTotals } from '../totals/compute-totals';
 import {
   buildEmailTemplateParts,
@@ -204,6 +205,103 @@ describe('buildEmailTemplateParts', () => {
     });
 
     expect(parts.totalGross).toBe('1200 JPY');
+  });
+
+  // Issue #373 follow-up, point 5: `multipleOptions` used to hard-code an English sentence, sent
+  // verbatim inside an email whose TEMPLATE is already chosen in the recipient's own language - this
+  // is the one placeholder in the whole covering email that stayed English regardless.
+  describe('multipleOptions - the "see the attached document" sentence follows the recipient language', () => {
+    it('defaults to English when no language is given (every pre-existing caller)', () => {
+      const parts = buildEmailTemplateParts({
+        descriptor: quoteDescriptor,
+        displayNumber: 'QUOTE-2026-0001',
+        companyName: 'Acme Corp',
+        totals: zeroTotals,
+        referenceLabels: {},
+        multipleOptions: true,
+      });
+
+      // No trailing period: the shipped templates that substitute `{totalGross}` already end their
+      // OWN sentence with "." right after the placeholder (e.g. quote.descriptor.ts's own "for a
+      // total of {totalGross}.") - a value carrying its own trailing period would print a double
+      // ".." (this issue's own follow-up finding, caught the first time an actual composed email was
+      // read rather than just this function's own return value in isolation).
+      expect(parts.totalGross).toBe('see the attached document for each option and its own total');
+    });
+
+    it('renders in French for a French recipient', () => {
+      const parts = buildEmailTemplateParts({
+        descriptor: quoteDescriptor,
+        displayNumber: 'QUOTE-2026-0001',
+        companyName: 'Acme Corp',
+        totals: zeroTotals,
+        referenceLabels: {},
+        multipleOptions: true,
+        language: 'fr',
+      });
+
+      expect(parts.totalGross).toBe('consultez le document joint pour chaque option et son propre total');
+    });
+
+    it('renders in German for a German recipient - never the English literal', () => {
+      const parts = buildEmailTemplateParts({
+        descriptor: quoteDescriptor,
+        displayNumber: 'QUOTE-2026-0001',
+        companyName: 'Acme Corp',
+        totals: zeroTotals,
+        referenceLabels: {},
+        multipleOptions: true,
+        language: 'de',
+      });
+
+      expect(parts.totalGross).not.toMatch(/see the attached/i);
+      expect(parts.totalGross).toContain('Dokument');
+    });
+
+    it('formats the ordinary gross total, unaffected, when multipleOptions is false', () => {
+      const parts = buildEmailTemplateParts({
+        descriptor: quoteDescriptor,
+        displayNumber: 'QUOTE-2026-0001',
+        companyName: 'Acme Corp',
+        totals: zeroTotals,
+        referenceLabels: {},
+        multipleOptions: false,
+        language: 'fr',
+      });
+
+      expect(parts.totalGross).toBe('120.00 EUR');
+    });
+
+    // Orchestrator review follow-up: the two isolated checks above only ever looked at
+    // `buildEmailTemplateParts`'s own return value - they could not, on their own, have caught the
+    // real bug: the quote's own shipped template ALREADY ends its sentence with "." right after
+    // `{totalGross}` ("...pour un montant total de {totalGross}.\n\n" - quote.descriptor.ts /
+    // standard-email-translations.ts), so a value that ALSO carried a trailing period produced a
+    // silent ".." in the actually-composed email body, in every one of the six languages. This
+    // builds the REAL body (resolveEmailTemplate + renderEmailTemplate, the exact same two calls
+    // send-document-email.ts makes) for every supported language and asserts no ".." anywhere.
+    it('never produces a double period in the real, composed quote email body, in any language', () => {
+      // The REAL shipped descriptor (buildQuoteDescriptor), not this describe block's own minimal
+      // stub above - the stub declares no `email`/`emailTranslations` at all, so it would resolve to
+      // GENERIC_FALLBACK_EMAIL_TEMPLATE and never exercise the actual sentence
+      // ("...pour un montant total de {totalGross}.") this bug lived in.
+      const realQuoteDescriptor = buildQuoteDescriptor();
+      for (const language of SUPPORTED_RENDER_LANGUAGES) {
+        const template = resolveEmailTemplate(realQuoteDescriptor, null, language);
+        const parts = buildEmailTemplateParts({
+          descriptor: realQuoteDescriptor,
+          displayNumber: 'QUOTE-2026-0001',
+          companyName: 'Acme Corp',
+          totals: zeroTotals,
+          referenceLabels: { client: 'Jane Doe' },
+          multipleOptions: true,
+          language,
+        });
+        const { body } = renderEmailTemplate(template, parts);
+
+        expect(body, `language "${language}" produced a double period`).not.toMatch(/\.\./);
+      }
+    });
   });
 });
 

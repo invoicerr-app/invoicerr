@@ -303,7 +303,9 @@ describe('SignaturesService', () => {
       const token = await requestAndGetToken(service, mailService);
 
       const view = await service.resolvePublicSignature(token);
-      expect(view).toEqual({ typeId: 'quote', displayNumber: 'QUOTE-2026-0001' });
+      // Issue #373 ("quotes with options") - `options: null` for a quote with fewer than two of
+      // them, the fixture's own case here - see `PublicSignatureView.options`'s own header.
+      expect(view).toEqual({ typeId: 'quote', displayNumber: 'QUOTE-2026-0001', options: null });
     });
 
     it('an unknown token gives the SAME generic refusal everywhere', async () => {
@@ -435,11 +437,21 @@ describe('SignaturesService', () => {
       const result = await service.verifyAndSign(token, code);
 
       expect(result.message).toBe('Document signed.');
+      // Issue #373 follow-up - `fromStatuses: ['sent']` and `knownUpdatedAt: SENT_QUOTE.updatedAt`
+      // are the fix for the OTP-overwrites-a-manual-acceptance race (this class's own header on
+      // `markSigned`): the write is no longer unconditional. `acceptedOption` stays `undefined` - a
+      // quote with fewer than two options resolves `chosenOption` to `undefined`.
       expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
         'company-1',
         'quote',
         'quote-1',
         'signed',
+        null,
+        undefined,
+        undefined,
+        ['sent'],
+        undefined,
+        SENT_QUOTE.updatedAt,
       );
       expect(rows()[0].signedAt).not.toBeNull();
       expect(rows()[0].isActive).toBe(false); // a signed row can never be replayed
@@ -447,6 +459,120 @@ describe('SignaturesService', () => {
         WebhookEvent.DOCUMENT_SIGNED,
         expect.objectContaining({ documentId: 'quote-1', typeId: 'quote', companyId: 'company-1' }),
       );
+    });
+
+    describe('issue #373 - a quote offering 2+ options', () => {
+      const MULTI_OPTION_QUOTE = {
+        ...SENT_QUOTE,
+        data: {
+          client: 'client-1',
+          lines: [
+            { description: 'Basic line', quantity: 1, unitPrice: 100, option: 'Basic' },
+            { description: 'Premium line', quantity: 1, unitPrice: 200, option: 'Premium' },
+          ],
+        },
+      };
+
+      it("resolvePublicSignature exposes both options and each one's own total", async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(MULTI_OPTION_QUOTE);
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+
+        const view = await service.resolvePublicSignature(token);
+        expect(view.options).toEqual([
+          { name: 'Basic', currency: null, netMinor: 10000, vatMinor: 0, grossMinor: 10000 },
+          { name: 'Premium', currency: null, netMinor: 20000, vatMinor: 0, grossMinor: 20000 },
+        ]);
+      });
+
+      it('refuses to sign with no option named at all', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(MULTI_OPTION_QUOTE);
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+
+        await expect(service.verifyAndSign(token, code)).rejects.toThrow(
+          /offers 2 options \(Basic, Premium\) - choose one/,
+        );
+        expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+      });
+
+      it("refuses to sign with an option that is not one of the quote's own", async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(MULTI_OPTION_QUOTE);
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+
+        await expect(service.verifyAndSign(token, code, 'Deluxe')).rejects.toThrow(
+          /"Deluxe" is not one of this quote's options/,
+        );
+        expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+      });
+
+      // Round 3 review, point 4 ("after a refused option, the client cannot choose again") - proves
+      // the two facts the frontend fix relies on: the refusal carries `OPTION_NO_LONGER_VALID_CODE`
+      // (what the public page matches on to know to show the chooser again rather than treat this
+      // like a wrong code) AND the OTP itself survives the refusal untouched, no failed attempt is
+      // recorded and the row stays active - so a retry with the SAME code, once a still-valid option
+      // is named, succeeds. Simulates "the issuer renamed Premium to Gold while the client waited for
+      // the code" by swapping `findOwnedDocument`'s own mock between the two `verifyAndSign` calls -
+      // `markSigned` re-reads the document fresh on every call rather than trusting an earlier read.
+      it('carries a stable code, and leaves the OTP itself valid, when the chosen option no longer exists', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(MULTI_OPTION_QUOTE);
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+
+        const RENAMED_QUOTE = {
+          ...MULTI_OPTION_QUOTE,
+          data: {
+            ...MULTI_OPTION_QUOTE.data,
+            lines: MULTI_OPTION_QUOTE.data.lines.map((line) =>
+              line.option === 'Premium' ? { ...line, option: 'Gold' } : line,
+            ),
+          },
+        };
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(RENAMED_QUOTE);
+
+        const failure = await service.verifyAndSign(token, code, 'Premium').catch((err) => err);
+        expect(failure).toBeInstanceOf(BadRequestException);
+        expect((failure as BadRequestException).getResponse()).toMatchObject({
+          code: 'OPTION_NO_LONGER_VALID',
+        });
+        expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+        // Neither a failed OTP attempt nor a lock - this refusal never reached `recordFailedAttempt`
+        // (it happens inside `markSigned`, entirely after the OTP match already succeeded).
+        expect(rows()[0].otpFailedAttempts).toBe(0);
+        expect(rows()[0].isActive).toBe(true);
+
+        // The SAME code, now naming the CURRENT option, still works - no fresh mint was needed.
+        await service.verifyAndSign(token, code, 'Gold');
+        expect(rows()[0].chosenOption).toBe('Gold');
+        expect(rows()[0].signedAt).not.toBeNull();
+      });
+
+      it('signs with a valid option, writing it on the SAME write as "signed" and on the Signature row', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(MULTI_OPTION_QUOTE);
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+
+        await service.verifyAndSign(token, code, 'Premium');
+
+        expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+          'company-1',
+          'quote',
+          'quote-1',
+          'signed',
+          null,
+          undefined,
+          undefined,
+          ['sent'],
+          'Premium',
+          MULTI_OPTION_QUOTE.updatedAt,
+        );
+        expect(rows()[0].chosenOption).toBe('Premium');
+      });
     });
 
     it('a second "sign" call with the SAME already-consumed code fails generically — no replay', async () => {

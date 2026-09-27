@@ -295,6 +295,22 @@ export interface ManualAcceptanceManifest {
   /** ISO 8601 - when the issuer recorded the acceptance (server time), never the client's own claimed
    *  date, which lives inside `note` if they mentioned one at all. */
   acceptedAt: string;
+  /**
+   * Issue #373 ("quotes with options") - the option name that was accepted, PLUS a frozen snapshot of
+   * that option's own lines and total at the moment of acceptance, so the legal record never depends
+   * on the document's own `data` (or its VAT-rate catalog, whose ids can change meaning over time -
+   * see `vat-rates/registry.ts`'s own header) still agreeing with what was true the day this was
+   * archived. Undefined for a quote with fewer than two options - `resolveChosenOption`
+   * (`options/quote-options.ts`) never asks for a choice on those, so there is nothing to snapshot.
+   */
+  option?: {
+    name: string;
+    lines: Record<string, unknown>[];
+    netMinor: number;
+    vatMinor: number;
+    grossMinor: number;
+    currency: string | null;
+  };
 }
 
 /** The artifact role a manual-acceptance manifest is stored under - see `DocumentArchiveKind`'s own

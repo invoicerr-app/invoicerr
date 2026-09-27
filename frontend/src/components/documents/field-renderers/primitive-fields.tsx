@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useFormContext } from "react-hook-form"
+import { useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { BetterInput } from "@/components/better-input"
@@ -84,23 +84,89 @@ export function useConditionallyRequired(field: FieldRendererProps["field"]): bo
   return false
 }
 
+/**
+ * `name` for a ROW-nested field is `${arrayFieldKey}.${rowIndex}.${subFieldKey}` (registry.ts's own
+ * doc comment on `FieldRendererProps.name`) - e.g. "lines.2.option". Splitting off the last TWO
+ * segments (never assuming which array/subfield by name) is what lets `useOptionSuggestions` below
+ * work for ANY text subfield on ANY array row, not just the quote's own `option` field: a generic
+ * convenience, not a per-field special case, the same discipline this whole field-renderer registry
+ * already holds. `undefined` for a top-level (non-row) field, where there are no "sibling rows" to
+ * suggest from at all.
+ */
+export function arrayRowFieldPath(name: string): { arrayFieldName: string; subFieldKey: string } | undefined {
+  const parts = name.split(".")
+  if (parts.length < 3) return undefined
+  const rowIndex = parts[parts.length - 2]
+  if (!/^\d+$/.test(rowIndex)) return undefined
+  return { arrayFieldName: parts.slice(0, -2).join("."), subFieldKey: parts[parts.length - 1] }
+}
+
+/**
+ * Issue #373's own editor-convenience ask: suggestions of values ALREADY typed for this SAME
+ * subfield on OTHER rows of the SAME array - a plain HTML5 `<datalist>`, so typing "Basic" on one
+ * quote line offers it back while typing the next line's own `option`. The mechanism itself is
+ * generic (any array, any 'text' subfield) - but it is gated on the field's own
+ * `suggestSiblingValues` opt-in (types.ts's own header on that flag): without it, this would change
+ * every OTHER array text subfield of every OTHER document type too (an invoice's own line
+ * `description` starting to suggest sibling designations, unrequested), which is exactly what this
+ * flag exists to prevent. Returns `undefined` when the field did not opt in, or outside an array row
+ * entirely (nothing to suggest from) - either way, a field renders exactly as it always did.
+ */
+function useOptionSuggestions(field: FieldRendererProps["field"], name: string): string[] | undefined {
+  const path = arrayRowFieldPath(name)
+  const rows = useWatch({ name: path?.arrayFieldName ?? "__no_such_array_field__" }) as
+    | Record<string, unknown>[]
+    | undefined
+  if (!field.suggestSiblingValues || !path) return undefined
+  if (!Array.isArray(rows)) return []
+  const seen = new Set<string>()
+  const suggestions: string[] = []
+  for (const row of rows) {
+    const raw = row?.[path.subFieldKey]
+    const trimmed = typeof raw === "string" ? raw.trim() : ""
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    suggestions.push(trimmed)
+  }
+  return suggestions
+}
+
 export function TextField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
   const required = useConditionallyRequired(field)
   const readOnly = useDocumentFormReadOnly()
+  const suggestions = useOptionSuggestions(field, name)
+  // A stable, collision-safe id: `name` itself is already unique per field instance (react-hook-form
+  // never reuses one), just not a valid HTML id verbatim (dots).
+  const datalistId = suggestions ? `${name.replace(/\./g, "-")}-suggestions` : undefined
   return (
     <FormField
       control={control}
       name={name}
       render={({ field: rhfField }) => (
-        <FieldChrome field={field} required={required}>
-          <BetterInput
-            {...rhfField}
-            value={rhfField.value ?? ""}
-            disabled={readOnly}
-            data-cy={`document-field-${field.key}-input`}
-          />
-        </FieldChrome>
+        <>
+          {/* `FieldChrome`'s own `<FormControl>` is a Radix `Slot` - it clones its props onto
+              EXACTLY ONE child element, so the `<datalist>` must render as a SIBLING here, never a
+              second child alongside `<BetterInput>` inside `FieldChrome` (that would break Slot's
+              single-child invariant). A `<datalist>` is invisible either way - only `list={id}` on
+              the input itself matters for the browser to find it. */}
+          <FieldChrome field={field} required={required}>
+            <BetterInput
+              {...rhfField}
+              value={rhfField.value ?? ""}
+              disabled={readOnly}
+              list={datalistId}
+              data-cy={`document-field-${field.key}-input`}
+            />
+          </FieldChrome>
+          {datalistId && suggestions && suggestions.length > 0 && (
+            <datalist id={datalistId}>
+              {suggestions.map((suggestion) => (
+                <option key={suggestion} value={suggestion} />
+              ))}
+            </datalist>
+          )}
+        </>
       )}
     />
   )

@@ -4101,6 +4101,7 @@
       "refuse": "Decline",
       "signatureRequested": "Check your email for a link to complete your signature.",
       "refused": "Quote declined.",
+      "optionCount": "{{count}} options",
       "status": {
         "sent": "Awaiting your decision",
         "signed": "Accepted",
@@ -4871,6 +4872,9 @@
       "vat": "VAT {{rate}}% on {{base}}",
       "gross": "Total",
       "taxWarningsTitle": "About this VAT treatment",
+      "optionAccepted": "Accepted",
+      "commonToAllOptions": "Common to all options",
+      "grossIncludingCommon": "Total (including common lines)",
       "warnings": {
         "noUsableVatRate": "Line {{line}} has no usable VAT rate — counted in net only"
       }
@@ -4924,6 +4928,7 @@
       "title": "Sign document",
       "description": "You have been asked to sign this document.",
       "descriptionWithNumber": "You have been asked to sign {{number}}.",
+      "chooseOptionLabel": "This quote offers several options - choose the one you accept:",
       "requestCodeButton": "Send verification code",
       "resendCodeButton": "Send a new code",
       "codeSent": "A verification code was sent to your email.",
@@ -4934,6 +4939,7 @@
       "unavailableTitle": "Link unavailable",
       "unavailableDescription": "This signature link is invalid, expired, or has already been used.",
       "genericError": "Something went wrong. Please try again.",
+      "optionsChangedError": "This quote's options have changed since you made your choice. Please choose again from the current options below.",
       "documentPreviewLabel": "Document preview",
       "documentLoadError": "Could not load the document to review. Please try again.",
       "previewUnavailable": "Your browser can't display the document here.",
@@ -5045,6 +5051,9 @@
       "noteLabel": "How did the client accept?",
       "notePlaceholder": "e.g. Accepted by phone on 2026-09-20.",
       "noteRequired": "Describe how the client accepted before confirming.",
+      "optionLabel": "Which option did the client accept?",
+      "optionPlaceholder": "Choose an option",
+      "optionRequired": "Choose which option the client accepted before confirming.",
       "confirm": "Mark as accepted",
       "cancel": "Cancel",
       "confirmedToast": "Quote marked as accepted.",
@@ -5052,7 +5061,8 @@
       "manualLabel": "Accepted manually",
       "manualEntry": "Marked accepted manually by {{actorName}}: \"{{note}}\"",
       "signedLabel": "Signed electronically",
-      "signedEntry": "Signed electronically on {{date}}"
+      "signedEntry": "Signed electronically on {{date}}",
+      "acceptedOption": "Accepted option: {{option}}"
     }
   },
   "declarations": {

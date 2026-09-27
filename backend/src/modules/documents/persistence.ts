@@ -127,6 +127,27 @@ export async function upsertDocument(
  * `fromStatuses`, when given, is the SAME compare-and-swap `upsertDocument` above now supports (see
  * its own doc comment) — `undefined` (every caller not yet updated to pass its own expected status)
  * stays byte-for-byte the previous, unconditional `update`.
+ *
+ * `acceptedOption`, when given, is written on this SAME call - see `DocumentInstance.acceptedOption`'s
+ * own schema comment: issue #373 ("quotes with options") needs the CHOSEN option recorded in the exact
+ * same compare-and-swap as the status write that accepts the quote (both `signatures.service.ts
+ * #markSigned` and `actions/quote-manual-acceptance.ts` pass it here), never a second, separate write
+ * that could land after a concurrent caller has already moved the record on. `undefined` (every
+ * caller that never accepts a quote at all) leaves the column untouched, exactly like `transportRef`/
+ * `channelProviderId` above.
+ *
+ * `knownUpdatedAt`, when given, folds the row's own `updatedAt` (as the CALLER read it, e.g.
+ * `findOwnedDocument`'s own result, moments before deciding what to write) into the SAME
+ * `updateManyConditionally` WHERE clause `claimDocumentTransition` already uses this column for (see
+ * that function's own header on why a same-value `status` alone cannot exclude every concurrent
+ * writer). Issue #373's own acceptance race: both `markSigned` and the manual-acceptance handler read
+ * the quote's own OPTIONS off `data` before this write, from a row fetched a moment earlier - an edit
+ * that renames/removes an option in between (a "sent" quote stays editable) never changes `status`,
+ * so `fromStatuses` alone would let acceptance land against options that no longer match what was
+ * validated. Bumping `updatedAt` on every write (`@updatedAt`) makes ANY such intervening change -
+ * a status move OR a plain data edit - fail this compare-and-swap with the SAME named 409, never a
+ * silent accept against stale option data. `undefined` (every pre-existing caller) keeps this an
+ * ordinary status-only CAS, unchanged.
  */
 export async function updateDocumentStatus(
   companyId: string,
@@ -137,6 +158,8 @@ export async function updateDocumentStatus(
   transportRef?: string,
   channelProviderId?: string,
   fromStatuses?: string[],
+  acceptedOption?: string,
+  knownUpdatedAt?: Date,
 ): Promise<DocumentInstanceResult> {
   await findOwnedDocument(companyId, typeId, id);
   const data: Prisma.DocumentInstanceUpdateManyMutationInput = {
@@ -144,11 +167,12 @@ export async function updateDocumentStatus(
     lastActionError,
     ...(transportRef !== undefined ? { transportRef } : {}),
     ...(channelProviderId !== undefined ? { channelProviderId } : {}),
+    ...(acceptedOption !== undefined ? { acceptedOption } : {}),
   };
   if (fromStatuses === undefined) {
     return prisma.documentInstance.update({ where: { id }, data });
   }
-  const count = await updateManyConditionally(companyId, typeId, id, fromStatuses, data);
+  const count = await updateManyConditionally(companyId, typeId, id, fromStatuses, data, knownUpdatedAt);
   if (count === 0) {
     throw new ConflictException(
       `Document "${id}" is no longer in one of the expected statuses (${fromStatuses.join(', ')}) — ` +

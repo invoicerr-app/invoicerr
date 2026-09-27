@@ -57,6 +57,22 @@ export interface PdfChromeStrings {
    *  (plain data, a company's own wording), only this section's heading is this render layer's OWN
    *  chrome. */
   customFieldsHeading: string;
+  /** Issue #373 ("quotes with options") - the badge printed next to the accepted option's own
+   *  heading, once a choice has been recorded (`render-html.ts`'s option-groups block). Never shown
+   *  before an option is accepted, and never shown at all for a 0/1-option document. */
+  acceptedOptionBadge: string;
+  /** Issue #373 follow-up ("common lines") - the heading of the group listing every line nobody
+   *  tagged with an `option` at all ("Setup fee"), on a quote with 2+ options - see
+   *  `render-html.ts`'s own `optionGroups.groups[].isCommon`. Never shown for a 0/1-option document,
+   *  or for one where every line IS tagged. */
+  commonToAllOptionsHeading: string;
+  /** Issue #373 follow-up ("no meaningless common total") - the gross-row LABEL a real option's own
+   *  totals block uses INSTEAD of the plain `total` above, whenever a common (untagged) group exists
+   *  alongside it: the figure is unchanged (still that option's own tagged lines PLUS the common
+   *  ones, `computeQuoteOptionTotals`'s own merge), only the label says so, since the common group
+   *  itself no longer prints any total of its own for a reader to trace the inclusion back to - see
+   *  `render-html.ts#renderOptionGroupsField`'s own header. */
+  totalIncludingCommonLines: string;
 }
 
 const EN: PdfChromeStrings = {
@@ -73,6 +89,9 @@ const EN: PdfChromeStrings = {
   scanToPaySepa: 'Scan to pay (SEPA)',
   paymentMethodsHeading: 'Payment methods',
   customFieldsHeading: 'Additional fields',
+  acceptedOptionBadge: 'Accepted',
+  commonToAllOptionsHeading: 'Common to all options',
+  totalIncludingCommonLines: 'Total (including common lines)',
 };
 
 const FR: PdfChromeStrings = {
@@ -89,6 +108,9 @@ const FR: PdfChromeStrings = {
   scanToPaySepa: 'Scannez pour payer (SEPA)',
   paymentMethodsHeading: 'Moyens de paiement',
   customFieldsHeading: 'Champs supplémentaires',
+  acceptedOptionBadge: 'Accepté',
+  commonToAllOptionsHeading: 'Commun à toutes les options',
+  totalIncludingCommonLines: 'Total (lignes communes incluses)',
 };
 
 const IT: PdfChromeStrings = {
@@ -105,6 +127,9 @@ const IT: PdfChromeStrings = {
   scanToPaySepa: 'Scansiona per pagare (SEPA)',
   paymentMethodsHeading: 'Metodi di pagamento',
   customFieldsHeading: 'Campi aggiuntivi',
+  acceptedOptionBadge: 'Accettata',
+  commonToAllOptionsHeading: 'Comune a tutte le opzioni',
+  totalIncludingCommonLines: 'Totale (righe comuni incluse)',
 };
 
 const PL: PdfChromeStrings = {
@@ -121,6 +146,9 @@ const PL: PdfChromeStrings = {
   scanToPaySepa: 'Zeskanuj, aby zapłacić (SEPA)',
   paymentMethodsHeading: 'Metody płatności',
   customFieldsHeading: 'Dodatkowe pola',
+  acceptedOptionBadge: 'Zaakceptowano',
+  commonToAllOptionsHeading: 'Wspólne dla wszystkich opcji',
+  totalIncludingCommonLines: 'Razem (z pozycjami wspólnymi)',
 };
 
 const DE: PdfChromeStrings = {
@@ -137,6 +165,9 @@ const DE: PdfChromeStrings = {
   scanToPaySepa: 'Zum Bezahlen scannen (SEPA)',
   paymentMethodsHeading: 'Zahlungsmethoden',
   customFieldsHeading: 'Zusätzliche Felder',
+  acceptedOptionBadge: 'Akzeptiert',
+  commonToAllOptionsHeading: 'Gemeinsam für alle Optionen',
+  totalIncludingCommonLines: 'Gesamt (inkl. gemeinsamer Positionen)',
 };
 
 const PT: PdfChromeStrings = {
@@ -153,6 +184,9 @@ const PT: PdfChromeStrings = {
   scanToPaySepa: 'Digitalize para pagar (SEPA)',
   paymentMethodsHeading: 'Formas de pagamento',
   customFieldsHeading: 'Campos adicionais',
+  acceptedOptionBadge: 'Aceite',
+  commonToAllOptionsHeading: 'Comum a todas as opções',
+  totalIncludingCommonLines: 'Total (incluindo linhas comuns)',
 };
 
 const CHROME_STRINGS: Record<RenderLanguage, PdfChromeStrings> = {

@@ -3,7 +3,8 @@ import { BadRequestException } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 
 import { createManualAcceptanceArchive, ManualAcceptanceManifest } from '../archive/persistence';
-import { updateDocumentStatus } from '../persistence';
+import { findOwnedDocument, updateDocumentStatus } from '../persistence';
+import { computeQuoteOptionTotals, deriveQuoteOptions, resolveChosenOption } from '../options/quote-options';
 import { ActionRegistry } from './action-registry';
 
 /**
@@ -78,10 +79,30 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
       throw new BadRequestException(`The acceptance note must be at most ${MAX_NOTE_LENGTH} characters.`);
     }
 
+    // Issue #373 ("quotes with options") - a quote offering 2+ options must NAME which one was
+    // accepted, refused otherwise with a clear message; a quote with fewer than two needs no such
+    // param at all (`resolveChosenOption` returns undefined for it - see that function's own header).
+    // Read from the QUOTE's own current `data`, never from `ctx.data` (the request body's copy the
+    // frontend happens to send alongside - this handler, like the OTP path, treats `data` as
+    // authoritative only when it comes from the persisted row itself, the same "never trust the
+    // client's own echo of the document" posture `markSigned` already holds).
+    const current = await findOwnedDocument(ctx.companyId, 'quote', ctx.documentId);
+    const currentData = (current.data ?? {}) as Record<string, unknown>;
+    const options = deriveQuoteOptions(currentData);
+    const chosenOption = resolveChosenOption(options, ctx.params.option);
+
     // The compare-and-swap IS the 409 for "already accepted"/"already signed"/"draft"/"refused" -
     // `runAction`'s own `isActionAvailable` gate already refuses every status but "sent" before this
     // handler is even reached (a 409 naming the CURRENT status), and this second, atomic check closes
-    // the race the first one cannot: two concurrent calls both reading "sent" before either writes.
+    // the race the first one cannot: two concurrent calls both reading "sent" before either writes -
+    // including a concurrent OTP signature racing this very call (`signatures.service.ts#markSigned`
+    // passes the SAME `fromStatuses: ['sent']`, the fix for the loser-overwrites-the-winner bug this
+    // pair of calls used to have). `knownUpdatedAt: current.updatedAt` closes the other half of that
+    // race: a quote edited (options renamed/removed) between the read of `options` just above and
+    // this write stays "sent" but its `updatedAt` moves, so this CAS still refuses rather than
+    // accepting a `chosenOption` validated against options that no longer exist. `chosenOption`
+    // travels on the SAME write as the status change - see `updateDocumentStatus`'s own header on why
+    // this must never be a second, separate write.
     const updated = await updateDocumentStatus(
       ctx.companyId,
       'quote',
@@ -91,9 +112,33 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
       undefined,
       undefined,
       ['sent'],
+      chosenOption,
+      current.updatedAt,
     );
 
     const acceptedAt = new Date();
+    // The frozen option snapshot (name, lines, total) - see `ManualAcceptanceManifest.option`'s own
+    // header on why the ARCHIVE carries a copy rather than merely pointing at `chosenOption`.
+    const optionSnapshot = chosenOption
+      ? (() => {
+          const perOption = computeQuoteOptionTotals(currentData) ?? [];
+          const match = perOption.find((entry) => entry.option === chosenOption);
+          // Unreachable in practice - `chosenOption` was just proven to be one of `options`, which is
+          // exactly what `computeQuoteOptionTotals` groups by - but a handler never trusts its own
+          // precondition alone, the same discipline this whole module holds throughout.
+          if (!match) {
+            throw new Error(`Chosen option "${chosenOption}" could not be matched back to its own totals.`);
+          }
+          return {
+            name: chosenOption,
+            lines: match.lines,
+            netMinor: match.totals.netMinor,
+            vatMinor: match.totals.vatMinor,
+            grossMinor: match.totals.grossMinor,
+            currency: match.totals.currency,
+          };
+        })()
+      : undefined;
     const manifest: ManualAcceptanceManifest = {
       kind: 'manual-acceptance',
       documentId: ctx.documentId,
@@ -102,6 +147,7 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
       actorEmail: ctx.actor.email,
       note,
       acceptedAt: acceptedAt.toISOString(),
+      ...(optionSnapshot ? { option: optionSnapshot } : {}),
     };
 
     // The AUDIT TRAIL - see this file's own header, point 2. Awaited (unlike the archive write right
@@ -119,6 +165,7 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
         actorName: ctx.actor.name,
         actorEmail: ctx.actor.email,
         note,
+        ...(chosenOption ? { chosenOption } : {}),
       },
     });
 
@@ -145,7 +192,9 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
     return {
       document: updated,
       changed: true,
-      message: `Quote marked as accepted manually: "${note}".`,
+      message: chosenOption
+        ? `Quote marked as accepted manually, option "${chosenOption}": "${note}".`
+        : `Quote marked as accepted manually: "${note}".`,
     };
   });
 }

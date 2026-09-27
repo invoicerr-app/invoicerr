@@ -42,7 +42,12 @@ import {
 } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { DocumentTaxWarningsSection } from "@/components/documents/document-tax-warnings"
-import { DocumentTotals, formatTotal, useDocumentTotals } from "@/components/documents/document-totals"
+import {
+  DocumentTotals,
+  formatTotal,
+  useDocumentOptionTotals,
+  useDocumentTotals,
+} from "@/components/documents/document-totals"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { hasUnsavedChanges } from "@/components/documents/form-dirty"
 import { isEmptyFieldValue, resolveListFields } from "@/components/documents/list-fields"
@@ -243,7 +248,11 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </Card>
 
         <aside className="space-y-4">
-          <TotalsCard descriptor={descriptor} documentId={instance.id} />
+          <TotalsCard
+            descriptor={descriptor}
+            documentId={instance.id}
+            acceptedOption={instance.acceptedOption}
+          />
           {showSettlement && <DocumentSettlementSection typeId={descriptor.id} documentId={instance.id} />}
           {/* Legal archiving ⚖ — shown for ANY document type/status once it has at least one
               archive (the component itself renders nothing otherwise, see its own header): never
@@ -408,10 +417,13 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
 }
 
 /** The live gross total, in the mono figures face — the one number a reader looks for first.
- *  Absent for a type with nothing to total (see useDocumentTotals). */
+ *  Absent for a type with nothing to total (see useDocumentTotals), and - issue #373 ("quotes with
+ *  options") - absent for a quote offering 2+ options: there is no single gross to headline until the
+ *  client picks one, and the per-option totals card below is where each option's own total lives. */
 function HeadlineAmount({ descriptor }: { descriptor: DocumentTypeDescriptor }) {
+  const optionTotals = useDocumentOptionTotals(descriptor)
   const totals = useDocumentTotals(descriptor)
-  if (!totals) return null
+  if (optionTotals || !totals) return null
   return (
     <span className="amount text-base font-semibold text-foreground" data-cy="document-detail-amount">
       {formatTotal(totals.grossMinor, totals.currency || "")}
@@ -427,13 +439,22 @@ function HeadlineAmount({ descriptor }: { descriptor: DocumentTypeDescriptor }) 
  * also why they are not in the settlement card — that one is about what has been PAID, not about how
  * the amount was arrived at.
  */
-function TotalsCard({ descriptor, documentId }: { descriptor: DocumentTypeDescriptor; documentId: string }) {
+function TotalsCard({
+  descriptor,
+  documentId,
+  acceptedOption,
+}: {
+  descriptor: DocumentTypeDescriptor
+  documentId: string
+  acceptedOption?: string | null
+}) {
   const { t } = useTranslation()
+  const optionTotals = useDocumentOptionTotals(descriptor)
   const totals = useDocumentTotals(descriptor)
-  if (!totals) return null
+  if (!optionTotals && !totals) return null
   return (
     <SectionCard title={t("documents.detail.totalsTitle")} dataCy="document-totals-card">
-      <DocumentTotals descriptor={descriptor} />
+      <DocumentTotals descriptor={descriptor} acceptedOption={acceptedOption} />
       <DocumentTaxWarningsSection typeId={descriptor.id} documentId={documentId} />
     </SectionCard>
   )

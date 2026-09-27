@@ -664,6 +664,55 @@ export default defineConfig({
         },
 
         /**
+         * `99-quote-option-changed-while-signing.cy.ts`'s ONE piece of Node-side help: renames one
+         * option tag across every quote line that carries it, on a "sent" quote, WITHOUT going through
+         * "save-draft" - that action's own `SAVE_DRAFT_TRANSITIONS` (`quote.descriptor.ts`) writes
+         * `status: 'draft'` unconditionally, which would flip the quote's status out from under a
+         * signature already in flight (`markSigned`'s own `fromStatuses: ['sent']` guard would then
+         * refuse the whole spec's sign attempt with an unrelated 409, never reaching the option
+         * refusal this spec exists to prove). This is the "sent quote stays editable, use a DB task if
+         * the API refuses" fallback the review round names - a raw `data` rewrite standing in for
+         * "the issuer opened the still-editable quote and typed a new option name", the one edit this
+         * app's own UI has no OTHER route to reach without also touching `status`.
+         */
+        async renameQuoteOption({
+          documentId,
+          from,
+          to,
+        }: {
+          documentId: string;
+          from: string;
+          to: string;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rows } = await client.query(`SELECT data FROM "DocumentInstance" WHERE id = $1`, [
+              documentId,
+            ]);
+            if (rows.length === 0) {
+              throw new Error(`renameQuoteOption: no DocumentInstance "${documentId}"`);
+            }
+            const data = rows[0].data as { lines?: Array<Record<string, unknown>> };
+            const lines = Array.isArray(data.lines) ? data.lines : [];
+            const renamed = lines.map((line) =>
+              line.option === from ? { ...line, option: to } : line,
+            );
+            await client.query(`UPDATE "DocumentInstance" SET data = $1::jsonb WHERE id = $2`, [
+              JSON.stringify({ ...data, lines: renamed }),
+              documentId,
+            ]);
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
+
+        /**
          * `20-document-totals.cy.ts`'s own PDF-content proof. A rendered invoice/quote PDF is
          * FlateDecode-compressed (Chromium's own PDF writer), so the string "Totals" almost never
          * appears verbatim in the raw bytes — a spec that fell back to "the file got bigger" on a miss

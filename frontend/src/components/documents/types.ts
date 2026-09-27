@@ -35,6 +35,14 @@ export interface DocumentFieldDescriptor {
    *  header (`document-detail.tsx`); NOT by the form itself (an empty, optional input must still be
    *  visible to fill in). */
   hideWhenEmpty?: boolean
+  /** Mirrors the backend's `DocumentFieldDescriptor.suggestSiblingValues` (descriptors/types.ts) -
+   *  'text' only, and only inside an 'array' row's own `fields`: opts THIS row subfield into a plain
+   *  HTML5 `<datalist>` of values already typed for the SAME subfield on OTHER rows of the SAME
+   *  array (`field-renderers/primitive-fields.tsx#useOptionSuggestions`). An explicit opt-in, never
+   *  inferred from "any 'text' subfield inside an array" - the mechanism is generic, but the UX
+   *  change is real and unrequested on a type that never asked for it. Set ONLY on the quote's own
+   *  `option` line subfield today (issue #373). Absent/false: no datalist, unchanged render. */
+  suggestSiblingValues?: true
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
   /** 'select' only: additional values the backend's validator (field-kinds.ts) still accepts, but
@@ -307,6 +315,12 @@ export interface DocumentInstance {
    *  is the preservation that has a gap. Shown verbatim, like `lastActionError` — the backend rewrites
    *  it from a bare driver message into a full sentence once automatic retries stop explaining it. */
   lastArchiveError?: string | null
+  /** Issue #373 ("quotes with options") - mirrors the backend's `DocumentInstance.acceptedOption`:
+   *  the option name the client chose when accepting a quote offering 2+ of them, written only by the
+   *  OTP signature or the manual acceptance, never editable. Null/absent for every quote with fewer
+   *  than two options, and for one that has not been accepted yet either way. Shown read-only on the
+   *  detail page (document-detail.tsx) - never a form field, this key is not part of any descriptor. */
+  acceptedOption?: string | null
 }
 
 /**

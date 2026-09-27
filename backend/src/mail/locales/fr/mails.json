@@ -147,5 +147,8 @@
     "privacyNotice": "Conservez ce lien confidentiel — toute personne qui le possède peut consulter votre compte.",
     "signOffText": "Cordialement,\n{companyName}",
     "signOffHtml": "Cordialement,<br>{companyName}"
+  },
+  "documents": {
+    "multipleOptionsTotal": "consultez le document joint pour chaque option et son propre total"
   }
 }
