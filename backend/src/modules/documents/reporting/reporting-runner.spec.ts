@@ -20,6 +20,7 @@ import { DeclarationProviderRegistry } from './declaration-provider';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
 import { InvalidDeclarationResultError, ReportingRunner } from './reporting-runner';
+import { UndeclarableDocumentError } from './build-declared-invoice';
 
 vi.mock('../persistence');
 vi.mock('../conformity/authority-events.persistence');
@@ -180,6 +181,27 @@ describe('ReportingRunner.runReport', () => {
     await expect(runner.runReport(JOB_DATA)).rejects.toThrow('NAV HTTP 500');
     expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
     expect(mockedJournalSynthetic).not.toHaveBeenCalled();
+  });
+
+  // Issue #497: the last `?? 'DRAFT'` fallback. A document with no number must never reach a provider
+  // with the literal "DRAFT" (or anything else) standing in for its number: the runner fails, loudly,
+  // before `declare` is ever called, and nothing is journaled as a declaration.
+  it.each([
+    ['null', null],
+    ['empty', ''],
+    ['blank', '   '],
+  ])('a document with a %s displayNumber is never declared: UndeclarableDocumentError, provider never called', async (_label, displayNumber) => {
+    mockedFindOwnedDocument.mockResolvedValue({ ...FIXTURE_DOCUMENT, displayNumber });
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    const attempt = runner.runReport(JOB_DATA);
+    await expect(attempt).rejects.toThrow(UndeclarableDocumentError);
+    await expect(runner.runReport(JOB_DATA)).rejects.toThrow(
+      /Refusing to declare invoice doc-1: it has no number/,
+    );
+    expect(declare).not.toHaveBeenCalled();
+    expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
   });
 
   // ⚖ "MARK/transactionId not empty" — the hard contract this whole mechanism refuses to relax.

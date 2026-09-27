@@ -35,7 +35,7 @@ import {
 } from '../transports/transport-registry';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
-import { attachAtcudToNumberedInvoice, ensureAtcudIssuable, isAtcudBlockError } from './atcud-issuance';
+import { attachAtcudToNumberedDocument, runAtcudPreflight } from './atcud-issuance';
 import { performSaveDraft } from './generic-actions';
 
 export interface InvoiceActionDeps {
@@ -497,28 +497,6 @@ async function runInvoiceCrossBorderTaxPreflight(
 }
 
 /**
- * Portugal's ATCUD — a no-op for every company whose resolved country is not Portugal
- * (`atcud-issuance.ts#ensureAtcudIssuable`'s own header), otherwise the LOAD-BEARING hard block: this
- * runs at the SAME preflight moment as the transport/mandate and cross-border-tax checks above, before
- * the record is ever transitioned to "sending" and before `numberOnEnqueue` (this action's own
- * registration below) can spend a sequence number this codebase can never hand back
- * (numbering/sequence.ts's own "never waste a number" header). `isAtcudBlockError` turns either of
- * `ensureAtcudIssuable`'s two named errors — an incompatible number format, or a validation code not
- * yet registered for the predicted series — into a 400 the user can act on, the exact same posture
- * `runInvoiceCrossBorderTaxPreflight` just above already holds for its own named errors.
- */
-async function runInvoiceAtcudPreflight(companyId: string): Promise<void> {
-  try {
-    await ensureAtcudIssuable(companyId);
-  } catch (error) {
-    if (isAtcudBlockError(error)) {
-      throw new BadRequestException(error.message);
-    }
-    throw error;
-  }
-}
-
-/**
  * NOTE on Poland's `correctionReason` (country-fields/data/pl.json): unlike ATCUD/cross-border-tax
  * above, this needs NO dedicated preflight function here. `requiredIfPresent: "correctsInvoiceId"`
  * (descriptors/types.ts) is read by `validateAgainstDescriptor` (descriptors/validate.ts), and
@@ -700,10 +678,10 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
           const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
           const clientId = typeof data.client === 'string' ? data.client : undefined;
           await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate, clientId, data);
-          // Portugal's ATCUD — see `runInvoiceAtcudPreflight`'s own header. A no-op for every other
+          // Portugal's ATCUD - see `runAtcudPreflight`'s own header. A no-op for every other
           // country; for Portugal, the LOAD-BEARING check (before `numberOnEnqueue` below can ever spend
           // a sequence number this codebase can never hand back — numbering/sequence.ts's own header).
-          await runInvoiceAtcudPreflight(companyId);
+          await runAtcudPreflight(companyId, 'invoice');
           // Poland's `correctionReason` — see this file's own NOTE just above `registerInvoiceActions`'s
           // header: no dedicated preflight needed, the generic descriptor gate already enforces it.
           // See `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never
@@ -714,11 +692,11 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
         },
         // Portugal's ATCUD, part two — computes and freezes it onto the invoice the MOMENT it is
         // numbered (before anything is enqueued), reading the FROZEN `displayNumber` numbering just
-        // produced. See `attachAtcudToNumberedInvoice`'s own header for why this never throws: the
+        // produced. See `attachAtcudToNumberedDocument`'s own header for why this never throws: the
         // preflight step just above is what can still refuse the whole issuance, this is a defensive
         // re-check running after a number has already been irreversibly spent.
         onNumbered: async ({ companyId: c, documentId, numbered }) =>
-          attachAtcudToNumberedInvoice(c, documentId, numbered),
+          attachAtcudToNumberedDocument(c, 'invoice', documentId, numbered),
         // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
         // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
         // and attaches the PDF itself; see that file's own header and actions/send-document-email.ts

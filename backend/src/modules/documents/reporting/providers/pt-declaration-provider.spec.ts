@@ -28,7 +28,12 @@ import {
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { ChannelNotConnectedError, DeclaredInvoice } from '../declaration-provider';
-import { buildPtAtDeclarationProvider, PT_AT_PROVIDER_ID } from './pt-declaration-provider';
+import {
+  buildPtAtDeclarationProvider,
+  buildPtAtInvoiceRequestFields,
+  PT_AT_PROVIDER_ID,
+  ptAtInvoiceTypeFor,
+} from './pt-declaration-provider';
 import { PtAtApiError } from './pt-at-client';
 import { buildClientPfx, generateSelfSignedCert } from './mtls-test-fixtures';
 import { firstByLocalName, parseXml, textOf } from '../../transports/sdi/xml-helpers';
@@ -367,5 +372,19 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
     const provider = buildPtAtDeclarationProvider({ channelCredentials });
 
     await expect(provider.declare('company-1', FIXTURE_INVOICE)).rejects.toThrow(ChannelNotConnectedError);
+  });
+});
+
+// Issue #497: field 1.6.4 (InvoiceType) reads the SAF-T (PT) document type from the same table the
+// ATCUD series are keyed by (numbering/atcud.ts), sourced to Portaria n.º 302/2016, field 4.1.4.8.
+describe('ptAtInvoiceTypeFor (issue #497)', () => {
+  it('maps the invoice to FT and the credit note to NC', () => {
+    expect(ptAtInvoiceTypeFor('invoice')).toBe('FT');
+    expect(ptAtInvoiceTypeFor('credit-note')).toBe('NC');
+  });
+
+  it('the request an invoice produces still says FT', () => {
+    const fields = buildPtAtInvoiceRequestFields({ ...FIXTURE_INVOICE, typeId: 'invoice' });
+    expect((fields['doc:InvoiceData'] as Record<string, unknown>)['doc:InvoiceType']).toBe('FT');
   });
 });

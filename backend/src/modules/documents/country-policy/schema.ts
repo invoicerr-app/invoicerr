@@ -127,7 +127,11 @@ export interface DocumentNumberingFact {
   /** A DocumentTypeDescriptor.id - e.g. "credit-note". Same "not validated against the live
    *  registry here" posture as `DocumentActionRuleFact.typeId` above, for the identical reason. */
   typeId: string;
-  requirement: 'sequential-number-required' | 'type-not-issuable';
+  /** `'atcud-required'` (issue #497): the type must carry Portugal's ATCUD once numbered. Unlike the
+   *  other two, this one IS read at runtime, indirectly: `numbering/atcud.ts#SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID`
+   *  is the set of types `actions/atcud-issuance.ts` produces an ATCUD for, and `data/numbering.spec.ts`
+   *  fails if that set and the PT facts carrying this requirement ever differ. */
+  requirement: 'sequential-number-required' | 'type-not-issuable' | 'atcud-required';
   provenance: PolicyProvenance;
   notes?: string;
 }
