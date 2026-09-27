@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/stepped-dialog"
 import { ClientPortalAccessDialog } from "./client-portal-access"
 import { buildClientSchema } from "@/lib/client-schema"
+import { normalizeClientContacts } from "@/lib/normalize-client-contacts"
 
 /** A brand-new client always starts with ONE blank contact row, already flagged primary - the
  *  common case (a single contact) then needs no "Add contact" click at all, matching this form's
@@ -67,6 +68,14 @@ function blankPrimaryContact() {
  * overwrote the primary row's name with the identity step's. A plain function, not a closure over
  * `form`/`trigger`: `RecapStep` only ever has `form.watch()`'s current (not yet submitted) values,
  * never the mutation triggers `onSubmit` needs.
+ *
+ * Contacts go through `normalizeClientContacts` (#415 follow-up review round 3, point 3) - blank rows
+ * dropped FIRST, then a primary resolved from what remains, the exact order the backend's own
+ * `normalizeClientContacts` uses (see `lib/normalize-client-contacts.ts`'s own header). Before this,
+ * the primary was picked from the RAW array (a blank default row flagged primary won the "Primary"
+ * badge, and the duplicate check below read ITS email) while the server dropped that same blank row
+ * first and promoted the next real one - a client saved with, say, Bob as the real primary while the
+ * summary and the duplicate check both still showed the empty row.
  */
 function buildClientPayload(data: {
   type?: string
@@ -100,24 +109,38 @@ function buildClientPayload(data: {
   // could disagree. The form itself already makes this the only possible outcome (the primary row's
   // name inputs are read-only, mirroring these two fields, and no OTHER row's "set primary"/"Remove"
   // control is reachable for an INDIVIDUAL client - see `ContactsSection`), so this override is a
-  // belt-and-suspenders restatement of the same rule, never a place a mismatch could survive to.
-  // `isPrimary`/`position` are assigned here too: exactly one primary (the flagged one, or the first
-  // row when none is), in array order. An INDIVIDUAL client always has at least its own identity as a
-  // primary contact, even if the contacts step's own list is empty (the common case: nothing else to
-  // add beyond the person's own name/email/phone, already captured on the identity/contact steps).
+  // belt-and-suspenders restatement of the same rule, never a place a mismatch could survive to. An
+  // INDIVIDUAL client always has at least its own identity as a primary contact, even if the contacts
+  // step's own list is empty (the common case: nothing else to add beyond the person's own
+  // name/email/phone, already captured on the identity/contact steps).
   const rawContacts =
     data.type === "INDIVIDUAL" && (!data.contacts || data.contacts.length === 0)
       ? [{ isPrimary: true }]
       : data.contacts || []
-  const firstFlagged = rawContacts.findIndex((c) => c.isPrimary)
-  const primaryIndex = firstFlagged >= 0 ? firstFlagged : 0
-  const contacts = rawContacts.map((c, index) => ({
-    firstName: data.type === "INDIVIDUAL" && index === primaryIndex ? data.contactFirstname : c.firstName,
-    lastName: data.type === "INDIVIDUAL" && index === primaryIndex ? data.contactLastname : c.lastName,
+
+  // Which raw row the identity override lands on - the row the CONTACT step's own `ContactsSection`
+  // treats as "the locked, identity-linked row" (flagged primary, or index 0 when none is - the row
+  // an INDIVIDUAL client can never remove or hand "primary" to another row instead, see that
+  // component's own `primaryLocked`). Computed on the RAW array, on purpose: this is about which UI
+  // row the identity fields belong to, never about which row survives blank-dropping below.
+  const isIndividual = data.type === "INDIVIDUAL"
+  const rawFirstFlagged = rawContacts.findIndex((c) => c.isPrimary)
+  const rawPrimaryIndex = rawFirstFlagged >= 0 ? rawFirstFlagged : 0
+  const annotatedContacts = rawContacts.map((c, index) => ({
+    ...c,
+    firstName: isIndividual && index === rawPrimaryIndex ? data.contactFirstname : c.firstName,
+    lastName: isIndividual && index === rawPrimaryIndex ? data.contactLastname : c.lastName,
+  }))
+
+  // Blank rows dropped, primary resolved from what's left - see this function's own header.
+  const { contacts: survivingContacts, primary } = normalizeClientContacts(annotatedContacts)
+  const contacts = survivingContacts.map((c) => ({
+    firstName: c.firstName,
+    lastName: c.lastName,
     role: c.role,
     email: c.email,
     phone: c.phone,
-    isPrimary: index === primaryIndex,
+    isPrimary: c === primary,
   }))
 
   // Filter out empty identifiers so we don't send {scheme, value: ""}
@@ -742,10 +765,21 @@ function FiscalStep({
 function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues>; excludeId?: string }) {
   const { t } = useTranslation()
   // The PRIMARY contact's email (#415) - the duplicate rule matches on it specifically, see
-  // `ClientsService.findDuplicates`'s own header.
+  // `ClientsService.findDuplicates`'s own header. Resolved through `normalizeClientContacts` (#415
+  // follow-up review round 3, point 3), the same function `buildClientPayload` uses to decide the
+  // primary that actually gets saved - reading the raw array's own `isPrimary`/`[0]` fallback here
+  // used to check a blank default row's email whenever that row was still flagged primary, never the
+  // real contact (say, Bob) the server would go on to make primary once it dropped that empty row.
   const contactsRaw =
-    (form.watch("contacts" as never) as unknown as { email?: string; isPrimary?: boolean }[]) || []
-  const emailRaw = (contactsRaw.find((c) => c.isPrimary) ?? contactsRaw[0])?.email
+    (form.watch("contacts" as never) as unknown as {
+      firstName?: string
+      lastName?: string
+      role?: string
+      email?: string
+      phone?: string
+      isPrimary?: boolean
+    }[]) || []
+  const emailRaw = normalizeClientContacts(contactsRaw).primary?.email
   const nameRaw = form.watch("name" as never) as unknown as string | undefined
   const countryRaw = form.watch("country" as never) as unknown as string | undefined
 

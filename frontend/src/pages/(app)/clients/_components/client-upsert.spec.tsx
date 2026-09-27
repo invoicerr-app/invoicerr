@@ -52,7 +52,10 @@ const CLIENT: Client = {
   // #415: the API always returns `contacts` now (ordered primary-first) - this is what the
   // wizard's own contacts step actually reads to build its rows, `contactEmail` above stays purely
   // as the derived, read-only flat field a caller unaware of `contacts` would still see.
-  contacts: [{ id: "contact-1", email: "billing@acme.test", isPrimary: true }],
+  // `firstName` set so clearing `email` below leaves the row non-blank (#415 follow-up review round
+  // 3, point 3: a fully blank row is dropped from the payload, never sent as an empty-string primary
+  // - see `normalize-client-contacts.ts`'s own header).
+  contacts: [{ id: "contact-1", firstName: "Alice", email: "billing@acme.test", isPrimary: true }],
   address: "1 Rue de Paris",
   city: "Paris",
   country: "France",
