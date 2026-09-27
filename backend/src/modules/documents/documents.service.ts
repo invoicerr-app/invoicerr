@@ -15,6 +15,11 @@ import { SigningCertificatesService } from '@/modules/company/signing-certificat
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
+import {
+  DocumentTotalsView,
+  resolveDocumentTotalsView,
+  resolveSettlementTotals,
+} from './totals/document-totals-view';
 import { computeQuoteOptionTotals, isQuoteWithOptions, rejectStrayOptionTag } from './options/quote-options';
 import {
   APPROVAL_REQUIRED_MESSAGE,
@@ -1580,11 +1585,20 @@ export class DocumentsService implements OnModuleInit {
   /**
    * Computes totals (net, VAT, gross) for a document instance by parsing its lines and applying
    * VAT breakdown logic. Pure calculation, scoped by company.
+   *
+   * Issue #487: a quote with options is never summed across its options. Once one is accepted the
+   * top level carries that option's totals (common lines included), before that it carries none and
+   * `options` lists each option's own - see `totals/document-totals-view.ts`'s own header.
    */
-  async computeTotals(companyId: string, typeId: string, id: string): Promise<DocumentTotals> {
+  async computeTotals(companyId: string, typeId: string, id: string): Promise<DocumentTotalsView> {
     const instance = await findOwnedDocument(companyId, typeId, id);
     const descriptor = this.mergedDescriptor(typeId);
-    return computeDocumentTotals(descriptor, instance.data as Record<string, unknown>);
+    return resolveDocumentTotalsView(
+      typeId,
+      descriptor,
+      instance.data as Record<string, unknown>,
+      instance.acceptedOption,
+    );
   }
 
   /**
@@ -1603,7 +1617,16 @@ export class DocumentsService implements OnModuleInit {
     const instance = await findOwnedDocument(companyId, typeId, id);
     const descriptor = this.mergedDescriptor(typeId);
     const data = instance.data as Record<string, unknown>;
-    const totals = computeDocumentTotals(descriptor, data);
+    // Issue #487: a quote with options settles against its accepted option (common lines included),
+    // never the sum of every option; with none accepted there is no balance to compute and this
+    // refuses with 409 (`resolveSettlementTotals`'s own header says who can reach that).
+    const totals = resolveSettlementTotals(
+      typeId,
+      descriptor,
+      data,
+      instance.acceptedOption,
+      instance.displayNumber ?? instance.id,
+    );
     const payments = await listPayments(companyId, id);
     const { credits, warnings } = await resolveCreditsForDocument(companyId, typeId, id, descriptor, data);
     // `toSettlementPaymentInputs`, never the raw `payments` array directly:
