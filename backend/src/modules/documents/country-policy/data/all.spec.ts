@@ -111,11 +111,20 @@ describe('country-policy/data — the shipped FR/DE/IT/PL/PT files', () => {
   // The NEW "which types this country has" layer (schema.ts's `documentTypes`) — a separate
   // declaration from `rules` above, so it needs its own coverage guard the same way `rules` already
   // has one just above.
-  it('every kept country declares every document type the core registers today', () => {
-    for (const code of ['FR', 'DE', 'IT', 'PL', 'PT']) {
+  it('every kept country declares every document type the core registers today, EXCEPT Poland for "credit-note" (PR #473, owner decision - see pl.json\'s own notes)', () => {
+    for (const code of ['FR', 'DE', 'IT', 'PT']) {
       const file = fileFor(code);
       expect((file.documentTypes ?? []).slice().sort()).toEqual(ALL_DOCUMENT_TYPE_IDS.slice().sort());
     }
+    // A Polish seller has no credit note instrument at all (the faktura korygująca is an INVOICE,
+    // not this type) - hidden from the sidebar/menu the same way `resolveAvailableDocumentTypes`
+    // (country-policy.ts) already hides any type a country's own `documentTypes` list omits.
+    const pl = fileFor('PL');
+    expect((pl.documentTypes ?? []).slice().sort()).toEqual(
+      ALL_DOCUMENT_TYPE_IDS.filter((id) => id !== 'credit-note')
+        .slice()
+        .sort(),
+    );
   });
 
   // The per-status narrowing (schema.ts's `DocumentActionRuleFact.statuses`) — TWO real, shipped
@@ -286,16 +295,19 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
   });
 
   it('credit-note.send is sourced per country from the correction-routes CREDIT_NOTE fact already read there — never re-invented here', () => {
-    for (const code of ['DE', 'IT', 'PL']) {
+    for (const code of ['DE', 'IT']) {
       const rule = fileFor(code).rules.find((r) => r.typeId === 'credit-note' && r.actionId === 'send')!;
       expect(rule.provenance.kind).toBe('legal');
       expect(rule.allowed).toBe(true);
     }
-    // Poland's own nuance: no separate "nota kredytowa" instrument —
-    // a reduction is a faktura korygująca (the SAME instrument as an increase, art. 106j).
-    expect(
-      fileFor('PL').rules.find((r) => r.typeId === 'credit-note' && r.actionId === 'send')?.notes,
-    ).toMatch(/faktura korygująca/);
+    // Poland's own nuance: no separate "nota kredytowa" instrument at all - PR #473 (owner decision)
+    // reversed the EARLIER `allowed: true` this rule used to carry here (a linked credit note was
+    // wrongly let through): a reduction is a faktura korygująca (the SAME instrument as an increase,
+    // art. 106j), never this document type, linked or not.
+    const plRule = fileFor('PL').rules.find((r) => r.typeId === 'credit-note' && r.actionId === 'send')!;
+    expect(plRule.provenance.kind).toBe('legal');
+    expect(plRule.allowed).toBe(false);
+    expect(plRule.notes).toMatch(/faktura korygująca/);
   });
 
   it('each of the three surviving added files carries at least one honest, resolvable `unverified` entry — not a wall-to-wall "legal" claim', () => {

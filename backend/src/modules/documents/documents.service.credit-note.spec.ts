@@ -1,6 +1,6 @@
 import { vi, type Mock } from 'vitest';
 
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
@@ -13,6 +13,7 @@ import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor'
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as persistence from './persistence';
+import * as takeNumber from './numbering/take-number';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { ROW_ID_KEY } from './row-selection/row-selection';
 import * as settlementCredits from './settlement/credits';
@@ -22,10 +23,12 @@ import { TransportRegistry } from './transports/transport-registry';
 
 vi.mock('./persistence');
 // Issue #471: credit-note.descriptor.ts now declares `numbering`, so "send" (phase 1: draft ->
-// sending) reaches `takeDocumentNumberForTransition` - mocked wholesale, the same discipline
-// documents.service.numbering.spec.ts already holds for this exact module, so tests in THIS file
-// that never cared about numbering before (everything except the dedicated numbering coverage
-// further down) do not have to also start hitting a real Postgres connection to keep passing.
+// sending) reaches `takeDocumentNumberForTransitionWithStatus` (PR #473 review point 1: the atomic
+// status+number write, replacing the separate `takeDocumentNumberForTransition` call this comment
+// used to name) - mocked wholesale, the same discipline documents.service.numbering.spec.ts already
+// holds for this exact module, so tests in THIS file that never cared about numbering before
+// (everything except the dedicated numbering coverage further down) do not have to also start hitting
+// a real Postgres connection to keep passing.
 vi.mock('./numbering/take-number');
 // See documents.service.spec.ts's own comment on this mock — the real decision code is proven
 // elsewhere (country-policy/country-policy.spec.ts, documents.service.country-policy.spec.ts). The
@@ -165,13 +168,21 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     // reads `.typeId` off what comes back, only `.status`/`.data`, so one fixture (status "draft")
     // serves every purpose here, exactly like the pre-existing coverage already relied on.
     (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
-    (persistence.upsertDocument as Mock).mockResolvedValue({
-      id: 'cn-1',
-      typeId: 'credit-note',
-      status: 'sending',
-      data: validCreditNoteData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    // PR #473 review point 1: the status write and the number are now ONE atomic call - this
+    // fixture's `existing.status` ("draft", from `invoiceDocument` above) is eligible for it, so
+    // `runAsyncSendAction` (async-send.ts) calls THIS instead of `persistence.upsertDocument`.
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: {
+        id: 'cn-1',
+        typeId: 'credit-note',
+        status: 'sending',
+        data: validCreditNoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'CN-2026-0001',
+      },
+      numbered: { number: 1, displayNumber: 'CN-2026-0001' },
     });
 
     const { service, queueDispatcher } = buildService();
@@ -181,14 +192,15 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     });
 
     expect(result.changed).toBe(true);
-    expect(result.document).toMatchObject({ id: 'cn-1', status: 'sending' });
-    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+    expect(result.document).toMatchObject({ id: 'cn-1', status: 'sending', number: 1 });
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
       'company-1',
       'credit-note',
       'cn-1',
+      ['draft', 'send_failed'],
       'sending',
       validCreditNoteData,
-      ['draft', 'send_failed'],
     );
     expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
       companyId: 'company-1',
@@ -637,7 +649,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
    * The FREE credit note — no `invoice`: a commercial gesture, a refund of an overpayment
    * nobody tied to one invoice line, nothing to "correct" at all. See credit-note.descriptor.ts's own
    * "Two shapes, one type" header and credit-note-actions.ts's own guards
-   * (`assertCreditNoteAmountSourceIsUnambiguous`, `assertFreeCreditNoteAllowedForCountry`).
+   * (`assertCreditNoteAmountSourceIsUnambiguous`, `assertCreditNoteAllowedForCountry`).
    */
   describe('the FREE credit note — no invoice', () => {
     const freeCreditNoteData = {
@@ -734,9 +746,15 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
      * correction-routes/data/all.spec.ts) is what this guard reads — Poland has no separate
      * "nota kredytowa" instrument, only the referenced faktura korygująca (art. 106j ust. 1 ustawy o
      * VAT). FR keeps CREDIT_NOTE 'allowed', so nothing blocks it there.
+     *
+     * PR #473 review point 2 (owner decision): this used to only guard the FREE shape - a LINKED
+     * credit note was wrongly let through, and could take a number from the credit-note series even
+     * though `country-policy/data/pl.json`'s own `numbering` fact already said the type is refused
+     * outright. Fixed: `assertCreditNoteAllowedForCountry` (renamed from
+     * `assertCreditNoteAllowedForCountry`) now refuses BOTH shapes for a Polish seller.
      */
-    describe('country gate — a FREE credit note is not legal everywhere', () => {
-      it('is BLOCKED for a Polish seller, naming the country', async () => {
+    describe('country gate - a credit note is not legal everywhere', () => {
+      it('is BLOCKED for a Polish seller (free shape), naming the country', async () => {
         (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
 
         let caught: unknown;
@@ -749,7 +767,29 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         }
 
         expect(caught).toBeInstanceOf(BadRequestException);
-        expect((caught as BadRequestException).message).toMatch(/PL requires this credit note to reference/);
+        expect((caught as BadRequestException).message).toMatch(/PL has no credit note instrument at all/);
+        expect((caught as BadRequestException).message).toMatch(/free-standing/);
+        expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      });
+
+      it('is ALSO BLOCKED for a Polish seller (LINKED shape) - a credit note referencing an invoice is still not the faktura korygująca', async () => {
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
+        (persistence.findOwnedDocument as Mock).mockResolvedValue(
+          invoiceDocument('invoice-doc-1', ['line-1']),
+        );
+
+        let caught: unknown;
+        try {
+          await buildService().service.runAction('company-1', 'credit-note', 'save-draft', {
+            data: validCreditNoteData,
+          });
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(BadRequestException);
+        expect((caught as BadRequestException).message).toMatch(/PL has no credit note instrument at all/);
+        expect((caught as BadRequestException).message).toMatch(/linked to an invoice/);
         expect(persistence.upsertDocument).not.toHaveBeenCalled();
       });
 
@@ -765,24 +805,10 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         expect(persistence.upsertDocument).toHaveBeenCalled();
       });
 
-      it('does not block a LINKED credit note for a Polish seller — the gate only ever looks at FREE ones', async () => {
-        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
-        (persistence.findOwnedDocument as Mock).mockResolvedValue(
-          invoiceDocument('invoice-doc-1', ['line-1']),
-        );
-
-        const { service } = buildService();
-        const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
-          data: validCreditNoteData,
-        });
-
-        expect(result.document?.status).toBe('draft');
-      });
-
-      it('"send" (phase 1) is ALSO guarded — no bypass through the async preflight', async () => {
+      it('"send" (phase 1) is ALSO guarded - no bypass through the async preflight, for either shape', async () => {
         (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
         // runAction's own status-gate needs a CURRENT record to check "from draft" against before it
-        // ever reaches the preflight — same shared fixture/comment as the currency guard's own
+        // ever reaches the preflight - same shared fixture/comment as the currency guard's own
         // identical "send (phase 1)" bypass test above (`.status`, not `.typeId`, is all either call
         // site reads off it).
         (persistence.findOwnedDocument as Mock).mockResolvedValue(
@@ -801,6 +827,132 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
 
         expect(caught).toBeInstanceOf(BadRequestException);
         expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      });
+    });
+
+    // PR #473 review point 2's own PRD: an EXISTING Polish credit note (drafted, or even sent, before
+    // this decision took effect) stays readable/downloadable - never deleted, never renumbered - but
+    // can no longer be edited or sent. This is what "no longer editable/sendable" means at the code
+    // level: `assertCreditNoteAllowedForCountry` runs on EVERY "save-draft"/"send" call, regardless of
+    // whether the record already existed - there is no special-case letting a pre-existing draft
+    // through. (The "still readable" half is the ABSENCE of a check: this guard is wired only on
+    // "save-draft"/"send", never on a GET/PDF-render/"share-link" - see credit-note.descriptor.ts's
+    // own "share-link" comment and country-policy/data/pl.json's own `share-link` rule, unchanged,
+    // `allowed: true`.)
+    describe('an EXISTING Polish credit note (drafted or issued before PR #473) stays readable, never editable/sendable', () => {
+      it('a re-save of an ALREADY-EXISTING draft credit note is refused for a Polish seller - pre-existing records get no exemption', async () => {
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
+        // An existing, still-draft, FREE credit note (no country-gate reason to distinguish free vs
+        // linked here - both are refused; free is simplest to set up).
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          id: 'cn-existing-1',
+          typeId: 'credit-note',
+          status: 'draft',
+          data: freeCreditNoteData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        let caught: unknown;
+        try {
+          await buildService().service.runAction('company-1', 'credit-note', 'save-draft', {
+            documentId: 'cn-existing-1',
+            data: freeCreditNoteData,
+          });
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(BadRequestException);
+        expect((caught as BadRequestException).message).toMatch(/PL has no credit note instrument/);
+        expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      });
+
+      it('a retry of an ALREADY-EXISTING "send_failed" credit note is refused for a Polish seller', async () => {
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          id: 'cn-existing-2',
+          typeId: 'credit-note',
+          status: 'send_failed',
+          data: freeCreditNoteData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        let caught: unknown;
+        try {
+          await buildService().service.runAction('company-1', 'credit-note', 'send', {
+            documentId: 'cn-existing-2',
+            data: freeCreditNoteData,
+          });
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(BadRequestException);
+        expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      });
+
+      // "share-link" is UNCHANGED (country-policy/data/pl.json keeps it `allowed: true`, and no code
+      // guard in credit-note-actions.ts runs on it at all - see credit-note.descriptor.ts's own
+      // comment: it is declared for the frontend/policy layer only, never routed through
+      // `registerCreditNoteActions`) - this is the "still readable" half, proven by the ABSENCE of
+      // any 403/400 for it. The shipped fact itself is pinned directly against the real,
+      // un-mocked data in country-policy/data/all.spec.ts ("credit-note.send is sourced per
+      // country..."); this test only proves this MODULE never wires a code-level block onto it.
+      it('never registers a handler for "share-link" - existing credit notes stay shareable with no guard to bypass', () => {
+        const registry = new ActionRegistry();
+        registerCreditNoteActions(registry, { queueDispatcher: { enqueueAction: vi.fn() } as never });
+
+        expect(registry.resolve('credit-note', 'share-link')).toBeUndefined();
+        expect(registry.resolve('credit-note', 'save-draft')).toBeDefined();
+        expect(registry.resolve('credit-note', 'send')).toBeDefined();
+      });
+    });
+
+    // Orchestrator follow-up (PR #473): the 403 country-policy refusal a Polish seller actually gets
+    // over HTTP only ever quoted the law (art. 106j ust. 2 pkt 2) - never said what to do INSTEAD.
+    // `documents.service.ts#appendCorrectiveInvoiceGuidance` appends that pointer to ANY refused
+    // credit-note decision whose seller country's REAL (un-mocked) correction-routes CREDIT_NOTE
+    // route is 'forbidden' - proven here through `resolveActionPolicy`, the exact function
+    // `runAction` calls before ever reaching a handler.
+    describe('the 403 points to the corrective invoice (KOR), not only the law', () => {
+      it('appends the corrective-invoice pointer to a refused "save-draft" for a Polish seller', async () => {
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PL');
+        (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
+          allowed: false,
+          reason:
+            'Action "save-draft" of document type "credit-note" is forbidden for "PL" (2. Faktura ' +
+            'korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;).',
+        });
+
+        let caught: unknown;
+        try {
+          await buildService().service.runAction('company-1', 'credit-note', 'save-draft', {
+            data: freeCreditNoteData,
+          });
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(ForbiddenException);
+        const message = (caught as ForbiddenException).message;
+        expect(message).toMatch(/forbidden for "PL"/);
+        expect(message).toMatch(/corrective invoice/i);
+        expect(message).toMatch(/Corrects invoice/);
+        expect(message).toMatch(/KOR/);
+      });
+
+      it('never appends anything to an ALLOWED decision, or for a country whose correction-routes CREDIT_NOTE route is not forbidden', async () => {
+        (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+        (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
+
+        const { service } = buildService();
+        const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
+          data: freeCreditNoteData,
+        });
+
+        expect(result.document?.status).toBe('draft');
       });
     });
   });

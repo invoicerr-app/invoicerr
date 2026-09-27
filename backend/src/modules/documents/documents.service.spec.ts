@@ -496,13 +496,21 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'sending',
-        data: validQuoteData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // PR #473 review point 1: quote has no `numbering.onlyFrom`, so this call is eligible for the
+      // ATOMIC status+number write (async-send.ts) - it replaces `persistence.upsertDocument` for
+      // this call, never both.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: validQuoteData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
       });
 
       const { service, mailService, queueDispatcher } = buildService();
@@ -513,15 +521,16 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       });
 
       expect(result.changed).toBe(true);
-      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending' });
+      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending', number: 1 });
       expect(mailService.sendForCompany).not.toHaveBeenCalled();
-      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
         'company-1',
         'quote',
         'doc-1',
+        ['draft', 'send_failed'],
         'sending',
         validQuoteData,
-        ['draft', 'send_failed'],
       );
       expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
         companyId: 'company-1',

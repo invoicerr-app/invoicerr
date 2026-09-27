@@ -1,5 +1,5 @@
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
-import { isNumberingAllowedFrom } from '../numbering/only-from';
+import { numberingDisplayState } from '../numbering/display-state';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 import type { PaymentMethodPresentation } from '../payment-methods/types';
 import type { DocumentTotals } from '../totals/compute-totals';
@@ -626,14 +626,18 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
         descriptor.numbering
           ? `<div class="document-number">${escapeHtmlSafe(
               instance.displayNumber ??
-                // `isNumberingAllowedFrom` (issue #471) - the record's CURRENT status is what a
-                // never-yet-numbered PDF render always sees (a "draft" that has none, or a legacy
-                // credit note whose status left `numbering.onlyFrom` a long time ago): both read the
-                // same predicate the numbering hook itself gates on, so "still awaiting" here means
-                // exactly the same thing it means there. `instance.status === descriptor.initialStatus`
-                // covers the plain-draft case even for a type with no `onlyFrom` at all (quote/invoice).
-                (instance.status === descriptor.initialStatus ||
-                isNumberingAllowedFrom(descriptor.numbering, instance.status)
+                // PR #473 review point 3: this USED to read `isNumberingAllowedFrom` directly, which
+                // answers a different question ("would this status be allowed to number on ITS OWN
+                // next transition") and, for a type with no `numbering.onlyFrom` (quote, invoice,
+                // purchase order, goods receipt), returns true for EVERY status - so a document stuck
+                // "sending" without a number (the race review point 1 of this PR closes) printed
+                // "Draft, no number yet" here while the screen already showed "Issued without a
+                // number" for the SAME record, directly contradicting this file's own promise that the
+                // two must never disagree. `numberingDisplayState` (numbering/display-state.ts) is now
+                // the ONE rule both this PDF and the frontend's own `numberingDisplayState`
+                // (types.ts) compute from - see that file's own header for why it is a mirrored
+                // formula, not literal shared code, across the backend/frontend boundary.
+                (numberingDisplayState(descriptor, instance) === 'awaiting'
                   ? strings.draftNoNumberYet
                   : strings.issuedWithoutNumber),
             )}</div>`

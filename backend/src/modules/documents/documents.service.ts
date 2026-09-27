@@ -635,6 +635,41 @@ export class DocumentsService implements OnModuleInit {
    * own per-country whitelist, cross-checked against the loaded route's own status, can. See
    * `cancel-policy.ts`'s own header for the full per-country reasoning.
    */
+  /**
+   * PR #473 review point 2 (orchestrator follow-up): a REFUSED credit-note decision (either
+   * `save-draft` or `send`) only ever quotes the LAW (country-policy/data/pl.json's own art. 106j
+   * ust. 2 pkt 2 citation) - it never says what to do INSTEAD. This appends that pointer, generically,
+   * whenever the refusal is genuinely the "no credit note instrument at all" one: the seller's own
+   * `correction-routes` CREDIT_NOTE route is itself `'forbidden'` - the SAME fact
+   * `credit-note-actions.ts#assertCreditNoteAllowedForCountry` reads for its own belt-and-braces
+   * refusal, never a second, PL-specific string here. Never branches on a country id - a future
+   * country whose own correction-routes file reaches the same conclusion gets the same pointer for
+   * free. Shared between `resolveActionPolicy` (the actual "send"/"save-draft" 403) and
+   * `describeTypeForCompany` (the screen's own `policyBlockedReason`) so the API and the screen never
+   * say two different things about the same refusal - the same "never drift apart" discipline this
+   * class's own header already holds for country policy and status.
+   *
+   * `resolveCorrectionRoutesForCountry` reads the in-memory catalog (no extra query) - `countryCode`
+   * is the only thing either caller has to resolve first, and both already do, for their own reasons.
+   */
+  private appendCorrectiveInvoiceGuidance(
+    typeId: string,
+    decision: CountryPolicyDecision,
+    countryCode: string | undefined,
+  ): CountryPolicyDecision {
+    if (decision.allowed || typeId !== 'credit-note' || !countryCode || !decision.reason) return decision;
+    const creditNoteRoute = resolveCorrectionRoutesForCountry(countryCode)?.routes.find(
+      (route) => route.routeId === 'CREDIT_NOTE',
+    );
+    if (creditNoteRoute?.status !== 'forbidden') return decision;
+    return {
+      ...decision,
+      reason:
+        `${decision.reason} Use a corrective invoice instead: create an invoice with "Corrects ` +
+        'invoice" set to the invoice being corrected (FA(3) KOR).',
+    };
+  }
+
   private async resolveActionPolicy(
     companyId: string,
     typeId: string,
@@ -644,7 +679,12 @@ export class DocumentsService implements OnModuleInit {
       const countryCode = await resolveCompanyCountryCode(companyId);
       return resolveCancelPolicyForCountry(countryCode);
     }
-    return evaluateCountryPolicy(companyId, typeId, actionId);
+    const decision = await evaluateCountryPolicy(companyId, typeId, actionId);
+    if (typeId === 'credit-note' && !decision.allowed) {
+      const countryCode = await resolveCompanyCountryCode(companyId);
+      return this.appendCorrectiveInvoiceGuidance(typeId, decision, countryCode);
+    }
+    return decision;
   }
 
   async describeTypeForCompany(
@@ -700,7 +740,7 @@ export class DocumentsService implements OnModuleInit {
       ...descriptor,
       fields,
       actions: descriptor.actions.map((action, index) => {
-        const decision = decisions[index];
+        const decision = this.appendCorrectiveInvoiceGuidance(typeId, decisions[index], countryCode);
         if (!decision.allowed) return { ...action, policyBlockedReason: decision.reason };
         // The country policy allows the action but narrows it to specific statuses (schema.ts's
         // `DocumentActionRuleFact.statuses`) — carried as its OWN field, `policyRestrictedToStatuses`,

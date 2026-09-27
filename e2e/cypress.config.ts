@@ -738,6 +738,46 @@ export default defineConfig({
             await client.end();
           }
         },
+
+        /**
+         * PR #473 review point 3 - simulates the EXACT failure review point 1 of that PR closes (the
+         * numbering write happening AFTER, not atomically with, the "sending" status write): a
+         * numbered-type document (invoice/quote - no `numbering.onlyFrom`) reaching "sending" with no
+         * number at all, and STAYING there. There is no route through this app that can produce this
+         * state any more (the atomic write, `numbering/sequence.ts#takeDocumentNumberWithStatusTransition`,
+         * makes it structurally impossible going forward) - a direct DB write is therefore the only way
+         * to set one up for this spec, the same "migration/regression scenario, not a reachable
+         * creation journey" reasoning `makeCreditNoteLegacyUnnumbered` above already rests on.
+         */
+        async makeDocumentStuckSendingUnnumbered({
+          documentId,
+          typeId,
+        }: {
+          documentId: string;
+          typeId: string;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rowCount } = await client.query(
+              `UPDATE "DocumentInstance" SET number = NULL, "displayNumber" = NULL, status = 'sending'
+               WHERE id = $1 AND "typeId" = $2`,
+              [documentId, typeId],
+            );
+            if (rowCount !== 1) {
+              throw new Error(
+                `makeDocumentStuckSendingUnnumbered: expected exactly one "${typeId}" row for id ${documentId}, matched ${rowCount}`,
+              );
+            }
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
       });
     },
   }

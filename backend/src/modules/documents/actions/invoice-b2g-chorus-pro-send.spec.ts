@@ -21,6 +21,7 @@ import prisma from '@/prisma/prisma.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import * as persistence from '../persistence';
+import * as takeNumber from '../numbering/take-number';
 import * as b2gRouting from '../b2g-routing/b2g-routing';
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { buildChorusProTransport } from '../transports/chorus-pro-transport';
@@ -133,6 +134,9 @@ function sendingDocument(overrides: Record<string, unknown> = {}) {
     data: documentData,
     createdAt: new Date(),
     updatedAt: new Date(),
+    // Already numbered (PR #473 review point 1's own belt-and-braces guard, async-send.ts: invoice
+    // has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number).
+    number: 1,
     displayNumber: 'INV-2026-0001',
     ...overrides,
   };
@@ -226,7 +230,12 @@ describe('B2G FR, end to end at the service level — government client + connec
 
   it('phase 1 (enqueue): the preflight PASSES — chorus-pro is registered AND connected, so B2G routing no longer refuses', async () => {
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
+    // PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is eligible
+    // for the ATOMIC status+number write (async-send.ts) - replaces `persistence.upsertDocument`.
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: sendingDocument(),
+      numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+    });
     const handler = buildRegistry().resolve('invoice', 'send');
 
     const result = await handler!({

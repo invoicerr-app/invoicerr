@@ -13,11 +13,18 @@ import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-k
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as persistence from './persistence';
+import * as takeNumber from './numbering/take-number';
 import prisma from '@/prisma/prisma.service';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
 vi.mock('./persistence');
+// PR #473 review point 1: numbering (async-send.ts) now takes the "sending" status write and the
+// document number atomically, in the SAME Prisma transaction - reaching a real DocumentInstance row
+// for real, unlike the OLD, separate `takeDocumentNumberForTransition` call, which silently no-opped
+// against a non-existent row. Mocked wholesale here for the exact reason this file's own header
+// above states: it must never touch a real DocumentInstance row.
+vi.mock('./numbering/take-number');
 // Country policy/resolution — proven for real elsewhere (country-policy/country-policy.spec.ts,
 // documents.service.country-policy.spec.ts); mocked wholesale here for the same reason
 // documents.service.country-fields.spec.ts and documents.service.spec.ts already mock it: this file
@@ -249,13 +256,20 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'sending',
-        data: { ...validQuoteData, 'custom:cost_center': 'CC-42' },
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // PR #473 review point 1: quote has no `numbering.onlyFrom`, so "send" from "draft" is
+      // eligible for the ATOMIC status+number write - replaces `persistence.upsertDocument`.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: { ...validQuoteData, 'custom:cost_center': 'CC-42' },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
       });
 
       const { service, mailService, queueDispatcher } = buildService();
@@ -288,13 +302,20 @@ describe('DocumentsService — wiring company custom fields into the quote', () 
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'sending',
-        data: { ...validQuoteData, 'custom:cost_center': 'CC-42' },
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // PR #473 review point 1: quote has no `numbering.onlyFrom`, so "send" from "draft" is
+      // eligible for the ATOMIC status+number write - replaces `persistence.upsertDocument`.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: { ...validQuoteData, 'custom:cost_center': 'CC-42' },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
       });
 
       const { service } = buildService();

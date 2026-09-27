@@ -99,7 +99,7 @@ import { ArchivedArtifactInput } from '../archive/hashing';
 import { logger } from '@/logger/logger.service';
 import { isNumberingAllowedFrom } from '../numbering/only-from';
 import { TakenDocumentNumber } from '../numbering/sequence';
-import { takeDocumentNumberForTransition } from '../numbering/take-number';
+import { takeDocumentNumberForTransitionWithStatus } from '../numbering/take-number';
 import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import {
   claimDocumentTransition,
@@ -337,6 +337,26 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   const existing = await findOwnedDocument(companyId, typeId, documentId);
 
   if (existing.status === 'sending') {
+    // BELT-AND-BRACES (PR #473 review point 1): a type that declares `numbering.onEnterStatus:
+    // 'sending'` with NO `onlyFrom` restriction (the quote, the invoice) has no legacy carve-out at
+    // all - `takeDocumentNumberForTransitionWithStatus` above is now the ONLY way such a record ever
+    // reaches "sending", and it never leaves without a number attached in the SAME transaction. A
+    // record of that kind sitting here with `number: null` therefore cannot be a legitimate state  -
+    // every real one is a bug (a numbering write silently lost, a migration that mis-set the column)  -
+    // and delivering it anyway would produce exactly the "issued with no number" outcome issue #471
+    // was written to close. Refused loudly rather than silently delivered. Deliberately NARROWER than
+    // "any numbered type with a null number here": a type WITH `numberingOnlyFrom` (the credit note)
+    // has a genuine grandfather case - a pre-#471 record that reached "sent"/"send_failed" with no
+    // number, correctly retried unnumbered forever (see credit-note.descriptor.ts's own header) - and
+    // this guard must never refuse that legitimate replay.
+    if (numberOnEnqueue && numberingOnlyFrom === undefined && existing.number == null) {
+      throw new ConflictException(
+        `Document "${documentId}" reached "sending" with no document number, but this type numbers ` +
+          'unconditionally on that transition - refusing to deliver it unnumbered rather than risk ' +
+          'issuing a document that never gets one.',
+      );
+    }
+
     // THE DOUBLE-DELIVERY GUARD — see this file's own header ("inFlightDeliveries") for the full
     // scope/limits: this branch is reached BOTH by the worker's legitimate replay AND by a second,
     // concurrent/duplicate "send" call landing on an already-"sending" record (a double-click, a
@@ -538,50 +558,69 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   // ALREADY "sending" against a THIRD concurrent caller, it does nothing for two callers racing to
   // become the FIRST to get there. A `ConflictException` here propagates unchanged: the caller sees
   // "the document has changed, reload" rather than a silently duplicated send.
-  let sending = await upsertDocument(companyId, typeId, documentId, 'sending', data, [
-    'draft',
-    'send_failed',
-  ]);
+  //
+  // PR #473 review point 1: this write and the numbering write below USED to be two separate
+  // statements, with `events.publish` (SSE) sandwiched between them - anything throwing in that
+  // window (the publish itself, or numbering) left the record durably "sending" with no number, which
+  // `numbering.onlyFrom: ['draft']` then refused to ever fix on retry (the record's previous status is
+  // never "draft" again). `eligibleForAtomicNumbering` decides UP FRONT, from `existing.status` - this
+  // record's status strictly BEFORE this call, the exact "immediately before" moment
+  // `numberingOnlyFrom` is defined against - whether numbering even applies here at all; when it does,
+  // the status write and the number are taken together, in ONE transaction
+  // (`numbering/sequence.ts#takeDocumentNumberWithStatusTransition`), so nothing between them can ever
+  // strand a "sending" record without its number again. `existing.number == null` mirrors the guard
+  // every other numbering site here already holds - never re-number an already-numbered "send_failed"
+  // retry.
+  const eligibleForAtomicNumbering =
+    numberOnEnqueue &&
+    existing.number == null &&
+    isNumberingAllowedFrom({ onlyFrom: numberingOnlyFrom }, existing.status);
 
-  // The fact is ACQUIRED right above (Postgres already holds
-  // "sending"); publishing here, BEFORE numbering/enqueueing, means a browser's own SSE connection
-  // sees the record leave "draft"/"send_failed" the moment it genuinely does, not once the (possibly
-  // slower) job has even been queued. Never reached if `upsertDocument` above threw or if a preflight
-  // rejected earlier — see `RunAsyncSendInput.events`'s own header.
+  let sending: DocumentInstanceResult;
+  let numbered: TakenDocumentNumber | undefined;
+  if (eligibleForAtomicNumbering) {
+    const result = await takeDocumentNumberForTransitionWithStatus(
+      companyId,
+      typeId,
+      documentId,
+      ['draft', 'send_failed'],
+      'sending',
+      data,
+    );
+    sending = result.document;
+    numbered = result.numbered;
+  } else {
+    // Not eligible for numbering on this transition - either the type does not number at all, the
+    // record is already numbered (a "send_failed" retry that already won its number earlier), or
+    // `numberingOnlyFrom` refuses it (a LEGACY credit note, issued before #471, retried from
+    // "send_failed" - see `RunAsyncSendInput.numberingOnlyFrom`'s own header). Plain status write,
+    // exactly as before this fix.
+    sending = await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft', 'send_failed']);
+  }
+
+  // The fact is ACQUIRED right above (Postgres already holds "sending", numbered atomically with it
+  // whenever that was eligible); publishing here, AFTER the number is already a committed fact, means
+  // a browser's own SSE connection sees the record leave "draft"/"send_failed" the moment it genuinely
+  // does, and a failure here can no longer strand the record numberless - only un-enqueued, a
+  // strictly smaller problem this file's phase-2 branch (reached by any later "send" retry) already
+  // handles. Never reached if the write above threw or if a preflight rejected earlier - see
+  // `RunAsyncSendInput.events`'s own header.
   await events?.publish(companyId, { documentId: sending.id, typeId, kind: 'sending' });
 
-  // THE FIX for the race this file's own header describes: the number must exist BEFORE the job is
-  // enqueued, never after — a worker could otherwise pick the job up and render the PDF/email before
-  // `documents.service.ts`'s own post-handler numbering hook ever runs. `number == null` mirrors that
-  // same hook's own guard (never re-number an already-numbered record — a "send_failed" retry keeps
-  // its original number, no gap, no duplicate).
-  // `isNumberingAllowedFrom` (issue #471) - `existing.status` is this record's status strictly BEFORE
-  // this call (read above, before the "sending" write), the exact "immediately before" moment
-  // `numberingOnlyFrom` is defined against. A legacy credit note retried from "send_failed" without
-  // ever having a number (issued before this feature existed) is correctly refused one here - see
-  // `RunAsyncSendInput.numberingOnlyFrom`'s own header.
-  if (
-    numberOnEnqueue &&
-    sending.number == null &&
-    isNumberingAllowedFrom({ onlyFrom: numberingOnlyFrom }, existing.status)
-  ) {
-    const numbered = await takeDocumentNumberForTransition(companyId, typeId, sending.id);
-    if (numbered) {
-      sending = { ...sending, ...numbered };
-      // STOCK EFFECT — this is the numbering site that actually fires for
-      // the async send path (the number is taken HERE, before the job is enqueued, to win the race
-      // this file's own header describes). Anchored to the SAME `if (numbered)` atomic winner as the
-      // other numbering sites (documents.service.ts#runAction, send-document-email.ts), so the
-      // decrement runs exactly once per document, at whichever site actually issues its number — for a
-      // sent invoice, that is right here. Type-agnostic and never-throwing — see
-      // `stock/apply-stock-on-issuance.ts`'s own header.
-      await applyStockOnIssuance(companyId, sending);
-      // See `RunAsyncSendInput.onNumbered`'s own header — a type-agnostic hook, never a branch on
-      // `typeId` in this core file. Runs AFTER the stock effect, same as it, for the same reason: both
-      // are anchored to `numbered` being the atomic winner of the numbering race, never to
-      // `numberOnEnqueue` alone.
-      if (onNumbered) await onNumbered({ companyId, typeId, documentId: sending.id, numbered });
-    }
+  if (numbered) {
+    // STOCK EFFECT - this is the numbering site that actually fires for
+    // the async send path (the number is taken HERE, before the job is enqueued, to win the race
+    // this file's own header describes). Anchored to the SAME `numbered` atomic winner as the
+    // other numbering sites (documents.service.ts#runAction, send-document-email.ts), so the
+    // decrement runs exactly once per document, at whichever site actually issues its number - for a
+    // sent invoice, that is right here. Type-agnostic and never-throwing - see
+    // `stock/apply-stock-on-issuance.ts`'s own header.
+    await applyStockOnIssuance(companyId, sending);
+    // See `RunAsyncSendInput.onNumbered`'s own header - a type-agnostic hook, never a branch on
+    // `typeId` in this core file. Runs AFTER the stock effect, same as it, for the same reason: both
+    // are anchored to `numbered` being the atomic winner of the numbering race, never to
+    // `numberOnEnqueue` alone.
+    if (onNumbered) await onNumbered({ companyId, typeId, documentId: sending.id, numbered });
   }
 
   await queueDispatcher.enqueueAction({

@@ -825,6 +825,7 @@ describe('renderDocumentHtml', () => {
       label: 'Invoice',
       fields: [],
       actions: [],
+      initialStatus: 'draft',
       numbering: { onEnterStatus: 'sent' },
     };
     const unnumberedDescriptor: DocumentTypeDescriptor = {
@@ -883,6 +884,7 @@ describe('renderDocumentHtml', () => {
       label: 'Invoice',
       fields: [],
       actions: [],
+      initialStatus: 'draft',
       numbering: { onEnterStatus: 'sent' },
     };
 
@@ -1354,6 +1356,7 @@ describe('renderDocumentHtml', () => {
         label: 'Invoice',
         fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
         actions: [],
+        initialStatus: 'draft',
         numbering: { onEnterStatus: 'sent' },
       };
 
@@ -1384,6 +1387,7 @@ describe('renderDocumentHtml', () => {
         label: 'Invoice',
         fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
         actions: [],
+        initialStatus: 'draft',
         numbering: { onEnterStatus: 'sent' },
       };
 
@@ -1575,6 +1579,92 @@ describe('renderDocumentHtml', () => {
       expect(html).toContain('<img src="data:image/png;base64,LOGO"');
       // Comes before the company name, i.e. sits at the very top of the header block.
       expect(html.indexOf('data:image/png;base64,LOGO')).toBeLessThan(html.indexOf('Acme Corp'));
+    });
+  });
+
+  // PR #473 review point 3: the PDF and the screen used to disagree on an unnumbered document - see
+  // `numbering/display-state.ts`'s own header for the full "why". This proves the PDF side of the
+  // fix: `renderDocumentHtml` reads `numberingDisplayState`, the SAME rule the frontend's own
+  // `numberingDisplayState` (types.ts) computes from, rather than `isNumberingAllowedFrom` directly.
+  describe("the number placeholder - matches the screen's own numberingDisplayState, never a separate rule", () => {
+    const numberedTypeDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [],
+      actions: [],
+      initialStatus: 'draft',
+      numbering: { onEnterStatus: 'sending' },
+    };
+    const creditNoteLikeDescriptor: DocumentTypeDescriptor = {
+      id: 'credit-note',
+      label: 'Credit note',
+      fields: [],
+      actions: [],
+      initialStatus: 'draft',
+      numbering: { onEnterStatus: 'sending', onlyFrom: ['draft'] },
+    };
+
+    it('shows the draft placeholder for a plain draft (status === initialStatus)', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedTypeDescriptor,
+        instance: { ...baseInstance, status: 'draft' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Draft \u2014 no number yet');
+    });
+
+    // THE EXACT BUG this review point closes: a type with no `numbering.onlyFrom` (invoice, quote,
+    // purchase order, goods receipt) stuck in a non-initial status with no number - e.g. review point
+    // 1's own race, now closed - used to print the draft placeholder here (isNumberingAllowedFrom
+    // returns true for ANY status once `onlyFrom` is absent) while the screen already said "Issued
+    // without a number" for the SAME record.
+    it('shows "Issued without a number" for a numbered type stuck in "sending" with no number and no `onlyFrom` declared', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedTypeDescriptor,
+        instance: { ...baseInstance, status: 'sending' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Issued without a number');
+      expect(html).not.toContain('Draft \u2014 no number yet');
+    });
+
+    it('shows the draft placeholder for a legacy credit note-like type whose status is IN `numbering.onlyFrom`', () => {
+      const html = renderDocumentHtml({
+        descriptor: creditNoteLikeDescriptor,
+        instance: { ...baseInstance, status: 'draft' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Draft \u2014 no number yet');
+    });
+
+    it('shows "Issued without a number" for a legacy credit note-like type whose status left `numbering.onlyFrom` (issued before #471)', () => {
+      const html = renderDocumentHtml({
+        descriptor: creditNoteLikeDescriptor,
+        instance: { ...baseInstance, status: 'send_failed' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Issued without a number');
+    });
+
+    it('shows the real displayNumber verbatim whenever the document has one, regardless of status', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedTypeDescriptor,
+        instance: { ...baseInstance, status: 'sent', displayNumber: 'INV-2026-0007' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('INV-2026-0007');
+      expect(html).not.toContain('Draft \u2014 no number yet');
+      expect(html).not.toContain('Issued without a number');
     });
   });
 });

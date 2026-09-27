@@ -231,6 +231,17 @@ export interface DocumentTypeDescriptor {
  * one. Callers must already have checked `descriptor.numbering` themselves (this function has
  * nothing to say for an unnumbered type at all - see each `numbering` gate at the call site).
  *
+ * PR #473 review point 3: this formula is MIRRORED, not shared, with the backend's own
+ * `numbering/display-state.ts#numberingDisplayState` - the PDF (rendering/render-html.ts) computes
+ * the SAME "awaiting" vs. "issuedWithoutNumber" answer from that copy, because there is no runtime
+ * code-sharing across the backend/frontend TypeScript boundary. The backend's own header explains WHY
+ * a mirrored one-liner, not a shared package, was the right call here - and names the exact bug (a
+ * document stuck "sending" with no number showing "Draft, no number yet" on its PDF while this
+ * function already said "Issued without a number" on screen) this pairing exists to prevent from
+ * recurring. Keep the two formulas byte-for-byte identical; a change to one without the other is
+ * exactly the drift both files' own tests (`display-state.spec.ts` here, that file's own spec there)
+ * are built to catch.
+ *
  *  - `'numbered'`: `displayNumber` is set - show it verbatim, the normal case.
  *  - `'awaiting'`: no number yet, but this record's CURRENT status is one it could still receive a
  *    number FROM (`descriptor.initialStatus` itself - a plain draft - or, when `numbering.onlyFrom`

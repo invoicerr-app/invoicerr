@@ -81,7 +81,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * kredytowa" type at all (`correction-routes/data/pl.json`'s own CREDIT_NOTE fact, status
  * `'forbidden'`, sourced). A FREE credit note for a Polish seller is therefore not a lesser version of
  * that document, it has no legal basis to exist AT ALL — `credit-note-actions.ts`'s own
- * `assertFreeCreditNoteAllowedForCountry` reads that exact fact (never a second, invented one) and
+ * `assertCreditNoteAllowedForCountry` reads that exact fact (never a second, invented one) and
  * refuses outright, naming the country and quoting the catalog's own citation. FR/DE/IT/PT each keep
  * their own CREDIT_NOTE route `'allowed'` — a credit note is a document in its own right there, with no
  * legal requirement that it reference an original invoice — so a Free credit note is unblocked for
@@ -92,7 +92,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * document type here shares (actions/generic-actions.ts's `performSaveDraft`) — it now goes through
  * `credit-note-actions.ts`'s own `registerCreditNoteSaveDraftAction`, which wraps that same
  * persistence with THREE guards: the amount-source guard (linked XOR free, never both, and a free one
- * needs at least one line), the country guard (`assertFreeCreditNoteAllowedForCountry`, above), and
+ * needs at least one line), the country guard (`assertCreditNoteAllowedForCountry`, above), and
  * the currency guard (the currency declared here must equal the `invoice` field's own, once one is
  * set — see that function's own header for the full "why", and this file's own `currency` field for
  * the SCREEN-side half of the same rule, `lockedFromReference`). Plus, for credit matching, "send"
@@ -142,7 +142,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * country-policy/data/fr.json's own credit-note `numbering` fact for the full citation). This is not
  * FR-only either: PT/DE/IT all require it too (country-policy/'s per-country facts, with provenance  -
  * DE/IT are UNVERIFIED, honestly flagged rather than guessed at), and only Poland's own
- * `assertFreeCreditNoteAllowedForCountry` above already makes the point moot there (a Polish credit
+ * `assertCreditNoteAllowedForCountry` above already makes the point moot there (a Polish credit
  * note IS an invoice - a KOR - numbered by the invoice's own numbering, never this type's).
  *
  * `onlyFrom: ['draft']` exists for exactly one reason: a credit note issued BEFORE this feature shipped

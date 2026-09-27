@@ -28,6 +28,7 @@ import { NotImplementedException } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
 
 import * as persistence from '../persistence';
+import * as takeNumber from '../numbering/take-number';
 import * as b2gRouting from '../b2g-routing/b2g-routing';
 import { TransportRegistry } from '../transports/transport-registry';
 import * as companyTransport from '../transports/company-transport';
@@ -71,7 +72,9 @@ function draftDocument() {
 }
 
 function sendingDocument() {
-  return { ...draftDocument(), status: 'sending' };
+  // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts): invoice
+  // has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
+  return { ...draftDocument(), status: 'sending', number: 1, displayNumber: 'INV-2026-0001' };
 }
 
 /** The seller is FRENCH in every test below — only the BUYER changes. */
@@ -120,7 +123,12 @@ describe('invoice "send" — a national channel mandate governs DOMESTIC operati
     });
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as Mock).mockResolvedValue(sendingDocument());
+    // PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is eligible
+    // for the ATOMIC status+number write (async-send.ts) - replaces `persistence.upsertDocument`.
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: sendingDocument(),
+      numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+    });
   });
 
   // DIRECTION 1 — unchanged behaviour. This is the test that must fail the instant the narrowing is

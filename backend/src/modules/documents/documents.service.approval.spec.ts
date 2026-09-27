@@ -119,13 +119,20 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    (persistence.upsertDocument as Mock).mockResolvedValue({
-      id: 'doc-1',
-      typeId: 'quote',
-      status: 'sending',
-      data: validQuoteData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    // PR #473 review point 1: quote has no `numbering.onlyFrom`, so "send" from "draft" is eligible
+    // for the ATOMIC status+number write (async-send.ts) - replaces `persistence.upsertDocument`.
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: {
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
+      },
+      numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
     });
   }
 
