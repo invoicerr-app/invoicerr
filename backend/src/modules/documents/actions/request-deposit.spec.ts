@@ -203,15 +203,20 @@ describe('request-deposit', () => {
     });
 
     const handler = buildRegistry().resolve('quote', 'request-deposit')!;
-    await expect(
-      handler({
-        companyId: 'company-1',
-        typeId: 'quote',
-        documentId: 'quote-1',
-        data: {},
-        params: { percent: 30 },
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    const action = handler({
+      companyId: 'company-1',
+      typeId: 'quote',
+      documentId: 'quote-1',
+      data: {},
+      params: { percent: 30 },
+    });
+    await expect(action).rejects.toBeInstanceOf(BadRequestException);
+    // Issue #373 follow-up, points 3/4 - the message used to say "request it again once an option
+    // has been chosen", which can never happen: this action is only available at "sent", and
+    // choosing an option is exactly what moves the quote off "sent". It must state the real,
+    // permanent limitation instead, never a retry that can never succeed.
+    await expect(action).rejects.toThrow('not supported for a quote with options');
+    await expect(action).rejects.not.toThrow(/once an option has been chosen/);
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
 });

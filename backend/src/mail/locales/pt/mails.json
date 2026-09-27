@@ -147,5 +147,8 @@
     "privacyNotice": "Mantenha este link confidencial — qualquer pessoa que o possua pode consultar a sua conta.",
     "signOffText": "Com os melhores cumprimentos,\n{companyName}",
     "signOffHtml": "Com os melhores cumprimentos,<br>{companyName}"
+  },
+  "documents": {
+    "multipleOptionsTotal": "consulte o documento anexo para cada opção e o seu próprio total"
   }
 }

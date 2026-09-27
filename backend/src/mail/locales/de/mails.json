@@ -147,5 +147,8 @@
     "privacyNotice": "Bewahren Sie diesen Link vertraulich auf — jeder, der ihn kennt, kann auf Ihr Konto zugreifen.",
     "signOffText": "Mit freundlichen Grüßen,\n{companyName}",
     "signOffHtml": "Mit freundlichen Grüßen,<br>{companyName}"
+  },
+  "documents": {
+    "multipleOptionsTotal": "siehe das beigefügte Dokument für jede Option und deren jeweiligen Gesamtbetrag"
   }
 }

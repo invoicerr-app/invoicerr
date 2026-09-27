@@ -201,5 +201,20 @@ export function resolveInvoiceableLines(
         'converting it.',
     );
   }
+  // Issue #373 follow-up: `acceptedOption` was validated against the options that existed at the
+  // MOMENT of acceptance (`resolveChosenOption`, called from a read taken before the status write) -
+  // a "sent" quote stays editable, so a rename/removal of that exact option between acceptance and
+  // THIS conversion (or between two reads within acceptance itself - see `updateDocumentStatus`'s own
+  // `knownUpdatedAt` guard for why that half is now closed too) can leave `acceptedOption` naming
+  // something `deriveQuoteOptions` no longer lists. Silently falling through to `linesForOption` would
+  // then return ONLY the common lines - a real invoice missing everything the client actually chose,
+  // with nothing about the write ever saying so. Refused here, loudly, rather than guessed.
+  if (!options.includes(acceptedOption)) {
+    throw new ConflictException(
+      `Quote "${quoteLabel}" was accepted for option "${acceptedOption}", which is no longer one of ` +
+        `its options (${options.join(', ')}) - the quote was edited after acceptance. Fix the ` +
+        'options or record a fresh acceptance before converting it.',
+    );
+  }
   return stripOptionTag(linesForOption(quoteData, acceptedOption));
 }

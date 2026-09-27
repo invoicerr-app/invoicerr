@@ -219,6 +219,83 @@ describe('DocumentsService.runAction — the approval-threshold gate', () => {
     expect(approvalGate.resolveApprovalThresholdMinor).not.toHaveBeenCalled();
   });
 
+  // Issue #373 follow-up, point 6: the gate used to sum every option together (a quote offering
+  // 600+700 would refuse a MEMBER sending it against a 1000 threshold, although no single option the
+  // client could actually accept exceeds it). It must compare the HIGHEST option instead.
+  it('compares the HIGHEST option, never the sum of every option, for a quote with options', async () => {
+    const multiOptionData = {
+      client: 'client-1',
+      issueDate: '2026-01-01',
+      currency: 'EUR',
+      lines: [
+        { description: 'Basic', quantity: 1, unitPrice: 600, option: 'Basic' },
+        { description: 'Premium', quantity: 1, unitPrice: 700, option: 'Premium' },
+      ],
+    };
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: multiOptionData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'sending',
+      data: multiOptionData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    // Sum would be 1300 EUR (over threshold); the highest single option is 700 EUR (under it).
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(100000);
+    const { service } = buildService();
+
+    const result = await service.runAction(
+      'company-1',
+      'quote',
+      'send',
+      { documentId: 'doc-1', data: multiOptionData, params: { recipient: 'client@example.com' } },
+      'MEMBER',
+    );
+
+    expect(result.changed).toBe(true);
+  });
+
+  it('still blocks a MEMBER when the HIGHEST option alone exceeds the threshold', async () => {
+    const multiOptionData = {
+      client: 'client-1',
+      issueDate: '2026-01-01',
+      currency: 'EUR',
+      lines: [
+        { description: 'Basic', quantity: 1, unitPrice: 600, option: 'Basic' },
+        { description: 'Premium', quantity: 1, unitPrice: 700, option: 'Premium' },
+      ],
+    };
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: multiOptionData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (approvalGate.resolveApprovalThresholdMinor as Mock).mockResolvedValue(65000); // 650 EUR
+    const { service } = buildService();
+
+    const action = service.runAction(
+      'company-1',
+      'quote',
+      'send',
+      { documentId: 'doc-1', data: multiOptionData, params: { recipient: 'client@example.com' } },
+      'MEMBER',
+    );
+
+    await expect(action).rejects.toBeInstanceOf(ForbiddenException);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
   it('never gates a non-"send" action, regardless of role or threshold', async () => {
     (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'doc-1',

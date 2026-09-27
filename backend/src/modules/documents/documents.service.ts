@@ -15,6 +15,7 @@ import { SigningCertificatesService } from '@/modules/company/signing-certificat
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
+import { computeQuoteOptionTotals } from './options/quote-options';
 import {
   APPROVAL_REQUIRED_MESSAGE,
   requiresApproval,
@@ -1374,7 +1375,20 @@ export class DocumentsService implements OnModuleInit {
     // at all) would otherwise pay for no reason.
     if (actionId === 'send' && role === 'MEMBER') {
       const thresholdMinor = await resolveApprovalThresholdMinor(companyId);
-      const { grossMinor } = computeDocumentTotals(descriptor, data);
+      // Issue #373 follow-up: a quote offering 2+ options has no single gross to compare against the
+      // threshold - summing every option together (the pre-fix behavior) is exactly the meaningless
+      // total this whole feature exists to stop printing (see `quote-options.ts`'s own header), and it
+      // is also the WRONG comparison for approval: the client will only ever be billed for ONE option,
+      // so what matters is whether the MOST EXPENSIVE option a MEMBER could send this quote for
+      // exceeds the threshold - never the sum of offers the client was never going to accept all of.
+      // `computeQuoteOptionTotals` already folds every common (untagged) line into each option's own
+      // total, so this is that option's real gross, not just its tagged rows. `typeId === 'quote'`
+      // guards this: `computeQuoteOptionTotals` always builds a QUOTE descriptor internally, so it
+      // must never be asked to interpret another type's `data`.
+      const optionTotals = typeId === 'quote' ? computeQuoteOptionTotals(data) : null;
+      const grossMinor = optionTotals
+        ? Math.max(...optionTotals.map((entry) => entry.totals.grossMinor))
+        : computeDocumentTotals(descriptor, data).grossMinor;
       if (requiresApproval(role, grossMinor, thresholdMinor)) {
         throw new ForbiddenException(APPROVAL_REQUIRED_MESSAGE);
       }

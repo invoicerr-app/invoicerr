@@ -147,6 +147,9 @@ export async function sendDocumentInstanceEmail(
     referenceLabels: rendered.referenceLabels,
     // Issue #373 ("quotes with options") - see `buildEmailTemplateParts`'s own `multipleOptions` header.
     multipleOptions: rendered.hasMultipleOptions,
+    // Same recipient language the template itself was just resolved for, two lines up - see
+    // `buildEmailTemplateParts`'s own `language` header for why this is the ONE part it needs it for.
+    language: rendered.language,
   });
   const { subject, body: renderedBody, html: renderedHtml, warnings } = renderEmailTemplate(template, parts);
 

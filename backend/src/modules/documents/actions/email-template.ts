@@ -2,6 +2,7 @@
 // esModuleInterop in this project's tsconfig, and sanitize-html is `export =`).
 import sanitizeHtml = require('sanitize-html');
 
+import { mailT } from '@/mail/i18n';
 import { EMAIL_NON_TEXT_TAGS } from '@/mail/sanitize-email-html';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
@@ -362,13 +363,31 @@ export function buildEmailTemplateParts(input: {
    * OTHER document type, which never has options at all.
    */
   multipleOptions?: boolean;
+  /**
+   * The recipient language this email is being composed in (`rendering/render-instance-pdf.ts`'s own
+   * per-recipient `language` - the SAME value the template itself was resolved for, see
+   * `send-document-email.ts`'s own call). Defaults to `DEFAULT_RENDER_LANGUAGE` ('en') so every
+   * pre-existing caller (every test, every call site predating this param) keeps getting the English
+   * sentence it always did. Used ONLY for the `multipleOptions` sentence below - every other part of
+   * this vocabulary is either plain data (`displayNumber`, `companyName`) or a formatted number
+   * (`totalGross`), neither of which is prose to translate.
+   */
+  language?: RenderLanguage;
 }): Record<string, string> {
+  const language = input.language ?? DEFAULT_RENDER_LANGUAGE;
   const parts: Record<string, string> = {
     displayNumber: input.displayNumber ?? '',
     typeLabel: input.descriptor.label,
     companyName: input.companyName,
+    // Issue #373 follow-up: this sentence used to be a hard-coded English literal, sent verbatim
+    // inside an email whose TEMPLATE is already chosen in the recipient's own language
+    // (`resolveEmailTemplate(descriptor, companyTemplates, rendered.language)` - the send-time caller
+    // just above) - an English sentence stitched into an otherwise-French/German/... email. Routed
+    // through the SAME `mails` i18next catalog `mail/system-email-templates.ts` already uses for the
+    // signature-request/OTP defaults, so this one sentence follows the recipient's language exactly
+    // like the rest of the email it is embedded in.
     totalGross: input.multipleOptions
-      ? 'see the attached document for each option and its own total'
+      ? mailT(language)('documents.multipleOptionsTotal')
       : formatGrossTotal(input.totals),
   };
 

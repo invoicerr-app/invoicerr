@@ -308,13 +308,17 @@ export function registerRequestInstallmentsAction(registry: ActionRegistry): voi
     // this action is only `availableWhen: ['sent']` (quote.descriptor.ts), a status neither
     // acceptance path has reached yet, so a multi-option quote can never have a chosen total to split
     // into milestones at the point this action is even reachable. Refused outright rather than
-    // inventing which option's total the milestones would sum to.
+    // inventing which option's total the milestones would sum to. The message states the real,
+    // permanent limitation - "generate them again once an option has been chosen" can never actually
+    // work, since choosing an option is exactly what moves the quote OFF "sent" (see
+    // request-deposit.ts's own identical fix for the full reasoning; installments after acceptance
+    // would be a separate feature, out of scope here).
     const options = deriveQuoteOptions(quoteData);
     if (options.length >= 2) {
       throw new BadRequestException(
         `Quote "${quote.displayNumber ?? quote.id}" offers ${options.length} options ` +
-          `(${options.join(', ')}) - installments have no single total to split until the client ` +
-          'accepts one; generate them again once an option has been chosen.',
+          `(${options.join(', ')}) - installments have no single total to split. Generating ` +
+          'installments is not supported for a quote with options.',
       );
     }
 

@@ -265,4 +265,22 @@ describe('resolveInvoiceableLines', () => {
     const premiumResult = resolveInvoiceableLines(data, 'Premium', 'Q-1');
     expect(premiumResult.map((l) => l.description)).toEqual(['Setup fee', 'Premium line']);
   });
+
+  // Issue #373 follow-up, point 2: `acceptedOption` was validated at ACCEPTANCE time, against the
+  // options that existed then - a "sent" quote stays editable, so a rename between acceptance and
+  // conversion can leave `acceptedOption` naming nothing. Silently falling through to
+  // `linesForOption` (which would then return only the common lines) is exactly the silent data loss
+  // this test guards against.
+  it("refuses with a 409 when the accepted option no longer names one of the quote's own options", () => {
+    const data = {
+      lines: [
+        line({ description: 'Basic line', option: 'Basic' }),
+        // "Premium" was renamed to "Pro" after acceptance - `acceptedOption` still says "Premium".
+        line({ description: 'Pro line', option: 'Pro' }),
+      ],
+    };
+    expect(() => resolveInvoiceableLines(data, 'Premium', 'Q-1')).toThrow(
+      /Quote "Q-1" was accepted for option "Premium", which is no longer one of its options \(Basic, Pro\)/,
+    );
+  });
 });

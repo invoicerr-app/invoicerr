@@ -94,9 +94,15 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
     // The compare-and-swap IS the 409 for "already accepted"/"already signed"/"draft"/"refused" -
     // `runAction`'s own `isActionAvailable` gate already refuses every status but "sent" before this
     // handler is even reached (a 409 naming the CURRENT status), and this second, atomic check closes
-    // the race the first one cannot: two concurrent calls both reading "sent" before either writes.
-    // `chosenOption` travels on the SAME write as the status change - see `updateDocumentStatus`'s own
-    // header on why this must never be a second, separate write.
+    // the race the first one cannot: two concurrent calls both reading "sent" before either writes -
+    // including a concurrent OTP signature racing this very call (`signatures.service.ts#markSigned`
+    // passes the SAME `fromStatuses: ['sent']`, the fix for the loser-overwrites-the-winner bug this
+    // pair of calls used to have). `knownUpdatedAt: current.updatedAt` closes the other half of that
+    // race: a quote edited (options renamed/removed) between the read of `options` just above and
+    // this write stays "sent" but its `updatedAt` moves, so this CAS still refuses rather than
+    // accepting a `chosenOption` validated against options that no longer exist. `chosenOption`
+    // travels on the SAME write as the status change - see `updateDocumentStatus`'s own header on why
+    // this must never be a second, separate write.
     const updated = await updateDocumentStatus(
       ctx.companyId,
       'quote',
@@ -107,6 +113,7 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
       undefined,
       ['sent'],
       chosenOption,
+      current.updatedAt,
     );
 
     const acceptedAt = new Date();

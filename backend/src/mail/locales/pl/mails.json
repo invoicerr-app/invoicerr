@@ -147,5 +147,8 @@
     "privacyNotice": "Zachowaj ten link w tajemnicy — każdy, kto go posiada, może przeglądać Twoje konto.",
     "signOffText": "Z poważaniem,\n{companyName}",
     "signOffHtml": "Z poważaniem,<br>{companyName}"
+  },
+  "documents": {
+    "multipleOptionsTotal": "zapoznaj się z załączonym dokumentem, aby poznać każdą opcję i jej własną sumę"
   }
 }

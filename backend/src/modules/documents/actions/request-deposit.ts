@@ -107,10 +107,16 @@ export function registerRequestDepositAction(registry: ActionRegistry): void {
         // mode this module's own header already refuses for the VAT-rate question just below.
         const options = deriveQuoteOptions(quoteData);
         if (options.length >= 2) {
+          // The message used to say "request it again once an option has been chosen" - which can
+          // never actually happen: this action is only `availableWhen: ['sent']` (quote.descriptor.ts),
+          // and choosing an option is exactly what moves the quote OFF "sent" (to "signed" or
+          // "accepted"). Stated as the real, permanent limitation instead - a deposit on an
+          // already-accepted quote would be a genuinely new flow (billing a chosen option's own
+          // partial total), out of scope for this fix.
           throw new BadRequestException(
             `Quote "${quote.displayNumber ?? quote.id}" offers ${options.length} options ` +
-              `(${options.join(', ')}) - a deposit percentage has no single total to apply to until ` +
-              'the client accepts one; request it again once an option has been chosen.',
+              `(${options.join(', ')}) - a deposit percentage has no single total to apply to. ` +
+              'Requesting a deposit is not supported for a quote with options.',
           );
         }
 

@@ -415,6 +415,19 @@ export class SignaturesService {
 
     // `chosenOption` travels in the SAME compare-and-swap as the status write - see
     // `updateDocumentStatus`'s own header on why this must never be a second, separate write.
+    //
+    // `fromStatuses: ['sent']` and `knownUpdatedAt: current.updatedAt` are BOTH load-bearing, not
+    // decorative (the comment right above this used to say "SAME compare-and-swap" while actually
+    // passing `undefined` here - an unconditional write that let a concurrent manual acceptance and
+    // this OTP signature both read "sent" and both succeed, the SECOND one silently overwriting
+    // whichever option the FIRST had just recorded). `fromStatuses` closes the status half of that
+    // race; `knownUpdatedAt` closes the other half - a quote whose OPTIONS were edited (renamed,
+    // removed) between the read just above and this write stays at "sent" but its `updatedAt` moves,
+    // so this CAS still refuses rather than accepting a `chosenOption` that no longer names anything
+    // real. Either failure throws `ConflictException` (409) from `updateDocumentStatus` itself, which
+    // propagates straight out of this method BEFORE `markSignatureSigned`/the webhook/the archive
+    // write below ever run - the loser of the race leaves no side effect at all, never a signature
+    // marked signed for a choice that was not the one actually persisted.
     const updated = await updateDocumentStatus(
       row.companyId,
       row.typeId,
@@ -423,8 +436,9 @@ export class SignaturesService {
       null,
       undefined,
       undefined,
-      undefined,
+      ['sent'],
       chosenOption,
+      current.updatedAt,
     );
     // The archive-side twin of the SAME fact - see `Signature.chosenOption`'s own schema comment.
     const signed = await markSignatureSigned(row.id, chosenOption);

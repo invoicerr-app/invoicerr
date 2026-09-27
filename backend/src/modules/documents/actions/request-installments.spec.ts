@@ -487,7 +487,14 @@ describe('request-installments', () => {
       ],
     });
 
-    await expect(runInstallments([50, 50])).rejects.toBeInstanceOf(BadRequestException);
+    const action = runInstallments([50, 50]);
+    await expect(action).rejects.toBeInstanceOf(BadRequestException);
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    // Issue #373 follow-up, points 3/4 - same fix as request-deposit.spec.ts's own identical test:
+    // the message must state the real, permanent limitation, never a retry that can never succeed
+    // (choosing an option is exactly what moves the quote off "sent", the only status this action is
+    // ever available from).
+    await expect(action).rejects.toThrow('not supported for a quote with options');
+    await expect(action).rejects.not.toThrow(/once an option has been chosen/);
   });
 });

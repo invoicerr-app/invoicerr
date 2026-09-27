@@ -70,8 +70,9 @@ describe('accept-manually (issue #421)', () => {
       actor: ACTOR,
     });
 
-    // Issue #373 - the trailing `undefined` is `chosenOption`: this fixture's quote has fewer than
-    // two options, so `resolveChosenOption` resolves to `undefined` and nothing is written for it.
+    // Issue #373 follow-up - `chosenOption` stays `undefined` (fewer than two options); the trailing
+    // `expect.any(Date)` is `knownUpdatedAt` - the fix for the acceptance-vs-signature race (this
+    // handler's own header): the CAS now also guards on the row not having changed since it was read.
     expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
       'company-1',
       'quote',
@@ -82,6 +83,7 @@ describe('accept-manually (issue #421)', () => {
       undefined,
       ['sent'],
       undefined,
+      expect.any(Date),
     );
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ status: 'accepted' });
@@ -166,6 +168,7 @@ describe('accept-manually (issue #421)', () => {
         undefined,
         ['sent'],
         'Premium',
+        expect.any(Date),
       );
       expect(result.message).toContain('Premium');
 

@@ -437,9 +437,10 @@ describe('SignaturesService', () => {
       const result = await service.verifyAndSign(token, code);
 
       expect(result.message).toBe('Document signed.');
-      // Issue #373 ("quotes with options") - the trailing `undefined`s are `lastActionError`/
-      // `transportRef`/`channelProviderId`/`fromStatuses`/`acceptedOption`; a quote with fewer than
-      // two options resolves `chosenOption` to `undefined`, so nothing is written to that column.
+      // Issue #373 follow-up - `fromStatuses: ['sent']` and `knownUpdatedAt: SENT_QUOTE.updatedAt`
+      // are the fix for the OTP-overwrites-a-manual-acceptance race (this class's own header on
+      // `markSigned`): the write is no longer unconditional. `acceptedOption` stays `undefined` - a
+      // quote with fewer than two options resolves `chosenOption` to `undefined`.
       expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
         'company-1',
         'quote',
@@ -448,8 +449,9 @@ describe('SignaturesService', () => {
         null,
         undefined,
         undefined,
+        ['sent'],
         undefined,
-        undefined,
+        SENT_QUOTE.updatedAt,
       );
       expect(rows()[0].signedAt).not.toBeNull();
       expect(rows()[0].isActive).toBe(false); // a signed row can never be replayed
@@ -523,8 +525,9 @@ describe('SignaturesService', () => {
           null,
           undefined,
           undefined,
-          undefined,
+          ['sent'],
           'Premium',
+          MULTI_OPTION_QUOTE.updatedAt,
         );
         expect(rows()[0].chosenOption).toBe('Premium');
       });
