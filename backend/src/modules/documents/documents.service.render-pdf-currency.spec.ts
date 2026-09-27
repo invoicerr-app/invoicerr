@@ -106,6 +106,10 @@ describe('issue #490 - renderInstancePdf serves the archived PDF only while it i
         postalCode: '75000',
         city: 'Paris',
         country: 'Nowhereland', // deliberately unresolvable - keeps country-policy out of the way
+        // Issue #496: a document number format now comes from the company's country, so numbering
+        // needs one. `countryCode` wins over `country` for that lookup only; Germany carries no
+        // country-specific rule on this path (no mention, no mandated channel for a quote).
+        countryCode: 'DE',
         phone: '+33100000000',
         email: `pdf-currency-${Date.now()}@example.com`,
       },

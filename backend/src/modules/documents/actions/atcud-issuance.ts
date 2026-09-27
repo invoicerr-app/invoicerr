@@ -31,7 +31,7 @@ import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
-import { resolveNumberFormat } from '../numbering/format-number';
+import { resolveCompanyNumberFormat } from '../numbering/company-number-format';
 import {
   AtcudFormatIncompatibleError,
   AtcudTypeId,
@@ -43,18 +43,11 @@ import {
 } from '../numbering/atcud';
 import { TakenDocumentNumber } from '../numbering/sequence';
 
-/** How each ATCUD-eligible type is named in the messages below, and the example number format each
- *  message suggests: the SAF-T (PT) document type code itself, then a "/" series, per Portaria n.º
- *  302/2016 field 4.1.4.1 (InvoiceNo: « o código interno do tipo de documento [...], um espaço, o
- *  identificador da série do documento, uma barra (/) e o número sequencial »). */
+/** How each ATCUD-eligible type is named in the messages below. */
 const ATCUD_TYPE_LABEL: Record<AtcudTypeId, string> = {
   invoice: 'invoice',
   'credit-note': 'credit note',
 };
-
-function exampleFormatFor(typeId: AtcudTypeId): string {
-  return `${SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID[typeId]} {year}/{number:4}`;
-}
 
 /** Thrown by `ensureAtcudIssuable` when the predicted series has no AT validation code registered yet
  *  (company settings) - AT FAQ 4308/4312, quoted verbatim in country-policy/data/pt.json: a code must
@@ -83,11 +76,11 @@ export async function ensureAtcudIssuable(
   if (countryCode !== 'PT') return;
 
   const label = ATCUD_TYPE_LABEL[typeId];
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { numberFormats: true },
-  });
-  const pattern = resolveNumberFormat(company?.numberFormats as Record<string, unknown> | null, typeId);
+  // Issue #496: the format is Portugal's own (`country-policy/data/pt.json`: "FT A/{number}" for an
+  // invoice, "NC A/{number}" for a credit note), or a series the company already started, which
+  // `company-number-format.ts` keeps only while it satisfies pt.json's own "TYPE SERIES/NUMBER"
+  // constraint - so the shape check below can only fail on a catalog error, never on a user choice.
+  const { pattern } = await resolveCompanyNumberFormat(companyId, typeId);
 
   const shape = parseAtcudPattern(pattern);
   if (!shape) {
@@ -95,8 +88,8 @@ export async function ensureAtcudIssuable(
       `This company's Portuguese ${label} number format ("${pattern}") cannot produce a ` +
         'lawful ATCUD sequential number - Portaria n.º 195/2020, art. 3.º n.º 3 requires the document ' +
         'number to end in a literal "/" immediately followed by the sequential digits (a "{number}" or ' +
-        `"{number:N}" token), with nothing after them. Reconfigure the ${label} number format in company ` +
-        `settings - e.g. "${exampleFormatFor(typeId)}" - before issuing.`,
+        '"{number:N}" token), with nothing after them. Number formats are defined per country ' +
+        '(country-policy/data/pt.json), not by the company: this is a catalog error to report.',
     );
   }
 
@@ -154,11 +147,7 @@ export async function attachAtcudToNumberedDocument(
     const countryCode = await resolveCompanyCountryCode(companyId);
     if (countryCode !== 'PT') return;
 
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      select: { numberFormats: true },
-    });
-    const pattern = resolveNumberFormat(company?.numberFormats as Record<string, unknown> | null, typeId);
+    const { pattern } = await resolveCompanyNumberFormat(companyId, typeId);
     const { seriesId, sequentialNumber } = splitAtcudDisplayNumber(numbered.displayNumber, pattern);
 
     const series = await prisma.companyAtcudSeries.findUnique({
@@ -176,7 +165,7 @@ export async function attachAtcudToNumberedDocument(
     logger.error(
       `Failed to attach the ATCUD to a numbered Portuguese ${ATCUD_TYPE_LABEL[typeId]} - it will print ` +
         'without one. The "send" preflight (ensureAtcudIssuable) should have already refused this case; ' +
-        "reaching here means the company's number format or AT validation code changed in the narrow " +
+        "reaching here means the company's AT validation code (or its country) changed in the narrow " +
         'gap between that check and numbering.',
       {
         category: 'documents',

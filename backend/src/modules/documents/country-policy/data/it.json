@@ -198,7 +198,7 @@
         "kind": "unverified",
         "resolutionNote": "Issue #472. The FORMAT fact is read first-hand, not the statute: the Agenzia delle Entrate FatturaPA schema this repository vendors and validates every FatturaPA file against (formats/vendored/it/Schema_VFPR12.xsd, version 1.2) enumerates `TipoDocumento` value TD04 with the documentation « Nota di credito », and declares `DatiFattureCollegate` (type DatiDocumentiCorrelatiType: IdDocumento, Data) as the slot for the invoices a document relates to - read 2026-09-27. The provider builds TD04 with that block naming the corrected invoice, and the file passes the XSD (formats/credit-note-formats.spec.ts). The statutory basis of the nota di credito is art. 26, comma 2, DPR 633/72, already cited by this file's own credit-note.send rule (reused, not re-read here). What would make this `legal`: the Provvedimento del Direttore dell'Agenzia delle Entrate n. 89757 del 30 aprile 2018, Allegato A (Specifiche tecniche), read first-hand for TD04 and for whether DatiFattureCollegate is mandatory on a TD04 - not read in this session."
       },
-      "notes": "KNOWN LIMIT, tested (formats/credit-note-formats.spec.ts): FatturaPA's `Numero` is at most 20 characters (String20Type), and the shipped default credit-note number \"CREDIT-NOTE-2026-0001\" is 21. The XSD gate refuses such a file rather than truncate the legal number; an Italian seller needs a shorter credit-note series (Company.numberFormats) before a TD04 can be produced."
+      "notes": "FatturaPA's `Numero` is at most 20 characters (String20Type). The old shared credit-note default \"CREDIT-NOTE-2026-0001\" was 21, so a TD04 could not be produced with default settings. Since issue #496 the Italian credit-note format comes from this file's own `numberFormats` (\"CN-{year}-{number:4}\", checked against it-fatturapa-numero-string20 at load time), and the XSD gate still refuses a longer number rather than truncate it (formats/credit-note-formats.spec.ts)."
     },
     {
       "typeId": "expense",
@@ -332,5 +332,86 @@
       },
       "notes": "Product numbers Italian credit notes anyway - the SdI data model's own mandatory <Numero> field for TD04 is a strong practical signal even without a statutory sentence extending art. 21 to it, pending the first-hand read that would turn this into a `legal` entry."
     }
-  ]
+  ],
+  "numberFormats": {
+    "constraints": [
+      {
+        "id": "it-dpr-633-art-21",
+        "appliesTo": ["invoice"],
+        "summary": "Italian law requires a progressive number that identifies the invoice uniquely. It constrains no character and no length.",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "art. 21, comma 2, lett. b) DPR 633/1972 requires the invoice to carry « un numero progressivo che la identifichi in modo univoco » - quoted as this file's credit-note `numbering` fact read it on 2026-09-26 (via Agenzia delle Entrate, Risposta n. 505 del 29 ottobre 2020), NOT re-read first-hand in this pass. Found on 2026-09-28: normattiva.it now marks art. 21 as abrogated by D.Lgs. 19 gennaio 2026, n. 10 (Testo unico IVA), whose provisions apply from 1 January 2027 according to secondary sources (FiscoeTasse, FiscoOggi); its invoicing chapter (Capo V, arts. 72-96) could not be read (normattiva served only the table of contents). What would settle it: the Testo unico IVA's invoice-content article read first-hand, to confirm the « numero progressivo » requirement carries over unchanged from 2027."
+        }
+      },
+      {
+        "id": "it-fatturapa-numero-string20",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "FatturaPA's <Numero> (2.1.1.4) holds at most 20 Basic Latin characters, for an invoice (TD01) and a credit note (TD04) alike. A longer number makes the file invalid, and the SdI rejects it.",
+        "maxLength": 20,
+        "allowedCharacters": " -~",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "<xs:element name=\"Numero\" type=\"String20Type\" /> ... <xs:simpleType name=\"String20Type\"> <xs:restriction base=\"xs:normalizedString\"> <xs:pattern value=\"(\\p{IsBasicLatin}{1,20})\" />",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "The Agenzia delle Entrate schema this repository vendors and validates every FatturaPA file against (formats/vendored/it/Schema_VFPR12.xsd, version 1.2), read on 2026-09-28. `allowedCharacters` is printable Basic Latin (space to tilde): a normalizedString admits no tab or line break, and Basic Latin's control characters have no place in a number."
+      },
+      {
+        "id": "it-sdi-00425",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "The SdI rejects a FatturaPA whose <Numero> contains no digit (error 00425).",
+        "requiresDigit": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Codice 00425   2.1.1.4 <Numero> non contenente caratteri numerici [...] IF ( Numero non contiene ValoreNum ) E R R O R E (00425)",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "« Elenco dei controlli effettuati sul file fattura del Sistema di Interscambio », versione 1.9, https://www.fatturapa.gov.it/export/documenti/Elenco-Controlli-versione-1.9.pdf, read first-hand with pdftotext on 2026-09-28. Every shipped format carries a {number} token, so it always holds; stated so a running series is judged against it too."
+      }
+    ],
+    "formats": [
+      {
+        "typeId": "quote",
+        "pattern": "QUOTE-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A quote (preventivo) is not an invoice: art. 21 DPR 633/1972 and the FatturaPA schema govern the fattura. No Italian text read in this pass constrains the number of a quote.",
+        "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape."
+      },
+      {
+        "typeId": "invoice",
+        "pattern": "INVOICE-{year}-{number:4}",
+        "constrainedBy": ["it-dpr-633-art-21", "it-fatturapa-numero-string20", "it-sdi-00425"],
+        "rationale": "Unchanged from the product's previous shared default, so an Italian company already running it keeps it as it is. 19 characters at number 999999 and 20 at 1000000, the most FatturaPA's <Numero> accepts."
+      },
+      {
+        "typeId": "credit-note",
+        "pattern": "CN-{year}-{number:4}",
+        "constrainedBy": ["it-fatturapa-numero-string20", "it-sdi-00425"],
+        "rationale": "The product's previous shared default, \"CREDIT-NOTE-{year}-{number:4}\", renders 21 characters (\"CREDIT-NOTE-2026-0001\"), over the 20 that Chorus Pro (B2G) and FatturaPA accept. \"CN-\" keeps the credit note at 14 characters at number 999999, in a series of its own, distinct from the invoice series. With it, an Italian credit note produces a valid TD04 with default settings (issue #496)."
+      },
+      {
+        "typeId": "purchase-order",
+        "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no Italian text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+        "rationale": "Unchanged from the product's previous shared default."
+      },
+      {
+        "typeId": "goods-receipt",
+        "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Italian text read in this pass constrains its number.",
+        "rationale": "Unchanged from the product's previous shared default."
+      }
+    ],
+    "runningSeries": {
+      "summary": "A series this company already started is kept as long as it satisfies FatturaPA: Italian law asks only for a progressive number identifying the invoice uniquely, which a continuing series keeps doing.",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "art. 21, comma 2, lett. b) DPR 633/1972 requires the invoice to carry « un numero progressivo che la identifichi in modo univoco » - quoted as this file's credit-note `numbering` fact read it on 2026-09-26 (via Agenzia delle Entrate, Risposta n. 505 del 29 ottobre 2020), NOT re-read first-hand in this pass. Found on 2026-09-28: normattiva.it now marks art. 21 as abrogated by D.Lgs. 19 gennaio 2026, n. 10 (Testo unico IVA), whose provisions apply from 1 January 2027 according to secondary sources (FiscoeTasse, FiscoOggi); its invoicing chapter (Capo V, arts. 72-96) could not be read (normattiva served only the table of contents). What would settle it: the Testo unico IVA's invoice-content article read first-hand, to confirm the « numero progressivo » requirement carries over unchanged from 2027."
+      },
+      "onViolation": "If the running series breaks a FatturaPA rule above (for example a number over 20 characters, such as the old default \"CREDIT-NOTE-2026-0001\"), the country format applies from the next number. The counter is not reset, so the number stays progressive and unique; only the printed prefix changes. Such a series could not have produced a valid FatturaPA file anyway."
+    }
+  }
 }

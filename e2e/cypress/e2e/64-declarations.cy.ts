@@ -178,23 +178,12 @@ describe("Declarations — a Portuguese seller's blocked pt-at declaration is jo
 		});
 
 		// ATCUD (Portaria n.º 195/2020) — a Portuguese invoice's "send" preflight hard-blocks (400,
-		// `actions/atcud-issuance.ts#ensureAtcudIssuable`, wired in via `invoice-actions.ts`'s own
-		// `runAtcudPreflight`) BEFORE the record ever leaves "draft" unless BOTH of these are
-		// configured: this product's own shipped default number format has no "/" at all
-		// (`numbering/atcud.ts`'s own header names it explicitly as NOT ATCUD-compatible), and even a
-		// compatible format still needs its series' AT validation code registered
-		// (`company/atcud-series/`) before any document in it is issued (AT FAQ 4308). Established by
-		// reading that gate's own code, not by guessing: the invoice never left "draft" without this.
-		const atcudSeriesId = `FT ${new Date().getFullYear()}`;
-		cy.request({
-			method: "PUT",
-			url: `${api}/api/company/number-format`,
-			body: { typeId: "invoice", pattern: "FT {year}/{number:4}" },
-		}).then((res) => {
-			expect(res.status, "format de numérotation compatible ATCUD ('/' + {number})").to.be.oneOf([
-				200, 201,
-			]);
-		});
+		// `actions/atcud-issuance.ts#ensureAtcudIssuable`) BEFORE the record ever leaves "draft" unless
+		// the series' AT validation code is registered (`company/atcud-series/`) before any document in
+		// it is issued (AT FAQ 4308). Since issue #496 the number FORMAT is Portugal's own,
+		// "FT A/{number}" (`country-policy/data/pt.json`), ATCUD-compatible out of the box and not the
+		// company's to change: the series to register is "FT A".
+		const atcudSeriesId = "FT A";
 		cy.request({
 			method: "PUT",
 			url: `${api}/api/company/atcud-series`,

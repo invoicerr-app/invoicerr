@@ -484,53 +484,38 @@ function connectFakeSdiAndMakeItTheTransport() {
  * Portugal's ATCUD (Portaria n.º 195/2020) — `pt-de` is the only leg in this file whose SELLER is
  * Portuguese (`it-pt`'s own Portugal is the BUYER, unaffected: `documents/actions/atcud-issuance.ts
  * #ensureAtcudIssuable` gates on the ISSUING company's own country, never the buyer's). Without this,
- * `pt-de`'s main invoice send below would now 400 at the preflight (`ensureAtcudIssuable`'s own
- * `AtcudFormatIncompatibleError`/`AtcudValidationCodeMissingError`) — this product's own shipped
- * default number format ("INVOICE-{year}-{number:4}", `numbering/format-number.ts
- * #defaultNumberFormatFor`) has no "/" at all, and no company has ever registered a validation code.
- * A real Portuguese company has to do exactly this — set an ATCUD-compatible invoice number format,
- * then register the AT-issued code for the series that format predicts — before it can send its
- * first invoice; this mirrors that real setup through the actual settings screen
- * (`settings/_components/atcud.settings.tsx`), the same "action through a real click" discipline this
- * file's own `connectFakeSdiAndMakeItTheTransport` already holds for Italy's own SdI mandate.
+ * `pt-de`'s main invoice send below would 400 at the preflight (`AtcudValidationCodeMissingError`):
+ * no company has ever registered a validation code.
  *
- * The series identifier is "FT 2026", never "FT {issueDate's year}": numbering takes its `{year}` from
- * the REAL wall-clock moment the number is actually assigned (`numbering/sequence.ts
- * #takeDocumentNumber`'s own `issuedAt = new Date()` default), not from the invoice's own `issueDate`
- * field (2026-08-20, chosen only to sit before France's PDP mandate — see this file's own header) — so
- * the series this test registers has to match whatever year this suite actually runs in, not the
- * invoice's own backdated issue date.
+ * Since issue #496 the invoice number FORMAT is not the company's to set: Portugal's own format,
+ * "FT A/{number}" (`country-policy/data/pt.json`'s `numberFormats`), is ATCUD-compatible out of the
+ * box, one series across years. What a real Portuguese company still has to do before its first
+ * invoice is register the AT-issued code for series "FT A" - and this mirrors that setup through the
+ * actual settings screen (`settings/_components/atcud.settings.tsx`), the same "action through a real
+ * click" discipline this file's own `connectFakeSdiAndMakeItTheTransport` already holds for Italy's own
+ * SdI mandate. The screen names the series to register; this reads it from there rather than
+ * hard-coding it, then proves it was stored.
  */
 function configurePortugueseAtcud() {
 	cy.visit("/settings/atcud");
-	// `{ parseSpecialCharSequences: false }` — without it, Cypress's `.type()` would try to interpret
-	// "{year}"/"{number:4}" as key-sequence commands (like "{enter}") rather than typing them literally.
-	cy.get('[data-cy="atcud-number-format-input"]', { timeout: 15000 })
-		.clear()
-		.type("FT {year}/{number:4}", { parseSpecialCharSequences: false });
-	cy.get('[data-cy="atcud-number-format-save-button"]').click();
-	cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Invoice number format saved");
-	// The toast only proves the SCREEN believes the save succeeded — read `Company.numberFormats`
-	// back to prove it actually reached the row this leg's own "the number is not an empty string"
-	// assertion (later in this file) depends on for its ATCUD-shaped regex to even have a chance of
-	// matching.
-	cy.request({ url: `${api}/api/company/info` })
-		.its("body.numberFormats.invoice")
-		.should("eq", "FT {year}/{number:4}");
-
-	const seriesId = `FT ${new Date().getFullYear()}`;
-	cy.get('[data-cy="atcud-series-id-input"]').type(seriesId);
-	cy.get('[data-cy="atcud-validation-code-input"]').type("E2EATCUDCODE1");
-	cy.get('[data-cy="atcud-series-save-button"]').click();
-	cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Series saved");
-	// Same toast-only gap as the number format above — read the registered series back.
-	cy.request({ url: `${api}/api/company/atcud-series` })
-		.its("body")
-		.then((rows: { typeId: string; seriesId: string; validationCode: string }[]) => {
-			const row = rows.find((r) => r.typeId === "invoice" && r.seriesId === seriesId);
-			expect(row, "the ATCUD series is actually registered server-side").to.include({
-				validationCode: "E2EATCUDCODE1",
-			});
+	cy.get('[data-cy="atcud-number-format-series"]', { timeout: 15000 })
+		.invoke("text")
+		.then((text) => {
+			const seriesId = text.trim();
+			expect(seriesId, "the series Portugal's own format predicts").to.eq("FT A");
+			cy.get('[data-cy="atcud-series-id-input"]').type(seriesId);
+			cy.get('[data-cy="atcud-validation-code-input"]').type("E2EATCUDCODE1");
+			cy.get('[data-cy="atcud-series-save-button"]').click();
+			cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Series saved");
+			// The toast only proves the SCREEN believes the save succeeded - read the registered series back.
+			cy.request({ url: `${api}/api/company/atcud-series` })
+				.its("body")
+				.then((rows: { typeId: string; seriesId: string; validationCode: string }[]) => {
+					const row = rows.find((r) => r.typeId === "invoice" && r.seriesId === seriesId);
+					expect(row, "the ATCUD series is actually registered server-side").to.include({
+						validationCode: "E2EATCUDCODE1",
+					});
+				});
 		});
 }
 
@@ -829,13 +814,13 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					);
 					expect(doc.displayNumber.length, "the number is not an empty string").to.be.greaterThan(0);
 					if (scenarioId === "pt-de") {
-						// This leg configured an ATCUD-shaped number format above
-						// (`configurePortugueseAtcud`: "FT {year}/{number:4}") — a bare non-empty-string check
-						// would stay green even if numbering silently fell back to the product's own default
-						// pattern ("INVOICE-{year}-{number:4}"), which has no "/" at all and would itself have
-						// failed the ATCUD preflight this leg exists to get past. Assert the actual shape.
-						expect(doc.displayNumber, "ATCUD-shaped: \"FT <year>/<4-digit sequence>\"").to.match(
-							/^FT \d{4}\/\d{4}$/,
+						// Portugal's own format (issue #496, `country-policy/data/pt.json`: "FT A/{number}") -
+						// a bare non-empty-string check would stay green even if numbering silently fell back
+						// to another country's pattern ("INVOICE-{year}-{number:4}"), which has no "/" at all
+						// and would itself have failed the ATCUD preflight this leg exists to get past. Assert
+						// the actual shape.
+						expect(doc.displayNumber, "ATCUD-shaped: \"FT A/<4-digit sequence>\"").to.match(
+							/^FT A\/\d{4}$/,
 						);
 					}
 				});

@@ -35,10 +35,11 @@ const HAS_NUMBER_TOKEN = /\{number(?::\d+)?\}/;
  * every document a company ever numbers would render the exact same display string, the same
  * plural-drafts symptom the old bug produced from a different cause. Called from BOTH
  * `formatDocumentNumber` itself (so the pure function can never silently mis-format) and
- * `resolveNumberFormat` below (so a company's misconfigured custom format is caught the moment it is
- * READ — "au chargement du format" — before a real sequence number is ever spent trying to format
- * it; see sequence.ts's own header on why a number must never be taken for a write that turns out to
- * fail).
+ * `country-policy/number-formats.ts#assertValidNumberFormats` (so a shipped country format missing
+ * the token refuses to LOAD, long before a real sequence number is ever spent trying to format it;
+ * see sequence.ts's own header on why a number must never be taken for a write that turns out to
+ * fail). Since issue #496 no company can store a pattern of its own, so this is no longer a check on
+ * user input.
  */
 export function assertValidNumberPattern(pattern: string, context: string): void {
   if (!HAS_NUMBER_TOKEN.test(pattern)) {
@@ -126,34 +127,4 @@ export function formatDocumentNumber(pattern: string, parts: DocumentNumberParts
     const padLength = padding !== undefined ? Number.parseInt(padding, 10) : key === 'number' ? 4 : 0;
     return value.toString().padStart(padLength, '0');
   });
-}
-
-/**
- * The shipped default pattern for a type with no company-chosen format — `"{type}-{year}-{number:4}"`
- * with `{type}` substituted ONCE, here, by the type's own uppercased id (e.g. "invoice" ->
- * "INVOICE-"). `{type}` is deliberately NOT part of `formatDocumentNumber`'s own token vocabulary
- * (year/month/day/number only, per this module's header) — it is resolved before the pattern ever
- * reaches that function, exactly like a company's custom pattern would already be a plain string by
- * the time it gets there.
- */
-export function defaultNumberFormatFor(typeId: string): string {
-  return `${typeId.toUpperCase()}-{year}-{number:4}`;
-}
-
-/**
- * The pattern to actually use for `typeId`, given a company's own `Company.numberFormats` column
- * (`{ [typeId]: pattern }`, or null/absent for a company that never set one) — falls back to
- * `defaultNumberFormatFor` when this type has no entry. Validated HERE, eagerly, before the caller
- * (`sequence.ts`'s orchestration in `take-number.ts`) ever takes a real number from the sequence —
- * see `assertValidNumberPattern`'s own comment for why that ordering is the point.
- */
-export function resolveNumberFormat(
-  numberFormats: Record<string, unknown> | null | undefined,
-  typeId: string,
-): string {
-  const configured = numberFormats?.[typeId];
-  const pattern = typeof configured === 'string' && configured.length > 0 ? configured : undefined;
-  const resolved = pattern ?? defaultNumberFormatFor(typeId);
-  assertValidNumberPattern(resolved, `for document type "${typeId}"`);
-  return resolved;
 }

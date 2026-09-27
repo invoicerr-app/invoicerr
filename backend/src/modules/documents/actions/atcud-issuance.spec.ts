@@ -50,7 +50,7 @@ describe('ensureAtcudIssuable — the load-bearing preflight gate, before any nu
     await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).resolves.toBeUndefined();
   });
 
-  it('passes for a Portuguese company with an ATCUD-compatible format AND a registered series code', async () => {
+  it('passes for a Portuguese company whose RUNNING series is ATCUD-compatible, with its code registered (issue #496: the running series is kept)', async () => {
     mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({
       id: 'series-1',
@@ -68,14 +68,27 @@ describe('ensureAtcudIssuable — the load-bearing preflight gate, before any nu
     });
   });
 
-  // FAILURE PATH 1/2 — an incompatible number format.
-  it('throws AtcudFormatIncompatibleError for a Portuguese company on the shipped DEFAULT number format', async () => {
-    mockCompany('Portugal', null); // no override at all -> defaultNumberFormatFor('invoice')
+  // Issue #496: with no running series, Portugal's own format ("FT A/{number}", country-policy/data/
+  // pt.json) applies - ATCUD-compatible out of the box, so the only thing left to configure is the AT
+  // validation code of series "FT A". The old shared default had no "/" at all and blocked here.
+  it("a Portuguese company with no running series gets Portugal's own format: series \"FT A\", no per-year code", async () => {
+    mockCompany('Portugal', null);
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({ validationCode: 'JCVPTS0J' });
+
+    await expect(ensureAtcudIssuable('company-1', 'invoice', new Date(2031, 5, 1))).resolves.toBeUndefined();
+    expect(mockedPrisma.companyAtcudSeries.findUnique).toHaveBeenCalledWith({
+      where: { companyId_typeId_seriesId: { companyId: 'company-1', typeId: 'invoice', seriesId: 'FT A' } },
+    });
+  });
+
+  it('a running series that cannot carry an ATCUD gives way to the country format (series "FT A")', async () => {
+    mockCompany('Portugal', { invoice: 'INVOICE-{year}-{number:4}' });
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
+
     await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).rejects.toThrow(
-      AtcudFormatIncompatibleError,
+      AtcudValidationCodeMissingError,
     );
-    // Never even looked up a series — the format check runs first and fails fast.
-    expect(mockedPrisma.companyAtcudSeries.findUnique).not.toHaveBeenCalled();
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).rejects.toThrow(/"FT A"/);
   });
 
   // FAILURE PATH 2/2 — a compatible format, but no AT code registered for the predicted series yet.
@@ -160,8 +173,9 @@ describe('attachAtcudToNumberedDocument - the defensive re-check AFTER a number 
     expect(mockedPrisma.documentInstance.update).not.toHaveBeenCalled();
   });
 
-  it('never throws — logs and swallows if the number format itself has since become incompatible', async () => {
-    mockCompany('Portugal', { invoice: 'INVOICE-{year}-{number:4}' }); // no "/" at all
+  it('never throws - logs and swallows if the number it is handed cannot carry an ATCUD', async () => {
+    mockCompany('Portugal', null);
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
     await expect(
       attachAtcudToNumberedDocument('company-1', 'invoice', 'doc-1', {
         number: 7,
@@ -189,12 +203,13 @@ describe("the credit note (issue #497): its own format, its own NC series, never
     });
   });
 
-  it('refuses the shipped default credit-note format, naming the type and an NC-shaped example', async () => {
-    mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' }); // credit note left on the default
-    const attempt = ensureAtcudIssuable('company-1', 'credit-note', PT_DATE);
-    await expect(attempt).rejects.toThrow(AtcudFormatIncompatibleError);
+  // Issue #496: a Portuguese credit note left without a running series is numbered in Portugal's own
+  // NC format, so the series to register is "NC A" - never a format the company has to configure.
+  it("a credit note with no running series gets Portugal's own NC format: series \"NC A\"", async () => {
+    mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' });
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
     await expect(ensureAtcudIssuable('company-1', 'credit-note', PT_DATE)).rejects.toThrow(
-      /credit note number format \("CREDIT-NOTE-\{year\}-\{number:4\}"\).*"NC \{year\}\/\{number:4\}"/,
+      /credit note series "NC A" \(SAF-T document type NC\)/,
     );
   });
 

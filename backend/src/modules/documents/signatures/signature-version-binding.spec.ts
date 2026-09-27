@@ -105,6 +105,10 @@ describe('issue #477 - an e-signature is bound to the exact delivered version th
         postalCode: '75000',
         city: 'Paris',
         country: 'Nowhereland', // deliberately unresolvable - keeps country-policy out of the way
+        // Issue #496: a document number format now comes from the company's country, so numbering
+        // needs one. `countryCode` wins over `country` for that lookup only; Germany carries no
+        // country-specific rule on this path (no mention, no mandated channel for a quote).
+        countryCode: 'DE',
         phone: '+33100000000',
         email: `signature-binding-${Date.now()}@example.com`,
       },

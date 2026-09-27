@@ -333,5 +333,64 @@
       },
       "notes": "Numbering it anyway is never contrary to either text read here - a unique identifier is exactly what § 14 Abs. 4 Nr. 4 asks of an invoice, and § 31 Abs. 5 UStDV's own « gleiche Anforderungen » points the same direction - which is why the product numbers German credit notes too, pending the first-hand read that would turn this into a `legal` entry."
     }
-  ]
+  ],
+  "numberFormats": {
+    "constraints": [
+      {
+        "id": "de-ustg-14-4-4",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "German law requires a sequential number, in one or more series, assigned once, that identifies the invoice. It constrains no character and no length.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« 4. eine fortlaufende Nummer mit einer oder mehreren Zahlenreihen, die zur Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben wird (Rechnungsnummer), » (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Read first-hand on gesetze-im-internet.de/ustg_1980/__14.html on 2026-09-28. Bound to the credit note too because the product numbers German credit notes (this file's credit-note `numbering` fact, still `unverified` on whether a credit note needs a number of its own). Neither format checked here adds a limit: EN 16931 gives BT-1 no length, and the vendored KoSIT XRechnung Schematron (formats/vendored/de/XRechnung-UBL-validation-preprocessed.sch) holds no assertion on BT-1's length or characters (its one string-length test, BR-DEX-13, is about decimals of an amount), checked on 2026-09-28."
+      }
+    ],
+    "formats": [
+      {
+        "typeId": "quote",
+        "pattern": "QUOTE-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A quote (Angebot) is not an invoice: § 14 Abs. 4 UStG governs the Rechnung. No German text read in this pass constrains the number of a quote.",
+        "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape."
+      },
+      {
+        "typeId": "invoice",
+        "pattern": "INVOICE-{year}-{number:4}",
+        "constrainedBy": ["de-ustg-14-4-4"],
+        "rationale": "Unchanged from the product's previous shared default, so a German company already running it keeps it as it is. No German rule limits its length or characters."
+      },
+      {
+        "typeId": "credit-note",
+        "pattern": "CN-{year}-{number:4}",
+        "constrainedBy": ["de-ustg-14-4-4"],
+        "rationale": "No German rule needs a shorter credit-note number. The same short form as the other countries is used so a company working across them reads one convention, in a series of its own, distinct from the invoice series."
+      },
+      {
+        "typeId": "purchase-order",
+        "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no German text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+        "rationale": "Unchanged from the product's previous shared default."
+      },
+      {
+        "typeId": "goods-receipt",
+        "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no German text read in this pass constrains its number.",
+        "rationale": "Unchanged from the product's previous shared default."
+      }
+    ],
+    "runningSeries": {
+      "summary": "A series this company already started is kept as it is: German law asks for one sequential number assigned once, and switching a running series to another format is never required by it.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« 4. eine fortlaufende Nummer mit einer oder mehreren Zahlenreihen, die zur Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben wird (Rechnungsnummer), » (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "onViolation": "No German constraint limits the characters or the length of the number, so a running series can only fall back when its own pattern cannot be rendered at all. The country format then applies from the next number; the counter is not reset and no number is reused."
+    }
+  }
 }

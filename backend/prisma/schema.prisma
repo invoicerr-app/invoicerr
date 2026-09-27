@@ -432,15 +432,16 @@ model Company {
   // branding at all, or colour/font set by hand without ever picking a named starting point.
   brandingPreset      String?
 
-  // Per-document-type number FORMAT, keyed by DocumentTypeDescriptor.id — e.g.
-  // `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here falls back to
-  // documents/numbering/format-number.ts's own `defaultNumberFormatFor(typeId)` — never a hole in the
-  // format, only in WHO chose it. Written through `PUT /api/company/number-format`
-  // (`CompanyService#updateNumberFormat`, the only path that runs `assertValidNumberPattern`) — by the
-  // Portuguese ATCUD settings screen and, since the migration above, by the main "Number formats" card
-  // too, one type at a time. Never through `POST /api/company/info`'s `EditCompanyDto`: see
-  // `editCompanyInfo`'s own comment for why that write path allow-lists its columns instead of
-  // spreading the request body.
+  // Issue #496: the company's RUNNING SERIES, keyed by DocumentTypeDescriptor.id - e.g.
+  // `{ "invoice": "FAC-{year}-{number:5}" }` - NOT a setting any more. Number formats are defined per
+  // country and document type (documents/country-policy/data/xx.json, `numberFormats`) and no company
+  // can change them; this column only records, for each type the company had already numbered before
+  // that rule, the format its series was running under, so the series continues unchanged (continuity
+  // of an issued series is a legal obligation). Frozen by migration
+  // `20260928000000_issue_496_freeze_running_number_series`, written by nothing since
+  // (`PUT /api/company/number-format` answers 405; `editCompanyInfo` allow-lists its columns). Read by
+  // documents/numbering/company-number-format.ts, which keeps a running series only while it satisfies
+  // the country's constraints. A type absent here is numbered with the country format.
   numberFormats Json?
 
   // Which registered payment provider (documents/payments/payment-provider-registry.ts) an invoice's

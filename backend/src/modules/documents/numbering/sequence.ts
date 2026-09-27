@@ -72,6 +72,22 @@ export async function bumpSequence(
   return rows[0].number;
 }
 
+/**
+ * Issue #496 - the pattern to render with, plus an optional check of the RENDERED number, run inside
+ * the numbering transaction right after rendering: a check that throws rolls the whole transaction
+ * back, sequence bump included, so a number that would break a country constraint is never issued and
+ * never spent (`numbering/company-number-format.ts#assertNumberSatisfies`). A bare string is still
+ * accepted, for callers with nothing to check.
+ */
+export type NumberPattern = string | { pattern: string; check?: (displayNumber: string) => void };
+
+function renderChecked(pattern: NumberPattern, number: number, issuedAt: Date): string {
+  const template = typeof pattern === 'string' ? pattern : pattern.pattern;
+  const displayNumber = formatDocumentNumber(template, { number, date: issuedAt });
+  if (typeof pattern !== 'string') pattern.check?.(displayNumber);
+  return displayNumber;
+}
+
 export interface TakenDocumentNumber {
   number: number;
   displayNumber: string;
@@ -103,13 +119,13 @@ export async function takeDocumentNumber(
   companyId: string,
   typeId: string,
   documentId: string,
-  pattern: string,
+  pattern: NumberPattern,
   issuedAt: Date = new Date(),
 ): Promise<TakenDocumentNumber | undefined> {
   try {
     return await prisma.$transaction(async (tx) => {
       const number = await bumpSequence(tx, companyId, typeId);
-      const displayNumber = formatDocumentNumber(pattern, { number, date: issuedAt });
+      const displayNumber = renderChecked(pattern, number, issuedAt);
 
       const written = await tx.documentInstance.updateMany({
         where: { id: documentId, companyId, typeId, number: null },
@@ -196,7 +212,7 @@ export async function takeDocumentNumberWithStatusTransition(
   fromStatuses: string[],
   toStatus: string,
   data: Record<string, unknown>,
-  pattern: string,
+  pattern: NumberPattern,
   issuedAt: Date = new Date(),
 ): Promise<{ document: DocumentInstanceResult; numbered: TakenDocumentNumber | undefined }> {
   const jsonData = data as Prisma.InputJsonValue;
@@ -229,7 +245,7 @@ export async function takeDocumentNumberWithStatusTransition(
     }
 
     const number = await bumpSequence(tx, companyId, typeId);
-    const displayNumber = formatDocumentNumber(pattern, { number, date: issuedAt });
+    const displayNumber = renderChecked(pattern, number, issuedAt);
 
     const document = await tx.documentInstance.update({
       where: { id: documentId },

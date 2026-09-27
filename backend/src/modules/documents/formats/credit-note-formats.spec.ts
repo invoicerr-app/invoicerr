@@ -28,6 +28,8 @@ import { SemanticBuildError } from './semantic/build-semantic-invoice';
 import { ublFormatProvider } from './ubl-provider';
 import { validateXsd } from './vendored/validate-xsd';
 import { xrechnungFormatProvider } from './xrechnung-provider';
+import { resolveNumberFormatFor } from '../numbering/company-number-format';
+import { formatDocumentNumber } from '../numbering/format-number';
 
 vi.mock('../rendering/render-instance-pdf');
 
@@ -259,16 +261,19 @@ describe('issue #472 - a credit note in every EN 16931 syntax, judged by the sam
 });
 
 describe('issue #472 - FatturaPA TD04 (nota di credito), judged by the real Agenzia delle Entrate XSD', () => {
-  it('TD04 + DatiFattureCollegate naming the corrected invoice, no payment instruction, XSD-valid', async () => {
-    // A company-configured credit-note series ("NC-{year}-{number:4}", `Company.numberFormats`) - see
-    // the next test for why the shipped default does not fit this schema.
-    const { result, xml } = await xmlOf(
-      fatturapaFormatProvider,
-      IT_DATA,
-      IT_SELLER,
-      IT_BUYER,
-      'NC-2026-0001',
-    );
+  it("TD04 + DatiFattureCollegate naming the corrected invoice, no payment instruction, XSD-valid, with the number Italy's DEFAULT format produces (issue #496)", async () => {
+    // Issue #496: the credit-note number is rendered through the format numbering itself resolves for
+    // an Italian company with no running series (country-policy/data/it.json), at a six-digit counter -
+    // never a hand-picked short literal, so this test breaks the day that format stops fitting.
+    const resolved = resolveNumberFormatFor('IT', 'credit-note', null);
+    expect(resolved.source).toBe('country-policy');
+    const displayNumber = formatDocumentNumber(resolved.pattern, {
+      number: 999_999,
+      date: new Date(2026, 8, 20),
+    });
+    expect(displayNumber).toBe('CN-2026-999999');
+
+    const { result, xml } = await xmlOf(fatturapaFormatProvider, IT_DATA, IT_SELLER, IT_BUYER, displayNumber);
 
     expect(result.validation.errors).toEqual([]);
     expect(result.validation.valid).toBe(true);
@@ -277,7 +282,7 @@ describe('issue #472 - FatturaPA TD04 (nota di credito), judged by the real Agen
     expect(flat).toContain(
       '<DatiFattureCollegate><IdDocumento>INVOICE-2026-0007</IdDocumento><Data>2026-08-30</Data></DatiFattureCollegate>',
     );
-    expect(flat).toContain('<Numero>NC-2026-0001</Numero>');
+    expect(flat).toContain(`<Numero>${displayNumber}</Numero>`);
     expect(flat).toContain('<ImportoTotaleDocumento>1308.00</ImportoTotaleDocumento>');
     expect(flat).not.toContain('<DatiPagamento>');
 
@@ -287,12 +292,12 @@ describe('issue #472 - FatturaPA TD04 (nota di credito), judged by the real Agen
     expect(xsd.errors).toEqual([]);
   }, 30_000);
 
-  it('the SHIPPED default credit-note number ("CREDIT-NOTE-2026-0001", 21 characters) is refused by the XSD, never truncated', async () => {
-    // FatturaPA's `Numero` is `String20Type` (at most 20 Basic Latin characters, vendored XSD), and
-    // `numbering/format-number.ts#defaultNumberFormatFor('credit-note')` produces 21. The legal number
-    // is never shortened to fit (it would no longer be the number the document was issued with): the
-    // gate refuses, naming the element, and an Italian seller needs a shorter credit-note series in
-    // Settings. Pinned here so the day the default changes, this test says so.
+  it('a number over 20 characters (the pre-#496 default, "CREDIT-NOTE-2026-0001") is still refused by the XSD, never truncated', async () => {
+    // FatturaPA's `Numero` is `String20Type` (at most 20 Basic Latin characters, vendored XSD). The
+    // legal number is never shortened to fit (it would no longer be the number the document was issued
+    // with): the gate refuses, naming the element. Since issue #496 numbering never produces such a
+    // number for an Italian company (the constraint it-fatturapa-numero-string20 is checked on every
+    // number before it is issued), but a legacy document may still carry one.
     const { result } = await xmlOf(fatturapaFormatProvider, IT_DATA, IT_SELLER, IT_BUYER);
     expect(result.validation.valid).toBe(false);
     expect(result.validation.errors.join(' ')).toMatch(/Element 'Numero'.*CREDIT-NOTE-2026-0001/);

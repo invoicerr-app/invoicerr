@@ -93,7 +93,7 @@ describe('PR #473 review point 2 - a credit note with an articleId on its line n
 					.then((doc) => {
 						expect(doc.status, "issued").to.eq("sent");
 						expect(doc.displayNumber, "numbered like every credit note since issue #471").to.eq(
-							"CREDIT-NOTE-2026-0001",
+							"CN-2026-0001",
 						);
 					});
 

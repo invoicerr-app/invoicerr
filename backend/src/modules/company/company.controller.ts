@@ -51,38 +51,41 @@ export class CompanyController {
   }
 
   /**
-   * PUT /api/company/number-format — sets ONE document type's own number-format pattern
-   * (`Company.numberFormats`, `documents/numbering/format-number.ts`). See
-   * `company.service.ts#updateNumberFormat`'s own header for why this is its own small endpoint
-   * rather than a field on `POST info` above. Today's one real caller is the Portuguese ATCUD
-   * settings screen (`documents/numbering/atcud.ts#parseAtcudPattern` requires a "/{number...}"-shaped
-   * pattern before an invoice can even be numbered) — nothing here names Portugal, or any country.
+   * GET /api/company/number-formats - issue #496: the document number format each numbered type of
+   * this company is issued with, where it comes from (the country's own format, or a running series
+   * kept for continuity), the next number it would print, and every rule that constrains it with its
+   * source. Read-only: see `updateNumberFormat` below.
+   */
+  @Get('number-formats')
+  @RequiresScope('company:read')
+  @ApiOperation({
+    summary: 'Get the document number formats that apply, and why',
+    description:
+      'Number formats are defined per country and document type, from the rules that constrain them ' +
+      '(law, e-invoicing formats, clearance platforms), and cannot be changed by the company. A series ' +
+      'the company started before that rule is kept while it satisfies those constraints.',
+  })
+  @ApiResponse({ status: 200, description: 'Number formats retrieved' })
+  async getNumberFormats(@ActiveCompany() companyId: string) {
+    return this.companyService.getNumberFormats(companyId);
+  }
+
+  /**
+   * PUT /api/company/number-format - kept only to REFUSE (405), with the reason (issue #496): a
+   * number format is no longer the company's to change. See `company.service.ts#updateNumberFormat`.
    */
   @Put('number-format')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('company:write')
   @ApiOperation({
-    summary: "Set one document type's own number-format pattern",
+    summary: 'Refused: number formats cannot be changed',
     description:
-      'Merges `{ [typeId]: pattern }` into Company.numberFormats — e.g. `{ "typeId": "invoice", ' +
-      '"pattern": "FT {year}/{number:4}" }`. Rejects a pattern with no "{number}" token.',
+      'Always answers 405. Number formats are defined per country and document type; ' +
+      'GET /api/company/number-formats shows which applies and why.',
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        typeId: { type: 'string', example: 'invoice' },
-        pattern: { type: 'string', example: 'FT {year}/{number:4}' },
-      },
-      required: ['typeId', 'pattern'],
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Number format updated' })
-  async updateNumberFormat(
-    @ActiveCompany() companyId: string,
-    @Body() body: { typeId: string; pattern: string },
-  ) {
-    return this.companyService.updateNumberFormat(companyId, body.typeId, body.pattern);
+  @ApiResponse({ status: 405, description: 'Number formats cannot be changed' })
+  updateNumberFormat() {
+    return this.companyService.updateNumberFormat();
   }
 
   @Get('email-templates')

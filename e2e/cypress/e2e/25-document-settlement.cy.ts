@@ -322,7 +322,7 @@ describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAF
 			.its("body.displayNumber")
 			.then((displayNumber) => {
 				expect(displayNumber, "the sent credit note carries its own number").to.match(
-					/^CREDIT-NOTE-\d{4}-\d{4}$/,
+					/^CN-\d{4}-\d{4}$/,
 				);
 				cy.get(`[data-cy="document-settlement-credit-${creditNoteId}"]`).should(
 					"contain.text",

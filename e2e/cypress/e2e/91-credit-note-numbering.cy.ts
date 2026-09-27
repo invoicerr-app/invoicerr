@@ -8,11 +8,13 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * unique number from a continuous chronological sequence, by series distinct from the invoice's own
  * when the activity justifies it (see `backend/src/modules/documents/country-policy/data/fr.json`'s
  * own `numbering` fact for the citation, and `credit-note.descriptor.ts`'s own "Numbering" header for
- * the full "why"). The default seeded company (`cy.resetAndSeed()`) is French.
+ * the full "why"). The default seeded company (`cy.resetAndSeed()`) is French, so its credit notes are
+ * numbered in France's own credit-note format, "CN-{year}-{number:4}" (issue #496: formats are fixed
+ * per country and document type, country-policy/data/fr.json's `numberFormats`).
  *
  * Three journeys, all against the real API and the real screen:
  *  a) a DRAFT credit note shows no number; ISSUING it (draft -> sending -> sent) gives it
- *     "CREDIT-NOTE-2026-0001" - on the detail page, the list row, AND the PDF's own rendered text - and
+ *     "CN-2026-0001" - on the detail page, the list row, AND the PDF's own rendered text - and
  *     a SECOND issued credit note gets "-0002", in a series entirely independent of the invoice's own
  *     (proven by an invoice issued alongside, still "INVOICE-2026-0001").
  *  b) a LEGACY credit note - simulated with `cy.task("makeCreditNoteLegacyUnnumbered", ...)`, since no
@@ -99,7 +101,7 @@ describe("Issue #471 - credit notes get a legal, sequential number of their own"
 		cy.viewport(1440, 900);
 	});
 
-	it('a draft has no number; issuing gives "CREDIT-NOTE-2026-0001", shown on the detail page, the list row, and the PDF - in a series independent of the invoice one, which keeps "INVOICE-2026-0001"', () => {
+	it('a draft has no number; issuing gives "CN-2026-0001", shown on the detail page, the list row, and the PDF - in a series independent of the invoice one, which keeps "INVOICE-2026-0001"', () => {
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
@@ -146,7 +148,7 @@ describe("Issue #471 - credit notes get a legal, sequential number of their own"
 						.then((doc) => {
 							expect(doc.status, "issued").to.eq("sent");
 							expect(doc.displayNumber, "the credit note's own first number").to.eq(
-								"CREDIT-NOTE-2026-0001",
+								"CN-2026-0001",
 							);
 						});
 
@@ -158,7 +160,7 @@ describe("Issue #471 - credit notes get a legal, sequential number of their own"
 					);
 					cy.get('[data-cy="document-form-number"]').should(
 						"contain.text",
-						"CREDIT-NOTE-2026-0001",
+						"CN-2026-0001",
 					);
 					cy.screenshot("471-after-detail", { capture: "viewport" });
 
@@ -166,7 +168,7 @@ describe("Issue #471 - credit notes get a legal, sequential number of their own"
 					cy.visit(`${appOrigin}/documents/credit-note`);
 					cy.get(`[data-cy="document-number-${creditNoteId}"]`, { timeout: 15000 }).should(
 						"contain.text",
-						"CREDIT-NOTE-2026-0001",
+						"CN-2026-0001",
 					);
 					cy.screenshot("471-after-list", { capture: "viewport" });
 
@@ -184,7 +186,7 @@ describe("Issue #471 - credit notes get a legal, sequential number of their own"
 						cy.task("extractPdfText", base64).then((rawText) => {
 							const text = String(rawText).replace(/\s+/g, " ");
 							expect(text, "the PDF's own rendered text carries the number").to.contain(
-								"CREDIT-NOTE-2026-0001",
+								"CN-2026-0001",
 							);
 						});
 					});
@@ -193,7 +195,7 @@ describe("Issue #471 - credit notes get a legal, sequential number of their own"
 					createAndIssueCreditNote({ issueDate: "2026-09-21" }).then((secondId) => {
 						cy.request({ url: `${api}/api/documents/${secondId}?typeId=credit-note` })
 							.its("body.displayNumber")
-							.should("eq", "CREDIT-NOTE-2026-0002");
+							.should("eq", "CN-2026-0002");
 
 						// The invoice series is UNAFFECTED - still its own first number.
 						cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })

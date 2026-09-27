@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useGet, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
-import { Check, Hash, Info, Trash2, XCircle } from "lucide-react"
+import type { CompanyNumberFormats } from "@/types"
+import { Hash, Info, Trash2 } from "lucide-react"
 
 import {
   SettingsFormFooter,
@@ -26,7 +27,6 @@ import {
 interface CompanyInfo {
   country?: string
   countryCode?: string | null
-  numberFormats?: Record<string, string> | null
 }
 
 interface AtcudSeriesRow {
@@ -51,34 +51,14 @@ function isPortugal(company: CompanyInfo | null): boolean {
 }
 
 /**
- * Soft, client-side mirror of `documents/numbering/atcud.ts#parseAtcudPattern`'s trailing-token check
- * — a live hint only, shown next to the input as the user types. The backend re-validates in full
- * (including the "no second {number} token in the series" rule this simplified check does not
- * reproduce) the moment an invoice is actually sent; this never blocks the SAVE button, it only warns.
- */
-function looksAtcudCompatible(pattern: string): boolean {
-  return /\/(\{number(?::\d+)?\})$/.test(pattern.trim())
-}
-
-/** This product's own shipped default when a company has never set one — `numbering/
- *  format-number.ts#defaultNumberFormatFor('invoice')` — never expressible with a literal "{type}"
- *  token from this screen (that substitution happens server-side, once, before storage), so this is
- *  spelled out verbatim purely as a REFERENCE for the placeholder/empty-state text below. */
-const SHIPPED_DEFAULT_INVOICE_FORMAT = "INVOICE-{year}-{number:4}"
-
-/** Same reference-only role as `SHIPPED_DEFAULT_INVOICE_FORMAT` above, for the credit note
- *  (`defaultNumberFormatFor('credit-note')`). */
-const SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT = "CREDIT-NOTE-{year}-{number:4}"
-
-/**
  * The document types that carry an ATCUD (issue #497), each with its SAF-T (PT) document type: the
  * type a series is registered under on the Portal das Finanças (Portaria n.º 195/2020, art. 2.º b)).
  * Mirrors `documents/numbering/atcud.ts#SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID`, the backend table that
  * actually decides; this copy only labels the screen.
  */
 const ATCUD_DOCUMENT_TYPES = [
-  { typeId: "invoice", saftType: "FT", shippedDefault: SHIPPED_DEFAULT_INVOICE_FORMAT },
-  { typeId: "credit-note", saftType: "NC", shippedDefault: SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT },
+  { typeId: "invoice", saftType: "FT" },
+  { typeId: "credit-note", saftType: "NC" },
 ] as const
 
 type AtcudTypeId = (typeof ATCUD_DOCUMENT_TYPES)[number]["typeId"]
@@ -92,128 +72,71 @@ function useAtcudTypeLabel() {
   }
 }
 
-/** The invoice card keeps the keys and `data-cy` it always had; the credit note card (issue #497) gets
- *  its own, so neither screen text nor an existing test changes meaning under it. */
+/** The series a number belongs to, as the AT sees it in this product: everything before the LAST "/"
+ *  (`numbering/atcud.ts#splitAtcudDisplayNumber`'s own split). Read off the next number the backend
+ *  would print, never re-rendered here from the pattern. */
+function seriesOf(displayNumber: string): string | null {
+  const slash = displayNumber.lastIndexOf("/")
+  return slash > 0 ? displayNumber.slice(0, slash) : null
+}
+
+/** The invoice card keeps the `data-cy` prefix it always had; the credit note card (issue #497) its
+ *  own. */
 function numberFormatCopy(typeId: AtcudTypeId, t: ReturnType<typeof useTranslation>["t"]) {
   if (typeId === "credit-note") {
     return {
       dataCyPrefix: "atcud-credit-note-number-format",
-      title: t("settings.atcud.creditNoteNumberFormat.title", "Credit note number format"),
-      description: t(
-        "settings.atcud.creditNoteNumberFormat.description",
-        "A Portuguese credit note carries its own ATCUD, from its own series (SAF-T type NC). Same rule " +
-          'as the invoice: the format must end in a literal "/" immediately followed by "{number}" (or ' +
-          '"{number:N}"), e.g. "NC {year}/{number:4}".',
-      ),
-      label: t("settings.atcud.creditNoteNumberFormat.label", "Credit note number format"),
-      saveSuccess: t(
-        "settings.atcud.creditNoteNumberFormat.messages.saveSuccess",
-        "Credit note number format saved",
-      ),
-      placeholder: "NC {year}/{number:4}",
+      title: t("settings.atcud.creditNoteNumberFormat.title"),
+      description: t("settings.atcud.creditNoteNumberFormat.description"),
     }
   }
   return {
     dataCyPrefix: "atcud-number-format",
-    title: t("settings.atcud.numberFormat.title", "Invoice number format"),
-    description: t(
-      "settings.atcud.numberFormat.description",
-      'The ATCUD sequential number is, by law, "the digits immediately after the / " in your ' +
-        "invoice number (Portaria n.º 195/2020, art. 3.º n.º 3). Your format must therefore end " +
-        'in a literal "/" immediately followed by "{number}" (or "{number:N}"), e.g. ' +
-        '"FT {year}/{number:4}".',
-    ),
-    label: t("settings.atcud.numberFormat.label", "Invoice number format"),
-    saveSuccess: t("settings.atcud.numberFormat.messages.saveSuccess", "Invoice number format saved"),
-    placeholder: "FT {year}/{number:4}",
+    title: t("settings.atcud.numberFormat.title"),
+    description: t("settings.atcud.numberFormat.description"),
   }
 }
 
+/**
+ * Issue #496 - one ATCUD type's number format, READ-ONLY. It is Portugal's own ("FT A/{number}" for an
+ * invoice, "NC A/{number}" for a credit note, `country-policy/data/pt.json`), or a series this company
+ * already started and keeps; either way it is no longer the company's to change (`PUT
+ * /api/company/number-format` answers 405). What this card still gives is the one fact the
+ * registration form below needs: the series the next document of this type belongs to, whose AT
+ * validation code must be registered before that document is issued.
+ */
 function NumberFormatCard({
-  company,
   typeId,
-  shippedDefault,
-  onSaved,
+  formats,
 }: {
-  company: CompanyInfo
   typeId: AtcudTypeId
-  shippedDefault: string
-  onSaved: () => void
+  formats?: CompanyNumberFormats | null
 }) {
   const { t } = useTranslation()
   const copy = numberFormatCopy(typeId, t)
-  const currentPattern = company.numberFormats?.[typeId] ?? shippedDefault
-  const [pattern, setPattern] = useState(currentPattern)
-  const [saved, flash] = useSavedFlash()
-
-  useEffect(() => setPattern(currentPattern), [currentPattern])
-
-  const { trigger: save, loading: saving } = useMutationWithToast(
-    usePut("/api/company/number-format"),
-    t("settings.atcud.numberFormat.messages.saveError", "Failed to save the number format"),
-  )
-
-  const compatible = looksAtcudCompatible(pattern)
-
-  const handleSave = async () => {
-    const result = await save({ typeId, pattern })
-    if (!result) return // error already toasted by the wrapper
-    toast.success(copy.saveSuccess)
-    onSaved()
-    flash()
-  }
+  const format = formats?.formats.find((f) => f.typeId === typeId)
+  const series = format ? seriesOf(format.nextDisplayNumber) : null
 
   return (
-    <SettingsSection
-      title={copy.title}
-      description={copy.description}
-      dataCy={`${copy.dataCyPrefix}-card`}
-      footer={
-        <SettingsFormFooter saved={saved}>
-          <Button
-            onClick={handleSave}
-            disabled={pattern.trim().length === 0}
-            loading={saving}
-            data-cy={`${copy.dataCyPrefix}-save-button`}
-          >
-            {t("settings.atcud.numberFormat.save", "Save")}
-          </Button>
-        </SettingsFormFooter>
-      }
-    >
-      <div className="max-w-md space-y-1.5">
-        <Label htmlFor={`atcud-${typeId}-number-format`}>{copy.label}</Label>
-        <Input
-          id={`atcud-${typeId}-number-format`}
-          data-cy={`${copy.dataCyPrefix}-input`}
-          className="font-mono"
-          value={pattern}
-          onChange={(e) => setPattern(e.target.value)}
-          placeholder={copy.placeholder}
-        />
-        <p
-          className="flex items-center gap-1.5 text-xs text-muted-foreground"
-          data-cy={`${copy.dataCyPrefix}-status`}
-        >
-          {compatible ? (
-            <>
-              <Check className="size-3.5 text-success-foreground" aria-hidden="true" />
-              {t(
-                "settings.atcud.numberFormat.compatible",
-                "Compatible with the ATCUD sequential-number rule",
-              )}
-            </>
-          ) : (
-            <>
-              <XCircle className="size-3.5 text-destructive" aria-hidden="true" />
-              {t(
-                "settings.atcud.numberFormat.incompatible",
-                'Not compatible yet — it must end in "/" immediately followed by "{number}" or "{number:N}"',
-              )}
-            </>
-          )}
-        </p>
-      </div>
+    <SettingsSection title={copy.title} description={copy.description} dataCy={`${copy.dataCyPrefix}-card`}>
+      {format && (
+        <dl className="grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-6">
+          <dt className="text-muted-foreground">{t("settings.atcud.numberFormat.label")}</dt>
+          <dd>
+            <code className="font-mono" data-cy={`${copy.dataCyPrefix}-pattern`}>
+              {format.pattern}
+            </code>
+          </dd>
+          <dt className="text-muted-foreground">{t("settings.atcud.numberFormat.next")}</dt>
+          <dd className="font-mono">{format.nextDisplayNumber}</dd>
+          <dt className="text-muted-foreground">{t("settings.atcud.numberFormat.series")}</dt>
+          <dd>
+            <span className="font-mono font-medium" data-cy={`${copy.dataCyPrefix}-series`}>
+              {series}
+            </span>
+          </dd>
+        </dl>
+      )}
     </SettingsSection>
   )
 }
@@ -275,7 +198,8 @@ function SeriesRow({ series, onDeleted }: { series: AtcudSeriesRow; onDeleted: (
  */
 export default function AtcudSettings() {
   const { t } = useTranslation()
-  const { data: company, mutate: refetchCompany } = useGet<CompanyInfo>("/api/company/info")
+  const { data: company } = useGet<CompanyInfo>("/api/company/info")
+  const { data: numberFormats } = useGet<CompanyNumberFormats>("/api/company/number-formats")
   const { data: seriesList, mutate: refetchSeries } = useGet<AtcudSeriesRow[]>("/api/company/atcud-series")
   const series = seriesList ?? []
   const [addSaved, flashAdd] = useSavedFlash()
@@ -335,13 +259,7 @@ export default function AtcudSettings() {
       dataCy="atcud-section"
     >
       {ATCUD_DOCUMENT_TYPES.map((type) => (
-        <NumberFormatCard
-          key={type.typeId}
-          company={company as CompanyInfo}
-          typeId={type.typeId}
-          shippedDefault={type.shippedDefault}
-          onSaved={refetchCompany}
-        />
+        <NumberFormatCard key={type.typeId} typeId={type.typeId} formats={numberFormats} />
       ))}
 
       <SettingsSection
@@ -350,14 +268,13 @@ export default function AtcudSettings() {
           "settings.atcud.series.addDescriptionTyped",
           "The AT issues one code per series and document type: register invoice (FT) and credit note " +
             '(NC) series separately. The series identifier is the part of the number BEFORE the "/", ' +
-            'e.g. "NC 2026" for credit notes numbered "NC {year}/{number:4}".',
+            'e.g. "NC A" for credit notes numbered "NC A/{number}".',
         )}
         dataCy="atcud-series-add-card"
         footer={
           <SettingsFormFooter saved={addSaved}>
-            {/* `secondary`, not the tab's own default: the number-format saves above are the
-             *  primaries this screen has: registering a series is a repeatable "add an item" action,
-             *  the same weight `currency-rates.settings.tsx`'s own "Add rate" carries next to
+            {/* `secondary`: registering a series is a repeatable "add an item" action, the same
+             *  weight `currency-rates.settings.tsx`'s own "Add rate" carries next to
              *  `company.settings.tsx`'s primary. */}
             <Button
               type="submit"
@@ -401,7 +318,7 @@ export default function AtcudSettings() {
               id="atcud-series-id"
               data-cy="atcud-series-id-input"
               required
-              placeholder={`${seriesSaftType} ${new Date().getFullYear()}`}
+              placeholder={`${seriesSaftType} A`}
               value={seriesId}
               onChange={(e) => setSeriesId(e.target.value)}
             />

@@ -121,7 +121,7 @@ describe("Issue #472 - a credit note in the electronic invoice formats", () => {
 					currency: "EUR",
 					reason: "Formation annulee",
 				}).then((note) => {
-					expect(note.displayNumber, "the credit note is numbered").to.eq("CREDIT-NOTE-2026-0001");
+					expect(note.displayNumber, "the credit note is numbered").to.eq("CN-2026-0001");
 
 					cy.visit(`/documents/credit-note/${note.id}`);
 					cy.get('[data-cy="document-status-badge"]', { timeout: 15000 }).should("contain.text", "Sent");
