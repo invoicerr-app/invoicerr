@@ -4,6 +4,7 @@ import { ConflictException } from '@nestjs/common';
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import * as archiveOnSend from '../archive/archive-on-send';
+import { hashDocumentData } from '../archive/document-data-hash';
 import * as takeNumber from '../numbering/take-number';
 import * as persistence from '../persistence';
 import * as reportOnSend from '../reporting/report-on-send';
@@ -765,6 +766,8 @@ describe('runAsyncSendAction', () => {
         companyId: 'company-1',
         documentId: 'doc-1',
         artifacts,
+        // Issue #490: the hash of the very row `deliver()` rendered from.
+        documentDataHash: hashDocumentData(baseInput.data),
       });
     });
 
@@ -795,6 +798,7 @@ describe('runAsyncSendAction', () => {
         companyId: 'company-1',
         documentId: 'cn-1',
         artifacts: undefined,
+        documentDataHash: expect.any(String),
       });
     });
 

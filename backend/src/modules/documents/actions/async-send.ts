@@ -95,6 +95,7 @@ import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import { DocumentInstanceResult, ActionResult } from './action-registry';
 import { archiveDeliveredArtifactsIfAny } from '../archive/archive-on-send';
+import { hashDocumentData } from '../archive/document-data-hash';
 import { ArchivedArtifactInput } from '../archive/hashing';
 import { logger } from '@/logger/logger.service';
 import { isNumberingAllowedFrom } from '../numbering/only-from';
@@ -515,7 +516,15 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       // (see its own header) — a storage/DB problem here must never undo a delivery that already
       // happened; it is instead recorded on the document itself (`lastArchiveError`) and logged
       // loudly, never silently.
-      await archiveDeliveredArtifactsIfAny({ companyId, documentId, artifacts: delivered.artifacts });
+      await archiveDeliveredArtifactsIfAny({
+        companyId,
+        documentId,
+        artifacts: delivered.artifacts,
+        // Issue #490: `record` is the very row `deliver()` just rendered from (it is handed over as
+        // `document` above), so its `data` is what the archived PDF shows - hashed here, at delivery
+        // time, never re-read later when the document may already have been edited again.
+        documentDataHash: hashDocumentData(record.data),
+      });
     }
 
     const { message, reference, providerId } = delivered;
