@@ -22,8 +22,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     starting point) does NOT number it retroactively - `numbering.onlyFrom: ['draft']`'s own
  *     guarantee (descriptors/types.ts) - it stays "Issued without a number" even once "sent" again.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function createClient(name: string, contactEmail: string) {
 	return cy

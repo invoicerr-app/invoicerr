@@ -12,8 +12,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * (the `renameQuoteOption` task), which keeps the status "sent": the edit a "save-draft" would make
  * also moves the quote back to "draft", which `103-signature-bound-version.cy.ts` covers.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;

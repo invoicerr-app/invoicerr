@@ -22,7 +22,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     field), proving the gate is genuinely conditioned on the backend's own policy data, not a
  *     blanket "always confirm 'send'" rule.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function invoiceData(clientId: string) {
 	return {

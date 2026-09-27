@@ -14,7 +14,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * After a manual acceptance of "Premium" through the UI: the endpoint, the settlement and the MCP
  * tool all carry 300.00, the figure the header shows.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const CLIENT_EMAIL = "option-totals-487@example.com";
 

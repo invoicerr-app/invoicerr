@@ -11,7 +11,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * DocumentFieldDescriptor form/list/save-draft round trip (see 62-expense-attachments.cy.ts, the same
  * choice for the same reason).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 interface CustomFieldDefinition {
 	id: string;

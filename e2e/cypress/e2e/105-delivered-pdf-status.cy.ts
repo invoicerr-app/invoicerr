@@ -17,10 +17,10 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * Mail is looked up by this run's own recipient addresses, never through `cy.getLastEmail`/
  * `cy.clearEmails`, so another spec's or another stack's mail can neither satisfy nor be deleted by
- * this one. `mailpitUrl` defaults to the e2e stack's usual `localhost:8025`.
+ * this one. `mailpitUrl` comes from `cypress.config.ts` (`MAILPIT_URL`).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const mailpit = Cypress.env("mailpitUrl") || "http://localhost:8025";
+const api = Cypress.env("apiUrl");
+const mailpit = Cypress.env("mailpitUrl");
 const RUN = Date.now();
 
 const recipient = (kind: string) => `delivered-pdf-494-${kind}-${RUN}@example.com`;

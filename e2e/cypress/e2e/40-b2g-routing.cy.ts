@@ -94,7 +94,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `formats/xrechnung-provider.ts`'s header) — the ONE piece Acme Corp's own seed doesn't carry, and
  * genuinely a company-level fact, not a per-invoice one.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const FAKE_SDI = {
 	idTrasmittente: "IT01234567890",

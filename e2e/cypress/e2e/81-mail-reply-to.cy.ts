@@ -12,12 +12,11 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * as proof of what actually got stored or what the wire actually carried. Same real-SMTP discipline
  * `23-document-email.cy.ts` already uses (the e2e stack's own Mailpit, no gate needed).
  *
- * `mailpitUrl` defaults to the e2e stack's usual `localhost:8025` (same default `commands.ts`'s own
- * `cy.getLastEmail`/`cy.clearEmails` hardcode) — overridable via `CYPRESS_mailpitUrl` for a run
- * against an isolated Mailpit instance without touching that shared helper.
+ * `mailpitUrl` comes from `cypress.config.ts` (`MAILPIT_URL`, same value `commands.ts`'s own
+ * `cy.getLastEmail`/`cy.clearEmails` read), so a run against an isolated Mailpit needs only the env.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const mailpitUrl = Cypress.env("mailpitUrl") || "http://localhost:8025";
+const api = Cypress.env("apiUrl");
+const mailpitUrl = Cypress.env("mailpitUrl");
 
 interface CompanyMailSettingsStatus {
 	configured: boolean;

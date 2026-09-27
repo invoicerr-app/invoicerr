@@ -8,7 +8,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * only thing read back through the API is what actually got PERSISTED — proving the drop happened,
  * not merely that a row stopped rendering.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Empty line items are dropped on save, a half-filled one is not", () => {
 	before(() => {

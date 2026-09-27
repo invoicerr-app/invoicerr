@@ -27,7 +27,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     GENUINELY sourced restriction (the status), not a `policyBlockedReason`, which has no reason to
  *     exist here for lack of a prohibition to source.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createClient(name: string, country: string, countryCode: string) {
 	return cy

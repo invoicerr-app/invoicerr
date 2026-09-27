@@ -18,7 +18,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `correction-routes/data/all.spec.ts`'s own pinned test): Poland has no separate "nota kredytowa"
  * instrument, only the referenced faktura korygująca (art. 106j ust. 1 ustawy o VAT).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function freeCreditNoteData(overrides: Record<string, unknown> = {}) {
 	return {

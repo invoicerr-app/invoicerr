@@ -18,7 +18,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     right for no extra assurance).
  *  3. No trial/blocked banner is mounted anywhere in the authenticated app.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Hosted billing — invisible and inert without the flag", () => {
 	before(() => {

@@ -22,7 +22,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * a `[data-day="M/D/YYYY"]` guess — the source of the CI races (runs 34954776077, 34930840117,
  * 34951814251) that a merely-deferred-computation version of this helper was still exposed to.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Three-way match — purchase order × goods receipt × received invoice", () => {
 	before(() => {

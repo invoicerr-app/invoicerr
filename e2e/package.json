@@ -17,7 +17,8 @@
   "scripts": {
     "e2e:open": "cypress open",
     "e2e:run": "cypress run --browser firefox --spec \"cypress/e2e/*.cy.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:ports": "node scripts/check-literal-ports.mjs"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

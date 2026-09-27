@@ -19,7 +19,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * its screen coverage the day it is registered on the backend, without touching this file; a type
  * whose field does not know how to render itself fails the suite instead of passing silently.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 type Field = {
 	key: string;

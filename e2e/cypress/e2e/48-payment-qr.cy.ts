@@ -16,7 +16,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * reference would all still add "hundreds of bytes no other difference explains" and pass a
  * size-only check identically.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 // Valid example IBAN (the same one as sepa-qr.spec.ts's own happy path).
 const TEST_IBAN = "FR1420041010050500013M02606";

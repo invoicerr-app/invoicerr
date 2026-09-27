@@ -20,7 +20,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     enough, "draft" being the only allowed status), and the API refuses it too (409) for a
  *     scripted client that would ignore the screen.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("A document's lifecycle — declared statuses and transitions", () => {
 	before(() => {

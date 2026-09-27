@@ -16,7 +16,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * The edit goes through the same "save-draft" action the document form's own Save button calls,
  * followed by the same "send" action: the two calls an issuer's "fix a typo and send again" makes.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;

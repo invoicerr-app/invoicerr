@@ -14,7 +14,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * be saved (Jean still primary, Marie's own name); and saving leaves Marie's name intact, read back
  * through the API.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("INDIVIDUAL client primary contact is the identity person (#474 follow-up review, round 2, point 1)", () => {
 	before(() => {

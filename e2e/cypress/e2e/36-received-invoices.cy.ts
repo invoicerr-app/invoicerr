@@ -50,7 +50,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * 17 (the "received-invoice" descriptor renders its fields and actions like any other —
  * this file needs NO modification for that, it loops over `GET /api/documents/types`).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const CII_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-cii.xml";
 const FACTURX_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-facturx.pdf";

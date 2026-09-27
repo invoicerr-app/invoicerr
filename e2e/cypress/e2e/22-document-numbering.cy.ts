@@ -15,7 +15,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  3. re-saving the first quote (its "save-draft" stays offered even once "sent" — see
  *     quote.descriptor.ts) then re-reading it changes neither its number nor its display.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 // QUOTE-2026-0001 — the year is never hardcoded here: it comes from the same clock as the backend
 // that assigned the number, not from a date picked for the test.

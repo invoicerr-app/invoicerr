@@ -10,7 +10,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * requested on it — the deposit invoice must exist in DRAFT, reference the quote via `origin`, carry
  * the EXACT computed amount (N% of the quote's own gross total), and reuse that one rate.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("request-deposit — a real click creates a draft deposit invoice", () => {
 	before(() => {

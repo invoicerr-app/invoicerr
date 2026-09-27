@@ -58,7 +58,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * gate) needs to build a VALID artifact; the deposit therefore fails here only because of the
  * closed port, never because of an invalid invoice that would mask the real cause under test.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 /** Port 1 (tcpmux): never open on a normal dev/CI machine — immediate ECONNREFUSED, no waiting on
  *  a network timeout. No real platform listens behind these credentials. */

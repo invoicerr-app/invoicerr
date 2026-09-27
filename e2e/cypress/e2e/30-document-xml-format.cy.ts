@@ -11,7 +11,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *   net = 200.00, VAT = 40.00, gross (BT-112/BT-115) = 240.00 — the exact string this spec looks for
  * in the downloaded body, both syntaxes.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createAndSendInvoice(overrides: Record<string, unknown> = {}) {
 	return cy

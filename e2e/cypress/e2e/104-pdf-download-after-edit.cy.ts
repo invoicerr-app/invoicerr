@@ -14,7 +14,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * entry fetches (`frontend/src/components/documents/document-downloads.ts`). The PDF text is read
  * with `pdf-parse` in the Node process (`extractPdfText`), never by counting bytes.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const CLIENT_EMAIL = "pdf-after-edit@example.com";
 const ORIGINAL = "Original scope 490";

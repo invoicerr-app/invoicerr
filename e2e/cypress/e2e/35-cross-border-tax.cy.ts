@@ -20,7 +20,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * what makes the VALID -> reverse-charge transition observable through a real browser, which the
  * Null client (the default under NODE_ENV=test) could not show.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function setInvoiceTransport(transportId: string) {
 	return cy

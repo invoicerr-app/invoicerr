@@ -17,7 +17,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * fires for Bob's email; the summary shows Bob as "Primary" with no blank row; and saving leaves Bob
  * primary, read back through the API.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("COMPANY client's blank default contact row never hides the real primary (#474 follow-up review, round 3, point 3)", () => {
 	before(() => {
