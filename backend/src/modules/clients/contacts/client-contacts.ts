@@ -30,6 +30,7 @@
  */
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { ClientContactDto } from '../dto/clients.dto';
+import { normalizeClientContacts } from './normalize-contacts';
 
 const LEGACY_CONTACT_KEYS = ['contactFirstname', 'contactLastname', 'contactEmail', 'contactPhone'] as const;
 
@@ -57,15 +58,11 @@ export async function writeClientContacts(
     await tx.clientContact.deleteMany({ where: { clientId } });
 
     // Drop an all-blank entry before anything else is decided from this array (#415 follow-up review,
-    // point 3) - see this function's own header for why. Checked with `.trim()`, not just falsiness:
-    // a row of pure whitespace is exactly as "nothing typed here" as an empty string.
-    const isBlankContact = (c: ClientContactDto) =>
-      [c.firstName, c.lastName, c.role, c.email, c.phone].every((v) => !v || v.trim() === '');
-    const nonBlankContacts = contacts.filter((c) => !isBlankContact(c));
+    // point 3), then resolve which surviving row is primary - both through `normalizeClientContacts`
+    // (#415 follow-up review, point 2), the same function `client-validation.ts` runs the identity
+    // check against, so the two can never again look at a different notion of "the primary contact".
+    const { contacts: nonBlankContacts, primary } = normalizeClientContacts(contacts);
     if (nonBlankContacts.length === 0) return;
-
-    const firstFlagged = nonBlankContacts.findIndex((c) => c.isPrimary);
-    const primaryIndex = firstFlagged >= 0 ? firstFlagged : 0;
 
     for (const [index, entry] of nonBlankContacts.entries()) {
       await tx.clientContact.create({
@@ -76,7 +73,7 @@ export async function writeClientContacts(
           role: blankToNull(entry.role),
           email: blankToNull(entry.email),
           phone: blankToNull(entry.phone),
-          isPrimary: index === primaryIndex,
+          isPrimary: entry === primary,
           position: index,
         },
       });

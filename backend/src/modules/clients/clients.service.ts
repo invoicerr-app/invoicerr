@@ -51,9 +51,9 @@ import { validateVat } from '../documents/tax/vat-syntax';
 import { assertIdentifierValueMatchesPattern } from '../documents/country-identifiers/validate-identifier-value';
 import { assertClientCustomFieldValuesValid } from '../documents/company-custom-fields/persistence';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
-import { assertClientCreatable } from './client-validation';
+import { assertClientCreatable, assertIndividualIdentity } from './client-validation';
 import { writeClientContacts } from './contacts/client-contacts';
-import { findPrimaryContact, withDerivedContactFields } from './primary-contact';
+import { withDerivedContactFields } from './primary-contact';
 
 /** The one `include`/`orderBy` shape every client read in this file uses for `contacts` - primary
  *  first, then `position` - so a caller never has to re-sort what came back from Prisma itself. */
@@ -442,30 +442,20 @@ export class ClientsService {
     const type = data.type || existingClient.type || 'COMPANY';
 
     if (type === 'INDIVIDUAL') {
-      // Identity for an INDIVIDUAL client is the PRIMARY contact's first/last name (#415 design
-      // decision - see `EditClientsDto.contacts`'s own header). `contacts`, when present, is
-      // authoritative even as `[]` (removing every contact from an INDIVIDUAL client leaves it with
-      // no name, which is exactly the error thrown below) - the flat fields are only consulted for a
-      // caller still on the old shape, matching `writeClientContacts`'s own back-compat rule.
-      const identity =
-        contacts !== undefined
-          ? findPrimaryContact(
-              contacts.map((c) => ({
-                firstName: c.firstName ?? null,
-                lastName: c.lastName ?? null,
-                email: c.email ?? null,
-                phone: c.phone ?? null,
-                isPrimary: !!c.isPrimary,
-              })),
-            )
-          : { firstName: data.contactFirstname, lastName: data.contactLastname };
-      if (!identity?.firstName || (identity.firstName as string).trim() === '') {
-        logger.error('First name is required for individual clients', { category: 'client' });
-        throw new BadRequestException('First name is required for individual clients');
-      }
-      if (!identity?.lastName || (identity.lastName as string).trim() === '') {
-        logger.error('Last name is required for individual clients', { category: 'client' });
-        throw new BadRequestException('Last name is required for individual clients');
+      // Same gate `createClient` runs through `assertClientCreatable` - required-name check plus the
+      // "no other `contacts` row may become primary under a different name" check (#415 follow-up
+      // review, point 1) - kept in the ONE place `assertIndividualIdentity` is, so create and edit can
+      // never drift into checking a different rule. `data` still carries every key `dataFields` did
+      // (only `identifiers`/`contacts` were destructured out of `editClientsDto`), so it doubles as the
+      // raw-payload key-presence check that function needs.
+      try {
+        assertIndividualIdentity({ ...data, contacts }, data);
+      } catch (error) {
+        logger.error('Client rejected by edit-time identity checks', {
+          category: 'client',
+          details: { error },
+        });
+        throw error;
       }
     } else {
       if (!data.name || (data.name as string).trim() === '') {

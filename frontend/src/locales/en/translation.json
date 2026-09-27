@@ -266,7 +266,11 @@
           "remove": "Remove",
           "role": "Role",
           "primaryBadge": "Primary",
-          "setPrimary": "Set as primary"
+          "setPrimary": "Set as primary",
+          "primaryFromIdentity": "Comes from the identity step",
+          "primaryLockedHint": "Only the person on the identity step can be the primary contact of an individual client.",
+          "primaryLockedTitle": "The primary contact of an individual client is the person on the identity step - edit the identity step to change it",
+          "removeLockedTitle": "The primary contact of an individual client is the person on the identity step and cannot be removed here"
         }
       },
       "stepped": {

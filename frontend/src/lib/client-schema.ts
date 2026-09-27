@@ -108,7 +108,7 @@ export function buildClientSchema(
     .superRefine((val, ctx) => {
       if (val.type === "INDIVIDUAL") {
         // The wizard folds the identity step's contactFirstname/contactLastname into the primary
-        // contact at submit time (#415 - see `client-upsert.tsx`'s own `buildContactsPayload`), so
+        // contact at submit time (#415 - see `client-upsert.tsx`'s own `buildClientPayload`), so
         // those two top-level fields are still the right thing to validate here regardless of
         // whether `contacts` is also present.
         if (!val.contactFirstname || val.contactFirstname.trim() === "") {

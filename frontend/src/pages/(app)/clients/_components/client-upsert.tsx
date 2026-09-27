@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { usePatch, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { cn } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { DocumentField } from "@/components/documents/document-field"
@@ -56,6 +57,84 @@ import { buildClientSchema } from "@/lib/client-schema"
  *  not a shared array constant: each `form.reset()` call needs its OWN array instance. */
 function blankPrimaryContact() {
   return [{ firstName: "", lastName: "", role: "", email: "", phone: "", isPrimary: true }]
+}
+
+/**
+ * The ONE place the wizard's form values become the exact payload `trigger(...)` sends to the API -
+ * called from BOTH `onSubmit` (below) and `RecapStep` (#415 follow-up review round 2, point 1: "the
+ * summary must show exactly what will be saved"), so the two can never again disagree the way the
+ * Summary step used to - rendering the CONTACT step's own raw row names while `onSubmit` silently
+ * overwrote the primary row's name with the identity step's. A plain function, not a closure over
+ * `form`/`trigger`: `RecapStep` only ever has `form.watch()`'s current (not yet submitted) values,
+ * never the mutation triggers `onSubmit` needs.
+ */
+function buildClientPayload(data: {
+  type?: string
+  contactFirstname?: string
+  contactLastname?: string
+  contacts?: {
+    firstName?: string
+    lastName?: string
+    role?: string
+    email?: string
+    phone?: string
+    isPrimary?: boolean
+  }[]
+  peppolSchemeId?: string
+  peppolEndpointId?: string
+  foundedAt?: Date
+  identifiers?: { scheme: string; value: string }[]
+  [key: string]: unknown
+}) {
+  // Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
+  const peppolEntry =
+    data.peppolSchemeId && data.peppolEndpointId?.trim()
+      ? { scheme: "PEPPOL_ENDPOINT", value: `${data.peppolSchemeId}:${data.peppolEndpointId.trim()}` }
+      : null
+  const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...dataWithoutPeppol } = data
+
+  // The identity step's contactFirstname/contactLastname are authoritative for an INDIVIDUAL client's
+  // PRIMARY contact name (#415 follow-up review round 2, point 1 DECISION: "the primary contact of an
+  // INDIVIDUAL client is always the person on the identity step") - folded in here, overriding
+  // whatever the contacts step's own primary row carries, so there is never a place where the two
+  // could disagree. The form itself already makes this the only possible outcome (the primary row's
+  // name inputs are read-only, mirroring these two fields, and no OTHER row's "set primary"/"Remove"
+  // control is reachable for an INDIVIDUAL client - see `ContactsSection`), so this override is a
+  // belt-and-suspenders restatement of the same rule, never a place a mismatch could survive to.
+  // `isPrimary`/`position` are assigned here too: exactly one primary (the flagged one, or the first
+  // row when none is), in array order. An INDIVIDUAL client always has at least its own identity as a
+  // primary contact, even if the contacts step's own list is empty (the common case: nothing else to
+  // add beyond the person's own name/email/phone, already captured on the identity/contact steps).
+  const rawContacts =
+    data.type === "INDIVIDUAL" && (!data.contacts || data.contacts.length === 0)
+      ? [{ isPrimary: true }]
+      : data.contacts || []
+  const firstFlagged = rawContacts.findIndex((c) => c.isPrimary)
+  const primaryIndex = firstFlagged >= 0 ? firstFlagged : 0
+  const contacts = rawContacts.map((c, index) => ({
+    firstName: data.type === "INDIVIDUAL" && index === primaryIndex ? data.contactFirstname : c.firstName,
+    lastName: data.type === "INDIVIDUAL" && index === primaryIndex ? data.contactLastname : c.lastName,
+    role: c.role,
+    email: c.email,
+    phone: c.phone,
+    isPrimary: index === primaryIndex,
+  }))
+
+  // Filter out empty identifiers so we don't send {scheme, value: ""}
+  return {
+    ...dataWithoutPeppol,
+    contacts,
+    // A founding date is a CALENDAR DAY (`lib/calendar-date.ts`). Left as a `Date`, `JSON.stringify`
+    // would serialize it through `toISOString()` and store the PREVIOUS day for every timezone east
+    // of Greenwich -- the same shift that moved a document's legal date. Sent as the UTC instant
+    // naming the picked day rather than a bare day because this lands straight in a Prisma `DateTime`
+    // column, which refuses a bare calendar date.
+    foundedAt: toCalendarDateInstant(data.foundedAt),
+    identifiers: [
+      ...(data.identifiers || []).filter((i) => i.value.trim() !== ""),
+      ...(peppolEntry ? [peppolEntry] : []),
+    ],
+  }
 }
 
 interface ClientUpsertProps {
@@ -738,7 +817,7 @@ function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues
  * VALUES (not the array's shape) still flow through the ordinary `form.watch("contacts")` read below,
  * since `useFieldArray`'s own `fields` only carries each row's IDENTITY, not its live edited values.
  */
-function ContactsSection({ form }: { form: UseFormReturn<FieldValues> }) {
+function ContactsSection({ form, clientType }: { form: UseFormReturn<FieldValues>; clientType: string }) {
   const { t } = useTranslation()
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "contacts" as never })
   const contacts =
@@ -750,6 +829,14 @@ function ContactsSection({ form }: { form: UseFormReturn<FieldValues> }) {
       phone?: string
       isPrimary?: boolean
     }[]) || []
+
+  // #415 follow-up review round 2, point 1 (DECISION: "the primary contact of an INDIVIDUAL client
+  // is always the person on the identity step") - the identity step's own two fields, read directly
+  // rather than passed down, since only THIS section needs them (to show them on the locked primary
+  // row) and the parent already has no other reason to know them.
+  const isIndividual = clientType === "INDIVIDUAL"
+  const identityFirstName = form.watch("contactFirstname" as never) as unknown as string | undefined
+  const identityLastName = form.watch("contactLastname" as never) as unknown as string | undefined
 
   const addContact = () => {
     append({ isPrimary: fields.length === 0 } as never)
@@ -773,104 +860,166 @@ function ContactsSection({ form }: { form: UseFormReturn<FieldValues> }) {
   return (
     <FormSection title={t("clients.upsert.fields.contacts.label", "Contacts")} columns="single">
       <div className="space-y-4" data-cy="client-contacts-list">
-        {fields.map((rowField, index) => (
-          <div
-            key={rowField.id}
-            className="space-y-3 rounded-lg border p-4"
-            data-cy={`client-contact-row-${index}`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="client-contact-primary"
-                  checked={!!contacts[index]?.isPrimary}
-                  onChange={() => setPrimary(index)}
-                  data-cy={`client-contact-primary-radio-${index}`}
+        {fields.map((rowField, index) => {
+          const isPrimaryRow = !!contacts[index]?.isPrimary
+          // For an INDIVIDUAL client the primary row IS the identity - it can never be reassigned to
+          // another row (see this section's own DECISION comment above), so both controls that used
+          // to make that possible are disabled instead of merely discouraged: another row's "set
+          // primary" control (it would rename the client to that row's own name), and the primary
+          // row's own "Remove" (removing it would promote another row into the same trap - the exact
+          // #415 follow-up review, round 2, point 1 bug, taken through deletion instead of the radio).
+          const primaryLocked = isIndividual && isPrimaryRow
+          const otherRowLocked = isIndividual && !isPrimaryRow
+          return (
+            <div
+              key={rowField.id}
+              className="space-y-3 rounded-lg border p-4"
+              data-cy={`client-contact-row-${index}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  className={cn(
+                    "flex items-center gap-2 text-sm",
+                    otherRowLocked && "cursor-not-allowed text-muted-foreground opacity-60",
+                  )}
+                  title={otherRowLocked ? t("clients.upsert.fields.contacts.primaryLockedTitle") : undefined}
+                >
+                  <input
+                    type="radio"
+                    name="client-contact-primary"
+                    checked={isPrimaryRow}
+                    disabled={otherRowLocked}
+                    onChange={() => setPrimary(index)}
+                    data-cy={`client-contact-primary-radio-${index}`}
+                  />
+                  {isPrimaryRow
+                    ? t("clients.upsert.fields.contacts.primaryBadge", "Primary")
+                    : t("clients.upsert.fields.contacts.setPrimary", "Set as primary")}
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={primaryLocked}
+                  title={primaryLocked ? t("clients.upsert.fields.contacts.removeLockedTitle") : undefined}
+                  onClick={() => removeContact(index)}
+                  dataCy={`client-contact-remove-${index}`}
+                >
+                  {t("clients.upsert.fields.contacts.remove", "Remove")}
+                </Button>
+              </div>
+              {otherRowLocked && (
+                // A native `title` tooltip is invisible until hovered, and a disabled radio looks like
+                // an unchecked one: say it on the row itself (#415 second review, point 1).
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-cy={`client-contact-primary-locked-${index}`}
+                >
+                  {t("clients.upsert.fields.contacts.primaryLockedHint")}
+                </p>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.firstName`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contactFirstname.label")}</FormLabel>
+                      <FormControl>
+                        {primaryLocked ? (
+                          <Input
+                            name={field.name}
+                            value={identityFirstName || ""}
+                            disabled
+                            readOnly
+                            onChange={() => undefined}
+                            data-cy={`client-contact-firstName-${index}`}
+                          />
+                        ) : (
+                          <Input {...field} data-cy={`client-contact-firstName-${index}`} />
+                        )}
+                      </FormControl>
+                      {primaryLocked && (
+                        <FormDescription>
+                          {t("clients.upsert.fields.contacts.primaryFromIdentity")}
+                        </FormDescription>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {contacts[index]?.isPrimary
-                  ? t("clients.upsert.fields.contacts.primaryBadge", "Primary")
-                  : t("clients.upsert.fields.contacts.setPrimary", "Set as primary")}
-              </label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeContact(index)}
-                dataCy={`client-contact-remove-${index}`}
-              >
-                {t("clients.upsert.fields.contacts.remove", "Remove")}
-              </Button>
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.lastName`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contactLastname.label")}</FormLabel>
+                      <FormControl>
+                        {primaryLocked ? (
+                          <Input
+                            name={field.name}
+                            value={identityLastName || ""}
+                            disabled
+                            readOnly
+                            onChange={() => undefined}
+                            data-cy={`client-contact-lastName-${index}`}
+                          />
+                        ) : (
+                          <Input {...field} data-cy={`client-contact-lastName-${index}`} />
+                        )}
+                      </FormControl>
+                      {primaryLocked && (
+                        <FormDescription>
+                          {t("clients.upsert.fields.contacts.primaryFromIdentity")}
+                        </FormDescription>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.role`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contacts.role", "Role")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-cy={`client-contact-role-${index}`} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.email`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-cy={`client-contact-email-${index}`} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.phone`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contactPhone.label")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-cy={`client-contact-phone-${index}`} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name={`contacts.${index}.firstName`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("clients.upsert.fields.contactFirstname.label")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-cy={`client-contact-firstName-${index}`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`contacts.${index}.lastName`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("clients.upsert.fields.contactLastname.label")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-cy={`client-contact-lastName-${index}`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`contacts.${index}.role`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("clients.upsert.fields.contacts.role", "Role")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-cy={`client-contact-role-${index}`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`contacts.${index}.email`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-cy={`client-contact-email-${index}`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`contacts.${index}.phone`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("clients.upsert.fields.contactPhone.label")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-cy={`client-contact-phone-${index}`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
       <Button type="button" variant="outline" onClick={addContact} dataCy="client-contact-add">
         {t("clients.upsert.fields.contacts.add", "Add contact")}
@@ -890,6 +1039,7 @@ function ContactsSection({ form }: { form: UseFormReturn<FieldValues> }) {
  */
 function ContactStep({
   form,
+  clientType,
   isEditing,
   clientId,
   onOpenPortalAccess,
@@ -897,6 +1047,7 @@ function ContactStep({
   onLanguageManuallyChanged,
 }: {
   form: UseFormReturn<FieldValues>
+  clientType: string
   isEditing: boolean
   clientId?: string
   onOpenPortalAccess: () => void
@@ -914,7 +1065,7 @@ function ContactStep({
   return (
     <div className="space-y-6" data-cy="client-form-contact">
       <DuplicateWarning form={form} excludeId={clientId} />
-      <ContactsSection form={form} />
+      <ContactsSection form={form} clientType={clientType} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <FormField
@@ -1005,13 +1156,12 @@ function RecapStep({
   const contactLastname = form.watch("contactLastname" as never) as unknown as string | undefined
   const country = form.watch("country" as never) as unknown as string | undefined
   const currency = form.watch("currency" as never) as unknown as string | undefined
-  const contacts =
-    (form.watch("contacts" as never) as unknown as {
-      firstName?: string
-      lastName?: string
-      email?: string
-      isPrimary?: boolean
-    }[]) || []
+  // Built through the SAME function `onSubmit` calls (#415 follow-up review round 2, point 1: "the
+  // summary must show exactly what will be saved") - never a second, hand-rolled read of the raw
+  // `contacts` array, which is exactly what let this recap show a row's own name while the actual
+  // save silently replaced it with the identity step's.
+  const payload = buildClientPayload(form.watch() as unknown as Parameters<typeof buildClientPayload>[0])
+  const contacts = payload.contacts
   const identifiers = (form.watch("identifiers" as never) as { scheme: string; value: string }[]) || []
 
   const displayName =
@@ -1388,52 +1538,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   const onSubmit = (data: z.infer<typeof clientSchema>) => {
     const trigger = isEditing ? updateClient : createClient
-
-    // Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
-    const peppolEntry =
-      data.peppolSchemeId && data.peppolEndpointId?.trim()
-        ? { scheme: "PEPPOL_ENDPOINT", value: `${data.peppolSchemeId}:${data.peppolEndpointId.trim()}` }
-        : null
-    const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...dataWithoutPeppol } = data
-
-    // The identity step's contactFirstname/contactLastname are authoritative for an INDIVIDUAL
-    // client's PRIMARY contact name (#415 design decision - "the identity step edits the primary
-    // contact") - folded in here, overriding whatever the contacts step's own primary row carries,
-    // so there is never a place where the two could disagree. `isPrimary`/`position` are assigned
-    // here too: exactly one primary (the flagged one, or the first row when none is), in array order.
-    // An INDIVIDUAL client always has at least its own identity as a primary contact, even if the
-    // contacts step's own list is empty (the common case: nothing else to add beyond the person's
-    // own name/email/phone, already captured on the identity/contact steps).
-    const rawContacts =
-      data.type === "INDIVIDUAL" && (!data.contacts || data.contacts.length === 0)
-        ? [{ isPrimary: true }]
-        : data.contacts || []
-    const firstFlagged = rawContacts.findIndex((c) => c.isPrimary)
-    const primaryIndex = firstFlagged >= 0 ? firstFlagged : 0
-    const contacts = rawContacts.map((c, index) => ({
-      firstName: data.type === "INDIVIDUAL" && index === primaryIndex ? data.contactFirstname : c.firstName,
-      lastName: data.type === "INDIVIDUAL" && index === primaryIndex ? data.contactLastname : c.lastName,
-      role: c.role,
-      email: c.email,
-      phone: c.phone,
-      isPrimary: index === primaryIndex,
-    }))
-
-    // Filter out empty identifiers so we don't send {scheme, value: ""}
-    const payload = {
-      ...dataWithoutPeppol,
-      contacts,
-      // A founding date is a CALENDAR DAY (`lib/calendar-date.ts`). Left as a `Date`, `JSON.stringify`
-      // would serialize it through `toISOString()` and store the PREVIOUS day for every timezone east
-      // of Greenwich -- the same shift that moved a document's legal date. Sent as the UTC instant
-      // naming the picked day rather than a bare day because this lands straight in a Prisma
-      // `DateTime` column, which refuses a bare calendar date.
-      foundedAt: toCalendarDateInstant(data.foundedAt),
-      identifiers: [
-        ...(data.identifiers || []).filter((i) => i.value.trim() !== ""),
-        ...(peppolEntry ? [peppolEntry] : []),
-      ],
-    }
+    const payload = buildClientPayload(data)
 
     trigger(payload).then((createdClient) => {
       if (!createdClient) return
@@ -1533,6 +1638,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       render: () => (
         <ContactStep
           form={form as unknown as UseFormReturn<FieldValues>}
+          clientType={clientType}
           isEditing={isEditing}
           clientId={client?.id}
           onOpenPortalAccess={() => setPortalAccessOpen(true)}

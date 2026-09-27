@@ -356,4 +356,142 @@ describe('ClientsService - contacts (#415)', () => {
     expect(client.contactFirstname).toBeNull();
     expect(client.contactLastname).toBeNull();
   });
+
+  // #415 follow-up review round 2, point 1: for an INDIVIDUAL client the primary contact is always
+  // the identity-step person - another `contacts` row flagged primary under a DIFFERENT name must be
+  // refused, never silently accepted (which used to overwrite that row's own name with the identity's,
+  // or - after that specific overwrite was removed - would otherwise have let the row's real name
+  // become primary and silently rename the client on every future document).
+  describe('INDIVIDUAL identity vs. primary contact (#415 follow-up review, round 2, point 1)', () => {
+    it('rejects flagging a non-identity contact row primary on CREATE', async () => {
+      await expect(
+        service.createClient(companyId, {
+          type: 'INDIVIDUAL',
+          contactFirstname: 'Jean',
+          contactLastname: 'Dupont',
+          address: 'Somewhere',
+          postalCode: '10000',
+          city: 'Paris',
+          country: 'France',
+          currency: 'EUR',
+          isActive: true,
+          contacts: [
+            { firstName: 'Jean', lastName: 'Dupont', isPrimary: false },
+            { firstName: 'Marie', lastName: 'Curie', isPrimary: true },
+          ],
+        } as never),
+      ).rejects.toThrow(
+        'The primary contact of an individual client must be the person on the identity step',
+      );
+
+      // Nothing was written - the rejection happens before the transaction opens.
+      const count = await prisma.client.count({ where: { companyId, name: '' } });
+      expect(count).toBe(0);
+    });
+
+    it('rejects flagging a non-identity contact row primary on EDIT, and never rewrites that row', async () => {
+      const created = await service.createClient(companyId, {
+        type: 'INDIVIDUAL',
+        contactFirstname: 'Jean',
+        contactLastname: 'Dupont',
+        address: 'Somewhere',
+        postalCode: '10000',
+        city: 'Paris',
+        country: 'France',
+        currency: 'EUR',
+        isActive: true,
+        contacts: [
+          { firstName: 'Jean', lastName: 'Dupont', isPrimary: true },
+          { firstName: 'Marie', lastName: 'Curie' },
+        ],
+      } as never);
+      expect(created.contactFirstname).toBe('Jean');
+
+      await expect(
+        service.editClientsInfo(companyId, {
+          id: created.id,
+          type: 'INDIVIDUAL',
+          contactFirstname: 'Jean',
+          contactLastname: 'Dupont',
+          address: 'Somewhere',
+          postalCode: '10000',
+          city: 'Paris',
+          country: 'France',
+          currency: 'EUR',
+          isActive: true,
+          contacts: [
+            { firstName: 'Jean', lastName: 'Dupont', isPrimary: false },
+            { firstName: 'Marie', lastName: 'Curie', isPrimary: true },
+          ],
+        } as never),
+      ).rejects.toThrow(
+        'The primary contact of an individual client must be the person on the identity step',
+      );
+
+      // Marie's own row was never rewritten - the rejection happens before the write transaction.
+      const marie = await prisma.clientContact.findFirst({
+        where: { clientId: created.id, firstName: 'Marie' },
+      });
+      expect(marie).toMatchObject({ firstName: 'Marie', lastName: 'Curie', isPrimary: false });
+      const jean = await prisma.clientContact.findFirst({
+        where: { clientId: created.id, firstName: 'Jean' },
+      });
+      expect(jean).toMatchObject({ firstName: 'Jean', lastName: 'Dupont', isPrimary: true });
+    });
+
+    it('accepts flagging the identity-matching row primary (a no-op re-flag)', async () => {
+      const created = await service.createClient(companyId, {
+        type: 'INDIVIDUAL',
+        contactFirstname: 'Ada',
+        contactLastname: 'Lovelace',
+        address: 'Somewhere',
+        postalCode: '10000',
+        city: 'Paris',
+        country: 'France',
+        currency: 'EUR',
+        isActive: true,
+        contacts: [{ firstName: 'Ada', lastName: 'Lovelace', isPrimary: true }],
+      } as never);
+
+      const edited = await service.editClientsInfo(companyId, {
+        id: created.id,
+        type: 'INDIVIDUAL',
+        contactFirstname: 'Ada',
+        contactLastname: 'Lovelace',
+        address: 'Somewhere',
+        postalCode: '10000',
+        city: 'Paris',
+        country: 'France',
+        currency: 'EUR',
+        isActive: true,
+        contacts: [{ firstName: 'Ada', lastName: 'Lovelace', isPrimary: true, role: 'Engineer' }],
+      } as never);
+
+      expect(edited?.contactFirstname).toBe('Ada');
+      expect(edited?.contacts[0]).toMatchObject({ role: 'Engineer' });
+    });
+  });
+
+  // #415 follow-up review round 2, point 2: validation and the write must resolve the SAME primary
+  // contact out of a raw `contacts` array - both now go through `normalizeClientContacts`. Before this
+  // fix, validation looked at the RAW array (finding the blank first row flagged primary and
+  // rejecting for a missing name) while the write already dropped that blank row and promoted Jean -
+  // the exact reviewer's payload below used to 400 with "First name is required" despite being one the
+  // write would gladly have accepted (and did make Jean the primary).
+  it('validation and write agree on the primary contact - a blank row flagged primary falls through to the real one (#415 follow-up review, round 2, point 2)', async () => {
+    const client = await service.createClient(companyId, {
+      type: 'INDIVIDUAL',
+      address: 'Somewhere',
+      postalCode: '10000',
+      city: 'Paris',
+      country: 'France',
+      currency: 'EUR',
+      isActive: true,
+      contacts: [{ isPrimary: true }, { firstName: 'Jean', lastName: 'Dupont' }],
+    } as never);
+
+    expect(client.contacts).toHaveLength(1);
+    expect(client.contacts[0]).toMatchObject({ firstName: 'Jean', lastName: 'Dupont', isPrimary: true });
+    expect(client.contactFirstname).toBe('Jean');
+  });
 });
