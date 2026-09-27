@@ -368,6 +368,13 @@ export interface RenderDocumentHtmlInput {
      *  caller that ever fills this same string into both places. */
     atcud?: string | null;
   };
+  /**
+   * Issue #494: whether the header prints the "Status: <status>" line at all. Decided by the caller
+   * (`render-instance-pdf.ts`, through `status-line-policy.ts`), never here: this pure function does
+   * not know whether it is rendering a working copy or the copy a client keeps. Absent means printed,
+   * so every caller that never asked (the branding preview, dozens of specs) keeps its exact bytes.
+   */
+  printStatus?: boolean;
   company: {
     name: string;
     address?: string | null;
@@ -838,7 +845,11 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       }
       ${instance.atcud ? `<div class="document-atcud">${escapeHtmlSafe(instance.atcud)}</div>` : ''}
       <div class="document-meta">
-        <div><strong>${escapeHtmlSafe(strings.status)}:</strong> ${escapeHtmlSafe(instance.status)}</div>
+        ${
+          input.printStatus === false
+            ? ''
+            : `<div><strong>${escapeHtmlSafe(strings.status)}:</strong> ${escapeHtmlSafe(instance.status)}</div>`
+        }
         <div><strong>${escapeHtmlSafe(strings.date)}:</strong> ${escapeHtmlSafe(createdDate)}</div>
       </div>
     </div>

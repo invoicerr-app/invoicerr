@@ -1797,6 +1797,9 @@ export class DocumentsService implements OnModuleInit {
       companyId,
       descriptor,
       instance,
+      // Issue #494: a working copy prints its status, an issued document's stand-in for its archive
+      // does not (`rendering/status-line-policy.ts`).
+      'on-demand',
     );
     // Signs PAdES-BES when (and only when) this company has an active,
     // applicable, non-expired certificate configured (`signing/sign-instance-pdf.ts`'s own header).

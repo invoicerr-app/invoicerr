@@ -146,6 +146,8 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
       'company-1',
       descriptor,
       document,
+      // Issue #494: the legal e-invoice form never prints a status line.
+      'delivery',
     );
   }, 30_000);
 

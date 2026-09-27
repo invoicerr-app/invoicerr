@@ -373,6 +373,7 @@ describe('renderDocumentInstance — an unresolvable legal-mention placeholder b
           displayNumber: 'INV-2025-0001',
           atcud: null,
         },
+        'on-demand',
       ),
     ).rejects.toThrow(BadRequestException);
   });
@@ -434,6 +435,7 @@ describe("renderDocumentInstance - a VAT-exempt company's quote with 2+ options 
       'company-1',
       quoteDescriptor,
       quoteWithOptions,
+      'on-demand',
     );
 
     expect(mockedRenderPdf).toHaveBeenCalledTimes(1);
@@ -455,9 +457,78 @@ describe("renderDocumentInstance - a VAT-exempt company's quote with 2+ options 
       'company-1',
       quoteDescriptor,
       quoteWithOptions,
+      'on-demand',
     );
 
     const html = mockedRenderPdf.mock.calls[0][0];
     expect(html).toContain('VAT 20%');
+  });
+});
+
+/**
+ * Issue #494 - the delivered PDF is rendered while the record is still "sending" and used to print
+ * "Status: sending". The purpose the caller passes decides the status line, through the real
+ * descriptors (see `status-line-policy.ts` for the rule and `status-line-policy.spec.ts` for every
+ * type and status); this proves the composition actually hands that decision to the HTML.
+ */
+describe('renderDocumentInstance - the status line follows the render purpose (issue #494)', () => {
+  const quoteDescriptor = buildQuoteDescriptor();
+  const quote = (status: string) => ({
+    id: 'quote-1',
+    status,
+    data: { currency: 'EUR', issueDate: '2026-06-30', lines: [] },
+    createdAt: new Date(),
+    displayNumber: 'Q-2026-0001',
+    atcud: null,
+    acceptedOption: null,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedResolveCustomFields.mockResolvedValue([]);
+    mockedRenderPdf.mockResolvedValue(Buffer.from('pdf-bytes'));
+    (prisma.company.findUnique as Mock).mockResolvedValue({
+      name: 'Dupont Consulting',
+      address: '12 Rue de la Paix',
+      city: 'Paris',
+      postalCode: '75002',
+      country: 'France',
+      iban: null,
+      language: null,
+      exemptVat: false,
+      brandingAccentColor: null,
+      brandingFont: null,
+      brandingLogoId: null,
+    });
+  });
+
+  async function htmlFor(status: string, purpose: 'delivery' | 'on-demand'): Promise<string> {
+    await renderDocumentInstance(
+      { referenceRegistry: new EntityReferenceRegistry() },
+      'company-1',
+      quoteDescriptor,
+      quote(status),
+      purpose,
+    );
+    return mockedRenderPdf.mock.calls[0][0];
+  }
+
+  it('the delivery render of a quote being sent prints no status line and never "sending"', async () => {
+    const html = await htmlFor('sending', 'delivery');
+    expect(html).not.toContain('>Status:<');
+    expect(html).not.toContain('sending');
+    // The rest of the header is untouched: the number and the date still print.
+    expect(html).toContain('Q-2026-0001');
+    expect(html).toContain('>Date:<');
+  });
+
+  it('an on-demand render of a draft still prints "Status: draft", the working copy\'s warning', async () => {
+    const html = await htmlFor('draft', 'on-demand');
+    expect(html).toContain('<div><strong>Status:</strong> draft</div>');
+  });
+
+  it('an on-demand render of an issued quote (signed) prints none: it stands in for the delivered copy', async () => {
+    const html = await htmlFor('signed', 'on-demand');
+    expect(html).not.toContain('>Status:<');
   });
 });

@@ -173,6 +173,11 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
       // `DocumentFormatBuildOptions.humanReadable`'s own header.
       options?.humanReadable?.descriptor ?? descriptor,
       options?.humanReadable?.document ?? document,
+      // Issue #494: a Factur-X is the legal e-invoice form of the invoice or credit note it embeds, on
+      // every path that builds it (a transport's delivery, rendered while the document is "sending",
+      // or the format export), so it never prints a status line, whichever descriptor renders it
+      // (`rendering/status-line-policy.ts`).
+      'delivery',
     );
 
     const embedded = (await service.generate(euInvoice, {

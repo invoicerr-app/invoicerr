@@ -141,6 +141,9 @@ export async function sendDocumentInstanceEmail(
     companyId,
     descriptor,
     document,
+    // Issue #494: the bytes this send delivers and archives, rendered while the record is "sending":
+    // no status line (`rendering/status-line-policy.ts`).
+    'delivery',
   );
 
   const companyTemplates = await getCompanyDocumentEmailTemplates(companyId);

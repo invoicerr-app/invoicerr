@@ -29,6 +29,7 @@ import { logoDataUriFor } from './branding/logo-storage';
 import { renderDocumentHtml } from './render-html';
 import { renderPdf } from './render-pdf';
 import { buildEpcPayload, renderSepaQrDataUri } from './sepa-qr';
+import { printsStatusLine, RenderPurpose } from './status-line-policy';
 
 export interface RenderDocumentInstanceDeps {
   referenceRegistry: EntityReferenceRegistry;
@@ -292,6 +293,8 @@ export async function renderDocumentInstance(
     DocumentInstanceResult,
     'id' | 'status' | 'data' | 'createdAt' | 'displayNumber' | 'atcud' | 'acceptedOption'
   >,
+  // Issue #494: required, so every caller says which copy it renders. See `status-line-policy.ts`.
+  purpose: RenderPurpose,
 ): Promise<RenderedDocumentInstance> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -428,6 +431,7 @@ export async function renderDocumentInstance(
       displayNumber: instance.displayNumber,
       atcud: instance.atcud,
     },
+    printStatus: printsStatusLine(descriptor, instance.status, purpose),
     company,
     referenceLabels,
     totals,

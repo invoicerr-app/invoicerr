@@ -252,6 +252,9 @@ describe('issue #472 - a credit note in every EN 16931 syntax, judged by the sam
     const call = (renderInstancePdf.renderDocumentInstance as Mock).mock.calls.at(-1);
     expect(call?.[2]?.id).toBe('credit-note');
     expect(call?.[3]).toBe(creditNoteAsIssued);
+    // Issue #494: the credit note's own page is rendered as the delivered legal copy, so it prints no
+    // status line (`rendering/status-line-policy.ts`).
+    expect(call?.[4]).toBe('delivery');
   }, 30_000);
 });
 
