@@ -6,7 +6,7 @@ import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { appendPaymentMethodsToEmail } from '../payment-methods/email-block';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
-import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
+import { applyStockOnIssuance, declaresArticleReference } from '../stock/apply-stock-on-issuance';
 import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
 import { DocumentInstanceResult } from './action-registry';
@@ -114,12 +114,22 @@ export async function sendDocumentInstanceEmail(
     if (numbered) {
       document = { ...document, ...numbered };
       // STOCK EFFECT: this is the PRIMARY issuance path for a document with
-      // an async send — the invoice is numbered HERE, in the worker, not in `documents.service.ts`'s
-      // own `runAction` epilogue. Tied to `numbered` being truthy (the atomic once-only winner — see
+      // an async send - the invoice is numbered HERE, in the worker, not in `documents.service.ts`'s
+      // own `runAction` epilogue. Tied to `numbered` being truthy (the atomic once-only winner - see
       // `takeDocumentNumberForTransition`), so the decrement fires exactly once per document, at the
       // one site that actually issued the number. `applyStockOnIssuance` never throws (see its own
       // header), so a stock-bookkeeping hiccup can never stop a send that already numbered the record.
-      await applyStockOnIssuance(companyId, document);
+      //
+      // GATED on `declaresArticleReference(descriptor)` (PR #473 round 3, point 2b) - the SAME
+      // `descriptor` already resolved a few lines up (`deps.typeRegistry.resolve`), never a second
+      // lookup. This site is never actually reached by a credit note today (its own `deliver` never
+      // calls this function - see this file's own header), but it must not rely on that routing fact
+      // alone: the rule is "never decrement for a type whose descriptor declares no article
+      // reference", checked here directly, the same way `documents.service.ts#runAction`'s own site
+      // now is.
+      if (declaresArticleReference(descriptor)) {
+        await applyStockOnIssuance(companyId, document);
+      }
     }
   }
 

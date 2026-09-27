@@ -1759,11 +1759,73 @@ describe('runAsyncSendAction', () => {
       expect(retryResult.document).toMatchObject({ status: 'sent', number: 42 });
     });
 
-    // THE BELT-AND-BRACES GUARD (async-send.ts, right at the top of the phase-2 branch): for a type
-    // with NO `numberingOnlyFrom` (no legacy grandfather case - quote, invoice), a "sending" record
-    // with no number can only be a bug (this atomic write is the ONLY way such a record reaches
-    // "sending" today) - refused rather than silently delivered.
-    it('refuses to deliver an unnumbered "sending" record for a type with no `numberingOnlyFrom` - belt-and-braces', async () => {
+    // RECOVERY, ROUND 3 (async-send.ts, right at the top of the phase-2 branch): for a type with NO
+    // `numberingOnlyFrom` (no legacy grandfather case - quote, invoice), a "sending" record with no
+    // number is stranded data from an earlier crash between the status write and its numbering - and
+    // USED to be refused with a `ConflictException` here, which left it stuck for good (no other
+    // action ever leaves "sending"). This proves the fix: ONE retry takes the number through the same
+    // atomic path phase 1 uses, then delivers - never refuses.
+    it('recovers a "sending" record with no number for a type with no `numberingOnlyFrom` - one retry ends numbered and delivered', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+        number: null,
+        displayNumber: null,
+      });
+      // Recovery goes through the SAME atomic function phase 1 uses, just with `fromStatuses:
+      // ['sending']`/`toStatus: 'sending'` - see async-send.ts's own comment on this call.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:01:00Z'),
+          number: 7,
+          displayNumber: 'QUOTE-2026-0007',
+        },
+        numbered: { number: 7, displayNumber: 'QUOTE-2026-0007' },
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        status: 'sent',
+        number: 7,
+        displayNumber: 'QUOTE-2026-0007',
+      });
+      const deliver = vi.fn().mockResolvedValue({ message: 'Sent.' });
+
+      const result = await runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver,
+      });
+
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        ['sending'],
+        'sending',
+        baseInput.data,
+      );
+      // Delivered WITH its number, never unnumbered.
+      expect(deliver).toHaveBeenCalledWith(
+        expect.objectContaining({ document: expect.objectContaining({ number: 7 }) }),
+      );
+      expect(result.document).toMatchObject({ status: 'sent', number: 7 });
+    });
+
+    // A CONCURRENT WINNER already numbered the record between this call's own `findOwnedDocument` read
+    // and its recovery attempt: `takeDocumentNumberForTransitionWithStatus`'s own re-check (under the
+    // row lock - sequence.ts's own header) then returns `numbered: undefined`, keeping the status move
+    // but never re-bumping the sequence - this call must still deliver, using whatever the row now
+    // holds, never throw and never number a second time.
+    it('a concurrent winner already numbered the record - this call still delivers, without renumbering', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
@@ -1774,13 +1836,37 @@ describe('runAsyncSendAction', () => {
         number: null,
         displayNumber: null,
       });
-      const deliver = vi.fn();
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 9,
+          displayNumber: 'QUOTE-2026-0009',
+        },
+        numbered: undefined,
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        status: 'sent',
+        number: 9,
+        displayNumber: 'QUOTE-2026-0009',
+      });
+      const deliver = vi.fn().mockResolvedValue({ message: 'Sent.' });
 
-      await expect(
-        runAsyncSendAction({ ...baseInput, queueDispatcher: { enqueueAction: vi.fn() }, deliver }),
-      ).rejects.toThrow(/reached "sending" with no document number/);
+      const result = await runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver,
+      });
 
-      expect(deliver).not.toHaveBeenCalled();
+      expect(deliver).toHaveBeenCalledWith(
+        expect.objectContaining({ document: expect.objectContaining({ number: 9 }) }),
+      );
+      expect(result.document).toMatchObject({ status: 'sent', number: 9 });
     });
 
     // The credit note's own grandfather case (`numberingOnlyFrom: ['draft']`) must NOT be caught by

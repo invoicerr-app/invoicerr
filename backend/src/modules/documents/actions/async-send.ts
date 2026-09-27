@@ -287,6 +287,26 @@ export interface RunAsyncSendInput {
    */
   numberingOnlyFrom?: string[];
   /**
+   * Whether THIS type's own descriptor declares an article-reference field on its lines
+   * (`kind: 'hiddenReference'`, `entity: 'article'` - see `stock/apply-stock-on-issuance.ts`'s own
+   * `declaresArticleReference` for the exact predicate). PR #473 review point 2: the stock effect
+   * (`applyStockOnIssuance` below) must never run for a type whose descriptor does not declare that
+   * field at all - a credit note's own lines carry no such field (credit-note.descriptor.ts), so an
+   * `articleId` a caller still manages to post on one (the line VALIDATOR keeps any undeclared key) must
+   * never reach the stock effect regardless. The same "each caller reads its own type's descriptor and
+   * passes the fact explicitly" discipline `numberOnEnqueue`/`numberingOnlyFrom` above already hold,
+   * for the identical reason (this function never sees a descriptor) - never a `typeId` check here.
+   *
+   * OPTIONAL, deliberately, like `events`/`webhooks` above: every EXISTING spec of this function
+   * predates this field and must keep passing unchanged. Absent defaults to `false` - "no capability
+   * declared, no stock effect" is the SAFE default (a type this codebase does not yet know about must
+   * never decrement stock by accident), unlike `numberOnEnqueue`, where the safe default runs the
+   * other way. Production wiring (invoice-actions.ts, quote-actions.ts) always passes the real,
+   * descriptor-computed value; credit-note-actions.ts passes `false` explicitly, matching what its own
+   * descriptor already says.
+   */
+  declaresArticleReference?: boolean;
+  /**
    * Optional hook run immediately after THIS call actually WINS the numbering race just above (the
    * exact same `numbered` truthy condition the stock-effect call already gates on — never for the
    * loser of a concurrent race, never for a "send_failed" retry of an already-numbered record). Exists
@@ -317,6 +337,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     preflight,
     numberOnEnqueue,
     numberingOnlyFrom,
+    declaresArticleReference = false,
     onNumbered,
     events,
     webhooks,
@@ -337,24 +358,50 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   const existing = await findOwnedDocument(companyId, typeId, documentId);
 
   if (existing.status === 'sending') {
-    // BELT-AND-BRACES (PR #473 review point 1): a type that declares `numbering.onEnterStatus:
-    // 'sending'` with NO `onlyFrom` restriction (the quote, the invoice) has no legacy carve-out at
-    // all - `takeDocumentNumberForTransitionWithStatus` above is now the ONLY way such a record ever
-    // reaches "sending", and it never leaves without a number attached in the SAME transaction. A
-    // record of that kind sitting here with `number: null` therefore cannot be a legitimate state  -
-    // every real one is a bug (a numbering write silently lost, a migration that mis-set the column)  -
-    // and delivering it anyway would produce exactly the "issued with no number" outcome issue #471
-    // was written to close. Refused loudly rather than silently delivered. Deliberately NARROWER than
-    // "any numbered type with a null number here": a type WITH `numberingOnlyFrom` (the credit note)
-    // has a genuine grandfather case - a pre-#471 record that reached "sent"/"send_failed" with no
-    // number, correctly retried unnumbered forever (see credit-note.descriptor.ts's own header) - and
-    // this guard must never refuse that legitimate replay.
+    // RECOVERY FROM A NUMBERLESS "sending" RECORD (PR #473 review point 1, round 3): a type that
+    // declares `numbering.onEnterStatus: 'sending'` with NO `onlyFrom` restriction (the quote, the
+    // invoice) has no legacy carve-out at all - `takeDocumentNumberForTransitionWithStatus` (phase 1,
+    // below) is the ONLY intended way such a record ever reaches "sending", and it never leaves
+    // without a number attached in the SAME transaction. A record of that kind sitting here with
+    // `number: null` is therefore stranded data from an EARLIER crash between that status write and its
+    // numbering (before the atomic fix above existed, or any other writer this schema cannot rule out)
+    // - and it USED to be refused here with a `ConflictException` rather than delivered unnumbered.
+    // That refusal was itself the bug this round closes: no OTHER action ever leaves "sending" (cancel
+    // starts from "sent"/"send_failed", "save-draft" is locked outside "draft"), so throwing left the
+    // record stuck for good - a retried "send" could never recover it, where before this file became
+    // async a retry always could (deliver() and send-document-email.ts numbered it at delivery time).
+    // Recovered here instead, in ONE retry, through the exact SAME atomic path phase 1 uses below
+    // (`fromStatuses: ['sending']`, `toStatus: 'sending'` - no actual status change, only the number,
+    // taken under the row lock `sequence.ts#takeDocumentNumberWithStatusTransition`'s own re-check
+    // holds, so it can never renumber an already-numbered record or open a gap): this is a genuine
+    // retry using the numbering engine's own recovery guarantee, never a second, ad-hoc mechanism.
+    // Deliberately NARROWER than "any numbered type with a null number here", the exact condition the
+    // removed guard used: a type WITH `numberingOnlyFrom` (the credit note) has a genuine grandfather
+    // case - a pre-#471 record that reached "sent"/"send_failed" with no number, correctly retried
+    // unnumbered forever (see credit-note.descriptor.ts's own header) - and this recovery must never
+    // number that legitimate legacy record; it keeps delivering unnumbered exactly as today.
+    let record = existing;
     if (numberOnEnqueue && numberingOnlyFrom === undefined && existing.number == null) {
-      throw new ConflictException(
-        `Document "${documentId}" reached "sending" with no document number, but this type numbers ` +
-          'unconditionally on that transition - refusing to deliver it unnumbered rather than risk ' +
-          'issuing a document that never gets one.',
+      const recovery = await takeDocumentNumberForTransitionWithStatus(
+        companyId,
+        typeId,
+        documentId,
+        ['sending'],
+        'sending',
+        data,
       );
+      record = recovery.document;
+      if (recovery.numbered) {
+        // STOCK EFFECT - this recovery is the first and only time THIS
+        // document is ever numbered (a stranded record was never numbered before), so it is also the
+        // first and only time its stock effect can run - the exact same `if (numbered)` gate phase 1's
+        // own stock-effect call below is tied to. Gated on `declaresArticleReference`, never `typeId`
+        // (PR #473 review point 2) - see that field's own header.
+        if (declaresArticleReference) await applyStockOnIssuance(companyId, record);
+        if (onNumbered) {
+          await onNumbered({ companyId, typeId, documentId: record.id, numbered: recovery.numbered });
+        }
+      }
     }
 
     // THE DOUBLE-DELIVERY GUARD — see this file's own header ("inFlightDeliveries") for the full
@@ -380,16 +427,17 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     inFlightDeliveries.add(claimKey);
 
     // THE CROSS-PROCESS GUARANTEE — see `persistence.ts#claimDocumentTransition`'s own header for why
-    // `existing.updatedAt` (read a moment ago, right above) makes this a genuine compare-and-swap even
-    // though `fromStatuses`/`toStatus` are both "sending" here (no actual status value changes: this is
-    // a RE-claim of an already-"sending" row, never a real transition). `0` means someone else — in
+    // `record.updatedAt` (the freshest row read - either `existing` itself, or the recovery write just
+    // above when this call actually numbered it) makes this a genuine compare-and-swap even though
+    // `fromStatuses`/`toStatus` are both "sending" here (no actual status value changes: this is a RE-
+    // claim of an already-"sending" row, never a real transition). `0` means someone else - in
     // this process or another one entirely — already holds the claim; `deliver()` must never run.
     const claimedRows = await claimDocumentTransition(
       companyId,
       typeId,
       documentId,
       ['sending'],
-      existing.updatedAt,
+      record.updatedAt,
       'sending',
     );
     if (claimedRows === 0) {
@@ -401,9 +449,9 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     }
 
     let delivered: Awaited<ReturnType<AsyncSendDeliver>>;
-    if (existing.deliveryConfirmedAt) {
+    if (record.deliveryConfirmedAt) {
       // RESUMING an interrupted delivery — see this file's own header, "The delivery guarantee".
-      // `existing.deliveryConfirmedAt` (read fresh, off the SAME row this call's own claim just
+      // `record.deliveryConfirmedAt` (read fresh, off the SAME row this call's own claim just
       // re-acquired) already proves `deliver()` genuinely succeeded in an EARLIER attempt — this
       // process's own, or a completely different one sharing nothing but that row. Never call
       // `deliver()` again: finish whatever write never completed, using exactly what was already
@@ -411,8 +459,8 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       // reference/providerId from a delivery that never happened on THIS call.
       delivered = {
         message: 'Delivery already completed by an earlier attempt — finishing the pending update.',
-        reference: existing.transportRef ?? undefined,
-        providerId: existing.channelProviderId ?? undefined,
+        reference: record.transportRef ?? undefined,
+        providerId: record.channelProviderId ?? undefined,
         // No artifacts to hand `archiveDeliveredArtifactsIfAny` below — whatever could be archived
         // already was, by the attempt that set `deliveryConfirmedAt` in the first place (archiving
         // now runs right after confirming delivery, BEFORE the "sent" write — see below).
@@ -424,7 +472,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
           companyId,
           typeId,
           documentId,
-          document: existing,
+          document: record,
           data,
           params,
         });
@@ -613,9 +661,12 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // this file's own header describes). Anchored to the SAME `numbered` atomic winner as the
     // other numbering sites (documents.service.ts#runAction, send-document-email.ts), so the
     // decrement runs exactly once per document, at whichever site actually issues its number - for a
-    // sent invoice, that is right here. Type-agnostic and never-throwing - see
-    // `stock/apply-stock-on-issuance.ts`'s own header.
-    await applyStockOnIssuance(companyId, sending);
+    // sent invoice, that is right here. Never-throwing - see `stock/apply-stock-on-issuance.ts`'s own
+    // header. Gated on `declaresArticleReference`, never `typeId` (PR #473 review point 2): a credit
+    // note's own descriptor declares no article-reference field on its lines at all, so an `articleId`
+    // a caller still manages to post on one (the line VALIDATOR keeps any undeclared key) never
+    // reaches this call - see `RunAsyncSendInput.declaresArticleReference`'s own header.
+    if (declaresArticleReference) await applyStockOnIssuance(companyId, sending);
     // See `RunAsyncSendInput.onNumbered`'s own header - a type-agnostic hook, never a branch on
     // `typeId` in this core file. Runs AFTER the stock effect, same as it, for the same reason: both
     // are anchored to `numbered` being the atomic winner of the numbering race, never to

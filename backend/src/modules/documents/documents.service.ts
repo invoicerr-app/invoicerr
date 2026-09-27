@@ -110,7 +110,7 @@ import {
   listDocumentsPage,
   ListDocumentsPageResult,
 } from './persistence';
-import { applyStockOnIssuance } from './stock/apply-stock-on-issuance';
+import { applyStockOnIssuance, declaresArticleReference } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
 import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
@@ -1514,10 +1514,20 @@ export class DocumentsService implements OnModuleInit {
         // so a stock hiccup can never block an otherwise legally-issued document.
         //
         // NOTE: the PRIMARY issuance path (async send) numbers the document in the worker,
-        // `actions/send-document-email.ts` (its OWN `if (numbered)` block) — so a SENT invoice's real
+        // `actions/send-document-email.ts` (its OWN `if (numbered)` block) - so a SENT invoice's real
         // decrement happens THERE, not here. This site covers any OTHER action that numbers a document
         // synchronously through `runAction`.
-        await applyStockOnIssuance(companyId, numberedDocument);
+        //
+        // GATED on `declaresArticleReference(descriptor)` (PR #473 round 3, point 2b): the "reads
+        // data.lines type-agnostically" claim above is about the FORMAT (never a typeId check), not
+        // about running unconditionally - a type whose descriptor declares no article-reference field
+        // on its lines at all (the credit note) must never have this effect applied, whatever its
+        // lines happen to carry (an undeclared key the line validator kept, e.g.). This is the SAME
+        // descriptor already resolved above for `enteringNumberedStatus`/`isNumberingAllowedFrom`,
+        // never a second lookup.
+        if (declaresArticleReference(descriptor)) {
+          await applyStockOnIssuance(companyId, numberedDocument);
+        }
       }
     }
 

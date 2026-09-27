@@ -29,6 +29,8 @@
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
+import { DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
+
 /** A company's own Article, narrowed to what this module needs. Always STOCK-TRACKED
  *  (`quantity !== null`) by construction — see `applyStockOnIssuance`'s own query, the only caller
  *  that ever builds one of these: a SERVICE/never-tracked article (`Article.quantity: null`) simply
@@ -96,6 +98,30 @@ export function computeStockDecrements(
   }
 
   return Array.from(consumedByArticle.entries()).map(([articleId, consumed]) => ({ articleId, consumed }));
+}
+
+/**
+ * Whether a document TYPE's own descriptor declares an article-reference field (`kind:
+ * 'hiddenReference'`, `entity: 'article'` - see `descriptors/types.ts`'s own `entity` doc comment,
+ * "ALSO the target hint for 'hiddenReference'") anywhere inside one of its top-level 'array' fields -
+ * e.g. an invoice/quote line's `articleId` (invoice.descriptor.ts, quote.descriptor.ts).
+ *
+ * PR #473 review point 2: this is the ONE fact the async-send path (`actions/async-send.ts`'s
+ * `RunAsyncSendInput.declaresArticleReference`) gates its own call to `applyStockOnIssuance` below on.
+ * A credit note's own descriptor (credit-note.descriptor.ts) declares NO such field on either of its
+ * two line shapes (`lines`, `correctedLines`) - but the line VALIDATOR (descriptors/validate.ts) keeps
+ * any UNDECLARED key a client still posts, an `articleId` included, so refusing the field there would
+ * not, by itself, stop the STOCK EFFECT from reading one straight off `data.lines`. Checked
+ * structurally here (kind + entity), never `typeId === 'credit-note'` - the same "a document type is
+ * just data" discipline `computeStockDecrements` above already holds - so ANY current or future type
+ * that genuinely never lets a line reference an article is protected the same way, with no per-type
+ * branch anywhere in this module.
+ */
+export function declaresArticleReference(descriptor: DocumentTypeDescriptor): boolean {
+  const declaresOnRow = (fields: DocumentFieldDescriptor[] | undefined): boolean =>
+    (fields ?? []).some((field) => field.kind === 'hiddenReference' && field.entity === 'article');
+
+  return descriptor.fields.some((field) => field.kind === 'array' && declaresOnRow(field.fields));
 }
 
 /**

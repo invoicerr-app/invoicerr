@@ -4,6 +4,7 @@ import { logger } from '@/logger/logger.service';
 
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { resolveCorrectionRoutesForCountry } from '../correction-routes/correction-routes';
+import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
@@ -13,6 +14,7 @@ import { computeSettlement } from '../settlement/compute-settlement';
 import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
 import { crossedIntoSettled, emitDocumentSettled } from '../settlement/document-settled';
 import { listPayments, toSettlementPaymentInputs } from '../settlement/payments';
+import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
@@ -23,6 +25,12 @@ import { performSaveDraft } from './generic-actions';
  *  settlement-crossing check just sent might have settled it (see
  *  `checkAndEmitInvoiceSettledFromCreditNote` below). */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
+/** The credit note's OWN descriptor - never `INVOICE_DESCRIPTOR` above, which describes a different
+ *  type's field shape. PR #473 review point 2: neither of this type's two line shapes (`lines`,
+ *  `correctedLines`, credit-note.descriptor.ts) declares an article-reference field, so this is
+ *  `false` - computed, not hardcoded, so it stays true to the descriptor if that ever changes. */
+const CREDIT_NOTE_DESCRIPTOR = buildCreditNoteDescriptor();
+const CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(CREDIT_NOTE_DESCRIPTOR);
 
 export interface CreditNoteActionDeps {
   queueDispatcher: DocumentActionQueueDispatcher;
@@ -376,6 +384,7 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       // note that reached "sending" from "send_failed" while still unnumbered (issued before this
       // feature existed). See that field's own header (descriptors/types.ts) for the full "why".
       numberingOnlyFrom: ['draft'],
+      declaresArticleReference: CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE,
       // "send" (unlike every OTHER action) persists whatever `data` THIS
       // call submits as the record's new "sending" state (async-send.ts's own phase-1 `upsertDocument`
       // call, right after `preflight` runs) — a SEPARATE write path from "save-draft", which

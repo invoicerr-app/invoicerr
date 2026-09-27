@@ -18,10 +18,21 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import { ROW_ID_KEY } from './row-selection/row-selection';
 import * as settlementCredits from './settlement/credits';
 import * as settlementPayments from './settlement/payments';
+import * as stock from './stock/apply-stock-on-issuance';
 import { computeDocumentTotals } from './totals/compute-totals';
 import { TransportRegistry } from './transports/transport-registry';
 
 vi.mock('./persistence');
+// PR #473 review point 2: only `applyStockOnIssuance` (the DB-touching half) is mocked - the module's
+// OWN `declaresArticleReference` predicate stays REAL, so `credit-note-actions.ts`'s module-level
+// `CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE` constant (computed from it at import time) reflects the
+// credit note's actual descriptor, exactly like production. A wholesale `vi.mock` would auto-mock
+// that predicate too and pass this suite for the wrong reason (an undefined return value happening to
+// be falsy), never because the descriptor genuinely declares no article-reference field.
+vi.mock('./stock/apply-stock-on-issuance', async () => {
+  const actual = await vi.importActual('./stock/apply-stock-on-issuance');
+  return { ...actual, applyStockOnIssuance: vi.fn() };
+});
 // Issue #471: credit-note.descriptor.ts now declares `numbering`, so "send" (phase 1: draft ->
 // sending) reaches `takeDocumentNumberForTransitionWithStatus` (PR #473 review point 1: the atomic
 // status+number write, replacing the separate `takeDocumentNumberForTransition` call this comment
@@ -688,6 +699,54 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         freeCreditNoteData,
         ['draft'], // the CAS argument - see this file's own earlier comment on it.
       );
+    });
+
+    // PR #473 review point 2: an `articleId` on a credit-note line is NOT rejected by the line
+    // validator (it keeps any undeclared key - see credit-note.descriptor.ts's own "Lines" field,
+    // which declares no article-reference field at all) - so the API genuinely accepts one, and the
+    // stock effect must be the thing that refuses to act on it, never validation.
+    it('"send" with an articleId on a free line accepts it (the line validator keeps undeclared keys) but never decrements stock', async () => {
+      const dataWithArticleId = {
+        ...freeCreditNoteData,
+        lines: [{ ...freeCreditNoteData.lines[0], articleId: 'article-1' }],
+      };
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'cn-free-1',
+        typeId: 'credit-note',
+        status: 'draft',
+        data: dataWithArticleId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'cn-free-1',
+          typeId: 'credit-note',
+          status: 'sending',
+          data: dataWithArticleId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'CN-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'CN-2026-0001' },
+      });
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'credit-note', 'send', {
+        documentId: 'cn-free-1',
+        data: dataWithArticleId,
+      });
+
+      // Accepted, numbered, and the `articleId` genuinely survived validation - the premise this test
+      // proves the FIX does not rely on refusing.
+      expect(result.document).toMatchObject({ status: 'sending', number: 1 });
+      expect((result.document?.data as { lines: Array<{ articleId?: string }> }).lines[0].articleId).toBe(
+        'article-1',
+      );
+      // THE FIX: the stock effect is never even reached - see async-send.ts's own
+      // `declaresArticleReference` gate and credit-note-actions.ts's own `CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE`.
+      expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
     });
 
     it('requires a "reason" once there is no invoice — the descriptor\'s own requiredIfAbsent', async () => {
