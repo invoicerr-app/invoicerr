@@ -25,6 +25,8 @@ import "@/components/documents/custom-registrations"
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import {
   actionAssignsNumber,
+  canCreateDocument,
+  createBlockedReasons,
   extraActionGates,
   pickPrimaryAction,
   secondaryActions,
@@ -934,6 +936,14 @@ export function DocumentList({
   const clientFieldKey = useMemo(() => resolveClientFieldKey(descriptor), [descriptor])
   const dateFieldKey = useMemo(() => resolveDateFieldKey(descriptor), [descriptor])
 
+  // Whether the "New <type>" button below could actually save anything right now - see
+  // `canCreateDocument`'s own header (PR #473 review point 2, round 2: a Polish credit note is
+  // LISTED but its "save-draft"/"send" are both policy-blocked; opening the create dialog anyway
+  // would only walk someone through every field before refusing at the very last step). Generic:
+  // reads the descriptor's own actions, never a type id or country.
+  const creatable = useMemo(() => canCreateDocument(descriptor), [descriptor])
+  const createBlockedReason = useMemo(() => createBlockedReasons(descriptor), [descriptor])
+
   // One amount per CURRENT-PAGE row — a reading aid on the row itself, never a list-wide total: see
   // list-amount.ts's own `resolveRowAmount` header. There is no "total of this list" figure computed
   // anywhere in this component (there never was one beyond a single row's own amount), so there is
@@ -1007,7 +1017,18 @@ export function DocumentList({
         // `secondary`, not `default`: the header's own "New <type>" stays the page's one filled
         // button — this is the same action, offered a second time where the eye lands.
         action={
-          <Button type="button" variant="secondary" onClick={onCreate} dataCy="document-create-button-empty">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCreate}
+            disabled={!creatable}
+            tooltip={
+              !creatable && createBlockedReason
+                ? t("documents.form.actionBlockedByPolicy", { reason: createBlockedReason })
+                : undefined
+            }
+            dataCy="document-create-button-empty"
+          >
             <Plus aria-hidden="true" />
             {createLabel}
           </Button>
@@ -1063,7 +1084,17 @@ export function DocumentList({
                 <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
               ))}
 
-              <Button onClick={onCreate} aria-label={createLabel} dataCy="document-create-button">
+              <Button
+                onClick={onCreate}
+                aria-label={createLabel}
+                disabled={!creatable}
+                tooltip={
+                  !creatable && createBlockedReason
+                    ? t("documents.form.actionBlockedByPolicy", { reason: createBlockedReason })
+                    : undefined
+                }
+                dataCy="document-create-button"
+              >
                 <Plus aria-hidden="true" />
                 <span className="hidden md:inline">{createLabel}</span>
               </Button>

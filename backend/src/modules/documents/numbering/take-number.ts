@@ -49,6 +49,11 @@ export async function takeDocumentNumberForTransition(
  * `persistence.ts#upsertDocument` whenever this call is actually eligible to number the record
  * (`numberOnEnqueue && isNumberingAllowedFrom(...)` - computed by the caller, this function has no
  * opinion of its own about `onlyFrom`), never both.
+ *
+ * `numbered` can come back `undefined` (PR #473 review point 2, round 2): the caller's own
+ * eligibility check reads a pre-transaction snapshot that can go stale under a genuine race (see
+ * `sequence.ts#takeDocumentNumberWithStatusTransition`'s own header) - the status transition still
+ * lands, but nothing is renumbered when the row already carries a number by the time this runs.
  */
 export async function takeDocumentNumberForTransitionWithStatus(
   companyId: string,
@@ -57,7 +62,7 @@ export async function takeDocumentNumberForTransitionWithStatus(
   fromStatuses: string[],
   toStatus: string,
   data: Record<string, unknown>,
-): Promise<{ document: DocumentInstanceResult; numbered: TakenDocumentNumber }> {
+): Promise<{ document: DocumentInstanceResult; numbered: TakenDocumentNumber | undefined }> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: { numberFormats: true },

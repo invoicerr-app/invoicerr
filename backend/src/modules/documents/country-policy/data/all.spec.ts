@@ -111,20 +111,18 @@ describe('country-policy/data — the shipped FR/DE/IT/PL/PT files', () => {
   // The NEW "which types this country has" layer (schema.ts's `documentTypes`) — a separate
   // declaration from `rules` above, so it needs its own coverage guard the same way `rules` already
   // has one just above.
-  it('every kept country declares every document type the core registers today, EXCEPT Poland for "credit-note" (PR #473, owner decision - see pl.json\'s own notes)', () => {
-    for (const code of ['FR', 'DE', 'IT', 'PT']) {
+  //
+  // PR #473 review round 2: this test used to carve Poland out for "credit-note" - a Polish seller
+  // has no credit note INSTRUMENT (the faktura korygująca is an INVOICE, not this type), but that is
+  // a `rules` question (`credit-note.save-draft`/`send`, both `allowed: false` for PL below), never a
+  // `documentTypes` one. Dropping "credit-note" from PL's own `documentTypes` here made an
+  // ALREADY-ISSUED Polish credit note unreachable in the app (no sidebar entry, no list) - the
+  // carve-out is reverted: every kept country, PL included, declares every document type.
+  it('every kept country declares every document type the core registers today', () => {
+    for (const code of ['FR', 'DE', 'IT', 'PL', 'PT']) {
       const file = fileFor(code);
       expect((file.documentTypes ?? []).slice().sort()).toEqual(ALL_DOCUMENT_TYPE_IDS.slice().sort());
     }
-    // A Polish seller has no credit note instrument at all (the faktura korygująca is an INVOICE,
-    // not this type) - hidden from the sidebar/menu the same way `resolveAvailableDocumentTypes`
-    // (country-policy.ts) already hides any type a country's own `documentTypes` list omits.
-    const pl = fileFor('PL');
-    expect((pl.documentTypes ?? []).slice().sort()).toEqual(
-      ALL_DOCUMENT_TYPE_IDS.filter((id) => id !== 'credit-note')
-        .slice()
-        .sort(),
-    );
   });
 
   // The per-status narrowing (schema.ts's `DocumentActionRuleFact.statuses`) — TWO real, shipped

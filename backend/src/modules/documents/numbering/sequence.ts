@@ -156,6 +156,38 @@ export async function takeDocumentNumber(
  * function does not call that one (it needs its OWN transaction, and `upsertDocument` opens none), so
  * it re-implements the identical conditional `updateMany` here rather than share a helper across two
  * modules that otherwise have no reason to depend on each other.
+ *
+ * PR #473 review point 2 (round 2): the caller's own "is this record eligible for numbering at all"
+ * check (`async-send.ts`'s `eligibleForAtomicNumbering`) reads `existing.number == null` from a
+ * SNAPSHOT taken BEFORE this transaction ever starts - a `findOwnedDocument` read that can go stale
+ * the instant another request wins the race first. Two "send" calls on the SAME "send_failed" draft
+ * (a double click, two tabs) can both observe `number: null` in memory: the loser's transaction below
+ * still passes the `status: { in: fromStatuses } }` guard (its `where` never checked `number` at all -
+ * "send_failed" is itself one of the ALLOWED `fromStatuses`, precisely to let a genuine retry through),
+ * then used to bump the sequence and overwrite `number`/`displayNumber` unconditionally - RENUMBERING
+ * a document the winner had already numbered and delivered, opening a gap in a series that must stay
+ * continuous, and re-running `onNumbered` (ATCUD) a second time on a number that changed under it.
+ *
+ * The guard restored here does NOT re-check `number: null` on the status `updateMany` itself - unlike
+ * `takeDocumentNumber` above, the status move must still land even for a legitimate "send_failed
+ * retry of an already-numbered record" (the very case `async-send.spec.ts`'s "never re-numbers a
+ * record that already carries one" test protects, at the ORCHESTRATION layer - in-memory
+ * `eligibleForAtomicNumbering` skips this whole function for that case, calling `upsertDocument`
+ * instead; this function's own guard is what protects the DATABASE layer against the caller's snapshot
+ * being stale, a race no in-memory check can ever close). Instead: the status `updateMany` runs
+ * first (unconditionally on status, taking Postgres's own row-level lock on this document for the rest
+ * of the transaction - no other transaction can concurrently touch this row until this one commits or
+ * rolls back), and ONLY THEN does this function read the row's CURRENT `number` back, under that same
+ * lock. If it is already non-null - a concurrent winner beat this transaction to the sequence bump
+ * (or, more directly, an in-memory `eligibleForAtomicNumbering` computed against a stale read) - the
+ * status move is kept (a legitimate retry must still proceed to "sending") but the sequence is NEVER
+ * bumped and `number`/`displayNumber` are NEVER overwritten: `numbered` comes back `undefined`, which
+ * is exactly the "no number was taken on THIS call" signal `async-send.ts` already reads (via the
+ * shared `if (numbered) { ... }` guard) to skip the stock effect and `onNumbered` (ATCUD) for a race's
+ * loser - see that call site's own comment. This is the "keep the number, skip the bump" choice named
+ * in this function's own module header rather than a 409: refusing the whole "sending" transition here
+ * would leave a legitimately re-tried "send_failed" record permanently stuck outside "sending", the
+ * one outcome issue #471 itself exists to prevent.
  */
 export async function takeDocumentNumberWithStatusTransition(
   companyId: string,
@@ -166,7 +198,7 @@ export async function takeDocumentNumberWithStatusTransition(
   data: Record<string, unknown>,
   pattern: string,
   issuedAt: Date = new Date(),
-): Promise<{ document: DocumentInstanceResult; numbered: TakenDocumentNumber }> {
+): Promise<{ document: DocumentInstanceResult; numbered: TakenDocumentNumber | undefined }> {
   const jsonData = data as Prisma.InputJsonValue;
 
   return prisma.$transaction(async (tx) => {
@@ -182,6 +214,18 @@ export async function takeDocumentNumberWithStatusTransition(
         `Document "${documentId}" is no longer in one of the expected statuses ` +
           `(${fromStatuses.join(', ')}) - another request already changed it concurrently.`,
       );
+    }
+
+    // THE RE-CHECK, under the row lock the `updateMany` above already holds (see this function's own
+    // header) - never trust the caller's own pre-transaction snapshot for whether a number is still
+    // needed; ask the database again, now that nothing else can be mutating this exact row.
+    const current = await tx.documentInstance.findUniqueOrThrow({
+      where: { id: documentId },
+      select: { number: true },
+    });
+    if (current.number != null) {
+      const document = await tx.documentInstance.findUniqueOrThrow({ where: { id: documentId } });
+      return { document, numbered: undefined };
     }
 
     const number = await bumpSequence(tx, companyId, typeId);

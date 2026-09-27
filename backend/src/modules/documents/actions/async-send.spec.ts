@@ -347,6 +347,61 @@ describe('runAsyncSendAction', () => {
         expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
       });
 
+      // PR #473 review point 2 (round 2): the in-memory `eligibleForAtomicNumbering` check
+      // (async-send.ts) reads `existing.number == null` from a snapshot taken BEFORE this call's own
+      // transaction runs, so it stays true even when another request has already numbered the SAME
+      // document in the meantime (the real-DB proof of that race is
+      // `numbering/sequence.atomic.spec.ts`'s own "stale caller" test). This is the ORCHESTRATION
+      // half of that same fix: once the (mocked) transaction itself reports `numbered: undefined` -
+      // exactly what `takeDocumentNumberWithStatusTransition` now returns when its own re-check finds
+      // the row already numbered - `onNumbered` (ATCUD) must never fire for this call, the same
+      // guard the "send_failed retry" test above already exercises for the OTHER way `numbered` ends
+      // up unset (the eligibility check itself skipping this transition entirely).
+      it('is never called when the transaction itself won no number - a stale caller\'s own snapshot said "null", the row disagreed', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'send_failed',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          // The STALE in-memory view: this snapshot still shows no number, so
+          // `eligibleForAtomicNumbering` computes true and this call DOES reach
+          // `takeDocumentNumberForTransitionWithStatus` below - unlike the "send_failed retry" test
+          // above, where the snapshot itself already showed the number and the eligibility check
+          // alone was what skipped it.
+          number: null,
+          displayNumber: null,
+        });
+        (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+          document: {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sending',
+            data: baseInput.data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            // What the real transaction found under the row lock: already numbered by whoever won
+            // the race first - see `sequence.ts`'s own header for why the status move still lands.
+            number: 3,
+            displayNumber: 'QUOTE-2026-0003',
+          },
+          numbered: undefined,
+        });
+        const onNumbered = vi.fn();
+        const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
+
+        const result = await runAsyncSendAction({
+          ...baseInput,
+          queueDispatcher,
+          deliver: vi.fn(),
+          onNumbered,
+        });
+
+        expect(onNumbered).not.toHaveBeenCalled();
+        expect(result.document).toMatchObject({ number: 3, displayNumber: 'QUOTE-2026-0003' });
+      });
+
       it('every EXISTING caller/spec keeps working unchanged when absent — a true no-op, not a required field', async () => {
         mockFreshNumbering();
         const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };

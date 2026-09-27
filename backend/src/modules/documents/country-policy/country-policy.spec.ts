@@ -385,6 +385,22 @@ describe('resolveAvailableDocumentTypes', () => {
     expect(decision.reason).toBeUndefined();
     expect(decision.typeIds.length).toBeGreaterThan(0);
   });
+
+  // PR #473 review point 2 (round 2): a Polish seller may not CREATE a new credit note
+  // (save-draft/send both `allowed: false`, country-policy/data/pl.json), but one issued BEFORE that
+  // owner decision must stay reachable - the sidebar entry and the list this decision drives both
+  // read `documentTypes`, never a per-action rule. Dropping "credit-note" from `documentTypes`
+  // entirely (the round-1 mistake this test guards against) would make an already-issued Polish
+  // credit note unreachable in the app, contradicting pl.json's own notes that it stays
+  // readable/shareable.
+  it('the real PL file still lists "credit-note" - an already-issued one must stay reachable even though creating a new one is refused', async () => {
+    findCompany.mockResolvedValue({ country: 'Poland', countryCode: 'PL' });
+
+    const decision = await resolveAvailableDocumentTypes('company-1');
+
+    expect(decision.reason).toBeUndefined();
+    expect(decision.typeIds).toContain('credit-note');
+  });
 });
 
 describe('resolveCompanyCountryCode', () => {

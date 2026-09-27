@@ -4,13 +4,21 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * PR #473 follow-up (review points 2 and 3 - point 1 is proven at the backend, no e2e journey is
  * reachable for it since the atomic write it fixes has no user-visible failure mode to drive).
  *
- * Point 2 - owner decision: a Polish seller issues NO credit note at all, linked or free. The
+ * Point 2 - owner decision: a Polish seller issues NO NEW credit note at all, linked or free. The
  * faktura korygujaca (already implemented as a KOR invoice, `country-fields`/`correction-routes`) is
- * the only corrective instrument for Poland. `country-policy/data/pl.json`'s own `documentTypes` list
- * no longer names "credit-note" (hides the sidebar entry, the exact mechanism the sidebar itself
- * already reads - `resolveAvailableDocumentTypes`), and `credit-note.save-draft`/`send` are now
- * `allowed: false` there too, enforced a second time in code
- * (`credit-note-actions.ts#assertCreditNoteAllowedForCountry`, both shapes).
+ * the only corrective instrument for Poland - `credit-note.save-draft`/`send` are `allowed: false`
+ * for PL, enforced both by `documents.service.ts#runAction`'s own country-policy gate and a second
+ * time in code (`credit-note-actions.ts#assertCreditNoteAllowedForCountry`, both shapes).
+ *
+ * ROUND 2 CORRECTION (this file's own first version got this wrong): `country-policy/data/pl.json`'s
+ * own `documentTypes` list still names "credit-note" - dropping it entirely, as the round-1 fix did,
+ * hid the sidebar entry AND made the whole list unreachable, which took an ALREADY-ISSUED Polish
+ * credit note down with it (no way to open it, download its PDF, or read its share link), directly
+ * contradicting pl.json's own notes that such a record "must stay readable/shareable - never
+ * deleted, never renumbered, only no longer editable or sendable". The tests below now prove the
+ * corrected shape: the type stays LISTED (sidebar entry, list page), its "New credit note" button
+ * cannot save anything so it is disabled rather than opening a dialog that dead-ends at the last
+ * step, and an existing record opens read-only, PDF included.
  *
  * Point 3 - the PDF and the screen used to disagree on an unnumbered document
  * (`numbering/display-state.ts`'s own header has the full "why"). A document stuck in "sending"
@@ -35,9 +43,48 @@ function switchCompanyToPoland() {
 		});
 }
 
-describe("PR #473 review point 2 - a Polish seller has no credit note instrument at all", () => {
+/** Creates a free credit note draft, then issues it (draft -> sending -> sent) through the real API -
+ *  the same two-call save-draft/send shape `91-credit-note-numbering.cy.ts`'s own
+ *  `createAndIssueCreditNote` already uses. Called BEFORE the company switches to Poland (the default
+ *  seeded company is French, and PL refuses this at the API - see the "refused" tests below), so the
+ *  resulting record is exactly what the round-2 fix has to keep reachable: a credit note issued while
+ *  this company was NOT Polish, read afterward by a company that now is. */
+function createAndIssueCreditNoteAsFrenchSeller() {
+	const data = {
+		issueDate: "2026-09-20",
+		currency: "EUR",
+		reason: "Geste commercial - remboursement d'un trop-percu non rattache a une facture.",
+		lines: [{ description: "Remboursement", quantity: 1, unitPrice: 42, vatRate: "0" }],
+	};
+	return cy
+		.request({
+			method: "POST",
+			url: `${api}/api/documents/types/credit-note/actions/save-draft`,
+			body: { data },
+		})
+		.then((saved) => {
+			const id = saved.body?.document?.id as string;
+			expect(id, "credit note draft created as a French seller").to.be.a("string");
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/credit-note/actions/send`,
+				body: { documentId: id, data: saved.body?.document?.data },
+			}).then((sent) => {
+				expect(sent.status, "send accepted").to.be.oneOf([200, 201]);
+			});
+			cy.waitForDocumentStatus(`${api}/api/documents/${id}?typeId=credit-note`, ["sent"]);
+			return cy.wrap(id);
+		});
+}
+
+describe("PR #473 review point 2 - a Polish seller has no NEW credit-note instrument, but an existing one stays reachable", () => {
+	let existingCreditNoteId: string;
+
 	before(() => {
 		cy.resetAndSeed();
+		createAndIssueCreditNoteAsFrenchSeller().then((id) => {
+			existingCreditNoteId = id as unknown as string;
+		});
 		switchCompanyToPoland();
 	});
 
@@ -46,15 +93,50 @@ describe("PR #473 review point 2 - a Polish seller has no credit note instrument
 		cy.viewport(1280, 720);
 	});
 
-	it("the credit-note sidebar/menu entry is hidden for a Polish seller", () => {
+	it("the credit-note sidebar entry and list stay reachable for a Polish seller, with no working create button", () => {
 		cy.visit(`${appOrigin}/dashboard`);
-		// The Documents group is open by default (sidebar.tsx) - every OTHER type still shows, only
-		// "credit-note" is missing, proving this is the country's own `documentTypes` list at work,
-		// never an accidental blanket hide.
+		// The Documents group is open by default (sidebar.tsx) - every type, "credit-note" included,
+		// shows: `documentTypes` still names it (pl.json), only the two ACTIONS below are refused.
 		cy.get('[data-cy="sidebar-document-type-link-invoice"]', { timeout: 15000 }).should("be.visible");
 		cy.get('[data-cy="sidebar-document-type-link-quote"]').should("be.visible");
-		cy.get('[data-cy="sidebar-document-type-link-credit-note"]').should("not.exist");
-		cy.get('[data-sidebar="content"]').first().screenshot("473-after-pl-hidden-action");
+		cy.get('[data-cy="sidebar-document-type-link-credit-note"]').should("be.visible");
+		cy.get('[data-sidebar="content"]').first().screenshot("473-after-pl-list-sidebar");
+
+		cy.get('[data-cy="sidebar-document-type-link-credit-note"]').click();
+		cy.get('[data-cy="document-list-card"]', { timeout: 15000 }).should("be.visible");
+		// THE EXISTING RECORD: issued while this company was still French, still listed now that it
+		// is Polish - the round-2 proof that the list itself never went unreachable.
+		cy.get(`[data-cy="document-list-row-${existingCreditNoteId}"]`, { timeout: 15000 }).should("be.visible");
+		// THE CREATE BUTTON: still on screen (never hidden - a vanished button looks like a missing
+		// feature), but disabled - `save-draft`/`send` are both policy-blocked for PL, so nothing it
+		// could open would ever reach a working "Continue" (see `canCreateDocument`'s own header,
+		// action-presentation.ts).
+		cy.get('[data-cy="document-create-button"]').should("be.disabled");
+		cy.wait(500);
+		cy.screenshot("473-after-pl-list", { capture: "viewport" });
+	});
+
+	it("opening the existing Polish credit note is read-only: the detail page offers no save/send, and its PDF still downloads", () => {
+		cy.visit(`${appOrigin}/documents/credit-note/${existingCreditNoteId}`);
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+		// No editable action left runnable: "save-draft" only re-targets "draft" (this record is
+		// "sent"), and "send" is policy-blocked outright for PL - whichever one the page would show as
+		// its primary action, it carries no working button.
+		cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
+		cy.get('[data-cy="document-action-send"]').should("not.exist");
+		// The PDF download lives in the record's own "Actions" menu (document-detail.tsx) - opening it
+		// proves the entry is still there and enabled, never removed for a read-only record.
+		cy.get('[data-cy="document-actions-menu"]').click();
+		cy.get('[data-cy="document-pdf-button"]').should("be.visible").and("not.have.attr", "disabled");
+		cy.wait(500);
+		cy.screenshot("473-after-pl-detail-readonly", { capture: "viewport" });
+
+		cy.request({
+			url: `${api}/api/documents/${existingCreditNoteId}/pdf?typeId=credit-note`,
+			encoding: "binary",
+		}).then((res) => {
+			expect(res.status, "the PDF of an existing Polish credit note still renders").to.eq(200);
+		});
 	});
 
 	it('save-draft (free shape) is refused at the API, naming Poland and the faktura korygujaca, never the country generically', () => {
@@ -146,38 +228,12 @@ describe("PR #473 review point 2 - a Polish seller has no credit note instrument
 		});
 	});
 
-	// The create form itself is still reachable by URL (only the sidebar entry is hidden): its last
-	// step offers no runnable action, so nothing can reach the API from it, and the reason the type
-	// reports for each blocked action points to the corrective invoice.
-	it("creating a credit note by URL ends on a disabled button, and every blocked action's reason points to the corrective invoice", () => {
-		cy.visit(`${appOrigin}/documents/credit-note`);
-		cy.get('[data-cy="document-create-button"]').click();
-		cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should("be.visible");
-
-		cy.pickToday('[data-cy="document-field-issueDate-input"]');
-		cy.continueDocumentWizard(); // Details -> Lines
-
-		cy.get('[data-cy="document-field-currency-input"] button').should("not.be.disabled").click({ force: true });
-		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
-		cy.get('[data-cy="document-field-lines-add-row"]').click();
-		cy.get('input[name="lines.0.description"]').type("Geste commercial", { force: true });
-		cy.get('input[name="lines.0.quantity"]').clear({ force: true }).type("1", { force: true });
-		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("42", { force: true });
-		cy.get('[data-cy="document-field-lines-row-0"] [data-cy$="-input"] button').last().click({ force: true });
-		cy.get('[data-cy$="-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy*="-option-"]').first().click();
-		cy.continueDocumentWizard(); // Lines -> Options
-
-		cy.get('[data-cy="document-field-reason-input"]').type("Test.", { force: true });
-		cy.continueDocumentWizard(); // Options -> Recap
-
-		// No RUNNABLE action at all (every action credit-note declares is blocked by the country
-		// policy): the last step's button is disabled. A disabled button receives no pointer event, so
-		// its tooltip cannot be opened from a test; the reason it would show is the type's own
-		// `policyBlockedReason`, read here from the same describe endpoint the dialog uses.
-		cy.get('[data-cy="document-create-dialog-submit"]', { timeout: 10000 }).should("be.disabled");
-		cy.get('[data-cy="document-action-save-draft"]').should("be.disabled");
+	// ROUND 2: the create button itself is disabled at the list level now (`canCreateDocument`,
+	// action-presentation.ts) - clicking a disabled button opens no dialog at all, so there is no
+	// wizard left to walk through here. What still holds: the type's own describe endpoint reports
+	// BOTH actions blocked, each reason naming Poland and pointing at the corrective invoice - the
+	// exact text `canCreateDocument`/the button's own tooltip read.
+	it("every credit-note action the describe endpoint reports is blocked, naming Poland and the corrective invoice", () => {
 		cy.request(`${api}/api/documents/types/credit-note`).then((res) => {
 			const reasons = (res.body?.actions ?? [])
 				.map((a: { id: string; policyBlockedReason?: string }) => `${a.id}: ${a.policyBlockedReason ?? ""}`)
@@ -185,6 +241,12 @@ describe("PR #473 review point 2 - a Polish seller has no credit note instrument
 			expect(reasons).to.match(/save-draft: .*forbidden for "PL".*corrective invoice/);
 			expect(reasons).to.match(/send: .*forbidden for "PL".*corrective invoice/);
 		});
+
+		// Visiting the create form by URL directly (bypassing the list's own button) still lands on a
+		// button with nothing runnable behind it - confirms the dialog itself, not only the list's
+		// button, agrees there is no working create path for a Polish seller.
+		cy.visit(`${appOrigin}/documents/credit-note`);
+		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).should("be.disabled");
 		cy.wait(500);
 		cy.screenshot("473-after-pl-refusal", { capture: "viewport" });
 	});

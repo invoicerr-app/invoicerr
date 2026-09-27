@@ -123,6 +123,52 @@ export function secondaryActions(
   return actions.filter((action) => action !== primary)
 }
 
+/** Actions a create dialog never submits (see `use-document-form.ts`'s own `availableActions`
+ *  filter: none of them is a create-time POST through `runAction`). */
+const NON_CREATE_ACTION_IDS = new Set(["cancel", "download-xml", "share-link", "accept-manually"])
+
+/** The actions a brand-new record of this type could run from its create dialog: the same set
+ *  `use-document-form.ts` offers there (`availableActions`, read at `initialStatus`). */
+function createTimeActions(
+  descriptor: Pick<DocumentTypeDescriptor, "actions" | "initialStatus">,
+): DocumentActionDescriptor[] {
+  return descriptor.actions.filter(
+    (action) => !NON_CREATE_ACTION_IDS.has(action.id) && isActionAvailable(action, descriptor.initialStatus),
+  )
+}
+
+/**
+ * Whether the list page's "New <type>" button can actually do anything right now: the SAME rule the
+ * create dialog uses to pick its final button (`document-create-dialog.tsx`'s `primaryAction`, the
+ * first create-time action with no `policyBlockedReason`). When none exists, opening the dialog
+ * would only walk someone through every field before refusing to save at the last step (PR #473
+ * review, round 2: a Polish credit note stays LISTED, so issued ones remain reachable, while its
+ * "save-draft"/"send" are both policy-blocked - see country-policy/data/pl.json's own notes).
+ *
+ * Generic on purpose, like every predicate in this file: it reads the descriptor's own actions and
+ * their `policyBlockedReason`, never a type id or country code.
+ */
+export function canCreateDocument(
+  descriptor: Pick<DocumentTypeDescriptor, "actions" | "initialStatus">,
+): boolean {
+  return createTimeActions(descriptor).some((action) => !action.policyBlockedReason)
+}
+
+/** The policy reasons that make `canCreateDocument` false, deduplicated and joined the way the
+ *  create dialog's own disabled final button joins them (`blockedReasons.join(" · ")`). */
+export function createBlockedReasons(
+  descriptor: Pick<DocumentTypeDescriptor, "actions" | "initialStatus">,
+): string | undefined {
+  const reasons = Array.from(
+    new Set(
+      createTimeActions(descriptor)
+        .map((action) => action.policyBlockedReason)
+        .filter((reason): reason is string => !!reason),
+    ),
+  )
+  return reasons.length > 0 ? reasons.join(" · ") : undefined
+}
+
 /**
  * The entries a saved record offers BESIDES its `runAction` POSTs — each declared on the descriptor
  * for the status/country-policy gates only, and each reached through its own mechanism rather than
