@@ -439,8 +439,12 @@ async function resolveClientContact(
   const clientId = typeof clientIdValue === 'string' ? clientIdValue : null;
   if (!clientId) return null;
 
-  return prisma.client.findFirst({
+  // Contact fields moved off `Client` onto its `contacts` relation (#415) - the reminder always mails
+  // the PRIMARY contact, never any secondary one, matching every other document-delivery reader.
+  const client = await prisma.client.findFirst({
     where: { id: clientId, companyId },
-    select: { contactEmail: true, language: true },
+    select: { language: true, contacts: { where: { isPrimary: true }, select: { email: true }, take: 1 } },
   });
+  if (!client) return null;
+  return { contactEmail: client.contacts[0]?.email ?? null, language: client.language };
 }

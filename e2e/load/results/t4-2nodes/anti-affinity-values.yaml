@@ -1,0 +1,14 @@
+# Written by loadtest.js --spread-across-nodes. Regenerated every run — do not edit by
+# hand. Exists only because helm --set cannot express a nested podAntiAffinity.
+api:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: invoicerr
+                app.kubernetes.io/instance: lt
+                app.kubernetes.io/component: api

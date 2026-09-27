@@ -12,6 +12,10 @@ export interface CompanyMailSettingsStatus {
   configured: boolean
   kind?: "smtp" | "resend"
   fromAddress?: string
+  /** This company's own Reply-To override — independent of `configured` above, a company can set
+   *  this without ever running its own mail server. `null` when unset: the instance's own
+   *  `MAIL_REPLY_TO` applies instead, or no Reply-To header at all when that is unset too. */
+  replyTo: string | null
 }
 
 export interface SetCompanyMailSmtpSettings {
@@ -58,6 +62,21 @@ export function useClearCompanyMailSettings() {
   return useApiMutation<void, { deleted: boolean }>("DELETE", "/api/company/mail-settings", {
     invalidateKeys: [STATUS_KEY],
   })
+}
+
+/**
+ * Sets or clears this company's own Reply-To override — independent of the mail server above (`PUT
+ * /api/company/mail-settings/reply-to`, its own tiny endpoint, never folded into `PUT
+ * /api/company/mail-settings`, which requires a full SMTP/Resend config). `replyTo: null` clears the
+ * override back to "use the instance's own MAIL_REPLY_TO". The backend validates the address format
+ * and refuses (400) an invalid one — this mutation's `error` carries that message verbatim.
+ */
+export function useSetCompanyMailReplyTo() {
+  return useApiMutation<{ replyTo: string | null }, CompanyMailSettingsStatus>(
+    "PUT",
+    "/api/company/mail-settings/reply-to",
+    { invalidateKeys: [STATUS_KEY] },
+  )
 }
 
 /**

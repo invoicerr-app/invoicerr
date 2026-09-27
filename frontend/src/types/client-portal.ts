@@ -51,7 +51,11 @@ export interface PortalQuoteRow {
   status: string
   issueDate: string | null
   currency: string
-  amountMinor: number
+  /** Null for a quote offering 2+ options - issue #373 ("quotes with options"), see the backend's own
+   *  `PortalQuoteRow.amountMinor` header; `optionCount` then names how many. */
+  amountMinor: number | null
+  /** 0 for an ordinary single/no-option quote (never shown). */
+  optionCount: number
   canRespond: boolean
 }
 

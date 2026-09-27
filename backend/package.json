@@ -82,7 +82,7 @@
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "sanitize-html": "2.17.1",
+    "sanitize-html": "^2.17.7",
     "standardwebhooks": "^1.1.1",
     "stream-buffers": "^3.0.3",
     "undici": "^7.29.1",
@@ -119,6 +119,8 @@
     "xmldsigjs": "^2.8.7"
   },
   "overrides": {
-    "hono": "^4.11.4"
+    "hono": "^4.11.4",
+    "mysql2": "^3.23.1",
+    "deepmerge-ts": "^8.0.2"
   }
 }

@@ -475,4 +475,26 @@ describe('request-installments', () => {
     expect(calls[0][4].lines[0]).toEqual(expect.objectContaining({ vatRate: '0' }));
     expect(grossTotalsOfCreatedInvoices().reduce((a, b) => a + b, 0)).toBe(20000);
   });
+
+  // Issue #373 ("quotes with options") - same reasoning as request-deposit.spec.ts's own identical
+  // test: this action is only ever `availableWhen: ['sent']`, a status neither acceptance path has
+  // reached yet, so a 2+-option quote has no single total to split into milestones at this point.
+  it('refuses outright for a quote offering 2+ options - there is no single total to split', async () => {
+    mockQuote({
+      lines: [
+        { description: 'Basic', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+        { description: 'Premium', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+      ],
+    });
+
+    const action = runInstallments([50, 50]);
+    await expect(action).rejects.toBeInstanceOf(BadRequestException);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    // Issue #373 follow-up, points 3/4 - same fix as request-deposit.spec.ts's own identical test:
+    // the message must state the real, permanent limitation, never a retry that can never succeed
+    // (choosing an option is exactly what moves the quote off "sent", the only status this action is
+    // ever available from).
+    await expect(action).rejects.toThrow('not supported for a quote with options');
+    await expect(action).rejects.not.toThrow(/once an option has been chosen/);
+  });
 });

@@ -103,11 +103,12 @@ describe("Document totals", () => {
 		// "client"/"issueDate"/"currency" (all `required`) are the wizard's own "Details" step —
 		// see document-create-dialog.tsx's `buildFieldGroups`. Client: whichever the seed's default
 		// search already surfaces, same pattern as 66-purchase-orders.cy.ts's own "supplier" fill.
-		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should(
-			"be.visible",
-		);
-		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		// Picking the client is not just a value change: the screen re-fetches its own descriptor
+		// with that client (the country field overlays depend on the buyer) and rebuilds every field
+		// node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+		// rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+		// unmounted or dismissed under the command driving it.
+		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 		// The currency is a SearchSelect (button + filtered list), NOT a native <select>: the first
@@ -172,9 +173,12 @@ describe("Document totals", () => {
 
 		// client/issueDate/dueDate/currency are all `required` on the invoice descriptor, so all
 		// four sit on this first ("Details") step — see invoice.descriptor.ts's own field list.
-		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		// Picking the client is not just a value change: the screen re-fetches its own descriptor
+		// with that client (the country field overlays depend on the buyer) and rebuilds every field
+		// node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+		// rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+		// unmounted or dismissed under the command driving it.
+		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 		const nextYear = new Date().getFullYear() + 1;

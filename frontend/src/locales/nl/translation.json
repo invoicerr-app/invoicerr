@@ -551,6 +551,13 @@
             }
         }
     },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Document wordt gelezen… velden worden ingevuld zodra dit klaar is. U kunt alvast beginnen met typen."
+            }
+        }
+    },
     "auth": {
         "signup": {
             "oidc": "Registreet met OIDC.",

@@ -15,11 +15,15 @@ import { IMailProvider, MailOptions } from '@/mail/types';
  * `SmtpMailProvider`/`MailService`'s own per-company `SmtpOverrides` branch already has.
  *
  * ## Source — https://resend.com/docs/api-reference/emails/send-email, fetched as plain text
- * (`curl https://resend.com/docs/api-reference/emails/send-email.md`) on 2026-09-15, quoted below
- * where a field name or gotcha is not obvious from the endpoint alone.
+ * (`curl https://resend.com/docs/api-reference/emails/send-email.md`) on 2026-09-15, re-fetched
+ * 2026-09-23 to confirm `reply_to` below, quoted where a field name or gotcha is not obvious from the
+ * endpoint alone.
  *
  *  - Request body fields used here: `from` (string, "Name <email>" or bare email — accepted as-is), `to`
  *    (string[]), `subject`, `html`, `text`,
+ *    `reply_to` (`string | string[]` per the docs — this provider only ever sends a single address,
+ *    the one `mail.service.ts#resolveEffectiveReplyTo` already resolved; omitted entirely, never an
+ *    empty string, when that cascade resolves to nothing),
  *    `attachments` (array of `{ filename, content, content_type }` — snake_case: this is the RAW REST
  *    API, not the Node SDK, which camelCases these for you. `content` is "buffer or Base64 string";
  *    JSON has no buffer type, so this always sends the Base64 string form).
@@ -81,6 +85,10 @@ export class ResendMailProvider implements IMailProvider {
       from,
       to: [to],
       subject: options.subject,
+      // Already the fully-resolved cascade value — see `mail.service.ts#resolveEffectiveReplyTo`.
+      // `undefined` when the cascade resolved to nothing, which `JSON.stringify` below omits entirely
+      // rather than sending `"reply_to": null`/`""`, same discipline as `attachments` right below.
+      reply_to: options.replyTo || undefined,
       html: options.html,
       text: options.text,
       attachments: options.attachments?.length

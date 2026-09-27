@@ -1,7 +1,12 @@
 import type { TFunction } from "i18next"
 import { describe, expect, it } from "vitest"
 
-import { computeDocumentTotals } from "./document-totals"
+import {
+  commonLineDescriptions,
+  computeCommonLineTotals,
+  computeDocumentOptionTotals,
+  computeDocumentTotals,
+} from "./document-totals"
 import type { DocumentTypeDescriptor } from "./types"
 
 /** Minimal line-shaped descriptor — same fixture shape as list-amount.spec.ts. */
@@ -19,6 +24,41 @@ const withLines = descriptor([
       { key: "quantity", kind: "number", label: "Qty" },
       { key: "unitPrice", kind: "money", label: "Unit price", currencyField: "currency" },
       { key: "vatRate", kind: "select", label: "VAT", options: [{ value: "20", label: "20%" }] },
+    ],
+  },
+] as unknown as DocumentTypeDescriptor["fields"])
+
+/** Issue #373 ("quotes with options") - a quote-shaped descriptor: same line shape as `withLines`,
+ *  plus the `option` subfield the quote descriptor alone declares. */
+const withOptions = descriptor([
+  { key: "currency", kind: "select", label: "Currency", options: [] },
+  {
+    key: "lines",
+    kind: "array",
+    label: "Lines",
+    fields: [
+      { key: "quantity", kind: "number", label: "Qty" },
+      { key: "unitPrice", kind: "money", label: "Unit price", currencyField: "currency" },
+      { key: "vatRate", kind: "select", label: "VAT", options: [{ value: "20", label: "20%" }] },
+      { key: "option", kind: "text", label: "Option" },
+    ],
+  },
+] as unknown as DocumentTypeDescriptor["fields"])
+
+/** Same shape as `withOptions`, plus the line's own `description` subfield - what
+ *  `commonLineDescriptions` reads (the real quote descriptor's own "Designation" field). */
+const withOptionsAndDescription = descriptor([
+  { key: "currency", kind: "select", label: "Currency", options: [] },
+  {
+    key: "lines",
+    kind: "array",
+    label: "Lines",
+    fields: [
+      { key: "description", kind: "text", label: "Designation" },
+      { key: "quantity", kind: "number", label: "Qty" },
+      { key: "unitPrice", kind: "money", label: "Unit price", currencyField: "currency" },
+      { key: "vatRate", kind: "select", label: "VAT", options: [{ value: "20", label: "20%" }] },
+      { key: "option", kind: "text", label: "Option" },
     ],
   },
 ] as unknown as DocumentTypeDescriptor["fields"])
@@ -212,5 +252,133 @@ describe("computeDocumentTotals", () => {
       // Still the honest, not-yet-resolved amount — only the display flag changes.
       expect(totals?.vatMinor).toBe(2000)
     })
+  })
+})
+
+describe("computeDocumentOptionTotals (issue #373, quotes with options)", () => {
+  it("is null for a descriptor whose line shape has no `option` subfield at all", () => {
+    expect(
+      computeDocumentOptionTotals(withLines, {
+        currency: "EUR",
+        lines: [{ quantity: 1, unitPrice: 100, vatRate: "20" }],
+      }),
+    ).toBeNull()
+  })
+
+  it("is null for fewer than two distinct options - the caller falls back to the single total", () => {
+    expect(computeDocumentOptionTotals(withOptions, { currency: "EUR", lines: [] })).toBeNull()
+    expect(
+      computeDocumentOptionTotals(withOptions, {
+        currency: "EUR",
+        lines: [{ quantity: 1, unitPrice: 100, vatRate: "20" }],
+      }),
+    ).toBeNull()
+    expect(
+      computeDocumentOptionTotals(withOptions, {
+        currency: "EUR",
+        lines: [
+          { quantity: 1, unitPrice: 100, vatRate: "20", option: "Basic" },
+          { quantity: 1, unitPrice: 50, vatRate: "20", option: "Basic" },
+        ],
+      }),
+    ).toBeNull()
+  })
+
+  it("computes each option's OWN totals from only its own lines, never a global sum", () => {
+    const result = computeDocumentOptionTotals(withOptions, {
+      currency: "EUR",
+      lines: [
+        { quantity: 1, unitPrice: 100, vatRate: "20", option: "Basic" },
+        { quantity: 1, unitPrice: 100, vatRate: "20", option: "Premium" },
+        { quantity: 1, unitPrice: 200, vatRate: "20", option: "Premium" },
+      ],
+    })
+    expect(result).not.toBeNull()
+    expect(result!.map((r) => r.option)).toEqual(["Basic", "Premium"])
+    expect(result!.find((r) => r.option === "Basic")!.totals.grossMinor).toBe(12000)
+    expect(result!.find((r) => r.option === "Premium")!.totals.grossMinor).toBe(36000)
+  })
+
+  it("counts a line with NO `option` in EVERY option's own total - never dropped, never orphaned", () => {
+    const result = computeDocumentOptionTotals(withOptions, {
+      currency: "EUR",
+      lines: [
+        { quantity: 1, unitPrice: 100, vatRate: "20", option: "Basic" },
+        { quantity: 1, unitPrice: 50, vatRate: "20" }, // no `option` at all
+        { quantity: 1, unitPrice: 300, vatRate: "20", option: "Premium" },
+      ],
+    })
+    expect(result).not.toBeNull()
+    // 100 (Basic) + 50 (common) = 150 net -> 180 gross @ 20%.
+    expect(result!.find((r) => r.option === "Basic")!.totals.grossMinor).toBe(18000)
+    // 50 (common) + 300 (Premium) = 350 net -> 420 gross @ 20%.
+    expect(result!.find((r) => r.option === "Premium")!.totals.grossMinor).toBe(42000)
+  })
+})
+
+describe("computeCommonLineTotals (issue #373 follow-up, common lines)", () => {
+  it("is null for fewer than two options, or when every line IS tagged", () => {
+    expect(
+      computeCommonLineTotals(withOptions, { currency: "EUR", lines: [{ quantity: 1, unitPrice: 100 }] }),
+    ).toBeNull()
+    expect(
+      computeCommonLineTotals(withOptions, {
+        currency: "EUR",
+        lines: [
+          { quantity: 1, unitPrice: 100, option: "Basic" },
+          { quantity: 1, unitPrice: 200, option: "Premium" },
+        ],
+      }),
+    ).toBeNull()
+  })
+
+  it("computes the common lines' OWN informational total, separate from any option's", () => {
+    const totals = computeCommonLineTotals(withOptions, {
+      currency: "EUR",
+      lines: [
+        { quantity: 1, unitPrice: 100, vatRate: "20", option: "Basic" },
+        { quantity: 1, unitPrice: 50, vatRate: "20" },
+        { quantity: 1, unitPrice: 300, vatRate: "20", option: "Premium" },
+      ],
+    })
+    expect(totals).not.toBeNull()
+    expect(totals!.netMinor).toBe(5000)
+    expect(totals!.grossMinor).toBe(6000)
+  })
+})
+
+// Orchestrator review follow-up ("no meaningless common total") - `DocumentTotals`'s own common-lines
+// block now lists these DESCRIPTIONS instead of `computeCommonLineTotals`'s figure; same null/empty
+// rules as that sibling function (this test suite deliberately mirrors its own describe block above).
+describe("commonLineDescriptions (orchestrator review follow-up, no meaningless common total)", () => {
+  it("is null for fewer than two options, or when every line IS tagged", () => {
+    expect(
+      commonLineDescriptions(withOptionsAndDescription, {
+        currency: "EUR",
+        lines: [{ description: "Solo line", quantity: 1, unitPrice: 100 }],
+      }),
+    ).toBeNull()
+    expect(
+      commonLineDescriptions(withOptionsAndDescription, {
+        currency: "EUR",
+        lines: [
+          { description: "Basic package", quantity: 1, unitPrice: 100, option: "Basic" },
+          { description: "Premium package", quantity: 1, unitPrice: 200, option: "Premium" },
+        ],
+      }),
+    ).toBeNull()
+  })
+
+  it("returns each common (untagged) line's own designation, in order, never a tagged one", () => {
+    const descriptions = commonLineDescriptions(withOptionsAndDescription, {
+      currency: "EUR",
+      lines: [
+        { description: "Setup fee", quantity: 1, unitPrice: 50, vatRate: "20" },
+        { description: "Basic package", quantity: 1, unitPrice: 100, vatRate: "20", option: "Basic" },
+        { description: "Onboarding", quantity: 1, unitPrice: 25, vatRate: "20" },
+        { description: "Premium package", quantity: 1, unitPrice: 300, vatRate: "20", option: "Premium" },
+      ],
+    })
+    expect(descriptions).toEqual(["Setup fee", "Onboarding"])
   })
 })

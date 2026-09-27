@@ -5,6 +5,7 @@ import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { DocumentField } from "@/components/documents/document-field"
+import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import { formatTotal } from "@/components/documents/document-totals"
 import SearchSelect from "@/components/search-input"
 import { toMinor } from "@/components/documents/totals-calculator"
@@ -72,6 +73,7 @@ interface RowPrefillPickerProps {
   map: Record<string, string>
   rowFields: DocumentFieldDescriptor[]
   onPrefill: (values: Record<string, unknown>) => void
+  disabled?: boolean
 }
 
 /**
@@ -93,6 +95,7 @@ function RowPrefillPicker({
   map,
   rowFields,
   onPrefill,
+  disabled = false,
 }: RowPrefillPickerProps) {
   const { t } = useTranslation()
   const [search, setSearch] = useState("")
@@ -124,6 +127,7 @@ function RowPrefillPicker({
       placeholder={t("documents.form.array.prefillButton")}
       searchPlaceholder={t("documents.form.array.prefillSearchPlaceholder")}
       noResultsText={t("documents.form.array.prefillNoResults")}
+      disabled={disabled}
       data-cy={`document-field-${arrayFieldKey}-row-${rowIndex}-prefill`}
     />
   )
@@ -140,6 +144,10 @@ interface LineRowCardProps {
   /** The "fill from catalog" picker, when the array field declares `prefillFrom` — rendered inside
    *  this card, above the designation row, rather than threading that whole feature down here. */
   prefillSlot?: React.ReactNode
+  /** Issue #468 (point 3): disables the remove button. Individual row FIELDS disable themselves
+   *  generically through `DocumentFormReadOnlyProvider` (they render through `DocumentField`, same as
+   *  every top-level field) - only this component's own button needs the flag explicitly. */
+  readOnly?: boolean
 }
 
 /**
@@ -160,6 +168,7 @@ function LineRowCard({
   onRemove,
   removeLabel,
   prefillSlot,
+  readOnly = false,
 }: LineRowCardProps) {
   const { control, watch } = useFormContext()
   const [headField, ...restFields] = rowFields
@@ -215,6 +224,7 @@ function LineRowCard({
             size="icon"
             className="shrink-0"
             onClick={onRemove}
+            disabled={readOnly}
             tooltip={removeLabel}
             dataCy={`document-field-${arrayFieldKey}-remove-row-${index}`}
             aria-label={removeLabel}
@@ -255,6 +265,7 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
   } = useFormContext()
   const { fields: rows, append, remove } = useFieldArray({ control, name })
   const rowFields = field.fields ?? []
+  const readOnly = useDocumentFormReadOnly()
 
   const emptyRow = Object.fromEntries(rowFields.map((rowField) => [rowField.key, undefined]))
   const arrayError = (errors as Record<string, { message?: string }>)[name]?.message
@@ -281,6 +292,7 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
             documentTypeId={documentTypeId}
             onRemove={() => remove(index)}
             removeLabel={t("documents.form.array.removeRow")}
+            readOnly={readOnly}
             prefillSlot={
               field.prefillFrom && (
                 <RowPrefillPicker
@@ -289,6 +301,7 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
                   entity={field.prefillFrom.entity}
                   map={field.prefillFrom.map}
                   rowFields={rowFields}
+                  disabled={readOnly}
                   onPrefill={(values) => {
                     for (const [rowKey, value] of Object.entries(values)) {
                       setValue(`${name}.${index}.${rowKey}`, value, {
@@ -309,6 +322,7 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
         variant="outline"
         size="sm"
         onClick={() => append(emptyRow)}
+        disabled={readOnly}
         dataCy={`document-field-${field.key}-add-row`}
       >
         <Plus className="mr-2 h-4 w-4" />

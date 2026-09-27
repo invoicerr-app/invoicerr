@@ -10,7 +10,13 @@ import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { MetricWidget, ShortListWidget, TableWidget } from './widgets';
 
-vi.mock('../persistence');
+// `dayMs`/`dateValueInRange` are kept REAL - see invoice-contributions.spec.ts's own identical
+// comment for why a blanket `vi.mock('../persistence')` would silently break issue #418's
+// period-restriction helper.
+vi.mock('../persistence', async () => {
+  const actual = await vi.importActual<typeof import('../persistence')>('../persistence');
+  return { ...actual, listAllDocuments: vi.fn(), listRecentDocuments: vi.fn(), countDocuments: vi.fn() };
+});
 
 const listAllDocuments = persistence.listAllDocuments as Mock;
 const listRecentDocuments = persistence.listRecentDocuments as Mock;
@@ -64,6 +70,22 @@ describe('quoteGrossTotal', () => {
 
   it('a quote with no usable lines totals to 0, not a crash', () => {
     expect(quoteGrossTotal({}).amount).toBe(0);
+  });
+
+  // Issue #373 follow-up, point 7: a quote offering 2+ options used to report `currency: ''`,
+  // blanking the statistics table's own Currency column for exactly these rows.
+  it("carries the quote's own currency for a quote with 2+ options, never blank", () => {
+    const { amount, currency, optionsCount } = quoteGrossTotal({
+      currency: 'USD',
+      lines: [
+        { description: 'A', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+        { description: 'B', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+      ],
+    });
+
+    expect(amount).toBeNull();
+    expect(currency).toBe('USD');
+    expect(optionsCount).toBe(2);
   });
 });
 
@@ -155,6 +177,68 @@ describe('buildQuoteDashboardWidgets', () => {
   });
 });
 
+// Issue #418: "quote:open-count"/"quote:draft" restrict themselves by the quote's own resolved date
+// field (`issueDate`) once a period is set.
+describe('buildQuoteDashboardWidgets with a period set', () => {
+  beforeEach(() => {
+    listAllDocuments.mockReset();
+    listRecentDocuments.mockReset();
+    countDocuments.mockReset();
+  });
+
+  const period = { dateFrom: '2026-08-01', dateTo: '2026-08-31' };
+
+  it('the draft shortlist and the open count only include quotes issued IN the period', async () => {
+    seedDocuments([
+      quote({ id: 'in-period', status: 'draft', data: { issueDate: '2026-08-15' } }),
+      quote({ id: 'before-period', status: 'draft', data: { issueDate: '2026-07-31' } }),
+      quote({
+        id: 'sent-in-period',
+        status: 'sent',
+        displayNumber: 'QUO-1',
+        data: { issueDate: '2026-08-20' },
+      }),
+      quote({
+        id: 'sent-after-period',
+        status: 'sent',
+        displayNumber: 'QUO-2',
+        data: { issueDate: '2026-09-01' },
+      }),
+    ]);
+
+    const widgets = await buildQuoteDashboardWidgets({ companyId: 'c1', period });
+    const shortList = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(shortList.items.map((i) => i.id)).toEqual(['in-period']);
+    expect(widgets.find((w) => w.id === 'quote:open-count')).toMatchObject({ value: 2 });
+  });
+
+  it('boundary dates are inclusive', async () => {
+    seedDocuments([
+      quote({ id: 'first-day', status: 'draft', data: { issueDate: '2026-08-01' } }),
+      quote({ id: 'last-day', status: 'draft', data: { issueDate: '2026-08-31' } }),
+    ]);
+
+    const widgets = await buildQuoteDashboardWidgets({ companyId: 'c1', period });
+    const shortList = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(shortList.items.map((i) => i.id).sort()).toEqual(['first-day', 'last-day']);
+  });
+
+  it('the "open quotes" link carries the period', async () => {
+    seedDocuments([quote({ id: 'd1', status: 'draft', data: { issueDate: '2026-08-15' } })]);
+
+    const widgets = await buildQuoteDashboardWidgets({ companyId: 'c1', period });
+    const openMetric = widgets.find((w) => w.id === 'quote:open-count');
+
+    expect((openMetric as MetricWidget).link).toMatchObject({
+      typeId: 'quote',
+      status: ['draft', 'sent'],
+      ...period,
+    });
+  });
+});
+
 describe('buildQuoteStatisticsWidgets', () => {
   beforeEach(() => {
     listAllDocuments.mockReset();
@@ -194,6 +278,40 @@ describe('buildQuoteStatisticsWidgets', () => {
 
     expect(table.rows).toEqual([
       { issueDate: '2026-01-01', dueDate: '2026-01-31', status: 'sent', currency: 'EUR', total: 120 },
+    ]);
+  });
+
+  // Issue #373 follow-up, point 7: no more blank currency / untranslated "N options" prose - the row
+  // carries the real currency and a structured `optionsCount` the frontend translates itself (the
+  // same split `status` already gets via DocumentStatusBadge).
+  it('a quote with 2+ options: real currency, structured optionsCount, no `total`', async () => {
+    seedDocuments([
+      quote({
+        id: 'q1',
+        status: 'sent',
+        data: {
+          issueDate: '2026-01-01',
+          dueDate: '2026-01-31',
+          currency: 'USD',
+          lines: [
+            { description: 'A', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+            { description: 'B', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+          ],
+        },
+      }),
+    ]);
+
+    const widgets = await buildQuoteStatisticsWidgets({ companyId: 'c1' });
+    const table = widgets.find((w) => w.kind === 'table') as TableWidget;
+
+    expect(table.rows).toEqual([
+      {
+        issueDate: '2026-01-01',
+        dueDate: '2026-01-31',
+        status: 'sent',
+        currency: 'USD',
+        optionsCount: 2,
+      },
     ]);
   });
 });

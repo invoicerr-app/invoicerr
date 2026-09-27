@@ -93,8 +93,42 @@ export interface CountryDocumentPolicyFile {
    */
   documentTypes?: string[];
   rules: DocumentActionRuleFact[];
+  /**
+   * Whether this country requires a document TYPE to carry a sequential, legally-issued number  -
+   * issue #471's own concern, and DELIBERATELY separate from `rules` above: `rules` says which
+   * ACTIONS a type may run, this says whether the type must be NUMBERED once it is issued, a
+   * different axis a country-action rule has no natural field for (a "sequential-number-required"
+   * fact is not "is this action allowed", it is "what must this document carry"). File-only today  -
+   * no DB mirror, no migration: `seed.ts` VALIDATES every entry the same way `rules` are (same
+   * `assertValidProvenance` gate - see this file's own header) but never writes it anywhere, since
+   * nothing outside the descriptor layer (`documents/descriptors/*.descriptor.ts`) reads country
+   * numbering requirements at runtime today - the descriptor's own `numbering` field is what a
+   * document type ACTUALLY gets numbered by; this array only documents, per country and with
+   * provenance, WHY that descriptor choice is (or is not) legally required. Optional: a country with
+   * nothing to say here (the original state, before issue #471) simply omits the field.
+   */
+  numbering?: DocumentNumberingFact[];
   /** Free-form, file-level caveats — e.g. "this file deliberately does not cover X" — distinct from
    *  a per-rule `notes`, which explains ONE rule. */
+  notes?: string;
+}
+
+/**
+ * ONE country's numbering requirement for ONE document type - issue #471. Two possible
+ * `requirement`s, deliberately not a boolean: `'sequential-number-required'` says the type itself
+ * must carry a continuous, sequential number once issued (what CGI ann. II art. 242 nonies A, I, 7°
+ * asks of a French credit note, `country-policy/data/fr.json`'s own fact); `'type-not-issuable'`
+ * says the question does not even arise for this type in this country because the type itself has
+ * no legal existence here (Poland's own credit-note fact: a Polish credit note IS an invoice, a KOR,
+ * numbered by the invoice's own numbering - see `correction-routes/data/pl.json`'s CREDIT_NOTE
+ * `'forbidden'` route, which this fact deliberately does not duplicate, only cross-references).
+ */
+export interface DocumentNumberingFact {
+  /** A DocumentTypeDescriptor.id - e.g. "credit-note". Same "not validated against the live
+   *  registry here" posture as `DocumentActionRuleFact.typeId` above, for the identical reason. */
+  typeId: string;
+  requirement: 'sequential-number-required' | 'type-not-issuable';
+  provenance: PolicyProvenance;
   notes?: string;
 }
 
@@ -105,31 +139,58 @@ export class InvalidPolicyProvenanceError extends Error {}
  * is called from two independent places rather than trusted to only ever run once.
  */
 export function assertValidProvenance(rule: DocumentActionRuleFact, context: string): void {
-  const provenance = rule.provenance as { kind?: unknown } | null | undefined;
-  if (!provenance || (provenance.kind !== 'legal' && provenance.kind !== 'unverified')) {
+  assertValidPolicyProvenance(
+    rule.provenance,
+    `${context}: rule "${rule.typeId}.${rule.actionId}"`,
+    'a document-action rule',
+  );
+}
+
+/**
+ * The `numbering` (issue #471) analogue of `assertValidProvenance` above - same gate, called from the
+ * same two independent points (data/all.ts at load, seed.ts before writing), on `DocumentNumberingFact`
+ * instead of `DocumentActionRuleFact`: a numbering fact has no `actionId` to name in its error message
+ * (it is not an action rule), which is the one reason this is a second, thin function rather than
+ * widening `assertValidProvenance`'s own signature to accept either shape.
+ */
+export function assertValidNumberingProvenance(fact: DocumentNumberingFact, context: string): void {
+  assertValidPolicyProvenance(
+    fact.provenance,
+    `${context}: numbering fact "${fact.typeId}"`,
+    'a numbering fact',
+  );
+}
+
+/** The actual check, shared by both provenance gates above - see each one's own header for why there
+ *  are two thin callers rather than one function with two possible input shapes. */
+function assertValidPolicyProvenance(
+  provenance: PolicyProvenance | null | undefined,
+  factLabel: string,
+  kindLabel: string,
+): void {
+  const candidate = provenance as { kind?: unknown } | null | undefined;
+  if (!candidate || (candidate.kind !== 'legal' && candidate.kind !== 'unverified')) {
     throw new InvalidPolicyProvenanceError(
-      `${context}: rule "${rule.typeId}.${rule.actionId}" has no valid provenance (kind must be ` +
-        '"legal" or "unverified") — a document-action rule may never exist without saying where it ' +
-        'came from.',
+      `${factLabel} has no valid provenance (kind must be "legal" or "unverified") - ${kindLabel} may ` +
+        'never exist without saying where it came from.',
     );
   }
 
-  if (provenance.kind === 'legal') {
-    const legal = rule.provenance as LegalProvenance;
+  if (candidate.kind === 'legal') {
+    const legal = provenance as LegalProvenance;
     if (!legal.sourceText?.trim() || !legal.sourceCheckedAt?.trim()) {
       throw new InvalidPolicyProvenanceError(
-        `${context}: rule "${rule.typeId}.${rule.actionId}" claims "legal" provenance but is missing ` +
-          'sourceText and/or sourceCheckedAt.',
+        `${factLabel} claims "legal" provenance but is missing sourceText and/or sourceCheckedAt.`,
       );
     }
     return;
   }
 
-  const unverified = rule.provenance as UnverifiedProvenance;
+  const unverified = provenance as UnverifiedProvenance;
   if (!unverified.resolutionNote?.trim()) {
     throw new InvalidPolicyProvenanceError(
-      `${context}: rule "${rule.typeId}.${rule.actionId}" is "unverified" but has no resolutionNote — ` +
-        'an unverified rule must say what would settle it.',
+      `${factLabel} is "unverified" but has no resolutionNote - an unverified fact must say what ` +
+        'would settle it.',
     );
   }
 }

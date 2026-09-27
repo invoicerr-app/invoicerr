@@ -367,3 +367,42 @@ describe('BT-80 (Deliver to country) — required, and only required, for an Int
     }, 30_000);
   });
 });
+
+/**
+ * Issue #145 — an optional per-line `date` ("when the work was done"). The real risk this repo cares
+ * about most (see invoice.descriptor.ts's own "The line shape" bullet on `date`, and
+ * `shared-build.spec.ts`/`national/national-lines.spec.ts` for the same proof at the extraction
+ * choke-point, unit-level): a new line field must never silently reach a document this repository
+ * sends to a tax authority. Proven here against REAL generated XML, not merely the intermediate
+ * `SemanticLineInput` object — the strongest form this file's own "master proof" already holds
+ * everything else to.
+ */
+describe('issue #145 — a line `date` never leaks into a generated EN 16931 payload', () => {
+  // A value with no plausible collision against anything else this fixture's DOCUMENT_DATA already
+  // contains (no issueDate/dueDate, no amount, no description word) — so `.not.toContain` here is a
+  // real assertion about `date` specifically, not a coincidence of some OTHER field's own text.
+  const LINE_WORK_DATE = '2019-11-05';
+  const DOCUMENT_WITH_LINE_DATE = {
+    ...DOCUMENT,
+    data: {
+      ...DOCUMENT_DATA,
+      lines: [{ ...DOCUMENT_DATA.lines[0], date: LINE_WORK_DATE }, DOCUMENT_DATA.lines[1]],
+    },
+  };
+
+  describe.each([
+    ['CII', ciiFormatProvider] as const,
+    ['UBL', ublFormatProvider] as const,
+  ])('%s', (_label, provider) => {
+    it('the generated XML does not contain the line date anywhere, and still validates exactly as without it', async () => {
+      const result = await provider.build(descriptor, DOCUMENT_WITH_LINE_DATE, SELLER, BUYER);
+      const xml = Buffer.from(result.bytes).toString('utf-8');
+
+      expect(xml).not.toContain(LINE_WORK_DATE);
+      // Not merely absent by accident — the document must still be exactly as valid as the master
+      // proof's own fixture (same lines, same totals, one extra unmapped key).
+      expect(result.validation.errors).toEqual([]);
+      expect(result.validation.valid).toBe(true);
+    }, 30_000);
+  });
+});

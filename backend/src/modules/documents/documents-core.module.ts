@@ -20,6 +20,7 @@ import { registerGoodsReceiptActions } from './actions/goods-receipt-actions';
 import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerPurchaseOrderActions } from './actions/purchase-order-actions';
 import { registerQuoteActions } from './actions/quote-actions';
+import { registerAcceptManuallyAction } from './actions/quote-manual-acceptance';
 import { registerRequestDepositAction } from './actions/request-deposit';
 import { registerRequestInstallmentsAction } from './actions/request-installments';
 import { registerRequestSignatureAction } from './actions/request-signature';
@@ -81,8 +82,12 @@ import {
   RealStripeCheckoutClient,
 } from './payments/providers/stripe/stripe-checkout-client';
 import { StripeProvider } from './payments/providers/stripe/stripe-provider';
+import { buildAcubeTransport } from './transports/acube-transport';
+import { buildBillitTransport } from './transports/billit-transport';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
+import { buildInvopopTransport } from './transports/invopop-transport';
+import { buildIopoleTransport } from './transports/iopole-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
 import { buildPdpReceptionStatusPusher } from './transports/pdp/pdp-reception';
@@ -275,6 +280,20 @@ function buildTransportRegistry(
       facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
     }),
   );
+  // "iopole" (France) - a second, independent French transmission platform alongside "pdp" above
+  // (issue #432). Registered exactly like every sibling: nothing about a platform is special-cased,
+  // a company opts in through `Company.invoiceTransportId`. Own `facturxFormatProvider` instance,
+  // the same "stateless, no reason to couple two registries" reasoning "pdp" above already holds,
+  // and with NO override: unlike "chorus-pro" below, Iopole reads BT-23 and the parties' legal
+  // identifiers the ordinary EN 16931 way - see `transports/iopole-transport.ts`'s own header.
+  registry.register(
+    'iopole',
+    'Iopole (France)',
+    buildIopoleTransport({
+      channelCredentials,
+      facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
+    }),
+  );
   registry.register('ksef', 'KSeF (Poland)', buildKsefTransport({ channelCredentials, fa3FormatProvider }));
   registry.register('sdi', 'SdI (Italy)', buildSdiTransport({ channelCredentials, fatturapaFormatProvider }));
   // "sdi-pec" — the SAME Sistema di Interscambio as "sdi" above, reached over a certified-email (PEC)
@@ -290,6 +309,21 @@ function buildTransportRegistry(
     'SdI via PEC (Italy)',
     buildSdiPecTransport({ channelCredentials, fatturapaFormatProvider, mailService }),
   );
+  // "acube" (`transports/acube-transport.ts`) - A-Cube, an Italian e-invoicing provider that is also
+  // a Peppol access point. It deposits the SAME FatturaPA "sdi"/"sdi-pec" build, through a REST API
+  // instead of SDICoop or PEC, and its sandbox round-trip is proven live (2026-09-24). ITALY IS OUT
+  // OF SCOPE for it nonetheless, by decision: `channel-policy/data/it.json`'s `sdi` mandate names
+  // only "sdi-pec" as equivalent, so an Italian company choosing this transport is refused at send -
+  // intended, not a defect, and read that transport's own header before touching either file. Own
+  // `fatturapaFormatProvider` reference, same "stateless, no reason to couple two registries"
+  // reasoning every transport above already holds.
+  // The label is deliberately jurisdiction-NEUTRAL, unlike every other entry in this registry. A
+  // label is what a company picks from in its own settings; the header explaining the refusal is not
+  // something it ever reads. "A-Cube (Italy)" would therefore invite exactly the mistake the policy
+  // above blocks - read "Italy", choose it for Italy, get refused at send with no idea why. No
+  // capability qualifier either: "Peppol access point" would be true of the ACCOUNT and false of
+  // this transport, which builds FatturaPA and nothing else today.
+  registry.register('acube', 'A-Cube', buildAcubeTransport({ channelCredentials, fatturapaFormatProvider }));
   // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
   // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
   // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
@@ -321,6 +355,24 @@ function buildTransportRegistry(
         legalIdOverride: 'full',
       }),
     }),
+  );
+  // "invopop" - takes NO format provider, unlike every other structured transport above: the platform
+  // speaks GOBL, its own JSON pivot, and converts to the local syntax itself. See
+  // `transports/invopop-transport.ts`'s own header.
+  registry.register('invopop', 'Invopop (GOBL)', buildInvopopTransport({ channelCredentials }));
+
+  // "billit" (Belgium, and a Peppol access point for everyone else) - the FIRST transport in this
+  // registry that speaks generic Peppol rather than one country's own authority protocol, which is
+  // also what opens Belgium, a country this product does not otherwise ship. It deposits the SAME
+  // `peppolBisFormatProvider` artifact `download-xml` already serves (shared module-level instance:
+  // that provider is a stateless object literal, unlike the `buildFacturxFormatProvider(...)`
+  // factories above, so there is nothing to give it an instance of its own for). See
+  // `transports/billit-transport.ts`'s own header for what it deliberately does NOT do - no poller,
+  // and no French "plateforme agreee" flow.
+  registry.register(
+    'billit',
+    'Billit (Peppol)',
+    buildBillitTransport({ channelCredentials, peppolBisFormatProvider }),
   );
   // "anaf" (Romania) and "face" (Spain, B2G) used to be registered here — both deleted outright
   // along with the rest of their countries' scope (2026-09-10, see
@@ -499,6 +551,9 @@ function buildActionRegistry(
   // provider of THIS module (below), the same "inject the concrete class here, never `import type`"
   // rule every other DI token on this page already follows.
   registerRequestSignatureAction(registry, signaturesService);
+  // Issue #421: "accept a quote manually" - pure function of the registry, needs no extra dependency,
+  // registers exactly like "request-deposit"/"request-installments" above.
+  registerAcceptManuallyAction(registry);
   registerInvoiceActions(registry, {
     transportRegistry,
     queueDispatcher,

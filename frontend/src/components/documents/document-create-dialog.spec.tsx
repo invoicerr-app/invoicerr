@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router"
 import { describe, expect, it, vi } from "vitest"
 
 import { PageHeaderProvider } from "@/components/page-header-provider"
+import { DocumentCreateDialog } from "@/components/documents/document-create-dialog"
 import type { DocumentTypeDescriptor } from "@/components/documents/types"
 
 import DocumentTypePage from "@/pages/(app)/documents/[typeId]/index"
@@ -61,6 +62,19 @@ function renderDocumentTypeScreen(typeId: string) {
   )
 }
 
+function renderCreateDialog(descriptor: DocumentTypeDescriptor) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <PageHeaderProvider>
+        <MemoryRouter>
+          <DocumentCreateDialog descriptor={descriptor} open onOpenChange={() => {}} />
+        </MemoryRouter>
+      </PageHeaderProvider>
+    </QueryClientProvider>,
+  )
+}
+
 describe("<DocumentCreateDialog> — every declared action blocked by country policy", () => {
   it("disables the wizard's own final button rather than a 'Continue' that silently does nothing", async () => {
     const descriptor: DocumentTypeDescriptor = {
@@ -101,7 +115,16 @@ describe("<DocumentCreateDialog> — every declared action blocked by country po
 
     renderDocumentTypeScreen("invoice")
 
-    fireEvent.click(await screen.findByTestId("document-create-button"))
+    // The list's own "New" button is disabled up front (`canCreateDocument`, PR #473 review round 2):
+    // opening a wizard whose last step can save nothing would only waste the user's time.
+    const createButton = await screen.findByTestId("document-create-button")
+    expect(createButton).toBeDisabled()
+    fireEvent.click(createButton)
+    expect(screen.queryByTestId("document-create-dialog")).not.toBeInTheDocument()
+
+    // The dialog itself is still reachable from elsewhere (a correction route opens it pre-filled,
+    // `invoice-correction-routes-button.tsx`), so its own guard is checked on its own.
+    renderCreateDialog(descriptor)
     await screen.findByTestId("document-create-dialog")
 
     // No action is runnable — the button must say so rather than reading "Continue" and doing

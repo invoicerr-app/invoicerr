@@ -14,7 +14,9 @@
  * taken).
  */
 import { logger } from '@/logger/logger.service';
+import { isValidEmailAddress } from '@/mail/is-valid-email';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+import prisma from '@/prisma/prisma.service';
 
 import { CompanyMailSettings, isCompanyMailSettings } from './company-mail-settings.types';
 
@@ -49,4 +51,30 @@ export async function resolveCompanyMailSettings(companyId: string): Promise<Com
     return null;
   }
   return resolved.config;
+}
+
+/**
+ * Resolves this company's OWN Reply-To override (`Company.mailReplyTo`), trimmed. `null` when unset,
+ * blank, or — a hand-edited row, never expected from `company-mail-settings.service.ts#setReplyTo`,
+ * which validates before writing — not a valid e-mail address: a corrupted value degrades to "no
+ * override" the same way `isCompanyMailSettings` failing above does for the encrypted config blob,
+ * never blocks or corrupts a send. Deliberately a PLAIN `prisma.company` read, not routed through
+ * `ChannelCredentialsService` like the mail-server override above: this column is not a secret (see
+ * its own schema.prisma comment) and exists independently of whether the company has one.
+ */
+export async function resolveCompanyReplyTo(companyId: string): Promise<string | null> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { mailReplyTo: true },
+  });
+  const value = company?.mailReplyTo?.trim();
+  if (!value) return null;
+  if (!isValidEmailAddress(value)) {
+    logger.error('Company.mailReplyTo does not look like a valid e-mail address — treating as unset.', {
+      category: 'mail',
+      details: { companyId },
+    });
+    return null;
+  }
+  return value;
 }

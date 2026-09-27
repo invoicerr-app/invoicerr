@@ -39,6 +39,17 @@ import { PolicyProvenance } from '../../country-policy/schema';
 
 export type ChannelRequirement = 'suggested' | 'mandated';
 
+/** The only value `ChannelPolicyScope.parties` may take today - see that field's own header. Kept as
+ *  a named union rather than a bare string so that adding a second narrowing (a role, a threshold)
+ *  is a deliberate, compile-checked change here, never a value someone invents in a JSON file. */
+export type ChannelPolicyParties = 'domestic';
+
+/** See `ChannelPolicyFact.scope`. A CLOSED shape: `assertValidChannelPolicyFact` refuses any other
+ *  key, because an ignored key here would silently mean "this narrowing does not apply". */
+export interface ChannelPolicyScope {
+  parties?: ChannelPolicyParties;
+}
+
 export interface ChannelPolicyFact {
   /** A `documents/transports/transport-registry.ts` id — e.g. "pdp". Deliberately NOT validated
    *  against the live `TransportRegistry` here: this file and that registry are two independently
@@ -71,13 +82,33 @@ export interface ChannelPolicyFact {
    * `invoice-actions.ts`'s own preflight is what actually treats a listed id as equally compliant.
    */
   equivalentProviderIds?: string[];
-  /** Free-form, e.g. `{ role: 'B2B' }` — an explicit extension point, deliberately UNUSED by this
-   *  task's own mechanism (every shipped mandate today applies unconditionally to every invoice the
-   *  issuing company sends): a future mandate that only binds a subset of invoices (a role, a buyer
-   *  country) has somewhere to put that fact without a schema change, but nothing reads it yet — the
-   *  same "not guessed" discipline `country-policy/schema.ts`'s own `notes` field already holds for a
-   *  different kind of extra fact. */
-  scope?: Record<string, unknown>;
+  /**
+   * WHICH invoices this fact binds, when it does not bind every one of them. Was reserved as a
+   * free-form `Record<string, unknown>` and read by nothing; it is now READ, by
+   * `mandate.ts#activeChannelMandateForOperation`, and therefore CLOSED (see
+   * `assertValidChannelPolicyFact` below). The reason the field stopped being free-form the moment
+   * it acquired an effect: it now DISARMS a legal block, so a typo in a key or a value would
+   * silently turn a mandate off - the worst possible failure direction for this file, and exactly
+   * the "looks fine but isn't" state this whole format exists to make impossible. An unknown key or
+   * an unknown value THROWS at load rather than being ignored.
+   *
+   * `parties: 'domestic'` - the mandate binds only an operation whose BUYER is established in this
+   * same country. This is not a product opinion: both national channel mandates shipped today say so
+   * in their own statutory text, quoted verbatim in their own `provenance.sourceText`. France's CGI
+   * art. 289 bis binds the emission through a plateforme agréée only between taxable persons
+   * established in France; Italy's D.Lgs. 127/2015 art. 1 comma 3 binds SdI invoicing only for
+   * supplies "tra soggetti residenti o stabiliti nel territorio dello Stato". Once one party is
+   * established elsewhere, the INVOICING mandate falls away and what each side owes its own
+   * administration is a DECLARATION (France: e-reporting, CGI art. 290; Italy: the comma 3-bis
+   * transmission of data on operations with non-established subjects) - a different obligation,
+   * discharged by different means, which this catalog does not model at all and must not pretend to
+   * (see `reporting/`'s own data files and their `notes` for how far that side actually goes).
+   *
+   * Absent means the fact binds every invoice the issuing company sends, unconditionally - the
+   * behaviour every fact had before this field was read, kept as the default so that adding a
+   * mandate stays "declare it and it binds", never "declare it and remember to arm it".
+   */
+  scope?: ChannelPolicyScope;
   provenance: PolicyProvenance;
   /** Free-form caveats — same convention as `country-policy/schema.ts`'s own `DocumentActionRuleFact.notes`. */
   notes?: string;
@@ -121,6 +152,39 @@ export function assertValidChannelPolicyFact(fact: ChannelPolicyFact, context: s
       throw new InvalidChannelPolicyProvenanceError(
         `${context}: fact "${fact.providerId}" lists itself in "equivalentProviderIds" — a provider ` +
           'never needs to be declared equivalent to itself.',
+      );
+    }
+  }
+
+  // `scope` is now READ (`mandate.ts#activeChannelMandateForOperation`) and DISARMS a mandate, so an
+  // unrecognized key or value can never be tolerated here: ignoring it would silently widen a
+  // mandate that a data file meant to narrow, or - worse in the other direction - leave a narrowing
+  // the author believed they had declared with no effect at all. See `ChannelPolicyFact.scope`.
+  if (fact.scope !== undefined) {
+    const scope = fact.scope as Record<string, unknown> | null;
+    if (typeof scope !== 'object' || scope === null || Array.isArray(scope)) {
+      throw new InvalidChannelPolicyProvenanceError(
+        `${context}: fact "${fact.providerId}" declares a "scope" that is not an object.`,
+      );
+    }
+    const unknownKey = Object.keys(scope).find((key) => key !== 'parties');
+    if (unknownKey) {
+      throw new InvalidChannelPolicyProvenanceError(
+        `${context}: fact "${fact.providerId}" declares an unknown "scope" key "${unknownKey}" - ` +
+          'the only key this format understands today is "parties". An unrecognized key would be ' +
+          'read by nothing and silently change nothing, so it is refused rather than ignored.',
+      );
+    }
+    if (scope.parties !== undefined && scope.parties !== 'domestic') {
+      throw new InvalidChannelPolicyProvenanceError(
+        `${context}: fact "${fact.providerId}" declares "scope.parties" as ` +
+          `"${String(scope.parties)}" - the only value this format understands today is "domestic".`,
+      );
+    }
+    if (Object.keys(scope).length === 0) {
+      throw new InvalidChannelPolicyProvenanceError(
+        `${context}: fact "${fact.providerId}" declares an empty "scope" - omit the field entirely ` +
+          'rather than declaring a narrowing that narrows nothing.',
       );
     }
   }

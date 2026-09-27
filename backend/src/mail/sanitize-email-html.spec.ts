@@ -60,16 +60,25 @@ describe('sanitizeEmailHtml', () => {
     expect(result).toContain('#f8f9fa');
   });
 
-  // Three GHSA advisories are open against the pinned sanitize-html@2.17.1; this regression proves
-  // each is unreachable through THIS policy specifically, independent of the library version — a
-  // future loosening of `EMAIL_HTML_POLICY` is what would actually reopen any of them, not the version
+  // Three GHSA advisories have been open against sanitize-html; this regression proves each is
+  // unreachable through THIS policy specifically, independent of the library version — a future
+  // loosening of `EMAIL_HTML_POLICY` is what would actually reopen any of them, not the version
   // number.
-  describe('GHSA advisories open against sanitize-html@2.17.1 — none reachable through this policy', () => {
-    it('GHSA-jxwj-j7wr-gfrw: the exact advisory PoC (literal `</textarea/>` mXSS) sanitizes to nothing', () => {
+  describe('GHSA advisories against sanitize-html — none reachable through this policy', () => {
+    it('GHSA-jxwj-j7wr-gfrw: the exact advisory PoC (literal `</textarea/>` mXSS) loses its handler', () => {
       // https://github.com/advisories/GHSA-jxwj-j7wr-gfrw — requires `textarea`/`xmp` in `allowedTags`,
       // which this policy never grants (and `textarea` is additionally in `nonTextTags` below).
+      //
+      // Asserted as a PROPERTY, not as an exact string. 2.17.1 happened to erase this payload
+      // entirely; 2.17.7 leaves an inert `<img src="x" />` behind after stripping the handler. Both
+      // are safe and the difference is cosmetic, but an equality assertion turns that cosmetic
+      // difference into a failing build — and the next person reads a red test about an mXSS
+      // advisory and has to work out from scratch that nothing is actually wrong.
       const poc = '<textarea></textarea/><img src=x onerror="alert(document.domain)">';
-      expect(sanitizeEmailHtml(poc)).toBe('');
+      const result = sanitizeEmailHtml(poc);
+      expect(result).not.toContain('onerror');
+      expect(result).not.toContain('alert');
+      expect(result).not.toContain('textarea');
     });
 
     it('GHSA-vccv-cmxp-4j9h: a javascript: URI through action/formaction/poster/background never survives — none of those attributes are ever allowed', () => {

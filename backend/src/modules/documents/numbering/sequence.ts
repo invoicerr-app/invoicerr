@@ -33,9 +33,12 @@
  * comment and country-policy/data/fr.json's top-level `notes` for the honest, unverified flag on
  * that separate, legal question.
  */
+import { ConflictException } from '@nestjs/common';
+
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import prisma from '@/prisma/prisma.service';
 
+import { DocumentInstanceResult } from '../actions/action-registry';
 import { formatDocumentNumber } from './format-number';
 
 type SequenceClient = Prisma.TransactionClient | typeof prisma;
@@ -122,4 +125,117 @@ export async function takeDocumentNumber(
     if (error instanceof AlreadyNumberedError) return undefined;
     throw error;
   }
+}
+
+/**
+ * Followup to issue #471 (PR #473, review point 1): a credit note (or any other numbered type) could
+ * reach "sending" numberless and STAY that way forever, because `actions/async-send.ts` used to write
+ * "sending" first, publish an SSE event second, and only THEN - a third, separate statement - take
+ * the number. Anything throwing between the first write and the third (a DB hiccup on the publish, an
+ * invalid stored number-format pattern `resolveNumberFormat` rejects, the SSE bus itself) left the
+ * record durably "sending" with `number: null`, and `numbering.onlyFrom: ['draft']`
+ * (credit-note.descriptor.ts) then refused a number on every later retry, because the record's
+ * PREVIOUS status is never "draft" again - the exact permanently-unnumbered outcome issue #471 exists
+ * to prevent, just moved one call later.
+ *
+ * The fix: fold the "draft"/"send_failed" -> "sending" status write and the numbering write into ONE
+ * Prisma transaction, the same "never waste a number, never half-do a numbering" discipline
+ * `takeDocumentNumber` above already holds for its own two writes. Either both land - the record
+ * leaves its old status ALREADY carrying its number, nothing else in this file's own call chain can
+ * observe it any other way - or neither does, and the record stays exactly where it was ("draft" or
+ * "send_failed"), free to retry. `events.publish` (the SSE nudge) and the queue enqueue that
+ * `async-send.ts` still runs AFTER this call can now throw all they like: the number is already a
+ * committed fact by the time either of them ever executes, so a failure there can strand a "sending"
+ * record without DELIVERING it, but never without NUMBERING it - the specific, legally-relevant gap
+ * this function closes. See `actions/async-send.ts`'s own call site for the belt-and-braces guard
+ * this pairs with: a type that declares no `numbering.onlyFrom` (quote, invoice) must NEVER show a
+ * null number on a "sending" record at all once this function is the only way it gets there, so
+ * phase 2 refuses to deliver one that somehow does rather than trust it silently.
+ *
+ * `fromStatuses`/`toStatus` mirror `persistence.ts#upsertDocument`'s own compare-and-swap - this
+ * function does not call that one (it needs its OWN transaction, and `upsertDocument` opens none), so
+ * it re-implements the identical conditional `updateMany` here rather than share a helper across two
+ * modules that otherwise have no reason to depend on each other.
+ *
+ * PR #473 review point 2 (round 2): the caller's own "is this record eligible for numbering at all"
+ * check (`async-send.ts`'s `eligibleForAtomicNumbering`) reads `existing.number == null` from a
+ * SNAPSHOT taken BEFORE this transaction ever starts - a `findOwnedDocument` read that can go stale
+ * the instant another request wins the race first. Two "send" calls on the SAME "send_failed" draft
+ * (a double click, two tabs) can both observe `number: null` in memory: the loser's transaction below
+ * still passes the `status: { in: fromStatuses } }` guard (its `where` never checked `number` at all -
+ * "send_failed" is itself one of the ALLOWED `fromStatuses`, precisely to let a genuine retry through),
+ * then used to bump the sequence and overwrite `number`/`displayNumber` unconditionally - RENUMBERING
+ * a document the winner had already numbered and delivered, opening a gap in a series that must stay
+ * continuous, and re-running `onNumbered` (ATCUD) a second time on a number that changed under it.
+ *
+ * The guard restored here does NOT re-check `number: null` on the status `updateMany` itself - unlike
+ * `takeDocumentNumber` above, the status move must still land even for a legitimate "send_failed
+ * retry of an already-numbered record" (the very case `async-send.spec.ts`'s "never re-numbers a
+ * record that already carries one" test protects, at the ORCHESTRATION layer - in-memory
+ * `eligibleForAtomicNumbering` skips this whole function for that case, calling `upsertDocument`
+ * instead; this function's own guard is what protects the DATABASE layer against the caller's snapshot
+ * being stale, a race no in-memory check can ever close). Instead: the status `updateMany` runs
+ * first (unconditionally on status, taking Postgres's own row-level lock on this document for the rest
+ * of the transaction - no other transaction can concurrently touch this row until this one commits or
+ * rolls back), and ONLY THEN does this function read the row's CURRENT `number` back, under that same
+ * lock. If it is already non-null - a concurrent winner beat this transaction to the sequence bump
+ * (or, more directly, an in-memory `eligibleForAtomicNumbering` computed against a stale read) - the
+ * status move is kept (a legitimate retry must still proceed to "sending") but the sequence is NEVER
+ * bumped and `number`/`displayNumber` are NEVER overwritten: `numbered` comes back `undefined`, which
+ * is exactly the "no number was taken on THIS call" signal `async-send.ts` already reads (via the
+ * shared `if (numbered) { ... }` guard) to skip the stock effect and `onNumbered` (ATCUD) for a race's
+ * loser - see that call site's own comment. This is the "keep the number, skip the bump" choice named
+ * in this function's own module header rather than a 409: refusing the whole "sending" transition here
+ * would leave a legitimately re-tried "send_failed" record permanently stuck outside "sending", the
+ * one outcome issue #471 itself exists to prevent.
+ */
+export async function takeDocumentNumberWithStatusTransition(
+  companyId: string,
+  typeId: string,
+  documentId: string,
+  fromStatuses: string[],
+  toStatus: string,
+  data: Record<string, unknown>,
+  pattern: string,
+  issuedAt: Date = new Date(),
+): Promise<{ document: DocumentInstanceResult; numbered: TakenDocumentNumber | undefined }> {
+  const jsonData = data as Prisma.InputJsonValue;
+
+  return prisma.$transaction(async (tx) => {
+    const written = await tx.documentInstance.updateMany({
+      where: { id: documentId, companyId, typeId, status: { in: fromStatuses } },
+      data: { status: toStatus, data: jsonData, lastActionError: null },
+    });
+    if (written.count === 0) {
+      // Same named refusal `upsertDocument` itself throws for the identical race (a concurrent caller
+      // already moved the record on) - a caller of THIS function replaces its own `upsertDocument`
+      // call with this one, so it must fail exactly the same way for the same condition.
+      throw new ConflictException(
+        `Document "${documentId}" is no longer in one of the expected statuses ` +
+          `(${fromStatuses.join(', ')}) - another request already changed it concurrently.`,
+      );
+    }
+
+    // THE RE-CHECK, under the row lock the `updateMany` above already holds (see this function's own
+    // header) - never trust the caller's own pre-transaction snapshot for whether a number is still
+    // needed; ask the database again, now that nothing else can be mutating this exact row.
+    const current = await tx.documentInstance.findUniqueOrThrow({
+      where: { id: documentId },
+      select: { number: true },
+    });
+    if (current.number != null) {
+      const document = await tx.documentInstance.findUniqueOrThrow({ where: { id: documentId } });
+      return { document, numbered: undefined };
+    }
+
+    const number = await bumpSequence(tx, companyId, typeId);
+    const displayNumber = formatDocumentNumber(pattern, { number, date: issuedAt });
+
+    const document = await tx.documentInstance.update({
+      where: { id: documentId },
+      data: { number, displayNumber },
+    });
+
+    return { document, numbered: { number, displayNumber } };
+  });
 }

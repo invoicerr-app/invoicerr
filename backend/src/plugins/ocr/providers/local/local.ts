@@ -44,6 +44,16 @@ export class LocalOcrProvider implements ReceivedDocumentExtractor {
     return mime === 'application/pdf';
   }
 
+  /** The readiness hint `received-invoices/ocr/extractor.ts#ReceivedDocumentExtractor.isConfigured`
+   *  declares — the SAME "is `OCR_SERVICE_URL` set" check `extract()` below already runs, just without
+   *  the round trip: `received-invoices.service.ts#upload` calls this BEFORE deciding whether to
+   *  enqueue a background OCR job at all, so an instance with nothing configured stays on the exact
+   *  synchronous path it always had, rather than enqueueing a job whose own `extract()` would just
+   *  throw `ExtractorNotReadyError` a moment later anyway. */
+  isConfigured(): boolean {
+    return Boolean(process.env.OCR_SERVICE_URL?.trim());
+  }
+
   async extract(bytes: Uint8Array, mime: string): Promise<ExtractedInvoiceProposal> {
     const serviceUrl = process.env.OCR_SERVICE_URL?.trim();
     if (!serviceUrl) {

@@ -83,4 +83,7 @@ export const queryKeys = {
     current: () => ["companyTransfer", "current"] as const,
     received: () => ["companyTransfer", "received"] as const,
   },
+  version: {
+    info: () => ["version", "info"] as const,
+  },
 } as const

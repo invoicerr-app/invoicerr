@@ -11,8 +11,28 @@ import type { WidgetRendererProps } from "./registry"
  *  the exact same status (never a plain lowercase word next to the colored badge the list uses for
  *  that same fact), a number is right-aligned in the mono tabular face, everything else is plain
  *  text. A column key is a naming convention a contribution controls, not a document type — this
- *  never branches on which type built the table. */
-function TableCellValue({ columnKey, value }: { columnKey: string; value: string | number | undefined }) {
+ *  never branches on which type built the table.
+ *
+ *  `optionsCount` (issue #373 follow-up) is the SAME convention: a row's own `total` cell is left
+ *  absent whenever the backend has no single total to report (a quote offering 2+ options), and the
+ *  row instead carries the plain NUMBER of options in a sibling key the columns array never lists -
+ *  so this component, not the backend, turns it into a translated sentence, the same "backend sends
+ *  the fact, the frontend translates it" split `status` already gets one line up. Reuses the exact
+ *  i18n key the client portal already ships for the identical fact
+ *  (`clientPortal.quotes.optionCount`, `pages/portal/index.tsx`) rather than adding a second one. */
+function TableCellValue({
+  columnKey,
+  value,
+  optionsCount,
+}: {
+  columnKey: string
+  value: string | number | undefined
+  optionsCount?: number
+}) {
+  const { t } = useTranslation()
+  if (columnKey === "total" && typeof optionsCount === "number") {
+    return <span>{t("clientPortal.quotes.optionCount", { count: optionsCount })}</span>
+  }
   if (value === undefined || value === null || value === "") return <span>—</span>
   if (columnKey === "status" && typeof value === "string") {
     return <DocumentStatusBadge status={value} />
@@ -56,7 +76,11 @@ export function TableWidgetRenderer({ widget }: WidgetRendererProps) {
                 <TableRow key={index}>
                   {table.columns.map((column) => (
                     <TableCell key={column.key}>
-                      <TableCellValue columnKey={column.key} value={row[column.key]} />
+                      <TableCellValue
+                        columnKey={column.key}
+                        value={row[column.key]}
+                        optionsCount={typeof row.optionsCount === "number" ? row.optionsCount : undefined}
+                      />
                     </TableCell>
                   ))}
                 </TableRow>

@@ -12,10 +12,14 @@
  * transitions (`actions/async-send.ts`, `queue/mark-send-failed.ts`) — persisted in either the API
  * process (phase 1, "sending") or a BullMQ worker (phase 2, "sent"/"send_failed") — plus one more for
  * a newly-journaled batch of authority events (`conformity/conformity-sweep-runner.ts`,
- * `reporting/reporting-runner.ts`, the SdI push receiver `transports/sdi/sdi-notifiche.service.ts`).
+ * `reporting/reporting-runner.ts`, the SdI push receiver `transports/sdi/sdi-notifiche.service.ts`),
+ * plus a FIFTH for the received-invoice OCR job's own backfill write
+ * (`received-invoices/ocr/run-ocr-job.ts`): none of the first four names "a background job just filled
+ * in some fields on a record the human already saved", so this stays its own, honestly-named kind
+ * rather than borrowing one that would mislead whoever reads a published message later.
  * See each call site's own comment for exactly which persisted write it follows.
  */
-export type DocumentEventKind = 'sending' | 'sent' | 'send_failed' | 'authority-event';
+export type DocumentEventKind = 'sending' | 'sent' | 'send_failed' | 'authority-event' | 'ocr-backfilled';
 
 /**
  * Deliberately THIN: never the resulting status/verdict itself, only enough to know WHICH document/

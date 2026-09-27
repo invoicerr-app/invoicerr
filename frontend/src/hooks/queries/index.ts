@@ -5,7 +5,13 @@ export {
   useClientSearch,
   useClientStatement,
   useClientDuplicates,
+  useImportClientsPreview,
+  useImportClientsConfirm,
   type ClientsListResponse,
+  type ClientImportRowResultWire,
+  type ClientImportDuplicateMatchWire,
+  type ClientImportPreviewResponse,
+  type ClientImportConfirmResponse,
 } from "./use-clients"
 export { useCompany } from "./use-company"
 export { useCompanies } from "./use-companies"
@@ -26,6 +32,7 @@ export {
   useSetCompanyMailSettings,
   useClearCompanyMailSettings,
   useTestCompanyMailSettings,
+  useSetCompanyMailReplyTo,
   type CompanyMailSettingsStatus,
   type SetCompanyMailSettingsInput,
   type SetCompanyMailSmtpSettings,
@@ -61,6 +68,7 @@ export {
   useDocumentTaxWarnings,
   useDocumentArchives,
   useVerifyDocumentArchive,
+  useDocumentManualAcceptance,
   useCorrectionRoutes,
   useDocumentAuthorityEvents,
   useRunDocumentAction,
@@ -78,7 +86,13 @@ export {
   type SelectableRowsResult,
 } from "./use-document-types"
 export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
-export { useUploadReceivedInvoice, type UploadReceivedInvoicePreview } from "./use-received-invoices"
+export { useVersionInfo, type VersionInfo } from "./use-version"
+export {
+  useUploadReceivedInvoice,
+  useReceivedInvoiceOcrResult,
+  type UploadReceivedInvoicePreview,
+  type ReceivedInvoiceOcrResult,
+} from "./use-received-invoices"
 export {
   useDocumentSchedules,
   useCreateDocumentSchedule,
@@ -92,6 +106,7 @@ export {
   useRequestPublicSignatureOtp,
   useSignPublicSignature,
   type PublicSignatureView,
+  type PublicSignatureOptionTotal,
 } from "./use-public-signature"
 export {
   usePortalAccess,

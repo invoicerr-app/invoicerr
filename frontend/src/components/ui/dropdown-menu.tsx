@@ -2,6 +2,7 @@ import type * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 
+import { guardCloseAutoFocus } from "@/lib/close-auto-focus-guard"
 import { cn } from "@/lib/utils"
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
@@ -19,6 +20,7 @@ function DropdownMenuTrigger({ ...props }: React.ComponentProps<typeof DropdownM
 function DropdownMenuContent({
   className,
   sideOffset = 4,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
@@ -30,6 +32,9 @@ function DropdownMenuContent({
           "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md",
           className,
         )}
+        // Issue #451 — see lib/close-auto-focus-guard.ts's own header. Applied here so every
+        // dropdown menu in the app gets it without per-call-site wiring.
+        onCloseAutoFocus={(event) => guardCloseAutoFocus(event, onCloseAutoFocus)}
         {...props}
       />
     </DropdownMenuPrimitive.Portal>
@@ -185,6 +190,10 @@ function DropdownMenuSubTrigger({
   )
 }
 
+// No close-autofocus guard here (issue #451): `@radix-ui/react-menu`'s `MenuSubContent` hardcodes
+// `onCloseAutoFocus: (event) => event.preventDefault()` UNCOMPOSED with any caller prop (see the
+// installed `node_modules/@radix-ui/react-menu/dist/index.mjs`, `MenuSubContent`) — a submenu never
+// restores focus on its own close at all, so wiring the guard here would be a no-op.
 function DropdownMenuSubContent({
   className,
   ...props

@@ -3,11 +3,11 @@
   "documentTypes": [
     "quote",
     "invoice",
-    "credit-note",
     "expense",
     "received-invoice",
     "purchase-order",
-    "goods-receipt"
+    "goods-receipt",
+    "credit-note"
   ],
   "rules": [
     {
@@ -85,6 +85,15 @@
       }
     },
     {
+      "typeId": "quote",
+      "actionId": "accept-manually",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "NO legal research was performed for this entry - unlike this rule's neighbors above, this note does not claim any text was read. Allowed because this action records an ISSUER-SIDE FACT ONLY - who marked a sent quote accepted, when, and by what means - and changes no fiscal fact and produces no document a third party ever receives, the same kind of internal record quote.duplicate above already sits on. WHAT WOULD SETTLE THIS: a text conditioning the evidentiary value, or the validity, of a quote's acceptance on the channel through which it was obtained - to be confirmed by a dedicated review before this record is relied on as a substitute for a legally regulated acceptance mechanism."
+      }
+    },
+    {
       "typeId": "invoice",
       "actionId": "save-draft",
       "allowed": true,
@@ -155,22 +164,24 @@
     {
       "typeId": "credit-note",
       "actionId": "save-draft",
-      "allowed": true,
+      "allowed": false,
       "provenance": {
-        "kind": "unverified",
-        "resolutionNote": "Saving a credit note draft is an internal product operation. The Polish correction legal regime (see credit-note.send below) concerns the CONTENT and the tax status of the document, not the act of saving a draft — same distinction as fr.json/de.json for this same action."
-      }
+        "kind": "legal",
+        "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+        "sourceCheckedAt": "2026-09-26"
+      },
+      "notes": "Owner decision (PR #473 review): a Polish seller issues no credit note, linked or free. The correction is a faktura korygująca, already implemented as a KOR invoice numbered in the invoice series. Art. 106j ust. 2 pkt 2 (\"numer kolejny\") is one of the mandatory particulars a faktura korygująca must carry, which this document type has no way to produce. A credit note issued before this decision is unaffected going forward (see credit-note-actions.ts's own header) - this rule only blocks a NEW save-draft/send. PR #473 review round 2: \"credit-note\" was briefly dropped from this file's own top-level `documentTypes` to go with this rule, which had the side effect of making an already-issued Polish credit note UNREACHABLE (no sidebar entry, no list) - reverted; the type stays LISTED, this rule alone is what keeps it read-only (no new save-draft/send, share-link untouched below)."
     },
     {
       "typeId": "credit-note",
       "actionId": "send",
-      "allowed": true,
+      "allowed": false,
       "provenance": {
         "kind": "legal",
-        "sourceText": "Interdite EN TANT QUE DOCUMENT DISTINCT — pas interdite en substance. Il n'existe pas d'instrument séparé : l'art. 106j ust. 1 donne UN instrument pour les deux sens, et l'énumération FA(3) RodzajFaktury est fermée — {VAT, KOR, ZAL, ROZ, UPR, KOR_ZAL, KOR_ROZ} — sans type « avoir ».",
-        "sourceCheckedAt": "2026-08-29"
+        "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+        "sourceCheckedAt": "2026-09-26"
       },
-      "notes": "REUSES the citation already read by correction-routes/data/pl.json (route CREDIT_NOTE, forbidden AS A SEPARATE DOCUMENT) — art. 106j ust. 1 ustawy o VAT; broszura FA(3), Ministerstwo Finansów, checked on 2026-08-29 (date preserved: reused, not re-verified by this task). NUANCE SPECIFIC TO POLAND, not to be missed: unlike the four other new countries, Poland has NO separate legal instrument named « nota kredytowa » — any reduction in amount goes through the SAME instrument as an increase, the faktura korygująca (art. 106j, route CORRECTIVE_INVOICE of correction-routes, 'required'). The SEND of this tool's 'credit-note' document, for a Polish company, must therefore be understood as functionally representing a negative-sense faktura korygująca, never a separate Polish document of type 'credit note' — allowed:true remains solely because REDUCING an invoice's amount via a referenced document is legally open (in fact mandatory in the 5 cases of art. 106j ust. 1) in Poland; only the TERMINOLOGY/the TYPE of instrument differs from what the document's name suggests. What would settle any potential CONTENT gap between the document this tool produces and a genuinely compliant faktura korygująca (mandatory mentions, KSeF number of the corrected invoice — art. 106j ust. 2 pkt 2a): a dedicated review of the Polish output format, outside the scope of this rule, which covers only the ACTION."
+      "notes": "Same owner decision and citation as credit-note.save-draft above - the corrective instrument for a Polish seller is the faktura korygująca (KOR), numbered in the invoice series, never this document type's own numbering series."
     },
     {
       "typeId": "credit-note",
@@ -178,7 +189,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Same reasoning as invoice.share-link above, applied to the credit note: no text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient."
+        "resolutionNote": "UNCHANGED by the owner's PR #473 decision refusing new credit notes for a Polish seller (see save-draft/send above): a credit note issued BEFORE that decision must stay readable/shareable - never deleted, never renumbered, only no longer editable or sendable. Same reasoning as invoice.share-link above otherwise: no text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient."
       }
     },
     {
@@ -302,5 +313,17 @@
       }
     }
   ],
-  "notes": "Poland — research from 2026-09-03. THIS IS THE UNBLOCKING TARGETED BY THIS TASK: before this file, a Polish company had EVERY document action blocked (DECISION 1 of country-policy.ts) — no pl.json file existed. The product-internal acts follow the same reasoning already held by fr.json/us.json for the same actions. The legal heavy lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on isap.sejm.gov.pl (the official consolidated text of the Sejm Chancellery, state of the law as of 2026-07-20) for art. 106m/106na of the ustawa o VAT (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/pl.json for the immutability of the issued invoice (invoice.save-draft, INTERNAL_CREDIT_NOTE forbidden — the most explicit citation among the five new countries: « nie jest możliwe jej edytowanie ») and for the credit note (credit-note.send, CREDIT_NOTE forbidden AS A SEPARATE DOCUMENT, the only notable Polish nuance: no separate 'nota kredytowa' instrument) — each valid only for the exact fact it settles here, never stretched beyond that."
+  "notes": "Poland - research from 2026-09-03. THIS IS THE UNBLOCKING TARGETED BY THIS TASK: before this file, a Polish company had EVERY document action blocked (DECISION 1 of country-policy.ts) - no pl.json file existed. The product-internal acts follow the same reasoning already held by fr.json/us.json for the same actions. The legal heavy lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on isap.sejm.gov.pl (the official consolidated text of the Sejm Chancellery, state of the law as of 2026-07-20) for art. 106m/106na of the ustawa o VAT (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/pl.json for the immutability of the issued invoice (invoice.save-draft, INTERNAL_CREDIT_NOTE forbidden - the most explicit citation among the five new countries: « nie jest możliwe jej edytowanie »); credit-note.save-draft/send were later reversed to allowed:false by PR #473's own owner decision (see those two rules' own notes) - a Polish seller issues no credit note at all, the faktura korygująca (a KOR invoice) is the only corrective instrument. \"credit-note\" itself stays in this file's own top-level `documentTypes` (PR #473 review round 2): dropping it there, alongside the allowed:false rules, made an ALREADY-ISSUED credit note unreachable in the app (no sidebar entry, no list) - the type is only refused for NEW save-draft/send, never hidden outright; an existing one stays listed, openable and shareable, per credit-note.save-draft's own note above.",
+  "numbering": [
+    {
+      "typeId": "credit-note",
+      "requirement": "type-not-issuable",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+        "sourceCheckedAt": "2026-09-26"
+      },
+      "notes": "art. 106j ust. 2 pkt 2 ustawy o VAT (tekst jednolity, isap.sejm.gov.pl PDF D20040535Lj, read 2026-09-26). The credit-note TYPE is refused outright for a Polish seller (correction-routes/data/pl.json's own CREDIT_NOTE 'forbidden' route, read by credit-note-actions.ts#assertCreditNoteAllowedForCountry) - the Polish correction is a KOR, i.e. an INVOICE carrying correctsInvoiceId, numbered in the invoice's own series by the invoice's own numbering (descriptors/invoice.descriptor.ts). This fact's requirement is therefore already satisfied by the invoice type; there is nothing on the credit-note type itself to number for a Polish seller."
+    }
+  ]
 }

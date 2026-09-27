@@ -46,6 +46,17 @@ export class FakeReceivedInvoiceOcrExtractor implements ReceivedDocumentExtracto
     return mime === 'application/pdf';
   }
 
+  /** Always `true` — unlike `LocalOcrProvider`, this fake has no "is a URL configured" fact to report
+   *  cheaply: whether it actually answers for a given deposit can only be known by looking at the
+   *  deposit's own bytes (the `FAKE_OCR_MARKER` check below), which is exactly what `extract()` still
+   *  does, unchanged. Reporting `true` here keeps every Cypress spec exercising this fake on the SAME
+   *  enqueue-then-poll path a real, configured provider now takes — see
+   *  `received-invoices/ocr/extractor.ts`'s own header on `isConfigured` for why "assume it's worth
+   *  trying" is the documented, correct answer for an extractor that decides per document. */
+  isConfigured(): boolean {
+    return true;
+  }
+
   async extract(bytes: Uint8Array): Promise<ExtractedInvoiceProposal> {
     const text = Buffer.from(bytes).toString('utf-8');
     if (!text.includes(FAKE_OCR_MARKER)) {

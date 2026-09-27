@@ -44,6 +44,38 @@
  *    scenarios this bridge does not build at all (attachments, DEX sub-lines, CVD vehicles) — never
  *    triggered by a normal invoice, so nothing to fill.
  *
+ * ## BT-23 (`cbc:ProfileID`): the KoSIT delta is silent, the SPECIFICATION is not
+ *
+ * The vendored delta contains ZERO assertions on `cbc:ProfileID` (grep it: no `ProfileID`, no
+ * `BT-23`, no `PEPPOL-EN16931-*` rule at all), so this gate cannot see that element and never will.
+ * The requirement is normative in the XRechnung standard document itself, not in the Schematron:
+ *
+ *  - "Spezifikation Standard XRechnung CIUS und Extension", Version 3.0.2 (KoSIT, 2024-06-20),
+ *    section 11.27 "Gruppe PROCESS CONTROL": `Business process type` BT-23, `Anz. 1`, MANDATORY,
+ *    raised from EN 16931's own 0..1 (section 12.5 lists PEPPOL-EN16931-R001, "Das Element
+ *    'Business process type' (BT-23) muss uebermittelt werden", among the Peppol BIS Billing 3.0
+ *    rules adopted verbatim into the XRechnung CIUS).
+ *  - The same section's `Anmerkung`, verbatim: "Die mit diesem Informationselement zu uebermittelnde
+ *    Angabe wird vom Erwerber spezifiziert. Innerhalb des Peppol eDelivery Networks ist
+ *    PEPPOL-EN16931-R007 ('Business process MUST be in the format
+ *    urn:fdc:peppol.eu:2017:poacc:billing:NN:1.0 where NN indicates the process number.') zu
+ *    beachten. Wurde keine Vorgabe zur Befuellung des zu uebermittelnden Feldes gemacht, kann als
+ *    Default-Wert 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0' uebermittelt werden."
+ *
+ * So the value belongs to the BUYER's process, with the Peppol billing URN as the documented
+ * default, and on the Peppol route (the one German public buyers are reached through) the URN FORMAT
+ * is outright mandatory. A mandated French seller (issueDate on or after 2026-09-01) otherwise has
+ * `business-process.ts#resolveFrenchBusinessProcessCode` write a French CGI code (B1/S1/M1/...) into
+ * this very element: a "cadre de facturation" category from CGI ann. II art. 242 nonies A, which is
+ * neither a URN nor anything a German Erwerber specified. BT-23 has different homes per SYNTAX, not
+ * per seller, and the French code's home is the CII/Factur-X channel, untouched here. This bridge
+ * therefore passes `businessProcessCodeOverride` below, the SAME mechanism `peppol-bis-provider.ts`
+ * uses for GH-448 and `facturx-provider.ts`'s Chorus Pro instance for its own reason.
+ *
+ * READ THIS BEFORE TRUSTING A GREEN RUN: because the delta has no assertion on the element, the
+ * KoSIT gate accepts `<cbc:ProfileID>M1</cbc:ProfileID>` and the corrected URN alike. Measured, not
+ * assumed. `xrechnung-provider.spec.ts`'s BT-23 test is the ONLY guard on this value.
+ *
  * ## DECISION: the delta is BLOCKING (unlike at the reference)
  *
  * At the `avant-refonte-documents` reference (`compliance/providers/format/providers.ts`), the
@@ -72,6 +104,13 @@ import { EN16931_UBL_SCH, validateSchematron, XRECHNUNG_UBL_SCH } from './vendor
  */
 const XRECHNUNG_CUSTOMIZATION_ID = 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0';
 
+/** BT-23. The Default-Wert the XRechnung 3.0.2 specification itself names for the case no buyer gave
+ *  one (section 11.27, `Anmerkung`, quoted in this file's own header), and the one value that also
+ *  satisfies PEPPOL-EN16931-R007 when the document travels over the Peppol eDelivery Network. It is
+ *  byte-for-byte what `@e-invoice-eu/core` already emitted by default for every seller this codebase
+ *  derives NO business process code for, so only a mandated French seller's document changes. */
+const XRECHNUNG_BUSINESS_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
+
 async function build(
   descriptor: DocumentTypeDescriptor,
   document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
@@ -80,6 +119,7 @@ async function build(
 ): Promise<DocumentFormatBuildResult> {
   const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
     customizationId: XRECHNUNG_CUSTOMIZATION_ID,
+    businessProcessCodeOverride: XRECHNUNG_BUSINESS_PROCESS_ID,
   });
 
   const service = newEuInvoiceService();

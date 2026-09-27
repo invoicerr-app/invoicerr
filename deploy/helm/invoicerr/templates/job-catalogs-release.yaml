@@ -20,9 +20,30 @@ schema migration touching one of the three catalog tables, this hook could other
 here, then again (redundantly) inside the new api pod's own boot — Prisma Migrate is idempotent and
 takes its own advisory lock.
 
-Runs on `pre-install` too, not just `pre-upgrade`: a fresh install has no prior country data to
-remove, so the purge itself is a no-op there, but keeping ONE hook for "materialize a new app
-version" (install included) is simpler than special-casing the very first deployment.
+Runs on install too, not just upgrade: a fresh install has no prior country data to remove, so the
+purge itself is a no-op there, but keeping ONE hook for "materialize a new app version" (install
+included) is simpler than special-casing the very first deployment.
+
+WHICH install hook, though, depends on `postgresql.enabled` — see the annotation below. With an
+EXTERNAL database (the production default) the database already exists before this chart's very
+first install, so `pre-install` has always worked and stays untouched. With the BUNDLED, dev/kind
+Postgres (`deployment-postgres.yaml`), `pre-install` is exactly the ordering that CANNOT work: Helm
+runs pre-install hooks before any of this release's ordinary manifests are even applied, so on a
+fresh install the bundled Postgres Deployment/Service do not exist yet — there is nothing at
+`<postgres-service>:5432` for this Job to reach, not "not ready yet" but not there at all, no DNS
+name to even resolve. OBSERVED for real on a Scaleway Kapsule cluster, 2026-09-22, running a load
+test: `Error: P1001: Can't reach database server at "lt-invoicerr-postgres:5432"`, every time, on
+every fresh `postgresql.enabled=true` install. The only workaround at the time was `helm install
+--no-hooks` followed immediately by `helm upgrade` — the upgrade's `pre-upgrade` hook then found a
+Postgres that the first, hook-skipped apply had already created. `post-install` fixes the actual
+install leg properly: it runs after this release's ordinary manifests (bundled Postgres included)
+are applied, so the Service exists by the time this Job's pod is scheduled — the wait-for-postgres
+init container below then only has to wait out `initdb` + first boot, not a nonexistent hostname.
+This is safe to special-case ONLY because a fresh install is the one case with NOTHING to purge (see
+the "WHY a separate, pre-rollout Job at all" paragraph above) — the ordering-before-any-new-replica
+guarantee this Job exists for is a non-issue when there is no previous replica and no removed
+country yet. `pre-upgrade` is untouched either way: by the time of an upgrade the bundled Postgres
+already exists from the prior release and is already reachable, so this was never the broken leg.
 
 `before-hook-creation`: a leftover Job from a previous release (e.g. one that failed) is deleted
 before this one is created, rather than colliding on the fixed name below. `hook-succeeded`: a
@@ -37,7 +58,13 @@ metadata:
   labels:
     {{- include "invoicerr.componentLabels" (dict "context" . "component" "catalogs-release") | nindent 4 }}
   annotations:
+    # See this Job's own header above for the full "which hook, and why it differs by
+    # postgresql.enabled" account.
+    {{- if .Values.postgresql.enabled }}
+    "helm.sh/hook": post-install,pre-upgrade
+    {{- else }}
     "helm.sh/hook": pre-install,pre-upgrade
+    {{- end }}
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
@@ -48,18 +75,43 @@ spec:
         {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "catalogs-release") | nindent 8 }}
     spec:
       restartPolicy: Never
-      {{/* NO `serviceAccountName` here, deliberately — this is a pre-install hook.
-      Helm runs pre-install hooks to completion BEFORE applying the chart's ordinary manifests, and
-      the ServiceAccount this chart creates (`serviceaccount.yaml`, `serviceAccount.create: true` by
-      default) is one of those ordinary manifests. Naming it here therefore asks Kubernetes for a
-      ServiceAccount that cannot exist yet: the Job is created, its pod is refused with
-      `FailedCreate: serviceaccount "<release>" not found`, the Job sits at 0/1 with no pod, and
-      Helm waits out its `--timeout` and rolls back. On a FIRST install that deadlock is total —
-      the ServiceAccount is only ever created after the hook succeeds, which it never does. It went
-      unnoticed because `helm upgrade` fires `pre-upgrade` against a namespace where a previous
-      apply already left the ServiceAccount behind; only the very first install is affected, which
-      is exactly the one nobody rehearses. The pod falls back to the namespace's `default`
-      ServiceAccount, which is what this Job needs: it seeds catalogs into Postgres over
+      {{- if .Values.postgresql.enabled }}
+      # `post-install` (see the annotation above) only guarantees the bundled Postgres
+      # Deployment/Service EXIST by the time this Job's pod is created — not that `postgres` inside
+      # the container has finished `initdb` and started accepting connections yet. Same wait-for-TCP
+      # pattern as deployment-api.yaml's own `wait-for-redis` / deployment-worker.yaml's own
+      # `wait-for-api`: wait out an ordinary startup race here, so this Job's own `backoffLimit`
+      # stays reserved for an actual failure (a bad migration, a real connection error) instead of
+      # being burned on "Postgres hadn't finished booting yet".
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for {{ include "invoicerr.componentFullname" (dict "context" . "component" "postgres") }}:5432...";
+              until nc -z -w 2 "{{ include "invoicerr.componentFullname" (dict "context" . "component" "postgres") }}" 5432; do
+                echo "postgres not reachable yet — retrying in 3s...";
+                sleep 3;
+              done;
+              echo "postgres is reachable. Running migrations + catalog release.";
+      {{- end }}
+      {{/* NO `serviceAccountName` here, deliberately — this matters most on the `pre-install` leg
+      (external database, see the annotation above): Helm runs pre-install hooks to completion
+      BEFORE applying the chart's ordinary manifests, and the ServiceAccount this chart creates
+      (`serviceaccount.yaml`, `serviceAccount.create: true` by default) is one of those ordinary
+      manifests. Naming it here therefore asks Kubernetes for a ServiceAccount that cannot exist
+      yet: the Job is created, its pod is refused with `FailedCreate: serviceaccount "<release>" not
+      found`, the Job sits at 0/1 with no pod, and Helm waits out its `--timeout` and rolls back. On
+      a FIRST install that deadlock is total — the ServiceAccount is only ever created after the hook
+      succeeds, which it never does. It went unnoticed because `helm upgrade` fires `pre-upgrade`
+      against a namespace where a previous apply already left the ServiceAccount behind; only the
+      very first install is affected, which is exactly the one nobody rehearses. The `post-install`
+      leg (bundled database) does NOT have this problem — the ServiceAccount already exists by then
+      too — but omitting `serviceAccountName` here stays correct either way and keeps this Job's
+      spec identical regardless of which hook fired it. The pod falls back to the namespace's
+      `default` ServiceAccount, which is what this Job needs: it seeds catalogs into Postgres over
       `DATABASE_URL` and never calls the Kubernetes API, so it requires no API permissions and no
       identity of its own. Do not "restore" this line for symmetry with the Deployments — they are
       ordinary resources applied after the ServiceAccount exists, and they may legitimately carry

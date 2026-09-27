@@ -7,6 +7,13 @@ export interface MailAttachment {
 export interface MailOptions {
   to?: string;
   from?: string;
+  /**
+   * Reply-To header. Resolved ONCE, centrally, by `mail.service.ts`'s own
+   * `resolveEffectiveReplyTo` (explicit value here, if a caller ever sets one, wins outright; else
+   * the company's own override, then the instance's `MAIL_REPLY_TO`; `undefined` when none apply) —
+   * every provider below just forwards whatever ends up here, never re-derives it.
+   */
+  replyTo?: string;
   subject: string;
   text?: string;
   html?: string;

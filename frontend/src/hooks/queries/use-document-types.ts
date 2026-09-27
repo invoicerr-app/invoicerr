@@ -18,6 +18,7 @@ import type {
   DocumentTypeDescriptor,
   DocumentTypeSummary,
   EntityReferenceOption,
+  ManualAcceptance,
 } from "@/components/documents/types"
 
 /**
@@ -136,6 +137,9 @@ export interface DocumentInstancesFilters {
   /** `YYYY-MM-DD`, inclusive — matches the backend's own `dateFrom`/`dateTo` contract. */
   dateFrom?: string
   dateTo?: string
+  /** `GET /documents`'s own `settlement` filter (backend's `dto/list-documents.dto.ts`), only ever
+   *  meaningful with `typeId: "invoice"`; the backend 400s otherwise. */
+  settlement?: "unsettled" | "overdue"
   q?: string
   sort?: "updatedAt" | "createdAt" | "number" | "status"
   order?: "asc" | "desc"
@@ -160,6 +164,7 @@ function buildDocumentListParams(typeId: string, filters: DocumentInstancesFilte
   if (filters.clientId) params.set("clientId", filters.clientId)
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
   if (filters.dateTo) params.set("dateTo", filters.dateTo)
+  if (filters.settlement) params.set("settlement", filters.settlement)
   if (filters.q) params.set("q", filters.q)
   if (filters.sort) params.set("sort", filters.sort)
   if (filters.order) params.set("order", filters.order)
@@ -230,6 +235,21 @@ export function useDocumentArchives(typeId: string | undefined, id: string | und
   return useApiQuery<DocumentArchive[]>(
     ["documents", typeId, id, "archives"],
     `/api/documents/${id}/archives?typeId=${typeId}`,
+    { enabled: !!typeId && !!id },
+  )
+}
+
+/**
+ * Issue #421 - this document's own manual-acceptance record, if any (`null` for a quote never marked
+ * accepted by anything other than the e-signature flow). Keyed under `["documents", ...]` like
+ * `useDocumentArchives` right above, for the identical reason: "accept-manually"'s own
+ * `useRunDocumentAction` already sweeps every "documents"-keyed query on success, so this needs no
+ * invalidation wiring of its own.
+ */
+export function useDocumentManualAcceptance(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<ManualAcceptance | null>(
+    ["documents", typeId, id, "manual-acceptance"],
+    `/api/documents/${id}/manual-acceptance?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
   )
 }

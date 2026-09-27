@@ -1,0 +1,132 @@
+time="2026-09-22T19:13:46+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmtdx02tz0h9yr1j50gbb/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:46+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmte102u00h9yx49g88z9/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:46+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmtts02u60h9y7bt62no8/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:46+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmttb02u50h9yyycrq37t/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:46+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmtxi02u80h9yedmpgu0v/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:46+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmtws02u70h9y25lbsgp9/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:47+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmu9102ua0h9ymskrxyzq/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:48+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmvb202uc0h9yj0yotz1u/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:48+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmvfi02ue0h9y8pv693dl/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:50+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmwcb02uj0h9y6mn7mh29/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:50+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmwdz02ul0h9yd2spx4gj/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:50+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmwee02um0h9yqsd671g4/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:50+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmwf002un0h9ylk08697g/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:50+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmwhi02uo0h9yd1xa5huf/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:53+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmy4702us0h9yioxoh8fd/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:53+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmy4e02uu0h9ynng2y2g9/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:13:53+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxmy4b02ut0h9yqa58qe6i/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:14:01+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/documents/cmucxn50702uw0h9ywlyhveeo/pdf?typeId=invoice\": request timeout"
+time="2026-09-22T19:14:04+02:00" level=warning msg="Request Failed" error="Post \"http://195.154.157.93/api/documents/types/invoice/actions/send\": EOF"
+time="2026-09-22T19:14:17+02:00" level=warning msg="Request Failed" error="Get \"http://195.154.157.93/api/auth/get-session\": request timeout"
+
+
+  █ THRESHOLDS 
+
+    http_req_duration{name:company_info}
+    ✓ 'max>=0' max=1.81s
+
+    http_req_duration{name:dashboard}
+    ✓ 'max>=0' max=1.07s
+
+    http_req_duration{name:invoice_pdf}
+    ✓ 'max>=0' max=1m0s
+
+    http_req_duration{name:invoice_send}
+    ✓ 'max>=0' max=32.65s
+
+    http_req_duration{name:list_clients}
+    ✓ 'max>=0' max=634.13ms
+
+    http_req_duration{name:list_invoices}
+    ✓ 'max>=0' max=31.27s
+
+    http_req_duration{name:list_quotes}
+    ✓ 'max>=0' max=1.14s
+
+    http_req_duration{name:login}
+    ✓ 'max>=0' max=0s
+
+    http_req_duration{name:ocr_upload}
+    ✓ 'max>=0' max=1m16s
+
+    http_req_duration{name:poll_invoice}
+    ✓ 'max>=0' max=56.52s
+
+    http_req_duration{name:quote_convert}
+    ✓ 'max>=0' max=1.23s
+
+    http_req_duration{name:quote_create}
+    ✓ 'max>=0' max=1.29s
+
+    http_req_duration{name:session}
+    ✓ 'max>=0' max=1m0s
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 76997  183.325831/s
+    checks_succeeded...: 9.52%  7333 out of 76997
+    checks_failed......: 90.47% 69664 out of 76997
+
+    ✗ session 200
+      ↳  4% — ✓ 437 / ✗ 9951
+    ✗ company_info 200
+      ↳  5% — ✓ 532 / ✗ 9856
+    ✗ dashboard 200
+      ↳  5% — ✓ 541 / ✗ 9847
+    ✗ list_quotes 200
+      ↳  5% — ✓ 555 / ✗ 9833
+    ✗ list_invoices 200
+      ↳  5% — ✓ 565 / ✗ 9823
+    ✗ list_clients 200
+      ↳  5% — ✓ 575 / ✗ 9813
+    ✗ quote_create 201
+      ↳  5% — ✓ 584 / ✗ 9804
+    ✓ quote_convert 201
+    ✗ invoice_pdf 200
+      ↳  96% — ✓ 562 / ✗ 22
+    ✗ pdf is a PDF
+      ↳  96% — ✓ 562 / ✗ 22
+    ✗ invoice_send 201
+      ↳  95% — ✓ 557 / ✗ 27
+    ✗ poll_invoice 200
+      ↳  57% — ✓ 724 / ✗ 537
+    ✓ invoice sent
+    ✗ ocr_upload 201
+      ↳  2% — ✓ 3 / ✗ 129
+
+    CUSTOM
+    send_to_sent...................: avg=1.61s    med=1.09s    p(95)=2.36s    p(99)=14.28s   max=20.57s   count=552  
+    throttled_429..................: 95     0.22619/s
+
+    HTTP
+    http_req_duration..............: avg=206.41ms med=10.94ms  p(95)=109.7ms  p(99)=925.29ms max=1m16s    count=75861
+      { expected_response:true }...: avg=824.05ms med=132.28ms p(95)=5.89s    p(99)=9.5s     max=1m16s    count=6219 
+      { name:company_info }........: avg=21.05ms  med=10.87ms  p(95)=36.16ms  p(99)=302.15ms max=1.81s    count=10388
+      { name:dashboard }...........: avg=24.93ms  med=10.88ms  p(95)=51.85ms  p(99)=414.34ms max=1.07s    count=10388
+      { name:invoice_pdf }.........: avg=7.83s    med=7.12s    p(95)=10.29s   p(99)=1m0s     max=1m0s     count=584  
+      { name:invoice_send }........: avg=1.24s    med=297.83ms p(95)=1.66s    p(99)=31.6s    max=32.65s   count=584  
+      { name:list_clients }........: avg=19.03ms  med=10.9ms   p(95)=41.26ms  p(99)=262.63ms max=634.13ms count=10388
+      { name:list_invoices }.......: avg=20.61ms  med=10.9ms   p(95)=34.1ms   p(99)=187.08ms max=31.27s   count=10388
+      { name:list_quotes }.........: avg=16.84ms  med=10.91ms  p(95)=34.56ms  p(99)=180.71ms max=1.14s    count=10388
+      { name:login }...............: avg=0s       med=0s       p(95)=0s       p(99)=0s       max=0s       count=0    
+      { name:ocr_upload }..........: avg=58.61s   med=1m0s     p(95)=1m6s     p(99)=1m16s    max=1m16s    count=132  
+      { name:poll_invoice }........: avg=345.48ms med=45.35ms  p(95)=236.63ms p(99)=2.47s    max=56.52s   count=1261 
+      { name:quote_convert }.......: avg=240.11ms med=141.47ms p(95)=775.66ms p(99)=897.7ms  max=1.23s    count=584  
+      { name:quote_create }........: avg=25.79ms  med=10.97ms  p(95)=67.15ms  p(99)=459.06ms max=1.29s    count=10388
+      { name:session }.............: avg=67.92ms  med=10.87ms  p(95)=18.7ms   p(99)=155.67ms max=1m0s     count=10388
+    http_req_failed................: 91.80% 69642 out of 75861
+    http_reqs......................: 75861  180.621074/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.54s    med=78.12ms  p(95)=3.13s    p(99)=1m8s     max=1m34s    count=10383
+    iterations.....................: 10383  24.72138/s
+    vus............................: 5      min=5              max=50
+    vus_max........................: 50     min=50             max=50
+
+    NETWORK
+    data_received..................: 109 MB 259 kB/s
+    data_sent......................: 56 MB  132 kB/s
+
+
+

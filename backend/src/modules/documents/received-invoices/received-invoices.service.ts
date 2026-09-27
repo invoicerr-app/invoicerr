@@ -13,18 +13,36 @@
  * in: `ocr/apply-ocr-fallback.ts` — this service never imports a cloud provider, only that pure
  * orchestration function and the fields it hands back (see `ocr/extractor.ts`'s own header for the
  * full "core has no cloud dependency" reasoning).
+ *
+ * OCR itself is either run SYNCHRONOUSLY, inside this request, or handed off to the dedicated
+ * `received-invoice-ocr` BullMQ queue (`ocr/ocr-queue.constants.ts`) and returned as
+ * `ocr: { outcome: 'pending' }` — see `upload()`'s own comment for exactly which. Moved off the
+ * request entirely because Tesseract, run synchronously through the OCR container, could make the
+ * browser wait up to the frontend's own 60s upload timeout under real load — a request timing out
+ * while the file WAS actually stored, with nothing left for the upload dialog to show for it.
  */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { computeArtifactHash } from '../archive/hashing';
 import { findOwnedDocument, listAllDocuments } from '../persistence';
-import { extractReceivedInvoiceFields } from './extraction';
-import { applyOcrFallback, OcrOutcome } from './ocr/apply-ocr-fallback';
+import {
+  ReceivedInvoiceOcrDispatcher,
+  ReceivedInvoiceOcrResult,
+} from '../queue/received-invoice-ocr.dispatcher';
+import { ExtractionResult, extractReceivedInvoiceFields } from './extraction';
+import { applyOcrFallback, needsOcr, OcrOutcome } from './ocr/apply-ocr-fallback';
+import { receivedDocumentExtractorRegistry } from './ocr/extractor';
 import { persistInboundFile, readInboundFile } from './storage';
 import { reconcileSupplierClient, SupplierMatchResult } from './supplier-reconciliation';
 import { sanitizeFileName, validateInboundFile } from './upload-validation';
 
 const TYPE_ID = 'received-invoice';
+
+/** The one mime `ocr/extractor.ts`'s registered providers ever declare `supports()` for — see
+ *  `apply-ocr-fallback.ts`'s own `applyOcrFallback` for why a generic/wrong upload mime on an
+ *  otherwise-clearly-`.pdf` file must not defeat resolution; this gate deliberately checks the SAME
+ *  normalized mime that function would end up resolving against, never `input.mime` verbatim. */
+const PDF_MIME = 'application/pdf';
 
 export interface UploadReceivedInvoiceInput {
   fileName: string;
@@ -67,12 +85,20 @@ export interface UploadReceivedInvoicePreview {
    * (see that field's own comment): the upload dialog must be able to tell "OCR extracted this" or
    * "no OCR available, fill in by hand" or "the OCR provider errored" apart from a merely-empty
    * `extraction.fields` — never a silent, unexplained blank form.
+   *
+   * A FIFTH outcome, `{ outcome: 'pending' }`, means OCR was handed off to the dedicated
+   * `received-invoice-ocr` queue instead of running inside this request — `extraction`/`supplierMatch`
+   * above are then computed from empty fields (nothing has been read yet), and the frontend polls
+   * `GET /documents/received-invoices/upload/:fileRef/ocr` for the real outcome. See `upload()`'s own
+   * comment for exactly when this happens.
    */
   ocr: OcrOutcome;
 }
 
 @Injectable()
 export class ReceivedInvoicesService {
+  constructor(private readonly ocrDispatcher: ReceivedInvoiceOcrDispatcher) {}
+
   /**
    * Stores the uploaded file content-addressed, refuses an EXACT repeat (same company, same
    * SHA-256, already the `fileRef` of an EXISTING received-invoice record) by name, and returns a
@@ -112,9 +138,38 @@ export class ReceivedInvoicesService {
     await persistInboundFile(companyId, fileRef, input.mime, bytes);
 
     const structural = await extractReceivedInvoiceFields(bytes, input.mime, fileName);
+
+    // Asynchronous OCR — see this file's own header for why. Enqueued instead of run inline ONLY when
+    // ALL THREE hold: `needsOcr` (a PDF with nothing structural — the exact condition
+    // `applyOcrFallback` itself uses), a real extractor is registered for PDFs, AND that extractor
+    // reports itself configured (`isConfigured?.() !== false` — an ABSENT method, or one returning
+    // `true`, both mean "assume it's worth trying"; see `ocr/extractor.ts`'s own header on that
+    // contract). A self-hosted instance with NO extractor configured at all (`OCR_SERVICE_URL` unset)
+    // fails this gate on the third condition and falls straight through to the exact same synchronous
+    // path this method has always run — `LocalOcrProvider.isConfigured()` returns `false`, so nothing
+    // about this change alters that instance's behavior even by one HTTP round trip.
+    if (this.shouldEnqueueOcr(structural, input.mime, fileName)) {
+      await this.ocrDispatcher.enqueue({ companyId, fileRef, fileName, mime: input.mime });
+      // Computed from EMPTY fields, exactly the way `reconcileSupplierClient` is called a few lines
+      // below for the synchronous path — nothing has been read yet, so this can only ever land on
+      // `{ outcome: 'unmatched', reason: 'no-criteria' }`, resolved synchronously (no criteria means
+      // neither branch inside it ever reaches Prisma).
+      const supplierMatch = await reconcileSupplierClient(companyId, {});
+      return {
+        fileRef,
+        fileName,
+        mime: input.mime,
+        extraction: { syntax: null, fields: {} },
+        supplierMatch,
+        ocr: { outcome: 'pending' },
+      };
+    }
+
     // OCR fallback — tried ONLY when `structural` found nothing at all AND this deposit is
     // a PDF (see that function's own header): a working CII/UBL/Factur-X read is never
-    // second-guessed by OCR, and OCR is never attempted for anything but a PDF.
+    // second-guessed by OCR, and OCR is never attempted for anything but a PDF. Reached here either
+    // because `needsOcr` is false (nothing to try) or because no configured extractor exists — the
+    // gate above already ruled out every case an extractor would actually be CALLED asynchronously.
     const {
       syntax,
       fields: extractedFields,
@@ -144,6 +199,28 @@ export class ReceivedInvoicesService {
       supplierMatch,
       ocr,
     };
+  }
+
+  /** The enqueue gate `upload()` above calls — see that call site's own comment for the exact
+   *  three-part rule. Pulled into its own method purely so that comment can name it once, at the call
+   *  site, rather than reading as a single long `if` condition. */
+  private shouldEnqueueOcr(structural: ExtractionResult, mime: string, fileName: string): boolean {
+    if (!needsOcr(structural, mime, fileName)) return false;
+    const extractor = receivedDocumentExtractorRegistry.resolveFor(PDF_MIME);
+    if (!extractor) return false;
+    return extractor.isConfigured?.() !== false;
+  }
+
+  /**
+   * GET .../upload/:fileRef/ocr — the pending-OCR poll `upload()` sends the frontend off to do when it
+   * returns `ocr: { outcome: 'pending' }`. Delegates straight to `ReceivedInvoiceOcrDispatcher.getResult`
+   * (`queue/received-invoice-ocr.dispatcher.ts`) — see that method's own header for the pending/done/
+   * failed/404 shape. Tenant isolation is structural, not a query filter here: the dispatcher's own job
+   * id embeds `companyId` (never derived from anything this method itself reads), so there is nothing
+   * for this method to additionally scope.
+   */
+  async getOcrStatus(companyId: string, fileRef: string): Promise<ReceivedInvoiceOcrResult | null> {
+    return this.ocrDispatcher.getResult(companyId, fileRef);
   }
 
   /** Streams back the ORIGINAL uploaded bytes for an already-saved received-invoice — 404s via

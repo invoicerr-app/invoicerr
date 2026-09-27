@@ -84,6 +84,31 @@ describe('ResendMailProvider', () => {
     });
   });
 
+  it('forwards options.replyTo as reply_to', async () => {
+    mockFetch.mockResolvedValue(okResponse() as Response);
+    const provider = new ResendMailProvider({ apiKey: 're_test_key', defaultFrom: 'me@acme.dev' });
+
+    await provider.sendMail({
+      to: 'client@example.com',
+      subject: 'Hi',
+      replyTo: 'support@company.example.com',
+    });
+
+    const body = JSON.parse((mockFetch.mock.calls[0][1]?.body as string) ?? '{}');
+    expect(body.reply_to).toBe('support@company.example.com');
+  });
+
+  it('omits reply_to entirely when replyTo is not set (never null/empty string)', async () => {
+    mockFetch.mockResolvedValue(okResponse() as Response);
+    const provider = new ResendMailProvider({ apiKey: 're_test_key', defaultFrom: 'me@acme.dev' });
+
+    await provider.sendMail({ to: 'client@example.com', subject: 'Hi' });
+
+    const body = JSON.parse((mockFetch.mock.calls[0][1]?.body as string) ?? '{}');
+    expect(body.reply_to).toBeUndefined();
+    expect(Object.hasOwn(body, 'reply_to')).toBe(false);
+  });
+
   it('omits the attachments field entirely when there are none (never an empty array)', async () => {
     mockFetch.mockResolvedValue(okResponse() as Response);
     const provider = new ResendMailProvider({ apiKey: 're_test_key', defaultFrom: 'me@acme.dev' });

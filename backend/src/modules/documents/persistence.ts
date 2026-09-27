@@ -127,6 +127,27 @@ export async function upsertDocument(
  * `fromStatuses`, when given, is the SAME compare-and-swap `upsertDocument` above now supports (see
  * its own doc comment) — `undefined` (every caller not yet updated to pass its own expected status)
  * stays byte-for-byte the previous, unconditional `update`.
+ *
+ * `acceptedOption`, when given, is written on this SAME call - see `DocumentInstance.acceptedOption`'s
+ * own schema comment: issue #373 ("quotes with options") needs the CHOSEN option recorded in the exact
+ * same compare-and-swap as the status write that accepts the quote (both `signatures.service.ts
+ * #markSigned` and `actions/quote-manual-acceptance.ts` pass it here), never a second, separate write
+ * that could land after a concurrent caller has already moved the record on. `undefined` (every
+ * caller that never accepts a quote at all) leaves the column untouched, exactly like `transportRef`/
+ * `channelProviderId` above.
+ *
+ * `knownUpdatedAt`, when given, folds the row's own `updatedAt` (as the CALLER read it, e.g.
+ * `findOwnedDocument`'s own result, moments before deciding what to write) into the SAME
+ * `updateManyConditionally` WHERE clause `claimDocumentTransition` already uses this column for (see
+ * that function's own header on why a same-value `status` alone cannot exclude every concurrent
+ * writer). Issue #373's own acceptance race: both `markSigned` and the manual-acceptance handler read
+ * the quote's own OPTIONS off `data` before this write, from a row fetched a moment earlier - an edit
+ * that renames/removes an option in between (a "sent" quote stays editable) never changes `status`,
+ * so `fromStatuses` alone would let acceptance land against options that no longer match what was
+ * validated. Bumping `updatedAt` on every write (`@updatedAt`) makes ANY such intervening change -
+ * a status move OR a plain data edit - fail this compare-and-swap with the SAME named 409, never a
+ * silent accept against stale option data. `undefined` (every pre-existing caller) keeps this an
+ * ordinary status-only CAS, unchanged.
  */
 export async function updateDocumentStatus(
   companyId: string,
@@ -137,6 +158,8 @@ export async function updateDocumentStatus(
   transportRef?: string,
   channelProviderId?: string,
   fromStatuses?: string[],
+  acceptedOption?: string,
+  knownUpdatedAt?: Date,
 ): Promise<DocumentInstanceResult> {
   await findOwnedDocument(companyId, typeId, id);
   const data: Prisma.DocumentInstanceUpdateManyMutationInput = {
@@ -144,11 +167,12 @@ export async function updateDocumentStatus(
     lastActionError,
     ...(transportRef !== undefined ? { transportRef } : {}),
     ...(channelProviderId !== undefined ? { channelProviderId } : {}),
+    ...(acceptedOption !== undefined ? { acceptedOption } : {}),
   };
   if (fromStatuses === undefined) {
     return prisma.documentInstance.update({ where: { id }, data });
   }
-  const count = await updateManyConditionally(companyId, typeId, id, fromStatuses, data);
+  const count = await updateManyConditionally(companyId, typeId, id, fromStatuses, data, knownUpdatedAt);
   if (count === 0) {
     throw new ConflictException(
       `Document "${id}" is no longer in one of the expected statuses (${fromStatuses.join(', ')}) — ` +
@@ -429,6 +453,15 @@ export interface ListDocumentsPageOptions {
   q?: string;
   searchTextFieldKeys?: string[];
   searchClientIds?: string[];
+  /** Restricts the result to exactly these ids, ANDed with every other filter above: the mechanism
+   *  behind `GET /documents`'s own `settlement` filter (list-documents.dto.ts,
+   *  documents.service.ts). The caller resolves WHICH invoices are "unsettled"/"overdue"
+   *  (`settlement/unsettled-invoices.ts`, a predicate no SQL WHERE clause can express: it needs
+   *  payments and credit notes composed in application code, exactly like the JSON-path date filter
+   *  above), then hands the resulting id set here rather than this module knowing anything about
+   *  settlement. Absent applies no restriction at all, the pre-existing, unrestricted shape of every
+   *  other caller. */
+  ids?: string[];
 }
 
 export interface ListDocumentsPageResult {
@@ -441,8 +474,12 @@ export interface ListDocumentsPageResult {
 /** `"YYYY-MM-DD"` -> the UTC midnight of that day, in milliseconds — the exact same conversion
  *  `accounting-export.service.ts#dayMs` already holds for the identical param shape, duplicated
  *  rather than imported (a sibling, single-purpose concern; see `dateValueInRange`'s own header for
- *  why this whole file doesn't reuse that module instead). */
-function dayMs(dateStr: string): number {
+ *  why this whole file doesn't reuse that module instead). Exported (issue #418) so the dashboard's
+ *  own period-scoped contributions (contributions/invoice-contributions.ts and friends) compute the
+ *  SAME `[fromMs, toMs]` bounds `dateValueInRange` below compares against, rather than a second,
+ *  possibly-drifting conversion of the same `YYYY-MM-DD` string - THE CONSISTENCY RULE a period tile
+ *  and the list its `link` opens both depend on. */
+export function dayMs(dateStr: string): number {
   const [year, month, day] = dateStr.split('-').map(Number);
   return Date.UTC(year, month - 1, day);
 }
@@ -452,10 +489,17 @@ function dayMs(dateStr: string): number {
  *  inclusive, compared at UTC day boundaries — the exact same rule
  *  `accounting-export.service.ts#issueDateInRange` already applies to the SAME kind of field.
  *  Missing/unparseable -> excluded: a document with no readable date cannot honestly be placed in
- *  ANY range — an honest default, never a guess. Duplicated here rather than imported from that
- *  service (a sibling, single-purpose concern — persistence.ts owes accounting-export nothing, and a
- *  future change to one's own rounding must not silently reach into the other). */
-function dateValueInRange(dateValue: unknown, fromMs: number | undefined, toMs: number | undefined): boolean {
+ *  ANY range - an honest default, never a guess. Duplicated here rather than imported from that
+ *  service (a sibling, single-purpose concern - persistence.ts owes accounting-export nothing, and a
+ *  future change to one's own rounding must not silently reach into the other). Exported (issue
+ *  #418) so a dashboard contribution restricting itself to the active period uses this EXACT
+ *  predicate - never a re-implemented one that could silently disagree with what `GET /documents`'s
+ *  own `dateFrom`/`dateTo` filter (just above) matches. */
+export function dateValueInRange(
+  dateValue: unknown,
+  fromMs: number | undefined,
+  toMs: number | undefined,
+): boolean {
   if (typeof dateValue !== 'string') return false;
   const parsed = new Date(dateValue);
   if (Number.isNaN(parsed.getTime())) return false;
@@ -489,11 +533,11 @@ function buildSearchOr(options: ListDocumentsPageOptions): Prisma.DocumentInstan
  * over the whole set rather than showing one page of it.
  *
  * Two different execution paths, chosen by whether a date-range filter is present:
- *  - No date filter: `status`/`clientId`/`searchOr` are already ordinary Prisma WHERE clauses
+ * - No date filter: `status`/`clientId`/`searchOr` are already ordinary Prisma WHERE clauses
  *    (a real column, an exact JSON-path `equals`, and `string_contains`/`equals` OR terms
  *    respectively — all three push down to SQL cleanly), so pagination is a plain `skip`/`take` +
  *    `count`, exactly the fast path a table this size deserves.
- *  - A date filter is present: `dateFieldKey` names a field living inside the JSON `data` blob,
+ * - A date filter is present: `dateFieldKey` names a field living inside the JSON `data` blob,
  *    which Prisma/Postgres has no trustworthy ORDER BY or range comparison for that agrees with this
  *    codebase's own notion of "a valid date" (see `dateValueInRange`'s own header — a malformed
  *    value must read as EXCLUDED, never as an arbitrary lexicographic sort position a raw jsonb
@@ -517,6 +561,7 @@ export async function listDocumentsPage(
       ? { data: { path: [options.clientFieldKey], equals: options.clientId } }
       : {}),
     ...(searchOr.length > 0 ? { OR: searchOr } : {}),
+    ...(options.ids ? { id: { in: options.ids } } : {}),
   };
   // `id` is the tiebreaker on BOTH paths (see `compareBySortField` below for the in-memory copy):
   // without it, rows sharing a sort value have no defined order, so paging through a list sorted by

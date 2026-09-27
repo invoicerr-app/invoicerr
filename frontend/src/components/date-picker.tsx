@@ -19,6 +19,10 @@ interface DatePickerProps {
   placeholder?: string
   className?: string
   showOutsideDays?: boolean
+  /** Disables the trigger button - the popover then never opens at all, the same "no way in" a
+   *  disabled native input already gives every OTHER field kind (issue #468, point 3: the document
+   *  form's own read-only lock). */
+  disabled?: boolean
   "data-cy"?: string
 }
 
@@ -62,6 +66,7 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
     <PopoverTrigger asChild>
       <Button
         variant={"outline"}
+        disabled={field.disabled}
         className={cn(
           "w-[240px] pl-3 text-left font-normal",
           !field.value && "text-muted-foreground",

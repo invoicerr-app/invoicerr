@@ -24,11 +24,15 @@ import "@/components/documents/custom-registrations"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import {
+  actionAssignsNumber,
+  canCreateDocument,
+  createBlockedReasons,
   extraActionGates,
   pickPrimaryAction,
   secondaryActions,
   transitionHint,
 } from "@/components/documents/action-presentation"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
 import { getDocumentCustomComponents } from "@/components/documents/custom-slots"
 import {
@@ -50,13 +54,14 @@ import type {
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
-import { isActionAvailable, statusLabel } from "@/components/documents/types"
+import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
 import { useReferenceResolve, useReferenceSearch, useResolvedCompanyCustomFields } from "@/hooks/queries"
 import BetterPagination from "@/components/pagination"
 import SearchSelect from "@/components/search-input"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -144,19 +149,30 @@ interface DocumentCardNumberProps {
 /**
  * The document's own NUMBER, shown before the row title — see the backend's numbering/ for the
  * full mechanism. Gated on `descriptor.numbering` being declared at all: a type that never numbers
- * its instances (an expense, a credit note today — see their own descriptors) shows nothing here,
- * rather than a permanent, meaningless "no number yet" on every single row. For a NUMBERED type,
- * `displayNumber` is shown verbatim once set; before that (still "draft"), the translated
- * `documents.numbering.noneYet` — NEVER a fabricated number, the one rule this whole mechanism
- * exists to hold (see the backend's numbering/format-number.ts own header on the historical bug).
+ * its instances (an expense) shows nothing here, rather than a permanent, meaningless "no number
+ * yet" on every single row. For a NUMBERED type, `displayNumber` is shown verbatim once set;
+ * otherwise `numberingDisplayState` (types.ts) tells apart a plain draft (still "no number yet")
+ * from a LEGACY record issued before this type declared `numbering` at all - issue #471's own
+ * credit-note migration concern - shown as the distinct `documents.numbering.issuedWithoutNumber`
+ * rather than the same "no number yet" a brand-new draft gets, since the two mean different things.
+ * NEVER a fabricated number either way - the one rule this whole mechanism exists to hold (see the
+ * backend's numbering/format-number.ts own header on the historical bug).
  */
 function DocumentCardNumber({ descriptor, instance }: DocumentCardNumberProps) {
   const { t } = useTranslation()
   if (!descriptor.numbering) return null
 
+  const state = numberingDisplayState(descriptor, instance)
+  const label =
+    state === "numbered"
+      ? instance.displayNumber
+      : state === "awaiting"
+        ? t("documents.numbering.noneYet")
+        : t("documents.numbering.issuedWithoutNumber")
+
   return (
     <span className="font-mono text-xs text-muted-foreground" data-cy={`document-number-${instance.id}`}>
-      {instance.displayNumber ?? t("documents.numbering.noneYet")}
+      {label}
     </span>
   )
 }
@@ -243,13 +259,24 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
   const { t } = useTranslation()
   const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false)
   const [shareLinkDialogOpen, setShareLinkDialogOpen] = useState(false)
-  const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
-    useDocumentActionRunner({
-      typeId: descriptor.id,
-      documentId: instance.id,
-      getData: () => instance.data,
-      onActionSuccess,
-    })
+  const {
+    pendingAction,
+    pendingDefaults,
+    pendingLockConfirm,
+    isRunning,
+    handleAction,
+    executeAction,
+    confirmPendingLock,
+    cancelPendingAction,
+    cancelPendingLockConfirm,
+  } = useDocumentActionRunner({
+    typeId: descriptor.id,
+    documentId: instance.id,
+    actions: descriptor.actions,
+    status: instance.status,
+    getData: () => instance.data,
+    onActionSuccess,
+  })
 
   // "download-xml" / "share-link" / the recurrence gate — all declared on the descriptor for the
   // status/country-policy gates, none of them a POST through `runAction`: "download-xml" is a plain
@@ -282,6 +309,11 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           action.id !== "download-xml" &&
           action.id !== "share-link" &&
           action.id !== "cancel" &&
+          // "accept-manually" (issue #421) - same reasoning `use-document-form.ts` spells out for the
+          // detail page: it needs its own dedicated confirmation dialog (required note, an explicit
+          // "not an electronic signature" warning), which the row cluster does not offer. Marking a
+          // quote accepted is a detail-page action, not a one-click row action.
+          action.id !== "accept-manually" &&
           isActionAvailable(action, instance.status),
       )
   const primary = pickPrimaryAction(availableActions, instance.status, false)
@@ -448,6 +480,27 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           submitting={isRunning}
           onCancel={cancelPendingAction}
           onConfirm={(params) => executeAction(pendingAction.id, params)}
+        />
+      )}
+
+      {pendingLockConfirm && (
+        <ConfirmationDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) cancelPendingLockConfirm()
+          }}
+          title={t("documents.form.lockConfirmation.title", { label: pendingLockConfirm.label })}
+          description={t(
+            actionAssignsNumber(descriptor, pendingLockConfirm, instance.status)
+              ? "documents.form.lockConfirmation.descriptionWithNumbering"
+              : "documents.form.lockConfirmation.description",
+            { label: pendingLockConfirm.label },
+          )}
+          confirmLabel={t("documents.form.lockConfirmation.confirm")}
+          cancelLabel={t("documents.form.lockConfirmation.cancel")}
+          onConfirm={confirmPendingLock}
+          loading={isRunning}
+          dataCy={`document-row-lock-confirm-${instance.id}`}
         />
       )}
 
@@ -819,6 +872,12 @@ interface DocumentListProps {
   /** See `DocumentDateRangeFilterProps.onChange`'s own header — always the FULL range, never a
    *  single key, so a "clear the whole range" click is one call, never two. */
   onDateRangeChange: (range: DocumentDateRange) => void
+  /** `GET /documents`'s own `settlement` filter, never set from a control on THIS screen (it only
+   *  ever arrives via a dashboard metric tile's own link, `[typeId]/index.tsx` reading it out of the
+   *  URL), so the only interaction this component offers is CLEARING it: a removable chip, not a
+   *  picker. */
+  settlement?: "unsettled" | "overdue"
+  onSettlementChange: () => void
   sort: SortKey
   onSortChange: (value: SortKey) => void
   /** Clears search + status + client + date range TOGETHER, in the ONE call the "Clear filters"
@@ -861,6 +920,8 @@ export function DocumentList({
   dateFrom,
   dateTo,
   onDateRangeChange,
+  settlement,
+  onSettlementChange,
   sort,
   onSortChange,
   onClearFilters,
@@ -875,6 +936,14 @@ export function DocumentList({
   const clientFieldKey = useMemo(() => resolveClientFieldKey(descriptor), [descriptor])
   const dateFieldKey = useMemo(() => resolveDateFieldKey(descriptor), [descriptor])
 
+  // Whether the "New <type>" button below could actually save anything right now - see
+  // `canCreateDocument`'s own header (PR #473 review point 2, round 2: a Polish credit note is
+  // LISTED but its "save-draft"/"send" are both policy-blocked; opening the create dialog anyway
+  // would only walk someone through every field before refusing at the very last step). Generic:
+  // reads the descriptor's own actions, never a type id or country.
+  const creatable = useMemo(() => canCreateDocument(descriptor), [descriptor])
+  const createBlockedReason = useMemo(() => createBlockedReasons(descriptor), [descriptor])
+
   // One amount per CURRENT-PAGE row — a reading aid on the row itself, never a list-wide total: see
   // list-amount.ts's own `resolveRowAmount` header. There is no "total of this list" figure computed
   // anywhere in this component (there never was one beyond a single row's own amount), so there is
@@ -888,7 +957,8 @@ export function DocumentList({
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
 
-  const hasActiveFilter = !!search || statusFilter.length > 0 || !!clientId || !!dateFrom || !!dateTo
+  const hasActiveFilter =
+    !!search || statusFilter.length > 0 || !!clientId || !!dateFrom || !!dateTo || !!settlement
 
   const toggleStatus = (status: string) => {
     onStatusFilterChange(
@@ -947,7 +1017,18 @@ export function DocumentList({
         // `secondary`, not `default`: the header's own "New <type>" stays the page's one filled
         // button — this is the same action, offered a second time where the eye lands.
         action={
-          <Button type="button" variant="secondary" onClick={onCreate} dataCy="document-create-button-empty">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCreate}
+            disabled={!creatable}
+            tooltip={
+              !creatable && createBlockedReason
+                ? t("documents.form.actionBlockedByPolicy", { reason: createBlockedReason })
+                : undefined
+            }
+            dataCy="document-create-button-empty"
+          >
             <Plus aria-hidden="true" />
             {createLabel}
           </Button>
@@ -1003,7 +1084,17 @@ export function DocumentList({
                 <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
               ))}
 
-              <Button onClick={onCreate} aria-label={createLabel} dataCy="document-create-button">
+              <Button
+                onClick={onCreate}
+                aria-label={createLabel}
+                disabled={!creatable}
+                tooltip={
+                  !creatable && createBlockedReason
+                    ? t("documents.form.actionBlockedByPolicy", { reason: createBlockedReason })
+                    : undefined
+                }
+                dataCy="document-create-button"
+              >
                 <Plus aria-hidden="true" />
                 <span className="hidden md:inline">{createLabel}</span>
               </Button>
@@ -1039,6 +1130,31 @@ export function DocumentList({
             {dateFieldKey && (
               <DocumentDateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onChange={onDateRangeChange} />
             )}
+          </div>
+        )}
+
+        {/* `settlement` never has a control of its own on this screen (see `DocumentListProps.settlement`'s
+            own header): only a removable chip, since it only ever arrives via a dashboard metric's own link. */}
+        {settlement && (
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className="gap-1 py-1 pl-2.5 pr-1"
+              data-cy="document-list-settlement-filter"
+            >
+              {settlement === "overdue"
+                ? t("documents.list.filters.settlementOverdue")
+                : t("documents.list.filters.settlementUnsettled")}
+              <button
+                type="button"
+                onClick={onSettlementChange}
+                aria-label={t("documents.list.filters.clear")}
+                data-cy="document-list-settlement-filter-clear"
+                className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
+              >
+                <X className="size-3" aria-hidden="true" />
+              </button>
+            </Badge>
           </div>
         )}
 

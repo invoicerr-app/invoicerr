@@ -9,6 +9,7 @@
  * other widget-producing function in this codebase already holds.
  */
 import { ShortListWidget } from '../contributions/widgets';
+import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { DocumentScheduleRecord } from './schedule.persistence';
 
 const UPCOMING_LIMIT = 5;
@@ -25,10 +26,21 @@ const UPCOMING_LIMIT = 5;
  * `typeLabels` falls back to the bare `typeId` for a schedule whose type is no longer registered on
  * this build (the same "degrade honestly, never crash" posture `document-list.tsx`'s own
  * `resolveListFields` holds for a dangling `listItem` key).
+ *
+ * `period` (issue #418) is deliberately NEVER applied to `nextRunAt` - this list names FUTURE
+ * occurrences, while the dashboard's period answers "which already-issued documents fall in this
+ * range", a question about the past. Restricting `nextRunAt` to a period built that way would make
+ * the ordinary presets actively misleading: "Last 30 days", or "This month" once the month is mostly
+ * over, would silently empty a list of schedules that are very much still active, simply because none
+ * of them happens to fire again before the range's own end. Rather than invent a DIFFERENT,
+ * schedule-specific meaning for "period" nobody asked for, this widget stays unscoped and says so in
+ * its own `warnings` whenever a period is set - visible, not silent, the same discipline
+ * `WidgetBase.warnings`'s own header holds everywhere else in this module.
  */
 export function buildUpcomingSchedulesWidget(
   schedules: DocumentScheduleRecord[],
   typeLabels: Record<string, string>,
+  period?: DashboardPeriod,
 ): ShortListWidget {
   const upcoming = schedules
     .filter((schedule) => schedule.enabled)
@@ -39,6 +51,14 @@ export function buildUpcomingSchedulesWidget(
     id: 'document-schedule:upcoming',
     kind: 'shortList',
     label: 'Upcoming recurrences',
+    ...(period
+      ? {
+          warnings: [
+            'The selected period does not apply to this list: it always shows the next scheduled ' +
+              'runs, regardless of the active period.',
+          ],
+        }
+      : {}),
     items: upcoming.map((schedule) => ({
       id: schedule.id,
       primary: `${typeLabels[schedule.typeId] ?? schedule.typeId} — ${schedule.actionId}`,

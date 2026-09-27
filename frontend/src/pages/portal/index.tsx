@@ -323,8 +323,13 @@ function QuoteRow({ quote }: { quote: PortalQuoteRow }) {
         <p className="text-xs text-muted-foreground">{quote.issueDate ?? "—"}</p>
       </div>
       <div className="flex items-center justify-between gap-3 sm:justify-end">
-        <span className="amount text-base font-semibold">
-          {formatMinor(quote.amountMinor, quote.currency)}
+        {/* Issue #373 ("quotes with options") - `amountMinor` is null for a quote offering 2+
+            options (summing every option's lines together would be exactly the meaningless total
+            this issue exists to stop printing); `optionCount` names how many instead. */}
+        <span className="amount text-base font-semibold" data-cy={`portal-quote-amount-${quote.id}`}>
+          {quote.amountMinor === null
+            ? t("clientPortal.quotes.optionCount", { count: quote.optionCount })
+            : formatMinor(quote.amountMinor, quote.currency)}
         </span>
         <div className="flex items-center gap-2">
           <Button

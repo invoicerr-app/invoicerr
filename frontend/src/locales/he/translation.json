@@ -86,6 +86,13 @@
             }
         }
     },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "קורא את המסמך… השדות יתמלאו כשהתהליך יסתיים. אפשר כבר להתחיל להקליד."
+            }
+        }
+    },
     "clients": {
         "header": {
             "subtitle": "ניהול לקוחות"

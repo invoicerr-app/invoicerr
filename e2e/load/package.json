@@ -1,0 +1,12 @@
+{
+  "name": "invoicerr-load-test",
+  "private": true,
+  "type": "module",
+  "description": "Load test: how much machine Invoicerr needs per active user. See README.md.",
+  "scripts": {
+    "loadtest": "node loadtest.js",
+    "loadtest:seed": "node seed.js",
+    "loadtest:report": "node report.js",
+    "loadtest:compare": "node report.js compare"
+  }
+}

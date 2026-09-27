@@ -31,6 +31,10 @@ interface CompanyMailSettingsStatus {
 	configured: boolean;
 	kind?: "smtp" | "resend";
 	fromAddress?: string;
+	// #391 — the company's own Reply-To override, independent of `configured` above (a company can
+	// set this without ever running its own mail server) — see `81-mail-reply-to.cy.ts`, which is
+	// this field's own spec. Not a secret, always present (never omitted like `kind`/`fromAddress`).
+	replyTo: string | null;
 }
 
 function getMailSettingsStatus() {
@@ -144,8 +148,19 @@ describe("Company mail settings — configuration screen", () => {
 			expect(status.fromAddress).to.eq(COMPANY_SMTP_FROM_ADDRESS);
 			expect(
 				Object.keys(status).sort(),
-				"GET /api/company/mail-settings ne renvoie QUE configured/kind/fromAddress — jamais host/port/username/password",
-			).to.deep.equal(["configured", "fromAddress", "kind"]);
+				// #391 added `replyTo` (never a secret, see that field's own spec, 81-mail-reply-to.cy.ts)
+				// — the exact set below still has to be updated by hand for the NEXT field too, which is
+				// exactly the point: a stray `host`/`port`/`username`/`password` added to the DTO by
+				// mistake fails this line loudly instead of silently riding along.
+				"GET /api/company/mail-settings ne renvoie QUE configured/fromAddress/kind/replyTo — jamais host/port/username/password",
+			).to.deep.equal(["configured", "fromAddress", "kind", "replyTo"]);
+			// Belt and suspenders on the property this spec actually exists to guard (see its own
+			// header, property 1): named explicitly, so loosening the exact-set check above later can
+			// never quietly stop catching a leaked credential.
+			expect(
+				status,
+				"jamais host/port/username/password SMTP dans la réponse",
+			).to.not.have.any.keys("host", "port", "username", "password");
 			expect(
 				JSON.stringify(status),
 				"le mot de passe SMTP ne doit jamais apparaître dans la réponse",

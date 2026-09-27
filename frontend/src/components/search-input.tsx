@@ -6,6 +6,7 @@ import { useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { guardCloseAutoFocus } from "@/lib/close-auto-focus-guard"
 
 interface Option {
   label: string
@@ -155,6 +156,10 @@ export default function SearchSelect({
             sideOffset={4}
             className="z-50 w-[var(--radix-popover-trigger-width)] bg-popover border rounded-md shadow-md outline-hidden"
             onOpenAutoFocus={(e) => e.preventDefault()}
+            // Issue #451 — see lib/close-auto-focus-guard.ts's own header. This component bypasses
+            // ui/popover.tsx (its own `PopoverPrimitive.Content` directly), so it needs its own
+            // wiring rather than inheriting PopoverContent's.
+            onCloseAutoFocus={(event) => guardCloseAutoFocus(event)}
             {...(dataCyValue ? dataCy(dataCyValue) : {})}
           >
             <div className="p-2 border-b">

@@ -57,6 +57,24 @@ function parseDateParam(name: string, value: RawQueryValue): string | undefined 
   return raw;
 }
 
+/** The two values `settlement` may take: see `documents.service.ts#listDocuments`'s own check for
+ *  why this is only ever valid with `typeId=invoice` (that check needs no descriptor, only the
+ *  typeId itself, so it lives there rather than here, same reasoning as the existing
+ *  dateFrom-requires-typeId check right next to it). */
+export const DOCUMENT_LIST_SETTLEMENT_VALUES = ['unsettled', 'overdue'] as const;
+export type DocumentListSettlement = (typeof DOCUMENT_LIST_SETTLEMENT_VALUES)[number];
+
+function parseSettlementParam(value: RawQueryValue): DocumentListSettlement | undefined {
+  const raw = firstValue(value);
+  if (raw === undefined) return undefined;
+  if (!(DOCUMENT_LIST_SETTLEMENT_VALUES as readonly string[]).includes(raw)) {
+    throw new BadRequestException(
+      `"settlement" must be one of: ${DOCUMENT_LIST_SETTLEMENT_VALUES.join(', ')}.`,
+    );
+  }
+  return raw as DocumentListSettlement;
+}
+
 export interface RawListDocumentsQuery {
   typeId?: RawQueryValue;
   page?: RawQueryValue;
@@ -68,6 +86,7 @@ export interface RawListDocumentsQuery {
   q?: RawQueryValue;
   sort?: RawQueryValue;
   order?: RawQueryValue;
+  settlement?: RawQueryValue;
 }
 
 export interface ParsedListDocumentsQuery {
@@ -80,6 +99,10 @@ export interface ParsedListDocumentsQuery {
   q?: string;
   sort: DocumentListSortField;
   order: 'asc' | 'desc';
+  /** Restricts the list to invoices matching `settlement/unsettled-invoices.ts`'s own predicate:
+   *  see this file's own `DOCUMENT_LIST_SETTLEMENT_VALUES` header for why the typeId=invoice
+   *  restriction is checked in the service, not here. */
+  settlement?: DocumentListSettlement;
 }
 
 /**
@@ -117,6 +140,8 @@ export function parseListDocumentsQuery(raw: RawListDocumentsQuery): ParsedListD
     throw new BadRequestException('"order" must be "asc" or "desc".');
   }
 
+  const settlement = parseSettlementParam(raw.settlement);
+
   return {
     page,
     pageSize,
@@ -127,5 +152,6 @@ export function parseListDocumentsQuery(raw: RawListDocumentsQuery): ParsedListD
     q,
     sort,
     order: orderRaw,
+    settlement,
   };
 }

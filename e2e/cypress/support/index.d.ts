@@ -113,6 +113,35 @@ declare namespace Cypress {
         openSelect(triggerSelector: string, optionSelector: string): Chainable<void>
 
         /**
+         * Waits for a Radix layer that was just dismissed (a "more" menu whose entry was clicked, a
+         * `SearchSelect` whose option was picked) to have FINISHED tearing down, before another
+         * layer is opened on top of it: its content gone from the DOM, and the deferred focus
+         * restore its own `FocusScope` schedules on unmount already landed on the element named by
+         * `settledFocusSelector`. Opening a popover before that restore fires is what silently
+         * closes it again — see the implementation for the traced sequence.
+         * @example cy.waitForLayerTeardown('[data-cy="document-row-menu-content-abc"]', '[data-cy="document-field-cadence-input"] button')
+         */
+        waitForLayerTeardown(contentSelector: string, settledFocusSelector: string): Chainable<void>
+
+        /**
+         * Picks one option in a document form's own `SearchSelect` field and waits for that picker
+         * to have finished tearing down before returning, so the caller's next layer (very often a
+         * `DatePicker`) is not opened inside the window where the deferred focus restore dismisses
+         * it. `option` is 'first' (default) or an option's own slugified-label `data-cy` suffix.
+         * @example cy.pickDocumentFieldOption('currency', 'eur')
+         */
+        pickDocumentFieldOption(fieldKey: string, option?: string): Chainable<void>
+
+        /**
+         * Picks a client in a document form and waits for the picker's teardown AND for the
+         * client-aware descriptor refetch that pick triggers (`use-document-form.ts`), which
+         * rebuilds every rendered field node when it lands. Never for a supplier picker: that one
+         * drives no refetch, so this would wait for a request nobody makes.
+         * @example cy.pickDocumentClient()
+         */
+        pickDocumentClient(option?: string): Chainable<void>
+
+        /**
          * Opens a `SearchSelect` (components/search-input.tsx) popover WITHOUT picking an option —
          * for callers that type a filter into it afterward (CurrencySelect and friends) instead of
          * clicking a fixed entry. Same bounded-retry open-side guard as `openSelect`/`openDatePicker`

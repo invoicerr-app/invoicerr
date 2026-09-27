@@ -28,6 +28,16 @@ spec:
       labels:
         {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "redis") | nindent 8 }}
     spec:
+      # bitnami/redis's entrypoint runs as uid 1001 (never root, `id` inside the image gives
+      # `uid=1001 gid=0(root)`) and does `mkdir -p /bitnami/redis` on every boot. HIT FOR REAL on a
+      # Scaleway Kapsule cluster, 2026-09-22: `mkdir: cannot create directory '/bitnami/redis':
+      # Permission denied` — every real block-storage provisioner hands out a fresh PVC owned
+      # root:root, so uid 1001 has no write access to it. `fsGroup` has kubelet chown the volume's
+      # group to 1001 (and add it to every container's supplementary groups) before the container
+      # starts, so the mkdir succeeds. kind's local-path provisioner happens to hand out
+      # already-permissive volumes, which is why this was never caught there.
+      securityContext:
+        fsGroup: 1001
       containers:
         - name: redis
           image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
@@ -63,6 +73,11 @@ spec:
               command: ["redis-cli", "ping"]
             initialDelaySeconds: 10
             periodSeconds: 15
+            # Same reasoning as the bundled Postgres Deployment's own livenessProbe comment: a busy
+            # Redis is not a dead Redis, and the Kubernetes default timeoutSeconds of 1s gives
+            # `redis-cli ping` no headroom on a saturated node before Kubernetes restarts it anyway.
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             {{- toYaml .Values.redis.resources | nindent 12 }}
       {{- if .Values.redis.persistence.enabled }}

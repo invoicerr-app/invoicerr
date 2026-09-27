@@ -71,6 +71,43 @@ export async function resolveCompanyCountryCode(companyId: string): Promise<stri
   return resolvedCode || undefined;
 }
 
+/**
+ * The BUYER-side twin of `resolveCompanyCountryCode` above - the country a document's own client is
+ * established in, or `undefined` when there is no client, the client does not belong to this company,
+ * or its country cannot be resolved to an ISO code at all. Lives here, next to the seller-side one,
+ * for the single reason that both answer the same question about a different party and both resolve
+ * it the same way (`countryCode` first, then `guessCountryCode(country)`) - keeping them apart would
+ * have meant a fourth independent copy of that two-line resolution.
+ *
+ * `clientId` comes straight off the document's own `data.client` reference field, which is NEVER
+ * checked for existence at write time (`descriptors/field-kinds.ts`'s own comment on the 'reference'
+ * kind), so the lookup is scoped by `companyId` and not a bare `findUnique`: an id naming another
+ * tenant's client must resolve to nothing here, never to that tenant's real country - the same trap
+ * `tax/load-and-resolve.ts`'s own client lookup already spells out at its call site.
+ *
+ * `undefined` is a genuine "unknown", never "no country": every caller has to decide for itself what
+ * that means, and `channel-policy/mandate.ts#activeChannelMandateForOperation` (this function's only
+ * caller today, via `actions/invoice-actions.ts`) documents at length why it treats it as domestic
+ * rather than as cross border.
+ */
+export async function resolveClientCountryCode(
+  companyId: string,
+  clientId: string | undefined | null,
+): Promise<string | undefined> {
+  if (!clientId) return undefined;
+
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, companyId },
+    select: { country: true, countryCode: true },
+  });
+
+  const resolvedCode = (client?.countryCode || guessCountryCode(client?.country ?? undefined) || '')
+    .trim()
+    .toUpperCase();
+
+  return resolvedCode || undefined;
+}
+
 type DocumentCountryActionRuleRow = Awaited<
   ReturnType<typeof prisma.documentCountryActionRule.findMany>
 >[number];

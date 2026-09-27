@@ -107,6 +107,28 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
     );
   }
 
+  // `numbering.onlyFrom` (issue #471) - same two checks `lockedStatuses` below already runs on every
+  // other status list this file validates: every entry must be a status this type actually declares
+  // (a typo would otherwise silently number NOTHING, ever, since no real transition could ever match
+  // it), and it must never be empty (an empty list numbers nothing either, which is indistinguishable
+  // from not declaring `numbering` at all and would only confuse a reader of this descriptor).
+  if (descriptor.numbering?.onlyFrom) {
+    if (descriptor.numbering.onlyFrom.length === 0) {
+      throw new Error(
+        `Document type "${descriptor.id}" declares "numbering.onlyFrom" as an empty array - that ` +
+          'numbers nothing, ever; omit "onlyFrom" entirely instead if that is genuinely intended.',
+      );
+    }
+    for (const from of descriptor.numbering.onlyFrom) {
+      if (!statusSet.has(from)) {
+        throw new Error(
+          `Document type "${descriptor.id}" declares "numbering.onlyFrom" naming status "${from}", ` +
+            `which is not one of its own declared statuses (${statusIds.join(', ')}).`,
+        );
+      }
+    }
+  }
+
   for (const action of descriptor.actions) {
     if (action.transitions) {
       for (const transition of action.transitions) {
@@ -154,7 +176,50 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
         }
       }
     }
+
+    // `lockedStatuses` (types.ts, issue #468) - the type-level "no matter what any country policy
+    // says" narrowing. Same two checks the rest of this function already runs on every other status
+    // list: every entry must be a status this type actually declares (a typo here would otherwise
+    // silently lock nothing, the same "declared but never wired" gap every other check here catches),
+    // and it must never lock the type's OWN `initialStatus` - a brand-new record is never subject to
+    // `lockedStatuses` at all (see `isActionAvailable`: it only ever narrows an EXISTING record), but
+    // an action locked at `initialStatus` would make every record unwritable the instant it is first
+    // saved into that status, which is never what a descriptor author intends.
+    if (action.lockedStatuses) {
+      for (const status of action.lockedStatuses) {
+        if (!statusSet.has(status)) {
+          throw new Error(
+            `Document type "${descriptor.id}", action "${action.id}": "lockedStatuses" names status ` +
+              `"${status}", which is not declared in "statuses" (${statusIds.join(', ')}).`,
+          );
+        }
+        if (status === descriptor.initialStatus) {
+          throw new Error(
+            `Document type "${descriptor.id}", action "${action.id}": "lockedStatuses" locks ` +
+              `"${status}", which is this type's own "initialStatus" - that would make every record ` +
+              'of this type uneditable from the moment it is first saved.',
+          );
+        }
+      }
+    }
   }
+}
+
+/**
+ * Every status `action` may legitimately write FROM on an EXISTING record: the type's declared
+ * `statuses` minus the action's own `lockedStatuses` (issue #468). `documents.service.ts#runAction`
+ * hands this to the handler as `ActionContext.allowedFromStatuses`, and "save-draft" passes it to
+ * `upsertDocument` as its compare-and-swap, so a status that moved on between runAction's read and the
+ * write (a concurrent "send", an OTP signature) is refused rather than overwritten. One function, so
+ * the runtime and its tests can never compute two different lists. Undefined for a type with no
+ * declared `statuses` (no lifecycle, so no lock and no CAS).
+ */
+export function allowedFromStatuses(
+  descriptor: DocumentTypeDescriptor,
+  action: DocumentActionDescriptor,
+): string[] | undefined {
+  if (!descriptor.statuses) return undefined;
+  return descriptor.statuses.map((s) => s.id).filter((id) => !action.lockedStatuses?.includes(id));
 }
 
 /**

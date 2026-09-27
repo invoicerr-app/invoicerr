@@ -1,4 +1,4 @@
-import { computeDocumentTotals } from "@/components/documents/document-totals"
+import { computeDocumentOptionTotals, computeDocumentTotals } from "@/components/documents/document-totals"
 import { toMinor } from "@/components/documents/totals-calculator"
 import { extractCurrency } from "@/components/documents/totals-shape"
 import type { DocumentTypeDescriptor } from "@/components/documents/types"
@@ -18,12 +18,17 @@ export interface RowAmount {
  *     those lines, through the exact same arithmetic the detail page's totals card uses;
  *  2. otherwise the first top-level `money` field that carries a value (an expense's `amount`, a
  *     received invoice's `grossAmount`), in its own declared currency.
- * Null when neither applies — the row simply shows no amount, it never invents one.
+ * Null when neither applies - the row simply shows no amount, it never invents one. Also null -  * issue #373 ("quotes with options") - for a quote offering 2+ options: summing every option's
+ * lines together would be exactly the meaningless total this issue exists to stop printing, so the
+ * row shows no amount at all rather than a wrong one (the same "never invents one" contract this
+ * function already holds for every other gap).
  */
 export function resolveRowAmount(
   descriptor: DocumentTypeDescriptor,
   data: Record<string, unknown>,
 ): RowAmount | null {
+  if (computeDocumentOptionTotals(descriptor, data)) return null
+
   const totals = computeDocumentTotals(descriptor, data)
   if (totals && totals.currency) {
     return { minor: totals.grossMinor, currency: totals.currency }

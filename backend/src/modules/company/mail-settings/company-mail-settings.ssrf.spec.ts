@@ -46,6 +46,13 @@ vi.mock('@/prisma/prisma.service', () => ({
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
     },
+    // Backs `resolveCompanyReplyTo` (`Company.mailReplyTo`) — MailService#sendForCompany now reads
+    // it alongside the SMTP-endpoint guard this file is actually about; nothing here exercises the
+    // Reply-To cascade itself (`mail.service.spec.ts`'s own job), so `findUnique` resolving `undefined`
+    // (== "no override") is enough to keep every SSRF-focused test in this file unaffected.
+    company: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 

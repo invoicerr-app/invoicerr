@@ -10,7 +10,9 @@ import { computeContentHash } from './hashing';
 import {
   createAuthorityVerdictArchive,
   createDocumentArchive,
+  createManualAcceptanceArchive,
   findArchivedPdfArtifact,
+  findManualAcceptanceArchive,
   findOwnedArchive,
   listDocumentArchives,
   verifyDocumentArchive,
@@ -255,7 +257,120 @@ describe('archive/persistence', () => {
     });
   });
 
-  // Legal archiving's own remainder (2026-09-06) — the
+  // Issue #421: "accept a quote manually, without the e-signature code" - the LEGAL-ARCHIVE half of
+  // that feature (`actions/quote-manual-acceptance.ts`'s own header). Exercises the REAL
+  // createManualAcceptanceArchive -> real disk write -> real disk read round trip through
+  // findManualAcceptanceArchive, the exact same discipline `findArchivedPdfArtifact`'s own tests just
+  // above hold - the property that matters is that the note/actor/method text SURVIVES a real
+  // write/read cycle, byte for byte, not merely that the wiring compiles.
+  describe('createManualAcceptanceArchive / findManualAcceptanceArchive', () => {
+    const manifestBytes = (overrides: Partial<Record<string, unknown>> = {}) =>
+      Buffer.from(
+        JSON.stringify({
+          kind: 'manual-acceptance',
+          documentId: 'doc-1',
+          actorId: 'user-1',
+          actorName: 'Jane Doe',
+          actorEmail: 'jane@example.com',
+          note: 'Accepted by phone on 2026-09-20, client confirmed the total.',
+          acceptedAt: '2026-09-20T10:00:00.000Z',
+          ...overrides,
+        }),
+      );
+
+    it('archives under its OWN kind (ACCEPTANCE), never DELIVERY or VERDICT, and reads the exact manifest back', async () => {
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-acc-1', ...data }));
+      findFirstArchive.mockResolvedValueOnce(null); // no DELIVERY parent for this document
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+
+      const written = await createManualAcceptanceArchive({
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        manifest: manifestBytes(),
+      });
+
+      expect(written.kind).toBe(DocumentArchiveKind.ACCEPTANCE);
+      const createCall = createArchive.mock.calls[0][0].data;
+      expect(createCall.kind).toBe(DocumentArchiveKind.ACCEPTANCE);
+      expect(createCall.parentArchiveId).toBeNull();
+      expect(createCall.artifacts).toEqual([
+        expect.objectContaining({ role: 'manual-acceptance', mime: 'application/json' }),
+      ]);
+
+      // Read back through the SAME `documentArchive.findFirst` a real query (kind: ACCEPTANCE) would
+      // return - proves the READ side filters by kind too, never picking up a DELIVERY/VERDICT row.
+      findFirstArchive.mockResolvedValueOnce({
+        id: 'archive-acc-1',
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        uri: written.uri,
+      });
+
+      const manifest = await findManualAcceptanceArchive('company-1', 'doc-1');
+      expect(manifest).not.toBeNull();
+      expect(manifest).toMatchObject({
+        kind: 'manual-acceptance',
+        actorName: 'Jane Doe',
+        actorEmail: 'jane@example.com',
+        note: expect.stringContaining('phone'),
+      });
+      // THE DISTINCTION, proven directly against the actual bytes read off disk: no key anywhere in
+      // this manifest names an e-signature concept (an OTP, a signature token, "signedAt"...) - a
+      // manual acceptance carries none of that evidence, on purpose (actions/quote-manual-acceptance.ts's
+      // own header).
+      const keys = Object.keys(manifest!);
+      expect(keys.some((k) => /sign|otp/i.test(k))).toBe(false);
+      expect(JSON.stringify(manifest)).not.toMatch(/otp|signature/i);
+    });
+
+    it('links to, and copies retention from, the most recent DELIVERY archive when one exists', async () => {
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-acc-2', ...data }));
+      findFirstArchive.mockResolvedValueOnce({
+        id: 'delivery-1',
+        retentionUntil: new Date('2036-01-01T00:00:00Z'),
+        retentionBasis: 'fiscale 6y (LPF art. L102 B).',
+        retentionCalcVersion: CURRENT_RETENTION_CALC_VERSION,
+      });
+
+      await createManualAcceptanceArchive({
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        manifest: manifestBytes(),
+      });
+
+      const createCall = createArchive.mock.calls[0][0].data;
+      expect(createCall.parentArchiveId).toBe('delivery-1');
+      expect(createCall.retentionUntil).toEqual(new Date('2036-01-01T00:00:00Z'));
+      expect(createCall.retentionBasis).toBe('fiscale 6y (LPF art. L102 B).');
+    });
+
+    it('never blocks on a missing DELIVERY parent - resolves its own retention instead of refusing', async () => {
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-acc-3', ...data }));
+      findFirstArchive.mockResolvedValueOnce(null);
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+
+      const result = await createManualAcceptanceArchive({
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        manifest: manifestBytes(),
+      });
+
+      expect(result.kind).toBe(DocumentArchiveKind.ACCEPTANCE);
+      const createCall = createArchive.mock.calls[0][0].data;
+      expect(createCall.parentArchiveId).toBeNull();
+      // Resolved fresh against FR_CATALOG's default catalog resolution (defaultRetentionCatalog is the
+      // real, shipped catalog here - not FR_CATALOG's own test fixture) - just proving it is NOT null
+      // and not thrown is the point; the exact figure belongs to compute-retention.spec.ts's own tests.
+      expect(createCall.retentionCalcVersion).toBe(CURRENT_RETENTION_CALC_VERSION);
+    });
+
+    it('returns null for a document that was never manually accepted', async () => {
+      findFirstArchive.mockResolvedValueOnce(null);
+      await expect(findManualAcceptanceArchive('company-1', 'doc-1')).resolves.toBeNull();
+    });
+  });
+
+  // Legal archiving's own remainder (2026-09-06) - the
   // PROBATIVE archive for a TERMINAL authority verdict, under the same discipline as
   // `createDocumentArchive` above, but linked to and inheriting the retention of the DELIVERY archive
   // it attests to instead of resolving its own.

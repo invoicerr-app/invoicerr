@@ -13,6 +13,7 @@ import { logoDataUriFor } from '../documents/rendering/branding/logo-storage';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 import { SignaturesService } from '../documents/signatures/signatures.service';
 import { computeDocumentTotals } from '../documents/totals/compute-totals';
+import { deriveQuoteOptions } from '../documents/options/quote-options';
 import {
   DIRECT_CLIENT_FIELD_KEY,
   clientVisibleStatusIds,
@@ -42,8 +43,15 @@ export interface PortalQuoteRow {
   /** The quote's own gross total — `totals/compute-totals.ts`, the same pure arithmetic every other
    *  document detail screen already uses for its own total. NOT a settlement/balance figure (a quote
    *  is never billed) — see this module's own header on why `getStatement` below is the ONLY place
-   *  balance math is ever surfaced, and it is never recomputed there either. */
-  amountMinor: number;
+   *  balance math is ever surfaced, and it is never recomputed there either.
+   *  Null - issue #373 ("quotes with options") - for a quote offering 2+ options: summing every
+   *  option's lines together would be exactly the meaningless total this issue exists to stop
+   *  printing; `optionCount` below is what the portal shows in its place. */
+  amountMinor: number | null;
+  /** Issue #373 ("quotes with options") - how many distinct options this quote offers, so the portal
+   *  can say "N options" in place of a single amount; 0 for an ordinary single/no-option quote (never
+   *  shown, `amountMinor` carries the real figure instead). */
+  optionCount: number;
   /** Whether this row still awaits the client's own decision — exactly `status === 'sent'`, the one
    *  status `requestQuoteSignature`/`refuseQuote` below both require. */
   canRespond: boolean;
@@ -113,7 +121,9 @@ export class PortalService {
   }
 
   /** Every quote this client may see — `clientVisible` statuses only (today: "sent", "signed",
-   *  "refused" — see quote.descriptor.ts), derived from the descriptor, never hardcoded here. */
+   *  "accepted" (issue #421 - a manual acceptance is exactly as visible to the client as an
+   *  e-signed one, see quote.descriptor.ts's own comment on that status), "refused" - see
+   *  quote.descriptor.ts), derived from the descriptor, never hardcoded here. */
   async listQuotes(companyId: string, clientId: string): Promise<PortalQuoteRow[]> {
     const descriptor = this.documentsService.getType('quote');
     const visible = clientVisibleStatusIds(descriptor);
@@ -136,6 +146,8 @@ export class PortalService {
     const rows: PortalQuoteRow[] = [];
     for (const quote of quotes) {
       const data = (quote.data ?? {}) as Record<string, unknown>;
+      // Issue #373 ("quotes with options") - see `PortalQuoteRow.amountMinor`'s own header.
+      const options = deriveQuoteOptions(data);
 
       rows.push({
         id: quote.id,
@@ -143,7 +155,8 @@ export class PortalService {
         status: quote.status,
         issueDate: typeof data.issueDate === 'string' ? data.issueDate : null,
         currency: typeof data.currency === 'string' ? data.currency : '',
-        amountMinor: computeDocumentTotals(descriptor, data).grossMinor,
+        amountMinor: options.length >= 2 ? null : computeDocumentTotals(descriptor, data).grossMinor,
+        optionCount: options.length >= 2 ? options.length : 0,
         canRespond: quote.status === 'sent',
       });
     }

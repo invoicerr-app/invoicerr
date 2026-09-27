@@ -67,6 +67,10 @@ function sendingDocument() {
     data: poisonedData,
     createdAt: new Date(),
     updatedAt: new Date(),
+    // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts): invoice
+    // has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
+    number: 1,
+    displayNumber: 'INV-2026-0001',
   };
 }
 
@@ -83,7 +87,7 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
 
   beforeEach(() => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateFor as Mock).mockReturnValue(null);
+    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(null);
     (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
     (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
       applies: false,
@@ -101,8 +105,12 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
 
   it('phase 1 (fresh submission): strips both sidecars BEFORE the tax preflight ever sees them, and persists the cleaned data — never the fabricated mention/category', async () => {
     (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    (persistence.upsertDocument as Mock).mockResolvedValue({ ...draftDocument(), status: 'sending' });
-    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
+    // PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is eligible
+    // for the ATOMIC status+number write (async-send.ts) - replaces `persistence.upsertDocument`.
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: { ...draftDocument(), status: 'sending', number: 1, displayNumber: 'INV-2026-0001' },
+      numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+    });
 
     const handler = buildRegistry().resolve('invoice', 'send');
     await handler!({
@@ -126,8 +134,11 @@ describe('invoice "send" — the __crossBorder* sidecar strip', () => {
     );
 
     // Nor does the persisted "sending" write — the mention can never reach the printed PDF or the
-    // transmitted XML (both read straight off the persisted document's own `data`).
-    const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4] as Record<string, unknown>;
+    // transmitted XML (both read straight off the persisted document's own `data`). `data` is the
+    // 6th positional argument of the atomic call (companyId, typeId, documentId, fromStatuses,
+    // toStatus, data) - see `numbering/take-number.ts#takeDocumentNumberForTransitionWithStatus`.
+    const persistedData = (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mock
+      .calls[0][5] as Record<string, unknown>;
     expect(persistedData).not.toHaveProperty('__crossBorderMentions');
     expect((persistedData.lines as Record<string, unknown>[])[0]).not.toHaveProperty('__crossBorderCategory');
 

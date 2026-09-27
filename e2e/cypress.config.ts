@@ -664,6 +664,55 @@ export default defineConfig({
         },
 
         /**
+         * `99-quote-option-changed-while-signing.cy.ts`'s ONE piece of Node-side help: renames one
+         * option tag across every quote line that carries it, on a "sent" quote, WITHOUT going through
+         * "save-draft" - that action's own `SAVE_DRAFT_TRANSITIONS` (`quote.descriptor.ts`) writes
+         * `status: 'draft'` unconditionally, which would flip the quote's status out from under a
+         * signature already in flight (`markSigned`'s own `fromStatuses: ['sent']` guard would then
+         * refuse the whole spec's sign attempt with an unrelated 409, never reaching the option
+         * refusal this spec exists to prove). This is the "sent quote stays editable, use a DB task if
+         * the API refuses" fallback the review round names - a raw `data` rewrite standing in for
+         * "the issuer opened the still-editable quote and typed a new option name", the one edit this
+         * app's own UI has no OTHER route to reach without also touching `status`.
+         */
+        async renameQuoteOption({
+          documentId,
+          from,
+          to,
+        }: {
+          documentId: string;
+          from: string;
+          to: string;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rows } = await client.query(`SELECT data FROM "DocumentInstance" WHERE id = $1`, [
+              documentId,
+            ]);
+            if (rows.length === 0) {
+              throw new Error(`renameQuoteOption: no DocumentInstance "${documentId}"`);
+            }
+            const data = rows[0].data as { lines?: Array<Record<string, unknown>> };
+            const lines = Array.isArray(data.lines) ? data.lines : [];
+            const renamed = lines.map((line) =>
+              line.option === from ? { ...line, option: to } : line,
+            );
+            await client.query(`UPDATE "DocumentInstance" SET data = $1::jsonb WHERE id = $2`, [
+              JSON.stringify({ ...data, lines: renamed }),
+              documentId,
+            ]);
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
+
+        /**
          * `20-document-totals.cy.ts`'s own PDF-content proof. A rendered invoice/quote PDF is
          * FlateDecode-compressed (Chromium's own PDF writer), so the string "Totals" almost never
          * appears verbatim in the raw bytes — a spec that fell back to "the file got bigger" on a miss
@@ -690,6 +739,93 @@ export default defineConfig({
         // verifies the signature over the real ByteRange bytes rather than checking for two substrings.
         verifyPadesSignatureCoverage(base64: string) {
           return verifyPadesSignatureCoverage(base64);
+        },
+
+        /**
+         * Issue #471 - simulates a credit note "sent" BEFORE this feature existed: nulls out
+         * `number`/`displayNumber` on an already-issued record and, when `status` is given, rewrites
+         * its status too (used to put it back at "send_failed" - a real, reachable RETRY starting
+         * point, see credit-note.descriptor.ts's own "Numbering" header on why `onlyFrom: ['draft']`
+         * refuses to number such a record even when "send" runs again). The same "write the row a real
+         * pre-feature state would have left" shape `setStaleLegalAcceptance`/
+         * `setCompanySubscriptionSeats` above already use for a different fact each. There is no route
+         * that could produce a NEW record in this state through the app any more (every credit note
+         * issued from now on gets numbered - `credit-note.descriptor.ts`'s own `numbering`), which is
+         * exactly why a direct DB write is the only way to set one up at all - a MIGRATION scenario,
+         * not a reachable CREATION journey, the same reasoning `resetDatabase`'s own Node-side pg use
+         * already rests on for a fact no API call could set up.
+         */
+        async makeCreditNoteLegacyUnnumbered({
+          documentId,
+          status,
+        }: {
+          documentId: string;
+          status?: string;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rowCount } = await client.query(
+              status
+                ? `UPDATE "DocumentInstance" SET number = NULL, "displayNumber" = NULL, status = $2
+                   WHERE id = $1 AND "typeId" = 'credit-note'`
+                : `UPDATE "DocumentInstance" SET number = NULL, "displayNumber" = NULL
+                   WHERE id = $1 AND "typeId" = 'credit-note'`,
+              status ? [documentId, status] : [documentId],
+            );
+            if (rowCount !== 1) {
+              throw new Error(
+                `makeCreditNoteLegacyUnnumbered: expected exactly one credit-note row for id ${documentId}, matched ${rowCount}`,
+              );
+            }
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
+
+        /**
+         * PR #473 review point 3 - simulates the EXACT failure review point 1 of that PR closes (the
+         * numbering write happening AFTER, not atomically with, the "sending" status write): a
+         * numbered-type document (invoice/quote - no `numbering.onlyFrom`) reaching "sending" with no
+         * number at all, and STAYING there. There is no route through this app that can produce this
+         * state any more (the atomic write, `numbering/sequence.ts#takeDocumentNumberWithStatusTransition`,
+         * makes it structurally impossible going forward) - a direct DB write is therefore the only way
+         * to set one up for this spec, the same "migration/regression scenario, not a reachable
+         * creation journey" reasoning `makeCreditNoteLegacyUnnumbered` above already rests on.
+         */
+        async makeDocumentStuckSendingUnnumbered({
+          documentId,
+          typeId,
+        }: {
+          documentId: string;
+          typeId: string;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rowCount } = await client.query(
+              `UPDATE "DocumentInstance" SET number = NULL, "displayNumber" = NULL, status = 'sending'
+               WHERE id = $1 AND "typeId" = $2`,
+              [documentId, typeId],
+            );
+            if (rowCount !== 1) {
+              throw new Error(
+                `makeDocumentStuckSendingUnnumbered: expected exactly one "${typeId}" row for id ${documentId}, matched ${rowCount}`,
+              );
+            }
+            return null;
+          } finally {
+            await client.end();
+          }
         },
       });
     },

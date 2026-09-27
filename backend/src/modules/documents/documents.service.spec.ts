@@ -178,6 +178,10 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       undefined,
       'draft',
       validQuoteData,
+      // The CAS argument (issue #468 reviewer finding #1) - `documents.service.ts#runAction`'s own
+      // `allowedFromStatuses`: every declared status minus the quote's own save-draft `lockedStatuses`
+      // (`['signed', 'accepted']`).
+      ['draft', 'sending', 'sent', 'send_failed', 'refused'],
     );
   });
 
@@ -210,6 +214,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       undefined,
       'draft',
       dataWithReference,
+      ['draft', 'sending', 'sent', 'send_failed', 'refused'], // the CAS argument - see this file's own earlier comment on it.
     );
   });
 
@@ -230,6 +235,59 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
 
     expect(result.changed).toBe(true);
     expect((result.document?.data as Record<string, unknown>).clientReference).toBeUndefined();
+  });
+
+  // Issue #145 — the quote line's own optional `date` (quote.descriptor.ts, added alongside the
+  // invoice's identical field for consistency — see that file's own comment on why). Same "ordinary
+  // optional field, no special-cased persistence path" proof as `clientReference` above, at the LINE
+  // level rather than the document level — the PDF's own conditional column rendering is covered in
+  // rendering/render-html.spec.ts, the format bridges' non-leak in formats/shared-build.spec.ts.
+  it('persists an optional per-line `date` on the quote, and a line without one still validates', async () => {
+    const dataWithLineDate = {
+      ...validQuoteData,
+      lines: [{ ...validQuoteData.lines[0], date: '2026-02-10' }],
+    };
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: dataWithLineDate,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', {
+      data: dataWithLineDate,
+    });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as typeof dataWithLineDate).lines[0].date).toBe('2026-02-10');
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'quote',
+      undefined,
+      'draft',
+      dataWithLineDate,
+      ['draft', 'sending', 'sent', 'send_failed', 'refused'], // the CAS argument - see this file's own earlier comment on it.
+    );
+  });
+
+  it('validates and saves fine when no line sets a `date` at all — the ordinary, pre-existing shape', async () => {
+    (persistence.upsertDocument as Mock).mockResolvedValue({
+      id: 'doc-2',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', { data: validQuoteData });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as typeof validQuoteData).lines[0]).not.toHaveProperty('date');
   });
 
   // THE MUTATION TARGET: `runAction` strips every caller-supplied `__`-prefixed sidecar key BEFORE
@@ -262,6 +320,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       undefined,
       'draft',
       validQuoteData, // the SAME data, minus the sidecar — never the poisoned object.
+      ['draft', 'sending', 'sent', 'send_failed', 'refused'], // the CAS argument - see this file's own earlier comment on it.
     );
     const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4] as Record<string, unknown>;
     expect(persistedData).not.toHaveProperty('__crossBorderMentions');
@@ -404,6 +463,74 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       ).rejects.toThrow(/not available before the document has been saved/);
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
     });
+
+    describe('issue #373 - a quote offering 2+ options', () => {
+      const multiOptionData = {
+        ...validQuoteData,
+        lines: [
+          { description: 'Basic line', quantity: 1, unitPrice: 100, option: 'Basic' },
+          { description: 'Premium line 1', quantity: 1, unitPrice: 150, option: 'Premium' },
+          { description: 'Premium line 2', quantity: 1, unitPrice: 50, option: 'Premium' },
+        ],
+      };
+
+      it('refuses (409-shaped) from "draft"/"sent" - no option has been accepted yet', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          id: 'quote-doc-1',
+          typeId: 'quote',
+          status: 'sent',
+          data: multiOptionData,
+          acceptedOption: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        await expect(
+          buildService().service.runAction('company-1', 'quote', 'convert-to-invoice', {
+            documentId: 'quote-doc-1',
+            data: multiOptionData,
+          }),
+        ).rejects.toThrow(/offers 2 options \(Basic, Premium\) and none has been accepted yet/);
+        expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      });
+
+      it('carries EXACTLY the accepted option\'s own lines once "signed"/"accepted" recorded one - tag stripped', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          id: 'quote-doc-1',
+          typeId: 'quote',
+          status: 'accepted',
+          data: multiOptionData,
+          acceptedOption: 'Premium',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        (persistence.upsertDocument as Mock).mockResolvedValue({
+          id: 'invoice-doc-1',
+          typeId: 'invoice',
+          status: 'draft',
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const { service } = buildService();
+        const result = await service.runAction('company-1', 'quote', 'convert-to-invoice', {
+          documentId: 'quote-doc-1',
+          data: multiOptionData,
+        });
+
+        expect(result.changed).toBe(true);
+        const [, , , , invoiceData] = (persistence.upsertDocument as Mock).mock.calls[0];
+        expect(invoiceData.lines).toHaveLength(2);
+        expect(invoiceData.lines.map((l: { description: string }) => l.description)).toEqual([
+          'Premium line 1',
+          'Premium line 2',
+        ]);
+        // The `option` tag never reaches the invoice - that subfield exists only on the quote's own
+        // descriptor (see quote.descriptor.ts's own header on the `option` field).
+        expect(invoiceData.lines.every((l: Record<string, unknown>) => !('option' in l))).toBe(true);
+      });
+    });
   });
 
   describe('"send" — implemented through the quote\'s own send-by-email mechanism, no special case', () => {
@@ -437,13 +564,21 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'sending',
-        data: validQuoteData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // PR #473 review point 1: quote has no `numbering.onlyFrom`, so this call is eligible for the
+      // ATOMIC status+number write (async-send.ts) - it replaces `persistence.upsertDocument` for
+      // this call, never both.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: validQuoteData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
       });
 
       const { service, mailService, queueDispatcher } = buildService();
@@ -454,15 +589,16 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       });
 
       expect(result.changed).toBe(true);
-      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending' });
+      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending', number: 1 });
       expect(mailService.sendForCompany).not.toHaveBeenCalled();
-      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
         'company-1',
         'quote',
         'doc-1',
+        ['draft', 'send_failed'],
         'sending',
         validQuoteData,
-        ['draft', 'send_failed'],
       );
       expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
         companyId: 'company-1',

@@ -110,7 +110,7 @@ describe("The cross-border case, through the screen", () => {
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]')
+		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("buchhaltung@deutsche-autoliquidation.example");
 		cy.continueSteppedDialog("client-dialog");
@@ -417,7 +417,7 @@ describe("The cross-border case, through the screen", () => {
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
 
-		cy.get('[name="contactEmail"]')
+		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("privatkunde@ohne-ustidnr.example");
 		cy.continueSteppedDialog("client-dialog");

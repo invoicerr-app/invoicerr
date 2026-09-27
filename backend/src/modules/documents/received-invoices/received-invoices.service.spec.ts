@@ -14,10 +14,9 @@ import {
 import prisma from '@/prisma/prisma.service';
 
 import { computeArtifactHash } from '../archive/hashing';
-import { checkReceivedInvoiceLineTotals } from './line-totals-check';
 import * as persistence from '../persistence';
 import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
-import { receivedDocumentExtractorRegistry } from './ocr/extractor';
+import { ExtractorNotReadyError, receivedDocumentExtractorRegistry } from './ocr/extractor';
 import { ReceivedInvoicesService } from './received-invoices.service';
 import { persistInboundFile } from './storage';
 import { MAX_RECEIVED_INVOICE_BYTES } from './upload-validation';
@@ -86,11 +85,17 @@ describe('ReceivedInvoicesService', () => {
   let dir: string;
   const originalEnv = process.env.DOCUMENTS_INBOUND_DIR;
   let service: ReceivedInvoicesService;
+  // The narrow shape `ReceivedInvoicesService` depends on (`ReceivedInvoiceOcrDispatcher`,
+  // `queue/received-invoice-ocr.dispatcher.ts`) — a bare mock, no Nest, no BullMQ, no Redis, the same
+  // "depend on the concrete class as a DI-safe VALUE import, mock it structurally in a spec" shape
+  // `document-queue.dispatcher.ts`'s own consumers already hold.
+  let ocrDispatcher: { enqueue: Mock; getResult: Mock };
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'received-invoices-service-test-'));
     process.env.DOCUMENTS_INBOUND_DIR = dir;
-    service = new ReceivedInvoicesService();
+    ocrDispatcher = { enqueue: vi.fn().mockResolvedValue(undefined), getResult: vi.fn() };
+    service = new ReceivedInvoicesService(ocrDispatcher as never);
     seedDocuments([]);
   });
 
@@ -124,6 +129,10 @@ describe('ReceivedInvoicesService', () => {
         vatAmount: 20,
         grossAmount: 120,
       });
+      // A structural hit means `needsOcr` is false (extraction.ts's own `syntax` is no longer null) —
+      // OCR is never even a candidate, so nothing is ever enqueued.
+      expect(preview.ocr).toEqual({ outcome: 'not-attempted' });
+      expect(ocrDispatcher.enqueue).not.toHaveBeenCalled();
     });
 
     it('a plain, unrecognized file is still stored and returned — never a refusal', async () => {
@@ -173,6 +182,8 @@ describe('ReceivedInvoicesService', () => {
       await expect(
         service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', bytes }),
       ).rejects.toThrow(/ri-existing/); // names WHICH document already has it
+      // Refused before persisting, before extraction, before anything OCR-related ever runs.
+      expect(ocrDispatcher.enqueue).not.toHaveBeenCalled();
     });
 
     it('a DIFFERENT file (different hash) is accepted even when another received-invoice exists', async () => {
@@ -348,123 +359,84 @@ describe('ReceivedInvoicesService', () => {
   });
 
   /**
-   * Proves the WIRING, not the OCR client (that lives in
-   * `ocr-service/local-client.spec.ts`, against a mocked fetch) nor the fallback
-   * function itself (`ocr/apply-ocr-fallback.spec.ts`): a STUB extractor registered into the exact
-   * same core registry a real plugin would use, proving an OCR proposal reaches `preview.extraction.
-   * fields` and that supplier reconciliation AND the total-vs-sum check both run on
-   * whatever it hands back — exactly as they already do for a structurally-read field, since neither
-   * downstream mechanism has (or needs) any notion of WHERE a field came from.
+   * The enqueue-vs-synchronous DECISION `upload()` makes — see that method's own comment for the exact
+   * three-part rule. Proves the WIRING only: `ReceivedInvoiceOcrDispatcher.enqueue` called with the
+   * right data (and `extract()` never called during the request) when a configured extractor exists;
+   * the pre-existing synchronous outcome otherwise. The actual OCR-execution-and-backfill logic — an
+   * OCR proposal reaching `extraction.fields`, supplier reconciliation over an OCR-read VAT, the
+   * total-vs-sum check accepting OCR-sourced lines — moved to `ocr/run-ocr-job.spec.ts`, since none of
+   * it happens inside THIS service any more once an extractor is configured.
    */
-  describe('upload — OCR fallback', () => {
+  describe('upload — asynchronous OCR', () => {
     const STUB_ID = 'stub-ocr-for-received-invoices-service-spec';
-    const KNOWN_OCR_VAT = 'FR60708090801';
-    let companyId: string;
-    let clientId: string;
+    const isConfigured = vi.fn();
+    const extract = vi.fn();
 
     beforeAll(() => {
+      // ONE stub, registered once — the registry has no `unregister` (see `extractor.ts`'s own
+      // header). Placed in THIS describe block's own `beforeAll` (which Vitest runs right before this
+      // block's first test, never at file load time) so every describe block ABOVE this one in the
+      // file still runs with nothing registered for 'application/pdf', exactly as before this change.
       receivedDocumentExtractorRegistry.register({
         id: STUB_ID,
         supports: (mime) => mime === 'application/pdf',
-        extract: async () => ({
-          fields: {
-            supplier: 'OCR-Read Supplier',
-            supplierVatId: KNOWN_OCR_VAT,
-            currency: 'EUR',
-            netAmount: 400,
-            vatAmount: 80,
-            // Deliberately WRONG on this one total only (4 x 100.00 @ 20% sums to net 400 / VAT 80 /
-            // gross 480 — net/VAT above already match that exactly, only gross is printed wrong here)
-            // — the same "mundane, single-total typo" shape 36-received-invoices.cy.ts's own
-            // MISMATCH_FIXTURE already uses, proven here to react to an OCR-sourced line exactly like
-            // a structurally-read one.
-            grossAmount: 600,
-            lines: [{ description: 'OCR line', quantity: 4, unitPrice: 100, vatRate: '20' }],
-          },
-        }),
+        isConfigured,
+        extract,
       });
-
-      return prisma.company
-        .create({
-          data: {
-            name: 'Received Invoices OCR Fallback Co',
-            foundedAt: new Date('2020-01-01'),
-            address: '1 Test Street',
-            postalCode: '00000',
-            city: 'Testville',
-            country: 'France',
-            countryCode: 'FR',
-            phone: '+33000000000',
-            email: `received-invoices-ocr-fallback-${Date.now()}@example.com`,
-          },
-        })
-        .then(async (company) => {
-          companyId = company.id;
-          const client = await prisma.client.create({
-            data: {
-              companyId,
-              name: 'OCR Client Book Entry',
-              address: '2 Client Street',
-              postalCode: '11111',
-              city: 'Clientville',
-              country: 'France',
-              countryCode: 'FR',
-            },
-          });
-          clientId = client.id;
-          await prisma.partyIdentifier.create({
-            data: { clientId: client.id, scheme: 'VAT', value: KNOWN_OCR_VAT },
-          });
-        });
     });
 
-    afterAll(async () => {
-      await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
+    beforeEach(() => {
+      isConfigured.mockReset();
+      extract.mockReset();
     });
 
-    it('a plain PDF with an active stub extractor comes back pre-filled — never left blank the way a truly unrecognized file stays', async () => {
+    it('enqueues and returns ocr: "pending" when a configured extractor exists — never calls extract() during the request', async () => {
+      isConfigured.mockReturnValue(true);
       const bytes = fakeScannedPdfBytes('a scanned page, no embedded XML at all');
+      const expectedHash = computeArtifactHash(bytes);
 
-      const preview = await service.upload(companyId, {
+      const preview = await service.upload('company-1', {
         fileName: 'scan.pdf',
         mime: 'application/pdf',
         bytes,
       });
 
-      expect(preview.ocr).toEqual({ outcome: 'extracted', extractorId: STUB_ID });
-      expect(preview.extraction.syntax).toBe('OCR');
-      expect(preview.extraction.fields.supplier).toBe('OCR-Read Supplier');
-      expect(preview.extraction.fields.netAmount).toBe(400);
+      expect(preview).toEqual({
+        fileRef: expectedHash,
+        fileName: 'scan.pdf',
+        mime: 'application/pdf',
+        extraction: { syntax: null, fields: {} },
+        supplierMatch: { outcome: 'unmatched', reason: 'no-criteria' },
+        ocr: { outcome: 'pending' },
+      });
+      expect(ocrDispatcher.enqueue).toHaveBeenCalledWith({
+        companyId: 'company-1',
+        fileRef: expectedHash,
+        fileName: 'scan.pdf',
+        mime: 'application/pdf',
+      });
+      expect(extract).not.toHaveBeenCalled();
     });
 
-    it("the OCR-read supplier VAT auto-reconciles against this company's own client book — the SAME mechanism proved for structural extraction", async () => {
+    it('runs OCR synchronously — immediate "unavailable", never enqueues — when the registered extractor reports itself unconfigured', async () => {
+      // The self-hosted-with-nothing-configured case, reproduced through the SAME shape
+      // `LocalOcrProvider.isConfigured()` uses (an extractor genuinely registered, `extract()` itself
+      // declining with `ExtractorNotReadyError`) rather than nothing registered at all — proving the
+      // GATE, not merely the absence.
+      isConfigured.mockReturnValue(false);
+      extract.mockRejectedValue(new ExtractorNotReadyError(STUB_ID, 'not configured'));
       const bytes = fakeScannedPdfBytes('another scanned page');
 
-      const preview = await service.upload(companyId, {
+      const preview = await service.upload('company-1', {
         fileName: 'scan-2.pdf',
         mime: 'application/pdf',
         bytes,
       });
 
-      expect(preview.supplierMatch).toEqual({ outcome: 'matched', clientId, matchedBy: 'vat' });
-      expect(preview.extraction.fields.supplierClient).toBe(clientId);
-    });
-
-    it('the OCR-read lines feed the total-vs-sum check exactly like a structurally-read line would — a named, non-blocking warning', () => {
-      // The check itself (line-totals-check.ts) runs at "receive" time (received-invoice-actions.ts),
-      // not at upload — this proves the FIELDS this upload just returned are the SAME shape that
-      // check already knows how to read, without re-driving the whole action pipeline here (that
-      // wiring is `received-invoice-actions.ts`'s own concern).
-      const warnings = checkReceivedInvoiceLineTotals({
-        currency: 'EUR',
-        netAmount: 400,
-        vatAmount: 80,
-        grossAmount: 600,
-        lines: [{ description: 'OCR line', quantity: 4, unitPrice: 100, vatRate: '20' }],
-      });
-
-      expect(warnings).toHaveLength(1);
-      expect(warnings[0]).toMatch(/Line total mismatch \(gross \/ TTC\)/);
+      expect(preview.ocr).toEqual({ outcome: 'unavailable' });
+      expect(preview.extraction).toEqual({ syntax: null, fields: {} });
+      expect(extract).toHaveBeenCalled();
+      expect(ocrDispatcher.enqueue).not.toHaveBeenCalled();
     });
   });
 

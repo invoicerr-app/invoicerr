@@ -29,19 +29,42 @@ import { TransportRegistry } from './transports/transport-registry';
 vi.mock('./persistence');
 vi.mock('./country-policy/country-policy');
 vi.mock('./numbering/take-number');
-vi.mock('./stock/apply-stock-on-issuance');
+// PARTIAL mock (PR #473 round 3, point 2b) - only `applyStockOnIssuance` (the DB-touching half) is
+// mocked; the module's OWN `declaresArticleReference` predicate stays REAL, so the gate
+// `documents.service.ts#runAction` now applies before calling it is genuinely exercised against
+// `numberedWidgetDescriptor`'s own declared fields below, never against an auto-mocked stub that
+// would pass every test here for the wrong reason.
+vi.mock('./stock/apply-stock-on-issuance', async () => {
+  const actual = await vi.importActual('./stock/apply-stock-on-issuance');
+  return { ...actual, applyStockOnIssuance: vi.fn() };
+});
 
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
 
 /** A "widget" numbered on entering "sent" — mirrors `quote.descriptor.ts`'s/`invoice.descriptor.ts`'s own
  *  `numbering: { onEnterStatus: 'sent' }`, on a synthetic type never named "quote"/"invoice"/
- *  "article" — proving the stock effect never keys off a type name, only off lines/articleId. */
+ *  "article" - proving the stock effect never keys off a type name, only off its descriptor's OWN
+ *  declared fields. Declares a `lines` array field with a `hiddenReference`/`entity: 'article'` row
+ *  field (PR #473 round 3, point 2b) - the SAME structural shape `invoice.descriptor.ts`'s own
+ *  `articleId` field has, so `declaresArticleReference` genuinely returns `true` for it, never a mock
+ *  return value standing in for the real predicate. */
 function numberedWidgetDescriptor(overrides: Partial<DocumentTypeDescriptor> = {}): DocumentTypeDescriptor {
   return {
     id: 'widget',
     label: 'Widget',
-    fields: [],
+    fields: [
+      {
+        key: 'lines',
+        kind: 'array',
+        label: 'Lines',
+        required: false,
+        fields: [
+          { key: 'articleId', kind: 'hiddenReference', label: 'Article', required: false, entity: 'article' },
+          { key: 'quantity', kind: 'number', label: 'Quantity', required: false },
+        ],
+      },
+    ],
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'sent', label: 'Sent' },
@@ -72,6 +95,17 @@ function numberedWidgetDescriptor(overrides: Partial<DocumentTypeDescriptor> = {
 function unnumberedWidgetDescriptor(): DocumentTypeDescriptor {
   const { numbering: _drop, ...rest } = numberedWidgetDescriptor();
   return rest;
+}
+
+/** Numbered exactly like `numberedWidgetDescriptor`, but its `lines` field declares NO
+ *  article-reference sub-field at all (PR #473 round 3, point 2b) - the credit note's own shape
+ *  (credit-note.descriptor.ts's "Lines" field has no `articleId`). Proves the hole the reviewer
+ *  named: the stock effect used to read `data.lines` type-agnostically REGARDLESS of what the
+ *  descriptor itself declares, which would still decrement for a type whose lines merely CARRY an
+ *  articleId a client posted (the line validator keeps any undeclared key) even though that type
+ *  never declared the field to begin with. */
+function numberedWidgetDescriptorWithoutArticleReference(): DocumentTypeDescriptor {
+  return { ...numberedWidgetDescriptor(), fields: [] };
 }
 
 function buildService(descriptor: DocumentTypeDescriptor, actionRegistry: ActionRegistry) {
@@ -243,6 +277,35 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
     (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
 
     const service = buildService(numberedWidgetDescriptor(), actionRegistry);
+    await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });
+
+    expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
+  });
+
+  // PR #473 round 3, point 2b: gating on `declaresArticleReference(descriptor)`, never on which
+  // action/site happened to reach this code, is what makes "never decrement for a type that never
+  // declared the field" true regardless of what `data.lines` carries.
+  it('a type whose descriptor declares NO article-reference field on its lines is NEVER decremented, even though its lines carry an articleId', async () => {
+    const actionRegistry = new ActionRegistry();
+    const lines = [{ articleId: 'article-1', quantity: 4 }];
+    registerSendHandler(actionRegistry, 'sent', null, { lines });
+
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'widget',
+      status: 'draft',
+      number: null,
+      displayNumber: null,
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
+      number: 1,
+      displayNumber: 'WIDGET-2026-0001',
+    });
+
+    const service = buildService(numberedWidgetDescriptorWithoutArticleReference(), actionRegistry);
     await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });
 
     expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();

@@ -1,0 +1,28 @@
+# Scaleway Object Storage, for the multi-node runs. NOT an optimisation: the chart's documents PVC
+# is ReadWriteOnce, so a pod scheduled on a second node cannot attach it and stays stuck on
+# FailedAttachVolume — measured on 2026-09-22 with --nodes 2 and --nodes 3. archive.storage=s3 plus
+# documents.inbound.storage=s3 is the only combination that drops that volume entirely, which is
+# also the production shape.
+#
+# THE CREDENTIALS ARE NOT IN THIS FILE, and must never be: loadtest.js writes
+# <run>/s3-credentials.yaml (git-ignored) from the environment it was given with --env-file, and
+# passes it to Helm as one more -f. A key was committed here once, on 2026-09-23, and had to be
+# revoked — see the .gitignore next to this file.
+#
+# Bucket names come from --s3-bucket-prefix (default invoicerr-lt); loadtest.js creates them before
+# the run and deletes them with the cluster, because a Scaleway bucket name is not free twice.
+archive:
+  storage: s3
+  s3:
+    endpoint: "https://s3.fr-par.scw.cloud"
+    region: fr-par
+    forcePathStyle: false
+documents:
+  inbound:
+    storage: s3
+    s3:
+      endpoint: "https://s3.fr-par.scw.cloud"
+      region: fr-par
+      forcePathStyle: false
+  persistence:
+    enabled: false

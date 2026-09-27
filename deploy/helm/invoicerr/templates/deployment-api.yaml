@@ -252,6 +252,8 @@ spec:
             {{- if .Values.ocr.enabled }}
             - name: OCR_SERVICE_URL
               value: {{ include "invoicerr.ocrServiceUrl" . | quote }}
+            - name: RECEIVED_INVOICE_OCR_CONCURRENCY
+              value: {{ .Values.ocr.queueConcurrency | quote }}
             {{- end }}
 
             {{- with .Values.app.extraEnv }}

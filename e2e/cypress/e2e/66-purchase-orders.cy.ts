@@ -46,9 +46,11 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 		// with NO excludeSuppliers, unlike the invoice's/quote's own "client" picker): whichever client
 		// the seed's default search already surfaces is picked, exactly the pattern
 		// 25-document-settlement.cy.ts's own "invoice" reference field already uses.
-		cy.get('[data-cy="document-field-supplier-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-supplier-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-supplier-input-options"] button').first().click();
+		// The picker that closes here still owes the page a deferred focus restore, and the calendar
+		// opened right below is what that restore dismisses when it lands late
+		// (support/commands.ts#waitForLayerTeardown). A supplier drives no descriptor refetch, unlike
+		// a client, so the teardown is all there is to wait for here.
+		cy.pickDocumentFieldOption('supplier');
 
 		// "issueDate" — a real calendar click, "today", via the DatePicker's own "Today" footer button
 		// rather than a computed `[data-day="M/D/YYYY"]` selector: CI run 34930840117

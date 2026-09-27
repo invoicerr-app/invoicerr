@@ -15,7 +15,15 @@ import { sendDocumentInstanceEmail } from './send-document-email';
 
 vi.mock('../numbering/take-number');
 vi.mock('../rendering/render-instance-pdf');
-vi.mock('../stock/apply-stock-on-issuance');
+// PARTIAL mock (PR #473 round 3, point 2b) - only `applyStockOnIssuance` (the DB-touching half) is
+// mocked; the module's OWN `declaresArticleReference` predicate stays REAL, so the gate this file's
+// own call site now applies is checked against `buildQuoteDescriptor()`'s REAL declared fields below,
+// never against an auto-mocked stub that would return `undefined` (falsy) regardless of what the
+// quote actually declares.
+vi.mock('../stock/apply-stock-on-issuance', async () => {
+  const actual = await vi.importActual('../stock/apply-stock-on-issuance');
+  return { ...actual, applyStockOnIssuance: vi.fn() };
+});
 vi.mock('./company-email-templates');
 // `nodemailer` is imported here as a namespace (`import * as nodemailer`) specifically so the tests
 // further down can `vi.spyOn(nodemailer, 'createTransport')` — but Vitest refuses to spy directly on a
@@ -32,6 +40,10 @@ vi.mock('nodemailer', async () => {
 // test here keeps using a bare fake `mailService` object, never touching this at all.
 vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
   resolveCompanyMailSettings: vi.fn(),
+  // No test in this file exercises the Reply-To cascade itself (that is `mail.service.spec.ts`'s own
+  // job) -- present only so `MailService#sendForCompany` (which now reads both resolvers) does not
+  // throw "no such export" under Vitest's wholesale module mock.
+  resolveCompanyReplyTo: vi.fn(),
 }));
 
 const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;

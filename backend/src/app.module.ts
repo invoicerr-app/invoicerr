@@ -33,6 +33,7 @@ import { LegalModule } from './legal/legal.module';
 import { MailService } from './mail/mail.service';
 import { McpModule } from './modules/mcp/mcp.module';
 import { TransferModule } from './modules/company/transfer/transfer.module';
+import { VersionModule } from './modules/version/version.module';
 import { TransferQueueWorkerModule } from './modules/company/transfer/transfer-queue-worker.module';
 import { Module } from '@nestjs/common';
 import { OcrExtractorModule } from './plugins';
@@ -240,6 +241,9 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // `billingEnabled`).
     LegalModule,
     HealthModule,
+    // `GET /api/version` — issue #371, installed version + update-availability check. Always
+    // imported, no flag: see `version.module.ts`'s own header.
+    VersionModule,
     PrismaModule,
     LoggerModule,
   ],

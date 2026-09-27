@@ -9,6 +9,7 @@
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { DocumentFormatParty } from './format-provider';
+import { FRENCH_BUSINESS_PROCESS_LIMITATIVE_VALUES } from './semantic/business-process';
 import { xrechnungFormatProvider } from './xrechnung-provider';
 import { EN16931_UBL_SCH, validateSchematron, XRECHNUNG_UBL_SCH } from './vendored/validate-schematron';
 import { newEuInvoiceService, buildEuInvoiceForDocument } from './shared-build';
@@ -180,5 +181,60 @@ describe('xrechnung-provider — the master proof (fixture computed by hand)', (
     );
     expect(result.validation.errors).toEqual([]);
     expect(result.validation.valid).toBe(true);
+  }, 30_000);
+
+  // BT-23, the GH-448 collision judged against XRechnung's own specification. The same French seller, but dated ON OR AFTER the 2026-09-01 CGI-reform mandate, so
+  // `business-process.ts#resolveFrenchBusinessProcessCode` actually fires and writes a French CGI
+  // code (B1/S1/M1/...) into `cbc:ProfileID`. XRechnung 3.0.x defines that element (BT-23) as
+  // buyer-specified with the Peppol billing URN as the documented default, never as a place for a
+  // French "cadre de facturation" category. See `xrechnung-provider.ts`'s own header, "BT-23".
+  // NOTE the KoSIT delta has NO opinion on this element at all (zero ProfileID assertions in the
+  // vendored .sch), so the two `validation` assertions below stay green either way: THIS test, not
+  // the validator, is the only thing guarding the value.
+  it('BT-23: a French seller ON OR AFTER the mandate carries the Peppol billing profile URN in cbc:ProfileID, not the French CGI code', async () => {
+    const frenchSellerComplete: DocumentFormatParty = {
+      name: 'Dupont Consulting SARL',
+      address: '12 Rue de la Paix',
+      city: 'Paris',
+      postalCode: '75002',
+      country: 'France',
+      email: 'contact@dupont-consulting.example',
+      phone: '+33102030405',
+      iban: 'FR7630006000011234567890189',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
+    };
+    const mandateDocument = {
+      ...DOCUMENT,
+      data: { ...DOCUMENT_DATA, issueDate: '2026-09-24', dueDate: '2026-10-24' },
+    };
+
+    const result = await xrechnungFormatProvider.build(
+      descriptor,
+      mandateDocument,
+      frenchSellerComplete,
+      BUYER_DE_PUBLIC,
+    );
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+
+    const xml = Buffer.from(result.bytes).toString('utf-8');
+    expect(xml).toContain('<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>');
+    for (const code of FRENCH_BUSINESS_PROCESS_LIMITATIVE_VALUES) {
+      expect(xml).not.toContain(`<cbc:ProfileID>${code}</cbc:ProfileID>`);
+    }
+  }, 30_000);
+
+  // The German seller of the master proof above must be byte-identical to what it was before the
+  // BT-23 fix: `resolveFrenchBusinessProcessCode` never fired for it, so `@e-invoice-eu/core`'s own
+  // default already put the very same URN in this element. The override must not change that.
+  it('BT-23 regression guard: the German seller keeps the exact same cbc:ProfileID the library default already emitted', async () => {
+    const result = await xrechnungFormatProvider.build(
+      descriptor,
+      DOCUMENT,
+      SELLER_DE_COMPLETE,
+      BUYER_DE_PUBLIC,
+    );
+    const xml = Buffer.from(result.bytes).toString('utf-8');
+    expect(xml).toContain('<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>');
   }, 30_000);
 });

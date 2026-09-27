@@ -317,11 +317,12 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		// "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the wizard's own "Details"
 		// step, ahead of "Lines" — nothing this test actually reads, just what has to be filled to
 		// reach the line the overlay field lives on (document-create-dialog.tsx's `buildFieldGroups`).
-		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should(
-			"be.visible",
-		);
-		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		// Picking the client is not just a value change: the screen re-fetches its own descriptor
+		// with that client (the country field overlays depend on the buyer) and rebuilds every field
+		// node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
+		// rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
+		// unmounted or dismissed under the command driving it.
+		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickToday('[data-cy="document-field-dueDate-input"]');
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });

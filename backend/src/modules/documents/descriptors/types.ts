@@ -84,13 +84,44 @@ export interface DocumentTypeDescriptor {
    * which transition edge fired.
    *
    * Absent means this type is NEVER numbered, on any record, by anything — the deliberate state for
-   * "expense" (no status a number would even make sense to hang off) and, today, for "credit-note"
-   * (its lifecycle has no status besides "draft" to enter — see credit-note.descriptor.ts's own
-   * comment on why `numbering` is not declared for it despite a credit note plausibly needing one in
-   * real bookkeeping). This is the numbering equivalent of `contributions`/`statuses` themselves being
-   * optional: a type that never declares a concern gets none of that concern's machinery.
+   * "expense" (no status a number would even make sense to hang off, and no legal text requiring
+   * one). "credit-note" DOES declare this now (issue #471: CGI art. 289, I, 5 assimilates a
+   * correcting document to an invoice, which must carry a sequential number - see
+   * credit-note.descriptor.ts's own header, and country-policy/'s per-country `numbering` facts for
+   * the full picture across the five shipped countries). This is the numbering equivalent of
+   * `contributions`/`statuses` themselves being optional: a type that never declares a concern gets
+   * none of that concern's machinery.
    */
-  numbering?: { onEnterStatus: string };
+  numbering?: {
+    onEnterStatus: string;
+    /**
+     * Restricts numbering to a record whose status IMMEDIATELY BEFORE this transition (never the
+     * type's `initialStatus` alone - a genuinely fresh record has no "before" at all, see below) was
+     * one of these - added for issue #471, so far the ONLY consumer. Absent means "any prior status",
+     * the original, unrestricted behaviour every OTHER numbered type (quote, invoice) still has: their
+     * own SEND_TRANSITIONS already only ever reach `onEnterStatus` from a status this type's own
+     * lifecycle intends to number, so no such list was ever needed for them.
+     *
+     * Exists for exactly one problem: a record that reached `onEnterStatus` BEFORE this type declared
+     * `numbering` at all (a credit note issued before issue #471 shipped) must NEVER be numbered
+     * retroactively - a number handed out after the fact is not the number the document was actually
+     * issued with, and backdating one would be a false legal fact, worse than the honest gap it
+     * replaces. Since `number` is set exactly once and never cleared, such a record is
+     * indistinguishable from a brand-new one by `number == null` alone; the ONLY thing that still
+     * tells them apart is the status the record is arriving FROM. `credit-note.descriptor.ts` sets
+     * this to `['draft']`: numbering fires when the record genuinely leaves "draft" - the same
+     * "sending" arrival a "send_failed" RETRY of an ALREADY-numbered record also reaches, which stays
+     * a no-op regardless (`number` is already set) - but is refused for a legacy record arriving at
+     * "sending" FROM "send_failed" while still unnumbered, because a status that predates this feature
+     * cannot itself be trusted to mean "genuinely leaving draft".
+     *
+     * `documents.service.ts#runAction`'s post-handler hook and `actions/async-send.ts`'s own
+     * `numberOnEnqueue` gate both read this alongside `onEnterStatus` - see each call site's own
+     * comment. Not declared for quote/invoice: leaving it absent keeps their existing, unrestricted
+     * behaviour exactly as it was before this field existed.
+     */
+    onlyFrom?: string[];
+  };
   /**
    * This type's DEFAULT email — subject/body, sent when the document is delivered by mail (the
    * quote's own unconditional "send", the invoice's "email" transport — see actions/generic-actions.ts
@@ -322,6 +353,22 @@ export interface DocumentFieldDescriptor {
    * this hint did.
    */
   hideWhenEmpty?: boolean;
+  /**
+   * 'text' only, and only inside an 'array' row's own `fields` (never a top-level field - there are
+   * no "sibling rows" to suggest from outside one): opts THIS row subfield into a plain HTML5
+   * `<datalist>` of values already typed for the SAME subfield on OTHER rows of the SAME array - see
+   * `field-renderers/primitive-fields.tsx#useOptionSuggestions`, the only place that reads this hint.
+   * Deliberately an explicit opt-in, never inferred from "any 'text' subfield inside an array": the
+   * mechanism itself is generic (any array, any 'text' subfield), but the UX change it makes is
+   * real and unrequested on a type that never asked for it - an invoice's own `description` line
+   * would start suggesting every OTHER line's designation mid-typing, which nobody asked this issue
+   * for. Set ONLY on the quote's own `option` line subfield today (issue #373, "quotes with
+   * options") - a company typing "Basic" on one line and "Basic" again on another is exactly the
+   * repetition this hint exists to make less tedious; a quote's own `description` field does NOT set
+   * it, on purpose, even though the mechanism would work for it identically. Absent/false: no
+   * datalist at all, byte-for-byte the render this field always had.
+   */
+  suggestSiblingValues?: true;
   /** 'select': the choices offered. */
   options?: { value: string; label: string }[];
   /**
@@ -536,6 +583,32 @@ export interface DocumentActionDescriptor {
    * copy), and `validateLifecycle` re-derives it at registration to catch a mismatch.
    */
   transitions?: DocumentActionTransition[];
+  /**
+   * Statuses of an EXISTING record from which the TYPE ITSELF refuses this action, no matter what
+   * any country policy says - issue #468. Before this field existed, every descriptor's "save-draft"
+   * declared `SAVE_DRAFT_TRANSITIONS = [{ from: 'always', to: 'draft' }]`, so `availableWhen` was
+   * `'always'` and NOTHING in the type stopped a "save-draft" from demoting an already-issued
+   * document (sent, cancelled, signed...) back to "draft" and silently rewriting it. The only thing
+   * that ever stopped it was per-country DATA (country-policy's own `statuses: ["draft"]` restriction
+   * on `invoice.save-draft`, present in all five shipped country files) - a country that forgot to add that line, or a country the
+   * catalog never covers at all, reopened the hole. A credit note is legally an invoice (CGI art.
+   * 289, I, 5) and had NO such line anywhere, so an issued credit note could always be rewritten. The
+   * fix belongs in CODE, not in one more country file that a sixth country could omit.
+   *
+   * Why not `transitions`/`availableWhen`: both only ever express "every status" (`'always'`,
+   * which ALSO matches a brand-new, never-saved record - see `isActionAvailable`) or a closed list of
+   * EXISTING statuses. There is no way to say "a never-saved record OR exactly these existing
+   * statuses" with either shape - `availableWhen: ['draft']` would revoke the never-saved allowance
+   * too (the exact bug lifecycle.ts's own closing comment documents for `policyRestrictedToStatuses`).
+   * `lockedStatuses` is therefore its own, third, orthogonal fact: it only ever narrows an ALREADY
+   * available action, and only for a record that has actually been saved - `isActionAvailable` checks
+   * it after `availableWhen`, and `status === undefined` (never-saved) never matches it.
+   *
+   * `isActionAvailable` denies the action once `status` is in this list, exactly as a country
+   * policy's `restrictedToStatuses` does - but this one can never be widened or bypassed by data,
+   * because nothing outside this file's own descriptors sets it.
+   */
+  lockedStatuses?: string[];
 }
 
 /** One entry of `DocumentActionDescriptor.transitions` — see that field's own comment, and
@@ -597,8 +670,15 @@ export const CORE_FIELD_KINDS = [
 
 export type CoreFieldKind = (typeof CORE_FIELD_KINDS)[number];
 
-/** Whether `action` may run on a record currently at `status` (undefined = not saved yet). */
+/** Whether `action` may run on a record currently at `status` (undefined = not saved yet). Checks
+ *  `availableWhen` first, then `lockedStatuses` (issue #468) as a second, code-only narrowing that
+ *  only ever applies to an EXISTING record - a never-saved one (`status === undefined`) can never be
+ *  locked, since `lockedStatuses` only ever names statuses a record can actually be persisted at. */
 export function isActionAvailable(action: DocumentActionDescriptor, status: string | undefined): boolean {
-  if (action.availableWhen === 'always') return true;
-  return status !== undefined && action.availableWhen.includes(status);
+  if (action.availableWhen === 'always') {
+    if (status !== undefined && action.lockedStatuses?.includes(status)) return false;
+    return true;
+  }
+  if (status === undefined || !action.availableWhen.includes(status)) return false;
+  return !action.lockedStatuses?.includes(status);
 }

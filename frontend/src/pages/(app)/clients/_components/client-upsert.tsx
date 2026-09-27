@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { usePatch, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { cn } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { DocumentField } from "@/components/documents/document-field"
@@ -27,7 +28,7 @@ import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, TriangleAlert } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
+import { useFieldArray, useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { Link } from "react-router"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
@@ -36,7 +37,7 @@ import { type IdentifierRequirement, useRequiredIdentifiers } from "@/hooks/use-
 import { type B2gRoutingRule, useB2gRoutingRule } from "@/hooks/use-b2g-routing"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { z } from "zod"
+import type { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { FormSection } from "../../_shared/form-dialog"
@@ -47,7 +48,117 @@ import {
   stepForField,
 } from "@/components/ui/stepped-dialog"
 import { ClientPortalAccessDialog } from "./client-portal-access"
-import { isValidPostalCode } from "./postal-code"
+import { buildClientSchema } from "@/lib/client-schema"
+import { normalizeClientContacts } from "@/lib/normalize-client-contacts"
+
+/** A brand-new client always starts with ONE blank contact row, already flagged primary - the
+ *  common case (a single contact) then needs no "Add contact" click at all, matching this form's
+ *  own pre-#415 UX where the (now-removed) flat email/phone fields were always present. The user is
+ *  still free to remove it down to zero, or add more (#415's own "zero, one or several"). A function,
+ *  not a shared array constant: each `form.reset()` call needs its OWN array instance. */
+function blankPrimaryContact() {
+  return [{ firstName: "", lastName: "", role: "", email: "", phone: "", isPrimary: true }]
+}
+
+/**
+ * The ONE place the wizard's form values become the exact payload `trigger(...)` sends to the API -
+ * called from BOTH `onSubmit` (below) and `RecapStep` (#415 follow-up review round 2, point 1: "the
+ * summary must show exactly what will be saved"), so the two can never again disagree the way the
+ * Summary step used to - rendering the CONTACT step's own raw row names while `onSubmit` silently
+ * overwrote the primary row's name with the identity step's. A plain function, not a closure over
+ * `form`/`trigger`: `RecapStep` only ever has `form.watch()`'s current (not yet submitted) values,
+ * never the mutation triggers `onSubmit` needs.
+ *
+ * Contacts go through `normalizeClientContacts` (#415 follow-up review round 3, point 3) - blank rows
+ * dropped FIRST, then a primary resolved from what remains, the exact order the backend's own
+ * `normalizeClientContacts` uses (see `lib/normalize-client-contacts.ts`'s own header). Before this,
+ * the primary was picked from the RAW array (a blank default row flagged primary won the "Primary"
+ * badge, and the duplicate check below read ITS email) while the server dropped that same blank row
+ * first and promoted the next real one - a client saved with, say, Bob as the real primary while the
+ * summary and the duplicate check both still showed the empty row.
+ */
+function buildClientPayload(data: {
+  type?: string
+  contactFirstname?: string
+  contactLastname?: string
+  contacts?: {
+    firstName?: string
+    lastName?: string
+    role?: string
+    email?: string
+    phone?: string
+    isPrimary?: boolean
+  }[]
+  peppolSchemeId?: string
+  peppolEndpointId?: string
+  foundedAt?: Date
+  identifiers?: { scheme: string; value: string }[]
+  [key: string]: unknown
+}) {
+  // Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
+  const peppolEntry =
+    data.peppolSchemeId && data.peppolEndpointId?.trim()
+      ? { scheme: "PEPPOL_ENDPOINT", value: `${data.peppolSchemeId}:${data.peppolEndpointId.trim()}` }
+      : null
+  const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...dataWithoutPeppol } = data
+
+  // The identity step's contactFirstname/contactLastname are authoritative for an INDIVIDUAL client's
+  // PRIMARY contact name (#415 follow-up review round 2, point 1 DECISION: "the primary contact of an
+  // INDIVIDUAL client is always the person on the identity step") - folded in here, overriding
+  // whatever the contacts step's own primary row carries, so there is never a place where the two
+  // could disagree. The form itself already makes this the only possible outcome (the primary row's
+  // name inputs are read-only, mirroring these two fields, and no OTHER row's "set primary"/"Remove"
+  // control is reachable for an INDIVIDUAL client - see `ContactsSection`), so this override is a
+  // belt-and-suspenders restatement of the same rule, never a place a mismatch could survive to. An
+  // INDIVIDUAL client always has at least its own identity as a primary contact, even if the contacts
+  // step's own list is empty (the common case: nothing else to add beyond the person's own
+  // name/email/phone, already captured on the identity/contact steps).
+  const rawContacts =
+    data.type === "INDIVIDUAL" && (!data.contacts || data.contacts.length === 0)
+      ? [{ isPrimary: true }]
+      : data.contacts || []
+
+  // Which raw row the identity override lands on - the row the CONTACT step's own `ContactsSection`
+  // treats as "the locked, identity-linked row" (flagged primary, or index 0 when none is - the row
+  // an INDIVIDUAL client can never remove or hand "primary" to another row instead, see that
+  // component's own `primaryLocked`). Computed on the RAW array, on purpose: this is about which UI
+  // row the identity fields belong to, never about which row survives blank-dropping below.
+  const isIndividual = data.type === "INDIVIDUAL"
+  const rawFirstFlagged = rawContacts.findIndex((c) => c.isPrimary)
+  const rawPrimaryIndex = rawFirstFlagged >= 0 ? rawFirstFlagged : 0
+  const annotatedContacts = rawContacts.map((c, index) => ({
+    ...c,
+    firstName: isIndividual && index === rawPrimaryIndex ? data.contactFirstname : c.firstName,
+    lastName: isIndividual && index === rawPrimaryIndex ? data.contactLastname : c.lastName,
+  }))
+
+  // Blank rows dropped, primary resolved from what's left - see this function's own header.
+  const { contacts: survivingContacts, primary } = normalizeClientContacts(annotatedContacts)
+  const contacts = survivingContacts.map((c) => ({
+    firstName: c.firstName,
+    lastName: c.lastName,
+    role: c.role,
+    email: c.email,
+    phone: c.phone,
+    isPrimary: c === primary,
+  }))
+
+  // Filter out empty identifiers so we don't send {scheme, value: ""}
+  return {
+    ...dataWithoutPeppol,
+    contacts,
+    // A founding date is a CALENDAR DAY (`lib/calendar-date.ts`). Left as a `Date`, `JSON.stringify`
+    // would serialize it through `toISOString()` and store the PREVIOUS day for every timezone east
+    // of Greenwich -- the same shift that moved a document's legal date. Sent as the UTC instant
+    // naming the picked day rather than a bare day because this lands straight in a Prisma `DateTime`
+    // column, which refuses a bare calendar date.
+    foundedAt: toCalendarDateInstant(data.foundedAt),
+    identifiers: [
+      ...(data.identifiers || []).filter((i) => i.value.trim() !== ""),
+      ...(peppolEntry ? [peppolEntry] : []),
+    ],
+  }
+}
 
 interface ClientUpsertProps {
   client?: Client | null
@@ -653,7 +764,22 @@ function FiscalStep({
  */
 function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues>; excludeId?: string }) {
   const { t } = useTranslation()
-  const emailRaw = form.watch("contactEmail" as never) as unknown as string | undefined
+  // The PRIMARY contact's email (#415) - the duplicate rule matches on it specifically, see
+  // `ClientsService.findDuplicates`'s own header. Resolved through `normalizeClientContacts` (#415
+  // follow-up review round 3, point 3), the same function `buildClientPayload` uses to decide the
+  // primary that actually gets saved - reading the raw array's own `isPrimary`/`[0]` fallback here
+  // used to check a blank default row's email whenever that row was still flagged primary, never the
+  // real contact (say, Bob) the server would go on to make primary once it dropped that empty row.
+  const contactsRaw =
+    (form.watch("contacts" as never) as unknown as {
+      firstName?: string
+      lastName?: string
+      role?: string
+      email?: string
+      phone?: string
+      isPrimary?: boolean
+    }[]) || []
+  const emailRaw = normalizeClientContacts(contactsRaw).primary?.email
   const nameRaw = form.watch("name" as never) as unknown as string | undefined
   const countryRaw = form.watch("country" as never) as unknown as string | undefined
 
@@ -662,10 +788,28 @@ function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues
   const country = useDebouncedValue(countryRaw)
 
   const { data: matches } = useClientDuplicates({ email, name, country, excludeId })
+
+  // #415 regression fix: the warning renders ABOVE the contacts step's own fields, and the
+  // debounced check resolves WHILE the user is still typing in a contact row further down (often
+  // the very email field that triggered it), so inserting this banner shifts that row down. The
+  // browser's own "keep the focused input in view" scroll can then push the JUST-APPEARED banner
+  // half a line above the scrollable dialog body's own clipped top edge (proven by a
+  // `getBoundingClientRect()` capture during the #415 investigation: the banner rendered correctly,
+  // fully opaque and in the DOM, but at `y: -17`, clipped by the scroll container before a user, or
+  // Cypress's own visibility check, could ever see it). Scrolling it into view the moment it
+  // appears is the fix a real user needs just as much as the test does: `block: "nearest"` only
+  // moves the scroll position when the banner is not ALREADY fully visible, so this never fights a
+  // deliberate scroll elsewhere on the step.
+  const warningRef = useRef<HTMLDivElement | null>(null)
+  const hasMatches = !!matches && matches.length > 0
+  useEffect(() => {
+    if (hasMatches) warningRef.current?.scrollIntoView({ block: "nearest" })
+  }, [hasMatches])
+
   if (!matches || matches.length === 0) return null
 
   return (
-    <div className="space-y-2" data-cy="client-duplicate-warning">
+    <div className="space-y-2" data-cy="client-duplicate-warning" ref={warningRef}>
       {matches.map((match) => (
         <Alert key={match.id} variant="warning" data-cy={`client-duplicate-warning-${match.id}`}>
           <TriangleAlert />
@@ -698,6 +842,227 @@ function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues
 }
 
 /**
+ * The client's own contacts (#415) - zero, one or several, exactly one flagged primary once there is
+ * at least one. Structural changes (add/remove) go through `useFieldArray`, which is what keys each
+ * row by its own stable `field.id` rather than its ARRAY INDEX (see this component's own `.map` below)
+ * - removing a MIDDLE row with plain index keys would otherwise let React reuse a SURVIVING row's own
+ * DOM/input state for a DIFFERENT row that merely shifted into its old index, which is exactly the
+ * "wrong row's state after a removal" bug index-keyed lists are known for. Each row's own FIELD
+ * VALUES (not the array's shape) still flow through the ordinary `form.watch("contacts")` read below,
+ * since `useFieldArray`'s own `fields` only carries each row's IDENTITY, not its live edited values.
+ */
+function ContactsSection({ form, clientType }: { form: UseFormReturn<FieldValues>; clientType: string }) {
+  const { t } = useTranslation()
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: "contacts" as never })
+  const contacts =
+    (form.watch("contacts" as never) as unknown as {
+      firstName?: string
+      lastName?: string
+      role?: string
+      email?: string
+      phone?: string
+      isPrimary?: boolean
+    }[]) || []
+
+  // #415 follow-up review round 2, point 1 (DECISION: "the primary contact of an INDIVIDUAL client
+  // is always the person on the identity step") - the identity step's own two fields, read directly
+  // rather than passed down, since only THIS section needs them (to show them on the locked primary
+  // row) and the parent already has no other reason to know them.
+  const isIndividual = clientType === "INDIVIDUAL"
+  const identityFirstName = form.watch("contactFirstname" as never) as unknown as string | undefined
+  const identityLastName = form.watch("contactLastname" as never) as unknown as string | undefined
+
+  const addContact = () => {
+    append({ isPrimary: fields.length === 0 } as never)
+  }
+  const removeContact = (index: number) => {
+    const wasPrimary = !!contacts[index]?.isPrimary
+    remove(index)
+    // Removing the primary promotes whichever row is now first, so the list never ends up with
+    // >= 1 contact and none flagged primary. `remove` already re-indexed every later row down by
+    // one, so "now first" is simply index 0 of what remains.
+    if (wasPrimary && contacts.length > 1) {
+      form.setValue("contacts.0.isPrimary" as never, true as never)
+    }
+  }
+  const setPrimary = (index: number) => {
+    fields.forEach((_, i) => {
+      form.setValue(`contacts.${i}.isPrimary` as never, (i === index) as never)
+    })
+  }
+
+  return (
+    <FormSection title={t("clients.upsert.fields.contacts.label", "Contacts")} columns="single">
+      <div className="space-y-4" data-cy="client-contacts-list">
+        {fields.map((rowField, index) => {
+          const isPrimaryRow = !!contacts[index]?.isPrimary
+          // For an INDIVIDUAL client the primary row IS the identity - it can never be reassigned to
+          // another row (see this section's own DECISION comment above), so both controls that used
+          // to make that possible are disabled instead of merely discouraged: another row's "set
+          // primary" control (it would rename the client to that row's own name), and the primary
+          // row's own "Remove" (removing it would promote another row into the same trap - the exact
+          // #415 follow-up review, round 2, point 1 bug, taken through deletion instead of the radio).
+          const primaryLocked = isIndividual && isPrimaryRow
+          const otherRowLocked = isIndividual && !isPrimaryRow
+          return (
+            <div
+              key={rowField.id}
+              className="space-y-3 rounded-lg border p-4"
+              data-cy={`client-contact-row-${index}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  className={cn(
+                    "flex items-center gap-2 text-sm",
+                    otherRowLocked && "cursor-not-allowed text-muted-foreground opacity-60",
+                  )}
+                  title={otherRowLocked ? t("clients.upsert.fields.contacts.primaryLockedTitle") : undefined}
+                >
+                  <input
+                    type="radio"
+                    name="client-contact-primary"
+                    checked={isPrimaryRow}
+                    disabled={otherRowLocked}
+                    onChange={() => setPrimary(index)}
+                    data-cy={`client-contact-primary-radio-${index}`}
+                  />
+                  {isPrimaryRow
+                    ? t("clients.upsert.fields.contacts.primaryBadge", "Primary")
+                    : t("clients.upsert.fields.contacts.setPrimary", "Set as primary")}
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={primaryLocked}
+                  title={primaryLocked ? t("clients.upsert.fields.contacts.removeLockedTitle") : undefined}
+                  onClick={() => removeContact(index)}
+                  dataCy={`client-contact-remove-${index}`}
+                >
+                  {t("clients.upsert.fields.contacts.remove", "Remove")}
+                </Button>
+              </div>
+              {otherRowLocked && (
+                // A native `title` tooltip is invisible until hovered, and a disabled radio looks like
+                // an unchecked one: say it on the row itself (#415 second review, point 1).
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-cy={`client-contact-primary-locked-${index}`}
+                >
+                  {t("clients.upsert.fields.contacts.primaryLockedHint")}
+                </p>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.firstName`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contactFirstname.label")}</FormLabel>
+                      <FormControl>
+                        {primaryLocked ? (
+                          <Input
+                            name={field.name}
+                            value={identityFirstName || ""}
+                            disabled
+                            readOnly
+                            onChange={() => undefined}
+                            data-cy={`client-contact-firstName-${index}`}
+                          />
+                        ) : (
+                          <Input {...field} data-cy={`client-contact-firstName-${index}`} />
+                        )}
+                      </FormControl>
+                      {primaryLocked && (
+                        <FormDescription>
+                          {t("clients.upsert.fields.contacts.primaryFromIdentity")}
+                        </FormDescription>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.lastName`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contactLastname.label")}</FormLabel>
+                      <FormControl>
+                        {primaryLocked ? (
+                          <Input
+                            name={field.name}
+                            value={identityLastName || ""}
+                            disabled
+                            readOnly
+                            onChange={() => undefined}
+                            data-cy={`client-contact-lastName-${index}`}
+                          />
+                        ) : (
+                          <Input {...field} data-cy={`client-contact-lastName-${index}`} />
+                        )}
+                      </FormControl>
+                      {primaryLocked && (
+                        <FormDescription>
+                          {t("clients.upsert.fields.contacts.primaryFromIdentity")}
+                        </FormDescription>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.role`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contacts.role", "Role")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-cy={`client-contact-role-${index}`} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.email`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-cy={`client-contact-email-${index}`} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.phone`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("clients.upsert.fields.contactPhone.label")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-cy={`client-contact-phone-${index}`} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <Button type="button" variant="outline" onClick={addContact} dataCy="client-contact-add">
+        {t("clients.upsert.fields.contacts.add", "Add contact")}
+      </Button>
+    </FormSection>
+  )
+}
+
+/**
  * CONTACT & PORTAIL — how this client is reached: email, phone, document language, plus (editing
  * only — a not-yet-created client has no id to invite) an entry point into the EXISTING portal-access
  * dialog (`client-portal-access.tsx`), never a re-implementation of it. This company's own custom
@@ -708,6 +1073,7 @@ function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues
  */
 function ContactStep({
   form,
+  clientType,
   isEditing,
   clientId,
   onOpenPortalAccess,
@@ -715,6 +1081,7 @@ function ContactStep({
   onLanguageManuallyChanged,
 }: {
   form: UseFormReturn<FieldValues>
+  clientType: string
   isEditing: boolean
   clientId?: string
   onOpenPortalAccess: () => void
@@ -732,33 +1099,8 @@ function ContactStep({
   return (
     <div className="space-y-6" data-cy="client-form-contact">
       <DuplicateWarning form={form} excludeId={clientId} />
+      <ContactsSection form={form} clientType={clientType} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          control={form.control}
-          name="contactEmail"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder={t("clients.upsert.fields.contactEmail.placeholder")} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="contactPhone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("clients.upsert.fields.contactPhone.label")}</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder={t("clients.upsert.fields.contactPhone.placeholder")} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <div className="sm:col-span-2">
           <FormField
             control={form.control}
@@ -833,6 +1175,10 @@ function RecapStep({
   requiredIdentifiers: IdentifierRequirement[] | undefined
 }) {
   const { t } = useTranslation()
+  // Keys `contacts` by each row's own stable `field.id` below (`useFieldArray`, same reason
+  // `ContactsSection` uses it) - this recap has no inputs of its own, but a stable key still keeps
+  // React from re-diffing every row's text against the wrong one after a removal.
+  const { fields: contactFields } = useFieldArray({ control: form.control, name: "contacts" as never })
   // `form.watch(name)` resolves to react-hook-form's "watch an ARRAY of names" overload here (the
   // form is loosely typed as `UseFormReturn<FieldValues>`, see this component's own callsite
   // comment on why) — an extra `as unknown` step before the scalar cast is what tells TypeScript
@@ -844,7 +1190,12 @@ function RecapStep({
   const contactLastname = form.watch("contactLastname" as never) as unknown as string | undefined
   const country = form.watch("country" as never) as unknown as string | undefined
   const currency = form.watch("currency" as never) as unknown as string | undefined
-  const contactEmail = form.watch("contactEmail" as never) as unknown as string | undefined
+  // Built through the SAME function `onSubmit` calls (#415 follow-up review round 2, point 1: "the
+  // summary must show exactly what will be saved") - never a second, hand-rolled read of the raw
+  // `contacts` array, which is exactly what let this recap show a row's own name while the actual
+  // save silently replaced it with the identity step's.
+  const payload = buildClientPayload(form.watch() as unknown as Parameters<typeof buildClientPayload>[0])
+  const contacts = payload.contacts
   const identifiers = (form.watch("identifiers" as never) as { scheme: string; value: string }[]) || []
 
   const displayName =
@@ -885,10 +1236,30 @@ function RecapStep({
         <dt className="text-muted-foreground">{t("clients.upsert.fields.currency.label")}</dt>
         <dd className="font-mono font-medium tabular-nums text-foreground">{currency || fallback}</dd>
       </div>
-      <div className="flex items-center justify-between gap-4">
-        <dt className="text-muted-foreground">{t("clients.upsert.fields.contactEmail.label")}</dt>
-        <dd className="font-medium text-foreground">{contactEmail || fallback}</dd>
-      </div>
+      {contacts.length > 0 ? (
+        <div className="space-y-1" data-cy="client-upsert-recap-contacts">
+          <dt className="text-muted-foreground">{t("clients.upsert.fields.contacts.label", "Contacts")}</dt>
+          {contacts.map((c, index) => (
+            <dd
+              key={contactFields[index]?.id ?? index}
+              className="flex items-center justify-between gap-4 font-medium text-foreground"
+              data-cy={`client-upsert-recap-contact-${index}`}
+            >
+              <span>{[c.firstName, c.lastName].filter(Boolean).join(" ") || c.email || fallback}</span>
+              {c.isPrimary && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {t("clients.upsert.fields.contacts.primaryBadge", "Primary")}
+                </span>
+              )}
+            </dd>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-muted-foreground">{t("clients.upsert.fields.contacts.label", "Contacts")}</dt>
+          <dd className="font-medium text-foreground">{fallback}</dd>
+        </div>
+      )}
     </dl>
   )
 }
@@ -935,139 +1306,15 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   const requiredIdentifiersRef = useRef<IdentifierRequirement[]>([])
   const originalIdentifierValuesRef = useRef<Map<string, string>>(new Map())
 
-  const clientSchema = z
-    .object({
-      type: z.enum(["INDIVIDUAL", "COMPANY"]),
-      // B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to
-      // this client must use, per its own country (see the B2G hint panel on the Fiscalité step).
-      kind: z.enum(["BUSINESS", "GOVERNMENT"]),
-      // The received-invoice reconciliation's own role, a PLAIN boolean
-      // independent from "kind" above (see backend Client.isSupplier's own schema comment for why).
-      isSupplier: z.boolean().optional(),
-      name: z.string().optional(),
-      description: z.string().max(500, t("clients.upsert.validation.description.maxLength")).optional(),
-      currency: z.string().nullable().optional(),
-      foundedAt: z
-        .date()
-        .optional()
-        .refine((date) => !date || date <= new Date(), t("clients.upsert.validation.foundedAt.future")),
-      contactFirstname: z.string().optional(),
-      contactLastname: z.string().optional(),
-      contactPhone: z
-        .string()
-        .optional()
-        .refine((val) => {
-          if (!val) return true
-          return /^[+]?[0-9\s\-()]{8,20}$/.test(val)
-        }, t("clients.upsert.validation.contactPhone.format")),
-      // Optional — only required where it is actually USED (sending a document by email, the portal
-      // invite, dunning reminders); each of those refuses/skips cleanly with its own explicit message
-      // rather than silently guessing an address (see the backend's `email-transport.ts`,
-      // `portal-tokens.service.ts`, `reminder-sweep-runner.ts`). A blank value is accepted outright;
-      // a NON-blank one is still checked for shape, so a typo does not silently save an unusable
-      // address.
-      contactEmail: z
-        .string()
-        .optional()
-        .refine((val) => {
-          if (!val) return true
-          return z.string().email().safeParse(val).success
-        }, t("clients.upsert.validation.contactEmail.format")),
-      address: z.string().min(1, t("clients.upsert.validation.address.required")),
-      addressLine2: z.string().optional(),
-      postalCode: z
-        .string()
-        .refine((val) => isValidPostalCode(val), t("clients.upsert.validation.postalCode.format")),
-      city: z.string().min(1, t("clients.upsert.validation.city.required")),
-      state: z.string().optional(),
-      country: z.string().min(1, t("clients.upsert.validation.country.required")),
-      countryCode: z.string().optional(),
-      // The client's own document language. `null`/unset falls back to
-      // the company's own default, then to English (see DocumentLanguageSelect's own header).
-      language: z.string().nullable().optional(),
-      identifiers: z.array(z.object({ scheme: z.string(), value: z.string() })).optional(),
-      // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
-      peppolSchemeId: z.string().optional(),
-      peppolEndpointId: z.string().optional(),
-      // This company's custom fields — one company-defined CLIENT-target field
-      // per key (the backend's own `assertClientCustomFieldValuesValid` is the actual authority on
-      // required-ness/shape; this schema only needs to let the value through, whatever kind it is).
-      customFields: z.record(z.string(), z.unknown()).optional(),
-    })
-    .superRefine((val, ctx) => {
-      if (val.type === "INDIVIDUAL") {
-        if (!val.contactFirstname || val.contactFirstname.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["contactFirstname"],
-            message:
-              t("clients.upsert.validation.contactFirstname.required") ||
-              "First name is required for individuals",
-          })
-        }
-        if (!val.contactLastname || val.contactLastname.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["contactLastname"],
-            message:
-              t("clients.upsert.validation.contactLastname.required") ||
-              "Last name is required for individuals",
-          })
-        }
-      } else {
-        if (!val.name || val.name.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["name"],
-            message: t("clients.upsert.validation.name.required"),
-          })
-        }
-      }
-
-      // Country-specific identifiers (country-identifiers/ + a GOVERNMENT client's own B2G rule) —
-      // lives IN the schema (rather than a hand-rolled check in `onSubmit`, the pre-wizard shape) so
-      // the Fiscalité step's own "Continue" click (its `fields` list includes "identifiers", see the
-      // `steps` construction below) blocks THERE, with the error next to the actual input, instead of
-      // only surfacing once the wizard reaches the read-only Summary step, where nothing renders it.
-      for (const req of requiredIdentifiersRef.current) {
-        const idx = (val.identifiers ?? []).findIndex((i) => i.scheme === req.scheme)
-        const value = idx >= 0 ? val.identifiers?.[idx]?.value : undefined
-        if (req.required && (!value || value.trim() === "")) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: idx >= 0 ? ["identifiers", idx, "value"] : ["identifiers"],
-            message: `${req.label} is required`,
-          })
-          continue
-        }
-        // A same-origin, best-effort ECHO of the server's own pattern gate — never the enforcement
-        // itself (that only exists server-side, in country-identifiers/validate-identifier-value.ts).
-        // VAT is skipped here for the exact reason it is skipped there: `tax/vat-syntax.ts` owns VAT
-        // syntax exclusively, and a DE-shaped `pattern` on this same catalog entry must never be
-        // second-guessed by a weaker client-side regex. An unchanged legacy value is never
-        // re-validated either — the client-side twin of that same server rule.
-        if (!req.pattern || req.scheme === "VAT") continue
-        if (!value || value.trim() === "") continue
-        if (value === originalIdentifierValuesRef.current.get(req.scheme)) continue
-        let matches = true
-        try {
-          matches = new RegExp(req.pattern).test(value)
-        } catch {
-          matches = true // a malformed pattern never blocks here — the server is the real gate
-        }
-        if (!matches) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["identifiers", idx, "value"],
-            message: t(
-              "clients.upsert.validation.identifiers.patternMismatch",
-              "{{label}} format is invalid",
-              { label: req.label },
-            ),
-          })
-        }
-      }
-    })
+  // The validation rules used to be built inline here; now extracted to `client-schema.ts` so the
+  // CSV import's per-row validation (`csv-import/client-rows.ts`) calls the exact same builder
+  // instead of a hand-copied twin that could silently drift. Behavior is unchanged (same fields,
+  // same superRefine rules, same messages) - see `client-upsert.spec.tsx`, still green.
+  const clientSchema = buildClientSchema(
+    t,
+    requiredIdentifiersRef.current,
+    originalIdentifierValuesRef.current,
+  )
 
   const form = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),
@@ -1083,6 +1330,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       contactLastname: "",
       contactPhone: "",
       contactEmail: "",
+      contacts: blankPrimaryContact(),
       address: "",
       addressLine2: "",
       postalCode: "",
@@ -1127,8 +1375,31 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         foundedAt: fromCalendarDate(client.foundedAt) ?? undefined,
         contactFirstname: client.contactFirstname || "",
         contactLastname: client.contactLastname || "",
-        contactPhone: client.contactPhone || "",
-        contactEmail: client.contactEmail || "",
+        // The four flat legacy fields still exist on `clientSchema` (the CSV import's own row schema
+        // needs them, see `client-schema.ts`'s own header) but this wizard has no visible input for
+        // `contactPhone`/`contactEmail` any more - the CONTACT step's `ContactsSection` is the only
+        // place a phone or email is edited now. Loading a STORED value that predates today's
+        // stricter contact-row validation (e.g. `01.02.03.04.05`, saved through the API/MCP tool/the
+        // #415 migration before this form ever checked format) into these hidden fields used to
+        // block the Contact step's "Continue" on an error attached to a field nobody could see or
+        // fix (#415 follow-up review, point 2). Left blank here instead: `buildClientSchema`'s
+        // refine treats a blank value as valid, so these two fields can never again fail validation
+        // on their own - the real, VISIBLE contact rows below are what's actually being edited and
+        // validated.
+        contactPhone: "",
+        contactEmail: "",
+        // The API returns `contacts` ordered primary-first (#415) - mapped straight into the form's
+        // own shape (`id` kept only so a future per-row diff could use it; the write path always
+        // replaces the whole list, see `writeClientContacts`'s own header).
+        contacts: (client.contacts || []).map((c) => ({
+          id: c.id,
+          firstName: c.firstName || "",
+          lastName: c.lastName || "",
+          role: c.role || "",
+          email: c.email || "",
+          phone: c.phone || "",
+          isPrimary: !!c.isPrimary,
+        })),
         address: client.address || "",
         addressLine2: client.addressLine2 || "",
         postalCode: client.postalCode || "",
@@ -1157,6 +1428,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         contactLastname: "",
         contactPhone: "",
         contactEmail: "",
+        contacts: blankPrimaryContact(),
         address: "",
         addressLine2: "",
         postalCode: "",
@@ -1300,27 +1572,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   const onSubmit = (data: z.infer<typeof clientSchema>) => {
     const trigger = isEditing ? updateClient : createClient
-
-    // Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
-    const peppolEntry =
-      data.peppolSchemeId && data.peppolEndpointId?.trim()
-        ? { scheme: "PEPPOL_ENDPOINT", value: `${data.peppolSchemeId}:${data.peppolEndpointId.trim()}` }
-        : null
-    const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...dataWithoutPeppol } = data
-    // Filter out empty identifiers so we don't send {scheme, value: ""}
-    const payload = {
-      ...dataWithoutPeppol,
-      // A founding date is a CALENDAR DAY (`lib/calendar-date.ts`). Left as a `Date`, `JSON.stringify`
-      // would serialize it through `toISOString()` and store the PREVIOUS day for every timezone east
-      // of Greenwich -- the same shift that moved a document's legal date. Sent as the UTC instant
-      // naming the picked day rather than a bare day because this lands straight in a Prisma
-      // `DateTime` column, which refuses a bare calendar date.
-      foundedAt: toCalendarDateInstant(data.foundedAt),
-      identifiers: [
-        ...(data.identifiers || []).filter((i) => i.value.trim() !== ""),
-        ...(peppolEntry ? [peppolEntry] : []),
-      ],
-    }
+    const payload = buildClientPayload(data)
 
     trigger(payload).then((createdClient) => {
       if (!createdClient) return
@@ -1344,6 +1596,16 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   // nested array error up to a `trigger(['identifiers'])` call.
   const identifierValuePaths = ((form.watch("identifiers") as { scheme: string }[]) || []).map(
     (_, i) => `identifiers.${i}.value`,
+  )
+
+  // Same belt-and-suspenders reasoning as `identifierValuePaths` above, for the Contact step's own
+  // `contacts` array (#415 follow-up review, points 1/2): "Continue" must validate every row's
+  // `email`/`phone` - the only two fields `buildClientSchema`'s per-row refine can fail - not just
+  // the array as a whole, so an invalid value (a freshly typed `bob@`, or one carried over from an
+  // edited client whose stored phone predates this validation) surfaces on the SAME row, right where
+  // the user can fix it, instead of only failing much later at the Summary step's silent "Continue".
+  const contactValuePaths = ((form.watch("contacts") as { email?: string; phone?: string }[]) || []).flatMap(
+    (_, i) => [`contacts.${i}.email`, `contacts.${i}.phone`],
   )
 
   /**
@@ -1402,10 +1664,15 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     {
       id: "contact",
       label: t("clients.upsert.stepped.steps.contact", "Contact & portal"),
-      fields: ["contactEmail", "contactPhone", "language"],
+      // `contacts` + each row's own `email`/`phone` path (#415 follow-up review, point 1) - the
+      // legacy `contactEmail`/`contactPhone` this step used to declare have no visible input any
+      // more (see `ContactsSection`) and are never populated by this form either (see the edit-mode
+      // `form.reset` above), so validating them here bought nothing but a silent, unfixable block.
+      fields: ["contacts", ...contactValuePaths, "language"],
       render: () => (
         <ContactStep
           form={form as unknown as UseFormReturn<FieldValues>}
+          clientType={clientType}
           isEditing={isEditing}
           clientId={client?.id}
           onOpenPortalAccess={() => setPortalAccessOpen(true)}

@@ -40,6 +40,12 @@ export interface PdfChromeStrings {
   yes: string;
   no: string;
   draftNoNumberYet: string;
+  /** Shown INSTEAD of `draftNoNumberYet` for a numbered document that has none - issue #471: a
+   *  document issued before its type declared `numbering` at all (a legacy credit note) must never
+   *  be numbered retroactively (see `numbering.onlyFrom`'s own header, backend
+   *  `descriptors/types.ts`) - this is what `render-html.ts` prints for it instead, a distinct
+   *  string from "draft, no number yet" since the two mean different things. */
+  issuedWithoutNumber: string;
   scanToPaySepa: string;
   /** Heading of the "Payment methods" section — see `render-html.ts`'s own `paymentMethods` input and
    *  `descriptors/types.ts#usesPaymentMethods`. Each METHOD's own `label` (below the heading) stays
@@ -51,6 +57,22 @@ export interface PdfChromeStrings {
    *  (plain data, a company's own wording), only this section's heading is this render layer's OWN
    *  chrome. */
   customFieldsHeading: string;
+  /** Issue #373 ("quotes with options") - the badge printed next to the accepted option's own
+   *  heading, once a choice has been recorded (`render-html.ts`'s option-groups block). Never shown
+   *  before an option is accepted, and never shown at all for a 0/1-option document. */
+  acceptedOptionBadge: string;
+  /** Issue #373 follow-up ("common lines") - the heading of the group listing every line nobody
+   *  tagged with an `option` at all ("Setup fee"), on a quote with 2+ options - see
+   *  `render-html.ts`'s own `optionGroups.groups[].isCommon`. Never shown for a 0/1-option document,
+   *  or for one where every line IS tagged. */
+  commonToAllOptionsHeading: string;
+  /** Issue #373 follow-up ("no meaningless common total") - the gross-row LABEL a real option's own
+   *  totals block uses INSTEAD of the plain `total` above, whenever a common (untagged) group exists
+   *  alongside it: the figure is unchanged (still that option's own tagged lines PLUS the common
+   *  ones, `computeQuoteOptionTotals`'s own merge), only the label says so, since the common group
+   *  itself no longer prints any total of its own for a reader to trace the inclusion back to - see
+   *  `render-html.ts#renderOptionGroupsField`'s own header. */
+  totalIncludingCommonLines: string;
 }
 
 const EN: PdfChromeStrings = {
@@ -63,9 +85,13 @@ const EN: PdfChromeStrings = {
   yes: 'Yes',
   no: 'No',
   draftNoNumberYet: 'Draft — no number yet',
+  issuedWithoutNumber: 'Issued without a number',
   scanToPaySepa: 'Scan to pay (SEPA)',
   paymentMethodsHeading: 'Payment methods',
   customFieldsHeading: 'Additional fields',
+  acceptedOptionBadge: 'Accepted',
+  commonToAllOptionsHeading: 'Common to all options',
+  totalIncludingCommonLines: 'Total (including common lines)',
 };
 
 const FR: PdfChromeStrings = {
@@ -78,9 +104,13 @@ const FR: PdfChromeStrings = {
   yes: 'Oui',
   no: 'Non',
   draftNoNumberYet: 'Brouillon — pas encore de numéro',
+  issuedWithoutNumber: 'Émis sans numéro',
   scanToPaySepa: 'Scannez pour payer (SEPA)',
   paymentMethodsHeading: 'Moyens de paiement',
   customFieldsHeading: 'Champs supplémentaires',
+  acceptedOptionBadge: 'Accepté',
+  commonToAllOptionsHeading: 'Commun à toutes les options',
+  totalIncludingCommonLines: 'Total (lignes communes incluses)',
 };
 
 const IT: PdfChromeStrings = {
@@ -93,9 +123,13 @@ const IT: PdfChromeStrings = {
   yes: 'Sì',
   no: 'No',
   draftNoNumberYet: 'Bozza — numero non ancora assegnato',
+  issuedWithoutNumber: 'Emesso senza numero',
   scanToPaySepa: 'Scansiona per pagare (SEPA)',
   paymentMethodsHeading: 'Metodi di pagamento',
   customFieldsHeading: 'Campi aggiuntivi',
+  acceptedOptionBadge: 'Accettata',
+  commonToAllOptionsHeading: 'Comune a tutte le opzioni',
+  totalIncludingCommonLines: 'Totale (righe comuni incluse)',
 };
 
 const PL: PdfChromeStrings = {
@@ -108,9 +142,13 @@ const PL: PdfChromeStrings = {
   yes: 'Tak',
   no: 'Nie',
   draftNoNumberYet: 'Wersja robocza — brak numeru',
+  issuedWithoutNumber: 'Wystawiono bez numeru',
   scanToPaySepa: 'Zeskanuj, aby zapłacić (SEPA)',
   paymentMethodsHeading: 'Metody płatności',
   customFieldsHeading: 'Dodatkowe pola',
+  acceptedOptionBadge: 'Zaakceptowano',
+  commonToAllOptionsHeading: 'Wspólne dla wszystkich opcji',
+  totalIncludingCommonLines: 'Razem (z pozycjami wspólnymi)',
 };
 
 const DE: PdfChromeStrings = {
@@ -123,9 +161,13 @@ const DE: PdfChromeStrings = {
   yes: 'Ja',
   no: 'Nein',
   draftNoNumberYet: 'Entwurf — noch keine Nummer',
+  issuedWithoutNumber: 'Ohne Nummer ausgestellt',
   scanToPaySepa: 'Zum Bezahlen scannen (SEPA)',
   paymentMethodsHeading: 'Zahlungsmethoden',
   customFieldsHeading: 'Zusätzliche Felder',
+  acceptedOptionBadge: 'Akzeptiert',
+  commonToAllOptionsHeading: 'Gemeinsam für alle Optionen',
+  totalIncludingCommonLines: 'Gesamt (inkl. gemeinsamer Positionen)',
 };
 
 const PT: PdfChromeStrings = {
@@ -138,9 +180,13 @@ const PT: PdfChromeStrings = {
   yes: 'Sim',
   no: 'Não',
   draftNoNumberYet: 'Rascunho — sem número ainda',
+  issuedWithoutNumber: 'Emitido sem número',
   scanToPaySepa: 'Digitalize para pagar (SEPA)',
   paymentMethodsHeading: 'Formas de pagamento',
   customFieldsHeading: 'Campos adicionais',
+  acceptedOptionBadge: 'Aceite',
+  commonToAllOptionsHeading: 'Comum a todas as opções',
+  totalIncludingCommonLines: 'Total (incluindo linhas comuns)',
 };
 
 const CHROME_STRINGS: Record<RenderLanguage, PdfChromeStrings> = {

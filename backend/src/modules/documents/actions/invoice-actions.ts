@@ -1,4 +1,4 @@
-import { BadRequestException, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
 
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
@@ -10,7 +10,7 @@ import {
   resolveClientB2gRouting,
 } from '../b2g-routing/b2g-routing';
 import { loadRatesSafely } from '../../company/currency-rates/currency-rates.store';
-import { resolveCompanyCountryCode } from '../country-policy/country-policy';
+import { resolveClientCountryCode, resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { stripSidecarKeys } from '../descriptors/validate';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
@@ -22,10 +22,11 @@ import { resolvePaymentConversion } from '../settlement/convert-payment';
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
 import { crossedIntoSettled, emitDocumentSettled } from '../settlement/document-settled';
 import { listPayments, recordPayment, toSettlementPaymentInputs } from '../settlement/payments';
+import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
 import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
 import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
 import { computeDocumentTotals } from '../totals/compute-totals';
-import { ActiveChannelMandate, activeChannelMandateFor } from '../transports/channel-policy/mandate';
+import { ActiveChannelMandate, activeChannelMandateForOperation } from '../transports/channel-policy/mandate';
 import { getCompanyInvoiceTransportId } from '../transports/company-transport';
 import {
   DocumentTransport,
@@ -54,22 +55,44 @@ export interface InvoiceActionDeps {
 
 /**
  * "country-mandated channel" — resolves the issuing company's own COUNTRY and asks
- * whether it MANDATES a channel for an invoice issued on `issueDate` (`channel-policy/mandate.ts`,
- * evaluated against the invoice's own issue date, never the server's clock — see that file's own
- * header). Undefined for any company whose country's own channel-policy fact does not (yet) declare
- * a `requirement: 'mandated'` — see `channel-policy/data/*.json` for which countries currently do, a
+ * whether it MANDATES a channel for THIS invoice (`channel-policy/mandate.ts`, evaluated against the
+ * invoice's own issue date, never the server's clock - see that file's own header). Undefined for
+ * any company whose country's own channel-policy fact does not (yet) declare a
+ * `requirement: 'mandated'` - see `channel-policy/data/*.json` for which countries currently do, a
  * set this function never enumerates itself so that arming a new one stays a data change, never a
  * code change here — and for any company whose country cannot even be resolved — exactly the same
  * "no permissive fallback, but also no invented block" posture `country-policy.ts`'s own
  * `resolveCompanyCountryCode` callers already hold elsewhere in this module.
+ *
+ * THE BUYER'S OWN COUNTRY IS PART OF THE QUESTION, not a refinement of it: a national channel
+ * mandate governs a DOMESTIC operation (France's CGI art. 289 bis binds emission through a
+ * plateforme agréée between taxable persons established in France; Italy's D.Lgs. 127/2015 art. 1
+ * comma 3 binds SdI invoicing "tra soggetti residenti o stabiliti nel territorio dello Stato"), so
+ * an invoice to a client established abroad is outside it. Hence `resolveClientCountryCode` here and
+ * `activeChannelMandateForOperation` rather than the country-level `activeChannelMandateFor` - see
+ * that function's own header for the full reasoning, including why an UNRESOLVED buyer country is
+ * treated as domestic (fail-closed) and why the DECLARATION each side may still owe its own
+ * administration (France's e-reporting, CGI art. 290; Italy's comma 3-bis data transmission) is
+ * neither discharged nor represented by this product.
+ *
+ * This is a DIFFERENT use of the buyer's country from `resolveClientB2gRouting`'s, which asks
+ * whether the client is a public body and applies ITS country's own B2G regime - see this file's own
+ * B2G section header for that precedence. Here the buyer's country only ever NARROWS the seller's
+ * own mandate; it never imports the buyer country's mandate in its place.
  */
 async function resolveActiveInvoiceMandate(
   companyId: string,
   issueDate: string | undefined,
+  clientId: string | undefined,
 ): Promise<{ countryCode: string; mandate: ActiveChannelMandate } | undefined> {
   const countryCode = await resolveCompanyCountryCode(companyId);
   if (!countryCode) return undefined;
-  const mandate = activeChannelMandateFor(countryCode, issueDate);
+  const buyerCountryCode = await resolveClientCountryCode(companyId, clientId);
+  const mandate = activeChannelMandateForOperation({
+    sellerCountryCode: countryCode,
+    buyerCountryCode,
+    issueDate,
+  });
   return mandate ? { countryCode, mandate } : undefined;
 }
 
@@ -332,7 +355,7 @@ async function resolveInvoiceTransport(
 
   const transportId = await getCompanyInvoiceTransportId(companyId);
 
-  const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
+  const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate, clientId);
   // A mandate is satisfied by its own `providerId` OR by any of its `equivalentProviderIds`
   // (`channel-policy/schema.ts`'s own header) — e.g. Italy's "sdi" mandate is equally discharged by
   // "sdi-pec" (`transports/sdi-pec-transport.ts`), a different transport implementing the SAME legal
@@ -420,7 +443,7 @@ async function runInvoiceSendPreflight(
       throw new NotImplementedException(b2gChannelNotReadyMessage(b2g.countryCode!, b2g.rule, message));
     }
 
-    const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
+    const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate, clientId);
     if (activeMandate) {
       throw new NotImplementedException(
         mandateChannelNotReadyMessage(activeMandate.countryCode, activeMandate.mandate, message),
@@ -522,52 +545,59 @@ async function runInvoiceAtcudPreflight(companyId: string): Promise<void> {
  * the one spot that would need to start asking `DocumentTypeRegistry` instead.
  */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
+/** PR #473 review point 2: computed once, off this same constant - the invoice's own `lines` field
+ *  declares an `articleId` (`kind: 'hiddenReference'`, `entity: 'article'`), so this is `true` (and
+ *  stays true automatically if that field ever moves or is renamed, unlike a hardcoded literal). */
+const INVOICE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(INVOICE_DESCRIPTOR);
 
 /**
- * The residual the f6888eb2/d58caaa5 pair left open. Those two commits hard-
- * blocked an UNRESOLVED BUYER COUNTRY at every ISSUED-producing path of the pre-refonte engine
- * (`issueInvoice`, `correctInvoice`, …) and then, in a follow-up, closed the one path that could
- * still slip past that guard: `editInvoice()` recomputing tax on an ALREADY-ISSUED invoice for an
- * `immutableAfter: 'NEVER'` jurisdiction (US/FALLBACK) with no country check at all. That engine, and
- * `editInvoice()` itself, no longer exist (this branch's documents/ rewrite) — but the SAME shape of
- * hole exists again here, one layer down:
+ * HISTORY (issue #468 closed this for good - kept for anyone doing archaeology on why this handler
+ * once looked very different): the f6888eb2/d58caaa5 pair hard-blocked an UNRESOLVED BUYER COUNTRY at
+ * every ISSUED-producing path of the pre-refonte engine (`issueInvoice`, `correctInvoice`, …) and then
+ * closed the one path that could still slip past that guard - `editInvoice()` recomputing tax on an
+ * ALREADY-ISSUED invoice with no country check at all. That engine no longer exists, but the SAME
+ * shape of hole reopened here, one layer down: `invoice.descriptor.ts`'s "save-draft" transition is
+ * `{ from: 'always', to: 'draft' }`, so nothing in the TYPE stopped it from demoting an ALREADY-SENT
+ * invoice back to "draft" and rewriting it - only the country policy DATA narrowed `save-draft` to
+ * `statuses: ["draft"]` (all five shipped files do, nothing forced a sixth to); a country's policy file
+ * permitting "save-draft" unconditionally would have reopened the exact same under-charge shape (edit an already-sent invoice's client to
+ * a country the resolver can no longer match and click Save: the record demoted to "draft" carrying
+ * whatever was typed, no re-resolution, no block). This file used to plug THAT specific hole with a
+ * narrow fix: re-run `runInvoiceCrossBorderTaxPreflight` whenever `ctx.currentStatus` was a real,
+ * non-draft status, so a re-edit at least got the buyer country re-resolved before being persisted.
  *
- *  - `invoice.descriptor.ts`'s "save-draft" transition is `{ from: 'always', to: 'draft' }` — it can
- *    demote an ALREADY-SENT invoice back to "draft" (`quote-contributions.ts`'s own comment documents
- *    this as an accepted, real state: a sent record re-saved as a draft "keeps the number it already
- *    earned"). `generic-actions.ts`'s `performSaveDraft` never touches tax at all — by design, so a
- *    genuinely NEW or STILL-draft record stays country-less-safe (the exact posture
- *    `resolve-invoice-tax.ts`'s own header, and `documents.service.invoice.spec.ts`'s own
- *    "'save-draft' NEVER resolves cross-border tax" test, hold on purpose).
- *  - For FRANCE, this demotion is already refused outright: `country-policy/data/fr.json`'s own
- *    `invoice.save-draft` rule narrows `statuses` to `["draft"]` (CGI art. 289, I.5 — an issued
- *    invoice is corrected by a DISTINCT document, never rewritten), so `documents.service.ts#runAction`
- *    409s before this handler is ever called.
- *  - Nothing in `country-policy` itself closes this generally: ANY country whose own policy file
- *    permits "save-draft" unconditionally (no `statuses` narrowing on it, unlike FR's own rule
- *    above) reopens the SAME under-charge shape as the old `editInvoice()` residual: edit an
- *    already-"sent" invoice's client to one whose country cannot be resolved (or simply to a
- *    different country the resolved data no longer matches) and click Save — the record demotes to
- *    "draft" carrying WHATEVER the form submitted, no re-resolution, no block. (US's own policy file
- *    used to be exactly that missing-narrowing case, until the 5-country prune removed it,
- *    2026-09-10 — every country shipped today narrows this the same way FR does, per its own data
- *    file, but nothing enforces that a future one must.)
- *
- * The fix reuses `runInvoiceCrossBorderTaxPreflight` VERBATIM — the exact same resolution path
- * "send"'s own preflight/deliver already call — rather than inventing a second buyer-country check:
- * only when `ctx.currentStatus` is a REAL, already-persisted, NON-DRAFT status (a genuine re-edit of
- * an issued invoice, never a brand-new or still-draft record) does this run the same recompute +
- * hard-block "send" already performs, BEFORE the demoted draft is ever persisted. A resolvable buyer
- * country still saves fine — this is a backstop for the under-charge shape, not a ban on editing an
- * issued invoice (that policy question belongs to country-policy, e.g. FR's own rule above, not here).
+ * Issue #468 replaced that narrow fix with the actual one: `invoice.descriptor.ts`'s "save-draft" now
+ * declares `lockedStatuses` (every status but "draft"), so `documents.service.ts#runAction` refuses the
+ * action outright - 409, before ANY handler runs - the moment `ctx.currentStatus !== 'draft'`. There is
+ * therefore no re-edit left for this handler to ever see: the tax-preflight backstop above is
+ * unreachable now, by construction, not merely by convention. The check right below is not a workaround
+ * kept "just in case" - it is defense in depth (this file's own established discipline: a handler never
+ * trusts the 409 guard alone) against a caller that reaches this handler WITHOUT going through
+ * `runAction`'s gates, whether that is a coding mistake today or a future addition.
  */
 function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: DocumentWebhookEmitter): void {
   registry.register('invoice', 'save-draft', async (ctx) => {
-    const reEditingAnIssuedInvoice = !!ctx.documentId && !!ctx.currentStatus && ctx.currentStatus !== 'draft';
-    const data = reEditingAnIssuedInvoice
-      ? await runInvoiceCrossBorderTaxPreflight(ctx.companyId, ctx.data)
-      : ctx.data;
-    return performSaveDraft(ctx.companyId, 'invoice', ctx.documentId, data, webhooks);
+    // Same message `documents.service.ts#runAction` throws for the exact same reason - see this
+    // function's own header for why this can only ever fire if a caller skipped `runAction`.
+    if (ctx.documentId && ctx.currentStatus && ctx.currentStatus !== 'draft') {
+      throw new ConflictException(
+        `Action "save-draft" of document type "invoice" is refused once the document has left draft ` +
+          `(status "${ctx.currentStatus}"): an issued document is never rewritten.`,
+      );
+    }
+    return performSaveDraft(
+      ctx.companyId,
+      'invoice',
+      ctx.documentId,
+      ctx.data,
+      webhooks,
+      // The CAS fix for the race a reviewer found on the #468 lock - see `performSaveDraft`'s own
+      // header (generic-actions.ts) and `documents.service.ts#runAction`'s `allowedFromStatuses`
+      // comment for the full "why". Without this, the 409 check just above (stale `ctx.currentStatus`)
+      // was the ONLY guard - a concurrent "send" landing between that read and this write could still
+      // demote an issued invoice back to "draft".
+      ctx.allowedFromStatuses,
+    );
   });
 }
 
@@ -661,6 +691,7 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
         // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
         webhooks: deps.webhooks,
         numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
+        declaresArticleReference: INVOICE_DECLARES_ARTICLE_REFERENCE,
         // The country-mandate check runs as part of THIS preflight — see
         // `runInvoiceSendPreflight`'s own header. `data.issueDate` is the submitted field value at
         // ENQUEUE time; `descriptors/invoice.descriptor.ts` requires it, so by the time "send" can even

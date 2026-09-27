@@ -168,6 +168,16 @@ describe("Country policy — Poland can now issue, and its own sourced restricti
 		// On the API side first — the proof that matters: a direct POST on "save-draft" with this
 		// `documentId` (a scripted client that would bypass the screen) is refused with a NAMED 409,
 		// never a silence nor a success that would quietly overwrite an already-transmitted invoice.
+		//
+		// Issue #468: `invoice.descriptor.ts` now declares its OWN `lockedStatuses` (every status but
+		// "draft") - a TYPE-level, code-only refusal that composes BEFORE country-policy's own
+		// per-status restriction is even reached (`documents.service.ts#runAction`'s ordering), so
+		// pl.json's `invoice.save-draft` -> `statuses: ["draft"]` rule (still sourced on the KSeF
+		// manual, still declared, still the second layer CLAUDE.md's own documents-module section
+		// asks for) is now SHADOWED here: the CODE guard is what a Polish company's own scripted
+		// client actually hits first. This still proves KSeF's own "nie jest możliwe jej
+		// edytowanie" rule holds in practice (refused, 409, invoice untouched) - the message just
+		// names the type-level reason rather than the country-policy one now.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/documents/types/invoice/actions/save-draft`,
@@ -181,9 +191,9 @@ describe("Country policy — Poland can now issue, and its own sourced restricti
 				409,
 			);
 			expect(
-				JSON.stringify(res.body),
-				"le message nomme la restriction de statut composée par country-policy (pl.json's own `statuses: [\"draft\"]`)",
-			).to.match(/restricted by this company's country policy to status\(es\) draft/);
+				String(res.body?.message ?? ""),
+				'the message names the TYPE-level refusal (issue #468 - "an issued document is never rewritten")',
+			).to.match(/refused once the document has left draft.*status "sent".*an issued document is never rewritten/i);
 		});
 
 		// On the screen side next — the same restriction, composed in `isActionAvailable` (types.ts),

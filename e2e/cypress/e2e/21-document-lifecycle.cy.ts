@@ -197,6 +197,14 @@ describe("A document's lifecycle — declared statuses and transitions", () => {
 
 								// AT THE API: a scripted client that ignored the screen and called the action
 								// by hand gets refused exactly the same way — 409, never a bypass.
+								//
+								// Issue #468: `invoice.descriptor.ts` now declares its OWN `lockedStatuses`
+								// (every status but "draft"), a TYPE-level, code-only refusal composed
+								// BEFORE country-policy's own per-status restriction is even reached
+								// (documents.service.ts#runAction's ordering) - so fr.json's own
+								// `invoice.save-draft` -> `statuses: ["draft"]` rule (still declared, still
+								// a second layer, see 44-country-policy.cy.ts for the Polish equivalent) is
+								// SHADOWED here: this scripted client hits the CODE guard first.
 								cy.request({
 									method: "POST",
 									url: `${api}/api/documents/types/invoice/actions/save-draft`,
@@ -206,10 +214,16 @@ describe("A document's lifecycle — declared statuses and transitions", () => {
 									expect(res.status, `refusée — ${JSON.stringify(res.body).slice(0, 200)}`).to.eq(
 										409,
 									);
+									// Named status matches whichever the worker reached by the time this request
+									// runs - "sending" (the synchronous phase 1 this test just proved) or
+									// already "sent" (the worker's own phase 2, which may have settled by
+									// now - both are locked identically, so either is a faithful proof).
 									expect(
 										String(res.body?.message ?? ""),
-										"le message nomme la restriction par statut, jamais un refus muet",
-									).to.match(/restricted by this company's country policy to status\(es\) draft/i);
+										"the message names the TYPE-level refusal (issue #468), never a silent one",
+									).to.match(
+										/refused once the document has left draft.*status "(sending|sent)".*an issued document is never rewritten/i,
+									);
 								});
 							});
 						});

@@ -114,6 +114,111 @@ Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
 });
 
 /**
+ * Waits for a Radix layer that was JUST DISMISSED to have finished tearing down, before the caller
+ * opens another layer on top of it. Two facts, both observable, neither of them a sleep:
+ *  1. the dismissed layer's content is GONE from the DOM -- `Presence` keeps it mounted for the
+ *     whole exit animation (`data-[state=closed]:animate-out` on every content in components/ui/),
+ *     so "the entry was clicked" is nowhere near "the menu is gone";
+ *  2. focus has SETTLED on the element the caller names -- `@radix-ui/react-focus-scope` (1.1.10,
+ *     dist/index.mjs) restores focus to the dismissed layer's trigger from the unmount cleanup's own
+ *     `setTimeout(..., 0)`, i.e. one macrotask AFTER the unmount in (1), never synchronously with
+ *     it; and when that trigger sits OUTSIDE a modal dialog that is still open (a row menu's entry
+ *     that opened one), the dialog's own trapped `FocusScope` immediately bounces focus back inside
+ *     it. Hence "where focus ends up", named by the caller, rather than "the trigger": both moves
+ *     have to have happened, and the second one only exists in some of these hand-offs.
+ *
+ * Opening a popover in the window between (1) and (2) is what silently closes it again: the restore
+ * fires while the NEW layer is already open, moves focus out of it, and its `DismissableLayer`
+ * dismisses on focus-outside. Traced live on 2026-09-24 against a real stack, spec 29's own
+ * sequence, with a `focusin` recorder on `document` (times relative to the recurrence dialog being
+ * visible):
+ *     21ms  focusin  -> DIV[data-cy=document-row-menu-content-<id>]   (menu still animating out)
+ *     55ms  focusin  -> INPUT[placeholder="Search..."]                (cadence popover just opened)
+ *     99ms  focusout <- INPUT[placeholder="Search..."]
+ *    100ms  focusin  -> BUTTON[data-cy=document-row-menu-<id>]        (the menu's deferred restore)
+ *    141ms  popover gone
+ * which is exactly the failure CI reported on PR #447: `cy.click()` on the "Yearly" option "failed
+ * because the page updated while this command was executing" -- the option had been visible a
+ * moment earlier, the assertion right before it passed, and the popover was dismissed while Cypress
+ * was still waiting for the button to become actionable.
+ *
+ * Asserting on a NAMED element rather than on "focus is anywhere" is deliberate: it is the one fact
+ * that PROVES the deferred restore already ran. If a future Radix version leaves focus somewhere
+ * else, this fails loudly on that named element instead of degrading back into a flake.
+ *
+ * ## Since the product fix for #451 (PR #456): (1) is unchanged, (2) changed meaning
+ * `frontend/src/lib/close-auto-focus-guard.ts`, wired into every shared menu/popover/select content
+ * and into `SearchSelect`, cancels the deferred restore when focus already sits on a connected
+ * element other than <body> at the moment it fires -- i.e. when it would STEAL focus from a layer
+ * the user already moved to. Otherwise the restore runs exactly as before. So:
+ *  - (1) still holds and is still the wait: the dismissed content leaves the DOM in both worlds.
+ *  - (2) is no longer a race guard -- opening the next layer inside the window no longer dismisses
+ *    it -- but it is kept as an ASSERTION of the keyboard behaviour the guard must preserve. Measured
+ *    on a real stack (Chromium, 2026-09-24): after a row-menu entry opens a dialog, focus is already
+ *    on the dialog's first tabbable control (its own `FocusScope` mount-autofocus runs before the
+ *    menu's deferred restore, which the guard then cancels); after a pick with nothing else opened,
+ *    the restore runs and focus is back on the picker's trigger. Both are the element callers name.
+ *    If the guard ever regresses into suppressing the restore outright, focus ends on <body> and
+ *    this fails loudly -- which is exactly how the first version of #456 was caught.
+ * Consequence: NO spec using this command can see the race come back (guard deleted, they all
+ * stay green). The regression guard for that is `84-layer-focus-restore.cy.ts`, which makes the
+ * race deterministic instead of waiting it out.
+ * @example cy.waitForLayerTeardown(`[data-cy="document-row-menu-content-${id}"]`, '[data-cy="document-field-cadence-input"] button')
+ */
+Cypress.Commands.add('waitForLayerTeardown', (contentSelector: string, settledFocusSelector: string) => {
+    cy.get(contentSelector, { timeout: 10000 }).should('not.exist');
+    cy.focused({ timeout: 10000 }).should('match', settledFocusSelector);
+});
+
+/**
+ * Picks one option in a document form's own `SearchSelect` field and does NOT return until that
+ * picker has finished tearing down (`waitForLayerTeardown` above). The three-line "click the
+ * trigger, wait for the options, click one" this replaces left the caller free to open its NEXT
+ * layer -- very often a `DatePicker`, since "client/issueDate/dueDate/currency" is the invoice
+ * wizard's own first step -- inside the window where the picker's deferred focus restore dismisses
+ * it again.
+ *
+ * `option` picks WHICH entry: 'first' (the default, what almost every caller wants from a seeded
+ * list of one) or an option's own `data-cy` suffix, i.e. its slugified label.
+ * @example cy.pickDocumentFieldOption('currency', 'eur')
+ */
+Cypress.Commands.add('pickDocumentFieldOption', (fieldKey: string, option: string = 'first') => {
+    const wrapper = `[data-cy="document-field-${fieldKey}-input"]`;
+    const options = `[data-cy="document-field-${fieldKey}-input-options"]`;
+    cy.openSearchSelect(`document-field-${fieldKey}-input`);
+    if (option === 'first') {
+        cy.get(`${options} button`).first().click();
+    } else {
+        cy.get(`[data-cy^="document-field-${fieldKey}-input-option-${option}"]`).first().click();
+    }
+    cy.waitForLayerTeardown(options, `${wrapper} button`);
+});
+
+/**
+ * Picks a client in a document form and waits for BOTH things that pick sets in motion:
+ *  1. the picker's own teardown (`pickDocumentFieldOption` above), and
+ *  2. the descriptor refetch it triggers -- `use-document-form.ts` watches the single-target
+ *     'reference' to "client" and re-fetches `GET /api/documents/types/<type>?clientId=…`, because
+ *     the per-country field overlays (country-fields/) depend on the buyer. When that response
+ *     lands, `effectiveDescriptor` is replaced and every rendered field node is rebuilt: a calendar
+ *     opened in between is unmounted mid-command, which is the `[data-cy=date-picker-today]` never
+ *     found that CI hit on PR #446.
+ * The intercept is registered before the click that causes the request, which is the only order
+ * that works.
+ *
+ * Only for a form that HAS a client field. A supplier picker (purchase-order, goods-receipt) drives
+ * no refetch at all -- `cy.pickDocumentFieldOption('supplier')` is what those want, since waiting
+ * here for a request nobody makes is a timeout, not a safety net.
+ * @example cy.pickDocumentClient()
+ */
+Cypress.Commands.add('pickDocumentClient', (option: string = 'first') => {
+    const apiUrl = Cypress.env('apiUrl') || 'http://localhost:4000';
+    cy.intercept({ method: 'GET', url: `${apiUrl}/api/documents/types/*?clientId=*` }).as('clientAwareDescriptor');
+    cy.pickDocumentFieldOption('client', option);
+    cy.wait('@clientAwareDescriptor', { timeout: 20000 });
+});
+
+/**
  * Opens a `DatePicker` popover (frontend/src/components/date-picker.tsx, a Radix `Popover`) and
  * waits for it to have actually mounted, retrying the trigger click (bounded) if it didn't --
  * factored out of `pickToday` so a caller that needs the popover open for something OTHER than the
@@ -122,7 +227,9 @@ Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
  * and a trigger sitting under the fold of a tall dialog can open a popover that's itself off-screen.
  * Readiness is checked on `[data-cy="date-picker-today"]`: the "Today" footer button is part of the
  * SAME popover content regardless of what the caller clicks next, so its visibility is a valid proxy
- * for "the popover is open" for every caller, not just `pickToday`.
+ * for "the popover is open and positioned" for every caller, not just `pickToday`. Its absence is NOT
+ * proof the popover failed to open, though (see `pollForOpen` below), which is why a retry also checks
+ * the popover's own Radix state first.
  * @example cy.openDatePicker('[data-cy="document-field-issueDate-input"]')
  */
 Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
@@ -146,11 +253,33 @@ Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
     const OPEN_POLL_MS = 100;
     const OPEN_TIMEOUT_MS = 800;
     const MAX_ATTEMPTS = 3;
-    const isOpen = () =>
+    // "Ready" stays what it always was: "Today" visible, i.e. the popover mounted AND positioned.
+    // Callers act on the content right away (spec 52 picks a month in its `<select>` on the next
+    // line), and answering sooner, on the open state alone, let spec 52's `select("Aug")` land on a
+    // calendar that then still showed September.
+    //
+    // What changed is WHEN a retry may fire. date-picker.tsx caps the popover to the available height
+    // and scrolls inside it, so an OPEN calendar can clip its own footer: measured on issue #459
+    // (43-correction-routes, Chromium 141 under CPU load), the popover was `data-state="open"` with
+    // "Today" at y=651..683 inside a content box ending at y=668, for the whole poll window. The retry
+    // click then landed on the trigger of an open popover, which TOGGLES IT CLOSED; the closing popover
+    // passed the next poll (still mounted for its exit animation, briefly unclipped), and `pickToday`'s
+    // click on "Today" hit a node the end of that animation removed: "the page updated while this
+    // command was executing". A popover Radix reports open is therefore never clicked again: it is
+    // treated as opened once the poll window ends, and `pickToday` scrolls "Today" into view itself.
+    const todayVisible = () =>
         cy.get('body').then(($body) => $body.find('[data-cy="date-picker-today"]:visible').length > 0);
+    const radixOpen = () =>
+        cy
+            .get('body')
+            .then(
+                ($body) =>
+                    $body.find('[data-cy="date-picker-today"]').closest('[data-state]').attr('data-state') === 'open',
+            );
     const pollForOpen = (elapsedMs: number): Cypress.Chainable<boolean> =>
-        isOpen().then((visible) => {
-            if (visible || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(visible);
+        todayVisible().then((visible) => {
+            if (visible) return cy.wrap(true);
+            if (elapsedMs >= OPEN_TIMEOUT_MS) return radixOpen();
             cy.wait(OPEN_POLL_MS);
             return pollForOpen(elapsedMs + OPEN_POLL_MS);
         });
@@ -224,7 +353,13 @@ Cypress.Commands.add('pickToday', (triggerSelector: string) => {
     // DOM is gone, not that this listener has been torn down -- so it is not by itself enough. The
     // same "short fixed wait after closing a Radix popover" already covers `selectCountry`'s own
     // Radix combobox (right above) for the identical class of race.
-    cy.wait(50);
+    //
+    // That fixed 50ms was a guess at how long the teardown takes. It is now an assertion on the
+    // teardown itself: the content is gone (above) and focus is back on this DatePicker's own
+    // trigger, which is the `FocusScope` unmount cleanup having actually run — see
+    // `waitForLayerTeardown` above for the traced sequence and for what opening the next layer
+    // inside that window does to it.
+    cy.focused({ timeout: 10000 }).should('match', triggerSelector);
 });
 
 /**
@@ -248,12 +383,10 @@ Cypress.Commands.add('pickDate', (triggerSelector: string, iso: string) => {
     // 15th used by the caller above is unique in the grid without filtering by month.
     cy.get('[data-day]').contains(new RegExp(`^${day}$`)).first().click({ force: true });
     cy.get('[data-cy="date-picker-today"]').should('not.exist');
-    // Same fixed wait `pickToday` above carries after its own close click, for the identical race:
-    // the closed popover's `DismissableLayer` detaches its outside-pointerdown listener in a passive
-    // effect's cleanup, not synchronously with `setOpen(false)` — a caller's very next trigger click
-    // (e.g. the currency `SearchSelect` right after a due date, in the wizard's Details step) can
-    // still be swallowed by that stale listener if it fires before the cleanup flushes.
-    cy.wait(50);
+    // Same teardown assertion `pickToday` above ends on, for the identical race: the caller's very
+    // next trigger click (e.g. the currency `SearchSelect` right after a due date, in the wizard's
+    // Details step) must not fire while this popover is still handing focus back.
+    cy.focused({ timeout: 10000 }).should('match', triggerSelector);
 });
 
 /**
@@ -491,11 +624,34 @@ Cypress.Commands.add('openDocumentActionsMenu', () => {
 });
 
 /**
+ * Confirms the detail page's own lock-confirmation dialog (`document-detail-lock-confirm`,
+ * DocumentActionLockConfirmHost in document-form.tsx) IF ONE OPENED — most actions never lock the
+ * record (`actionLocksDocument`, action-presentation.ts), so the overwhelming majority of calls find
+ * nothing here and move on immediately. `cy.wait(50)`: the SAME short buffer
+ * `openDocumentRowMenu` above already needs for a Radix layer's own mount/dismiss timing — a dialog
+ * driven by a `setState` inside the very click handler that just ran is normally already in the DOM
+ * by the next command, but this closes the one-tick gap seen elsewhere in this file rather than
+ * assuming it can never happen here too.
+ */
+function confirmDetailLockIfPresent(): void {
+    const selector = '[data-cy="document-detail-lock-confirm-confirm"]';
+    cy.wait(50, { log: false });
+    cy.get('body', { log: false }).then(($body) => {
+        if ($body.find(selector).length > 0) {
+            cy.get(selector).should('be.visible').click();
+        }
+    });
+}
+
+/**
  * Runs one declared action from the detail page, wherever the page put it: the header's primary
  * button when `document-action-<id>` is visible on its own, otherwise the same selector inside the
  * "Actions" menu (opened first). Which one it is depends on the record's status and on whether the
  * form has unsaved edits (action-presentation.ts's `pickPrimaryAction`) — a spec should not have to
- * know, the same way a user does not: the label reads the same in both places.
+ * know, the same way a user does not: the label reads the same in both places. Also transparently
+ * confirms the lock-confirmation dialog when the action opens one (see confirmDetailLockIfPresent
+ * above) — a spec calling this command for "send" never has to know whether THIS record's country
+ * locks it or not, the same way its own user would not either.
  * @example cy.runDocumentAction('send')
  */
 Cypress.Commands.add('runDocumentAction', (actionId: string) => {
@@ -508,6 +664,7 @@ Cypress.Commands.add('runDocumentAction', (actionId: string) => {
         cy.openDocumentActionsMenu();
         cy.get(selector, { timeout: 10000 }).should('be.visible').click();
     });
+    confirmDetailLockIfPresent();
 });
 
 /**
@@ -576,6 +733,10 @@ Cypress.Commands.add('openDocumentRowMenu', (documentId: string) => {
  * out from under the captured element reference. `force: true` skips that wait and clicks
  * immediately against the CURRENT DOM instead, which is what a real user's own, much faster click
  * would land on too.
+ * Also transparently confirms the row's own lock-confirmation dialog
+ * (`document-row-lock-confirm-<id>`, DocumentRowActions in document-list.tsx) when the action opens
+ * one — see `confirmDetailLockIfPresent` above for why this never asks the caller whether THIS
+ * record's country locks it or not.
  * @example cy.runDocumentRowAction(quoteId, 'send')
  */
 Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: string) => {
@@ -588,6 +749,13 @@ Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: stri
         }
         cy.openDocumentRowMenu(documentId);
         cy.get(selector, { timeout: 10000 }).should('be.visible').click({ force: true });
+    });
+    const lockConfirmSelector = `[data-cy="document-row-lock-confirm-${documentId}-confirm"]`;
+    cy.wait(50, { log: false });
+    cy.get('body', { log: false }).then(($body) => {
+        if ($body.find(lockConfirmSelector).length > 0) {
+            cy.get(lockConfirmSelector).should('be.visible').click();
+        }
     });
 });
 

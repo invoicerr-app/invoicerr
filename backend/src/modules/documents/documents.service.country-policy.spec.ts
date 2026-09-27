@@ -168,6 +168,15 @@ describe('DocumentsService.runAction — composed with the country policy', () =
   });
 
   describe("per-status country-policy narrowing (rule.statuses) — composed with the record's own status", () => {
+    // Issue #468: "save-draft" is no longer a clean probe for THIS composition on the real invoice
+    // descriptor - `invoice.descriptor.ts` now declares its own `lockedStatuses` (every status but
+    // "draft"), a TYPE-level, code-only refusal that fires before this country-policy check even
+    // runs (see `documents.service.ts#runAction`'s own ordering) and would shadow it at "sent" -
+
+    // proven on its own in `documents.service.invoice.spec.ts`'s "issue #468" describe block. "send"
+    // carries no `lockedStatuses` at all, so it isolates the SAME composition code path
+    // (`policyDecision.restrictedToStatuses` narrowing an otherwise-available status) without that
+    // shadow - this test's actual subject, unchanged.
     it("blocks with a 409 (not a 403) when the restriction excludes the record's current status", async () => {
       (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({
         allowed: true,
@@ -176,14 +185,14 @@ describe('DocumentsService.runAction — composed with the country policy', () =
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
-        status: 'sent', // outside the restriction, though "save-draft" itself allows "sent" too
+        status: 'send_failed', // outside the restriction, though "send" itself allows "send_failed" too
         data: validInvoiceData,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
 
       const service = buildService();
-      const action = service.runAction('company-1', 'invoice', 'save-draft', {
+      const action = service.runAction('company-1', 'invoice', 'send', {
         documentId: 'doc-1',
         data: validInvoiceData,
       });

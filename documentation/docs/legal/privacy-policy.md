@@ -1,8 +1,8 @@
 ---
 title: Privacy Policy
 sidebar_position: 2
-version: 2026-09-21
-effectiveDate: 2026-09-21
+version: 2026-09-24
+effectiveDate: 2026-09-24
 ---
 
 :::warning[Draft]
@@ -41,20 +41,43 @@ Like the Terms of Service (Section 15.1), this Policy distinguishes two roles:
 ## 3. What We Collect, as Controller, and Why
 
 We collect all of the data below **directly from you**, either when you provide it (registration,
-configuration, support) or automatically as you use the Service (connection and security data).
+configuration, support, or the waiting-list form described under the table) or automatically as you
+use the Service (connection and security data).
 
 | Data | Examples | Purpose | Legal basis (GDPR Art. 6) |
 | --- | --- | --- | --- |
 | Account data | name, email, hashed password, session tokens | let you sign in and use the Service | Performance of a contract (Art. 6(1)(b)) |
 | Company data | company name, address, national identifiers you configure (e.g. SIREN/VAT) | operate your Company's workspace, populate the documents you issue | Performance of a contract (Art. 6(1)(b)) |
 | Subscription data | plan, seat count, subscription status, trial dates | run your subscription; Polar processes and stores your payment method and billing address as merchant of record — see Section 5 | Performance of a contract (Art. 6(1)(b)) |
-| Connection & security data | IP address, timestamps of authentication events, application logs | detect abuse, keep the Service secure, diagnose incidents | Legitimate interest (Art. 6(1)(f)) |
+| Connection & security data | IP address, timestamps of authentication events, application logs, the short-lived per-IP counter behind the waiting-list form | detect abuse, keep the Service secure, diagnose incidents | Legitimate interest (Art. 6(1)(f)) |
 | Proof of acceptance | which legal document and version you accepted, when, and the IP address and browser user agent you accepted it from | show that you agreed to the text that was in force when you agreed to it | Performance of a contract (Art. 6(1)(b)), and our legitimate interest in being able to evidence that agreement (Art. 6(1)(f)) |
 | Support communications | the content of emails you send to contact@invoicerr.app | answer your request | Legitimate interest (Art. 6(1)(f)), or performance of a contract where the request concerns your subscription |
 | Invoicing records for our own accounting | your Company's identity and the Fees billed to it | our own statutory bookkeeping obligation | Legal obligation (Art. 6(1)(c)) |
+| Waiting-list data | e-mail address, country, company size, sign-up date and time | tell you when the hosted version of the Service opens | Consent (Art. 6(1)(a)), given by submitting the form and withdrawable at any time; the sign-up date and time is the record of that consent (Art. 7(1)) |
 
 We do not send marketing email beyond what is transactional to your account and subscription (e.g.
 sign-in, billing, and service notices) — there is no separate marketing-consent flow to describe.
+
+**The waiting list.** The hosted version of the Service is not open yet. Until it opens,
+**my.invoicerr.app** serves a waiting-list form instead of the Service, and the three fields that form
+asks for (your e-mail address, your country, and your company size) are processed for one purpose
+only: telling you when the hosted version opens. It is not a newsletter and it is not a marketing
+list. Nothing you leave there is used to profile you, combined with any other data, sold, or shared
+with anyone beyond the sub-processors named in Section 4. A fourth item is stored with them, the date
+and time you signed up, and it is the only one you did not type: it is the record that you
+consented, which **Art. 7(1)** requires us to be able to produce for as long as we rely on that
+consent. Nothing else you tell us is kept. The page does read your browser's language and the page
+you arrived from, but only to decide which language version to show you, and it stores neither; your
+browser user agent is not stored at all. Your IP address is, for one reason: each submission costs
+us one stored entry and one e-mail, so submissions are counted per IP address to keep the form from
+being abused. That counter is connection and security data of the kind the table above already
+describes, on the same ground, our legitimate interest in keeping the Service usable
+(**Art. 6(1)(f)**). It is a record separate from your waiting-list entry, the two are never joined,
+and it expires on its own about an hour after the submission it counted. Your entry is kept in
+**Cloudflare
+Workers KV**, and a copy of it is sent to **contact@invoicerr.app** through **Resend**, both described
+in Section 4, for the period stated in Section 6. Write to **contact@invoicerr.app** at any time to
+have it deleted; you do not have to give a reason.
 
 ## 4. Sub-processors
 
@@ -64,13 +87,16 @@ own data-processing terms:
 - **Polar Software Inc.** — payment processing and billing; acts as **merchant of record** for your
   subscription (Terms of Service Section 7.1) and is itself a controller for the payment details it
   collects from you directly.
-- **Resend** — delivery of transactional email sent by the Service (sign-in links, notifications).
+- **Resend** — delivery of transactional email sent by the Service (sign-in links, notifications), and
+  delivery of the copy of each waiting-list entry sent to **contact@invoicerr.app** (Section 3).
 - **Cloudflare, Inc.** — inbound email routing for correspondence sent to **contact@invoicerr.app**
   (support correspondence only; Cloudflare never sees the data contained in the documents you create
-  through the Service).
+  through the Service), and the waiting list described in Section 3: the page at **my.invoicerr.app**
+  runs as a Cloudflare Worker, and each waiting-list entry is stored in **Cloudflare Workers KV**.
 - **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
-  is received (support correspondence only; Google never sees the data contained in the documents you
-  create through the Service).
+  is received, and where the copy of each waiting-list entry described in Section 3 arrives
+  (correspondence only; Google never sees the data contained in the documents you create through the
+  Service).
 - **Scaleway SAS** — infrastructure hosting for the **production** environment of the Service: the
   Kubernetes cluster it runs on, the managed PostgreSQL database that stores the Company and account
   data described in Section 3 and the documents you create through the Service, and the object storage
@@ -154,6 +180,15 @@ involves a non-EU entity.
   account.
 - **Support communications** are kept for as long as needed to resolve your request and for a
   reasonable period afterward in case you follow up.
+- **Waiting-list entries** are kept until the hosted version of the Service opens and for **twelve
+  months** after that, and in every case no longer than **one year after you signed up**, whichever
+  of the two comes first; then they are deleted. The one-year limit runs from the moment you signed
+  up and starts again if you submit the form again, so an early sign-up can fall away before the
+  first limit is reached, never after it. That covers the e-mail address, country, and company size
+  you left on the form, and the date and time you left them (Section 3). The per-IP counter that
+  protects the form, described in Section 3, is a separate record with its own life of about an hour.
+  Writing to **contact@invoicerr.app** deletes your entry at any time before then, and is also how
+  you withdraw the consent it rests on.
 
 ## 7. Security
 
@@ -171,6 +206,11 @@ interest (**Art. 21**). You can exercise any of these by writing to **contact@in
 will respond within the timeframe the GDPR sets for a controller. You also have the right to lodge a
 complaint with the French data protection authority, the **CNIL** (www.cnil.fr), or with the
 supervisory authority of your own EU member state.
+
+Where we rely on your consent, which today means the waiting list described in Section 3 and nothing
+else, you may withdraw it at any time (**Art. 7(3)**) by writing to **contact@invoicerr.app**.
+Withdrawing is as easy as giving it, and it does not affect the lawfulness of the processing carried
+out before the withdrawal.
 
 The right to erasure (**Art. 17**) has a limit we apply, and you should know it before you ask: where a
 statute still requires an archived document to be kept, **Art. 17(3)(b)** disapplies that right for as
@@ -195,7 +235,9 @@ purpose and duration, and why no consent banner is shown.
 
 ## 10. Websites We Operate
 
-The Service itself runs at **my.invoicerr.app**, hosted by Scaleway as described in Section 4.
+The Service itself runs at **my.invoicerr.app**, hosted by Scaleway as described in Section 4. Until
+the hosted version opens, that address serves the waiting-list page described in Section 3, which
+runs on Cloudflare rather than on Scaleway.
 Separately from the Service, we publish two public, static websites, both served by **GitHub
 Pages** — a hosting service operated by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San
 Francisco, CA 94107, USA, a wholly-owned subsidiary of Microsoft Corporation:
@@ -362,3 +404,31 @@ this document; they create no separate or additional rights.
   instead of leaving it only in Section 6. This is a new fact, not a restatement: it is the first place
   this Policy discloses that documents you sent through the Service can remain on our storage for years
   after your Company is deleted.
+- **2026-09-24** — Owner decision: the waiting list is named as a processing purpose of its own.
+  **Section 3** gains a "Waiting-list data" row (e-mail address, country, company size, sign-up date
+  and time; one purpose, telling you when the hosted version opens; legal basis consent, Art.
+  6(1)(a)) and, under the table, a paragraph describing the form served at **my.invoicerr.app**: that
+  it is neither a newsletter nor a marketing list, that nothing is profiled, combined, sold or
+  otherwise shared, and that the sign-up date and time, the one item you do not type, is stored
+  because Art. 7(1) requires us to be able to show that consent was given. The paragraph also states
+  what is **not** kept: not your browser user agent, not your browsing language, and not the page you
+  arrived from, the last two being read only to choose which language version to show you. Your **IP
+  address is** kept, and the paragraph says so and why: each submission costs one stored entry and
+  one e-mail, so submissions are counted per IP address to keep the form from being abused. That
+  counter is connection and security data, on the legitimate-interest ground (**Art. 6(1)(f)**) this
+  Policy already applies to such data, and the connection-and-security row of the same table now
+  names it among its examples; it is never joined to the waiting-list entry, and it expires on its
+  own about an hour after the submission it counted.
+  **Section 4** extends three existing sub-processor entries rather than adding new ones:
+  **Cloudflare, Inc.** now also covers the Worker serving that page and the **Cloudflare Workers KV**
+  namespace each entry is stored in, **Resend** the delivery of the copy sent to
+  contact@invoicerr.app, and **Google LLC (Gmail)** the mailbox that copy arrives in.
+  **Section 6** gains a retention bullet with two bounds, the shorter of the two winning: until the
+  hosted version opens and for twelve months after that, and in every case no longer than one year
+  after the sign-up itself. That second limit is the one the storage actually enforces, counted from
+  the sign-up and restarted by a fresh submission, and the waiting-list page states the same two
+  bounds. **Section 8** now names the right to withdraw consent (**Art. 7(3)**), which until now had
+  no consent-based processing to attach to. **Section 10** records that **my.invoicerr.app** serves
+  that page, on Cloudflare rather than on Scaleway, until the hosted version opens. This is a new
+  fact, not a restatement: it is the first processing this Policy describes of personal data
+  belonging to someone who has no account on the Service.

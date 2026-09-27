@@ -290,6 +290,86 @@ describe('validateLifecycle — boot-time coherence', () => {
       expect(() => validateLifecycle(widgetDescriptor())).not.toThrow();
     });
   });
+
+  // Issue #468 - `lockedStatuses` (types.ts): the same two checks every other status list in this
+  // function already gets (declared status, never `initialStatus`), proven independently of any real
+  // descriptor.
+  describe('lockedStatuses - the type-level, country-blind "an issued document is never rewritten" lock', () => {
+    it('accepts a `lockedStatuses` entry naming a declared, non-initial status', () => {
+      const locked = widgetDescriptor({
+        actions: [
+          {
+            id: 'save-draft',
+            label: 'Save draft',
+            transitions: ALWAYS_TO_DRAFT,
+            availableWhen: transitionsAvailableWhen(ALWAYS_TO_DRAFT),
+            lockedStatuses: ['sent'],
+          },
+          {
+            id: 'send',
+            label: 'Send',
+            transitions: DRAFT_TO_SENT,
+            availableWhen: transitionsAvailableWhen(DRAFT_TO_SENT),
+          },
+          { id: 'annotate', label: 'Annotate', availableWhen: ['draft', 'sent'] },
+        ],
+      });
+
+      expect(() => validateLifecycle(locked)).not.toThrow();
+    });
+
+    it('fails when `lockedStatuses` names a status this type never declared', () => {
+      const broken = widgetDescriptor({
+        actions: [
+          {
+            id: 'save-draft',
+            label: 'Save draft',
+            transitions: ALWAYS_TO_DRAFT,
+            availableWhen: transitionsAvailableWhen(ALWAYS_TO_DRAFT),
+            lockedStatuses: ['archived'], // never in `statuses` below
+          },
+          {
+            id: 'send',
+            label: 'Send',
+            transitions: DRAFT_TO_SENT,
+            availableWhen: transitionsAvailableWhen(DRAFT_TO_SENT),
+          },
+          { id: 'annotate', label: 'Annotate', availableWhen: ['draft', 'sent'] },
+        ],
+      });
+
+      expect(() => validateLifecycle(broken)).toThrow(/"lockedStatuses" names status "archived"/);
+    });
+
+    // THE mutation target: locking `initialStatus` would make every record of this type uneditable
+    // from the moment it is first saved - never what a descriptor author intends.
+    it("fails when `lockedStatuses` locks the type's own `initialStatus`", () => {
+      const broken = widgetDescriptor({
+        actions: [
+          {
+            id: 'save-draft',
+            label: 'Save draft',
+            transitions: ALWAYS_TO_DRAFT,
+            availableWhen: transitionsAvailableWhen(ALWAYS_TO_DRAFT),
+            lockedStatuses: ['draft'], // "draft" is this widget's own initialStatus
+          },
+          {
+            id: 'send',
+            label: 'Send',
+            transitions: DRAFT_TO_SENT,
+            availableWhen: transitionsAvailableWhen(DRAFT_TO_SENT),
+          },
+          { id: 'annotate', label: 'Annotate', availableWhen: ['draft', 'sent'] },
+        ],
+      });
+
+      expect(() => validateLifecycle(broken)).toThrow(/is this type's own "initialStatus"/);
+    });
+
+    it('a descriptor with no `lockedStatuses` at all is untouched by this check', () => {
+      expect(() => validateLifecycle(widgetDescriptor())).not.toThrow();
+    });
+  });
 });
 
 describe('checkTransitionResult — request-time enforcement', () => {

@@ -345,6 +345,21 @@ model Company {
   // own comment holds.
   billingEmail String?
 
+  // Reply-To address applied to every outgoing message SENT FOR THIS COMPANY — the company-level
+  // step of the Reply-To cascade (instance `MAIL_REPLY_TO` env var, then this column, see
+  // `mail/mail.service.ts`'s own `resolveEffectiveReplyTo`). Independent of whether this company also
+  // overrides its own mail SERVER (`CompanyChannelConfig`, `modules/company/mail-settings/`): a
+  // company can want replies routed to a distinct address without running its own SMTP/Resend at
+  // all, so this lives here rather than inside that encrypted, provider-shaped blob — like
+  // `billingEmail` right above, this is not a secret. NULL (every existing company, and the default
+  // for a new one) means "no override" — the instance's own `MAIL_REPLY_TO` applies, or no Reply-To
+  // header at all when that is unset too (today's behaviour, unchanged). Validated as an e-mail
+  // address at WRITE time (`mail/is-valid-email.ts`, `company-mail-settings.service.ts#setReplyTo`),
+  // never re-validated at send time — a hand-edited/corrupted value is just treated as unset there
+  // (`company-mail-settings.resolver.ts#resolveCompanyReplyTo`), the same defensive posture
+  // `isCompanyMailSettings` already holds for the encrypted config blob.
+  mailReplyTo String?
+
   // BT-84 (Payment account identifier) — the seller's OWN receiving account, threaded into
   // `formats/semantic/build-semantic-invoice.ts` as `cac:PaymentMeans/cac:PayeeFinancialAccount`
   // (BG-16/BG-17) whenever set. Optional, and never invented: XRechnung's BR-DE-1 (a PAYMENT
@@ -800,10 +815,6 @@ model Client {
   name             String
   description      String?
   foundedAt        DateTime? // Date when the client company was founded
-  contactFirstname String?
-  contactLastname  String?
-  contactEmail     String?
-  contactPhone     String?
   address          String
   addressLine2     String? // Second line for address (apartment, suite, etc.)
   postalCode       String
@@ -846,6 +857,20 @@ model Client {
   isActive         Boolean           @default(true)
   partyIdentifiers PartyIdentifier[]
 
+  // Issue #415 - "several named contacts per client" replaced the four flat
+  // `contactFirstname`/`contactLastname`/`contactEmail`/`contactPhone` columns above (removed in the
+  // migration that introduced this relation, which first copies each client's existing single-contact
+  // data into ONE primary `ClientContact` row). A client may have zero, one or several contacts; when
+  // it has at least one, EXACTLY one must be flagged `isPrimary` - enforced by
+  // `clients/contacts/client-contacts.ts#writeClientContacts` (every write to this relation goes
+  // through it, in a transaction) AND, as a second, DB-level backstop, by a partial unique index this
+  // schema cannot express declaratively: `CREATE UNIQUE INDEX "ClientContact_clientId_primary_key" ON
+  // "ClientContact"("clientId") WHERE "isPrimary"` (added by hand in the same migration - see that
+  // migration's own header). The primary contact is what document-delivery emails and every other
+  // "the client's contact" reader use - see `clients/primary-contact.ts`'s own header for the single
+  // helper every one of those readers goes through.
+  contacts ClientContact[]
+
   // The client portal (`client-portal/`) — see ClientPortalToken below. A client can have several
   // across its life (a fresh invite after the previous one expired/was revoked) — never overwritten,
   // the same "one row per grant, soft-revoked" posture DocumentDownloadToken/Signature already hold.
@@ -870,6 +895,29 @@ model Client {
   customFields Json?
 
   @@index([companyId])
+}
+
+// One named contact for a Client (#415). `position` is the display/write order the frontend's own
+// contacts-list editor uses (0-based, reassigned by `writeClientContacts` on every full replace - it
+// is never a stable identity a caller should read meaning into beyond ordering). `isPrimary` - see
+// Client.contacts's own header for the "exactly one, or zero contacts" invariant and where it is
+// enforced (service-level, AND the partial unique index this migration adds by raw SQL since Prisma
+// has no `@@unique` with a `WHERE` clause).
+model ClientContact {
+  id        String   @id @default(cuid())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  firstName String?
+  lastName  String?
+  role      String?
+  email     String?
+  phone     String?
+  isPrimary Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
 }
 
 // Per-country required identifiers (LEGAL_ID, VAT, RFC, CURP, REGON, …)
@@ -1523,6 +1571,24 @@ model DocumentInstance {
   // untouched forever.
   atcud String?
 
+  // Issue #373 ("quotes with options"): the OPTION NAME the client chose when accepting a quote that
+  // offers two or more (`documents/options/quote-options.ts#deriveQuoteOptions` - the distinct,
+  // non-empty `option` tags a quote's own `data.lines` carry, in first-appearance order). A dedicated
+  // COLUMN, not a `data` key, for the exact same reason `atcud`/`displayNumber` are columns rather
+  // than `data` fields: `data` is what the document FORM resubmits on every ordinary "save-draft"
+  // (quote.descriptor.ts's own header on why the manual-acceptance note lives outside `data` too) -   // this must never be silently overwritten by an unrelated later edit, and it must never be
+  // user-editable in the first place (it is not a field on the quote descriptor at all, so no form,
+  // and no `validateAgainstDescriptor` call, ever touches it). Written ONLY by the two acceptance
+  // paths, in the SAME compare-and-swap write as the status change itself:
+  //  - the OTP e-signature (`signatures/signatures.service.ts#markSigned`, "sent" -> "signed");
+  //  - the manual acceptance (`actions/quote-manual-acceptance.ts`, "sent" -> "accepted").
+  // Null for every quote that never carried 2+ options (the overwhelming majority - single-option and
+  // no-option quotes need no choice at all, see `resolveChosenOption`'s own header) and for one that
+  // does but has not yet been accepted either way. Never cleared or reassigned once set - an
+  // agreement, once reached, does not change which option it was reached on (the same "never cleared"
+  // discipline `number`/`displayNumber` already hold once THEY are set).
+  acceptedOption String?
+
   // The error from the most recent FAILED asynchronous action — see documents/queue/ (TODO item 22)
   // and descriptors/lifecycle.ts's own comment on the "sending"/"send_failed" statuses a type with a
   // "send" action declares. Set ONLY by queue/mark-send-failed.ts, once BullMQ has exhausted every
@@ -2119,9 +2185,27 @@ model DocumentReminder {
 // already has both. A `kind` discriminator is the sober addition; the two kind-specific extra columns
 // below are both nullable so existing (DELIVERY) rows and the migration that adds this column need no
 // backfill beyond the enum's own default.
+// ## `ACCEPTANCE` - issue #421, "accept a quote manually, without the e-signature"
+//
+// Written ONLY by `actions/quote-manual-acceptance.ts`, the moment the issuer records that a client
+// accepted a quote by some OTHER means (a phone call, a reply email, a signed paper scan) - never by
+// the e-signature flow (`signatures/signatures.service.ts#markSigned`, which touches no archive at
+// all: the client's OTP-verified signature is its own probative record, the `Signature` row itself).
+// A SEPARATE kind was necessary, not merely tidier, for a concrete reason:
+// `archive/persistence.ts#findArchivedPdfArtifact` picks the MOST RECENT row of `kind: DELIVERY` for
+// a document to serve a cached PDF - reusing DELIVERY for a manual-acceptance manifest (a JSON
+// artifact, no `role: 'pdf'` at all) would have made THAT lookup silently pick the wrong row the
+// moment a quote was accepted after being sent, and fall back to a fresh, un-cached render for no
+// reason anyone asked for. Same WORM discipline as VERDICT above: content-hashed, stored under its
+// own `role: 'manual-acceptance'` artifact (`actions/quote-manual-acceptance.ts`), linked to the
+// DELIVERY archive it acts on via `parentArchiveId` when one exists, retention copied from it the
+// same way a VERDICT's is - see that file's own header for why "no parent yet" is tolerated instead
+// of refused (unlike VERDICT's own `'no-deposit-archive'` case): a manual acceptance must never be
+// blocked by a PRESERVATION concern about a delivery that happened earlier and is unrelated to it.
 enum DocumentArchiveKind {
   DELIVERY
   VERDICT
+  ACCEPTANCE
 }
 
 model DocumentArchive {
@@ -2585,6 +2669,16 @@ model Signature {
   // `isActive` (not `revokedAt`, unlike `DocumentDownloadToken`) for continuity with the ORIGINAL,
   // now-removed module's own column.
   isActive Boolean @default(true)
+
+  // Issue #373 ("quotes with options") - the OPTION NAME the signer chose, submitted alongside the
+  // OTP code and validated server-side against the frozen document's own derived options
+  // (`documents/options/quote-options.ts#resolveChosenOption`) before `markSigned` writes it here AND
+  // on `DocumentInstance.acceptedOption`, in the SAME write as `signedAt`/`isActive`. Null for a
+  // signature on a document with fewer than two options (no choice was ever meaningful) and, until
+  // signed, for every row - this is the archive-side twin of the manual-acceptance path's own
+  // `ManualAcceptanceManifest.option` (`archive/persistence.ts`), so BOTH acceptance routes record
+  // which option was chosen somewhere that outlives the document's own `data`.
+  chosenOption String?
 
   // The FROZEN "what the signer reviewed" snapshot — both null until the first "GET .../document"
   // call. `documents.service.ts#renderInstancePdf` is built fresh on every call and is NOT

@@ -61,6 +61,7 @@ import { DocumentQueueDispatcher } from '../document-queue.dispatcher';
 import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
+import { withDerivedContactFields } from '../../../clients/primary-contact';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
 import { warmUpPdfRenderer } from './queue-test-pdf-warmup';
 
@@ -136,8 +137,8 @@ async function waitForStatus(
  * The producer-side wiring — one `DocumentsService`, built from the exact SAME real descriptors and
  * action registrations `documents-core.module.ts` uses, minus `ClientsModule`/`ArticlesModule` (see
  * this file's own header for why). `getClientById` is the REAL `ClientsService.getClientById`'s own
- * one-line body (`prisma.client.findFirst({ where: { id, companyId } })`, clients.service.ts),
- * reimplemented here directly against the real `prisma` singleton rather than importing the class
+ * body (`prisma.client.findFirst` with the client's contacts, flattened by `withDerivedContactFields`,
+ * clients.service.ts), reimplemented here directly against the real `prisma` singleton rather than importing the class
  * itself — a genuine, DB-backed lookup, not a permanently-empty stub: a dangling client id resolves
  * to null (forcing the invoice's delivery failure below), and a REAL client row created mid-test
  * resolves for real (proving the re-send actually recovers, not merely re-transitions).
@@ -151,9 +152,16 @@ function buildDocumentsService(queueDispatcher: DocumentQueueDispatcher): Docume
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
+  // Mirrors the real `ClientsService.getClientById` (#415): the contact fields come from the
+  // client's PRIMARY contact, derived by the same pure helper the service uses.
   const clientsService = {
-    getClientById: (companyIdArg: string, id: string) =>
-      prisma.client.findFirst({ where: { id, companyId: companyIdArg } }),
+    getClientById: async (companyIdArg: string, id: string) => {
+      const client = await prisma.client.findFirst({
+        where: { id, companyId: companyIdArg },
+        include: { contacts: true },
+      });
+      return client ? withDerivedContactFields(client) : null;
+    },
   } as never;
   const mailService = new MailService();
   const referenceRegistry = new EntityReferenceRegistry();
@@ -354,26 +362,35 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     // a send_failed invoice keeps the number it was given entering "sending"
     expect(numberAfterFailure).toEqual(expect.any(String));
 
-    // Fix the underlying cause: a REAL client, with a real contact email, replaces the dangling id —
-    // `buildDocumentsService`'s own `getClientById` is a genuine DB-backed lookup, so this client
-    // genuinely resolves this time. A genuine re-`send` — the retry IS the action itself
-    // (actions/async-send.ts), never a separate mechanism — with the CORRECTED data.
-    const client = await prisma.client.create({
+    // Fix the underlying cause on the CLIENT record itself: the same client gets a real contact
+    // email. Issue #468 (owner decision on PR #469): a "send_failed" invoice has already consumed its
+    // number, so a retry resends exactly what is stored - it can no longer swap in a different client
+    // (this test used to do that, which was the very rewrite the lock now forbids). The retry below
+    // even submits a different client id to prove it: runAction ignores the submitted `data` and
+    // resends the stored invoice, whose own client now resolves to an email.
+    // #415: `contactEmail` moved off `Client` onto its `contacts` relation. `noEmailClient` has no
+    // contact yet (see the fixture above), so this simply adds a fresh primary one.
+    await prisma.client.update({
+      where: { id: noEmailClient.id },
+      data: {
+        contacts: { create: { email: `recovered-${Date.now()}@example.com`, isPrimary: true, position: 0 } },
+      },
+    });
+    const otherClient = await prisma.client.create({
       data: {
         companyId,
-        name: 'Recovered Client',
-        contactEmail: `recovered-${Date.now()}@example.com`,
+        name: 'Never Used Client',
+        contacts: { create: { email: `never-used-${Date.now()}@example.com`, isPrimary: true, position: 0 } },
         address: '1 Client Street',
         postalCode: '00000',
         city: 'Testville',
         country: 'France',
       },
     });
-    const fixedData = { ...invoiceData, client: client.id };
 
     const retry = await documentsService.runAction(companyId, 'invoice', 'send', {
       documentId,
-      data: fixedData,
+      data: { ...invoiceData, client: otherClient.id },
     });
     expect(retry.document?.status).toBe('sending');
 
@@ -383,7 +400,10 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     // No hole, no duplicate: the number a "send_failed" document already carried is exactly the one
     // it keeps once the retry succeeds — see numbering/take-number.ts's own "number IS NULL" guard.
     expect(settled.displayNumber).toBe(numberAfterFailure);
+    // The stored client, never the one the retry submitted.
+    const stored = await prisma.documentInstance.findUniqueOrThrow({ where: { id: documentId } });
+    expect((stored.data as Record<string, unknown>).client).toBe(noEmailClient.id);
 
-    await prisma.client.delete({ where: { id: client.id } }).catch(() => undefined);
+    await prisma.client.delete({ where: { id: otherClient.id } }).catch(() => undefined);
   });
 });

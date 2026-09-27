@@ -1,12 +1,14 @@
 import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
 
+import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { DocumentEventPublisher } from '../queue/document-events';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { SigningCredentialsPort } from '../signing/signing-credentials-port';
+import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
 import { registerEmailRecipientDefaultFromClient, registerSaveDraftAction } from './generic-actions';
@@ -34,6 +36,12 @@ export interface QuoteActionDeps {
    */
   webhooks?: DocumentWebhookEmitter;
 }
+
+/** Same direct-import model as `invoice-actions.ts`'s own `INVOICE_DESCRIPTOR` constant - computed
+ *  once, off the type's own descriptor, so `declaresArticleReference` below reflects whatever
+ *  quote.descriptor.ts's `lines` field actually declares (PR #473 review point 2). */
+const QUOTE_DESCRIPTOR = buildQuoteDescriptor();
+const QUOTE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(QUOTE_DESCRIPTOR);
 
 /**
  * Registers the quote type's action IMPLEMENTATIONS. "save-draft" is the generic mechanism
@@ -68,6 +76,7 @@ export function registerQuoteActions(registry: ActionRegistry, deps: QuoteAction
       // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
       webhooks: deps.webhooks,
       numberOnEnqueue: true, // quote.descriptor.ts: numbering.onEnterStatus === 'sending'
+      declaresArticleReference: QUOTE_DECLARES_ARTICLE_REFERENCE,
       deliver: async ({ companyId: c, document }) => {
         // `params.recipient` is already validated (required, non-empty text) by
         // DocumentsService.runAction before this handler — and therefore this `deliver` closure —

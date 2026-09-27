@@ -36,9 +36,13 @@ Hard-success contract (enforced per-spec):
 | PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
 | PDP reception (FR) — inbound e-invoices | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (same credentials as the row above — one PDP account only, see below) | `pdp/pdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16** — a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `PdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡/🔴 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) is proven NOT reachable on this sandbox** — every code tried (`fr:203`/`fr:205`/`fr:206`/`fr:211`/`fr:212`) and every plausible path variant answered a generic 404 — see the dedicated section below |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
+| Iopole (FR) | `IOPOLE_LIVE=1` | `PDP_IOPOLE_CLIENT_ID`, `PDP_IOPOLE_CLIENT_SECRET`, `PDP_IOPOLE_CUSTOMER_ID` (`PDP_IOPOLE_API_BASE` / `PDP_IOPOLE_TOKEN_URL` optional - the hosts are fixed constants in `iopole-transport.ts#IOPOLE_URLS`) | `iopole/iopole.live.spec.ts` | ✅ **Round-trip proven 2026-09-24** - real Factur-X deposit accepted (`201 {"type":"INVOICE","id":"01a0d29b-37d0-750d-9f8f-5d35664fca90"}`) and a real positive verdict read back from the platform: `SUBMITTED` (destType `PPF` and `OPERATOR`) → `RECEIVED` (networkCode 202) → `ISSUED`, no rejection. Reproduced on a second, independent deposit before the assertion was tightened. See the dedicated section below. |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | SdI via PEC (IT) | `PEC_LIVE=1` | `PEC_ID_TRASMITTENTE`, `PEC_ADDRESS`, `PEC_SMTP_HOST`, `PEC_SMTP_PORT`, `PEC_IMAP_HOST`, `PEC_IMAP_PORT`, `PEC_USERNAME`, `PEC_PASSWORD` | `transports/sdi-pec/pec.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no PEC mailbox exists in this checkout**, and unlike SdICoop this channel needs NO accreditation at all (see `credentials-guide.md` §4bis and `pec-protocol.ts`'s own header for the primary-source citations) — provisioning any PEC mailbox is the only blocker to a real round-trip |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | `chorus-pro/choruspro.live.spec.ts` | ✅ **Full qualification round-trip proven live 2026-09-14** — a real Factur-X deposit reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP: []`), after two earlier deposits were rejected and fixed (see `credentials-guide.md` §3 and commits `67a94d58`/`7de5a90c`/`ecce4d35`). Proven in **qualification only** — no production PISTE application or Chorus Pro production raccordement exists, and nothing after `IN_INTEGRE` (a public buyer's own `MISE_A_DISPOSITION`/`MANDATEE`/`MISE_EN_PAIEMENT`) has been exercised. |
+| Invopop (GOBL pivot) | `INVOPOP_LIVE=1` | `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID` (`INVOPOP_BASE_URL` optional, normally unset) | `invopop/invopop.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real GOBL `bill/invoice` deposited as silo entry `01a0d28d-5c3e-7af6-8d08-f2c412a9ac28` in the `invoicerr` sandbox workspace, workflow job `01a0d28d-5c3e-77a1-8874-9112b9fa3e85` completed `status: OK` with NO `faults`, the envelope came back `signed: true` with a real ES256 signature, and the platform's own recomputed `payable` (`290.00 EUR`) matched this product's own totals exactly. Proven in **sandbox only** - production needs a paid Developer tier and a live workspace. NOT proven: any country-specific transmission step (the workflow used here signs and stops), and no conformity poller exists for this channel. |
+| A-Cube (also a Peppol access point) | `ACUBE_LIVE=1` | `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD` (`PDP_ACUBE_ENVIRONMENT` optional, defaults to the sandbox) | `acube/acube.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real FatturaPA, built by this repository's own `fatturapa-provider.ts` and gated by the real vendored `Schema_VFPR12.xsd`, deposited through `POST /invoices` on `it-sandbox.api.acubeapi.com` and answered `202 {"uuid": "01a0d284-f0ac-76fb-af3d-0b359d20ad2a"}`; the uuid was then **read back off the platform** (`GET /invoices/{uuid}` → `marking: "waiting"`, `transmission_format: "FPR12"`, `document_type: "TD01"`, the deposited payload echoed back with our own invoice number in it). Sandbox only: A-Cube does not forward a sandbox deposit to SdI at all, so no cleared/rejected SdI verdict is reachable here and none is asserted. Production terms are not published - nothing about the production host has been attempted. |
+| Billit (BE, Peppol access point) | `BILLIT_LIVE=1` | `BILLIT_API_BASE`, `BILLIT_API_KEY`, `BILLIT_PARTY_ID` (`BILLIT_RECEIVER_ENDPOINT` optional) | `billit/billit.live.spec.ts` | ✅ **Round-trip proven live 2026-09-24** - a real Peppol BIS Billing 3.0 UBL, built by the real `peppol-bis-provider.ts` and gated by the real EN 16931 + Peppol Schematron rulesets, deposited through `POST /peppol/sendxml` and accepted: `InboxItemID` **1117029**, reproduced on a second independent run as **1117033**. Delivery is not inferred from the 200: the receiver ANSWERED, and `GET /peppol/inbox` carries one IMR per deposit from `0208:0563846944` back to `9957:FR54982187676`. The invoice is a **mandated French** one dated the day it ran, so this is also the only place GH-448 / PR #452 (the Peppol `cbc:ProfileID` fix) is proven against a real platform rather than only against the vendored Schematron. The one thing that cost a day is written up in the dedicated section below: the supplier in the document must BE the Billit company. ⚠️ The sandbox is a 14-day trial opened 2026-09-24: this stops being runnable on **2026-10-08**. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa.live.spec.ts` | ✅ **Proven live** — a real TST DER from FreeTSA (`https://freetsa.org/tsr`) embedded as a genuine XAdES-T `SignatureTimeStamp`; no credential needed (FreeTSA is public/anonymous). First proven 2026-06-30; re-run 2026-09-14 — `TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr npx jest tsa.live --no-coverage --runInBand` → 3/3, exit 0 (`HttpTsaClient`, `XadesSigningProvider` level-T, the env-built signing registry) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | Company lookup, through the onboarding wizard UI (same provider chain, driven by Cypress rather than calling the service directly) | `COMPANY_LOOKUP_LIVE=1` (passed as `--env COMPANY_LOOKUP_LIVE=1` to Cypress — note Cypress delivers it as a NUMBER, so the spec compares with `String(...)`, not `===`) | _(none, same reason as above)_ | `e2e/cypress/e2e/18-onboarding-wizard.cy.ts` (one `it` inside a shared `describe`, not a separate file — its title itself states the gate) | ✅ Proven live (created 2026-08-30; re-run 2026-09-14) — `4/4` passing with the gate open, EDF's real SIRET pre-filling the form and the persisted company read back from the database. Not run by any CI workflow (neither `cypress.yml`'s default `Tests` job nor a Cypress equivalent of `compliance-live.yml`, which does not exist) — offline, this test shows as Cypress "Pending", by design, same as the row above. |
@@ -188,6 +192,79 @@ Hard-success contract (enforced per-spec):
 > (`triggerPdpReceptionSweep`, using the `bullmq` package directly — never a stub of the sweep
 > runner itself) rather than waiting on its own 5-minute default interval.
 
+### Iopole (FR) - a second French transmission platform, 2026-09-24
+
+> Iopole (`iopole.com`) is registered by the DGFiP, French, and exposes a REST API that accepts UBL,
+> CII and Factur-X - the three shapes the documents module already produces. It is wired as an
+> ordinary transport (`transports/iopole-transport.ts` + `transports/iopole/iopole-client.ts`),
+> registered under the id `iopole`, opted into through `Company.invoiceTransportId` like every other
+> one. Sandbox: `api.ppd.iopole.fr`. Production: `api.iopole.com`.
+>
+> **The credentials** live under the `PDP_IOPOLE_` prefix (three required, two optional):
+>
+> | Variable | What it is | Where a company reads its own |
+> |---|---|---|
+> | `PDP_IOPOLE_CLIENT_ID` | **The account's e-mail address.** Unusual for OAuth2, and correct: the delivered token carries it back as its own `client_id` claim, with `preferred_username: service-account-<that e-mail>`. Do not "fix" it. | the Iopole account itself |
+> | `PDP_IOPOLE_CLIENT_SECRET` | the OAuth2 `client_credentials` secret | Iopole console |
+> | `PDP_IOPOLE_CUSTOMER_ID` | sent as the `customer-id` HTTP header on **every** call, not only at authentication | `GET /v1/config/customer/id` |
+> | `PDP_IOPOLE_API_BASE` | optional override of the fixed API host | - |
+> | `PDP_IOPOLE_TOKEN_URL` | optional override of the fixed token endpoint | - |
+>
+> **Three things the platform documentation does not say, or says wrong** - each verified live, each
+> recorded in `iopole/iopole-client.ts`'s own header so nobody re-discovers them:
+>
+> 1. **The `client_id` is an e-mail address** (above).
+> 2. **The token lasts 1740 seconds, not the 3600 the documentation claims.** The client derives its
+>    expiry from the response alone and never from a compiled-in default; a response with no usable
+>    `expires_in` expires the token immediately rather than assuming an hour. A hardcoded 3600 would
+>    hand out a dead token for eleven minutes, and the symptom (an intermittent 401 on an unrelated
+>    call) names nothing about the cause.
+> 3. **`customer-id` is required on every call.** The platform's own OpenAPI document marks the
+>    header `required: false` on every operation, which is wrong in practice for an operator account.
+>    It is **not** the sandbox scope that appears in the token's `scope` claim (`iopole_<8 chars>`);
+>    the two look alike and swapping them fails late, on a call that will not say why.
+>
+> A fourth gap was found by running the round trip rather than by reading anything:
+> `GET /v1/invoice/{id}` answers with an **array of one** metadata object where the OpenAPI document
+> declares a single object. The client accepts both shapes.
+>
+> **Source of truth for the endpoints**: the platform's own OpenAPI document, fetched from the
+> SANDBOX host (`GET https://api.ppd.iopole.fr/v1/api/operator/invoicing`), not the prose
+> documentation - which is a client-rendered page that serves no content to a plain HTTP client.
+>
+> **The two parties in the live spec are not invented.** They are two of the four business entities
+> this project's sandbox account actually has registered on the `DOMESTIC_FR` network, read from
+> `GET /v1/config/business/entity`: AIGLE TRANSPORT (SIREN `789275732`) and BARKOCZY (SIREN
+> `841480502`), whose directory addresses are `0225:789275732` and `0225:841480502`. Neither carries
+> an explicit `PEPPOL_ENDPOINT` identifier, deliberately: with a French `LEGAL_ID` on file,
+> `build-semantic-invoice.ts#endpointFor` already derives exactly `0225:<SIREN>`, which is what the
+> sandbox directory registered. The VAT numbers are computed from those SIRENs, not made up.
+>
+> **What is proven**: a real Factur-X PDF/A-3, built by the production recipe and gated by the real
+> vendored EN 16931 Schematron, deposited through `POST /v1/invoice`, accepted with a real invoice
+> id, read back through `GET /v1/invoice/{id}`, and followed to a genuine positive verdict in the
+> platform's own status history. The verdict landed in well under a second on every deposit measured,
+> and the spec polls for it rather than sleeping - a loop that stopped at "the history is no longer
+> empty" read only `SUBMITTED`, which says the request went out and nothing about whether it was
+> accepted. That is the first of the two false greens the superpdp box above records, reproduced here
+> verbatim before it was fixed.
+>
+> **What is NOT proven, and is not claimed**:
+> - **Nothing in production.** Only the `ppd` sandbox has ever been reached.
+> - **No conformity poller.** Following the verdict as a background job belongs in
+>   `conformity/pollers/` and is separate work; `GET /v1/invoice/{id}/status-history` is the endpoint
+>   it would be built on, and only the live spec reads it today. The transport therefore sets
+>   `providerId: 'iopole'` for the record's own honesty, and the sweep never selects it - exactly the
+>   position `sdi` holds.
+> - **No reception (inbound) side**, unlike the `pdp` channel.
+> - **No webhook, and no participant registration.** This project's sandbox account holds the `user`
+>   role, which per Iopole's own documentation allows sending an invoice, sending a status and
+>   reading the directory, but not declaring a webhook or adding a participant. Neither was attempted
+>   and neither is worked around.
+> - **Nothing ran through `iopole-transport.ts#send()` itself.** The live spec is DB-free by design
+>   (the same choice `pdp.live.spec.ts` makes) and composes the same DB-free building blocks by hand;
+>   the orchestration around them is covered by `iopole-transport.spec.ts`, with mocks.
+
 ## Running a single live spec
 
 ```bash
@@ -199,6 +276,13 @@ KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
 # PDP superpdp (FR) — round-trip proven: deposited, validated, issued, received (see the box above)
 set -a; . .env.pdp.local; set +a
 PDP_LIVE=1 npx vitest run pdp.live --no-file-parallelism
+
+# Iopole (FR) - round-trip proven 2026-09-24: Factur-X deposited, accepted, and followed to a real
+# positive verdict (SUBMITTED -> RECEIVED/202 -> ISSUED). See the dedicated section above.
+# DB-FREE - no DATABASE_URL needed. PDP_IOPOLE_API_BASE/PDP_IOPOLE_TOKEN_URL are optional: the hosts
+# are fixed constants in iopole-transport.ts#IOPOLE_URLS.
+set -a; . /path/to/pdp-sandbox.env; set +a
+IOPOLE_LIVE=1 npx vitest run iopole.live --no-file-parallelism
 
 # PDP reception (FR) — inbound e-invoices: self-addressed deposit -> direction=in -> download ->
 # extract -> real received-invoice -> approve -> record-payment (see the dedicated section above).
@@ -212,6 +296,11 @@ PDP_LIVE=1 npx vitest run pdp-reception.live --no-file-parallelism
 DOCUMENTS_MAIL_LIVE=1 SMTP_HOST=localhost SMTP_PORT=1025 \
   DATABASE_URL=postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db \
   npx vitest run send-quote.live
+
+# Billit (BE, Peppol access point) - Peppol BIS UBL deposit. The credentials live outside this
+# repository; put them in a gitignored .env.billit.local (see "Credential storage" below).
+set -a; . .env.billit.local; set +a
+BILLIT_LIVE=1 npx vitest run billit.live --no-file-parallelism
 
 # SdI (IT) — requires AdE accreditation + qualified PFX certificate (code implemented-awaiting-accreditation)
 SDI_LIVE=1 SDI_ID_TRASMITTENTE=IT01234567890 SDI_ENDPOINT=<accredited-SdIRiceviFile-url> \
@@ -231,6 +320,14 @@ PEC_LIVE=1 PEC_ID_TRASMITTENTE=IT01234567890 PEC_ADDRESS=fatture@example.pec.it 
 CHORUSPRO_LIVE=1 CHORUSPRO_CLIENT_ID=<id> CHORUSPRO_CLIENT_SECRET=<secret> \
   CHORUSPRO_TECH_LOGIN=<login> CHORUSPRO_TECH_PASSWORD=<password> \
   npx vitest run choruspro.live --no-file-parallelism
+
+# A-Cube (also a Peppol access point) - round-trip proven 2026-09-24 (deposit accepted, uuid
+# read back off the platform). DB-FREE: this spec never sets DATABASE_URL and never touches Prisma.
+# QUOTE THE PASSWORD IN SINGLE QUOTES - an A-Cube password legitimately contains `#`, and an
+# unquoted shell assignment silently truncates the value there, which then looks like an
+# authentication bug rather than a shell bug.
+ACUBE_LIVE=1 PDP_ACUBE_EMAIL=<account e-mail> PDP_ACUBE_PASSWORD='<account password>' \
+  npx vitest run acube.live --no-file-parallelism
 
 # RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
 TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
@@ -317,8 +414,74 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
 - Suggested local file layout:
   - `.env.ksef.local` — `KSEF_AUTH_TOKEN`, `KSEF_NIP`
   - `.env.pdp.local` — `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET`
+  - `.env.billit.local` - `BILLIT_API_BASE`, `BILLIT_API_KEY`, `BILLIT_PARTY_ID`
   - `.env.sdi.local` — `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD`
+  - `.env.invopop.local` - `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID`
+  - `.env.acube.local` - `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD`, `PDP_ACUBE_ENVIRONMENT`
 - Load with: `set -a; . .env.<channel>.local; set +a`
+- **A-Cube is the one exception to that load command.** Its password legitimately contains `#`, and
+  `set -a; . file` hands the line to the shell, which treats everything from an unquoted `#` onward
+  as a comment - the variable is then silently set to a TRUNCATED value and every login fails with a
+  message that says nothing about truncation. Either single-quote the value inside the file
+  (`PDP_ACUBE_PASSWORD='...'`), or read the file rather than source it.
+
+---
+
+### A-Cube (also a Peppol access point) - sandbox account
+
+A-Cube gives a sandbox away with no purchase obligation: a work e-mail at `acubeapi.com/sandbox`,
+an activation link, a password. Nothing to sign. **Production terms are not published** - worth
+asking before anything depends on it.
+
+```bash
+ACUBE_LIVE=1 \
+  PDP_ACUBE_EMAIL=<account e-mail> \
+  PDP_ACUBE_PASSWORD='<account password>' \
+  [PDP_ACUBE_ENVIRONMENT=sandbox] \
+  npx vitest run acube.live --no-file-parallelism
+```
+
+| Env var | Purpose |
+|---|---|
+| `PDP_ACUBE_EMAIL` | The A-Cube account's own e-mail - required by the gate |
+| `PDP_ACUBE_PASSWORD` | The A-Cube account's own password - required by the gate. **Single-quote it**, see above |
+| `PDP_ACUBE_ENVIRONMENT` | `sandbox` (default) or `production` - anything other than `production` is read as the sandbox |
+
+**Authentication is a password exchange, not an API key.** `POST https://common.api.acubeapi.com/login`
+with a JSON body of `email`, `password` and `environment` answers a 24-hour RS256 JWT, presented as
+`Authorization: Bearer <token>` afterwards. There is no per-integration key concept: the credentials
+that open the API are the credentials that open the web console. Two consequences worth stating
+plainly - use a dedicated, generated password that serves nothing else, and treat this value in a
+company's channel config as account-wide rather than scope-limited (the settings copy in
+`acube-transport.ts` says so to the user).
+
+**The environment is a HOST, not a request parameter** (verified live, 2026-09-24, both halves): a
+sandbox token against `https://it-sandbox.api.acubeapi.com/invoices` answers `200`, and the SAME
+token against `https://it.api.acubeapi.com/invoices` answers
+`401 {"code":401,"message":"Invalid JWT Token"}`. Mixing the two is a hard refusal, never a silent
+cross-environment send.
+
+**Only the Italian jurisdiction is implemented on the wire**, because FatturaPA is the payload this
+repository already builds and already gates against the real Agenzia delle Entrate XSD. The same
+login already returns roles for `fr.`, `de.`, `pl.` and `peppol.api.acubeapi.com` (read out of the
+real token), so widening it is a row in `acube-client.ts`'s own `JURISDICTION_HOSTS` plus a format
+decision - not a second authentication design. Nothing Peppol is built today.
+
+> **Italy is nonetheless OUT OF SCOPE for this transport, by decision.** Italian sending stays on
+> `sdi-pec`, which is sourced and where this product receives the notifiche itself. An Italian
+> company selecting `acube` is refused at send time by `channel-policy/data/it.json` (its `sdi`
+> mandate lists only `sdi-pec` as equivalent) - that refusal is intended, not a defect to fix.
+> The round-trip above proves the wire works, nothing more.
+>
+> What the legal research established, in both directions: Italian law does allow a third party to
+> transmit on the seller's behalf (Provvedimento Agenzia delle Entrate 30 aprile 2018, prot. n.
+> 89757, punto 5.1) and such an intermediary needs no professional registration. A-Cube **claims**
+> on its commercial pages to be "accreditati con SdI", but nothing public confirms it: the Agenzia
+> delle Entrate publishes no register, and accreditation is a bilateral Accordo di Servizio. The one
+> objective clue points at **reception only** - their documentation asks you to register their
+> codice destinatario, and per the AdE's own process a codice destinatario is issued only for a
+> channel accredited in reception; accreditation in **transmission** is a separate box, and nothing
+> public says they hold it.
 
 ---
 
@@ -366,6 +529,205 @@ SIRET). In short:
 
 ---
 
+### Invopop (GOBL pivot) - sandbox, proven 2026-09-24
+
+```bash
+# Invopop sandbox workspace
+INVOPOP_LIVE=1 \
+  INVOPOP_API_KEY=<workspace_api_key> \
+  INVOPOP_WORKFLOW_ID=<published_workflow_uuid> \
+  npx vitest run src/modules/documents/transports/invopop/invopop.live.spec.ts
+```
+
+| Env var | Purpose |
+|---|---|
+| `INVOPOP_API_KEY` | The workspace API key (a JWT). Required by the gate. It carries the workspace with it, so it is also what decides sandbox or live. |
+| `INVOPOP_WORKFLOW_ID` | The UUID of a **published** workflow for schema `bill/invoice` in that same workspace. Required by the gate: a silo entry with no workflow to run has been transmitted nowhere. |
+| `INVOPOP_BASE_URL` | Optional. Defaults to `https://api.invopop.com`, which serves every workspace. |
+
+**How to obtain credentials:**
+1. Sign up at [invopop.com](https://invopop.com) and open the Console. A sandbox workspace is
+   self-serve, with no sales call and no company registration.
+2. Console → Configuration → API Keys → create a key. It is scoped to that one workspace.
+3. Console → Workflows → **Load template** (or `PUT /transform/v1/workflows/{uuid}` with a workflow
+   JSON) for schema `bill/invoice`, publish it, and copy its id. The workflow used for the proven
+   round trip below is a single `silo.close` ("Sign envelope") step, which is the smallest thing that
+   proves the platform accepted, built, enveloped and signed the document.
+4. Check which workspace the key belongs to before depositing anything:
+   `GET /access/v1/workspace` answers `"sandbox": true` or `false`.
+
+**Three things that will waste an afternoon if nobody wrote them down:**
+- **There is no separate sandbox host.** `https://api.invopop.com` serves every workspace and the
+  TOKEN decides which one. The spec refuses to run against a workspace whose `sandbox` flag is not
+  true; that check is the only guard there is.
+- **A `403` from this API is not an authentication failure.** The edge sits behind Cloudflare, which
+  answers `403` with a body of `error code: 1010` to a client whose signature it does not like,
+  valid token or not. A genuinely bad or missing token answers `401` with
+  `{"message":"missing authorization token"}`. This is why `invopop-client.ts` sends an explicit
+  `User-Agent` on every request and why `InvopopApiError` names a 403 as a BLOCKED CLIENT. Do not
+  remove that header as noise.
+- **The token does not expire** (`scope: admin`, `exp: 0`). There is no refresh cycle to build.
+
+**What the test verifies (the hard-success contract for this channel):**
+- `GET /utils/v1/ping` answers `pong`, and `GET /access/v1/workspace` answers `sandbox: true`.
+- `PUT /silo/v1/entries/{uuid}` stores a real GOBL `bill/invoice` and returns a non-empty entry id.
+  An empty id is a FAILURE, never a silent success.
+- `PUT /transform/v1/jobs/{uuid}?wait=30` runs the published workflow. A job carrying `faults` is a
+  FAILURE **even when its `status` reads `OK`**: the platform's own documentation states that a job
+  whose step failed and whose error branch then ran reports exactly that combination. Reading success
+  off `status` alone would be a false green of the kind this guide exists to prevent.
+- `GET /silo/v1/entries/{uuid}` comes back `signed: true` after the signing step.
+- The platform's recomputed `totals.payable` equals this product's own `grossMinor`. GOBL recalculates
+  every total and, by its own documentation, silently replaces any supplied one with no error, so the
+  returned number is the only signal there is that the two engines agree.
+
+**What the round trip did NOT prove:** any country-specific conversion or transmission step (the
+workflow used signs and stops, and no government app was enabled on the sandbox workspace); a
+production deposit (that needs a paid Developer tier and a live workspace); and any post-deposit
+conformity tracking, since no poller is registered for the `invopop` provider id in
+`conformity/pollers/`. That poller is named, separate work, the same remainder the PDP channel
+carried before its own was built.
+
+---
+## Billit (BE, Peppol access point) prerequisites
+
+Billit is a Belgian Peppol access point, also registered by the DGFiP as a French "plateforme
+agreee". This transport speaks **Peppol only** - it deposits a Peppol BIS Billing 3.0 UBL document
+through `POST /peppol/sendxml` and treats the `InboxItemID` that comes back as the delivery
+reference. Billit's French PA flow is a different set of endpoints and is deliberately out of scope.
+
+### Credentials
+
+Two headers, on every call, named exactly as Billit's own examples write them
+(https://docs.billit.be/docs/partyid-and-key):
+
+| Env var | Header | What it is |
+|---|---|---|
+| `BILLIT_API_KEY` | `apikey` | The account's secret key. One key covers every company on the account. |
+| `BILLIT_PARTY_ID` | `partyID` | Which company of that account the call acts for. |
+| `BILLIT_API_BASE` | _(none)_ | `https://api.sandbox.billit.be/v1` or `https://api.billit.be/v1`. |
+
+**The PartyID is configuration, never a constant.** The same company has a different PartyID on
+sandbox and on production, and an account holding several companies has one PartyID per company.
+`billit-transport.ts` refuses to send when it is missing rather than defaulting one, because a
+defaulted PartyID would file an invoice under the wrong company without saying so.
+
+A sandbox account is free and needs no card: `my.sandbox.billit.be/Account/Register`. Get a sandbox
+account here before anything else - calls to the production API send real invoices.
+
+`BILLIT_RECEIVER_ENDPOINT` is optional and is **not** a credential: it is the public Peppol
+participant identifier the live spec deposits to, defaulting to `0208:0563846944`, a participant
+verified registered on the Peppol TEST network for `BISv3Invoice` on 2026-09-24. Override it if your
+own sandbox has a better receiver.
+
+### The company you send as, and why the first attempts failed
+
+**The supplier carried IN the document must BE the Billit company the `partyID` header names.**
+Billit resolves the sender that way and refuses anything it cannot match, with a generic HTTP 400
+whose body names nothing:
+
+```
+{"errors":[{"Code":"GenericError","Description":"Processing of the HTTP request resulted in an
+  exception. Please see the HTTP response returned by the 'Response' property of this exception
+  for details."}]}
+```
+
+That message is useless, and it is the same one you get for several unrelated causes. **When you
+hit it, do not guess: POST a throwaway order and read its message log.** `POST /orders` then
+`POST /orders/commands/send` with `Transporttype: "Peppol"` both answer HTTP 200 regardless, but
+`GET /orders/{id}` afterwards carries a `Messages[]` entry with the real sentence in it. That is how
+the two causes below were identified, an hour apart:
+
+| What the order message log said | What it meant |
+|---|---|
+| `"The VAT Number of your company () cannot be used to send via Peppol, change your VAT number in your company record"` | The company record had no VAT number. The empty `()` is Billit interpolating the missing value. Note it is the party's top-level `VATNumber` field that matters, **not** `Identifiers`, which stays `[]` even for a company that has one. |
+| _(no message - the send succeeded)_ | Once `VATNumber` was set, `/orders` delivered, and `/peppol/sendxml` still failed until the UBL's own supplier was changed to that same identity. |
+
+So the sequence to get a new account sending is: set the company's **VAT number** (and, for a French
+company, its **Siren** - https://docs.billit.be/docs/create-account-and-french-integration), then put
+that identity in the document you deposit. Their France setup adds two further steps (the
+"Electronic invoicing in France" integration tile, which generates the CTC, and an automatic Peppol
+registration the next day at 10:00) - **not needed for the Peppol test network**, where the round
+trip below worked without them, but needed for the French annuaire in production.
+
+### Round-trip proven live on 2026-09-24
+
+Run through the real `peppol-bis-provider.ts`, the real EN 16931 UBL Schematron and the real
+vendored Peppol delta, nothing mocked:
+
+```
+Billit participant lookup: { identifier: '0208:0563846944', registered: true,
+  documentTypes: [ 'BISv3Invoice', 'IMR', 'MLR', 'BISv3CreditNote', ... ] }
+Peppol BIS UBL built and validated, bytes: 4002
+Billit /peppol/sendxml response: 1117029
+DEPOSIT ACCEPTED - InboxItemID: 1117029 receiver: 0208 0563846944
+```
+
+Reproduced on a second independent run: `InboxItemID` **1117033**.
+
+Note the response body is a **bare integer**, not a JSON object - `billit-client.ts#extractInboxItemId`
+accepts both shapes for exactly this reason.
+
+**Delivery is not inferred from the HTTP 200.** The receiver answered. `GET /peppol/inbox` carries
+one IMR (Peppol invoice message response) per deposit:
+
+```json
+{"InboxItems":[
+  {"InboxItemID":1117009,"SenderPeppolID":"0208:0563846944","PeppolDocumentType":"IMR",
+   "ReceiverPeppolID":"9957:FR54982187676","ReceiverCompanyID":"FR54982187676",
+   "CreationDate":"2026-09-24T13:51:36.48533","PeppolFileID":"0a47bff7-3730-4cb3-b019-01a0d341be79"}]}
+```
+
+`9957:FR54982187676` is this sandbox company. The document reached the far end of the Peppol test
+network and the far end replied.
+
+Billit also runs the Peppol rules itself before accepting anything, and unlike the generic 400 above
+it names the rule when it is a content problem - one entry per XML location:
+
+```
+[PEPPOL-COMMON-R043]-Belgian enterprise number MUST be stated in the correct format.
+  Thrown at XML location: Invoice.AccountingSupplierParty.Party.EndpointID
+```
+
+Reading every entry rather than only the first is `billit-client.ts#describeFailure`'s job.
+
+### The path to production is not open today
+
+Two facts, both from Billit's own documentation, both worth knowing before anyone plans on this:
+
+1. The API key this transport uses is "only allowed for non-commercial integrations"
+   (https://docs.billit.be/docs/partyid-and-key). A commercial production integration needs OAuth
+   credentials requested from Billit support, plus an approval step before production credentials are
+   issued (https://docs.billit.be/docs/authentication).
+2. The sandbox account opened on 2026-09-24 is a **14-day trial**. It expires on **2026-10-08**,
+   after which this live spec stops being runnable at all until the account is extended or replaced.
+   If you are reading this after that date and the spec fails on authentication, that is why.
+
+### This is also where the Peppol `cbc:ProfileID` fix is proven live
+
+The Billit sandbox company is **French**, and the live spec dates its invoice the day it runs, so
+every deposit above is a **mandated French invoice** (the French BT-23 obligation runs from
+2026-09-01, `content-requirements/data/fr.json`, CGI ann. II art. 242 nonies A I 8 bis).
+
+That is the exact case GH-448 was about. `formats/semantic/business-process.ts` derives a French CGI
+category for such an invoice, and `cbc:ProfileID` is where UBL carries BT-23 - but Peppol reserves
+that element for its own process URNs, so the French code failed `PEPPOL-EN16931-R007` outright. PR
+#452 fixed it by having `peppol-bis-provider.ts` pass `businessProcessCodeOverride` with the fixed
+Peppol Billing profile identifier (Peppol BIS Billing 3.0 §13.2), leaving the CII/Factur-X channel
+untouched.
+
+Measured on this repository's own output for the seller and date the live spec uses:
+
+| Syntax | BT-23 carries | Why |
+|---|---|---|
+| Peppol BIS UBL (`cbc:ProfileID`) | `urn:fdc:peppol.eu:2017:poacc:billing:01:1.0` | Peppol BIS Billing 3.0 §13.2, forced by the override from #452 |
+| CII / Factur-X (`BusinessProcessSpecifiedDocumentContextParameter/ram:ID`) | `S1` | the French CGI category, unchanged - the fix is scoped per syntax, not per seller |
+
+**And a real Peppol access point accepted the first one.** Before this spec ran, #452 was judged only
+by the vendored Schematron, which is our own copy of the rules; now the document it produces has been
+taken by Billit and answered by the receiver. If that fix ever regresses, this is the test that will
+say so against something other than ourselves.
+
 ## SdI prerequisites (currently deferred — code is implemented-awaiting-accreditation)
 
 Status (2026-09-01): step 3 below is DONE — a real `SdiHttpPort` (`SdiCoopClient`,
@@ -408,28 +770,45 @@ Unlike SdI's SDICoop channel, NOTHING here needs AdE accreditation. What remains
 ## Running in GitHub Actions
 
 Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
-- The `live` job runs `npx jest live` against a disposable Postgres + Redis, which sweeps in every
-  `*.live.spec.ts` / `*-live.spec.ts` file matched above (KSeF, PDP, SdI, TSA, Chorus Pro), each
-  self-gating on its own flag and credentials.
-- **Not yet reconciled with this architecture, named honestly rather than fixed silently**: the
-  workflow file's own env block still sets flags this codebase no longer reads (`EMAIL_LIVE`,
-  `PDP_AFNOR_LIVE`, `COMPLIANCE_LIVE_DB_TESTS`) — harmless (nothing consumes them) rather than
-  wrong. Its separate `national-portals-live` job still runs `npx jest portal-live`, a pattern that
-  matches no file in this repository (`portal-live.spec.ts` no longer exists) — that job runs and
-  currently finds nothing to execute. This is a defect in the workflow file itself, out of scope for
-  this guide to fix.
+- The `live` job runs, against a disposable Postgres:
+  ```
+  cd backend && npx vitest run .live.spec.ts --no-file-parallelism \
+    --reporter=default --reporter=json --outputFile.json=live-results.json
+  ```
+  That filter matches exactly the 31 `*.live.spec.ts` files (KSeF, PDP, SdI, TSA, Chorus Pro, the
+  payment providers, Polar, the S3/MinIO and OCR round-trips…), each self-gating on its own flag and
+  credentials. No Redis service: none of those 31 files opens a BullMQ/ioredis connection.
+- A second step then reads `live-results.json` and **fails the job when zero live tests executed**.
+  Vitest exits 0 when every suite self-skips, so the exit code alone cannot tell "all gates opened
+  and passed" from "nothing ran at all" - and the second of those is the failure mode this job
+  actually spent months in. A single channel skipping for want of its own secret is still correct and
+  expected; only an entirely empty run is red.
+- **Fixed 2026-09-24 (was: `npx jest live`).** Jest and ts-jest left `backend/package.json` with the
+  2026-09-19 Vitest migration, so that command had no local binary: `npx` downloaded `jest@30` from
+  the registry and ran it with no config and no TypeScript transform. Nightly run `35972649692`
+  (2026-09-24) reported `Test Suites: 35 failed, 35 total` / `Tests: 0 total` - a red job that never
+  executed a single live spec, which is also why the older `*-live.spec.ts` (hyphen) half of the old
+  pattern is gone from the command above: `src/live-spec-naming.spec.ts` now guarantees no such file
+  exists.
+- **Still not reconciled, named honestly rather than fixed silently**: the workflow's env block sets
+  a few flags this codebase no longer reads (`EMAIL_LIVE`, `PDP_AFNOR_LIVE`,
+  `COMPLIANCE_LIVE_DB_TESTS`) - harmless (nothing consumes them) rather than wrong. The
+  `national-portals-live` job those notes used to describe no longer exists in the file at all.
 
-> **Cron caveat:** GitHub only fires the `schedule` trigger from the repository's **default branch**
-> (typically `main`). On a feature branch, the nightly `cron: '0 3 * * *'` entry above is inert —
-> use the **"Run workflow"** button (`workflow_dispatch`) targeting that branch instead; the cron
-> starts firing automatically once the workflow file is merged to the default branch.
+> **Cron caveat:** GitHub only fires the `schedule` trigger from the repository's **default branch**,
+> which in this repository is **`dev`**, not `main` - so the nightly `cron: '0 3 * * *'` is already
+> firing (runs `35835437074` and `35972649692`). On any other branch it is inert; use the
+> **"Run workflow"** button (`workflow_dispatch`) targeting that branch instead.
 >
-> **What "green" means with zero secrets configured:** every creds-gated spec (KSeF, PDP, SdI, TSA,
+> **What "green" means with zero secrets configured:** every creds-gated spec (KSeF, PDP, SdI,
 > Chorus Pro) self-skips via `liveDescribe` — see the hard-success contract at the top of this file,
-> enforced by each spec, not by the gate. Only the genuinely creds-free specs actually run and must
-> pass: Email/Mailpit (`DOCUMENTS_MAIL_LIVE`, though the workflow does not currently set this flag —
-> see the caveat above). A fully green *real-round-trip* matrix (KSeF CLEARED, PDP PENDING/CLEARED,
-> SdI CLEARED, …) additionally needs the repo secrets listed in the table below — see also
+> enforced by each spec, not by the gate. One row still runs with no secret at all: the RFC 3161 TSA
+> one, whose `TSA_URL` falls back to the public `https://freetsa.org/tsr` in the workflow when the
+> secret of that name is unset. That is deliberate - it is what keeps the "at least one live spec
+> executed" step above from failing a repository that simply has no credentials yet, while still
+> failing one where the credentials silently stopped reaching the specs. A fully green
+> *real-round-trip* matrix (KSeF CLEARED, PDP PENDING/CLEARED, SdI CLEARED, …) additionally needs the
+> repo secrets listed in the table below - see also
 > [Credentials Guide](./credentials-guide.md) for the per-platform setup walkthrough.
 
 > **`*_LIVE` and `*_ENVIRONMENT` are constants in the workflow — do NOT add them as GitHub secrets.**
@@ -459,6 +838,7 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ optional `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. |
 | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) — `SDI_ENDPOINT` (the accredited `SdIRiceviFile` URL) and the PFX are both assigned/issued during that accreditation, never a fixed constant (see [Credentials Guide](./credentials-guide.md) §4). Code side: implemented-awaiting-accreditation (`sdicoop-client.ts`), never yet run against the real endpoint. |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
+| `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD` | A-Cube (also a Peppol access point) | **acubeapi.com/sandbox** - a work e-mail, an activation link, a password. Nothing to sign, no purchase obligation. These are ACCOUNT credentials, not a per-integration key, so use a dedicated generated password (see the A-Cube section above). ✅ round-trip proven 2026-09-24. |
 | `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |
 | _(none)_ | Email (document "send" SMTP) | The local Mailpit container the dev/test stack already runs — no secret needed. ✅ proven (see the summary table above). |
 

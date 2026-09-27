@@ -55,9 +55,11 @@ function openCreateDialog() {
  *  20-document-totals.cy.ts's own `document-field-currency-input` for the exact same three-step
  *  pattern (button first, wait for the options list, click the option by its slugified label). */
 function pickSelectOption(fieldKey: string, optionSlug: string) {
-	cy.get(`[data-cy="document-field-${fieldKey}-input"] button`).first().click({ force: true });
-	cy.get(`[data-cy="document-field-${fieldKey}-input-options"]`, { timeout: 10000 }).should("be.visible");
-	cy.get(`[data-cy^="document-field-${fieldKey}-input-option-${optionSlug}"]`).first().click();
+	// Through the shared command rather than inline, for what it does AFTER the option click: every
+	// caller of this helper fills "currency" and then opens the date picker on the very next line,
+	// and a picker whose deferred focus restore is still pending dismisses that calendar as it lands
+	// (support/commands.ts#waitForLayerTeardown).
+	cy.pickDocumentFieldOption(fieldKey, optionSlug);
 }
 
 function saveDraft() {

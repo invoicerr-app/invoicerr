@@ -62,9 +62,11 @@ interface ChannelsResponse {
  *  the bare id (uppercased) for a provider this screen has no opinion about yet. */
 const PROVIDER_LABELS: Record<string, string> = {
   pdp: "PDP",
+  iopole: "Iopole",
   ksef: "KSeF",
   sdi: "SdI",
   "chorus-pro": "Chorus Pro",
+  billit: "Billit",
 }
 
 /** Every provider id this screen renders as a DECLARATION (never a delivery channel) — the visual
@@ -124,6 +126,37 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelKey: "settings.channels.fields.clientSecret",
       labelDefault: "Client secret",
       type: "password",
+    },
+  ],
+  // Iopole (FR). Exactly the three fields `iopole-transport.ts#extractIopoleCredentials` reads, and
+  // no URL field: Iopole's own API and OAuth hosts are a fixed platform fact
+  // (`iopole-transport.ts#IOPOLE_URLS`), picked by the generic environment selector below the way
+  // Chorus Pro's already are, never a user-editable endpoint the way PDP's and SdI's are.
+  // `clientId` IS the account's e-mail address - unusual for OAuth2, verified live on 2026-09-24,
+  // and the placeholder says so, because a user who "corrects" it to a uuid gets an authentication
+  // failure that names nothing. `customerId` is mandatory on every Iopole API call, not just at
+  // authentication, and is NOT the sandbox scope that appears in the token's `scope` claim - the two
+  // look alike. A company reads its own from Iopole's `GET /v1/config/customer/id`.
+  iopole: [
+    {
+      key: "clientId",
+      labelKey: "settings.channels.fields.iopoleClientId",
+      labelDefault: "Client ID (your Iopole account e-mail)",
+      type: "text",
+      placeholder: "you@example.com",
+    },
+    {
+      key: "clientSecret",
+      labelKey: "settings.channels.fields.clientSecret",
+      labelDefault: "Client secret",
+      type: "password",
+    },
+    {
+      key: "customerId",
+      labelKey: "settings.channels.fields.iopoleCustomerId",
+      labelDefault: "Customer ID",
+      type: "text",
+      placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     },
   ],
   // KSeF (PL). `nip`/`ksefToken` are the ONLY provider-specific fields
@@ -215,6 +248,35 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelKey: "settings.channels.fields.chorusProTechnicalAccountPassword",
       labelDefault: "Chorus Pro technical account password",
       type: "password",
+    },
+  ],
+  // Billit (BE, and a Peppol access point for everyone else). Exactly the three fields
+  // `billit-transport.ts#extractBillitCredentials` reads. `partyId` has NO default on purpose: Billit's
+  // PartyID differs between sandbox and production, and an account covering several companies has one
+  // PartyID per company while the SAME key covers them all - so it is per-company configuration, never
+  // a constant. `baseUrl` is a field for the same reason PDP has one: sandbox and production are
+  // different hosts, and the environment selector below only tells the BACKEND which row this is, it
+  // cannot invent a hostname.
+  billit: [
+    {
+      key: "baseUrl",
+      labelKey: "settings.channels.fields.baseUrl",
+      labelDefault: "API base URL",
+      type: "text",
+      placeholder: "https://api.sandbox.billit.be/v1",
+    },
+    {
+      key: "apiKey",
+      labelKey: "settings.channels.fields.billitApiKey",
+      labelDefault: "API key",
+      type: "password",
+    },
+    {
+      key: "partyId",
+      labelKey: "settings.channels.fields.billitPartyId",
+      labelDefault: "PartyID",
+      type: "text",
+      placeholder: "1163540",
     },
   ],
   // ANAF (RO), FACe (ES), NAV (HU) and myDATA (GR) used to have their field specs here. All four

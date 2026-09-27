@@ -11,6 +11,50 @@
     "actions": {
       "addNew": "Add New Client"
     },
+    "import": {
+      "button": "Import CSV",
+      "title": "Import clients from CSV",
+      "description": "Download the template, fill it in, then upload it here. Nothing is created until you confirm.",
+      "downloadTemplate": "Download template",
+      "dropHint": "Click to choose a CSV file",
+      "confirm": "Import {{count}} client",
+      "confirm_other": "Import {{count}} clients",
+      "summary": {
+        "willCreate": "{{count}} to create",
+        "duplicates": "{{count}} duplicate",
+        "duplicates_other": "{{count}} duplicates",
+        "rejected": "{{count}} rejected"
+      },
+      "preview": {
+        "row": "Row",
+        "name": "Name",
+        "status": "Status",
+        "detail": "Detail",
+        "duplicateOfFileEmail": "Same email as row {{row}} of this file",
+        "duplicateOfFileNameCountry": "Same name and country as row {{row}} of this file",
+        "duplicateOfExistingEmail": "Same email as existing client \"{{name}}\"",
+        "duplicateOfExistingNameCountry": "Same name and country as existing client \"{{name}}\""
+      },
+      "status": {
+        "valid": "Will be created",
+        "duplicate": "Duplicate",
+        "rejected": "Rejected"
+      },
+      "result": {
+        "created": "Created",
+        "duplicates": "Skipped as duplicates",
+        "rejected": "Rejected"
+      },
+      "errors": {
+        "templateDownload": "Failed to download the template",
+        "fileTooLarge": "This file is over the {{maxKb}} KB limit a single import can process",
+        "tooManyRows": "This file has {{count}} rows, over the {{max}}-row limit a single import can process",
+        "empty": "This file has no data rows to import",
+        "parseFailed": "Could not read this file",
+        "previewFailed": "Could not preview this import",
+        "confirmFailed": "Could not complete this import"
+      }
+    },
     "stats": {
       "active": "Active",
       "inactive": "Inactive",
@@ -215,6 +259,18 @@
         "portalAccess": {
           "label": "Client portal",
           "description": "Invite this client to sign in and see their own invoices, quotes and balance."
+        },
+        "contacts": {
+          "label": "Contacts",
+          "add": "Add contact",
+          "remove": "Remove",
+          "role": "Role",
+          "primaryBadge": "Primary",
+          "setPrimary": "Set as primary",
+          "primaryFromIdentity": "Comes from the identity step",
+          "primaryLockedHint": "Only the person on the identity step can be the primary contact of an individual client.",
+          "primaryLockedTitle": "The primary contact of an individual client is the person on the identity step - edit the identity step to change it",
+          "removeLockedTitle": "The primary contact of an individual client is the person on the identity step and cannot be removed here"
         }
       },
       "stepped": {
@@ -317,7 +373,8 @@
       "sections": {
         "contact": "Contact",
         "address": "Address",
-        "documents": "Documents"
+        "documents": "Documents",
+        "contacts": "Contacts"
       },
       "documents": {
         "empty": "No document yet for this client"
@@ -332,7 +389,9 @@
         "postalCode": "Postal Code",
         "city": "City",
         "state": "State/Province",
-        "country": "Country"
+        "country": "Country",
+        "primary": "Primary",
+        "noContacts": "No contacts"
       }
     },
     "delete": {
@@ -702,10 +761,6 @@
         "archive": "Archive"
       },
       "confirmations": {
-        "issue": {
-          "title": "Issue invoice",
-          "description": "Are you sure you want to issue invoice {{number}}? The document will be locked and a legal number will be assigned."
-        },
         "send": {
           "title": "Send invoice",
           "description": "Are you sure you want to send invoice {{number}} to {{client}}?"
@@ -1427,7 +1482,23 @@
     }
   },
   "dashboard": {
-    "title": "Dashboard"
+    "title": "Dashboard",
+    "period": {
+      "label": "Period",
+      "options": {
+        "all": "All time",
+        "this-month": "This month",
+        "this-year": "This year",
+        "last-30-days": "Last 30 days",
+        "custom": "Custom range"
+      },
+      "customFrom": "From",
+      "customTo": "To",
+      "activeRange": "Showing {{from}} to {{to}}",
+      "activeRangeAll": "Showing all time",
+      "customIncomplete": "Pick a start and an end date. Showing all time until then.",
+      "customInverted": "The start date is after the end date. Showing all time until it is fixed."
+    }
   },
   "widgets": {
     "emptyTitle": "Nothing to show yet",
@@ -1442,7 +1513,8 @@
     "metric": {
       "unchanged": "No change",
       "variationPercent": "{{sign}}{{percent}}%",
-      "variationAbsolute": "{{sign}}{{value}} {{unit}}"
+      "variationAbsolute": "{{sign}}{{value}} {{unit}}",
+      "openList": "Open the list behind \"{{label}}\""
     },
     "period": {
       "ariaLabel": "Period",
@@ -2126,6 +2198,16 @@
             "format": "Invoice number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
           }
         },
+        "creditNoteNumberFormat": {
+          "label": "Credit Note Number Format",
+          "placeholder": "Enter credit note number format (e.g., CN-{year}-{number})",
+          "description": "Format for credit note numbers - a credit note is legally an invoice and needs its own sequential number, in its own series, separate from the invoice one",
+          "errors": {
+            "required": "Credit note number format is required",
+            "maxLength": "Credit note number format must be less than 100 characters",
+            "format": "Credit note number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
+          }
+        },
         "invoicePDFFormat": {
           "label": "Invoice PDF Format",
           "placeholder": "Select invoice PDF format",
@@ -2494,6 +2576,22 @@
         "testError": "Failed to send the test email",
         "revertSuccess": "Reverted to the instance mail server",
         "revertError": "Failed to revert to the instance mail server"
+      },
+      "replyTo": {
+        "title": "Reply-To address",
+        "label": "Reply-To address",
+        "description": "Applied to every message this company sends, winning over the instance's own Reply-To if it has one. Leave empty for no Reply-To header.",
+        "validation": {
+          "invalid": "Enter a valid e-mail address"
+        },
+        "actions": {
+          "clear": "Clear"
+        },
+        "messages": {
+          "saveSuccess": "Reply-To address saved",
+          "clearSuccess": "Reply-To address cleared",
+          "saveError": "Failed to save the Reply-To address"
+        }
       }
     },
     "webhooks": {
@@ -2565,6 +2663,8 @@
       "emptyState": "No national channel available yet",
       "fields": {
         "baseUrl": "API base URL",
+        "billitApiKey": "API key",
+        "billitPartyId": "PartyID",
         "chorusProClientId": "PISTE client ID",
         "chorusProClientSecret": "PISTE client secret",
         "chorusProTechnicalAccountLogin": "Chorus Pro technical account login (compte technique)",
@@ -2574,6 +2674,8 @@
         "environment": "Environment",
         "environmentProd": "Production",
         "environmentTest": "Test (sandbox)",
+        "iopoleClientId": "Client ID (your Iopole account e-mail)",
+        "iopoleCustomerId": "Customer ID",
         "ksefNip": "NIP",
         "ksefToken": "KSeF token",
         "peppolAccessPointUrl": "Access Point URL",
@@ -3276,6 +3378,11 @@
       "title": "Complete Company Setup",
       "description": "Please complete your company information to continue using the application.",
       "goButton": "Go to Company Settings"
+    },
+    "version": {
+      "label": "{{version}}",
+      "updateAvailable": "Update available",
+      "updateTooltip": "{{version}} is available. Click to see the release notes"
     }
   },
   "auth": {
@@ -3994,10 +4101,12 @@
       "refuse": "Decline",
       "signatureRequested": "Check your email for a link to complete your signature.",
       "refused": "Quote declined.",
+      "optionCount": "{{count}} options",
       "status": {
         "sent": "Awaiting your decision",
         "signed": "Accepted",
-        "refused": "Declined"
+        "refused": "Declined",
+        "accepted": "Accepted"
       },
       "columns": {
         "document": "Document",
@@ -4062,6 +4171,9 @@
               },
               "discountPercent": {
                 "label": "Discount %"
+              },
+              "date": {
+                "label": "Work date"
               }
             }
           }
@@ -4189,6 +4301,9 @@
               },
               "discountPercent": {
                 "label": "Discount %"
+              },
+              "date": {
+                "label": "Work date"
               }
             }
           }
@@ -4237,6 +4352,14 @@
           },
           "share-link": {
             "label": "Share link"
+          },
+          "accept-manually": {
+            "label": "Mark as accepted",
+            "params": {
+              "note": {
+                "label": "How did the client accept?"
+              }
+            }
           }
         },
         "statuses": {
@@ -4245,7 +4368,8 @@
           "sent": "Sent",
           "send_failed": "Send failed",
           "signed": "Signed",
-          "refused": "Refused"
+          "refused": "Refused",
+          "accepted": "Accepted"
         },
         "widgets": {
           "quote:draft": {
@@ -4525,7 +4649,8 @@
       }
     },
     "numbering": {
-      "noneYet": "Draft — no number yet"
+      "noneYet": "Draft — no number yet",
+      "issuedWithoutNumber": "Issued without a number"
     },
     "schedules": {
       "rowAction": {
@@ -4598,6 +4723,12 @@
       "unsupportedKind": "Field \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
       "unknownType": "Unknown document type \"{{typeId}}\".",
       "actionBlockedByPolicy": "Not available: {{reason}}",
+      "saveLocked": {
+        "invoice": "This invoice has been issued and can no longer be edited. To correct it, issue a credit note or a new invoice.",
+        "creditNote": "This credit note has been issued and can no longer be edited. To correct it, issue a new credit note.",
+        "quote": "This quote has been signed or accepted and can no longer be edited. To change its terms, create a new quote.",
+        "generic": "This document can no longer be edited in its current status."
+      },
       "transitionHint": "{{from}} → {{to}}",
       "transitionFromNew": "New",
       "editingTitle": "Editing: {{label}}",
@@ -4605,6 +4736,13 @@
       "actionParams": {
         "title": "{{label}}",
         "description": "This action needs a few details before it runs.",
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      },
+      "lockConfirmation": {
+        "title": "{{label}}",
+        "description": "{{label}} will lock this document: it can no longer be edited afterwards.",
+        "descriptionWithNumbering": "{{label}} will lock this document and assign its legal number: it can no longer be edited afterwards.",
         "confirm": "Confirm",
         "cancel": "Cancel"
       },
@@ -4703,7 +4841,9 @@
         "clientPlaceholder": "Filter by client",
         "dateFrom": "From",
         "dateTo": "To",
-        "clear": "Clear"
+        "clear": "Clear",
+        "settlementUnsettled": "Unpaid only",
+        "settlementOverdue": "Overdue only"
       }
     },
     "custom": {
@@ -4719,7 +4859,8 @@
         "supplierAmbiguous": "More than one client shares this supplier's VAT number or name — choose the right one by hand.",
         "ocrUnavailable": "No OCR extractor available for this document — enter the fields manually.",
         "ocrExtracted": "Fields extracted via OCR — please review before saving.",
-        "ocrFailed": "OCR extraction failed: {{message}}"
+        "ocrFailed": "OCR extraction failed: {{message}}",
+        "ocrPending": "Reading the document… fields will fill in when it is done. You can already start typing."
       },
       "receivedInvoiceDownload": {
         "button": "Download original file",
@@ -4731,6 +4872,9 @@
       "vat": "VAT {{rate}}% on {{base}}",
       "gross": "Total",
       "taxWarningsTitle": "About this VAT treatment",
+      "optionAccepted": "Accepted",
+      "commonToAllOptions": "Common to all options",
+      "grossIncludingCommon": "Total (including common lines)",
       "warnings": {
         "noUsableVatRate": "Line {{line}} has no usable VAT rate — counted in net only"
       }
@@ -4784,6 +4928,7 @@
       "title": "Sign document",
       "description": "You have been asked to sign this document.",
       "descriptionWithNumber": "You have been asked to sign {{number}}.",
+      "chooseOptionLabel": "This quote offers several options - choose the one you accept:",
       "requestCodeButton": "Send verification code",
       "resendCodeButton": "Send a new code",
       "codeSent": "A verification code was sent to your email.",
@@ -4794,6 +4939,7 @@
       "unavailableTitle": "Link unavailable",
       "unavailableDescription": "This signature link is invalid, expired, or has already been used.",
       "genericError": "Something went wrong. Please try again.",
+      "optionsChangedError": "This quote's options have changed since you made your choice. Please choose again from the current options below.",
       "documentPreviewLabel": "Document preview",
       "documentLoadError": "Could not load the document to review. Please try again.",
       "previewUnavailable": "Your browser can't display the document here.",
@@ -4896,6 +5042,27 @@
       "discard": "Discard",
       "totalsTitle": "Totals",
       "notFound": "This document could not be found."
+    },
+    "acceptance": {
+      "menuLabel": "Mark as accepted",
+      "dialogTitle": "Mark quote as accepted",
+      "dialogDescription": "Record that the client accepted this quote by some other means.",
+      "dialogWarning": "This records a MANUAL acceptance, not an electronic signature. It carries none of the OTP-signature flow's guarantees (identity verification, non-repudiation) - use it only when you have your own evidence the client actually said yes (a call, a reply email, a signed paper copy).",
+      "noteLabel": "How did the client accept?",
+      "notePlaceholder": "e.g. Accepted by phone on 2026-09-20.",
+      "noteRequired": "Describe how the client accepted before confirming.",
+      "optionLabel": "Which option did the client accept?",
+      "optionPlaceholder": "Choose an option",
+      "optionRequired": "Choose which option the client accepted before confirming.",
+      "confirm": "Mark as accepted",
+      "cancel": "Cancel",
+      "confirmedToast": "Quote marked as accepted.",
+      "sectionTitle": "Acceptance",
+      "manualLabel": "Accepted manually",
+      "manualEntry": "Marked accepted manually by {{actorName}}: \"{{note}}\"",
+      "signedLabel": "Signed electronically",
+      "signedEntry": "Signed electronically on {{date}}",
+      "acceptedOption": "Accepted option: {{option}}"
     }
   },
   "declarations": {

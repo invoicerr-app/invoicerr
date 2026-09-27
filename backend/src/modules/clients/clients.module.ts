@@ -10,6 +10,8 @@ import {
   VatValidationPort,
   ViesVatValidationClient,
 } from '../documents/tax/vat-validation';
+import { ClientImportController } from './import/client-import.controller';
+import { ClientImportService } from './import/client-import.service';
 
 /**
  * VIES is reached when a VAT number is entered — EXCEPT under NODE_ENV=test.
@@ -45,9 +47,15 @@ function vatValidationClient(): VatValidationPort {
 
 @Module({
   imports: [WebhooksModule],
-  controllers: [ClientsController],
+  // ClientImportController FIRST - see its own header on why route ordering never actually collides
+  // between the two controllers here; this just keeps the more specific `clients/import/*` routes
+  // declared before ClientsController's own `clients/:id` wildcard, matching this codebase's own
+  // convention of declaring the more specific route first (clients.controller.ts's own comment on
+  // 'search'/'duplicates' before its bare ':id').
+  controllers: [ClientImportController, ClientsController],
   providers: [
     ClientsService,
+    ClientImportService,
     JwtService,
     // The VAT validation client, WIRED. Without this provider ClientsService cannot be
     // constructed, so the wiring cannot be forgotten the way ComplianceService's format registry

@@ -1664,7 +1664,7 @@
                 "button": "Create Webhook"
             },
             "card": {
-                "events": "Escuchando eventos: {{events}}",
+                "events": "Escuchando eventos:",
                 "edit": "Editar",
                 "delete": "Eliminar",
                 "editPrompt": "Introduce la nueva URL del webhook"
@@ -2076,6 +2076,13 @@
         "noSubdirectories": "No se encontraron subcarpetas",
         "loading": "Cargando directorios...",
         "browse": "Examinar"
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Leyendo el documento… los campos se completarán cuando termine. Ya puede empezar a escribir."
+            }
+        }
     },
     "noOptions": "No hay opciones disponibles. Cree un nuevo cliente."
 }

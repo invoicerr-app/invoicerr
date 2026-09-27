@@ -28,7 +28,11 @@ vi.mock('@/prisma/prisma.service', async () => {
         findMany: vi.fn().mockResolvedValue([{ id: 'company-1', name: 'Repro SARL', language: 'en' }]),
       },
       client: {
-        findFirst: vi.fn().mockResolvedValue({ contactEmail: 'client@example.invalid', language: 'en' }),
+        // #415: `contactEmail` moved off `Client` onto its `contacts` relation.
+        findFirst: vi.fn().mockResolvedValue({
+          contacts: [{ email: 'client@example.invalid', isPrimary: true }],
+          language: 'en',
+        }),
       },
       // No tier has ever been claimed, and every claim below succeeds.
       documentReminder: {

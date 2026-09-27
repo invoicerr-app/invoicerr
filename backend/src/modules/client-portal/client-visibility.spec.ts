@@ -10,7 +10,11 @@ import {
 describe('client-visibility', () => {
   it('derives clientVisible statuses from the descriptor, never a hardcoded list', () => {
     expect(clientVisibleStatusIds(buildInvoiceDescriptor())).toEqual(new Set(['sent']));
-    expect(clientVisibleStatusIds(buildQuoteDescriptor())).toEqual(new Set(['sent', 'signed', 'refused']));
+    // "accepted" (issue #421 - a manual acceptance) joined "signed" here: both mean the same
+    // business fact to the client, so both are exactly as visible in the portal.
+    expect(clientVisibleStatusIds(buildQuoteDescriptor())).toEqual(
+      new Set(['sent', 'signed', 'accepted', 'refused']),
+    );
   });
 
   it('a descriptor with no statuses at all yields an empty set, never a throw', () => {

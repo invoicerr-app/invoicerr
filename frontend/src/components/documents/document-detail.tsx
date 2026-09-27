@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, Download, FileCode, Link2, Repeat } from "lucide-react"
+import { ArrowLeft, ChevronDown, Download, FileCode, Link2, Repeat, UserCheck } from "lucide-react"
 import { useState } from "react"
 import { useWatch } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
@@ -12,11 +12,13 @@ import {
   extraActionGates,
   findSaveAction,
   pickPrimaryAction,
+  saveDraftLockNotice,
   secondaryActions,
   transitionHint,
 } from "@/components/documents/action-presentation"
 import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
 import { getDocumentCustomComponents } from "@/components/documents/custom-slots"
+import { DocumentAcceptanceSection } from "@/components/documents/document-acceptance-section"
 import { DocumentArchiveSection } from "@/components/documents/document-archive-section"
 import {
   DocumentConformityListIndicator,
@@ -29,6 +31,7 @@ import {
 } from "@/components/documents/document-downloads"
 import {
   DocumentActionButton,
+  DocumentActionLockConfirmHost,
   DocumentActionParamsHost,
   DocumentFormFields,
 } from "@/components/documents/document-form"
@@ -39,10 +42,16 @@ import {
 } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { DocumentTaxWarningsSection } from "@/components/documents/document-tax-warnings"
-import { DocumentTotals, formatTotal, useDocumentTotals } from "@/components/documents/document-totals"
+import {
+  DocumentTotals,
+  formatTotal,
+  useDocumentOptionTotals,
+  useDocumentTotals,
+} from "@/components/documents/document-totals"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { hasUnsavedChanges } from "@/components/documents/form-dirty"
 import { isEmptyFieldValue, resolveListFields } from "@/components/documents/list-fields"
+import { MarkQuoteAcceptedDialog } from "@/components/documents/mark-quote-accepted-dialog"
 import { SectionCard } from "@/components/documents/section-card"
 import { ShareLinkDialog } from "@/components/documents/share-link-dialog"
 import type {
@@ -50,7 +59,7 @@ import type {
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
-import { statusLabel } from "@/components/documents/types"
+import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { type DocumentFormState, useDocumentForm } from "@/components/documents/use-document-form"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -133,6 +142,7 @@ export function DocumentDetail({ descriptor, instance }: DocumentDetailProps) {
         onDiscard={() => state.form.reset(snapshot)}
       />
       <DocumentActionParamsHost state={state} />
+      <DocumentActionLockConfirmHost state={state} />
     </Form>
   )
 }
@@ -165,6 +175,10 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
   const primary = pickPrimaryAction(actions, currentStatus, isDirty)
   const secondary = secondaryActions(actions, primary)
   const saveAction = findSaveAction(actions, currentStatus)
+  // Issue #468 (and the pre-existing France invoice case) - see `saveDraftLockNotice`'s own header:
+  // reads the FULL descriptor, not `availableActions`, since the whole point is to explain why
+  // "save-draft" is MISSING from that filtered list.
+  const saveLockedMessage = saveDraftLockNotice(t, descriptor, currentStatus)
 
   const liveInstance: DocumentInstance = {
     ...instance,
@@ -195,6 +209,17 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </Alert>
       )}
 
+      {saveLockedMessage && (
+        // Issue #468 - the "Save draft"-shaped action (whatever its label) has silently DISAPPEARED
+        // from `availableActions` (isActionAvailable already refuses it, `use-document-form.ts`),
+        // which by itself just looks like the feature vanished. This says WHY, and what to do
+        // instead - same wording whether the type's own `lockedStatuses` fired or a country policy's
+        // `policyRestrictedToStatuses` did (see `saveDraftLockNotice`'s own header).
+        <Alert data-cy="document-save-locked-notice">
+          <AlertDescription>{saveLockedMessage}</AlertDescription>
+        </Alert>
+      )}
+
       {liveInstance.lastArchiveError && (
         // ⚖ The document WAS delivered and is not preserved. This is the only place a company can
         // learn that: the archive section below renders nothing at all when there is no archive —
@@ -215,18 +240,35 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             must clear the sticky "unsaved" bar, not land under it. */}
         <Card className="gap-4 py-5 [&_:focus]:scroll-mb-24">
           <CardContent className="px-5">
-            <DocumentFormFields descriptor={descriptor} state={state} />
+            {/* Issue #468 (point 3) - the same fact `saveLockedMessage` above already reads: the
+                notice explains WHY "save-draft" is missing, this is what stops the fields underneath
+                from still looking editable while it does. */}
+            <DocumentFormFields descriptor={descriptor} state={state} readOnly={!!saveLockedMessage} />
           </CardContent>
         </Card>
 
         <aside className="space-y-4">
-          <TotalsCard descriptor={descriptor} documentId={instance.id} />
+          <TotalsCard
+            descriptor={descriptor}
+            documentId={instance.id}
+            acceptedOption={instance.acceptedOption}
+          />
           {showSettlement && <DocumentSettlementSection typeId={descriptor.id} documentId={instance.id} />}
           {/* Legal archiving ⚖ — shown for ANY document type/status once it has at least one
               archive (the component itself renders nothing otherwise, see its own header): never
               gated on "sent" here, since the component's own emptiness check already carries that
               fact (a draft has no archive yet, whatever its type). */}
           <DocumentArchiveSection typeId={descriptor.id} documentId={instance.id} />
+          {/* Issue #421 - which of the two ways this quote was accepted, worded so neither can be
+              mistaken for the other. Renders nothing outside "signed"/"accepted" (that component's
+              own emptiness check), so this is never gated here on the type either - a type with
+              neither status simply never matches. */}
+          <DocumentAcceptanceSection
+            typeId={descriptor.id}
+            documentId={instance.id}
+            status={liveInstance.status}
+            updatedAt={instance.updatedAt}
+          />
           {/* Conformity tracking — same gate as the archive section right above (any type/status
               once it has at least one event; renders nothing otherwise, see that component's own
               header): a document sent by email, or by a channel with no poller (e.g. "sdi"), never
@@ -319,12 +361,18 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h2 className="font-heading text-xl font-semibold tracking-tight">{descriptor.label}</h2>
+          {/* See document-list.tsx's own `DocumentCardNumber` comment for the full "why" of the three
+           *  states `numberingDisplayState` distinguishes - issue #471's legacy credit note is what
+           *  makes "issuedWithoutNumber" a real, distinct case here, not just "no number yet". */}
           {descriptor.numbering && (
             <span
               className={instance.displayNumber ? "font-mono text-lg" : "text-sm text-muted-foreground"}
               data-cy="document-form-number"
             >
-              {instance.displayNumber ?? t("documents.numbering.noneYet")}
+              {instance.displayNumber ??
+                (numberingDisplayState(descriptor, instance) === "awaiting"
+                  ? t("documents.numbering.noneYet")
+                  : t("documents.numbering.issuedWithoutNumber"))}
             </span>
           )}
           <DocumentStatusBadge status={instance.status} label={statusLabel(descriptor, instance.status)} />
@@ -369,10 +417,13 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
 }
 
 /** The live gross total, in the mono figures face — the one number a reader looks for first.
- *  Absent for a type with nothing to total (see useDocumentTotals). */
+ *  Absent for a type with nothing to total (see useDocumentTotals), and - issue #373 ("quotes with
+ *  options") - absent for a quote offering 2+ options: there is no single gross to headline until the
+ *  client picks one, and the per-option totals card below is where each option's own total lives. */
 function HeadlineAmount({ descriptor }: { descriptor: DocumentTypeDescriptor }) {
+  const optionTotals = useDocumentOptionTotals(descriptor)
   const totals = useDocumentTotals(descriptor)
-  if (!totals) return null
+  if (optionTotals || !totals) return null
   return (
     <span className="amount text-base font-semibold text-foreground" data-cy="document-detail-amount">
       {formatTotal(totals.grossMinor, totals.currency || "")}
@@ -388,13 +439,22 @@ function HeadlineAmount({ descriptor }: { descriptor: DocumentTypeDescriptor }) 
  * also why they are not in the settlement card — that one is about what has been PAID, not about how
  * the amount was arrived at.
  */
-function TotalsCard({ descriptor, documentId }: { descriptor: DocumentTypeDescriptor; documentId: string }) {
+function TotalsCard({
+  descriptor,
+  documentId,
+  acceptedOption,
+}: {
+  descriptor: DocumentTypeDescriptor
+  documentId: string
+  acceptedOption?: string | null
+}) {
   const { t } = useTranslation()
+  const optionTotals = useDocumentOptionTotals(descriptor)
   const totals = useDocumentTotals(descriptor)
-  if (!totals) return null
+  if (!optionTotals && !totals) return null
   return (
     <SectionCard title={t("documents.detail.totalsTitle")} dataCy="document-totals-card">
-      <DocumentTotals descriptor={descriptor} />
+      <DocumentTotals descriptor={descriptor} acceptedOption={acceptedOption} />
       <DocumentTaxWarningsSection typeId={descriptor.id} documentId={documentId} />
     </SectionCard>
   )
@@ -427,8 +487,17 @@ function DocumentDetailActions({
   const { t } = useTranslation()
   const [recurrenceOpen, setRecurrenceOpen] = useState(false)
   const [shareLinkOpen, setShareLinkOpen] = useState(false)
+  const [markAcceptedOpen, setMarkAcceptedOpen] = useState(false)
   const gates = extraActionGates(descriptor, instance.status)
   const customExtras = getDocumentCustomComponents(descriptor.id, "list-row-extra")
+  // Issue #421 - declared on the descriptor for the status/policy gates only (excluded from the
+  // generic action list, `use-document-form.ts`'s own header) and served through its own dedicated
+  // dialog instead, the same shape "share-link" already has right above.
+  const acceptManuallyAction = descriptor.actions.find((action) => action.id === "accept-manually")
+  const showAcceptManually =
+    !!acceptManuallyAction &&
+    !acceptManuallyAction.policyBlockedReason &&
+    isActionAvailable(acceptManuallyAction, instance.status)
 
   return (
     <>
@@ -531,6 +600,16 @@ function DocumentDetailActions({
               {t("documents.schedules.rowAction.tooltip")}
             </DropdownMenuItem>
           )}
+
+          {showAcceptManually && (
+            <DropdownMenuItem
+              onSelect={() => setMarkAcceptedOpen(true)}
+              data-cy="document-accept-manually-button"
+            >
+              <UserCheck aria-hidden="true" />
+              {t("documents.acceptance.menuLabel")}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -570,6 +649,15 @@ function DocumentDetailActions({
           documentId={instance.id}
           open={shareLinkOpen}
           onOpenChange={setShareLinkOpen}
+        />
+      )}
+
+      {showAcceptManually && markAcceptedOpen && (
+        <MarkQuoteAcceptedDialog
+          documentId={instance.id}
+          data={instance.data}
+          open={markAcceptedOpen}
+          onOpenChange={setMarkAcceptedOpen}
         />
       )}
     </>

@@ -12,6 +12,10 @@ import { PortalTokensService } from './portal-tokens.service';
 // test here keeps using a bare fake `{ sendForCompany: vi.fn() }`, never touching this at all.
 vi.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
   resolveCompanyMailSettings: vi.fn(),
+  // No test in this file exercises the Reply-To cascade itself (that is `mail.service.spec.ts`'s own
+  // job) -- present only so `MailService#sendForCompany` (which now reads both resolvers) does not
+  // throw "no such export" under Vitest's wholesale module mock.
+  resolveCompanyReplyTo: vi.fn(),
 }));
 const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
 
@@ -31,21 +35,31 @@ vi.mock('nodemailer', () => ({ createTransport: vi.fn() }));
  * only the database itself is fake.
  */
 vi.mock('@/prisma/prisma.service', () => {
+  // #415: `contactEmail` moved off `Client` onto its `contacts` relation - this fake carries a
+  // `contacts` array, exactly what a real `include: { contacts: ... }` query would return, so
+  // `findOwnedClientOrThrow`'s own `withDerivedContactFields` resolves the SAME flat `contactEmail`
+  // every test below still asserts on.
   const clients: Record<
     string,
-    { id: string; companyId: string; name: string; contactEmail: string | null; language?: string | null }
+    {
+      id: string;
+      companyId: string;
+      name: string;
+      contacts: { email: string | null; isPrimary: boolean }[];
+      language?: string | null;
+    }
   > = {
     'client-1': {
       id: 'client-1',
       companyId: 'company-1',
       name: 'Acme Client',
-      contactEmail: 'client@example.com',
+      contacts: [{ email: 'client@example.com', isPrimary: true }],
     },
     'client-no-email': {
       id: 'client-no-email',
       companyId: 'company-1',
       name: 'No Email Client',
-      contactEmail: null,
+      contacts: [],
     },
     // Multilingual client-facing mail (step 4 of the multilingual-mail plan) — a client with its own
     // `Client.language`, distinct from `company-1`'s (which never sets one below).
@@ -53,7 +67,7 @@ vi.mock('@/prisma/prisma.service', () => {
       id: 'client-italian',
       companyId: 'company-1',
       name: 'Cliente Italiano',
-      contactEmail: 'cliente@example.it',
+      contacts: [{ email: 'cliente@example.it', isPrimary: true }],
       language: 'it',
     },
   };

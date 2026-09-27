@@ -8,7 +8,10 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 
-import { SetCompanyMailSettingsDto } from '@/modules/company/mail-settings/company-mail-settings.dto';
+import {
+  SetCompanyMailReplyToDto,
+  SetCompanyMailSettingsDto,
+} from '@/modules/company/mail-settings/company-mail-settings.dto';
 import { CompanyMailSettingsService } from '@/modules/company/mail-settings/company-mail-settings.service';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import { RequiresScope } from '@/utils/scope-check';
@@ -212,6 +215,30 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Mail settings cleared' })
   async deleteMailSettings(@ActiveCompany() companyId: string) {
     return this.companyMailSettingsService.clear(companyId);
+  }
+
+  /**
+   * PUT /api/company/mail-settings/reply-to — sets or clears this company's own Reply-To override,
+   * applied to every outgoing message sent for it. Independent of the SMTP/Resend override above: a
+   * company can set this without running its own mail server at all. `null`/omitted clears back to
+   * "use the instance's own MAIL_REPLY_TO" (or no Reply-To header at all when that is unset too).
+   */
+  @Put('mail-settings/reply-to')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
+  @ApiOperation({
+    summary: "Set this company's own Reply-To address",
+    description:
+      'Applied to every outgoing message sent for this company, winning over the instance-level ' +
+      'MAIL_REPLY_TO. Validated as an e-mail address here, at write time. null/omitted clears it.',
+  })
+  @ApiBody({
+    schema: { type: 'object', properties: { replyTo: { type: 'string', nullable: true } } },
+  })
+  @ApiResponse({ status: 200, description: 'Reply-To saved' })
+  @ApiResponse({ status: 400, description: 'replyTo is not a valid e-mail address' })
+  async setMailReplyTo(@ActiveCompany() companyId: string, @Body() body: SetCompanyMailReplyToDto) {
+    return this.companyMailSettingsService.setReplyTo(companyId, body);
   }
 
   /**

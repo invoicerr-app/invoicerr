@@ -7,21 +7,30 @@
  * lives in the sibling `company-mail-settings.resolver.ts` — split there specifically so
  * `mail/mail.service.ts` can call it without a `mail/` ⇄ `modules/company/` circular import (this file
  * DOES import `MailService`, for `sendTest`; the resolver never imports this file or `MailService`).
+ *
+ * `setReplyTo`/`getStatus`'s own `replyTo` field back this company's Reply-To OVERRIDE
+ * (`Company.mailReplyTo`) — a plain, unencrypted `prisma.company` write (via the shared `prisma`
+ * singleton, unlike the mail-server override above, which goes through `ChannelCredentialsService`
+ * because it carries a secret and this does not), independent of whether the company also has its own
+ * SMTP/Resend server configured.
  */
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 import { logger } from '@/logger/logger.service';
 import { mailT } from '@/mail/i18n';
+import { isValidEmailAddress } from '@/mail/is-valid-email';
 import { MailDeliveryError, assertTenantSmtpEndpoint } from '@/mail/mail-endpoint-guard';
 import { MailService } from '@/mail/mail.service';
 import { RenderLanguage } from '@/modules/documents/rendering/language/supported-languages';
+import prisma from '@/prisma/prisma.service';
 
-import { SetCompanyMailSettingsDto } from './company-mail-settings.dto';
+import { SetCompanyMailReplyToDto, SetCompanyMailSettingsDto } from './company-mail-settings.dto';
 import {
   MAIL_SETTINGS_ENVIRONMENT,
   MAIL_SETTINGS_PROVIDER_ID,
   resolveCompanyMailSettings,
+  resolveCompanyReplyTo,
 } from './company-mail-settings.resolver';
 import { CompanyMailSettingsStatus } from './company-mail-settings.types';
 
@@ -41,11 +50,16 @@ export class CompanyMailSettingsService {
   ) {}
 
   /** `GET` — status only, never the SMTP password / Resend API key (same discipline
-   *  `ChannelConfigStatus` already holds for every other channel). */
+   *  `ChannelConfigStatus` already holds for every other channel). `replyTo` is read alongside
+   *  `settings` regardless of whether a mail-server override exists — it is its own, independent
+   *  setting (see `CompanyMailSettingsStatus.replyTo`'s own header). */
   async getStatus(companyId: string): Promise<CompanyMailSettingsStatus> {
-    const settings = await resolveCompanyMailSettings(companyId);
-    if (!settings) return { configured: false };
-    return { configured: true, kind: settings.kind, fromAddress: settings.fromAddress };
+    const [settings, replyTo] = await Promise.all([
+      resolveCompanyMailSettings(companyId),
+      resolveCompanyReplyTo(companyId),
+    ]);
+    if (!settings) return { configured: false, replyTo };
+    return { configured: true, kind: settings.kind, fromAddress: settings.fromAddress, replyTo };
   }
 
   /** `PUT` — validates the DTO for its own `kind` (SMTP needs host/port/username/password/
@@ -78,9 +92,31 @@ export class CompanyMailSettingsService {
 
   /** `DELETE` — clears this company's own mail server; sends made for it fall back to the instance
    *  level (or a named refusal if that has nothing configured either — see
-   *  `MailService#sendForCompany`). */
+   *  `MailService#sendForCompany`). Deliberately does NOT touch `replyTo` — that is its own,
+   *  independent setting (see `setReplyTo` below), unaffected by connecting/clearing a mail server. */
   async clear(companyId: string): Promise<{ deleted: boolean }> {
     return this.channelCredentials.deleteChannelConfig(companyId, MAIL_SETTINGS_PROVIDER_ID);
+  }
+
+  /**
+   * `PUT .../reply-to` — sets or clears this company's own Reply-To override
+   * (`Company.mailReplyTo`), independent of whether it has its own mail server. Validated as an
+   * e-mail address HERE, at write time — never re-checked at send time (`resolveCompanyReplyTo`
+   * degrades a somehow-invalid stored value to "unset" instead, but that path should be unreachable
+   * through this method). `null`/blank clears the override back to "use the instance's own
+   * `MAIL_REPLY_TO`" — same "null clears, never an empty string" convention
+   * `billing-email.ts#setCompanyBillingEmail` already holds for `billingEmail`.
+   */
+  async setReplyTo(companyId: string, dto: SetCompanyMailReplyToDto): Promise<CompanyMailSettingsStatus> {
+    const trimmed = dto.replyTo?.trim();
+    if (trimmed && !isValidEmailAddress(trimmed)) {
+      throw new BadRequestException('replyTo must be a valid e-mail address.');
+    }
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { mailReplyTo: trimmed ? trimmed : null },
+    });
+    return this.getStatus(companyId);
   }
 
   /**

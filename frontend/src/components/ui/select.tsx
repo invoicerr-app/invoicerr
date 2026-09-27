@@ -3,6 +3,7 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
+import { guardCloseAutoFocus } from "@/lib/close-auto-focus-guard"
 import { cn } from "@/lib/utils"
 
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
@@ -51,6 +52,7 @@ function SelectContent({
   children,
   position = "popper",
   dataCy,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content> & {
   dataCy?: string
@@ -67,6 +69,11 @@ function SelectContent({
           className,
         )}
         position={position}
+        // Issue #451 — see lib/close-auto-focus-guard.ts's own header. `@radix-ui/react-select`'s
+        // own `SelectContentImpl` restores focus via the exact same `FocusScope` unmount mechanism
+        // (composes `onCloseAutoFocus` the same way `react-dropdown-menu` does), so it gets the
+        // same guard.
+        onCloseAutoFocus={(event) => guardCloseAutoFocus(event, onCloseAutoFocus)}
         {...props}
       >
         <SelectScrollUpButton />

@@ -138,6 +138,16 @@ export interface SteppedDialogProps {
   submitDisabled?: boolean
   submitTooltip?: string
   className?: string
+  /** Called synchronously at the very START of every "Continue"/final-submit attempt
+   *  (`handleContinue`), before ANY validation runs for that click — a caller's hook to normalize the
+   *  form's OWN live values first, e.g. document-create-dialog.tsx drops an all-empty line-item row
+   *  (use-document-form.ts's `pruneEmptyLines`, issue #365) so it never blocks the per-step
+   *  `form.trigger(current.fields)` right below with required-field errors on a row the user never
+   *  meant to fill in. Optional — omitted, nothing changes from before this hook existed. Never told
+   *  WHICH step is about to be validated (deliberately generic, like the rest of this component): a
+   *  normalization pass that needs that distinction belongs in the caller's own per-step
+   *  `render()`/state instead, keyed off whatever it already knows about its own fields. */
+  onBeforeValidate?: () => void
   /** Seeds `maxReached` on open — lets a caller EDITING an already-valid record open every step's
    *  header chip clickable from the very first render, instead of gating step 2+ behind walking
    *  forward once first (owner brief: "en modification, toutes les étapes déjà faites"). A create
@@ -177,6 +187,7 @@ export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>
     submitDisabled = false,
     submitTooltip,
     className,
+    onBeforeValidate,
     initialMaxReached = 0,
   },
   ref,
@@ -257,6 +268,7 @@ export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>
   const last = isLastStep({ index: currentIndex, maxReached }, steps.length)
 
   async function handleContinue() {
+    onBeforeValidate?.()
     const valid = current.fields.length === 0 ? true : await form.trigger(current.fields as never)
     if (!valid) return
     if (last) {

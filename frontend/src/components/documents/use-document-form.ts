@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 
+import { dropEmptyRows } from "@/components/documents/empty-rows"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
 import { isActionAvailable } from "@/components/documents/types"
@@ -27,6 +28,20 @@ export interface UseDocumentFormOptions {
   documentId?: string
   initialData?: Record<string, unknown>
   status?: string
+  /** Fields discovered AFTER the form was already open and possibly edited — e.g. the received-
+   *  invoice upload flow's async OCR result (`hooks/queries/use-received-invoices.ts
+   *  #useReceivedInvoiceOcrResult`) arrives on its own timer, well after the review dialog is already
+   *  showing and the user may already be typing. Unlike `initialData` below (a full snapshot
+   *  `form.reset` overwrites the WHOLE form with, keyed off its own object identity precisely so a
+   *  stale poll/refetch never wipes what the user typed — see that effect's own comment), this NEVER
+   *  resets: on every object-IDENTITY change, each key is applied with `form.setValue(key, value, {
+   *  shouldDirty: true })` ONLY when the field is still empty (undefined/null/""/an empty array) — so
+   *  a value the user already typed, or that a PREVIOUS `lateData` tick already filled in, is never
+   *  clobbered. `form.setValue`, never a second `useFieldArray().replace()`, is what reaches a
+   *  SEPARATE `useFieldArray` instance for an array field (e.g. `lines`) too — see the goods-receipt
+   *  effect further down for the full, live-verified reason `replace()` from this hook's own instance
+   *  never reaches `field-renderers/array-field.tsx`'s rendered rows. */
+  lateData?: Record<string, unknown>
   /** The record's own displayNumber, as known when this form was opened — see types.ts's
    *  `DocumentInstance.displayNumber`. Absent/null for a not-yet-numbered (or never-numbered) record;
    *  re-synced live via `onDocumentUpdate` once an action actually numbers it (e.g. "send"), the same
@@ -54,6 +69,7 @@ export function useDocumentForm({
   descriptor,
   documentId,
   initialData,
+  lateData,
   status,
   displayNumber,
   onActionSuccess,
@@ -154,6 +170,33 @@ export function useDocumentForm({
     }
   }, [initialData, status, displayNumber, form])
 
+  // See `UseDocumentFormOptions.lateData`'s own header for the full "why never a reset" reasoning.
+  // Fires on every object-identity change of `lateData` (the caller controls that identity, the exact
+  // same discipline `initialData` above already holds — see that effect's own comment): each key is
+  // read off the form's CURRENT values first (a snapshot, not a live subscription — later keys in the
+  // same tick aren't affected by earlier ones since they're independent field names) and only applied
+  // when still empty, so typing ahead of the late data — or a second, later `lateData` tick — never
+  // loses anything already filled in, by the user or by a previous tick.
+  useEffect(() => {
+    if (!lateData) return
+    const currentValues = form.getValues() as Record<string, unknown>
+    for (const [key, value] of Object.entries(lateData)) {
+      const current = currentValues[key]
+      const isEmpty =
+        current === undefined ||
+        current === null ||
+        current === "" ||
+        (Array.isArray(current) && current.length === 0)
+      if (isEmpty) {
+        form.setValue(key as never, value as never, { shouldDirty: true })
+      }
+    }
+    // Mirrors the `initialData` effect above: `lineTotalWarnings` is reserved bookkeeping, not a
+    // declared field (see `extractLineTotalWarnings`'s own header), so it is re-derived from the SAME
+    // object here rather than folded into the per-key loop above.
+    setLineTotalWarnings(extractLineTotalWarnings(lateData))
+  }, [lateData, form])
+
   // Three-way match (rapprochement à 3 voies) — "pre-filled from the PO": a
   // NARROW, explicitly TYPE-GATED exception, unlike the B2G client-watching block above (which looks
   // for ANY field with `entity === "client"`, never a specific typeId): there is no generic descriptor
@@ -218,11 +261,40 @@ export function useDocumentForm({
     )
   }, [isGoodsReceipt, currentDocumentId, goodsReceiptPurchaseOrder, form])
 
+  // Issue #365, "empty line items should not survive a save" — see empty-rows.ts's own header for
+  // what "empty" means, field by field. Run at the START of every action attempt (below, as the
+  // first thing `validate` does — use-document-action-runner.ts's `handleAction` always calls
+  // `validate` before anything else, "save-draft" included), so a line the user added via "+ Add
+  // line" and never touched — or cleared back to nothing — is gone from the LIVE form BEFORE
+  // `form.trigger()` ever gets to ask it for its own required fields. Writing through `form.setValue`
+  // on the array field's own name, never a second `useFieldArray().replace()`, is deliberate: see the
+  // goods-receipt PO-prefill effect above for the full, live-verified reason only `setValue` reaches
+  // `array-field.tsx`'s own, SEPARATE `useFieldArray` subscription — that's what makes the row
+  // actually disappear from what is rendered, not just from whatever gets posted. Only ever WRITES
+  // when a field's row count actually changed, so an action attempt that found nothing to drop never
+  // flips `isDirty` on its own.
+  const pruneEmptyLines = () => {
+    const current = form.getValues() as Record<string, unknown>
+    const pruned = dropEmptyRows(effectiveDescriptor.fields, current)
+    for (const field of effectiveDescriptor.fields) {
+      if (field.kind !== "array" || !field.fields?.length) continue
+      const before = current[field.key]
+      const after = pruned[field.key]
+      if (!Array.isArray(before) || !Array.isArray(after) || before.length === after.length) continue
+      form.setValue(field.key as never, after as never, { shouldDirty: true, shouldValidate: false })
+    }
+  }
+
   const runner = useDocumentActionRunner({
     typeId: descriptor.id,
     documentId: currentDocumentId,
+    actions: effectiveDescriptor.actions,
+    status: currentStatus,
     getData: () => form.getValues(),
-    validate: () => form.trigger(),
+    validate: () => {
+      pruneEmptyLines()
+      return form.trigger()
+    },
     onActionSuccess: (result, actionId) => {
       // See extractLineTotalWarnings's own header — this is why the SAVE round-trip alone (never a
       // client-side recomputation) already reacts: `result.data` is this exact record's own,
@@ -248,13 +320,18 @@ export function useDocumentForm({
   // routes-button.tsx, with its own irreversibility confirmation), never a second generic button.
   // "download-xml" and "share-link" are excluded for the reason document-list.tsx spells out on its
   // own row cluster: both are declared for the status/policy gates only, and neither is a POST
-  // through `runAction` (a plain GET, a REST resource) — the detail page offers them through their
-  // own dedicated entries instead (document-detail.tsx).
+  // through `runAction` (a plain GET, a REST resource) - the detail page offers them through their
+  // own dedicated entries instead (document-detail.tsx). "accept-manually" (issue #421) joins them
+  // for a DIFFERENT reason: it IS a POST through `runAction`, but the generic `ActionParamsDialog`
+  // cannot enforce a required, non-empty note or carry this action's own "this is not an electronic
+  // signature" warning (see `mark-quote-accepted-dialog.tsx`'s own header) - the detail page offers
+  // it through that dedicated dialog instead.
   const availableActions = descriptor.actions.filter(
     (action) =>
       action.id !== "cancel" &&
       action.id !== "download-xml" &&
       action.id !== "share-link" &&
+      action.id !== "accept-manually" &&
       isActionAvailable(action, currentStatus),
   )
 
@@ -275,6 +352,14 @@ export function useDocumentForm({
     availableActions,
     showSettlement,
     runner,
+    // Exposed (not just used internally by `runner.validate` above) for
+    // document-create-dialog.tsx's own wizard: `SteppedDialog` validates the CURRENT step's own
+    // fields on every "Continue" click, entirely independently of `runner.handleAction` (that only
+    // ever runs on the wizard's LAST step) — see that component's own `onBeforeValidate`. Without
+    // wiring this there too, an empty line added on the wizard's "Lines" step would already fail
+    // ITS OWN per-step `form.trigger(['lines'])` and block advancing to "Options" long before
+    // `runner.handleAction`'s copy of this same pass ever got a chance to run.
+    pruneEmptyLines,
   }
 }
 

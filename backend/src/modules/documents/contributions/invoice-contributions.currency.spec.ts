@@ -38,6 +38,7 @@ function seedDocuments(rows: DocumentInstanceResult[]): void {
 }
 
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as Mock;
+const listPaymentsInRange = settlementPayments.listPaymentsInRange as Mock;
 const listCreditNotes = settlementCredits.listCreditNotes as Mock;
 const getReferenceCurrency = currencyRatesStore.getReferenceCurrency as Mock;
 const listCurrencyRates = currencyRatesStore.listCurrencyRates as Mock;
@@ -60,6 +61,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
     vi.useFakeTimers().setSystemTime(new Date('2026-08-30'));
     listAllDocuments.mockReset();
     sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
+    listPaymentsInRange.mockReset().mockResolvedValue([]);
     listCreditNotes.mockReset().mockResolvedValue([]);
     getReferenceCurrency.mockReset();
     listCurrencyRates.mockReset();
@@ -153,6 +155,79 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
     expect(widgets.find((w) => w.id === 'invoice:pending-total:EUR')?.warnings).toEqual([
       'No JPY→EUR rate is set — consolidated total omitted.',
     ]);
+  });
+
+  it('collections (issue #417) consolidate independently of pending, same rates, own id/label, no link', async () => {
+    seedDocuments([
+      invoice({
+        id: 'sent-eur',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 100 }] },
+      }),
+      invoice({
+        id: 'sent-usd',
+        status: 'sent',
+        data: { currency: 'USD', issueDate: '2026-08-01', lines: [{ quantity: 1, unitPrice: 100 }] },
+      }),
+    ]);
+    listPaymentsInRange.mockResolvedValue([
+      {
+        documentId: 'sent-eur',
+        amountMinor: 10000,
+        currency: 'EUR',
+        paidAt: new Date('2026-08-10'),
+        documentAmountMinor: 10000,
+        conversionRate: null,
+        conversionRateAsOf: null,
+        conversionSource: null,
+        method: null,
+        note: null,
+        createdAt: new Date('2026-08-10'),
+        id: 'p1',
+      },
+      {
+        documentId: 'sent-usd',
+        amountMinor: 5000,
+        currency: 'USD',
+        paidAt: new Date('2026-08-11'),
+        documentAmountMinor: 5000,
+        conversionRate: null,
+        conversionRateAsOf: null,
+        conversionSource: null,
+        method: null,
+        note: null,
+        createdAt: new Date('2026-08-11'),
+        id: 'p2',
+      },
+    ]);
+    getReferenceCurrency.mockResolvedValue('EUR');
+    listCurrencyRates.mockResolvedValue([
+      {
+        id: 'r1',
+        companyId: 'c1',
+        from: 'USD',
+        to: 'EUR',
+        rate: 0.92,
+        asOf: new Date('2026-08-15'),
+        source: 'manual',
+        createdAt: new Date('2026-08-15'),
+      },
+    ]);
+
+    const widgets = (await buildInvoiceDashboardWidgetsWithConsolidation({
+      companyId: 'c1',
+    })) as MetricWidget[];
+
+    // 100 EUR untouched + 50 USD * 0.92 = 46 EUR converted -> 146 EUR consolidated.
+    const consolidated = widgets.find((w) => w.id === 'invoice:collected:consolidated');
+    expect(consolidated).toMatchObject({
+      label: 'Collected this month (consolidated, converted)',
+      unit: 'EUR (converted)',
+      approx: true,
+      value: 146,
+      warnings: ['USD→EUR @ 0.92 (manual, 2026-08-15)'],
+    });
+    expect(consolidated?.link).toBeUndefined();
   });
 
   it('nothing pending at all: no per-currency total widgets, consolidation never attempted', async () => {

@@ -85,5 +85,12 @@
                 "generatedInvoices": "Generated Invoices"
             }
         }
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "문서를 읽는 중입니다… 완료되면 필드가 자동으로 채워집니다. 지금 바로 입력을 시작할 수 있습니다."
+            }
+        }
     }
 }

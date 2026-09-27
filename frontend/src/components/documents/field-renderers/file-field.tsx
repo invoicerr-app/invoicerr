@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { FileText, Paperclip, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import {
   FormControl,
   FormDescription,
@@ -78,6 +79,7 @@ export function FileField({ field, name }: FieldRendererProps) {
   const { control, setValue, watch } = useFormContext()
   const value = watch(name) as unknown
   const upload = useUploadAttachment()
+  const readOnly = useDocumentFormReadOnly()
   const [localFile, setLocalFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -223,6 +225,7 @@ export function FileField({ field, name }: FieldRendererProps) {
                     variant="ghost"
                     size="icon"
                     onClick={handleRemove}
+                    disabled={readOnly}
                     tooltip={t("documents.form.file.remove")}
                     aria-label={t("documents.form.file.remove")}
                     dataCy={`document-field-${field.key}-remove`}
@@ -236,6 +239,7 @@ export function FileField({ field, name }: FieldRendererProps) {
                     type="button"
                     variant="outline"
                     loading={upload.isPending}
+                    disabled={readOnly}
                     onClick={() => fileInputRef.current?.click()}
                     dataCy={`document-field-${field.key}-input`}
                   >
@@ -250,6 +254,7 @@ export function FileField({ field, name }: FieldRendererProps) {
                 type="file"
                 accept="application/pdf,image/jpeg,image/png,image/webp"
                 className="hidden"
+                disabled={readOnly}
                 data-cy={`document-field-${field.key}-file-input`}
                 onChange={(event) => {
                   const file = event.target.files?.[0]

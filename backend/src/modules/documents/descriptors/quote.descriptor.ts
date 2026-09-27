@@ -13,7 +13,8 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
 /**
  * The quote document type, entirely as data: no bespoke service, no controller of its own. Fields:
  * client (reference), issue date, due date, currency, notes, and repeatable lines (designation,
- * quantity, unit price, VAT rate, a per-line discount). Actions: save the draft and send by email
+ * quantity, unit price, VAT rate, a per-line discount, an optional work date). Actions: save the
+ * draft and send by email
  * (both implemented, see actions/quote-actions.ts — sending a QUOTE by email is this type's own
  * nature, not a mechanism it shares with the invoice, see invoice-actions.ts), convert-to-invoice
  * (implemented, see actions/convert-to-invoice.ts — it used to be the live "declared but not
@@ -66,6 +67,15 @@ const SEND_TRANSITIONS: DocumentActionTransition[] = [
   { from: ['draft', 'send_failed'], to: 'sending' },
   { from: ['sending'], to: ['sent', 'send_failed'] },
 ];
+// Issue #421: "accept a quote manually, without the e-signature code". Only from "sent" - the issue's
+// own wording ("a sent quote can be marked accepted") and the same "one cannot cash a draft" reasoning
+// "request-deposit"/"request-signature" already hold below: a quote the client hasn't received yet has
+// nothing to have been accepted BY. Deliberately NOT also from "send_failed" (a send that never
+// actually reached the client cannot honestly be "accepted" by them either) nor from "signed"/
+// "accepted" themselves (see actions/quote-manual-acceptance.ts's own header on why an ALREADY
+// e-signed or ALREADY manually-accepted quote refuses a second acceptance of either kind, with a 409
+// naming which one already happened).
+const ACCEPT_MANUALLY_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent'], to: 'accepted' }];
 
 export function buildQuoteDescriptor(): DocumentTypeDescriptor {
   return {
@@ -87,7 +97,23 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       // (documents.service.ts's own boot check) is the reason this status must be declared here at
       // all — otherwise every signed quote would read as an undeclared-status anomaly.
       { id: 'signed', label: 'Signed', clientVisible: true },
-      // The client PORTAL's own "decline" — `client-portal/portal.service.ts#refuseQuote`. Reached
+      // Issue #421: the client accepted the quote by some OTHER means (a phone call, a reply email, a
+      // signed paper scan) and the ISSUER records that fact - unlike "signed" right above, this DOES
+      // go through `runAction`/`ActionRegistry` (see the "accept-manually" action below and
+      // actions/quote-manual-acceptance.ts): there IS an authenticated company member to run it as, a
+      // manual acceptance is exactly the kind of company-side write this mechanism already exists for.
+      // A DISTINCT status from "signed", deliberately never reused: the whole point of this status is
+      // that neither the archive, the audit log, the detail page's "Acceptance" section (this app has
+      // no document history/timeline view), nor any consumer of "was this quote accepted" (the
+      // client portal, a webhook, a list filter) can mistake one for the other - see that action's own
+      // header, and its own audit of every place this codebase reads a quote's "signed" status for what
+      // needed to change (nothing did: contributions/quote-contributions.ts's own "open quotes"/"sent"
+      // counts never included "signed" either, so "accepted" needs no new inclusion there; no webhook,
+      // list filter, or the client portal ever branches on "signed" by name - `clientVisible` alone is
+      // what surfaces a status to the portal, which "accepted" gets here for the same reason "signed"
+      // has it: the client's own "yes" is exactly as visible whichever way it was recorded).
+      { id: 'accepted', label: 'Accepted', clientVisible: true },
+      // The client PORTAL's own "decline" - `client-portal/portal.service.ts#refuseQuote`. Reached
       // the EXACT same way "signed" above is: a WRITE outside `runAction`/`ActionRegistry` (there is
       // no company-authenticated caller to run an action AS — a portal session is a CLIENT, not a
       // company member), hand-guarded the identical way `SignaturesService`'s own private
@@ -273,8 +299,65 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             max: 100,
             helpText: 'Percentage discount applied to this line, before VAT.',
           },
+          {
+            // Same field as the invoice's own (invoice.descriptor.ts's "The line shape" header,
+            // issue #145) — added here too, for consistency, and because `convert-to-invoice`
+            // (actions/convert-to-invoice.ts) copies `lines` VERBATIM: a quote line already carrying
+            // a work date (a proposal for work planned on a specific day) keeps that value once it
+            // becomes a real invoice line, exactly like `articleId` above already does. A quote's own
+            // work is typically NOT yet done (the client hasn't accepted it), so this is read as "the
+            // planned/expected date" here rather than invoice.descriptor.ts's "date actually worked" —
+            // the field records a date, not which of the two meanings applies; nothing in this
+            // descriptor forces either reading. `hideWhenEmpty: true` — same column-level meaning
+            // inside an 'array' row, see invoice.descriptor.ts's own bullet and
+            // rendering/render-html.ts's 'array' case for the mechanism.
+            key: 'date',
+            kind: 'date',
+            label: 'Work date',
+            required: false,
+            hideWhenEmpty: true,
+            helpText: 'When the work on this line is due, or was done, if it differs from the quote date.',
+          },
+          // Issue #373 ("quotes with options"): a free-text tag naming which OPTION this line belongs
+          // to - "Basic", "Premium", anything a company types. Deliberately a SUBFIELD on the existing
+          // `lines` row shape, never a nested array of options each carrying its own lines: the generic
+          // descriptor field system has no 'array'-of-'array' kind (types.ts's own `fields` comment -           // "'array': the shape of one row" - is itself a flat list, one level deep, by design), so a
+          // second array level would need a whole new field kind, its own validator, its own PDF/editor
+          // renderer, for a shape this lighter model gets for free out of what already exists. A
+          // quote's own OPTIONS are never stored anywhere of their own: they are the distinct,
+          // non-empty values of THIS field across `lines`, in first-appearance order (see
+          // `options/quote-options.ts#deriveQuoteOptions`, the ONLY place that reads this field's
+          // semantics - everywhere else it is just another 'text' subfield). Optional: a quote with
+          // every line's `option` unset (or all sharing the same one) has zero or one distinct value,
+          // which `deriveQuoteOptions` treats as "no options at all" - today's single-total behavior,
+          // completely unchanged, no new required input for the common case. `hideWhenEmpty` mirrors
+          // `date` right above: a document that never uses options must not print an empty "Option: - "
+          // on every single line.
+          {
+            key: 'option',
+            kind: 'text',
+            label: 'Option',
+            required: false,
+            hideWhenEmpty: true,
+            // A company typing "Basic" on one line and "Basic" again on another is exactly the
+            // repetition this hint exists to make less tedious - see `DocumentFieldDescriptor
+            // .suggestSiblingValues`'s own header for why this is an explicit opt-in rather than a
+            // blanket behavior every 'text' array subfield gets for free.
+            suggestSiblingValues: true,
+            helpText:
+              'Groups this line under a named option (e.g. "Basic", "Premium"). Leave every line\'s ' +
+              'option blank, or the same, for an ordinary quote with a single total; name two or more ' +
+              'distinct options and the client picks one when accepting.',
+          },
         ],
       },
+      // Issue #373: the option the client chose when accepting a quote that offers 2+ of them - see
+      // `DocumentInstance.acceptedOption`'s own schema comment for why this is a DEDICATED COLUMN, not
+      // a field here, and is therefore NEVER listed in `fields` at all: a descriptor field is exactly
+      // what a form renders and `validateAgainstDescriptor` checks, and this must be neither (the two
+      // acceptance handlers write it directly, bypassing the form entirely, the same way `number`/
+      // `displayNumber`/`atcud` already bypass it). This comment lives here, not on a phantom field
+      // entry, precisely so nothing ever mistakes it for one.
     ],
     actions: [
       {
@@ -282,6 +365,17 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         label: 'Save draft',
         transitions: SAVE_DRAFT_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
+        // Issue #468: unlike the invoice/credit-note, a quote's lock is NOT "everything but draft" -
+
+        // "sent" stays editable on purpose (fixing a typo on a quote the client hasn't answered yet
+        // is normal and lawful, and re-sending it is just this same "save-draft" followed by "send"
+        // again). Only "signed" (the client's own OTP-signed, non-repudiable acceptance) and
+        // "accepted" (issue #421's manual-acceptance record of the same fact by another means) lock
+        // it - both represent an agreement that has already been reached, so its terms must not
+        // silently change under it. "refused" is deliberately left OUT too: a declined quote carries
+        // no legal weight (nothing was signed or accepted), so re-editing and re-sending it is a
+        // normal "try again" flow, not a rewrite of anything binding.
+        lockedStatuses: ['signed', 'accepted'],
       },
       {
         id: 'send',
@@ -304,7 +398,15 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'convert-to-invoice',
         label: 'Convert to invoice',
-        availableWhen: ['draft', 'sent'],
+        // "signed"/"accepted" added by issue #421 ("accept a quote manually, without the e-signature
+        // code"): its own acceptance criterion is "conversion to an invoice works from 'accepted' as it
+        // does from 'signed'" - before this change, NEITHER actually appeared here (only "draft"/
+        // "sent" did, a pre-existing gap this fixes as part of the same audit: a company that has an
+        // e-signed OR a manually-accepted quote in hand must be able to invoice it, exactly like one
+        // still merely "sent"). A quote's own e-signature/manual-acceptance status has no bearing on
+        // whether it is fit to become a draft invoice - the SAME copy-lines-and-open-a-draft effect
+        // (actions/convert-to-invoice.ts) applies regardless of which of the four statuses triggered it.
+        availableWhen: ['draft', 'sent', 'signed', 'accepted'],
       },
       {
         id: 'request-deposit',
@@ -383,8 +485,44 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         // action's entire effect is a brand-new `Signature` row plus an email
         // (signatures/signatures.service.ts) — it never changes THIS quote's own status itself. The
         // eventual "sent" -> "signed" transition happens entirely outside `runAction`, the moment the
-        // anonymous client verifies their OTP — see quote.descriptor.ts's own "signed" status comment
+        // anonymous client verifies their OTP - see quote.descriptor.ts's own "signed" status comment
         // above and signatures.service.ts#markSigned.
+      },
+      {
+        id: 'accept-manually',
+        label: 'Mark as accepted',
+        transitions: ACCEPT_MANUALLY_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(ACCEPT_MANUALLY_TRANSITIONS),
+        // The ONE input this action needs - see actions/quote-manual-acceptance.ts's own header for
+        // why "required, non-empty, bounded length" is enforced there rather than trusted to this
+        // descriptor's own generic 'longText' validator (which only checks the value IS a string, not
+        // that it is non-empty - see field-kinds.ts). Declared here anyway, exactly like every other
+        // action's own `params`, for the params-defaults endpoint and the OpenAPI schema - the
+        // frontend renders its OWN dedicated confirmation dialog for this one action rather than the
+        // generic ActionParamsDialog (see `use-document-form.ts`'s own exclusion list, the same one
+        // "share-link"/"download-xml" are already on, and `mark-quote-accepted-dialog.tsx`), so this
+        // never actually reaches that generic renderer.
+        params: [
+          {
+            key: 'note',
+            kind: 'longText',
+            label: 'How did the client accept?',
+            required: true,
+          },
+          // Issue #373 ("quotes with options"): which option the client accepted - OPTIONAL here
+          // (never `required: true`) because whether it is actually needed depends on the QUOTE's own
+          // data (fewer than two options: nothing to choose), a fact this descriptor's static `params`
+          // cannot see. `actions/quote-manual-acceptance.ts`'s own `resolveChosenOption` is what
+          // actually enforces "required once there are 2+ options, refused otherwise" - the same
+          // "declared for the OpenAPI schema, enforced by the handler" split `note` right above
+          // already holds for its own non-emptiness.
+          {
+            key: 'option',
+            kind: 'text',
+            label: 'Which option did the client accept?',
+            required: false,
+          },
+        ],
       },
       {
         id: 'share-link',

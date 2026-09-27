@@ -131,6 +131,14 @@ const DRAFT_QUOTE_A = instance({
   status: 'draft',
   data: { client: CLIENT_A, currency: 'EUR', lines: [] },
 });
+// Issue #421: a manually-accepted quote - clientVisible (client-visibility.spec.ts), but never
+// respondable again (canRespond below), the same as an already-signed one.
+const ACCEPTED_QUOTE_A = instance({
+  id: 'quote-a-accepted',
+  typeId: 'quote',
+  status: 'accepted',
+  data: { client: CLIENT_A, currency: 'EUR', lines: [] },
+});
 const INVOICE_A = instance({
   id: 'invoice-a',
   typeId: 'invoice',
@@ -358,6 +366,17 @@ describe('PortalService — the client-portal security boundary', () => {
       const rows = await service.listQuotes(COMPANY, CLIENT_A);
       expect(rows.map((row) => row.id)).toEqual(['quote-a']);
       expect(rows[0].canRespond).toBe(true);
+    });
+
+    it('shows a manually-accepted quote (issue #421) but never lets the client respond to it again', async () => {
+      const { service } = buildService();
+      seedDocuments([ACCEPTED_QUOTE_A]);
+
+      const rows = await service.listQuotes(COMPANY, CLIENT_A);
+      expect(rows.map((row) => row.id)).toEqual(['quote-a-accepted']);
+      expect(rows[0].status).toBe('accepted');
+      // Same posture as an already-"signed" quote: nothing left to sign or refuse.
+      expect(rows[0].canRespond).toBe(false);
     });
   });
 

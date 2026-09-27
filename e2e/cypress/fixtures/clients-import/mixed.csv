@@ -1,0 +1,7 @@
+type,kind,isSupplier,name,contactFirstname,contactLastname,contactEmail,contactPhone,address,addressLine2,postalCode,city,state,country,countryCode,currency,language,description,foundedAt,identifier:LEGAL_ID,identifier:VAT
+COMPANY,BUSINESS,false,CSV Import Co,,,csvimport@example.com,+33100000000,1 Rue Test,,75001,Paris,,France,FR,EUR,fr,,2015-01-01,552100554,FR12345678901
+COMPANY,BUSINESS,false,Missing Siret Co,,,missingid@example.com,+33100000001,2 Rue Test,,75002,Paris,,France,FR,EUR,fr,,2015-01-01,,
+COMPANY,BUSINESS,false,CSV Import Co,,,csvimport@example.com,+33100000000,1 Rue Test,,75001,Paris,,France,FR,EUR,fr,,2015-01-01,552100554,FR12345678901
+COMPANY,BUSINESS,false,Country Name Only Co,,,countrynameonly@example.com,+33100000002,3 Rue Test,,75003,Paris,,France,,EUR,fr,,2015-01-01,,
+Individuel,BUSINESS,false,Bad Type Co,,,badtype@example.com,+33100000003,4 Rue Test,,75004,Paris,,France,FR,EUR,fr,,2015-01-01,552100554,
+COMPANY,BUSINESS,false,Existing Match Co,,,existingmatch@example.com,+33100000005,5 Rue Test,,75005,Paris,,France,FR,EUR,fr,,2015-01-01,552100554,

@@ -1,3 +1,4 @@
+import { resolveInvoiceableLines } from '../options/quote-options';
 import { ActionRegistry } from './action-registry';
 import { createDraftInvoiceFromQuote } from './quote-to-invoice';
 
@@ -21,9 +22,16 @@ import { createDraftInvoiceFromQuote } from './quote-to-invoice';
  * left with only what is genuinely its OWN: which fields the new invoice's `data` actually gets.
  *
  * What is carried over, and what is not:
- *  - `client`, `currency`, `notes`, `lines`: copied verbatim — both descriptors give these fields the
- *    exact same kind and meaning (see invoice.descriptor.ts's header comment), so there is nothing to
+ *  - `client`, `currency`, `notes`: copied verbatim - both descriptors give these fields the exact
+ *    same kind and meaning (see invoice.descriptor.ts's header comment), so there is nothing to
  *    translate.
+ *  - `lines`: issue #373 ("quotes with options") - NOT always copied verbatim any more. See
+ *    `options/quote-options.ts#resolveInvoiceableLines`, the ONE place that decides which lines a
+ *    conversion may use: a quote with fewer than two options still copies every line, `option` tag
+ *    stripped, byte-for-byte today's behavior; a quote with 2+ options copies ONLY the accepted one's
+ *    lines (refusing with a 409 if none has been accepted yet - "signed"/"accepted" are the only two
+ *    statuses this action is available from besides "draft"/"sent", and the refusal is exactly what
+ *    stops a "draft"/"sent" multi-option quote from being converted before a choice exists).
  *  - `issueDate`: set to TODAY, not the quote's own issue date — the invoice is issued the day it is
  *    actually raised, which is the moment this handler runs, not whenever the quote happened to be
  *    written.
@@ -52,7 +60,7 @@ export function registerConvertToInvoiceAction(registry: ActionRegistry): void {
         issueDate: new Date().toISOString(),
         currency: quoteData.currency,
         notes: quoteData.notes,
-        lines: quoteData.lines,
+        lines: resolveInvoiceableLines(quoteData, quote.acceptedOption, quote.displayNumber ?? quote.id),
         origin: { entity: 'quote', id: quote.id },
       }),
       (quote, invoice) => `Invoice ${invoice.id} created from quote ${quote.id}.`,

@@ -148,5 +148,8 @@
     "privacyNotice": "Keep this link private — anyone who has it can view your account.",
     "signOffText": "Best regards,\n{companyName}",
     "signOffHtml": "Best regards,<br>{companyName}"
+  },
+  "documents": {
+    "multipleOptionsTotal": "see the attached document for each option and its own total"
   }
 }

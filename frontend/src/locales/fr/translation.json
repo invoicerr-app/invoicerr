@@ -2008,7 +2008,7 @@
                 "button": "Créer le webhook"
             },
             "card": {
-                "events": "Écoute les événements : {{events}}",
+                "events": "Écoute les événements :",
                 "edit": "Modifier",
                 "delete": "Supprimer",
                 "editPrompt": "Saisissez la nouvelle URL du webhook"
@@ -3094,6 +3094,11 @@
                         "label": "Factures reçues en attente (consolidé, converti)"
                     }
                 }
+            }
+        },
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Lecture du document en cours… les champs se rempliront une fois terminé. Vous pouvez déjà commencer à saisir."
             }
         }
     }

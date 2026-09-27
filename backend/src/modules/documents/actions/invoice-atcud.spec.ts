@@ -31,7 +31,7 @@ vi.mock('../numbering/take-number');
 vi.mock('../tax/load-and-resolve');
 // This file's own concern is the ATCUD gate, never the (unrelated) SELLER-country channel mandate —
 // see `invoice-channel-mandate.spec.ts` for that mechanism's own dedicated tests. Automocked
-// (`activeChannelMandateFor` returns `undefined`, i.e. "no mandate") so a REAL mandate fact for
+// (`activeChannelMandateForOperation` returns `undefined`, i.e. "no mandate") so a REAL mandate fact for
 // whichever country a test happens to pick (e.g. FR, mandated from 2026-09-01 — see
 // `invoice-channel-mandate.spec.ts`'s own `FR_MANDATE`) can never interfere with a test that has
 // nothing to do with it.
@@ -107,15 +107,16 @@ describe('invoice "send" — Portugal\'s ATCUD preflight and numbering-time atta
 
   it('is a complete no-op for a non-Portuguese company — never reads a number format, never blocks', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (persistence.upsertDocument as Mock).mockResolvedValue({
-      ...draftDocument(),
-      status: 'sending',
-      number: null,
-      displayNumber: null,
-    });
-    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
-      number: 1,
-      displayNumber: 'INVOICE-2026-0001',
+    // PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is eligible
+    // for the ATOMIC status+number write - replaces `persistence.upsertDocument` for this call.
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: {
+        ...draftDocument(),
+        status: 'sending',
+        number: 1,
+        displayNumber: 'INVOICE-2026-0001',
+      },
+      numbered: { number: 1, displayNumber: 'INVOICE-2026-0001' },
     });
 
     const result = await sendAction();
@@ -162,15 +163,14 @@ describe('invoice "send" — Portugal\'s ATCUD preflight and numbering-time atta
       seriesId: 'FT 2026',
       validationCode: 'JCVPTS0J',
     });
-    (persistence.upsertDocument as Mock).mockResolvedValue({
-      ...draftDocument(),
-      status: 'sending',
-      number: null,
-      displayNumber: null,
-    });
-    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
-      number: 7,
-      displayNumber: 'FT 2026/0007',
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+      document: {
+        ...draftDocument(),
+        status: 'sending',
+        number: 7,
+        displayNumber: 'FT 2026/0007',
+      },
+      numbered: { number: 7, displayNumber: 'FT 2026/0007' },
     });
 
     const result = await sendAction();

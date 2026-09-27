@@ -200,5 +200,12 @@
                 }
             }
         }
+    },
+    "documents": {
+        "custom": {
+            "receivedInvoiceUpload": {
+                "ocrPending": "Lendo o documento… os campos serão preenchidos assim que terminar. Você já pode começar a digitar."
+            }
+        }
     }
 }

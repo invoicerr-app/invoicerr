@@ -1,9 +1,10 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { resolveCorrectionRoutesForCountry } from '../correction-routes/correction-routes';
+import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
@@ -13,6 +14,7 @@ import { computeSettlement } from '../settlement/compute-settlement';
 import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
 import { crossedIntoSettled, emitDocumentSettled } from '../settlement/document-settled';
 import { listPayments, toSettlementPaymentInputs } from '../settlement/payments';
+import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
@@ -23,6 +25,12 @@ import { performSaveDraft } from './generic-actions';
  *  settlement-crossing check just sent might have settled it (see
  *  `checkAndEmitInvoiceSettledFromCreditNote` below). */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
+/** The credit note's OWN descriptor - never `INVOICE_DESCRIPTOR` above, which describes a different
+ *  type's field shape. PR #473 review point 2: neither of this type's two line shapes (`lines`,
+ *  `correctedLines`, credit-note.descriptor.ts) declares an article-reference field, so this is
+ *  `false` - computed, not hardcoded, so it stays true to the descriptor if that ever changes. */
+const CREDIT_NOTE_DESCRIPTOR = buildCreditNoteDescriptor();
+const CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(CREDIT_NOTE_DESCRIPTOR);
 
 export interface CreditNoteActionDeps {
   queueDispatcher: DocumentActionQueueDispatcher;
@@ -139,32 +147,48 @@ function hasOriginInvoice(data: Record<string, unknown>): boolean {
 }
 
 /**
- * A FREE credit note (no `invoice`) has no legal basis in every country this catalog covers — Poland's
- * own `ustawa o VAT` (art. 106j ust. 1) gives a seller-issued reduction NO instrument of its own: the
- * SAME referenced document, the faktura korygująca, covers both an increase and a decrease, and the
- * FA(3) `RodzajFaktury` enumeration this repo already reads (formats/national/fa3-provider.ts) has no
- * "avoir"/"nota kredytowa" type at all — see correction-routes/data/pl.json's own CREDIT_NOTE fact,
- * status 'forbidden', sourced against art. 106j and the Ministry of Finance's own FA(3) brochure. A
- * credit note with nothing to reference is therefore not a lesser version of that document for a
- * Polish seller, it is not a legal document at all — refused outright, quoting the exact citation the
- * catalog already carries, rather than silently accepted as if FR/DE/IT/PT's own open CREDIT_NOTE
- * route applied here too (each of those keeps it 'allowed': a credit note is a document in its own
- * right there, with no legal requirement that it reference an original invoice). Reads the CATALOG,
- * never a second, hand-kept country list here — a future country file changing its own CREDIT_NOTE
- * status changes this decision automatically, with nothing in this action to revisit.
+ * PR #473 review point 2 (owner decision): a credit note has no legal basis AT ALL for a Polish
+ * seller - LINKED or FREE, never mind which. This used to only guard the FREE shape (a "no invoice
+ * to reference" gap), on the theory that a LINKED credit note was still a legitimate, if oddly named,
+ * way to reduce what an invoice owes. That theory was wrong, and country-policy/data/pl.json's own
+ * `numbering` fact for this type already said so before the code caught up (`requirement:
+ * 'type-not-issuable'`, citing art. 106j ust. 2 pkt 2, "numer kolejny oraz datę jej wystawienia" -
+ * a faktura korygująca must carry a sequential number of its own): this document type is not, and
+ * cannot become, that KOR invoice - it has no numbering series of its own for a Polish seller at all
+ * (credit-note.descriptor.ts's own numbering header). The credit note is refused OUTRIGHT for a
+ * Polish seller - the faktura korygująca is already implemented as a `KOR` INVOICE
+ * (`correctsInvoiceId`, invoice.descriptor.ts; correction-routes/data/pl.json's own
+ * CORRECTIVE_INVOICE route, 'required'/'implemented'), numbered in the INVOICE's own series, never
+ * this type's.
+ *
+ * Reads the CATALOG, never a second, hand-kept country list here - a future country file changing its
+ * own CREDIT_NOTE status changes this decision automatically, with nothing in this action to revisit.
+ * `hasOriginInvoice` only decides the wording of the refusal now (still useful context for whoever
+ * reads it), never whether it fires - see this function's own name change, from
+ * `assertFreeCreditNoteAllowedForCountry` to this.
+ *
+ * ALSO the belt-and-braces enforcement behind country-policy/data/pl.json's own `save-draft`/`send`
+ * rules (`allowed: false`, PR #473) - `documents.service.ts#runAction`'s own `evaluateCountryPolicy`
+ * gate already refuses both actions with a 403 before this handler is ever reached in the ordinary
+ * HTTP path, but this guard is what a scripted/internal caller that bypassed that gate would still
+ * hit - the same "the screen/framework gate is never trusted alone" posture every other guard in this
+ * module already holds.
  *
  * Reads the SELLER's own country the same way every other country-aware guard in this module does
  * (`resolveCompanyCountryCode`) — an UNRESOLVED country, or one with no correction-routes file at all,
  * blocks NOTHING here: this guard only ever NARROWS an already-permitted action, it never invents the
  * FIRST refusal a missing country file would already be (`country-policy.ts`'s own DECISION 1, a
  * separate gate that already ran before this one even executes).
+ *
+ * Existing Polish credit notes (issued before this decision took effect) are UNAFFECTED going
+ * forward: this guard only runs on "save-draft"/"send" (creating or re-editing one), never on a read,
+ * a PDF render, or "share-link" - see credit-note.descriptor.ts's own `country-policy/data/pl.json`
+ * rule for `share-link` staying `allowed: true` for exactly that reason.
  */
-async function assertFreeCreditNoteAllowedForCountry(
+async function assertCreditNoteAllowedForCountry(
   companyId: string,
   data: Record<string, unknown>,
 ): Promise<void> {
-  if (hasOriginInvoice(data)) return; // linked credit note — this guard has nothing to say about it.
-
   const countryCode = await resolveCompanyCountryCode(companyId);
   if (!countryCode) return;
 
@@ -172,9 +196,11 @@ async function assertFreeCreditNoteAllowedForCountry(
   const creditNoteRoute = decision?.routes.find((route) => route.routeId === 'CREDIT_NOTE');
   if (creditNoteRoute?.status !== 'forbidden') return;
 
+  const shape = hasOriginInvoice(data) ? 'linked to an invoice' : 'free-standing';
   throw new BadRequestException(
-    `${countryCode} requires this credit note to reference the invoice it corrects — a free-standing ` +
-      `credit note with no original invoice has no legal basis here (${creditNoteRoute.label}).`,
+    `${countryCode} has no credit note instrument at all (this one is ${shape}) - ${creditNoteRoute.label}. ` +
+      'Use a corrective invoice ("faktura korygująca") instead: create an invoice with "Corrects ' +
+      'invoice" set to the one you need to correct.',
   );
 }
 
@@ -302,16 +328,39 @@ async function assertCreditNoteCurrencyMatchesInvoice(
  * credit-note's analogous case, not a coincidence: both types need extra checks the generic
  * mechanism has no business knowing about, and both reuse `performSaveDraft` for the actual
  * persistence so the two never drift.
+ *
+ * FOURTH guard, added for issue #468: a credit note is legally an invoice (CGI art. 289, I, 5), so
+ * once it has left "draft" it is issued and must never be rewritten. `credit-note.descriptor.ts`'s
+ * "save-draft" now declares `lockedStatuses` for every status but "draft", so
+ * `documents.service.ts#runAction` already refuses this before ANY handler runs - the check right
+ * below can only ever fire for a caller that reached this handler WITHOUT going through `runAction`'s
+ * gates, the same defense-in-depth discipline `invoice-actions.ts`'s own save-draft handler holds.
  */
 function registerCreditNoteSaveDraftAction(
   registry: ActionRegistry,
   webhooks?: DocumentWebhookEmitter,
 ): void {
   registry.register('credit-note', 'save-draft', async (ctx) => {
+    if (ctx.documentId && ctx.currentStatus && ctx.currentStatus !== 'draft') {
+      throw new ConflictException(
+        `Action "save-draft" of document type "credit-note" is refused once the document has left ` +
+          `draft (status "${ctx.currentStatus}"): an issued document is never rewritten.`,
+      );
+    }
     assertCreditNoteAmountSourceIsUnambiguous(ctx.data);
-    await assertFreeCreditNoteAllowedForCountry(ctx.companyId, ctx.data);
+    await assertCreditNoteAllowedForCountry(ctx.companyId, ctx.data);
     await assertCreditNoteCurrencyMatchesInvoice(ctx.companyId, ctx.data);
-    return performSaveDraft(ctx.companyId, 'credit-note', ctx.documentId, ctx.data, webhooks);
+    return performSaveDraft(
+      ctx.companyId,
+      'credit-note',
+      ctx.documentId,
+      ctx.data,
+      webhooks,
+      // Same CAS fix as `invoice-actions.ts`'s own save-draft handler - see `performSaveDraft`'s own
+      // header (generic-actions.ts) and `documents.service.ts#runAction`'s `allowedFromStatuses`
+      // comment.
+      ctx.allowedFromStatuses,
+    );
   });
 }
 
@@ -329,8 +378,13 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       events: deps.events,
       // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
       webhooks: deps.webhooks,
-      // credit-note.descriptor.ts declares NO `numbering` at all — never number this type, ever.
-      numberOnEnqueue: false,
+      // credit-note.descriptor.ts: numbering.onEnterStatus === 'sending' (issue #471).
+      numberOnEnqueue: true,
+      // credit-note.descriptor.ts: numbering.onlyFrom === ['draft'] - never renumber a legacy credit
+      // note that reached "sending" from "send_failed" while still unnumbered (issued before this
+      // feature existed). See that field's own header (descriptors/types.ts) for the full "why".
+      numberingOnlyFrom: ['draft'],
+      declaresArticleReference: CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE,
       // "send" (unlike every OTHER action) persists whatever `data` THIS
       // call submits as the record's new "sending" state (async-send.ts's own phase-1 `upsertDocument`
       // call, right after `preflight` runs) — a SEPARATE write path from "save-draft", which
@@ -341,7 +395,7 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       // submitted; only a MISMATCH ever throws).
       preflight: async () => {
         assertCreditNoteAmountSourceIsUnambiguous(data);
-        await assertFreeCreditNoteAllowedForCountry(companyId, data);
+        await assertCreditNoteAllowedForCountry(companyId, data);
         await assertCreditNoteCurrencyMatchesInvoice(companyId, data);
         return undefined;
       },

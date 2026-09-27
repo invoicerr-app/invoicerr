@@ -23,6 +23,32 @@ export interface ActionContext {
    * keep ignoring it exactly as before.
    */
   currentStatus?: string;
+  /**
+   * Every status THIS action may legitimately persist FROM, for an EXISTING record - the type's own
+   * declared `statuses` (descriptors/types.ts) minus THIS action's own `lockedStatuses`, computed once
+   * by `documents.service.ts#runAction` right after resolving the action (see that call site's own
+   * header for the full "why": a generic write that trusted `currentStatus` alone was a genuine
+   * TOCTOU - a "send" or an OTP signature landing between `runAction`'s status READ and the handler's
+   * own WRITE could still silently demote an issued document). A generic handler that persists `data`
+   * unconditionally on an existing record (today, only "save-draft" - `performSaveDraft`,
+   * generic-actions.ts) passes this straight through to `upsertDocument`'s own `fromStatuses` compare-
+   * and-swap instead of writing unconditionally. `undefined` for a type with no declared `statuses` at
+   * all - the same "no lifecycle, no lock, no CAS" fallback `isActionAvailable` already holds.
+   */
+  allowedFromStatuses?: string[];
+  /**
+   * The authenticated human running this action - undefined for the two kinds of caller that have no
+   * one to name: the async "send" worker's own replay (`queue/processors/document-action.processor.ts`,
+   * a BullMQ job, not an HTTP request) and any other internal/scripted call that never went through
+   * `documents.controller.ts#runAction`. Every ordinary HTTP call (session OR API-key auth - both set
+   * `request.user`, see `guards/auth.guard.ts`) DOES carry one, threaded through
+   * `documents.service.ts#runAction`'s own trailing `actor` parameter. Added for issue #421
+   * ("accept a quote manually"): recording WHO marked a quote accepted, not just that it happened, is
+   * exactly the kind of fact `data`/`params` were never meant to carry (a caller-supplied `params.who`
+   * could not be trusted the way the session/API-key identity already is). A handler that doesn't need
+   * to know who ran it (every one before this issue) simply never reads this field.
+   */
+  actor?: { id: string; name: string; email: string };
 }
 
 export interface DocumentInstanceResult {
@@ -41,6 +67,12 @@ export interface DocumentInstanceResult {
    *  `displayNumber` above is (`actions/atcud-issuance.ts`). Null/undefined for every document that is
    *  not a numbered Portuguese invoice, exactly like `displayNumber` itself is absent before numbering. */
   atcud?: string | null;
+  /** See `DocumentInstance.acceptedOption`'s own schema comment - issue #373 ("quotes with
+   *  options"): the option name the client chose when accepting a quote that offers 2+ of them, null
+   *  until an acceptance path writes it (or forever, for a quote that never had 2+ options). Read by
+   *  `options/quote-options.ts#resolveInvoiceableLines` at conversion time and shown read-only on the
+   *  quote's own detail page. */
+  acceptedOption?: string | null;
   /** See `DocumentInstance.lastActionError`'s own schema comment — the error from the most recent
    *  FAILED asynchronous action (queue/mark-send-failed.ts), or null/undefined once cleared by any
    *  later write. Absent from a result that never re-reads this column (most action handlers don't

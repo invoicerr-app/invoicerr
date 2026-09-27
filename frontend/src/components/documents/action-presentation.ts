@@ -3,6 +3,15 @@ import type { TFunction } from "i18next"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
 import { isActionAvailable, resolveTransitionTarget, statusLabel } from "@/components/documents/types"
 
+/** The possible resulting status(es) of `action` from `fromStatus`, always as an array — the single-
+ *  status and multi-status shapes of `resolveTransitionTarget`'s own return value collapsed into one
+ *  form for the two predicates below, which only ever need to check membership. */
+function transitionTargets(action: DocumentActionDescriptor, fromStatus: string | undefined): string[] {
+  const target = resolveTransitionTarget(action, fromStatus)
+  if (!target) return []
+  return Array.isArray(target) ? target : [target]
+}
+
 /**
  * Pure, render-free rules for HOW a document's declared actions are presented — which one is the
  * single primary button, which one is "the save", what the transition caption under a button says.
@@ -43,6 +52,47 @@ export function findSaveAction(
 }
 
 /**
+ * Whether running `action` from `currentStatus` is about to LOCK the record — turn its own "save"
+ * (`findSaveAction` above, whatever it is called for this type) from available to unavailable. This
+ * reads ONLY the country policy's already-composed facts (`policyRestrictedToStatuses`, via
+ * `isActionAvailable` — see that function's own header): no action id, type id or country is ever
+ * named here, so a country whose policy does NOT narrow re-editing never shows a warning (nothing is
+ * about to lock), and a type whose "save" is restricted by a FUTURE country file gets the warning for
+ * free, with no change needed on this side. The backend's policy data stays the one source of truth
+ * for WHETHER a record locks; this only asks it.
+ *
+ * `false` when the record is ALREADY locked in `currentStatus` (a retry from a failed send, say) —
+ * nothing NEW is being locked by this particular click, so warning again would only be noise, not a
+ * fact. `false` too, obviously, for an action with no transition at all (its effect lands on a
+ * different record, or nowhere) or one that keeps the save action available in every status it can
+ * lead to.
+ */
+export function actionLocksDocument(
+  actions: DocumentActionDescriptor[],
+  action: DocumentActionDescriptor,
+  currentStatus: string | undefined,
+): boolean {
+  const saveAction = findSaveAction(actions, currentStatus)
+  if (!saveAction || !isActionAvailable(saveAction, currentStatus)) return false
+  const targets = transitionTargets(action, currentStatus)
+  return targets.length > 0 && targets.every((status) => !isActionAvailable(saveAction, status))
+}
+
+/** Whether running `action` from `currentStatus` will assign this record its type's own number —
+ *  reads the descriptor's own `numbering.onEnterStatus` (see `DocumentTypeDescriptor.numbering`'s own
+ *  header) rather than naming a type or an action: a type with no `numbering` at all is never
+ *  numbered, whatever action runs. Used only to word the lock-confirmation dialog accurately — never
+ *  to decide whether the record actually gets numbered, which stays entirely the backend's job. */
+export function actionAssignsNumber(
+  descriptor: DocumentTypeDescriptor,
+  action: DocumentActionDescriptor,
+  currentStatus: string | undefined,
+): boolean {
+  if (!descriptor.numbering) return false
+  return transitionTargets(action, currentStatus).includes(descriptor.numbering.onEnterStatus)
+}
+
+/**
  * The ONE primary action for a screen — the rule the detail page's header applies:
  *  - a form with unsaved edits wants to be saved before anything else, so the save action (above)
  *    wins whenever there is one;
@@ -73,6 +123,52 @@ export function secondaryActions(
   return actions.filter((action) => action !== primary)
 }
 
+/** Actions a create dialog never submits (see `use-document-form.ts`'s own `availableActions`
+ *  filter: none of them is a create-time POST through `runAction`). */
+const NON_CREATE_ACTION_IDS = new Set(["cancel", "download-xml", "share-link", "accept-manually"])
+
+/** The actions a brand-new record of this type could run from its create dialog: the same set
+ *  `use-document-form.ts` offers there (`availableActions`, read at `initialStatus`). */
+function createTimeActions(
+  descriptor: Pick<DocumentTypeDescriptor, "actions" | "initialStatus">,
+): DocumentActionDescriptor[] {
+  return descriptor.actions.filter(
+    (action) => !NON_CREATE_ACTION_IDS.has(action.id) && isActionAvailable(action, descriptor.initialStatus),
+  )
+}
+
+/**
+ * Whether the list page's "New <type>" button can actually do anything right now: the SAME rule the
+ * create dialog uses to pick its final button (`document-create-dialog.tsx`'s `primaryAction`, the
+ * first create-time action with no `policyBlockedReason`). When none exists, opening the dialog
+ * would only walk someone through every field before refusing to save at the last step (PR #473
+ * review, round 2: a Polish credit note stays LISTED, so issued ones remain reachable, while its
+ * "save-draft"/"send" are both policy-blocked - see country-policy/data/pl.json's own notes).
+ *
+ * Generic on purpose, like every predicate in this file: it reads the descriptor's own actions and
+ * their `policyBlockedReason`, never a type id or country code.
+ */
+export function canCreateDocument(
+  descriptor: Pick<DocumentTypeDescriptor, "actions" | "initialStatus">,
+): boolean {
+  return createTimeActions(descriptor).some((action) => !action.policyBlockedReason)
+}
+
+/** The policy reasons that make `canCreateDocument` false, deduplicated and joined the way the
+ *  create dialog's own disabled final button joins them (`blockedReasons.join(" · ")`). */
+export function createBlockedReasons(
+  descriptor: Pick<DocumentTypeDescriptor, "actions" | "initialStatus">,
+): string | undefined {
+  const reasons = Array.from(
+    new Set(
+      createTimeActions(descriptor)
+        .map((action) => action.policyBlockedReason)
+        .filter((reason): reason is string => !!reason),
+    ),
+  )
+  return reasons.length > 0 ? reasons.join(" · ") : undefined
+}
+
 /**
  * The entries a saved record offers BESIDES its `runAction` POSTs — each declared on the descriptor
  * for the status/country-policy gates only, and each reached through its own mechanism rather than
@@ -94,6 +190,47 @@ export function extraActionGates(descriptor: DocumentTypeDescriptor, status: str
     recurrence: !!duplicate && isActionAvailable(duplicate, status),
     offerThenSend: descriptor.actions.some((action) => action.id === "send"),
   }
+}
+
+/**
+ * Per-type wording for `saveDraftLockNotice` below - one literal `t(...)` call per type so
+ * `i18n:check`'s static scan (a regex over the source tree, not a control-flow analysis) finds every
+ * key as USED regardless of which branch actually runs for a given document, and never flags one as
+ * dead. Keyed by `DocumentTypeDescriptor.id`, never guessed from the action id - a plugin's own type
+ * that reuses "save-draft" without ever declaring `lockedStatuses` (so `saveDraftLockNotice` never
+ * fires for it) needs no entry here at all; one that DOES lock falls back to the generic wording.
+ */
+const SAVE_LOCKED_MESSAGE_BY_TYPE: Record<string, (t: TFunction) => string> = {
+  invoice: (t) => t("documents.form.saveLocked.invoice"),
+  "credit-note": (t) => t("documents.form.saveLocked.creditNote"),
+  quote: (t) => t("documents.form.saveLocked.quote"),
+}
+
+/**
+ * The notice document-detail.tsx shows (`document-save-locked-notice`) when this record's "save"
+ * action (id "save-draft" - the one virtually every document type shares) is DECLARED but currently
+ * REFUSED for an EXISTING record - whether that refusal comes from the type's own `lockedStatuses`
+ * (issue #468 - an issued invoice/credit-note, a signed/accepted quote) or from a country policy's
+ * `policyRestrictedToStatuses` (the pre-existing invoice rule every shipped `country-policy/data/*.json` declares).
+ * Both reasons get the SAME notice: from the screen's point of view the record is locked either way,
+ * and there is nothing actionable in telling the two apart (the backend's own 409 message is what
+ * distinguishes them for a scripted client - see `documents.service.ts#runAction`).
+ *
+ * `undefined` for a brand-new, never-saved record (`currentStatus === undefined` - nothing is locked
+ * yet, there is no status for either gate to have an opinion about), for a type that declares no
+ * "save-draft" action at all, and once that action IS available again (a still-editable draft, or a
+ * "sent" quote - see quote.descriptor.ts's own `lockedStatuses` comment for why "sent" stays open).
+ */
+export function saveDraftLockNotice(
+  t: TFunction,
+  descriptor: DocumentTypeDescriptor,
+  currentStatus: string | undefined,
+): string | undefined {
+  if (currentStatus === undefined) return undefined
+  const saveDraft = descriptor.actions.find((action) => action.id === "save-draft")
+  if (!saveDraft || isActionAvailable(saveDraft, currentStatus)) return undefined
+  const message = SAVE_LOCKED_MESSAGE_BY_TYPE[descriptor.id]
+  return message ? message(t) : t("documents.form.saveLocked.generic")
 }
 
 /**

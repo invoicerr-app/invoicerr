@@ -7,6 +7,12 @@ name: Verify Docker Build (PR)
 # Building the branch image on every PR synchronisation duplicated the manual `workflow_dispatch`
 # run that deployments actually use (the image is pulled by hand on the dev instance), and each
 # build is a multi-arch job of several minutes. It now runs only when explicitly dispatched.
+#
+# Multi-arch, the same shape as docker-publish.yml: one job per platform on its own NATIVE runner
+# (the Scaleway nodes a branch image gets tested on are ARM, the dev instance is x86; emulating an
+# ARM Node build through QEMU on an x86 runner multiplies its time several times over), each pushing
+# its image by digest, then `merge` assembles one manifest list under the tag. One tag, one digest,
+# pulled by either architecture. arm/v7 is left to the release workflow: no test host needs it.
 on:
   workflow_dispatch:
     inputs:
@@ -22,30 +28,17 @@ env:
 # workflow permissions -- a SETTING, not a property of this file: it reads read-only today and one
 # click flips it to write for every workflow in the repository at once. Stating the floor means the
 # next job added below starts read-only whatever that setting says, and has to ask for more in
-# writing. `build` below is the one job that asks, and says why.
+# writing. `build` and `merge` below are the jobs that ask, and say why.
 permissions:
   contents: read
 
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
-    # `contents: read` is the floor restated -- a job-level block REPLACES the top-level one instead
-    # of adding to it, so omitting the line here would set `contents` to none and `actions/checkout`
-    # below could no longer clone the repository this image is built from.
-    # `docker/build-push-action` also defaults its own `github-token` input to `${{ github.token }}`
-    # ("used to authenticate against a repository for Git context") -- unexercised here, since the
-    # build below passes `context: .` rather than a Git URL, but it is one more reason the line is
-    # not surplus.
-    # `packages: write` is the whole reason this workflow exists: `docker/login-action` authenticates
-    # to ghcr.io with GITHUB_TOKEN and `docker/build-push-action` runs with `push: true` on every
-    # dispatch (see the `Set variables` step -- a dispatch always sets `push=true`). A token without
-    # it logs in successfully and then fails at the first layer upload.
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      tag: ${{ steps.vars.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Set variables
         id: vars
         # `INPUT_TAG` below: `inputs.tag` is workflow_dispatch-only, already gated behind repo write
@@ -58,67 +51,107 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
           REPO_NAME_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
-          IMAGE="${{ env.REGISTRY }}/${REPO_NAME_LOWER}"
-          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "image=${{ env.REGISTRY }}/${REPO_NAME_LOWER}" >> $GITHUB_OUTPUT
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # A dispatch always runs on a ref of this repository, so pushing is always allowed.
-            # The default tag is the branch name with every character a Docker tag rejects turned
-            # into a dash -- `feat/compliance-engine-v2` is not a legal tag, `feat-compliance-engine-v2` is.
-            TAG="$INPUT_TAG"
-            if [[ -z "$TAG" ]]; then
-              TAG=$(echo "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9_.-' '-' | sed 's/-*$//')
-            fi
-            echo "push=true" >> $GITHUB_OUTPUT
-          else
-            TAG="test-pr-${{ github.event.pull_request.number }}"
-            # A fork's PR gets no registry write: GITHUB_TOKEN is read-only there, so the image is
-            # built (which is the check that matters) and not pushed.
-            if [[ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
-              echo "push=true" >> $GITHUB_OUTPUT
-            else
-              echo "push=false" >> $GITHUB_OUTPUT
-            fi
+          # The default tag is the branch name with every character a Docker tag rejects turned into
+          # a dash -- `feat/compliance-engine-v2` is not a legal tag, `feat-compliance-engine-v2` is.
+          TAG="$INPUT_TAG"
+          if [[ -z "$TAG" ]]; then
+            TAG=$(echo "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9_.-' '-' | sed 's/-*$//')
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "cache_scope=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: steps.vars.outputs.push == 'true'
-        uses: docker/login-action@v3
+  build:
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    # `contents: read` for `actions/checkout` below -- a job-level block REPLACES the top-level floor
+    # instead of adding to it. `packages: write` for the push by digest: `docker/login-action`
+    # authenticates to ghcr.io with GITHUB_TOKEN, and a token without it logs in successfully and
+    # then fails at the first layer upload.
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker image
-        id: build
+      - id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64
+          platforms: ${{ matrix.platform }}
           # Same stamping as docker-publish.yml — a PR image is the one most likely to be deployed
           # somewhere and later wondered about, so it needs the revision at least as much.
           build-args: |
             GIT_REVISION=${{ github.sha }}
             GIT_REF_NAME=${{ github.ref_name }}
-          push: ${{ steps.vars.outputs.push }}
-          tags: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
-          cache-from: type=gha,scope=${{ steps.vars.outputs.cache_scope }}
-          cache-to: type=gha,mode=max,scope=${{ steps.vars.outputs.cache_scope }}
+          outputs: type=image,name=${{ needs.prepare.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ needs.prepare.outputs.tag }}-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ needs.prepare.outputs.tag }}-${{ matrix.platform }}
+
+      - run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ strategy.job-index }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    # `packages: write` only: this job writes the tag's manifest list from the digests `build`
+    # pushed, and never reads the repository -- see docker-publish.yml's own `merge` for the
+    # action-by-action check behind leaving `contents: read` out.
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create -t ${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.tag }} \
+            $(printf '${{ needs.prepare.outputs.image }}@sha256:%s ' *)
 
       - name: Publish pull command
-        if: steps.vars.outputs.push == 'true'
         run: |
+          IMAGE="${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.tag }}"
+          docker buildx imagetools inspect "$IMAGE"
+          DIGEST=$(docker buildx imagetools inspect "$IMAGE" --format '{{json .Manifest}}' | jq -r .digest)
           {
             echo "### Pull this build"
             echo ""
             echo '```'
-            echo "docker pull ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"
+            echo "docker pull $IMAGE"
+            echo "${{ needs.prepare.outputs.image }}@$DIGEST"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-          echo "docker pull ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"

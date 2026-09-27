@@ -517,6 +517,115 @@ describe('renderDocumentHtml', () => {
     });
   });
 
+  // A SUBFIELD of an 'array' row opting into `hideWhenEmpty` (e.g. invoice/quote line `date` —
+  // issue #145) gets a NARROWER meaning than the top-level flag just above: the whole COLUMN
+  // disappears from the printed table when NO row in the document sets a value, not merely an
+  // empty cell on the rows that lack it. This is what keeps a document saved before such a field
+  // existed rendering byte-for-byte as before — an old `lines` array never carries the key at all.
+  describe('hideWhenEmpty on an array row SUBFIELD (column suppression)', () => {
+    const descriptor: DocumentTypeDescriptor = {
+      id: 'test',
+      label: 'Test',
+      fields: [
+        {
+          key: 'lines',
+          kind: 'array',
+          label: 'Lines',
+          fields: [
+            { key: 'description', kind: 'text', label: 'Description' },
+            { key: 'date', kind: 'date', label: 'Work date', hideWhenEmpty: true },
+          ],
+        },
+      ],
+      actions: [],
+    };
+
+    it('omits the column entirely when no row sets a value — an old document renders exactly as before', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { lines: [{ description: 'Widget' }, { description: 'Gadget' }] },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('Work date');
+      // Still a table — the OTHER subfield's own column is unaffected.
+      expect(html).toContain('<table');
+      expect(html).toContain('Description');
+    });
+
+    it('omits the column when every row explicitly carries an empty value', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [
+              { description: 'Widget', date: '' },
+              { description: 'Gadget', date: null },
+            ],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('Work date');
+    });
+
+    it('adds the column for EVERY row once ANY one row sets a value — the undated rows show the ordinary em-dash, never a ragged table', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [{ description: 'Widget', date: '2026-05-01' }, { description: 'Gadget' }],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Work date');
+      expect(html).toContain('2026-05-01');
+      // Two rows, two <td> cells under the "Work date" column: one with the date, one with '—'.
+      const rowCount = (html.match(/<tr style="border-bottom: 1px solid #eee;">/g) ?? []).length;
+      expect(rowCount).toBe(2);
+      expect(html).toContain('—');
+    });
+
+    it('never hides a subfield column that does not opt in, even when every row leaves it unset', () => {
+      const untouched: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [
+              { key: 'description', kind: 'text', label: 'Description' },
+              { key: 'discountPercent', kind: 'number', label: 'Discount %' },
+            ],
+          },
+        ],
+        actions: [],
+      };
+      const html = renderDocumentHtml({
+        descriptor: untouched,
+        instance: { ...baseInstance, data: { lines: [{ description: 'Widget' }] } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Discount %');
+      expect(html).toContain('—');
+    });
+  });
+
   describe('XSS prevention', () => {
     it('escapes HTML in text values', () => {
       const descriptor: DocumentTypeDescriptor = {
@@ -716,6 +825,7 @@ describe('renderDocumentHtml', () => {
       label: 'Invoice',
       fields: [],
       actions: [],
+      initialStatus: 'draft',
       numbering: { onEnterStatus: 'sent' },
     };
     const unnumberedDescriptor: DocumentTypeDescriptor = {
@@ -774,6 +884,7 @@ describe('renderDocumentHtml', () => {
       label: 'Invoice',
       fields: [],
       actions: [],
+      initialStatus: 'draft',
       numbering: { onEnterStatus: 'sent' },
     };
 
@@ -1190,6 +1301,212 @@ describe('renderDocumentHtml', () => {
       expect(html).not.toContain('VAT 20% on');
       expect(html).not.toContain('>Net<');
     });
+
+    // Review point #5 ("the missing-currency placeholder changed for every document") - `dev` prints
+    // '—' (`git show origin/dev:.../render-html.ts`'s own `const currency = totals.currency || '—';`)
+    // for a document whose `totals.currency` is null/empty; the shared `renderTotalsRows` extraction
+    // (issue #373) briefly fell back to ' - ' instead, on the ordinary single-total path too - fixed
+    // back to the exact dev literal.
+    it('falls back to "—" (never " - ") when totals.currency is null, on the ordinary single-total path', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        totals: {
+          currency: null,
+          lines: [],
+          netMinor: 10000,
+          vatMinor: 2000,
+          grossMinor: 12000,
+          vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+          warnings: [],
+        },
+      });
+
+      expect(html).toContain('100.00 —');
+      expect(html).not.toContain(' - ');
+    });
+  });
+
+  describe('optionGroups (issue #373, "quotes with options")', () => {
+    const quoteDescriptor: DocumentTypeDescriptor = {
+      id: 'quote',
+      label: 'Quote',
+      fields: [
+        {
+          key: 'lines',
+          kind: 'array',
+          label: 'Lines',
+          fields: [
+            { key: 'description', kind: 'text', label: 'Designation' },
+            { key: 'option', kind: 'text', label: 'Option' },
+          ],
+        },
+      ],
+      actions: [],
+    };
+
+    const basicTotals = {
+      currency: 'EUR',
+      lines: [],
+      netMinor: 10000,
+      vatMinor: 0,
+      grossMinor: 10000,
+      vatBreakdown: [],
+      warnings: [],
+      showVat: false,
+    };
+    const premiumTotals = { ...basicTotals, netMinor: 30000, grossMinor: 30000 };
+
+    it('renders one labelled group per option, its own rows only, and NO global totals section', () => {
+      const html = renderDocumentHtml({
+        descriptor: quoteDescriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [
+              { description: 'Basic package', option: 'Basic' },
+              { description: 'Premium package', option: 'Premium' },
+            ],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+        optionGroups: {
+          arrayFieldKey: 'lines',
+          groupFieldKey: 'option',
+          groups: [
+            { label: 'Basic', totals: basicTotals },
+            { label: 'Premium', totals: premiumTotals },
+          ],
+        },
+      });
+
+      expect(html).toContain('Basic');
+      expect(html).toContain('Premium');
+      expect(html).toContain('Basic package');
+      expect(html).toContain('Premium package');
+      expect(html).toContain('100.00 EUR'); // Basic's own total
+      expect(html).toContain('300.00 EUR'); // Premium's own total
+      // No global totals section anywhere on a 2+-option render.
+      expect(html).not.toContain('class="totals-label"');
+      // No common group here - each real option's own gross row keeps the PLAIN "Total" label.
+      expect(html).not.toContain('including common lines');
+    });
+
+    it('marks the accepted option, and ONLY that one, with the "Accepted" badge', () => {
+      const html = renderDocumentHtml({
+        descriptor: quoteDescriptor,
+        instance: {
+          ...baseInstance,
+          data: {
+            lines: [
+              { description: 'Basic package', option: 'Basic' },
+              { description: 'Premium package', option: 'Premium' },
+            ],
+          },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+        optionGroups: {
+          arrayFieldKey: 'lines',
+          groupFieldKey: 'option',
+          acceptedOption: 'Premium',
+          groups: [
+            { label: 'Basic', totals: basicTotals },
+            { label: 'Premium', totals: premiumTotals },
+          ],
+        },
+      });
+
+      expect((html.match(/Accepted/g) ?? []).length).toBe(1);
+      // The badge sits right after "Premium", never after "Basic".
+      expect(html).toMatch(/Premium(?:(?!<\/div>).)*Accepted/s);
+    });
+
+    // Issue #373 follow-up: a line nobody tagged with an `option` at all ("Setup fee") gets its OWN
+    // "Common to all options" group - never silently dropped from the PDF, and never mistaken for the
+    // accepted option.
+    describe('the common-lines group (isCommon)', () => {
+      const commonTotals = { ...basicTotals, netMinor: 5000, grossMinor: 5000 };
+
+      it('renders a "Common to all options" heading with only the untagged rows', () => {
+        const html = renderDocumentHtml({
+          descriptor: quoteDescriptor,
+          instance: {
+            ...baseInstance,
+            data: {
+              lines: [
+                { description: 'Setup fee' }, // no `option` at all
+                { description: 'Basic package', option: 'Basic' },
+                { description: 'Premium package', option: 'Premium' },
+              ],
+            },
+          },
+          company: baseCompany,
+          referenceLabels: {},
+          optionGroups: {
+            arrayFieldKey: 'lines',
+            groupFieldKey: 'option',
+            groups: [
+              { label: '', totals: commonTotals, isCommon: true },
+              { label: 'Basic', totals: basicTotals },
+              { label: 'Premium', totals: premiumTotals },
+            ],
+          },
+        });
+
+        expect(html).toContain('Common to all options');
+        expect(html).toContain('Setup fee');
+        // "Setup fee" never appears a second time under either real option's own group - it is
+        // listed ONCE, in its own dedicated group, not duplicated under every option.
+        expect((html.match(/Setup fee/g) ?? []).length).toBe(1);
+        expect(html).toContain('Basic package');
+        expect(html).toContain('Premium package');
+        // Orchestrator review follow-up ("no meaningless common total"): the common group's OWN
+        // figure (50.00 EUR, `commonTotals.grossMinor`) never prints anywhere - only its lines do.
+        expect(html).not.toContain('50.00 EUR');
+        // Each REAL option's own total still folds the common lines in (the figure is unchanged,
+        // `basicTotals`/`premiumTotals` are already the merged numbers a real caller would pass), but
+        // its label now says so, once per real option, since a common group exists alongside them.
+        expect((html.match(/Total \(including common lines\)/g) ?? []).length).toBe(2);
+        expect(html).toContain('100.00 EUR'); // Basic's own (already-merged) total
+        expect(html).toContain('300.00 EUR'); // Premium's own (already-merged) total
+      });
+
+      it('never gets the "Accepted" badge, even when `acceptedOption` happens to be an empty string', () => {
+        const html = renderDocumentHtml({
+          descriptor: quoteDescriptor,
+          instance: {
+            ...baseInstance,
+            data: {
+              lines: [
+                { description: 'Setup fee' },
+                { description: 'Basic package', option: 'Basic' },
+                { description: 'Premium package', option: 'Premium' },
+              ],
+            },
+          },
+          company: baseCompany,
+          referenceLabels: {},
+          optionGroups: {
+            arrayFieldKey: 'lines',
+            groupFieldKey: 'option',
+            acceptedOption: 'Basic',
+            groups: [
+              { label: '', totals: commonTotals, isCommon: true },
+              { label: 'Basic', totals: basicTotals },
+              { label: 'Premium', totals: premiumTotals },
+            ],
+          },
+        });
+
+        expect((html.match(/Accepted/g) ?? []).length).toBe(1);
+        expect(html).toMatch(/Basic(?:(?!<\/div>).)*Accepted/s);
+        expect(html).not.toMatch(/Common to all options(?:(?!<\/div>).)*Accepted/s);
+      });
+    });
   });
 
   // Per-recipient document language ("langue du document par destinataire") — `language` translates ONLY this
@@ -1245,6 +1562,7 @@ describe('renderDocumentHtml', () => {
         label: 'Invoice',
         fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
         actions: [],
+        initialStatus: 'draft',
         numbering: { onEnterStatus: 'sent' },
       };
 
@@ -1275,6 +1593,7 @@ describe('renderDocumentHtml', () => {
         label: 'Invoice',
         fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
         actions: [],
+        initialStatus: 'draft',
         numbering: { onEnterStatus: 'sent' },
       };
 
@@ -1466,6 +1785,92 @@ describe('renderDocumentHtml', () => {
       expect(html).toContain('<img src="data:image/png;base64,LOGO"');
       // Comes before the company name, i.e. sits at the very top of the header block.
       expect(html.indexOf('data:image/png;base64,LOGO')).toBeLessThan(html.indexOf('Acme Corp'));
+    });
+  });
+
+  // PR #473 review point 3: the PDF and the screen used to disagree on an unnumbered document - see
+  // `numbering/display-state.ts`'s own header for the full "why". This proves the PDF side of the
+  // fix: `renderDocumentHtml` reads `numberingDisplayState`, the SAME rule the frontend's own
+  // `numberingDisplayState` (types.ts) computes from, rather than `isNumberingAllowedFrom` directly.
+  describe("the number placeholder - matches the screen's own numberingDisplayState, never a separate rule", () => {
+    const numberedTypeDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [],
+      actions: [],
+      initialStatus: 'draft',
+      numbering: { onEnterStatus: 'sending' },
+    };
+    const creditNoteLikeDescriptor: DocumentTypeDescriptor = {
+      id: 'credit-note',
+      label: 'Credit note',
+      fields: [],
+      actions: [],
+      initialStatus: 'draft',
+      numbering: { onEnterStatus: 'sending', onlyFrom: ['draft'] },
+    };
+
+    it('shows the draft placeholder for a plain draft (status === initialStatus)', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedTypeDescriptor,
+        instance: { ...baseInstance, status: 'draft' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Draft \u2014 no number yet');
+    });
+
+    // THE EXACT BUG this review point closes: a type with no `numbering.onlyFrom` (invoice, quote,
+    // purchase order, goods receipt) stuck in a non-initial status with no number - e.g. review point
+    // 1's own race, now closed - used to print the draft placeholder here (isNumberingAllowedFrom
+    // returns true for ANY status once `onlyFrom` is absent) while the screen already said "Issued
+    // without a number" for the SAME record.
+    it('shows "Issued without a number" for a numbered type stuck in "sending" with no number and no `onlyFrom` declared', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedTypeDescriptor,
+        instance: { ...baseInstance, status: 'sending' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Issued without a number');
+      expect(html).not.toContain('Draft \u2014 no number yet');
+    });
+
+    it('shows the draft placeholder for a legacy credit note-like type whose status is IN `numbering.onlyFrom`', () => {
+      const html = renderDocumentHtml({
+        descriptor: creditNoteLikeDescriptor,
+        instance: { ...baseInstance, status: 'draft' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Draft \u2014 no number yet');
+    });
+
+    it('shows "Issued without a number" for a legacy credit note-like type whose status left `numbering.onlyFrom` (issued before #471)', () => {
+      const html = renderDocumentHtml({
+        descriptor: creditNoteLikeDescriptor,
+        instance: { ...baseInstance, status: 'send_failed' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Issued without a number');
+    });
+
+    it('shows the real displayNumber verbatim whenever the document has one, regardless of status', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedTypeDescriptor,
+        instance: { ...baseInstance, status: 'sent', displayNumber: 'INV-2026-0007' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('INV-2026-0007');
+      expect(html).not.toContain('Draft \u2014 no number yet');
+      expect(html).not.toContain('Issued without a number');
     });
   });
 });

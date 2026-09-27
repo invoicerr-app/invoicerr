@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { fromMinor } from '@/utils/financial';
 
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
+import { deriveQuoteOptions } from '../options/quote-options';
 import { findOwnedDocument, upsertDocument } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
@@ -302,6 +303,24 @@ export function registerRequestInstallmentsAction(registry: ActionRegistry): voi
 
     const quote = await findOwnedDocument(companyId, 'quote', documentId);
     const quoteData = (quote.data ?? {}) as Record<string, unknown>;
+
+    // Issue #373 ("quotes with options") - same refusal, same reasoning as request-deposit.ts's own:
+    // this action is only `availableWhen: ['sent']` (quote.descriptor.ts), a status neither
+    // acceptance path has reached yet, so a multi-option quote can never have a chosen total to split
+    // into milestones at the point this action is even reachable. Refused outright rather than
+    // inventing which option's total the milestones would sum to. The message states the real,
+    // permanent limitation - "generate them again once an option has been chosen" can never actually
+    // work, since choosing an option is exactly what moves the quote OFF "sent" (see
+    // request-deposit.ts's own identical fix for the full reasoning; installments after acceptance
+    // would be a separate feature, out of scope here).
+    const options = deriveQuoteOptions(quoteData);
+    if (options.length >= 2) {
+      throw new BadRequestException(
+        `Quote "${quote.displayNumber ?? quote.id}" offers ${options.length} options ` +
+          `(${options.join(', ')}) - installments have no single total to split. Generating ` +
+          'installments is not supported for a quote with options.',
+      );
+    }
 
     const currency = typeof quoteData.currency === 'string' ? quoteData.currency : undefined;
     if (!currency) {

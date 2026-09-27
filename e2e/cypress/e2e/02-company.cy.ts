@@ -70,6 +70,22 @@ function completeCompanyProfile() {
  * <FormMessage/></FormItem>`, `Input` renders no wrapping element of its own, so the input's
  * `.parent()` IS the `FormItem` div holding both it and its own message) — never the page at large.
  */
+/**
+ * A selector for ONE field's `FormMessage` element, resolved from the input's own id rather than
+ * from a class or a position in the markup. `form.tsx`'s `useFormField` derives both ids from the
+ * same `React.useId()`: the control is `${id}-form-item`, its message `${id}-form-item-message`, so
+ * the message is always the input's own id plus `-message`. That id carries `useId`'s colons, which
+ * a CSS `#id` selector cannot express, hence the attribute form. Returned as a selector string, not
+ * as an element, because the caller needs to assert `not.exist` too and `cy.get` on a missing
+ * element fails instead of yielding an empty set.
+ */
+function formMessageSelectorFor(dataCy: string) {
+	return cy
+		.get(`[data-cy="${dataCy}"]`)
+		.invoke("attr", "id")
+		.then((inputId) => `[id="${inputId}-message"]`);
+}
+
 interface ValidationCase {
 	field: string;
 	dataCy: string;
@@ -205,23 +221,42 @@ describe("Company Settings E2E", () => {
 	describe("3 - Validation Errors", () => {
 		VALIDATION_CASES.forEach(({ field, dataCy, invalidValue, expectedError, validValue }) => {
 			it(`refuses to submit with an invalid ${field}, then accepts it once fixed`, () => {
+				cy.intercept("GET", `${api}/api/company/info`).as("loadCompany");
 				cy.visit("/settings/company");
 				cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("be.visible");
+
+				// WAIT FOR THE FORM TO BE HYDRATED BEFORE TOUCHING IT. This screen renders its inputs
+				// from `defaultValues` (every string empty) and fills them in an effect, `form.reset()`,
+				// once `/api/company/info` resolves, and that same `reset` wipes react-hook-form's own
+				// error state. Clearing a field and submitting before it lands races the reset:
+				// the FormMessage renders and is then unmounted, and the assertion below has nothing
+				// left to find. The stored value being back in the field is the reset having happened;
+				// every field this block covers is non-empty on the server by the time it runs (section
+				// 2 fills the whole profile, and each case here saves its own valid value again).
+				cy.wait("@loadCompany", { timeout: 15000 });
+				cy.get(`[data-cy="${dataCy}"]`, { timeout: 15000 }).should("not.have.value", "");
 
 				cy.intercept("POST", `${api}/api/company/info`).as("saveCompany");
 
 				// NEGATIVE — client-side zod refuses the submission outright (never a bare
 				// `cy.contains` on the page: that also matches the field's own always-visible label).
-				const field$ = cy.get(`[data-cy="${dataCy}"]`, { timeout: 10000 });
 				if (invalidValue === "") {
-					field$.clear();
+					cy.get(`[data-cy="${dataCy}"]`).clear();
 				} else {
-					field$.clear().type(invalidValue);
+					cy.get(`[data-cy="${dataCy}"]`).clear().type(invalidValue);
 				}
 				cy.get('[data-cy="company-submit-btn"]').click();
-				cy.get(`[data-cy="${dataCy}"]`)
-					.parent()
-					.should("contain.text", expectedError);
+				// Assert on the FormMessage ELEMENT, never on the FormItem container: that container
+				// also holds the field's own label and description, text that is on screen before React
+				// has run the resolver at all, so an assertion scoped to it can only ever report a
+				// timeout when the message is late (which is how this test failed in CI on 2026-09-23).
+				// `form.tsx` renders the message as `<p id="${input.id}-message">` and renders nothing
+				// at all while the field is valid, so that element existing IS the validation having
+				// fired, and `have.text` pins the exact wording rather than "somewhere in this box".
+				cy.get(`[data-cy="${dataCy}"]`).should("have.attr", "aria-invalid", "true");
+				formMessageSelectorFor(dataCy).then((selector) => {
+					cy.get(selector).should("have.text", expectedError);
+				});
 				// The form never even reached the network — `zodResolver` blocks `onSubmit` itself.
 				cy.get("@saveCompany.all").should("have.length", 0);
 
@@ -233,13 +268,28 @@ describe("Company Settings E2E", () => {
 						200, 201,
 					]);
 				});
-				cy.get(`[data-cy="${dataCy}"]`).parent().should("not.contain.text", expectedError);
+				cy.get(`[data-cy="${dataCy}"]`).should("have.attr", "aria-invalid", "false");
+				formMessageSelectorFor(dataCy).then((selector) => {
+					cy.get(selector).should("not.exist");
+				});
 			});
 		});
 
 		it("refuses to submit with an invalid email (native HTML5 constraint), then accepts it once fixed", () => {
+			cy.intercept("GET", `${api}/api/company/info`).as("loadCompany");
 			cy.visit("/settings/company");
 			cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("be.visible");
+
+			// WAIT FOR THE FORM TO BE HYDRATED BEFORE TOUCHING IT, the same guard the cases above
+			// carry, for a different symptom. The inputs render empty from `defaultValues` and the
+			// stored profile lands later through `form.reset()`. When that reset fell between the
+			// `clear()` and the first keystroke (issue #459: 4 runs in 5 under Chromium 141, measured
+			// by logging the POST body), the field was still pristine (empty against an empty
+			// default), so the reset wrote "contact@acme.org" back into it and Cypress typed at the
+			// caret: the form sent "not-an-emailontact@acme.org". That string passes the browser's
+			// email constraint, so the save went through and the assertion below read `valid: true`.
+			cy.wait("@loadCompany", { timeout: 15000 });
+			cy.get('[data-cy="company-email-input"]', { timeout: 15000 }).should("not.have.value", "");
 
 			cy.intercept("POST", `${api}/api/company/info`).as("saveCompany");
 
@@ -248,6 +298,9 @@ describe("Company Settings E2E", () => {
 			// here (verified against a real run) — `validity.valid` on the input element itself is
 			// the actual, honest proof a malformed email was refused.
 			cy.get('[data-cy="company-email-input"]').clear().type("not-an-email");
+			// Pins what is being refused: the exact string typed, never a concatenation with a value
+			// written into the field by something else while the test was typing.
+			cy.get('[data-cy="company-email-input"]').should("have.value", "not-an-email");
 			cy.get('[data-cy="company-submit-btn"]').click();
 			cy.get('[data-cy="company-email-input"]').then(($input) => {
 				expect(

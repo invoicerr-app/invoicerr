@@ -34,6 +34,12 @@ type Field = {
 	// actually blocks "Continue" here and needs no special handling.
 	requiredIfAbsent?: string;
 	requiredIfPresent?: string;
+	// A 'reference' field's own target(s) — `entity` for the single-target form, `entities` for the
+	// multi-target one (descriptors/types.ts). Read here for ONE reason: the single-target reference
+	// to "client" is what makes the screen re-fetch its own descriptor, see
+	// `clientDrivingFieldKey` below.
+	entity?: string;
+	entities?: string[];
 	fields?: Field[];
 };
 type TypeSummary = { id: string; label: string };
@@ -53,6 +59,21 @@ const descriptorFor = (typeId: string) =>
 		.its("body");
 
 /**
+ * The ONE field of a descriptor whose value makes the screen re-fetch its OWN descriptor:
+ * `use-document-form.ts` watches the FIRST single-target 'reference' to "client" and calls
+ * `useDocumentType(typeId, clientId)`, because the per-country field overlays (country-fields/)
+ * depend on the buyer. When that response lands, `effectiveDescriptor` is replaced and the rendered
+ * field nodes are rebuilt underneath whatever the test is doing — which is how a calendar opened a
+ * moment earlier ends up unmounted mid-command (PR #446, spec 43). A multi-target reference
+ * (`entities`) never drives it, nor does a reference to any other entity (a supplier, a purchase
+ * order), so neither is waited on here: `cy.wait` on a request that will never be made is a
+ * 30-second failure, not a safety net.
+ */
+function clientDrivingFieldKey(fields: Field[]): string | undefined {
+	return fields.find((f) => f.kind === "reference" && f.entity === "client" && !f.entities?.length)?.key;
+}
+
+/**
  * Fills ONE top-level field with SOME value its own client-side schema accepts — never the real,
  * meaningful value another spec would use, just enough to clear `form.trigger` so the wizard's
  * "Continue" (stepped-dialog.tsx) stops blocking on it. Line-item subfields are never reached here:
@@ -61,7 +82,7 @@ const descriptorFor = (typeId: string) =>
  * Skips a control found DISABLED (a `lockedFromReference` select, e.g. credit-note's own "currency"
  * once "invoice" is picked): already correctly filled by the app itself, nothing to type.
  */
-function fillFieldMinimal(field: Field) {
+function fillFieldMinimal(field: Field, driveDescriptorRefetch = false) {
 	const inputDataCy = `document-field-${field.key}-input`;
 	const input = `[data-cy="${inputDataCy}"]`;
 	switch (field.kind) {
@@ -101,9 +122,23 @@ function fillFieldMinimal(field: Field) {
 				}
 				const trigger = $el.find("button").first();
 				if (trigger.is(":disabled")) return;
+				if (driveDescriptorRefetch) {
+					// Registered BEFORE the click that causes it — see `clientDrivingFieldKey` above for
+					// what this request rebuilds and why the very next field this walker touches would
+					// otherwise be acted on mid-rebuild.
+					cy.intercept({ method: "GET", url: `${api}/api/documents/types/*?clientId=*` }).as(
+						"clientAwareDescriptor",
+					);
+				}
 				cy.wrap(trigger).click({ force: true });
 				cy.get(`[data-cy="${inputDataCy}-options"]`, { timeout: 10000 }).should("be.visible");
 				cy.get(`[data-cy="${inputDataCy}-options"]`).find("button").first().click();
+				// This walker's next field is whatever the descriptor declares next — very often a
+				// 'date', i.e. another Radix layer opened right here. The picker that just closed still
+				// owes the page the deferred focus restore `waitForLayerTeardown` (support/commands.ts)
+				// documents, and that restore dismisses the layer opened inside its window.
+				cy.waitForLayerTeardown(`[data-cy="${inputDataCy}-options"]`, `${input} button`);
+				if (driveDescriptorRefetch) cy.wait("@clientAwareDescriptor", { timeout: 20000 });
 			});
 			return;
 		case "rowSelection":
@@ -197,8 +232,9 @@ function fillRowFieldMinimal(arrayKey: string, rowField: Field) {
  * `cy.get('body').then()` — a `cy.` command queued inside a `.then()` runs after everything already
  * queued, so this still executes strictly in order despite the recursion.
  */
-function walkWizardCheckingFields(fields: Field[], seen: Set<string>, guard = 0) {
+function walkWizardCheckingFields(fields: Field[], seen: Set<string>, guard = 0, filled = new Set<string>()) {
 	if (guard > 6) return; // more steps than this wizard has ever had — a real bug, not a slow one.
+	const clientKey = clientDrivingFieldKey(fields);
 	cy.get("body").then(($body) => {
 		for (const f of fields) {
 			const sel = `[data-cy="document-field-${f.key}"]`;
@@ -213,12 +249,21 @@ function walkWizardCheckingFields(fields: Field[], seen: Set<string>, guard = 0)
 			// otherwise block "Continue" forever on whichever step declares it: filling it
 			// unconditionally costs nothing (its base schema stays optional either way) and keeps
 			// this walker honest about every way a field can become blocking.
-			if (f.required || f.requiredIfAbsent) fillFieldMinimal(f);
+			// The descriptor refetch is waited on for the FIRST fill of the client field only: that is
+			// the one that changes its value (empty -> a client) and therefore the only one that
+			// actually issues the request. A later pass over a still-mounted field re-picks the SAME
+			// option, changes nothing, and issues nothing — waiting there would hang on a request
+			// that is never made.
+			if (f.required || f.requiredIfAbsent) {
+				const drivesRefetch = f.key === clientKey && !filled.has(f.key);
+				filled.add(f.key);
+				fillFieldMinimal(f, drivesRefetch);
+			}
 		}
 		cy.get("body").then(($after) => {
 			if ($after.find('[data-cy="document-create-dialog-continue"]').length > 0) {
 				cy.continueDocumentWizard();
-				walkWizardCheckingFields(fields, seen, guard + 1);
+				walkWizardCheckingFields(fields, seen, guard + 1, filled);
 			}
 		});
 	});
@@ -230,19 +275,24 @@ function walkWizardCheckingFields(fields: Field[], seen: Set<string>, guard = 0)
  * see stepped-dialog.tsx: everywhere earlier, the primary button reads "Continue"), filling
  * whatever's required along the way with the same minimal, disabled-aware values.
  */
-function advanceWizardToLastStep(fields: Field[], guard = 0) {
+function advanceWizardToLastStep(fields: Field[], guard = 0, filled = new Set<string>()) {
 	if (guard > 6) return;
+	const clientKey = clientDrivingFieldKey(fields);
 	cy.get("body").then(($body) => {
 		for (const f of fields) {
 			// Same "requiredIfAbsent also blocks Continue" reasoning as `walkWizardCheckingFields`'s
 			// own comment above — filling it unconditionally is always valid.
 			if (!f.required && !f.requiredIfAbsent) continue;
-			if ($body.find(`[data-cy="document-field-${f.key}"]`).length > 0) fillFieldMinimal(f);
+			if ($body.find(`[data-cy="document-field-${f.key}"]`).length === 0) continue;
+			// Same first-fill-only rule as the walker above, for the same reason.
+			const drivesRefetch = f.key === clientKey && !filled.has(f.key);
+			filled.add(f.key);
+			fillFieldMinimal(f, drivesRefetch);
 		}
 		cy.get("body").then(($after) => {
 			if ($after.find('[data-cy="document-create-dialog-continue"]').length > 0) {
 				cy.continueDocumentWizard();
-				advanceWizardToLastStep(fields, guard + 1);
+				advanceWizardToLastStep(fields, guard + 1, filled);
 			}
 		});
 	});

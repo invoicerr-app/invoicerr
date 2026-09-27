@@ -62,6 +62,7 @@ export default function DocumentTypePage() {
   const clientId = searchParams.get("clientId") ?? undefined
   const dateFrom = searchParams.get("dateFrom") ?? undefined
   const dateTo = searchParams.get("dateTo") ?? undefined
+  const settlement = (searchParams.get("settlement") as "unsettled" | "overdue" | null) ?? undefined
   const q = searchParams.get("q") ?? undefined
   const sort = (searchParams.get("sort") as SortKey | null) ?? "updated-desc"
 
@@ -136,6 +137,7 @@ export default function DocumentTypePage() {
     clientId,
     dateFrom,
     dateTo,
+    settlement,
     q,
     sort: sortField,
     order,
@@ -241,6 +243,8 @@ export default function DocumentTypePage() {
         dateFrom={dateFrom}
         dateTo={dateTo}
         onDateRangeChange={(range) => applyParams({ dateFrom: range.dateFrom, dateTo: range.dateTo })}
+        settlement={settlement}
+        onSettlementChange={() => applyParams({ settlement: undefined })}
         sort={sort}
         onSortChange={(value) => applyParams({ sort: value === "updated-desc" ? undefined : value })}
         onClearFilters={() =>
@@ -250,6 +254,7 @@ export default function DocumentTypePage() {
             clientId: undefined,
             dateFrom: undefined,
             dateTo: undefined,
+            settlement: undefined,
           })
         }
       />

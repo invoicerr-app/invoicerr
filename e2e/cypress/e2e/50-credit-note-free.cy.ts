@@ -183,23 +183,31 @@ describe("Free credit note (API) — the country gate: Poland has no separate cr
 		cy.login();
 	});
 
-	it("is BLOCKED for a Polish seller, naming the country and the catalog's own citation — never a silent accept", () => {
+	it("is BLOCKED for a Polish seller, naming the country and pointing to the corrective invoice - never a silent accept", () => {
 		cy.request({
 			method: "POST",
 			url: `${api}/api/documents/types/credit-note/actions/save-draft`,
 			body: { data: freeCreditNoteData() },
 			failOnStatusCode: false,
 		}).then((res) => {
+			// 403 - country-policy/data/pl.json's own `allowed: false` rule
+			// (documents.service.ts#resolveActionPolicy) refuses this BEFORE any handler runs.
 			expect(res.status, "la Pologne n'a pas d'instrument avoir séparé").to.eq(
-				400,
+				403,
 			);
-			expect(JSON.stringify(res.body)).to.match(
-				/PL requires this credit note to reference/,
-			);
+			expect(String(res.body?.message)).to.match(/forbidden for "PL"/);
+			expect(String(res.body?.message)).to.match(/korygując/i);
+			// The pointer to what to do instead - documents.service.ts's own
+			// `appendCorrectiveInvoiceGuidance`, orchestrator follow-up.
+			expect(String(res.body?.message)).to.match(/corrective invoice/i);
 		});
 	});
 
-	it("does NOT block a LINKED credit note for the same Polish seller — the gate only ever looks at FREE ones", () => {
+	// PR #473 review point 2 (owner decision, reversing the earlier behaviour this test used to pin -
+	// see credit-note-actions.ts's own `assertCreditNoteAllowedForCountry` header for the full "why"):
+	// a LINKED credit note is now ALSO refused for a Polish seller, not only the free shape. The
+	// faktura korygująca (already implemented as a KOR invoice) is the only corrective instrument.
+	it("ALSO blocks a LINKED credit note for the same Polish seller - not only the free shape", () => {
 		createClient("Klient Powiązany Sp. z o.o.").then((clientId) => {
 			cy.request({
 				method: "POST",
@@ -224,6 +232,7 @@ describe("Free credit note (API) — the country gate: Poland has no separate cr
 			}).then((invoiceRes) => {
 				expect(invoiceRes.status).to.be.oneOf([200, 201]);
 				const invoiceId = invoiceRes.body?.document?.id as string;
+				const lines = invoiceRes.body?.document?.data?.lines as { __rowId?: string }[];
 
 				cy.request({
 					method: "POST",
@@ -233,22 +242,17 @@ describe("Free credit note (API) — the country gate: Poland has no separate cr
 							invoice: invoiceId,
 							issueDate: "2026-09-10",
 							currency: "EUR",
-							correctedLines: [],
+							correctedLines: lines?.[0]?.__rowId ? [lines[0].__rowId] : [],
 						},
 					},
 					failOnStatusCode: false,
 				}).then((res) => {
-					// Still refused — but for the ORDINARY "needs at least one corrected line" reason
-					// (correctedLines is empty here), never the country gate: the 400 message must NOT
-					// mention Poland/the country at all, proving the gate itself let this linked attempt
-					// through before the generic "at least one" check took over.
-					expect(res.status).to.eq(400);
-					expect(JSON.stringify(res.body)).to.match(
-						/at least one corrected line/i,
-					);
-					expect(JSON.stringify(res.body)).to.not.match(
-						/PL requires this credit note/,
-					);
+					// Refused by the COUNTRY GATE now, not merely a shape/currency guard - the message
+					// names Poland and the corrective invoice, exactly like the free shape above.
+					expect(res.status).to.eq(403);
+					expect(String(res.body?.message)).to.match(/forbidden for "PL"/);
+					expect(String(res.body?.message)).to.match(/korygując/i);
+					expect(String(res.body?.message)).to.match(/corrective invoice/i);
 				});
 			});
 		});

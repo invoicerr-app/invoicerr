@@ -5,6 +5,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -23,11 +24,19 @@ import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
+import { ReceivedInvoiceOcrResult } from '../queue/received-invoice-ocr.dispatcher';
 import { DEFAULT_TOLERANCE_PERCENT, ReconciliationService } from '../reconciliation/reconciliation.service';
 import { ReconciliationSettings } from '../reconciliation/reconciliation-settings';
 import { ReceivedInvoiceReconciliationResult } from '../reconciliation/resolve-received-invoice-reconciliation';
 import { ReceivedInvoicesService, UploadReceivedInvoicePreview } from './received-invoices.service';
 import { MAX_RECEIVED_INVOICE_BYTES } from './upload-validation';
+
+/** What `fileRef` route params in this controller must look like — `computeArtifactHash`'s own SHA-256
+ *  hex output (`archive/hashing.ts`), the exact same pattern `storage.ts#assertValidContentHash`
+ *  enforces before it ever becomes a filesystem path/S3 key. Checked HERE, at the HTTP boundary,
+ *  before a malformed value ever reaches `ReceivedInvoiceOcrDispatcher`/BullMQ — a 400, never a
+ *  confusing 404 for "this isn't shaped like a fileRef at all". */
+const FILE_REF_PATTERN = /^[0-9a-f]{64}$/;
 
 /**
  * Two bespoke routes — everything else about "received-invoice" (listing,
@@ -107,6 +116,48 @@ export class ReceivedInvoicesController {
       throw new BadRequestException('tolerancePercent is required and must be a number.');
     }
     return this.reconciliation.setSettings(companyId, body.tolerancePercent);
+  }
+
+  /**
+   * GET /api/documents/received-invoices/upload/:fileRef/ocr — polled by the upload dialog while an
+   * OCR job `upload()` just enqueued (`ocr: { outcome: 'pending' }`) is still running. Declared BEFORE
+   * `:id/reconciliation`/`:id/file` below, and before every other `:id`-shaped GET route in this
+   * controller, so a `fileRef` segment here is never at risk of being shadowed by an `:id` route
+   * matching the same position — the same defensive ordering `reconciliation-settings` above already
+   * follows for the identical reason, even though the two never actually collide (different segment
+   * counts). Tenant isolation is enforced by `ReceivedInvoiceOcrDispatcher` itself, not by this route:
+   * its own job id embeds `companyId` (`queue/received-invoice-ocr.dispatcher.ts`), so a company can
+   * never read another's result even by guessing a real `fileRef`.
+   */
+  @Get('upload/:fileRef/ocr')
+  @RequiresScope('received-invoices:read')
+  @ApiOperation({ summary: 'Poll the asynchronous OCR result for a pending upload' })
+  @ApiParam({
+    name: 'fileRef',
+    type: String,
+    description: 'The 64-character lowercase-hex SHA-256 from the upload response',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '{ status: "pending" } while running, or { status: "done", extraction, supplierMatch, ocr }',
+  })
+  @ApiResponse({ status: 400, description: 'fileRef is not a 64-character lowercase hex SHA-256' })
+  @ApiResponse({
+    status: 404,
+    description: 'No OCR job exists for this company/fileRef — expired or never enqueued',
+  })
+  async getUploadOcrStatus(
+    @ActiveCompany() companyId: string,
+    @Param('fileRef') fileRef: string,
+  ): Promise<ReceivedInvoiceOcrResult> {
+    if (!FILE_REF_PATTERN.test(fileRef)) {
+      throw new BadRequestException('fileRef must be a 64-character lowercase hex SHA-256.');
+    }
+    const result = await this.receivedInvoices.getOcrStatus(companyId, fileRef);
+    if (!result) {
+      throw new NotFoundException(`No OCR job found for fileRef "${fileRef}".`);
+    }
+    return result;
   }
 
   /**

@@ -1,4 +1,4 @@
-import { useApiMutation } from "@/hooks/use-api-query"
+import { ApiError, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 
 /**
  * Invoice reception — the ONE bespoke endpoint this type needs beyond the
@@ -31,12 +31,21 @@ export type SupplierMatchResult =
  * screen only ever needs ONE honest "no OCR here, fill in by hand" message either way (see
  * `custom/received-invoice-upload-button.tsx`'s own header for why the two are never distinguished
  * on screen).
+ *
+ * `pending` is the fifth, ASYNC variant: OCR now runs as a background job rather than inside the
+ * upload request itself (the request used to take up to 60s under load — see this repo's own
+ * history). When the upload answers `pending`, the upload response's own `extraction`/`supplierMatch`
+ * are both EMPTY placeholders (`{ syntax: null, fields: {} }` / `{ outcome: "unmatched", reason:
+ * "no-criteria" }`) — nothing to show for either yet — and the real result is fetched separately via
+ * `useReceivedInvoiceOcrResult` below. `pending` is impossible when OCR isn't configured on this
+ * instance at all: that path still answers synchronously, exactly as before (`unavailable`).
  */
 export type OcrOutcome =
   | { outcome: "not-attempted" }
   | { outcome: "unavailable" }
   | { outcome: "extracted"; extractorId: string }
   | { outcome: "failed"; extractorId: string; message: string }
+  | { outcome: "pending" }
 
 /** Mirrors the backend's `UploadReceivedInvoicePreview` (received-invoices.service.ts). Never a
  *  persisted document — see that file's own header: this is a PREVIEW the upload dialog feeds
@@ -66,5 +75,53 @@ export function useUploadReceivedInvoice() {
   return useApiMutation<FormData, UploadReceivedInvoicePreview>(
     "POST",
     "/api/documents/received-invoices/upload",
+  )
+}
+
+/** The result of the background OCR job an `outcome: "pending"` upload started — `GET
+ *  /api/documents/received-invoices/upload/:fileRef/ocr`. Once `status` is `"done"`,
+ *  `extraction`/`supplierMatch`/`ocr` carry the EXACT same shape and meaning as the synchronous
+ *  upload response's own three fields (`UploadReceivedInvoicePreview` above) — `ocr` is then never
+ *  `"pending"` again, the job having already finished. */
+export type ReceivedInvoiceOcrResult =
+  | { status: "pending" }
+  | {
+      status: "done"
+      extraction: { syntax: string | null; fields: Record<string, unknown> }
+      supplierMatch: SupplierMatchResult
+      ocr: OcrOutcome
+    }
+
+const OCR_POLL_INTERVAL_MS = 1_500
+
+/**
+ * Polls the background OCR job for a `fileRef` an `outcome: "pending"` upload started
+ * (`custom/received-invoice-upload-button.tsx`) — every `OCR_POLL_INTERVAL_MS` while the job is
+ * still running, stopping the instant it reports `"done"` (no more requests once `data.status` isn't
+ * `"pending"` any more — see `refetchInterval` below). `enabled: false` while `fileRef` is `null`: the
+ * caller passes `null` once there's nothing left to wait for (the review dialog closed, or the record
+ * was saved before the job finished — the BACKEND fills the saved record's own empty fields in that
+ * case and publishes a document event, so this screen has nothing further to do but stop asking).
+ *
+ * A 404 means the job is unknown or has expired server-side — a TERMINAL state, not a transient
+ * failure: retrying it can only ever 404 again, so it's excluded from the app-wide retry policy the
+ * same way `lib/query-client.ts` already excludes a 401. The caller reads `isError`/`error` to drop
+ * its own "reading…" state the moment this happens (see the upload button's own effect).
+ */
+export function useReceivedInvoiceOcrResult(fileRef: string | null) {
+  return useApiQuery<ReceivedInvoiceOcrResult>(
+    ["received-invoices", "upload-ocr", fileRef],
+    `/api/documents/received-invoices/upload/${fileRef}/ocr`,
+    {
+      enabled: fileRef !== null,
+      refetchInterval: (query) => {
+        const data = query.state.data
+        return data?.status === "pending" ? OCR_POLL_INTERVAL_MS : false
+      },
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError && error.status === 404) return false
+        return failureCount < 2
+      },
+    },
   )
 }

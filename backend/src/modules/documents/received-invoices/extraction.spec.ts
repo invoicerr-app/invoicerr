@@ -275,11 +275,25 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
     // from the box, not a regression. What we actually want to assert never changes with the runner's
     // speed: growing the ADVERSARIAL input by `factor` should grow the time by roughly `factor` (linear
     // scan cost), never by roughly `factor²` (the old regex's own re-scan-from-every-open-tag
-    // behaviour). So every test below times the SAME operation at two input sizes and checks the RATIO
+    // behaviour). So the test below times the SAME operation at two input sizes and checks the RATIO
     // instead of either raw number. `factor * 3` is deliberately generous — linear work lands near
     // `factor`×, real quadratic work lands near `factor²`× (16× at factor=4), so 12× catches the
     // regression with slack to spare for scheduler jitter — and `absoluteCapMs` stays only as a filet
     // against a genuinely hung process, wide enough to never fire from ordinary CI slowness.
+    //
+    // A RATIO IS ONLY A MEASUREMENT WHEN BOTH SIDES ARE MEASURABLE. This helper used to serve three
+    // tests, and the two that have since been rewritten below (the billion-laughs one and the size
+    // bound) both timed operations that finish in a fraction of a millisecond: measured on an idle
+    // box, 0.22ms and 0.16ms for the two billion-laughs documents. `Math.max(elapsedSmall, 1)` then
+    // floors the denominator to 1 and the "ratio" degenerates into the raw duration of the larger
+    // run, so a single garbage collection pause decides the outcome. It did, twice in a row, on a
+    // branch that changed nothing but Markdown (CI on PR #441: 3.5259509999959846 and then
+    // 3.0397850000008475, both against a bound of 3). Neither of those two properties actually needs
+    // a stopwatch, and both now assert a deterministic fact instead. The one caller left is the
+    // quadratic-backtracking test, which has no equivalent: linear and quadratic scans of the same
+    // malformed document return the SAME empty extraction, so growth over time is the only place the
+    // difference shows. Its own measurements are 4ms and 18ms on that same idle box, an order of
+    // magnitude clear of the floor.
     function assertGrowthAtMostLinear(elapsedSmall: number, elapsedLarge: number, factor: number) {
       const absoluteCapMs = 2000;
       expect(elapsedLarge).toBeLessThan(absoluteCapMs);
@@ -371,87 +385,108 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       expect(result).toEqual({ syntax: null, fields: {} });
     });
 
-    it('a billion-laughs entity blowup is refused fast, never expanded', async () => {
-      // Each level fans out ×10 off the previous one — level 4 alone is already `lol` × 1 000; a real
-      // parser expansion would blow that up to `lol` × 10⁸ by level 9. Building both from one generator
-      // and comparing their elapsed time (rather than asserting either against a raw ms figure) is what
-      // actually proves "never expanded": a real expansion would turn this 10⁵× jump in the entity
-      // count into a comparably enormous jump in wall time, while "reported as a parse error and never
-      // touched again" — the actual behaviour — costs about the same either way, whatever a shared
-      // runner's own absolute speed happens to be that day.
-      const buildBillionLaughs = (levels: number) => {
+    it('a billion-laughs entity blowup is refused, never expanded', async () => {
+      // "Never expanded" is a property of the OUTPUT, not of the clock. Same underlying reason as
+      // the XXE test above: `@xmldom/xmldom` expands no custom entity at all (the five predefined
+      // ones plus numeric character references, nothing else, see this file's own header), so an
+      // exponentially-nested one never multiplies out in memory; it is reported as an "entity not
+      // found" parse error, same as any other malformed document.
+      //
+      // That is what the three steps below assert, and none of them needs a stopwatch:
+      //  1. CONTROL. The same document with the supplier name written out extracts it normally. Any
+      //     empty result further down is therefore the entity being refused, never an unreadable
+      //     fixture quietly passing a test that no longer checks anything.
+      //  2. ONE custom entity, the single level a billion-laughs bomb is built out of. A parser that
+      //     resolved custom entities would hand back `supplier: 'Boulangerie Dupont'` here, and it
+      //     would do so whatever expansion limit it enforces, because one level is under every
+      //     limit there is. This is the assertion that actually guards the property.
+      //  3. NINE nested levels, declaring 10^8 occurrences of `lol` (roughly 300MB of text) out of a
+      //     document under a kilobyte, behaving exactly like step 2 and leaking nothing.
+      //
+      // The previous version of this test compared the elapsed time of steps 2 and 3, which is what
+      // made it flaky: both runs finish in a fraction of a millisecond, the shared helper above
+      // floors the denominator at 1ms, and the ratio becomes the raw duration of the second run. See
+      // that helper's own comment for the two CI failures this cost.
+      const buildCii = (supplierName: string, internalSubset = '') =>
+        `<?xml version="1.0"?>
+${internalSubset}<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">
+  <rsm:SupplyChainTradeTransaction>
+    <SellerTradeParty><Name>${supplierName}</Name></SellerTradeParty>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>`;
+
+      /** Level 1 is the literal `lol`; every level after it references the previous one ten times. */
+      const billionLaughsSubset = (levels: number) => {
         const decls = ['<!ENTITY lol "lol">'];
         for (let level = 2; level <= levels; level++) {
           const prevRef = `&${level === 2 ? 'lol' : `lol${level - 1}`};`;
           decls.push(`<!ENTITY lol${level} "${prevRef.repeat(10)}">`);
         }
-        return `<?xml version="1.0"?>
-<!DOCTYPE lolz [
-${decls.join('\n')}
-]>
-<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">
-  <rsm:SupplyChainTradeTransaction>
-    <SellerTradeParty><Name>&lol${levels};</Name></SellerTradeParty>
-  </rsm:SupplyChainTradeTransaction>
-</rsm:CrossIndustryInvoice>`;
+        return `<!DOCTYPE lolz [\n${decls.join('\n')}\n]>\n`;
       };
 
-      const start1 = performance.now();
-      const resultSmall = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(buildBillionLaughs(4)),
-        'application/xml',
-        'lol.xml',
-      );
-      const elapsedSmall = performance.now() - start1;
+      const extract = (xml: string) =>
+        extractReceivedInvoiceFields(new TextEncoder().encode(xml), 'application/xml', 'lol.xml');
 
-      const start2 = performance.now();
-      const resultLarge = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(buildBillionLaughs(9)),
-        'application/xml',
-        'lol.xml',
-      );
-      const elapsedLarge = performance.now() - start2;
+      // 1. Control.
+      expect(await extract(buildCii('Boulangerie Dupont'))).toEqual({
+        syntax: 'CII',
+        fields: { supplier: 'Boulangerie Dupont' },
+      });
 
-      // Same underlying reason as the XXE test above: `@xmldom/xmldom` does not expand ANY custom
-      // entity (predefined + numeric references only — see this file's own header), so an
-      // exponentially-nested one never actually multiplies out in memory; it is reported as an
-      // "entity not found" parse error instead, same as any other malformed document. `factor: 1` below
-      // asserts near-flat growth — anything but flat here would mean expansion is actually happening.
-      assertGrowthAtMostLinear(elapsedSmall, elapsedLarge, 1);
-      expect(resultSmall).toEqual({ syntax: null, fields: {} });
+      // 2. One custom entity, declared in the document's own internal DTD subset.
+      const oneLevel = buildCii(
+        '&supplierName;',
+        '<!DOCTYPE lolz [\n<!ENTITY supplierName "Boulangerie Dupont">\n]>\n',
+      );
+      expect(await extract(oneLevel)).toEqual({ syntax: null, fields: {} });
+
+      // 3. Nine levels. Under MAX_XML_INPUT_BYTES (5MB) by four orders of magnitude, so the size
+      //    bound cannot be what refuses this one: the refusal comes from the parser itself.
+      const LEVELS = 9;
+      const bomb = buildCii(`&lol${LEVELS};`, billionLaughsSubset(LEVELS));
+      expect(Buffer.byteLength(bomb, 'utf-8')).toBeLessThan(2_000);
+
+      const resultLarge = await extract(bomb);
       expect(resultLarge).toEqual({ syntax: null, fields: {} });
+      // Not one level of what the DOCTYPE declared reached the output.
+      expect(JSON.stringify(resultLarge)).not.toContain('lol');
     });
 
-    it('a deposit far over the size bound is refused before it reaches the parser at all', async () => {
-      const buildOversized = (megabytes: number) =>
-        '<?xml version="1.0"?><rsm:CrossIndustryInvoice ' +
-        'xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">' +
-        'a'.repeat(megabytes * 1024 * 1024) +
-        '</rsm:CrossIndustryInvoice>';
+    it('a deposit over the size bound is refused on its size alone, however readable it is', async () => {
+      // `MAX_XML_INPUT_BYTES` is 5MB (extraction.ts). What proves the bound is enforced is not how
+      // fast an oversized deposit comes back: it is that a deposit this module reads PERFECTLY, and
+      // demonstrably does read perfectly four lines below, stops being read at all once padding
+      // pushes it over. The two documents differ in nothing but the length of an XML comment, so the
+      // size is the only variable between a full extraction and an empty one. Raising or dropping
+      // the bound turns the second assertion into the supplier name the first one already returned.
+      //
+      // The pair this test used to compare was two documents BOTH over the bound, timed, on the
+      // theory that quadrupling the size must not quadruple the rejection cost. That measured 1.6ms
+      // against 19.2ms on an idle box, a ratio of 12 against a bound of 12, so it was one scheduler
+      // hiccup away from the same failure the billion-laughs test above was already producing.
+      const paddedCii = (padBytes: number) =>
+        `<?xml version="1.0"?><rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">` +
+        `<rsm:SupplyChainTradeTransaction><SellerTradeParty><Name>Boulangerie Dupont</Name></SellerTradeParty>` +
+        `</rsm:SupplyChainTradeTransaction><!--${'x'.repeat(padBytes)}--></rsm:CrossIndustryInvoice>`;
 
-      const start1 = performance.now();
-      const resultSmall = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(buildOversized(6)),
+      const underBound = paddedCii(4 * 1024 * 1024);
+      expect(Buffer.byteLength(underBound, 'utf-8')).toBeLessThan(5 * 1024 * 1024);
+      const resultUnderBound = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(underBound),
         'application/xml',
         'huge.xml',
       );
-      const elapsedSmall = performance.now() - start1;
+      expect(resultUnderBound).toEqual({ syntax: 'CII', fields: { supplier: 'Boulangerie Dupont' } });
 
-      const start2 = performance.now();
-      const resultLarge = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(buildOversized(24)),
+      const overBound = paddedCii(6 * 1024 * 1024);
+      expect(Buffer.byteLength(overBound, 'utf-8')).toBeGreaterThan(5 * 1024 * 1024);
+      const resultOverBound = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(overBound),
         'application/xml',
         'huge.xml',
       );
-      const elapsedLarge = performance.now() - start2;
-
-      // Both are already over `MAX_XML_INPUT_BYTES` (5MB) — quadrupling the deposit's own size must
-      // NOT quadruple the rejection cost, which is exactly what "refused before it reaches the parser"
-      // means: only the (linear) byte-length check runs, never the DOM parse a genuine document this
-      // size would otherwise cost.
-      assertGrowthAtMostLinear(elapsedSmall, elapsedLarge, 4);
-      expect(resultSmall).toEqual({ syntax: null, fields: {} });
-      expect(resultLarge).toEqual({ syntax: null, fields: {} });
+      expect(resultOverBound).toEqual({ syntax: null, fields: {} });
     });
   });
 });

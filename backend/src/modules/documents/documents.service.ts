@@ -15,6 +15,7 @@ import { SigningCertificatesService } from '@/modules/company/signing-certificat
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
+import { computeQuoteOptionTotals, isQuoteWithOptions, rejectStrayOptionTag } from './options/quote-options';
 import {
   APPROVAL_REQUIRED_MESSAGE,
   requiresApproval,
@@ -26,7 +27,9 @@ import {
   ArchiveVerificationResult,
   DocumentArchiveResult,
   findArchivedPdfArtifact,
+  findManualAcceptanceArchive,
   listDocumentArchives,
+  ManualAcceptanceManifest,
   verifyDocumentArchive,
 } from './archive/persistence';
 import {
@@ -78,6 +81,7 @@ import { CountryFieldOverlayCatalog } from './country-fields/registry';
 import { applyCompanyFieldView } from './descriptors/company-view';
 import { FieldKindRegistry } from './descriptors/field-kinds';
 import {
+  allowedFromStatuses as computeAllowedFromStatuses,
   checkTransitionResult,
   findUndeclaredStatusInstances,
   validateLifecycle,
@@ -90,7 +94,8 @@ import {
   isActionAvailable,
   WidgetLocation,
 } from './descriptors/types';
-import { stripSidecarKeys, validateAgainstDescriptor } from './descriptors/validate';
+import { dropEmptyRows, stripSidecarKeys, validateAgainstDescriptor } from './descriptors/validate';
+import { DashboardPeriod } from './dto/dashboard-query.dto';
 import { RunActionDto } from './dto/documents.dto';
 import { FormatProviderRegistry, UnknownFormatError } from './formats/format-registry';
 import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
@@ -98,9 +103,15 @@ import { companyToFormatParty, clientToFormatParty } from './formats/party-snaps
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
 import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
 import { resolveClientFieldKey, resolveDateFieldKey, resolveSearchTextFieldKeys } from './list-filters';
+import { isNumberingAllowedFrom } from './numbering/only-from';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
-import { findOwnedDocument, listDocumentsPage, ListDocumentsPageResult } from './persistence';
-import { applyStockOnIssuance } from './stock/apply-stock-on-issuance';
+import {
+  findOwnedDocument,
+  listAllDocuments,
+  listDocumentsPage,
+  ListDocumentsPageResult,
+} from './persistence';
+import { applyStockOnIssuance, declaresArticleReference } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
 import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
@@ -110,6 +121,7 @@ import {
   toSettlementCreditInputs,
 } from './settlement/credits';
 import { DocumentPaymentResult, listPayments, toSettlementPaymentInputs } from './settlement/payments';
+import { filterUnsettledInvoices, isOverdueInvoice } from './settlement/unsettled-invoices';
 import {
   EntityReferenceOption,
   EntityReferenceRegistry,
@@ -463,13 +475,24 @@ export class DocumentsService implements OnModuleInit {
    * country-action policy: a widget is an aggregate view, not an operation a country can forbid —
    * see country-policy/country-policy.ts's own header for the (separate) mechanism that DOES gate
    * actions.
+   *
+   * `period` (issue #418) is only ever set by the controller for the "dashboard" location (the
+   * statistics screen has no period selector) and is `undefined` by default - every contribution's
+   * own "no period -> exactly today's behavior" guarantee (see contributions/invoice-contributions.ts
+   * and friends) is what makes threading it through here safe for every EXISTING caller of this
+   * method (the statistics controller route, any future one) without touching them at all.
    */
-  async collectWidgets(companyId: string, location: WidgetLocation): Promise<Widget[]> {
+  async collectWidgets(
+    companyId: string,
+    location: WidgetLocation,
+    period?: DashboardPeriod,
+  ): Promise<Widget[]> {
     const widgets = await collectWidgets({
       companyId,
       location,
       typeRegistry: this.typeRegistry,
       contributionRegistry: this.contributionRegistry,
+      period,
     });
 
     // "Upcoming recurrences" — ADDED alongside every existing widget
@@ -480,7 +503,7 @@ export class DocumentsService implements OnModuleInit {
     if (location === 'dashboard') {
       const schedules = await listSchedules(companyId);
       const typeLabels = Object.fromEntries(this.typeRegistry.list().map((d) => [d.id, d.label]));
-      widgets.push(buildUpcomingSchedulesWidget(schedules, typeLabels));
+      widgets.push(buildUpcomingSchedulesWidget(schedules, typeLabels, period));
     }
 
     return widgets;
@@ -548,9 +571,9 @@ export class DocumentsService implements OnModuleInit {
 
   /**
    * The descriptor a FRONTEND actually renders — `getType` above, but with:
-   *  - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
+   * - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
    *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
-   *  - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
+   * - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
    *    layered on the result of the one before it:
    *     1. `descriptors/company-view.ts#applyCompanyFieldView` — the country field overlay
    *        (add/modify/remove — country-fields/) and the VAT rate catalog (vat-rates/) filling in a
@@ -613,6 +636,41 @@ export class DocumentsService implements OnModuleInit {
    * own per-country whitelist, cross-checked against the loaded route's own status, can. See
    * `cancel-policy.ts`'s own header for the full per-country reasoning.
    */
+  /**
+   * PR #473 review point 2 (orchestrator follow-up): a REFUSED credit-note decision (either
+   * `save-draft` or `send`) only ever quotes the LAW (country-policy/data/pl.json's own art. 106j
+   * ust. 2 pkt 2 citation) - it never says what to do INSTEAD. This appends that pointer, generically,
+   * whenever the refusal is genuinely the "no credit note instrument at all" one: the seller's own
+   * `correction-routes` CREDIT_NOTE route is itself `'forbidden'` - the SAME fact
+   * `credit-note-actions.ts#assertCreditNoteAllowedForCountry` reads for its own belt-and-braces
+   * refusal, never a second, PL-specific string here. Never branches on a country id - a future
+   * country whose own correction-routes file reaches the same conclusion gets the same pointer for
+   * free. Shared between `resolveActionPolicy` (the actual "send"/"save-draft" 403) and
+   * `describeTypeForCompany` (the screen's own `policyBlockedReason`) so the API and the screen never
+   * say two different things about the same refusal - the same "never drift apart" discipline this
+   * class's own header already holds for country policy and status.
+   *
+   * `resolveCorrectionRoutesForCountry` reads the in-memory catalog (no extra query) - `countryCode`
+   * is the only thing either caller has to resolve first, and both already do, for their own reasons.
+   */
+  private appendCorrectiveInvoiceGuidance(
+    typeId: string,
+    decision: CountryPolicyDecision,
+    countryCode: string | undefined,
+  ): CountryPolicyDecision {
+    if (decision.allowed || typeId !== 'credit-note' || !countryCode || !decision.reason) return decision;
+    const creditNoteRoute = resolveCorrectionRoutesForCountry(countryCode)?.routes.find(
+      (route) => route.routeId === 'CREDIT_NOTE',
+    );
+    if (creditNoteRoute?.status !== 'forbidden') return decision;
+    return {
+      ...decision,
+      reason:
+        `${decision.reason} Use a corrective invoice instead: create an invoice with "Corrects ` +
+        'invoice" set to the invoice being corrected (FA(3) KOR).',
+    };
+  }
+
   private async resolveActionPolicy(
     companyId: string,
     typeId: string,
@@ -622,7 +680,12 @@ export class DocumentsService implements OnModuleInit {
       const countryCode = await resolveCompanyCountryCode(companyId);
       return resolveCancelPolicyForCountry(countryCode);
     }
-    return evaluateCountryPolicy(companyId, typeId, actionId);
+    const decision = await evaluateCountryPolicy(companyId, typeId, actionId);
+    if (typeId === 'credit-note' && !decision.allowed) {
+      const countryCode = await resolveCompanyCountryCode(companyId);
+      return this.appendCorrectiveInvoiceGuidance(typeId, decision, countryCode);
+    }
+    return decision;
   }
 
   async describeTypeForCompany(
@@ -678,7 +741,7 @@ export class DocumentsService implements OnModuleInit {
       ...descriptor,
       fields,
       actions: descriptor.actions.map((action, index) => {
-        const decision = decisions[index];
+        const decision = this.appendCorrectiveInvoiceGuidance(typeId, decisions[index], countryCode);
         if (!decision.allowed) return { ...action, policyBlockedReason: decision.reason };
         // The country policy allows the action but narrows it to specific statuses (schema.ts's
         // `DocumentActionRuleFact.statuses`) — carried as its OWN field, `policyRestrictedToStatuses`,
@@ -845,7 +908,10 @@ export class DocumentsService implements OnModuleInit {
    * declare, so ALL FOUR require `typeId` (refused with a named 400 otherwise, never silently
    * ignored) and any one of them naming a field the type doesn't have is its own named 400 too —
    * "0 results" would look identical to "this filter matched nothing" and a caller could never tell
-   * the two apart.
+   * the two apart. `settlement` gets the SAME "requires typeId" treatment, but narrower still: it
+   * only ever means something for "invoice" (`settlement/unsettled-invoices.ts` is invoice-specific,
+   * same "this file already names its type" reasoning as `credits.ts`'s own), so any OTHER typeId
+   * (including none at all) is refused too, rather than silently matching nothing.
    */
   async listDocuments(
     companyId: string,
@@ -857,6 +923,9 @@ export class DocumentsService implements OnModuleInit {
       throw new BadRequestException(
         "clientId/dateFrom/dateTo/q each read one document type's own descriptor — pass typeId.",
       );
+    }
+    if (query.settlement && typeId !== 'invoice') {
+      throw new BadRequestException('"settlement" is only valid when typeId is "invoice".');
     }
 
     let clientFieldKey: string | undefined;
@@ -882,6 +951,28 @@ export class DocumentsService implements OnModuleInit {
     const searchClientIds =
       query.q && clientFieldKey ? await this.resolveClientIdsMatchingName(companyId, query.q) : undefined;
 
+    // `settlement` cannot be pushed into SQL (the underlying predicate composes payments and credit
+    // notes across documents, see `settlement/unsettled-invoices.ts`'s own header), so it is resolved
+    // to a plain id set here and handed to persistence.ts as an `ids` restriction: the exact same
+    // "resolve outside, restrict by id" shape `searchClientIds` above already uses for a `Client` name
+    // match. Uses the SAME `filterUnsettledInvoices`/`isOverdueInvoice` the "pending"/"overdue"
+    // dashboard tiles call (invoice-contributions.ts), so a tile's own `link` and this filter can never
+    // disagree on which invoices they mean.
+    let settlementIds: string[] | undefined;
+    if (query.settlement) {
+      const invoiceDescriptor = this.mergedDescriptor('invoice');
+      const invoices = await listAllDocuments(companyId, { typeId: 'invoice' });
+      const unsettled = await filterUnsettledInvoices(companyId, invoiceDescriptor, invoices);
+      if (query.settlement === 'unsettled') {
+        settlementIds = unsettled.map((invoice) => invoice.id);
+      } else {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        settlementIds = unsettled
+          .filter((invoice) => isOverdueInvoice(invoice, todayIso))
+          .map((invoice) => invoice.id);
+      }
+    }
+
     return listDocumentsPage(companyId, {
       typeId,
       page: query.page,
@@ -897,6 +988,7 @@ export class DocumentsService implements OnModuleInit {
       q: query.q,
       searchTextFieldKeys,
       searchClientIds,
+      ids: settlementIds,
     });
   }
 
@@ -952,15 +1044,15 @@ export class DocumentsService implements OnModuleInit {
   /**
    * Runs one declared action of one document type. Every way this can fail is deliberate and
    * distinct, so the caller (and the frontend) never has to guess which one happened:
-   *  - unknown type / action not declared on it (native OR extension) -> 404
-   *  - the active company's country forbids this action, or has no policy at all -> 403, names the
+   * - unknown type / action not declared on it (native OR extension) -> 404
+   * - the active company's country forbids this action, or has no policy at all -> 403, names the
    *    country and says what would unblock it (see country-policy/country-policy.ts)
-   *  - action declared but not available for the record's current status -> 409 (the descriptor's
+   * - action declared but not available for the record's current status -> 409 (the descriptor's
    *    own `availableWhen`, OR the country policy's own per-status narrowing — schema.ts's
    *    `DocumentActionRuleFact.statuses` — refuses it; both land on the same 409, never a second 403)
-   *  - action declared, available, but no implementation registered -> 501, clearly worded
-   *  - document data or the action's own params don't match their descriptors -> 400, per-field
-   *  - a MEMBER running "send" on a document whose gross total exceeds the
+   * - action declared, available, but no implementation registered -> 501, clearly worded
+   * - document data or the action's own params don't match their descriptors -> 400, per-field
+   * - a MEMBER running "send" on a document whose gross total exceeds the
    *    company's configured approval threshold -> 403, see the gate just before `handler` runs below
    *
    * This is the ONLY place an action actually runs — the HTTP controller has no other route that
@@ -1009,8 +1101,31 @@ export class DocumentsService implements OnModuleInit {
     payload: RunActionDto,
     role?: CompanyRole,
     isQueuedReplay = false,
+    // A THIRD, ADDITIVE trailing parameter - `undefined` for every caller that predates it (the
+    // worker's own replay included, `queue/processors/document-action.processor.ts` has no request
+    // user to name), so nothing about the gates above changes for them. `documents.controller.ts`
+    // is the only caller that passes a real value, straight off `@User()` - see ActionContext.actor's
+    // own header (actions/action-registry.ts) for why a handler must never trust a caller-supplied
+    // "who did this" instead.
+    actor?: { id: string; name: string; email: string },
   ): Promise<ActionResult> {
     const { descriptor, action } = this.resolveAction(typeId, actionId);
+
+    // Reviewer finding #1 on the #468 lock (the CAS race): every status THIS action may legitimately
+    // write FROM, for an EXISTING record - the type's own declared `statuses` minus THIS action's own
+    // `lockedStatuses` (descriptors/types.ts). Handed to the handler as `allowedFromStatuses` so a
+    // generic write like "save-draft" (`performSaveDraft`, actions/generic-actions.ts) can pass it
+    // straight through to `upsertDocument`'s own compare-and-swap (persistence.ts) instead of writing
+    // UNCONDITIONALLY. That was the actual bug: `currentStatus` above is read once, several `await`s
+    // before any handler's own write runs, so a "send" (draft -> sending) or an OTP signature (sent ->
+    // signed) landing in that gap left `isActionAvailable` having checked a status the record no
+    // longer has - the write itself must refuse (409), never silently rewrite an issued document that
+    // moved on in between. Undefined when the type declares no `statuses` at all (an extension/plugin
+    // type with no lifecycle) - keeps `upsertDocument`'s previous, unconditional behavior for that
+    // case, exactly as it was before this fix. For a type whose CURRENT action declares no
+    // `lockedStatuses` (every "save-draft" but the invoice's/credit-note's/quote's own), this is simply
+    // every declared status - still a real compare-and-swap, just not a NARROWING one.
+    const allowedFromStatuses = computeAllowedFromStatuses(descriptor, action);
 
     // ONLY ever populated for `isQueuedReplay` — see this method's own header. A default call
     // (`isQueuedReplay: false`, every EXISTING caller) leaves this `undefined`, so `isAdmittedReplay`
@@ -1041,6 +1156,18 @@ export class DocumentsService implements OnModuleInit {
       existingData = (existing.data ?? {}) as Record<string, unknown>;
     }
     if (!isActionAvailable(action, currentStatus)) {
+      // Issue #468: when the refusal comes from `lockedStatuses` (a type-level, country-blind lock -
+
+      // see that field's own comment, types.ts), the message says so explicitly and distinctly from
+      // the generic "not available for this status" 409 below and from country-policy's own
+      // `restrictedToStatuses` 409 further down - a scripted client (and e2e) can then tell WHICH
+      // gate refused it, which is exactly what proves the CODE guard fired, not merely country data.
+      if (currentStatus !== undefined && action.lockedStatuses?.includes(currentStatus)) {
+        throw new ConflictException(
+          `Action "${actionId}" of document type "${typeId}" is refused once the document has left ` +
+            `draft (status "${currentStatus}"): an issued document is never rewritten.`,
+        );
+      }
       throw new ConflictException(
         currentStatus === undefined
           ? `Action "${actionId}" is not available before the document has been saved.`
@@ -1070,6 +1197,53 @@ export class DocumentsService implements OnModuleInit {
         `Action "${actionId}" of document type "${typeId}" is restricted by this company's country ` +
           `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${currentStatus}".`,
       );
+    }
+
+    // Reviewer finding #2 on the #468 lock: a "send" retry of a LOCKED record (today, an invoice or
+    // credit-note stuck at "send_failed" - the one status that survives the type's own "save-draft"
+    // `lockedStatuses` while still being a valid "send" `availableWhen`/`fromStatuses` origin) must
+    // resend EXACTLY what was already stored, never whatever the caller's `data` happens to carry.
+    // The number this record's number FIELD already spent (numbering/sequence.ts's own "never waste a
+    // number") was issued for the STORED content - a form re-submitting `form.getValues()` on retry
+    // (frontend's `use-document-form.ts`) could otherwise silently rewrite a numbered document's lines
+    // after the fact. Decided GENERICALLY, never by naming "invoice"/"credit-note" here: whenever the
+    // record's CURRENT status is one this type's own "save-draft" action locks
+    // (`DocumentActionDescriptor.lockedStatuses`, issue #468), that status is BY DEFINITION "issued,
+    // never rewritten" for this type - "send" is the one OTHER action that can still legitimately run
+    // from it (a retry) and it must honor the exact same rule save-draft already does. A quote is
+    // unaffected: its own "save-draft" lock is `['signed', 'accepted']`, and "send_failed" is not in
+    // it, so a failed quote send keeps carrying whatever the caller just typed, exactly as intended
+    // (see quote.descriptor.ts's own comment on why "sent"/"send_failed" stay editable).
+    //
+    // Deliberately NOT a 409 on a mismatch: `form.getValues()` is not guaranteed to be byte-identical
+    // to the stored JSON (client-side defaults, normalization, a field the screen renders differently
+    // than it was persisted) - refusing on any difference would refuse a legitimate, unmodified retry
+    // as often as it would catch a real edit. The stored content is the one the consumed number was
+    // issued for, so it is simply what runs - `existingData` was already read (a moment ago, from THIS
+    // same row) for `validateReferenceFields` above, so this reuses it rather than a second query.
+    // Replaced on `payload.data` itself, BEFORE the sidecar-strip/dropEmptyRows/validation passes just
+    // below and before the handler's own preflight (tax resolution) ever runs, so every downstream
+    // reader - validation, `resolveInvoiceCrossBorderTaxForCompany`, the "sending" persistence itself -
+    // sees the stored content and nothing the caller just submitted.
+    //
+    // Deliberately EXCLUDES `currentStatus === 'sending'`: that status is already governed end to end
+    // by `actions/async-send.ts`'s own state machine, never by this generic gate. Its own "already
+    // sending" branch never even reads the `data` this method validates just below - it re-fetches
+    // the record itself (`existing.data`, `async-send.ts`'s own `findOwnedDocument` call) and delivers
+    // from THAT, so this method's `payload.data` is inert for that branch regardless of what it holds:
+    // an ADMITTED replay (`isAdmittedReplay`) already skips this whole validation pass, and a
+    // genuinely concurrent second caller landing on "sending" is refused by that file's own in-process/
+    // database claims (see its header, "THE DOUBLE-DELIVERY GUARD") before delivery ever runs. Folding
+    // "sending" into this swap would only risk VALIDATING a swapped-in `existingData` against an
+    // action/type it was never necessarily read for in this shape, for no corresponding safety gain.
+    if (
+      actionId === 'send' &&
+      currentStatus !== undefined &&
+      currentStatus !== 'sending' &&
+      existingData !== undefined &&
+      descriptor.actions.find((a) => a.id === 'save-draft')?.lockedStatuses?.includes(currentStatus)
+    ) {
+      payload.data = existingData;
     }
 
     const handler = this.actionRegistry.resolve(typeId, actionId);
@@ -1143,6 +1317,18 @@ export class DocumentsService implements OnModuleInit {
       payload.data = stripSidecarKeys(fields, payload.data ?? {});
     }
 
+    // Issue #365 ("empty line items should not survive a save") — dropped BEFORE validation, same
+    // gate and same reasoning as the sidecar strip right above (an admitted replay's `payload.data` is
+    // this module's own already-resolved data, already put through this exact pass once at enqueue
+    // time; running it again would be a harmless no-op at best, so it is skipped for the same
+    // "never touch the worker's own replayed data twice" reason). See
+    // `descriptors/validate.ts#dropEmptyRows`'s own header for what "empty" means, field by field, and
+    // why a half-filled row is deliberately left for `validateAgainstDescriptor` below to judge on its
+    // own merits rather than silently discarded here too.
+    if (!(currentStatus === 'sending' && actionId === 'send')) {
+      payload.data = dropEmptyRows(fields, payload.data ?? {});
+    }
+
     // Every one of these four checks re-validates `payload.data`/`payload.params` against the
     // company's CURRENT fields/rows/references — exactly the class of gate `isAdmittedReplay` exists
     // to skip (see this method's own header): for an admitted replay, `payload.data` is this SAME
@@ -1152,6 +1338,11 @@ export class DocumentsService implements OnModuleInit {
     // category this exact record already carries, a required custom field added after the fact) —
     // never on anything about the data itself, which has not changed.
     if (!isAdmittedReplay) {
+      // Issue #373 follow-up (review point #4, "option mode is not restricted to quotes") - the line
+      // validator right below only ever checks fields the descriptor DECLARES, so it would silently
+      // keep an `option` key on a type whose descriptor never declares one. Refused here, loudly,
+      // before that data is ever persisted - see `rejectStrayOptionTag`'s own header.
+      rejectStrayOptionTag(fields, payload.data ?? {});
       const dataErrors = validateAgainstDescriptor(fields, payload.data ?? {}, this.fieldKindRegistry);
       // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares
       // none (the loop inside just finds nothing), never a DB round-trip for the quote or the invoice.
@@ -1230,7 +1421,21 @@ export class DocumentsService implements OnModuleInit {
     // at all) would otherwise pay for no reason.
     if (actionId === 'send' && role === 'MEMBER') {
       const thresholdMinor = await resolveApprovalThresholdMinor(companyId);
-      const { grossMinor } = computeDocumentTotals(descriptor, data);
+      // Issue #373 follow-up: a quote offering 2+ options has no single gross to compare against the
+      // threshold - summing every option together (the pre-fix behavior) is exactly the meaningless
+      // total this whole feature exists to stop printing (see `quote-options.ts`'s own header), and it
+      // is also the WRONG comparison for approval: the client will only ever be billed for ONE option,
+      // so what matters is whether the MOST EXPENSIVE option a MEMBER could send this quote for
+      // exceeds the threshold - never the sum of offers the client was never going to accept all of.
+      // `computeQuoteOptionTotals` already folds every common (untagged) line into each option's own
+      // total, so this is that option's real gross, not just its tagged rows. `isQuoteWithOptions`
+      // guards this: `computeQuoteOptionTotals` always builds a QUOTE descriptor internally, so it
+      // must never be asked to interpret another type's `data` (review point #4 - the SAME predicate
+      // every other option-mode path below now shares, rather than each re-deriving its own check).
+      const optionTotals = isQuoteWithOptions(typeId, data) ? computeQuoteOptionTotals(data) : null;
+      const grossMinor = optionTotals
+        ? Math.max(...optionTotals.map((entry) => entry.totals.grossMinor))
+        : computeDocumentTotals(descriptor, data).grossMinor;
       if (requiresApproval(role, grossMinor, thresholdMinor)) {
         throw new ForbiddenException(APPROVAL_REQUIRED_MESSAGE);
       }
@@ -1242,9 +1447,12 @@ export class DocumentsService implements OnModuleInit {
       documentId: payload.documentId,
       data,
       params: payload.params ?? {},
-      // Already computed above for the availableWhen/country-policy gates — see ActionContext's own
+      // Already computed above for the availableWhen/country-policy gates - see ActionContext's own
       // comment on why this is handed through rather than re-fetched a second time.
       currentStatus,
+      // See this method's own comment on `allowedFromStatuses`, right after `resolveAction` above.
+      allowedFromStatuses,
+      actor,
     });
 
     // See this method's own header comment on `checkTransitionResult` — a handler is no longer free
@@ -1289,12 +1497,20 @@ export class DocumentsService implements OnModuleInit {
     // to reach `onEnterStatus`. Scoped to `result.document` being THIS SAME type (never a foreign
     // record a side-effect action like "convert-to-invoice" created) — the same guard
     // `checkTransitionResult` just above already holds for its own concern.
+    // `isNumberingAllowedFrom` (issue #471) - reads `currentStatus`, the status THIS record actually
+    // held before this action ran (not `descriptor.initialStatus`, which is only ever a brand-new
+    // record's starting point, and not necessarily where this particular record came from): a
+    // credit-note declares `numbering.onlyFrom: ['draft']`, so a legacy record arriving here from
+    // "send_failed" while still unnumbered (issued before this feature existed) is correctly refused a
+    // number - see that predicate's own header, and `numbering.onlyFrom`'s own doc comment
+    // (descriptors/types.ts) for the full "why". Absent for quote/invoice, where it is always `true`.
     const enteringNumberedStatus =
       descriptor.numbering !== undefined &&
       result.document !== undefined &&
       result.document.typeId === typeId &&
       result.document.status === descriptor.numbering.onEnterStatus &&
-      result.document.number == null;
+      result.document.number == null &&
+      isNumberingAllowedFrom(descriptor.numbering, currentStatus);
 
     if (enteringNumberedStatus && result.document) {
       const numbered = await takeDocumentNumberForTransition(companyId, typeId, result.document.id);
@@ -1318,10 +1534,20 @@ export class DocumentsService implements OnModuleInit {
         // so a stock hiccup can never block an otherwise legally-issued document.
         //
         // NOTE: the PRIMARY issuance path (async send) numbers the document in the worker,
-        // `actions/send-document-email.ts` (its OWN `if (numbered)` block) — so a SENT invoice's real
+        // `actions/send-document-email.ts` (its OWN `if (numbered)` block) - so a SENT invoice's real
         // decrement happens THERE, not here. This site covers any OTHER action that numbers a document
         // synchronously through `runAction`.
-        await applyStockOnIssuance(companyId, numberedDocument);
+        //
+        // GATED on `declaresArticleReference(descriptor)` (PR #473 round 3, point 2b): the "reads
+        // data.lines type-agnostically" claim above is about the FORMAT (never a typeId check), not
+        // about running unconditionally - a type whose descriptor declares no article-reference field
+        // on its lines at all (the credit note) must never have this effect applied, whatever its
+        // lines happen to carry (an undeclared key the line validator kept, e.g.). This is the SAME
+        // descriptor already resolved above for `enteringNumberedStatus`/`isNumberingAllowedFrom`,
+        // never a second lookup.
+        if (declaresArticleReference(descriptor)) {
+          await applyStockOnIssuance(companyId, numberedDocument);
+        }
       }
     }
 
@@ -1448,13 +1674,13 @@ export class DocumentsService implements OnModuleInit {
    * Which correction routes this document's own SELLER country declares, and
    * which of them this repo actually implements. Four gates, each distinct and named, the same
    * "a draft with no number refuses, and says so" discipline `downloadDocumentFormat` already holds:
-   *  - unknown typeId at all                     -> 404 (`resolveType`, same as every other endpoint)
-   *  - typeId known but not "invoice"             -> 501 (the correction-routes research this
+   * - unknown typeId at all                     -> 404 (`resolveType`, same as every other endpoint)
+   * - typeId known but not "invoice"             -> 501 (the correction-routes research this
    *    mechanism transcribes only ever covered invoices; V1 does not generalize past that — see
    *    correction-routes/correction-routes.spec.ts for the pinned message)
    *  - the record is still a "draft"              -> 409 (a correction corrects an ISSUED document —
    *    a draft has no number yet, nothing to correct)
-   *  - the seller's country has no correction-routes file at all (unresolved country included) -> 404,
+   * - the seller's country has no correction-routes file at all (unresolved country included) -> 404,
    *    NAMED, never a silent empty list (see `resolveCorrectionRoutesForCountry`'s own header)
    *
    * Ordered cheapest-and-most-structural first: the typeId shape of the request is checked before any
@@ -1627,7 +1853,10 @@ export class DocumentsService implements OnModuleInit {
       // (foreign or nonexistent id) already lands on the exact same "no valid client on file" 400
       // just below that a genuinely absent client already produced — never a silent leak.
       clientId
-        ? prisma.client.findFirst({ where: { id: clientId, companyId }, include: { partyIdentifiers: true } })
+        ? prisma.client.findFirst({
+            where: { id: clientId, companyId },
+            include: { partyIdentifiers: true, contacts: true },
+          })
         : Promise.resolve(null),
     ]);
     if (!company) {
@@ -1768,6 +1997,23 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<DocumentAuthorityEventResult[]> {
     await findOwnedDocument(companyId, typeId, id);
     return listAuthorityEvents(companyId, id);
+  }
+
+  /**
+   * "GET .../manual-acceptance" - issue #421. The manual-acceptance manifest actually archived for
+   * this document (`archive/persistence.ts#findManualAcceptanceArchive`), or `null` for a document
+   * that was never manually accepted - never derived from `status === 'accepted'` alone, which would
+   * only prove the STATUS moved, not that the probative record behind it can still be read back.
+   * `findOwnedDocument` first, the same tenant/existence check every other per-document read here
+   * already runs.
+   */
+  async getManualAcceptance(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<ManualAcceptanceManifest | null> {
+    await findOwnedDocument(companyId, typeId, id);
+    return findManualAcceptanceArchive(companyId, id);
   }
 
   /**

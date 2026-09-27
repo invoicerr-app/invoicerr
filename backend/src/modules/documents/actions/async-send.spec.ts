@@ -52,7 +52,7 @@ describe('runAsyncSendAction', () => {
     it.each([
       'draft',
       'send_failed',
-    ])('from "%s": persists "sending", takes the number BEFORE enqueueing, and never calls deliver', async (status) => {
+    ])('from "%s": takes the number ATOMICALLY with the "sending" write, BEFORE enqueueing, and never calls deliver', async (status) => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
@@ -61,43 +61,47 @@ describe('runAsyncSendAction', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        number: null,
-        displayNumber: null,
-      });
       const callOrder: string[] = [];
       const queueDispatcher = {
         enqueueAction: vi.fn().mockImplementation(async () => {
           callOrder.push('enqueue');
         }),
       };
-      (takeNumber.takeDocumentNumberForTransition as Mock).mockImplementation(async () => {
-        callOrder.push('number');
-        return { number: 3, displayNumber: 'QUOTE-2026-0003' };
+      // PR #473 review point 1: the status write and the number are now ONE atomic call - see
+      // `numbering/sequence.ts#takeDocumentNumberWithStatusTransition`'s own header for why.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockImplementation(async () => {
+        callOrder.push('number-and-status');
+        return {
+          document: {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sending',
+            data: baseInput.data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: 3,
+            displayNumber: 'QUOTE-2026-0003',
+          },
+          numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
+        };
       });
       const deliver = vi.fn();
 
       const result = await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver });
 
       expect(deliver).not.toHaveBeenCalled();
-      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
         'company-1',
         'quote',
         'doc-1',
+        ['draft', 'send_failed'],
         'sending',
         baseInput.data,
-        ['draft', 'send_failed'],
       );
-      // THE RACE THIS FIX CLOSES (see async-send.ts's own header): numbering must happen BEFORE
+      // THE RACE THIS FIX CLOSES (see async-send.ts's own header): the number must exist BEFORE
       // the job is enqueued, never after — a real worker can be faster than that.
-      expect(callOrder).toEqual(['number', 'enqueue']);
-      expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith('company-1', 'quote', 'doc-1');
+      expect(callOrder).toEqual(['number-and-status', 'enqueue']);
       expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
         companyId: 'company-1',
         typeId: 'quote',
@@ -119,18 +123,18 @@ describe('runAsyncSendAction', () => {
       });
     });
 
-    it('never numbers a type declaring `numberOnEnqueue: false` (credit-note: no `numbering` at all)', async () => {
+    it('never numbers a type declaring `numberOnEnqueue: false` (expense: no `numbering` at all)', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'cn-1',
-        typeId: 'credit-note',
+        id: 'exp-1',
+        typeId: 'expense',
         status: 'draft',
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
       (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'cn-1',
-        typeId: 'credit-note',
+        id: 'exp-1',
+        typeId: 'expense',
         status: 'sending',
         data: baseInput.data,
         createdAt: new Date(),
@@ -140,8 +144,8 @@ describe('runAsyncSendAction', () => {
 
       await runAsyncSendAction({
         ...baseInput,
-        typeId: 'credit-note',
-        documentId: 'cn-1',
+        typeId: 'expense',
+        documentId: 'exp-1',
         numberOnEnqueue: false,
         queueDispatcher,
         deliver: vi.fn(),
@@ -158,6 +162,10 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        // Already numbered from an earlier, successful attempt - the real signal
+        // `eligibleForAtomicNumbering` (async-send.ts) reads to skip numbering entirely here.
+        number: 3,
+        displayNumber: 'QUOTE-2026-0003',
       });
       (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -173,7 +181,7 @@ describe('runAsyncSendAction', () => {
 
       const result = await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: vi.fn() });
 
-      expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).not.toHaveBeenCalled();
       expect(result.document).toMatchObject({ number: 3, displayNumber: 'QUOTE-2026-0003' });
     });
 
@@ -186,29 +194,28 @@ describe('runAsyncSendAction', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      // Simulates the real `updateMany({ ..., status: { in: ['draft', 'send_failed'] } })`
-      // compare-and-swap (persistence.ts) losing its second race: only the FIRST caller's write
-      // actually flips "draft" to "sending", the second finds the row already moved on.
+      // Simulates the real `takeDocumentNumberWithStatusTransition` compare-and-swap (sequence.ts)
+      // losing its second race: only the FIRST caller's transaction actually flips "draft" to
+      // "sending" (and takes the number with it), the second finds the row already moved on.
       let calls = 0;
-      (persistence.upsertDocument as Mock).mockImplementation(async () => {
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockImplementation(async () => {
         calls += 1;
         if (calls === 1) {
           return {
-            id: 'doc-1',
-            typeId: 'quote',
-            status: 'sending',
-            data: baseInput.data,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            number: null,
-            displayNumber: null,
+            document: {
+              id: 'doc-1',
+              typeId: 'quote',
+              status: 'sending',
+              data: baseInput.data,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              number: 3,
+              displayNumber: 'QUOTE-2026-0003',
+            },
+            numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
           };
         }
         throw new ConflictException('Document "doc-1" is no longer in one of the expected statuses.');
-      });
-      (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
-        number: 3,
-        displayNumber: 'QUOTE-2026-0003',
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const deliver = vi.fn();
@@ -225,7 +232,7 @@ describe('runAsyncSendAction', () => {
       expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
       // The exact bug this closes: without the CAS, both calls would have taken a number and enqueued
       // their own job for the same document.
-      expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledTimes(1);
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledTimes(2);
       expect(queueDispatcher.enqueueAction).toHaveBeenCalledTimes(1);
       expect(deliver).not.toHaveBeenCalled();
     });
@@ -244,19 +251,18 @@ describe('runAsyncSendAction', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-        (persistence.upsertDocument as Mock).mockResolvedValue({
-          id: 'doc-1',
-          typeId: 'quote',
-          status: 'sending',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: null,
-          displayNumber: null,
-        });
-        (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
-          number: 3,
-          displayNumber: 'QUOTE-2026-0003',
+        (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+          document: {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sending',
+            data: baseInput.data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: 3,
+            displayNumber: 'QUOTE-2026-0003',
+          },
+          numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
         });
       }
 
@@ -284,6 +290,8 @@ describe('runAsyncSendAction', () => {
           data: baseInput.data,
           createdAt: new Date(),
           updatedAt: new Date(),
+          number: 3,
+          displayNumber: 'QUOTE-2026-0003',
         });
         (persistence.upsertDocument as Mock).mockResolvedValue({
           id: 'doc-1',
@@ -307,10 +315,10 @@ describe('runAsyncSendAction', () => {
         expect(onNumbered).not.toHaveBeenCalled();
       });
 
-      it('is never called when `numberOnEnqueue` is false — a type with no numbering at all (credit-note)', async () => {
+      it('is never called when `numberOnEnqueue` is false - a type with no numbering at all (expense)', async () => {
         (persistence.findOwnedDocument as Mock).mockResolvedValue({
           id: 'doc-1',
-          typeId: 'credit-note',
+          typeId: 'expense',
           status: 'draft',
           data: baseInput.data,
           createdAt: new Date(),
@@ -318,7 +326,7 @@ describe('runAsyncSendAction', () => {
         });
         (persistence.upsertDocument as Mock).mockResolvedValue({
           id: 'doc-1',
-          typeId: 'credit-note',
+          typeId: 'expense',
           status: 'sending',
           data: baseInput.data,
           createdAt: new Date(),
@@ -328,7 +336,7 @@ describe('runAsyncSendAction', () => {
 
         await runAsyncSendAction({
           ...baseInput,
-          typeId: 'credit-note',
+          typeId: 'expense',
           numberOnEnqueue: false,
           queueDispatcher: { enqueueAction: vi.fn().mockResolvedValue(undefined) },
           deliver: vi.fn(),
@@ -337,6 +345,61 @@ describe('runAsyncSendAction', () => {
 
         expect(onNumbered).not.toHaveBeenCalled();
         expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
+      });
+
+      // PR #473 review point 2 (round 2): the in-memory `eligibleForAtomicNumbering` check
+      // (async-send.ts) reads `existing.number == null` from a snapshot taken BEFORE this call's own
+      // transaction runs, so it stays true even when another request has already numbered the SAME
+      // document in the meantime (the real-DB proof of that race is
+      // `numbering/sequence.atomic.spec.ts`'s own "stale caller" test). This is the ORCHESTRATION
+      // half of that same fix: once the (mocked) transaction itself reports `numbered: undefined` -
+      // exactly what `takeDocumentNumberWithStatusTransition` now returns when its own re-check finds
+      // the row already numbered - `onNumbered` (ATCUD) must never fire for this call, the same
+      // guard the "send_failed retry" test above already exercises for the OTHER way `numbered` ends
+      // up unset (the eligibility check itself skipping this transition entirely).
+      it('is never called when the transaction itself won no number - a stale caller\'s own snapshot said "null", the row disagreed', async () => {
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'send_failed',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          // The STALE in-memory view: this snapshot still shows no number, so
+          // `eligibleForAtomicNumbering` computes true and this call DOES reach
+          // `takeDocumentNumberForTransitionWithStatus` below - unlike the "send_failed retry" test
+          // above, where the snapshot itself already showed the number and the eligibility check
+          // alone was what skipped it.
+          number: null,
+          displayNumber: null,
+        });
+        (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+          document: {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sending',
+            data: baseInput.data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            // What the real transaction found under the row lock: already numbered by whoever won
+            // the race first - see `sequence.ts`'s own header for why the status move still lands.
+            number: 3,
+            displayNumber: 'QUOTE-2026-0003',
+          },
+          numbered: undefined,
+        });
+        const onNumbered = vi.fn();
+        const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
+
+        const result = await runAsyncSendAction({
+          ...baseInput,
+          queueDispatcher,
+          deliver: vi.fn(),
+          onNumbered,
+        });
+
+        expect(onNumbered).not.toHaveBeenCalled();
+        expect(result.document).toMatchObject({ number: 3, displayNumber: 'QUOTE-2026-0003' });
       });
 
       it('every EXISTING caller/spec keeps working unchanged when absent — a true no-op, not a required field', async () => {
@@ -381,15 +444,19 @@ describe('runAsyncSendAction', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'invoice',
-        status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
       });
-      (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const preflight = vi.fn().mockResolvedValue(undefined);
 
@@ -419,15 +486,19 @@ describe('runAsyncSendAction', () => {
         updatedAt: new Date(),
       });
       const resolvedData = { client: 'client-1', lines: [{ vatRate: '0', __crossBorderCategory: 'AE' }] };
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'invoice',
-        status: 'sending',
-        data: resolvedData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'sending',
+          data: resolvedData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
       });
-      (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const preflight = vi.fn().mockResolvedValue(resolvedData);
 
@@ -439,13 +510,13 @@ describe('runAsyncSendAction', () => {
         preflight,
       });
 
-      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
         'company-1',
         'invoice',
         'doc-1',
+        ['draft', 'send_failed'],
         'sending',
         resolvedData, // NEVER baseInput.data — this is the whole point of the fix
-        ['draft', 'send_failed'],
       );
       expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith(
         expect.objectContaining({ payload: { data: resolvedData, params: baseInput.params } }),
@@ -461,26 +532,31 @@ describe('runAsyncSendAction', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const preflight = vi.fn().mockResolvedValue(undefined);
 
       await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: vi.fn(), preflight });
 
-      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
         'company-1',
         'quote',
         'doc-1',
+        ['draft', 'send_failed'],
         'sending',
         baseInput.data,
-        ['draft', 'send_failed'],
       );
     });
   });
@@ -551,6 +627,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -594,6 +672,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       });
       (persistence.confirmDelivery as Mock).mockImplementation(async () => {
         callOrder.push('confirmDelivery');
@@ -631,6 +711,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'CN-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({ id: 'cn-1', status: 'sent' });
       const deliver = vi.fn().mockResolvedValue({ message: undefined });
@@ -664,6 +746,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockImplementation(async () => {
         callOrder.push('updateDocumentStatus');
@@ -710,6 +794,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
       (reportOnSend.reportOnSendIfObligated as Mock).mockRejectedValue(
@@ -755,6 +841,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       });
       const queueDispatcher = { enqueueAction: vi.fn() };
       const deliverError = new Error('SMTP connection refused');
@@ -780,6 +868,11 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        // Already numbered - see this file's own belt-and-braces guard (async-send.ts, PR #473
+        // review point 1): a "quote" (no `numberingOnlyFrom`) genuinely reaching "sending" always
+        // carries a number by the time it gets here, atomically with the status write.
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       };
     }
 
@@ -944,6 +1037,9 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        // Already numbered - see `sendingDocument`'s own comment just above, same reasoning.
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       };
     }
 
@@ -1197,7 +1293,7 @@ describe('runAsyncSendAction', () => {
   // itself: publish only once the fact is genuinely ACQUIRED in Postgres, never before, never on a
   // failed write.
   describe('events — the SSE status nudge', () => {
-    it('phase 1: publishes "sending" AFTER upsertDocument persists it, with the record\'s own id', async () => {
+    it('phase 1: publishes "sending" AFTER the atomic status+number write persists it, with the record\'s own id', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
@@ -1206,26 +1302,23 @@ describe('runAsyncSendAction', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const events = { publish: vi.fn().mockResolvedValue(undefined) };
       const callOrder: string[] = [];
-      (persistence.upsertDocument as Mock).mockImplementation(async () => {
-        callOrder.push('upsertDocument');
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockImplementation(async () => {
+        callOrder.push('number-and-status');
         return {
-          id: 'doc-1',
-          typeId: 'quote',
-          status: 'sending',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          document: {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sending',
+            data: baseInput.data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: 1,
+            displayNumber: 'QUOTE-2026-0001',
+          },
+          numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
         };
       });
       events.publish.mockImplementation(async () => {
@@ -1239,10 +1332,10 @@ describe('runAsyncSendAction', () => {
         typeId: 'quote',
         kind: 'sending',
       });
-      expect(callOrder).toEqual(['upsertDocument', 'publish']);
+      expect(callOrder).toEqual(['number-and-status', 'publish']);
     });
 
-    it('phase 1: never publishes at all when upsertDocument itself throws — an unacquired fact is never announced', async () => {
+    it('phase 1: never publishes at all when the atomic status+number write itself throws - an unacquired fact is never announced (PR #473 review point 1)', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
@@ -1251,7 +1344,9 @@ describe('runAsyncSendAction', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockRejectedValue(new Error('DB unreachable'));
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockRejectedValue(
+        new Error('DB unreachable'),
+      );
       const queueDispatcher = { enqueueAction: vi.fn() };
       const events = { publish: vi.fn() };
 
@@ -1299,6 +1394,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockImplementation(async () => {
         callOrder.push('updateDocumentStatus');
@@ -1336,6 +1433,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       });
       const queueDispatcher = { enqueueAction: vi.fn() };
       const events = { publish: vi.fn() };
@@ -1357,13 +1456,18 @@ describe('runAsyncSendAction', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
@@ -1456,6 +1560,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       const queueDispatcher = { enqueueAction: vi.fn() };
       const webhooks = { dispatch: vi.fn() };
@@ -1477,13 +1583,18 @@ describe('runAsyncSendAction', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (persistence.upsertDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'invoice',
-        status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const webhooks = { dispatch: vi.fn() };
@@ -1513,6 +1624,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -1547,6 +1660,8 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         createdAt: new Date(),
         updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
       const queueDispatcher = { enqueueAction: vi.fn() };
@@ -1556,6 +1671,232 @@ describe('runAsyncSendAction', () => {
       await expect(runAsyncSendAction({ ...baseInput, queueDispatcher, deliver })).resolves.toEqual(
         expect.objectContaining({ document: expect.objectContaining({ status: 'sent' }) }),
       );
+    });
+  });
+
+  // PR #473 review point 1: a credit note (or any other numbered type) used to be able to reach
+  // "sending" numberless FOREVER, because the status write, the SSE publish, and the numbering write
+  // were three separate statements - anything throwing between the first and the third left the
+  // record stuck. This block proves the fix directly: the status write and the number are now ONE
+  // atomic call (`takeDocumentNumberForTransitionWithStatus`), so a failure ANYWHERE ELSE in phase 1
+  // (the SSE publish here) can strand the record un-enqueued, but never un-numbered - and a later
+  // retry (phase 2, reached because "sending" is itself a valid `from` status for "send") still
+  // delivers it, correctly numbered.
+  describe('PR #473 review point 1 - a document can never leave "sending" for "sent" without a number', () => {
+    it('a failure AFTER the atomic status+number write (the SSE publish here) leaves the record numbered, only un-enqueued - never delivered unnumbered', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      // The number IS taken here - this call is what "the status write and the numbering are one
+      // atomic transaction" means: by the time this resolves, Postgres already durably holds BOTH
+      // the "sending" status AND the number, together, whatever happens next.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 42,
+          displayNumber: 'QUOTE-2026-0042',
+        },
+        numbered: { number: 42, displayNumber: 'QUOTE-2026-0042' },
+      });
+      const queueDispatcher = { enqueueAction: vi.fn() };
+      // Simulates the exact failure review point 1 named: an SSE bus hiccup right after the record
+      // leaves "draft" - this used to be the window between the status write and the (separate)
+      // numbering write; it is now AFTER numbering has already happened.
+      const events = { publish: vi.fn().mockRejectedValue(new Error('SSE bus unreachable')) };
+
+      await expect(
+        runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: vi.fn(), events }),
+      ).rejects.toThrow('SSE bus unreachable');
+
+      // THE FIX ITSELF: numbering already happened before the publish ever threw.
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledTimes(1);
+      // Never enqueued - this call genuinely failed, the job never went out. A strictly SMALLER
+      // problem (undelivered) than the one this test guards against (delivered unnumbered).
+      expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
+
+      // --- The retry (phase 2 - "sending" is itself a valid `from` status for "send", reached by
+      // the worker's own replay or a later manual retry) - proves the record is NOT stuck forever,
+      // and, critically, is delivered WITH its number, never without it.
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 42,
+        displayNumber: 'QUOTE-2026-0042',
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        status: 'sent',
+        number: 42,
+        displayNumber: 'QUOTE-2026-0042',
+      });
+      const deliver = vi.fn().mockResolvedValue({ message: 'Sent.' });
+
+      const retryResult = await runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver,
+      });
+
+      // THE PROOF: deliver() was called with a document that already carries its number - never
+      // unnumbered - and the final result is "sent", numbered.
+      expect(deliver).toHaveBeenCalledWith(
+        expect.objectContaining({ document: expect.objectContaining({ number: 42 }) }),
+      );
+      expect(retryResult.document).toMatchObject({ status: 'sent', number: 42 });
+    });
+
+    // RECOVERY, ROUND 3 (async-send.ts, right at the top of the phase-2 branch): for a type with NO
+    // `numberingOnlyFrom` (no legacy grandfather case - quote, invoice), a "sending" record with no
+    // number is stranded data from an earlier crash between the status write and its numbering - and
+    // USED to be refused with a `ConflictException` here, which left it stuck for good (no other
+    // action ever leaves "sending"). This proves the fix: ONE retry takes the number through the same
+    // atomic path phase 1 uses, then delivers - never refuses.
+    it('recovers a "sending" record with no number for a type with no `numberingOnlyFrom` - one retry ends numbered and delivered', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+        number: null,
+        displayNumber: null,
+      });
+      // Recovery goes through the SAME atomic function phase 1 uses, just with `fromStatuses:
+      // ['sending']`/`toStatus: 'sending'` - see async-send.ts's own comment on this call.
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:01:00Z'),
+          number: 7,
+          displayNumber: 'QUOTE-2026-0007',
+        },
+        numbered: { number: 7, displayNumber: 'QUOTE-2026-0007' },
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        status: 'sent',
+        number: 7,
+        displayNumber: 'QUOTE-2026-0007',
+      });
+      const deliver = vi.fn().mockResolvedValue({ message: 'Sent.' });
+
+      const result = await runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver,
+      });
+
+      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        ['sending'],
+        'sending',
+        baseInput.data,
+      );
+      // Delivered WITH its number, never unnumbered.
+      expect(deliver).toHaveBeenCalledWith(
+        expect.objectContaining({ document: expect.objectContaining({ number: 7 }) }),
+      );
+      expect(result.document).toMatchObject({ status: 'sent', number: 7 });
+    });
+
+    // A CONCURRENT WINNER already numbered the record between this call's own `findOwnedDocument` read
+    // and its recovery attempt: `takeDocumentNumberForTransitionWithStatus`'s own re-check (under the
+    // row lock - sequence.ts's own header) then returns `numbered: undefined`, keeping the status move
+    // but never re-bumping the sequence - this call must still deliver, using whatever the row now
+    // holds, never throw and never number a second time.
+    it('a concurrent winner already numbered the record - this call still delivers, without renumbering', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: null,
+        displayNumber: null,
+      });
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 9,
+          displayNumber: 'QUOTE-2026-0009',
+        },
+        numbered: undefined,
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        status: 'sent',
+        number: 9,
+        displayNumber: 'QUOTE-2026-0009',
+      });
+      const deliver = vi.fn().mockResolvedValue({ message: 'Sent.' });
+
+      const result = await runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver,
+      });
+
+      expect(deliver).toHaveBeenCalledWith(
+        expect.objectContaining({ document: expect.objectContaining({ number: 9 }) }),
+      );
+      expect(result.document).toMatchObject({ status: 'sent', number: 9 });
+    });
+
+    // The credit note's own grandfather case (`numberingOnlyFrom: ['draft']`) must NOT be caught by
+    // the belt-and-braces guard above - a pre-#471 credit note legitimately reaches "sending" from
+    // "send_failed" with no number, forever, and must keep delivering.
+    it('does NOT refuse an unnumbered "sending" record for a type declaring `numberingOnlyFrom` - the credit note grandfather case', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'cn-legacy',
+        typeId: 'credit-note',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: null,
+        displayNumber: null,
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({ id: 'cn-legacy', status: 'sent' });
+      const deliver = vi.fn().mockResolvedValue({ message: undefined });
+
+      await expect(
+        runAsyncSendAction({
+          ...baseInput,
+          typeId: 'credit-note',
+          documentId: 'cn-legacy',
+          numberingOnlyFrom: ['draft'],
+          queueDispatcher: { enqueueAction: vi.fn() },
+          deliver,
+        }),
+      ).resolves.toMatchObject({ document: { status: 'sent' } });
+      expect(deliver).toHaveBeenCalledTimes(1);
     });
   });
 });

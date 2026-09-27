@@ -43,6 +43,12 @@ vi.mock('@/prisma/prisma.service', () => ({
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
     },
+    // Backs `Company.mailReplyTo` — a plain, unencrypted read/write (see that column's own
+    // schema.prisma comment), unlike `companyChannelConfig` above.
+    company: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
   },
 }));
 
@@ -55,7 +61,24 @@ const mockedPrisma = prisma as unknown as {
     updateMany: Mock;
     deleteMany: Mock;
   };
+  company: {
+    findUnique: Mock;
+    update: Mock;
+  };
 };
+
+/** In-memory stand-in for `Company.mailReplyTo`, so `setReplyTo()` followed by `getStatus()`
+ *  exercises a real round-trip the same way `wireInMemoryStore()` below does for the mail-server
+ *  override — independent state, since the two are independent settings. */
+function wireInMemoryReplyTo(initial: string | null = null) {
+  let value: string | null = initial;
+  mockedPrisma.company.findUnique.mockImplementation(async () => ({ mailReplyTo: value }));
+  mockedPrisma.company.update.mockImplementation(async ({ data }) => {
+    value = (data.mailReplyTo as string | null) ?? null;
+    return { mailReplyTo: value };
+  });
+  return () => value;
+}
 
 /** In-memory stand-in for the one `CompanyChannelConfig` row this feature ever writes, so `set()`
  *  followed by `getStatus()`/`resolveCompanyMailSettings()` exercises a REAL round-trip instead of
@@ -116,6 +139,7 @@ describe('CompanyMailSettingsService', () => {
         configured: true,
         kind: 'smtp',
         fromAddress: 'billing@company.example.com',
+        replyTo: null,
       });
 
       const storedConfig = mockedPrisma.companyChannelConfig.upsert.mock.calls[0][0].create.config;
@@ -146,6 +170,7 @@ describe('CompanyMailSettingsService', () => {
         configured: true,
         kind: 'resend',
         fromAddress: 'billing@company.example.com',
+        replyTo: null,
       });
 
       const storedConfig = mockedPrisma.companyChannelConfig.upsert.mock.calls[0][0].create.config;
@@ -161,7 +186,72 @@ describe('CompanyMailSettingsService', () => {
 
     it('getStatus reports unconfigured when nothing was ever written', async () => {
       mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([]);
-      await expect(service.getStatus('company-1')).resolves.toEqual({ configured: false });
+      await expect(service.getStatus('company-1')).resolves.toEqual({
+        configured: false,
+        replyTo: null,
+      });
+    });
+  });
+
+  describe('setReplyTo / getStatus — the Reply-To override, independent of the mail-server one', () => {
+    it('rejects an invalid e-mail address, never storing it', async () => {
+      wireInMemoryReplyTo();
+
+      await expect(service.setReplyTo('company-1', { replyTo: 'not-an-email' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(mockedPrisma.company.update).not.toHaveBeenCalled();
+    });
+
+    it('stores a valid address, trimmed, and getStatus reads it back', async () => {
+      const getValue = wireInMemoryReplyTo();
+
+      const status = await service.setReplyTo('company-1', { replyTo: '  support@company.example.com  ' });
+
+      expect(getValue()).toBe('support@company.example.com');
+      expect(status).toEqual({ configured: false, replyTo: 'support@company.example.com' });
+    });
+
+    it('null clears the override back to unset — never stored as an empty string', async () => {
+      const getValue = wireInMemoryReplyTo('support@company.example.com');
+
+      const status = await service.setReplyTo('company-1', { replyTo: null });
+
+      expect(getValue()).toBeNull();
+      expect(status.replyTo).toBeNull();
+    });
+
+    it('a blank string clears the override the same way null does', async () => {
+      const getValue = wireInMemoryReplyTo('support@company.example.com');
+
+      await service.setReplyTo('company-1', { replyTo: '   ' });
+
+      expect(getValue()).toBeNull();
+    });
+
+    it('getStatus reports the Reply-To override even when no mail-server override exists at all', async () => {
+      mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([]);
+      wireInMemoryReplyTo('support@company.example.com');
+
+      await expect(service.getStatus('company-1')).resolves.toEqual({
+        configured: false,
+        replyTo: 'support@company.example.com',
+      });
+    });
+
+    it("is unaffected by clearing the company's own mail server (DELETE never touches replyTo)", async () => {
+      const getMailServer = wireInMemoryStore();
+      const getReplyTo = wireInMemoryReplyTo();
+
+      await service.set('company-1', { kind: 'resend', apiKey: 're_key', fromAddress: 'from@example.com' });
+      await service.setReplyTo('company-1', { replyTo: 'support@company.example.com' });
+      expect(getMailServer()).not.toBeNull();
+      expect(getReplyTo()).toBe('support@company.example.com');
+
+      await service.clear('company-1');
+
+      expect(getMailServer()).toBeNull();
+      expect(getReplyTo()).toBe('support@company.example.com');
     });
   });
 
