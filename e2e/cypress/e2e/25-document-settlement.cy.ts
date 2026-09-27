@@ -174,7 +174,9 @@ describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAF
 			body: {
 				data: {
 					invoice: invoiceId,
-					issueDate: "2026-09-01",
+					// Issue #499: a linked credit note is delivered on its invoice's channel ("email" here),
+					// which the French mandate refuses for a domestic document issued on or after 2026-09-01.
+					issueDate: "2026-08-31",
 					currency: "EUR",
 					correctedLines: [lineARowId],
 				},

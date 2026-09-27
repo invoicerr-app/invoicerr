@@ -33,6 +33,9 @@ import { BadRequestException } from '@nestjs/common';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveLinkedCreditNote } from '../totals/linked-credit-note';
+import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
+import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
+import { TransportFormatSource } from '../transports/transport-registry';
 import { CorrectedInvoiceReference } from './format-provider';
 import { toDateOnly } from './shared-build';
 
@@ -94,6 +97,47 @@ export async function resolveCreditNoteFormatSource(
     correctedInvoice: {
       displayNumber: linked.invoice.displayNumber,
       issueDate: toDateOnly(linked.invoiceIssueDate),
+    },
+  };
+}
+
+/**
+ * Issue #499 - the credit note's electronic form as a TRANSPORT builds it at issuance: the same source
+ * as its "download-xml" above, with the cross-border tax treatment resolved the same way
+ * `documents.service.ts#downloadDocumentFormat` resolves it (against the corrected invoice's own
+ * issue date, then the credit note's own date put back for BT-2), so the file a platform receives and
+ * the file the download serves are built from identical data. A tax hard block (unresolved buyer
+ * country...) is a 400 naming the reason, as it is for the invoice's own send
+ * (`invoice-actions.ts#runInvoiceCrossBorderTaxPreflight`).
+ *
+ * `document` keeps the credit note's own id and number; only its `data` is the invoice-shaped build
+ * input. `humanReadable` is the credit note itself, so a Factur-X embeds the credit note's own page
+ * (issue #472), never a rendering of the invoice-shaped data.
+ */
+export async function resolveCreditNoteDeliverySource(
+  companyId: string,
+  creditNote: DocumentInstanceResult,
+  creditNoteDescriptor: DocumentTypeDescriptor,
+): Promise<TransportFormatSource> {
+  const source = await resolveCreditNoteFormatSource(companyId, creditNote);
+  let resolvedData: Record<string, unknown>;
+  try {
+    resolvedData = (
+      await resolveInvoiceCrossBorderTaxForCompany(companyId, {
+        ...source.pricingData,
+        issueDate: source.correctedInvoiceIssueDate,
+      })
+    ).data;
+  } catch (error) {
+    if (isInvoiceTaxBlockError(error)) throw new BadRequestException(error.message);
+    throw error;
+  }
+  return {
+    descriptor: source.pricingDescriptor,
+    document: { ...creditNote, data: { ...resolvedData, issueDate: source.pricingData.issueDate } },
+    options: {
+      creditNote: { correctedInvoice: source.correctedInvoice },
+      humanReadable: { descriptor: creditNoteDescriptor, document: creditNote },
     },
   };
 }

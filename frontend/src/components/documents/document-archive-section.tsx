@@ -13,10 +13,10 @@ import type { DocumentArchive } from "./types"
  * Legal archiving ⚖ — shown on the document detail page, next to the
  * settlement section (document-settlement.tsx), for ANY document type that has at least one archive:
  * nothing here names "invoice" — a quote sent by email archives its own PDF exactly the same way.
- * Renders NOTHING at all for a document with zero archives yet (a draft, or a type whose "send"
- * delivers no conservable artifact — e.g. the credit note's own plain status transition, see the
- * backend's `credit-note-actions.ts`) — same "no permanently-empty block" choice
- * `document-settlement.tsx`'s own credits block already makes.
+ * Renders NOTHING at all for a document with zero archives yet (a draft, or a credit note issued
+ * before issue #499, when its "send" archived nothing; see the backend's `credit-note-actions.ts`),
+ * the same "no permanently-empty block" choice `document-settlement.tsx`'s own credits block
+ * already makes.
  */
 
 function abbreviateHash(hash: string): string {

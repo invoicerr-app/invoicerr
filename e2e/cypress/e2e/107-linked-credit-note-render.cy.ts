@@ -17,8 +17,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * "Download PDF" entry fetches and read with `pdf-parse` (`extractPdfText`), and the figures on screen
  * are read off the rendered list and detail page.
  *
- * The covering EMAIL is not asserted here: on `dev` a credit note's "send" delivers nothing (PR #506
- * adds that delivery). The email body is proven against the real render pipeline in
+ * The covering EMAIL is asserted by `106-credit-note-archive-delivery.cy.ts` (issue #499, which added
+ * the delivery), and against the real render pipeline in
  * `backend/src/modules/documents/totals/linked-credit-note.spec.ts`.
  */
 const api = Cypress.env("apiUrl");
@@ -147,7 +147,9 @@ describe("Issue #507 - a linked credit note is worth the invoice lines it correc
 				issueCreditNote({
 					invoice: invoice.id,
 					correctedLines: [invoice.rowId],
-					issueDate: "2026-09-20",
+					// Issue #499: a linked credit note is delivered on its invoice's channel ("email" here),
+					// which the French mandate refuses for a domestic document issued on or after 2026-09-01.
+					issueDate: "2026-08-31",
 					currency: "EUR",
 					reason: "Session cancelled by the client",
 				}).then((noteId) => {
