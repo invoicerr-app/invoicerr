@@ -342,6 +342,14 @@ Private vulnerability reporting is enabled: open a
 [security advisory](https://github.com/invoicerr-app/invoicerr/security/advisories/new) rather than a
 public issue. Please do not report a vulnerability in an issue, a pull request or a discussion.
 
+The paths between the API's routes and the database tables are also checked by
+[Wyro](https://wyro.in/scan/invoicerr-app/invoicerr), a free and independent architecture scanner.
+Its report is public: as of September 2026 it finds no error, and its remaining notes list the routes
+that are public on purpose (token-gated document and signature links, the SSO lookup and
+registration). Wyro reports a real vulnerability to the maintainers privately before anything shows
+on that page, as set out in its [security policy](https://wyro.in/docs/security). It complements our
+own reviews and tests; it does not replace them. `wyro.json` at the root holds its configuration.
+
 ## Community
 
 [Issues](https://github.com/invoicerr-app/invoicerr/issues) for bugs and feature requests,
