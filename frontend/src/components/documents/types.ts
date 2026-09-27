@@ -38,7 +38,7 @@ export interface DocumentFieldDescriptor {
   /** Mirrors the backend's `DocumentFieldDescriptor.suggestSiblingValues` (descriptors/types.ts) -
    *  'text' only, and only inside an 'array' row's own `fields`: opts THIS row subfield into a plain
    *  HTML5 `<datalist>` of values already typed for the SAME subfield on OTHER rows of the SAME
-   *  array (`field-renderers/primitive-fields.tsx#useOptionSuggestions`). An explicit opt-in, never
+   *  array (`field-renderers/primitive-fields.tsx#SiblingSuggestionsDatalist`). An explicit opt-in, never
    *  inferred from "any 'text' subfield inside an array" - the mechanism is generic, but the UX
    *  change is real and unrequested on a type that never asked for it. Set ONLY on the quote's own
    *  `option` line subfield today (issue #373). Absent/false: no datalist, unchanged render. */

@@ -139,6 +139,29 @@ export function computeQuoteOptionTotals(
 }
 
 /**
+ * Issue #479: the totals of the option a quote was ACCEPTED for, the one figure every summary place
+ * (client portal, statistics table, list amount, detail header) shows once a choice exists, instead
+ * of "N options". Null when there is nothing to show in its place:
+ *  - fewer than two options: the caller's ordinary single-total path already applies;
+ *  - no `acceptedOption` yet (still "draft"/"sent"): no option has been chosen, "N options" stays;
+ *  - `acceptedOption` no longer names one of the quote's CURRENT options (the quote was edited after
+ *    acceptance - see `resolveInvoiceableLines`'s own comment on that exact case): showing only the
+ *    common lines' sum under the accepted name would be a wrong figure, so the caller falls back to
+ *    "N options" rather than inventing one - the same refusal conversion applies, read-only here.
+ * The figure itself is `computeQuoteOptionTotals`'s own entry for that option (common lines folded
+ * in), so the summary can never disagree with the per-option total the PDF and detail page print.
+ */
+export function acceptedOptionTotals(
+  data: Record<string, unknown>,
+  acceptedOption: string | null | undefined,
+  totalsOptions?: ComputeTotalsOptions,
+): DocumentTotals | null {
+  if (!acceptedOption) return null;
+  const perOption = computeQuoteOptionTotals(data, totalsOptions);
+  return perOption?.find((entry) => entry.option === acceptedOption)?.totals ?? null;
+}
+
+/**
  * The common (untagged) lines' OWN totals - informational only, never billed on their own (a
  * "Setup fee" is not a third thing the client can choose): this is what the PDF's/editor's own
  * "Common to all options" group shows alongside its rows, so a reader can see for themselves that

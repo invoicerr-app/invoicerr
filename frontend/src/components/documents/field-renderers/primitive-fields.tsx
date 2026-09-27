@@ -87,7 +87,7 @@ export function useConditionallyRequired(field: FieldRendererProps["field"]): bo
 /**
  * `name` for a ROW-nested field is `${arrayFieldKey}.${rowIndex}.${subFieldKey}` (registry.ts's own
  * doc comment on `FieldRendererProps.name`) - e.g. "lines.2.option". Splitting off the last TWO
- * segments (never assuming which array/subfield by name) is what lets `useOptionSuggestions` below
+ * segments (never assuming which array/subfield by name) is what lets `SiblingSuggestionsDatalist` below
  * work for ANY text subfield on ANY array row, not just the quote's own `option` field: a generic
  * convenience, not a per-field special case, the same discipline this whole field-renderer registry
  * already holds. `undefined` for a top-level (non-row) field, where there are no "sibling rows" to
@@ -109,36 +109,61 @@ export function arrayRowFieldPath(name: string): { arrayFieldName: string; subFi
  * `suggestSiblingValues` opt-in (types.ts's own header on that flag): without it, this would change
  * every OTHER array text subfield of every OTHER document type too (an invoice's own line
  * `description` starting to suggest sibling designations, unrequested), which is exactly what this
- * flag exists to prevent. Returns `undefined` when the field did not opt in, or outside an array row
+ * flag exists to prevent. `undefined` when the field did not opt in, or outside an array row
  * entirely (nothing to suggest from) - either way, a field renders exactly as it always did.
+ *
+ * Issue #479: this used to be a hook that called `useWatch` on the WHOLE array before checking the
+ * opt-in, so every text field of every row (an invoice line's `description` included) re-rendered on
+ * every keystroke anywhere in that array. The subscription now lives in `SiblingSuggestionsDatalist`
+ * below, which is only MOUNTED for a field that opted in - hooks cannot be called conditionally, a
+ * component can be rendered conditionally, and the field itself never subscribes to its siblings.
  */
-function useOptionSuggestions(field: FieldRendererProps["field"], name: string): string[] | undefined {
-  const path = arrayRowFieldPath(name)
-  const rows = useWatch({ name: path?.arrayFieldName ?? "__no_such_array_field__" }) as
-    | Record<string, unknown>[]
-    | undefined
-  if (!field.suggestSiblingValues || !path) return undefined
-  if (!Array.isArray(rows)) return []
+function siblingSuggestionsPath(
+  field: FieldRendererProps["field"],
+  name: string,
+): { arrayFieldName: string; subFieldKey: string } | undefined {
+  if (!field.suggestSiblingValues) return undefined
+  return arrayRowFieldPath(name)
+}
+
+function SiblingSuggestionsDatalist({
+  id,
+  arrayFieldName,
+  subFieldKey,
+}: {
+  id: string
+  arrayFieldName: string
+  subFieldKey: string
+}) {
+  const rows = useWatch({ name: arrayFieldName }) as Record<string, unknown>[] | undefined
+  if (!Array.isArray(rows)) return null
   const seen = new Set<string>()
   const suggestions: string[] = []
   for (const row of rows) {
-    const raw = row?.[path.subFieldKey]
+    const raw = row?.[subFieldKey]
     const trimmed = typeof raw === "string" ? raw.trim() : ""
     if (!trimmed || seen.has(trimmed)) continue
     seen.add(trimmed)
     suggestions.push(trimmed)
   }
-  return suggestions
+  if (suggestions.length === 0) return null
+  return (
+    <datalist id={id}>
+      {suggestions.map((suggestion) => (
+        <option key={suggestion} value={suggestion} />
+      ))}
+    </datalist>
+  )
 }
 
 export function TextField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
   const required = useConditionallyRequired(field)
   const readOnly = useDocumentFormReadOnly()
-  const suggestions = useOptionSuggestions(field, name)
+  const suggestionsPath = siblingSuggestionsPath(field, name)
   // A stable, collision-safe id: `name` itself is already unique per field instance (react-hook-form
   // never reuses one), just not a valid HTML id verbatim (dots).
-  const datalistId = suggestions ? `${name.replace(/\./g, "-")}-suggestions` : undefined
+  const datalistId = suggestionsPath ? `${name.replace(/\./g, "-")}-suggestions` : undefined
   return (
     <FormField
       control={control}
@@ -159,12 +184,12 @@ export function TextField({ field, name }: FieldRendererProps) {
               data-cy={`document-field-${field.key}-input`}
             />
           </FieldChrome>
-          {datalistId && suggestions && suggestions.length > 0 && (
-            <datalist id={datalistId}>
-              {suggestions.map((suggestion) => (
-                <option key={suggestion} value={suggestion} />
-              ))}
-            </datalist>
+          {datalistId && suggestionsPath && (
+            <SiblingSuggestionsDatalist
+              id={datalistId}
+              arrayFieldName={suggestionsPath.arrayFieldName}
+              subFieldKey={suggestionsPath.subFieldKey}
+            />
           )}
         </>
       )}

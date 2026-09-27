@@ -10,7 +10,7 @@ import {
   listRecentDocuments,
 } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
-import { deriveQuoteOptions } from '../options/quote-options';
+import { acceptedOptionTotals, deriveQuoteOptions } from '../options/quote-options';
 import { fromMinor } from '@/utils/financial';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { MetricWidget, MetricWidgetLink, ShortListWidget, TableWidget, Widget } from './widgets';
@@ -69,11 +69,22 @@ function restrictToPeriod(
  * Never used to aggregate ACROSS documents — see buildQuoteDashboardWidgets' own comment for why
  * counting, not summing, stays the rule the moment more than one document/currency is involved.
  */
-function quoteGrossTotal(data: Record<string, unknown>): {
+function quoteGrossTotal(
+  data: Record<string, unknown>,
+  acceptedOption?: string | null,
+): {
   amount: number | null;
   currency: string;
   optionsCount?: number;
 } {
+  // Issue #479: once an option is accepted, the quote HAS a single total again - that option's own
+  // (common lines folded in, `acceptedOptionTotals`' own header). Checked before the "N options"
+  // branch below, which then only ever covers a choice not made yet (or no longer valid).
+  const accepted = acceptedOptionTotals(data, acceptedOption);
+  if (accepted) {
+    const currency = accepted.currency ?? '';
+    return { amount: fromMinor(accepted.grossMinor, currency || 'EUR'), currency };
+  }
   // Issue #373 ("quotes with options") - a quote offering 2+ options has no single gross to report
   // here: `computeDocumentTotals` over its WHOLE `lines` array would silently sum every option
   // together, exactly the meaningless number this issue exists to stop printing (this audit's own
@@ -206,7 +217,7 @@ export const buildQuoteStatisticsWidgets: ContributionHandler = async ({ company
 
   const rows = quotes.map((quote) => {
     const data = (quote.data ?? {}) as Record<string, unknown>;
-    const { amount, currency, optionsCount } = quoteGrossTotal(data);
+    const { amount, currency, optionsCount } = quoteGrossTotal(data, quote.acceptedOption);
     return {
       issueDate: typeof data.issueDate === 'string' ? data.issueDate : '',
       dueDate: typeof data.dueDate === 'string' ? data.dueDate : '',

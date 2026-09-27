@@ -378,6 +378,45 @@ describe('PortalService — the client-portal security boundary', () => {
       // Same posture as an already-"signed" quote: nothing left to sign or refuse.
       expect(rows[0].canRespond).toBe(false);
     });
+
+    // Issue #479: a quote with options shows "N options" until one is accepted, then that option's
+    // own total (common lines included), never the sum of every option.
+    describe('a quote with options', () => {
+      const lines = [
+        { description: 'Setup', quantity: 1, unitPrice: 50, vatRate: '20' },
+        { description: 'A', quantity: 1, unitPrice: 100, vatRate: '20', option: 'Basic' },
+        { description: 'B', quantity: 1, unitPrice: 200, vatRate: '20', option: 'Premium' },
+      ];
+
+      it('shows the option count while no option is accepted', async () => {
+        const { service } = buildService();
+        seedDocuments([
+          instance({ id: 'q-open', typeId: 'quote', data: { client: CLIENT_A, currency: 'EUR', lines } }),
+        ]);
+
+        const [row] = await service.listQuotes(COMPANY, CLIENT_A);
+        expect(row.amountMinor).toBeNull();
+        expect(row.optionCount).toBe(2);
+      });
+
+      it("shows the accepted option's own total once it is signed", async () => {
+        const { service } = buildService();
+        seedDocuments([
+          instance({
+            id: 'q-signed',
+            typeId: 'quote',
+            status: 'signed',
+            acceptedOption: 'Premium',
+            data: { client: CLIENT_A, currency: 'EUR', lines },
+          }),
+        ]);
+
+        const [row] = await service.listQuotes(COMPANY, CLIENT_A);
+        // (50 + 200) net, +20% VAT = 300.00 gross.
+        expect(row.amountMinor).toBe(30000);
+        expect(row.optionCount).toBe(0);
+      });
+    });
   });
 
   describe('getStatement', () => {
