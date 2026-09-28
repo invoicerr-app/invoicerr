@@ -41,6 +41,30 @@ const PageHeaderActions = () => {
 }
 
 /**
+ * Issue #512 - `UnauthenticatedLayout`'s own header bar, but skipped ENTIRELY once neither
+ * `PageHeaderTitle` nor `PageHeaderActions` has anything to show - the one route this layout serves
+ * today (`/signature/:token`, `ALLOWED_PATHS` below) never calls `useSetPageHeader`, so the bar
+ * rendered a bare `p-4 border-b` strip with nothing in it. That empty 33px (padding + border) sat
+ * directly above `PublicPageShell`'s OWN header on every load, and was measured as part of why the
+ * next required step on the signing page needed a scroll to reach on common laptop heights - the
+ * shell's `h-dvh` sized itself against the full viewport while this layout's own nested
+ * `h-full`/`overflow-y-auto` chain had already spent 33px of it here. Conditional rather than a flat
+ * removal: a future path added to `ALLOWED_PATHS` that DOES set a title keeps its bar.
+ */
+const UnauthenticatedHeader = () => {
+  const { title, actions } = usePageHeaderContext()
+
+  if (!title && !actions) return null
+
+  return (
+    <header className="p-4 bg-header border-b flex items-center gap-4">
+      <PageHeaderTitle />
+      <PageHeaderActions />
+    </header>
+  )
+}
+
+/**
  * Rendered in place of the whole app shell when the no-free-seat gate's own query (`useSeats` below)
  * settles into a genuine error (a transient 500, a network drop) rather than the 404 that means "no
  * billing here at all". Blocking on `null` forever with nothing on screen left a member with no way
@@ -149,10 +173,7 @@ const UnauthenticatedLayout = () => {
       <section className="flex flex-col min-h-screen h-screen max-h-screen w-full max-w-screen overflow-y-auto overflow-x-hidden">
         <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
           <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
-            <header className="p-4 bg-header border-b flex items-center gap-4">
-              <PageHeaderTitle />
-              <PageHeaderActions />
-            </header>
+            <UnauthenticatedHeader />
             <section className="h-full overflow-y-auto overflow-x-hidden">
               <Outlet />
             </section>

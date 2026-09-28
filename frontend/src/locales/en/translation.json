@@ -4937,6 +4937,7 @@
       "description": "You have been asked to sign this document.",
       "descriptionWithNumber": "You have been asked to sign {{number}}.",
       "chooseOptionLabel": "This quote offers several options - choose the one you accept:",
+      "chosenOptionLabel": "You chose: {{name}} ({{amount}})",
       "requestCodeButton": "Send verification code",
       "resendCodeButton": "Send a new code",
       "codeSent": "A verification code was sent to your email.",

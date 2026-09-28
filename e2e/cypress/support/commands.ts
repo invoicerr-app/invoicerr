@@ -902,28 +902,3 @@ Cypress.Commands.add('resetAndSeed', () => {
         expect(res.status, 'the baseline client must exist').to.be.oneOf([200, 201]);
     });
 });
-
-/**
- * Brings the public signing page's option chooser into view the way a visitor does, by scrolling to
- * it, once the page has reached its final layout (issue #509).
- *
- * The page renders inside `PublicPageShell`, its own `overflow-y-auto` scroll container, and the
- * chooser sits under a PDF preview that is 70vh tall. Once that preview has laid out, the chooser is
- * below the container's visible area at both viewports the specs use (1440x900 and 1280x720), and
- * Cypress reports anything outside an overflow container's visible area as "not visible ... being
- * clipped". A bare `should("be.visible")` only passed when its first check landed in one of two
- * short-lived layouts where the chooser was still higher up: the loading skeleton (about 100ms at
- * 1440x900, before the PDF arrives), or the single frame after the `<object>` mounts at 0px tall
- * (1280x720). Measured on Firefox, every other frame reports it clipped, so the spec failed whenever
- * the PDF was quick.
- *
- * Scrolling alone is not enough: scrolled while the preview is still in one of those states, the
- * chooser is pushed back below the fold by up to 500px when the preview grows. So this waits for the
- * `<object>` to have its real height first, scrolls, and only then asserts visibility.
- */
-Cypress.Commands.add('revealSignatureOptionChooser', () => {
-    cy.get('[data-cy="signature-document-preview"]', { timeout: 15000 }).should(($preview) => {
-        expect($preview[0].getBoundingClientRect().height, 'the PDF preview has its final height').to.be.greaterThan(0);
-    });
-    return cy.get('[data-cy="signature-option-chooser"]').scrollIntoView().should('be.visible');
-});
