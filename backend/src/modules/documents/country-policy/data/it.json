@@ -376,33 +376,60 @@
         "pattern": "QUOTE-{year}-{number:4}",
         "constrainedBy": [],
         "unconstrained": "A quote (preventivo) is not an invoice: art. 21 DPR 633/1972 and the FatturaPA schema govern the fattura. No Italian text read in this pass constrains the number of a quote.",
-        "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape."
+        "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Italian text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
       },
       {
         "typeId": "invoice",
         "pattern": "INVOICE-{year}-{number:4}",
         "constrainedBy": ["it-dpr-633-art-21", "it-fatturapa-numero-string20", "it-sdi-00425"],
-        "rationale": "Unchanged from the product's previous shared default, so an Italian company already running it keeps it as it is. 19 characters at number 999999 and 20 at 1000000, the most FatturaPA's <Numero> accepts."
+        "rationale": "Unchanged from the product's previous shared default, so an Italian company already running it keeps it as it is. 19 characters at number 999999 and 20 at 1000000, the most FatturaPA's <Numero> accepts.",
+        "reset": "yearly",
+        "resetProvenance": {
+          "kind": "legal",
+          "sourceText": "Conseguentemente, a decorrere dal 1° gennaio 2013, può essere adottata una numerazione progressiva che, partendo dal numero 1, prosegua ininterrottamente per tutti gli anni solari di attività del contribuente, fino alla cessazione dell'attività stessa. [...] Peraltro, qualora risulti più agevole, il contribuente può continuare ad adottare il sistema di numerazione progressiva per anno solare, in quanto l'identificazione univoca della fattura è, anche in tal caso, comunque garantita dalla contestuale presenza nel documento della data che, in base alla lettera a) del citato articolo 21, costituisce un elemento obbligatorio della fattura. Ad esempio, [...] si ritengono ammissibili le seguenti modalità di numerazione progressiva all'interno di ciascun anno solare: [...] Fatt. n. 1/2013 (oppure n. 2013/1) [...]",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Agenzia delle Entrate, Risoluzione n. 1/E del 10 gennaio 2013, \"Chiarimenti in materia di numerazione delle fatture\" (art. 21, comma 2, lett. b, DPR 633/1972) - official PDF https://www.agenziaentrate.gov.it/portale/documents/20143/304338/Risoluzione+1++10012013a_risoluzione+1e.pdf, downloaded and read first-hand with pdftotext on 2026-09-28. Explicit, on-point administrative confirmation that a calendar-year progressive series (e.g. \"1/2013\", exactly this product's {number}/{year} or {year}-{number} shape) remains lawful after the 2013 reform, since the invoice's own mandatory date (art. 21 comma 2 lett. a) already disambiguates a number that repeats across years - the same \"the pair (date, number) is enough\" principle this file's own fr-cgi-242-nonies-a analogue rests on in fr.json. STILL GOOD PAST THE 2027 CUTOVER: the successor Testo unico IVA (D.Lgs. 19 gennaio 2026, n. 10), read first-hand from the official Gazzetta Ufficiale PDF (Suppl. ord. n. 4/L alla G.U. n. 24 del 30-1-2026) on 2026-09-28, carries the identical requirement verbatim at art. 72, comma 2, lett. b) (\"numero progressivo che la identifichi in modo univoco\", the article heading itself printing \"(articolo 21 decreto del Presidente della Repubblica 26 ottobre 1972, n. 633)\" as its source) and art. 171 (\"Decorrenza\": \"Le disposizioni del presente testo unico si applicano a decorrere dal 1° gennaio 2027\") carries no transitional clause narrowing or reopening the numbering question. A straight recodification of the identical wording Risoluzione 1/E interpreted, so its conclusion is read as continuing to govern unchanged."
       },
       {
         "typeId": "credit-note",
         "pattern": "CN-{year}-{number:4}",
         "constrainedBy": ["it-fatturapa-numero-string20", "it-sdi-00425"],
-        "rationale": "The product's previous shared default, \"CREDIT-NOTE-{year}-{number:4}\", renders 21 characters (\"CREDIT-NOTE-2026-0001\"), over the 20 that Chorus Pro (B2G) and FatturaPA accept. \"CN-\" keeps the credit note at 14 characters at number 999999, in a series of its own, distinct from the invoice series. With it, an Italian credit note produces a valid TD04 with default settings (issue #496)."
+        "rationale": "The product's previous shared default, \"CREDIT-NOTE-{year}-{number:4}\", renders 21 characters (\"CREDIT-NOTE-2026-0001\"), over the 20 that Chorus Pro (B2G) and FatturaPA accept. \"CN-\" keeps the credit note at 14 characters at number 999999, in a series of its own, distinct from the invoice series. With it, an Italian credit note produces a valid TD04 with default settings (issue #496).",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Risoluzione n. 1/E/2013 (this file's own invoice `resetProvenance`, read first-hand 2026-09-28) addresses only the fattura under art. 21/art. 72 - never the nota di credito. This file's own credit-note `numbering` fact already leaves UNVERIFIED whether a credit note needs a progressive number under Italian law at all (no sentence read extends art. 21/art. 26, now art. 72/art. 92, to it), and it-dpr-633-art-21 is deliberately NOT bound to the credit-note format for the same reason (constrainedBy above lists only the FatturaPA/SdI technical constraints, never it-dpr-633-art-21). Extending the invoice's yearly-reset permission to a document whose own numbering requirement is itself unsettled would overclaim; stays the safe default until a source addresses the credit note directly."
+        }
       },
       {
         "typeId": "purchase-order",
         "pattern": "PURCHASE-ORDER-{year}-{number:4}",
         "constrainedBy": [],
         "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no Italian text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
-        "rationale": "Unchanged from the product's previous shared default."
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Italian text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
       },
       {
         "typeId": "goods-receipt",
         "pattern": "GOODS-RECEIPT-{year}-{number:4}",
         "constrainedBy": [],
         "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Italian text read in this pass constrains its number.",
-        "rationale": "Unchanged from the product's previous shared default."
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Italian text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
       }
     ],
     "runningSeries": {

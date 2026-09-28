@@ -45,8 +45,14 @@ behind it with its source. Nothing on that card can be edited, and the API refus
 | France, Germany, Italy, Poland | `INVOICE-{year}-{number:4}` | `CN-{year}-{number:4}` | `QUOTE-…`, `PURCHASE-ORDER-…`, `GOODS-RECEIPT-…` (`-{year}-{number:4}`) |
 | Portugal | `FT A/{number}` | `NC A/{number}` | as above |
 
-The counter of a series never restarts, including at the start of a year: `{year}` only prints the
-year the number was issued in.
+**The counter restarts at 1 on 1 January, only where a primary source actually permits it.** France,
+Germany and Italy read a text that allows a calendar-year series for the invoice (Germany and France
+for the credit note too); Poland and Portugal, and every quote/purchase-order/goods-receipt format in
+every country, stay on one counter that never restarts — `{year}` there only prints the moment of
+issuance. The Number Formats card shows which applies to each type, and the source behind it. The
+restart itself applies only from the first document dated **1 January 2027** or later: a series already
+running keeps its counter exactly where it stood, and a document dated in December but numbered in
+January still belongs to the old year's series.
 
 **A series you started before formats became fixed** is kept, because an issued series has to stay
 continuous. The card marks it "Your running series, kept". The one exception is a series whose format

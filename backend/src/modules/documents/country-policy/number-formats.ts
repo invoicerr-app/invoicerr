@@ -25,6 +25,11 @@ import {
   NumberFormatConstraintFact,
 } from './schema';
 
+/** Issue #515 - a `{year}` (optionally `{year:N}`) token, the one thing a `reset: "yearly"` format's
+ *  pattern must carry: `assertValidNumberFormats` below refuses a format that declares `'yearly'`
+ *  without one, since two different years would otherwise render the identical number. */
+const HAS_YEAR_TOKEN = /\{year(?::\d+)?\}/;
+
 export const WORST_CASE_SEQUENCE_NUMBER = 999_999;
 /** 31 December: the widest `{month}`/`{day}` render (two digits each without padding). */
 const WORST_CASE_DATE = new Date(2099, 11, 31);
@@ -156,6 +161,21 @@ export function assertValidNumberFormats(file: CountryDocumentPolicyFile, contex
     typeIds.add(f.typeId);
     if (!f.rationale?.trim()) throw new Error(`${where}: format "${f.typeId}" has no rationale`);
     assertValidNumberPattern(f.pattern, `${where}: format "${f.typeId}"`);
+
+    // Issue #515 - the reset rule needs its OWN provenance (never reused from `rationale`, which
+    // explains the pattern's shape, not whether its counter may restart), and a "yearly" rule is
+    // worthless - actively dangerous - on a pattern that never prints the year it would be keyed by.
+    assertValidPolicyProvenance(
+      f.resetProvenance,
+      `${where}: format "${f.typeId}" reset rule`,
+      'a numbering reset rule',
+    );
+    if (f.reset === 'yearly' && !HAS_YEAR_TOKEN.test(f.pattern)) {
+      throw new Error(
+        `${where}: format "${f.typeId}" declares reset "yearly" but its pattern "${f.pattern}" has no ` +
+          '"{year}" token - two different years would render the identical number.',
+      );
+    }
 
     const bound = constraintsFor(formats, f);
     for (const c of bound) {
