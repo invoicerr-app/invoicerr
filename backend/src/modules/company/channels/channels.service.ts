@@ -48,11 +48,11 @@ export interface ChannelConfigStatus {
    *  that predates this column, or for a provider whose transport never needed one. */
   pushToken?: string | null;
   /**
-   * Issue #526 — which `documents/operators/` catalogue entry this row's `providerId` resolves to,
+   * Issue #526 - which `documents/operators/` catalogue entry this row's `providerId` resolves to,
    * NEVER the connected `baseUrl`/credentials themselves (the "GET never leaks a secret" guarantee
-   * this whole interface exists to hold — see `ResolvedOperatorId`'s own reasoning just below
+   * this whole interface exists to hold - see `ResolvedOperatorId`'s own reasoning just below
    * `resolveOperatorId`). `null` when this provider has no catalogued operator at all (an
-   * uncatalogued transport a third party registered, or — for the "pdp" transport specifically — a
+   * uncatalogued transport a third party registered, or - for the "pdp" transport specifically - a
    * connected `baseUrl` this catalogue does not recognize: see
    * `documents/operators/registry.ts#resolveForTransportConfig`'s own header on why that is an
    * honest "unknown", never a guess).
@@ -342,13 +342,13 @@ export class ChannelCredentialsService {
   }
 
   /**
-   * Issue #526 — resolve this row's `providerId` (+, when genuinely ambiguous, its own connected
+   * Issue #526 - resolve this row's `providerId` (+, when genuinely ambiguous, its own connected
    * `baseUrl`) to a `documents/operators/` catalogue entry id. The COMMON case (every provider today
    * except a hypothetical future second "pdp"-family operator) never touches the encrypted `config`
    * blob at all: `OperatorCatalog.forTransportId` already answers unambiguously from `providerId`
-   * alone, and only a transport with MORE than one catalogued operator (today: none — see
+   * alone, and only a transport with MORE than one catalogued operator (today: none - see
    * `operators/registry.spec.ts`'s own header on why "pdp" is unconditional too, for now) needs a
-   * decrypt to read `baseUrl` — kept cheap on purpose, never a blanket decrypt-every-row-every-call.
+   * decrypt to read `baseUrl` - kept cheap on purpose, never a blanket decrypt-every-row-every-call.
    * A decrypt failure here degrades to `null` (same "corrupted blob or wrong key → looks unconfigured,
    * never crash" discipline `decryptRow` already holds), never a thrown error out of a LIST endpoint.
    */

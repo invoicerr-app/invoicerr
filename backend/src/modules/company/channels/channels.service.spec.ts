@@ -234,7 +234,7 @@ describe('ChannelCredentialsService', () => {
           channel: 'PDP',
           environment: ChannelEnvironment.TEST,
           isActive: true,
-          // Issue #526 — "pdp" resolves to its one catalogued operator (SuperPDP) WITHOUT ever
+          // Issue #526 - "pdp" resolves to its one catalogued operator (SuperPDP) WITHOUT ever
           // decrypting `config` (see `resolveOperatorId`'s own header): a single candidate answers
           // unconditionally.
           operatorId: 'superpdp',
@@ -250,7 +250,7 @@ describe('ChannelCredentialsService', () => {
       expect(JSON.stringify(rows)).not.toContain(encrypted);
     });
 
-    // Issue #526 — the company's configured operator per channel, resolved server-side.
+    // Issue #526 - the company's configured operator per channel, resolved server-side.
     it('resolves "operatorId" for a provider with its own dedicated transport (no ambiguity, no decrypt needed)', async () => {
       mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
         {

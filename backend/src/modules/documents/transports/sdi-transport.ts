@@ -58,11 +58,11 @@ import {
   formatBuildInputOf,
 } from './transport-registry';
 
-/** Issue #526 — exactly the four fields `extractSdiCredentials` below reads, replacing the
+/** Issue #526 - exactly the four fields `extractSdiCredentials` below reads, replacing the
  *  frontend's own hard-coded `sdi` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`).
- *  `certificatePassword` is the one field marked NOT required here — matching the parser exactly: a
+ * `certificatePassword` is the one field marked NOT required here - matching the parser exactly: a
  *  real PFX legitimately can carry an empty one (see `SdiCredentials.certificatePassword`'s own
- *  header). The frontend's OLD hard-coded copy did not mark it optional — a drift this catalogue now
+ * header). The frontend's OLD hard-coded copy did not mark it optional - a drift this catalogue now
  *  makes visible and fixes at the source. */
 export const SDI_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {

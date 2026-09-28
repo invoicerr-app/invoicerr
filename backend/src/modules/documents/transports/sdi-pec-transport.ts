@@ -70,11 +70,11 @@ import {
   formatBuildInputOf,
 } from './transport-registry';
 
-/** Issue #526 — exactly the eight fields `extractSdiPecCredentials` below reads. No frontend entry
- *  existed for this provider before this catalogue — `channels.settings.tsx`'s own `PROVIDER_FIELDS`
- *  never had an "sdi-pec" key. `smtpSecure` is NOT required (defaults to `false` — see
+/** Issue #526 - exactly the eight fields `extractSdiPecCredentials` below reads. No frontend entry
+ * existed for this provider before this catalogue - `channels.settings.tsx`'s own `PROVIDER_FIELDS`
+ * never had an "sdi-pec" key. `smtpSecure` is NOT required (defaults to `false` - see
  *  `extractSdiPecCredentials`'s own header) and `sdiReplyAddress` is both NOT required and
- *  `learnedByBackend` — see `SdiPecCredentials.sdiReplyAddress`'s own header: it is written onto the
+ * `learnedByBackend` - see `SdiPecCredentials.sdiReplyAddress`'s own header: it is written onto the
  *  SAME stored config blob by `pec-notifiche.service.ts` once SdI's own first reply names it, never
  *  typed by a human, so a connect form must read it back (to show it) but never render an editable
  *  input for it. */

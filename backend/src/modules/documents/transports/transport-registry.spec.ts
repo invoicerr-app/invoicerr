@@ -16,7 +16,7 @@ describe('TransportRegistry', () => {
     expect(registry.resolve('email')).toBe(transport);
   });
 
-  it('lists every registered transport, id, label and credentialFields — what a company chooses from', () => {
+  it('lists every registered transport, id, label and credentialFields - what a company chooses from', () => {
     const registry = new TransportRegistry();
     registry.register('email', 'Email', { send: vi.fn() });
     registry.register('acme-portal', 'Acme Portal', { send: vi.fn() });
@@ -67,14 +67,14 @@ describe('TransportRegistry', () => {
 });
 
 /**
- * Issue #526 (scope addition) — "each transport declares its credential fields... validated at boot
+ * Issue #526 (scope addition) - "each transport declares its credential fields... validated at boot
  * against what that transport's own credential parser reads". These are the tests the owner asked
  * for by name: a test that FAILS when a transport's parser reads a key its declaration does not
- * list, or the other way round. Synthetic fake transports throughout — never a real transport file —
+ * list, or the other way round. Synthetic fake transports throughout - never a real transport file -
  * so this proves the CHECKER itself catches both directions of drift, deterministically, with nothing
  * to set up.
  */
-describe('validateTransportCredentialFields — the checker the owner asked for', () => {
+describe('validateTransportCredentialFields - the checker the owner asked for', () => {
   const FIELD: CredentialFieldDescriptor = {
     key: 'clientId',
     kind: 'text',
@@ -111,7 +111,7 @@ describe('validateTransportCredentialFields — the checker the owner asked for'
       credentialFields: [FIELD],
       parseCredentials: (resolved) => {
         const clientId = resolved.config.clientId;
-        // Reads an UNDECLARED key — the exact regression this check exists to catch.
+        // Reads an UNDECLARED key - the exact regression this check exists to catch.
         const secretlyAlsoReads = resolved.config.apiKey;
         if (typeof clientId !== 'string') return null;
         return { clientId, apiKey: secretlyAlsoReads };
@@ -134,7 +134,7 @@ describe('validateTransportCredentialFields — the checker the owner asked for'
       ],
       parseCredentials: (resolved) => {
         const clientId = resolved.config.clientId;
-        // Never reads "unused" — the declaration is stale.
+        // Never reads "unused" - the declaration is stale.
         if (typeof clientId !== 'string') return null;
         return { clientId };
       },
@@ -160,7 +160,7 @@ describe('validateTransportCredentialFields — the checker the owner asked for'
     expect(() => validateTransportCredentialFields(registry)).toThrow(/no "credentialFields"/);
   });
 
-  it('a "learnedByBackend" field is read by the parser but never required as a form field — still accounted for', () => {
+  it('a "learnedByBackend" field is read by the parser but never required as a form field - still accounted for', () => {
     const registry = new TransportRegistry();
     registry.register('acme', 'Acme', {
       send: vi.fn(),

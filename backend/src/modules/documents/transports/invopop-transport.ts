@@ -65,9 +65,9 @@ import {
   DocumentTransportResult,
 } from './transport-registry';
 
-/** Issue #526 — exactly the three fields `extractInvopopCredentials` below reads. No frontend entry
- *  existed for this provider before this catalogue — `channels.settings.tsx`'s own `PROVIDER_FIELDS`
- *  never had an "invopop" key. `baseUrl` is the one OPTIONAL field here — see
+/** Issue #526 - exactly the three fields `extractInvopopCredentials` below reads. No frontend entry
+ * existed for this provider before this catalogue - `channels.settings.tsx`'s own `PROVIDER_FIELDS`
+ * never had an "invopop" key. `baseUrl` is the one OPTIONAL field here - see
  *  `InvopopCredentials.baseUrl`'s own header: every workspace is served from the same host, the API
  *  key alone decides which one. */
 export const INVOPOP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [

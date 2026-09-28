@@ -43,7 +43,7 @@ import {
   formatBuildInputOf,
 } from './transport-registry';
 
-/** Issue #526 — exactly the three fields `extractPdpCredentials` below reads, replacing the
+/** Issue #526 - exactly the three fields `extractPdpCredentials` below reads, replacing the
  *  frontend's own hard-coded `pdp` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
 export const PDP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {

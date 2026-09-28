@@ -71,7 +71,7 @@ import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions
  *    `data/xx.json` per COUNTRY CODE, which is exactly what lets this service ask "which countries
  *    satisfy this mechanism" in the first place (`toCountryCodeSet` below reads that same `countryCode`
  *    field on every `CORE_MECHANISMS` entry). `operators/data/*.json` is keyed by OPERATOR id instead
- *    (superpdp, acube, billit…), each carrying a `countries` ARRAY rather than one `countryCode` —
+ * (superpdp, acube, billit…), each carrying a `countries` ARRAY rather than one `countryCode` -
  *    see `operators/schema.ts`'s own header for why. The "which countries are covered" question this
  *    service exists to answer does not apply to it, core or not.
  *

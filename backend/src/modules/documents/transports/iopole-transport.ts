@@ -71,7 +71,7 @@ import {
   formatBuildInputOf,
 } from './transport-registry';
 
-/** Issue #526 — exactly the three fields `extractIopoleCredentials` below reads, replacing the
+/** Issue #526 - exactly the three fields `extractIopoleCredentials` below reads, replacing the
  *  frontend's own hard-coded `iopole` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
 export const IOPOLE_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {

@@ -377,9 +377,9 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * Issue #526 — the operator catalogue (`documents/operators/`): which operators implement a given
+   * Issue #526 - the operator catalogue (`documents/operators/`): which operators implement a given
    * legal channel (`pdp`, `sdi`, `ksef`, `chorus-pro`, `pt-at`...), or every operator this catalogue
-   * knows about when no `legalChannel` is given. Not scoped by `@ActiveCompany()` — this is reference
+   * knows about when no `legalChannel` is given. Not scoped by `@ActiveCompany()` - this is reference
    * data, the same "not tenant-specific" reasoning `listTransports()` above and `listTypes()` already
    * hold; the company's OWN configured operator per channel is a SEPARATE fact, read from
    * `GET /api/company/channels`'s own `operatorId` (`channels.service.ts#resolveOperatorId`), never

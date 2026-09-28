@@ -461,7 +461,7 @@ export class DocumentsController {
     description:
       'Every registered document transport, id and label only — what a company chooses from for ' +
       'Company.invoiceTransportId. Never scoped by country: the choice is a company setting. Also ' +
-      "carries each transport's own `credentialFields` (issue #526) — the exact config keys its " +
+      "carries each transport's own `credentialFields` (issue #526) - the exact config keys its " +
       "connect form must collect, validated at boot against what that transport's own credential " +
       'parser actually reads (see transports/transport-registry.ts#validateTransportCredentialFields).',
   })
@@ -475,11 +475,11 @@ export class DocumentsController {
   @ApiOperation({
     summary: 'List the operator catalogue (issue #526)',
     description:
-      'Every operator this catalogue knows about — which legal channel it implements (pdp, sdi, ' +
+      'Every operator this catalogue knows about - which legal channel it implements (pdp, sdi, ' +
       'ksef, chorus-pro, pt-at...), which transports/transport-registry.ts id talks to it (when this ' +
       'codebase has actually wired one), its capabilities and sandbox availability, each with its own ' +
       'provenance. Optionally narrowed to one legal channel via `?channel=`. Not scoped by ' +
-      "@ActiveCompany() — this is reference data, the same as GET transports above; a company's OWN " +
+      "@ActiveCompany() - this is reference data, the same as GET transports above; a company's OWN " +
       "configured operator per channel is GET /api/company/channels's own `operatorId` field.",
   })
   @ApiQuery({

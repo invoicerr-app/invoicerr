@@ -1,14 +1,14 @@
 /**
- * The operator catalogue mechanism itself — issue #526. Proves the shipped data as DATA (never a
+ * The operator catalogue mechanism itself - issue #526. Proves the shipped data as DATA (never a
  * hard-coded `if legalChannel === 'pdp'` anywhere in product code), and proves the loader/assert gate
- * a caller cannot route around — same discipline `transports/channel-policy/registry.spec.ts` already
+ * a caller cannot route around - same discipline `transports/channel-policy/registry.spec.ts` already
  * holds for its own sibling catalogue.
  */
 import { ALL_OPERATOR_FILES } from './data/all';
 import { defaultOperatorCatalog, OperatorCatalog } from './registry';
 import { assertValidOperatorFact, InvalidOperatorProvenanceError, OperatorFact } from './schema';
 
-describe('operator catalogue — loaded, not hard-coded', () => {
+describe('operator catalogue - loaded, not hard-coded', () => {
   it('every shipped operator has already passed provenance validation at load time', () => {
     expect(ALL_OPERATOR_FILES.length).toBeGreaterThan(0);
     for (const operator of ALL_OPERATOR_FILES) {
@@ -16,13 +16,13 @@ describe('operator catalogue — loaded, not hard-coded', () => {
     }
   });
 
-  it('France\'s "pdp" legal channel lists more than one operator — the whole reason this catalogue exists (issue #526)', () => {
+  it('France\'s "pdp" legal channel lists more than one operator - the whole reason this catalogue exists (issue #526)', () => {
     const pdpOperators = defaultOperatorCatalog.forLegalChannel('pdp').map((o) => o.id);
     expect(pdpOperators).toEqual(expect.arrayContaining(['superpdp', 'billit', 'iopole', 'invopop']));
     expect(pdpOperators.length).toBeGreaterThan(1);
   });
 
-  it("ecosio is NOT seeded — owner's decision 2026-09-28, it serves large groups only", () => {
+  it("ecosio is NOT seeded - owner's decision 2026-09-28, it serves large groups only", () => {
     expect(defaultOperatorCatalog.byOperatorId('ecosio')).toBeUndefined();
   });
 
@@ -30,7 +30,7 @@ describe('operator catalogue — loaded, not hard-coded', () => {
     expect(defaultOperatorCatalog.forLegalChannel('sdi-pec')).toEqual([]);
   });
 
-  it('"peppol" is not seeded as a legal channel — removed as a product-level concept 2026-09-15, see data/all.ts', () => {
+  it('"peppol" is not seeded as a legal channel - removed as a product-level concept 2026-09-15, see data/all.ts', () => {
     expect(defaultOperatorCatalog.forLegalChannel('peppol')).toEqual([]);
   });
 
@@ -39,7 +39,7 @@ describe('operator catalogue — loaded, not hard-coded', () => {
     expect(defaultOperatorCatalog.forLegalChannel('chorus-pro').map((o) => o.id)).toEqual(['chorus-pro']);
     expect(defaultOperatorCatalog.forLegalChannel('pt-at').map((o) => o.id)).toEqual(['pt-at']);
     // "sdi" has TWO operators (the direct/SDICoop government channel and A-Cube, a commercial
-    // intermediary) — unlike the other three, deliberately not a singleton.
+    // intermediary) - unlike the other three, deliberately not a singleton.
     expect(
       defaultOperatorCatalog
         .forLegalChannel('sdi')
@@ -52,19 +52,19 @@ describe('operator catalogue — loaded, not hard-coded', () => {
     expect(defaultOperatorCatalog.forLegalChannel('does-not-exist')).toEqual([]);
   });
 
-  describe('resolveForTransportConfig — "say how a pdp account maps to an operator (by baseUrl)"', () => {
+  describe('resolveForTransportConfig - "say how a pdp account maps to an operator (by baseUrl)"', () => {
     it('a transport with exactly one catalogued operator resolves unconditionally, config never read', () => {
       const resolved = defaultOperatorCatalog.resolveForTransportConfig('acube', undefined);
       expect(resolved?.id).toBe('acube');
     });
 
-    // Today exactly ONE operator (superpdp) is wired under the literal "pdp" transport id — every
+    // Today exactly ONE operator (superpdp) is wired under the literal "pdp" transport id - every
     // other pdp-family operator (billit, iopole, invopop) has its OWN dedicated transport id instead
-    // (see each entry's own data file). "pdp" therefore resolves unconditionally too, right now — the
+    // (see each entry's own data file). "pdp" therefore resolves unconditionally too, right now - the
     // baseUrl-disambiguation branch below exists for when a SECOND operator is seeded under "pdp"
     // (e.g. a future AFNOR-standard PA, per pdp-transport.ts's own header on the AFNOR XP Z12-013
     // path), proven against a bespoke catalog since the shipped data has nothing to disambiguate yet.
-    it('the real "pdp" transport resolves to SuperPDP unconditionally today — the only operator seeded under it', () => {
+    it('the real "pdp" transport resolves to SuperPDP unconditionally today - the only operator seeded under it', () => {
       const resolved = defaultOperatorCatalog.resolveForTransportConfig('pdp', {
         baseUrl: 'https://anything-at-all.example/api',
       });
@@ -115,7 +115,7 @@ describe('operator catalogue — loaded, not hard-coded', () => {
         );
       });
 
-      it('an uncatalogued baseUrl resolves to null — never misattributed to either candidate', () => {
+      it('an uncatalogued baseUrl resolves to null - never misattributed to either candidate', () => {
         expect(
           ambiguous.resolveForTransportConfig('pdp', { baseUrl: 'https://some-other-pa.example' }),
         ).toBeNull();
@@ -237,7 +237,7 @@ describe('operator catalogue — loaded, not hard-coded', () => {
     ).toThrow(/capabilities.emit/);
   });
 
-  it('a blank "transportId" is rejected — omit the field entirely instead', () => {
+  it('a blank "transportId" is rejected - omit the field entirely instead', () => {
     expect(() =>
       assertValidOperatorFact(
         {

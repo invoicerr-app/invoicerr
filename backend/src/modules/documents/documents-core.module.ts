@@ -378,9 +378,9 @@ function buildTransportRegistry(
   // along with the rest of their countries' scope (2026-09-10, see
   // `documentation/docs/developer-guide/live-testing.md`), never left dormant.
 
-  // Issue #526 (scope addition) — "validated at boot against what that transport's own credential
+  // Issue #526 (scope addition) - "validated at boot against what that transport's own credential
   // parser reads". Runs once, here, the moment this factory builds the real registry (a NestJS
-  // `useFactory` provider — see this module's own `TRANSPORT_REGISTRY` wiring below) — throws
+  // `useFactory` provider - see this module's own `TRANSPORT_REGISTRY` wiring below) - throws
   // synchronously on the first drifted declaration, crashing boot rather than shipping a settings
   // screen built from a lie. See `transport-registry.ts#validateTransportCredentialFields`'s own
   // header for the full reasoning and `transport-registry.spec.ts` for the checker proven against
