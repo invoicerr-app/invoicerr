@@ -2888,9 +2888,9 @@ model DocumentNumberSequence {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   typeId    String
   // Issue #515: which period this counter belongs to. `0` is the sentinel for the ONE continuous
-  // counter every type used before this feature — a `reset: "never"` country format, an unconstrained
+  // counter every type used before this feature: a `reset: "never"` country format, an unconstrained
   // type (quote, purchase order, goods receipt), or a `reset: "yearly"` document dated before
-  // `numbering/company-number-format.ts#YEARLY_RESET_STARTS_FROM_YEAR` (2027) — see that constant's
+  // `numbering/company-number-format.ts#YEARLY_RESET_STARTS_FROM_YEAR` (2027); see that constant's
   // own header for why a document dated in the old year keeps using this row even when it is NUMBERED
   // after the cutover. The calendar YEAR, taken from the document's own `issueDate` field and never
   // the server clock, for every later `reset: "yearly"` document: each year opens its own fresh row at

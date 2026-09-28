@@ -30,10 +30,10 @@ import { TakenDocumentNumber, takeDocumentNumber, takeDocumentNumberWithStatusTr
  * a number — see that function's own header) — never called at all by `runAction` unless it has
  * already checked `number == null` in memory first, but this stays a real, DB-level guard regardless.
  *
- * `data` (issue #515) — whatever the caller already has for this document (its own
+ * `data` (issue #515): whatever the caller already has for this document (its own
  * `DocumentInstanceResult.data`, typically), read ONLY for the `issueDate` field `issuedAtFrom`
  * extracts from it: the moment `{year}` is rendered from, and the moment `periodKeyFor` keys a
- * `reset: "yearly"` counter by — never the server clock this function happens to run at. Optional,
+ * `reset: "yearly"` counter by, never the server clock this function happens to run at. Optional,
  * defaulting to "now" through `issuedAtFrom(undefined)`, for the one caller
  * (`send-document-email.ts`) that reaches this function as a defensive fallback on an already-numbered
  * document, where the value can never actually matter (see that call site's own header).
