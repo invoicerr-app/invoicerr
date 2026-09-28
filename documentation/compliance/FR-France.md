@@ -76,6 +76,26 @@ A business under the franchise threshold charges no VAT at all (art. 293 B, I) a
 correspondingly not required on its invoices (CGI ann. II art. 242 nonies A, I, 2° and II — the same
 dispensation also applies to any invoice ≤ 150 € excl. tax).
 
+## VAT in euros, on a foreign-currency invoice
+
+CGI art. 266, 1 bis and art. 289, IV require the VAT amount to also be stated in euros on an invoice
+issued in another currency (BOFiP BOI-TVA-DECLA-30-20-20-10 §380). This app resolves that conversion
+at the moment the invoice is numbered, using the ECB's daily reference rate last published on or
+before the invoice's own date, and freezes both the converted amount and the rate onto the invoice
+from then on; a later change to the exchange rate table never revises an already-issued invoice.
+Both the PDF and the invoice detail page print the converted VAT next to the invoice's own currency.
+
+## The late-payment penalty rate, when the twice-yearly table has run out
+
+C. com. art. L441-9 I requires every invoice to state the late-payment penalty rate. Art. L441-10 II
+defines it as a formula, not a fixed number (the ECB's main refinancing rate plus 10 points), read
+again on 1 January and 1 July. This app carries the two numbers currently in force, but the table
+necessarily runs a step behind the calendar: the figure for a new half-year is not public until the
+ECB's Governing Council actually meets (mid-December for 1 January, mid-June for 1 July). Rather than
+refuse to send an invoice dated after the table's own last window, this app prints the statutory rule
+itself, quoted verbatim from L441-10 II, until the real number is entered. Both are the lawful mention
+under art. L441-9 I: no source found requires a pre-computed figure specifically over stating the rule.
+
 ## Identifiers
 
 - **SIREN or SIRET**, required on both parties — Code de commerce art. R.123-237 legally requires the
@@ -101,10 +121,12 @@ transmission precondition.
 `backend/src/modules/documents/country-policy/data/fr.json`,
 `country-identifiers/data/fr.json`, `correction-routes/data/fr.json`, `b2g-routing/data/fr.json`,
 `transports/channel-policy/data/fr.json`, `tax/tax-systems/data/fr.json`, `vat-rates/data/fr.json`,
-`mentions/data/fr.json` (the three C. com. art. L441-9 mentions carried on every invoice),
-`content-requirements/data/fr.json` (BT-23), and `archive/retention/data/fr.json` — **two
+`vat-currency/data/fr.json` (VAT stated in euros on a foreign-currency invoice),
+`mentions/data/fr.json` (the three C. com. art. L441-9 mentions carried on every invoice, including
+the late-payment rate's own `fallbackText`), `content-requirements/data/fr.json` (BT-23), and
+`archive/retention/data/fr.json` (**two
 simultaneous obligations**, six years fiscal from the document's own date (LPF art. L102 B) and ten
 years commercial from the close of the financial year (C. com. art. L123-22), the binding date being
-the later of the two — plus `transports/pdp/pdp.live.spec.ts`,
+the later of the two), plus `transports/pdp/pdp.live.spec.ts`,
 `transports/chorus-pro/choruspro.live.spec.ts` and `transports/chorus-pro-transport.ts` for the
 live-proof and implementation claims above.

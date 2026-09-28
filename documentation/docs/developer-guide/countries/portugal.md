@@ -13,7 +13,9 @@ runs for a company established there. Support is per mechanism, not a single yes
 :::
 
 Portugal's entries name FE-AP as its invoice transmission platform, and UBL as the format it
-carries.
+carries. The AT monthly declaration now carries each document's real ATCUD and declares credit
+notes too (as `NC`, referencing the invoice they correct). See [Compliance -
+Portugal](/compliance/pt) for what is proven and what is not.
 
 This page is a pointer by design. Everything Invoicerr knows about Portugal lives in its own data
 files, and two pages already say it without anyone retyping it:

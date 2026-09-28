@@ -9,7 +9,9 @@ The **Dashboard** is the first page you see after signing in. It gives you a sna
 ## What you see
 
 - **Welcome back** greeting with your name
-- **Revenue** — earnings for the current month and year
+- **Revenue**: earnings for the current month and year, converted into your reference currency
+  where you invoice in more than one. A month or year that has already closed keeps the rate it
+  converted at when it closed; entering a new exchange rate later never revises it
 - **Summary cards** — total quotes, invoices, and clients with counts
 - **Recent activity** — the 5 most recent quotes and invoices
 

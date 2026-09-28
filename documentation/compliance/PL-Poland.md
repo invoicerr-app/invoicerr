@@ -58,6 +58,16 @@ VAT, standard rate **23%** — sourced to the EU's Taxes in Europe Database (TED
 2026-07-01. This app has no fuller Polish rate catalog (`vat-rates/`) yet, so no reduced rates are
 modeled — only this standard rate is available when composing cross-border tax.
 
+## VAT in złoty, on a foreign-currency invoice
+
+Ustawa o VAT art. 31a ust. 1 and art. 106e ust. 11 require the VAT amount to also be stated in PLN on
+an invoice issued in another currency. This app resolves the conversion at the moment the invoice is
+numbered, using the **NBP's own Table A**, never the ECB, for the last business day **strictly
+before** the invoice's own date, per the statute's own "poprzedzający" (preceding). Both the rate and
+the converted amount are then frozen onto the invoice; the PDF and the detail page print both. If no
+NBP rate exists yet for the currency being invoiced, sending is refused by name rather than falling
+back to any other source.
+
 ## Identifiers
 
 `country-identifiers/data/pl.json` declares one scheme: **LEGAL_ID** (the NIP), sourced `legal`, with
@@ -88,7 +98,8 @@ cancellation attempt is refused, by name, rather than silently allowed or silent
 `backend/src/modules/documents/country-policy/data/pl.json`, `correction-routes/data/pl.json`,
 `correction-routes/cancel-policy.ts`, `b2g-routing/data/pl.json`,
 `transports/channel-policy/data/pl.json`, `tax/tax-systems/data/pl.json`,
-`country-identifiers/data/pl.json`, `vat-rates/data/pl.json`, plus
+`country-identifiers/data/pl.json`, `vat-rates/data/pl.json`,
+`vat-currency/data/pl.json` (VAT stated in PLN, sourced to the NBP's own Table A), plus
 `archive/retention/data/pl.json` — five years, counted not from the invoice date but from the end of
 the calendar year the tax fell due in (ustawa o VAT art. 112 pointing at Ordynacja podatkowa art. 70
 § 1) — and `transports/ksef/ksef.live.spec.ts` for the live-proof claim above.

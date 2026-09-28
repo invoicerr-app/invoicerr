@@ -9,6 +9,10 @@ sidebar_position: 11
 > settings (stored encrypted in the DB) — env vars / GitHub secrets are only for the live CI
 > tests.** Generated 2026-07-12; each section was researched against official sources (listed
 > inline). Revised 2026-09-13 to remove sections for channels no longer in this codebase.
+>
+> This guide is about *obtaining* a value. For what the connect screen actually asks for, and how a
+> transport declares it, see [Operators and channels](./operators-and-channels.md); for which
+> commercial operator implements which legal channel, see that same page's operator catalogue.
 
 ---
 
