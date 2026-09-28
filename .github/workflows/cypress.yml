@@ -384,6 +384,14 @@ jobs:
       # is exactly what killed every Business Scenarios leg from 2026-08-29 until 486aab6a; the same
       # trap sat here, unfired only because this workflow had not run on a branch since.
       REDIS_URL: redis://localhost:6379
+      # Read straight from process.env at boot (no DB row) - see backend/.env.example's own header
+      # on ADDRESS_AUTOCOMPLETE_URL. Points at the fixed-port fake Photon server
+      # `109-address-autocomplete.cy.ts` starts (`e2e/cypress.config.ts`'s own header explains why a
+      # FIXED port, not the ephemeral ones the PDP/AT fakes use): every OTHER shard/spec that never
+      # calls that task just gets a harmless connection-refused warning in its own backend log the
+      # one time an address field is typed into, degrading to an empty suggestion list exactly like
+      # a real self-hosted instance whose Photon server went down - never a broken test.
+      ADDRESS_AUTOCOMPLETE_URL: http://127.0.0.1:41976
     services:
       postgres-test:
         image: postgres:16
