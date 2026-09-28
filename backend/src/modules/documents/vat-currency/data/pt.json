@@ -1,0 +1,14 @@
+{
+  "countryCode": "PT",
+  "rule": {
+    "nationalCurrency": "EUR",
+    "requiredOnInvoice": false,
+    "taxableAmountRequiredOnInvoice": false,
+    "rateSource": "none",
+    "provenance": {
+      "kind": "unverified",
+      "resolutionNote": "CIVA art. 16, §8-9 sets the exchange-rate mechanism (ECB rate, or a Portuguese bank's own selling rate, at the taxpayer's option: day of chargeability or the 1st business day of the month) for converting a foreign-currency taxable amount, but this is the BASE-COMPUTATION article, not the invoice-CONTENT one. CIVA art. 36 (the invoice's own mandatory-content list) was read directly for this research and does NOT, on that direct reading, name a converted-VAT or converted-taxable-amount line among its own requirements, but this was read from a consolidated secondary copy (info.portaldasfinancas.gov.pt), not cross-checked against a second independent source, and Portuguese SAF-T/e-fatura technical documentation (which DOES require euro totals) was only read as a FAQ-level summary, never the full XSD/technical specification itself; the research explicitly flags this as unresolved (`~/Projects/invoicerr-app/RECHERCHE_192_MULTIDEVISE.md`, 'Ce que je n'ai pas pu vérifier'). What would settle this: a direct, verbatim read of CIVA art. 36's full text confirming no converted-amount requirement, AND a direct read of the AT's own SAF-T-PT / e-fatura technical specification to establish whether the euro-total requirement it does carry is merely a REPORTING mapping (computed from the invoice's own stored data, never printed on the document itself) or actually cascades into a mandatory printed field. Until settled, this codebase treats Portugal the SAME as 'no confirmed invoice-level requirement' (`requiredOnInvoice: false`), the safe default when a requirement is not established, never the reverse (this codebase does not print an unconfirmed legal figure on a real invoice on the theory that it might be required)."
+    },
+    "notes": "Distinct from Germany's own `requiredOnInvoice: false`: Germany's is a settled, sourced, `kind: 'legal'` conclusion (the statute genuinely does not reach the invoice). Portugal's is `kind: 'unverified'`: the statute was read and did not confirm the requirement, but the reading is not settled to the standard this codebase's own `assertValidPolicyProvenance` gate holds a `'legal'` claim to. A future pass that reads CIVA art. 36 and the SAF-T-PT technical spec directly, to a real conclusion either way, should replace this whole `provenance` block rather than only editing this note."
+  }
+}

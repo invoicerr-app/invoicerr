@@ -152,6 +152,19 @@ exports[`renderDocumentHtml > branding (chantier B, 2026-09-15) > pins the full 
       text-align: right;
       min-width: 120px;
     }
+    .totals-row.totals-converted {
+      color: #555;
+      font-style: italic;
+    }
+    .totals-row.totals-converted-rate {
+      justify-content: flex-end;
+      border-bottom: none;
+      padding-top: 0;
+    }
+    .totals-note {
+      font-size: 11px;
+      color: #777;
+    }
     .option-group {
       margin-top: 24px;
     }

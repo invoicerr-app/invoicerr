@@ -1595,6 +1595,36 @@ model DocumentInstance {
   // untouched forever.
   atcud String?
 
+  // Issue #517: VAT (and, where the seller's country requires it, the taxable amount too) in the
+  // seller's own COUNTRY'S national currency, when the invoice itself is issued in a different one.
+  // FR/PL/IT all make this mandatory (see `../vat-currency/data/*.json` for the sourced, per-country
+  // rule and `../vat-currency/vat-currency-issuance.ts` for the freeze). Computed and frozen the SAME
+  // moment `displayNumber`/`atcud` above are, for the exact same reason: the exchange rate is a fact
+  // about the day this document was ISSUED (CGI art. 266 1 bis "au jour de l'exigibilité", VAT act
+  // art. 31a ust. 1 "ostatni dzień roboczy poprzedzający", DPR 633/1972 art. 13 c.4 "il giorno di
+  // effettuazione... o, in mancanza, il giorno di emissione"). Re-resolving it on a later read would
+  // let a rate entered AFTER the fact (or a currency-rate backfill) silently rewrite an already-issued
+  // invoice's own printed VAT amount, the identical risk `settlement/convert-payment.ts`'s own header
+  // already explains for a payment's `conversionRate`. All five columns are null together, forever, for
+  // every document whose seller country either has no such requirement (DE/PT, see the catalog's own
+  // `notes`) or whose invoice currency already IS the seller's own national currency (nothing to
+  // convert), never partially set.
+  vatNationalCurrency           String?
+  // Taxable amount (net) converted, minor units, set only when the country's own rule ALSO requires
+  // the base to be shown (Italy: DPR 633/1972 art. 21 c.2 lett. l), null for a country requiring the
+  // VAT amount alone (France: BOI-TVA-DECLA-30-20-20-10 §380 names only "le montant de taxe").
+  vatNationalCurrencyTaxableMinor Int?
+  vatNationalCurrencyVatMinor     Int?
+  // Units of `vatNationalCurrency` per one unit of the invoice's own currency, same direction
+  // `CurrencyRate.rate`/`DocumentPayment.conversionRate` already use, so `convert.ts#convertMinor` is
+  // reused verbatim rather than a second, feature-specific rounding rule.
+  vatNationalCurrencyRate      Decimal?
+  vatNationalCurrencyRateAsOf  DateTime?
+  // 'ecb' (FR/IT, Regulation (EU) via CGI art. 266 1 bis / DPR 633/1972 art. 13 c.4) or 'nbp' (PL,
+  // VAT act art. 31a ust. 1, NBP Table A specifically: never a silent ECB/open.er-api.com fallback for
+  // Poland, see `../vat-currency/nbp-rates-client.ts`'s own header).
+  vatNationalCurrencyRateSource String?
+
   // Issue #373 ("quotes with options"): the OPTION NAME the client chose when accepting a quote that
   // offers two or more (`documents/options/quote-options.ts#deriveQuoteOptions` - the distinct,
   // non-empty `option` tags a quote's own `data.lines` carry, in first-appearance order). A dedicated

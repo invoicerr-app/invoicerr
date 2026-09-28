@@ -340,11 +340,16 @@ describe('runAsyncSendAction', () => {
         await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: vi.fn(), onNumbered });
 
         expect(onNumbered).toHaveBeenCalledTimes(1);
+        // Issue #517: `data` was added to the `onNumbered` context (see that field's own header on
+        // async-send.ts) so `vat-currency-issuance.ts#attachVatNationalCurrencyToNumberedDocument` can
+        // read back the sidecar a preceding `preflight` already stashed. No `preflight` is passed in
+        // this test's `baseInput`, so `data` here is simply `baseInput.data`, unchanged.
         expect(onNumbered).toHaveBeenCalledWith({
           companyId: 'company-1',
           typeId: 'quote',
           documentId: 'doc-1',
           numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
+          data: baseInput.data,
         });
       });
 

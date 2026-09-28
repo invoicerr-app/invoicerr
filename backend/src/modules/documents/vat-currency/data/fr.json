@@ -1,0 +1,16 @@
+{
+  "countryCode": "FR",
+  "rule": {
+    "nationalCurrency": "EUR",
+    "requiredOnInvoice": true,
+    "taxableAmountRequiredOnInvoice": false,
+    "rateSource": "ecb",
+    "rateDateRule": "The last ECB reference rate published on or before the day VAT becomes chargeable (CGI art. 266, 1 bis, referring to art. 269). This codebase has no per-operation chargeability date on an invoice, so this is approximated by the document's own issue date, the same approximation `mentions/schema.ts` and `channel-policy/mandate.ts` already make for every other country-law fact this catalog family resolves against 'a date on the document', never the server clock.",
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "CGI, art. 289, IV: \"Les montants figurant sur la facture peuvent être exprimés dans toute monnaie, pour autant que le montant de taxe à payer ou à régulariser soit déterminé en euros en utilisant le mécanisme de conversion prévu à l'article 266.\" CGI, art. 266, 1 bis: \"Lorsque les éléments servant à déterminer la base d'imposition sont exprimés dans une monnaie autre que l'euro, le taux de change à appliquer est celui du dernier taux publié par la Banque centrale européenne, au jour de l'exigibilité de la taxe prévue au 2 de l'article 269.\"",
+      "sourceCheckedAt": "2026-09-28"
+    },
+    "notes": "BOFiP BOI-TVA-DECLA-30-20-20-10 §380 confirms the same rule in plain language and adds the one thing the statute itself does not spell out: only the TAX AMOUNT itself must be in euros, not the taxable base (`taxableAmountRequiredOnInvoice: false`). §400 of the same BOFiP page says printing the EXCHANGE RATE used is a faculty (\"peut\"), never an obligation; this codebase prints it anyway, as a courtesy, wherever the converted VAT itself is shown. Citations reused verbatim from `~/Projects/invoicerr-app/RECHERCHE_192_MULTIDEVISE.md` (2026-09-28), itself sourced from Légifrance's own consolidated CGI text and BOFiP; Légifrance returns 403 to automated requests (see `../../mentions/data/fr.json`'s own note on the same access limitation), so this citation was cross-checked against that research file rather than fetched a second time directly for this task."
+  }
+}

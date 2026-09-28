@@ -261,6 +261,47 @@ function renderTotalsRows(
 }
 
 /**
+ * Issue #517: the extra rows printed under the ordinary totals section when the seller's own
+ * country required its VAT (and, for Italy, its taxable amount too) converted into the country's own
+ * national currency (`RenderDocumentHtmlInput.vatNationalCurrency`'s own header). A tiny, separate
+ * function rather than folded into `renderTotalsRows` above: that one is SHARED with each per-option
+ * group's own mini totals block, and this fact is a document-level one, never a per-option one (see
+ * that input's own header). Keeping this separate is what makes it trivially impossible to print
+ * this once per option by accident.
+ */
+function renderVatNationalCurrencyRows(
+  vatNationalCurrency: NonNullable<RenderDocumentHtmlInput['vatNationalCurrency']>,
+  strings: PdfChromeStrings,
+): string {
+  const { currency, vatMinor, taxableMinor, rate, rateAsOf } = vatNationalCurrency;
+  const decimals = decimalsFor(currency);
+  let html = '';
+
+  if (taxableMinor !== null) {
+    const taxableDisplay = `${fromMinor(taxableMinor, currency).toFixed(decimals)} ${currency}`;
+    html += `
+      <div class="totals-row totals-converted">
+        <span>${escapeHtmlSafe(strings.taxableInNationalCurrency(currency))}</span>
+        <span class="totals-amount">${escapeHtmlSafe(taxableDisplay)}</span>
+      </div>
+`;
+  }
+
+  const vatDisplay = `${fromMinor(vatMinor, currency).toFixed(decimals)} ${currency}`;
+  html += `
+      <div class="totals-row totals-converted">
+        <span>${escapeHtmlSafe(strings.vatInNationalCurrency(currency))}</span>
+        <span class="totals-amount">${escapeHtmlSafe(vatDisplay)}</span>
+      </div>
+      <div class="totals-row totals-converted-rate">
+        <span class="totals-note">${escapeHtmlSafe(strings.exchangeRate(String(rate), rateAsOf))}</span>
+      </div>
+`;
+
+  return html;
+}
+
+/**
  * Renders the "lines" array field as several grouped, labelled tables - one per option - instead of
  * the ordinary single flat table `renderFieldValue`'s 'array' case produces. Reuses that EXACT case
  * for each group's own table (by handing it a synthetic field descriptor whose `fields` drop the
@@ -398,6 +439,22 @@ export interface RenderDocumentHtmlInput {
    */
   resolvedRowSelections?: Record<string, { field: DocumentFieldDescriptor; rows: Record<string, unknown>[] }>;
   totals?: DocumentTotals;
+  /**
+   * Issue #517: the VAT (and, for Italy, the taxable amount too) already converted and frozen onto
+   * this instance into the seller's own COUNTRY's national currency
+   * (`DocumentInstance.vatNationalCurrency*`, `documents/vat-currency/`), printed as extra rows
+   * under the ordinary totals section. Absent for every document whose seller country has no active
+   * requirement, or whose invoice currency already IS the national one, exactly the pre-existing
+   * totals block, byte-for-byte. Never shown alongside `optionGroups` for the SAME reason `totals`
+   * itself is not: this is a document-level fact, not a per-option one.
+   */
+  vatNationalCurrency?: {
+    currency: string;
+    vatMinor: number;
+    taxableMinor: number | null;
+    rate: number;
+    rateAsOf: string;
+  } | null;
   /**
    * Issue #373 ("quotes with options") - when the quote offers 2+ options
    * (`options/quote-options.ts#computeQuoteOptionTotals`), the caller passes THIS instead of `totals`,
@@ -712,6 +769,19 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       text-align: right;
       min-width: 120px;
     }
+    .totals-row.totals-converted {
+      color: #555;
+      font-style: italic;
+    }
+    .totals-row.totals-converted-rate {
+      justify-content: flex-end;
+      border-bottom: none;
+      padding-top: 0;
+    }
+    .totals-note {
+      font-size: 11px;
+      color: #777;
+    }
     .option-group {
       margin-top: 24px;
     }
@@ -938,7 +1008,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     html += `
     <div class="totals-section">
       <div class="totals-label">${escapeHtmlSafe(strings.totals)}</div>
-${renderTotalsRows(input.totals, strings)}
+${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVatNationalCurrencyRows(input.vatNationalCurrency, strings) : ''}
     </div>
 `;
   }
