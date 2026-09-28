@@ -163,6 +163,14 @@ function DocumentPreview({
  * each with its OWN total (never a global one, see the backend's own `PublicSignatureView.options`
  * header). Rendered nothing at all for `options === null` (fewer than two, or a document type other
  * than "quote") - the ordinary single-total review this page always showed, byte-for-byte.
+ *
+ * Issue #512 (review follow-up) - this now lives inside the signing card's own sticky action bar, so
+ * its own height directly bounds how much of a phone viewport that bar takes. Every row is forced to
+ * ONE line (`min-w-0 flex-1 truncate` on the name, `shrink-0` on the price and the radio itself) -
+ * at 375px wide, a two-line row (name wrapping under a long option name, or under the price) was what
+ * pushed the bar's height past the readable-preview budget in the first review round. The label line
+ * above the list also states which option is CURRENTLY chosen once one is, rather than only showing it
+ * through the checked radio's own border/background colour - the review's own "say what you chose".
  */
 function SignatureOptionChooser({
   options,
@@ -174,28 +182,35 @@ function SignatureOptionChooser({
   onChange: (value: string) => void
 }) {
   const { t } = useTranslation()
+  const chosen = options.find((option) => option.name === value)
   return (
-    <div className="space-y-2 rounded-lg border p-3" data-cy="signature-option-chooser">
-      <p className="text-sm font-medium">{t("documents.publicSignature.chooseOptionLabel")}</p>
-      <div className="space-y-2">
+    <div className="space-y-1.5 rounded-lg border p-2" data-cy="signature-option-chooser">
+      <p className="text-sm font-medium" data-cy="signature-option-chooser-label">
+        {chosen
+          ? t("documents.publicSignature.chosenOptionLabel", {
+              name: chosen.name,
+              amount: formatTotal(chosen.grossMinor, chosen.currency || ""),
+            })
+          : t("documents.publicSignature.chooseOptionLabel")}
+      </p>
+      <div className="space-y-1">
         {options.map((option) => (
           <label
             key={option.name}
-            className="flex cursor-pointer items-center justify-between gap-3 rounded-md border p-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+            className="flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
             data-cy="signature-option-item"
           >
-            <span className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="signature-option"
-                value={option.name}
-                checked={value === option.name}
-                onChange={() => onChange(option.name)}
-                data-cy="signature-option-radio"
-              />
-              {option.name}
-            </span>
-            <span className="amount font-medium" data-cy="signature-option-total">
+            <input
+              type="radio"
+              name="signature-option"
+              value={option.name}
+              checked={value === option.name}
+              onChange={() => onChange(option.name)}
+              className="shrink-0"
+              data-cy="signature-option-radio"
+            />
+            <span className="min-w-0 flex-1 truncate">{option.name}</span>
+            <span className="amount shrink-0 font-medium" data-cy="signature-option-total">
               {formatTotal(option.grossMinor, option.currency || "")}
             </span>
           </label>
@@ -420,67 +435,104 @@ export default function PublicSignaturePage() {
           </div>
 
           {!otpRequested && (
-            <div className="space-y-4">
-              <DocumentPreview
-                isLoading={documentQuery.isLoading}
-                isError={documentQuery.isError}
-                error={documentQuery.error}
-                documentUrl={documentUrl}
-              />
-
-              {documentUrl && (
-                <div className="flex justify-center">
-                  <Button asChild variant="outline" size="sm" dataCy="signature-download-button">
-                    <a href={documentUrl} download={downloadFilename}>
-                      <Download className="h-4 w-4" />
-                      {t("documents.publicSignature.downloadButton")}
-                    </a>
-                  </Button>
-                </div>
-              )}
-
-              {needsOptionChoice && view.options && (
-                <SignatureOptionChooser
-                  options={view.options}
-                  value={chosenOption}
-                  onChange={setChosenOption}
+            <>
+              <div className="space-y-4">
+                <DocumentPreview
+                  isLoading={documentQuery.isLoading}
+                  isError={documentQuery.isError}
+                  error={documentQuery.error}
+                  documentUrl={documentUrl}
                 />
-              )}
 
-              <div className="mx-auto flex max-w-sm items-start gap-2 text-left">
-                <Checkbox
-                  id="signature-confirm-read"
-                  checked={hasReadDocument}
-                  onCheckedChange={(checked) => setHasReadDocument(checked === true)}
-                  disabled={!documentUrl}
-                  className="mt-0.5"
-                  data-cy="signature-confirm-read-checkbox"
-                />
-                <Label
-                  htmlFor="signature-confirm-read"
-                  className="text-sm font-normal leading-snug text-muted-foreground"
-                >
-                  {t("documents.publicSignature.confirmReadLabel")}
-                </Label>
+                {documentUrl && (
+                  <div className="flex justify-center">
+                    <Button asChild variant="outline" size="sm" dataCy="signature-download-button">
+                      <a href={documentUrl} download={downloadFilename}>
+                        <Download className="h-4 w-4" />
+                        {t("documents.publicSignature.downloadButton")}
+                      </a>
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              <Button
-                type="button"
-                className="mx-auto block w-full max-w-sm"
-                disabled={!hasReadDocument || (needsOptionChoice && !chosenOption)}
-                loading={requestOtp.isPending}
-                onClick={handleRequestOtp}
-                dataCy="signature-request-otp-button"
+              {/* Issue #512 - the next required step (the option choice, then this button) sitting
+                  below a 70vh document preview left both off screen at 1280x720/1366x768/1440x900 and
+                  on a phone viewport, with nothing on screen saying there was anything to do below the
+                  document. `position: sticky` on the LAST element of the card, rather than a shorter
+                  preview or a two-column layout: it keeps the document at its full, already-readable
+                  height (#477 binds the signature to what the client actually read, so shrinking the
+                  preview to force a fit was the one option this issue's own text ruled out), pins to
+                  the viewport's own bottom edge the moment this block would otherwise render below the
+                  fold, and needs no per-viewport tuning to reach three different laptop heights plus a
+                  phone - one CSS position covers all of them. Same idiom `document-detail.tsx`'s own
+                  `document-unsaved-bar` already uses for an identical "keep the next action reachable
+                  regardless of how tall the content above it is" bar, bled edge-to-edge with the SAME
+                  `-mx-6 -mb-6` trick against this card's own `p-6`.
+                  A side effect that resolves issue #509's own flakiness at the root: the option
+                  chooser's screen position no longer depends on the PDF preview's own transient height
+                  (the `<object>` embed briefly renders at 0px before the plugin lays out the real page,
+                  see `cypress/support/commands.ts`'s former `revealSignatureOptionChooser` for the
+                  measurements) - it is pinned to the viewport regardless, so nothing needs to wait for
+                  the preview to settle before it can be scrolled to or asserted visible.
+                  Issue #512 (review follow-up) - `bg-card`, not a translucent `bg-background/95` with
+                  a blur: the bar sits directly over the PDF preview once its own natural position would
+                  overlap it (unavoidable once the bar is pinned and the preview above it is tall - see
+                  the compact `SignatureOptionChooser` above for the other half of the fix, shrinking
+                  how much of the preview that overlap actually covers), and a translucent bar over a
+                  document full of small print read as the preview's own text bleeding through the
+                  chooser. `bg-card` is the SAME opaque token the card itself already uses (`bg-card` on
+                  `signature-card` below), so the bar reads as the card's own bottom edge rather than a
+                  floating pane, in both themes - `--card` carries no alpha channel in either
+                  `:root` or `.dark` (`index.css`). The `border-t` plus this shadow are what mark it as
+                  a distinct layer instead of just "the card got shorter". */}
+              <div
+                className="sticky bottom-0 z-10 -mx-6 -mb-6 space-y-2 rounded-b-xl border-t bg-card px-6 py-3 shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.18)]"
+                data-cy="signature-action-bar"
               >
-                {t("documents.publicSignature.requestCodeButton")}
-              </Button>
+                {needsOptionChoice && view.options && (
+                  <SignatureOptionChooser
+                    options={view.options}
+                    value={chosenOption}
+                    onChange={setChosenOption}
+                  />
+                )}
 
-              {otpMessage && (
-                <p className="text-center text-sm text-muted-foreground" data-cy="signature-otp-message">
-                  {otpMessage}
-                </p>
-              )}
-            </div>
+                <div className="mx-auto flex max-w-sm items-start gap-2 text-left">
+                  <Checkbox
+                    id="signature-confirm-read"
+                    checked={hasReadDocument}
+                    onCheckedChange={(checked) => setHasReadDocument(checked === true)}
+                    disabled={!documentUrl}
+                    className="mt-0.5"
+                    data-cy="signature-confirm-read-checkbox"
+                  />
+                  <Label
+                    htmlFor="signature-confirm-read"
+                    className="text-sm font-normal leading-snug text-muted-foreground"
+                  >
+                    {t("documents.publicSignature.confirmReadLabel")}
+                  </Label>
+                </div>
+
+                <Button
+                  type="button"
+                  className="mx-auto block w-full max-w-sm"
+                  disabled={!hasReadDocument || (needsOptionChoice && !chosenOption)}
+                  loading={requestOtp.isPending}
+                  onClick={handleRequestOtp}
+                  dataCy="signature-request-otp-button"
+                >
+                  {t("documents.publicSignature.requestCodeButton")}
+                </Button>
+
+                {otpMessage && (
+                  <p className="text-center text-sm text-muted-foreground" data-cy="signature-otp-message">
+                    {otpMessage}
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {otpRequested && (
