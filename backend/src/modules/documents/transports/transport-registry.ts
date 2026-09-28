@@ -1,5 +1,39 @@
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ArchivedArtifactInput } from '../archive/hashing';
+import { DocumentTypeDescriptor } from '../descriptors/types';
+import { DocumentFormatBuildOptions } from '../formats/format-provider';
+
+/**
+ * Issue #499 - what a transport that BUILDS a structured format (Factur-X, FatturaPA, Peppol BIS...)
+ * builds from, when that is not the delivered document itself. The credit note's "send"
+ * (`actions/credit-note-actions.ts`) is the one caller that sets it: a credit note owns neither a
+ * client nor priced lines (`credit-note.descriptor.ts`, "Two shapes, one type"), so its electronic
+ * form is built from the invoice it corrects, priced with the invoice descriptor and marked as a
+ * credit note (`formats/credit-note-source.ts`), exactly as its own "download-xml" builds it
+ * (`documents.service.ts#downloadDocumentFormat`). `document` keeps the credit note's own id and
+ * number; only its `data` is the invoice-shaped, tax-resolved build input.
+ */
+export interface TransportFormatSource {
+  descriptor: DocumentTypeDescriptor;
+  document: DocumentInstanceResult;
+  options?: DocumentFormatBuildOptions;
+}
+
+/**
+ * The build input of a format-building transport: `ctx.formatSource` when the caller set one, the
+ * delivered document built with the invoice descriptor otherwise (every invoice, exactly as before
+ * issue #499). One helper so the seven transports that build a format cannot each read it differently.
+ */
+export function formatBuildInputOf(
+  ctx: DocumentTransportContext,
+  invoiceDescriptor: DocumentTypeDescriptor,
+): Required<Pick<TransportFormatSource, 'descriptor' | 'document'>> & Pick<TransportFormatSource, 'options'> {
+  return {
+    descriptor: ctx.formatSource?.descriptor ?? invoiceDescriptor,
+    document: ctx.formatSource?.document ?? ctx.document,
+    options: ctx.formatSource?.options,
+  };
+}
 
 /** Everything a transport needs to deliver one document — deliberately NOT an email-shaped context
  *  (no `to`, no `subject`): a transport decides for itself how to address and format the delivery
@@ -43,6 +77,8 @@ export interface DocumentTransportContext {
    * government invoice silently leaving in the wrong format would be worse than a block).
    */
   formatOverride?: string;
+  /** Issue #499 - see `TransportFormatSource`. Absent for an invoice. */
+  formatSource?: TransportFormatSource;
 }
 
 export interface DocumentTransportResult {
@@ -73,9 +109,9 @@ export interface DocumentTransportResult {
    * `signing/sign-instance-pdf.ts`) for "email", or the structured format actually
    * deposited/submitted for "pdp"/"ksef"/"sdi" (Factur-X/FA(3)/FatturaPA — see each transport's own
    * `send()`) — never both invented for a transport that only ever delivers one kind. Absent (or
-   * empty) means nothing conservable came out of this delivery (e.g. `credit-note-actions.ts`'s own
-   * "send", a plain status transition with no transport at all) — not a failure, simply nothing to
-   * archive. `actions/async-send.ts`'s phase-2 delivery archives EXACTLY this list, immutably and
+   * empty) means nothing conservable came out of this delivery - not a failure, simply nothing to
+   * archive. (The credit note's "send" used to be that case; since issue #499 it always archives at
+   * least its rendered PDF, see `credit-note-actions.ts`.) `actions/async-send.ts`'s phase-2 delivery archives EXACTLY this list, immutably and
    * hash-wrapped (`archive/hashing.ts`), the moment delivery succeeds — see `archive/archive-on-send.ts`.
    */
   artifacts?: ArchivedArtifactInput[];
@@ -101,6 +137,14 @@ export interface DocumentTransport {
    * unregistered transport already gets (see `async-send.ts`'s own `preflight` parameter).
    */
   preflight?(companyId: string): Promise<void>;
+  /**
+   * Issue #499 - whether this transport can deliver a CREDIT NOTE. A credit note is an invoice in law
+   * (CGI art. 289, I, 5), so it travels on the channel the company's invoices travel on
+   * (`credit-note-actions.ts`); a channel that cannot carry one refuses the send by name rather than
+   * issuing a credit note nobody receives. A transport declaring it reads the buyer, and builds any
+   * format, from `ctx.formatSource` (`formatBuildInputOf`), which the credit note's send always sets.
+   */
+  deliversCreditNotes?: boolean;
 }
 
 export class UnknownTransportError extends Error {

@@ -237,7 +237,7 @@ describe("A delivered PDF prints no transient status (issue #494)", () => {
 		});
 	});
 
-	it("an issued credit note (its send delivers nothing): the PDF downloaded for the client prints no status", () => {
+	it("an issued free credit note (archived, delivered to nobody): its downloaded PDF prints no status", () => {
 		const data = {
 			issueDate: "2026-09-20",
 			currency: "EUR",
@@ -274,7 +274,10 @@ describe("A delivered PDF prints no transient status (issue #494)", () => {
 					const creditNoteData = {
 						invoice: invoiceId,
 						correctedLines: [rowId],
-						issueDate: "2026-09-20",
+						// Issue #499: a linked credit note is delivered on its invoice's channel ("email" here),
+						// which the French mandate refuses for a domestic document issued on or after
+						// 2026-09-01, exactly as it refuses the invoice.
+						issueDate: "2026-08-31",
 						currency: "EUR",
 						reason: "Corrected line 494 refunded.",
 					};

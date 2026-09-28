@@ -85,9 +85,9 @@
  *    even though delivery genuinely already succeeded.
  *
  * `deliver` is the only thing that genuinely varies by type: the quote's unconditional email
- * (quote-actions.ts), the invoice's company-configured transport (invoice-actions.ts), or
- * (credit-note-actions.ts) nothing at all — a plain status transition with no transport, no email,
- * exactly as before the async model, just reached one hop later.
+ * (quote-actions.ts), the invoice's company-configured transport (invoice-actions.ts), or the
+ * credit note's (credit-note-actions.ts): the channel its corrected invoice's client is reached
+ * through since issue #499, and an archive-only issuance for a free credit note, which names no client.
  */
 import { ConflictException } from '@nestjs/common';
 

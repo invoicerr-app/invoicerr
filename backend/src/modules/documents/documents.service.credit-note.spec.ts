@@ -20,6 +20,10 @@ import * as settlementCredits from './settlement/credits';
 import * as settlementPayments from './settlement/payments';
 import * as stock from './stock/apply-stock-on-issuance';
 import { computeDocumentTotals } from './totals/compute-totals';
+import { archiveDeliveredArtifactsIfAny } from './archive/archive-on-send';
+import { resolveCreditNoteDeliverySource } from './formats/credit-note-source';
+import { renderDocumentInstance } from './rendering/render-instance-pdf';
+import { getCompanyInvoiceTransportId } from './transports/company-transport';
 import { TransportRegistry } from './transports/transport-registry';
 
 vi.mock('./persistence');
@@ -66,6 +70,22 @@ vi.mock('./settlement/credits', async () => {
   const actual = await vi.importActual('./settlement/credits');
   return { ...actual, listCreditNotes: vi.fn() };
 });
+// Issue #499: "send" now delivers a linked credit note on the channel its corrected invoice's client
+// is reached through, and archives what it delivered. The three DB-touching seams of that path are
+// mocked here (the delivery source reads the invoice and resolves tax through Prisma, the company's
+// transport id is a Prisma read, archiving writes to storage and Postgres) - each is proven against
+// real data elsewhere (`formats/credit-note-formats.spec.ts`, `transports/company-transport.spec.ts`,
+// `archive/archive-on-send.spec.ts`) and end to end by Cypress 106. The transport resolution itself
+// (`invoice-actions.ts#resolveInvoiceTransport`) stays REAL.
+vi.mock('./formats/credit-note-source', async () => {
+  const actual = await vi.importActual('./formats/credit-note-source');
+  return { ...actual, resolveCreditNoteDeliverySource: vi.fn() };
+});
+vi.mock('./transports/company-transport');
+vi.mock('./archive/archive-on-send');
+// A free credit note's PDF is rendered by `credit-note-actions.ts` itself (no transport renders it):
+// Chromium and the company row stay out of this file, the real render is Cypress 106's.
+vi.mock('./rendering/render-instance-pdf');
 
 /**
  * The THIRD document type written entirely as a descriptor (credit-note.descriptor.ts) — this is
@@ -100,8 +120,26 @@ function buildService(webhooks?: { dispatch: Mock }) {
   // type's own `deliver` does nothing at all. A fake dispatcher: no BullMQ, no Nest, no Redis.
   const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
+  // Issue #499: a fake "email" transport standing in for the real one - what it is handed (the credit
+  // note itself plus the invoice-shaped `formatSource`) is the contract under test here; the real
+  // transport's own addressing and PDF are `email-transport.spec.ts`'s and Cypress 106's.
+  const transportRegistry = new TransportRegistry();
+  const emailTransport = {
+    deliversCreditNotes: true,
+    send: vi.fn().mockResolvedValue({
+      message: 'Credit note sent to client@example.com.',
+      artifacts: [{ role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array([37, 80, 68, 70]) }],
+    }),
+  };
+  transportRegistry.register('email', 'Email', emailTransport);
+
   const actionRegistry = new ActionRegistry();
-  registerCreditNoteActions(actionRegistry, { queueDispatcher, webhooks });
+  registerCreditNoteActions(actionRegistry, {
+    queueDispatcher,
+    webhooks,
+    transportRegistry,
+    referenceRegistry: new EntityReferenceRegistry(),
+  });
 
   const service = new DocumentsService(
     typeRegistry,
@@ -112,8 +150,17 @@ function buildService(webhooks?: { dispatch: Mock }) {
     new TransportRegistry(),
     new ContributionRegistry(),
   );
-  return { service, queueDispatcher };
+  return { service, queueDispatcher, emailTransport, transportRegistry };
 }
+
+/** Issue #499 - what `resolveCreditNoteDeliverySource` hands the transport for `validCreditNoteData`
+ *  below: the credit note's id and number, the corrected invoice's data (no `client` here, so the
+ *  real B2G check needs no database). */
+const deliverySource = {
+  descriptor: buildInvoiceDescriptor(),
+  document: { id: 'cn-1', data: { issueDate: '2026-02-01', currency: 'EUR', lines: [] } },
+  options: { creditNote: { correctedInvoice: { displayNumber: 'INV-1', issueDate: '2026-01-15' } } },
+};
 
 /** A minimal, already-saved invoice a credit note can correct — its "lines" carry the stable
  *  ROW_ID_KEY a real invoice would only have once it has been saved through runAction at least once
@@ -155,6 +202,10 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     // payments, no OTHER credit notes, by default. A test that cares about settlement overrides these.
     (settlementPayments.listPayments as Mock).mockResolvedValue([]);
     (settlementCredits.listCreditNotes as Mock).mockResolvedValue([]);
+    // Issue #499 - see this file's top-of-file comment on these mocks.
+    (resolveCreditNoteDeliverySource as Mock).mockResolvedValue(deliverySource);
+    (getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
+    (renderDocumentInstance as Mock).mockResolvedValue({ pdf: Buffer.from('%PDF-rendered') });
   });
   afterEach(() => vi.resetAllMocks());
 
@@ -224,11 +275,20 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     });
   });
 
-  it('"send" (phase 2 — the worker\'s replay): "sending" -> "sent", nothing to deliver, never re-enqueued', async () => {
-    (persistence.findOwnedDocument as Mock).mockResolvedValue({
-      ...invoiceDocument('invoice-doc-1', ['line-1']),
-      status: 'sending',
-    });
+  it('"send" (phase 2, the worker\'s replay): "sending" -> "sent", delivered on the invoice channel and archived, never re-enqueued', async () => {
+    // The worker re-reads the CREDIT NOTE (linked, "sending"); the row-selection check reads the invoice.
+    (persistence.findOwnedDocument as Mock).mockImplementation((_companyId, typeId) =>
+      Promise.resolve(
+        typeId === 'invoice'
+          ? invoiceDocument('invoice-doc-1', ['line-1'])
+          : {
+              ...invoiceDocument('cn-1', []),
+              typeId: 'credit-note',
+              status: 'sending',
+              data: validCreditNoteData,
+            },
+      ),
+    );
     (persistence.updateDocumentStatus as Mock).mockResolvedValue({
       id: 'cn-1',
       typeId: 'credit-note',
@@ -238,7 +298,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       updatedAt: new Date(),
     });
 
-    const { service, queueDispatcher } = buildService();
+    const { service, queueDispatcher, emailTransport } = buildService();
     const result = await service.runAction('company-1', 'credit-note', 'send', {
       documentId: 'cn-1',
       data: validCreditNoteData,
@@ -246,8 +306,28 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
 
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ id: 'cn-1', status: 'sent' });
-    // `null, undefined, undefined`: no lastActionError, no transport reference, and no provider id —
-    // a credit note's "send" has no transport at all (see transport-registry.ts's own
+    // Issue #499: delivered through the company's invoice channel ("email" here), handed the credit
+    // note itself plus the invoice-shaped build source - never the old no-op.
+    expect(emailTransport.send).toHaveBeenCalledTimes(1);
+    expect(emailTransport.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: 'company-1',
+        label: 'Credit note',
+        document: expect.objectContaining({ status: 'sending' }),
+        formatSource: deliverySource,
+      }),
+    );
+    // ...and what it delivered is archived with the data hash of the record it was rendered from.
+    expect(archiveDeliveredArtifactsIfAny).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: 'company-1',
+        documentId: 'cn-1',
+        artifacts: [expect.objectContaining({ role: 'pdf', mime: 'application/pdf' })],
+        documentDataHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      }),
+    );
+    // `null, undefined, undefined`: no lastActionError, and no transport reference nor provider id -
+    // the "email" transport sets neither (see transport-registry.ts's own
     // `DocumentTransportResult.reference`/`.providerId`).
     expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
       'company-1',
@@ -258,6 +338,72 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       undefined,
       undefined,
     );
+    expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
+  });
+
+  it('"send" (phase 2) of a FREE credit note: archived, delivered to nobody, and the message says so', async () => {
+    const freeData = {
+      issueDate: '2026-02-01',
+      currency: 'EUR',
+      reason: 'Goodwill gesture',
+      lines: [{ description: 'Refund', quantity: 1, unitPrice: 10, vatRate: '0' }],
+    };
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      ...invoiceDocument('cn-2', []),
+      id: 'cn-2',
+      typeId: 'credit-note',
+      status: 'sending',
+      data: freeData,
+    });
+    (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+      id: 'cn-2',
+      typeId: 'credit-note',
+      status: 'sent',
+      data: freeData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service, emailTransport } = buildService();
+    const result = await service.runAction('company-1', 'credit-note', 'send', {
+      documentId: 'cn-2',
+      data: freeData,
+    });
+
+    expect(result.document).toMatchObject({ id: 'cn-2', status: 'sent' });
+    expect(result.message).toMatch(/not delivered: a credit note that corrects no invoice names no client/);
+    expect(emailTransport.send).not.toHaveBeenCalled();
+    expect(renderDocumentInstance).toHaveBeenCalledWith(
+      expect.anything(),
+      'company-1',
+      expect.objectContaining({ id: 'credit-note' }),
+      expect.objectContaining({ id: 'cn-2' }),
+      'delivery',
+    );
+    expect(archiveDeliveredArtifactsIfAny).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentId: 'cn-2',
+        artifacts: [
+          { role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array(Buffer.from('%PDF-rendered')) },
+        ],
+      }),
+    );
+  });
+
+  it('"send" (phase 1) of a LINKED credit note is refused before numbering when its channel cannot carry one', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(invoiceDocument('invoice-doc-1', ['line-1']));
+    (getCompanyInvoiceTransportId as Mock).mockResolvedValue('invoice-only');
+    const { service, queueDispatcher, transportRegistry } = buildService();
+    // A channel that exists but declares no `deliversCreditNotes` (today: "ksef", "invopop").
+    transportRegistry.register('invoice-only', 'Invoice only', { send: vi.fn() });
+
+    await expect(
+      service.runAction('company-1', 'credit-note', 'send', {
+        documentId: 'cn-1',
+        data: validCreditNoteData,
+      }),
+    ).rejects.toThrow(/"invoice-only".*cannot carry a credit note yet/);
+    expect(takeNumber.takeDocumentNumberForTransitionWithStatus).not.toHaveBeenCalled();
     expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
   });
 
@@ -963,7 +1109,11 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       // country..."); this test only proves this MODULE never wires a code-level block onto it.
       it('never registers a handler for "share-link" - existing credit notes stay shareable with no guard to bypass', () => {
         const registry = new ActionRegistry();
-        registerCreditNoteActions(registry, { queueDispatcher: { enqueueAction: vi.fn() } as never });
+        registerCreditNoteActions(registry, {
+          queueDispatcher: { enqueueAction: vi.fn() } as never,
+          transportRegistry: new TransportRegistry(),
+          referenceRegistry: new EntityReferenceRegistry(),
+        });
 
         expect(registry.resolve('credit-note', 'share-link')).toBeUndefined();
         expect(registry.resolve('credit-note', 'save-draft')).toBeDefined();

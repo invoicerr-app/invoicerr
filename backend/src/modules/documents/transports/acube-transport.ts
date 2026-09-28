@@ -104,7 +104,12 @@ import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { AcubeClient, AcubeEnvironment } from './acube/acube-client';
-import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
+import {
+  DocumentTransport,
+  DocumentTransportContext,
+  DocumentTransportResult,
+  formatBuildInputOf,
+} from './transport-registry';
 
 export interface AcubeTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -175,13 +180,19 @@ export function buildAcubeTransport(deps: AcubeTransportDeps): DocumentTransport
       await requireConnectedAcube(deps.channelCredentials, companyId);
     },
 
+    // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
+    deliversCreditNotes: true,
+
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result - the company's configuration
       // could have changed in the (possibly long, retried) time between the two calls. Same
       // reasoning every other transport in this directory already documents.
       const credentials = await requireConnectedAcube(deps.channelCredentials, ctx.companyId);
 
-      const data = (ctx.document.data ?? {}) as Record<string, unknown>;
+      // Issue #499: built from `ctx.formatSource` when the caller set one (a credit note, built from the
+      // invoice it corrects), from the delivered invoice itself otherwise (`formatBuildInputOf`).
+      const buildInput = formatBuildInputOf(ctx, INVOICE_DESCRIPTOR);
+      const data = (buildInput.document.data ?? {}) as Record<string, unknown>;
       const clientId = typeof data.client === 'string' ? data.client : undefined;
       const [company, client] = await Promise.all([
         prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
@@ -205,10 +216,12 @@ export function buildAcubeTransport(deps: AcubeTransportDeps): DocumentTransport
       }
 
       const buildResult = await deps.fatturapaFormatProvider.build(
-        INVOICE_DESCRIPTOR,
-        ctx.document,
+        buildInput.descriptor,
+        buildInput.document,
         companyToFormatParty(company),
         clientToFormatParty(client),
+        ctx.companyId,
+        buildInput.options,
       );
       if (!buildResult.validation.valid) {
         // Same gate `documents.service.ts#downloadDocumentFormat` enforces for a manual download -
