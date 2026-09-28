@@ -4,7 +4,7 @@
  * already established for a different preflight gate on the same action. This file's job is "does
  * invoice-actions.ts's 'send' actually call the ATCUD preflight/onNumbered hooks correctly" — never
  * "is `parseAtcudPattern`/`computeAtcud` itself right" (that is `numbering/atcud.spec.ts`'s job) nor
- * "does `ensureAtcudIssuable`/`attachAtcudToNumberedInvoice` resolve a series correctly on their own"
+ * "does `ensureAtcudIssuable`/`attachAtcudToNumberedDocument` resolve a series correctly on their own"
  * (that is `atcud-issuance.spec.ts`'s job). Calls the registered "send" handler directly, bypassing
  * `DocumentsService.runAction`'s own gates entirely — the exact same style `send-divergence.spec.ts`
  * and `invoice-channel-mandate.spec.ts` already established for this module.

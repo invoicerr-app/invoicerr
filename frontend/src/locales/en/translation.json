@@ -2826,6 +2826,22 @@
           "saveSuccess": "Series saved",
           "deleteError": "Failed to remove this series",
           "deleteSuccess": "Series removed"
+        },
+        "documentType": "Document type",
+        "addDescriptionTyped": "The AT issues one code per series and document type: register invoice (FT) and credit note (NC) series separately. The series identifier is the part of the number BEFORE the \"/\", e.g. \"NC 2026\" for credit notes numbered \"NC {year}/{number:4}\".",
+        "emptyStateDocuments": "No ATCUD series registered yet. Invoices and credit notes cannot be sent until their series is."
+      },
+      "descriptionDocuments": "Portaria n.º 195/2020 requires every Portuguese invoice and credit note to carry an ATCUD, obtained per series from the AT (Portal das Finanças), BEFORE any document in that series is issued.",
+      "types": {
+        "invoice": "Invoice (FT)",
+        "creditNote": "Credit note (NC)"
+      },
+      "creditNoteNumberFormat": {
+        "title": "Credit note number format",
+        "description": "A Portuguese credit note carries its own ATCUD, from its own series (SAF-T type NC). Same rule as the invoice: the format must end in a literal \"/\" immediately followed by \"{number}\" (or \"{number:N}\"), e.g. \"NC {year}/{number:4}\".",
+        "label": "Credit note number format",
+        "messages": {
+          "saveSuccess": "Credit note number format saved"
         }
       }
     },

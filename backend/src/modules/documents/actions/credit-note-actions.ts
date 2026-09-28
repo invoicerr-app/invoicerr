@@ -17,6 +17,7 @@ import { listPayments, toSettlementPaymentInputs } from '../settlement/payments'
 import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { runAsyncSendAction } from './async-send';
+import { attachAtcudToNumberedDocument, runAtcudPreflight } from './atcud-issuance';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
 import { performSaveDraft } from './generic-actions';
 
@@ -393,12 +394,22 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       // mismatches the invoice and have it persisted uncaught — the exact bypass this preflight
       // closes, no `data` replacement needed (returning `undefined` leaves `data` exactly as
       // submitted; only a MISMATCH ever throws).
-      preflight: async () => {
+      preflight: async ({ willNumber }) => {
         assertCreditNoteAmountSourceIsUnambiguous(data);
         await assertCreditNoteAllowedForCountry(companyId, data);
         await assertCreditNoteCurrencyMatchesInvoice(companyId, data);
+        // Portugal's ATCUD (issue #497) - the invoice's own gate, on the credit note's own number
+        // format and its own "NC" series (see atcud-issuance.ts's header for the legal basis). A no-op
+        // outside Portugal. Only when this send is about to take a number: a legacy credit note
+        // retried unnumbered (`numberingOnlyFrom` above) gets no number, so it can get no ATCUD, and
+        // refusing it here would strand it in "send_failed" for a code it could never carry.
+        if (willNumber) await runAtcudPreflight(companyId, 'credit-note');
         return undefined;
       },
+      // Portugal's ATCUD, part two - frozen onto the credit note the moment it is numbered, exactly as
+      // for the invoice. Never throws: see `attachAtcudToNumberedDocument`'s own header.
+      onNumbered: async ({ companyId: c, documentId: id, numbered }) =>
+        attachAtcudToNumberedDocument(c, 'credit-note', id, numbered),
       // Nothing to deliver — see this file's own header. The status transition itself IS the
       // action's entire effect.
       deliver: async () => ({ message: undefined }),

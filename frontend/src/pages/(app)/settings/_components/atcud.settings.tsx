@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useGet, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { Check, Hash, Info, Trash2, XCircle } from "lucide-react"
@@ -65,9 +66,83 @@ function looksAtcudCompatible(pattern: string): boolean {
  *  spelled out verbatim purely as a REFERENCE for the placeholder/empty-state text below. */
 const SHIPPED_DEFAULT_INVOICE_FORMAT = "INVOICE-{year}-{number:4}"
 
-function NumberFormatCard({ company, onSaved }: { company: CompanyInfo; onSaved: () => void }) {
+/** Same reference-only role as `SHIPPED_DEFAULT_INVOICE_FORMAT` above, for the credit note
+ *  (`defaultNumberFormatFor('credit-note')`). */
+const SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT = "CREDIT-NOTE-{year}-{number:4}"
+
+/**
+ * The document types that carry an ATCUD (issue #497), each with its SAF-T (PT) document type: the
+ * type a series is registered under on the Portal das Finanças (Portaria n.º 195/2020, art. 2.º b)).
+ * Mirrors `documents/numbering/atcud.ts#SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID`, the backend table that
+ * actually decides; this copy only labels the screen.
+ */
+const ATCUD_DOCUMENT_TYPES = [
+  { typeId: "invoice", saftType: "FT", shippedDefault: SHIPPED_DEFAULT_INVOICE_FORMAT },
+  { typeId: "credit-note", saftType: "NC", shippedDefault: SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT },
+] as const
+
+type AtcudTypeId = (typeof ATCUD_DOCUMENT_TYPES)[number]["typeId"]
+
+function useAtcudTypeLabel() {
   const { t } = useTranslation()
-  const currentPattern = company.numberFormats?.invoice ?? SHIPPED_DEFAULT_INVOICE_FORMAT
+  return (typeId: string) => {
+    if (typeId === "credit-note") return t("settings.atcud.types.creditNote", "Credit note (NC)")
+    if (typeId === "invoice") return t("settings.atcud.types.invoice", "Invoice (FT)")
+    return typeId
+  }
+}
+
+/** The invoice card keeps the keys and `data-cy` it always had; the credit note card (issue #497) gets
+ *  its own, so neither screen text nor an existing test changes meaning under it. */
+function numberFormatCopy(typeId: AtcudTypeId, t: ReturnType<typeof useTranslation>["t"]) {
+  if (typeId === "credit-note") {
+    return {
+      dataCyPrefix: "atcud-credit-note-number-format",
+      title: t("settings.atcud.creditNoteNumberFormat.title", "Credit note number format"),
+      description: t(
+        "settings.atcud.creditNoteNumberFormat.description",
+        "A Portuguese credit note carries its own ATCUD, from its own series (SAF-T type NC). Same rule " +
+          'as the invoice: the format must end in a literal "/" immediately followed by "{number}" (or ' +
+          '"{number:N}"), e.g. "NC {year}/{number:4}".',
+      ),
+      label: t("settings.atcud.creditNoteNumberFormat.label", "Credit note number format"),
+      saveSuccess: t(
+        "settings.atcud.creditNoteNumberFormat.messages.saveSuccess",
+        "Credit note number format saved",
+      ),
+      placeholder: "NC {year}/{number:4}",
+    }
+  }
+  return {
+    dataCyPrefix: "atcud-number-format",
+    title: t("settings.atcud.numberFormat.title", "Invoice number format"),
+    description: t(
+      "settings.atcud.numberFormat.description",
+      'The ATCUD sequential number is, by law, "the digits immediately after the / " in your ' +
+        "invoice number (Portaria n.º 195/2020, art. 3.º n.º 3). Your format must therefore end " +
+        'in a literal "/" immediately followed by "{number}" (or "{number:N}"), e.g. ' +
+        '"FT {year}/{number:4}".',
+    ),
+    label: t("settings.atcud.numberFormat.label", "Invoice number format"),
+    saveSuccess: t("settings.atcud.numberFormat.messages.saveSuccess", "Invoice number format saved"),
+    placeholder: "FT {year}/{number:4}",
+  }
+}
+
+function NumberFormatCard({
+  company,
+  typeId,
+  shippedDefault,
+  onSaved,
+}: {
+  company: CompanyInfo
+  typeId: AtcudTypeId
+  shippedDefault: string
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const copy = numberFormatCopy(typeId, t)
+  const currentPattern = company.numberFormats?.[typeId] ?? shippedDefault
   const [pattern, setPattern] = useState(currentPattern)
   const [saved, flash] = useSavedFlash()
 
@@ -81,31 +156,25 @@ function NumberFormatCard({ company, onSaved }: { company: CompanyInfo; onSaved:
   const compatible = looksAtcudCompatible(pattern)
 
   const handleSave = async () => {
-    const result = await save({ typeId: "invoice", pattern })
+    const result = await save({ typeId, pattern })
     if (!result) return // error already toasted by the wrapper
-    toast.success(t("settings.atcud.numberFormat.messages.saveSuccess", "Invoice number format saved"))
+    toast.success(copy.saveSuccess)
     onSaved()
     flash()
   }
 
   return (
     <SettingsSection
-      title={t("settings.atcud.numberFormat.title", "Invoice number format")}
-      description={t(
-        "settings.atcud.numberFormat.description",
-        'The ATCUD sequential number is, by law, "the digits immediately after the / " in your ' +
-          "invoice number (Portaria n.º 195/2020, art. 3.º n.º 3). Your format must therefore end " +
-          'in a literal "/" immediately followed by "{number}" (or "{number:N}"), e.g. ' +
-          '"FT {year}/{number:4}".',
-      )}
-      dataCy="atcud-number-format-card"
+      title={copy.title}
+      description={copy.description}
+      dataCy={`${copy.dataCyPrefix}-card`}
       footer={
         <SettingsFormFooter saved={saved}>
           <Button
             onClick={handleSave}
             disabled={pattern.trim().length === 0}
             loading={saving}
-            data-cy="atcud-number-format-save-button"
+            data-cy={`${copy.dataCyPrefix}-save-button`}
           >
             {t("settings.atcud.numberFormat.save", "Save")}
           </Button>
@@ -113,20 +182,18 @@ function NumberFormatCard({ company, onSaved }: { company: CompanyInfo; onSaved:
       }
     >
       <div className="max-w-md space-y-1.5">
-        <Label htmlFor="atcud-invoice-number-format">
-          {t("settings.atcud.numberFormat.label", "Invoice number format")}
-        </Label>
+        <Label htmlFor={`atcud-${typeId}-number-format`}>{copy.label}</Label>
         <Input
-          id="atcud-invoice-number-format"
-          data-cy="atcud-number-format-input"
+          id={`atcud-${typeId}-number-format`}
+          data-cy={`${copy.dataCyPrefix}-input`}
           className="font-mono"
           value={pattern}
           onChange={(e) => setPattern(e.target.value)}
-          placeholder="FT {year}/{number:4}"
+          placeholder={copy.placeholder}
         />
         <p
           className="flex items-center gap-1.5 text-xs text-muted-foreground"
-          data-cy="atcud-number-format-status"
+          data-cy={`${copy.dataCyPrefix}-status`}
         >
           {compatible ? (
             <>
@@ -153,6 +220,7 @@ function NumberFormatCard({ company, onSaved }: { company: CompanyInfo; onSaved:
 
 function SeriesRow({ series, onDeleted }: { series: AtcudSeriesRow; onDeleted: () => void }) {
   const { t } = useTranslation()
+  const typeLabel = useAtcudTypeLabel()
   const { trigger: remove, loading: removing } = useMutationWithToast(
     useDelete(`/api/company/atcud-series/${series.id}`),
     t("settings.atcud.series.messages.deleteError", "Failed to remove this series"),
@@ -168,7 +236,11 @@ function SeriesRow({ series, onDeleted }: { series: AtcudSeriesRow; onDeleted: (
   return (
     <SettingsListRow
       dataCy={`atcud-series-row-${series.id}`}
-      badge={<Badge variant="outline">{series.typeId}</Badge>}
+      badge={
+        <Badge variant="outline" data-cy={`atcud-series-row-${series.id}-type`}>
+          {typeLabel(series.typeId)}
+        </Badge>
+      }
       title={<span data-cy={`atcud-series-row-${series.id}-seriesId`}>{series.seriesId}</span>}
       meta={
         <span className="font-mono tabular-nums" data-cy={`atcud-series-row-${series.id}-code`}>
@@ -194,8 +266,8 @@ function SeriesRow({ series, onDeleted }: { series: AtcudSeriesRow; onDeleted: (
 /**
  * Company settings → ATCUD (Portugal only). Lets a Portuguese company record, per series, the
  * "código de validação" it obtained from the Portal das Finanças (AT FAQ 4308/4312) — WITHOUT this,
- * `documents/actions/atcud-issuance.ts#ensureAtcudIssuable` refuses to send any invoice in that
- * series, by design (see that file's own header): a missing ATCUD is refused loudly, never invented.
+ * `documents/actions/atcud-issuance.ts#ensureAtcudIssuable` refuses to send any invoice or credit
+ * note (issue #497) in that series, by design (see that file's own header): a missing ATCUD is refused loudly, never invented.
  *
  * `GET/PUT/DELETE /api/company/atcud-series` (`modules/company/atcud-series/`) — the validation code
  * is NOT a secret (it is printed on every invoice), so unlike `signing-certificates.settings.tsx` this
@@ -208,8 +280,11 @@ export default function AtcudSettings() {
   const series = seriesList ?? []
   const [addSaved, flashAdd] = useSavedFlash()
 
+  const typeLabel = useAtcudTypeLabel()
+  const [seriesTypeId, setSeriesTypeId] = useState<AtcudTypeId>("invoice")
   const [seriesId, setSeriesId] = useState("")
   const [validationCode, setValidationCode] = useState("")
+  const seriesSaftType = ATCUD_DOCUMENT_TYPES.find((type) => type.typeId === seriesTypeId)?.saftType ?? "FT"
 
   const { trigger: upsert, loading: saving } = useMutationWithToast(
     usePut("/api/company/atcud-series"),
@@ -223,7 +298,7 @@ export default function AtcudSettings() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    const result = await upsert({ typeId: "invoice", seriesId, validationCode })
+    const result = await upsert({ typeId: seriesTypeId, seriesId, validationCode })
     if (!result) return // error already toasted by the wrapper
     toast.success(t("settings.atcud.series.messages.saveSuccess", "Series saved"))
     resetForm()
@@ -253,26 +328,35 @@ export default function AtcudSettings() {
     <SettingsPage
       title={t("settings.atcud.title", "ATCUD (Portugal)")}
       description={t(
-        "settings.atcud.description",
-        "Portaria n.º 195/2020 requires every Portuguese invoice to carry an ATCUD, obtained per " +
-          "series from the AT (Portal das Finanças), BEFORE any document in that series is issued.",
+        "settings.atcud.descriptionDocuments",
+        "Portaria n.º 195/2020 requires every Portuguese invoice and credit note to carry an ATCUD, " +
+          "obtained per series from the AT (Portal das Finanças), BEFORE any document in that series is issued.",
       )}
       dataCy="atcud-section"
     >
-      <NumberFormatCard company={company as CompanyInfo} onSaved={refetchCompany} />
+      {ATCUD_DOCUMENT_TYPES.map((type) => (
+        <NumberFormatCard
+          key={type.typeId}
+          company={company as CompanyInfo}
+          typeId={type.typeId}
+          shippedDefault={type.shippedDefault}
+          onSaved={refetchCompany}
+        />
+      ))}
 
       <SettingsSection
         title={t("settings.atcud.series.addTitle", "Register a series validation code")}
         description={t(
-          "settings.atcud.series.addDescription",
-          'The series identifier is the part of your invoice number BEFORE the "/" — e.g. "FT ' +
-            '2026" for the format "FT {year}/{number:4}".',
+          "settings.atcud.series.addDescriptionTyped",
+          "The AT issues one code per series and document type: register invoice (FT) and credit note " +
+            '(NC) series separately. The series identifier is the part of the number BEFORE the "/", ' +
+            'e.g. "NC 2026" for credit notes numbered "NC {year}/{number:4}".',
         )}
         dataCy="atcud-series-add-card"
         footer={
           <SettingsFormFooter saved={addSaved}>
-            {/* `secondary`, not the tab's own default: the number-format save above is the ONE
-             *  primary this screen has — registering a series is a repeatable "add an item" action,
+            {/* `secondary`, not the tab's own default: the number-format saves above are the
+             *  primaries this screen has: registering a series is a repeatable "add an item" action,
              *  the same weight `currency-rates.settings.tsx`'s own "Add rate" carries next to
              *  `company.settings.tsx`'s primary. */}
             <Button
@@ -287,7 +371,28 @@ export default function AtcudSettings() {
           </SettingsFormFooter>
         }
       >
-        <form id="atcud-series-add-form" onSubmit={handleAdd} className="grid gap-4 sm:grid-cols-2">
+        <form id="atcud-series-add-form" onSubmit={handleAdd} className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="atcud-series-type">
+              {t("settings.atcud.series.documentType", "Document type")}
+            </Label>
+            <Select value={seriesTypeId} onValueChange={(value) => setSeriesTypeId(value as AtcudTypeId)}>
+              <SelectTrigger id="atcud-series-type" className="w-full" dataCy="atcud-series-type-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ATCUD_DOCUMENT_TYPES.map((type) => (
+                  <SelectItem
+                    key={type.typeId}
+                    value={type.typeId}
+                    dataCy={`atcud-series-type-option-${type.typeId}`}
+                  >
+                    {typeLabel(type.typeId)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="atcud-series-id">
               {t("settings.atcud.series.seriesId", "Series identifier")}
@@ -296,7 +401,7 @@ export default function AtcudSettings() {
               id="atcud-series-id"
               data-cy="atcud-series-id-input"
               required
-              placeholder="FT 2026"
+              placeholder={`${seriesSaftType} ${new Date().getFullYear()}`}
               value={seriesId}
               onChange={(e) => setSeriesId(e.target.value)}
             />
@@ -332,8 +437,8 @@ export default function AtcudSettings() {
               icon={Hash}
               size="sm"
               title={t(
-                "settings.atcud.series.emptyState",
-                "No ATCUD series registered yet — invoices cannot be sent until at least one is.",
+                "settings.atcud.series.emptyStateDocuments",
+                "No ATCUD series registered yet. Invoices and credit notes cannot be sent until their series is.",
               )}
               data-cy="atcud-series-empty-state"
             />

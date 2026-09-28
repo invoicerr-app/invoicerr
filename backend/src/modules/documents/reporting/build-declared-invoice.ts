@@ -31,6 +31,18 @@ import { extractLines, toDateOnly } from '../formats/shared-build';
 import { DocumentFormatParty } from '../formats/format-provider';
 import { computeDocumentTotals } from '../totals/compute-totals';
 
+/**
+ * Thrown when a document with no number reaches a declaration (issue #497). A declaration is a legal
+ * statement to a tax authority that THIS numbered document was issued; there is no honest value to
+ * declare in place of a number, and the literal "DRAFT" this bridge used to send was a placeholder the
+ * authority would have recorded as a real document number. Unreachable for a document numbered on its
+ * way to "sent" (`actions/async-send.ts` numbers it BEFORE the "sent" write `report-on-send.ts` fires
+ * on); reaching it means a document got to "sent" unnumbered, which must fail loudly, never declare.
+ * Propagates like any other failure of `reporting-runner.ts#runReport`: retried by BullMQ, then
+ * journaled `report:failed` with this message.
+ */
+export class UndeclarableDocumentError extends Error {}
+
 function toDeclaredParty(party: DocumentFormatParty): DeclaredParty {
   return {
     name: party.name,
@@ -50,6 +62,16 @@ export function buildDeclaredInvoice(
   seller: DocumentFormatParty,
   buyer: DocumentFormatParty,
 ): DeclaredInvoice {
+  // Never a placeholder: see `UndeclarableDocumentError`'s own header. Checked first, before any
+  // figure is computed, so nothing about an unnumbered document is ever assembled for declaration.
+  const number = document.displayNumber?.trim();
+  if (!number) {
+    throw new UndeclarableDocumentError(
+      `Refusing to declare ${typeId} ${document.id}: it has no number. A declaration names the issued ` +
+        'document by its number, and this one was never numbered, so there is nothing lawful to declare.',
+    );
+  }
+
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
   // Currency detection can fail (see `computeDocumentTotals`'s own header — a document with no
@@ -77,9 +99,7 @@ export function buildDeclaredInvoice(
   return {
     documentId: document.id,
     typeId,
-    // Guaranteed non-null by the time a report is ever enqueued — `actions/async-send.ts` numbers a
-    // document BEFORE the "sent" write this trigger fires on (see `report-on-send.ts`'s own header).
-    number: document.displayNumber ?? 'DRAFT',
+    number,
     issueDate: toDateOnly(data.issueDate),
     currency,
     seller: toDeclaredParty(seller),

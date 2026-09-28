@@ -44,6 +44,7 @@ import {
   DeclaredInvoice,
   DeclaredInvoiceLine,
 } from '../declaration-provider';
+import { isAtcudTypeId, SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID } from '../../numbering/atcud';
 import {
   buildPtAtClient,
   describePtAtCodigoResposta,
@@ -104,11 +105,16 @@ export function stripPtNifPrefix(vatNumber: string | undefined): string | undefi
 export const PT_AT_UNKNOWN_CONSUMER_NIF = '999999990';
 
 /** Field 1.6.4 (InvoiceType) — see this file's own header on scope: this bridge only ever declares
- *  `typeId: 'invoice'` (mapped to "FT" — the manual's own worked example, an ordinary "Fatura") today;
- *  "NC" (Nota de Crédito) is named here, ready for a FUTURE `pt.json` `appliesTo: 'credit-note'` fact,
- *  never wired further than this one enum value without one. */
+ *  `typeId: 'invoice'` ("FT", the manual's own worked example, an ordinary "Fatura") today. The codes
+ *  come from `numbering/atcud.ts#SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID`, the one table (sourced there to
+ *  Portaria n.º 302/2016, field 4.1.4.8, read first-hand on the AT portal for issue #497) that also
+ *  decides which series type an ATCUD is registered under. "NC" (Nota de Crédito) is therefore ready
+ *  for a FUTURE `pt.json` `appliesTo: 'credit-note'` fact, but a credit note is NOT declared by this
+ *  bridge: that also needs `DebitCreditIndicator` "D" and the corrected invoice's `Reference` (manual
+ *  fields 1.6.14.3/1.6.14.4), neither of which `DeclaredInvoice` carries. Any type outside that table
+ *  keeps the "FT" it always had. */
 export function ptAtInvoiceTypeFor(typeId: string): string {
-  return typeId === 'credit-note' ? 'NC' : 'FT';
+  return isAtcudTypeId(typeId) ? SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID[typeId] : 'FT';
 }
 
 /**
