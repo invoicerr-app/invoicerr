@@ -22,8 +22,10 @@ const api = Cypress.env("apiUrl");
 const YEAR = new Date().getFullYear();
 const FT_CODE = "E2EFTCODE1";
 const NC_CODE = "E2ENCCODE1";
-const INVOICE_NUMBER = `FT ${YEAR}/0001`;
-const CREDIT_NOTE_NUMBER = `NC ${YEAR}/0001`;
+// Issue #496: Portugal's own number formats ("FT A/{number}", "NC A/{number}",
+// `country-policy/data/pt.json`), one series each across years - never a company setting.
+const INVOICE_NUMBER = "FT A/0001";
+const CREDIT_NOTE_NUMBER = "NC A/0001";
 
 /** Every `<doc:name>` value in one SOAP body, in document order. */
 function fieldValues(body: string, name: string): string[] {
@@ -74,13 +76,12 @@ function configurePortugueseSeller() {
 	})
 		.its("status")
 		.should("be.oneOf", [200, 201]);
-	for (const [typeId, pattern, seriesId, validationCode] of [
-		["invoice", "FT {year}/{number:4}", `FT ${YEAR}`, FT_CODE],
-		["credit-note", "NC {year}/{number:4}", `NC ${YEAR}`, NC_CODE],
+	// The number formats are Portugal's own (issue #496); what a seller registers is the AT validation
+	// code of each series those formats produce.
+	for (const [typeId, seriesId, validationCode] of [
+		["invoice", "FT A", FT_CODE],
+		["credit-note", "NC A", NC_CODE],
 	]) {
-		cy.request({ method: "PUT", url: `${api}/api/company/number-format`, body: { typeId, pattern } })
-			.its("status")
-			.should("be.oneOf", [200, 201]);
 		cy.request({
 			method: "PUT",
 			url: `${api}/api/company/atcud-series`,

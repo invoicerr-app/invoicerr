@@ -16,7 +16,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     old 21-character credit-note series gives way to the Italian format, the screen says why, and
  *     the counter goes on without a gap.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 interface NumberFormatRow {
 	typeId: string;
