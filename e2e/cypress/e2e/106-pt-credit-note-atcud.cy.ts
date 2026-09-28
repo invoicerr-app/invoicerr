@@ -11,16 +11,19 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `atcud-required` numbering facts.
  *
  * Two journeys, on a Portuguese seller:
- *  a) configured through the ATCUD settings screen (credit-note number format, then an NC series
- *     picked in the new "Document type" select), a credit note sent through a real click is numbered
- *     in its own series and carries `ATCUD:<NC code>-<sequential>`, in the API and on its PDF;
+ *  a) configured through the ATCUD settings screen (an NC series picked in the new "Document type"
+ *     select; the number format itself is Portugal's own since issue #496, "NC A/{number}", shown
+ *     read-only), a credit note sent through a real click is numbered in its own series and carries
+ *     `ATCUD:<NC code>-<sequential>`, in the API and on its PDF;
  *  b) with only the invoice's FT series registered, sending the credit note is refused (400) BEFORE
  *     any number is spent, and the refusal names the missing NC series.
  */
 const api = Cypress.env("apiUrl");
 const YEAR = new Date().getFullYear();
-const FT_SERIES = `FT ${YEAR}`;
-const NC_SERIES = `NC ${YEAR}`;
+// Issue #496: Portugal's own formats ("FT A/{number}", "NC A/{number}", country-policy/data/pt.json),
+// one series each across years.
+const FT_SERIES = "FT A";
+const NC_SERIES = "NC A";
 const FT_CODE = "E2EFTCODE1";
 const NC_CODE = "E2ENCCODE1";
 
@@ -43,13 +46,6 @@ function switchSellerToPortugal() {
 		.should("be.oneOf", [200, 201]);
 	// The invoice's own ATCUD set-up (already covered by 64-declarations and the pt-de scenario):
 	// through the API here, since this spec is about the credit note.
-	cy.request({
-		method: "PUT",
-		url: `${api}/api/company/number-format`,
-		body: { typeId: "invoice", pattern: "FT {year}/{number:4}" },
-	})
-		.its("status")
-		.should("be.oneOf", [200, 201]);
 	cy.request({
 		method: "PUT",
 		url: `${api}/api/company/atcud-series`,
@@ -164,19 +160,14 @@ describe("Issue #497 - a Portuguese credit note carries its own ATCUD, from its 
 	it("configured on the ATCUD screen, a credit note sent by a real click gets NC numbering and ATCUD:<NC code>-<sequential>, in the API and on its PDF", () => {
 		cy.visit("/settings/atcud");
 
-		// The credit note's own number format, on its own card (the invoice card is untouched).
-		cy.get('[data-cy="atcud-credit-note-number-format-input"]', { timeout: 15000 })
-			.clear()
-			.type("NC {year}/{number:4}", { parseSpecialCharSequences: false });
-		cy.get('[data-cy="atcud-credit-note-number-format-status"]').should(
-			"contain.text",
-			"Compatible with the ATCUD sequential-number rule",
+		// The credit note's own number format, on its own card: Portugal's own, read-only (issue #496),
+		// naming the series whose code must be registered.
+		cy.get('[data-cy="atcud-credit-note-number-format-pattern"]', { timeout: 15000 }).should(
+			"have.text",
+			"NC A/{number}",
 		);
-		cy.get('[data-cy="atcud-credit-note-number-format-save-button"]').click();
-		cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Credit note number format saved");
-		cy.request({ url: `${api}/api/company/info` })
-			.its("body.numberFormats")
-			.should("deep.include", { invoice: "FT {year}/{number:4}", "credit-note": "NC {year}/{number:4}" });
+		cy.get('[data-cy="atcud-credit-note-number-format-series"]').should("have.text", NC_SERIES);
+		cy.get('[data-cy="atcud-credit-note-number-format-card"]').find("input").should("not.exist");
 
 		// The NC series, registered as a CREDIT NOTE series through the new "Document type" select.
 		cy.openSelect('[data-cy="atcud-series-type-select"]', '[data-cy="atcud-series-type-option-credit-note"]');
@@ -241,14 +232,6 @@ describe("Issue #497 - a Portuguese credit note carries its own ATCUD, from its 
 	});
 
 	it("with only the invoice's FT series registered, sending the credit note is refused (400) before any number is spent, naming the NC series", () => {
-		cy.request({
-			method: "PUT",
-			url: `${api}/api/company/number-format`,
-			body: { typeId: "credit-note", pattern: "NC {year}/{number:4}" },
-		})
-			.its("status")
-			.should("be.oneOf", [200, 201]);
-
 		createPortugueseClient().then((clientId) => {
 			issueInvoice(clientId).then((invoice) => {
 				saveCreditNoteDraft(invoice.id, invoice.rowId).then((note) => {

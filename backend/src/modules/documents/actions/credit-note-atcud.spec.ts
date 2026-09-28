@@ -100,21 +100,28 @@ describe('credit-note "send" - Portugal\'s ATCUD preflight and numbering-time at
     expect(mockedPrisma.documentInstance.update).not.toHaveBeenCalled();
   });
 
-  it('BLOCKS a Portuguese credit note on the shipped default format, before it is persisted or numbered', async () => {
+  // Issue #496: a Portuguese company with no running credit-note series is numbered in Portugal's own
+  // NC format ("NC A/{number}", country-policy/data/pt.json), so what blocks it before its first credit
+  // note is the missing AT code for series "NC A" - never a format it has to configure.
+  it('BLOCKS a Portuguese credit note until series "NC A" (Portugal\'s own format) has a code, before it is persisted or numbered', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
-    mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: { invoice: 'FT {year}/{number:4}' } });
+    mockedPrisma.company.findUnique.mockResolvedValue({
+      countryCode: 'PT',
+      numberFormats: { invoice: 'FT {year}/{number:4}' },
+    });
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
 
     const action = sendAction();
 
     await expect(action).rejects.toBeInstanceOf(BadRequestException);
-    await expect(action).rejects.toThrow(/credit note number format/);
+    await expect(action).rejects.toThrow('credit note series "NC A"');
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
     expect(takeNumber.takeDocumentNumberForTransitionWithStatus).not.toHaveBeenCalled();
   });
 
   it('BLOCKS a Portuguese credit note whose NC series has no validation code, even if the FT one has', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
-    mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: PT_FORMATS });
+    mockedPrisma.company.findUnique.mockResolvedValue({ countryCode: 'PT', numberFormats: PT_FORMATS });
     mockedPrisma.companyAtcudSeries.findUnique.mockImplementation(
       ({ where }: { where: { companyId_typeId_seriesId: { typeId: string } } }) =>
         Promise.resolve(
@@ -131,7 +138,7 @@ describe('credit-note "send" - Portugal\'s ATCUD preflight and numbering-time at
 
   it('numbers the credit note, THEN freezes ATCUD:<NC code>-<sequential> onto it', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
-    mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: PT_FORMATS });
+    mockedPrisma.company.findUnique.mockResolvedValue({ countryCode: 'PT', numberFormats: PT_FORMATS });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({ validationCode: 'NCVALID01' });
     numberedAs(`NC ${YEAR}/0004`, 4);
 
@@ -156,7 +163,7 @@ describe('credit-note "send" - Portugal\'s ATCUD preflight and numbering-time at
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
     (persistence.findOwnedDocument as Mock).mockResolvedValue(creditNote('send_failed'));
     (persistence.upsertDocument as Mock).mockResolvedValue(creditNote('sending'));
-    mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: null }); // would fail the gate
+    mockedPrisma.company.findUnique.mockResolvedValue({ countryCode: 'PT', numberFormats: null });
 
     const result = await sendAction();
 

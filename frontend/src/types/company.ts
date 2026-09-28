@@ -47,13 +47,9 @@ export interface Company {
    *  XRechnung's own BR-DE-1 (backend/src/modules/documents/formats/xrechnung-provider.ts); absent
    *  for every other syntax. Never auto-filled — see Company.iban's own schema.prisma comment. */
   iban?: string | null
-  /** Per-document-type number FORMAT, keyed by a `DocumentTypeDescriptor` id — e.g.
-   *  `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here falls back to the backend's own
-   *  shipped default (`documents/numbering/format-number.ts#defaultNumberFormatFor`), never a hole —
-   *  only in who chose it. Written through `PUT /api/company/number-format`
-   *  (`company.settings.tsx`'s "Number formats" card, `atcud.settings.tsx`'s own card), never through
-   *  this same `POST /api/company/info` object — see backend's `company.service.ts#editCompanyInfo`
-   *  for why that write path allow-lists its columns instead of accepting this one from the body. */
+  /** Issue #496: the company's RUNNING SERIES (`{ typeId: pattern }`), not a setting - read-only.
+   *  Number formats are defined per country and document type by the backend
+   *  (`GET /api/company/number-formats`, `CompanyNumberFormats` below). */
   numberFormats?: Record<string, string> | null
   partyIdentifiers?: PartyIdentifier[]
   /** Which registered document transport (GET /api/documents/transports) the invoice "send" action
@@ -104,4 +100,30 @@ export interface CurrencyRate {
 export interface CurrencyRatePairGap {
   from: string
   to: string
+}
+
+/** `GET /api/company/number-formats` (issue #496) - mirrors the backend's
+ *  `company/dto/number-formats.dto.ts`. Every human-facing string is plain English catalog data. */
+export type NumberFormatProvenance =
+  | { kind: "legal"; sourceText: string; sourceCheckedAt: string }
+  | { kind: "unverified"; resolutionNote: string }
+
+export interface CompanyNumberFormat {
+  typeId: string
+  pattern: string
+  source: "country-policy" | "running-series"
+  countryPattern: string
+  nextNumber: number
+  nextDisplayNumber: string
+  rationale: string
+  unconstrained: string | null
+  supersededRunningSeries: { pattern: string; violations: { constraintId: string; message: string }[] } | null
+  constraints: { id: string; summary: string; maxLength: number | null; provenance: NumberFormatProvenance }[]
+}
+
+export interface CompanyNumberFormats {
+  countryCode: string | null
+  runningSeries: { summary: string; onViolation: string } | null
+  formats: CompanyNumberFormat[]
+  unavailableReason: string | null
 }

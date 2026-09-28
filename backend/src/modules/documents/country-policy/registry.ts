@@ -1,5 +1,10 @@
 import { ALL_COUNTRY_POLICY_FILES } from './data/all';
-import { CountryDocumentPolicyFile, DocumentActionRuleFact, DocumentNumberingFact } from './schema';
+import {
+  CountryDocumentPolicyFile,
+  CountryNumberFormats,
+  DocumentActionRuleFact,
+  DocumentNumberingFact,
+} from './schema';
 
 function buildIndex(files: CountryDocumentPolicyFile[]): Record<string, CountryDocumentPolicyFile> {
   const index: Record<string, CountryDocumentPolicyFile> = {};
@@ -56,6 +61,13 @@ export class CountryPolicyCatalog {
    *  fallback" discipline `rulesFor`/`typesFor` above already hold. */
   numberingFor(countryCode: string): DocumentNumberingFact[] {
     return this.files[(countryCode ?? '').toUpperCase()]?.numbering ?? [];
+  }
+
+  /** The number formats and their constraints declared for a country (issue #496) - file-only, like
+   *  `numberingFor` above. `undefined` for a country with no file: there is no fallback format, the
+   *  same "no permissive fallback" discipline every other reader here holds. */
+  numberFormatsFor(countryCode: string): CountryNumberFormats | undefined {
+    return this.files[(countryCode ?? '').toUpperCase()]?.numberFormats;
   }
 }
 

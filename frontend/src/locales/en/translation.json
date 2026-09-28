@@ -2024,10 +2024,25 @@
       },
       "numberFormats": {
         "title": "Number Formats",
-        "description": "Customize the number formats for quotes and invoices",
-        "messages": {
-          "saveError": "Failed to save the number format"
-        }
+        "description": "Fixed per country and document type by the rules that constrain them (tax law, e-invoicing formats, clearance platforms). They cannot be changed.",
+        "types": {
+          "quote": "Quote",
+          "invoice": "Invoice",
+          "creditNote": "Credit note",
+          "purchaseOrder": "Purchase order",
+          "goodsReceipt": "Goods receipt"
+        },
+        "source": {
+          "country": "Format for {{country}}",
+          "runningSeries": "Your running series, kept"
+        },
+        "next": "Next number:",
+        "superseded": "Your previous format {{pattern}} can break a rule of this country ({{reasons}}), so this format applies from the next number. Numbering continues without reset.",
+        "provenance": {
+          "legal": "source read {{date}}",
+          "unverified": "source not yet confirmed"
+        },
+        "runningSeriesTitle": "A series you already started:"
       },
       "other": {
         "title": "Other Settings",
@@ -2176,36 +2191,6 @@
           "description": "Your company's receiving bank account, used as \"Payment instructions\" (BG-16) on formats that require one, such as XRechnung. Optional — leave blank if you don't take bank transfers on invoices, or haven't set one up yet.",
           "errors": {
             "format": "IBAN format is invalid"
-          }
-        },
-        "quoteNumberFormat": {
-          "label": "Quote Number Format",
-          "placeholder": "Enter quote number format (e.g., Q-{year}-{number})",
-          "description": "Format for quote numbers",
-          "errors": {
-            "required": "Quote number format is required",
-            "maxLength": "Quote number format must be less than 100 characters",
-            "format": "Quote number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
-          }
-        },
-        "invoiceNumberFormat": {
-          "label": "Invoice Number Format",
-          "placeholder": "Enter invoice number format (e.g., INV-{year}-{number})",
-          "description": "Format for invoice numbers",
-          "errors": {
-            "required": "Invoice number format is required",
-            "maxLength": "Invoice number format must be less than 100 characters",
-            "format": "Invoice number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
-          }
-        },
-        "creditNoteNumberFormat": {
-          "label": "Credit Note Number Format",
-          "placeholder": "Enter credit note number format (e.g., CN-{year}-{number})",
-          "description": "Format for credit note numbers - a credit note is legally an invoice and needs its own sequential number, in its own series, separate from the invoice one",
-          "errors": {
-            "required": "Credit note number format is required",
-            "maxLength": "Credit note number format must be less than 100 characters",
-            "format": "Credit note number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
           }
         },
         "invoicePDFFormat": {
@@ -2804,19 +2789,14 @@
       "notApplicable": "The ATCUD is a Portuguese legal requirement — this section only applies to a company registered in Portugal.",
       "numberFormat": {
         "title": "Invoice number format",
-        "description": "The ATCUD sequential number is, by law, \"the digits immediately after the / \" in your invoice number (Portaria n.º 195/2020, art. 3.º n.º 3). Your format must therefore end in a literal \"/\" immediately followed by \"{number}\" (or \"{number:N}\"), e.g. \"FT {year}/{number:4}\".",
-        "label": "Invoice number format",
-        "save": "Save",
-        "compatible": "Compatible with the ATCUD sequential-number rule",
-        "incompatible": "Not compatible yet — it must end in \"/\" immediately followed by \"{number}\" or \"{number:N}\"",
-        "messages": {
-          "saveError": "Failed to save the number format",
-          "saveSuccess": "Invoice number format saved"
-        }
+        "description": "Portugal's own format, fixed by law and the SAF-T (PT) structure: document type, a space, the series, a \"/\" and the sequential number the ATCUD is built from. It cannot be changed.",
+        "label": "Format",
+        "next": "Next number",
+        "series": "Series to register"
       },
       "series": {
         "addTitle": "Register a series validation code",
-        "addDescription": "The series identifier is the part of your invoice number BEFORE the \"/\" — e.g. \"FT 2026\" for the format \"FT {year}/{number:4}\".",
+        "addDescription": "The series identifier is the part of your invoice number BEFORE the \"/\", e.g. \"FT A\" for the format \"FT A/{number}\".",
         "seriesId": "Series identifier",
         "validationCode": "AT validation code",
         "save": "Save",
@@ -2828,7 +2808,7 @@
           "deleteSuccess": "Series removed"
         },
         "documentType": "Document type",
-        "addDescriptionTyped": "The AT issues one code per series and document type: register invoice (FT) and credit note (NC) series separately. The series identifier is the part of the number BEFORE the \"/\", e.g. \"NC 2026\" for credit notes numbered \"NC {year}/{number:4}\".",
+        "addDescriptionTyped": "The AT issues one code per series and document type: register invoice (FT) and credit note (NC) series separately. The series identifier is the part of the number BEFORE the \"/\", e.g. \"NC A\" for credit notes numbered \"NC A/{number}\".",
         "emptyStateDocuments": "No ATCUD series registered yet. Invoices and credit notes cannot be sent until their series is."
       },
       "descriptionDocuments": "Portaria n.º 195/2020 requires every Portuguese invoice and credit note to carry an ATCUD, obtained per series from the AT (Portal das Finanças), BEFORE any document in that series is issued.",
@@ -2838,11 +2818,7 @@
       },
       "creditNoteNumberFormat": {
         "title": "Credit note number format",
-        "description": "A Portuguese credit note carries its own ATCUD, from its own series (SAF-T type NC). Same rule as the invoice: the format must end in a literal \"/\" immediately followed by \"{number}\" (or \"{number:N}\"), e.g. \"NC {year}/{number:4}\".",
-        "label": "Credit note number format",
-        "messages": {
-          "saveSuccess": "Credit note number format saved"
-        }
+        "description": "Portugal's own format for a credit note, which carries its own ATCUD from its own series (SAF-T type NC). It cannot be changed."
       }
     },
     "members": {

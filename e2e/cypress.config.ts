@@ -906,6 +906,50 @@ export default defineConfig({
         },
 
         /**
+         * Issue #496 - writes a company's RUNNING SERIES (`Company.numberFormats`, `{ typeId: pattern }`)
+         * directly: the state the migration `20260928000000_issue_496_freeze_running_number_series`
+         * leaves for a company that had issued documents under a custom format (or the old shared
+         * default) before formats became fixed per country. No API can write it any more (`PUT
+         * /api/company/number-format` answers 405), so a direct DB write is the only way to set up that
+         * pre-#496 company - the same "migration scenario, not a reachable creation journey" reasoning
+         * `makeCreditNoteLegacyUnnumbered` above rests on. Resolves the company via its OWNER's email,
+         * the convention `setCompanySubscriptionSeats` holds.
+         */
+        async setCompanyRunningSeries({
+          email,
+          runningSeries,
+        }: {
+          email: string;
+          runningSeries: Record<string, string>;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rowCount } = await client.query(
+              `UPDATE "Company" SET "numberFormats" = $2::jsonb
+               WHERE id = (
+                 SELECT uc."companyId" FROM "user" u
+                 JOIN "user_company" uc ON uc."userId" = u.id
+                 WHERE u.email = $1 AND uc.role = 'OWNER'
+                 ORDER BY uc."createdAt" ASC
+                 LIMIT 1
+               )`,
+              [email, JSON.stringify(runningSeries)],
+            );
+            if (rowCount !== 1) {
+              throw new Error(`setCompanyRunningSeries: expected one OWNER company for ${email}, matched ${rowCount}`);
+            }
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
+
+        /**
          * PR #473 review point 3 - simulates the EXACT failure review point 1 of that PR closes (the
          * numbering write happening AFTER, not atomically with, the "sending" status write): a
          * numbered-type document (invoice/quote - no `numbering.onlyFrom`) reaching "sending" with no

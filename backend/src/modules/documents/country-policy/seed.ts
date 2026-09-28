@@ -24,6 +24,7 @@ import {
   LegalProvenance,
   UnverifiedProvenance,
 } from './schema';
+import { assertValidNumberFormats } from './number-formats';
 import { CountryPolicyCatalog, defaultCountryPolicyCatalog } from './registry';
 
 export interface DocumentCountryActionRuleRow {
@@ -159,6 +160,11 @@ export async function seedCountryPolicies(
     for (const fact of catalog.numberingFor(countryCode)) {
       assertValidNumberingProvenance(fact, `seedCountryPolicies(${countryCode})`);
     }
+    // `numberFormats` (issue #496) - validate only, the same file-only posture as `numbering` above.
+    assertValidNumberFormats(
+      { countryCode, rules: [], numberFormats: catalog.numberFormatsFor(countryCode) },
+      `seedCountryPolicies(${countryCode})`,
+    );
   }
 
   let upserted = 0;

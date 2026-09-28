@@ -108,6 +108,17 @@ export interface CountryDocumentPolicyFile {
    * nothing to say here (the original state, before issue #471) simply omits the field.
    */
   numbering?: DocumentNumberingFact[];
+  /**
+   * Issue #496 - the ONE document number format this country uses for each numbered document type,
+   * and every rule (statute, e-invoicing format, clearance platform) that constrains what such a
+   * number may look like. The owner's decision (2026-09-27): a number format is a compliance matter,
+   * not a preference, so it is defined here, per (country, document type), with the same provenance
+   * discipline as every other fact in this file - and never by the company. File-only, like
+   * `numbering` above: read at request time from the in-memory catalog
+   * (`registry.ts#numberFormatsFor`), never mirrored into a table. Validated by
+   * `number-formats.ts#assertValidNumberFormats` at the same two points every other fact here is.
+   */
+  numberFormats?: CountryNumberFormats;
   /** Free-form, file-level caveats — e.g. "this file deliberately does not cover X" — distinct from
    *  a per-rule `notes`, which explains ONE rule. */
   notes?: string;
@@ -134,6 +145,70 @@ export interface DocumentNumberingFact {
   requirement: 'sequential-number-required' | 'type-not-issuable' | 'atcud-required';
   provenance: PolicyProvenance;
   notes?: string;
+}
+
+/**
+ * One rule that constrains the SHAPE of a document number in a country - a statute ("a unique,
+ * continuous sequence"), an e-invoicing format ("at most 20 Basic Latin characters"), or a clearance
+ * platform's own business rule. Every limit field is optional: a statutory rule often constrains the
+ * sequence without constraining a single character, and says so in `summary` alone.
+ */
+export interface NumberFormatConstraintFact {
+  /** Unique within its file - what `DocumentNumberFormatFact.constrainedBy` refers to. */
+  id: string;
+  /** The document type ids this rule binds (e.g. ["invoice", "credit-note"]). */
+  appliesTo: string[];
+  /** Plain English, one or two sentences - shown verbatim on the settings screen as "why". */
+  summary: string;
+  /** The longest number this rule accepts, in characters. */
+  maxLength?: number;
+  /** The body of a regular-expression character class every character must belong to - e.g.
+   *  "A-Za-z0-9 +_/-" for the French platforms' rule G1.05. */
+  allowedCharacters?: string;
+  /** The number must contain at least one digit (SdI check 00425). */
+  requiresDigit?: boolean;
+  /** No space at the start or the end, and never two in a row (French rule G1.05). */
+  forbidsEdgeOrDoubleSpaces?: boolean;
+  /** A regular expression the WHOLE number must match - e.g. SAF-T (PT)'s `InvoiceNo` pattern. */
+  mustMatch?: string;
+  provenance: PolicyProvenance;
+  notes?: string;
+}
+
+/** The one number format of one document type in one country - see `CountryNumberFormats`. */
+export interface DocumentNumberFormatFact {
+  /** A DocumentTypeDescriptor.id that declares `numbering` - e.g. "credit-note". */
+  typeId: string;
+  /** A `numbering/format-number.ts` pattern - `{year}`, `{month}`, `{day}`, `{number}`/`{number:N}`. */
+  pattern: string;
+  /** The ids of every `constraints` entry binding this type. Empty only with `unconstrained`. */
+  constrainedBy: string[];
+  /** Required when `constrainedBy` is empty: says, plainly, that no source read constrains the
+   *  shape of this number in this country, and what was checked to say so. */
+  unconstrained?: string;
+  /** Why THIS pattern, among all those the constraints allow - a product decision, stated. */
+  rationale: string;
+}
+
+/**
+ * What happens to a company that already issued numbers of a type under another format before
+ * issue #496 (a custom one, or the old shared default), in this country. Continuity of an issued
+ * series is a legal obligation everywhere this catalog covers, so the rule is the same shape in every
+ * country - the running series is kept - and only its justification is per country.
+ */
+export interface RunningSeriesPolicy {
+  /** Plain English, shown on the settings screen next to a kept running series. */
+  summary: string;
+  provenance: PolicyProvenance;
+  /** What happens when the running series itself breaks one of this country's constraints. */
+  onViolation: string;
+  notes?: string;
+}
+
+export interface CountryNumberFormats {
+  constraints: NumberFormatConstraintFact[];
+  formats: DocumentNumberFormatFact[];
+  runningSeries: RunningSeriesPolicy;
 }
 
 export class InvalidPolicyProvenanceError extends Error {}
@@ -167,7 +242,7 @@ export function assertValidNumberingProvenance(fact: DocumentNumberingFact, cont
 
 /** The actual check, shared by both provenance gates above - see each one's own header for why there
  *  are two thin callers rather than one function with two possible input shapes. */
-function assertValidPolicyProvenance(
+export function assertValidPolicyProvenance(
   provenance: PolicyProvenance | null | undefined,
   factLabel: string,
   kindLabel: string,

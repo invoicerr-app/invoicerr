@@ -348,5 +348,91 @@
       },
       "notes": "A credit note is, by CGI art. 289, I, 5, assimilated to an invoice and must therefore carry every mandatory particular an invoice carries, including the unique chronological number of ann. II art. 242 nonies A, I, 7°. The dedicated credit-note series (numbering/sequence.ts's own per-(companyId, typeId) counter) is exactly the \"série distincte\" that same text allows: a correcting document is a distinct kind of activity that justifies its own series, used only for credit notes, never mixed with the invoice series."
     }
-  ]
+  ],
+  "numberFormats": {
+    "constraints": [
+      {
+        "id": "fr-cgi-242-nonies-a",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "French law requires a unique number based on a chronological and continuous sequence. Distinct series are allowed when the business justifies them, and must be used consistently with that justification. It constrains no character and no length.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Un numéro unique basé sur une séquence chronologique et continue ; la numérotation peut être établie dans ces conditions par séries distinctes lorsque les conditions d'exercice de l'activité de l'assujetti le justifient ; l'assujetti doit faire des séries distinctes un usage conforme à leur justification initiale. » (CGI ann. II art. 242 nonies A, I, 7°)",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "Reused, not re-read in this pass: the same text this file's credit-note `numbering` fact quotes (read on codes.droit.org, the Légifrance mirror). CGI art. 289, I, 5 extends it to the credit note (same fact)."
+      },
+      {
+        "id": "fr-einvoicing-g1-05",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "The French e-invoicing platforms limit the invoice number (BT-1) to 35 alphanumeric characters plus space, hyphen, plus sign, underscore and slash, with no leading, trailing or double space.",
+        "maxLength": 35,
+        "allowedCharacters": "A-Za-z0-9 +_/-",
+        "forbidsEdgeOrDoubleSpaces": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "G1.05 « L'identifiant de la facture est limité à 35 caractères alphanumériques. Les caractères spéciaux suivants sont autorisés : - espace (\" \") - tiret (\"-\") - signe \"+\" - tiret bas (underscore : \"_\") - barre oblique (slash : \"/\") L'identifiant ne doit pas comporter uniquement des espaces. L'identifiant ne peut pas débuter ou terminer par un espace et ne peut en outre comporter d'espaces consécutifs. »",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "DGFiP, Spécifications externes de la facturation électronique v3.2 (zip published on impots.gouv.fr/specifications-externes-b2b), « Annexe 7 - Règles de gestion - V1.9 » dated 2026-04-30, sheet « Règles de gestion », rule G1.05, read first-hand from the xlsx on 2026-09-28. The same annex's BT-1 row (« Annexe 1 - Format sémantique FE e-invoicing - Flux 1 - v1.2 ») gives the length as 35 and cites G1.05, G1.45 and G6.08. G1.45 makes (number, year of BT-2, SIREN) unique across platforms: a duplicate is rejected."
+      },
+      {
+        "id": "fr-chorus-pro-b2g-20",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "An invoice or credit note deposited on Chorus Pro for a public-sector buyer (B2G) carries a number of at most 20 characters.",
+        "maxLength": 20,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Dans le cadre du B2G, le numéro de facture est limité à 20 caractères (nombre de caractères historique de la solution Chorus Pro). »",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "« Dossier de spécifications externes FE - Chorus Pro » v1.1 (publication v3.2 of 2026-04-30, same zip as fr-einvoicing-g1-05), read first-hand with pdftotext on 2026-09-28. The same document states that in G2B Chorus Pro follows the AFNOR 35-character limit from 2026-09-01; the 20-character limit binds B2G. transports/chorus-pro-transport.ts refuses a longer number before deposit, and this constraint now keeps the shipped format from ever producing one."
+      }
+    ],
+    "formats": [
+      {
+        "typeId": "quote",
+        "pattern": "QUOTE-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A quote is not an invoice: CGI art. 289 and ann. II art. 242 nonies A govern the invoice and the documents that amend it, and the French e-invoicing rules (G1.05, Chorus Pro) govern BT-1 of an invoice. No French text read in this pass constrains the number of a quote.",
+        "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape."
+      },
+      {
+        "typeId": "invoice",
+        "pattern": "INVOICE-{year}-{number:4}",
+        "constrainedBy": ["fr-cgi-242-nonies-a", "fr-einvoicing-g1-05", "fr-chorus-pro-b2g-20"],
+        "rationale": "Unchanged from the product's previous shared default, so a French company already running it keeps it as it is. 19 characters at number 999999 and 20 at 1000000, within Chorus Pro's B2G limit; letters, digits and hyphens only."
+      },
+      {
+        "typeId": "credit-note",
+        "pattern": "CN-{year}-{number:4}",
+        "constrainedBy": ["fr-cgi-242-nonies-a", "fr-einvoicing-g1-05", "fr-chorus-pro-b2g-20"],
+        "rationale": "The product's previous shared default, \"CREDIT-NOTE-{year}-{number:4}\", renders 21 characters (\"CREDIT-NOTE-2026-0001\"), over the 20 that Chorus Pro (B2G) and FatturaPA accept. \"CN-\" keeps the credit note at 14 characters at number 999999, in a series of its own, distinct from the invoice series. The dedicated credit-note series is the « série distincte » ann. II art. 242 nonies A allows."
+      },
+      {
+        "typeId": "purchase-order",
+        "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no French text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+        "rationale": "Unchanged from the product's previous shared default."
+      },
+      {
+        "typeId": "goods-receipt",
+        "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no French text read in this pass constrains its number.",
+        "rationale": "Unchanged from the product's previous shared default."
+      }
+    ],
+    "runningSeries": {
+      "summary": "A series this company already started is kept as it is: French law asks for one chronological and continuous sequence, and for distinct series to be used consistently with their original justification, so a compliant running series is never switched to another format.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Un numéro unique basé sur une séquence chronologique et continue ; la numérotation peut être établie dans ces conditions par séries distinctes lorsque les conditions d'exercice de l'activité de l'assujetti le justifient ; l'assujetti doit faire des séries distinctes un usage conforme à leur justification initiale. » (CGI ann. II art. 242 nonies A, I, 7°)",
+        "sourceCheckedAt": "2026-09-26"
+      },
+      "onViolation": "If the running series breaks a rule above (for example Chorus Pro's 20-character limit), the country format applies from the next number. The counter is not reset: the sequence stays chronological and continuous and no number is reused, only the printed prefix changes.",
+      "notes": "NOT READ, would settle whether a mid-year change of printed prefix needs anything more: BOI-TVA-DECLA-30-20-20-10 (numbering section), the BOFiP page the e-invoicing rule G1.42 itself points to. BOFiP was not reachable by URL in this pass (see this file's top-level notes on the BOFiP access limit)."
+    }
+  }
 }

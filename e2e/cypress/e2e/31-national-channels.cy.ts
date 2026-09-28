@@ -257,7 +257,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		);
 
 		// A fixed `cy.wait(2000)` here raced `onSubmit`'s own sequential awaits (the company PATCH,
-		// then two number-format PUTs, then a reconciliation-settings mutation — company.settings.tsx's
+		// then a reconciliation-settings mutation - company.settings.tsx's
 		// own `onSubmit`): a CI runner slower than 2s left the GET below reading STALE data.
 		// Intercepting the one request that actually carries `invoiceTransportId` and asserting its
 		// status is deterministic regardless of how long the rest of that sequence takes.
