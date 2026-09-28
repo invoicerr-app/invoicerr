@@ -171,5 +171,14 @@ declare namespace Cypress {
          * @example cy.continueSteppedDialog('article-dialog')
          */
         continueSteppedDialog(dataCy: string): Chainable<void>
+
+        /**
+         * Waits for the public signing page's PDF preview to reach its final height, scrolls the
+         * option chooser into view, and asserts it visible. A bare `should("be.visible")` on the
+         * chooser was flaky (#509): below the fold of the page's own scroll container, it only
+         * passed during a transient layout. See the implementation for the measurements.
+         * @example cy.revealSignatureOptionChooser()
+         */
+        revealSignatureOptionChooser(): Chainable<JQuery<HTMLElement>>
     }
 }

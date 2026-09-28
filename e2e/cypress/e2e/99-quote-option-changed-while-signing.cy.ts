@@ -121,8 +121,9 @@ describe("A quote's option is renamed while the client is verifying an OTP (issu
 						cy.get('[data-cy="signature-card"]', { timeout: 15000 }).should("be.visible");
 						cy.get('[data-cy="signature-document-preview"]', { timeout: 15000 }).should("exist");
 
-						// The client's ORIGINAL choice: "Premium".
-						cy.get('[data-cy="signature-option-chooser"]').should("be.visible");
+						// The client's ORIGINAL choice: "Premium". Scrolled to first: it sits below the fold of
+						// the page's own scroll container once the PDF preview has laid out (#509).
+						cy.revealSignatureOptionChooser();
 						cy.get('[data-cy="signature-option-item"]').should("have.length", 2);
 						cy.contains('[data-cy="signature-option-item"]', "Premium")
 							.find('[data-cy="signature-option-radio"]')
