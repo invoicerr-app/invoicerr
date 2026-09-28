@@ -112,20 +112,20 @@ export function consolidateByCurrency(
 }
 
 /**
- * Issue #516's own fix — "a closed period never moves with today's rate": the ONE instant every
+ * Issue #516's own fix - "a closed period never moves with today's rate": the ONE instant every
  * `consolidateByCurrency` call in this feature resolves rates against, chosen from the dashboard's
  * own optional `period` (`ContributionContext.period`, contribution-registry.ts) rather than each
  * caller reaching for `new Date()` directly.
  *
- * No `period` set (the default, whole-history/trailing-window view — every dashboard request before
+ * No `period` set (the default, whole-history/trailing-window view - every dashboard request before
  * issue #418's period selector shipped, and every request since that still leaves it off) -> `now`,
  * unchanged: an OPEN-ENDED view is expected to move as today's rate moves, exactly like it always
- * has. A `period` IS set -> the end of ITS OWN last day (`dateTo`, UTC day boundary, inclusive — the
+ * has. A `period` IS set -> the end of ITS OWN last day (`dateTo`, UTC day boundary, inclusive - the
  * same bound `GET /documents`'s own `dateTo` filter already treats as inclusive), clamped to never
  * exceed the real `now`: a period that has not finished yet (this month, picked before it is over)
  * still resolves at "now", the same live behavior a company watching an in-progress month already
  * relies on; only a period whose own end has already passed freezes there. That clamp is also what
- * makes the fix provable with a plain clock-forward test — see currency-consolidation.spec.ts's own
+ * makes the fix provable with a plain clock-forward test - see currency-consolidation.spec.ts's own
  * "does not move with today's rate" case: entering a NEW rate dated to TODAY never changes what a
  * PAST period's `dateTo` resolves, because `resolveLatestRate` (convert.ts) only ever considers a
  * rate whose `asOf` is not AFTER the instant it is asked to resolve against.

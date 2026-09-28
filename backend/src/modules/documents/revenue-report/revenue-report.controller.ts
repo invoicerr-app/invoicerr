@@ -8,7 +8,7 @@ import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { buildCashedRevenueCsv, buildCashedRevenueReport } from './revenue-report.service';
 
 /**
- * Issue #516's "cashed-revenue view per period" — same access level as the accounting export
+ * Issue #516's "cashed-revenue view per period" - same access level as the accounting export
  * (`accounting-export.controller.ts`'s own header: any authenticated member of the active company,
  * `@RequiresDocumentTypeScope('read', 'every-type')`, no extra `@Roles()` gate) since this is a
  * READ over the same underlying facts (sent invoices' own payments), never a write.
@@ -19,7 +19,7 @@ export class RevenueReportController {
   @Get('cashed')
   @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
-    summary: 'Cashed revenue per period (month or quarter) — an aid, not the official declaration',
+    summary: 'Cashed revenue per period (month or quarter) - an aid, not the official declaration',
     description:
       'Money actually received against sent invoices, bucketed by month or quarter, converted into ' +
       'the company’s reference currency (when set) at each PAYMENT’s own frozen rate. See ' +

@@ -255,7 +255,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
     listPaymentsInRange.mockResolvedValue([closedPeriodPayment]);
     getReferenceCurrency.mockResolvedValue('EUR');
 
-    // "now" (fake system time above) is 2026-08-30 — July is a CLOSED period.
+    // "now" (fake system time above) is 2026-08-30 - July is a CLOSED period.
     const closedPeriod = { dateFrom: '2026-07-01', dateTo: '2026-07-31' };
 
     // Pass 1: only the rate that existed when July was still open.
@@ -276,7 +276,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
       period: closedPeriod,
     })) as MetricWidget[];
 
-    // Pass 2: SAME closed period, but a brand-new rate dated TODAY (2026-08-30) was just entered —
+    // Pass 2: SAME closed period, but a brand-new rate dated TODAY (2026-08-30) was just entered -
     // wildly different (5.0 instead of 0.9) so any leak would be impossible to miss.
     listCurrencyRates.mockResolvedValue([
       {
@@ -308,7 +308,7 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
     const beforeConsolidated = before.find((w) => w.id === 'invoice:collected:consolidated');
     const afterConsolidated = after.find((w) => w.id === 'invoice:collected:consolidated');
 
-    // 100.00 USD * 0.90 = 90.00 EUR either way — the July-dated rate, never the one dated today.
+    // 100.00 USD * 0.90 = 90.00 EUR either way - the July-dated rate, never the one dated today.
     expect(beforeConsolidated?.value).toBe(90);
     expect(afterConsolidated?.value).toBe(90);
     expect(afterConsolidated?.warnings).toEqual(beforeConsolidated?.warnings);

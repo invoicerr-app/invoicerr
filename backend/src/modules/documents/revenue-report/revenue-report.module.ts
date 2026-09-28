@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { RevenueReportController } from './revenue-report.controller';
 
 /**
- * Deliberately its own module, not folded into `DocumentsModule`/`DocumentsCoreModule` — same
+ * Deliberately its own module, not folded into `DocumentsModule`/`DocumentsCoreModule` - same
  * reasoning `accounting-export.module.ts`'s own header gives verbatim: `revenue-report.service.ts` is
  * a self-contained set of functions needing no injected provider (reads the `prisma` singleton
  * directly, calls the pure `cashed-revenue.ts` helpers and `contributions/currency-consolidation.ts`'s

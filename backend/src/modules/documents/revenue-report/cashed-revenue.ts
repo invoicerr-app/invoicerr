@@ -1,24 +1,24 @@
 import { CurrencyRateLike, convertMinor, resolveLatestRate } from '../../company/currency-rates/convert';
 
 /**
- * Issue #516's "cashed-revenue view per period" — money ACTUALLY received (`DocumentPayment.paidAt`,
+ * Issue #516's "cashed-revenue view per period" - money ACTUALLY received (`DocumentPayment.paidAt`,
  * the same fact `invoice-contributions.ts`'s own "Collected this/in period" tiles already read),
  * bucketed into calendar months or quarters, never invoiced amounts. This is the explicit, literal
  * answer to the issue's option C (see `RECHERCHE_192_MULTIDEVISE.md`'s own §5): several regimes this
  * product serves declare cashed revenue, not invoiced revenue (FR micro-entrepreneur/URSSAF, IT
- * regime forfettario's "compensi percepiti", DE's §11 EStG for income tax) — a company under one of
+ * regime forfettario's "compensi percepiti", DE's §11 EStG for income tax) - a company under one of
  * those needs to see what it can legally declare, not this product's own "invoiced this month" tiles.
  *
  * Pure and DB-free, same discipline as `contributions/currency-consolidation.ts`'s own
- * `consolidateByCurrency` — `revenue-report.service.ts` is the only caller that talks to Prisma.
+ * `consolidateByCurrency` - `revenue-report.service.ts` is the only caller that talks to Prisma.
  *
  * ## Why this is NOT `consolidateByCurrency` reused
  * That function takes ALREADY-SUMMED per-currency totals and resolves ONE shared rate for the whole
  * call (`now`, or since issue #516's own `resolveConsolidationInstant`, one shared dated instant).
- * Here the issue asks for something dated PER PAYMENT: "converted at each payment's frozen rate" —
+ * Here the issue asks for something dated PER PAYMENT: "converted at each payment's frozen rate"  -
  * each payment in the period may honestly resolve to a DIFFERENT rate (a different `asOf`), because
  * each payment is dated by its OWN `paidAt`, not by the period's end. So this file resolves
- * `payment.currency -> referenceCurrency` once PER PAYMENT, dated to that payment's own `paidAt` —
+ * `payment.currency -> referenceCurrency` once PER PAYMENT, dated to that payment's own `paidAt`  -
  * the exact same "dated, frozen, never re-resolved on a later read" philosophy
  * `settlement/convert-payment.ts` already applies to a payment's OWN document-currency conversion,
  * just aimed at a DIFFERENT pair (the payment's currency against the company's reference currency,
@@ -27,7 +27,7 @@ import { CurrencyRateLike, convertMinor, resolveLatestRate } from '../../company
  * Same "never a partial sum" honesty `consolidateByCurrency` holds, applied per CURRENCY within a
  * period: if even one payment in a currency this period saw has no resolvable rate at its own
  * `paidAt`, that whole currency's contribution to the period's consolidated total is omitted (never
- * a total silently missing one payment) and a warning names it — the per-currency `byCurrency`
+ * a total silently missing one payment) and a warning names it - the per-currency `byCurrency`
  * breakdown is unaffected either way, exactly like the dashboard's own per-currency metrics stay
  * intact when their own consolidated sibling cannot be built.
  */
@@ -48,25 +48,25 @@ export interface CashedRevenueCurrencyAmount {
 export interface CashedRevenueConsolidated {
   currency: string;
   totalMinor: number;
-  /** One line per PAYMENT that needed converting — not one per currency: two payments in the same
+  /** One line per PAYMENT that needed converting - not one per currency: two payments in the same
    *  currency, dated far enough apart, can legitimately cite two different rates. Deduplicated
    *  (identical rate/date/source) so a period with many same-day payments doesn't repeat itself. */
   notes: string[];
 }
 
 export interface CashedRevenuePeriod {
-  /** `"2026-08"` (monthly) or `"2026-Q3"` (quarterly) — stable, sortable, and what the `period` query
+  /** `"2026-08"` (monthly) or `"2026-Q3"` (quarterly) - stable, sortable, and what the `period` query
    *  param below round-trips. */
   key: string;
-  /** Human-facing — "August 2026" / "Q3 2026". */
+  /** Human-facing - "August 2026" / "Q3 2026". */
   label: string;
-  /** UTC calendar bounds, inclusive, `YYYY-MM-DD` — the exact period this bucket's figures cover. */
+  /** UTC calendar bounds, inclusive, `YYYY-MM-DD` - the exact period this bucket's figures cover. */
   dateFrom: string;
   dateTo: string;
-  /** Every currency actually cashed this period, sorted — present even when `totalMinor` is 0 (see
+  /** Every currency actually cashed this period, sorted - present even when `totalMinor` is 0 (see
    *  `enumeratePeriodKeys` below: this module always emits a period for every key spanning the
    *  requested range, cashed or not, since a URSSAF declaration is filed "même si celui-ci est nul"
-   *  — even when it is zero — and a report that silently skips a quiet period would misrepresent
+   *  - even when it is zero - and a report that silently skips a quiet period would misrepresent
    *  that as "not yet declared" rather than "declared, zero"). */
   byCurrency: CashedRevenueCurrencyAmount[];
   /** `null` under the exact same conditions `consolidateByCurrency`'s own `ConsolidationOutcome`
@@ -76,7 +76,7 @@ export interface CashedRevenuePeriod {
   warnings: string[];
 }
 
-/** UTC calendar-day arithmetic throughout — the same discipline `accounting-export.service.ts`'s own
+/** UTC calendar-day arithmetic throughout - the same discipline `accounting-export.service.ts`'s own
  *  `dayMs`/`issueDateInRange` already holds, so a payment dated exactly on a period boundary is
  *  bucketed the same way here as it would be filtered there. */
 function pad2(n: number): string {
@@ -95,7 +95,7 @@ export function periodKeyFor(date: Date, granularity: RevenueGranularity): strin
 
 /** `"2026-08"` -> `{ dateFrom: "2026-08-01", dateTo: "2026-08-31" }`; `"2026-Q3"` ->
  *  `{ dateFrom: "2026-07-01", dateTo: "2026-09-30" }`. Throws on a key this module never produces
- *  itself — a malformed `period` query param is the controller's own job to reject before this ever
+ *  itself - a malformed `period` query param is the controller's own job to reject before this ever
  *  sees it (see `revenue-report.service.ts#parsePeriodKey`). */
 export function periodBounds(
   key: string,
@@ -144,11 +144,11 @@ export function periodLabelFor(key: string, granularity: RevenueGranularity): st
   return `Q${quarterPart} ${yearStr}`;
 }
 
-/** Every period key from `from` through `to` (both `YYYY-MM-DD`, inclusive), oldest first — what
+/** Every period key from `from` through `to` (both `YYYY-MM-DD`, inclusive), oldest first - what
  *  makes a quiet period show up as a genuine "0 cashed" row instead of silently vanishing (see
  *  `CashedRevenuePeriod.byCurrency`'s own header on why that distinction matters for a declaration
  *  aid). Deliberately capped by the CALLER (`revenue-report.service.ts`'s own bound on the requested
- *  range) — this function itself has no opinion on how wide a range is reasonable to ask for. */
+ *  range) - this function itself has no opinion on how wide a range is reasonable to ask for. */
 export function enumeratePeriodKeys(from: string, to: string, granularity: RevenueGranularity): string[] {
   const [fromYear, fromMonth] = from.split('-').map(Number);
   const [toYear, toMonth] = to.split('-').map(Number);
@@ -164,14 +164,14 @@ export function enumeratePeriodKeys(from: string, to: string, granularity: Reven
   return keys;
 }
 
-/** `"2026-08-15"` -> the UTC midnight of that day, in milliseconds — matches
+/** `"2026-08-15"` -> the UTC midnight of that day, in milliseconds - matches
  *  `accounting-export.service.ts`'s own `dayMs`. */
 function dayMs(dateStr: string): number {
   const [year, month, day] = dateStr.split('-').map(Number);
   return Date.UTC(year, month - 1, day);
 }
 
-/** One payment's own `paidAt` -> which period key it belongs to, compared at UTC day boundaries —
+/** One payment's own `paidAt` -> which period key it belongs to, compared at UTC day boundaries  -
  *  the same bucketing `monthKey`/`monthRange` already apply elsewhere in this module for an ISSUE
  *  date, here applied to a payment's own date instead. */
 function periodKeyForPayment(paidAt: Date, granularity: RevenueGranularity): string {
@@ -180,7 +180,7 @@ function periodKeyForPayment(paidAt: Date, granularity: RevenueGranularity): str
 
 /**
  * Builds one `CashedRevenuePeriod` per key in `[from, to]` (see `enumeratePeriodKeys`), from every
- * `payments` row whose own `paidAt` falls in that same range — `payments` is expected to already be
+ * `payments` row whose own `paidAt` falls in that same range - `payments` is expected to already be
  * exactly the set that counts as revenue (sent, non-cancelled invoices' own payments; the caller's
  * job, mirroring `invoice-contributions.ts`'s own `issuedInvoiceIds` filter).
  */
@@ -238,7 +238,7 @@ export function buildCashedRevenuePeriods(
 
       if (missingCurrencies.size > 0) {
         for (const currency of missingCurrencies) {
-          warnings.push(`No ${currency}→${referenceCurrency} rate is set — consolidated total omitted.`);
+          warnings.push(`No ${currency}→${referenceCurrency} rate is set - consolidated total omitted.`);
         }
       } else {
         let totalMinor = 0;

@@ -62,7 +62,7 @@ const SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT = 2
  *  back to "" — never sent to the backend, which only ever sees "ORIGIN", "DESTINATION" or null. */
 const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
 /** Same Radix "empty string is not a valid item value" workaround as
- *  `UNDECLARED_DISTANCE_SALES_REGIME` above — issue #516's revenueBasis/revenuePeriod are ALSO
+ *  `UNDECLARED_DISTANCE_SALES_REGIME` above - issue #516's revenueBasis/revenuePeriod are ALSO
  *  legitimately empty ("use the computed per-country default"), not merely a loading placeholder. */
 const USE_DEFAULT_REVENUE_BASIS = "__default_basis__"
 const USE_DEFAULT_REVENUE_PERIOD = "__default_period__"
@@ -162,7 +162,7 @@ export default function CompanySettings() {
     // which is the default and stays valid forever: every dashboard aggregate simply stays grouped
     // by currency (see backend's Company.referenceCurrency comment).
     referenceCurrency: z.string().optional(),
-    // Issue #516 — "" means "use the computed per-country default" (see backend's
+    // Issue #516 - "" means "use the computed per-country default" (see backend's
     // Company.revenueBasis/revenuePeriod comments and resolve-revenue-basis.ts): a legitimate,
     // always-returnable state, same convention as distanceSalesRegime above.
     revenueBasis: z.string().optional(),
@@ -191,7 +191,7 @@ export default function CompanySettings() {
   })
 
   const { data } = useGet<Company>("/api/company/info")
-  // Issue #516 — the RESOLVED basis/period (this company's own explicit choice, or the computed
+  // Issue #516 - the RESOLVED basis/period (this company's own explicit choice, or the computed
   // per-country default) plus whether each is explicit, so the select below can show "using the
   // default (<reason>)" without duplicating the backend's own per-country table client-side.
   // Refetched (`mutate`) after every successful save, since the two selects below can change which
@@ -497,7 +497,7 @@ export default function CompanySettings() {
       // "" means "no reference currency chosen" in the form; stored as null, not an empty string.
       referenceCurrency: values.referenceCurrency?.trim() ? values.referenceCurrency : null,
       // Same "empty means use the computed default, stored as null" convention as referenceCurrency
-      // above — see backend's Company.revenueBasis/revenuePeriod comments.
+      // above - see backend's Company.revenueBasis/revenuePeriod comments.
       revenueBasis: values.revenueBasis?.trim() ? values.revenueBasis : null,
       revenuePeriod: values.revenuePeriod?.trim() ? values.revenuePeriod : null,
       // Same convention: "" is "not declared", stored as null. Clearing it is legitimate (a company
@@ -1397,7 +1397,7 @@ export default function CompanySettings() {
             title={t("settings.company.revenueBasis.title", "Revenue basis")}
             description={t(
               "settings.company.revenueBasis.description",
-              "Which figure this company declares as its own revenue, and over which period. Defaulted from your country where a clear regime exists, always overridable. This is an aid, not tax advice — verify against your own accounting records.",
+              "Which figure this company declares as its own revenue, and over which period. Defaulted from your country where a clear regime exists, always overridable. This is an aid, not tax advice - verify against your own accounting records.",
             )}
             contentClassName="grid gap-5 sm:grid-cols-2"
           >

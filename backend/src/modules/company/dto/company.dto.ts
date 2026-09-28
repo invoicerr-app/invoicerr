@@ -69,11 +69,11 @@ export class EditCompanyDto {
    *  Company.remindersEnabled's own schema.prisma comment. Off by default; a company left untouched
    *  stays invisible to the sweep. */
   remindersEnabled?: boolean;
-  /** "invoiced" or "cashed" — see Company.revenueBasis's own schema.prisma comment and
+  /** "invoiced" or "cashed" - see Company.revenueBasis's own schema.prisma comment and
    *  `revenue-basis/resolve-revenue-basis.ts` for the per-country default this overrides. Null/empty
    *  clears it back to that computed default; validated in `company.service.ts#editCompanyInfo`. */
   revenueBasis?: string | null;
-  /** "monthly" or "quarterly" — see Company.revenuePeriod's own schema.prisma comment. Null/empty
+  /** "monthly" or "quarterly" - see Company.revenuePeriod's own schema.prisma comment. Null/empty
    *  clears it back to the "monthly" default. */
   revenuePeriod?: string | null;
 }

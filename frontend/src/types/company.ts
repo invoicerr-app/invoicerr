@@ -77,16 +77,16 @@ export interface Company {
    *  Written by its OWN small selector on the Payments settings screen (`payments.settings.tsx`),
    *  never this big form. */
   paymentProviderId?: string | null
-  /** "invoiced" or "cashed" — see backend's Company.revenueBasis schema.prisma comment and
+  /** "invoiced" or "cashed" - see backend's Company.revenueBasis schema.prisma comment and
    *  `resolve-revenue-basis.ts` for the per-country default this overrides. Null/unset means "use the
-   *  computed default" — `GET /api/company/revenue-settings` reports the RESOLVED value; this raw
+   *  computed default" - `GET /api/company/revenue-settings` reports the RESOLVED value; this raw
    *  column is only what the company explicitly chose. */
   revenueBasis?: string | null
-  /** "monthly" or "quarterly" — see backend's Company.revenuePeriod schema.prisma comment. */
+  /** "monthly" or "quarterly" - see backend's Company.revenuePeriod schema.prisma comment. */
   revenuePeriod?: string | null
 }
 
-/** `GET /api/company/revenue-settings` — the RESOLVED basis/period (explicit choice, or the computed
+/** `GET /api/company/revenue-settings` - the RESOLVED basis/period (explicit choice, or the computed
  *  per-country default), plus whether each is the company's own explicit pick. Mirrors the backend's
  *  `resolve-revenue-basis.ts#ResolvedRevenueSettings` exactly. */
 export interface ResolvedRevenueSettings {
@@ -97,12 +97,12 @@ export interface ResolvedRevenueSettings {
   periodIsExplicit: boolean
 }
 
-/** `GET /api/revenue/cashed` — issue #516's cashed-revenue view per period. Mirrors the backend's
+/** `GET /api/revenue/cashed` - issue #516's cashed-revenue view per period. Mirrors the backend's
  *  `cashed-revenue.ts#CashedRevenuePeriod`/`revenue-report.service.ts#CashedRevenueReport` exactly.
- *  An AID for preparing a declaration, never the declaration itself — see `report.disclaimer`. */
+ *  An AID for preparing a declaration, never the declaration itself - see `report.disclaimer`. */
 export interface CashedRevenueCurrencyAmount {
   currency: string
-  /** MINOR units — the same convention every other amount in this product's API uses (`fromMinor`
+  /** MINOR units - the same convention every other amount in this product's API uses (`fromMinor`
    *  on the way to display). */
   totalMinor: number
 }

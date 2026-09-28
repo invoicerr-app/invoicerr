@@ -89,9 +89,9 @@ export class CompanyController {
   }
 
   /**
-   * GET /api/company/revenue-settings — issue #516: the RESOLVED revenue basis/period (this
+   * GET /api/company/revenue-settings - issue #516: the RESOLVED revenue basis/period (this
    * company's own explicit choice, or the computed per-country default), plus whether each is
-   * explicit — the settings screen uses this to show "default" vs. "your own choice" without
+   * explicit - the settings screen uses this to show "default" vs. "your own choice" without
    * duplicating `resolve-revenue-basis.ts`'s own per-country table client-side.
    */
   @Get('revenue-settings')

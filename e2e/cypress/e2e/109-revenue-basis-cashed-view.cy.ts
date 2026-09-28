@@ -1,21 +1,21 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Issue #516 — dated dashboard consolidation, the per-company revenue-basis setting, and the
+ * Issue #516 - dated dashboard consolidation, the per-company revenue-basis setting, and the
  * cashed-revenue view per period.
  *
  * Three things proven through the screen, not only in memory:
  *
  *  1. THE FIX: a CLOSED period's consolidated total (`invoice:collected:consolidated`) does not move
- *     when a brand-new currency rate dated TODAY is entered — the exact regression
+ *     when a brand-new currency rate dated TODAY is entered - the exact regression
  *     `currency-consolidation.ts#resolveConsolidationInstant` (backend) exists to guard against. A
  *     USD payment recorded in a month already behind us (August, against a "today" of late
  *     September) is consolidated into EUR once with the rate that existed while August was still
  *     open, then a wildly different rate dated today is entered, and the SAME closed period is
  *     re-read: the figure must be byte-identical both times.
  *  2. The revenue-basis setting (Company tab): visible, shows the computed per-country default with
- *     its own sourced reason (the seeded company is French, so the default is "cashed" — URSSAF),
- *     and is genuinely editable — changed, saved, and read back after a reload.
+ *     its own sourced reason (the seeded company is French, so the default is "cashed" - URSSAF),
+ *     and is genuinely editable - changed, saved, and read back after a reload.
  *  3. The cashed-revenue view (its own settings tab): the SAME August payment appears in its Q3 2026
  *     bucket once "quarterly" is selected, consolidated at ITS OWN payment-dated rate, and the
  *     screen's own disclaimer names this an aid, never the official declaration. The CSV export is a
@@ -90,7 +90,7 @@ function recordUsdPayment(invoiceId: string, data: Record<string, unknown>) {
 			body: {
 				documentId: invoiceId,
 				data,
-				// $500, in August — well inside the CLOSED month/quarter both later `it`s read.
+				// $500, in August - well inside the CLOSED month/quarter both later `it`s read.
 				params: { amount: 500, currency: "USD", paidAt: "2026-08-15", method: "bank_transfer" },
 			},
 		})
@@ -130,7 +130,7 @@ function selectCustomAugust() {
 	cy.get('[data-cy="date-picker-today"]').should("not.exist");
 }
 
-describe("Issue #516 — dated consolidation, revenue basis, cashed-revenue view", () => {
+describe("Issue #516 - dated consolidation, revenue basis, cashed-revenue view", () => {
 	let invoiceId: string;
 
 	before(() => {
@@ -184,7 +184,7 @@ describe("Issue #516 — dated consolidation, revenue basis, cashed-revenue view
 		cy.wait("@dashboardAfter", { timeout: 20000 });
 		selectCustomAugust();
 
-		// UNCHANGED — still the August-dated rate, never today's.
+		// UNCHANGED - still the August-dated rate, never today's.
 		cy.get('[data-cy="widget-invoice:collected:consolidated"]', { timeout: 20000 })
 			.should("contain.text", "≈")
 			.and("contain.text", "450")
@@ -207,7 +207,7 @@ describe("Issue #516 — dated consolidation, revenue basis, cashed-revenue view
 		cy.screenshot("516-revenue-basis-default-light");
 
 		// Genuinely editable: switch to "invoiced" / "quarterly", save, and read it back after a
-		// hard reload — never merely the form's own local state. Stays in light theme so this
+		// hard reload - never merely the form's own local state. Stays in light theme so this
 		// "before -> after" pair (default-light above, edited-light below) is directly comparable.
 		cy.openSelect(
 			'[data-cy="company-revenue-basis-select"]',
@@ -230,7 +230,7 @@ describe("Issue #516 — dated consolidation, revenue basis, cashed-revenue view
 		cy.get('[data-cy="company-revenue-basis-select"]').should("contain.text", "Invoiced");
 		cy.get('[data-cy="company-revenue-period-select"]').should("contain.text", "Quarterly");
 
-		// Dark theme, same (now edited) screen — a real reload so the theme provider actually
+		// Dark theme, same (now edited) screen - a real reload so the theme provider actually
 		// re-reads localStorage; flipping the storage key alone does not re-render a mounted page.
 		setDarkTheme();
 		cy.reload();
@@ -251,7 +251,7 @@ describe("Issue #516 — dated consolidation, revenue basis, cashed-revenue view
 			'[data-cy="cashed-revenue-granularity-select"]',
 			'[data-cy="cashed-revenue-granularity-option-quarterly"]',
 		);
-		// The popover unmounts its content once closed (Radix `Select`) — waited for explicitly so a
+		// The popover unmounts its content once closed (Radix `Select`) - waited for explicitly so a
 		// screenshot taken right after never catches it mid-close, the same retry-until-true
 		// discipline every other assertion in this suite already leans on rather than a fixed sleep.
 		cy.get('[data-cy="cashed-revenue-granularity-option-quarterly"]', { timeout: 10000 }).should("not.exist");
@@ -276,7 +276,7 @@ describe("Issue #516 — dated consolidation, revenue basis, cashed-revenue view
 		);
 		cy.screenshot("516-cashed-revenue-quarter-dark");
 
-		// Back to light for the CSV export interaction below — irrelevant to its correctness, but
+		// Back to light for the CSV export interaction below - irrelevant to its correctness, but
 		// keeps the suite's own state tidy for anyone re-running this spec's video/screenshots.
 		setLightTheme();
 		cy.reload();

@@ -15,10 +15,10 @@ import { toCsvLine } from '@/utils/csv';
 import { buildCashedRevenuePeriods, CashedPaymentLike, CashedRevenuePeriod } from './cashed-revenue';
 
 /**
- * Issue #516's "a cashed-revenue view per period" — the DB-touching half; `cashed-revenue.ts` carries
+ * Issue #516's "a cashed-revenue view per period" - the DB-touching half; `cashed-revenue.ts` carries
  * every arithmetic/bucketing rule, pure and directly testable. This file only decides WHICH payments
  * count (mirrors `invoice-contributions.ts`'s own `issuedInvoiceIds` filter verbatim: a payment
- * counts as revenue only when it settles a "sent" invoice — never a `received-invoice`'s own payment,
+ * counts as revenue only when it settles a "sent" invoice - never a `received-invoice`'s own payment,
  * money going OUT, and never a payment left sitting against an invoice that has SINCE been
  * cancelled), resolves the company's own settings (revenue basis/period, reference currency, stored
  * rates), and renders the result either as JSON or as the CSV `revenue-report.controller.ts` streams
@@ -26,7 +26,7 @@ import { buildCashedRevenuePeriods, CashedPaymentLike, CashedRevenuePeriod } fro
  *
  * Explicitly labelled, everywhere this surfaces (the JSON payload's own `disclaimer`, and the CSV's
  * own leading comment line): an AID for a company preparing its own declaration, never the
- * declaration itself — see this issue's own text and `resolve-revenue-basis.ts`'s header for why no
+ * declaration itself - see this issue's own text and `resolve-revenue-basis.ts`'s header for why no
  * single number this product could compute is authoritative across five different countries' rules.
  */
 
@@ -51,13 +51,13 @@ function parseGranularity(value: string | undefined, fallback: RevenuePeriod): R
   throw new BadRequestException('"granularity" must be "monthly" or "quarterly".');
 }
 
-/** `YYYY-MM-DD` of the first day of the current UTC month — the default window's own end anchor. */
+/** `YYYY-MM-DD` of the first day of the current UTC month - the default window's own end anchor. */
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
 /** No `from`/`to` given -> the trailing window a reader most often wants: the last 12 months, or the
- *  last 8 quarters, ending with the period `today` falls in — always INCLUDING the current,
+ *  last 8 quarters, ending with the period `today` falls in - always INCLUDING the current,
  *  still-open period (a company mid-quarter still wants to see what it has cashed so far). */
 function defaultRange(granularity: RevenuePeriod): { from: string; to: string } {
   const now = new Date();
@@ -101,9 +101,9 @@ async function loadCompanyRevenueContext(companyId: string): Promise<CompanyReve
 }
 
 /**
- * Every payment that counts as CASHED REVENUE for `companyId` — a "sent" invoice's own payment,
+ * Every payment that counts as CASHED REVENUE for `companyId` - a "sent" invoice's own payment,
  * excluding a cancelled invoice's, in the payment's OWN currency/amount (what actually arrived, same
- * figure `invoice-contributions.ts`'s "Collected" tiles already sum — never `documentAmountMinor`,
+ * figure `invoice-contributions.ts`'s "Collected" tiles already sum - never `documentAmountMinor`,
  * which is a DIFFERENT, document-currency-converted figure meant for settlement math, not for "what
  * did this company actually receive").
  */
@@ -168,17 +168,17 @@ const CSV_COLUMNS = [
 ] as const;
 
 /**
- * The same report, as a downloadable CSV — one row per (period, currency) actually cashed, plus one
+ * The same report, as a downloadable CSV - one row per (period, currency) actually cashed, plus one
  * "consolidated" row per period when the reference-currency total could be built. A period with
  * nothing cashed still gets ONE row (currency/amount blank) so the file itself carries the "declared,
  * zero" fact rather than a gap a reader could mistake for "not yet exported". Reuses `toCsvLine`
- * verbatim — the exact same RFC 4180 + spreadsheet-formula-guard escaping
+ * verbatim - the exact same RFC 4180 + spreadsheet-formula-guard escaping
  * `accounting-export/build-accounting-csv.ts` already relies on, never a second copy.
  */
 export function buildCashedRevenueCsv(report: CashedRevenueReport): string {
   const lines = [toCsvLine(CSV_COLUMNS)];
   // A disclaimer line, commented like a real accounting export's own header would be (`#`, ignored
-  // by every spreadsheet importer's default CSV parser) — this file is a standalone artefact once
+  // by every spreadsheet importer's default CSV parser) - this file is a standalone artefact once
   // downloaded, so the "aid, not the declaration" label has to travel WITH it, not just live on the
   // screen that offered the download.
   lines.push(`# ${report.disclaimer}`);

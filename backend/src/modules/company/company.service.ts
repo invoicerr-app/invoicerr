@@ -210,7 +210,7 @@ export class CompanyService {
     return await prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } });
   }
 
-  /** Issue #516 — see `company.controller.ts#getRevenueSettings`'s own header. A 404 rather than a
+  /** Issue #516 - see `company.controller.ts#getRevenueSettings`'s own header. A 404 rather than a
    *  thrown 500 when the company somehow doesn't exist, matching `getCompanyInfo`'s own posture for
    *  the same case (that one logs and returns null; a resolved-settings caller always expects an
    *  object, so this one 404s instead of a shape the frontend would have to special-case). */

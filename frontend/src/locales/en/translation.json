@@ -1949,7 +1949,7 @@
     },
     "cashedRevenue": {
       "title": "Cashed revenue",
-      "description": "What was actually received against your sent invoices, per month or quarter — for a company that declares revenue on a cashed basis.",
+      "description": "What was actually received against your sent invoices, per month or quarter - for a company that declares revenue on a cashed basis.",
       "disclaimerFallback": "This is an aid to help prepare a revenue declaration, not the official declaration itself. Verify every figure against your own accounting records and your local tax authority's rules before filing.",
       "loading": "Loading…",
       "empty": "No cashed revenue in this range yet.",
@@ -2080,7 +2080,7 @@
       },
       "revenueBasis": {
         "title": "Revenue basis",
-        "description": "Which figure this company declares as its own revenue, and over which period. Defaulted from your country where a clear regime exists, always overridable. This is an aid, not tax advice — verify against your own accounting records."
+        "description": "Which figure this company declares as its own revenue, and over which period. Defaulted from your country where a clear regime exists, always overridable. This is an aid, not tax advice - verify against your own accounting records."
       },
       "reminders": {
         "title": "Payment reminders",

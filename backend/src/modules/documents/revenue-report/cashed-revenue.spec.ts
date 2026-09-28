@@ -51,7 +51,7 @@ describe('enumeratePeriodKeys', () => {
 });
 
 describe('buildCashedRevenuePeriods', () => {
-  it('a period with nothing cashed still appears, at zero — never silently skipped', () => {
+  it('a period with nothing cashed still appears, at zero - never silently skipped', () => {
     const periods = buildCashedRevenuePeriods([], '2026-07-01', '2026-08-31', 'monthly', null, []);
     expect(periods).toHaveLength(2);
     expect(periods[0]).toMatchObject({ key: '2026-07', byCurrency: [], consolidated: null, warnings: [] });
@@ -166,7 +166,7 @@ describe('buildCashedRevenuePeriods', () => {
       rates,
     );
     expect(periods[0].consolidated).toBeNull();
-    expect(periods[0].warnings).toEqual(['No USD→EUR rate is set — consolidated total omitted.']);
+    expect(periods[0].warnings).toEqual(['No USD→EUR rate is set - consolidated total omitted.']);
     // The per-currency breakdown is still honest and complete, unaffected.
     expect(periods[0].byCurrency).toEqual([{ currency: 'USD', totalMinor: 5000 }]);
   });

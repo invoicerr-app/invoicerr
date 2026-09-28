@@ -97,7 +97,7 @@ describe('resolveRevenueSettings', () => {
 });
 
 describe('normalizeRevenueBasis', () => {
-  it('undefined stays undefined — leaves the column untouched', () => {
+  it('undefined stays undefined - leaves the column untouched', () => {
     expect(normalizeRevenueBasis(undefined)).toBeUndefined();
   });
 

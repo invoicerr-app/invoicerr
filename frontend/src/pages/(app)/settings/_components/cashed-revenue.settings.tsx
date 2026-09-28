@@ -17,8 +17,8 @@ import type { CashedRevenueReport } from "@/types"
 
 import { SettingsList, SettingsListRow, SettingsPage, SettingsSection } from "./settings-section"
 
-/** The company's own default ("" — resolved server-side from `Company.revenuePeriod`, see
- *  `resolve-revenue-basis.ts`), or an explicit override for THIS screen only — never written back to
+/** The company's own default ("" - resolved server-side from `Company.revenuePeriod`, see
+ *  `resolve-revenue-basis.ts`), or an explicit override for THIS screen only - never written back to
  *  the company setting (that happens on the Company tab's own "Revenue basis" section). */
 const USE_COMPANY_DEFAULT = "__default__"
 
@@ -27,10 +27,10 @@ function formatAmount(totalMinor: number, currency: string): string {
 }
 
 /**
- * Issue #516's "cashed-revenue view per period" — money actually received against sent invoices,
+ * Issue #516's "cashed-revenue view per period" - money actually received against sent invoices,
  * bucketed by month or quarter, converted into the reference currency (when one is set) at each
  * PAYMENT's own frozen rate (`GET /api/revenue/cashed`, `revenue-report.service.ts`). Explicitly
- * labelled an AID, never the official declaration — see `report.disclaimer`, echoed verbatim here AND
+ * labelled an AID, never the official declaration - see `report.disclaimer`, echoed verbatim here AND
  * as a comment line in the CSV itself so the label survives a download.
  *
  * CSV downloaded the same way `accounting-export.settings.tsx` already does: `authenticatedFetch`
