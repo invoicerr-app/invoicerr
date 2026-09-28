@@ -2,7 +2,11 @@ import { vi, type Mock } from 'vitest';
 
 import { CurrencyRateLike } from '../../company/currency-rates/convert';
 import * as currencyRatesStore from '../../company/currency-rates/currency-rates.store';
-import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
+import {
+  consolidateByCurrency,
+  loadCurrencyContext,
+  resolveConsolidationInstant,
+} from './currency-consolidation';
 
 // Only the two DB-touching reads are mocked — `toCurrencyRateLikes` stays the REAL pure mapper
 // (same "mock only what touches Prisma" discipline invoice-contributions.spec.ts already applies to
@@ -118,6 +122,63 @@ describe('consolidateByCurrency', () => {
 
     expect(outcome.consolidated).toBeNull();
     expect(outcome.warnings).toEqual(['No USD→EUR rate is set — consolidated total omitted.']);
+  });
+});
+
+describe('resolveConsolidationInstant', () => {
+  it('no period: resolves at "now", exactly the pre-#516 behavior', () => {
+    expect(resolveConsolidationInstant(undefined, now)).toEqual(now);
+  });
+
+  it('a CLOSED period (dateTo already in the past): resolves at the END of its own dateTo, never "now"', () => {
+    const period = { dateFrom: '2026-07-01', dateTo: '2026-07-31' };
+    expect(resolveConsolidationInstant(period, now)).toEqual(new Date('2026-07-31T23:59:59.999Z'));
+  });
+
+  it('an OPEN period (dateTo still in the future/today): clamped to "now", never a future instant', () => {
+    const period = { dateFrom: '2026-08-01', dateTo: '2026-09-30' };
+    expect(resolveConsolidationInstant(period, now)).toEqual(now);
+  });
+
+  it('THE fix this issue exists for: a closed period does not move when "now" advances past a new rate', () => {
+    const closedPeriod = { dateFrom: '2026-07-01', dateTo: '2026-07-31' };
+    const instantBeforeNewRate = resolveConsolidationInstant(
+      closedPeriod,
+      new Date('2026-08-01T00:00:00.000Z'),
+    );
+    const instantAfterNewRate = resolveConsolidationInstant(
+      closedPeriod,
+      new Date('2026-09-15T00:00:00.000Z'),
+    );
+    // Both resolve to the SAME instant (July's own end) no matter how far "now" has moved on -
+    // meaning any rate dated after July 31st can never be picked up by this period.
+    expect(instantBeforeNewRate).toEqual(instantAfterNewRate);
+    expect(instantBeforeNewRate).toEqual(new Date('2026-07-31T23:59:59.999Z'));
+  });
+
+  it('integration with consolidateByCurrency: a rate dated TODAY never changes an already-closed period', () => {
+    const closedPeriod = { dateFrom: '2026-07-01', dateTo: '2026-07-31' };
+    const amounts = [{ currency: 'USD', totalMinor: 10000 }];
+    const ratesBeforeToday = [usdToEurRate({ asOf: new Date('2026-07-01') })];
+
+    const before = consolidateByCurrency(
+      amounts,
+      'EUR',
+      ratesBeforeToday,
+      resolveConsolidationInstant(closedPeriod, now),
+    );
+
+    // A brand-new rate, dated TODAY (2026-08-28, "now") - long after July closed.
+    const ratesAfterToday = [...ratesBeforeToday, usdToEurRate({ rate: 5, asOf: now })];
+    const after = consolidateByCurrency(
+      amounts,
+      'EUR',
+      ratesAfterToday,
+      resolveConsolidationInstant(closedPeriod, now),
+    );
+
+    expect(before.consolidated?.totalMinor).toBe(after.consolidated?.totalMinor);
+    expect(after.consolidated?.notes).toEqual(before.consolidated?.notes);
   });
 });
 

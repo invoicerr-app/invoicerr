@@ -6,7 +6,11 @@ import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
 import { dateValueInRange, dayMs, listAllDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
-import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
+import {
+  consolidateByCurrency,
+  loadCurrencyContext,
+  resolveConsolidationInstant,
+} from './currency-consolidation';
 import { MetricWidget, MetricWidgetLink, Widget } from './widgets';
 
 /** `data.grossAmount` if it is actually a number, 0 otherwise — the same "a still-being-filled
@@ -123,7 +127,14 @@ export const buildReceivedInvoiceDashboardWidgetsWithConsolidation: Contribution
     currency: widget.unit as string,
     totalMinor: toMinor(widget.value, widget.unit as string),
   }));
-  const { consolidated, warnings } = consolidateByCurrency(amounts, referenceCurrency, rates, new Date());
+  // Issue #516: dated, not "today" - see currency-consolidation.ts's own
+  // `resolveConsolidationInstant` header.
+  const { consolidated, warnings } = consolidateByCurrency(
+    amounts,
+    referenceCurrency,
+    rates,
+    resolveConsolidationInstant(ctx.period, new Date()),
+  );
 
   if (warnings.length > 0) {
     for (const widget of perCurrencyWidgets) widget.warnings = warnings;

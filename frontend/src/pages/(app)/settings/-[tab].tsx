@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Armchair,
+  Banknote,
   Building2,
   CreditCard,
   FileSpreadsheet,
@@ -45,6 +46,7 @@ import ApiKeysSettings from "./_components/api-keys.settings"
 import AtcudSettings from "./_components/atcud.settings"
 import BillingSettings from "./_components/billing.settings"
 import BrandingSettings from "./_components/branding.settings"
+import CashedRevenueSettings from "./_components/cashed-revenue.settings"
 import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
 import CustomFieldsSettings from "./_components/custom-fields.settings"
@@ -78,6 +80,7 @@ type TabId =
   | "customFields"
   | "expenseCategories"
   | "accountingExport"
+  | "cashedRevenue"
   | "email"
   | "channels"
   | "signing"
@@ -162,6 +165,7 @@ const TAB_GROUPS: TabGroup[] = [
         adminOnly: true,
       },
       { value: "accountingExport", labelKey: "settings.tabs.accountingExport", icon: FileSpreadsheet },
+      { value: "cashedRevenue", labelKey: "settings.tabs.cashedRevenue", icon: Banknote },
       { value: "email", labelKey: "settings.tabs.emailTemplates", icon: Mail },
     ],
   },
@@ -235,6 +239,7 @@ const CONTENT: Record<TabId, ComponentType> = {
   customFields: CustomFieldsSettings,
   expenseCategories: ExpenseCategoriesSettings,
   accountingExport: AccountingExportSettings,
+  cashedRevenue: CashedRevenueSettings,
   email: EmailTemplatesSettings,
   channels: ChannelsSettings,
   signing: SigningCertificatesSettings,

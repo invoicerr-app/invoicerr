@@ -5,6 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EditCompanyDto, IdentifierEntry } from '@/modules/company/dto/company.dto';
+import {
+  normalizeRevenueBasis,
+  normalizeRevenuePeriod,
+  resolveRevenueSettings,
+} from '@/modules/company/revenue-basis/resolve-revenue-basis';
 import { MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
@@ -104,6 +109,8 @@ type PickedCompanyInput = Pick<
   | 'approvalThresholdMinor'
   | 'remindersEnabled'
   | 'distanceSalesRegime'
+  | 'revenueBasis'
+  | 'revenuePeriod'
 >;
 
 /**
@@ -154,6 +161,8 @@ export function pickCompanyInput(input: EditCompanyDto): PickedCompanyInput {
     approvalThresholdMinor: input.approvalThresholdMinor,
     remindersEnabled: input.remindersEnabled,
     distanceSalesRegime: normalizeDistanceSalesRegime(input.distanceSalesRegime),
+    revenueBasis: normalizeRevenueBasis(input.revenueBasis),
+    revenuePeriod: normalizeRevenuePeriod(input.revenuePeriod),
   };
 }
 
@@ -199,6 +208,21 @@ export class CompanyService {
       });
     }
     return await prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } });
+  }
+
+  /** Issue #516 — see `company.controller.ts#getRevenueSettings`'s own header. A 404 rather than a
+   *  thrown 500 when the company somehow doesn't exist, matching `getCompanyInfo`'s own posture for
+   *  the same case (that one logs and returns null; a resolved-settings caller always expects an
+   *  object, so this one 404s instead of a shape the frontend would have to special-case). */
+  async getRevenueSettings(companyId: string) {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { revenueBasis: true, revenuePeriod: true, countryCode: true },
+    });
+    if (!company) {
+      throw new NotFoundException(`Company "${companyId}" not found.`);
+    }
+    return resolveRevenueSettings(company);
   }
 
   private async upsertPartyIdentifiers(

@@ -12,7 +12,11 @@ import {
   listRecentDocuments,
 } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
-import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
+import {
+  consolidateByCurrency,
+  loadCurrencyContext,
+  resolveConsolidationInstant,
+} from './currency-consolidation';
 import { MetricWidget, MetricWidgetLink, TableWidget, Widget } from './widgets';
 
 /**
@@ -260,7 +264,14 @@ export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler 
     currency: widget.unit as string,
     totalMinor: toMinor(widget.value, widget.unit as string),
   }));
-  const { consolidated, warnings } = consolidateByCurrency(amounts, referenceCurrency, rates, new Date());
+  // Issue #516: dated, not "today" - see currency-consolidation.ts's own
+  // `resolveConsolidationInstant` header.
+  const { consolidated, warnings } = consolidateByCurrency(
+    amounts,
+    referenceCurrency,
+    rates,
+    resolveConsolidationInstant(ctx.period, new Date()),
+  );
 
   if (warnings.length > 0) {
     // No consolidated widget could be built — see consolidateByCurrency's own "never partial" rule.

@@ -1882,6 +1882,7 @@
       "seats": "Seats",
       "recurring": "Recurrences",
       "accountingExport": "Accounting export",
+      "cashedRevenue": "Cashed revenue",
       "sso": "SSO",
       "customFields": "Custom fields",
       "expenseCategories": "Expense categories",
@@ -1944,6 +1945,27 @@
         "rangeRequired": "Pick both a start and end date",
         "invalidRange": "\"From\" must not be after \"to\"",
         "error": "Export failed"
+      }
+    },
+    "cashedRevenue": {
+      "title": "Cashed revenue",
+      "description": "What was actually received against your sent invoices, per month or quarter — for a company that declares revenue on a cashed basis.",
+      "disclaimerFallback": "This is an aid to help prepare a revenue declaration, not the official declaration itself. Verify every figure against your own accounting records and your local tax authority's rules before filing.",
+      "loading": "Loading…",
+      "empty": "No cashed revenue in this range yet.",
+      "basisNote": "Your revenue basis is set to \"{{basis}}\". Bucketed {{granularity}}.",
+      "form": {
+        "granularity": "Bucket by",
+        "granularityDefault": "Use your company's default",
+        "export": "Export CSV"
+      },
+      "periods": {
+        "title": "Periods",
+        "zero": "Nothing cashed this period",
+        "rateMissing": "Rate missing"
+      },
+      "messages": {
+        "exportError": "Export failed"
       }
     },
     "dataExport": {
@@ -2055,6 +2077,10 @@
       "currency": {
         "title": "Multi-currency",
         "description": "Choose a reference currency to see a consolidated total alongside your per-currency dashboard figures. Leave empty to keep every aggregate grouped by currency, unchanged."
+      },
+      "revenueBasis": {
+        "title": "Revenue basis",
+        "description": "Which figure this company declares as its own revenue, and over which period. Defaulted from your country where a clear regime exists, always overridable. This is an aid, not tax advice — verify against your own accounting records."
       },
       "reminders": {
         "title": "Payment reminders",
@@ -2218,6 +2244,24 @@
         "referenceCurrency": {
           "label": "Reference currency",
           "description": "Requires an exchange rate (below) for every OTHER currency you actually use before a consolidated total appears."
+        },
+        "revenueBasis": {
+          "label": "Revenue basis",
+          "description": "\"Invoiced\" counts revenue when a document is issued (this product's own dashboard totals); \"cashed\" counts it when a payment actually arrives.",
+          "options": {
+            "default": "Use the default ({{basis}})",
+            "invoiced": "Invoiced",
+            "cashed": "Cashed"
+          }
+        },
+        "revenuePeriod": {
+          "label": "Declaration period",
+          "description": "Used by the cashed-revenue view (Cashed revenue tab) to bucket what was received.",
+          "options": {
+            "default": "Use the default (monthly)",
+            "monthly": "Monthly",
+            "quarterly": "Quarterly"
+          }
         },
         "approvalThreshold": {
           "label": "Approval threshold",

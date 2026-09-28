@@ -48,7 +48,7 @@ import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
-import type { Company } from "@/types"
+import type { Company, ResolvedRevenueSettings } from "@/types"
 
 import { NumberFormatsSection } from "./number-formats.section"
 
@@ -61,6 +61,11 @@ const SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT = 2
  *  nullable and clearing it is legitimate), so the option carries this sentinel and the field maps it
  *  back to "" — never sent to the backend, which only ever sees "ORIGIN", "DESTINATION" or null. */
 const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
+/** Same Radix "empty string is not a valid item value" workaround as
+ *  `UNDECLARED_DISTANCE_SALES_REGIME` above — issue #516's revenueBasis/revenuePeriod are ALSO
+ *  legitimately empty ("use the computed per-country default"), not merely a loading placeholder. */
+const USE_DEFAULT_REVENUE_BASIS = "__default_basis__"
+const USE_DEFAULT_REVENUE_PERIOD = "__default_period__"
 
 export default function CompanySettings() {
   const { t } = useTranslation()
@@ -157,6 +162,11 @@ export default function CompanySettings() {
     // which is the default and stays valid forever: every dashboard aggregate simply stays grouped
     // by currency (see backend's Company.referenceCurrency comment).
     referenceCurrency: z.string().optional(),
+    // Issue #516 — "" means "use the computed per-country default" (see backend's
+    // Company.revenueBasis/revenuePeriod comments and resolve-revenue-basis.ts): a legitimate,
+    // always-returnable state, same convention as distanceSalesRegime above.
+    revenueBasis: z.string().optional(),
+    revenuePeriod: z.string().optional(),
     // Approval threshold — MAJOR units, in the company's own `currency` (see backend's
     // Company.approvalThresholdMinor comment). A FORM-ONLY field: converted to/from
     // `approvalThresholdMinor` at the load/submit boundary below, the same way peppolSchemeId/
@@ -181,6 +191,14 @@ export default function CompanySettings() {
   })
 
   const { data } = useGet<Company>("/api/company/info")
+  // Issue #516 — the RESOLVED basis/period (this company's own explicit choice, or the computed
+  // per-country default) plus whether each is explicit, so the select below can show "using the
+  // default (<reason>)" without duplicating the backend's own per-country table client-side.
+  // Refetched (`mutate`) after every successful save, since the two selects below can change which
+  // value resolves. Re-fetched again whenever the country changes too (below), since that can
+  // change what the DEFAULT itself resolves to even with no explicit choice.
+  const { data: resolvedRevenueSettings, mutate: refetchResolvedRevenueSettings } =
+    useGet<ResolvedRevenueSettings>("/api/company/revenue-settings")
   const { data: invoiceTransports } = useDocumentTransports()
   // The 3-way-match tolerance is a SEPARATE endpoint/query, not part of `/api/company/info`
   // (see this field's own zod comment above).
@@ -219,6 +237,8 @@ export default function CompanySettings() {
       peppolEndpointId: "",
       invoiceTransportId: "",
       referenceCurrency: "",
+      revenueBasis: "",
+      revenuePeriod: "",
       approvalThreshold: undefined,
       remindersEnabled: false,
       reconciliationTolerancePercent: SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT,
@@ -262,6 +282,8 @@ export default function CompanySettings() {
         iban: data.iban ?? "",
         invoiceTransportId: data.invoiceTransportId ?? "",
         referenceCurrency: data.referenceCurrency ?? "",
+        revenueBasis: data.revenueBasis ?? "",
+        revenuePeriod: data.revenuePeriod ?? "",
         // MINOR (stored) -> MAJOR (form) — the company's OWN currency, same "rough guardrail, not
         // currency-converted" assumption the backend gate documents (approval-gate.ts).
         approvalThreshold:
@@ -474,6 +496,10 @@ export default function CompanySettings() {
       foundedAt: toCalendarDateInstant(values.foundedAt),
       // "" means "no reference currency chosen" in the form; stored as null, not an empty string.
       referenceCurrency: values.referenceCurrency?.trim() ? values.referenceCurrency : null,
+      // Same "empty means use the computed default, stored as null" convention as referenceCurrency
+      // above — see backend's Company.revenueBasis/revenuePeriod comments.
+      revenueBasis: values.revenueBasis?.trim() ? values.revenueBasis : null,
+      revenuePeriod: values.revenuePeriod?.trim() ? values.revenuePeriod : null,
       // Same convention: "" is "not declared", stored as null. Clearing it is legitimate (a company
       // whose option lapsed, or that dropped back under the threshold) and puts sending a
       // cross-border B2C sale of goods back behind the backend's own named block.
@@ -507,6 +533,7 @@ export default function CompanySettings() {
 
       toast.success(t("settings.company.messages.updateSuccess"))
       flashSaved()
+      refetchResolvedRevenueSettings()
     } finally {
       setIsLoading(false)
     }
@@ -1358,6 +1385,118 @@ export default function CompanySettings() {
                     {t(
                       "settings.company.form.referenceCurrency.description",
                       "Requires an exchange rate (below) for every OTHER currency you actually use before a consolidated total appears.",
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            title={t("settings.company.revenueBasis.title", "Revenue basis")}
+            description={t(
+              "settings.company.revenueBasis.description",
+              "Which figure this company declares as its own revenue, and over which period. Defaulted from your country where a clear regime exists, always overridable. This is an aid, not tax advice — verify against your own accounting records.",
+            )}
+            contentClassName="grid gap-5 sm:grid-cols-2"
+          >
+            <FormField
+              control={form.control}
+              name="revenueBasis"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.revenueBasis.label", "Revenue basis")}</FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value?.trim() ? field.value : USE_DEFAULT_REVENUE_BASIS}
+                      onValueChange={(value) =>
+                        field.onChange(value === USE_DEFAULT_REVENUE_BASIS ? "" : value)
+                      }
+                    >
+                      <SelectTrigger data-cy="company-revenue-basis-select">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          value={USE_DEFAULT_REVENUE_BASIS}
+                          data-cy="company-revenue-basis-option-default"
+                        >
+                          {t(
+                            "settings.company.form.revenueBasis.options.default",
+                            "Use the default ({{basis}})",
+                            {
+                              basis: resolvedRevenueSettings
+                                ? t(
+                                    `settings.company.form.revenueBasis.options.${resolvedRevenueSettings.basis}`,
+                                  )
+                                : "…",
+                            },
+                          )}
+                        </SelectItem>
+                        <SelectItem value="invoiced" data-cy="company-revenue-basis-option-invoiced">
+                          {t("settings.company.form.revenueBasis.options.invoiced", "Invoiced")}
+                        </SelectItem>
+                        <SelectItem value="cashed" data-cy="company-revenue-basis-option-cashed">
+                          {t("settings.company.form.revenueBasis.options.cashed", "Cashed")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription data-cy="company-revenue-basis-reason">
+                    {!field.value?.trim() && resolvedRevenueSettings
+                      ? resolvedRevenueSettings.basisDefaultReason
+                      : t(
+                          "settings.company.form.revenueBasis.description",
+                          '"Invoiced" counts revenue when a document is issued (this product\'s own dashboard totals); "cashed" counts it when a payment actually arrives.',
+                        )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="revenuePeriod"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t("settings.company.form.revenuePeriod.label", "Declaration period")}
+                  </FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value?.trim() ? field.value : USE_DEFAULT_REVENUE_PERIOD}
+                      onValueChange={(value) =>
+                        field.onChange(value === USE_DEFAULT_REVENUE_PERIOD ? "" : value)
+                      }
+                    >
+                      <SelectTrigger data-cy="company-revenue-period-select">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          value={USE_DEFAULT_REVENUE_PERIOD}
+                          data-cy="company-revenue-period-option-default"
+                        >
+                          {t(
+                            "settings.company.form.revenuePeriod.options.default",
+                            "Use the default (monthly)",
+                          )}
+                        </SelectItem>
+                        <SelectItem value="monthly" data-cy="company-revenue-period-option-monthly">
+                          {t("settings.company.form.revenuePeriod.options.monthly", "Monthly")}
+                        </SelectItem>
+                        <SelectItem value="quarterly" data-cy="company-revenue-period-option-quarterly">
+                          {t("settings.company.form.revenuePeriod.options.quarterly", "Quarterly")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      "settings.company.form.revenuePeriod.description",
+                      "Used by the cashed-revenue view (Cashed revenue tab) to bucket what was received.",
                     )}
                   </FormDescription>
                   <FormMessage />
