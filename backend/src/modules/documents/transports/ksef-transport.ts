@@ -39,7 +39,32 @@ import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { companyToFormatParty, clientToFormatParty } from '../formats/party-snapshot';
 import prisma from '@/prisma/prisma.service';
-import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
+import {
+  CredentialFieldDescriptor,
+  DocumentTransport,
+  DocumentTransportContext,
+  DocumentTransportResult,
+} from './transport-registry';
+
+/** Issue #526 — exactly the two fields `extractKsefCredentials` below reads, replacing the
+ *  frontend's own hard-coded `ksef` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
+export const KSEF_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'nip',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: '5260001246',
+    labelKey: 'settings.channels.fields.ksefNip',
+  },
+  {
+    key: 'ksefToken',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.ksefToken',
+  },
+];
 import { FetchKsefHttpClient } from './ksef/fetch-http-client';
 import { KsefClient, KsefEnvironment } from './ksef/ksef-client';
 import { generateSessionKey } from './ksef/ksef-crypto';
@@ -162,6 +187,10 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
     async preflight(companyId: string): Promise<void> {
       await requireConnectedKsef(deps.channelCredentials, companyId);
     },
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: KSEF_CREDENTIAL_FIELDS,
+    parseCredentials: extractKsefCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result — same reasoning

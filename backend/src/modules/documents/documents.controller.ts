@@ -460,11 +460,37 @@ export class DocumentsController {
     summary: 'List document transports',
     description:
       'Every registered document transport, id and label only — what a company chooses from for ' +
-      'Company.invoiceTransportId. Never scoped by country: the choice is a company setting.',
+      'Company.invoiceTransportId. Never scoped by country: the choice is a company setting. Also ' +
+      "carries each transport's own `credentialFields` (issue #526) — the exact config keys its " +
+      "connect form must collect, validated at boot against what that transport's own credential " +
+      'parser actually reads (see transports/transport-registry.ts#validateTransportCredentialFields).',
   })
   @ApiResponse({ status: 200, description: 'Transports retrieved' })
   listTransports() {
     return this.documentsService.listTransports();
+  }
+
+  @Get('operators')
+  @RequiresDocumentTypeScope('read', 'every-type')
+  @ApiOperation({
+    summary: 'List the operator catalogue (issue #526)',
+    description:
+      'Every operator this catalogue knows about — which legal channel it implements (pdp, sdi, ' +
+      'ksef, chorus-pro, pt-at...), which transports/transport-registry.ts id talks to it (when this ' +
+      'codebase has actually wired one), its capabilities and sandbox availability, each with its own ' +
+      'provenance. Optionally narrowed to one legal channel via `?channel=`. Not scoped by ' +
+      "@ActiveCompany() — this is reference data, the same as GET transports above; a company's OWN " +
+      "configured operator per channel is GET /api/company/channels's own `operatorId` field.",
+  })
+  @ApiQuery({
+    name: 'channel',
+    required: false,
+    type: String,
+    description: 'A legal channel id, e.g. "pdp".',
+  })
+  @ApiResponse({ status: 200, description: 'Operators retrieved (possibly empty for an unknown channel)' })
+  listOperators(@Query('channel') channel?: string) {
+    return this.documentsService.listOperators(channel);
   }
 
   /**

@@ -36,11 +36,39 @@ import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { PdpClient } from './pdp/pdp-client';
 import {
+  CredentialFieldDescriptor,
   DocumentTransport,
   DocumentTransportContext,
   DocumentTransportResult,
   formatBuildInputOf,
 } from './transport-registry';
+
+/** Issue #526 — exactly the three fields `extractPdpCredentials` below reads, replacing the
+ *  frontend's own hard-coded `pdp` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
+export const PDP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'baseUrl',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'https://api.superpdp.tech',
+    labelKey: 'settings.channels.fields.baseUrl',
+  },
+  {
+    key: 'clientId',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.clientId',
+  },
+  {
+    key: 'clientSecret',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.clientSecret',
+  },
+];
 
 export interface PdpTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -104,6 +132,10 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
 
     // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
     deliversCreditNotes: true,
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: PDP_CREDENTIAL_FIELDS,
+    parseCredentials: extractPdpCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result — same reasoning

@@ -64,11 +64,40 @@ import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { IopoleClient, IopoleClientConfig, iopoleFileExtensionFor } from './iopole/iopole-client';
 import {
+  CredentialFieldDescriptor,
   DocumentTransport,
   DocumentTransportContext,
   DocumentTransportResult,
   formatBuildInputOf,
 } from './transport-registry';
+
+/** Issue #526 — exactly the three fields `extractIopoleCredentials` below reads, replacing the
+ *  frontend's own hard-coded `iopole` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
+export const IOPOLE_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'clientId',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'you@example.com',
+    labelKey: 'settings.channels.fields.iopoleClientId',
+  },
+  {
+    key: 'clientSecret',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.clientSecret',
+  },
+  {
+    key: 'customerId',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    labelKey: 'settings.channels.fields.iopoleCustomerId',
+  },
+];
 
 export interface IopoleTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -179,6 +208,10 @@ export function buildIopoleTransport(deps: IopoleTransportDeps): DocumentTranspo
 
     // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
     deliversCreditNotes: true,
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: IOPOLE_CREDENTIAL_FIELDS,
+    parseCredentials: extractIopoleCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result - the same reasoning every

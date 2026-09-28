@@ -118,11 +118,47 @@ import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { listCompanyPaymentMethods } from '../payment-methods/persistence';
 import {
+  CredentialFieldDescriptor,
   DocumentTransport,
   DocumentTransportContext,
   DocumentTransportResult,
   formatBuildInputOf,
 } from './transport-registry';
+
+/** Issue #526 — exactly the four fields `extractChorusProCredentials` below reads, replacing the
+ *  frontend's own hard-coded `chorus-pro` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
+export const CHORUS_PRO_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'clientId',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    labelKey: 'settings.channels.fields.chorusProClientId',
+  },
+  {
+    key: 'clientSecret',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.chorusProClientSecret',
+  },
+  {
+    key: 'technicalAccountLogin',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'TECH_1_xxxxxx@cpro.fr',
+    labelKey: 'settings.channels.fields.chorusProTechnicalAccountLogin',
+  },
+  {
+    key: 'technicalAccountPassword',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.chorusProTechnicalAccountPassword',
+  },
+];
 
 export interface ChorusProTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -279,6 +315,10 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
 
     // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
     deliversCreditNotes: true,
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: CHORUS_PRO_CREDENTIAL_FIELDS,
+    parseCredentials: extractChorusProCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result — same reasoning every sibling

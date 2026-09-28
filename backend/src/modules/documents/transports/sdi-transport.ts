@@ -51,11 +51,51 @@ import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import {
+  CredentialFieldDescriptor,
   DocumentTransport,
   DocumentTransportContext,
   DocumentTransportResult,
   formatBuildInputOf,
 } from './transport-registry';
+
+/** Issue #526 — exactly the four fields `extractSdiCredentials` below reads, replacing the
+ *  frontend's own hard-coded `sdi` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`).
+ *  `certificatePassword` is the one field marked NOT required here — matching the parser exactly: a
+ *  real PFX legitimately can carry an empty one (see `SdiCredentials.certificatePassword`'s own
+ *  header). The frontend's OLD hard-coded copy did not mark it optional — a drift this catalogue now
+ *  makes visible and fixes at the source. */
+export const SDI_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'idTrasmittente',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'IT01234567890',
+    labelKey: 'settings.channels.fields.sdiIdTrasmittente',
+  },
+  {
+    key: 'endpoint',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'https://sdi.example.it/ricevi_file',
+    labelKey: 'settings.channels.fields.sdiEndpoint',
+  },
+  {
+    key: 'certificate',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.sdiCertificate',
+  },
+  {
+    key: 'certificatePassword',
+    kind: 'secret',
+    valueType: 'string',
+    required: false,
+    labelKey: 'settings.channels.fields.sdiCertificatePassword',
+  },
+];
 import { SdiClient, SdiHttpPort } from './sdi/sdi-client';
 import { SdiCoopClient } from './sdi/sdicoop-client';
 
@@ -89,7 +129,7 @@ interface SdiCredentials {
  *  `idTrasmittente`/`certificate`/`endpoint` gate "connected"; a certificate password is common but
  *  not universal (some PFX files carry none), so it is read through when present without being
  *  required here — unchanged reasoning from before `endpoint` was added. */
-function extractCredentials(resolved: ResolvedChannelConfig): SdiCredentials | null {
+export function extractSdiCredentials(resolved: ResolvedChannelConfig): SdiCredentials | null {
   const { idTrasmittente, certificate, certificatePassword, endpoint } = resolved.config;
   if (typeof idTrasmittente !== 'string' || !idTrasmittente) return null;
   if (typeof certificate !== 'string' || !certificate) return null;
@@ -107,7 +147,7 @@ async function requireConnectedSdi(
   companyId: string,
 ): Promise<SdiCredentials> {
   const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractCredentials(resolved);
+  const credentials = resolved && extractSdiCredentials(resolved);
   if (!credentials) {
     logger.warn('SdI transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
@@ -132,6 +172,10 @@ export function buildSdiTransport(deps: SdiTransportDeps): DocumentTransport {
 
     // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
     deliversCreditNotes: true,
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: SDI_CREDENTIAL_FIELDS,
+    parseCredentials: extractSdiCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       const credentials = await requireConnectedSdi(deps.channelCredentials, ctx.companyId);

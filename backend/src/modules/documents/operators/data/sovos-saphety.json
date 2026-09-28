@@ -1,0 +1,21 @@
+{
+  "id": "sovos-saphety",
+  "name": "Sovos / Saphety",
+  "countries": ["FR"],
+  "legalChannel": "pdp",
+  "capabilities": {
+    "emit": false,
+    "receive": false,
+    "lifecycleStatuses": false,
+    "eReporting": false
+  },
+  "sandbox": {
+    "available": true,
+    "notes": "Self-serve account creation, sandbox docs at dcn-solution.saphety.com/.../api-docs. REST. 'Free of charge' in their own words; production needs a paid subscription."
+  },
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Researched 2026-09-23 as a free-sandbox candidate for the French accredited-platform role, but this session never independently confirmed DGFiP registration or built any code against it -- capabilities are all false because no transport exists yet."
+  },
+  "notes": "Saphety originates as a Portuguese e-invoicing vendor, later acquired by Sovos -- listed here in the FRENCH accredited-platform-candidate context it was researched in, not as a claim about Portuguese coverage. No transports/transport-registry.ts id exists for this operator -- not yet integrated."
+}

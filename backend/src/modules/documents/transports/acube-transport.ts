@@ -105,11 +105,33 @@ import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { AcubeClient, AcubeEnvironment } from './acube/acube-client';
 import {
+  CredentialFieldDescriptor,
   DocumentTransport,
   DocumentTransportContext,
   DocumentTransportResult,
   formatBuildInputOf,
 } from './transport-registry';
+
+/** Issue #526 — exactly the two fields `extractAcubeCredentials` below reads. No frontend entry
+ *  existed for this provider before this catalogue — `channels.settings.tsx`'s own `PROVIDER_FIELDS`
+ *  never had an "acube" key. */
+export const ACUBE_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'email',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'you@example.com',
+    labelKey: 'settings.channels.fields.acubeEmail',
+  },
+  {
+    key: 'password',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.acubePassword',
+  },
+];
 
 export interface AcubeTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -182,6 +204,10 @@ export function buildAcubeTransport(deps: AcubeTransportDeps): DocumentTransport
 
     // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
     deliversCreditNotes: true,
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: ACUBE_CREDENTIAL_FIELDS,
+    parseCredentials: extractAcubeCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result - the company's configuration

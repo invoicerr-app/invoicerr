@@ -67,11 +67,40 @@ import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { BillitClient, BillitCredentials } from './billit/billit-client';
 import {
+  CredentialFieldDescriptor,
   DocumentTransport,
   DocumentTransportContext,
   DocumentTransportResult,
   formatBuildInputOf,
 } from './transport-registry';
+
+/** Issue #526 — exactly the three fields `extractBillitCredentials` below reads, replacing the
+ *  frontend's own hard-coded `billit` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
+export const BILLIT_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'baseUrl',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'https://api.sandbox.billit.be/v1',
+    labelKey: 'settings.channels.fields.baseUrl',
+  },
+  {
+    key: 'apiKey',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.billitApiKey',
+  },
+  {
+    key: 'partyId',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: '1163540',
+    labelKey: 'settings.channels.fields.billitPartyId',
+  },
+];
 
 export interface BillitTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -131,6 +160,10 @@ export function buildBillitTransport(deps: BillitTransportDeps): DocumentTranspo
 
     // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
     deliversCreditNotes: true,
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: BILLIT_CREDENTIAL_FIELDS,
+    parseCredentials: extractBillitCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result - the company's configuration

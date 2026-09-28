@@ -1,0 +1,23 @@
+{
+  "id": "acube",
+  "name": "A-Cube",
+  "countries": ["IT"],
+  "legalChannel": "sdi",
+  "transportId": "acube",
+  "capabilities": {
+    "emit": true,
+    "receive": false,
+    "lifecycleStatuses": false,
+    "eReporting": false
+  },
+  "sandbox": {
+    "available": true,
+    "notes": "Free work-email signup at acubeapi.com/sandbox -> activation link -> password, 'senza obbligo di acquisto' (no purchase obligation), no stated cap (verified directly on the vendor's own site, 2026-09-23). Round-trip proven live against the sandbox 2026-09-24: a real FatturaPA built by formats/national/fatturapa-provider.ts, gated by the vendored Schema_VFPR12.xsd, deposited and answered with a real uuid, then read back."
+  },
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "backend/src/modules/documents/transports/acube-transport.ts header: \"an Italian e-invoicing provider that is also a Peppol access point\" and \"round-trip proven live against the sandbox on 2026-09-24\". The SAME header explicitly CORRECTS an earlier claim that A-Cube was 'registered by the DGFiP': \"That was wrong and is recorded here so nobody re-derives it: the DGFiP is the FRENCH tax administration and its immatriculation concerns French plateformes agreees, which says nothing whatsoever about Italy.\" -- which is why this entry's legalChannel is \"sdi\" (Italian), never \"pdp\", despite A-Cube having originally been researched alongside the French accredited-platform candidates.",
+    "sourceCheckedAt": "2026-09-28"
+  },
+  "notes": "ITALY IS OUT OF SCOPE for this operator in THIS product: channel-policy/data/it.json's own 'sdi' mandate names only 'sdi-pec' as an equivalentProviderId, so an Italian company that picks the 'acube' transport is refused at send -- intended, not a defect (see acube-transport.ts's own header for the full accreditation-uncertainty reasoning: Italian law allows a third-party intermediary, but nothing public confirms A-Cube holds TRANSMISSION accreditation specifically, only a reception-shaped clue). Listed here as an operator implementing the 'sdi' legal channel because that is the artifact it builds and deposits (FatturaPA), not because this product currently lets an Italian company choose it. No conformity/pollers/ entry is registered for 'acube' -- capabilities.lifecycleStatuses is false because nothing in this codebase follows a post-deposit verdict for it, not because the platform necessarily lacks one."
+}

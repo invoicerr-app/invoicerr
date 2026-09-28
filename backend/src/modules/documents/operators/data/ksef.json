@@ -1,0 +1,23 @@
+{
+  "id": "ksef",
+  "name": "KSeF (Krajowy System e-Faktur)",
+  "countries": ["PL"],
+  "legalChannel": "ksef",
+  "transportId": "ksef",
+  "capabilities": {
+    "emit": true,
+    "receive": false,
+    "lifecycleStatuses": true,
+    "eReporting": false
+  },
+  "sandbox": {
+    "available": true,
+    "notes": "Free, instant test-environment access, no registration or company verification, fictitious NIP allowed (documentation/docs/developer-guide/credentials-guide.md item 1). Token generation for NEW tokens sunsets 31 Dec 2026; existing tokens stop working 1 Jan 2027 -- a certificate-based auth path will be needed before that cutover."
+  },
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "documentation/docs/developer-guide/credentials-guide.md item 1: \"KSeF | Poland | Already set. Token auth sunsets end-2026 -> certificate path later\"; conformity/pollers/ksef-status-poller.ts exists and is registered in documents-core.module.ts's authority-status-poller registry.",
+    "sourceCheckedAt": "2026-09-28"
+  },
+  "notes": "Poland's OWN mandatory national clearance system, not a commercial vendor -- exactly one operator, the same reasoning 'chorus-pro' and 'sdi' hold. Mandatory rollout: 1 Feb 2026 for large taxpayers, 1 Apr 2026 for all other businesses, 1 Jan 2027 for 'digitally excluded' taxpayers (Act of 5 Aug 2025, Journal of Laws item 852)."
+}

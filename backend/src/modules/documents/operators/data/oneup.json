@@ -1,0 +1,21 @@
+{
+  "id": "oneup",
+  "name": "OneUp",
+  "countries": ["FR"],
+  "legalChannel": "pdp",
+  "capabilities": {
+    "emit": false,
+    "receive": false,
+    "lifecycleStatuses": false,
+    "eReporting": false
+  },
+  "sandbox": {
+    "available": true,
+    "notes": "'30 JOURS GRATUITS' signup at smallbusiness.oneup.com/fr/, no payment info required, basic API key self-generated from account settings. REST. Docs: developers.oneup.com. UNVERIFIED whether API access survives past the 30-day trial without paying."
+  },
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Researched 2026-09-23 as a free-sandbox candidate for the French accredited-platform role, but this session never independently confirmed DGFiP registration, post-trial API terms, or built any code against it -- capabilities are all false because no transport exists yet."
+  },
+  "notes": "No transports/transport-registry.ts id exists for this operator -- not yet integrated, only researched as a free-to-develop candidate."
+}

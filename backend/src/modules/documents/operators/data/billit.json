@@ -1,0 +1,23 @@
+{
+  "id": "billit",
+  "name": "Billit",
+  "countries": ["BE", "FR"],
+  "legalChannel": "pdp",
+  "transportId": "billit",
+  "capabilities": {
+    "emit": true,
+    "receive": false,
+    "lifecycleStatuses": false,
+    "eReporting": false
+  },
+  "sandbox": {
+    "available": true,
+    "notes": "Free self-serve registration at my.sandbox.billit.be/Account/Register (company name, e-mail, password), 'no credit card required', '100% commitment-free' (verified directly on the vendor's own site, 2026-09-23)."
+  },
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "backend/src/modules/documents/transports/billit-transport.ts header: \"Billit (billit.be), a Belgian Peppol access point that is also registered by the DGFiP as a French 'plateforme agreee'\".",
+    "sourceCheckedAt": "2026-09-28"
+  },
+  "notes": "Deposits Peppol BIS Billing 3.0 UBL, never the French PA-native flow (billit-transport.ts's own header: 'NO FRENCH plateforme agreee FLOW. Billit's PA routing is a different set of endpoints... this transport speaks Peppol only'). The credential shape has its own 'baseUrl' field (sandbox vs production host differ), but that is a routine environment split for this ONE dedicated 'billit' transport, not multi-operator disambiguation -- see this catalogue's own schema.ts header for why 'baseUrl' on an OperatorFact is reserved for the 'pdp' multi-operator case. Known limit on the path to production (2026-09-24): the API key this transport authenticates with is, in Billit's own words, 'only allowed for non-commercial integrations' -- a commercial production integration needs OAuth credentials and an approval step from Billit support."
+}
