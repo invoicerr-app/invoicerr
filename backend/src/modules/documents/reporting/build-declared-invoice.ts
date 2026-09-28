@@ -55,12 +55,26 @@ function toDeclaredParty(party: DocumentFormatParty): DeclaredParty {
   };
 }
 
+/**
+ * `pricingData`: the data the figures are computed from, when it is not the document's own. A linked
+ * credit note owns no amounts (`formats/credit-note-source.ts`, "Why the invoice's descriptor prices
+ * a credit note"), so `reporting-runner.ts` passes the corrected invoice's descriptor and the
+ * invoice-shaped data that file builds, exactly as the credit note's e-invoicing export does. The
+ * number, id and ATCUD always stay the document's own.
+ */
+export interface BuildDeclaredInvoiceOptions {
+  pricingData?: Record<string, unknown>;
+  correctedInvoice?: DeclaredInvoice['correctedInvoice'];
+}
+
 export function buildDeclaredInvoice(
   typeId: string,
   descriptor: DocumentTypeDescriptor,
-  document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber'>,
+  document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber'> &
+    Partial<Pick<DocumentInstanceResult, 'atcud'>>,
   seller: DocumentFormatParty,
   buyer: DocumentFormatParty,
+  options: BuildDeclaredInvoiceOptions = {},
 ): DeclaredInvoice {
   // Never a placeholder: see `UndeclarableDocumentError`'s own header. Checked first, before any
   // figure is computed, so nothing about an unnumbered document is ever assembled for declaration.
@@ -72,7 +86,7 @@ export function buildDeclaredInvoice(
     );
   }
 
-  const data = (document.data ?? {}) as Record<string, unknown>;
+  const data = options.pricingData ?? ((document.data ?? {}) as Record<string, unknown>);
   const totals = computeDocumentTotals(descriptor, data);
   // Currency detection can fail (see `computeDocumentTotals`'s own header — a document with no
   // resolvable currency field still totals with a warning); a declarative report cannot omit a
@@ -108,5 +122,7 @@ export function buildDeclaredInvoice(
     netTotal: fromMinor(totals.netMinor, currency),
     vatTotal: fromMinor(totals.vatMinor, currency),
     grossTotal: fromMinor(totals.grossMinor, currency),
+    atcud: document.atcud ?? null,
+    ...(options.correctedInvoice ? { correctedInvoice: options.correctedInvoice } : {}),
   };
 }

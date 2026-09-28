@@ -73,6 +73,20 @@ export interface DeclaredInvoice {
   netTotal: number;
   vatTotal: number;
   grossTotal: number;
+  /**
+   * The document's own `DocumentInstance.atcud` exactly as frozen at numbering
+   * (`actions/atcud-issuance.ts`, the printed form `ATCUD:<code>-<sequential>`), or null when the
+   * document carries none (every non-Portuguese document). Passed through, never computed here: a
+   * provider that must declare it (`pt-at`) decides what an absent one means for its own authority.
+   */
+  atcud?: string | null;
+  /**
+   * Set on a correcting document only (a credit note, issue #501): the invoice it corrects, by its
+   * own issued number and issue date, read from that invoice's record
+   * (`formats/credit-note-source.ts`, the same resolution the credit note's e-invoicing export uses).
+   * Absent on an invoice.
+   */
+  correctedInvoice?: { number: string; issueDate: string };
 }
 
 /**

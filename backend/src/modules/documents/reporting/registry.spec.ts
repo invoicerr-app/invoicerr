@@ -52,6 +52,22 @@ describe('reporting obligation files — loaded, not hard-coded', () => {
     expect(defaultReportingObligationCatalog.obligationFor('PT', 'invoice')?.providerId).toBe('pt-at');
   });
 
+  // Issue #501: Decreto-Lei n.º 198/2012, art. 1.º n.º 2 extends the communication to "documentos
+  // retificativos de fatura", so a Portuguese credit note is declared through the same provider.
+  it('PT resolves to "pt-at" for a credit note too, with its own legal provenance', () => {
+    const fact = defaultReportingObligationCatalog.obligationFor('PT', 'credit-note');
+    expect(fact?.providerId).toBe('pt-at');
+    expect(fact?.provenance.kind).toBe('legal');
+    expect(fact?.provenance.kind === 'legal' && fact.provenance.sourceText).toMatch(
+      /documentos retificativos de fatura[\s\S]*Identificação do documento retificado/,
+    );
+    // The invoice's fact stays first, so a screen reading one fact per provider keeps showing it.
+    expect(defaultReportingObligationCatalog.factsFor('PT').map((f) => f.appliesTo)).toEqual([
+      'invoice',
+      'credit-note',
+    ]);
+  });
+
   // THE real-data proof that `obligationFor`'s new `dischargedBy`/`scope` filter actually holds for
   // France, not only for a synthetic fixture below: every FR fact is either transport-discharged (the
   // PDP already carries the data) or scope-restricted (no per-invoice classifier exists yet) — see
