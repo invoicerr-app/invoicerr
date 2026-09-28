@@ -1027,10 +1027,6 @@ export default function CompanySettings() {
             />
           </SettingsSection>
 
-          {/* Issue #496: read-only, no field of this form - number formats are fixed per country and
-              document type, never saved by "Save Settings". */}
-          <NumberFormatsSection />
-
           <SettingsSection
             title={t("settings.company.other.title")}
             description={t("settings.company.other.description")}
@@ -1376,6 +1372,20 @@ export default function CompanySettings() {
             </Button>
           </SettingsStickyFooter>
         </form>
+
+        {/* Issue #496: read-only, no field of this form - number formats are fixed per country and
+            document type, never saved by "Save Settings". Kept OUTSIDE the form, alongside the other
+            standalone panels below, on purpose: `useGet` here resolves asynchronously and, unlike
+            every field above (whose VALUE changes but never their layout), this card's own height
+            jumps once it does (loading placeholder -> the real per-type list). Sitting inside the
+            form, right before the invoice transport picker, that jump used to shove every field below
+            it down the page the moment the fetch settled — real for a user mid-click there, and what
+            made 32-channel-mandate.cy.ts flaky/red after #504 (the picker's own popover opening, or
+            one of its options, right as the page reflowed underneath the cursor). Moving it here
+            removes the race instead of papering over it with a longer timeout. */}
+        <div className="mt-2">
+          <NumberFormatsSection />
+        </div>
 
         <div className="mt-2">
           <CurrencyRatesSettings />
