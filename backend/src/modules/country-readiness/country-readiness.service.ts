@@ -11,9 +11,9 @@ import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions
 
 /**
  * The six CŒUR mechanisms a country needs to be "complete" — a business decision, NOT something
- * discovered from disk. Thirteen catalogs exist under `documents/` (one `data/all.ts` aggregator
+ * discovered from disk. Fourteen catalogs exist under `documents/` (one `data/all.ts` aggregator
  * each — see `ALL_DOCUMENT_CATALOG_DIRS` below, which this comment's own count is checked against);
- * the other seven are deliberately left out, and — unlike the historical version of this comment —
+ * the other eight are deliberately left out, and, unlike the historical version of this comment,
  * each one for its OWN stated reason, because the reasons genuinely differ:
  *
  *  - `mentions/` and `content-requirements/` are FR-specific extras: no other in-scope jurisdiction's
@@ -58,6 +58,14 @@ import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions
  *    does — unlike the six CORE_MECHANISMS below, every one of which IS read by a real request-serving
  *    code path today. Counting it as core would make "complete" claim a behaviour that does not exist
  *    yet; promote it once a tax-engine branch actually reads it.
+ *  - `vat-currency/` (issue #517) is genuinely CONDITIONAL, the same category `b2g-routing/` above
+ *    is in, not a sourcing gap and not "unwired" (it IS read by a real request-serving path: the
+ *    invoice "send" preflight, `vat-currency/vat-currency-issuance.ts`): it only matters for an invoice
+ *    actually ISSUED IN A DIFFERENT CURRENCY than the seller's own country's national one, a subset
+ *    of a country's invoices, never all of them. All five in-scope countries ARE sourced (FR/PL/IT
+ *    with a real, binding requirement; DE/PT with a researched "not required on the invoice itself"
+ *    conclusion), the exclusion is about what "complete" should mean for a conditional mechanism,
+ *    not about missing coverage.
  *
  * What IS fully data-driven is which countries satisfy each of the six mechanisms below: every entry's
  * `countryCodes` is read straight from that mechanism's own `ALL_*_FILES` catalog (the same
@@ -114,6 +122,7 @@ const EXCLUDED_CATALOG_DIRS: readonly string[] = [
   'archive/retention',
   'reporting',
   'domestic-reverse-charge',
+  'vat-currency',
 ];
 
 /**

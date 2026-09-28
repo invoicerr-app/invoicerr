@@ -331,6 +331,13 @@ export interface RunAsyncSendInput {
     typeId: string;
     documentId: string;
     numbered: TakenDocumentNumber;
+    /** The SAME `data` this call is about to persist/already persisted for the "sending" record:
+     *  the RESOLVED value (post-`preflight`) on the ordinary path, `input.data` unchanged on the rare
+     *  numberless-"sending"-recovery path (see this function's own header on that branch). Added for
+     *  issue #517's own `vat-currency-issuance.ts#attachVatNationalCurrencyToNumberedDocument`, which
+     *  needs to read back a sidecar `runVatCurrencyPreflight` already stashed on it. `numbered`
+     *  alone (ATCUD's own need) never required this. */
+    data: Record<string, unknown>;
   }) => Promise<void>;
 }
 
@@ -407,7 +414,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
         // (PR #473 review point 2) - see that field's own header.
         if (declaresArticleReference) await applyStockOnIssuance(companyId, record);
         if (onNumbered) {
-          await onNumbered({ companyId, typeId, documentId: record.id, numbered: recovery.numbered });
+          await onNumbered({ companyId, typeId, documentId: record.id, numbered: recovery.numbered, data });
         }
       }
     }
@@ -704,7 +711,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // `typeId` in this core file. Runs AFTER the stock effect, same as it, for the same reason: both
     // are anchored to `numbered` being the atomic winner of the numbering race, never to
     // `numberOnEnqueue` alone.
-    if (onNumbered) await onNumbered({ companyId, typeId, documentId: sending.id, numbered });
+    if (onNumbered) await onNumbered({ companyId, typeId, documentId: sending.id, numbered, data });
   }
 
   await queueDispatcher.enqueueAction({

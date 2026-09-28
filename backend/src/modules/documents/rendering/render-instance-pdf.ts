@@ -318,7 +318,18 @@ export async function renderDocumentInstance(
   descriptor: DocumentTypeDescriptor,
   instance: Pick<
     DocumentInstanceResult,
-    'id' | 'status' | 'data' | 'createdAt' | 'displayNumber' | 'atcud' | 'acceptedOption'
+    | 'id'
+    | 'status'
+    | 'data'
+    | 'createdAt'
+    | 'displayNumber'
+    | 'atcud'
+    | 'acceptedOption'
+    | 'vatNationalCurrency'
+    | 'vatNationalCurrencyTaxableMinor'
+    | 'vatNationalCurrencyVatMinor'
+    | 'vatNationalCurrencyRate'
+    | 'vatNationalCurrencyRateAsOf'
   >,
   // Issue #494: required, so every caller says which copy it renders. See `status-line-policy.ts`.
   purpose: RenderPurpose,
@@ -471,6 +482,22 @@ export async function renderDocumentInstance(
     referenceLabels,
     ...(linkedCreditNote ? linkedCreditNoteRenderInput(descriptor, linkedCreditNote) : {}),
     totals,
+    // Issue #517, see `RenderDocumentHtmlInput.vatNationalCurrency`'s own header. `null`/absent for
+    // every document that never froze one (no active country requirement, or same-currency invoice).
+    // `vatNationalCurrency` itself is the single "is there anything to print" signal, the same
+    // "one column stands for the whole group" convention `shared-build.ts#buildEuInvoiceForDocument`
+    // already uses for the identical five-columns-set-together fact).
+    vatNationalCurrency: instance.vatNationalCurrency
+      ? {
+          currency: instance.vatNationalCurrency,
+          vatMinor: instance.vatNationalCurrencyVatMinor ?? 0,
+          taxableMinor: instance.vatNationalCurrencyTaxableMinor ?? null,
+          rate: instance.vatNationalCurrencyRate ? Number(instance.vatNationalCurrencyRate.toString()) : 0,
+          rateAsOf: instance.vatNationalCurrencyRateAsOf
+            ? instance.vatNationalCurrencyRateAsOf.toISOString().slice(0, 10)
+            : '',
+        }
+      : null,
     optionGroups: quoteOptionTotals
       ? {
           arrayFieldKey: 'lines',

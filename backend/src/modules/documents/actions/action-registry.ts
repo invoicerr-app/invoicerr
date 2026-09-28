@@ -67,6 +67,22 @@ export interface DocumentInstanceResult {
    *  `displayNumber` above is (`actions/atcud-issuance.ts`). Null/undefined for every document that is
    *  not a numbered Portuguese invoice, exactly like `displayNumber` itself is absent before numbering. */
   atcud?: string | null;
+  /** See `DocumentInstance.vatNationalCurrency*`'s own schema comment: issue #517's VAT-in-national-
+   *  currency conversion, frozen the same moment `atcud` above is. Read by
+   *  `formats/shared-build.ts#buildEuInvoiceForDocument` (BT-6/BT-111, `vatNationalCurrency`/
+   *  `vatNationalCurrencyVatMinor` only) and by `rendering/render-instance-pdf.ts` (all six, to print
+   *  the converted line and, for Italy, the converted taxable amount too). Each caller Picks only
+   *  the subset it actually needs, the same narrowing convention every other caller of this
+   *  interface already follows. */
+  vatNationalCurrency?: string | null;
+  vatNationalCurrencyTaxableMinor?: number | null;
+  vatNationalCurrencyVatMinor?: number | null;
+  /** Prisma's `Decimal` narrowed to its own `toString()`, same convention
+   *  `currency-rates.store.ts#toResult`'s own `rate` param already uses, so this interface never
+   *  needs to import the generated Prisma `Decimal` runtime class just to describe this one field. */
+  vatNationalCurrencyRate?: { toString(): string } | null;
+  vatNationalCurrencyRateAsOf?: Date | null;
+  vatNationalCurrencyRateSource?: string | null;
   /** See `DocumentInstance.acceptedOption`'s own schema comment - issue #373 ("quotes with
    *  options"): the option name the client chose when accepting a quote that offers 2+ of them, null
    *  until an acceptance path writes it (or forever, for a quote that never had 2+ options). Read by

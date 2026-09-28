@@ -33,6 +33,10 @@ import {
   TransportRegistry,
   UnknownTransportError,
 } from '../transports/transport-registry';
+import {
+  attachVatNationalCurrencyToNumberedDocument,
+  runVatCurrencyPreflight,
+} from '../vat-currency/vat-currency-issuance';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
 import { attachAtcudToNumberedDocument, runAtcudPreflight } from './atcud-issuance';
@@ -690,15 +694,25 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
           // discarded): `runAsyncSendAction` persists exactly this as the "sending" document's own
           // `data`, so the record that just left "draft" already carries the resolved treatment, not
           // the user's raw entry.
-          return runInvoiceCrossBorderTaxPreflight(companyId, data);
+          const resolvedData = await runInvoiceCrossBorderTaxPreflight(companyId, data);
+          // Issue #517: VAT in the national currency, resolved against the ALREADY cross-border
+          // resolved totals above (never the draft's own, possibly stale, vatRate). See
+          // `runVatCurrencyPreflight`'s own header: the LOAD-BEARING check for a country whose rule
+          // requires this and has no rate available (Poland's own NBP table A, primarily), stashing
+          // the resolved conversion as a `__vatNationalCurrency` sidecar the "onNumbered" hook below
+          // reads back rather than resolving the rate a second time.
+          return runVatCurrencyPreflight(companyId, resolvedData);
         },
-        // Portugal's ATCUD, part two — computes and freezes it onto the invoice the MOMENT it is
-        // numbered (before anything is enqueued), reading the FROZEN `displayNumber` numbering just
-        // produced. See `attachAtcudToNumberedDocument`'s own header for why this never throws: the
-        // preflight step just above is what can still refuse the whole issuance, this is a defensive
-        // re-check running after a number has already been irreversibly spent.
-        onNumbered: async ({ companyId: c, documentId, numbered }) =>
-          attachAtcudToNumberedDocument(c, 'invoice', documentId, numbered),
+        // Portugal's ATCUD, and issue #517's VAT-national-currency conversion, both computed and
+        // frozen onto the invoice the MOMENT it is numbered (before anything is enqueued), reading the
+        // FROZEN `displayNumber` numbering just produced / the sidecar the preflight above already
+        // stashed. See each function's own header for why NEITHER ever throws: the preflight step just
+        // above is what can still refuse the whole issuance, these are defensive re-checks running
+        // after a number has already been irreversibly spent.
+        onNumbered: async ({ companyId: c, documentId, numbered, data: numberedData }) => {
+          await attachAtcudToNumberedDocument(c, 'invoice', documentId, numbered);
+          await attachVatNationalCurrencyToNumberedDocument(documentId, numberedData);
+        },
         // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
         // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
         // and attaches the PDF itself; see that file's own header and actions/send-document-email.ts
