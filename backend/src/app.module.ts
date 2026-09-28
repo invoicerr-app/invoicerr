@@ -1,5 +1,6 @@
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CompanyContextInterceptor } from '@/interceptors/company-context.interceptor';
+import { AddressAutocompleteModule } from './modules/address-autocomplete/address-autocomplete.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { ArticlesModule } from './modules/articles/articles.module';
 import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module';
@@ -127,6 +128,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
       disableGlobalAuthGuard: true,
     }),
     AuthExtendedModule,
+    AddressAutocompleteModule,
     ApiKeysModule,
     ArticlesModule,
     CompaniesModule,

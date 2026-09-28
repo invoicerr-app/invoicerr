@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
+import { AddressAutocompleteInput } from "@/components/address-autocomplete-input"
 import ChannelConnectPrompt from "@/components/channel-connect-prompt"
 import CountryReadinessAlert from "@/components/country-readiness-alert"
 import CountrySelect from "@/components/country-select"
@@ -16,6 +17,7 @@ import CurrencyRatesSettings from "./currency-rates.settings"
 import DataExportSettings from "./data-export.settings"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
+import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -63,7 +65,7 @@ const SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT = 2
 const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
 
 export default function CompanySettings() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const ALLOWED_DATE_FORMATS = [
     "dd/MM/yyyy",
@@ -872,10 +874,13 @@ export default function CompanySettings() {
                 <FormItem>
                   <FormLabel required>{t("settings.company.form.address.label")}</FormLabel>
                   <FormControl>
-                    <Input
+                    <AddressAutocompleteInput
                       placeholder={t("settings.company.form.address.placeholder")}
                       {...field}
                       data-cy="company-address-input"
+                      onSuggestionSelect={(suggestion) =>
+                        applyAddressSuggestion(form, suggestion, i18n.language)
+                      }
                     />
                   </FormControl>
                   <FormDescription>{t("settings.company.form.address.description")}</FormDescription>

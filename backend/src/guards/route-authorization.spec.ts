@@ -158,6 +158,13 @@ const NO_SCOPE_IS_CORRECT: Record<string, string> = {
   'SireneController#getCompanyBySiret':
     'Proxies the French public SIRENE registry for one SIRET. Same shape as the lookup above: no ' +
     'company row is read, so no company resource can be named.',
+  'AddressAutocompleteController#getCapability':
+    'Reports whether ADDRESS_AUTOCOMPLETE_URL is configured on this instance - an instance-wide ' +
+    'fact, not a company resource, same shape as VersionController#get below.',
+  'AddressAutocompleteController#search':
+    'Proxies a caller-typed address query to the operator-configured Photon server (#197). Same ' +
+    'shape as CompanyLookupController#lookup above: queries a third-party geocoder by a ' +
+    'caller-supplied string, reads no company row, so no company resource can be named.',
   'VersionController#get':
     'Answers the installed version and whether GitHub has published a newer one — identical for ' +
     'every company/user on the instance (issue #371). Reads no company row, same shape as ' +

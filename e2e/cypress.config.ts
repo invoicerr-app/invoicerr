@@ -182,6 +182,68 @@ function startFakePdpServer(): Promise<string> {
 }
 
 /**
+ * The Photon geocoder side for `109-address-autocomplete.cy.ts` (issue #197): a local `node:http`
+ * server standing in for `https://photon.komoot.io` - the backend's own proxy
+ * (`address-autocomplete.controller.ts`) is what calls this, never the browser, so a `cy.intercept`
+ * can prove the CLIENT never fires a raw request to komoot.io but cannot serve what the BACKEND's
+ * own server-to-server fetch needs; a real fake server is required for the same reason the PDP and
+ * AT fakes above are.
+ *
+ * FIXED PORT, deliberately, unlike the ephemeral (`.listen(0, ...)`) fakes above: `ADDRESS_AUTOCOMPLETE_URL`
+ * is read by the backend from its own environment (never written to a DB row mid-test the way the
+ * PDP/AT channel configs are), so the URL has to be known BEFORE the backend boots - `npm run
+ * start:test` picks it up from whatever exported it (a developer's own shell locally; the
+ * `cypress-run` job's own `env:` block in `.github/workflows/cypress.yml`, same override pattern as
+ * REDIS_URL there, in CI), well before this Node process or its Cypress run even starts. This is the
+ * one thing every OTHER stack running against that same fixed value tolerates without breaking:
+ * `AddressAutocompleteService` degrades to an EMPTY suggestion list (never an error) when nothing
+ * listens on this port, which is exactly what every OTHER shard/spec sees - a harmless
+ * connection-refused warning in their own backend log, no different in kind from `SireneService`'s
+ * own real "network error" WARN any offline test run already produces. Only
+ * `109-address-autocomplete.cy.ts` itself starts this server (`cy.task('startFakePhotonServer')`),
+ * so only that spec ever sees a populated dropdown.
+ */
+const FAKE_PHOTON_PORT = 41976;
+interface FakePhotonFeature {
+  properties: {
+    housenumber?: string;
+    street?: string;
+    postcode?: string;
+    city?: string;
+    country?: string;
+    countrycode?: string;
+    name?: string;
+  };
+}
+let fakePhotonServerUrl: string | null = null;
+const fakePhotonRequests: string[] = [];
+/** Mutable per-test fixture - a spec sets this with `cy.task('setFakePhotonSuggestions', [...])`
+ *  before typing, so different tests can prove different Photon answers without restarting anything. */
+let fakePhotonFeatures: FakePhotonFeature[] = [];
+
+function startFakePhotonServer(): Promise<string> {
+  if (fakePhotonServerUrl) return Promise.resolve(fakePhotonServerUrl);
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      fakePhotonRequests.push(req.url ?? "");
+      const url = new URL(req.url ?? "/", "http://fake-photon.local");
+      if (req.method === "GET" && url.pathname === "/api/") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ type: "FeatureCollection", features: fakePhotonFeatures }));
+        return;
+      }
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+    server.on("error", reject);
+    server.listen(FAKE_PHOTON_PORT, "127.0.0.1", () => {
+      fakePhotonServerUrl = `http://127.0.0.1:${FAKE_PHOTON_PORT}`;
+      resolve(fakePhotonServerUrl);
+    });
+  });
+}
+
+/**
  * The "AT webservice" side for `107-pt-at-declaration-payload.cy.ts` (issue #501): a local HTTPS
  * server standing in for the Portuguese AT's `fatcorews` endpoint, started once for the run, for the
  * same reason as the two fakes above. The backend's `pt-at` provider posts its SOAP
@@ -673,6 +735,25 @@ export default defineConfig({
         },
         resetFakeAtRequests() {
           fakeAtRequests.length = 0;
+          return null;
+        },
+
+        // See the fake Photon server's own header above (issue #197): a fixed-port `node:http`
+        // stand-in for photon.komoot.io, so `109-address-autocomplete.cy.ts` can prove the backend's
+        // proxy round-trips a real HTTP request/response without ever reaching the real komoot.io.
+        startFakePhotonServer() {
+          return startFakePhotonServer();
+        },
+        setFakePhotonSuggestions(features: FakePhotonFeature[]) {
+          fakePhotonFeatures = features;
+          return null;
+        },
+        getFakePhotonRequests() {
+          return [...fakePhotonRequests];
+        },
+        resetFakePhotonServer() {
+          fakePhotonFeatures = [];
+          fakePhotonRequests.length = 0;
           return null;
         },
 

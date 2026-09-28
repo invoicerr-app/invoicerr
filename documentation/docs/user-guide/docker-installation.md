@@ -128,8 +128,34 @@ These are set under the `invoicerr` service's `environment` key.
 | `BETTER_AUTH_SECRET` | The one that's actually documented and recommended — any random string, e.g. `openssl rand -hex 32`. Leaving it (and `JWT_SECRET` below) unset falls back to a known default, which the app flags as insecure. |
 | `JWT_SECRET` | A **legacy fallback only** — better-auth reads `BETTER_AUTH_SECRET \|\| JWT_SECRET`. Set `BETTER_AUTH_SECRET` instead for anything new; this one exists so an older deployment that only ever set `JWT_SECRET` keeps working unchanged. |
 | `DEFAULT_LOCALE` | Optional. Instance-wide fallback language (`en`, `fr`, `it`, `pl`, `de`, or `pt`) for any document or system email whose client/company/user never set one of their own — see [Document Language](./document-language.md) for the full cascade. Left unset, everything renders in English exactly as before. |
+| `ADDRESS_AUTOCOMPLETE_URL` | Optional, empty by default. Turns on address suggestions (street, house number, postcode, city, country) while typing a client's or your company's address - see [Address autocomplete](#address-autocomplete) below. |
 
 Make sure port 80 is available on your host machine, or change the port mapping.
+
+## Address autocomplete
+
+Off by default: leave `ADDRESS_AUTOCOMPLETE_URL` unset and the address fields work exactly as
+before, plain text, with zero outbound requests. Setting it points this instance at a
+[Photon](https://github.com/komoot/photon) geocoder (the same OpenStreetMap data as Nominatim, but
+built for type-ahead - Nominatim's own usage policy explicitly forbids autocomplete). Your browser
+never talks to Photon directly: the frontend calls this backend, which proxies the request to
+whichever server you configured, so the choice below stays server-side and the request is
+authenticated and rate-limited like any other endpoint.
+
+Two options:
+
+- **`https://photon.komoot.io`** - komoot's own free server. The quickest way to turn this on, but it
+  is shared and fair-use only ("extensive usage will be throttled or completely banned", per its own
+  terms) - fine for a small/personal instance, not appropriate for a large one.
+- **Your own Photon container**, e.g. `http://photon:2322` on the same Docker network. The only
+  appropriate choice once you have real traffic: Photon's own search index ranges from a few GB for
+  one country to 100GB+ for the whole planet, which is why it is never bundled into the Invoicerr
+  image itself. See the [Photon repository](https://github.com/komoot/photon) for the container image
+  and how to build or download an index.
+
+```yaml
+- ADDRESS_AUTOCOMPLETE_URL=https://photon.komoot.io
+```
 
 ## Email delivery
 
