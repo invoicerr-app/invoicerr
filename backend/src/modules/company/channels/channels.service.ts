@@ -343,19 +343,24 @@ export class ChannelCredentialsService {
 
   /**
    * Issue #526 - resolve this row's `providerId` (+, when genuinely ambiguous, its own connected
-   * `baseUrl`) to a `documents/operators/` catalogue entry id. The COMMON case (every provider today
-   * except a hypothetical future second "pdp"-family operator) never touches the encrypted `config`
-   * blob at all: `OperatorCatalog.forTransportId` already answers unambiguously from `providerId`
-   * alone, and only a transport with MORE than one catalogued operator (today: none - see
-   * `operators/registry.spec.ts`'s own header on why "pdp" is unconditional too, for now) needs a
-   * decrypt to read `baseUrl` - kept cheap on purpose, never a blanket decrypt-every-row-every-call.
-   * A decrypt failure here degrades to `null` (same "corrupted blob or wrong key → looks unconfigured,
-   * never crash" discipline `decryptRow` already holds), never a thrown error out of a LIST endpoint.
+   * `baseUrl`) to a `documents/operators/` catalogue entry id. Owner review of PR #528: an operator
+   * can implement more than one offering, so resolution answers "operator AND offering" internally
+   * (`OperatorCatalog.resolveForTransportConfig`) - this method only ever hands the CALLER the
+   * operator's own id, since a `CompanyChannelConfig` row's own `providerId` already pins down WHICH
+   * offering matched (the offering's own `transportId` is exactly that `providerId`). The COMMON case
+   * (every provider today except a hypothetical future second "pdp"-family offering) never touches
+   * the encrypted `config` blob at all: `OperatorCatalog.matchesForTransportId` already answers
+   * unambiguously from `providerId` alone, and only a transport id with MORE than one catalogued
+   * offering (today: none - see `operators/registry.spec.ts`'s own header on why "pdp" is
+   * unconditional too, for now) needs a decrypt to read `baseUrl` - kept cheap on purpose, never a
+   * blanket decrypt-every-row-every-call. A decrypt failure here degrades to `null` (same "corrupted
+   * blob or wrong key → looks unconfigured, never crash" discipline `decryptRow` already holds), never
+   * a thrown error out of a LIST endpoint.
    */
   private async resolveOperatorId(row: CompanyChannelConfig): Promise<string | null> {
-    const candidates = defaultOperatorCatalog.forTransportId(row.providerId);
+    const candidates = defaultOperatorCatalog.matchesForTransportId(row.providerId);
     if (candidates.length === 0) return null;
-    if (candidates.length === 1) return candidates[0].id;
+    if (candidates.length === 1) return candidates[0].operator.id;
 
     try {
       const config = decryptJson<Record<string, unknown>>(row.config);
@@ -367,7 +372,7 @@ export class ChannelCredentialsService {
         timestamp: new Date().toISOString(),
         context: { reason: 'resolveOperatorId' },
       });
-      return defaultOperatorCatalog.resolveForTransportConfig(row.providerId, config)?.id ?? null;
+      return defaultOperatorCatalog.resolveForTransportConfig(row.providerId, config)?.operator.id ?? null;
     } catch {
       credentialAudit.emit({
         companyId: row.companyId,

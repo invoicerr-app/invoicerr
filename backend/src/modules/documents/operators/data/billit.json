@@ -1,23 +1,54 @@
 {
   "id": "billit",
   "name": "Billit",
-  "countries": ["BE", "FR"],
-  "legalChannel": "pdp",
-  "transportId": "billit",
-  "capabilities": {
-    "emit": true,
-    "receive": false,
-    "lifecycleStatuses": false,
-    "eReporting": false
-  },
-  "sandbox": {
-    "available": true,
-    "notes": "Free self-serve registration at my.sandbox.billit.be/Account/Register (company name, e-mail, password), 'no credit card required', '100% commitment-free' (verified directly on the vendor's own site, 2026-09-23)."
-  },
   "provenance": {
     "kind": "legal",
     "sourceText": "backend/src/modules/documents/transports/billit-transport.ts header: \"Billit (billit.be), a Belgian Peppol access point that is also registered by the DGFiP as a French 'plateforme agreee'\".",
     "sourceCheckedAt": "2026-09-28"
   },
-  "notes": "Deposits Peppol BIS Billing 3.0 UBL, never the French PA-native flow (billit-transport.ts's own header: 'NO FRENCH plateforme agreee FLOW. Billit's PA routing is a different set of endpoints... this transport speaks Peppol only'). The credential shape has its own 'baseUrl' field (sandbox vs production host differ), but that is a routine environment split for this ONE dedicated 'billit' transport, not multi-operator disambiguation -- see this catalogue's own schema.ts header for why 'baseUrl' on an OperatorFact is reserved for the 'pdp' multi-operator case. Known limit on the path to production (2026-09-24): the API key this transport authenticates with is, in Billit's own words, 'only allowed for non-commercial integrations' -- a commercial production integration needs OAuth credentials and an approval step from Billit support."
+  "notes": "Owner review of PR #528: one entity, two offerings -- registered by the DGFiP as a French PA, and a Belgian Peppol access point in its own right. Both are reached through the SAME wired 'billit' transport (unlike A-Cube's peppol offering, which the wired 'acube' transport never exercises): billit-transport.ts's own header calls it 'the FIRST transport in this registry that speaks generic Peppol rather than one country's own authority protocol, which is also what opens Belgium, a country this product does not otherwise ship' -- a genuinely different legal classification each offering describes, not two copies of the same fact. Known limit on the path to production for BOTH offerings (2026-09-24): the API key this transport authenticates with is, in Billit's own words, 'only allowed for non-commercial integrations' -- a commercial production integration needs OAuth credentials and an approval step from Billit support.",
+  "offerings": [
+    {
+      "legalChannel": "pdp",
+      "countries": ["FR"],
+      "transportId": "billit",
+      "capabilities": {
+        "emit": true,
+        "receive": false,
+        "lifecycleStatuses": false,
+        "eReporting": false
+      },
+      "sandbox": {
+        "available": true,
+        "notes": "Free self-serve registration at my.sandbox.billit.be/Account/Register (company name, e-mail, password), 'no credit card required', '100% commitment-free' (verified directly on the vendor's own site, 2026-09-23)."
+      },
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "backend/src/modules/documents/transports/billit-transport.ts header: \"Billit (billit.be), a Belgian Peppol access point that is also registered by the DGFiP as a French 'plateforme agreee'\".",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Deposits Peppol BIS Billing 3.0 UBL, never the French PA-native flow (billit-transport.ts's own header: 'NO FRENCH plateforme agreee FLOW. Billit's PA routing is a different set of endpoints... this transport speaks Peppol only'). The credential shape has its own 'baseUrl' field (sandbox vs production host differ), but that is a routine environment split for this ONE dedicated 'billit' transport, not multi-operator disambiguation -- see this catalogue's own schema.ts header for why 'baseUrl' on an OperatorOffering is reserved for the 'pdp'-family multi-operator case."
+    },
+    {
+      "legalChannel": "peppol",
+      "countries": ["BE"],
+      "transportId": "billit",
+      "capabilities": {
+        "emit": true,
+        "receive": false,
+        "lifecycleStatuses": false,
+        "eReporting": false
+      },
+      "sandbox": {
+        "available": true,
+        "notes": "Same my.sandbox.billit.be signup as the pdp offering -- one account, both capabilities."
+      },
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "backend/src/modules/documents/transports/billit-transport.ts header: \"a Belgian Peppol access point\"; and: \"the FIRST transport in this registry that speaks generic Peppol rather than one country's own authority protocol, which is also what opens Belgium, a country this product does not otherwise ship\".",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "The SAME wired 'billit' transport genuinely deposits generic Peppol BIS regardless of which legal classification a sending company relies on -- unlike A-Cube's own peppol offering, this capability IS exercised by this codebase's integration, hence capabilities.emit is true here."
+    }
+  ]
 }

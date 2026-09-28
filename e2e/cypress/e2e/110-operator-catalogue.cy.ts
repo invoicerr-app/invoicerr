@@ -108,6 +108,55 @@ describe("Operator catalogue API (issue #526)", () => {
 					expect(operators.map((o) => o.id).sort()).to.deep.equal(["acube", "sdi"]);
 				});
 		});
+
+		// Owner review of PR #528: ONE operator, MANY offerings - A-Cube is an Italian SdI
+		// intermediary AND a Peppol access point; Billit is a French PA AND a Belgian Peppol access
+		// point. Both must appear under EVERY channel they offer, never duplicated as two operator
+		// entries and never leaking an unrelated offering into the wrong channel's answer.
+		describe("an operator with two offerings is listed under both channels", () => {
+			it('"peppol" lists A-Cube, B2BRouter and Billit - every operator with a sourced Peppol offering', () => {
+				cy.request({ url: `${api}/api/documents/operators?channel=peppol` })
+					.its("body")
+					.then((operators: { id: string }[]) => {
+						expect(operators.map((o) => o.id).sort()).to.deep.equal(["acube", "b2brouter", "billit"]);
+					});
+			});
+
+			it("A-Cube appears under BOTH sdi and peppol - one entity, never duplicated", () => {
+				cy.request({ url: `${api}/api/documents/operators` })
+					.its("body")
+					.then((operators: { id: string }[]) => {
+						expect(operators.filter((o) => o.id === "acube")).to.have.length(1);
+					});
+			});
+
+			it("each channel-filtered entry's own offerings are trimmed to just THAT channel - never leaking the other one", () => {
+				cy.request({ url: `${api}/api/documents/operators?channel=sdi` })
+					.its("body")
+					.then((operators: { id: string; offerings: { legalChannel: string }[] }[]) => {
+						const acube = operators.find((o) => o.id === "acube");
+						expect(acube, "acube is listed under sdi").to.exist;
+						expect(acube!.offerings.map((o) => o.legalChannel)).to.deep.equal(["sdi"]);
+					});
+
+				cy.request({ url: `${api}/api/documents/operators?channel=peppol` })
+					.its("body")
+					.then((operators: { id: string; offerings: { legalChannel: string }[] }[]) => {
+						const acube = operators.find((o) => o.id === "acube");
+						expect(acube, "acube is ALSO listed under peppol").to.exist;
+						expect(acube!.offerings.map((o) => o.legalChannel)).to.deep.equal(["peppol"]);
+					});
+			});
+
+			it("the UNFILTERED catalogue still carries both of A-Cube's offerings on the one entry", () => {
+				cy.request({ url: `${api}/api/documents/operators` })
+					.its("body")
+					.then((operators: { id: string; offerings: { legalChannel: string }[] }[]) => {
+						const acube = operators.find((o) => o.id === "acube");
+						expect(acube!.offerings.map((o) => o.legalChannel).sort()).to.deep.equal(["peppol", "sdi"]);
+					});
+			});
+		});
 	});
 
 	describe("GET /api/documents/transports - credentialFields (scope addition)", () => {
@@ -152,6 +201,7 @@ describe("Operator catalogue API (issue #526)", () => {
 			// connects its own provider and asserts on it in isolation.
 			cy.request({ method: "DELETE", url: `${api}/api/company/channels/pdp`, failOnStatusCode: false });
 			cy.request({ method: "DELETE", url: `${api}/api/company/channels/acube`, failOnStatusCode: false });
+			cy.request({ method: "DELETE", url: `${api}/api/company/channels/billit`, failOnStatusCode: false });
 		});
 
 		it("connecting pdp with SuperPDP's real baseUrl resolves operatorId=superpdp", () => {
@@ -227,6 +277,38 @@ describe("Operator catalogue API (issue #526)", () => {
 					expect(acube!.operatorId, "a single-candidate transport resolves unconditionally").to.eq(
 						"acube",
 					);
+				});
+		});
+
+		// Owner review of PR #528: "a company's config resolves to the right operator AND offering."
+		// Billit's "pdp" and "peppol" offerings SHARE one transport id ("billit") - connecting it
+		// still resolves to the right OPERATOR (billit, not acube or superpdp), and the catalogue's
+		// own channel-filtered view (asserted above) proves it maps to the right OFFERING too: this
+		// same connected operator is listed under BOTH "pdp" and "peppol", never under some other
+		// channel it does not actually implement.
+		it('connecting "billit" (two offerings sharing one transport id) resolves operatorId=billit - the right operator', () => {
+			cy.request({
+				method: "PUT",
+				url: `${api}/api/company/channels/billit`,
+				body: {
+					environment: "TEST",
+					config: {
+						baseUrl: "https://api.sandbox.billit.be/v1",
+						apiKey: "e2e-fake-api-key",
+						partyId: "1163540",
+					},
+				},
+			}).its("status").should("be.oneOf", [200, 201]);
+
+			cy.request({ url: `${api}/api/company/channels` })
+				.its("body")
+				.then((body: { configured: { providerId: string; operatorId: string | null }[] }) => {
+					const billit = body.configured.find((c) => c.providerId === "billit");
+					expect(billit, "the billit row exists").to.exist;
+					expect(
+						billit!.operatorId,
+						"resolves to billit, never to acube or superpdp",
+					).to.eq("billit");
 				});
 		});
 

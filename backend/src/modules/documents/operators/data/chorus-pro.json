@@ -1,23 +1,32 @@
 {
   "id": "chorus-pro",
   "name": "Chorus Pro",
-  "countries": ["FR"],
-  "legalChannel": "chorus-pro",
-  "transportId": "chorus-pro",
-  "capabilities": {
-    "emit": true,
-    "receive": false,
-    "lifecycleStatuses": true,
-    "eReporting": false
-  },
-  "sandbox": {
-    "available": true,
-    "notes": "A PISTE OAuth2 sandbox application plus a Chorus Pro 'compte technique' -- documentation/docs/developer-guide/credentials-guide.md item 3: qualification round-trip proven live 2026-09-14 (deposit reached terminal status IN_INTEGRE). Production needs a dedicated production PISTE app and a real Chorus Pro production raccordement, neither attempted."
-  },
   "provenance": {
     "kind": "legal",
-    "sourceText": "backend/src/modules/documents/transports/chorus-pro-transport.ts header: \"makes the channel the B2G FR rule (b2g-routing/data/fr.json) has named since 3cb39f91 actually EXIST\"; documentation/docs/developer-guide/credentials-guide.md item 3: \"Chorus Pro (PISTE) | France | Qualification round-trip proven live 2026-09-14 (deposit reached terminal IN_INTEGRE)\".",
+    "sourceText": "backend/src/modules/documents/transports/chorus-pro-transport.ts header: \"makes the channel the B2G FR rule (b2g-routing/data/fr.json) has named since 3cb39f91 actually EXIST\".",
     "sourceCheckedAt": "2026-09-28"
   },
-  "notes": "France's OWN mandatory B2G portal, not a commercial vendor -- there is exactly one operator for this legal channel because the French state itself is the counterparty, the same reasoning that gives 'ksef' and 'sdi' below exactly one operator each. A company can also choose 'chorus-pro' as its own free invoiceTransportId for an ordinary business client, outside B2G routing (transport-registry.ts's own header)."
+  "notes": "France's OWN mandatory B2G portal, not a commercial vendor -- there is exactly one operator for this legal channel because the French state itself is the counterparty, the same reasoning that gives 'ksef' and 'sdi' below exactly one operator each. A company can also choose 'chorus-pro' as its own free invoiceTransportId for an ordinary business client, outside B2G routing (transport-registry.ts's own header).",
+  "offerings": [
+    {
+      "legalChannel": "chorus-pro",
+      "countries": ["FR"],
+      "transportId": "chorus-pro",
+      "capabilities": {
+        "emit": true,
+        "receive": false,
+        "lifecycleStatuses": true,
+        "eReporting": false
+      },
+      "sandbox": {
+        "available": true,
+        "notes": "A PISTE OAuth2 sandbox application plus a Chorus Pro 'compte technique' -- documentation/docs/developer-guide/credentials-guide.md item 3: qualification round-trip proven live 2026-09-14 (deposit reached terminal status IN_INTEGRE). Production needs a dedicated production PISTE app and a real Chorus Pro production raccordement, neither attempted."
+      },
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "documentation/docs/developer-guide/credentials-guide.md item 3: \"Chorus Pro (PISTE) | France | Qualification round-trip proven live 2026-09-14 (deposit reached terminal IN_INTEGRE)\".",
+        "sourceCheckedAt": "2026-09-28"
+      }
+    }
+  ]
 }
