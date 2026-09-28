@@ -1554,7 +1554,12 @@ export class DocumentsService implements OnModuleInit {
       isNumberingAllowedFrom(descriptor.numbering, currentStatus);
 
     if (enteringNumberedStatus && result.document) {
-      const numbered = await takeDocumentNumberForTransition(companyId, typeId, result.document.id);
+      const numbered = await takeDocumentNumberForTransition(
+        companyId,
+        typeId,
+        result.document.id,
+        result.document.data,
+      );
       // `numbered` is undefined only if a concurrent request already numbered this exact record
       // between the in-memory check just above and the atomic DB write inside `takeDocumentNumber` —
       // see that function's own header. Nothing to do in that case: the record already has whatever

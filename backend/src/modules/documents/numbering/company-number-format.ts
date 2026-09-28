@@ -29,7 +29,7 @@ import {
   patternViolations,
 } from '../country-policy/number-formats';
 import { CountryPolicyCatalog, defaultCountryPolicyCatalog } from '../country-policy/registry';
-import { NumberFormatConstraintFact, RunningSeriesPolicy } from '../country-policy/schema';
+import { NumberFormatConstraintFact, PolicyProvenance, RunningSeriesPolicy } from '../country-policy/schema';
 
 /** Where the pattern applied to the next number came from. */
 export type NumberFormatSource = 'country-policy' | 'running-series';
@@ -52,6 +52,14 @@ export interface ResolvedNumberFormat {
   /** Present when the company had a running series that breaks a constraint, and was therefore
    *  moved to the country format - the old pattern, and every rule it broke. */
   supersededRunningSeries?: { pattern: string; violations: NumberFormatViolation[] };
+  /** Issue #515 - whether this type's counter may restart at 1 on every 1 January, in this country.
+   *  Read off the COUNTRY's own format for `typeId`, never off a running series: a running series is
+   *  only ever a different printed prefix for the same legal document type, so it shares the same
+   *  reset rule the country format itself carries (`periodKeyFor` below reads this field, never the
+   *  format string, to decide which counter row a document lands on). */
+  reset: 'yearly' | 'never';
+  /** Why THIS reset rule - see `schema.ts#DocumentNumberFormatFact.resetProvenance`'s own header. */
+  resetProvenance: PolicyProvenance;
 }
 
 /** A company whose country has no `numberFormats` for this type cannot number it: there is no
@@ -95,6 +103,8 @@ export function resolveNumberFormatFor(
     unconstrained: format.unconstrained,
     rationale: format.rationale,
     runningSeries: formats.runningSeries,
+    reset: format.reset,
+    resetProvenance: format.resetProvenance,
   };
 
   const running = runningSeries?.[typeId];
@@ -128,6 +138,54 @@ export async function resolveCompanyNumberFormat(
     typeId,
     company?.numberFormats as Record<string, unknown> | null,
   );
+}
+
+/**
+ * Issue #515 - the first calendar year a `reset: "yearly"` format's counter may key by. Numbers
+ * already issued never change: the counter every type used BEFORE this feature (`year = 0` on
+ * `DocumentNumberSequence`) goes on exactly where it stood for any document dated before this year,
+ * and only a document dated on or after it ever opens a fresh, year-keyed row. This is the owner's
+ * own decision on #515 (the restart applies "from the first document dated 2027-01-01 or later") -
+ * not "whenever this feature happens to ship" - so it is a fixed constant, never `new Date()`.
+ */
+export const YEARLY_RESET_STARTS_FROM_YEAR = 2027;
+
+/**
+ * The document's own issue date - the ONLY thing a `reset: "yearly"` counter may be keyed by, never
+ * the server clock the numbering call happens to run at (issue #515: "the year taken from the
+ * document's own issue date, not the server clock"). `data` is whatever the caller already has in
+ * hand (a `DocumentInstanceResult.data`, or the `data` about to be written in the same transaction -
+ * both `unknown`, since this module has no opinion on a document type's own field shape); every
+ * numbered type but `goods-receipt` declares an `issueDate` field
+ * (descriptors/*.descriptor.ts), and `goods-receipt` numbers no country-constrained type
+ * (`reset` is always `'never'` for it - see `data/xx.json`'s own `unconstrained` statements), so it
+ * never actually needs this value to be anything but the fallback below. A missing or unparseable
+ * value falls back to the moment of numbering - the same "moment the number was taken" posture
+ * `format-number.ts`'s own header already documents for a document with no more specific date to
+ * offer.
+ */
+export function issuedAtFrom(data: unknown): Date {
+  const raw = (data as Record<string, unknown> | null | undefined)?.issueDate;
+  if (typeof raw === 'string') {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date();
+}
+
+/**
+ * The `DocumentNumberSequence` row this document's number is taken from - `0` for a `reset: "never"`
+ * format, or for a `reset: "yearly"` document dated before `YEARLY_RESET_STARTS_FROM_YEAR` (the "a
+ * document dated 31 December but numbered in January belongs to the old year" case issue #515 names
+ * explicitly: such a document keeps using the SAME row its year's other documents already do,
+ * whether that row is `0`, the pre-#515 continuous counter, or an earlier `reset: "yearly"` year that
+ * already started); the document's own ISSUE year otherwise, so every later calendar year opens its
+ * own fresh row at 1, never touching another year's.
+ */
+export function periodKeyFor(resolved: Pick<ResolvedNumberFormat, 'reset'>, issuedAt: Date): number {
+  if (resolved.reset !== 'yearly') return 0;
+  const year = issuedAt.getFullYear();
+  return year >= YEARLY_RESET_STARTS_FROM_YEAR ? year : 0;
 }
 
 /** The check `numbering/sequence.ts` runs on the real number inside its transaction - see

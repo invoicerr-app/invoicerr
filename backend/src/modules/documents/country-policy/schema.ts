@@ -188,6 +188,26 @@ export interface DocumentNumberFormatFact {
   unconstrained?: string;
   /** Why THIS pattern, among all those the constraints allow - a product decision, stated. */
   rationale: string;
+  /**
+   * Issue #515 - whether this type's counter may restart at 1 on every 1 January, in this country.
+   * `'yearly'` only when a primary source, read first-hand, was found to actually PERMIT a
+   * year-bounded numbering series (never inferred from silence - the same "no permissive fallback"
+   * discipline every other fact in this catalog holds); `'never'` otherwise, including for a type no
+   * source constrains at all (an unconstrained type carries no legal numbering-continuity obligation
+   * either way, so there is nothing to read a permission FROM - it stays `'never'`, the safe
+   * default, and says so in `resetProvenance`). `numbering/company-number-format.ts#periodKeyFor` is
+   * the only reader: a `'yearly'` format keys its counter by the document's own issue year, a
+   * `'never'` one keeps the single continuous counter every type used before this feature.
+   *
+   * A `'yearly'` format whose `pattern` carries no `{year}` token refuses to load
+   * (`number-formats.ts#assertValidNumberFormats`): two different years would otherwise render the
+   * identical number, defeating the one thing a restart exists to make visible.
+   */
+  reset: 'yearly' | 'never';
+  /** Why THIS reset rule - sourced INDEPENDENTLY of `rationale` above, which explains the pattern's
+   *  shape (its tokens, its length), never whether its counter may restart. Shown on the settings
+   *  screen next to the format, the same convention every other provenance in this catalog follows. */
+  resetProvenance: PolicyProvenance;
 }
 
 /**

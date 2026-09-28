@@ -163,7 +163,12 @@ describe('DocumentsService.runAction — numbering wiring', () => {
     const service = buildService(numberedWidgetDescriptor(), actionRegistry);
     const result = await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });
 
-    expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith('company-1', 'widget', 'doc-1');
+    expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith(
+      'company-1',
+      'widget',
+      'doc-1',
+      {},
+    );
     expect(result.document).toMatchObject({ number: 1, displayNumber: 'WIDGET-2026-0001' });
   });
 
@@ -306,7 +311,12 @@ describe('DocumentsService.runAction - numbering.onlyFrom wiring (issue #471)', 
     const service = buildService(onlyFromWidgetDescriptor(), actionRegistry);
     const result = await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });
 
-    expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith('company-1', 'widget', 'doc-1');
+    expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith(
+      'company-1',
+      'widget',
+      'doc-1',
+      {},
+    );
     expect(result.document).toMatchObject({ number: 1, displayNumber: 'WIDGET-2026-0001' });
   });
 
