@@ -80,6 +80,20 @@ interface LegalChannelStatus {
   automatic: boolean
   lawful: boolean
   mandatedElsewhere: { countryCode: string; requirement: ChannelRequirement }[]
+  /** Owner review of #527 - every OTHER country whose own B2G routing runs THROUGH this channel
+   *  automatically (e.g. "chorus-pro" names FR here, for every non-French company). Combined with
+   *  `mandatedElsewhere` above by `channelHasHomeElsewhere` below to tell "this is specifically
+   *  another country's own channel" (show "outside your invoicing country") apart from "this is a
+   *  homeless, genuinely cross-border network" (Peppol - show "not accepted for your domestic
+   *  invoices" instead). Mirrors the backend's `LegalChannelStatus.automaticElsewhere`. */
+  automaticElsewhere: string[]
+}
+
+/** Owner review of #527 - "this legal channel belongs to a specific country" (theirs, shown to you)
+ *  versus "this is a network with no home anywhere, just not usable for YOUR domestic invoices" -
+ *  see `LegalChannelStatus.automaticElsewhere`'s own header for why both signals are needed. */
+function channelHasHomeElsewhere(channel: LegalChannelStatus): boolean {
+  return channel.mandatedElsewhere.length > 0 || channel.automaticElsewhere.length > 0
 }
 
 /** Mirrors the backend's `ChannelPolicyBanner` - design A's obligation banner, folded onto design C. */
@@ -130,6 +144,23 @@ function countryName(language: string, code?: string): string {
     return new Intl.DisplayNames([language, "en"], { type: "region" }).of(code) ?? code
   } catch {
     return code
+  }
+}
+
+/** A `YYYY-MM-DD` mandate date, spelled out in the reader's own language (e.g. "1 September 2026") -
+ *  owner review of #527: the banner used to interpolate the raw ISO string into a sentence, which
+ *  reads fine in a table cell but not in prose. Falls back to the raw string if it does not parse -
+ *  never throws, never blanks a date the backend did send. */
+function formatMandateDate(language: string, isoDate?: string): string {
+  if (!isoDate) return ""
+  const parsed = new Date(`${isoDate}T00:00:00Z`)
+  if (Number.isNaN(parsed.getTime())) return isoDate
+  try {
+    return new Intl.DateTimeFormat(language, { day: "numeric", month: "long", year: "numeric" }).format(
+      parsed,
+    )
+  } catch {
+    return isoDate
   }
 }
 
@@ -354,6 +385,7 @@ export default function ChannelsSettings() {
               onConnect={(providerId) => setSheetProviderId(providerId)}
               t={t}
               language={i18n.language}
+              banner={banner}
             />
           )}
         </div>
@@ -440,11 +472,31 @@ function ChannelNavBadge({
   if (!channel.lawful) {
     return (
       <Badge variant="outline" data-cy={`channel-nav-${channel.id}-badge`}>
-        {t("settings.channels.legal.badge.outside", "Outside your invoicing country")}
+        {channelHasHomeElsewhere(channel)
+          ? t("settings.channels.legal.badge.outside", "Outside your invoicing country")
+          : t("settings.channels.legal.badge.notAcceptedDomestic", "Not accepted domestically")}
       </Badge>
     )
   }
   return null
+}
+
+/** The full legal quote behind a banner, revealed on demand rather than dumped into the page by
+ *  default - owner review of #527: a full statute article in the page's own language mismatch (the
+ *  source is quoted in the COUNTRY's language, the page renders in the READER's) read as a wall of
+ *  red text, not as the "one plain sentence" this banner is meant to be. `<details>` needs no state
+ *  and no extra dependency, and degrades to a plain, readable block for anyone printing the page. */
+function ChannelBannerSource({ provenance, t }: { provenance?: ChannelProvenance; t: TFunction }) {
+  const quote = provenance?.kind === "legal" ? provenance.sourceText : provenance?.resolutionNote
+  if (!quote) return null
+  return (
+    <details className="mt-1" data-cy="channels-banner-source">
+      <summary className="cursor-pointer text-sm underline-offset-2 hover:underline">
+        {t("settings.channels.banner.readSource", "Read the source")}
+      </summary>
+      <blockquote className="mt-1 border-l-2 pl-3 text-sm italic">{quote}</blockquote>
+    </details>
+  )
 }
 
 function ChannelBanner({
@@ -458,29 +510,28 @@ function ChannelBanner({
 }) {
   if (!banner) return null
   const country = countryName(language, banner.countryCode)
+  const channel = legalChannelLabel(t, banner.legalChannelId ?? "")
+  const date = formatMandateDate(language, banner.mandatedFrom)
 
+  // Owner review of #527: ONE plain sentence in the reader's own language, normal warning weight
+  // (never `variant="destructive"` - this is not an error the user caused) - the full statute quote
+  // moves into `ChannelBannerSource`'s own collapsible, never rendered open by default.
   if (banner.tone === "mandated") {
     return (
-      <Alert variant="destructive" data-cy="channels-banner">
+      <Alert variant="warning" data-cy="channels-banner">
         <AlertTriangle aria-hidden="true" />
         <AlertTitle>
-          {t(
-            "settings.channels.banner.mandatedTitle",
-            "Your invoices from {{country}} must go through {{channel}}",
-            {
-              country,
-              channel: legalChannelLabel(t, banner.legalChannelId ?? ""),
-            },
-          )}
+          {t("settings.channels.banner.mandatedTitle", "Mandatory transmission channel")}
         </AlertTitle>
         <AlertDescription>
-          {t("settings.channels.banner.mandatedBody", "Mandatory since {{date}}. {{source}}", {
-            date: banner.mandatedFrom,
-            source:
-              banner.provenance?.kind === "legal"
-                ? banner.provenance.sourceText
-                : (banner.provenance?.resolutionNote ?? ""),
-          })}
+          <p>
+            {t(
+              "settings.channels.banner.mandatedBody",
+              "Since {{date}}, your invoices from {{country}} must go through {{channel}}.",
+              { date, country, channel },
+            )}
+          </p>
+          <ChannelBannerSource provenance={banner.provenance} t={t} />
         </AlertDescription>
       </Alert>
     )
@@ -491,16 +542,17 @@ function ChannelBanner({
       <Alert data-cy="channels-banner">
         <Info aria-hidden="true" />
         <AlertTitle>
-          {t("settings.channels.banner.suggestedTitle", "{{country}} recommends {{channel}}", {
-            country,
-            channel: legalChannelLabel(t, banner.legalChannelId ?? ""),
-          })}
+          {t("settings.channels.banner.suggestedTitle", "Recommended transmission channel")}
         </AlertTitle>
         <AlertDescription>
-          {t(
-            "settings.channels.banner.suggestedBody",
-            "Not yet a legal obligation for your country - connecting it is optional.",
-          )}
+          <p>
+            {t(
+              "settings.channels.banner.suggestedBody",
+              "{{country}} recommends {{channel}} for your invoices. Not yet a legal obligation - connecting it is optional.",
+              { country, channel },
+            )}
+          </p>
+          <ChannelBannerSource provenance={banner.provenance} t={t} />
         </AlertDescription>
       </Alert>
     )
@@ -577,6 +629,7 @@ function ChannelDetail({
   onConnect,
   t,
   language,
+  banner,
 }: {
   channel: LegalChannelStatus
   rows: OperatorChannelRow[]
@@ -590,6 +643,10 @@ function ChannelDetail({
   onConnect: (providerId: string) => void
   t: TFunction
   language: string
+  /** Owner review of #527 - only for the "not accepted domestically" alert below, to name THIS
+   *  company's own invoicing country (never a foreign one) - the alert this channel is a cross-border
+   *  network refused for. */
+  banner?: ChannelPolicyBanner
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -598,7 +655,7 @@ function ChannelDetail({
         aside={<ChannelNavBadge channel={channel} hasBlocked={!!blockedRow} t={t} />}
         dataCy={`channel-detail-${channel.id}`}
       >
-        {!channel.lawful && (
+        {!channel.lawful && channelHasHomeElsewhere(channel) && (
           <Alert data-cy={`channel-detail-${channel.id}-outside`}>
             <Info aria-hidden="true" />
             <AlertTitle>{t("settings.channels.outside.title", "Outside your invoicing country")}</AlertTitle>
@@ -615,9 +672,44 @@ function ChannelDetail({
                       },
                     )
                   : t(
-                      "settings.channels.outside.generic",
-                      "This channel is not part of your own invoicing country's rules.",
+                      "settings.channels.outside.automatic",
+                      "This channel is {{countries}}'s own automatic government portal, not part of your own invoicing country's rules.",
+                      {
+                        countries: channel.automaticElsewhere
+                          .map((cc) => countryName(language, cc))
+                          .join(", "),
+                      },
                     )}
+              </p>
+              <p>
+                {t(
+                  "settings.channels.outside.body",
+                  "A national e-invoicing mandate binds domestic operations only. When you invoice a foreign buyer, the invoice may travel by any channel you and the buyer agree on (email, PDF, Peppol...) - what changes is which authority you must report the transaction to under your own country's rules, never a foreign platform.",
+                )}
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Owner review of #527 - Peppol is a cross-border network, not another country's channel:
+            it has no `mandatedElsewhere` and no `automaticElsewhere` to point at, so it earns its own
+            wording instead of the "outside your invoicing country" alert above, which would name a
+            country that has no bearing on this channel at all. */}
+        {!channel.lawful && !channelHasHomeElsewhere(channel) && (
+          <Alert data-cy={`channel-detail-${channel.id}-not-accepted`}>
+            <Info aria-hidden="true" />
+            <AlertTitle>
+              {t("settings.channels.notAccepted.title", "Not accepted for {{country}} domestic invoices", {
+                country: countryName(language, banner?.countryCode),
+              })}
+            </AlertTitle>
+            <AlertDescription className="gap-2">
+              <p>
+                {t(
+                  "settings.channels.notAccepted.body",
+                  "{{channel}} is a cross-border network, not a specific country's own channel. Your own invoicing country requires a different channel for a domestic invoice today.",
+                  { channel: legalChannelLabel(t, channel.id) },
+                )}
               </p>
               <p>
                 {t(
@@ -745,15 +837,21 @@ function OperatorRow({
       </Button>
     )
   } else if (!channel.lawful) {
+    // Owner review of #527 - same distinction as `ChannelNavBadge`/`ChannelDetail`'s own outside
+    // alert: a specific other country's channel reads "outside your invoicing country", a homeless
+    // cross-border network (Peppol) reads "not accepted domestically" instead.
+    const label = channelHasHomeElsewhere(channel)
+      ? t("settings.channels.legal.badge.outside", "Outside your invoicing country")
+      : t("settings.channels.legal.badge.notAcceptedDomestic", "Not accepted domestically")
     primary = (
       <Button
         variant="outline"
         size="sm"
         disabled
-        title={t("settings.channels.legal.badge.outside", "Outside your invoicing country")}
+        title={label}
         data-cy={`operator-${operator.id}-connect-button`}
       >
-        {t("settings.channels.legal.badge.outside", "Outside your invoicing country")}
+        {label}
       </Button>
     )
   } else {
@@ -788,7 +886,11 @@ function OperatorRow({
       dataCy={`operator-${operator.id}-row`}
       badge={badge}
       title={operator.name}
-      meta={offering.notes ?? operator.notes}
+      // Owner review of #527 - `offering.description` is the ONE user-facing sentence this catalogue
+      // entry carries (validated non-empty at boot - `operators/schema.ts#assertValidOffering`).
+      // `offering.notes`/`operator.notes` are internal documentation (provenance trails, corrected
+      // mistakes, cross-references to source files) and must never reach this row.
+      meta={offering.description}
       primary={primary}
       menu={
         isConnected && providerId ? (

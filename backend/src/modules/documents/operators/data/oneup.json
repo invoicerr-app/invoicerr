@@ -9,6 +9,7 @@
   "offerings": [
     {
       "legalChannel": "pdp",
+      "description": "A French accounting SaaS researched as a possible accredited-platform candidate, not yet confirmed or connected.",
       "countries": ["FR"],
       "capabilities": {
         "emit": false,

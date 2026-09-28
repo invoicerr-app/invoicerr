@@ -4,6 +4,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 
 import prisma from '@/prisma/prisma.service';
 import { resolveB2gRoutingRule } from '@/modules/documents/b2g-routing/b2g-routing';
+import { defaultB2gRoutingCatalog } from '@/modules/documents/b2g-routing/registry';
 import { resolveCompanyCountryCode } from '@/modules/documents/country-policy/country-policy';
 import { PolicyProvenance } from '@/modules/documents/country-policy/schema';
 import { activeChannelMandateFor } from '@/modules/documents/transports/channel-policy/mandate';
@@ -135,10 +136,15 @@ export interface LegalChannelStatus {
    *  see `channels.settings.tsx`'s own render. */
   automatic: boolean;
   /** True when this legal channel is usable for this company's own country without being refused by
-   *  the send preflight for a domestic operation - i.e. `requirement` is set (suggested OR mandated:
-   *  a merely-suggested channel is never itself "refused", only NOT yet chosen) or `automatic` is
-   *  true. False means "outside your invoicing country" (design C's own wording) - still visible,
-   *  still browsable, never connectable from this screen. */
+   *  the send preflight for a domestic operation. Three ways to earn it: `requirement` is set
+   *  (suggested OR mandated - a merely-suggested channel is never itself "refused", only NOT yet
+   *  chosen), `automatic` is true, or - owner review of #527 - `mandatedElsewhere` is empty AND this
+   *  country enforces no mandate of its own at all: a channel no country's law claims (Peppol is the
+   *  only one today) is genuinely lawful whenever nothing forces a DIFFERENT channel instead, exactly
+   *  like Germany's own "no channel imposed" banner already says of every channel. False means this
+   *  company's own country's mandate requires a DIFFERENT channel - still visible, still browsable,
+   *  never connectable from this screen; see `mandatedElsewhere` just below for how the screen tells
+   *  "this is another country's own channel" apart from "your own country requires something else". */
   lawful: boolean;
   /** Every OTHER country whose own `channel-policy` file names this legal channel (mandated or
    *  suggested) - lets the screen explain WHOSE law a locked channel actually belongs to instead of a
@@ -147,6 +153,16 @@ export interface LegalChannelStatus {
    *  country's channel-policy file names at all (e.g. "chorus-pro" - a B2G routing fact, never a
    *  channel-policy one). */
   mandatedElsewhere: { countryCode: string; requirement: ChannelRequirement }[];
+  /** Every OTHER country whose own `b2g-routing/data/<cc>.json` rule routes THROUGH this legal
+   *  channel automatically (today: only "chorus-pro", for FR) - owner review of #527: without this,
+   *  the frontend had no way to tell "Chorus Pro, shown to an Italian company, is specifically
+   *  France's own portal" from "Peppol, shown to a French company, is a homeless cross-border
+   *  network" - both had an empty `mandatedElsewhere` (chorus-pro is a B2G routing fact, never a
+   *  channel-policy one), so both rendered the same wrong "outside your invoicing country" badge.
+   *  `mandatedElsewhere.length > 0 || automaticElsewhere.length > 0` is "this channel has a specific
+   *  home somewhere"; both empty is the one case that earns the cross-border-network wording instead.
+   *  Never includes this company's own country (that case is `automatic`/`lawful` above). */
+  automaticElsewhere: string[];
 }
 
 /**
@@ -582,9 +598,41 @@ export class ChannelCredentialsService {
       }
     }
 
+    // Does this company's OWN country enforce a mandate at all today, on ANY legal channel - never
+    // narrowed to the one being evaluated. Needed below for a channel with no country-specific home
+    // anywhere (Peppol: no channel-policy file names it, `mandatedElsewhere` is always empty) - such
+    // a channel is genuinely lawful whenever nothing forces a DIFFERENT one, and genuinely blocked
+    // only when this country's own mandate requires that different one instead (owner review of
+    // #527: labelling Peppol "outside your invoicing country" was wrong - it belongs to no country at
+    // all, cross-border network, never a competing national channel).
+    const hasDomesticMandate = ownFacts.some((fact) => fact.requirement === 'mandated');
+
+    // Every OTHER country's own B2G routing rule, cross-indexed by legal channel id the SAME way
+    // `elsewhereByChannel` above cross-indexes channel-policy - so a channel that is really another
+    // specific country's own automatic B2G portal (Chorus Pro is France's, even though it carries no
+    // channel-policy fact at all - B2G routing is a separate catalogue) is never mistaken for a
+    // genuinely country-neutral one the way Peppol is. Read from the in-memory catalog, never the DB
+    // (`resolveB2gRoutingRule`'s own table): this is a cross-country informational listing, the exact
+    // same "read live, no per-request performance case" reasoning `elsewhereByChannel`'s own
+    // `defaultChannelPolicyCatalog.all()` call already rests on, never the single-country, must-be-
+    // multi-instance-consistent lookup `b2g-routing.ts`'s own header restricts to the DB.
+    const automaticElsewhereByChannel = new Map<string, string[]>();
+    for (const otherCountryCode of defaultB2gRoutingCatalog.countries()) {
+      if (otherCountryCode === countryCode) continue;
+      const rule = defaultB2gRoutingCatalog.ruleFor(otherCountryCode);
+      if (!rule) continue;
+      const list = automaticElsewhereByChannel.get(rule.transportId) ?? [];
+      list.push(otherCountryCode);
+      automaticElsewhereByChannel.set(rule.transportId, list);
+    }
+
     const channels: LegalChannelStatus[] = [...legalChannelIds].sort().map((id) => {
       const ownFact: ChannelPolicyFact | undefined = ownFactByChannel.get(id);
       const automatic = b2gRule?.transportId === id;
+      const mandatedElsewhere = elsewhereByChannel.get(id) ?? [];
+      const automaticElsewhere = automaticElsewhereByChannel.get(id) ?? [];
+      const hasNoHomeAnywhere = mandatedElsewhere.length === 0 && automaticElsewhere.length === 0;
+      const lawful = !!ownFact || automatic || (hasNoHomeAnywhere && !hasDomesticMandate);
       return {
         id,
         requirement: ownFact?.requirement,
@@ -593,10 +641,23 @@ export class ChannelCredentialsService {
         equivalentProviderIds: ownFact?.equivalentProviderIds,
         provenance: ownFact?.provenance,
         automatic,
-        lawful: !!ownFact || automatic,
-        mandatedElsewhere: elsewhereByChannel.get(id) ?? [],
+        lawful,
+        mandatedElsewhere,
+        automaticElsewhere,
       };
     });
+
+    // Issue #527 (owner review) - the country's OWN legal channel is listed, and preselected, FIRST;
+    // an automatic B2G channel (this company never "chooses" it) comes right after; everything else
+    // follows in a stable, deterministic order. Never a silent re-ranking the frontend would have to
+    // reimplement to match - the priority IS the same verdict this method already computed above.
+    const priorityOf = (channel: LegalChannelStatus): number => {
+      if (channel.requirement === 'mandated') return 0;
+      if (channel.requirement === 'suggested') return 1;
+      if (channel.automatic) return 2;
+      return 3;
+    };
+    channels.sort((a, b) => priorityOf(a) - priorityOf(b) || a.id.localeCompare(b.id));
 
     const mandatedFact = ownFacts.find((fact) => fact.requirement === 'mandated');
     const suggestedFact = ownFacts.find((fact) => fact.requirement === 'suggested');

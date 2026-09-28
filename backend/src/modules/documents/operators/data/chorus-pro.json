@@ -10,6 +10,7 @@
   "offerings": [
     {
       "legalChannel": "chorus-pro",
+      "description": "France's own government B2G portal, for invoices to French public administrations.",
       "countries": ["FR"],
       "transportId": "chorus-pro",
       "capabilities": {

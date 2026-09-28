@@ -49,10 +49,33 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 	it("FR (mandated): the banner states the obligation with its source, PDP is home and lawful, declarations render apart from delivery channels", () => {
 		cy.visit("/settings/channels");
 
+		// Owner review of #527, fix #1 - the country's OWN legal channel (PDP) is preselected and
+		// open WITHOUT clicking anything, and listed/selected before the automatic B2G channel
+		// (chorus-pro) - never the reverse.
+		cy.get('[data-cy="channel-detail-pdp"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-nav-pdp"]').should("have.attr", "aria-selected", "true");
+		cy.get('[data-cy="channel-nav-chorus-pro"]').should("have.attr", "aria-selected", "false");
+
+		// Owner review of #527, fix #2 - the banner is ONE plain sentence in the UI language, normal
+		// warning weight (never `variant="destructive"` - this is not an error the user caused), with
+		// the full statute quote collapsed behind a "Read the source" toggle, never dumped open.
 		cy.get('[data-cy="channels-banner"]', { timeout: 15000 })
 			.should("contain.text", "France")
-			.and("contain.text", "2026-09-01")
-			.and("contain.text", "plateforme agréée");
+			.and(
+				"contain.text",
+				"Since September 1, 2026, your invoices from France must go through Accredited platform (PDP).",
+			)
+			.and("not.have.class", "text-destructive")
+			.and("have.class", "bg-warning");
+		// Asserted on the native `<details>` element's own `open` attribute, never CSS visibility -
+		// headless Firefox does not apply the UA stylesheet rule that hides a closed `<details>`'s
+		// content (confirmed live: `display` stays "block" either way), so a visibility-based
+		// assertion would pass here even if the collapse broke; the `open` attribute is what the
+		// browser's real collapse behavior is driven by, in every browser, headless or not.
+		cy.get('[data-cy="channels-banner-source"]').should("not.have.attr", "open");
+		cy.get('[data-cy="channels-banner-source"] summary').click();
+		cy.get('[data-cy="channels-banner-source"]').should("have.attr", "open");
+		cy.get('[data-cy="channels-banner-source"]').should("contain.text", "plateforme agréée");
 
 		cy.get('[data-cy="channel-nav-pdp"]').should("exist").click();
 		cy.get('[data-cy="channel-nav-pdp-badge"]').should("contain.text", "Mandatory from 2026-09-01");
@@ -63,6 +86,13 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 		cy.get('[data-cy="operator-superpdp-row"]', { timeout: 10000 }).should("exist");
 		cy.get('[data-cy="operator-billit-row"]').should("exist");
 		cy.get('[data-cy="operator-iopole-row"]').should("exist");
+
+		// Owner review of #527, fix #3 - a user-facing one-line `description`, never the catalogue's
+		// internal `notes` (provenance trails, cross-references to source files - e.g. Iopole's own
+		// "Async API: POST /v1/invoice..." lifecycle note must never reach this row).
+		cy.get('[data-cy="operator-iopole-row"]')
+			.should("contain.text", "A French accredited platform (PA) with a free, self-serve sandbox.")
+			.and("not.contain.text", "Async API");
 
 		// The search field above level 2 narrows the operator list, never the level-1 nav.
 		cy.get('[data-cy="channel-detail-pdp-search"]').type("Iopole");
@@ -81,6 +111,22 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 		cy.get('[data-cy="operator-sdi-connect-button"]')
 			.should("be.disabled")
 			.and("contain.text", "Outside your invoicing country");
+
+		// Owner review of #527, fix #4 - Peppol is a cross-border network, not another country's own
+		// channel: it must read "not accepted domestically", NEVER "outside your invoicing country"
+		// (that wording stays reserved for a channel - like SdI above - that genuinely belongs to a
+		// specific other country).
+		cy.get('[data-cy="channel-nav-peppol"]').click();
+		cy.get('[data-cy="channel-nav-peppol-badge"]')
+			.should("contain.text", "Not accepted domestically")
+			.and("not.contain.text", "Outside your invoicing country");
+		cy.get('[data-cy="channel-detail-peppol-not-accepted"]')
+			.should("contain.text", "France")
+			.and("contain.text", "cross-border network");
+		cy.get('[data-cy="channel-detail-peppol-outside"]').should("not.exist");
+		cy.get('[data-cy="operator-billit-connect-button"]')
+			.should("be.disabled")
+			.and("contain.text", "Not accepted domestically");
 
 		// Declarations - pt-at is never seeded for a French company, but France's OWN reporting
 		// obligations (pdp / fr-ereporting, reporting/data/fr.json) still render, apart from the
@@ -166,6 +212,16 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 		for (const id of ["pdp", "sdi", "ksef", "chorus-pro"]) {
 			cy.get(`[data-cy="channel-nav-${id}-badge"]`).should("contain.text", "Outside your invoicing country");
 		}
+
+		// Owner review of #527, fix #4 - Peppol is a homeless, genuinely cross-border network: for a
+		// country with NO domestic mandate of its own (Germany), it is lawful and gets no "outside"/
+		// "not accepted" badge at all, unlike pdp/sdi/ksef/chorus-pro above (each another specific
+		// country's own channel).
+		cy.get('[data-cy="channel-nav-peppol-badge"]').should("not.exist");
+		cy.get('[data-cy="channel-nav-peppol"]').click();
+		cy.get('[data-cy="channel-detail-peppol-outside"]').should("not.exist");
+		cy.get('[data-cy="channel-detail-peppol-not-accepted"]').should("not.exist");
+
 		// No declarations for Germany - reporting/data/ has no de.json.
 		cy.get('[data-cy="channels-declarations"]').should("not.exist");
 	});
@@ -193,7 +249,10 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 
 		cy.get('[data-cy="channels-banner"]', { timeout: 15000 })
 			.should("contain.text", "Italy")
-			.and("contain.text", "2019-01-01");
+			.and(
+				"contain.text",
+				"Since January 1, 2019, your invoices from Italy must go through Sistema di Interscambio (SdI).",
+			);
 		cy.get('[data-cy="channel-nav-sdi"]').click();
 		cy.get('[data-cy="channel-nav-sdi-badge"]').should("contain.text", "Mandatory from 2019-01-01");
 		cy.get('[data-cy="operator-sdi-connect-button"]').should("not.be.disabled");

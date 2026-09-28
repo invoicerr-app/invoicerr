@@ -469,7 +469,32 @@ describe('ChannelCredentialsService', () => {
       expect(banner).toEqual(
         expect.objectContaining({ countryCode: 'DE', tone: 'none', legalChannelId: undefined }),
       );
-      expect(channels.every((c) => !c.lawful)).toBe(true);
+      const byId = Object.fromEntries(channels.map((c) => [c.id, c]));
+      // Owner review of #527 - Germany enforces NO domestic mandate at all, so a channel no OTHER
+      // country's law claims either (Peppol: no channel-policy fact, no B2G-routing fact anywhere)
+      // is genuinely lawful - nothing forces a different one. pdp/sdi/ksef stay locked (each is
+      // another specific country's own mandate/suggestion); chorus-pro stays locked too (it is
+      // FRANCE's own automatic B2G portal, found via the b2g-routing cross-index, even though it
+      // carries no channel-policy fact at all).
+      expect(byId.peppol.lawful).toBe(true);
+      expect(byId.pdp.lawful).toBe(false);
+      expect(byId.sdi.lawful).toBe(false);
+      expect(byId.ksef.lawful).toBe(false);
+      expect(byId['chorus-pro'].lawful).toBe(false);
+
+      // Owner review of #527, second instance of the same bug class the Peppol wording fix targets:
+      // chorus-pro carries no channel-policy fact anywhere (`mandatedElsewhere` is empty for it from
+      // EVERY viewer), so the frontend could not tell "France's own automatic B2G portal" apart from
+      // a genuinely homeless cross-border network without this field - it must name FR here, exactly
+      // like `mandatedElsewhere` already does for sdi/ksef above, so the settings screen keeps saying
+      // "outside your invoicing country" for chorus-pro (correct) rather than switching to the new
+      // "not accepted for your domestic invoices" wording (which would be wrong: chorus-pro is not a
+      // cross-border network, it is specifically France's own portal).
+      expect(byId['chorus-pro'].mandatedElsewhere).toEqual([]);
+      expect(byId['chorus-pro'].automaticElsewhere).toEqual(['FR']);
+      // Peppol has neither a channel-policy fact NOR a b2g-routing fact anywhere - genuinely homeless.
+      expect(byId.peppol.mandatedElsewhere).toEqual([]);
+      expect(byId.peppol.automaticElsewhere).toEqual([]);
     });
 
     it('a Polish company: ksef is home and SUGGESTED (not mandated - the mandate schema cannot express the real threshold/allowance calendar), still lawful (usable) at the settings level', async () => {
@@ -482,6 +507,28 @@ describe('ChannelCredentialsService', () => {
       );
       const ksef = channels.find((c) => c.id === 'ksef');
       expect(ksef).toEqual(expect.objectContaining({ requirement: 'suggested', lawful: true }));
+
+      // A merely-SUGGESTED fact is not an active mandate (`hasDomesticMandate` stays false) - so
+      // Peppol (no country's own home anywhere) reads lawful here too, same as it would for Germany.
+      const peppol = channels.find((c) => c.id === 'peppol');
+      expect(peppol?.lawful).toBe(true);
+    });
+
+    it("a French company: PDP (this country's own mandate) is listed FIRST, chorus-pro (automatic) right after it - never Chorus Pro first (owner review of #527)", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      mockedResolveB2gRoutingRule.mockResolvedValue({ transportId: 'chorus-pro' });
+
+      const { channels } = await service.legalChannels('company-1');
+
+      expect(channels.map((c) => c.id)).toEqual(['pdp', 'chorus-pro', 'ksef', 'peppol', 'sdi']);
+    });
+
+    it("an Italian company: SdI (this country's own mandate) is listed FIRST", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Italy', countryCode: 'IT' });
+
+      const { channels } = await service.legalChannels('company-1');
+
+      expect(channels[0].id).toBe('sdi');
     });
 
     it('a company whose country cannot be resolved gets an honest "none" banner, never a guess', async () => {

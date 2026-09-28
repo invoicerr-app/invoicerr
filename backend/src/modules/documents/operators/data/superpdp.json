@@ -10,6 +10,7 @@
   "offerings": [
     {
       "legalChannel": "pdp",
+      "description": "A French accredited platform (PA) with a free, self-serve sandbox.",
       "countries": ["FR"],
       "transportId": "pdp",
       "baseUrl": {

@@ -18,6 +18,7 @@ function offering(
 ): OperatorFact['offerings'][number] {
   return {
     legalChannel: 'pdp',
+    description: "A fixture offering, never rendered - see this file's own header.",
     countries: ['FR'],
     capabilities: { emit: true, receive: false, lifecycleStatuses: false, eReporting: false },
     sandbox: { available: true },

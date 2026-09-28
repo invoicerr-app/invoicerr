@@ -481,6 +481,11 @@ export function useDocumentTransports() {
  *  OFFERINGS". */
 export interface DocumentOperatorOffering {
   legalChannel: string
+  /** ONE plain, user-facing sentence - what this offering IS and who it is FOR. Owner review of
+   *  #527: the settings screen renders THIS, never `notes` below (internal documentation - provenance
+   *  trails, corrected mistakes, cross-references to source code). See the backend's
+   *  `operators/schema.ts#OperatorOffering.description` for the full rule this mirrors. */
+  description: string
   countries: string[]
   transportId?: string
   baseUrl?: { sandbox?: string; production?: string }

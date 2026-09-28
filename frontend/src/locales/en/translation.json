@@ -2695,12 +2695,13 @@
         "edit": "Edit"
       },
       "banner": {
-        "mandatedBody": "Mandatory since {{date}}. {{source}}",
-        "mandatedTitle": "Your invoices from {{country}} must go through {{channel}}",
+        "mandatedBody": "Since {{date}}, your invoices from {{country}} must go through {{channel}}.",
+        "mandatedTitle": "Mandatory transmission channel",
         "noneBody": "Any lawful transport, including email, may be used to send your invoices.",
         "noneTitle": "No transmission channel is imposed on {{country}}",
-        "suggestedBody": "Not yet a legal obligation for your country. Connecting it is optional.",
-        "suggestedTitle": "{{country}} recommends {{channel}}"
+        "readSource": "Read the source",
+        "suggestedBody": "{{country}} recommends {{channel}} for your invoices. Not yet a legal obligation - connecting it is optional.",
+        "suggestedTitle": "Recommended transmission channel"
       },
       "blocked": {
         "body": "This channel was connected before your country's current mandate took effect. It is refused at send time. You may disconnect it safely; invoices already sent stay archived.",
@@ -2759,6 +2760,7 @@
           "automatic": "Automatic",
           "blocked": "No longer accepted",
           "mandated": "Mandatory from {{date}}",
+          "notAcceptedDomestic": "Not accepted domestically",
           "outside": "Outside your invoicing country",
           "suggested": "Recommended for your country"
         },
@@ -2793,15 +2795,19 @@
         "fieldsRequired": "{{fields}} are all required",
         "noFields": "This channel has no configurable fields yet."
       },
+      "notAccepted": {
+        "body": "{{channel}} is a cross-border network, not a specific country's own channel. Your own invoicing country requires a different channel for a domestic invoice today.",
+        "title": "Not accepted for {{country}} domestic invoices"
+      },
       "operator": {
         "manage": "Manage",
         "notIntegrated": "Not yet available",
         "sandboxAvailable": "Sandbox available"
       },
       "outside": {
+        "automatic": "This channel is {{countries}}'s own automatic government portal, not part of your own invoicing country's rules.",
         "body": "A national e-invoicing mandate binds domestic operations only. When you invoice a foreign buyer, the invoice may travel by any channel you and the buyer agree on (email, PDF, Peppol...); what changes is which authority you must report the transaction to under your own country's rules, never a foreign platform.",
         "elsewhere": "This channel is required or recommended in {{countries}}, not in your own invoicing country.",
-        "generic": "This channel is not part of your own invoicing country's rules.",
         "title": "Outside your invoicing country"
       },
       "prompt": {

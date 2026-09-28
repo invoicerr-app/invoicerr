@@ -10,6 +10,7 @@
   "offerings": [
     {
       "legalChannel": "pt-at",
+      "description": "Portugal's own tax authority, for declaring invoice data after issuance.",
       "countries": ["PT"],
       "capabilities": {
         "emit": false,
