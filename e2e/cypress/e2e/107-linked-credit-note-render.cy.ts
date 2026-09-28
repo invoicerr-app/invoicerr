@@ -21,7 +21,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * adds that delivery). The email body is proven against the real render pipeline in
  * `backend/src/modules/documents/totals/linked-credit-note.spec.ts`.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 /** 2 x 300.00 at 10% off, 20% VAT: net 540.00, VAT 108.00, gross 648.00. */
 const CREDITED_GROSS_MINOR = 64800;
