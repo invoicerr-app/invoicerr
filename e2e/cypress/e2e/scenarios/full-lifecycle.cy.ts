@@ -448,15 +448,19 @@ const FAKE_SDI = {
 };
 
 function connectFakeSdiAndMakeItTheTransport() {
+	// Issue #527: the Channels screen is now legal channel, then operator - the Italian seller of this
+	// leg makes "sdi" lawful (its own country's mandate), so "Connect" is enabled straight away; see
+	// `31-national-channels.cy.ts`'s own header for the field-level data-cy convention preserved here.
 	cy.visit("/settings/channels");
-	cy.get('[data-cy="channel-sdi"]', { timeout: 15000 }).should("exist");
-	cy.get('[data-cy="channel-sdi-idtrasmittente-input"]').clear().type(FAKE_SDI.idTrasmittente);
+	cy.get('[data-cy="channel-nav-sdi"]', { timeout: 15000 }).should("exist").click();
+	cy.get('[data-cy="operator-sdi-connect-button"]', { timeout: 10000 }).should("exist").click();
+	cy.get('[data-cy="channel-sdi-idtrasmittente-input"]', { timeout: 10000 }).clear().type(FAKE_SDI.idTrasmittente);
 	cy.get('[data-cy="channel-sdi-endpoint-input"]').clear().type(FAKE_SDI.endpoint);
 	cy.get('[data-cy="channel-sdi-certificate-input"]').clear().type(FAKE_SDI.certificate);
 	cy.get('[data-cy="channel-sdi-certificatepassword-input"]').clear().type(FAKE_SDI.certificatePassword);
 	cy.get('[data-cy="channel-sdi-connect-button"]').click();
 	cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Channel connected");
-	cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should("contain.text", "Connected");
+	cy.get('[data-cy="operator-sdi-status"]', { timeout: 10000 }).should("contain.text", "Connected");
 	// The toast/status-badge pair above only proves the SCREEN'S OWN local state changed — a request
 	// that failed server-side after an optimistic UI update would look identical. Read the row back
 	// from the API, the same proof `31-national-channels.cy.ts` already holds for this exact button.

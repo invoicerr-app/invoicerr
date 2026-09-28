@@ -10,6 +10,7 @@
   "offerings": [
     {
       "legalChannel": "ksef",
+      "description": "Poland's own government e-invoicing platform, with a free test environment.",
       "countries": ["PL"],
       "transportId": "ksef",
       "capabilities": {

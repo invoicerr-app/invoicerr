@@ -38,9 +38,9 @@ they must not be confused:
 **① Deployed app (production — this is what real usage relies on).**
 Each company enters **its own** channel credentials in the app UI — no env vars, no GitHub
 secrets involved:
-- **Settings → Channels** → connect a channel (e.g. FR→PDP, PL→KSeF) and paste that tenant's
-  API credentials → stored in `CompanyChannelConfig` (one row per `companyId` + provider +
-  `TEST`/`PROD` environment).
+- **Settings → E-invoicing** → pick the legal channel (e.g. FR→PDP, PL→KSeF), then the operator
+  that implements it, connect it in the side sheet, and paste that tenant's API credentials →
+  stored in `CompanyChannelConfig` (one row per `companyId` + provider + `TEST`/`PROD` environment).
 - **Settings → Signing certificates** → upload the tenant's `.pfx/.p12` + password → stored in
   `CompanySigningCertificate`.
 - Both are **AES-256-GCM encrypted at rest** (`backend/src/utils/secret-crypto.ts`), scoped by
@@ -55,7 +55,7 @@ in this guide. It never touches the deployed app's per-tenant storage.
 **What this means for the per-platform sections below:** the "how to obtain this credential from
 the authority" steps are **identical** for both paths — you get the same client_id / token /
 certificate from the same portal. Only the **destination** differs:
-- for **production** → paste it into that company's *Settings → Channels / Signing certificates*;
+- for **production** → paste it into that company's *Settings → E-invoicing / Signing certificates*;
 - for a **CI live test** → put it in a **GitHub secret** (below).
 
 ### Adding a GitHub secret (CI-test path only)
@@ -462,8 +462,11 @@ FatturaPA XML straight to SdI. See `backend/src/modules/documents/transports/sdi
 own header for the full citation trail (exact URLs, dates read, verbatim Italian quotes) this section
 summarizes.
 
-**What connecting the "sdi-pec" channel requires** (company settings → Channels → SdI via PEC, or the
-GitHub secrets above for the live spec):
+**What connecting the "sdi-pec" channel requires.** The settings screen's own operator catalogue has
+no entry for it on purpose: unlike SdI's direct SDICoop channel, a PEC mailbox is the company's own
+generic subscription with any accredited provider, not a specific product this catalogue can name
+(see `documents/operators/schema.ts`'s own header). Connect it directly, `PUT /api/company/channels/
+sdi-pec` with the fields below, or use the GitHub secrets above for the live spec:
 
 - `PEC_ADDRESS` — this company's own PEC mailbox address (used as the SMTP envelope/header From).
 - `PEC_SMTP_HOST`/`PEC_SMTP_PORT`/`PEC_SMTP_SECURE` — the PEC provider's own SMTP submission endpoint.

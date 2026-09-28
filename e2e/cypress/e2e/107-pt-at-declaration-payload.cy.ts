@@ -252,10 +252,12 @@ describe("Issue #501 - a Portuguese invoice is declared with its real ATCUD, and
 
 	// pt-at now carries two facts (invoice, credit note) and the Channels screen shows one row per
 	// provider: that row must keep describing the invoice's obligation (DL 198/2012 art. 3.º n.º 1), as
-	// before issue #501, rather than whichever fact came last.
+	// before issue #501, rather than whichever fact came last. Issue #527 moved declarations into their
+	// own section, apart from delivery channels (never in the same list) - `declaration-pt-at`, never
+	// `channel-pt-at`.
 	it("the Channels screen still describes pt-at by the invoice's obligation, once", () => {
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-pt-at"]', { timeout: 20000 })
+		cy.get('[data-cy="declaration-pt-at"]', { timeout: 20000 })
 			.should("have.length", 1)
 			.and("contain.text", 'Artigo 3.º ("Comunicação dos elementos das faturas"), n.º 1')
 			.and("not.contain.text", 'Artigo 1.º ("Objeto")');

@@ -9,6 +9,7 @@
   "offerings": [
     {
       "legalChannel": "pdp",
+      "description": "An e-invoicing vendor researched as a possible French accredited-platform candidate, not yet confirmed or connected.",
       "countries": ["FR"],
       "capabilities": {
         "emit": false,

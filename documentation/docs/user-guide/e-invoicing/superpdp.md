@@ -93,9 +93,18 @@ You can now use these credentials to authenticate and call the SuperPDP API from
 
 ## 5. Configure the PDP channel in Invoicerr
 
-Once your SuperPDP Application exists, open **Settings → E-invoicing → Channels** in Invoicerr and configure the **PDP** channel using the credentials you just created.
+Once your SuperPDP Application exists, open **Settings → E-invoicing** in Invoicerr. The screen has
+two levels: legal channels on the left, and the operators that implement the selected one on the
+right. France's own legal channel is **Accredited platform (PDP)**; it opens pre-selected, since it
+is this company's own obligation.
 
-Fill in the channel form — four fields, that's the whole form:
+Find **SuperPDP** in the operator list on the right (it is one of several operators implementing the
+same "Accredited platform (PDP)" legal channel: Billit, Iopole and Invopop are others) and click
+**Connect**. This opens a side sheet with the SuperPDP connection form:
+
+<img src="/img/settings-channels-connect-superpdp.png" alt="Connect SuperPDP side sheet" width="700" />
+
+Fill in the side sheet, four fields, that's the whole form:
 
 1. **API base URL** (required) — the API root of your PDP. Default: `https://api.superpdp.tech`.
 2. **Client ID** (required) — the **Client ID** from the SuperPDP Application you created in the *Create an Application* step above.
@@ -111,4 +120,4 @@ buyer's endpoint is resolved automatically per invoice from the client / directo
 Secrets are encrypted at rest. The server must have `CREDENTIALS_ENCRYPTION_KEY` configured, otherwise saving the channel fails with a `503 — Encryption key not configured — channel credentials cannot be saved` error.
 :::
 
-Save the channel. Invoicerr will then use these credentials to send and track your e-invoices through the PDP.
+Click **Connect** at the bottom of the side sheet. Invoicerr will then use these credentials to send and track your e-invoices through the PDP.

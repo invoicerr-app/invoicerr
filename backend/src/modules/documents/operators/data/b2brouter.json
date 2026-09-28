@@ -10,6 +10,7 @@
   "offerings": [
     {
       "legalChannel": "peppol",
+      "description": "A multi-country Peppol access point, not yet connected through this app.",
       "countries": ["FR"],
       "capabilities": {
         "emit": false,
@@ -30,6 +31,7 @@
     },
     {
       "legalChannel": "pdp",
+      "description": "A French accredited-platform candidate, not yet confirmed registered or connected.",
       "countries": ["FR"],
       "capabilities": {
         "emit": false,

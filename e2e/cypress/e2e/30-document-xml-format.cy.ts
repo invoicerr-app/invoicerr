@@ -429,8 +429,9 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		// command in this same chain can fail), regardless of what the rest of this test goes on to
 		// assert.
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-pdp-baseurl-input"]').clear().type(api);
+		cy.get('[data-cy="channel-nav-pdp"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="operator-superpdp-connect-button"]', { timeout: 10000 }).should("exist").click();
+		cy.get('[data-cy="channel-pdp-baseurl-input"]', { timeout: 10000 }).clear().type(api);
 		cy.get('[data-cy="channel-pdp-clientid-input"]')
 			.clear()
 			.type("e2e-bt23-fake-client-id");

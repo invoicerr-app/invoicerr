@@ -95,6 +95,14 @@ export interface OperatorBaseUrl {
 export interface OperatorOffering {
   /** See this file's own header - deliberately not a closed enum. */
   legalChannel: string;
+  /** ONE plain sentence, user-facing, what this offering IS and who it is FOR - e.g. "A French
+   *  accredited platform (PA) with a free, self-serve sandbox." Owner review of #527: `notes` below
+   *  is internal documentation (provenance trails, corrected mistakes, cross-references to source
+   *  code) and must never reach a settings-screen row - this field is the one that does, rendered
+   *  by `channels.settings.tsx`'s own `OperatorRow`. Plain data, the same convention `OperatorFact
+   *  .name` already holds (never a legal claim, never sourced prose) - keep it short enough to read
+   *  as a list-row caption, not a paragraph. */
+  description: string;
   /** ISO 3166-1 alpha-2, uppercase. Where THIS offering is registered/relevant - NOT necessarily
    *  where its network reaches (a Peppol access point reaches far more countries than it is
    *  registered in); see the offering's own `notes` for that distinction when it matters. Two
@@ -184,6 +192,12 @@ function assertValidOffering(offering: OperatorOffering, context: string, operat
   if (!offering.legalChannel?.trim()) {
     throw new InvalidOperatorProvenanceError(
       `${context}: operator "${operatorId}" has an offering missing its "legalChannel".`,
+    );
+  }
+  if (!offering.description?.trim()) {
+    throw new InvalidOperatorProvenanceError(
+      `${context}: ${subject} has no "description" - the settings screen renders THIS to the user, ` +
+        'never "notes" (internal documentation) - a fact may never reach that screen unlabeled.',
     );
   }
   if (!Array.isArray(offering.countries) || offering.countries.length === 0) {

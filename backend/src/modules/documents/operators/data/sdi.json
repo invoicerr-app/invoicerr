@@ -10,6 +10,7 @@
   "offerings": [
     {
       "legalChannel": "sdi",
+      "description": "Italy's own government clearance system, the direct SDICoop connection (accreditation required).",
       "countries": ["IT"],
       "transportId": "sdi",
       "capabilities": {

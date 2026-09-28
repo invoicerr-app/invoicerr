@@ -2694,9 +2694,32 @@
         "disconnect": "Disconnect",
         "edit": "Edit"
       },
+      "banner": {
+        "mandatedBody": "Since {{date}}, your invoices from {{country}} must go through {{channel}}.",
+        "mandatedTitle": "Mandatory transmission channel",
+        "noneBody": "Any lawful transport, including email, may be used to send your invoices.",
+        "noneTitle": "No transmission channel is imposed on {{country}}",
+        "readSource": "Read the source",
+        "suggestedBody": "{{country}} recommends {{channel}} for your invoices. Not yet a legal obligation - connecting it is optional.",
+        "suggestedTitle": "Recommended transmission channel"
+      },
+      "blocked": {
+        "body": "This channel was connected before your country's current mandate took effect. It is refused at send time. You may disconnect it safely; invoices already sent stay archived.",
+        "disconnect": "Disconnect {{operator}}",
+        "title": "{{operator}} no longer sends anything"
+      },
+      "declarations": {
+        "description": "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate, post-issuance duty to declare invoice data to a tax authority.",
+        "pt-at": {
+          "label": "Portuguese Tax Authority (AT)"
+        },
+        "title": "Declarations"
+      },
       "description": "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
       "emptyState": "No national channel available yet",
       "fields": {
+        "acubeEmail": "Account e-mail",
+        "acubePassword": "Password",
         "baseUrl": "API base URL",
         "billitApiKey": "API key",
         "billitPartyId": "PartyID",
@@ -2709,17 +2732,54 @@
         "environment": "Environment",
         "environmentProd": "Production",
         "environmentTest": "Test (sandbox)",
+        "invopopApiKey": "API key",
+        "invopopWorkflowId": "Workflow ID",
         "iopoleClientId": "Client ID (your Iopole account e-mail)",
         "iopoleCustomerId": "Customer ID",
         "ksefNip": "NIP",
         "ksefToken": "KSeF token",
+        "optional": "(optional)",
         "peppolAccessPointUrl": "Access Point URL",
         "peppolApiKey": "API key",
         "peppolParticipantId": "Peppol participant ID (yours)",
         "sdiCertificate": "PFX certificate (base64)",
         "sdiCertificatePassword": "Certificate password",
         "sdiEndpoint": "SdIRiceviFile endpoint URL",
-        "sdiIdTrasmittente": "IdTrasmittente"
+        "sdiIdTrasmittente": "IdTrasmittente",
+        "sdiPecAddress": "PEC address",
+        "sdiPecIdTrasmittente": "IdTrasmittente",
+        "sdiPecPassword": "PEC mailbox password",
+        "sdiPecReplyAddress": "SdI reply address (learned automatically)",
+        "sdiPecSmtpHost": "PEC SMTP host",
+        "sdiPecSmtpPort": "PEC SMTP port",
+        "sdiPecSmtpSecure": "PEC SMTP uses TLS",
+        "sdiPecUsername": "PEC mailbox username"
+      },
+      "legal": {
+        "badge": {
+          "automatic": "Automatic",
+          "blocked": "No longer accepted",
+          "mandated": "Mandatory from {{date}}",
+          "notAcceptedDomestic": "Not accepted domestically",
+          "outside": "Outside your invoicing country",
+          "suggested": "Recommended for your country"
+        },
+        "chorus-pro": {
+          "label": "Chorus Pro"
+        },
+        "ksef": {
+          "label": "KSeF"
+        },
+        "navLabel": "Legal channels",
+        "pdp": {
+          "label": "Accredited platform (PDP)"
+        },
+        "peppol": {
+          "label": "Peppol"
+        },
+        "sdi": {
+          "label": "Sistema di Interscambio (SdI)"
+        }
       },
       "mandatePrompt": {
         "cta": "Connect now",
@@ -2735,10 +2795,33 @@
         "fieldsRequired": "{{fields}} are all required",
         "noFields": "This channel has no configurable fields yet."
       },
+      "notAccepted": {
+        "body": "{{channel}} is a cross-border network, not a specific country's own channel. Your own invoicing country requires a different channel for a domestic invoice today.",
+        "title": "Not accepted for {{country}} domestic invoices"
+      },
+      "operator": {
+        "manage": "Manage",
+        "notIntegrated": "Not yet available",
+        "sandboxAvailable": "Sandbox available"
+      },
+      "outside": {
+        "automatic": "This channel is {{countries}}'s own automatic government portal, not part of your own invoicing country's rules.",
+        "body": "A national e-invoicing mandate binds domestic operations only. When you invoice a foreign buyer, the invoice may travel by any channel you and the buyer agree on (email, PDF, Peppol...); what changes is which authority you must report the transaction to under your own country's rules, never a foreign platform.",
+        "elsewhere": "This channel is required or recommended in {{countries}}, not in your own invoicing country.",
+        "title": "Outside your invoicing country"
+      },
       "prompt": {
         "cta": "Connect now",
         "description": "Your country's usual channel — {{channels}} — isn't connected yet.",
         "title": "E-invoicing channel suggested"
+      },
+      "search": {
+        "empty": "No operator matches your search",
+        "placeholder": "Search an operator by name"
+      },
+      "sheet": {
+        "description": "Legal channel: {{channel}}",
+        "title": "Connect {{operator}}"
       },
       "status": {
         "connected": "Connected ({{environment}})",

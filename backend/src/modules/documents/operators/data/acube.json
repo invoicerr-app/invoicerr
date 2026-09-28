@@ -10,6 +10,7 @@
   "offerings": [
     {
       "legalChannel": "sdi",
+      "description": "An Italian e-invoicing provider building and depositing FatturaPA, with a free sandbox.",
       "countries": ["IT"],
       "transportId": "acube",
       "capabilities": {
@@ -31,6 +32,7 @@
     },
     {
       "legalChannel": "peppol",
+      "description": "A Peppol access point in Italy, not yet connected for sending through this app.",
       "countries": ["IT"],
       "capabilities": {
         "emit": false,

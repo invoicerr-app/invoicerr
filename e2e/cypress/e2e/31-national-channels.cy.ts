@@ -179,19 +179,20 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		cy.login();
 	});
 
-	it('connects the PDP channel via the screen with fake credentials — status "Connected"', () => {
+	it('connects the PDP channel via the screen with fake credentials - status "Connected" (issue #527 screen: legal channel nav, then operator, connect in a side sheet)', () => {
 		cy.visit("/settings/channels");
 
-		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
-		// France (the seeded company) suggests PDP — the data comes from the country file
-		// (transports/channel-policy/data/fr.json), never an `if` on the country here.
-		cy.get('[data-cy="channel-pdp-suggested"]').should("exist");
-		cy.get('[data-cy="channel-pdp-status"]').should(
-			"contain.text",
-			"Not connected",
-		);
+		// Level 1 - France's own legal channel (channel-policy/data/fr.json) is PDP, mandated: the
+		// nav badge says so directly (never a separate "suggested" badge once mandated - the mandate
+		// IS this country's own stance, see channels.service.ts#legalChannels's own header).
+		cy.get('[data-cy="channel-nav-pdp"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="channel-nav-pdp-badge"]').should("contain.text", "Mandatory from");
 
-		cy.get('[data-cy="channel-pdp-baseurl-input"]')
+		// Level 2 - SuperPDP is the one catalogued "pdp" operator with a real transport
+		// (documents/operators/data/superpdp.json). "Connect" opens the side sheet.
+		cy.get('[data-cy="operator-superpdp-connect-button"]', { timeout: 10000 }).should("exist").click();
+
+		cy.get('[data-cy="channel-pdp-baseurl-input"]', { timeout: 10000 })
 			.clear()
 			.type(FAKE_PDP.baseUrl);
 		cy.get('[data-cy="channel-pdp-clientid-input"]')
@@ -200,14 +201,14 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		cy.get('[data-cy="channel-pdp-clientsecret-input"]')
 			.clear()
 			.type(FAKE_PDP.clientSecret);
-		// Environment left on "Test (sandbox)", the form's default value.
+		// Environment left on "Test (sandbox)", the sheet's default value.
 		cy.get('[data-cy="channel-pdp-connect-button"]').click();
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
 			"Channel connected",
 		);
-		cy.get('[data-cy="channel-pdp-status"]', { timeout: 10000 }).should(
+		cy.get('[data-cy="operator-superpdp-status"]', { timeout: 10000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -333,7 +334,8 @@ describe("National transports — the PDP channel, connected/disconnected via th
 
 	it("disconnects the channel via the screen → a new send is blocked at PREFLIGHT, and says so", () => {
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-pdp-status"]', { timeout: 15000 }).should(
+		cy.get('[data-cy="channel-nav-pdp"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="operator-superpdp-status"]', { timeout: 15000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -341,17 +343,14 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		// pair, and Cypress's own visibility heuristic false-negatives on a Radix portal'd
 		// popover this far down a tall page (it reads the popper's `position: fixed`
 		// ancestor as "overflowed", even though the item is genuinely on screen).
-		cy.get('[data-cy="channel-pdp-menu"]').scrollIntoView().click({ force: true });
-		cy.get('[data-cy="channel-pdp-disconnect-button"]').should("exist").click({ force: true });
+		cy.get('[data-cy="operator-superpdp-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="operator-superpdp-disconnect-button"]').should("exist").click({ force: true });
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
 			"Channel disconnected",
 		);
-		cy.get('[data-cy="channel-pdp-status"]', { timeout: 10000 }).should(
-			"contain.text",
-			"Not connected",
-		);
+		cy.get('[data-cy="operator-superpdp-status"]', { timeout: 10000 }).should("not.exist");
 
 		cy.request({ url: `${api}/api/company/channels` })
 			.its("body")
@@ -395,23 +394,20 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		setCompanyCountry("Poland", "PL", [{ scheme: "VAT", value: "PL5260001246" }]);
 		cy.visit("/settings/channels");
 
-		cy.get('[data-cy="channel-ksef"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-ksef-suggested"]').should("exist");
-		// PDP is no longer suggested to a Polish company — the suggestion follows the country, never
-		// a fixed default channel.
-		cy.get('[data-cy="channel-pdp-suggested"]').should("not.exist");
+		cy.get('[data-cy="channel-nav-ksef"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="channel-nav-ksef-badge"]').should("contain.text", "Recommended for your country");
+		// PDP is no longer this company's own channel once it is Polish - it is now "outside your
+		// invoicing country" (issue #527's own state), never merely absent.
+		cy.get('[data-cy="channel-nav-pdp-badge"]').should("contain.text", "Outside your invoicing country");
 	});
 
 	it('connects the KSeF channel via the screen with fake credentials — status "Connected"', () => {
 		cy.visit("/settings/channels");
 
-		cy.get('[data-cy="channel-ksef"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-ksef-status"]').should(
-			"contain.text",
-			"Not connected",
-		);
+		cy.get('[data-cy="channel-nav-ksef"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="operator-ksef-connect-button"]', { timeout: 10000 }).should("exist").click();
 
-		cy.get('[data-cy="channel-ksef-nip-input"]').clear().type(FAKE_KSEF.nip);
+		cy.get('[data-cy="channel-ksef-nip-input"]', { timeout: 10000 }).clear().type(FAKE_KSEF.nip);
 		cy.get('[data-cy="channel-ksef-kseftoken-input"]')
 			.clear()
 			.type(FAKE_KSEF.ksefToken);
@@ -423,7 +419,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Channel connected",
 		);
-		cy.get('[data-cy="channel-ksef-status"]', { timeout: 10000 }).should(
+		cy.get('[data-cy="operator-ksef-status"]', { timeout: 10000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -526,7 +522,8 @@ describe("National transports — the PDP channel, connected/disconnected via th
 
 	it("disconnects the KSeF channel via the screen", () => {
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-ksef-status"]', { timeout: 15000 }).should(
+		cy.get('[data-cy="channel-nav-ksef"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="operator-ksef-status"]', { timeout: 15000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -534,17 +531,14 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		// pair, and Cypress's own visibility heuristic false-negatives on a Radix portal'd
 		// popover this far down a tall page (it reads the popper's `position: fixed`
 		// ancestor as "overflowed", even though the item is genuinely on screen).
-		cy.get('[data-cy="channel-ksef-menu"]').scrollIntoView().click({ force: true });
-		cy.get('[data-cy="channel-ksef-disconnect-button"]').should("exist").click({ force: true });
+		cy.get('[data-cy="operator-ksef-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="operator-ksef-disconnect-button"]').should("exist").click({ force: true });
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
 			"Channel disconnected",
 		);
-		cy.get('[data-cy="channel-ksef-status"]', { timeout: 10000 }).should(
-			"contain.text",
-			"Not connected",
-		);
+		cy.get('[data-cy="operator-ksef-status"]', { timeout: 10000 }).should("not.exist");
 
 		// The toast/badge pair above only proves the SCREEN'S OWN local state changed — an optimistic
 		// UI update ahead of a server-side failure would look identical. Read the row back from the
@@ -579,24 +573,23 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		]);
 		cy.visit("/settings/channels");
 
-		cy.get('[data-cy="channel-sdi"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-sdi-suggested"]').should("exist");
-		cy.get('[data-cy="channel-sdi-mandated"]', { timeout: 10000 })
+		cy.get('[data-cy="channel-nav-sdi"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="channel-nav-sdi-badge"]', { timeout: 10000 })
 			.should("exist")
 			.and("contain.text", "2019-01-01");
-		cy.get('[data-cy="channel-pdp-suggested"]').should("not.exist");
+		cy.get('[data-cy="channel-nav-pdp-badge"]').should("contain.text", "Outside your invoicing country");
 	});
 
 	it('connects the SdI channel via the screen with fake credentials — status "Connected"', () => {
 		cy.visit("/settings/channels");
 
-		cy.get('[data-cy="channel-sdi"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-sdi-status"]').should(
-			"contain.text",
-			"Not connected",
-		);
+		cy.get('[data-cy="channel-nav-sdi"]', { timeout: 15000 }).should("exist").click();
+		// The direct SdI operator (documents/operators/data/sdi.json) - never A-Cube (its own "sdi"
+		// offering is out of scope for THIS product, see that data file's own notes) and never the
+		// PEC sub-channel (no operator, a bring-your-own mailbox - schema.ts's own header).
+		cy.get('[data-cy="operator-sdi-connect-button"]', { timeout: 10000 }).should("exist").click();
 
-		cy.get('[data-cy="channel-sdi-idtrasmittente-input"]')
+		cy.get('[data-cy="channel-sdi-idtrasmittente-input"]', { timeout: 10000 })
 			.clear()
 			.type(FAKE_SDI.idTrasmittente);
 		cy.get('[data-cy="channel-sdi-endpoint-input"]')
@@ -614,7 +607,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Channel connected",
 		);
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should(
+		cy.get('[data-cy="operator-sdi-status"]', { timeout: 10000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -710,7 +703,8 @@ describe("National transports — the PDP channel, connected/disconnected via th
 
 	it("disconnects the SdI channel via the screen", () => {
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 15000 }).should(
+		cy.get('[data-cy="channel-nav-sdi"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="operator-sdi-status"]', { timeout: 15000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -718,17 +712,14 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		// pair, and Cypress's own visibility heuristic false-negatives on a Radix portal'd
 		// popover this far down a tall page (it reads the popper's `position: fixed`
 		// ancestor as "overflowed", even though the item is genuinely on screen).
-		cy.get('[data-cy="channel-sdi-menu"]').scrollIntoView().click({ force: true });
-		cy.get('[data-cy="channel-sdi-disconnect-button"]').should("exist").click({ force: true });
+		cy.get('[data-cy="operator-sdi-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="operator-sdi-disconnect-button"]').should("exist").click({ force: true });
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
 			"Channel disconnected",
 		);
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should(
-			"contain.text",
-			"Not connected",
-		);
+		cy.get('[data-cy="operator-sdi-status"]', { timeout: 10000 }).should("not.exist");
 
 		// The toast/badge pair above only proves the SCREEN'S OWN local state changed — an optimistic
 		// UI update ahead of a server-side failure would look identical. Read the row back from the
@@ -761,15 +752,13 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		]);
 		cy.visit("/settings/channels");
 
-		cy.get('[data-cy="channel-chorus-pro"]', { timeout: 15000 }).should(
-			"exist",
-		);
-		cy.get('[data-cy="channel-chorus-pro-status"]').should(
-			"contain.text",
-			"Not connected",
-		);
+		cy.get('[data-cy="channel-nav-chorus-pro"]', { timeout: 15000 }).should("exist").click();
+		// B2G routing selects Chorus Pro automatically for a French company - never a country
+		// mandate/suggestion badge, see channels.service.ts#legalChannels's own "automatic" field.
+		cy.get('[data-cy="channel-nav-chorus-pro-badge"]').should("contain.text", "Automatic");
+		cy.get('[data-cy="operator-chorus-pro-connect-button"]', { timeout: 10000 }).should("exist").click();
 
-		cy.get('[data-cy="channel-chorus-pro-clientid-input"]')
+		cy.get('[data-cy="channel-chorus-pro-clientid-input"]', { timeout: 10000 })
 			.clear()
 			.type(FAKE_CHORUS_PRO.clientId);
 		cy.get('[data-cy="channel-chorus-pro-clientsecret-input"]')
@@ -789,7 +778,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Channel connected",
 		);
-		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 10000 }).should(
+		cy.get('[data-cy="operator-chorus-pro-status"]', { timeout: 10000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -925,7 +914,8 @@ describe("National transports — the PDP channel, connected/disconnected via th
 
 	it("disconnects the chorus-pro channel via the screen", () => {
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 15000 }).should(
+		cy.get('[data-cy="channel-nav-chorus-pro"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="operator-chorus-pro-status"]', { timeout: 15000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -933,17 +923,14 @@ describe("National transports — the PDP channel, connected/disconnected via th
 		// pair, and Cypress's own visibility heuristic false-negatives on a Radix portal'd
 		// popover this far down a tall page (it reads the popper's `position: fixed`
 		// ancestor as "overflowed", even though the item is genuinely on screen).
-		cy.get('[data-cy="channel-chorus-pro-menu"]').scrollIntoView().click({ force: true });
-		cy.get('[data-cy="channel-chorus-pro-disconnect-button"]').should("exist").click({ force: true });
+		cy.get('[data-cy="operator-chorus-pro-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="operator-chorus-pro-disconnect-button"]').should("exist").click({ force: true });
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
 			"Channel disconnected",
 		);
-		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 10000 }).should(
-			"contain.text",
-			"Not connected",
-		);
+		cy.get('[data-cy="operator-chorus-pro-status"]', { timeout: 10000 }).should("not.exist");
 
 		// The toast/badge pair above only proves the SCREEN'S OWN local state changed — an optimistic
 		// UI update ahead of a server-side failure would look identical. Read the row back from the

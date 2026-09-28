@@ -17,9 +17,19 @@ process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef012345
 import { ServiceUnavailableException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
+import { resolveB2gRoutingRule } from '@/modules/documents/b2g-routing/b2g-routing';
 import { encryptJson } from '@/utils/secret-crypto';
 import { ChannelEnvironment } from '../../../../prisma/generated/prisma/client';
 import { ChannelCredentialsService } from './channels.service';
+
+// Issue #527 - `legalChannels()`'s own "automatic" flag reads the DATABASE-backed B2G routing rule
+// (`b2g-routing.ts#resolveB2gRoutingRule`), never the in-memory catalog `boot-upsert.ts` alone
+// consults (see that module's own header) - mocked WHOLESALE here, the same convention
+// `actions/invoice-channel-mandate.spec.ts` already holds for `channel-policy/mandate.ts`.
+vi.mock('@/modules/documents/b2g-routing/b2g-routing', () => ({
+  resolveB2gRoutingRule: vi.fn(),
+}));
+const mockedResolveB2gRoutingRule = resolveB2gRoutingRule as unknown as Mock;
 
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -53,6 +63,7 @@ describe('ChannelCredentialsService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedResolveB2gRoutingRule.mockResolvedValue(undefined);
     service = new ChannelCredentialsService();
   });
 
@@ -389,6 +400,239 @@ describe('ChannelCredentialsService', () => {
       } finally {
         process.env.CREDENTIALS_ENCRYPTION_KEY = previous;
       }
+    });
+  });
+
+  // Issue #527 - the settings screen's level-1 nav (design C) + banner (design A). Reads the REAL,
+  // shipped catalogs (channel-policy, operators, b2g-routing), the same "not a fixture" discipline
+  // `suggestedChannels()`'s own tests above already hold.
+  describe('legalChannels() - the settings screen level-1 nav + banner verdict', () => {
+    it('discovers exactly the DELIVERY legal channels (excludes the pt-at declaration, which never emits)', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Germany', countryCode: 'DE' });
+      const { channels } = await service.legalChannels('company-1');
+      // "peppol" IS included: Billit's own Belgian offering has capabilities.emit: true (it runs
+      // through the same wired "billit" transport as Billit's own French "pdp" offering - see
+      // `operators/data/billit.json`) - a genuinely connectable legal channel, even though no
+      // shipped `channel-policy/data/*.json` file names Belgium today (so it is "outside your
+      // invoicing country" for every company this catalogue currently covers - see the next test).
+      expect(channels.map((c) => c.id)).toEqual(['chorus-pro', 'ksef', 'pdp', 'peppol', 'sdi']);
+    });
+
+    it("a French company: pdp is MANDATED and lawful, chorus-pro is AUTOMATIC (b2g) and lawful, sdi is locked and says it is Italy's own mandate", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      mockedResolveB2gRoutingRule.mockResolvedValue({ transportId: 'chorus-pro' });
+
+      const { banner, channels } = await service.legalChannels('company-1');
+
+      expect(banner).toEqual(
+        expect.objectContaining({
+          countryCode: 'FR',
+          tone: 'mandated',
+          legalChannelId: 'pdp',
+          mandatedFrom: '2026-09-01',
+        }),
+      );
+
+      const byId = Object.fromEntries(channels.map((c) => [c.id, c]));
+      expect(byId.pdp).toEqual(
+        expect.objectContaining({
+          requirement: 'mandated',
+          mandatedFrom: '2026-09-01',
+          automatic: false,
+          lawful: true,
+        }),
+      );
+      expect(byId['chorus-pro']).toEqual(
+        expect.objectContaining({ requirement: undefined, automatic: true, lawful: true }),
+      );
+      expect(byId.sdi).toEqual(
+        expect.objectContaining({
+          requirement: undefined,
+          automatic: false,
+          lawful: false,
+          mandatedElsewhere: [{ countryCode: 'IT', requirement: 'mandated' }],
+        }),
+      );
+      expect(byId.ksef).toEqual(
+        expect.objectContaining({
+          lawful: false,
+          mandatedElsewhere: [{ countryCode: 'PL', requirement: 'suggested' }],
+        }),
+      );
+    });
+
+    it('a German company: no legal channel is home, banner tone is "none" (facts: [], never an empty screen)', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Germany', countryCode: 'DE' });
+
+      const { banner, channels } = await service.legalChannels('company-1');
+
+      expect(banner).toEqual(
+        expect.objectContaining({ countryCode: 'DE', tone: 'none', legalChannelId: undefined }),
+      );
+      const byId = Object.fromEntries(channels.map((c) => [c.id, c]));
+      // Owner review of #527 - Germany enforces NO domestic mandate at all, so a channel no OTHER
+      // country's law claims either (Peppol: no channel-policy fact, no B2G-routing fact anywhere)
+      // is genuinely lawful - nothing forces a different one. pdp/sdi/ksef stay locked (each is
+      // another specific country's own mandate/suggestion); chorus-pro stays locked too (it is
+      // FRANCE's own automatic B2G portal, found via the b2g-routing cross-index, even though it
+      // carries no channel-policy fact at all).
+      expect(byId.peppol.lawful).toBe(true);
+      expect(byId.pdp.lawful).toBe(false);
+      expect(byId.sdi.lawful).toBe(false);
+      expect(byId.ksef.lawful).toBe(false);
+      expect(byId['chorus-pro'].lawful).toBe(false);
+
+      // Owner review of #527, second instance of the same bug class the Peppol wording fix targets:
+      // chorus-pro carries no channel-policy fact anywhere (`mandatedElsewhere` is empty for it from
+      // EVERY viewer), so the frontend could not tell "France's own automatic B2G portal" apart from
+      // a genuinely homeless cross-border network without this field - it must name FR here, exactly
+      // like `mandatedElsewhere` already does for sdi/ksef above, so the settings screen keeps saying
+      // "outside your invoicing country" for chorus-pro (correct) rather than switching to the new
+      // "not accepted for your domestic invoices" wording (which would be wrong: chorus-pro is not a
+      // cross-border network, it is specifically France's own portal).
+      expect(byId['chorus-pro'].mandatedElsewhere).toEqual([]);
+      expect(byId['chorus-pro'].automaticElsewhere).toEqual(['FR']);
+      // Peppol has neither a channel-policy fact NOR a b2g-routing fact anywhere - genuinely homeless.
+      expect(byId.peppol.mandatedElsewhere).toEqual([]);
+      expect(byId.peppol.automaticElsewhere).toEqual([]);
+    });
+
+    it('a Polish company: ksef is home and SUGGESTED (not mandated - the mandate schema cannot express the real threshold/allowance calendar), still lawful (usable) at the settings level', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Poland', countryCode: 'PL' });
+
+      const { banner, channels } = await service.legalChannels('company-1');
+
+      expect(banner).toEqual(
+        expect.objectContaining({ countryCode: 'PL', tone: 'suggested', legalChannelId: 'ksef' }),
+      );
+      const ksef = channels.find((c) => c.id === 'ksef');
+      expect(ksef).toEqual(expect.objectContaining({ requirement: 'suggested', lawful: true }));
+
+      // A merely-SUGGESTED fact is not an active mandate (`hasDomesticMandate` stays false) - so
+      // Peppol (no country's own home anywhere) reads lawful here too, same as it would for Germany.
+      const peppol = channels.find((c) => c.id === 'peppol');
+      expect(peppol?.lawful).toBe(true);
+    });
+
+    it("a French company: PDP (this country's own mandate) is listed FIRST, chorus-pro (automatic) right after it - never Chorus Pro first (owner review of #527)", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      mockedResolveB2gRoutingRule.mockResolvedValue({ transportId: 'chorus-pro' });
+
+      const { channels } = await service.legalChannels('company-1');
+
+      expect(channels.map((c) => c.id)).toEqual(['pdp', 'chorus-pro', 'ksef', 'peppol', 'sdi']);
+    });
+
+    it("an Italian company: SdI (this country's own mandate) is listed FIRST", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Italy', countryCode: 'IT' });
+
+      const { channels } = await service.legalChannels('company-1');
+
+      expect(channels[0].id).toBe('sdi');
+    });
+
+    it('a company whose country cannot be resolved gets an honest "none" banner, never a guess', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: '', countryCode: null });
+      const { banner } = await service.legalChannels('company-1');
+      expect(banner).toEqual({ countryCode: undefined, tone: 'none', legalChannelId: undefined });
+    });
+  });
+
+  describe('listCompanyChannels() - blockedBySend (issue #527)', () => {
+    it("a connected channel that is NOT the country's current mandate is flagged blockedBySend", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
+        {
+          id: 'row-1',
+          companyId: 'company-1',
+          channel: 'ACUBE',
+          providerId: 'acube',
+          environment: ChannelEnvironment.PROD,
+          config: encryptJson({ email: 'a@b.com', password: 'x' }),
+          isActive: true,
+        },
+      ]);
+
+      const rows = await service.listCompanyChannels('company-1');
+      expect(rows[0].blockedBySend).toBe(true);
+    });
+
+    it('the mandated channel itself is never flagged blockedBySend', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
+        {
+          id: 'row-1',
+          companyId: 'company-1',
+          channel: 'PDP',
+          providerId: 'pdp',
+          environment: ChannelEnvironment.PROD,
+          config: encryptJson({ baseUrl: 'https://api.superpdp.tech', clientId: 'x', clientSecret: 'y' }),
+          isActive: true,
+        },
+      ]);
+
+      const rows = await service.listCompanyChannels('company-1');
+      expect(rows[0].blockedBySend).toBe(false);
+    });
+
+    it('a connected operator implementing the SAME legal channel as the mandate (Iopole for "pdp") is never blockedBySend, even though its own transport id differs', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
+        {
+          id: 'row-1',
+          companyId: 'company-1',
+          channel: 'IOPOLE',
+          providerId: 'iopole',
+          environment: ChannelEnvironment.PROD,
+          config: encryptJson({ clientId: 'x@example.com', clientSecret: 'y', customerId: 'z' }),
+          isActive: true,
+        },
+      ]);
+
+      const rows = await service.listCompanyChannels('company-1');
+      expect(rows[0].blockedBySend).toBe(false);
+    });
+
+    it('a channel this company\'s own B2G routing selects automatically ("chorus-pro" for France) is never blockedBySend, even though it never satisfies the "pdp" mandate either', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      mockedResolveB2gRoutingRule.mockResolvedValue({ transportId: 'chorus-pro' });
+      mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
+        {
+          id: 'row-1',
+          companyId: 'company-1',
+          channel: 'CHORUS-PRO',
+          providerId: 'chorus-pro',
+          environment: ChannelEnvironment.PROD,
+          config: encryptJson({
+            clientId: 'x',
+            clientSecret: 'y',
+            technicalAccountLogin: 'TECH_1_x@cpro.fr',
+            technicalAccountPassword: 'z',
+          }),
+          isActive: true,
+        },
+      ]);
+
+      const rows = await service.listCompanyChannels('company-1');
+      expect(rows[0].blockedBySend).toBe(false);
+    });
+
+    it('a connected channel for a country with NO active mandate is never flagged blockedBySend', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Germany', countryCode: 'DE' });
+      mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
+        {
+          id: 'row-1',
+          companyId: 'company-1',
+          channel: 'ACUBE',
+          providerId: 'acube',
+          environment: ChannelEnvironment.PROD,
+          config: encryptJson({ email: 'a@b.com', password: 'x' }),
+          isActive: true,
+        },
+      ]);
+
+      const rows = await service.listCompanyChannels('company-1');
+      expect(rows[0].blockedBySend).toBeUndefined();
     });
   });
 });

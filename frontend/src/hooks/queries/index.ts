@@ -79,11 +79,16 @@ export {
   useReferenceFields,
   useMultiEntityReferenceSearch,
   useDocumentTransports,
+  useDocumentOperators,
   useSelectableRows,
   type AvailableDocumentTypesResult,
   type EntityReferenceSearchHit,
   type SelectableRow,
   type SelectableRowsResult,
+  type CredentialFieldDescriptor,
+  type DocumentTransportSummary,
+  type DocumentOperator,
+  type DocumentOperatorOffering,
 } from "./use-document-types"
 export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
 export { useVersionInfo, type VersionInfo } from "./use-version"
