@@ -29,7 +29,14 @@ describe('takeDocumentNumberForTransition (issue #496: the format comes from the
 
     const result = await takeDocumentNumberForTransition('company-1', 'credit-note', 'doc-1');
 
-    expect(takeDocumentNumber).toHaveBeenCalledWith('company-1', 'credit-note', 'doc-1', expect.anything());
+    expect(takeDocumentNumber).toHaveBeenCalledWith(
+      'company-1',
+      'credit-note',
+      'doc-1',
+      expect.anything(),
+      expect.any(Date),
+      0,
+    );
     expect(patternArg(takeDocumentNumber, 3).pattern).toBe('CN-{year}-{number:4}');
     expect(result).toEqual({ number: 1, displayNumber: 'CN-2026-0001' });
   });
@@ -127,6 +134,8 @@ describe('takeDocumentNumberForTransitionWithStatus', () => {
       'sending',
       { reason: 'refund' },
       expect.anything(),
+      expect.any(Date),
+      0,
     );
     expect(patternArg(takeDocumentNumberWithStatusTransition, 6).pattern).toBe('NC A/{number}');
     expect(result).toEqual({
@@ -149,5 +158,72 @@ describe('takeDocumentNumberForTransitionWithStatus', () => {
       ),
     ).rejects.toThrow(/country could not be resolved/);
     expect(takeDocumentNumberWithStatusTransition).not.toHaveBeenCalled();
+  });
+});
+
+// Issue #515 - the year a `reset: "yearly"` counter is keyed by comes from the DOCUMENT's own
+// issueDate, read out of whatever `data` the caller hands over, never the server clock.
+describe('takeDocumentNumberForTransition / …WithStatus - issue #515 (the yearly-reset key)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('keys the counter by the issueDate year for a reset:"yearly" country/type, once the cutover year is reached', async () => {
+    findCompany.mockResolvedValue({ countryCode: 'FR', numberFormats: null });
+    takeDocumentNumber.mockResolvedValue({ number: 1, displayNumber: 'INVOICE-2027-0001' });
+
+    await takeDocumentNumberForTransition('company-1', 'invoice', 'doc-1', { issueDate: '2027-03-15' });
+
+    const call = takeDocumentNumber.mock.calls[0];
+    expect(call[4]).toEqual(new Date('2027-03-15'));
+    expect(call[5]).toBe(2027);
+  });
+
+  it('keeps using the pre-cutover continuous counter (year 0) for a document dated before the cutover, even one dated the same day it is numbered', async () => {
+    findCompany.mockResolvedValue({ countryCode: 'FR', numberFormats: null });
+    takeDocumentNumber.mockResolvedValue({ number: 42, displayNumber: 'INVOICE-2026-0042' });
+
+    await takeDocumentNumberForTransition('company-1', 'invoice', 'doc-1', { issueDate: '2026-12-31' });
+
+    expect(takeDocumentNumber.mock.calls[0][5]).toBe(0);
+  });
+
+  it('never keys by year for a "never"-reset type, whatever the issue date', async () => {
+    findCompany.mockResolvedValue({ countryCode: 'PL', numberFormats: null });
+    takeDocumentNumber.mockResolvedValue({ number: 1, displayNumber: 'INVOICE-2027-0001' });
+
+    await takeDocumentNumberForTransition('company-1', 'invoice', 'doc-1', { issueDate: '2027-06-01' });
+
+    expect(takeDocumentNumber.mock.calls[0][5]).toBe(0);
+  });
+
+  it('falls back to "now" when the document has no parseable issueDate at all (no call ever fails for it)', async () => {
+    findCompany.mockResolvedValue({ countryCode: 'FR', numberFormats: null });
+    takeDocumentNumber.mockResolvedValue({ number: 1, displayNumber: 'INVOICE-2026-0001' });
+
+    await takeDocumentNumberForTransition('company-1', 'invoice', 'doc-1', undefined);
+
+    const [, , , , issuedAt] = takeDocumentNumber.mock.calls[0];
+    expect(issuedAt).toBeInstanceOf(Date);
+    expect(Number.isNaN((issuedAt as Date).getTime())).toBe(false);
+  });
+
+  it('WithStatus reads the SAME issuedAt it is about to write onto the document', async () => {
+    findCompany.mockResolvedValue({ countryCode: 'FR', numberFormats: null });
+    takeDocumentNumberWithStatusTransition.mockResolvedValue({
+      document: { id: 'inv-1', status: 'sending', number: 1, displayNumber: 'INVOICE-2027-0001' },
+      numbered: { number: 1, displayNumber: 'INVOICE-2027-0001' },
+    });
+
+    await takeDocumentNumberForTransitionWithStatus(
+      'company-1',
+      'invoice',
+      'inv-1',
+      ['draft', 'send_failed'],
+      'sending',
+      { issueDate: '2027-01-02' },
+    );
+
+    const call = takeDocumentNumberWithStatusTransition.mock.calls[0];
+    expect(call[7]).toEqual(new Date('2027-01-02'));
+    expect(call[8]).toBe(2027);
   });
 });

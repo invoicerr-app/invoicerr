@@ -57,15 +57,25 @@ type SequenceClient = Prisma.TransactionClient | typeof prisma;
  * own about whether it is inside a transaction, which is what lets `takeDocumentNumber` compose it
  * with the document write atomically.
  */
+/**
+ * `year` (issue #515) - which counter ROW this bump lands on: `0`, the sentinel for the one
+ * continuous counter every type used before this feature, or the calendar year a `reset: "yearly"`
+ * format's document was ISSUED in (see `company-number-format.ts#periodKeyFor` for how a caller
+ * decides which). Part of `DocumentNumberSequence`'s own primary key
+ * (`@@id([companyId, typeId, year])`), so a new year's first bump simply INSERTs a fresh row at 2
+ * (same "the number this sequence will hand out NEXT" convention as the very first call for a brand
+ * new `(companyId, typeId)`) rather than colliding with, or continuing, any other year's row.
+ */
 export async function bumpSequence(
   client: SequenceClient,
   companyId: string,
   typeId: string,
+  year = 0,
 ): Promise<number> {
   const rows = await client.$queryRaw<{ number: number }[]>`
-    INSERT INTO "DocumentNumberSequence" ("companyId", "typeId", "nextNumber")
-    VALUES (${companyId}, ${typeId}, 2)
-    ON CONFLICT ("companyId", "typeId")
+    INSERT INTO "DocumentNumberSequence" ("companyId", "typeId", "year", "nextNumber")
+    VALUES (${companyId}, ${typeId}, ${year}, 2)
+    ON CONFLICT ("companyId", "typeId", "year")
     DO UPDATE SET "nextNumber" = "DocumentNumberSequence"."nextNumber" + 1
     RETURNING "nextNumber" - 1 AS "number"
   `;
@@ -121,10 +131,11 @@ export async function takeDocumentNumber(
   documentId: string,
   pattern: NumberPattern,
   issuedAt: Date = new Date(),
+  year = 0,
 ): Promise<TakenDocumentNumber | undefined> {
   try {
     return await prisma.$transaction(async (tx) => {
-      const number = await bumpSequence(tx, companyId, typeId);
+      const number = await bumpSequence(tx, companyId, typeId, year);
       const displayNumber = renderChecked(pattern, number, issuedAt);
 
       const written = await tx.documentInstance.updateMany({
@@ -214,6 +225,7 @@ export async function takeDocumentNumberWithStatusTransition(
   data: Record<string, unknown>,
   pattern: NumberPattern,
   issuedAt: Date = new Date(),
+  year = 0,
 ): Promise<{ document: DocumentInstanceResult; numbered: TakenDocumentNumber | undefined }> {
   const jsonData = data as Prisma.InputJsonValue;
 
@@ -244,7 +256,7 @@ export async function takeDocumentNumberWithStatusTransition(
       return { document, numbered: undefined };
     }
 
-    const number = await bumpSequence(tx, companyId, typeId);
+    const number = await bumpSequence(tx, companyId, typeId, year);
     const displayNumber = renderChecked(pattern, number, issuedAt);
 
     const document = await tx.documentInstance.update({

@@ -2042,6 +2042,12 @@
           "legal": "source read {{date}}",
           "unverified": "source not yet confirmed"
         },
+        "reset": {
+          "yearly": "Restarts every year",
+          "never": "Never restarts",
+          "yearlyHint": "The number restarts at 1 on 1 January, where the law allows it.",
+          "neverHint": "The number never restarts: it keeps counting up, year after year."
+        },
         "runningSeriesTitle": "A series you already started:"
       },
       "other": {
