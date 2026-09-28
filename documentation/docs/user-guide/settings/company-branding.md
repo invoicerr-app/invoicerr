@@ -66,6 +66,35 @@ series before its first document: the AT issues one per series and document type
 invoices and series `NC A` for credit notes. The ATCUD section shows which series the next document
 belongs to.
 
+### Revenue basis
+
+A **Revenue basis** card decides which figure your dashboard and statistics count as revenue, and
+over which period:
+
+- **Revenue basis** - **Invoiced** (counts revenue the moment a document is issued, this product's
+  own long-standing behaviour) or **Cashed** (counts it only once a payment actually arrives). Left
+  unset, it defaults per your company's country where a clear regime exists: France and Italy
+  default to **Cashed** (both have a sourced micro-entrepreneur/regime forfettario basis), every
+  other supported country defaults to **Invoiced**. The card states the sourced reason behind
+  whichever default applies to you.
+- **Declaration period** - **Monthly** or **Quarterly**, used to bucket the **Cashed revenue**
+  settings tab (below). Defaults to monthly.
+
+Both are an aid, not tax advice. Verify against your own accounting records before declaring.
+
+A period that has already closed keeps the consolidated total it showed when it closed: entering a
+new exchange rate today never revises a past period's own figure on the dashboard, even in a
+company that invoices in several currencies.
+
+### Cashed revenue
+
+The **Cashed revenue** settings tab lists, period by period, what was actually received against
+sent invoices, as opposed to what was invoiced, converted into your reference currency at each
+payment's own rate, dated to when that payment arrived. Each period shows the rate, its date and
+its source, and a period where nothing was cashed still shows as zero rather than being left out.
+Export the whole thing as a CSV for your own records; the view and the export both say plainly that
+this is an aid, never your official declaration.
+
 ## What this page used to describe, and does not any more
 
 This page previously documented a **Logo** upload, a **Website** field, an **Exempt VAT** toggle, a

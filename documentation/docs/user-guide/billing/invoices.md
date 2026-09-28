@@ -18,6 +18,7 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
   to confirm one from an imported bank statement
 - **Edit** — available only while the invoice is still a **Draft**; once sent, a mistake is fixed with a correction, not a re-edit
 - **Cancel** — voids an already-sent invoice, where this country's law allows it; this replaces "delete" — an invoice that reached "Sent" is never removed, only cancelled
+- **Issue credit note** - start a [credit note](credit-notes.md) correcting this invoice's own lines
 - **Create receipt** (receipt icon) — generate a [receipt](receipts.md) from this invoice
 
 ## Creating an invoice
@@ -66,6 +67,14 @@ There is no "recurring" choice at creation time. Once an invoice exists, its row
 | **FatturaPA** | Italian SdI national schema |
 | **Peppol BIS Billing 3.0** | Pan-European Peppol network format |
 | **XRechnung** | German public-sector e-invoicing (KoSIT) |
+
+## VAT in your own country's currency
+
+If your company is established in France, Poland or Italy and you invoice a client in a foreign currency, the law requires the VAT amount (and, in Italy, the taxable amount too) to also be stated in your own country's currency. When this applies, the invoice's PDF and detail page print that converted figure next to the invoice's own currency, together with the exchange rate and its date.
+
+The rate is looked up once, at the moment the invoice is numbered, and frozen from then on: it never changes on a later read, even if your exchange rate table is updated afterwards. France and Italy use the daily European Central Bank rate; Poland uses the National Bank of Poland's Table A rate for the business day before the invoice, as its own law requires. If no rate exists yet for the currency you're invoicing in (for example a currency Poland's own source doesn't publish), sending is refused rather than guessing: pick a different currency or wait for the source to publish one.
+
+This only applies to invoices for now: a credit note correcting such an invoice does not yet carry the conversion. See the [country compliance matrix](../../developer-guide/country-support/index.md) and the per-country pages under [Countries](../../developer-guide/countries/index.md) for the exact sourced rule behind each country.
 
 ## First use
 

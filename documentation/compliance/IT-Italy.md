@@ -53,6 +53,21 @@ VAT, standard rate **22%** — sourced to the EU's Taxes in Europe Database (TED
 modeled; an earlier, unsourced set of reduced rates was deliberately dropped rather than carried
 forward under a provenance that never covered them.
 
+## VAT and taxable amount in euros, on a foreign-currency invoice
+
+DPR 633/1972 art. 13 c.4 and art. 21 c.2 lett. l) require BOTH the VAT amount and the taxable amount
+to also be stated in euros on an invoice issued in another currency. Italy is the only one of the
+three covered countries where the taxable base itself, not just the VAT, must be restated. This app
+resolves the conversion at the moment the invoice is numbered, using the ECB's daily reference rate
+for the day of the operation (approximated by the invoice's own issue date), and freezes both figures
+onto the invoice from then on. Both the PDF and the invoice detail page print the converted amounts
+next to the invoice's own currency.
+
+DPR 633/1972 is repealed 2027-01-01 and replaced by a new Testo Unico IVA; every source checked
+describes this as a reorganisation rather than a substantive change to this rule, but the exact new
+article numbers (reported as 72/73 and 27 by secondary commentary) have not been read directly from
+Normattiva's own text; see `vat-currency/data/it.json`'s own `notes` for the caveat.
+
 ## Identifiers
 
 `country-identifiers/data/it.json` declares two schemes: **VAT** (the *partita IVA*, sourced `legal`
@@ -92,6 +107,7 @@ what that status represents here, and cancellation stays available only from it.
 
 `backend/src/modules/documents/country-policy/data/it.json`, `correction-routes/data/it.json`,
 `correction-routes/cancel-policy.ts`, `b2g-routing/data/it.json`,
-`transports/channel-policy/data/it.json`, `tax/tax-systems/data/it.json`, plus
+`transports/channel-policy/data/it.json`, `tax/tax-systems/data/it.json`,
+`vat-currency/data/it.json` (VAT and taxable amount stated in euros), plus
 `transports/sdi/sdicoop.live.spec.ts` and `formats/national/fatturapa-provider.ts` for the
 accreditation and FPA12/FPR12 claims above.
