@@ -19,12 +19,14 @@ import { useClientDuplicates, useResolvedCompanyCustomFields } from "@/hooks/que
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AddressAutocompleteInput } from "@/components/address-autocomplete-input"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
 import { getDefaultLanguageForCountry } from "@/lib/country-default-language"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
+import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, TriangleAlert } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
@@ -343,7 +345,7 @@ function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; 
  * (`useCountryToCurrency`) the Fiscalité step shows.
  */
 function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   return (
     <div className="grid gap-4 sm:grid-cols-2" data-cy="client-form-address">
       <div className="sm:col-span-2">
@@ -375,7 +377,12 @@ function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
             <FormItem>
               <FormLabel required>{t("clients.upsert.fields.address.label")}</FormLabel>
               <FormControl>
-                <Input {...field} placeholder={t("clients.upsert.fields.address.placeholder")} />
+                <AddressAutocompleteInput
+                  {...field}
+                  placeholder={t("clients.upsert.fields.address.placeholder")}
+                  data-cy="client-address-input"
+                  onSuggestionSelect={(suggestion) => applyAddressSuggestion(form, suggestion, i18n.language)}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

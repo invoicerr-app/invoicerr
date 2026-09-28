@@ -3583,6 +3583,9 @@
       "searchPlaceholder": "Search countries...",
       "noResults": "No countries found"
     },
+    "address-autocomplete": {
+      "suggestionsLabel": "Address suggestions"
+    },
     "document-language-select": {
       "automatic": "Automatic",
       "languages": {
