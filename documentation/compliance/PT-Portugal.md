@@ -39,25 +39,45 @@ app is not AT-certified), and the **chained RSA signature** every certified prog
 4-character hash on each document, each one cryptographically tied to the previous document in its
 series (Portaria n.º 363/2010 art. 6.º).
 
-## No transmission channel, no B2G
+## No transmission channel for a B2B seller
 
 - `transports/channel-policy/data/pt.json` **exists and deliberately declares no fact** (2026-09-13).
   That is a sourced conclusion, not a gap: Decreto-Lei n.º 28/2019 art. 12.º n.º 1 makes electronic
-  transmission itself optional and consent-based — *"As faturas e demais documentos fiscalmente
-  relevantes podem, mediante aceitação pelo destinatário, ser emitidos por via eletrónica"* — the verb
+  transmission itself optional and consent-based, *"As faturas e demais documentos fiscalmente
+  relevantes podem, mediante aceitação pelo destinatário, ser emitidos por via eletrónica"*, the verb
   being *podem* (may), not *devem* (must). Portuguese law names no platform, unlike France's PDP or
-  Italy's SdI, so nothing here constrains which channel a Portuguese seller uses. The file's own notes
-  carry the retrieval and the quotations.
+  Italy's SdI, so nothing here constrains which channel a Portuguese seller uses for an ordinary B2B
+  invoice. The file's own notes carry the retrieval and the quotations.
 - What Portuguese law *does* impose at this level is a **certified invoicing software** obligation
-  above a turnover threshold (same decree, art. 4.º) — a fact about the software, not about the
+  above a turnover threshold (same decree, art. 4.º), a fact about the software, not about the
   transport, and one this app does not satisfy today (it is not AT-certified). The two must not be
   conflated.
-- No `b2g-routing` file exists either — selling to a Portuguese government client (which requires
-  CIUS-PT) is not implemented. This app's own country-policy notes record why: CIUS-PT could not be
-  vendored, the third-party portals that carry it vary, and no Peppol coverage was found for Portugal
-  on the European Commission's own eInvoicing factsheet.
-- No Portugal-specific invoice format exists in this app either — a Portuguese invoice is built with
-  the same generic engine every unmodeled country uses, not a CIUS-PT profile.
+
+## Selling to a government client (B2G): a named, sourced, unwired channel
+
+`b2g-routing/data/pt.json` **does exist** and names a real channel: `transportId: "fe-ap"`,
+`formatSyntax: "ubl"`, sourced to Portaria n.º 289/2019, de 5 de setembro (regulating CCP art.
+299.º-B n.º 5's own delegation), read directly from its original Diário da República publication.
+The portaria delegates the platform to ESPAP, I. P. (the state's own shared-services agency), whose
+site names it **FE-AP** ("Portal da Fatura Eletrónica na Administração Pública", also branded
+"B2AP"), and delegates the format to ESPAP's own technical instructions, which name **UBL 2.1** as
+the only complete syntax representation of the Portuguese CIUS ("CIUS-PT") today, the UN/CEFACT
+(CII) one being explicitly "em construção" (under construction) as read.
+
+Two things keep this from being a working channel today:
+
+- **`fe-ap` is not a transport this app talks to.** `transports/transport-registry.ts` has no `fe-ap`
+  entry, deliberately, the same choice this catalog already makes for Germany's `zre-ozgre`: sending
+  an invoice to a Portuguese government client is refused, naming the missing channel, rather than
+  silently falling back to email or a different country's channel.
+- **No CIUS-PT-specific Schematron is vendored.** The generic UBL provider this rule resolves to
+  (`formats/ubl-provider.ts`) validates against the EN 16931 baseline only; ESPAP's own site
+  publishes a CIUS-PT-specific Schematron this app does not carry under `formats/vendored/`, so a
+  document built this way is EN 16931-valid but not independently checked against CIUS-PT's own
+  extra business rules.
+
+No required client identifier or invoice field is named in the portaria's own text (unlike France's
+SIRET or Italy's Codice Univoco Ufficio), so none is declared here either.
 
 ## Monthly reporting: invoices and credit notes, built but unproven against the real AT
 
@@ -121,4 +141,5 @@ communication duty, `appliesTo: "credit-note"`), plus
 `reporting/providers/pt-declaration-provider.ts` for the ATCUD and NC declaration mapping quoted
 above, and `archive/retention/data/pt.json` for the ten-year retention (CIVA art. 52.º n.º 1).
 `transports/channel-policy/data/pt.json` exists but declares no fact, for the sourced reason given
-above. No `b2g-routing/data/pt.json` file exists.
+above. `b2g-routing/data/pt.json` exists and names `fe-ap`/UBL 2.1, for the sourced reason given
+above; it is not backed by a transport in `transports/transport-registry.ts` today.
