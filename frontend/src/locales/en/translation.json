@@ -4936,6 +4936,9 @@
       "optionAccepted": "Accepted",
       "commonToAllOptions": "Common to all options",
       "grossIncludingCommon": "Total (including common lines)",
+      "taxableInNationalCurrency": "Taxable amount in {{currency}}",
+      "vatInNationalCurrency": "VAT in {{currency}}",
+      "exchangeRate": "Exchange rate: {{rate}} ({{date}})",
       "warnings": {
         "noUsableVatRate": "Line {{line}} has no usable VAT rate — counted in net only"
       }

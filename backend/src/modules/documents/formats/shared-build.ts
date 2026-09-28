@@ -202,7 +202,10 @@ function extractBuyerReference(data: Record<string, unknown>): string | undefine
  */
 export function buildEuInvoiceForDocument(
   descriptor: DocumentTypeDescriptor,
-  document: Pick<DocumentInstanceResult, 'data' | 'displayNumber'>,
+  document: Pick<
+    DocumentInstanceResult,
+    'data' | 'displayNumber' | 'vatNationalCurrency' | 'vatNationalCurrencyVatMinor'
+  >,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
   options?: {
@@ -230,5 +233,15 @@ export function buildEuInvoiceForDocument(
     businessProcessCodeOverride: options?.businessProcessCodeOverride,
     legalIdOverride: options?.legalIdOverride,
     creditNote: options?.creditNote,
+    // Issue #517: BT-6/BT-111. Both columns are set TOGETHER or not at all
+    // (`vat-currency-issuance.ts#attachVatNationalCurrencyToNumberedDocument`'s own header), so
+    // checking `vatNationalCurrency` alone is enough to know whether there is a real conversion to
+    // carry. `undefined` for every document that predates this feature or never needed it.
+    vatAccountingCurrency: document.vatNationalCurrency
+      ? {
+          currency: document.vatNationalCurrency,
+          vatMinor: document.vatNationalCurrencyVatMinor ?? 0,
+        }
+      : undefined,
   });
 }

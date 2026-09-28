@@ -372,6 +372,23 @@ export interface SemanticInvoiceInput {
    * therefore byte-for-byte what it was before.
    */
   creditNote?: { correctedInvoice: CorrectedInvoiceReference };
+  /**
+   * Issue #517: BT-6 (VAT accounting currency code, `cbc:TaxCurrencyCode`) and BT-111 (Invoice
+   * total VAT amount in accounting currency, the SECOND `cac:TaxTotal`: `@e-invoice-eu/core`'s own
+   * `Invoice['ubl:Invoice']['cac:TaxTotal']` type is exactly `[TAXTOTAL] | [TAXTOTAL, TAXTOTAL]`, so a
+   * second entry is how the base standard represents this, never a second syntax-specific field).
+   * `vatMinor` is the invoice's own total VAT (`totals.vatMinor`) ALREADY converted into `currency`,
+   * frozen at issuance, see `DocumentInstance.vatNationalCurrencyVatMinor`'s own schema comment for
+   * why this is never recomputed here. `undefined` (the default) for every invoice whose seller
+   * country has no active requirement, or whose invoice currency already IS the national one,
+   * exactly the pre-existing, single-`cac:TaxTotal` output, byte-for-byte.
+   *
+   * Deliberately carries NO converted taxable-amount field: EN 16931 defines no business term for
+   * "the taxable amount in the accounting currency" (only BT-111, the TAX amount). Italy's own
+   * `taxableAmountRequiredOnInvoice` (the one country whose statute also names the base) is therefore
+   * a PDF-printing concern only (`rendering/render-instance-pdf.ts`), never a semantic-model one.
+   */
+  vatAccountingCurrency?: { currency: string; vatMinor: number };
 }
 
 /**
@@ -865,6 +882,10 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
         ? { 'cbc:Note': [...(input.notes ? [input.notes] : []), ...legalMentionNotes] }
         : {}),
       'cbc:DocumentCurrencyCode': currency,
+      // BT-6, see `SemanticInvoiceInput.vatAccountingCurrency`'s own header. Absent entirely when
+      // not supplied, exactly the pre-existing behaviour for every invoice this feature does not
+      // apply to.
+      ...(input.vatAccountingCurrency ? { 'cbc:TaxCurrencyCode': input.vatAccountingCurrency.currency } : {}),
       // BT-10 — see `SemanticInvoiceInput.buyerReference`'s own header. Absent entirely when not
       // supplied, exactly the pre-existing behaviour for every syntax that never sets it.
       ...(input.buyerReference ? { 'cbc:BuyerReference': input.buyerReference } : {}),
@@ -927,13 +948,31 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // BG-16/BG-17 — see `sellerPaymentMeans`'s own header. Absent entirely when the seller has no
       // IBAN on file, exactly the pre-existing behaviour (no such block was ever emitted before this).
       ...(paymentMeans ? { 'cac:PaymentMeans': paymentMeans as never } : {}),
-      'cac:TaxTotal': [
-        {
-          'cbc:TaxAmount': fmt2(input.totals.vatMinor, currency),
-          'cbc:TaxAmount@currencyID': currency,
-          'cac:TaxSubtotal': taxSubtotals as never,
-        },
-      ],
+      // BT-111, see `SemanticInvoiceInput.vatAccountingCurrency`'s own header. A SECOND entry, never
+      // a replacement: the first one (in the invoice's own currency, BT-110/BG-23) is unconditional
+      // and unchanged.
+      'cac:TaxTotal': input.vatAccountingCurrency
+        ? [
+            {
+              'cbc:TaxAmount': fmt2(input.totals.vatMinor, currency),
+              'cbc:TaxAmount@currencyID': currency,
+              'cac:TaxSubtotal': taxSubtotals as never,
+            },
+            {
+              'cbc:TaxAmount': fmt2(
+                input.vatAccountingCurrency.vatMinor,
+                input.vatAccountingCurrency.currency,
+              ),
+              'cbc:TaxAmount@currencyID': input.vatAccountingCurrency.currency,
+            },
+          ]
+        : [
+            {
+              'cbc:TaxAmount': fmt2(input.totals.vatMinor, currency),
+              'cbc:TaxAmount@currencyID': currency,
+              'cac:TaxSubtotal': taxSubtotals as never,
+            },
+          ],
       'cac:LegalMonetaryTotal': {
         'cbc:LineExtensionAmount': fmt2(input.totals.netMinor, currency),
         'cbc:LineExtensionAmount@currencyID': currency,
