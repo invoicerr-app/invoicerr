@@ -119,6 +119,10 @@ export interface CompanyNumberFormat {
   unconstrained: string | null
   supersededRunningSeries: { pattern: string; violations: { constraintId: string; message: string }[] } | null
   constraints: { id: string; summary: string; maxLength: number | null; provenance: NumberFormatProvenance }[]
+  /** Issue #515 - whether this type's counter may restart at 1 on every 1 January, in this country. */
+  reset: "yearly" | "never"
+  /** Why THIS reset rule - sourced independently of `rationale` above. */
+  resetProvenance: NumberFormatProvenance
 }
 
 export interface CompanyNumberFormats {

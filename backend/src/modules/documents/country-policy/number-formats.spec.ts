@@ -111,6 +111,47 @@ describe('country-policy numberFormats - the shipped catalog (issue #496)', () =
       }
     }
   });
+
+  // Issue #515 - every shipped format carries a reset rule with real provenance, and every "yearly"
+  // one actually prints {year} (redundant with the load-time gate, but this reads the REAL data, not
+  // a hand-built fixture - the same "the catalog is read from the REAL data files" discipline this
+  // file's own header states).
+  it('every shipped format carries a reset rule with real provenance, and a "yearly" one always prints {year}', () => {
+    for (const f of ALL_COUNTRY_POLICY_FILES) {
+      for (const format of f.numberFormats?.formats ?? []) {
+        expect(['yearly', 'never'], `${f.countryCode} ${format.typeId}`).toContain(format.reset);
+        expect(['legal', 'unverified'], `${f.countryCode} ${format.typeId}`).toContain(
+          format.resetProvenance?.kind,
+        );
+        if (format.reset === 'yearly') {
+          expect(format.pattern, `${f.countryCode} ${format.typeId}`).toMatch(/\{year(?::\d+)?\}/);
+        }
+      }
+    }
+  });
+
+  // Issue #515 - the researched conclusion per country and type. FR and DE read a primary source that
+  // extends the invoice's own yearly-reset permission to the credit note too (CGI art. 289 I.5's
+  // "assimilé à une facture" for FR, § 31 Abs. 5 UStDV's "gleiche Anforderungen" for DE); IT's own
+  // source (Risoluzione 1/E/2013) addresses only the fattura, and IT's credit-note numbering
+  // requirement is itself still unverified in this catalog, so its reset stays `never` rather than
+  // overclaiming. PL and PT stay `never` for both types (PL: no source read names a calendar year as a
+  // lawful series boundary; PT: FAQ 4318 forbids restarting an ALREADY-USED series, and the shipped
+  // series is continuous with no {year} token to key by in the first place).
+  it('FR/DE allow a yearly reset for invoice and credit-note; IT only for invoice; PL and PT never', () => {
+    for (const country of ['FR', 'DE']) {
+      for (const typeId of ['invoice', 'credit-note']) {
+        expect(resolveNumberFormatFor(country, typeId, null).reset, `${country} ${typeId}`).toBe('yearly');
+      }
+    }
+    expect(resolveNumberFormatFor('IT', 'invoice', null).reset).toBe('yearly');
+    expect(resolveNumberFormatFor('IT', 'credit-note', null).reset).toBe('never');
+    for (const country of ['PL', 'PT']) {
+      for (const typeId of ['invoice', 'credit-note']) {
+        expect(resolveNumberFormatFor(country, typeId, null).reset, `${country} ${typeId}`).toBe('never');
+      }
+    }
+  });
 });
 
 describe('assertValidNumberFormats - the load-time gate', () => {
@@ -133,6 +174,8 @@ describe('assertValidNumberFormats - the load-time gate', () => {
               pattern: 'CREDIT-NOTE-{year}-{number:4}',
               constrainedBy: ['max-20'],
               rationale: 'r',
+              reset: 'never',
+              resetProvenance: provenance,
             },
           ],
           runningSeries,
@@ -154,6 +197,8 @@ describe('assertValidNumberFormats - the load-time gate', () => {
               constrainedBy: [],
               unconstrained: 'u',
               rationale: 'r',
+              reset: 'never',
+              resetProvenance: provenance,
             },
           ],
           runningSeries,
@@ -168,7 +213,16 @@ describe('assertValidNumberFormats - the load-time gate', () => {
       assertValidNumberFormats(
         withFormats({
           constraints: [],
-          formats: [{ typeId: 'quote', pattern: 'Q-{number}', constrainedBy: [], rationale: 'r' }],
+          formats: [
+            {
+              typeId: 'quote',
+              pattern: 'Q-{number}',
+              constrainedBy: [],
+              rationale: 'r',
+              reset: 'never',
+              resetProvenance: provenance,
+            },
+          ],
           runningSeries,
         }),
         'test',
@@ -181,12 +235,94 @@ describe('assertValidNumberFormats - the load-time gate', () => {
       assertValidNumberFormats(
         withFormats({
           constraints: [{ id: 'c', appliesTo: ['quote'], summary: 's', provenance: undefined as never }],
-          formats: [{ typeId: 'quote', pattern: 'Q-{number}', constrainedBy: ['c'], rationale: 'r' }],
+          formats: [
+            {
+              typeId: 'quote',
+              pattern: 'Q-{number}',
+              constrainedBy: ['c'],
+              rationale: 'r',
+              reset: 'never',
+              resetProvenance: provenance,
+            },
+          ],
           runningSeries,
         }),
         'test',
       ),
     ).toThrow(/no valid provenance/);
+  });
+
+  // Issue #515 - the reset rule's own gate: a separate provenance, and a "yearly" rule that would be
+  // worthless (indistinguishable numbers across years) without a {year} token to key by.
+  it('refuses a format whose reset rule has no valid provenance', () => {
+    expect(() =>
+      assertValidNumberFormats(
+        withFormats({
+          constraints: [],
+          formats: [
+            {
+              typeId: 'quote',
+              pattern: 'Q-{number}',
+              constrainedBy: [],
+              unconstrained: 'u',
+              rationale: 'r',
+              reset: 'never',
+              resetProvenance: undefined as never,
+            },
+          ],
+          runningSeries,
+        }),
+        'test',
+      ),
+    ).toThrow(/reset rule has no valid provenance/);
+  });
+
+  it('refuses a "yearly" reset format whose pattern has no {year} token', () => {
+    expect(() =>
+      assertValidNumberFormats(
+        withFormats({
+          constraints: [],
+          formats: [
+            {
+              typeId: 'invoice',
+              pattern: 'INVOICE-{number:4}',
+              constrainedBy: [],
+              unconstrained: 'u',
+              rationale: 'r',
+              reset: 'yearly',
+              resetProvenance: provenance,
+            },
+          ],
+          runningSeries,
+        }),
+        'test',
+      ),
+    ).toThrow(/declares reset "yearly".*no "\{year\}" token/);
+  });
+
+  it('accepts a "yearly" reset format whose pattern carries {year}, or {year:N}', () => {
+    for (const pattern of ['INVOICE-{year}-{number:4}', 'INVOICE-{year:4}-{number:4}']) {
+      expect(() =>
+        assertValidNumberFormats(
+          withFormats({
+            constraints: [],
+            formats: [
+              {
+                typeId: 'invoice',
+                pattern,
+                constrainedBy: [],
+                unconstrained: 'u',
+                rationale: 'r',
+                reset: 'yearly',
+                resetProvenance: provenance,
+              },
+            ],
+            runningSeries,
+          }),
+          'test',
+        ),
+      ).not.toThrow();
+    }
   });
 });
 
