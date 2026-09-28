@@ -73,6 +73,10 @@ export interface PdfChromeStrings {
    *  itself no longer prints any total of its own for a reader to trace the inclusion back to - see
    *  `render-html.ts#renderOptionGroupsField`'s own header. */
   totalIncludingCommonLines: string;
+  /** Issue #507 - "Corrects invoice {number} of {date}", the header line of a LINKED credit note
+   *  (`render-html.ts`'s own `correctedInvoice` input). A full phrase for the same word-order reason
+   *  as `vatOn`; callers pass already-escaped values. */
+  correctsInvoice(number: string, date: string): string;
 }
 
 const EN: PdfChromeStrings = {
@@ -92,6 +96,7 @@ const EN: PdfChromeStrings = {
   acceptedOptionBadge: 'Accepted',
   commonToAllOptionsHeading: 'Common to all options',
   totalIncludingCommonLines: 'Total (including common lines)',
+  correctsInvoice: (number, date) => `Corrects invoice ${number} of ${date}`,
 };
 
 const FR: PdfChromeStrings = {
@@ -111,6 +116,7 @@ const FR: PdfChromeStrings = {
   acceptedOptionBadge: 'Accepté',
   commonToAllOptionsHeading: 'Commun à toutes les options',
   totalIncludingCommonLines: 'Total (lignes communes incluses)',
+  correctsInvoice: (number, date) => `Rectifie la facture ${number} du ${date}`,
 };
 
 const IT: PdfChromeStrings = {
@@ -130,6 +136,7 @@ const IT: PdfChromeStrings = {
   acceptedOptionBadge: 'Accettata',
   commonToAllOptionsHeading: 'Comune a tutte le opzioni',
   totalIncludingCommonLines: 'Totale (righe comuni incluse)',
+  correctsInvoice: (number, date) => `Rettifica la fattura ${number} del ${date}`,
 };
 
 const PL: PdfChromeStrings = {
@@ -149,6 +156,7 @@ const PL: PdfChromeStrings = {
   acceptedOptionBadge: 'Zaakceptowano',
   commonToAllOptionsHeading: 'Wspólne dla wszystkich opcji',
   totalIncludingCommonLines: 'Razem (z pozycjami wspólnymi)',
+  correctsInvoice: (number, date) => `Koryguje fakturę ${number} z dnia ${date}`,
 };
 
 const DE: PdfChromeStrings = {
@@ -168,6 +176,7 @@ const DE: PdfChromeStrings = {
   acceptedOptionBadge: 'Akzeptiert',
   commonToAllOptionsHeading: 'Gemeinsam für alle Optionen',
   totalIncludingCommonLines: 'Gesamt (inkl. gemeinsamer Positionen)',
+  correctsInvoice: (number, date) => `Berichtigt die Rechnung ${number} vom ${date}`,
 };
 
 const PT: PdfChromeStrings = {
@@ -187,6 +196,7 @@ const PT: PdfChromeStrings = {
   acceptedOptionBadge: 'Aceite',
   commonToAllOptionsHeading: 'Comum a todas as opções',
   totalIncludingCommonLines: 'Total (incluindo linhas comuns)',
+  correctsInvoice: (number, date) => `Retifica a fatura ${number} de ${date}`,
 };
 
 const CHROME_STRINGS: Record<RenderLanguage, PdfChromeStrings> = {

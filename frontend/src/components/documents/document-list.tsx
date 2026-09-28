@@ -952,7 +952,10 @@ export function DocumentList({
   const amounts = useMemo(() => {
     const byId = new Map<string, RowAmount | null>()
     for (const instance of items)
-      byId.set(instance.id, resolveRowAmount(descriptor, instance.data, instance.acceptedOption))
+      byId.set(
+        instance.id,
+        resolveRowAmount(descriptor, instance.data, instance.acceptedOption, instance.derivedTotals),
+      )
     return byId
   }, [descriptor, items])
 

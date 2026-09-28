@@ -1163,12 +1163,18 @@ export class DocumentsController {
 
   @Get(':id')
   @RequiresDocumentTypeScope('read')
-  @ApiOperation({ summary: 'Get a document instance', description: 'One saved document instance by id.' })
+  @ApiOperation({
+    summary: 'Get a document instance',
+    description:
+      'One saved document instance by id. A credit note linked to an invoice also carries ' +
+      '`derivedTotals`: the totals of the invoice lines it corrects, the amount settlement takes off ' +
+      'that invoice.',
+  })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })
   @ApiResponse({ status: 200, description: 'Instance retrieved' })
   @ApiResponse({ status: 404, description: 'Not found for this company/type' })
   getDocument(@ActiveCompany() companyId: string, @Param('id') id: string, @Query('typeId') typeId: string) {
-    return this.documentsService.getDocument(companyId, typeId, id);
+    return this.documentsService.getDocumentView(companyId, typeId, id);
   }
 }

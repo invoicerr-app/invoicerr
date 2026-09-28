@@ -290,6 +290,17 @@ export interface DocumentTypeSummary {
   label: string
 }
 
+/** The backend's `DocumentTotals` as the API serializes it - see `DocumentInstance.derivedTotals`. */
+export interface DerivedDocumentTotals {
+  currency: string | null
+  netMinor: number
+  vatMinor: number
+  grossMinor: number
+  vatBreakdown: { ratePercent: number; baseMinor: number; vatMinor: number }[]
+  warnings: string[]
+  showVat?: boolean
+}
+
 export interface DocumentInstance {
   id: string
   typeId: string
@@ -321,6 +332,14 @@ export interface DocumentInstance {
    *  than two options, and for one that has not been accepted yet either way. Shown read-only on the
    *  detail page (document-detail.tsx) - never a form field, this key is not part of any descriptor. */
   acceptedOption?: string | null
+  /** Issue #507 - totals the backend derives for this document from ANOTHER document's rows: today
+   *  only a LINKED credit note, worth the corrected invoice's selected lines priced with the invoice's
+   *  own rules (the backend's `totals/linked-credit-note.ts`, the one rule its settlement, PDF and XML
+   *  export read). Absent for every other document. When present, the list row, the header amount and
+   *  the totals card show THIS rather than summing the document's own `lines`, which a linked credit
+   *  note leaves empty by construction. It is the SAVED state: selecting other lines moves it once the
+   *  draft is saved. */
+  derivedTotals?: DerivedDocumentTotals | null
 }
 
 /**
