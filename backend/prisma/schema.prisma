@@ -2884,12 +2884,22 @@ model ClientPortalToken {
 // country-policy/data/fr.json's top-level `notes` for the honest, unverified flag on the legal
 // question itself.
 model DocumentNumberSequence {
-  companyId  String
-  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  typeId     String
-  nextNumber Int     @default(1)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  typeId    String
+  // Issue #515: which period this counter belongs to. `0` is the sentinel for the ONE continuous
+  // counter every type used before this feature — a `reset: "never"` country format, an unconstrained
+  // type (quote, purchase order, goods receipt), or a `reset: "yearly"` document dated before
+  // `numbering/company-number-format.ts#YEARLY_RESET_STARTS_FROM_YEAR` (2027) — see that constant's
+  // own header for why a document dated in the old year keeps using this row even when it is NUMBERED
+  // after the cutover. The calendar YEAR, taken from the document's own `issueDate` field and never
+  // the server clock, for every later `reset: "yearly"` document: each year opens its own fresh row at
+  // `nextNumber = 1`, never touching an earlier year's row, so no already-issued number ever changes
+  // and two documents of two different years can never collide on the same counter.
+  year       Int @default(0)
+  nextNumber Int @default(1)
 
-  @@id([companyId, typeId])
+  @@id([companyId, typeId, year])
 }
 
 // The persistent, atomic PEC filename progressivo counter — see

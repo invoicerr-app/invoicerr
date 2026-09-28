@@ -25,7 +25,7 @@ import {
 } from '@/mail/system-email-templates';
 import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
 import { formatDocumentNumber } from '@/modules/documents/numbering/format-number';
-import { resolveNumberFormatFor } from '@/modules/documents/numbering/company-number-format';
+import { periodKeyFor, resolveNumberFormatFor } from '@/modules/documents/numbering/company-number-format';
 import { defaultCountryPolicyCatalog } from '@/modules/documents/country-policy/registry';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { CompanyNumberFormats } from './dto/number-formats.dto';
@@ -372,9 +372,13 @@ export class CompanyService {
       };
     }
 
+    // Issue #515: `year` is part of `DocumentNumberSequence`'s own key now, so "the next number"
+    // depends on which counter row a document issued TODAY would land on - see `periodKeyFor`'s own
+    // header. Reading every row (never filtering by year in the query) keeps this one round trip: the
+    // map below picks, per format, the row `periodKeyFor(resolved, now)` names.
     const sequences = await prisma.documentNumberSequence.findMany({
       where: { companyId },
-      select: { typeId: true, nextNumber: true },
+      select: { typeId: true, year: true, nextNumber: true },
     });
     const now = new Date();
 
@@ -388,7 +392,9 @@ export class CompanyService {
           format.typeId,
           company.numberFormats as Record<string, unknown> | null,
         );
-        const nextNumber = sequences.find((row) => row.typeId === format.typeId)?.nextNumber ?? 1;
+        const year = periodKeyFor(resolved, now);
+        const nextNumber =
+          sequences.find((row) => row.typeId === format.typeId && row.year === year)?.nextNumber ?? 1;
         return {
           typeId: resolved.typeId,
           pattern: resolved.pattern,
@@ -405,6 +411,8 @@ export class CompanyService {
             maxLength: c.maxLength ?? null,
             provenance: c.provenance,
           })),
+          reset: resolved.reset,
+          resetProvenance: resolved.resetProvenance,
         };
       }),
     };

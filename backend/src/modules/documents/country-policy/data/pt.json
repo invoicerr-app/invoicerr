@@ -420,33 +420,62 @@
         "pattern": "QUOTE-{year}-{number:4}",
         "constrainedBy": [],
         "unconstrained": "No Portuguese text read in this pass constrains the number of a quote. OPEN QUESTION, not settled here: whether a quote handed to a client is a 'documento de conferência' that Decreto-Lei n.º 28/2019 would require to be issued in its own communicated series, with an ATCUD, was not checked. This product issues no ATCUD on a quote today.",
-        "rationale": "Unchanged from the product's previous shared default."
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance (and this format carries no {year} token to key by regardless)."
+        }
       },
       {
         "typeId": "invoice",
         "pattern": "FT A/{number}",
         "constrainedBy": ["pt-civa-36-5", "pt-at-faq-4310", "pt-at-faq-4696", "pt-saft-invoiceno"],
-        "rationale": "\"FT\" is SAF-T (PT)'s document-type code for a fatura, \"A\" the series identifier, then the sequential number after the slash, the shape FAQ 4310 describes and the ATCUD needs. The series carries no year: FAQ 4317 and 4318 allow one series and one validation code across several years as long as its numbering never restarts, and this product's counter never restarts. A Portuguese company registers the AT validation code of series \"FT A\" once, before its first invoice. The product's previous default (\"INVOICE-{year}-{number:4}\") could not produce an ATCUD at all."
+        "rationale": "\"FT\" is SAF-T (PT)'s document-type code for a fatura, \"A\" the series identifier, then the sequential number after the slash, the shape FAQ 4310 describes and the ATCUD needs. The series carries no year: FAQ 4317 and 4318 allow one series and one validation code across several years as long as its numbering never restarts, and this product's counter never restarts. A Portuguese company registers the AT validation code of series \"FT A\" once, before its first invoice. The product's previous default (\"INVOICE-{year}-{number:4}\") could not produce an ATCUD at all.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "legal",
+          "sourceText": "Não é possível reiniciar a numeração sequencial de uma série já utilizada. [...] A mesma série e respetivo código de validação só pode ser utilizada em mais do que um ano (plurianual) desde que seja garantida a numeração sequencial ao longo dos vários anos, sem ser reiniciada. Caso pretenda reiniciar a numeração anualmente, terão de ser utilizadas séries distintas, por exemplo referenciando o ano na série (por exemplo A2021; A2022; A2023…).",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "AT FAQ \"Séries/ATCUD\" 4318, https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand on 2026-09-28 - the same FAQ this file's own `runningSeries` fact already quotes. Explicit and unambiguous the OTHER way from FR/DE/IT: restarting the numbering of an ALREADY-USED series is expressly forbidden. A yearly restart is technically lawful in Portugal, but only through a BRAND NEW series with its own freshly-registered AT validation code each year (FAQ 4318's own example: \"A2021; A2022; A2023\") - a fundamentally different mechanism from keying one counter by the document's issue year, and one this product's ATCUD registration flow (`CompanyAtcudSeries`, `numbering/atcud.ts`) does not support today: registering a series is a one-time, company-initiated step, never an automatic yearly renewal. Building that is its own feature, out of #515's scope - recorded here as a deliberate, sourced non-choice rather than an oversight, per the issue's own expectation (\"Portugal: a yearly restart means a new ATCUD series registered each year [...], so it keeps its continuous series unless a source says otherwise\")."
       },
       {
         "typeId": "credit-note",
         "pattern": "NC A/{number}",
         "constrainedBy": ["pt-civa-36-6", "pt-at-faq-4310", "pt-at-faq-4696", "pt-saft-invoiceno"],
-        "rationale": "\"NC\" is SAF-T (PT)'s document-type code for a nota de crédito, in series \"A\", numbered on its own counter. The same shape as the invoice: the credit note carries its own ATCUD from series \"NC A\" (this file's credit-note `atcud-required` fact, issue #497)."
+        "rationale": "\"NC\" is SAF-T (PT)'s document-type code for a nota de crédito, in series \"A\", numbered on its own counter. The same shape as the invoice: the credit note carries its own ATCUD from series \"NC A\" (this file's credit-note `atcud-required` fact, issue #497).",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "legal",
+          "sourceText": "Não é possível reiniciar a numeração sequencial de uma série já utilizada. [...] A mesma série e respetivo código de validação só pode ser utilizada em mais do que um ano (plurianual) desde que seja garantida a numeração sequencial ao longo dos vários anos, sem ser reiniciada. Caso pretenda reiniciar a numeração anualmente, terão de ser utilizadas séries distintas, por exemplo referenciando o ano na série (por exemplo A2021; A2022; A2023…).",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Same source, same read, same reasoning as this file's own invoice `resetProvenance` above: FAQ 4318 binds every ATCUD series equally, credit note included."
       },
       {
         "typeId": "purchase-order",
         "pattern": "PURCHASE-ORDER-{year}-{number:4}",
         "constrainedBy": [],
         "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no Portuguese text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
-        "rationale": "Unchanged from the product's previous shared default."
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
       },
       {
         "typeId": "goods-receipt",
         "pattern": "GOODS-RECEIPT-{year}-{number:4}",
         "constrainedBy": [],
         "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Portuguese text read in this pass constrains its number.",
-        "rationale": "Unchanged from the product's previous shared default."
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
       }
     ],
     "runningSeries": {

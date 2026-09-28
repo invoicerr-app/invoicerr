@@ -21,7 +21,9 @@ export interface CompanyNumberFormat {
   source: NumberFormatSource;
   /** The country's own format - differs from `pattern` only for a kept running series. */
   countryPattern: string;
-  /** The value the counter hands out next (1 for a type never numbered). */
+  /** The value the counter hands out next (1 for a type never numbered, or for the first document of
+   *  a `reset: "yearly"` counter's period - issue #515: read from the row a document ISSUED TODAY
+   *  would land on, `numbering/company-number-format.ts#periodKeyFor`). */
   nextNumber: number;
   /** `pattern` rendered with `nextNumber` and today's date - what the next document would print. */
   nextDisplayNumber: string;
@@ -29,6 +31,10 @@ export interface CompanyNumberFormat {
   unconstrained: string | null;
   supersededRunningSeries: { pattern: string; violations: NumberFormatViolation[] } | null;
   constraints: CompanyNumberFormatConstraint[];
+  /** Issue #515 - whether this type's counter may restart at 1 on every 1 January, in this country. */
+  reset: 'yearly' | 'never';
+  /** Why THIS reset rule - see `country-policy/schema.ts#DocumentNumberFormatFact.resetProvenance`. */
+  resetProvenance: PolicyProvenance;
 }
 
 export interface CompanyNumberFormats {

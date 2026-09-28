@@ -110,7 +110,7 @@ export async function sendDocumentInstanceEmail(
   const descriptor = deps.typeRegistry.resolve(typeId);
 
   if (descriptor.numbering?.onEnterStatus === document.status && document.number == null) {
-    const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id);
+    const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id, document.data);
     if (numbered) {
       document = { ...document, ...numbered };
       // STOCK EFFECT: this is the PRIMARY issuance path for a document with

@@ -207,7 +207,12 @@ describe('sendDocumentInstanceEmail', () => {
       },
     );
 
-    expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith('company-1', 'quote', 'doc-1');
+    expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith(
+      'company-1',
+      'quote',
+      'doc-1',
+      {},
+    );
     expect(mailService.sendForCompany).toHaveBeenCalledWith(
       'company-1',
       expect.objectContaining({

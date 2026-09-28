@@ -139,12 +139,32 @@ function NumberFormatRow({
               ? t("settings.company.numberFormats.source.runningSeries")
               : t("settings.company.numberFormats.source.country", { country })}
           </Badge>
+          <Badge variant={format.reset === "yearly" ? "info" : "outline"} data-cy="number-format-reset">
+            {format.reset === "yearly"
+              ? t("settings.company.numberFormats.reset.yearly")
+              : t("settings.company.numberFormats.reset.never")}
+          </Badge>
         </div>
         <span className="text-xs text-muted-foreground" data-cy="number-format-next">
           {t("settings.company.numberFormats.next")}{" "}
           <span className="font-mono text-foreground">{format.nextDisplayNumber}</span>
         </span>
       </div>
+
+      <p className="text-xs text-muted-foreground text-pretty" data-cy="number-format-reset-source">
+        {format.reset === "yearly"
+          ? t("settings.company.numberFormats.reset.yearlyHint")
+          : t("settings.company.numberFormats.reset.neverHint")}{" "}
+        <span className="whitespace-nowrap">
+          (
+          {format.resetProvenance.kind === "legal"
+            ? t("settings.company.numberFormats.provenance.legal", {
+                date: format.resetProvenance.sourceCheckedAt,
+              })
+            : t("settings.company.numberFormats.provenance.unverified")}
+          )
+        </span>
+      </p>
 
       {format.supersededRunningSeries && (
         <p className="text-xs text-warning-foreground text-pretty" data-cy="number-format-superseded">
