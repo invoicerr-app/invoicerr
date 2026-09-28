@@ -14,7 +14,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * The re-render count itself is not asserted here (a Cypress assertion on React commits would need
  * instrumentation in production code): the PR carries that measurement, before and after.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const DESCRIPTION = "Consulting";
 const EDIT = " day";

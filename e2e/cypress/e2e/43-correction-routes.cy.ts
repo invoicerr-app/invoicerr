@@ -26,7 +26,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * to duplicate the full PL issuance that 44 already covers). Last describe of the last
  * numbered file in the suite: the switch does not contaminate any other spec.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 /**
  * Opens one invoice's "Correct" dialog from the list screen, waiting for the list itself rather

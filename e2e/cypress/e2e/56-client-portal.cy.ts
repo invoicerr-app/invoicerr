@@ -18,7 +18,7 @@ import { tolerateUncaughtException } from "../support/e2e";
  * never a shortcut: clicking it must produce the SAME `/signature/:token` email that path already
  * sends, read from Mailpit — not a status flip this spec merely asserts happened.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;

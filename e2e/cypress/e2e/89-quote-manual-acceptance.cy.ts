@@ -20,8 +20,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `45-signature.cy.ts` drives, Mailpit included) so the two "Acceptance" sections can be asserted
  * DIFFERENT on screen - the one thing this whole feature exists to guarantee.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;

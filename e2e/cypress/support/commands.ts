@@ -49,6 +49,11 @@ Cypress.Commands.add('login', () => {
 });
 
 
+// Mailpit's HTTP API, from `cypress.config.ts` (`MAILPIT_URL`, default the shared stack's one).
+// Never a literal here: `cy.clearEmails()` empties whatever inbox this points at, and a hardcoded
+// port once made an isolated run wipe the shared Mailpit another run was reading (#502).
+const mailpitUrl = (): string => Cypress.env('mailpitUrl');
+
 Cypress.Commands.add('getLastEmail', () => {
     // Backend sends mail asynchronously — under CI load the OTP email can lag
     // behind the request that triggered it. Poll mailpit instead of asserting
@@ -56,7 +61,7 @@ Cypress.Commands.add('getLastEmail', () => {
     // still in flight. ~20 attempts * 500ms wait ≈ 10s retry budget.
     function pollForMessage(attemptsLeft: number): Cypress.Chainable<any> {
         return cy
-            .request({ url: 'http://localhost:8025/api/v1/messages', failOnStatusCode: false })
+            .request({ url: `${mailpitUrl()}/api/v1/messages`, failOnStatusCode: false })
             .then((res) => {
                 const messages = res.body?.messages || [];
                 if (messages.length === 0 && attemptsLeft > 0) {
@@ -67,7 +72,7 @@ Cypress.Commands.add('getLastEmail', () => {
                 // genuine failure (no mail ever arrived) still hard-fails clearly.
                 expect(messages, 'mailpit message present after polling').to.have.length.greaterThan(0);
                 const id = messages[0].ID;
-                return cy.request(`http://localhost:8025/api/v1/message/${id}`);
+                return cy.request(`${mailpitUrl()}/api/v1/message/${id}`);
             });
     }
 
@@ -75,7 +80,7 @@ Cypress.Commands.add('getLastEmail', () => {
 });
 
 Cypress.Commands.add('clearEmails', () => {
-    return cy.request('DELETE', 'http://localhost:8025/api/v1/messages');
+    return cy.request('DELETE', `${mailpitUrl()}/api/v1/messages`);
 });
 
 Cypress.Commands.add('waitForDocumentStatus', (url: string, targetStatuses: string[]) => {
@@ -212,7 +217,7 @@ Cypress.Commands.add('pickDocumentFieldOption', (fieldKey: string, option: strin
  * @example cy.pickDocumentClient()
  */
 Cypress.Commands.add('pickDocumentClient', (option: string = 'first') => {
-    const apiUrl = Cypress.env('apiUrl') || 'http://localhost:4000';
+    const apiUrl = Cypress.env('apiUrl');
     cy.intercept({ method: 'GET', url: `${apiUrl}/api/documents/types/*?clientId=*` }).as('clientAwareDescriptor');
     cy.pickDocumentFieldOption('client', option);
     cy.wait('@clientAwareDescriptor', { timeout: 20000 });

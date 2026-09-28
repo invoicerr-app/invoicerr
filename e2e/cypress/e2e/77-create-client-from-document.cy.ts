@@ -12,7 +12,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * Discipline: every action through the screen, assertions read back via the API.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Create client from the document wizard's own client picker", () => {
 	before(() => {

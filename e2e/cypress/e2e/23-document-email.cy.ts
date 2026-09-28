@@ -11,7 +11,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Mailpit is cleared at the start of each test (`cy.clearEmails()`) so that "the last message" is
  * unambiguously the one THIS test produced.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Sending a document carries its PDF as an attachment", () => {
 	before(() => {

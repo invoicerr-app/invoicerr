@@ -14,7 +14,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * (`clients.contacts.concurrency.spec.ts`), where two real transactions are made to overlap on
  * purpose; two `cy.request`s cannot be made to overlap deterministically from here.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Legacy four-field call clearing a client's contact (#478)", () => {
 	before(() => {

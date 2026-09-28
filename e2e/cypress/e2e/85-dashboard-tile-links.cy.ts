@@ -26,7 +26,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Screenshots at the end are for the owner (issue #419's own before/after), not assertions.
  */
 
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 /** ISO `YYYY-MM-DD`, offset from the real clock by `days` (negative = past). Computed at run time,
  *  never hard-coded, so the overdue/not-overdue split stays correct however far in the future this

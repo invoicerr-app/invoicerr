@@ -8,7 +8,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * THEN the badge on screen. The pure logic (sum per article, never a clamp) + the idempotence of the
  * issuance gate are covered in jest; here we prove the end-to-end wiring.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createTrackedArticle() {
 	return cy

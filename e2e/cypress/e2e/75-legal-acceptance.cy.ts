@@ -29,7 +29,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * everything" side, not just "does hosted mode still work" (still covered by the dedicated
  * `expectSaas` lane described above).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 const PASSWORD = "Super_Secret_Password123!";
 
 const REQUIRED_SLUGS = ["terms-of-service", "privacy-policy"];

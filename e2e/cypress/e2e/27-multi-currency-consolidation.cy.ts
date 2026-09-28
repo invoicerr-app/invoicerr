@@ -17,7 +17,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  3. a second expense in a currency WITHOUT a configured rate (JPY) → the consolidated figure
  *     disappears entirely, and a warning naming the missing currency appears on screen.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Multi-currency — reference currency, manual rates, and honest consolidation", () => {
 	before(() => {

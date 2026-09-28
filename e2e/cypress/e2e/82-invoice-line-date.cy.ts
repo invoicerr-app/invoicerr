@@ -11,7 +11,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * national-lines.spec.ts and formats/providers.spec.ts (jest, against real generated XML) — this
  * spec only proves the screen-to-API round trip.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Invoice line `date` — optional, per-line, on the screen", () => {
 	before(() => {

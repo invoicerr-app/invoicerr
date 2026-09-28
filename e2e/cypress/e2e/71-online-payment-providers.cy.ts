@@ -29,7 +29,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *    `paypal-provider.ts`'s own header on why capture is triggered from the approval event rather than
  *    a bespoke "return" endpoint.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const MOLLIE_API_KEY = "test_e2e_fake_api_key";
 const PAYPAL_CLIENT_ID = "e2e-fake-client-id";

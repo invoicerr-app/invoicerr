@@ -22,8 +22,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Mail is read by RECIPIENT through Mailpit's search API, never "the last message" and never by
  * clearing the inbox, so this spec does not depend on (or disturb) mail another spec sends.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const mailpit = Cypress.env("mailpitUrl") || "http://localhost:8025";
+const api = Cypress.env("apiUrl");
+const mailpit = Cypress.env("mailpitUrl");
 
 const CLIENT_EMAIL = "accepted-option-479@example.com";
 

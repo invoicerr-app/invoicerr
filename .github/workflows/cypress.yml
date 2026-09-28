@@ -111,6 +111,11 @@ jobs:
       - name: Typecheck the Cypress specs
         run: cd e2e && npm run typecheck
 
+      # Specs read the stack's URLs from cypress.config.ts, never a literal localhost:<port>, so a
+      # second stack on the same machine can run the suite through env alone (#502).
+      - name: No literal localhost ports in the Cypress specs
+        run: cd e2e && npm run check:ports
+
   backend-tests:
     runs-on: ubuntu-latest
     # This job used to run with no database at all, on the assumption that `npm test` is a unit

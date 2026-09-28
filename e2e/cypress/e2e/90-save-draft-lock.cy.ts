@@ -26,8 +26,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  d) a SENT quote (never locked, unlike a) and b)): "save-draft" still succeeds, and the screen
  *     still offers it with no locked notice at all.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;

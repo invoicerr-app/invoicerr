@@ -191,7 +191,7 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  */
 const scenarioId = Cypress.env("scenario") as string;
 const s: Scenario = SCENARIOS[scenarioId];
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 if (!s) {
 	throw new Error(

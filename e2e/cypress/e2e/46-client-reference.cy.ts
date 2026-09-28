@@ -7,7 +7,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * screen, assertions read back via the API + the screen. The exact PDF rendering is covered in jest
  * (`rendering/render-html.spec.ts`, hideWhenEmpty block); here we prove the UI journey + the list.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createClient() {
 	return cy

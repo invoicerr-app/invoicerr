@@ -26,7 +26,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  - `supplier-invoice-facturx.pdf`: a second, independent real Factur-X — used for the "reject with
  *    a reason" leg, so the two legs never fight over the same `pdpInboundId`/document.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const CII_FIXTURE_RELATIVE = "received-invoices/supplier-invoice-cii.xml";
 const FACTURX_FIXTURE_RELATIVE = "received-invoices/supplier-invoice-facturx.pdf";

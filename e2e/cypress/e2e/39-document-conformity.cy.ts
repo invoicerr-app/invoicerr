@@ -21,7 +21,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * fake PDP channel keeps failing into "send_failed", never "sent" — so the conformity sweep never
  * has anything to find for this document either).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createInvoiceDraft() {
 	return cy
