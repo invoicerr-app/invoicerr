@@ -546,7 +546,8 @@ export async function listDocumentArchives(
  * always meant for exactly the companies who configured signing. `null` for a document with no
  * DELIVERY archive at all (a draft, a document whose archiving attempt itself failed —
  * `lastArchiveError`), for one delivered through "ksef"/"sdi" (their own archived artifact is XML,
- * never a PDF), and for the credit note's transport-less "send" (nothing archived at all) — the
+ * never a PDF), and for a credit note issued before issue #499 (its send archived nothing; since
+ * then it always archives its own PDF, `credit-note-actions.ts`), the
  * caller falls back to rendering fresh in every one of those cases, exactly as it always has.
  *
  * Issue #490: `isServable`, when given, is asked with the archive's own recorded `documentDataHash`

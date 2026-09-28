@@ -117,7 +117,9 @@ describe("Issue #472 - a credit note in the electronic invoice formats", () => {
 				issueCreditNote({
 					invoice: invoice.id,
 					correctedLines: [invoice.rowId],
-					issueDate: "2026-09-20",
+					// Issue #499: a linked credit note is delivered on its invoice's channel ("email" here),
+					// which the French mandate refuses for a domestic document issued on or after 2026-09-01.
+					issueDate: "2026-08-31",
 					currency: "EUR",
 					reason: "Formation annulee",
 				}).then((note) => {
@@ -175,7 +177,8 @@ describe("Issue #472 - a credit note in the electronic invoice formats", () => {
 				issueCreditNote({
 					invoice: invoice.id,
 					correctedLines: [invoice.rowId],
-					issueDate: "2026-09-21",
+					// Before the French mandate, see the first test (issue #499).
+					issueDate: "2026-08-31",
 					currency: "EUR",
 				}).then((note) => {
 					cy.task("makeCreditNoteLegacyUnnumbered", { documentId: note.id });

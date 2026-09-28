@@ -2,6 +2,7 @@ import { vi, type Mock } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
 import * as companyEmailTemplates from '../actions/company-email-templates';
+import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import * as takeNumber from '../numbering/take-number';
@@ -96,6 +97,60 @@ describe('buildEmailTransport', () => {
       }),
     );
     expect(result.message).toMatch(/client-1@example\.com/);
+  });
+
+  it("issue #499: a credit note goes to its corrected invoice's client, with the credit note itself attached", async () => {
+    const clientsService = {
+      getClientById: vi.fn().mockResolvedValue({ id: 'client-7', contactEmail: 'client-7@example.com' }),
+    };
+    const mailService = { sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
+    const { typeRegistry, referenceRegistry } = buildDeps();
+    typeRegistry.register(buildCreditNoteDescriptor());
+    const creditNote = {
+      id: 'cn-1',
+      typeId: 'credit-note',
+      status: 'sending',
+      displayNumber: 'CN-2026-0001',
+      data: { invoice: 'inv-1', correctedLines: ['r1'], issueDate: '2026-08-31', currency: 'EUR' },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const transport = buildEmailTransport({
+      clientsService: clientsService as never,
+      mailService: mailService as never,
+      typeRegistry,
+      referenceRegistry,
+    });
+    expect(transport.deliversCreditNotes).toBe(true);
+    const result = await transport.send({
+      companyId: 'company-1',
+      document: creditNote,
+      label: 'Credit note',
+      formatSource: {
+        descriptor: buildInvoiceDescriptor(),
+        document: { ...creditNote, data: { client: 'client-7', lines: [] } },
+      },
+    });
+
+    // The buyer comes from the invoice-shaped source (a credit note has no client field)...
+    expect(clientsService.getClientById).toHaveBeenCalledWith('company-1', 'client-7');
+    // ...and the PDF rendered and attached is the credit note's own, with its own descriptor.
+    expect(renderInstancePdf.renderDocumentInstance).toHaveBeenCalledWith(
+      expect.anything(),
+      'company-1',
+      expect.objectContaining({ id: 'credit-note' }),
+      expect.objectContaining({ id: 'cn-1', data: creditNote.data }),
+      'delivery',
+    );
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
+      expect.objectContaining({
+        to: 'client-7@example.com',
+        attachments: [expect.objectContaining({ filename: 'CN-2026-0001.pdf' })],
+      }),
+    );
+    expect(result.artifacts).toEqual([expect.objectContaining({ role: 'pdf', mime: 'application/pdf' })]);
   });
 
   it('refuses to send when the client has no contact email on file — never silently drops the delivery', async () => {

@@ -59,9 +59,9 @@ export interface ArchiveDeliveredArtifactsInput {
   documentId: string;
   /** What `deliver()` actually delivered — see `transports/transport-registry.ts`'s
    *  `DocumentTransportResult.artifacts`'s own header. Absent, or empty, for a delivery that produced
-   *  NO archivable artifact at all (the credit-note's "send", `credit-note-actions.ts` — a plain
-   *  status transition, with no transport and no email): nothing to archive is not a failure, it is
-   *  simply nothing to do. */
+   *  NO archivable artifact at all: nothing to archive is not a failure, it is simply nothing to do.
+   *  (The credit note's "send" was that case until issue #499; it now always archives its own PDF,
+   *  `credit-note-actions.ts`.) */
   artifacts: ArchivedArtifactInput[] | undefined;
   /** Issue #490: `hashDocumentData` (`document-data-hash.ts`) of the `data` `deliver()` rendered
    *  these artifacts from, written onto the DELIVERY archive (and journaled with the bytes if

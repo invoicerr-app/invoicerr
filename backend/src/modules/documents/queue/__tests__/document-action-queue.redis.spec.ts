@@ -185,7 +185,7 @@ function buildDocumentsService(queueDispatcher: DocumentQueueDispatcher): Docume
   registerConvertToInvoiceAction(actionRegistry);
   registerRequestDepositAction(actionRegistry);
   registerInvoiceActions(actionRegistry, { transportRegistry, queueDispatcher });
-  registerCreditNoteActions(actionRegistry, { queueDispatcher });
+  registerCreditNoteActions(actionRegistry, { queueDispatcher, transportRegistry, referenceRegistry });
 
   return new DocumentsService(
     typeRegistry,
