@@ -548,9 +548,9 @@ describe("Quotes with options (issue #373)", () => {
 									}).should("exist");
 
 									// The required option choice, on the public page - the client picks "Basic".
-									cy.get('[data-cy="signature-option-chooser"]').should(
-										"be.visible",
-									);
+									// Scrolled to first: it sits below the fold of the page's own scroll
+									// container once the PDF preview has laid out (#509).
+									cy.revealSignatureOptionChooser();
 									cy.get('[data-cy="signature-option-item"]').should(
 										"have.length",
 										2,
