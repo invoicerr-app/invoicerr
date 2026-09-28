@@ -22,12 +22,23 @@
  * a foreign-currency FR/PL/IT invoice would be a live-network test, flaky by construction and unable
  * to run offline.
  *
- * Deliberately NARROW, not a general mock: only USD/GBP are faked at all (every OTHER currency
- * resolves to `undefined`, the SAME "not found" shape a real, honest gap would produce), and Poland's
- * own NBP fake refuses GBP specifically. This is what lets a Cypress spec exercise BOTH the happy
- * path (a USD invoice, a real converted figure to assert on) AND issue #517's own load-bearing
- * refusal ("a clear refusal when no NBP rate is available") from the SAME fake gate, with no separate
- * flag needed.
+ * Deliberately NARROW, not a general mock: only USD/GBP/EUR are faked for ECB and only USD/EUR for
+ * NBP (every OTHER currency resolves to `undefined`, the SAME "not found" shape a real, honest gap
+ * would produce), and Poland's own NBP fake refuses GBP specifically. This is what lets a Cypress
+ * spec exercise BOTH the happy path (a USD or EUR invoice, a real converted figure to assert on) AND
+ * issue #517's own load-bearing refusal ("a clear refusal when no NBP rate is available") from the
+ * SAME fake gate, with no separate flag needed.
+ *
+ * EUR was added to `FAKE_NBP_PLN_RATES` after PR #525's integration run: several pre-existing specs
+ * (`44-country-policy.cy.ts`, `109-yearly-numbering-reset.cy.ts`, the `pl-de` business scenario in
+ * `fixtures/scenarios.ts`) default a Polish-seller invoice to EUR, a reasonable choice on their part
+ * since EUR is the ordinary "foreign" currency to pick, and that now hits this feature's real,
+ * correct refusal on the unfaked currency. Widening the fake is the fix; the refusal logic itself was
+ * never wrong. EUR was not added to `FAKE_ECB_EUR_RATES` (no FR/IT/DE/PT test invoices in PLN as of
+ * this change, checked across `e2e/cypress/e2e/**` and `fixtures/scenarios.ts`), and would be a
+ * no-op besides: `resolve-vat-currency.ts` short-circuits to `null` before calling any rate client
+ * once `invoiceCurrency === rule.nationalCurrency`, which for FR/IT/DE/PT means EUR never reaches the
+ * ECB fake at all.
  */
 
 /** EUR per 1 unit of `currency`, already in the direction `convert.ts#convertMinor` needs, the same
@@ -41,6 +52,7 @@ const FAKE_ECB_EUR_RATES: Readonly<Record<string, number>> = {
  *  is what lets the SAME fake gate exercise Poland's "no NBP rate available" refusal. */
 const FAKE_NBP_PLN_RATES: Readonly<Record<string, number>> = {
   USD: 4.2,
+  EUR: 4.25,
 };
 
 function isoDateMinusOneDay(dateIso: string): string {

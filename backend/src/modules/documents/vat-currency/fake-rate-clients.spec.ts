@@ -13,8 +13,9 @@ describe('fake-rate-clients', () => {
     expect(fakeResolveEcbRateAsOf('JPY', '2026-09-25')).toBeUndefined();
   });
 
-  it('fakeResolveNbpRateBefore: USD resolves to a fixed PLN rate, dated the day before; GBP is deliberately absent (the refusal fixture)', () => {
+  it('fakeResolveNbpRateBefore: USD/EUR resolve to a fixed PLN rate, dated the day before; GBP is deliberately absent (the refusal fixture)', () => {
     expect(fakeResolveNbpRateBefore('USD', '2026-09-25')).toEqual({ rate: 4.2, asOf: '2026-09-24' });
+    expect(fakeResolveNbpRateBefore('EUR', '2026-09-25')).toEqual({ rate: 4.25, asOf: '2026-09-24' });
     expect(fakeResolveNbpRateBefore('GBP', '2026-09-25')).toBeUndefined();
   });
 });
