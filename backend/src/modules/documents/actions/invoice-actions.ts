@@ -225,8 +225,11 @@ function hasValue(value: unknown): boolean {
  * company's own free-choice paths never do, since neither carries a per-invoice format decision of
  * its own the way a B2G rule does.
  */
-interface ResolvedInvoiceTransport {
+export interface ResolvedInvoiceTransport {
   transport: DocumentTransport;
+  /** Issue #499 - the registered id `transport` was resolved from, so a caller refusing it (the credit
+   *  note's "send", for a channel that cannot carry a credit note) can name it. */
+  transportId: string;
   formatOverride?: string;
 }
 
@@ -271,7 +274,11 @@ function resolveB2gInvoiceTransport(
     // "xrechnung" here (the content requirement is real, unaffected by which transport can carry it),
     // but its `transportId` now names a channel this registry does not implement either, so this call
     // throws `UnknownTransportError` below before `formatOverride` is ever consulted.
-    return { transport: transportRegistry.resolve(rule.transportId), formatOverride: rule.formatSyntax };
+    return {
+      transport: transportRegistry.resolve(rule.transportId),
+      transportId: rule.transportId,
+      formatOverride: rule.formatSyntax,
+    };
   } catch (error) {
     if (error instanceof UnknownTransportError) {
       logger.warn('Invoice "send" blocked: B2G channel not implemented in this deployment', {
@@ -341,7 +348,7 @@ function mandateChannelNotReadyMessage(
  * below is never consulted at all for that invoice, precedence documented in full at this file's own
  * B2G section header.
  */
-async function resolveInvoiceTransport(
+export async function resolveInvoiceTransport(
   transportRegistry: TransportRegistry,
   companyId: string,
   issueDate: string | undefined,
@@ -395,7 +402,7 @@ async function resolveInvoiceTransport(
     // No `formatOverride` on this path — neither the seller-country mandate nor the company's own
     // free choice carries a per-invoice format decision the way a B2G rule does (see
     // `ResolvedInvoiceTransport`'s own header).
-    return { transport: transportRegistry.resolve(transportId) };
+    return { transport: transportRegistry.resolve(transportId), transportId };
   } catch (error) {
     if (error instanceof UnknownTransportError) {
       throw new NotImplementedException(
@@ -417,22 +424,16 @@ async function resolveInvoiceTransport(
  * exactly like the "wrong transport entirely" case above, not a bare "not connected" with no country
  * context attached.
  */
-async function runInvoiceSendPreflight(
+export async function runInvoiceSendPreflight(
   transportRegistry: TransportRegistry,
   companyId: string,
   issueDate: string | undefined,
   clientId: string | undefined,
   data: Record<string, unknown> | undefined,
-): Promise<void> {
-  const { transport } = await resolveInvoiceTransport(
-    transportRegistry,
-    companyId,
-    issueDate,
-    clientId,
-    data,
-  );
+): Promise<ResolvedInvoiceTransport> {
+  const resolved = await resolveInvoiceTransport(transportRegistry, companyId, issueDate, clientId, data);
   try {
-    await transport.preflight?.(companyId);
+    await resolved.transport.preflight?.(companyId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
@@ -451,6 +452,7 @@ async function runInvoiceSendPreflight(
     }
     throw error;
   }
+  return resolved;
 }
 
 /**

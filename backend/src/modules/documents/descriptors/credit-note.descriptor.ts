@@ -95,30 +95,24 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * needs at least one line), the country guard (`assertCreditNoteAllowedForCountry`, above), and
  * the currency guard (the currency declared here must equal the `invoice` field's own, once one is
  * set — see that function's own header for the full "why", and this file's own `currency` field for
- * the SCREEN-side half of the same rule, `lockedFromReference`). Plus, for credit matching, "send"
- * (actions/credit-note-actions.ts): a plain STATUS transition that reads and writes NOTHING beyond
- * that status — no transport, no email, no recipient. This is deliberately NOT the quote's
- * `registerEmailSendAction`/`registerEmailRecipientDefaultFromClient` mechanism, and NOT the
- * invoice's own company-configured-transport one either: this type still has no "client" field (see
- * the `invoice` field's own comment above) and still no declared opinion on WHO a credit note goes to
- * or THROUGH WHICH channel — exactly the policy this file's own history already refused to invent for
- * "at minimum save the draft". What changed is narrower than that: a credit note only
- * REDUCES what the invoice it corrects still owes once it is no longer a draft (settlement/credits.ts
- * — a draft is a document the user has not finished, and settles nothing), so SOME way to leave
- * "draft" had to exist for credit matching to mean anything at all. "send" is that minimal mechanism, and
- * nothing more: it does not attempt delivery, and reusing this name (rather than, say, "issue") keeps
- * it the same verb the frontend already renders a button for on every other type (quote, invoice). A
- * FREE credit note settles nothing (settlement/credits.ts only ever resolves credits FOR an invoice —
- * a note with no `invoice` simply never matches one), so "send" for one is nothing more than the
- * status flip itself, with no settlement side effect to speak of either.
+ * the SCREEN-side half of the same rule, `lockedFromReference`). Plus "send"
+ * (actions/credit-note-actions.ts), which ISSUES the credit note. Until issue #499 it was a plain
+ * status transition that delivered nothing and archived nothing; a credit note is an invoice in law
+ * (CGI art. 289, I, 5) that has to reach the client and be kept unaltered, so it now:
+ *  - delivers a LINKED credit note on the channel its corrected invoice's client is reached through
+ *    (the invoice's own transport resolution: B2G routing, channel mandate, the company's choice),
+ *    by email with its PDF attached or in its credit-note e-invoice form (issue #472);
+ *  - archives its own PDF at issuance, whatever the channel, so its download serves the copy issued;
+ *  - issues and archives a FREE credit note without delivering it: this type has no "client" field
+ *    (see the `invoice` field's own comment above), and a note correcting no invoice names nobody
+ *    to send it to. The action's result message says so.
+ * It is still the verb "send" the frontend already renders a button for on every other type. A
+ * credit note only REDUCES what the invoice it corrects still owes once it is no longer a draft
+ * (settlement/credits.ts), which is the other reason "send" has to exist; a FREE credit note settles
+ * nothing (settlement/credits.ts only ever resolves credits FOR an invoice).
  *
- * "send" ALSO goes through the same asynchronous two-phase shape the quote's
- * and the invoice's own do (actions/async-send.ts) — even though this type's own `deliver()`
- * (credit-note-actions.ts) does nothing at all (no transport, no email — see above). This is
- * deliberate, not an oversight: a "send" that is not asynchronous would be a SECOND declared shape for
- * the same action id, and the whole point of `actions/async-send.ts` existing is that every type with
- * a "send" shares ONE mechanism, whatever `deliver()` itself actually does. In practice the "sending"
- * status is near-instantaneous here (there is nothing to await), but it is not skipped.
+ * "send" goes through the same asynchronous two-phase shape the quote's and the invoice's own do
+ * (actions/async-send.ts): ONE mechanism for every type with a "send".
  *
  * Lifecycle: FOUR statuses now — "draft", "sending", "sent", "send_failed" — the same shape
  * quote.descriptor.ts's own lifecycle paragraph documents in full. "save-draft"
@@ -198,15 +192,11 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
     // existed from ever being numbered retroactively - see `numbering.onlyFrom`'s own doc comment
     // (types.ts).
     numbering: { onEnterStatus: 'sending', onlyFrom: ['draft'] },
-    // See types.ts's own comment on `DocumentTypeDescriptor.email` — declared for consistency with
-    // every other shipped type, even though this type's own "send" (see this file's own "Actions"
-    // paragraph above) never actually reads it: it is a plain status transition, not an email
-    // dispatch (unlike the quote's/invoice's own "send"). A future mechanism that DOES deliver a
-    // credit note by mail, or a company that overrides `documentEmailTemplates` ahead of one
-    // existing, gets a sober default rather than a hole. No `{recipientName}` here — this type has no
-    // field targeting the "client" entity (only `invoice`), so that placeholder is deliberately left
-    // out of this type's OWN default (a company override that adds it anyway degrades honestly — see
-    // actions/email-template.ts).
+    // See types.ts's own comment on `DocumentTypeDescriptor.email`. Used since issue #499, when a
+    // linked credit note is delivered through the "email" transport (credit-note-actions.ts). No
+    // `{recipientName}` here: this type has no field targeting the "client" entity (only `invoice`),
+    // so that placeholder is deliberately left out of this type's OWN default (a company override that
+    // adds it anyway degrades honestly, see actions/email-template.ts).
     email: {
       subject: '{typeLabel} {displayNumber} from {companyName}',
       body:
@@ -397,8 +387,8 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         label: 'Send',
         transitions: SEND_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
-        // No params — see this file's own "Actions" paragraph: this is a plain status transition,
-        // not a delivery, so there is no recipient (or anything else) to type in here.
+        // No params, see this file's own "Actions" paragraph: the recipient is never typed in, it is
+        // the corrected invoice's client, reached the way that invoice's own send reaches it.
       },
       {
         id: 'download-xml',

@@ -35,7 +35,12 @@ import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { PdpClient } from './pdp/pdp-client';
-import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
+import {
+  DocumentTransport,
+  DocumentTransportContext,
+  DocumentTransportResult,
+  formatBuildInputOf,
+} from './transport-registry';
 
 export interface PdpTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -97,6 +102,9 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
       await requireConnectedPdp(deps.channelCredentials, companyId);
     },
 
+    // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
+    deliversCreditNotes: true,
+
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result — same reasoning
       // `resolveInvoiceTransport` already documents for its own re-resolution in `deliver()`: the
@@ -104,7 +112,10 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
       // two calls.
       const credentials = await requireConnectedPdp(deps.channelCredentials, ctx.companyId);
 
-      const data = (ctx.document.data ?? {}) as Record<string, unknown>;
+      // Issue #499: built from `ctx.formatSource` when the caller set one (a credit note, built from the
+      // invoice it corrects), from the delivered invoice itself otherwise (`formatBuildInputOf`).
+      const buildInput = formatBuildInputOf(ctx, INVOICE_DESCRIPTOR);
+      const data = (buildInput.document.data ?? {}) as Record<string, unknown>;
       const clientId = typeof data.client === 'string' ? data.client : undefined;
       const [company, client] = await Promise.all([
         prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
@@ -130,11 +141,12 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
       }
 
       const buildResult = await deps.facturxFormatProvider.build(
-        INVOICE_DESCRIPTOR,
-        ctx.document,
+        buildInput.descriptor,
+        buildInput.document,
         companyToFormatParty(company),
         clientToFormatParty(client),
         ctx.companyId,
+        buildInput.options,
       );
       if (!buildResult.validation.valid) {
         // Same gate `documents.service.ts#downloadDocumentFormat` enforces for a manual download —

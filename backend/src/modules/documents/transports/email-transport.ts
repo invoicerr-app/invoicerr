@@ -42,8 +42,12 @@ export interface EmailTransportDeps {
  */
 export function buildEmailTransport(deps: EmailTransportDeps): DocumentTransport {
   return {
+    deliversCreditNotes: true,
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
-      const data = (ctx.document.data ?? {}) as Record<string, unknown>;
+      // Issue #499: a credit note names no client of its own; its buyer is the corrected invoice's,
+      // carried by `ctx.formatSource` (`transport-registry.ts`). The PDF attached is still the
+      // delivered document itself (`ctx.document`), never the invoice-shaped build input.
+      const data = ((ctx.formatSource?.document ?? ctx.document).data ?? {}) as Record<string, unknown>;
       const clientId = typeof data.client === 'string' ? data.client : undefined;
       const client = clientId ? await deps.clientsService.getClientById(ctx.companyId, clientId) : null;
 

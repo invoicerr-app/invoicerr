@@ -562,6 +562,11 @@ function buildActionRegistry(
   });
   registerCreditNoteActions(registry, {
     queueDispatcher,
+    // Issue #499 - see credit-note-actions.ts's own header: a credit note is delivered on the channel
+    // its corrected invoice's client is reached through, and its PDF is archived at issuance.
+    transportRegistry,
+    referenceRegistry,
+    signingCertificates,
     events: eventsPublisher,
     // See credit-note-actions.ts's own header on why this type, deliberately
     // webhook-less before (no per-type `CREDIT_NOTE_SENT` ever existed), gets `DOCUMENT_SENT` for

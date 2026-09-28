@@ -28,8 +28,9 @@ import { issuedStatusesOf } from './archived-pdf-policy';
  * NOT issued, where "Status: draft" warns whoever holds the file that it is not the document the
  * client will receive. A render on demand of an ISSUED document (`issuedStatusesOf`, the same list
  * #490 serves the archive for) prints none either: it only happens when there is no archive to serve
- * (a credit note, whose send delivers nothing and archives nothing, or an invoice whose archiving is
- * still being retried), and it then stands in for the delivered copy, so it must read the same.
+ * (a credit note issued before issue #499, when its send archived nothing, or a document whose
+ * archiving is still being retried), and it then stands in for the delivered copy, so it must read
+ * the same.
  */
 export type RenderPurpose =
   /** The bytes a send delivers and archives, and every legal e-invoice form built from them. */
