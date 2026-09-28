@@ -1,22 +1,38 @@
 "use client"
 
-import { CheckCircle2, Loader2, Radio, XCircle } from "lucide-react"
-import { useState } from "react"
+import { AlertTriangle, CheckCircle2, Info, Radio, Search } from "lucide-react"
+import type { TFunction } from "i18next"
+import { type ReactNode, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useDocumentTransports } from "@/hooks/queries"
-import { useGet, usePut, useDelete } from "@/hooks/use-fetch"
-import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
-import { SettingsListSkeleton, SettingsPage, SettingsRowMenu, SettingsSection } from "./settings-section"
+import {
+  type CredentialFieldDescriptor,
+  type DocumentOperator,
+  type DocumentOperatorOffering,
+  useDocumentOperators,
+  useDocumentTransports,
+} from "@/hooks/queries"
+import { apiFetch } from "@/hooks/use-api-query"
+import { useGet } from "@/hooks/use-fetch"
+import { cn } from "@/lib/utils"
+import { ChannelConnectSheet } from "./channels.connect-sheet"
+import {
+  SettingsList,
+  SettingsListRow,
+  SettingsListSkeleton,
+  SettingsPage,
+  SettingsRowMenu,
+  SettingsSection,
+} from "./settings-section"
 
 type ChannelEnvironment = "TEST" | "PROD"
+type ChannelRequirement = "suggested" | "mandated"
 
 interface ChannelProvenance {
   kind: "legal" | "unverified"
@@ -24,538 +40,177 @@ interface ChannelProvenance {
   sourceText?: string
   sourceCheckedAt?: string
 }
+
 interface ConfiguredChannel {
   providerId: string
   channel: string
   environment: ChannelEnvironment
   isActive: boolean
+  operatorId?: string | null
+  /** Issue #527 - this ACTIVE row would be refused by the send preflight for a domestic operation,
+   *  right now - see `channels.service.ts#ChannelConfigStatus.blockedBySend`'s own backend header. */
+  blockedBySend?: boolean
 }
+
 interface SuggestedChannel {
   providerId: string
-  // A country's own policy on this channel: "suggested" is the original,
-  // non-binding hint; "mandated" (with `mandatedFrom`) means an invoice issued on or after that date
-  // is REFUSED at the backend preflight if sent through anything else (see invoice-actions.ts's own
-  // header). Both fields optional so an older response shape still type-checks — nothing here
-  // assumes every provider entry has been through the new schema.
-  requirement?: "suggested" | "mandated"
+  requirement?: ChannelRequirement
   mandatedFrom?: string
+  effectiveNow?: boolean
+  equivalentProviderIds?: string[]
   provenance: ChannelProvenance
 }
-// A NEW concept, never a transport: a declaration provider (e.g. Portugal's AT "comunicação de
-// faturas") never carries an invoice to its buyer, it requires the SELLER to declare its data to a
-// tax authority AFTER issuance. Kept as its OWN array (`reportingObligations`), never folded into
-// `suggested` above — see `channels.service.ts#reportingObligations`'s own header for why that would
-// misrepresent the fact.
+
 interface ReportingObligation {
   providerId: string
   appliesTo: "invoice" | "credit-note"
   provenance: ChannelProvenance
 }
+
+/** Mirrors the backend's `LegalChannelStatus` (`channels.service.ts`) - see that interface's own
+ *  header for what each field means and how it is computed. This is the settings screen's LEVEL-1
+ *  nav, design C ("legal channel, then operator"). */
+interface LegalChannelStatus {
+  id: string
+  requirement?: ChannelRequirement
+  mandatedFrom?: string
+  effectiveNow?: boolean
+  equivalentProviderIds?: string[]
+  provenance?: ChannelProvenance
+  automatic: boolean
+  lawful: boolean
+  mandatedElsewhere: { countryCode: string; requirement: ChannelRequirement }[]
+}
+
+/** Mirrors the backend's `ChannelPolicyBanner` - design A's obligation banner, folded onto design C. */
+interface ChannelPolicyBanner {
+  countryCode?: string
+  tone: "mandated" | "suggested" | "none"
+  legalChannelId?: string
+  mandatedFrom?: string
+  effectiveNow?: boolean
+  provenance?: ChannelProvenance
+}
+
 interface ChannelsResponse {
   configured: ConfiguredChannel[]
   suggested: SuggestedChannel[]
   reportingObligations: ReportingObligation[]
+  legalChannels: LegalChannelStatus[]
+  banner: ChannelPolicyBanner
 }
 
-/** Friendly display names for known providers — `TransportRegistry.list()`'s own label ("PDP
- *  (France)") is written for the invoice-transport PICKER, not this settings screen; falls back to
- *  the bare id (uppercased) for a provider this screen has no opinion about yet. */
-const PROVIDER_LABELS: Record<string, string> = {
-  pdp: "PDP",
-  iopole: "Iopole",
+/** Display label DEFAULTS for a legal channel id (`documents/operators/schema.ts#OperatorOffering.
+ *  legalChannel`) - every string still goes through `t()` (issue #527's own instruction), this is
+ *  only the English fallback + translation key stem. A channel this map has no opinion about (a
+ *  future legal channel the operator catalogue grows) falls back to its bare, upper-cased id, exactly
+ *  like the old `PROVIDER_LABELS` this replaces. */
+const LEGAL_CHANNEL_LABEL_DEFAULTS: Record<string, string> = {
+  pdp: "Accredited platform (PDP)",
+  sdi: "Sistema di Interscambio (SdI)",
   ksef: "KSeF",
-  sdi: "SdI",
   "chorus-pro": "Chorus Pro",
-  billit: "Billit",
+  peppol: "Peppol",
 }
 
-/** Every provider id this screen renders as a DECLARATION (never a delivery channel) — the visual
- *  distinction, unconditional on the badge (never dependent on
- *  whether `reportingObligations` actually named it for THIS company's country: a company that
- *  already connected one of these before moving its registered country elsewhere still sees it
- *  correctly labeled, never silently relabeled as an ordinary channel). NAV (Hungary) and myDATA
- *  (Greece) used to be the two entries here — both deleted outright along with the rest of their
- *  countries' scope (2026-09-12, see `documentation/docs/developer-guide/live-testing.md`), leaving this set
- *  temporarily empty until a future declaration provider ships. */
-const REPORTING_PROVIDER_IDS = new Set<string>([])
-
-/**
- * One provider's config field — the settings-screen half of what the PDP integration had hard-coded
- * directly into `ChannelRow`'s own JSX. KSeF/SdI generalize it: a THIRD PARTY
- * provider (this screen's `providerIds` already unions `TransportRegistry.list()` with whatever is
- * configured/suggested — see this file's own `ChannelsSettings` header) declares its config shape
- * HERE, once, rather than needing a new branch in the render function the way PDP's own fields used
- * to be. `environment` (TEST/PROD) is NOT one of these — it is already a generic, provider-agnostic
- * concept every `CompanyChannelConfig` row carries (see `channels.service.ts`'s own header), rendered
- * identically for every provider below.
- */
-interface ChannelFieldSpec {
-  /** The key this field is stored under in the encrypted `config` blob — e.g. "clientId". */
-  key: string
-  labelKey: string
-  labelDefault: string
-  type: "text" | "password"
-  placeholder?: string
-  /** Lets a field's own backend credential shape mark itself as genuinely optional (left blank, the
-   *  provider falls back to a fixed default) — `handleConnect`'s own "every field required" check
-   *  below skips any field carrying this flag. No provider currently declares one; kept for the next
-   *  provider whose credential shape needs it. */
-  optional?: boolean
+const DECLARATION_LABEL_DEFAULTS: Record<string, string> = {
+  "pt-at": "Portuguese Tax Authority (AT)",
 }
 
-/** One entry per provider `TransportRegistry` can hand a company — see `ChannelFieldSpec`'s own
- *  header. Adding a FOURTH national channel is exactly one more entry here, never a new branch in
- *  `ChannelRow`'s render below. */
-const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
-  pdp: [
-    {
-      key: "baseUrl",
-      labelKey: "settings.channels.fields.baseUrl",
-      labelDefault: "API base URL",
-      type: "text",
-      placeholder: "https://api.superpdp.tech",
-    },
-    {
-      key: "clientId",
-      labelKey: "settings.channels.fields.clientId",
-      labelDefault: "Client ID",
-      type: "text",
-    },
-    {
-      key: "clientSecret",
-      labelKey: "settings.channels.fields.clientSecret",
-      labelDefault: "Client secret",
-      type: "password",
-    },
-  ],
-  // Iopole (FR). Exactly the three fields `iopole-transport.ts#extractIopoleCredentials` reads, and
-  // no URL field: Iopole's own API and OAuth hosts are a fixed platform fact
-  // (`iopole-transport.ts#IOPOLE_URLS`), picked by the generic environment selector below the way
-  // Chorus Pro's already are, never a user-editable endpoint the way PDP's and SdI's are.
-  // `clientId` IS the account's e-mail address - unusual for OAuth2, verified live on 2026-09-24,
-  // and the placeholder says so, because a user who "corrects" it to a uuid gets an authentication
-  // failure that names nothing. `customerId` is mandatory on every Iopole API call, not just at
-  // authentication, and is NOT the sandbox scope that appears in the token's `scope` claim - the two
-  // look alike. A company reads its own from Iopole's `GET /v1/config/customer/id`.
-  iopole: [
-    {
-      key: "clientId",
-      labelKey: "settings.channels.fields.iopoleClientId",
-      labelDefault: "Client ID (your Iopole account e-mail)",
-      type: "text",
-      placeholder: "you@example.com",
-    },
-    {
-      key: "clientSecret",
-      labelKey: "settings.channels.fields.clientSecret",
-      labelDefault: "Client secret",
-      type: "password",
-    },
-    {
-      key: "customerId",
-      labelKey: "settings.channels.fields.iopoleCustomerId",
-      labelDefault: "Customer ID",
-      type: "text",
-      placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    },
-  ],
-  // KSeF (PL). `nip`/`ksefToken` are the ONLY provider-specific fields
-  // `ksef-transport.ts#extractCredentials` reads; the environment selector below (generic, already
-  // rendered for every provider) is what the transport reads as TEST/PROD.
-  ksef: [
-    {
-      key: "nip",
-      labelKey: "settings.channels.fields.ksefNip",
-      labelDefault: "NIP",
-      type: "text",
-      placeholder: "5260001246",
-    },
-    {
-      key: "ksefToken",
-      labelKey: "settings.channels.fields.ksefToken",
-      labelDefault: "KSeF token",
-      type: "password",
-    },
-  ],
-  // SdI (IT) — now "implemented-awaiting-accreditation" (a real SdICoop SOAP client
-  // exists, `transports/sdi/sdicoop-client.ts` — see that file's own header). Exactly the four fields
-  // `sdi-transport.ts#extractCredentials` reads: idTrasmittente/certificate/`endpoint` are required to
-  // be "connected"; certificatePassword is read through when present without being required (a real
-  // PFX legitimately can carry an empty one — see that file's own header). `endpoint` is the
-  // SdIRiceviFile HTTPS URL AdE's own Sistema di Accreditamento hands the accredited intermediary —
-  // never a fixed constant this screen could default to (see `sdicoop-client.ts`'s own header on why).
-  sdi: [
-    {
-      key: "idTrasmittente",
-      labelKey: "settings.channels.fields.sdiIdTrasmittente",
-      labelDefault: "IdTrasmittente",
-      type: "text",
-      placeholder: "IT01234567890",
-    },
-    {
-      key: "endpoint",
-      labelKey: "settings.channels.fields.sdiEndpoint",
-      labelDefault: "SdIRiceviFile endpoint URL",
-      type: "text",
-      placeholder: "https://sdi.example.it/ricevi_file",
-    },
-    {
-      key: "certificate",
-      labelKey: "settings.channels.fields.sdiCertificate",
-      labelDefault: "PFX certificate (base64)",
-      type: "password",
-    },
-    {
-      key: "certificatePassword",
-      labelKey: "settings.channels.fields.sdiCertificatePassword",
-      labelDefault: "Certificate password",
-      type: "password",
-    },
-  ],
-  // Chorus Pro (FR, B2G) — makes the channel the B2G FR routing rule (`b2g-routing/data/fr.json`)
-  // has named since 3cb39f91 actually connectable. Exactly the four fields
-  // `chorus-pro-transport.ts#extractChorusProCredentials` reads: TWO independent credential layers
-  // (see documentation/docs/developer-guide/credentials-guide.md, PISTE section) — a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
-  // Chorus Pro "compte technique" (`technicalAccountLogin`/`technicalAccountPassword`), both required
-  // to be "connected". The environment selector below (generic, already rendered for every provider)
-  // picks sandbox vs prod — `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS` targets the PISTE
-  // sandbox independently verified reachable (TEST) or the production PISTE host (PROD);
-  // there is no separate URL field here, unlike PDP/SdI, since Chorus Pro's own OAuth/API hosts are a
-  // fixed platform fact, never a user-editable endpoint.
-  "chorus-pro": [
-    {
-      key: "clientId",
-      labelKey: "settings.channels.fields.chorusProClientId",
-      labelDefault: "PISTE client ID",
-      type: "text",
-      placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    },
-    {
-      key: "clientSecret",
-      labelKey: "settings.channels.fields.chorusProClientSecret",
-      labelDefault: "PISTE client secret",
-      type: "password",
-    },
-    {
-      key: "technicalAccountLogin",
-      labelKey: "settings.channels.fields.chorusProTechnicalAccountLogin",
-      labelDefault: "Chorus Pro technical account login (compte technique)",
-      type: "text",
-      placeholder: "TECH_1_xxxxxx@cpro.fr",
-    },
-    {
-      key: "technicalAccountPassword",
-      labelKey: "settings.channels.fields.chorusProTechnicalAccountPassword",
-      labelDefault: "Chorus Pro technical account password",
-      type: "password",
-    },
-  ],
-  // Billit (BE, and a Peppol access point for everyone else). Exactly the three fields
-  // `billit-transport.ts#extractBillitCredentials` reads. `partyId` has NO default on purpose: Billit's
-  // PartyID differs between sandbox and production, and an account covering several companies has one
-  // PartyID per company while the SAME key covers them all - so it is per-company configuration, never
-  // a constant. `baseUrl` is a field for the same reason PDP has one: sandbox and production are
-  // different hosts, and the environment selector below only tells the BACKEND which row this is, it
-  // cannot invent a hostname.
-  billit: [
-    {
-      key: "baseUrl",
-      labelKey: "settings.channels.fields.baseUrl",
-      labelDefault: "API base URL",
-      type: "text",
-      placeholder: "https://api.sandbox.billit.be/v1",
-    },
-    {
-      key: "apiKey",
-      labelKey: "settings.channels.fields.billitApiKey",
-      labelDefault: "API key",
-      type: "password",
-    },
-    {
-      key: "partyId",
-      labelKey: "settings.channels.fields.billitPartyId",
-      labelDefault: "PartyID",
-      type: "text",
-      placeholder: "1163540",
-    },
-  ],
-  // ANAF (RO), FACe (ES), NAV (HU) and myDATA (GR) used to have their field specs here. All four
-  // channels/providers were deleted outright from the backend along with the rest of their
-  // countries' scope (2026-09-12, see `documentation/docs/developer-guide/live-testing.md`) — none of RO/ES/HU/GR is
-  // in this product's scope any more, so offering a configuration form for them here would be
-  // pure fiction: nothing on the backend would ever route through what a user typed in. A company
-  // that connected one of these before the deletion still sees its row (via `configuredMap` in
-  // `ChannelsSettings` below) so it can be disconnected cleanly — see `fields.length === 0`'s own
-  // "no configurable fields yet" fallback just below.
+function legalChannelLabel(t: TFunction, id: string): string {
+  return t(`settings.channels.legal.${id}.label`, LEGAL_CHANNEL_LABEL_DEFAULTS[id] ?? id.toUpperCase())
 }
 
-/**
- * One channel's connect/disconnect card, now GENERIC by provider (PDP's own three fields used to be
- * hard-coded directly here; KSeF and SdI needed a second and third shape,
- * so the field LIST moved to `PROVIDER_FIELDS` above and this component only ever renders
- * whatever that list declares — no branch on `providerId` anywhere in this function). `GET/PUT/DELETE
- * /api/company/channels/:providerId` (`modules/company/channels/`): the PUT body is encrypted at rest
- * server-side and NEVER echoed back — see `channels.service.ts`'s own header — so this component
- * never has a decrypted secret to pre-fill an edit form with; "Edit" always starts blank.
- */
-function ChannelRow({
-  providerId,
-  configured,
-  suggested,
-  reportingObligation,
-  onChanged,
-}: {
-  providerId: string
-  configured?: ConfiguredChannel
-  suggested?: SuggestedChannel
-  reportingObligation?: ReportingObligation
-  onChanged: () => void
-}) {
-  const { t } = useTranslation()
-  const fields = PROVIDER_FIELDS[providerId] ?? []
-  const [config, setConfig] = useState<Record<string, string>>(() =>
-    Object.fromEntries(fields.map((f) => [f.key, ""])),
-  )
-  const [environment, setEnvironment] = useState<ChannelEnvironment>("TEST")
-  const [editing, setEditing] = useState(!configured?.isActive)
-
-  const isConnected = !!configured?.isActive
-  const isReporting = REPORTING_PROVIDER_IDS.has(providerId)
-
-  const { trigger: upsert, loading: connecting } = useMutationWithToast(
-    usePut(`/api/company/channels/${providerId}`),
-    t("settings.channels.messages.connectError", "Failed to connect the channel"),
-  )
-  const { trigger: disconnectChannel, loading: disconnecting } = useMutationWithToast(
-    useDelete(`/api/company/channels/${providerId}`),
-    t("settings.channels.messages.disconnectError", "Failed to disconnect the channel"),
-  )
-
-  const handleConnect = async () => {
-    const missing = fields.filter((f) => !f.optional && !config[f.key]?.trim())
-    if (missing.length > 0) {
-      toast.error(
-        t("settings.channels.messages.fieldsRequired", "{{fields}} are all required", {
-          fields: fields.map((f) => t(f.labelKey, f.labelDefault)).join(", "),
-        }),
-      )
-      return
-    }
-    const result = await upsert({ environment, config })
-    if (!result) return // error already toasted by the wrapper
-    toast.success(t("settings.channels.messages.connectSuccess", "Channel connected"))
-    setConfig(Object.fromEntries(fields.map((f) => [f.key, ""])))
-    setEditing(false)
-    onChanged()
+/** A human-readable country name from an ISO 3166-1 alpha-2 code, in the reader's own language -
+ *  same `Intl.DisplayNames` convention `lib/apply-address-suggestion.ts` already uses; never a legal
+ *  fact, purely a display nicety over a code the backend already resolved. */
+function countryName(language: string, code?: string): string {
+  if (!code) return ""
+  try {
+    return new Intl.DisplayNames([language, "en"], { type: "region" }).of(code) ?? code
+  } catch {
+    return code
   }
+}
 
-  const handleDisconnect = async () => {
-    const result = await disconnectChannel()
-    if (!result) return // error already toasted by the wrapper
-    toast.success(t("settings.channels.messages.disconnectSuccess", "Channel disconnected"))
-    setEditing(true)
-    onChanged()
-  }
-
-  const label = PROVIDER_LABELS[providerId] ?? providerId.toUpperCase()
-  // The chip states requirement #3 asks for: `success` once actually connected, `warning` when this
-  // company's own country wants the channel (suggested or mandated) but it isn't connected yet, and
-  // `secondary` (muted) when the channel is merely AVAILABLE — no country-specific reason to bother.
-  const statusVariant = isConnected ? "success" : suggested ? "warning" : "secondary"
-
-  return (
-    <SettingsSection
-      dataCy={`channel-${providerId}`}
-      title={
-        <>
-          {isConnected ? (
-            <CheckCircle2 className="size-4 shrink-0 text-success-foreground" aria-hidden="true" />
-          ) : (
-            <XCircle className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          )}
-          {label}
-          <Badge variant={statusVariant} data-cy={`channel-${providerId}-status`}>
-            {isConnected
-              ? t("settings.channels.status.connected", "Connected ({{environment}})", {
-                  environment: configured?.environment,
-                })
-              : t("settings.channels.status.notConnected", "Not connected")}
-          </Badge>
-          {/* The concept-distinguishing badge: NEVER a delivery channel, whatever its own
-              connected/not-connected status reads above. Shown unconditionally for a provider this
-              screen classifies as declarative (`REPORTING_PROVIDER_IDS`), independent of
-              `reportingObligations` (a company that already connected one before moving its own
-              registered country elsewhere still sees it correctly labeled). */}
-          {isReporting && (
-            <Badge variant="outline" data-cy={`channel-${providerId}-declarative`}>
-              {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
-            </Badge>
-          )}
-          {suggested && (
-            <Badge variant="outline" data-cy={`channel-${providerId}-suggested`}>
-              {t("settings.channels.status.suggested", "Suggested for your country")}
-            </Badge>
-          )}
-          {/* A STRONGER, visually distinct badge for a channel the country MANDATES, never replacing
-              the "suggested" badge above (a mandate is a strengthened suggestion, not a contradiction
-              of it — see this file's own header on `requirement`). Shown unconditionally whenever the
-              file declares `mandated`, regardless of whether `mandatedFrom` has actually been reached
-              yet — the date itself is spelled out in the badge text so nothing here depends on today's
-              wall-clock date to be TRUTHFUL. */}
-          {suggested?.requirement === "mandated" && (
-            <Badge variant="destructive" data-cy={`channel-${providerId}-mandated`}>
-              {t("settings.channels.status.mandated", "Mandatory from {{date}}", {
-                date: suggested.mandatedFrom,
-              })}
-            </Badge>
-          )}
-        </>
-      }
-      description={
-        (suggested &&
-          (suggested.provenance.kind === "unverified"
-            ? suggested.provenance.resolutionNote
-            : suggested.provenance.sourceText)) ||
-        (reportingObligation &&
-          (reportingObligation.provenance.kind === "unverified"
-            ? reportingObligation.provenance.resolutionNote
-            : reportingObligation.provenance.sourceText))
-      }
-      aside={
-        isConnected && !editing ? (
-          <SettingsRowMenu
-            dataCy={`channel-${providerId}-menu`}
-            items={[
-              {
-                label: t("settings.channels.actions.edit", "Edit"),
-                onSelect: () => setEditing(true),
-                dataCy: `channel-${providerId}-edit-button`,
-              },
-              {
-                label: t("settings.channels.actions.disconnect", "Disconnect"),
-                onSelect: handleDisconnect,
-                disabled: disconnecting,
-                destructive: true,
-                dataCy: `channel-${providerId}-disconnect-button`,
-              },
-            ]}
-          />
-        ) : undefined
-      }
-      footer={
-        editing ? (
-          <div className="flex justify-end gap-2">
-            {isConnected && (
-              <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
-                {t("settings.channels.actions.cancel", "Cancel")}
-              </Button>
-            )}
-            <Button
-              size="sm"
-              onClick={handleConnect}
-              disabled={connecting || fields.length === 0}
-              data-cy={`channel-${providerId}-connect-button`}
-            >
-              {connecting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                t("settings.channels.actions.connect", "Connect")
-              )}
-            </Button>
-          </div>
-        ) : undefined
-      }
-    >
-      {editing &&
-        (fields.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {t("settings.channels.messages.noFields", "This channel has no configurable fields yet.")}
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor={`${providerId}-environment`}>
-                {t("settings.channels.fields.environment", "Environment")}
-              </Label>
-              <Select value={environment} onValueChange={(v) => setEnvironment(v as ChannelEnvironment)}>
-                <SelectTrigger
-                  id={`${providerId}-environment`}
-                  className="w-full"
-                  data-cy={`channel-${providerId}-environment-select`}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent data-cy={`channel-${providerId}-environment-options`}>
-                  <SelectItem value="TEST" data-cy={`channel-${providerId}-environment-option-test`}>
-                    {t("settings.channels.fields.environmentTest", "Test (sandbox)")}
-                  </SelectItem>
-                  <SelectItem value="PROD" data-cy={`channel-${providerId}-environment-option-prod`}>
-                    {t("settings.channels.fields.environmentProd", "Production")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {fields.map((field) => (
-              <div className="space-y-1.5" key={field.key}>
-                <Label htmlFor={`${providerId}-${field.key}`}>{t(field.labelKey, field.labelDefault)}</Label>
-                <Input
-                  id={`${providerId}-${field.key}`}
-                  data-cy={`channel-${providerId}-${field.key.toLowerCase()}-input`}
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  value={config[field.key] ?? ""}
-                  onChange={(e) => setConfig((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                />
-              </div>
-            ))}
-          </div>
-        ))}
-    </SettingsSection>
-  )
+/** One (operator, offering) pair for a given legal channel - the level-2 row. */
+interface OperatorChannelRow {
+  operator: DocumentOperator
+  offering: DocumentOperatorOffering
 }
 
 /**
- * Company settings → Channels (`/settings/channels`) — connect/disconnect a
- * national transmission channel. `GET /api/company/channels` returns both what is already
- * `configured` (status only, never a secret — see `channels.service.ts`'s own header) and what this
- * company's OWN country `suggested` (advisory — the data comes
- * from `transports/channel-suggestion/data/*.json`, never a hard-coded country check here — a PL
- * company sees KSeF suggested, an IT company sees SdI, a FR company sees PDP, all from the same three
- * lines of JSON).
+ * Company settings → Channels (`/settings/channels`) - design C ("legal channel, then operator"),
+ * with design A's obligation banner on top (issue #527). Two levels: LEVEL 1 is the small, closed set
+ * of legal channels (`legalChannels`, computed server-side); LEVEL 2 is the operators implementing the
+ * selected one (`GET /api/documents/operators`, issue #526's own catalogue). Every lawfulness verdict
+ * - is this channel this company's own, is a connected one now refused - comes from the backend
+ * (`GET /api/company/channels`'s own `legalChannels`/`banner`/`blockedBySend`), never recomputed here.
  *
- * The provider list itself is the union of every registered TRANSPORT (`GET /api/documents/
- * transports`, excluding "email" — a plain address, not a channel needing credentials) with whatever
- * is already configured or suggested: a provider a company already connected keeps showing even if
- * it were ever deregistered, and a suggested-but-not-yet-registered provider (unreachable today)
- * would still be visible rather than silently dropped.
- *
- * Once connected, the provider becomes a normal option in the EXISTING invoice-transport picker
- * (`company.settings.tsx`'s own `invoiceTransportId` select, "company-invoice-transport-select") —
- * nothing here writes to that column: a company picks its transport there exactly as it always did,
- * this screen only ever decides whether that transport can actually deliver anything.
+ * `PROVIDER_FIELDS` (the old hard-coded per-provider credential-field map) is GONE: the connect side
+ * sheet (`channels.connect-sheet.tsx`) is built entirely from `GET /api/documents/transports`'s own
+ * `credentialFields` (issue #526).
  */
 export default function ChannelsSettings() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const {
     data: channels,
     loading: channelsLoading,
     mutate,
   } = useGet<ChannelsResponse>("/api/company/channels")
   const { data: transports, isLoading: transportsLoading } = useDocumentTransports()
+  const { data: operators, isLoading: operatorsLoading } = useDocumentOperators()
 
-  // `ChannelRow` below freezes its own `editing` state from `configured?.isActive` at MOUNT time
-  // (`useState(!configured?.isActive)`, never revisited except on an explicit connect/disconnect) —
-  // correct once `channels` has actually loaded, wrong for good if this component (and so
-  // `ChannelRow`) first mounts with `channels` still `undefined` (`configuredMap` then empty,
-  // `configured` `undefined`, `editing` locked to `true`). `transports` and `channels` are two
-  // INDEPENDENT queries; `providerIds` used to be built the moment EITHER resolved, so whichever
-  // settled first decided every row's fate. Proven live (CI run 35095971350, spec 31's own "disconnects
-  // the chorus-pro channel via the screen": the status badge correctly read "Connected" — that text is
-  // recomputed every render, never frozen — but `[data-cy="channel-chorus-pro-menu"]` never existed,
-  // because `editing` had locked `true` on a first paint that raced ahead of `channels`). Gating the
-  // whole list on BOTH queries having resolved is what removes the race, rather than special-casing
-  // `ChannelRow`'s own initializer.
-  if (channelsLoading || transportsLoading) {
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [sheetProviderId, setSheetProviderId] = useState<string | null>(null)
+
+  const legalChannels = channels?.legalChannels ?? []
+  const configured = channels?.configured ?? []
+  const reportingObligations = channels?.reportingObligations ?? []
+  const banner = channels?.banner
+
+  const transportById = useMemo(
+    () => new Map((transports ?? []).map((tr) => [tr.id, tr] as const)),
+    [transports],
+  )
+  const configuredByProvider = useMemo(
+    () => new Map(configured.map((c) => [c.providerId, c] as const)),
+    [configured],
+  )
+
+  // Level-2 data: every (operator, offering) pair with a genuine DELIVERY capability, grouped by
+  // legal channel - the same `capabilities.emit` filter the backend's own `legalChannels()` uses to
+  // discover the level-1 set (see that method's own header), applied here client-side over the SAME
+  // reference-data response so switching the level-1 tab needs no extra request.
+  const rowsByChannel = useMemo(() => {
+    const map = new Map<string, OperatorChannelRow[]>()
+    for (const operator of operators ?? []) {
+      for (const offering of operator.offerings) {
+        if (!offering.capabilities.emit) continue
+        const list = map.get(offering.legalChannel) ?? []
+        list.push({ operator, offering })
+        map.set(offering.legalChannel, list)
+      }
+    }
+    return map
+  }, [operators])
+
+  // Which legal channel a CONNECTED provider id belongs to - lets a channel that is not the
+  // company's own still show "you have A-Cube connected here, and it is refused" (state 4 of #527).
+  const legalChannelByTransportId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const [legalChannel, rows] of rowsByChannel) {
+      for (const row of rows) {
+        if (row.offering.transportId) map.set(row.offering.transportId, legalChannel)
+      }
+    }
+    return map
+  }, [rowsByChannel])
+
+  const loading = channelsLoading || transportsLoading || operatorsLoading
+
+  if (loading) {
     return (
       <SettingsPage
         title={t("settings.channels.title", "Channels")}
@@ -565,29 +220,58 @@ export default function ChannelsSettings() {
         )}
         dataCy="channels-section"
       >
-        <SettingsListSkeleton rows={2} />
+        <SettingsListSkeleton rows={3} />
       </SettingsPage>
     )
   }
 
-  const knownProviderIds = (transports ?? []).map((tr) => tr.id).filter((id) => id !== "email")
-  const configuredMap = new Map((channels?.configured ?? []).map((c) => [c.providerId, c] as const))
-  const suggestedMap = new Map((channels?.suggested ?? []).map((s) => [s.providerId, s] as const))
-  // A reporting provider is offered ONLY when this company's own country
-  // actually carries the obligation (unlike `knownProviderIds` above, listed for every company
-  // regardless of country): unlike a delivery channel, connecting one for a country with no such
-  // obligation would be pure noise, never a genuine option. `configuredMap` still keeps a PREVIOUSLY
-  // connected one visible even if the company's registered country later changed.
-  // One row per provider, described by its FIRST fact: a provider can carry one fact per document
-  // type (Portugal's pt-at declares the invoice and, since issue #501, the credit note), and the
-  // first one, the invoice's, is the one this row has always shown.
-  const reportingMap = new Map<string, ReportingObligation>()
-  for (const obligation of channels?.reportingObligations ?? []) {
-    if (!reportingMap.has(obligation.providerId)) reportingMap.set(obligation.providerId, obligation)
-  }
-  const providerIds = Array.from(
-    new Set([...knownProviderIds, ...configuredMap.keys(), ...suggestedMap.keys(), ...reportingMap.keys()]),
+  // Default selection: this company's own lawful channel first (design C's "no channel chosen: the
+  // country's legal channel is preselected and open"), falling back to the first channel of the
+  // closed set for a country with no channel of its own (DE/PT) - never an empty screen.
+  const defaultChannelId = legalChannels.find((c) => c.lawful)?.id ?? legalChannels[0]?.id ?? null
+  const activeChannelId = selectedChannelId ?? defaultChannelId
+  const activeChannel = legalChannels.find((c) => c.id === activeChannelId) ?? null
+
+  const activeRows = activeChannelId ? (rowsByChannel.get(activeChannelId) ?? []) : []
+  // The connected operator(s) surface first - design C's own "the connected operator is first in its
+  // list".
+  const sortedRows = [...activeRows].sort((a, b) => {
+    const aConnected = a.offering.transportId
+      ? configuredByProvider.get(a.offering.transportId)?.isActive
+      : false
+    const bConnected = b.offering.transportId
+      ? configuredByProvider.get(b.offering.transportId)?.isActive
+      : false
+    if (aConnected === bConnected) return 0
+    return aConnected ? -1 : 1
+  })
+  const filteredRows = search.trim()
+    ? sortedRows.filter((row) => row.operator.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : sortedRows
+
+  // State 4 - a previously configured channel the send preflight now refuses: ANY active,
+  // blocked-by-send row whose provider belongs to the channel currently being viewed.
+  const blockedRow = configured.find(
+    (c) => c.isActive && c.blockedBySend && legalChannelByTransportId.get(c.providerId) === activeChannelId,
   )
+  const blockedOperator = blockedRow
+    ? sortedRows.find((row) => row.offering.transportId === blockedRow.providerId)?.operator
+    : undefined
+
+  // A plain async function, never a hook - the providerId being disconnected varies per row/action
+  // (the blocked-channel alert, or any operator row's own "Disconnect" menu item), so this cannot be
+  // a `useDelete("/api/company/channels/<fixed-id>")` call bound once at the top of this component
+  // (that would violate the rules of hooks the moment the target id differs between call sites).
+  const handleDisconnect = async (providerId: string) => {
+    try {
+      await apiFetch(`/api/company/channels/${providerId}`, { method: "DELETE" })
+    } catch {
+      toast.error(t("settings.channels.messages.disconnectError", "Failed to disconnect the channel"))
+      return
+    }
+    toast.success(t("settings.channels.messages.disconnectSuccess", "Channel disconnected"))
+    mutate()
+  }
 
   return (
     <SettingsPage
@@ -598,23 +282,534 @@ export default function ChannelsSettings() {
       )}
       dataCy="channels-section"
     >
-      {providerIds.map((id) => (
-        <ChannelRow
-          key={id}
-          providerId={id}
-          configured={configuredMap.get(id)}
-          suggested={suggestedMap.get(id)}
-          reportingObligation={reportingMap.get(id)}
-          onChanged={mutate}
-        />
-      ))}
+      <ChannelBanner banner={banner} t={t} language={i18n.language} />
 
-      {providerIds.length === 0 && (
+      {legalChannels.length === 0 ? (
         <EmptyState
           icon={Radio}
           title={t("settings.channels.emptyState", "No national channel available yet")}
         />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
+          <nav
+            role="tablist"
+            aria-label={t("settings.channels.legal.navLabel", "Legal channels")}
+            className="flex flex-col gap-2"
+            data-cy="channels-legal-nav"
+          >
+            {legalChannels.map((channel) => {
+              const isSelected = channel.id === activeChannelId
+              const hasConnected = [...configuredByProvider.values()].some(
+                (c) =>
+                  c.isActive &&
+                  legalChannelByTransportId.get(c.providerId) === channel.id &&
+                  !c.blockedBySend,
+              )
+              const hasBlocked = [...configuredByProvider.values()].some(
+                (c) =>
+                  c.isActive && c.blockedBySend && legalChannelByTransportId.get(c.providerId) === channel.id,
+              )
+              return (
+                <button
+                  key={channel.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  data-cy={`channel-nav-${channel.id}`}
+                  onClick={() => setSelectedChannelId(channel.id)}
+                  className={cn(
+                    "flex flex-col gap-1 rounded-lg border bg-card p-3 text-left transition-colors",
+                    isSelected ? "border-primary bg-accent text-accent-foreground" : "hover:bg-muted/50",
+                  )}
+                >
+                  <span className="flex items-center justify-between gap-2 font-heading text-sm font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      {hasConnected && (
+                        <CheckCircle2
+                          className="size-3.5 shrink-0 text-success-foreground"
+                          aria-hidden="true"
+                          data-cy={`channel-nav-${channel.id}-connected-mark`}
+                        />
+                      )}
+                      {legalChannelLabel(t, channel.id)}
+                    </span>
+                  </span>
+                  <ChannelNavBadge channel={channel} hasBlocked={hasBlocked} t={t} />
+                </button>
+              )
+            })}
+          </nav>
+
+          {activeChannel && (
+            <ChannelDetail
+              channel={activeChannel}
+              rows={filteredRows}
+              search={search}
+              onSearchChange={setSearch}
+              configuredByProvider={configuredByProvider}
+              transportById={transportById}
+              blockedRow={blockedRow}
+              blockedOperatorName={blockedOperator?.name}
+              onDisconnect={handleDisconnect}
+              onConnect={(providerId) => setSheetProviderId(providerId)}
+              t={t}
+              language={i18n.language}
+            />
+          )}
+        </div>
       )}
+
+      {reportingObligations.length > 0 && <DeclarationsSection obligations={reportingObligations} t={t} />}
+
+      {sheetProviderId &&
+        (() => {
+          const row = activeRows.find((r) => r.offering.transportId === sheetProviderId)
+          const transport = transportById.get(sheetProviderId)
+          const fields: CredentialFieldDescriptor[] = transport?.credentialFields ?? []
+          const existing = configuredByProvider.get(sheetProviderId)
+          return (
+            <ChannelConnectSheet
+              key={sheetProviderId}
+              open
+              onOpenChange={(open) => {
+                if (!open) setSheetProviderId(null)
+              }}
+              providerId={sheetProviderId}
+              title={t("settings.channels.sheet.title", "Connect {{operator}}", {
+                operator: row?.operator.name ?? sheetProviderId,
+              })}
+              description={
+                activeChannel
+                  ? t("settings.channels.sheet.description", "Legal channel: {{channel}}", {
+                      channel: legalChannelLabel(t, activeChannel.id),
+                    })
+                  : undefined
+              }
+              credentialFields={fields}
+              defaultEnvironment={existing?.environment}
+              onConnected={() => {
+                setSheetProviderId(null)
+                mutate()
+              }}
+            />
+          )
+        })()}
     </SettingsPage>
+  )
+}
+
+function ChannelNavBadge({
+  channel,
+  hasBlocked,
+  t,
+}: {
+  channel: LegalChannelStatus
+  hasBlocked: boolean
+  t: TFunction
+}) {
+  if (hasBlocked) {
+    return (
+      <Badge variant="destructive" data-cy={`channel-nav-${channel.id}-badge`}>
+        {t("settings.channels.legal.badge.blocked", "No longer accepted")}
+      </Badge>
+    )
+  }
+  if (channel.requirement === "mandated") {
+    return (
+      <Badge variant="destructive" data-cy={`channel-nav-${channel.id}-badge`}>
+        {t("settings.channels.legal.badge.mandated", "Mandatory from {{date}}", {
+          date: channel.mandatedFrom,
+        })}
+      </Badge>
+    )
+  }
+  if (channel.requirement === "suggested") {
+    return (
+      <Badge variant="warning" data-cy={`channel-nav-${channel.id}-badge`}>
+        {t("settings.channels.legal.badge.suggested", "Recommended for your country")}
+      </Badge>
+    )
+  }
+  if (channel.automatic) {
+    return (
+      <Badge variant="info" data-cy={`channel-nav-${channel.id}-badge`}>
+        {t("settings.channels.legal.badge.automatic", "Automatic")}
+      </Badge>
+    )
+  }
+  if (!channel.lawful) {
+    return (
+      <Badge variant="outline" data-cy={`channel-nav-${channel.id}-badge`}>
+        {t("settings.channels.legal.badge.outside", "Outside your invoicing country")}
+      </Badge>
+    )
+  }
+  return null
+}
+
+function ChannelBanner({
+  banner,
+  t,
+  language,
+}: {
+  banner?: ChannelPolicyBanner
+  t: TFunction
+  language: string
+}) {
+  if (!banner) return null
+  const country = countryName(language, banner.countryCode)
+
+  if (banner.tone === "mandated") {
+    return (
+      <Alert variant="destructive" data-cy="channels-banner">
+        <AlertTriangle aria-hidden="true" />
+        <AlertTitle>
+          {t(
+            "settings.channels.banner.mandatedTitle",
+            "Your invoices from {{country}} must go through {{channel}}",
+            {
+              country,
+              channel: legalChannelLabel(t, banner.legalChannelId ?? ""),
+            },
+          )}
+        </AlertTitle>
+        <AlertDescription>
+          {t("settings.channels.banner.mandatedBody", "Mandatory since {{date}}. {{source}}", {
+            date: banner.mandatedFrom,
+            source:
+              banner.provenance?.kind === "legal"
+                ? banner.provenance.sourceText
+                : (banner.provenance?.resolutionNote ?? ""),
+          })}
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (banner.tone === "suggested") {
+    return (
+      <Alert data-cy="channels-banner">
+        <Info aria-hidden="true" />
+        <AlertTitle>
+          {t("settings.channels.banner.suggestedTitle", "{{country}} recommends {{channel}}", {
+            country,
+            channel: legalChannelLabel(t, banner.legalChannelId ?? ""),
+          })}
+        </AlertTitle>
+        <AlertDescription>
+          {t(
+            "settings.channels.banner.suggestedBody",
+            "Not yet a legal obligation for your country - connecting it is optional.",
+          )}
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  return (
+    <Alert data-cy="channels-banner">
+      <Info aria-hidden="true" />
+      <AlertTitle>
+        {t("settings.channels.banner.noneTitle", "No transmission channel is imposed on {{country}}", {
+          country,
+        })}
+      </AlertTitle>
+      <AlertDescription>
+        {t(
+          "settings.channels.banner.noneBody",
+          "Any lawful transport, including email, may be used to send your invoices.",
+        )}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+function DeclarationsSection({ obligations, t }: { obligations: ReportingObligation[]; t: TFunction }) {
+  const byProvider = new Map<string, ReportingObligation>()
+  for (const obligation of obligations) {
+    if (!byProvider.has(obligation.providerId)) byProvider.set(obligation.providerId, obligation)
+  }
+  return (
+    <SettingsSection
+      title={t("settings.channels.declarations.title", "Declarations")}
+      description={t(
+        "settings.channels.declarations.description",
+        "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate, post-issuance duty to declare invoice data to a tax authority.",
+      )}
+      dataCy="channels-declarations"
+    >
+      <SettingsList>
+        {[...byProvider.values()].map((obligation) => (
+          <SettingsListRow
+            key={obligation.providerId}
+            dataCy={`declaration-${obligation.providerId}`}
+            badge={
+              <Badge variant="outline">
+                {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
+              </Badge>
+            }
+            title={t(
+              `settings.channels.declarations.${obligation.providerId}.label`,
+              DECLARATION_LABEL_DEFAULTS[obligation.providerId] ?? obligation.providerId.toUpperCase(),
+            )}
+            meta={
+              obligation.provenance.kind === "legal"
+                ? obligation.provenance.sourceText
+                : obligation.provenance.resolutionNote
+            }
+          />
+        ))}
+      </SettingsList>
+    </SettingsSection>
+  )
+}
+
+function ChannelDetail({
+  channel,
+  rows,
+  search,
+  onSearchChange,
+  configuredByProvider,
+  transportById,
+  blockedRow,
+  blockedOperatorName,
+  onDisconnect,
+  onConnect,
+  t,
+  language,
+}: {
+  channel: LegalChannelStatus
+  rows: OperatorChannelRow[]
+  search: string
+  onSearchChange: (value: string) => void
+  configuredByProvider: Map<string, ConfiguredChannel>
+  transportById: Map<string, { credentialFields: CredentialFieldDescriptor[] }>
+  blockedRow?: ConfiguredChannel
+  blockedOperatorName?: string
+  onDisconnect: (providerId: string) => void
+  onConnect: (providerId: string) => void
+  t: TFunction
+  language: string
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <SettingsSection
+        title={legalChannelLabel(t, channel.id)}
+        aside={<ChannelNavBadge channel={channel} hasBlocked={!!blockedRow} t={t} />}
+        dataCy={`channel-detail-${channel.id}`}
+      >
+        {!channel.lawful && (
+          <Alert data-cy={`channel-detail-${channel.id}-outside`}>
+            <Info aria-hidden="true" />
+            <AlertTitle>{t("settings.channels.outside.title", "Outside your invoicing country")}</AlertTitle>
+            <AlertDescription className="gap-2">
+              <p>
+                {channel.mandatedElsewhere.length > 0
+                  ? t(
+                      "settings.channels.outside.elsewhere",
+                      "This channel is required or recommended in {{countries}}, not in your own invoicing country.",
+                      {
+                        countries: channel.mandatedElsewhere
+                          .map((m) => countryName(language, m.countryCode))
+                          .join(", "),
+                      },
+                    )
+                  : t(
+                      "settings.channels.outside.generic",
+                      "This channel is not part of your own invoicing country's rules.",
+                    )}
+              </p>
+              <p>
+                {t(
+                  "settings.channels.outside.body",
+                  "A national e-invoicing mandate binds domestic operations only. When you invoice a foreign buyer, the invoice may travel by any channel you and the buyer agree on (email, PDF, Peppol...) - what changes is which authority you must report the transaction to under your own country's rules, never a foreign platform.",
+                )}
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+      </SettingsSection>
+
+      {blockedRow && (
+        <Alert variant="destructive" data-cy={`channel-detail-${channel.id}-blocked`}>
+          <AlertTriangle aria-hidden="true" />
+          <AlertTitle>
+            {t("settings.channels.blocked.title", "{{operator}} no longer sends anything", {
+              operator: blockedOperatorName ?? blockedRow.providerId,
+            })}
+          </AlertTitle>
+          <AlertDescription className="gap-2">
+            <p>
+              {t(
+                "settings.channels.blocked.body",
+                "This channel was connected before your country's current mandate took effect. It is refused at send time. You may disconnect it safely - invoices already sent stay archived.",
+              )}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onDisconnect(blockedRow.providerId)}
+              data-cy={`channel-detail-${channel.id}-blocked-disconnect`}
+            >
+              {t("settings.channels.blocked.disconnect", "Disconnect {{operator}}", {
+                operator: blockedOperatorName ?? blockedRow.providerId,
+              })}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <Input
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder={t("settings.channels.search.placeholder", "Search an operator by name")}
+          className="pl-9"
+          data-cy={`channel-detail-${channel.id}-search`}
+        />
+      </div>
+
+      <SettingsList dataCy={`channel-detail-${channel.id}-operators`}>
+        {rows.map((row) => (
+          <OperatorRow
+            key={row.operator.id}
+            row={row}
+            channel={channel}
+            configured={
+              row.offering.transportId ? configuredByProvider.get(row.offering.transportId) : undefined
+            }
+            hasCredentialFields={
+              !!row.offering.transportId &&
+              (transportById.get(row.offering.transportId)?.credentialFields.length ?? 0) > 0
+            }
+            onConnect={onConnect}
+            onDisconnect={onDisconnect}
+            t={t}
+          />
+        ))}
+        {rows.length === 0 && (
+          <div className="p-4">
+            <EmptyState
+              size="sm"
+              icon={Search}
+              title={t("settings.channels.search.empty", "No operator matches your search")}
+            />
+          </div>
+        )}
+      </SettingsList>
+    </div>
+  )
+}
+
+function OperatorRow({
+  row,
+  channel,
+  configured,
+  hasCredentialFields,
+  onConnect,
+  onDisconnect,
+  t,
+}: {
+  row: OperatorChannelRow
+  channel: LegalChannelStatus
+  configured?: ConfiguredChannel
+  hasCredentialFields: boolean
+  onConnect: (providerId: string) => void
+  onDisconnect: (providerId: string) => void
+  t: TFunction
+}) {
+  const { operator, offering } = row
+  const isConnected = !!configured?.isActive
+  const providerId = offering.transportId
+
+  let primary: ReactNode
+  if (isConnected && configured) {
+    primary = (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => providerId && onConnect(providerId)}
+        data-cy={`operator-${operator.id}-manage-button`}
+      >
+        {t("settings.channels.operator.manage", "Manage")}
+      </Button>
+    )
+  } else if (!providerId || !hasCredentialFields) {
+    primary = (
+      <Button variant="outline" size="sm" disabled data-cy={`operator-${operator.id}-connect-button`}>
+        {t("settings.channels.operator.notIntegrated", "Not yet available")}
+      </Button>
+    )
+  } else if (!channel.lawful) {
+    primary = (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled
+        title={t("settings.channels.legal.badge.outside", "Outside your invoicing country")}
+        data-cy={`operator-${operator.id}-connect-button`}
+      >
+        {t("settings.channels.legal.badge.outside", "Outside your invoicing country")}
+      </Button>
+    )
+  } else {
+    primary = (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onConnect(providerId)}
+        data-cy={`operator-${operator.id}-connect-button`}
+      >
+        {t("settings.channels.actions.connect", "Connect")}
+      </Button>
+    )
+  }
+
+  const badge = isConnected ? (
+    configured?.blockedBySend ? (
+      <Badge variant="destructive">{t("settings.channels.legal.badge.blocked", "No longer accepted")}</Badge>
+    ) : (
+      <Badge variant="success" data-cy={`operator-${operator.id}-status`}>
+        {t("settings.channels.status.connected", "Connected ({{environment}})", {
+          environment: configured?.environment,
+        })}
+      </Badge>
+    )
+  ) : offering.sandbox.available ? (
+    <Badge variant="outline">{t("settings.channels.operator.sandboxAvailable", "Sandbox available")}</Badge>
+  ) : null
+
+  return (
+    <SettingsListRow
+      dataCy={`operator-${operator.id}-row`}
+      badge={badge}
+      title={operator.name}
+      meta={offering.notes ?? operator.notes}
+      primary={primary}
+      menu={
+        isConnected && providerId ? (
+          <SettingsRowMenu
+            dataCy={`operator-${operator.id}-menu`}
+            items={[
+              {
+                label: t("settings.channels.actions.edit", "Edit"),
+                onSelect: () => onConnect(providerId),
+                dataCy: `operator-${operator.id}-edit-button`,
+              },
+              {
+                label: t("settings.channels.actions.disconnect", "Disconnect"),
+                onSelect: () => onDisconnect(providerId),
+                destructive: true,
+                dataCy: `operator-${operator.id}-disconnect-button`,
+              },
+            ]}
+          />
+        ) : undefined
+      }
+    />
   )
 }

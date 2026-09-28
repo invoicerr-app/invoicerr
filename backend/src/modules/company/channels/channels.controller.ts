@@ -34,20 +34,32 @@ export class ChannelsController {
     summary: 'List channel connections',
     description:
       "Returns this company's connected channels (status only — never a credential value), " +
-      "this company's own country channel policy (suggested and/or mandated), and this " +
-      "company's own country DECLARATIVE-REPORTING obligations (e.g. pt-at — never a transport hint).",
+      "this company's own country channel policy (suggested and/or mandated), this " +
+      "company's own country DECLARATIVE-REPORTING obligations (e.g. pt-at - never a transport hint), " +
+      "and (issue #527) the settings screen's own legal-channel-then-operator verdict (`legalChannels`, " +
+      '`banner`) - the lawfulness verdict for the whole screen, computed once here so the frontend ' +
+      'never re-implements it.',
   })
   @ApiResponse({ status: 200, description: 'Channel status retrieved' })
   async list(@ActiveCompany() companyId: string) {
-    const [configured, suggested, reportingObligations] = await Promise.all([
+    const [configured, suggested, reportingObligations, legal] = await Promise.all([
       this.channels.listCompanyChannels(companyId),
       this.channels.suggestedChannels(companyId),
       // Declarative reporting — a categorically different fact from `suggested` above: never a
       // transport hint, always "declare this invoice's data to this authority" — see
       // `channels.service.ts#reportingObligations`'s own header.
       this.channels.reportingObligations(companyId),
+      // Issue #527 - the settings screen's own level-1 nav + banner verdict, see
+      // `channels.service.ts#legalChannels`'s own header.
+      this.channels.legalChannels(companyId),
     ]);
-    return { configured, suggested, reportingObligations };
+    return {
+      configured,
+      suggested,
+      reportingObligations,
+      legalChannels: legal.channels,
+      banner: legal.banner,
+    };
   }
 
   /**

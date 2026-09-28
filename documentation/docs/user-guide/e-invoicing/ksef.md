@@ -58,13 +58,31 @@ Start with the **Test** environment, validate your integration, then switch to *
 
 Once you have your credentials, configure the KSeF channel in Invoicerr:
 
-1. Go to **Settings → E-invoicing → Channels**.
-2. Click **Connect** on the KSeF card.
-3. Fill in the two fields this channel actually asks for:
+1. Go to **Settings → E-invoicing**. The screen shows legal channels on the left and, for the
+   selected one, the operators that implement it on the right. For a Polish company, **KSeF** is
+   the country's own legal channel; it carries a "Recommended for your country" badge, not yet a
+   "Mandatory" one (see the note below on why).
+2. Select **KSeF** on the left, then find **KSeF (Krajowy System e-Faktur)**, the direct operator
+   and Poland's own platform, in the operator list on the right and click **Connect**:
+
+   <img src="/img/settings-channels-ksef.png" alt="The KSeF legal channel, with the KSeF operator to connect" width="700" />
+
+3. In the side sheet that opens, fill in the two fields this channel actually asks for:
    - **NIP** — your Polish tax ID
    - **KSeF token** — the API token from step 2 above
    - **Environment** — `TEST` or `PRODUCTION` (the same selector every channel offers)
-4. Save the configuration.
+4. Click **Connect** at the bottom of the side sheet.
+
+:::info[Why "Recommended", not "Mandatory"]
+KSeF is already the law (art. 106ga of the Polish VAT act): large taxpayers (over 200,000,000 PLN in
+2024 sales) have been bound since 1 February 2026, and every other business since 1 April 2026. But
+the law also keeps a standing exception until 31 December 2026: a taxpayer may still issue an
+ordinary invoice for a given month as long as that month's KSeF-eligible sales stay at or under
+10,000 PLN. Invoicerr's own mandate check compares a single date against an invoice's issue date; it
+cannot also weigh a rolling monthly sales total, so marking KSeF "Mandatory" today would block some
+invoices that are still genuinely lawful. The badge stays "Recommended" until the exception itself
+expires, which is a deliberate, sourced choice, not a gap in Poland's own data file.
+:::
 
 Invoicerr will use these credentials to authenticate with the KSeF API and transmit invoices on your behalf.
 

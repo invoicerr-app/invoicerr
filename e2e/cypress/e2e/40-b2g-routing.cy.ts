@@ -126,6 +126,23 @@ function setInvoiceTransport(transportId: string) {
 		});
 }
 
+/** Issue #527 - the Channels screen now disables "Connect" for a legal channel outside the company's
+ *  OWN invoicing country ("its operators can be read but not connected", the issue's own wording): a
+ *  channel a B2G rule targets for a FOREIGN government client (here: SdI for an Italian public body,
+ *  with an otherwise French seller - the whole point of this file) is never itself the SELLER's own
+ *  country's channel. The credentials are connected while the company is briefly ITALIAN (the screen
+ *  then treats SdI as lawful), then the seller is switched back to France - SIRET/VAT restored -
+ *  before the government client and invoice exist, so the send below still genuinely proves B2G
+ *  routing overriding a FRENCH seller's own free choice, unchanged from before this screen existed.
+ *  Same helper as 31-national-channels.cy.ts's own `setCompanyCountry`. */
+function setCompanyCountry(country: string, countryCode: string, identifiers?: { scheme: string; value: string }[]) {
+	return cy.request({
+		method: "POST",
+		url: `${api}/api/company/info`,
+		body: { name: "Acme Corp", country, countryCode, ...(identifiers ? { identifiers } : {}) },
+	});
+}
+
 // A plain BUSINESS client, created via the API — baseline data for the Leitweg-ID reactivity test
 // below, never the subject of that test itself (same "create the setup by API, drive only the
 // actual delta through the screen" convention 20-document-totals.cy.ts's own discount test already
@@ -249,10 +266,9 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		// channel that WOULD genuinely work, Mailpit) — B2G precedence must ignore it completely,
 		// exactly the same pattern as the IT/SdI case further down this file.
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-chorus-pro"]', { timeout: 15000 }).should(
-			"exist",
-		);
-		cy.get('[data-cy="channel-chorus-pro-clientid-input"]')
+		cy.get('[data-cy="channel-nav-chorus-pro"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="operator-chorus-pro-connect-button"]', { timeout: 10000 }).should("exist").click();
+		cy.get('[data-cy="channel-chorus-pro-clientid-input"]', { timeout: 10000 })
 			.clear()
 			.type(FAKE_CHORUS_PRO.clientId);
 		cy.get('[data-cy="channel-chorus-pro-clientsecret-input"]')
@@ -265,7 +281,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 			.clear()
 			.type(FAKE_CHORUS_PRO.technicalAccountPassword);
 		cy.get('[data-cy="channel-chorus-pro-connect-button"]').click();
-		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 10000 }).should(
+		cy.get('[data-cy="operator-chorus-pro-status"]', { timeout: 10000 }).should(
 			"contain.text",
 			"Connected",
 		);
@@ -375,18 +391,16 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		// reread company/channels after this one (same discipline as 31's own last test and the IT
 		// test further down this same file).
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 15000 }).should(
+		cy.get('[data-cy="channel-nav-chorus-pro"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="operator-chorus-pro-status"]', { timeout: 15000 }).should(
 			"contain.text",
 			"Connected",
 		);
 		// `force: true` — the trigger sits inside a `Tooltip`+`DropdownMenu` pair; see
 		// 31-national-channels.cy.ts's own identical comment for why.
-		cy.get('[data-cy="channel-chorus-pro-menu"]').scrollIntoView().click({ force: true });
-		cy.get('[data-cy="channel-chorus-pro-disconnect-button"]').should("exist").click({ force: true });
-		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 10000 }).should(
-			"contain.text",
-			"Not connected",
-		);
+		cy.get('[data-cy="operator-chorus-pro-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="operator-chorus-pro-disconnect-button"]').should("exist").click({ force: true });
+		cy.get('[data-cy="operator-chorus-pro-status"]', { timeout: 10000 }).should("not.exist");
 	});
 
 	// See this file's own header: the "peppol" channel this rule briefly routed through (2026-09-02 to
@@ -585,10 +599,18 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 	});
 
 	it("IT — a GOVERNMENT client requires the Codice Univoco Ufficio (IPA); sending forces SdI even though the company chose email, and genuinely fails (closed port), never through email", () => {
-		// The SdI channel, connected through the screen, fake credentials (closed port — same fixture as 31).
+		// The SdI channel, connected through the screen, fake credentials (closed port - same fixture as
+		// 31). Issue #527: the screen only lets a company CONNECT a channel that is lawful for its OWN
+		// invoicing country - see `setCompanyCountry`'s own header just above for why the company is
+		// briefly Italian here, then switched back to France before the client/invoice below exist.
+		setCompanyCountry("Italy", "IT", [
+			{ scheme: "VAT", value: "IT01234567897" },
+			{ scheme: "LEGAL_ID", value: "11223344554" },
+		]);
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-sdi"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-sdi-idtrasmittente-input"]')
+		cy.get('[data-cy="channel-nav-sdi"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="operator-sdi-connect-button"]', { timeout: 10000 }).should("exist").click();
+		cy.get('[data-cy="channel-sdi-idtrasmittente-input"]', { timeout: 10000 })
 			.clear()
 			.type(FAKE_SDI.idTrasmittente);
 		cy.get('[data-cy="channel-sdi-endpoint-input"]')
@@ -601,10 +623,18 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 			.clear()
 			.type(FAKE_SDI.certificatePassword);
 		cy.get('[data-cy="channel-sdi-connect-button"]').click();
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should(
+		cy.get('[data-cy="operator-sdi-status"]', { timeout: 10000 }).should(
 			"contain.text",
 			"Connected",
 		);
+
+		// Back to France - restoring the SIRET/VAT `resetAndSeed` gave Acme Corp - BEFORE the
+		// government client and invoice below exist: this test's own proof (a FRENCH seller, B2G
+		// routing to SdI regardless) is otherwise unchanged.
+		setCompanyCountry("France", "FR", [
+			{ scheme: "LEGAL_ID", value: "73282932000074" },
+			{ scheme: "VAT", value: "FR44732829320" },
+		]);
 
 		// The company chooses "email" — a channel that WOULD genuinely work (Mailpit). B2G precedence
 		// must ignore it completely.
@@ -700,19 +730,25 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		});
 
 		// Cleanup — leaves the channel disconnected so it does not pollute another spec that would
-		// reread company/channels after this one (same discipline as 31's own last test).
+		// reread company/channels after this one (same discipline as 31's own last test). The seller
+		// is French again (restored above), so SdI is BOTH "outside your invoicing country" AND
+		// "blocked by send" now (issue #527: it was connected while Italian, France mandates "pdp",
+		// and "sdi" satisfies neither it nor its own `equivalentProviderIds` - see
+		// `channels.service.ts#computeBlockedBySend`'s own header) - the row's badge is therefore "No
+		// longer accepted", never the plain "Connected (env)" one `operator-sdi-status` names. A
+		// CONNECTED operator's own Manage/Disconnect menu never depends on either lawfulness or
+		// blocked-by-send, only "Connect" for a not-yet-connected one does (channels.settings.tsx's
+		// own `OperatorRow`), so the menu itself still works unchanged.
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 15000 }).should(
-			"contain.text",
-			"Connected",
-		);
+		cy.get('[data-cy="channel-nav-sdi"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="channel-nav-sdi-badge"]', { timeout: 15000 }).should("contain.text", "No longer accepted");
 		// `force: true` — the trigger sits inside a `Tooltip`+`DropdownMenu` pair; see
 		// 31-national-channels.cy.ts's own identical comment for why.
-		cy.get('[data-cy="channel-sdi-menu"]').scrollIntoView().click({ force: true });
-		cy.get('[data-cy="channel-sdi-disconnect-button"]').should("exist").click({ force: true });
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should(
+		cy.get('[data-cy="operator-sdi-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="operator-sdi-disconnect-button"]').should("exist").click({ force: true });
+		cy.get('[data-cy="channel-nav-sdi-badge"]', { timeout: 10000 }).should(
 			"contain.text",
-			"Not connected",
+			"Outside your invoicing country",
 		);
 	});
 
