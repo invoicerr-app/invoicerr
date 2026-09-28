@@ -48,7 +48,7 @@ behind it with its source. Nothing on that card can be edited, and the API refus
 **The counter restarts at 1 on 1 January, only where a primary source actually permits it.** France,
 Germany and Italy read a text that allows a calendar-year series for the invoice (Germany and France
 for the credit note too); Poland and Portugal, and every quote/purchase-order/goods-receipt format in
-every country, stay on one counter that never restarts — `{year}` there only prints the moment of
+every country, stay on one counter that never restarts: `{year}` there only prints the moment of
 issuance. The Number Formats card shows which applies to each type, and the source behind it. The
 restart itself applies only from the first document dated **1 January 2027** or later: a series already
 running keeps its counter exactly where it stood, and a document dated in December but numbered in
