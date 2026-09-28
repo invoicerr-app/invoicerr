@@ -14,7 +14,11 @@ import {
 import { listPaymentsInRange } from '../settlement/payments';
 import { filterUnsettledInvoices, isOverdueInvoice } from '../settlement/unsettled-invoices';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
-import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
+import {
+  consolidateByCurrency,
+  loadCurrencyContext,
+  resolveConsolidationInstant,
+} from './currency-consolidation';
 import {
   MetricWidget,
   MetricWidgetLink,
@@ -590,7 +594,10 @@ export const buildInvoiceDashboardWidgetsWithConsolidation: ContributionHandler 
   if (pendingCurrencyWidgets.length === 0 && collectedCurrencyWidgets.length === 0) return widgets;
 
   const { referenceCurrency, rates } = await loadCurrencyContext(ctx.companyId);
-  const now = new Date(); // Shared instant for both consolidations below - same rate resolution.
+  // Issue #516: dated, not "today" - a closed period (ctx.period set, already in the past) resolves
+  // at its own dateTo, never moving again once that day has passed. See
+  // currency-consolidation.ts's own `resolveConsolidationInstant` header for the full reasoning.
+  const now = resolveConsolidationInstant(ctx.period, new Date());
   const extraWidgets: MetricWidget[] = [];
 
   if (pendingCurrencyWidgets.length > 0) {

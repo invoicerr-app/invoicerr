@@ -88,6 +88,25 @@ export class CompanyController {
     return this.companyService.updateNumberFormat();
   }
 
+  /**
+   * GET /api/company/revenue-settings - issue #516: the RESOLVED revenue basis/period (this
+   * company's own explicit choice, or the computed per-country default), plus whether each is
+   * explicit - the settings screen uses this to show "default" vs. "your own choice" without
+   * duplicating `resolve-revenue-basis.ts`'s own per-country table client-side.
+   */
+  @Get('revenue-settings')
+  @RequiresScope('company:read')
+  @ApiOperation({
+    summary: 'Get the resolved revenue basis/period (explicit choice, or the computed default)',
+    description:
+      'invoiced/cashed and monthly/quarterly, defaulted from the company’s own country where a ' +
+      'clear regime exists (see resolve-revenue-basis.ts), always overridable through POST /api/company/info.',
+  })
+  @ApiResponse({ status: 200, description: 'Resolved revenue settings' })
+  async getRevenueSettings(@ActiveCompany() companyId: string) {
+    return this.companyService.getRevenueSettings(companyId);
+  }
+
   @Get('email-templates')
   @RequiresScope('company:read')
   @ApiOperation({

@@ -494,6 +494,29 @@ model Company {
   // column needs to satisfy too. See CurrencyRate.from/to's own comment for the same choice.
   referenceCurrency String?
 
+  // Issue #516 - which figure THIS company declares as its own revenue: "invoiced" (the moment a
+  // document is issued - this product's own existing "Invoiced this month" dashboard tiles) or
+  // "cashed" (the moment a payment actually arrives - see `revenue-report/cashed-revenue.ts`).
+  // `String?`, not a Prisma enum - same reasoning as `referenceCurrency` right above: read back
+  // through ONE narrowing resolver (`company/revenue-basis/resolve-revenue-basis.ts#resolveRevenueBasis`)
+  // that already treats anything but exactly "invoiced"/"cashed" as "not set". NULL - every company
+  // that existed before this column, and any new one that never touched the setting - is NOT "no
+  // opinion": that resolver still returns a real default, computed from this company's own
+  // `countryCode`, because several regimes this product serves LEGALLY require cashed-basis
+  // reporting (FR micro-entrepreneur/URSSAF, IT regime forfettario) and defaulting those companies to
+  // "invoiced" would be quietly wrong for the return they actually have to file. See that resolver's
+  // own header for the exact per-country table and its sources - this column only ever stores the
+  // EXPLICIT override, never the computed default itself.
+  revenueBasis String?
+
+  // Issue #516 - the DECLARATION PERIOD the cashed-revenue view (and any future export built on it)
+  // buckets by: "monthly" or "quarterly". Same nullable/resolved-by-a-function shape as
+  // `revenueBasis` right above - NULL still resolves to a real default ("monthly": the URSSAF default
+  // for a micro-entrepreneur who never opted into quarterly filing, and the finer of the two
+  // granularities for every other regime, which a reader can always re-aggregate into quarters by
+  // hand but never the reverse - see `resolve-revenue-basis.ts`'s own header).
+  revenuePeriod String?
+
   // Automatic reminders ("relances automatiques") — OPT-IN, default `false`: auto-emailing a
   // company's own CLIENTS is side-effectful in a way none of this module's other background sweeps
   // are (the conformity/currency-rate sweeps only ever touch this company's own rows) — a company

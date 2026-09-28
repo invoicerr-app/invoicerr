@@ -16,6 +16,7 @@ import { CompanyModule } from './modules/company/company.module';
 import { CountryReadinessModule } from './modules/country-readiness/country-readiness.module';
 import { ConfigModule } from '@nestjs/config';
 import { AccountingExportModule } from './modules/documents/accounting-export/accounting-export.module';
+import { RevenueReportModule } from './modules/documents/revenue-report/revenue-report.module';
 import { BankReconciliationModule } from './modules/documents/bank-reconciliation/bank-reconciliation.module';
 import { PaymentsModule } from './modules/documents/payments/payments.module';
 import { PaymentMethodsModule } from './modules/documents/payment-methods/payment-methods.module';
@@ -163,6 +164,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // The generic accounting CSV export's own controller, deliberately its
     // own module (see accounting-export.module.ts's own header for why it never joins DocumentsModule).
     AccountingExportModule,
+    RevenueReportModule,
     PublicDocumentsModule,
     // The ONE `@Public()` route for the six `TrasmissioneFatture`
     // notifiche SdI pushes at us (see `sdi-notifiche.module.ts`'s own header on why its own module,
