@@ -1,10 +1,44 @@
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useGet } from "@/hooks/use-fetch"
 import type { CompanyNumberFormat, CompanyNumberFormats } from "@/types"
 
 import { SettingsSection } from "./settings-section"
+
+/**
+ * Loading placeholder for the list below, shaped like a real row (pattern + badge + next-number line,
+ * plus two constraint lines) rather than the generic `SettingsListSkeleton` used elsewhere on this
+ * page: this card's own rows are taller than a typical settings list row (every numbered type ships
+ * with at least one sourced legal constraint), so a plain 2-line skeleton would still leave a visible
+ * jump once the real data lands. Five rows: every country this catalog covers numbers exactly five
+ * document types (quote, invoice, credit-note, purchase-order, goods-receipt) - see
+ * `country-policy/data/*.json`'s own `numberFormats.formats`. Rendering the CLOSEST-possible final
+ * height here, instead of nothing, is what actually matters: before this, the card went from ~2 lines
+ * (title + description only) to several hundred pixels the moment `useGet` resolved, shoving every
+ * field below it (the invoice transport picker among them) down the page mid-interaction - a real
+ * layout shift a real user's click can lose to, not just this card's own Cypress spec (32-channel-mandate.cy.ts).
+ */
+function NumberFormatsSkeleton() {
+  return (
+    <ul className="divide-y overflow-hidden rounded-lg border" aria-hidden="true">
+      {Array.from({ length: 5 }, (_, index) => (
+        // Placeholder rows carry no identity for a key to represent; the index is the only handle
+        // (same convention as `SettingsListSkeleton` in `./settings-section`).
+        <li key={index} className="grid gap-2 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-5 w-24" />
+          </div>
+          <Skeleton className="h-3 w-full max-w-md" />
+          <Skeleton className="h-3 w-full max-w-sm" />
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 /**
  * Issue #496 - the document number formats, READ-ONLY. A number format is defined per country and
@@ -43,7 +77,9 @@ export function NumberFormatsSection() {
       dataCy="number-formats-section"
       contentClassName="grid gap-4"
     >
-      {!data ? null : data.formats.length === 0 ? (
+      {!data ? (
+        <NumberFormatsSkeleton />
+      ) : data.formats.length === 0 ? (
         <p className="text-sm text-muted-foreground" data-cy="number-formats-unavailable">
           {data.unavailableReason}
         </p>
