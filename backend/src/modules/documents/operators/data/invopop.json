@@ -1,0 +1,32 @@
+{
+  "id": "invopop",
+  "name": "Invopop",
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "backend/src/modules/documents/transports/invopop-transport.ts header: \"Invopop (invopop.com), a transmission platform registered by the DGFiP and self-serve in sandbox.\"",
+    "sourceCheckedAt": "2026-09-28"
+  },
+  "notes": "The one operator whose API does NOT speak an EN 16931-derived structured format directly: it takes GOBL, Invopop's own JSON pivot model, and converts to the local syntax INSIDE a published workflow it runs server-side (invopop/gobl-invoice.ts). A completed job that still carries 'faults' is treated as a failure even though its own 'status' field reads 'OK' -- Invopop's own documentation states this is how a failed step's error branch reports itself; reading success off 'status' alone would be a false green (invopop-transport.ts's own header).",
+  "offerings": [
+    {
+      "legalChannel": "pdp",
+      "countries": ["FR"],
+      "transportId": "invopop",
+      "capabilities": {
+        "emit": true,
+        "receive": false,
+        "lifecycleStatuses": false,
+        "eReporting": false
+      },
+      "sandbox": {
+        "available": true,
+        "notes": "\"You can start building and testing in the sandbox immediately, no sales call required\" (Invopop's own wording, verified directly on the vendor's own site, 2026-09-23). A 'Developer' paid tier (~50 EUR/mo, per a comparator, UNVERIFIED) reportedly exists for production."
+      },
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "backend/src/modules/documents/transports/invopop-transport.ts header: \"Invopop (invopop.com), a transmission platform registered by the DGFiP and self-serve in sandbox.\"",
+        "sourceCheckedAt": "2026-09-28"
+      }
+    }
+  ]
+}

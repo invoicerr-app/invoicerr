@@ -8,6 +8,7 @@ import { PolicyProvenance } from '@/modules/documents/country-policy/schema';
 import { activeChannelMandateFor } from '@/modules/documents/transports/channel-policy/mandate';
 import { defaultChannelPolicyCatalog } from '@/modules/documents/transports/channel-policy/registry';
 import { ChannelRequirement } from '@/modules/documents/transports/channel-policy/schema';
+import { defaultOperatorCatalog } from '@/modules/documents/operators/registry';
 import { defaultReportingObligationCatalog } from '@/modules/documents/reporting/registry';
 import { ReportableDocumentType } from '@/modules/documents/reporting/schema';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
@@ -46,6 +47,17 @@ export interface ChannelConfigStatus {
    *  paste it into a callback URL it registers with a foreign authority. `undefined`/`null` for a row
    *  that predates this column, or for a provider whose transport never needed one. */
   pushToken?: string | null;
+  /**
+   * Issue #526 - which `documents/operators/` catalogue entry this row's `providerId` resolves to,
+   * NEVER the connected `baseUrl`/credentials themselves (the "GET never leaks a secret" guarantee
+   * this whole interface exists to hold - see `ResolvedOperatorId`'s own reasoning just below
+   * `resolveOperatorId`). `null` when this provider has no catalogued operator at all (an
+   * uncatalogued transport a third party registered, or - for the "pdp" transport specifically - a
+   * connected `baseUrl` this catalogue does not recognize: see
+   * `documents/operators/registry.ts#resolveForTransportConfig`'s own header on why that is an
+   * honest "unknown", never a guess).
+   */
+  operatorId?: string | null;
 }
 
 /**
@@ -317,13 +329,61 @@ export class ChannelCredentialsService {
       where: { companyId },
       orderBy: [{ providerId: 'asc' }, { environment: 'asc' }],
     });
-    return rows.map((row) => ({
-      providerId: row.providerId,
-      channel: row.channel,
-      environment: row.environment,
-      isActive: row.isActive,
-      pushToken: row.pushToken,
-    }));
+    return Promise.all(
+      rows.map(async (row) => ({
+        providerId: row.providerId,
+        channel: row.channel,
+        environment: row.environment,
+        isActive: row.isActive,
+        pushToken: row.pushToken,
+        operatorId: await this.resolveOperatorId(row),
+      })),
+    );
+  }
+
+  /**
+   * Issue #526 - resolve this row's `providerId` (+, when genuinely ambiguous, its own connected
+   * `baseUrl`) to a `documents/operators/` catalogue entry id. Owner review of PR #528: an operator
+   * can implement more than one offering, so resolution answers "operator AND offering" internally
+   * (`OperatorCatalog.resolveForTransportConfig`) - this method only ever hands the CALLER the
+   * operator's own id, since a `CompanyChannelConfig` row's own `providerId` already pins down WHICH
+   * offering matched (the offering's own `transportId` is exactly that `providerId`). The COMMON case
+   * (every provider today except a hypothetical future second "pdp"-family offering) never touches
+   * the encrypted `config` blob at all: `OperatorCatalog.matchesForTransportId` already answers
+   * unambiguously from `providerId` alone, and only a transport id with MORE than one catalogued
+   * offering (today: none - see `operators/registry.spec.ts`'s own header on why "pdp" is
+   * unconditional too, for now) needs a decrypt to read `baseUrl` - kept cheap on purpose, never a
+   * blanket decrypt-every-row-every-call. A decrypt failure here degrades to `null` (same "corrupted
+   * blob or wrong key → looks unconfigured, never crash" discipline `decryptRow` already holds), never
+   * a thrown error out of a LIST endpoint.
+   */
+  private async resolveOperatorId(row: CompanyChannelConfig): Promise<string | null> {
+    const candidates = defaultOperatorCatalog.matchesForTransportId(row.providerId);
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0].operator.id;
+
+    try {
+      const config = decryptJson<Record<string, unknown>>(row.config);
+      credentialAudit.emit({
+        companyId: row.companyId,
+        credentialRef: `${row.providerId}:${row.environment}`,
+        action: 'RESOLVE',
+        outcome: 'HIT',
+        timestamp: new Date().toISOString(),
+        context: { reason: 'resolveOperatorId' },
+      });
+      return defaultOperatorCatalog.resolveForTransportConfig(row.providerId, config)?.operator.id ?? null;
+    } catch {
+      credentialAudit.emit({
+        companyId: row.companyId,
+        credentialRef: `${row.providerId}:${row.environment}`,
+        action: 'RESOLVE',
+        outcome: 'ERROR',
+        timestamp: new Date().toISOString(),
+        context: { reason: 'resolveOperatorId_decrypt_failed' },
+      });
+      return null;
+    }
   }
 
   /**

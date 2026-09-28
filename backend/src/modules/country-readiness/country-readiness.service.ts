@@ -11,9 +11,9 @@ import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions
 
 /**
  * The six CŒUR mechanisms a country needs to be "complete" — a business decision, NOT something
- * discovered from disk. Fourteen catalogs exist under `documents/` (one `data/all.ts` aggregator
+ * discovered from disk. Fifteen catalogs exist under `documents/` (one `data/all.ts` aggregator
  * each — see `ALL_DOCUMENT_CATALOG_DIRS` below, which this comment's own count is checked against);
- * the other eight are deliberately left out, and, unlike the historical version of this comment,
+ * the other nine are deliberately left out, and, unlike the historical version of this comment,
  * each one for its OWN stated reason, because the reasons genuinely differ:
  *
  *  - `mentions/` and `content-requirements/` are FR-specific extras: no other in-scope jurisdiction's
@@ -66,6 +66,14 @@ import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions
  *    with a real, binding requirement; DE/PT with a researched "not required on the invoice itself"
  *    conclusion), the exclusion is about what "complete" should mean for a conditional mechanism,
  *    not about missing coverage.
+ *  - `operators/` (issue #526) is excluded for a STRUCTURALLY different reason than any of the eight
+ *    above: it is not even keyed by country at all. Every other catalog under `documents/` ships one
+ *    `data/xx.json` per COUNTRY CODE, which is exactly what lets this service ask "which countries
+ *    satisfy this mechanism" in the first place (`toCountryCodeSet` below reads that same `countryCode`
+ *    field on every `CORE_MECHANISMS` entry). `operators/data/*.json` is keyed by OPERATOR id instead
+ * (superpdp, acube, billit…), each carrying a `countries` ARRAY rather than one `countryCode` -
+ *    see `operators/schema.ts`'s own header for why. The "which countries are covered" question this
+ *    service exists to answer does not apply to it, core or not.
  *
  * What IS fully data-driven is which countries satisfy each of the six mechanisms below: every entry's
  * `countryCodes` is read straight from that mechanism's own `ALL_*_FILES` catalog (the same
@@ -123,6 +131,7 @@ const EXCLUDED_CATALOG_DIRS: readonly string[] = [
   'reporting',
   'domestic-reverse-charge',
   'vat-currency',
+  'operators',
 ];
 
 /**

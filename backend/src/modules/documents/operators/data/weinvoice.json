@@ -1,0 +1,29 @@
+{
+  "id": "weinvoice",
+  "name": "WeInvoice (by Weproc)",
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Researched 2026-09-23 at app.weinvoice.fr as a free-sandbox candidate for the French accredited-platform role; the entity itself (Weproc's WeInvoice product) is not in doubt, but its e-invoicing/PA claims were not independently confirmed."
+  },
+  "notes": "No transports/transport-registry.ts id exists for this operator -- not yet integrated, only researched as a free-to-develop candidate. No other offering sourced.",
+  "offerings": [
+    {
+      "legalChannel": "pdp",
+      "countries": ["FR"],
+      "capabilities": {
+        "emit": false,
+        "receive": false,
+        "lifecycleStatuses": false,
+        "eReporting": false
+      },
+      "sandbox": {
+        "available": true,
+        "notes": "Signup at app.weinvoice.fr/fr/signup (e-mail + password). REST OpenAPI 3.1 + webhooks, SFTP also supported. Free tier: 0 EUR up to 15 documents/month, no card. Docs: api.weinvoice.fr/documentation/."
+      },
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Researched 2026-09-23 as a free-sandbox candidate for the French accredited-platform role, but this session never independently confirmed DGFiP registration or built any code against it -- capabilities are all false because no transport exists yet. Nuance carried forward: WeInvoice's separate 'PA Connect' product (aimed at ERPs/publishers like this one) is a paid, ~200 EUR/month tier; the free WeInvoice account is the way to develop against the same API without paying that, but production use for a third-party publisher may still require it."
+      }
+    }
+  ]
+}

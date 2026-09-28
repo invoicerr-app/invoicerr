@@ -1,3 +1,5 @@
+import { ResolvedChannelConfig } from '@/modules/company/channels/channels.service';
+
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ArchivedArtifactInput } from '../archive/hashing';
 import { DocumentTypeDescriptor } from '../descriptors/types';
@@ -145,6 +147,148 @@ export interface DocumentTransport {
    * format, from `ctx.formatSource` (`formatBuildInputOf`), which the credit note's send always sets.
    */
   deliversCreditNotes?: boolean;
+  /**
+   * Issue #526 (scope addition) - the exact config keys this transport's OWN connect form must
+   * collect, replacing what used to be hard-coded, independently, in the frontend's
+   * `PROVIDER_FIELDS` (`channels.settings.tsx`) - a second copy of the same shape every transport's
+   * own `extractXCredentials`/`parseCredentials` already encodes, free to drift from it silently.
+   * Absent (or empty) for a transport with nothing to configure (the built-in "email" transport).
+   * Declaring this WITHOUT also declaring `parseCredentials` below is refused at boot - see
+   * `validateTransportCredentialFields`.
+   */
+  credentialFields?: CredentialFieldDescriptor[];
+  /**
+   * The SAME function this transport's own `preflight()`/`send()` call to turn a resolved channel
+   * config into typed credentials (e.g. `pdp-transport.ts#extractPdpCredentials`) - wired here too,
+   * ONLY so `validateTransportCredentialFields` can run it against a synthetic, fully-populated
+   * config built from `credentialFields` and prove the two never drift apart. Never called by
+   * anything else in this registry; the transport's own `send()`/`preflight()` keep calling their
+   * own copy directly, unchanged. Returns `null` the same way the real parser does for an incomplete
+   * config (unused here - the synthetic config is always complete by construction - but kept so this
+   * field's TYPE matches the real parser's exactly, needing no wrapper).
+   */
+  parseCredentials?: (resolved: ResolvedChannelConfig) => unknown;
+}
+
+/**
+ * One credential FORM field a transport's connect screen must render - see `DocumentTransport
+ * .credentialFields`'s own header for why this replaces the frontend's old, hand-maintained
+ * `PROVIDER_FIELDS` map.
+ */
+export interface CredentialFieldDescriptor {
+  /** The key this field is stored under in the encrypted `config` blob - e.g. "clientId". */
+  key: string;
+  /** UI masking only - "secret" renders a password input and never echoes the stored value back
+   *  (see `channels.service.ts`'s own "GET never leaks a secret" guarantee), "text" does not. */
+  kind: 'text' | 'secret';
+  /** The JS type this transport's own parser expects the DECRYPTED value to already be - lets a
+   *  future form pick the right input widget (text/number/checkbox) instead of assuming every field
+   *  is a string the way the old `PROVIDER_FIELDS` shape did. */
+  valueType: 'string' | 'number' | 'boolean';
+  /** Whether the parser REFUSES a config missing this field (returns `null`) - mirrors that
+   *  transport's own `extractXCredentials`, never guessed independently of it (this is exactly the
+   *  fact `validateTransportCredentialFields` checks by construction). */
+  required: boolean;
+  placeholder?: string;
+  /** An i18n key (`frontend/src/locales/en/translation.json`) - never a hardcoded label, the same
+   *  `t(labelKey, ...)` convention the old `PROVIDER_FIELDS` shape already used. */
+  labelKey: string;
+  /**
+   * True for a field the parser reads from `config` but that a connect FORM must never render an
+   * input for - populated by the BACKEND itself onto the same stored config blob after being learned
+   * from the platform's own reply (e.g. `sdi-pec-transport.ts`'s `sdiReplyAddress`), never typed by a
+   * human. Still declared here (never omitted) so `validateTransportCredentialFields` can confirm the
+   * parser's own read of it is accounted for, rather than flagging it as an undeclared key.
+   */
+  learnedByBackend?: boolean;
+}
+
+export class InvalidCredentialFieldsError extends Error {}
+
+/** One dummy value per `valueType` - enough to satisfy any `typeof x !== '...'` guard a real
+ *  `extractXCredentials` runs, without asserting anything about what a REAL credential looks like. */
+function dummyValueFor(valueType: CredentialFieldDescriptor['valueType']): unknown {
+  switch (valueType) {
+    case 'number':
+      return 1;
+    case 'boolean':
+      return true;
+    default:
+      return 'dummy-value';
+  }
+}
+
+/**
+ * Runs ONE transport's own `parseCredentials` against a Proxy-wrapped, fully-populated dummy config
+ * built purely from its OWN `credentialFields` - never a real credential, never a network call - and
+ * records every key the parser actually reads (the Proxy's `get` trap). Two ways this can fail, both
+ * thrown, never silently ignored:
+ * - the parser reads a key `credentialFields` never declared (the declaration is too NARROW - a
+ *    frontend built from it would never collect a field the backend actually needs);
+ * - `credentialFields` declares a key the parser never reads (the declaration is too WIDE - a
+ *    frontend built from it would collect a field the backend throws away, or worse, imply it is
+ *    needed when it is not).
+ * A `learnedByBackend` field counts as "accounted for" on the SECOND check without needing to appear
+ * in the FIRST (it is read, exactly as expected) - see that field's own header.
+ */
+function checkTransportCredentialFields(
+  transportId: string,
+  fields: CredentialFieldDescriptor[],
+  parseCredentials: (resolved: ResolvedChannelConfig) => unknown,
+): void {
+  const declaredKeys = new Set(fields.map((f) => f.key));
+  const accessedKeys = new Set<string>();
+
+  const dummyConfig: Record<string, unknown> = {};
+  for (const field of fields) dummyConfig[field.key] = dummyValueFor(field.valueType);
+
+  const proxiedConfig = new Proxy(dummyConfig, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string') accessedKeys.add(prop);
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+
+  const resolved: ResolvedChannelConfig = {
+    providerId: transportId,
+    channel: transportId.toUpperCase(),
+    environment: 'TEST' as ResolvedChannelConfig['environment'],
+    isActive: true,
+    config: proxiedConfig,
+  };
+
+  let result: unknown;
+  try {
+    result = parseCredentials(resolved);
+  } catch (error) {
+    throw new InvalidCredentialFieldsError(
+      `Transport "${transportId}": parseCredentials threw against a fully-populated dummy config built ` +
+        `from its own declared credentialFields - ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  for (const key of accessedKeys) {
+    if (!declaredKeys.has(key)) {
+      throw new InvalidCredentialFieldsError(
+        `Transport "${transportId}": its own credential parser reads "config.${key}", which ` +
+          '"credentialFields" does not declare. Add it there (or stop reading it) before this can pass.',
+      );
+    }
+  }
+  for (const key of declaredKeys) {
+    if (!accessedKeys.has(key)) {
+      throw new InvalidCredentialFieldsError(
+        `Transport "${transportId}": "credentialFields" declares "${key}" but the parser never reads ` +
+          'it. Remove the field (or start reading it) before this can pass.',
+      );
+    }
+  }
+  if (result === null) {
+    throw new InvalidCredentialFieldsError(
+      `Transport "${transportId}": parseCredentials returned null against a fully-populated dummy ` +
+        'config - "credentialFields" is not actually complete enough to satisfy its own parser.',
+    );
+  }
 }
 
 export class UnknownTransportError extends Error {
@@ -172,10 +316,16 @@ export class TransportRegistry {
     this.transports.set(id, { label, transport });
   }
 
-  /** Every registered transport, id and label only — what a company's settings screen offers to
-   *  choose from, the same shape DocumentTypeRegistry.list() offers document types in. */
-  list(): { id: string; label: string }[] {
-    return [...this.transports.entries()].map(([id, { label }]) => ({ id, label }));
+  /** Every registered transport, id and label - what a company's settings screen offers to choose
+   * from, the same shape DocumentTypeRegistry.list() offers document types in - PLUS (issue #526)
+   *  each transport's own `credentialFields`, defaulted to `[]` for a transport that declared none
+   *  (the built-in "email" transport, or a third party that has not adopted this yet). */
+  list(): { id: string; label: string; credentialFields: CredentialFieldDescriptor[] }[] {
+    return [...this.transports.entries()].map(([id, { label, transport }]) => ({
+      id,
+      label,
+      credentialFields: transport.credentialFields ?? [],
+    }));
   }
 
   has(id: string): boolean {
@@ -190,5 +340,41 @@ export class TransportRegistry {
       throw new UnknownTransportError(id);
     }
     return entry.transport;
+  }
+}
+
+/**
+ * Runs `checkTransportCredentialFields` against EVERY registered transport that declared
+ * `credentialFields` - called once, at boot, right after `buildTransportRegistry` assembles the real
+ * registry (`documents-core.module.ts`), the same "checks the declaration at boot" discipline
+ * `descriptors/lifecycle.ts#validateLifecycle` already holds for a document type's own declared
+ * transitions. Throws synchronously (crashes boot) on the first mismatch found, deliberately: a
+ * drifted credential-field declaration is a code bug, not a transient condition a later boot might
+ * self-heal from the way `B2gRoutingBootUpsertService` deliberately tolerates a DB hiccup.
+ *
+ * A transport that declares `credentialFields` but no `parseCredentials` (or the other way round) is
+ * refused here too - the two are meant to be added together, and a caller that forgets one gets a
+ * named error instead of a silently-skipped check.
+ */
+export function validateTransportCredentialFields(registry: TransportRegistry): void {
+  for (const { id } of registry.list()) {
+    const transport = registry.resolve(id);
+    const fields = transport.credentialFields ?? [];
+    if (fields.length === 0 && !transport.parseCredentials) continue;
+
+    if (fields.length === 0) {
+      throw new InvalidCredentialFieldsError(
+        `Transport "${id}" declares "parseCredentials" but no "credentialFields" - the two must be ` +
+          'declared together (an empty credentialFields with a parser that reads nothing is simply ' +
+          'omitting both).',
+      );
+    }
+    if (!transport.parseCredentials) {
+      throw new InvalidCredentialFieldsError(
+        `Transport "${id}" declares "credentialFields" but no "parseCredentials" - the two must be ` +
+          'declared together, or this check has nothing to run against.',
+      );
+    }
+    checkTransportCredentialFields(id, fields, transport.parseCredentials);
   }
 }

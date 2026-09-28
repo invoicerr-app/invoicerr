@@ -229,7 +229,16 @@ describe('ChannelCredentialsService', () => {
       const rows = await service.listCompanyChannels('company-1');
 
       expect(rows).toEqual([
-        { providerId: 'pdp', channel: 'PDP', environment: ChannelEnvironment.TEST, isActive: true },
+        {
+          providerId: 'pdp',
+          channel: 'PDP',
+          environment: ChannelEnvironment.TEST,
+          isActive: true,
+          // Issue #526 - "pdp" resolves to its one catalogued operator (SuperPDP) WITHOUT ever
+          // decrypting `config` (see `resolveOperatorId`'s own header): a single candidate answers
+          // unconditionally.
+          operatorId: 'superpdp',
+        },
       ]);
       for (const row of rows) {
         expect(Object.keys(row)).not.toContain('config');
@@ -239,6 +248,41 @@ describe('ChannelCredentialsService', () => {
       // serialized response, not just absent from a named field.
       expect(JSON.stringify(rows)).not.toContain(secretMarker);
       expect(JSON.stringify(rows)).not.toContain(encrypted);
+    });
+
+    // Issue #526 - the company's configured operator per channel, resolved server-side.
+    it('resolves "operatorId" for a provider with its own dedicated transport (no ambiguity, no decrypt needed)', async () => {
+      mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
+        {
+          id: 'row-1',
+          companyId: 'company-1',
+          channel: 'ACUBE',
+          providerId: 'acube',
+          environment: ChannelEnvironment.TEST,
+          config: encryptJson({ email: 'a@b.com', password: 'x' }),
+          isActive: true,
+        },
+      ]);
+
+      const rows = await service.listCompanyChannels('company-1');
+      expect(rows[0].operatorId).toBe('acube');
+    });
+
+    it('resolves "operatorId" to null for a provider this catalogue has no operator for', async () => {
+      mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
+        {
+          id: 'row-1',
+          companyId: 'company-1',
+          channel: 'EMAIL',
+          providerId: 'email',
+          environment: ChannelEnvironment.TEST,
+          config: encryptJson({}),
+          isActive: true,
+        },
+      ]);
+
+      const rows = await service.listCompanyChannels('company-1');
+      expect(rows[0].operatorId).toBeNull();
     });
   });
 

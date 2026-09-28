@@ -152,7 +152,9 @@ import {
   parseDistanceSalesRegime,
   resolveInvoiceCrossBorderTax,
 } from './tax/resolve-invoice-tax';
-import { TransportRegistry } from './transports/transport-registry';
+import { CredentialFieldDescriptor, TransportRegistry } from './transports/transport-registry';
+import { defaultOperatorCatalog } from './operators/registry';
+import { OperatorFact } from './operators/schema';
 import { VatRateCatalog } from './vat-rates/registry';
 import {
   ACTION_EXTENSION_REGISTRY,
@@ -370,8 +372,21 @@ export class DocumentsService implements OnModuleInit {
   /** Every registered document transport, id and label only — what a company's settings screen
    *  offers to choose from for `Company.invoiceTransportId`. Never filtered by country: the whole
    *  point is that the choice is the company's, not derived from where it is. */
-  listTransports(): { id: string; label: string }[] {
+  listTransports(): { id: string; label: string; credentialFields: CredentialFieldDescriptor[] }[] {
     return this.transportRegistry.list();
+  }
+
+  /**
+   * Issue #526 - the operator catalogue (`documents/operators/`): which operators implement a given
+   * legal channel (`pdp`, `sdi`, `ksef`, `chorus-pro`, `pt-at`...), or every operator this catalogue
+   * knows about when no `legalChannel` is given. Not scoped by `@ActiveCompany()` - this is reference
+   * data, the same "not tenant-specific" reasoning `listTransports()` above and `listTypes()` already
+   * hold; the company's OWN configured operator per channel is a SEPARATE fact, read from
+   * `GET /api/company/channels`'s own `operatorId` (`channels.service.ts#resolveOperatorId`), never
+   * from here.
+   */
+  listOperators(legalChannel?: string): OperatorFact[] {
+    return legalChannel ? defaultOperatorCatalog.forLegalChannel(legalChannel) : defaultOperatorCatalog.all();
   }
 
   /**
