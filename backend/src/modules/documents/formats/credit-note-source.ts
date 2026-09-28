@@ -8,12 +8,12 @@
  *
  * A LINKED credit note owns no amounts of its own: `correctedLines` is a `rowSelection`, a pointer at
  * rows of the corrected invoice's own `lines` (`credit-note.descriptor.ts`, "Two shapes, one type").
- * The amount it credits is already defined, in one place, by `settlement/credits.ts#
- * computeCreditedAmountMinor`: those selected rows, priced with the INVOICE's own descriptor (which is
- * what makes the invoice's per-line `discountPercent` count - the credit note's own `lines` subfields
- * declare no discount). This file prices the file the same way, so the total a credit-note XML
- * declares (BT-112/BT-115, `ImportoTotaleDocumento`) is, to the cent, the amount settlement subtracts
- * from the invoice. A second pricing path would be a second answer to the same question.
+ * The amount it credits is defined in one place, `totals/linked-credit-note.ts` (issue #507): those
+ * selected rows, priced with the INVOICE's own descriptor (which is what makes the invoice's per-line
+ * `discountPercent` count - the credit note's own `lines` subfields declare no discount). This file
+ * builds the XML from that same source, so the total a credit-note XML declares (BT-112/BT-115,
+ * `ImportoTotaleDocumento`) is, to the cent, the amount settlement subtracts from the invoice and the
+ * total the PDF prints. A second pricing path would be a second answer to the same question.
  *
  * ## What is refused, and why
  *
@@ -31,14 +31,10 @@
 import { BadRequestException } from '@nestjs/common';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
-import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
-import { findOwnedDocument } from '../persistence';
-import { rowIdOf } from '../row-selection/row-selection';
+import { resolveLinkedCreditNote } from '../totals/linked-credit-note';
 import { CorrectedInvoiceReference } from './format-provider';
 import { toDateOnly } from './shared-build';
-
-const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 export interface CreditNoteFormatSource {
   /** The INVOICE descriptor - see this file's own header, "Why the invoice's descriptor". */
@@ -55,22 +51,19 @@ export interface CreditNoteFormatSource {
   correctedInvoice: CorrectedInvoiceReference;
 }
 
-/** The credit note's own free text for BT-22: its `notes`, then its `reason` (the "why" a reader of
- *  a credit note needs most), each only when set. */
-function creditNoteNotes(data: Record<string, unknown>): string | undefined {
-  const parts = [data.notes, data.reason]
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-    .map((value) => value.trim());
-  return parts.length > 0 ? parts.join('\n') : undefined;
-}
-
+/**
+ * Issue #507: the pricing itself (which rows, which descriptor, which currency) is
+ * `totals/linked-credit-note.ts`, the one rule the PDF, the email, the totals card, the list row and
+ * settlement also read. This function only adds what an electronic file needs on top of it: the three
+ * refusals in this file's own header.
+ */
 export async function resolveCreditNoteFormatSource(
   companyId: string,
   creditNote: Pick<DocumentInstanceResult, 'data'>,
 ): Promise<CreditNoteFormatSource> {
   const data = (creditNote.data ?? {}) as Record<string, unknown>;
-  const invoiceId = typeof data.invoice === 'string' && data.invoice.trim() ? data.invoice : undefined;
-  if (!invoiceId) {
+  const linked = await resolveLinkedCreditNote(companyId, data);
+  if (!linked) {
     throw new BadRequestException(
       'Cannot build an electronic credit note for a FREE credit note: it corrects no invoice, so it ' +
         'has no buyer (a credit note takes its buyer from the invoice it corrects), and every ' +
@@ -79,25 +72,14 @@ export async function resolveCreditNoteFormatSource(
     );
   }
 
-  const invoice = await findOwnedDocument(companyId, 'invoice', invoiceId);
-  const invoiceData = (invoice.data ?? {}) as Record<string, unknown>;
-  if (!invoice.displayNumber) {
+  if (!linked.invoice.displayNumber) {
     throw new BadRequestException(
       'Cannot build an electronic credit note: the invoice it corrects has no number of its own, so ' +
         'the mandatory reference to it (EN 16931 BG-3/BT-25) cannot be written.',
     );
   }
 
-  const selected = new Set(
-    Array.isArray(data.correctedLines)
-      ? (data.correctedLines as unknown[]).filter((id): id is string => typeof id === 'string')
-      : [],
-  );
-  const invoiceLines = Array.isArray(invoiceData.lines) ? (invoiceData.lines as unknown[]) : [];
-  const lines = invoiceLines.filter((line) => {
-    const rowId = rowIdOf(line);
-    return rowId !== undefined && selected.has(rowId);
-  });
+  const lines = linked.pricingData.lines as unknown[];
   if (lines.length === 0) {
     throw new BadRequestException(
       'Cannot build an electronic credit note: none of the lines it corrects exist on the invoice any ' +
@@ -105,25 +87,13 @@ export async function resolveCreditNoteFormatSource(
     );
   }
 
-  const notes = creditNoteNotes(data);
   return {
-    pricingDescriptor: INVOICE_DESCRIPTOR,
-    pricingData: {
-      client: invoiceData.client,
-      issueDate: data.issueDate,
-      // The invoice's currency, never the note's own label: the credited amount is denominated in it
-      // by construction (settlement/credits.ts's own header on `CreditsForDocument.warnings`).
-      currency: invoiceData.currency,
-      // BT-10 follows the corrected invoice: a German public buyer's Leitweg-ID routes the correction
-      // exactly as it routed the invoice.
-      ...(invoiceData.buyerReference !== undefined ? { buyerReference: invoiceData.buyerReference } : {}),
-      ...(notes ? { notes } : {}),
-      lines,
-    },
-    correctedInvoiceIssueDate: invoiceData.issueDate,
+    pricingDescriptor: linked.pricingDescriptor,
+    pricingData: linked.pricingData,
+    correctedInvoiceIssueDate: linked.invoiceIssueDate,
     correctedInvoice: {
-      displayNumber: invoice.displayNumber,
-      issueDate: toDateOnly(invoiceData.issueDate),
+      displayNumber: linked.invoice.displayNumber,
+      issueDate: toDateOnly(linked.invoiceIssueDate),
     },
   };
 }

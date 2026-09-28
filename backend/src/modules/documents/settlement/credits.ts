@@ -1,8 +1,8 @@
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { listAllDocuments } from '../persistence';
-import { rowIdOf } from '../row-selection/row-selection';
 import { computeDocumentTotals } from '../totals/compute-totals';
+import { linkedCreditNotePricingData } from '../totals/linked-credit-note';
 import { SettlementCreditInput } from './compute-settlement';
 
 /**
@@ -80,15 +80,12 @@ export interface CreditsForDocument {
 function computeCreditedAmountMinor(
   invoiceDescriptor: DocumentTypeDescriptor,
   invoiceData: Record<string, unknown>,
-  correctedLines: readonly string[],
+  noteData: Record<string, unknown>,
 ): number {
-  const allLines = Array.isArray(invoiceData.lines) ? (invoiceData.lines as unknown[]) : [];
-  const selectedIds = new Set(correctedLines);
-  const selectedLines = allLines.filter((line) => {
-    const rowId = rowIdOf(line);
-    return rowId !== undefined && selectedIds.has(rowId);
-  });
-  return computeDocumentTotals(invoiceDescriptor, { ...invoiceData, lines: selectedLines }).grossMinor;
+  // Issue #507: the selection and the pricing data are `totals/linked-credit-note.ts`'s, the same
+  // object the credit note's own PDF, email, totals card, list row and XML are priced from.
+  return computeDocumentTotals(invoiceDescriptor, linkedCreditNotePricingData(noteData, invoiceData))
+    .grossMinor;
 }
 
 /**
@@ -155,10 +152,7 @@ export function creditsForInvoiceFromNotes(
       );
     }
 
-    const correctedLines = Array.isArray(noteData.correctedLines)
-      ? (noteData.correctedLines as unknown[]).filter((entry): entry is string => typeof entry === 'string')
-      : [];
-    const amountMinor = computeCreditedAmountMinor(invoiceDescriptor, invoiceData, correctedLines);
+    const amountMinor = computeCreditedAmountMinor(invoiceDescriptor, invoiceData, noteData);
 
     credits.push({
       id: note.id,

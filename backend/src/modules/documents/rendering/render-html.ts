@@ -383,6 +383,20 @@ export interface RenderDocumentHtmlInput {
     country?: string | null;
   };
   referenceLabels: Record<string, string>;
+  /**
+   * Issue #507 - the invoice a LINKED credit note corrects, printed in the header next to the date
+   * (CGI art. 289, I, 5 asks a correcting document to reference the initial invoice "de façon
+   * spécifique et non équivoque": its number and its date). Absent for every other document, and for
+   * a FREE credit note, which then renders byte-for-byte as before.
+   */
+  correctedInvoice?: { displayNumber: string | null; issueDate: string | null };
+  /**
+   * Issue #507 - the rows a 'rowSelection' field points at, already resolved by the caller, keyed by
+   * that field's key: `field` is the SOURCE array field (its subfields give the table's columns) and
+   * `rows` the selected source rows. A field present here renders as the same table an 'array' field
+   * does, instead of the bare list of row ids it otherwise prints. Absent keeps that old rendering.
+   */
+  resolvedRowSelections?: Record<string, { field: DocumentFieldDescriptor; rows: Record<string, unknown>[] }>;
   totals?: DocumentTotals;
   /**
    * Issue #373 ("quotes with options") - when the quote offers 2+ options
@@ -850,7 +864,14 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
             ? ''
             : `<div><strong>${escapeHtmlSafe(strings.status)}:</strong> ${escapeHtmlSafe(instance.status)}</div>`
         }
-        <div><strong>${escapeHtmlSafe(strings.date)}:</strong> ${escapeHtmlSafe(createdDate)}</div>
+        <div><strong>${escapeHtmlSafe(strings.date)}:</strong> ${escapeHtmlSafe(createdDate)}</div>${
+          input.correctedInvoice
+            ? `\n        <div class="corrected-invoice">${strings.correctsInvoice(
+                escapeHtmlSafe(input.correctedInvoice.displayNumber ?? strings.issuedWithoutNumber),
+                escapeHtmlSafe(input.correctedInvoice.issueDate ?? '-'),
+              )}</div>`
+            : ''
+        }
       </div>
     </div>
 `;
@@ -895,7 +916,12 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       continue;
     }
 
-    const renderedValue = renderFieldValue(field, value, referenceLabels, instance.data, strings);
+    // Issue #507 - see `RenderDocumentHtmlInput.resolvedRowSelections`: the selected source rows, as
+    // the source's own table, never their ids.
+    const resolvedRows = field.kind === 'rowSelection' ? input.resolvedRowSelections?.[field.key] : undefined;
+    const renderedValue = resolvedRows
+      ? renderFieldValue(resolvedRows.field, resolvedRows.rows, referenceLabels, instance.data, strings)
+      : renderFieldValue(field, value, referenceLabels, instance.data, strings);
 
     html += `
     <div class="field-row">

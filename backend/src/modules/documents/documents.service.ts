@@ -55,7 +55,7 @@ import {
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
 import { listDeclarations, ListDeclarationsResult } from './reporting/list-declarations';
-import { ActionRegistry, ActionResult } from './actions/action-registry';
+import { ActionRegistry, ActionResult, DocumentInstanceResult } from './actions/action-registry';
 import { collectWidgets } from './contributions/collect-widgets';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { Widget } from './contributions/widgets';
@@ -108,6 +108,11 @@ import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/for
 import { companyToFormatParty, clientToFormatParty } from './formats/party-snapshot';
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
 import { resolveCreditNoteFormatSource } from './formats/credit-note-source';
+import {
+  findLinkedCreditNote,
+  linkedCreditNoteTotals,
+  linkedCreditNoteTotalsByNoteId,
+} from './totals/linked-credit-note';
 import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
 import { resolveClientFieldKey, resolveDateFieldKey, resolveSearchTextFieldKeys } from './list-filters';
 import { isNumberingAllowedFrom } from './numbering/only-from';
@@ -980,7 +985,7 @@ export class DocumentsService implements OnModuleInit {
       }
     }
 
-    return listDocumentsPage(companyId, {
+    const page = await listDocumentsPage(companyId, {
       typeId,
       page: query.page,
       pageSize: query.pageSize,
@@ -997,6 +1002,7 @@ export class DocumentsService implements OnModuleInit {
       searchClientIds,
       ids: settlementIds,
     });
+    return { ...page, items: await this.withDerivedTotals(companyId, page.items) };
   }
 
   /** Client ids whose own `name` contains `q` (case-insensitive), company-scoped — `listDocuments`'s
@@ -1015,6 +1021,34 @@ export class DocumentsService implements OnModuleInit {
 
   async getDocument(companyId: string, typeId: string, id: string) {
     return findOwnedDocument(companyId, typeId, id);
+  }
+
+  /** `getDocument` as the screen reads it (`GET /documents/:id`): the same row, plus `derivedTotals`
+   *  for a linked credit note (issue #507, see `withDerivedTotals`). Kept apart from `getDocument`,
+   *  which a dozen internal callers use as a plain tenant-scoped lookup with no use for totals. */
+  async getDocumentView(companyId: string, typeId: string, id: string) {
+    const document = await findOwnedDocument(companyId, typeId, id);
+    const [withDerived] = await this.withDerivedTotals(companyId, [document]);
+    return withDerived;
+  }
+
+  /**
+   * Issue #507 - `derivedTotals` on every LINKED credit note of `documents`: the totals it takes from
+   * the invoice it corrects (`totals/linked-credit-note.ts`, the one rule settlement, the PDF and the
+   * XML export read). The screen's list row and detail page show THIS instead of summing the note's
+   * own `lines`, which a linked note leaves empty by construction. Every other document is returned
+   * untouched, with no `derivedTotals` key at all. One query for the whole page.
+   */
+  private async withDerivedTotals<T extends DocumentInstanceResult>(
+    companyId: string,
+    documents: T[],
+  ): Promise<(T & { derivedTotals?: DocumentTotals })[]> {
+    const byId = await linkedCreditNoteTotalsByNoteId(companyId, documents);
+    if (byId.size === 0) return documents;
+    return documents.map((document) => {
+      const derivedTotals = byId.get(document.id);
+      return derivedTotals ? { ...document, derivedTotals } : document;
+    });
   }
 
   /**
@@ -1595,6 +1629,12 @@ export class DocumentsService implements OnModuleInit {
   async computeTotals(companyId: string, typeId: string, id: string): Promise<DocumentTotalsView> {
     const instance = await findOwnedDocument(companyId, typeId, id);
     const descriptor = this.mergedDescriptor(typeId);
+    // Issue #507 - a linked credit note is worth its corrected invoice rows, never its own empty
+    // `lines` (`totals/linked-credit-note.ts`).
+    const linked = await findLinkedCreditNote(companyId, typeId, instance.data as Record<string, unknown>);
+    if (linked) {
+      return { ...linkedCreditNoteTotals(linked), options: null, acceptedOption: null };
+    }
     return resolveDocumentTotalsView(
       typeId,
       descriptor,

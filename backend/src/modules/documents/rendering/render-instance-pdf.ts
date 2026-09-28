@@ -23,10 +23,11 @@ import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/per
 import { PaymentMethodPresentation } from '../payment-methods/types';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { computeDocumentTotals, DocumentTotals } from '../totals/compute-totals';
+import { findLinkedCreditNote, LinkedCreditNote, linkedCreditNoteTotals } from '../totals/linked-credit-note';
 import { RenderLanguage } from './language/supported-languages';
 import { resolveRecipientLanguage } from './language/resolve-recipient-language';
 import { logoDataUriFor } from './branding/logo-storage';
-import { renderDocumentHtml } from './render-html';
+import { renderDocumentHtml, RenderDocumentHtmlInput } from './render-html';
 import { renderPdf } from './render-pdf';
 import { buildEpcPayload, renderSepaQrDataUri } from './sepa-qr';
 import { printsStatusLine, RenderPurpose } from './status-line-policy';
@@ -236,6 +237,32 @@ async function recipientLanguageFor(
   return resolveRecipientLanguage(client?.language, companyLanguage);
 }
 
+/** What `render-html.ts` needs to print a linked credit note: the corrected invoice's number and
+ *  date in the header, and its selected rows as the invoice's own line table. */
+function linkedCreditNoteRenderInput(
+  descriptor: DocumentTypeDescriptor,
+  linked: LinkedCreditNote,
+): Pick<RenderDocumentHtmlInput, 'correctedInvoice' | 'resolvedRowSelections'> {
+  const invoiceIssueDate =
+    typeof linked.invoiceIssueDate === 'string' ? linked.invoiceIssueDate.slice(0, 10) : null;
+  const resolvedRowSelections: NonNullable<RenderDocumentHtmlInput['resolvedRowSelections']> = {};
+  for (const field of descriptor.fields) {
+    if (field.kind !== 'rowSelection' || field.sourceField !== 'invoice' || !field.sourceArrayField) continue;
+    const sourceArrayField = linked.pricingDescriptor.fields.find(
+      (candidate) => candidate.key === field.sourceArrayField && candidate.kind === 'array',
+    );
+    if (!sourceArrayField) continue;
+    resolvedRowSelections[field.key] = {
+      field: sourceArrayField,
+      rows: linked.pricingData.lines as Record<string, unknown>[],
+    };
+  }
+  return {
+    correctedInvoice: { displayNumber: linked.invoice.displayNumber ?? null, issueDate: invoiceIssueDate },
+    resolvedRowSelections,
+  };
+}
+
 export interface RenderedDocumentInstance {
   pdf: Buffer;
   /** REUSED by the send path's email template (`actions/email-template.ts`'s `totalGross`) — this is
@@ -366,7 +393,15 @@ export async function renderDocumentInstance(
   // the redundant VAT row on THIS PDF (draft preview or final) without waiting for that resolution,
   // and without touching a single net/vat/gross figure (see `DocumentTotals.showVat`'s own header).
   const totalsOptions = { sellerExemptVat: company.exemptVat };
-  const totals = computeDocumentTotals(descriptor, instanceData, totalsOptions);
+  // Issue #507 - a LINKED credit note owns no amounts: its total, and the rows its "Corrected lines"
+  // prints, are the corrected invoice's selected rows priced with the invoice's own descriptor
+  // (`totals/linked-credit-note.ts`, the one rule settlement and the XML export already read).
+  // `computeDocumentTotals` over the note's own (empty) `lines` printed "Total 0.00" and a list of raw
+  // row ids. A FREE credit note, and every other type, is priced exactly as before.
+  const linkedCreditNote = await findLinkedCreditNote(companyId, descriptor.id, instanceData);
+  const totals = linkedCreditNote
+    ? linkedCreditNoteTotals(linkedCreditNote, totalsOptions)
+    : computeDocumentTotals(descriptor, instanceData, totalsOptions);
   // Issue #373 ("quotes with options") - `isQuoteWithOptions` gates this on the document actually
   // BEING a quote (`descriptor.id === 'quote'`), not merely on its lines happening to carry an
   // `option` tag - review point #4 ("option mode is not restricted to quotes"): the old
@@ -434,6 +469,7 @@ export async function renderDocumentInstance(
     printStatus: printsStatusLine(descriptor, instance.status, purpose),
     company,
     referenceLabels,
+    ...(linkedCreditNote ? linkedCreditNoteRenderInput(descriptor, linkedCreditNote) : {}),
     totals,
     optionGroups: quoteOptionTotals
       ? {

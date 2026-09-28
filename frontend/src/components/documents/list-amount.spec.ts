@@ -81,4 +81,21 @@ describe("resolveRowAmount", () => {
     ] as unknown as DocumentTypeDescriptor["fields"])
     expect(resolveRowAmount(noMoney, { title: "x" })).toBeNull()
   })
+
+  // Issue #507 - a linked credit note's own `lines` are empty by construction; the backend's
+  // `derivedTotals` (priced from the invoice it corrects) is its amount.
+  it("shows the backend's derived totals over the document's own empty lines", () => {
+    const derivedTotals = {
+      currency: "EUR",
+      netMinor: 54000,
+      vatMinor: 10800,
+      grossMinor: 64800,
+      vatBreakdown: [{ ratePercent: 20, baseMinor: 54000, vatMinor: 10800 }],
+      warnings: [],
+    }
+    expect(resolveRowAmount(withLines, { currency: "EUR", lines: [] }, null, derivedTotals)).toEqual({
+      minor: 64800,
+      currency: "EUR",
+    })
+  })
 })

@@ -44,6 +44,7 @@ import { DocumentTaxWarningsSection } from "@/components/documents/document-tax-
 import {
   DocumentTotals,
   formatTotal,
+  fromDerivedTotals,
   acceptedOptionTotals,
   useDocumentOptionTotals,
   useDocumentTotals,
@@ -55,6 +56,7 @@ import { MarkQuoteAcceptedDialog } from "@/components/documents/mark-quote-accep
 import { SectionCard } from "@/components/documents/section-card"
 import { ShareLinkDialog } from "@/components/documents/share-link-dialog"
 import type {
+  DerivedDocumentTotals,
   DocumentActionDescriptor,
   DocumentInstance,
   DocumentTypeDescriptor,
@@ -255,6 +257,7 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             descriptor={descriptor}
             documentId={instance.id}
             acceptedOption={instance.acceptedOption}
+            derivedTotals={instance.derivedTotals}
           />
           {showSettlement && <DocumentSettlementSection typeId={descriptor.id} documentId={instance.id} />}
           {/* Legal archiving ⚖ — shown for ANY document type/status once it has at least one
@@ -410,7 +413,11 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
               </span>
             )
           })}
-          <HeadlineAmount descriptor={descriptor} acceptedOption={instance.acceptedOption} />
+          <HeadlineAmount
+            descriptor={descriptor}
+            acceptedOption={instance.acceptedOption}
+            derivedTotals={instance.derivedTotals}
+          />
         </div>
       </div>
 
@@ -423,16 +430,21 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
  *  Absent for a type with nothing to total (see useDocumentTotals), and - issue #373 ("quotes with
  *  options") - absent for a quote offering 2+ options: there is no single gross to headline until the
  *  client picks one, and the per-option totals card below is where each option's own total lives.
- *  Issue #479: once an option IS picked (`acceptedOption`), that option's own total is the headline. */
+ *  Issue #479: once an option IS picked (`acceptedOption`), that option's own total is the headline.
+ *  Issue #507: a linked credit note's headline is its `derivedTotals` (`DocumentInstance`'s own
+ *  header), never the 0.00 its own empty lines sum to. */
 function HeadlineAmount({
   descriptor,
   acceptedOption,
+  derivedTotals,
 }: {
   descriptor: DocumentTypeDescriptor
   acceptedOption?: string | null
+  derivedTotals?: DerivedDocumentTotals | null
 }) {
   const optionTotals = useDocumentOptionTotals(descriptor)
-  const totals = useDocumentTotals(descriptor)
+  const liveTotals = useDocumentTotals(descriptor)
+  const totals = derivedTotals ? fromDerivedTotals(derivedTotals) : liveTotals
   const headline = optionTotals ? acceptedOptionTotals(optionTotals, acceptedOption) : totals
   if (!headline) return null
   return (
@@ -454,18 +466,20 @@ function TotalsCard({
   descriptor,
   documentId,
   acceptedOption,
+  derivedTotals,
 }: {
   descriptor: DocumentTypeDescriptor
   documentId: string
   acceptedOption?: string | null
+  derivedTotals?: DerivedDocumentTotals | null
 }) {
   const { t } = useTranslation()
   const optionTotals = useDocumentOptionTotals(descriptor)
   const totals = useDocumentTotals(descriptor)
-  if (!optionTotals && !totals) return null
+  if (!optionTotals && !totals && !derivedTotals) return null
   return (
     <SectionCard title={t("documents.detail.totalsTitle")} dataCy="document-totals-card">
-      <DocumentTotals descriptor={descriptor} acceptedOption={acceptedOption} />
+      <DocumentTotals descriptor={descriptor} acceptedOption={acceptedOption} derivedTotals={derivedTotals} />
       <DocumentTaxWarningsSection typeId={descriptor.id} documentId={documentId} />
     </SectionCard>
   )
