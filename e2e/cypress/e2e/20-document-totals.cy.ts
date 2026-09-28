@@ -7,7 +7,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * 2. The form displays correct totals as the user fills in lines
  * 3. The PDF includes totals in the rendered output
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Document totals", () => {
 	before(() => {

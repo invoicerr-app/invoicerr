@@ -13,7 +13,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  2. A targets an email with NO account at all — identical screen outcome, but nothing is created
  *     (no pending transfer for the company, no mail sent to a ghost inbox).
  */
-const api = Cypress.env('apiUrl') || 'http://localhost:4000';
+const api = Cypress.env('apiUrl');
 
 const OWNER_A_EMAIL = 'john.doe@acme.org';
 const OWNER_B_EMAIL = 'jane.roe@example.org';

@@ -29,7 +29,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * what the 14 tests in 31-national-channels.cy.ts already prove implicitly (their invoices are all
  * issued on 2026-08-31, before the mandate) — this file makes it explicit.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 /** Same fake credentials as 31 — see that file's own header for why (port 1, never
  *  open on a normal machine: immediate ECONNREFUSED, no real platform behind it). */

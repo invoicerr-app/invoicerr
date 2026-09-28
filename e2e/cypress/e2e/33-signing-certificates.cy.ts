@@ -18,7 +18,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * and 28 (asynchronous sending keeps working once a certificate is active — the invoice sent by
  * email is a signed PDF, never a broken send).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const FIXTURE_PFX_PATH = "cypress/fixtures/signing/e2e-fixture-cert.pfx";
 const FIXTURE_PASSWORD = "e2e-fake-pfx-password-not-real";

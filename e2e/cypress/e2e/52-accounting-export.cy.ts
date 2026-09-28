@@ -7,7 +7,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * (`accounting-export/*.spec.ts`, including credit-note rows); here we prove the real endpoint
  * end-to-end: a sent invoice + a payment, within the period → two rows at the right amount.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("CSV accounting export — invoice + payment within a period", () => {
 	before(() => {

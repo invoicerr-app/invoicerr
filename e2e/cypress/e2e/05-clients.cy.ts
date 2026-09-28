@@ -213,7 +213,7 @@ describe("Clients E2E", () => {
 		// The client RECORD itself must save with no email at all — a real screen submission, the
 		// network response asserted directly (201), never inferred from the dialog merely closing.
 		it("creates a client with NO email at all — the field is optional, saved as a 201", () => {
-			cy.intercept("POST", `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients`).as(
+			cy.intercept("POST", `${Cypress.env("apiUrl")}/api/clients`).as(
 				"createClientNoEmail",
 			);
 
@@ -351,7 +351,7 @@ describe("Clients E2E", () => {
 			cy.contains("Bad VAT Syntax SARL", { timeout: 10000 });
 
 			cy.request<{ partyIdentifiers: { scheme: string; validationStatus: string | null }[] }[]>({
-				url: `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients/search?query=${encodeURIComponent("Bad VAT Syntax SARL")}`,
+				url: `${Cypress.env("apiUrl")}/api/clients/search?query=${encodeURIComponent("Bad VAT Syntax SARL")}`,
 			})
 				.its("body")
 				.then((clients) => {
@@ -374,7 +374,7 @@ describe("Clients E2E", () => {
 		const duplicateEmail = "duplicate-check-t194@example.com";
 
 		it("creates the original client that the next test will collide with", () => {
-			cy.intercept("POST", `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients`).as(
+			cy.intercept("POST", `${Cypress.env("apiUrl")}/api/clients`).as(
 				"createOriginal",
 			);
 
@@ -411,10 +411,10 @@ describe("Clients E2E", () => {
 		});
 
 		it("shows a non-blocking warning for the same email, naming the existing client, and still creates it", () => {
-			cy.intercept("POST", `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients`).as(
+			cy.intercept("POST", `${Cypress.env("apiUrl")}/api/clients`).as(
 				"createDuplicate",
 			);
-			cy.intercept("GET", `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients/duplicates*`).as(
+			cy.intercept("GET", `${Cypress.env("apiUrl")}/api/clients/duplicates*`).as(
 				"checkDuplicates",
 			);
 
@@ -975,7 +975,7 @@ describe("Clients E2E", () => {
  * "at most two clients exist, both on page 1" simply true instead of assumed.
  */
 describe("Supplier role", () => {
-	const api = Cypress.env("apiUrl") || "http://localhost:4000";
+	const api = Cypress.env("apiUrl");
 
 	before(() => {
 		cy.resetAndSeed();
@@ -1170,7 +1170,7 @@ describe("Supplier role", () => {
  * alone as proof of what was actually served, same discipline as 30-document-xml-format.cy.ts.
  */
 describe("Italian recipient identifiers (IT_SDI) — FatturaPA routing", () => {
-	const api = Cypress.env("apiUrl") || "http://localhost:4000";
+	const api = Cypress.env("apiUrl");
 
 	before(() => {
 		cy.resetAndSeed();

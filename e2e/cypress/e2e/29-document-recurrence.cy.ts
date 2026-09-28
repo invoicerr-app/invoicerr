@@ -19,7 +19,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * KNOWN value (>= 3 passes, margin included) — never tightened on the assertion itself: an
  * assertion that would fail with a 60s interval would fail just as honestly here.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 // >= 3 sweep passes (5s/pass in test) + network/render margin. Still used below for the ONE wait
 // that has no positive fact to poll for (proving nothing new appears after disabling) — never to
 // tighten an assertion: whether the real interval is 5s (here) or 60s (by default), that assertion

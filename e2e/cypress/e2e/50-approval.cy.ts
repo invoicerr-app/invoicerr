@@ -8,7 +8,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * wiring → `runAction`. The gate's own logic (role × total × threshold) is covered/bitten in
  * jest (`approval/approval-gate.spec.ts`); here the real block on the real endpoint is proven.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 const MEMBER_EMAIL = "member-approval@example.com";
 const PASSWORD = "Super_Secret_Password123!";
 const THRESHOLD_MINOR = 50000; // 500,00 EUR

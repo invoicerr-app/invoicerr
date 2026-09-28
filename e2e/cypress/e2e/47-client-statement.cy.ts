@@ -8,7 +8,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * the right buckets, and the statement opens and displays them on screen. Dates are computed
  * relative to now so the aged classification stays stable whatever the day of execution.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 const CLIENT_EMAIL = "statement-client@example.com";
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);

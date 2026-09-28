@@ -474,6 +474,14 @@ export default defineConfig({
   // 25-document-settlement and 29-document-recurrence to renderer crashes -- the exact four named
   // above -- while the same specs pass on Firefox. A default that cannot be green teaches people to
   // ignore the suite. Pass `--browser electron` explicitly if you want to reproduce the crash.
+  //
+  // The ONLY place the suite learns where the stack under test listens (#502). Specs and
+  // `support/commands.ts` read `Cypress.config("baseUrl")`, `Cypress.env("apiUrl")`,
+  // `Cypress.env("mailpitUrl")` and `Cypress.env("mailpitSmtpPort")`, never a literal
+  // `localhost:<port>` (`scripts/check-e2e-literal-ports.mjs` fails CI on one). The defaults are
+  // the shared stack's ports, so CI sets nothing; a second stack on the same machine exports
+  // FRONTEND_URL, VITE_BACKEND_URL, MAILPIT_URL and MAILPIT_SMTP_PORT instead of editing specs.
+  // Without MAILPIT_URL an isolated run's `cy.clearEmails()` would empty the SHARED inbox.
   e2e: {
     video: true,
     baseUrl: process.env.FRONTEND_URL || "http://localhost:6284",
@@ -481,6 +489,8 @@ export default defineConfig({
     supportFile: "cypress/support/e2e.ts",
     env: {
       apiUrl: process.env.VITE_BACKEND_URL || "http://localhost:4000",
+      mailpitUrl: process.env.MAILPIT_URL || "http://localhost:8025",
+      mailpitSmtpPort: Number(process.env.MAILPIT_SMTP_PORT || 1025),
     },
     setupNodeEvents(on) {
       on("task", {

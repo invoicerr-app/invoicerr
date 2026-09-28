@@ -12,7 +12,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * intact.
  */
 
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function countClients() {
 	return cy.request({ method: "GET", url: `${api}/api/clients?page=1` }).then((res) => res.body.clients.length);

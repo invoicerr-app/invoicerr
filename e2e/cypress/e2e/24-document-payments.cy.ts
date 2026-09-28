@@ -22,7 +22,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     no effect at all on the already-recorded balance;
  *  5. on a draft, the action is not offered on screen, and the API refuses it too (409).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 // 100 € net, 20% VAT -> net 10000, VAT 2000, gross 12000 (minor units).
 const GROSS_MINOR = 12000;

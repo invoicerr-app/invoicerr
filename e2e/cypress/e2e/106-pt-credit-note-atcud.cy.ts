@@ -17,7 +17,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  b) with only the invoice's FT series registered, sending the credit note is refused (400) BEFORE
  *     any number is spent, and the refusal names the missing NC series.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 const YEAR = new Date().getFullYear();
 const FT_SERIES = `FT ${YEAR}`;
 const NC_SERIES = `NC ${YEAR}`;

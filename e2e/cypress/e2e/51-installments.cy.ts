@@ -21,7 +21,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `request-installments.ts` requires them distinct or ordered, and "today" is reachable without
  * navigating the calendar's month/year dropdowns to an arbitrary future date.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 // Quote: 1000.03 net @ 20% → VAT 20001, gross 120004 minor. 30/40/30 → 36001/48002/36001 = 120004.
 const QUOTE_GROSS_MINOR = 120004;
 

@@ -16,7 +16,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * boundary itself — proving the DOM hides a button says nothing about what a scripted client posting
  * directly could still do.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const MEMBER_EMAIL = "member-expense-categories@example.com";
 const PASSWORD = "Super_Secret_Password123!";

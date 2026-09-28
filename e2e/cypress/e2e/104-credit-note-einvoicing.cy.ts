@@ -12,7 +12,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  b) a LEGACY credit note (issued before #471, so "sent" with no number) gets NO file: 409.
  *  c) a FREE credit note (no invoice, so no buyer) gets no file either: 400, saying why.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createClient() {
 	return cy

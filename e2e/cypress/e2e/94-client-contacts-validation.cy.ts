@@ -19,7 +19,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     created without touching the Contact step showed a "- / -" primary contact instead of "No
  *     contacts". The backend now drops an all-blank contact before writing.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Client contacts validation (#415 follow-up review)", () => {
 	before(() => {

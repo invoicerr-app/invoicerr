@@ -16,7 +16,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Regressions covered: 28 (the asynchronous send keeps working once
  * archiving is wired in after "sent" — never a send broken by this addition).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 interface DocumentArchive {
 	id: string;

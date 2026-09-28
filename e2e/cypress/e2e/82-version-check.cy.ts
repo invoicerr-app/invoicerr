@@ -23,7 +23,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Usual discipline otherwise (see 73-account-page.cy.ts): actions through the screen, the assertion
  * that matters reads the real API response back.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 interface VersionInfo {
 	currentVersion: string;

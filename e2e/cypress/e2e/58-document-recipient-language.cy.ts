@@ -14,7 +14,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * this test instead varied the country too, a bug that silently derived the language FROM the country
  * could still make it pass by coincidence.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createClientWithLanguage(name: string, contactEmail: string, languageOptionDataCy: string) {
 	cy.visit("/clients");

@@ -22,7 +22,7 @@ import { tolerateUncaughtException } from '../support/e2e';
  * unused) and the company membership (never created). The refused email is deliberately NOT asserted
  * unable to sign in here — see the "still unused" assertion below for the real, verified behavior.
  */
-const api = Cypress.env('apiUrl') || 'http://localhost:4000';
+const api = Cypress.env('apiUrl');
 const PASSWORD = 'Super_Secret_Password123!';
 const OWNER_EMAIL = 'john.doe@acme.org';
 

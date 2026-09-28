@@ -28,8 +28,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `makeCreditNoteLegacyUnnumbered` already rests on) must show the SAME "Issued without a number"
  * text on the detail page AND in the rendered PDF.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function switchCompanyToPoland() {
 	return cy

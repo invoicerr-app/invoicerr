@@ -18,7 +18,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * Sources and reading dates: `backend/src/modules/documents/reporting/data/pt.json`.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 const YEAR = new Date().getFullYear();
 const FT_CODE = "E2EFTCODE1";
 const NC_CODE = "E2ENCCODE1";

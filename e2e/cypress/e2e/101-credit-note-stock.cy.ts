@@ -12,7 +12,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * rather than refusing the field - this proves the API still accepts it (never silently dropped) and
  * that the article's stock is nonetheless UNCHANGED once the credit note is sent.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createTrackedArticle() {
 	return cy

@@ -25,7 +25,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Actions go through the screen (the sidebar link, the real "Send" click); the assertions that matter
  * read back the API — same discipline as 28/31/39/44.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 /**
  * The report job runs asynchronously on the SAME queue "send" itself does (`report-job.ts`'s own

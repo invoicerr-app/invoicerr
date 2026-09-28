@@ -13,7 +13,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * enough to prove upload/download/refusal without adding a binary file to the repo (the disallowed-
  * mime and oversized cases in particular have no legitimate reason to exist as committed fixtures).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 // Deliberately plain ASCII so the byte-identity check at the end (`encoding: "binary"`) round-trips
 // exactly, the same technique 36-received-invoices.cy.ts's own `cy.readFile(..., "binary")` comparison

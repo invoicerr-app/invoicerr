@@ -10,7 +10,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * changes; and the CSV import's OLD template columns (unchanged by #415 - they still mean "the
  * primary contact") still import into one primary `ClientContact` cleanly.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function countClients() {
 	return cy.request({ method: "GET", url: `${api}/api/clients?page=1` }).then((res) => res.body.clients.length);
