@@ -41,12 +41,11 @@ import { PolicyProvenance } from '../country-policy/schema';
 
 /**
  * The document TYPE this obligation applies to — a `descriptors/types.ts` id. A UNION, not a bare
- * `string`, even though only `'invoice'` is ever populated today: a declaration obligation can
- * legally extend to correction documents too (modifying/cancelling invoices — NAV's own obligation
- * did, back when this codebase shipped a Hungarian provider), which this codebase models as a
- * SEPARATE document type (`'credit-note'`) that a future pass could add here with zero schema change,
- * exactly the extensibility `channel-policy/schema.ts`'s own `scope` field affords for a different
- * axis.
+ * `string`: a declaration obligation can legally extend to correction documents too
+ * (modifying/cancelling invoices: NAV's own obligation did, back when this codebase shipped a
+ * Hungarian provider), which this codebase models as a SEPARATE document type (`'credit-note'`).
+ * Portugal is the first country to populate it (issue #501, `data/pt.json`: Decreto-Lei n.º 198/2012
+ * applies to "documentos retificativos de fatura" as well).
  */
 export type ReportableDocumentType = 'invoice' | 'credit-note';
 

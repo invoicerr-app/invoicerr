@@ -1,7 +1,10 @@
-import { createHmac } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { createHmac, generateKeyPairSync } from "node:crypto";
+import { mkdtempSync, readFileSync } from "node:fs";
 import * as http from "node:http";
+import * as https from "node:https";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { defineConfig } from "cypress";
@@ -174,6 +177,97 @@ function startFakePdpServer(): Promise<string> {
       const address = server.address() as AddressInfo;
       fakePdpServerUrl = `http://127.0.0.1:${address.port}`;
       resolve(fakePdpServerUrl);
+    });
+  });
+}
+
+/**
+ * The "AT webservice" side for `107-pt-at-declaration-payload.cy.ts` (issue #501): a local HTTPS
+ * server standing in for the Portuguese AT's `fatcorews` endpoint, started once for the run, for the
+ * same reason as the two fakes above. The backend's `pt-at` provider posts its SOAP
+ * `RegisterInvoiceRequest` server to server, so a `cy.intercept` never sees it, and the declared
+ * payload is exactly what that spec must read.
+ *
+ * `pt-at-client.ts` only speaks HTTPS and always presents a client certificate (mTLS, Aspetos
+ * Genericos section 2.1), so this fake needs real certificates: a self-signed server certificate for
+ * 127.0.0.1, which the channel config hands the backend as its test-only `caPem`, and a client
+ * PKCS#12 the backend presents. They are generated per run with the `openssl` CLI into a temporary
+ * directory, never committed. The fake does not decrypt the WS-Security header (the backend's own
+ * `pt-declaration-provider.spec.ts` stub does that against a real key pair); it records every body
+ * and answers `CodigoResposta` 0.
+ */
+interface FakeAtConfig {
+  baseUrl: string;
+  /** The `pt-at` channel config a spec PUTs to `/api/company/channels/pt-at`, pointing at this fake. */
+  channelConfig: Record<string, string>;
+}
+let fakeAtConfig: FakeAtConfig | null = null;
+const fakeAtRequests: string[] = [];
+
+function openssl(args: string[]): void {
+  execFileSync("openssl", args, { stdio: "pipe" });
+}
+
+function startFakeAt(): Promise<FakeAtConfig> {
+  if (fakeAtConfig) return Promise.resolve(fakeAtConfig);
+  const dir = mkdtempSync(join(tmpdir(), "invoicerr-fake-at-"));
+  const file = (name: string) => join(dir, name);
+  openssl([
+    "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=Fake AT fatcorews",
+    "-addext", "subjectAltName=IP:127.0.0.1", "-keyout", file("server.key"), "-out", file("server.crt"),
+  ]);
+  openssl([
+    "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=Fake AT subutilizador",
+    "-keyout", file("client.key"), "-out", file("client.crt"),
+  ]);
+  const pfxPassword = "fake-at-pfx-password";
+  openssl([
+    "pkcs12", "-export", "-inkey", file("client.key"), "-in", file("client.crt"), "-out", file("client.p12"),
+    "-passout", `pass:${pfxPassword}`,
+  ]);
+  const serverCertPem = readFileSync(file("server.crt"), "utf-8");
+  const { publicKey: authPublicKeyPem } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: "spki", format: "pem" },
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+  });
+
+  return new Promise((resolve, reject) => {
+    const server = https.createServer(
+      { key: readFileSync(file("server.key")), cert: serverCertPem },
+      (req, res) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk) => chunks.push(chunk));
+        req.on("end", () => {
+          fakeAtRequests.push(Buffer.concat(chunks).toString("utf-8"));
+          res.writeHead(200, { "Content-Type": "text/xml; charset=utf-8" });
+          res.end(
+            '<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"><S:Body>' +
+              '<RegisterInvoiceResponse xmlns="http://factemi.at.min_financas.pt/documents">' +
+              "<CodigoResposta>0</CodigoResposta><Mensagem>Operação efetuada com sucesso.</Mensagem>" +
+              "<DataOperacao>2026-09-28T10:00:00</DataOperacao></RegisterInvoiceResponse>" +
+              "</S:Body></S:Envelope>",
+          );
+        });
+      },
+    );
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address() as AddressInfo;
+      const baseUrl = `https://127.0.0.1:${address.port}/fatcorews/ws/`;
+      fakeAtConfig = {
+        baseUrl,
+        channelConfig: {
+          username: "509442661/1",
+          password: "fake-at-password",
+          authPublicKeyPem,
+          clientCertificateBase64: readFileSync(file("client.p12")).toString("base64"),
+          clientCertificatePassword: pfxPassword,
+          baseUrl,
+          caPem: serverCertPem,
+        },
+      };
+      resolve(fakeAtConfig);
     });
   });
 }
@@ -557,6 +651,19 @@ export default defineConfig({
         },
         triggerPdpReceptionSweep() {
           return triggerPdpReceptionSweep();
+        },
+
+        // See `startFakeAt`'s own header (issue #501): the Portuguese AT webservice, faked over real
+        // HTTPS so the backend's `pt-at` provider can reach it and the declared payload can be read.
+        startFakeAt() {
+          return startFakeAt();
+        },
+        getFakeAtRequests() {
+          return [...fakeAtRequests];
+        },
+        resetFakeAtRequests() {
+          fakeAtRequests.length = 0;
+          return null;
         },
 
         /**

@@ -578,7 +578,13 @@ export default function ChannelsSettings() {
   // regardless of country): unlike a delivery channel, connecting one for a country with no such
   // obligation would be pure noise, never a genuine option. `configuredMap` still keeps a PREVIOUSLY
   // connected one visible even if the company's registered country later changed.
-  const reportingMap = new Map((channels?.reportingObligations ?? []).map((r) => [r.providerId, r] as const))
+  // One row per provider, described by its FIRST fact: a provider can carry one fact per document
+  // type (Portugal's pt-at declares the invoice and, since issue #501, the credit note), and the
+  // first one, the invoice's, is the one this row has always shown.
+  const reportingMap = new Map<string, ReportingObligation>()
+  for (const obligation of channels?.reportingObligations ?? []) {
+    if (!reportingMap.has(obligation.providerId)) reportingMap.set(obligation.providerId, obligation)
+  }
   const providerIds = Array.from(
     new Set([...knownProviderIds, ...configuredMap.keys(), ...suggestedMap.keys(), ...reportingMap.keys()]),
   )
