@@ -61,6 +61,14 @@ characters, too long for FatturaPA and Chorus Pro): the country format then appl
 number, the counter going on where it stood, so no number is reused and none is skipped. The card says
 so on that document type.
 
+**A kept series never restarts unless its own printed number carries a year.** The yearly restart above
+applies to the *country's* format; a kept series that never printed a year of its own (for example
+`FAC-{number}`) keeps counting up, year after year, even in a country and document type where the
+country's own format restarts every January: printing the same year-less number again would be a
+duplicate invoice number, which is unlawful everywhere this product ships. A kept series that does print
+its own year (for example `FACT-{year}-{number:5}`) restarts exactly like the country format does. The
+card always shows the reset rule of the series actually in use, whichever it is, next to its pattern.
+
 Portuguese sellers register, in the ATCUD section of the settings screen, the AT validation code of each
 series before its first document: the AT issues one per series and document type, so series `FT A` for
 invoices and series `NC A` for credit notes. The ATCUD section shows which series the next document
