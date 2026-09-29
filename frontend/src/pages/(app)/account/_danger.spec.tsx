@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -35,13 +36,21 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 type FetchHandler = (url: URL, init?: RequestInit) => { status?: number; body: unknown }
 
+// `<AccountDangerPage>` also calls `useDemoMode` (issue #533), which fires this GET on every render
+// regardless of what a given test actually exercises, defaulted here, once, rather than repeated in
+// every `installFetchMock` call below, none of which cares about demo mode at all.
+const DEFAULT_HANDLERS: Record<string, FetchHandler> = {
+  "GET /api/legal/documents": () => ({ body: { saasMode: false, demoMode: false, documents: [] } }),
+}
+
 function installFetchMock(handlers: Record<string, FetchHandler>) {
+  const merged = { ...DEFAULT_HANDLERS, ...handlers }
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input.toString()
     const url = new URL(raw, "http://localhost")
     const method = (init?.method ?? "GET").toUpperCase()
     const key = `${method} ${url.pathname}`
-    const handler = handlers[key]
+    const handler = merged[key]
     if (!handler) throw new Error(`Unmocked fetch in test: ${key}`)
     const { status = 200, body } = handler(url, init)
     return jsonResponse(body, status)
@@ -62,10 +71,15 @@ function mockSession(
 }
 
 function renderPage() {
+  // A fresh, no-retry client per render: `useDemoMode`'s own `useQuery` call (issue #533) needs a
+  // `QueryClientProvider` ancestor now that this page reads it.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter>
-      <AccountDangerPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <AccountDangerPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 

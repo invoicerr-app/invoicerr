@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -37,6 +38,17 @@ function installFetchMock(handlers: Record<string, FetchHandler>) {
   return fn
 }
 
+// A fresh, no-retry client per render: `useDemoMode`'s own `useQuery` call (issue #533) needs a
+// `QueryClientProvider` ancestor now that this component reads it.
+function renderScreen() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SsoSettings />
+    </QueryClientProvider>,
+  )
+}
+
 describe("<SsoSettings> — copy outcome", () => {
   const originalClipboard = navigator.clipboard
   const originalExecCommand = document.execCommand
@@ -49,6 +61,8 @@ describe("<SsoSettings> — copy outcome", () => {
       "GET /api/company/sso": () => ({
         body: { provider: null, redirectUri: "https://app.example.com/callback/c_1" },
       }),
+      // `useDemoMode` (issue #533) goes through `useLegalDocuments`, which this component now calls.
+      "GET /api/legal/documents": () => ({ body: { saasMode: false, demoMode: false, documents: [] } }),
     })
   })
 
@@ -67,7 +81,7 @@ describe("<SsoSettings> — copy outcome", () => {
     })
     document.execCommand = vi.fn().mockReturnValue(false)
 
-    render(<SsoSettings />)
+    renderScreen()
     fireEvent.click(await screen.findByLabelText("Copy"))
 
     await waitFor(() =>
@@ -84,7 +98,7 @@ describe("<SsoSettings> — copy outcome", () => {
       configurable: true,
     })
 
-    render(<SsoSettings />)
+    renderScreen()
     fireEvent.click(await screen.findByLabelText("Copy"))
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Copied to clipboard"))

@@ -111,12 +111,21 @@ demo data, by construction.
 ### Scheduling it
 
 The product does not schedule its own reset; that is an infrastructure decision. Run
-`npm run demo:reset` (or, from the built image, `node dist/scripts/demo-reset.js` once a raw-TypeScript
-runner such as `tsx`/`ts-node` copies alongside compiled `dist/src`, the same layout
-`catalogs:release` already uses) from a Kubernetes **CronJob** on a 4-hour schedule
-(`0 */4 * * *`), against the demo namespace's own `DEMO_MODE=true` environment. It is idempotent and
-self-contained: it creates the demo account if missing, reuses it otherwise, and needs no other
-process to be stopped first.
+`npm run demo:reset` (`tsx scripts/demo-reset.ts`, the same "raw script, compiled `src`" pattern
+`catalogs:release` already uses, see that script's own header) from a Kubernetes **CronJob** on a
+4-hour schedule (`0 */4 * * *`), against the demo namespace's own `DEMO_MODE=true` environment. It
+is idempotent and self-contained: it creates the demo account if missing, reuses it otherwise, and
+needs no other process to be stopped first.
+
+`npm run demo:reset` only resolves correctly against a **built** backend: `../src/...` imports in
+`scripts/demo-reset.ts` need `src` to be compiled JavaScript, not raw TypeScript, because the script
+boots a real `NestFactory.createApplicationContext`, and `tsx`'s own esbuild-based transpilation does
+not emit the decorator metadata Nest's DI reads (`nest build`'s `tsc`/`swc` pipeline does). The
+production image already has this shape for free (`Dockerfile` copies `dist/src` to a directory
+named `src`, and `scripts/*.ts` to a sibling `scripts`), so `npm run demo:reset` runs there unmodified.
+Locally or in CI, first `npm run build`, then run `scripts/demo-reset.ts` from a working directory
+where a compiled `src` sits next to it, for example by copying the script into `dist/scripts/` and
+invoking `tsx` from inside `dist/`.
 
 ## Configuration
 
