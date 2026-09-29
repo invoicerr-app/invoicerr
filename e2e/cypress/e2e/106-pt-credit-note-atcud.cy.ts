@@ -152,8 +152,8 @@ describe("Issue #497 - a Portuguese credit note carries its own ATCUD, from its 
 		cy.resetAndSeed();
 		cy.login();
 		// Cypress's default viewport (1000x660): below `lg` the settings nav is a picker, not the
-		// `sticky` tile grid, which at 1280x720 covers every control this long page scrolls under it.
-		// The screenshots below switch to 1280x720 on purpose, once the interactions are done.
+		// desktop sidebar, which at 1280x720 sits beside the section rather than above it. The
+		// screenshots below switch to 1280x720 on purpose, once the interactions are done.
 		switchSellerToPortugal();
 	});
 
@@ -187,8 +187,8 @@ describe("Issue #497 - a Portuguese credit note carries its own ATCUD, from its 
 				cy.get(`[data-cy="atcud-series-row-${nc!.id}-type"]`).should("have.text", "Credit note (NC)");
 			});
 
-		// Screenshots for the PR (issue #497): the settings screen after, at desktop width, with the sticky
-		// tile grid hidden so it does not cover the section. Taken after every interaction above.
+		// Screenshots for the PR (issue #497): the settings screen after, at desktop width, with the
+		// sidebar nav hidden so the section fills the frame. Taken after every interaction above.
 		cy.viewport(1280, 720);
 		cy.get('[data-cy="settings-nav"]').invoke("attr", "style", "display:none");
 		cy.get("[data-sonner-toast]", { timeout: 15000 }).should("not.exist");
