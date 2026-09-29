@@ -76,7 +76,7 @@ belongs to.
 
 **Migrating from another tool?** A **Declare your last number issued** card, right below the Number
 Formats card, lets you tell Invoicerr where your previous tool's own numbering left off, so your next
-invoice or credit note continues from there instead of restarting at 1 — usable on its own, or together
+invoice or credit note continues from there instead of restarting at 1, usable on its own or together
 with [importing your past invoices](../billing/migrating-from-another-tool.md). It can only be used
 once per document type, before that type's first Invoicerr document.
 

@@ -1,7 +1,7 @@
 /**
  * The per-document entry point for importing a document issued by a previous tool (issue #340):
  * upload the original file FIRST (the same drag/drop shape `received-invoice-upload-button.tsx`
- * already uses), then a form — the SAME `descriptor.fields` this type's ordinary create form shows,
+ * already uses), then a form: the SAME `descriptor.fields` this type's ordinary create form shows,
  * rendered with the exact same `DocumentField` components, plus the few facts unique to an import
  * (the original number, and transmission evidence). Submitting calls the bespoke
  * `POST /documents/types/:typeId/import` (see `use-document-import.ts`'s own header for why this is

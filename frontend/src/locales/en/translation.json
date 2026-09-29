@@ -5050,7 +5050,7 @@
         "formDescription": "Original file: {{fileName}}",
         "originalNumber": "Original number (as the previous tool printed it)",
         "transmissionTitle": "Transmission evidence",
-        "transmissionHint": "Did the previous tool actually transmit this document? Leave blank if you are not sure — the import is still accepted, with a visible warning that it must be regularised.",
+        "transmissionHint": "Did the previous tool actually transmit this document? Leave blank if you are not sure: the import is still accepted, with a visible warning that it must be regularised.",
         "transmissionSdiId": "SdI id (Italy)",
         "transmissionKsefNumber": "KSeF number (Poland)",
         "transmissionPaReference": "Accredited platform reference (France)",
@@ -5058,7 +5058,7 @@
         "cancel": "Cancel",
         "confirm": "Import",
         "imported": "Document imported.",
-        "importedUntransmitted": "Document imported — no transmission evidence was declared. It must be regularised.",
+        "importedUntransmitted": "Document imported, no transmission evidence was declared. It must be regularised.",
         "importError": "Import failed"
       },
       "importCsv": {

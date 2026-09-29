@@ -1,5 +1,5 @@
 /**
- * Importing a document issued by a previous tool (issue #340) — the CORE write path, shared by the
+ * Importing a document issued by a previous tool (issue #340): the CORE write path, shared by the
  * single-document endpoint (`document-import.controller.ts`) and the CSV bulk import
  * (`document-import-csv.service.ts`).
  *
@@ -7,33 +7,33 @@
  *
  * `runAction`'s own post-write guard (`descriptors/lifecycle.ts#checkTransitionResult`) hard-requires
  * a BRAND-NEW record (no `documentId` before the call) to land on the type's own `initialStatus`
- * ("draft" for both "invoice" and "credit-note") — by definition of what "initial" means, per that
+ * ("draft" for both "invoice" and "credit-note"), by definition of what "initial" means, per that
  * function's own header. An import needs to land on "imported" on its VERY FIRST write, never on
  * "draft" first: there is no genuine "half-finished" state for a document someone else already
  * finished issuing years ago. Going through the generic action pipeline would therefore mean either
- * (a) creating a throwaway "draft" first and immediately transitioning it — two writes, one race
- * window, and an orphaned draft on any failure between them — or (b) special-casing
+ * (a) creating a throwaway "draft" first and immediately transitioning it (two writes, one race
+ * window, and an orphaned draft on any failure between them), or (b) special-casing
  * `checkTransitionResult` for this one caller, which would weaken the exact invariant that check
- * exists to hold for every OTHER creation path. This module is a bespoke, one-write path instead —
+ * exists to hold for every OTHER creation path. This module is a bespoke, one-write path instead,
  * the same "bypass ActionRegistry for a route-shape reason" precedent `documents.service.ts`'s own
  * "share-link"/"download-xml" already establish (see `invoice.descriptor.ts`'s own comment on
  * "download-xml" for why), just for a CREATION reason instead of a response-shape one.
  *
  * "imported" is still a REAL, declared status on both descriptors (`invoice.descriptor.ts`,
- * `credit-note.descriptor.ts`) — needed so the generic frontend (status badge, filter chip,
+ * `credit-note.descriptor.ts`), needed so the generic frontend (status badge, filter chip,
  * `SAVE_DRAFT_LOCKED_STATUSES`) and `validateLifecycle` (boot-time) both know it exists. Nothing
  * anywhere ever declares a transition FROM "imported": that omission alone is what makes it have no
  * outgoing transition (`descriptors/lifecycle.ts`'s own header confirms this is a legal, structural
- * dead end, not something that needs a extra flag) — send/e-invoice/edit/renumber are refused by
+ * dead end, not something that needs a extra flag). Send/e-invoice/edit/renumber are refused by
  * construction, not by a guard added here.
  *
  * ## What IS reused
  *
- * Business-field validation goes through the EXACT SAME pipeline `runAction` uses for "save-draft" —
+ * Business-field validation goes through the EXACT SAME pipeline `runAction` uses for "save-draft":
  * `descriptors/company-view.ts#applyCompanyFieldView` (country field overlay + this company's own VAT
  * rate catalog), `descriptors/validate.ts#stripSidecarKeys`/`dropEmptyRows`/`validateAgainstDescriptor`,
  * `row-selection/row-selection.ts#stampRowIds` (so an imported invoice's own `lines` get row ids a
- * LATER credit note's `correctedLines` can select, exactly like an ordinary invoice's do) — an
+ * LATER credit note's `correctedLines` can select, exactly like an ordinary invoice's do). An
  * imported document's `client`/`issueDate`/`lines`/etc. are validated exactly as strictly as a normal
  * one's, only the STATUS they land on and the extra import-only facts (below) differ.
  */
@@ -61,11 +61,11 @@ import { COUNTRY_FIELD_OVERLAY_REGISTRY, DOCUMENT_TYPE_REGISTRY, FIELD_KIND_REGI
 import { hasTransmissionEvidence, ImportDocumentInput, ImportDocumentResult } from './document-import.types';
 
 /** Poland's own transport id (`transports/ksef-transport.ts`, `KSEF_PROVIDER_ID` in
- *  `formats/national/fa3-kor.ts`) — an imported invoice that carries a declared KSeF number is given
+ *  `formats/national/fa3-kor.ts`): an imported invoice that carries a declared KSeF number is given
  *  the SAME `channelProviderId` a real KSeF submission would have set, so a LATER faktura korygująca
  *  against it (`fa3-kor.ts#resolveFaVatKorContext`) takes the "look up the observed KSeF number"
- *  branch instead of the "never submitted to KSeF" statutory exception — exactly right, since this
- *  invoice genuinely WAS submitted to KSeF, just not by this application. */
+ *  branch instead of the "never submitted to KSeF" statutory exception. This is exactly right, since
+ *  this invoice genuinely WAS submitted to KSeF, just not by this application. */
 const KSEF_PROVIDER_ID = 'ksef';
 
 export class DocumentImportValidationError extends BadRequestException {
@@ -196,7 +196,7 @@ export class DocumentImportService {
     const atcud = evidence.atcud?.trim() ? normalizeAtcud(evidence.atcud) : null;
     const channelProviderId = typeId === 'invoice' && evidence.ksefNumber?.trim() ? KSEF_PROVIDER_ID : null;
 
-    // The original file must exist and belong to this company BEFORE anything is written — a 404
+    // The original file must exist and belong to this company BEFORE anything is written: a 404
     // here (attachments.service.ts's own tenant-scoped read) is a clean refusal, never a document
     // created with no archive to follow it.
     const original = await this.attachmentsService.download(

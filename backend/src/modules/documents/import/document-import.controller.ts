@@ -11,9 +11,9 @@ import {
   isImportableTypeId,
 } from './document-import.types';
 
-/** The single-document import request body — the per-document form's own submission
+/** The single-document import request body, the per-document form's own submission
  *  (`documents.custom.importDocument` on the frontend). Plain interface, not a class-validator DTO:
- *  matching this module's own convention (no global `ValidationPipe` — see `ClientImportRowsDto`'s
+ *  matching this module's own convention (no global `ValidationPipe`, see `ClientImportRowsDto`'s
  *  own comment), `DocumentImportService.importDocument` is the actual authority on every field's
  *  shape. */
 export class ImportDocumentDto {

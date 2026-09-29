@@ -158,19 +158,19 @@ function addToAging(
 }
 
 /**
- * One client's full statement — every "sent"/"imported" invoice whose own `client` field names
+ * One client's full statement: every "sent"/"imported" invoice whose own `client` field names
  * `clientId`, plus every "sent" credit note correcting one of them, each with the balance
  * `compute-settlement.ts` already knows how to compute, and the resulting aged totals.
  *
- * "sent"/"imported" for invoices — the exact same status set `settlement/unsettled-invoices.ts`'s own
- * `filterUnsettledInvoices` uses (never "draft", never "sending"/"send_failed" — not yet actually
- * issued — and never "cancelled" — "nothing is owed on a document that no longer legally exists").
- * "imported" (issue #340) is included so a payment recorded against a historical invoice — one of the
- * few actions the owner's own decision allows on it — actually moves this client's balance, instead
+ * "sent"/"imported" for invoices, the exact same status set `settlement/unsettled-invoices.ts`'s own
+ * `filterUnsettledInvoices` uses (never "draft", never "sending"/"send_failed" (not yet actually
+ * issued), and never "cancelled" ("nothing is owed on a document that no longer legally exists")).
+ * "imported" (issue #340) is included so a payment recorded against a historical invoice, one of the
+ * few actions the owner's own decision allows on it, actually moves this client's balance, instead
  * of the invoice silently never appearing on their statement at all. Credit notes stay "sent" only:
  * v1 of #340 does not give an IMPORTED credit note a `client` to resolve against here (a free credit
  * note has none, and `credits.ts#creditsForInvoiceFromNotes` only ever matches a note against the
- * INVOICE it corrects, never a client directly) — see `credits.ts`'s own rule for the untouched half
+ * INVOICE it corrects, never a client directly). See `credits.ts`'s own rule for the untouched half
  * of this function.
  *
  * `asOf` defaults to "now" but is an explicit parameter (same shape as invoice-contributions.ts's own

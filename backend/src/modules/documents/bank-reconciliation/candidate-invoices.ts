@@ -16,12 +16,12 @@ import { MatchCandidateInvoice } from './matching';
  * `computeDocumentTotals`/`computeSettlement`, reused verbatim — this file only decides WHICH invoices
  * qualify at all.
  *
- * "sent"/"imported", `outstandingMinor > 0` only — a draft was never actually issued (nothing owed
+ * "sent"/"imported", `outstandingMinor > 0` only: a draft was never actually issued (nothing owed
  * yet, on record), and a fully settled or cancelled invoice has nothing left for a bank line to pay
  * off. The exact same status set `client-statement.ts`/`settlement/unsettled-invoices.ts` already
  * apply. "imported" (issue #340): recording a payment is one of the few actions the owner's own
  * decision allows on a historical invoice, and reconciling it against a real bank line is the same
- * action, just found automatically instead of typed by hand — excluding it here would mean the ONLY
+ * action, just found automatically instead of typed by hand. Excluding it here would mean the ONLY
  * way to ever pay one off is the manual "record payment" dialog.
  */
 
@@ -30,7 +30,7 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 export async function resolveOutstandingInvoices(companyId: string): Promise<MatchCandidateInvoice[]> {
   // Every sent/imported invoice, pushed into SQL, paged until exhausted (`listAllDocuments`). The
   // pool a bank line is matched against must be the WHOLE pool: an invoice missing from it is not
-  // merely absent from a screen, it is an incoming payment that silently finds no invoice to settle —
+  // merely absent from a screen, it is an incoming payment that silently finds no invoice to settle,
   // and the invoices an `updatedAt`-ordered capped read dropped first were the long-unpaid ones, the
   // very population a bank statement is most likely to be paying off.
   const sentInvoices = await listAllDocuments(companyId, {

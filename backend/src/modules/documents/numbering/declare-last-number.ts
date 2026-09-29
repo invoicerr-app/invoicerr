@@ -1,17 +1,17 @@
 /**
- * "Declare your last number issued" (issue #340, §2 of the research behind it) — a company migrating
+ * "Declare your last number issued" (issue #340, §2 of the research behind it): a company migrating
  * from a previous tool tells Invoicerr the last number that tool printed (and its date); Invoicerr
  * infers a candidate pattern, the company confirms it (or types its own), and this module decides
  * whether that pattern becomes the company's own RUNNING SERIES (the exact same mechanism issue #496
  * already built, `Company.numberFormats`/`numbering/company-number-format.ts#resolveNumberFormatFor`)
- * or whether the country's own format simply takes over — either way the counter resumes at
+ * or whether the country's own format simply takes over. Either way the counter resumes at
  * `last + 1`, never at 1, and never re-issues a number. Usable WITHOUT ever importing a document (the
  * owner's own decision): a company that migrates its history by hand, one invoice at a time, still
  * needs its numbering to continue where the old tool left off.
  *
  * Pure, synchronous inference/parsing lives here; the actual write (seeding
- * `numbering/sequence.ts#seedSequenceStart`, and — for a pattern that satisfies the country's own
- * constraints — writing `Company.numberFormats`) lives in `company.service.ts#declareLastNumberIssued`,
+ * `numbering/sequence.ts#seedSequenceStart`, and, for a pattern that satisfies the country's own
+ * constraints, writing `Company.numberFormats`) lives in `company.service.ts#declareLastNumberIssued`,
  * the one caller allowed to touch either.
  */
 import { renderDateTokens } from './format-number';

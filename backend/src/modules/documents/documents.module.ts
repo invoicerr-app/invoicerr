@@ -34,7 +34,7 @@ import { DocumentImportCsvService } from './import/document-import-csv.service';
  * an attachment is never something a queue job does) — never in `DocumentsCoreModule`.
  *
  * `DocumentImportService`/`DocumentImportCsvService` (issue #340) live here for the identical
- * reason: importing a historical document is a human, synchronous, HTTP-only action — never
+ * reason: importing a historical document is a human, synchronous, HTTP-only action, never
  * something a queue job replays (see `import/document-import.service.ts`'s own header on why it
  * bypasses `ActionRegistry`/`runAction` entirely). They depend on `AttachmentsService`, registered
  * right above in this SAME module, and on the registries `DocumentsCoreModule` already exports.

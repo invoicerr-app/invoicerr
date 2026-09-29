@@ -315,9 +315,9 @@ export interface DocumentInstance {
   /** `number`, already formatted through the company's own pattern at the moment it was taken — see
    *  the backend's numbering/format-number.ts. Show this verbatim; never reformat `number` yourself. */
   displayNumber?: string | null
-  /** Portugal's ATCUD, frozen at issuance (or, for an imported document, at import time — issue
+  /** Portugal's ATCUD, frozen at issuance (or, for an imported document, at import time, issue
    *  #340). Null for every other country/document. The raw JSON already carries this (the backend
-   *  returns the whole row, `findOwnedDocument`) — typed here so `document-detail.tsx`'s "not
+   *  returns the whole row, `findOwnedDocument`), typed here so `document-detail.tsx`'s "not
    *  transmitted" warning can read it without a second, ATCUD-specific fetch. */
   atcud?: string | null
   /** Mirrors the backend's `DocumentInstance.lastActionError` — the error from the most recent

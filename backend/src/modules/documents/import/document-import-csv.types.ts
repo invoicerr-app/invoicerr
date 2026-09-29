@@ -1,7 +1,7 @@
 import { ImportOriginalFileRef, ImportableTypeId } from './document-import.types';
 
 /**
- * One row of the CSV bulk import (issue #340) — the browser decodes/parses the file and sends rows
+ * One row of the CSV bulk import (issue #340): the browser decodes/parses the file and sends rows
  * as plain JSON, the SAME "browser decodes, server is the authority" split
  * `clients/import/client-import.service.ts` already uses. Every column is a plain string (a CSV cell
  * always is) - parsing into the real field shapes (a date, a money value, a VAT rate) happens

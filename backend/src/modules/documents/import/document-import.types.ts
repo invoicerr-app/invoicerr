@@ -1,11 +1,11 @@
 /**
- * Wire shapes for importing a document issued by a previous tool (issue #340) — shared by the
+ * Wire shapes for importing a document issued by a previous tool (issue #340), shared by the
  * single-document endpoint (`document-import.controller.ts`) and the CSV bulk import
  * (`document-import-csv.service.ts`), both of which funnel into the same
  * `document-import.service.ts#importDocument` core.
  */
 
-/** The two types v1 of #340 covers — the owner's own decision: "v1 scope: invoices and credit
+/** The two types v1 of #340 covers (the owner's own decision): "v1 scope: invoices and credit
  *  notes ... Importing from the official original ... is a later step." */
 export type ImportableTypeId = 'invoice' | 'credit-note';
 
@@ -13,7 +13,7 @@ export function isImportableTypeId(value: unknown): value is ImportableTypeId {
   return value === 'invoice' || value === 'credit-note';
 }
 
-/** The original file reference — the SAME `{ fileRef, fileName, mime }` shape
+/** The original file reference, the SAME `{ fileRef, fileName, mime }` shape
  *  `attachments.service.ts#AttachmentRef` already returns from `POST /documents/attachments/upload`,
  *  reused verbatim rather than inventing a second upload contract. */
 export interface ImportOriginalFileRef {
@@ -24,7 +24,7 @@ export interface ImportOriginalFileRef {
 
 /**
  * Evidence that the PREVIOUS tool actually transmitted this document to the authority its country
- * requires — the owner's own decision: "when missing, the import is accepted with a visible,
+ * requires (the owner's own decision): "when missing, the import is accepted with a visible,
  * lasting warning". Every field optional: a document genuinely never transmitted has none of them,
  * and that absence IS the fact this type lets the rest of the app observe
  * (`hasTransmissionEvidence` below).
@@ -60,8 +60,8 @@ export function hasTransmissionEvidence(evidence: ImportTransmissionEvidence | u
 export interface ImportDocumentInput {
   companyId: string;
   typeId: ImportableTypeId;
-  /** The document's own business fields — client, issueDate, dueDate, currency, notes,
-   *  clientReference, lines (invoice) / invoice, correctedLines, lines, reason (credit note) —
+  /** The document's own business fields (client, issueDate, dueDate, currency, notes,
+   *  clientReference, lines for invoice, or invoice, correctedLines, lines, reason for credit note),
    *  validated against exactly the same company-resolved descriptor `POST .../save-draft` already
    *  validates against (see `document-import.service.ts`'s own header). */
   data: Record<string, unknown>;

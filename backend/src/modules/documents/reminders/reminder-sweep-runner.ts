@@ -178,14 +178,14 @@ export class ReminderSweepRunner {
     companyLanguage: string | null,
     now: Date,
   ): Promise<CompanyReminderResult> {
-    // "sent"/"imported" — the same rule `client-statement.ts#resolveClientStatement` already
+    // "sent"/"imported": the same rule `client-statement.ts#resolveClientStatement` already
     // applies: a draft was never actually issued, and a cancelled invoice owes nothing. "imported"
     // added by issue #340's own decision: an invoice recorded from a previous tool was genuinely
     // issued, and reminders are one of the few actions explicitly allowed on it, one by one. Pushed
     // into SQL and paged until exhausted (`listAllDocuments`): the overdue invoices this sweep exists
     // to chase are by definition the ones NOT recently touched, which is exactly what a
-    // `updatedAt`-ordered capped read dropped first — past the cap a company's oldest debts simply
-    // stopped being reminded, and the sweep reported a clean pass while doing it.
+    // `updatedAt`-ordered capped read dropped first (past the cap a company's oldest debts simply
+    // stopped being reminded, and the sweep reported a clean pass while doing it).
     const invoices = await listAllDocuments(companyId, { typeId: 'invoice', status: ['sent', 'imported'] });
     if (invoices.length === 0) return { remindersSent: 0, skipped: 0 };
 
