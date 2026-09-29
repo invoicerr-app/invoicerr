@@ -201,7 +201,7 @@ describe('reconcileMissingCompanyCustomers', () => {
     });
     expect(create).not.toHaveBeenCalled();
     // Issue #535: `LoggerService.warn` only ever prints its MESSAGE argument to the process's own
-    // stdout (what `kubectl logs` shows) — `details` lands in the `Log` table only. A static message
+    // stdout (what `kubectl logs` shows); `details` lands in the `Log` table only. A static message
     // with the real cause confined to `details` reproduced, live, the beta's own pod logs showing
     // "Polar customer provisioning failed... retried next pass" with no cause at all. The logged
     // message itself must now carry the cause, not merely `details`.
@@ -297,7 +297,7 @@ describe('reconcileMissingCompanyCustomers', () => {
       failed: 1,
     });
     // Issue #535: the HTTP status and Polar's own message must be readable in the LOGGED MESSAGE
-    // itself, not only in `details` — `LoggerService.warn` (`@/logger/logger.service.ts`) never
+    // itself, not only in `details`; `LoggerService.warn` (`@/logger/logger.service.ts`) never
     // prints `details` to the process's own stdout, which is what `kubectl logs` shows and what
     // reported "no cause" for this exact failure on the beta.
     expect(warn).toHaveBeenCalledWith(
@@ -363,7 +363,7 @@ describe('reconcileMissingCompanyCustomers', () => {
     // `persistPolarCustomerId`: the invalidation call sits right after the write it depends on.
     expect(invalidateFacts).not.toHaveBeenCalled();
     // Issue #535: the same "cause must be in the logged message, not only in details" requirement as
-    // the Polar-failure test above — this call site's own error is a plain DB write failure, not a
+    // the Polar-failure test above. This call site's own error is a plain DB write failure, not a
     // Polar call, so `statusCode` reads 'unknown', but the underlying message must still surface.
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('Failed to persist'),
