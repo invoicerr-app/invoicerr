@@ -1244,16 +1244,14 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// Germany — `correction-routes/data/de.json`: INTERNAL_CREDIT_NOTE is "forbidden" (its own
 			// NO_DOCUMENT_BY_LAW entry, "allowed", is Germany's real default correction route instead) —
 			// the one universally-implemented route (`correction-routes.ts`'s own `IMPLEMENTED_ROUTE_IDS`)
-			// that this seller's own law still refuses outright: NOT choosable, disabled, with its own
-			// named reason. CANCEL_AND_REPLACE is "allowed" and genuinely implementable here too (Germany
-			// is in `cancel-policy.ts`'s own unrestricted whitelist) — asserted available WITHOUT spending
-			// a second full cancel run (fr-pl already proves that exact mechanics end to end).
-			cy.get('[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-status"]').should(
-				"contain.text",
-				"Forbidden",
-			);
-			cy.get('[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]').should("be.disabled");
-			cy.get('[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-reason"]').should("exist");
+			// that this seller's own law still refuses outright. Issue #552: a `forbidden` route no longer
+			// renders at all in the dialog (the API response itself is unchanged, `43-correction-routes.cy.ts`'s
+			// own stubbed "every route forbidden" test covers that display rule directly; this leg only
+			// needs to confirm the row is genuinely gone, not merely disabled). CANCEL_AND_REPLACE is
+			// "allowed" and genuinely implementable here too (Germany is in `cancel-policy.ts`'s own
+			// unrestricted whitelist), asserted available WITHOUT spending a second full cancel run
+			// (fr-pl already proves that exact mechanics end to end).
+			cy.get('[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE"]').should("not.exist");
 			cy.get('[data-cy="document-correction-route-CANCEL_AND_REPLACE-status"]').should(
 				"contain.text",
 				"Allowed",

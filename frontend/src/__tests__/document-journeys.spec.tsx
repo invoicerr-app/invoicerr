@@ -824,7 +824,14 @@ describe("Correct — correction routes, by seller country", () => {
   // red→green mutation test below, which targets this exact function against the PL fixture instead
   // of repeating the same fixture here).
 
-  it("seller PL: the SAME routeId (INTERNAL_CREDIT_NOTE) is shown FORBIDDEN, disabled, with its own reason — never the French route", async () => {
+  // Issue #552: a `forbidden` route no longer renders a row at all, see
+  // invoice-correction-routes-button.tsx's own `visibleRoutes` filter. The API itself is unchanged
+  // (this fixture is exactly what the old test above sent, `implemented: true` included, the case a
+  // naive "implemented alone decides clickability" bug would get wrong), so this is purely a screen
+  // assertion: PL's own INTERNAL_CREDIT_NOTE citation (`plCitation`) is the ONLY route this fixture
+  // declares, so hiding it leaves nothing choosable: the honest "every route forbidden" sentence,
+  // never an empty list.
+  it("seller PL: INTERNAL_CREDIT_NOTE is forbidden, the row never renders, and with nothing else to show the dialog says every route is forbidden for PL", async () => {
     const invoice = issuedInvoice("inv-pl")
 
     installFetchMock({
@@ -843,25 +850,14 @@ describe("Correct — correction routes, by seller country", () => {
     renderDocumentTypeScreen("invoice")
 
     fireEvent.click(await screen.findByTestId("document-correction-button-inv-pl"))
-    const forbiddenRow = await screen.findByTestId("document-correction-route-INTERNAL_CREDIT_NOTE")
+    const allForbidden = await screen.findByTestId("document-correction-all-forbidden")
+    expect(allForbidden).toHaveTextContent("PL")
 
-    expect(
-      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-status"),
-    ).toHaveTextContent("Forbidden")
-    const button = within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-button")
-    expect(button).toBeDisabled()
-    // The reason is the country's OWN citation, wrapped in the same policyBlockedReason phrasing the
-    // rest of this screen already uses — never hidden, never a generic "blocked" with no reason.
-    expect(
-      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-reason"),
-    ).toHaveTextContent(plCitation)
-    expect(
-      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-reason"),
-    ).toHaveTextContent("Not available:")
+    expect(screen.queryByTestId("document-correction-route-INTERNAL_CREDIT_NOTE")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("document-correction-routes-list")).not.toBeInTheDocument()
 
     // Never even reaches the credit-note screen — a forbidden route has no click to fire in the
-    // first place, whatever `implemented` claims (this fixture deliberately sets it `true`, exactly
-    // the case a naive "implemented alone decides clickability" bug would get wrong).
+    // first place, whatever `implemented` claims.
     expect(screen.queryByTestId("document-create-dialog")).not.toBeInTheDocument()
   })
 
@@ -982,12 +978,12 @@ describe("Correct — correction routes, by seller country", () => {
   // confirm-cancel" never appears — the choose click falls through to the generic "not-implemented"
   // panel instead, exactly the silent regression that would let a click skip the irreversibility
   // confirmation. Reverted; suite green again.
-  // MUTATION (proven, reverted): invoice-correction-routes-button.tsx — `isChoosable`'s own
-  // `route.status === "required" || route.status === "allowed"` -> `true` unconditionally. RED: the
-  // PL test above ("the SAME routeId ... is shown FORBIDDEN, disabled") fails —
-  // "document-correction-route-INTERNAL_CREDIT_NOTE-button" is no longer disabled even though its own
-  // status is still "forbidden", and clicking it would silently navigate to the credit-note screen
-  // for a route the seller's own country refuses outright. Reverted; suite green again.
+  // The PL test above used to prove `isChoosable`'s own `forbidden` branch this same way (flip it to
+  // `true` unconditionally, watch the button stop being disabled). Issue #552 moved that guard one
+  // step earlier: a `forbidden` route is filtered out of `visibleRoutes` before `CorrectionRouteRow`
+  // ever renders it, so `isChoosable` never even runs against one on this screen any more; the PL
+  // test's own "row never renders, honest all-forbidden sentence instead" assertions are what would
+  // catch a regression there today.
 })
 
 /**

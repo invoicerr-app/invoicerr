@@ -481,6 +481,139 @@ describe("Correct — the screen, browser level", () => {
 			});
 		});
 	});
+
+	/**
+	 * Issue #552: a `forbidden` route must never render in the dialog (the API still returns it,
+	 * `correction-routes.spec.ts`'s own pinned FR test above proves that side; this is purely a
+	 * screen concern), and the dialog itself must never scroll horizontally, on desktop or on a
+	 * phone viewport. France's own file (`correction-routes/data/fr.json`) declares
+	 * AUTHORITY_ANNULMENT, LEDGER_ANNOTATION and NO_DOCUMENT_BY_LAW `forbidden`: the default
+	 * company already exercises all three without any country switch.
+	 */
+	it("issue #552: forbidden routes (AUTHORITY_ANNULMENT, LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW) never render, and the dialog never scrolls horizontally, on desktop and on a phone viewport", () => {
+		setInvoiceTransport("email");
+		const preMandateDates = { issueDate: "2026-08-14", dueDate: "2026-09-14" };
+
+		createClient("Client Voies Interdites SARL").then((clientId) => {
+			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
+				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
+					openCorrectionDialog(invoiceId);
+					cy.get('[data-cy="document-correction-dialog"]', {
+						timeout: 5000,
+					}).should("be.visible");
+					cy.get('[data-cy="document-correction-routes-list"]', {
+						timeout: 5000,
+					}).should("exist");
+
+					// A choosable route is genuinely there: this is a filter, not an empty dialog.
+					cy.get(
+						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE"]',
+					).should("exist");
+
+					// The three FR-forbidden routes are absent from the DOM entirely, never merely
+					// hidden or disabled.
+					for (const routeId of [
+						"AUTHORITY_ANNULMENT",
+						"LEDGER_ANNOTATION",
+						"NO_DOCUMENT_BY_LAW",
+					]) {
+						cy.get(
+							`[data-cy="document-correction-route-${routeId}"]`,
+						).should("not.exist");
+					}
+
+					// No horizontal scroll on the dialog box itself, desktop viewport first (the
+					// default 1000x660 Cypress runs with here, already wider than a phone).
+					cy.get('[data-cy="document-correction-dialog"]').then(($dialog) => {
+						const el = $dialog[0];
+						expect(
+							el.scrollWidth,
+							"le contenu du dialogue ne déborde pas horizontalement (desktop)",
+						).to.be.at.most(el.clientWidth + 1);
+					});
+
+					// Same check on a phone viewport, dialog still open.
+					cy.viewport("iphone-x");
+					cy.get('[data-cy="document-correction-dialog"]').then(($dialog) => {
+						const el = $dialog[0];
+						expect(
+							el.scrollWidth,
+							"le contenu du dialogue ne déborde pas horizontalement (mobile)",
+						).to.be.at.most(el.clientWidth + 1);
+					});
+				});
+			});
+		});
+	});
+
+	/**
+	 * Issue #552's second half: when EVERY route is forbidden, the dialog shows one plain sentence
+	 * instead of an empty list. No real country's file reaches that state today (`all.spec.ts`'s
+	 * own pinned tests, and the per-country dump this suite's header production script ran, both
+	 * confirm it, see CLOUD_PROMPT_issue-552.md's own research), so this is proven by stubbing the
+	 * SAME response shape the real endpoint returns, on top of a genuinely issued invoice (the
+	 * button and the dialog mount exactly as they do for any other caller in this file), never a
+	 * backend or fixture-data change.
+	 */
+	it("issue #552: when every route is forbidden, the dialog shows one plain sentence instead of an empty list", () => {
+		setInvoiceTransport("email");
+		const preMandateDates = { issueDate: "2026-08-16", dueDate: "2026-09-16" };
+		const allRouteIds = [
+			"CREDIT_NOTE",
+			"DEBIT_NOTE",
+			"CORRECTIVE_INVOICE",
+			"CANCEL_AND_REPLACE",
+			"INTERNAL_CREDIT_NOTE",
+			"AUTHORITY_ANNULMENT",
+			"RESUBMIT_SAME_IDENTITY",
+			"ANNOTATED_DUPLICATE",
+			"LEDGER_ANNOTATION",
+			"NO_DOCUMENT_BY_LAW",
+			"COUNTERPARTY_OBJECTION",
+		];
+
+		createClient("Client Tout Interdit SARL").then((clientId) => {
+			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
+				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
+					cy.intercept(
+						{
+							method: "GET",
+							pathname: `/api/documents/${invoiceId}/correction-routes`,
+						},
+						{
+							statusCode: 200,
+							body: {
+								countryCode: "FR",
+								limitation:
+									"This answer only covers the seller's own country; the buyer may add its own rules.",
+								routes: allRouteIds.map((routeId) => ({
+									routeId,
+									status: "forbidden",
+									label: "Stubbed for issue #552: every route forbidden.",
+									implemented: false,
+								})),
+							},
+						},
+					).as("allForbiddenRoutes");
+
+					openCorrectionDialog(invoiceId);
+					cy.wait("@allForbiddenRoutes");
+					cy.get('[data-cy="document-correction-dialog"]', {
+						timeout: 5000,
+					}).should("be.visible");
+
+					cy.get('[data-cy="document-correction-routes-list"]').should(
+						"not.exist",
+					);
+					cy.get('[data-cy="document-correction-all-forbidden"]', {
+						timeout: 5000,
+					})
+						.should("be.visible")
+						.and("contain.text", "FR");
+				});
+			});
+		});
+	});
 });
 
 /**
