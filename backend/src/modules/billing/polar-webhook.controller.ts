@@ -1,9 +1,9 @@
 /**
- * `POST /api/billing/webhooks/polar` — this app's OWN Polar webhook receiver, replacing
+ * `POST /api/billing/webhooks/polar`, this app's OWN Polar webhook receiver, replacing
  * `@polar-sh/better-auth`'s `webhooks()` sub-plugin (formerly mounted at
- * `POST /api/auth/polar/webhooks` — see `polar-plugin.ts`'s own header for why that route is gone).
+ * `POST /api/auth/polar/webhooks`, see `polar-plugin.ts`'s own header for why that route is gone).
  *
- * ## Why this exists — `@polar-sh/sdk@0.49`'s `validateEvent` signs with the WRONG key for a current
+ * ## Why this exists: `@polar-sh/sdk@0.49`'s `validateEvent` signs with the WRONG key for a current
  * Polar webhook secret
  *
  * Polar's OWN documentation (https://polar.sh/docs/integrate/webhooks/delivery, "Custom validation",
@@ -16,49 +16,64 @@
  *    Polar SDKs 1.0.0-alpha.19 and later try both keys."
  *
  * `@polar-sh/sdk@0.49`'s `validateEvent` (`dist/commonjs/webhooks.js`) only ever computes the FIRST
- * (legacy, pre-cutover) derivation — `Buffer.from(secret, "utf-8").toString("base64")` fed to a
- * non-raw `standardwebhooks#Webhook` — unconditionally, for every secret, regardless of era. Confirmed
+ * (legacy, pre-cutover) derivation, `Buffer.from(secret, "utf-8").toString("base64")` fed to a
+ * non-raw `standardwebhooks#Webhook`, unconditionally, for every secret, regardless of era. Confirmed
  * against a real captured delivery to this app's own sandbox endpoint (created 2026-09-15, so
  * necessarily post-cutover): `new Webhook(secret).verify(body, headers)` (the Standard Webhooks way)
  * PASSES; `validateEvent(body, headers, secret)` FAILS. Every hosted-billing instance stood up from
  * here on connects a Polar webhook endpoint created AFTER the cutover, so `validateEvent` is a
  * guaranteed 400 for it, silently (see `status-reconcile.ts`'s own header for the DB-side symptom this
- * produced before this controller existed) — `@polar-sh/better-auth`'s `webhooks()` plugin calls
+ * produced before this controller existed). `@polar-sh/better-auth`'s `webhooks()` plugin calls
  * `validateEvent` internally with no way to inject a different verifier, so the only fix was to stop
- * using it. Polar's own SDK fixes this properly in 1.0.0-alpha.19+ (tries both keys) — not usable here
- * (this repo pins `^0.49.0`, and an alpha is not something to depend on for a production credential
- * path); this controller does the SAME "try both" instead, by hand.
+ * using it. This controller does the SAME "try both" instead, by hand.
  *
- * `polar-webhook-verify.ts` carries the actual dual-verification logic — kept in its own file so it is
+ * `polar-webhook-verify.ts` carries the actual dual-verification logic, kept in its own file so it is
  * unit-testable without an HTTP harness.
  *
+ * #537 (2026-09-29): `@polar-sh/sdk` is now on a stable `1.0.0` (no longer the `0.49`/alpha split the
+ * paragraph above describes), and its own `webhooks.validateEvent` (`@polar-sh/sdk/2026-10`, read
+ * directly, `hmacKeys(secret)` builds BOTH the raw-UTF-8 key and the base64-decoded key and tries
+ * each signature against both) now does exactly the "try both derivations" `polar-webhook-verify.ts`
+ * does by hand. Polar's own versioning docs already said "SDKs 1.0.0-alpha.19 and later try both
+ * keys", now true of a version this repo can actually depend on for a production credential path.
+ * DELIBERATELY NOT adopted here: swapping this controller's own, already-tested verifier for the SDK's
+ * is a signature-verification behavior change in a security-critical path, out of scope for #537 (which
+ * asks for the API-version migration and the webhook PAYLOAD parsing, not a rewrite of how a delivery
+ * is authenticated) and not something to do without a live sandbox round-trip to prove it end to end:
+ * left as a clearly-labeled option for a future, separate change, not a silent gap.
+ *
  * ## Dispatch
- * Reuses `handleSubscriptionPayload` (`webhook-handlers.ts`) — the SAME referenceId-extraction +
+ * Reuses `handleSubscriptionPayload` (`webhook-handlers.ts`), the SAME referenceId-extraction +
  * `applySubscriptionWebhook` call `polar-plugin.ts`'s own (now-removed) `onSubscription*` wiring used.
- * Every OTHER Polar event type (`order.*`, `checkout.*`, …) is acknowledged 200 and dropped — this app
+ * Every OTHER Polar event type (`order.*`, `checkout.*`, …) is acknowledged 200 and dropped. This app
  * has no handler for them today; a provider retries any non-2xx response, so an unhandled type must
  * never look like a failure.
  *
- * Polar's WIRE payload is snake_case (`customer_id`, `recurring_interval`) — established by reading
- * `@polar-sh/sdk`'s own generated `Subscription$inboundSchema`
- * (`node_modules/@polar-sh/sdk/dist/commonjs/models/components/subscription.js`), which remaps these
- * via zod before ever handing a payload to a handler. This controller never calls that schema (see
- * above), so `toSubscriptionWebhookPayload` below does the same two-field remap by hand. `id`/
- * `status`/`metadata` are single words, unaffected either way. The nested `data.customer.external_id`
- * (option A, product decision 2026-09-16 — `webhook-handlers.ts`'s own header on why this is the
- * PRIMARY company-resolution signal, `metadata.companyId` the fallback) is confirmed present on a
- * real wire delivery's `data.customer` object, sandbox 2026-09-16, for both `subscription.*` and
- * `order.*` events.
+ * Polar's WIRE payload is snake_case (`customer_id`, `recurring_interval`). This controller parses the
+ * raw delivery body itself (see above: it never calls the SDK's own webhook helper), so
+ * `toSubscriptionWebhookPayload` below does the two-field remap by hand, onto the camelCase shape the
+ * rest of this module family (`webhook-handlers.ts`) expects. `id`/`status`/`metadata` are single
+ * words, unaffected either way. The nested `data.customer.external_id` (option A, product decision
+ * 2026-09-16, `webhook-handlers.ts`'s own header on why this is the PRIMARY company-resolution signal,
+ * `metadata.companyId` the fallback) is confirmed present on a real wire delivery's `data.customer`
+ * object, sandbox 2026-09-16, for both `subscription.*` and `order.*` events.
+ *
+ * #537: Polar's own API changelog for `2026-10` (https://polar.sh/docs/changelog/api.md, read directly) lists exactly
+ * two entries: the `secret` create/update param removed from webhook ENDPOINT management, and
+ * `member_id`/`member` added to LICENSE KEY responses. Neither touches a `subscription.*` event's own
+ * payload shape. This controller's wire parsing (`PolarSubscriptionWireData`,
+ * `toSubscriptionWebhookPayload` below) needed no field changes for the `2026-04` → `2026-10` move; only
+ * this header (and `POLAR_API_VERSION` in `polar-client.ts`) did.
  *
  * ## Idempotency
  * `PolarWebhookEvent` (`schema.prisma`) is a dedup ledger keyed by the delivery's own `webhook-id`
- * header — a stable id Polar reuses VERBATIM on every retry of the SAME delivery (Standard Webhooks'
+ * header, a stable id Polar reuses VERBATIM on every retry of the SAME delivery (Standard Webhooks'
  * own guarantee), never re-minted per attempt. This controller inserts a row for it BEFORE dispatching
  * to a handler; a unique-constraint violation on that insert means this exact delivery already ran
  * (a provider retry, or Polar's own dashboard "resend"), answered 200 immediately without re-running
  * `handleSubscriptionPayload` a second time. `applySubscriptionWebhook`'s own field-set write (plain
  * `prisma.companySubscription.update`, never an increment/append) was ALSO naturally idempotent on its
- * own for the specific case of two deliveries carrying identical facts — this ledger additionally
+ * own for the specific case of two deliveries carrying identical facts, this ledger additionally
  * covers the case that shape alone cannot: two deliveries of the SAME `webhook-id` racing each other
  * concurrently, which would otherwise run the handler twice regardless of how idempotent its own
  * writes are. A future handler for a genuinely non-idempotent effect (anything that increments a
@@ -72,12 +87,12 @@
  *
  * ## Wiring
  * `@Public()` is `@thallesp/nestjs-better-auth`'s own decorator (the one `AuthGuard`,
- * `src/guards/auth.guard.ts`, actually reads — its own `IS_PUBLIC_KEY = 'PUBLIC'` is deliberately the
+ * `src/guards/auth.guard.ts`, actually reads, its own `IS_PUBLIC_KEY = 'PUBLIC'` is deliberately the
  * SAME metadata key that package's decorator sets; `@/decorators/public.decorator.ts` uses a
- * DIFFERENT key and would not work here — see `payments-webhook.controller.ts`'s own header for the
+ * DIFFERENT key and would not work here, see `payments-webhook.controller.ts`'s own header for the
  * same fact). No active company on this request, so `CompanyWriteGuard` (`company-write.guard.ts`)
  * lets it through unconditionally too (its own `!request.companyId` early-return). Reads
- * `req.rawBody`, captured by `main.ts`'s own `bodyParser.json({ verify })` — this route is NOT under
+ * `req.rawBody`, captured by `main.ts`'s own `bodyParser.json({ verify })`, this route is NOT under
  * `/api/auth`, so (unlike the removed route) it IS parsed by that body parser and DOES get `rawBody`
  * populated; see `main.ts`'s own comment on why `/api/auth/*` is skipped instead.
  */
@@ -93,7 +108,7 @@ import prisma from '@/prisma/prisma.service';
 import { verifyPolarWebhook, WebhookVerificationError } from './polar-webhook-verify';
 import { handleSubscriptionPayload, SubscriptionWebhookPayload } from './webhook-handlers';
 
-/** Postgres/Prisma's own unique-constraint-violation code — checked structurally (never importing
+/** Postgres/Prisma's own unique-constraint-violation code, checked structurally (never importing
  *  `Prisma.PrismaClientKnownRequestError` by name) the same way every other billing file duck-types a
  *  third-party error shape (`billing-customer.ts#isResourceNotFoundError`'s own header). */
 function isUniqueConstraintViolation(error: unknown): boolean {
@@ -104,8 +119,8 @@ interface RequestWithRawBody extends Request {
   rawBody?: Buffer;
 }
 
-/** The six event types `polar-plugin.ts`'s removed `onSubscription*` wiring used to cover — see this
- *  file's own header. Anything else: acknowledged, dropped, logged (never a 4xx/5xx — an unhandled
+/** The six event types `polar-plugin.ts`'s removed `onSubscription*` wiring used to cover, see this
+ *  file's own header. Anything else: acknowledged, dropped, logged (never a 4xx/5xx, an unhandled
  *  type is not an error). */
 const HANDLED_SUBSCRIPTION_EVENT_TYPES = new Set([
   'subscription.created',
@@ -116,24 +131,24 @@ const HANDLED_SUBSCRIPTION_EVENT_TYPES = new Set([
   'subscription.revoked',
 ]);
 
-/** Polar's raw wire shape for a subscription event's own `data` — see this file's own header on why
+/** Polar's raw wire shape for a subscription event's own `data`, see this file's own header on why
  *  the two fields below are snake_case here and need remapping. `customer` is the nested customer
- *  object Polar echoes onto the subscription payload — only `external_id` is read here. */
+ *  object Polar echoes onto the subscription payload, only `external_id` is read here. */
 interface PolarSubscriptionWireData {
   id: string;
   customer_id: string;
   status: string;
   recurring_interval: string;
-  /** The subscription's own seat quantity — this webhook field, plus `seat-reconcile.ts`'s own
+  /** The subscription's own seat quantity, this webhook field, plus `seat-reconcile.ts`'s own
    *  periodic SDK read, are the ONLY two places seat quantity ever enters this app; nothing here ever
    *  writes it back to Polar (`webhook-handlers.ts#PolarSubscriptionWebhookFacts.seats`'s own doc
    *  comment). */
   seats?: number | null;
-  /** The end of the period this subscription's customer has already paid for — Polar's own
+  /** The end of the period this subscription's customer has already paid for, Polar's own
    *  `Subscription.currentPeriodEnd` field, ISO-8601 on the wire (confirmed against
    *  `node_modules/@polar-sh/sdk/dist/commonjs/models/components/subscription.d.ts`'s own
    *  `current_period_end: string` wire type). Remapped to a `Date` below the same way the two other
-   *  snake_case fields are — see this file's own header. */
+   *  snake_case fields are, see this file's own header. */
   current_period_end?: string | null;
   metadata?: Record<string, string | number | boolean>;
   customer?: { external_id?: string | null };
@@ -150,7 +165,7 @@ function isPolarWebhookEvent(value: unknown): value is PolarWebhookEvent {
   return typeof candidate.type === 'string' && typeof candidate.data === 'object' && candidate.data !== null;
 }
 
-/** Parses an ISO-8601 wire date defensively — `undefined` for a missing/malformed value rather than the
+/** Parses an ISO-8601 wire date defensively, `undefined` for a missing/malformed value rather than the
  *  truthy `Invalid Date` a bare `new Date(...)` would produce (the exact trap this file's own comment on
  *  `webhook-timestamp` parsing already documents for `factAt`, immediately below): `undefined` is what
  *  `applySubscriptionWebhook`'s own `currentPeriodEnd` already treats as "nothing to write, leave
@@ -184,15 +199,15 @@ export class PolarWebhookController {
   @Public()
   async handleWebhook(@Req() req: RequestWithRawBody): Promise<{ received: true }> {
     if (!req.rawBody) {
-      // Unreachable for a genuine delivery (always `application/json`, always captured — see this
-      // file's own header) — a defensive 400 rather than passing `undefined` into a signature check
+      // Unreachable for a genuine delivery (always `application/json`, always captured, see this
+      // file's own header), a defensive 400 rather than passing `undefined` into a signature check
       // that would otherwise throw a less legible error.
       throw new BadRequestException('Missing request body.');
     }
 
     const secret = process.env.POLAR_WEBHOOK_SECRET;
     if (!secret) {
-      // Unreachable once billing is genuinely enabled — `assertPolarEnvConfiguredForBoot` (main.ts)
+      // Unreachable once billing is genuinely enabled, `assertPolarEnvConfiguredForBoot` (main.ts)
       // already refuses to boot with the flag on and this var blank. Named defensively rather than
       // reading `undefined` into `verifyPolarWebhook` and getting a less legible library error.
       throw new BadRequestException('Polar webhook secret not configured.');
@@ -226,7 +241,7 @@ export class PolarWebhookController {
       return { received: true };
     }
 
-    // Idempotency ledger — see this file's own header. Reserved BEFORE dispatch: a unique-constraint
+    // Idempotency ledger, see this file's own header. Reserved BEFORE dispatch: a unique-constraint
     // violation here means this exact delivery (by its own `webhook-id`) already ran, answered 200
     // immediately without touching `handleSubscriptionPayload` a second time.
     try {
@@ -243,15 +258,15 @@ export class PolarWebhookController {
     }
 
     // `webhook-timestamp` is Standard Webhooks' own delivery timestamp (unix seconds, the same header
-    // `verifyPolarWebhook` above already required to be present and within tolerance) — threaded
+    // `verifyPolarWebhook` above already required to be present and within tolerance), threaded
     // through as the fact's own timestamp so a later, slower `status-reconcile.ts` read can never
     // clobber whatever this delivery is about to apply. `verifyPolarWebhook` validates it with
-    // `parseInt` (tolerant of trailing garbage — `"1758066400junk"` parses to `1758066400`), so a
+    // `parseInt` (tolerant of trailing garbage, `"1758066400junk"` parses to `1758066400`), so a
     // header that PASSES verification can still fail a stricter `Number(...)` read here. `new
-    // Date(NaN)` is NOT the inert fallback a caller might expect — it is a truthy `Invalid Date`
+    // Date(NaN)` is NOT the inert fallback a caller might expect, it is a truthy `Invalid Date`
     // object, so it survives every `facts.factAt ?` truthiness check downstream and reaches
     // `prisma.companySubscription.update({ data: { lastPolarFactAt: ... } })`, which Prisma rejects,
-    // turning this delivery into a 500 AFTER the dedup ledger row above was already committed — a
+    // turning this delivery into a 500 AFTER the dedup ledger row above was already committed, a
     // retry then 200s on the "already processed" branch without ever having actually applied the
     // fact, losing it for good. Validating numerically and falling back to `undefined` avoids ever
     // constructing that Invalid Date; `undefined` is the exact shape `handleSubscriptionPayload`'s own
@@ -264,7 +279,7 @@ export class PolarWebhookController {
     } catch (error) {
       // The dedup row above was reserved BEFORE this call, so a throw here (a Prisma hiccup, a row
       // concurrently deleted mid-write…) would otherwise leave a ledger entry for a fact that was
-      // NEVER actually applied — Nest turns this into a 500, Polar retries the SAME delivery, and that
+      // NEVER actually applied, Nest turns this into a 500, Polar retries the SAME delivery, and that
       // retry would then hit the unique-constraint branch above and 200 as "already processed" without
       // ever running the handler. Freeing the reservation on failure is what makes the retry actually
       // retry: this delivery's `webhook-id` is deliberately made available again before the error is

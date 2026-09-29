@@ -36,9 +36,9 @@ function fakeClient(overrides: Partial<MemberEmailSyncClient> = {}): MemberEmail
         createExternal: vi.fn(),
         updateExternal: vi.fn().mockResolvedValue({ id: 'member-1' }),
         delete: vi.fn(),
+        iterList: vi.fn(),
       },
     },
-    members: { listMembers: vi.fn() },
     ...overrides,
   } as unknown as MemberEmailSyncClient;
 }
@@ -82,15 +82,14 @@ describe('syncPolarMemberEmailForUser', () => {
 
     await syncPolarMemberEmailForUser('user-1', 'new@acme.test', 'Ada', client);
 
-    expect(client.customers.members.updateExternal).toHaveBeenCalledWith({
-      externalId: 'company-1',
-      memberExternalId: 'user-1',
-      memberUpdate: { email: 'new@acme.test', name: 'Ada' },
+    expect(client.customers.members.updateExternal).toHaveBeenCalledWith('company-1', 'user-1', {
+      email: 'new@acme.test',
+      name: 'Ada',
     });
     expect(resolveOrCreate).not.toHaveBeenCalled();
   });
 
-  it("resolves-or-CREATES a fresh member when no app-created member exists — covers Polar's own auto-created owner member, now unreachable by its OLD email", async () => {
+  it("resolves-or-CREATES a fresh member when no app-created member exists, covers Polar's own auto-created owner member, now unreachable by its OLD email", async () => {
     findMemberships.mockResolvedValue([{ companyId: 'company-1' }]);
     getOrCreate.mockResolvedValue({ polarSubscriptionId: 'sub_1' });
     const client = fakeClient({
@@ -154,7 +153,7 @@ describe('syncPolarMemberEmailForUser', () => {
     expect(client.customers.members.updateExternal).toHaveBeenCalledTimes(2);
   });
 
-  it('never throws — a Polar failure is logged and swallowed', async () => {
+  it('never throws, a Polar failure is logged and swallowed', async () => {
     findMemberships.mockResolvedValue([{ companyId: 'company-1' }]);
     getOrCreate.mockResolvedValue({ polarSubscriptionId: 'sub_1' });
     const client = fakeClient({

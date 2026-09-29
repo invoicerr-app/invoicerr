@@ -1,9 +1,9 @@
 /**
  * REAL round-trip against the Polar SANDBOX organization proving `checkout-tax-id.ts#resolveCheckoutTaxId`
- * and `checkout-session.ts`'s own 422 retry — the fix for a dev-instance incident (2026-09-16):
+ * and `checkout-session.ts`'s own 422 retry, the fix for a dev-instance incident (2026-09-16):
  * "Subscribe" opened a Polar checkout that immediately answered "The provided tax ID is invalid." for a
- * real micro-entreprise (`PartyIdentifier` VAT `FR54982187676`, checksum-valid — SIREN 982187676 mod 97
- * = 14, (12 + 3×14) mod 97 = 54 — and LEGAL_ID `98218767600019`), because Polar validates a checkout tax
+ * real micro-entreprise (`PartyIdentifier` VAT `FR54982187676`, checksum-valid, SIREN 982187676 mod 97
+ * = 14, (12 + 3×14) mod 97 = 54, and LEGAL_ID `98218767600019`), because Polar validates a checkout tax
  * id against VIES and a franchise-en-base trader has no active VIES entry no matter how well-formed its
  * VAT-shaped number looks.
  *
@@ -12,10 +12,14 @@
  *   set -a; . .env.test.local; set +a
  *   POLAR_LIVE=1 npx jest checkout-tax-id.live --no-coverage --runInBand
  *
- * See this repo's own task notes for the run date/checkout ids this was last proven against — never
+ * See this repo's own task notes for the run date/checkout ids this was last proven against, never
  * repeated here to avoid this header going stale next to a still-passing test.
+ *
+ * #537 (2026-09-29): updated for `@polar-sh/sdk` 1.x, `createPolar` from the versioned
+ * `@polar-sh/sdk/2026-10` subpath, `checkouts.list()` resolving directly to ONE page, and `customerTaxId`
+ * read back as `customer_tax_id` (the wire's own snake_case, `Checkout`, read directly).
  */
-import { Polar } from '@polar-sh/sdk';
+import { createPolar } from '@polar-sh/sdk/2026-10';
 
 import prisma from '@/prisma/prisma.service';
 
@@ -24,9 +28,9 @@ import { liveDescribe } from '../documents/transports/live-gate';
 
 const describeLive = liveDescribe('POLAR_LIVE', ['POLAR_ACCESS_TOKEN']);
 
-describeLive('checkout-tax-id — real Polar sandbox round-trip', () => {
+describeLive('checkout-tax-id, real Polar sandbox round-trip', () => {
   const runId = Date.now();
-  const client = new Polar({ accessToken: process.env.POLAR_ACCESS_TOKEN, server: 'sandbox' });
+  const client = createPolar({ accessToken: process.env.POLAR_ACCESS_TOKEN ?? '', environment: 'sandbox' });
   const companyIds: string[] = [];
 
   afterAll(async () => {
@@ -61,15 +65,13 @@ describeLive('checkout-tax-id — real Polar sandbox round-trip', () => {
   async function readBackCheckout(
     companyId: string,
   ): Promise<Awaited<ReturnType<typeof client.checkouts.get>>> {
-    const pages = await client.checkouts.list({ externalCustomerId: companyId, limit: 1 });
-    for await (const page of pages) {
-      const item = page.result.items[0];
-      if (item) return item;
-    }
+    const { items } = await client.checkouts.list({ external_customer_id: companyId, limit: 1 });
+    const item = items[0];
+    if (item) return item;
     throw new Error(`Could not find a checkout for company ${companyId} via checkouts.list.`);
   }
 
-  it('a bare SIREN (invalid VAT syntax) never reaches Polar — checkout created with no tax id, no retry needed', async () => {
+  it('a bare SIREN (invalid VAT syntax) never reaches Polar, checkout created with no tax id, no retry needed', async () => {
     const companyId = await makeCompany('982187676', 'siren');
 
     const result = await createCheckoutSession({
@@ -80,15 +82,15 @@ describeLive('checkout-tax-id — real Polar sandbox round-trip', () => {
     });
 
     if (result.taxIdRejected) {
-      throw new Error('Expected no retry (nothing was ever sent to Polar) — hard failure.');
+      throw new Error('Expected no retry (nothing was ever sent to Polar), hard failure.');
     }
 
     const stored = await readBackCheckout(companyId);
-    if (stored.customerTaxId) {
-      throw new Error(`Expected NO tax id stored — hard failure. Got: ${stored.customerTaxId}`);
+    if (stored.customer_tax_id) {
+      throw new Error(`Expected NO tax id stored, hard failure. Got: ${stored.customer_tax_id}`);
     }
 
-    console.log(`SIREN proof OK — checkout ${stored.id}, customerTaxId ${stored.customerTaxId}.`);
+    console.log(`SIREN proof OK, checkout ${stored.id}, customerTaxId ${stored.customer_tax_id}.`);
   }, 30_000);
 
   it('a checksum-valid FR VAT number reaches Polar; if Polar/VIES refuses it, the checkout still succeeds without it', async () => {
@@ -103,19 +105,19 @@ describeLive('checkout-tax-id — real Polar sandbox round-trip', () => {
 
     const stored = await readBackCheckout(companyId);
     console.log(
-      `Checksum-valid VAT proof — checkout ${stored.id}, taxIdRejected=${Boolean(result.taxIdRejected)}, ` +
-        `stored customerTaxId=${stored.customerTaxId}.`,
+      `Checksum-valid VAT proof, checkout ${stored.id}, taxIdRejected=${Boolean(result.taxIdRejected)}, ` +
+        `stored customerTaxId=${stored.customer_tax_id}.`,
     );
 
     if (result.taxIdRejected) {
-      if (stored.customerTaxId) {
+      if (stored.customer_tax_id) {
         throw new Error(
-          `taxIdRejected=true but Polar still stored a tax id — hard failure. Got: ${stored.customerTaxId}`,
+          `taxIdRejected=true but Polar still stored a tax id, hard failure. Got: ${stored.customer_tax_id}`,
         );
       }
-    } else if (stored.customerTaxId !== 'FR54982187676') {
+    } else if (stored.customer_tax_id !== 'FR54982187676') {
       throw new Error(
-        `Not reported as rejected, so expected the tax id to be stored — hard failure. Got: ${stored.customerTaxId}`,
+        `Not reported as rejected, so expected the tax id to be stored, hard failure. Got: ${stored.customer_tax_id}`,
       );
     }
   }, 30_000);

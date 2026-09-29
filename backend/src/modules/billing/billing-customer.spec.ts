@@ -20,16 +20,21 @@ function notFoundError(): Error {
   return Object.assign(new Error('ResourceNotFound'), { statusCode: 404 });
 }
 
+// #537: `@polar-sh/sdk@1.0.0`'s own `HTTPValidationError` nests the parsed response body under
+// `.error` (`this.error = error` in its own constructor, read directly), never a top-level
+// `.detail` the way 0.49's zod-parsed error used to expose it. This fixture mirrors the real shape.
 function emailTakenError(): Error {
   return Object.assign(new Error('HTTPValidationError'), {
     statusCode: 422,
-    detail: [
-      {
-        loc: ['body', 'email'],
-        msg: 'A customer with this email address already exists.',
-        type: 'value_error',
-      },
-    ],
+    error: {
+      detail: [
+        {
+          loc: ['body', 'email'],
+          msg: 'A customer with this email address already exists.',
+          type: 'value_error',
+        },
+      ],
+    },
   });
 }
 
@@ -95,7 +100,7 @@ describe('getOrCreatePolarCustomerForCompany', () => {
 
     expect(create).toHaveBeenCalledWith({
       type: 'individual',
-      externalId: 'company-1',
+      external_id: 'company-1',
       email: 'contact@acme.test',
       name: 'Acme SARL',
     });
@@ -145,7 +150,7 @@ describe('getOrCreatePolarCustomerForCompany', () => {
 
   // The live incident this whole guard responds to: `company.email` and `company.billingEmail` BOTH
   // empty used to reach `client.customers.create({ email: '' })`, Polar answered 422, and nothing on
-  // the checkout path caught it — an unhandled 500. Asserts the guard fires BEFORE `create` is ever
+  // the checkout path caught it, an unhandled 500. Asserts the guard fires BEFORE `create` is ever
   // called, not merely that SOME error comes back.
   it('refuses BEFORE calling Polar when neither billingEmail nor the contact email resolves to anything', async () => {
     const getExternal = vi.fn().mockRejectedValue(notFoundError());
