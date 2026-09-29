@@ -5229,6 +5229,7 @@
       "genericError": "Something went wrong loading correction routes.",
       "chooseRoute": "Choose this route",
       "unverifiedReason": "Not established for this country: {{note}}",
+      "allForbidden": "No correction route is allowed for {{countryCode}}: every route this invoice's country recognizes is forbidden by its own law.",
       "notImplemented": {
         "title": "Not implemented yet",
         "body": "\"{{route}}\" is declared by {{countryCode}}'s own law, but this application does not implement it yet — no mechanism runs it here today.",
