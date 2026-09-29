@@ -2263,6 +2263,15 @@ enum DocumentArchiveKind {
   DELIVERY
   VERDICT
   ACCEPTANCE
+  // Issue #340 - the original file (PDF/XML) a company attaches when importing a document issued by
+  // a previous tool. Distinct from DELIVERY: this artifact was never rendered or sent by Invoicerr,
+  // it is a record of something that already happened elsewhere, kept verbatim as the legal archive
+  // of the imported document (see the owner's own decision in #340: "Invoicerr is the legal archive
+  // of the imported original ... kept for the legal retention period, deletion blocked, like an
+  // invoice issued in Invoicerr"). Resolved the same kind-agnostic way DELIVERY is
+  // (archive/retention/, keyed by country + the document's own issueDate) - see
+  // archive/import-original.ts for the one dedicated writer, mirroring createAcceptanceArchive.
+  IMPORT_ORIGINAL
 }
 
 model DocumentArchive {

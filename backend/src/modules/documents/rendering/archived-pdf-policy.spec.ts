@@ -12,15 +12,25 @@ import { isArchivedPdfServable, issuedStatusesOf } from './archived-pdf-policy';
  */
 describe('archived-pdf-policy (issue #490)', () => {
   describe('issuedStatusesOf - derived from each type\'s own "save-draft" lock', () => {
+    // "imported" (issue #340) belongs in both lists below: it is a status "save-draft" locks, exactly
+    // like "sent" or "signed" - an imported document's content can never change again either, so it
+    // genuinely IS issued. What differs is which archive is the legal copy for it: never a DELIVERY
+    // archive (an imported document was never sent BY THIS APPLICATION, so it never gets one), always
+    // the IMPORT_ORIGINAL archive written at import time. `isArchivedPdfServable` below only ever
+    // answers a question about a DELIVERY archive that already exists, so it is never even asked one
+    // for an imported document - `documents.service.ts#renderInstancePdf` resolves "imported" against
+    // `archive/persistence.ts#findImportOriginalArtifact` FIRST, before this policy runs at all. Kept
+    // in these two lists rather than excluded from them: excluding it would say the content CAN still
+    // change, which is false, and would be the wrong reason to reach the right serving behavior.
     it('invoice: every status but "draft"', () => {
       expect([...issuedStatusesOf(buildInvoiceDescriptor())].sort()).toEqual(
-        ['cancelled', 'send_failed', 'sending', 'sent'].sort(),
+        ['cancelled', 'imported', 'send_failed', 'sending', 'sent'].sort(),
       );
     });
 
     it('credit note: every status but "draft"', () => {
       expect([...issuedStatusesOf(buildCreditNoteDescriptor())].sort()).toEqual(
-        ['send_failed', 'sending', 'sent'].sort(),
+        ['imported', 'send_failed', 'sending', 'sent'].sort(),
       );
     });
 

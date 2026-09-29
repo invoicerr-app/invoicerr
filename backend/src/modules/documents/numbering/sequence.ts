@@ -83,6 +83,27 @@ export async function bumpSequence(
 }
 
 /**
+ * Issue #340 - "declare your last number issued" (`numbering/declare-last-number.ts`, the ONE other
+ * caller of this function): seeds a counter's `nextNumber` DIRECTLY, without handing out or consuming
+ * a number the way `bumpSequence` above always does. A plain `INSERT`, deliberately never an upsert:
+ * this must only ever create the FIRST row for a `(companyId, typeId, year)` that has never numbered
+ * anything - a P2002 unique-constraint violation (the row already exists) is the correct, honest
+ * failure when it has, which `declare-last-number.ts`'s own caller (`company.service.ts`) additionally
+ * guards against BEFORE calling this, by checking no row exists for this type under ANY year - this
+ * function's own uniqueness constraint is the second, DB-enforced half of that same guard, closing
+ * the race between the check and the write.
+ */
+export async function seedSequenceStart(
+  client: SequenceClient,
+  companyId: string,
+  typeId: string,
+  year: number,
+  nextNumber: number,
+): Promise<void> {
+  await client.documentNumberSequence.create({ data: { companyId, typeId, year, nextNumber } });
+}
+
+/**
  * Issue #496 - the pattern to render with, plus an optional check of the RENDERED number, run inside
  * the numbering transaction right after rendering: a check that throws rolls the whole transaction
  * back, sequence bump included, so a number that would break a country constraint is never issued and

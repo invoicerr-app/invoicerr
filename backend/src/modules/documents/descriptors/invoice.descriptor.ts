@@ -331,6 +331,19 @@ const INVOICE_STATUSES = [
   { id: 'sent', label: 'Sent', clientVisible: true },
   { id: 'send_failed', label: 'Send failed' },
   { id: 'cancelled', label: 'Cancelled' },
+  // Issue #340 - a historical invoice recorded from a previous tool. Reached ONLY through the
+  // dedicated import endpoint (`import/document-import.controller.ts`), which writes this status
+  // directly and NEVER through `documents.service.ts#runAction`/`ActionRegistry` - see that
+  // controller's own header for why: `runAction`'s own `checkTransitionResult`
+  // (descriptors/lifecycle.ts) hard-requires a brand-new record to land on `initialStatus` ("draft"),
+  // so a creation action that lands anywhere else structurally cannot go through it. Since nothing in
+  // this file (or anywhere else) ever declares a transition FROM "imported", it has NO outgoing
+  // transition at all - never sent, never e-invoiced, never edited ("save-draft" is locked out of
+  // every status but "draft" below), never renumbered (numbering only ever fires on entering
+  // "sending", which "imported" can never reach either). `clientVisible` is deliberately absent
+  // (false): the client portal shows only what THIS company sent through it; an imported invoice was
+  // never sent by Invoicerr at all.
+  { id: 'imported', label: 'Imported' },
 ];
 const SAVE_DRAFT_LOCKED_STATUSES = INVOICE_STATUSES.map((s) => s.id).filter((id) => id !== 'draft');
 
@@ -649,7 +662,11 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         // cash a draft. NO `transitions`: see this file's own lifecycle comment above for why —
         // now IMPLEMENTED (actions/invoice-actions.ts), but its effect lands on a NEW DocumentPayment
         // row and the projected balance, never on this record's own declared status.
-        availableWhen: ['sent'],
+        // Issue #340 - 'imported' added deliberately: the owner's own decision names "record a
+        // payment" as one of the few actions allowed, one by one, on an imported invoice - it was
+        // genuinely issued (by the previous tool), the money it is owed is exactly as real as a
+        // "sent" invoice's, only the issuing software differs.
+        availableWhen: ['sent', 'imported'],
         params: RECORD_PAYMENT_PARAMS,
       },
       {

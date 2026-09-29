@@ -9,8 +9,10 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 ## Actions
 
 - **Add New** — create an invoice
+- **Import** / **Import CSV**: record a past invoice from a previous tool; see
+  [Migrating from another tool](migrating-from-another-tool.md)
 - **Search** — find an invoice by its number or client name
-- **Filter** — toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Cancelled**
+- **Filter**: toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
 - **View** (eye icon) — read-only details
 - **Download** — a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**
 - **Send** — deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…)

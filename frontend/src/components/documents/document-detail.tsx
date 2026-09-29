@@ -104,6 +104,24 @@ interface DocumentDetailProps {
  * after an action that persisted this record (the response's own `data` becomes the new baseline,
  * which is also what clears the "unsaved" state), or on an explicit Discard.
  */
+/**
+ * Issue #340 - mirrors the backend's own `document-import.types.ts#hasTransmissionEvidence`
+ * verbatim: any of the four transmission facts an import can declare (SdI id, KSeF number, PA
+ * reference - all three stored in `data.importTransmissionEvidence`, the same non-declared-field
+ * convention `received-invoice.descriptor.ts`'s own `fileRef` already uses - or the ATCUD, stored on
+ * its own real column). Only ever meaningful for a "imported" document; the caller checks that
+ * separately.
+ */
+export function hasImportTransmissionEvidence(instance: DocumentInstance): boolean {
+  const evidence = (instance.data?.importTransmissionEvidence ?? {}) as Record<string, unknown>
+  return Boolean(
+    (typeof evidence.sdiId === "string" && evidence.sdiId.trim()) ||
+      (typeof evidence.ksefNumber === "string" && evidence.ksefNumber.trim()) ||
+      (typeof evidence.paReference === "string" && evidence.paReference.trim()) ||
+      instance.atcud,
+  )
+}
+
 export function DocumentDetail({ descriptor, instance }: DocumentDetailProps) {
   const navigate = useNavigate()
   const [snapshot, setSnapshot] = useState(instance.data)
@@ -223,6 +241,17 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         // `policyRestrictedToStatuses` did (see `saveDraftLockNotice`'s own header).
         <Alert data-cy="document-save-locked-notice">
           <AlertDescription>{saveLockedMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {liveInstance.status === "imported" && !hasImportTransmissionEvidence(liveInstance) && (
+        // Issue #340 - the owner's own decision: a document the previous tool never transmitted is
+        // still accepted, but with a VISIBLE, LASTING warning that it must be regularised (in Italy
+        // an invoice never passed through the SdI is "not issued" in law) - never hidden, never a
+        // one-time toast a reload would lose. See `hasImportTransmissionEvidence`'s own header for
+        // exactly what counts as evidence.
+        <Alert variant="warning" data-cy="document-import-not-transmitted">
+          <AlertDescription>{t("documents.detail.importNotTransmitted")}</AlertDescription>
         </Alert>
       )}
 

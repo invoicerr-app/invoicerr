@@ -26,7 +26,9 @@ const TONE_PATTERNS: [Tone, RegExp][] = [
   ["destructive", /cancel|reject|refus|fail|void|error/i],
   ["warning", /overdue|pending|await|review|sending/i],
   ["success", /paid|sign|accept|clear|complete|approved|settl/i],
-  ["info", /sent|issued|submit|transmit|progress/i],
+  // "imported" (issue #340) reads the same "genuinely issued, historical record" way "sent"/"issued"
+  // already do - a past document recorded from a previous tool, not a draft and not a failure.
+  ["info", /sent|issued|submit|transmit|progress|imported/i],
   ["neutral", /draft/i],
 ]
 

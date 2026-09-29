@@ -3271,6 +3271,31 @@
         "billingEmailSaveError": "Failed to save the billing email",
         "taxIdNotAccepted": "Your VAT number was not accepted by Polar (VIES); the checkout continues without it — Polar will ask for it if needed."
       }
+    },
+    "declareLastNumber": {
+      "title": "Declare your last number issued",
+      "description": "Migrating from another tool? Tell Invoicerr the last number it printed so your own numbering resumes at last + 1, with no gap. Works even if you never import a single document.",
+      "type": "Document type",
+      "typeInvoice": "Invoice",
+      "typeCreditNote": "Credit note",
+      "lastNumber": "Last number issued (as the previous tool printed it)",
+      "lastIssueDate": "Date it was issued",
+      "pattern": "Pattern",
+      "patternHint": "Infer it from the example above, or type your own. It must reproduce the last number exactly.",
+      "infer": "Infer from example",
+      "submit": "Declare",
+      "errors": {
+        "infer": "Could not infer a pattern",
+        "declare": "Could not declare the last number issued"
+      },
+      "result": {
+        "pattern": "Pattern in effect:",
+        "sourceRunning": "(your own running series)",
+        "sourceCountry": "(the country's own format)",
+        "next": "Next number:",
+        "violations": "The pattern you typed does not satisfy this country's own rules, so the country format applies instead: {{reasons}}",
+        "atcudSeries": "Register series \"{{series}}\" with the tax authority before your first document of this type."
+      }
     }
   },
   "account": {
@@ -5023,6 +5048,66 @@
       "receivedInvoiceDownload": {
         "button": "Download original file",
         "error": "Download failed"
+      },
+      "importDocument": {
+        "button": "Import",
+        "uploadTitle": "Import a past document",
+        "uploadDescription": "Upload the original file (PDF or XML) exactly as the previous tool produced it.",
+        "dropHint": "Drag and drop a PDF, or an XML invoice, here",
+        "maxSize": "Maximum 10 MB",
+        "browse": "Browse files",
+        "uploadError": "Upload failed",
+        "formTitle": "Import {{label}}",
+        "formDescription": "Original file: {{fileName}}",
+        "originalNumber": "Original number (as the previous tool printed it)",
+        "transmissionTitle": "Transmission evidence",
+        "transmissionHint": "Did the previous tool actually transmit this document? Leave blank if you are not sure: the import is still accepted, with a visible warning that it must be regularised.",
+        "transmissionSdiId": "SdI id (Italy)",
+        "transmissionKsefNumber": "KSeF number (Poland)",
+        "transmissionPaReference": "Accredited platform reference (France)",
+        "transmissionAtcud": "ATCUD (Portugal)",
+        "cancel": "Cancel",
+        "confirm": "Import",
+        "imported": "Document imported.",
+        "importedUntransmitted": "Document imported, no transmission evidence was declared. It must be regularised.",
+        "importError": "Import failed"
+      },
+      "importCsv": {
+        "button": "Import CSV",
+        "title": "Import {{label}} from a CSV file",
+        "description": "One row per document, plus the original files (PDF or XML) it references by name.",
+        "downloadTemplate": "Download the CSV template",
+        "step1": "1. Select the original files (PDF or XML), all at once",
+        "filesHint": "{{count}} file(s) uploaded so far.",
+        "step2": "2. Select the CSV file",
+        "dropHint": "Drag and drop a CSV file here, or click to choose one",
+        "uploadError": "Upload failed",
+        "filesUploaded": "{{count}} file(s) uploaded.",
+        "fileTooLarge": "This file is over the {{maxKb}} KB limit",
+        "empty": "The file has no data rows to import.",
+        "tooManyRows": "This file has {{count}} rows, over the {{max}}-row limit a single import can process.",
+        "previewFailed": "Preview failed",
+        "parseFailed": "Could not read this file",
+        "confirmFailed": "Import failed",
+        "summary": {
+          "willImport": "{{count}} will be imported",
+          "rejected": "{{count}} rejected"
+        },
+        "preview": {
+          "row": "Row",
+          "originalNumber": "Original number",
+          "status": "Status",
+          "detail": "Detail"
+        },
+        "status": {
+          "valid": "Valid",
+          "rejected": "Rejected"
+        },
+        "confirm": "Import {{count}}",
+        "result": {
+          "imported": "Imported",
+          "rejected": "Rejected"
+        }
       }
     },
     "totals": {
@@ -5205,7 +5290,8 @@
       "unsavedChanges": "Unsaved changes",
       "discard": "Discard",
       "totalsTitle": "Totals",
-      "notFound": "This document could not be found."
+      "notFound": "This document could not be found.",
+      "importNotTransmitted": "This document was imported with no transmission evidence declared (no SdI id, KSeF number, accredited platform reference, or ATCUD). It must be regularised with the relevant authority."
     },
     "acceptance": {
       "menuLabel": "Mark as accepted",

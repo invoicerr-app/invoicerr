@@ -6,15 +6,18 @@ import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs }
 import { sumPaidMinorByDocument } from './payments';
 
 /**
- * The "sent AND not settled" predicate that both invoice-contributions.ts's "pending invoices"
- * dashboard tile and `GET /documents`'s own `settlement=unsettled` list filter (list-documents.dto.ts,
- * documents.service.ts) apply. Extracted here, out of invoice-contributions.ts (where it was born),
- * so a metric tile promising "click through to see these" and the list behind that click can never
- * independently drift on what "pending" means. A "draft" is never pending (not yet issued), a
- * "cancelled" invoice is excluded for free (`status === 'sent'` is a strict equality, never a
- * "not draft" negation, see invoice-contributions.ts's own header for why that matters), and a "sent"
- * invoice already fully paid and/or credited (`settlement/compute-settlement.ts`,
- * `settlement/credits.ts`) is settled, not pending.
+ * The "sent/imported AND not settled" predicate that both invoice-contributions.ts's "pending
+ * invoices" dashboard tile and `GET /documents`'s own `settlement=unsettled` list filter
+ * (list-documents.dto.ts, documents.service.ts) apply. Extracted here, out of
+ * invoice-contributions.ts (where it was born), so a metric tile promising "click through to see
+ * these" and the list behind that click can never independently drift on what "pending" means. A
+ * "draft" is never pending (not yet issued), a "cancelled" invoice is excluded for free (a plain `in`
+ * list, never a "not draft" negation, see invoice-contributions.ts's own header for why that
+ * matters), and a "sent"/"imported" invoice already fully paid and/or credited
+ * (`settlement/compute-settlement.ts`, `settlement/credits.ts`) is settled, not pending. "imported"
+ * (issue #340) is included deliberately: recording a payment is one of the few actions the owner's
+ * own decision allows on it, and a payment nobody can ever chase because the invoice never shows up
+ * as pending would make that allowance hollow.
  *
  * Runs the same two extra reads invoice-contributions.ts always has, batched once for every candidate
  * invoice (never one query per document): `sumPaidMinorByDocument` and `listCreditNotes`.
@@ -24,7 +27,9 @@ export async function filterUnsettledInvoices(
   invoiceDescriptor: DocumentTypeDescriptor,
   invoices: readonly DocumentInstanceResult[],
 ): Promise<DocumentInstanceResult[]> {
-  const sentInvoices = invoices.filter((invoice) => invoice.status === 'sent');
+  const sentInvoices = invoices.filter(
+    (invoice) => invoice.status === 'sent' || invoice.status === 'imported',
+  );
   const paidMinorByDocument = await sumPaidMinorByDocument(
     companyId,
     sentInvoices.map((invoice) => invoice.id),
