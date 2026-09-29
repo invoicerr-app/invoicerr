@@ -19,6 +19,7 @@ import {
   resolveCompanyMailSettings,
   resolveCompanyReplyTo,
 } from '@/modules/company/mail-settings/company-mail-settings.resolver';
+import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 
 export type { MailOptions, MailAttachment, SmtpOverrides } from '@/mail/types';
 
@@ -264,6 +265,12 @@ export class MailService {
   }
 
   async sendMail(options: MailOptions, smtpOverrides?: SmtpOverrides) {
+    // Demo instance (issue #533): checked FIRST, before any network attempt. This is the one
+    // chokepoint every mail send in this codebase eventually reaches, including `lib/auth.ts`'s own
+    // `new MailService()` instance built outside Nest DI, see `modules/demo/demo-blocked.ts`'s own
+    // header for the full list of callers this single check covers.
+    assertDemoSendingAllowed('Email');
+
     // Per-company SMTP: build a one-shot transport from the decrypted company config.
     // The password is intentionally excluded from all log calls below.
     if (smtpOverrides) {
@@ -349,6 +356,10 @@ export class MailService {
    * runs its own SMTP/Resend server. Resolved once, up front, and threaded into every branch below.
    */
   async sendForCompany(companyId: string, options: MailOptions): Promise<{ message: string }> {
+    // Demo instance (issue #533): same check as `sendMail` above, first, before any network attempt
+    // or even a lookup of this company's own mail settings.
+    assertDemoSendingAllowed('Email');
+
     // Both reads happen regardless of which branch below ends up sending: the Reply-To cascade
     // (`resolveCompanyReplyTo`) is INDEPENDENT of the mail-server cascade (`resolveCompanyMailSettings`)
     // — a company can set one without the other (see `Company.mailReplyTo`'s own schema.prisma

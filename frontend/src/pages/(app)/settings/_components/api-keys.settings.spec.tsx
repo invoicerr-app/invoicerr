@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -41,9 +42,19 @@ async function renderWithCreatedKey() {
     "GET /api/api-keys": () => ({ body: [] }),
     "GET /api/api-keys/options": () => ({ body: { scopes: [] } }),
     "POST /api/api-keys": () => ({ body: { key: "ivr_live_abcdef123456" } }),
+    // `useDemoMode` (issue #533) goes through `useLegalDocuments`, which needs a QueryClientProvider
+    // ancestor (below) plus this endpoint mocked, same as every other fetch this component makes.
+    "GET /api/legal/documents": () => ({ body: { saasMode: false, demoMode: false, documents: [] } }),
   })
 
-  render(<ApiKeysSettings />)
+  // A fresh, no-retry client per render: `useDemoMode`'s own `useQuery` call needs a
+  // `QueryClientProvider` ancestor now that this component reads it (issue #533).
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ApiKeysSettings />
+    </QueryClientProvider>,
+  )
   fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "CLI on my laptop" } })
   fireEvent.click(screen.getByRole("button", { name: "Create API Key" }))
 

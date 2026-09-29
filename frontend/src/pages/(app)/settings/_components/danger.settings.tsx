@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { afterCompanyGone } from "@/lib/after-company-gone"
-import { useCompanies } from "@/hooks/queries"
+import { useCompanies, useDemoMode } from "@/hooks/queries"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { SettingsPage, SettingsSection } from "./settings-section"
 import InstanceResetSection from "./instance-reset.section"
@@ -59,6 +59,7 @@ function isOtpLockedError(error: unknown): boolean {
 export default function DangerZoneSettings() {
   const { t } = useTranslation()
   const [currentAction, setCurrentAction] = useState<DangerAction | null>(null)
+  const { demoMode } = useDemoMode()
   const [otp, setOtp] = useState("")
   const [confirmText, setConfirmText] = useState("")
   const { trigger: sendOTP, loading: isLoadingOtp, lastError: lastOtpError } = usePost("/api/danger/otp")
@@ -265,6 +266,8 @@ export default function DangerZoneSettings() {
               className="w-full border-destructive/30 text-destructive hover:bg-destructive-soft"
               onClick={() => requestOtp("delete-company")}
               loading={isLoadingOtp}
+              disabled={demoMode}
+              tooltip={demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
               data-cy="danger-delete-company-button"
             >
               {t("settings.dangerZone.deleteCompany.button")}

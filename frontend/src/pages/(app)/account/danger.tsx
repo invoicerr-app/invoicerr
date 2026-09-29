@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useCompanies } from "@/hooks/queries"
+import { useCompanies, useDemoMode } from "@/hooks/queries"
 import { type ApiHookError, useDelete } from "@/hooks/use-fetch"
 import { afterCompanyGone } from "@/lib/after-company-gone"
 import { authClient } from "@/lib/auth"
@@ -43,6 +43,7 @@ export default function AccountDangerPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [hasCredentialAccount] = useHasCredentialAccount()
+  const { demoMode } = useDemoMode()
 
   const [open, setOpen] = useState(false)
   const [password, setPassword] = useState("")
@@ -209,7 +210,13 @@ export default function AccountDangerPage() {
         description={t("account.danger.card.description")}
         dataCy="account-danger-card"
       >
-        <Button variant="destructive" onClick={openDialog} data-cy="account-danger-delete-button">
+        <Button
+          variant="destructive"
+          onClick={openDialog}
+          disabled={demoMode}
+          tooltip={demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
+          data-cy="account-danger-delete-button"
+        >
           {t("account.danger.card.button")}
         </Button>
 

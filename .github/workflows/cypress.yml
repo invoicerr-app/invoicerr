@@ -455,7 +455,13 @@ jobs:
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE/e2e"
-          all=$(ls cypress/e2e/*.cy.ts | LC_ALL=C sort)
+          # 100-demo-mode.cy.ts (issue #533) is excluded here the same deliberate way
+          # `cypress/e2e/scenarios/full-lifecycle.cy.ts` already is by this glob being one level, not
+          # `**`: it needs a backend booted with DEMO_MODE=true and a dataset built by
+          # `npm run demo:reset`, neither of which this job's stack ever has (every other spec here
+          # assumes an ORDINARY, non-demo instance): see the dedicated `cypress-run-demo` job below,
+          # this workflow's own `cypress-run-saas` pattern for an identical isolated-mode lane.
+          all=$(ls cypress/e2e/*.cy.ts | grep -v '^cypress/e2e/100-demo-mode\.cy\.ts$' | LC_ALL=C sort)
           specs=$(echo "$all" | awk -v shard=${{ matrix.shard }} 'NR % 6 == shard % 6')
           # Empty is never legitimate here — six shards over 73 specs give twelve or thirteen each —
           # so it means the glob matched nothing and `--spec ""` would have made Cypress run the
@@ -702,6 +708,127 @@ jobs:
             ${{ github.workspace }}/e2e/cypress/videos
             ${{ github.workspace }}/e2e/cypress/screenshots
 
+  # `100-demo-mode.cy.ts` (issue #533) needs a backend running with `DEMO_MODE=true` and a dataset
+  # built by `npm run demo:reset`, neither of which `cypress-run` above ever has (every OTHER spec
+  # there assumes an ordinary, non-demo instance, and `demo-flag.ts`'s own `isDemoModeEnabled()`
+  # would block that spec's own sign-up/send/delete refusals from ever being exercised for real if it
+  # ran there instead). This is the dedicated lane that spec's own header asks for, the exact same
+  # "own spec glob, own flag" shape `cypress-run-saas` above already holds for billing; `cypress-run`'s
+  # own "Select this shard's specs" step excludes this file from its glob for the identical reason.
+  #
+  # `npm run demo:reset` needs a COMPILED `src` next to `scripts/` (see that script's own header, and
+  # `documentation/docs/developer-guide/demo-mode.md`'s "Scheduling it" section): the production image
+  # gets this for free from the Dockerfile's own COPY layout, but this job's raw checkout does not, so
+  # the "Build & seed the demo dataset" step below reproduces it explicitly: `npm run build`, then a
+  # copy of the raw script placed next to the compiled output it now runs from.
+  cypress-run-demo:
+    runs-on: ubuntu-latest
+    env:
+      REDIS_URL: redis://localhost:6379
+      DEMO_MODE: "true"
+    services:
+      postgres-test:
+        image: postgres:16
+        env:
+          POSTGRES_USER: invoicerr
+          POSTGRES_PASSWORD: invoicerr
+          POSTGRES_DB: invoicerr_db
+        ports:
+          - "5433:5432"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - "8025:8025"
+          - "1025:1025"
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma generate
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma migrate deploy
+
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        run: cd backend && npx playwright-core install chromium
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Install e2e dependencies
+        run: |
+          cd e2e
+          npm ci
+
+      - name: Wait for DB
+        run: |
+          npx wait-on tcp:5433 --timeout 60000
+          npx wait-on tcp:8025 --timeout 60000
+          npx wait-on tcp:1025 --timeout 60000
+          npx wait-on tcp:6379 --timeout 60000
+
+      - name: Build & seed the demo dataset
+        run: |
+          cd backend
+          npm run build
+          mkdir -p dist/scripts
+          cp scripts/demo-reset.ts dist/scripts/demo-reset.ts
+          cd dist
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx tsx scripts/demo-reset.ts
+
+      - name: Run backend, frontend & the demo-mode spec
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/logs
+          npm install -D dotenv-cli
+          (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
+          (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
+          npx wait-on http-get://localhost:4000/api/health --timeout 120000
+          # Same Firefox-over-Electron reasoning as `cypress-run` above.
+          (cd $GITHUB_WORKSPACE/e2e && npx cypress run --browser firefox --spec "cypress/e2e/100-demo-mode.cy.ts")
+
+      - name: Upload backend logs (demo lane)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs-demo
+          path: ${{ github.workspace }}/logs/backend.log
+
+      - name: Upload Cypress videos and screenshots (demo lane)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos-screenshots-demo
+          path: |
+            ${{ github.workspace }}/e2e/cypress/videos
+            ${{ github.workspace }}/e2e/cypress/screenshots
+
   # Branch protection can only require a STABLE list of check names, and this workflow's own names
   # are not stable: `cypress-run` fans out into `cypress-run (1)` .. `(6)` through its own matrix, and
   # reshaping that matrix breaks protection either way -- shrinking it (6 -> 4) leaves two required
@@ -723,7 +850,17 @@ jobs:
   # `failure`/`cancelled` below rather than being let through.
   tests-green:
     runs-on: ubuntu-latest
-    needs: [lint, i18n-check, e2e-typecheck, backend-tests, queue-integration, cypress-run, cypress-run-saas]
+    needs:
+      [
+        lint,
+        i18n-check,
+        e2e-typecheck,
+        backend-tests,
+        queue-integration,
+        cypress-run,
+        cypress-run-saas,
+        cypress-run-demo,
+      ]
     if: always()
     steps:
       - name: Require every job above to have succeeded

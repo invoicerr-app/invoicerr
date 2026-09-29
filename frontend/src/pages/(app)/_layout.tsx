@@ -4,6 +4,7 @@ import { Navigate, Outlet, useLocation } from "react-router"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
+import { DemoBanner } from "@/components/demo-banner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LegalLinks, useLegalLinks } from "@/components/legal-links"
@@ -118,6 +119,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
             <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
               <Sidebar />
               <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
+                <DemoBanner />
                 <BillingBanner />
                 <header className="p-4 bg-header border-b flex items-center gap-4">
                   <SidebarTrigger />

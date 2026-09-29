@@ -15,6 +15,8 @@ import {
   sanitizePolarError,
   withSanitizedPolarErrors,
 } from './polar-client';
+import { DemoModeBlockedError } from '../demo/demo-blocked';
+import { DEMO_MODE_FLAG_NAME } from '../demo/demo-flag';
 
 /** Builds a REAL `HTTPValidationError` the way `@polar-sh/sdk`'s own generated `customersCreate.js`
  *  does (read directly): a real `Request` carrying the bearer token as its `Authorization` header, a
@@ -271,5 +273,30 @@ describe('getPolarClient sets the Polar-Version header (#536)', () => {
     for (const request of seen) {
       expect(request.headers.get('Polar-Version')).toBe(POLAR_API_VERSION);
     }
+  });
+});
+
+// Issue #533: no Polar call is ever possible in demo mode, independently of `isBillingEnabled()`'s own
+// override: this is the belt-and-suspenders check `getPolarClient()`'s own header describes.
+describe('getPolarClient: refuses outright in demo mode (issue #533)', () => {
+  const ORIGINAL = process.env[DEMO_MODE_FLAG_NAME];
+
+  afterEach(() => {
+    if (ORIGINAL === undefined) delete process.env[DEMO_MODE_FLAG_NAME];
+    else process.env[DEMO_MODE_FLAG_NAME] = ORIGINAL;
+    resetPolarClientForTests();
+  });
+
+  it('throws DemoModeBlockedError before constructing a client', () => {
+    process.env[DEMO_MODE_FLAG_NAME] = 'true';
+    resetPolarClientForTests();
+    expect(() => getPolarClient()).toThrow(DemoModeBlockedError);
+  });
+
+  it('never caches a client while demo mode is on (a later real call still gets refused)', () => {
+    process.env[DEMO_MODE_FLAG_NAME] = 'true';
+    resetPolarClientForTests();
+    expect(() => getPolarClient()).toThrow(DemoModeBlockedError);
+    expect(() => getPolarClient()).toThrow(DemoModeBlockedError);
   });
 });
