@@ -127,17 +127,18 @@ describe('Settings E2E', () => {
         });
 
         /**
-         * The desktop nav (`settings-nav`, `hidden lg:block`) used to render as a single-column
-         * `<ul>` list; it is now a grid of tiles (issue #313). `cy.viewport` puts the runner above
-         * the `lg` breakpoint (1024px) so this control is actually on screen; the mobile picker
-         * above already covers the width where it stays a dropdown.
+         * The desktop nav (`settings-nav`, `hidden lg:block`) is a sidebar beside the content again
+         * (issue #543 reverted #313/#427's grid of tiles, which took over the whole window and
+         * pushed the section content out of sight). `cy.viewport` puts the runner above the `lg`
+         * breakpoint (1024px) so this control is actually on screen; the mobile picker above already
+         * covers the width where it stays a dropdown.
          */
-        describe('desktop grid', () => {
+        describe('desktop sidebar', () => {
             beforeEach(() => {
-                cy.viewport(1440, 900);
+                cy.viewport(1280, 720);
             });
 
-            it('reaches sections from every group by clicking a tile, and marks the active one', () => {
+            it('reaches sections from every group by clicking a link, and marks the active one', () => {
                 cy.visit('/settings/company');
                 cy.get('[data-cy="settings-nav"]', { timeout: 10000 }).should('be.visible');
                 cy.get('[data-cy="settings-tab-company"]').should('be.visible');
@@ -154,34 +155,78 @@ describe('Settings E2E', () => {
                     cy.url().should('include', `/settings/${tabId}`);
                     cy.get(`[data-cy="settings-tab-${tabId}"]`, { timeout: 10000 }).should('be.visible');
                     cy.get(`[data-cy="settings-nav-${tabId}"]`).should('have.attr', 'aria-current', 'page');
-                    // The tile just left behind is no longer marked current.
+                    // The link just left behind is no longer marked current.
                     cy.get('[data-cy="settings-nav-company"]').should('not.have.attr', 'aria-current');
                 });
             });
 
-            it('reaches the danger zone tile, styled distinctly, without losing keyboard reachability', () => {
+            it('reaches the danger zone link, styled distinctly, without losing keyboard reachability', () => {
                 cy.visit('/settings/company');
-                cy.get('[data-cy="settings-nav-danger"]').should('be.visible').click();
+                // The sidebar scrolls independently of the content (issue #543): at this viewport
+                // "danger", the last entry, sits below the sidebar's own fold, so it needs its own
+                // scroll into view rather than the page's.
+                cy.get('[data-cy="settings-nav-danger"]').scrollIntoView().should('be.visible').click();
                 cy.url().should('include', '/settings/danger');
                 cy.get('[data-cy="settings-tab-danger"]', { timeout: 10000 }).should('be.visible');
                 cy.get('[data-cy="settings-nav-danger"]').should('have.attr', 'aria-current', 'page');
             });
 
-            it('is keyboard-reachable: a tile takes focus directly and activates from there', () => {
+            it('is keyboard-reachable: a link takes focus directly and activates from there', () => {
                 cy.visit('/settings/company');
                 // A real `<a href>`, not a click-only handler; focusable on its own, with no
                 // `tabindex` trickery needed. `cy.focused().type('{enter}')` is deliberately NOT used
                 // to activate it: Electron's own Enter-on-link default action is not reliably
-                // triggered by Cypress's synthetic keypress here (measured: the tile keeps its
+                // triggered by Cypress's synthetic keypress here (measured: the link keeps its
                 // focus ring but the URL never changes), which is a known Cypress/Electron gap, not
                 // a signal about the app. What this DOES prove is what actually matters for a
-                // keyboard/screen-reader user: the tile is reachable by focus alone, and activating
+                // keyboard/screen-reader user: the link is reachable by focus alone, and activating
                 // the already-focused element (a real browser turns a focused link's own Enter press
                 // into exactly this) lands on the right section.
                 cy.get('[data-cy="settings-nav-branding"]').focus().should('have.focus');
                 cy.focused().click();
                 cy.url().should('include', '/settings/branding');
                 cy.get('[data-cy="settings-tab-branding"]', { timeout: 10000 }).should('be.visible');
+            });
+
+            /**
+             * Issue #543's own guard: the desktop nav used to be a `sticky` grid of 21 tiles
+             * (#427) tall enough to fill the whole window on its own, pushing the section content
+             * below the fold — a user had to scroll PAST the entire nav before a single pixel of
+             * the actual settings form was on screen, and the nav and the content shared one
+             * scroll region instead of each scrolling on its own. This test fails on that layout
+             * for two independent reasons: the content is not visible without a prior scroll, and
+             * `[data-cy="settings-tab-company"]` (the scroll container itself in the sidebar
+             * layout) is not a scrollable element at all in the grid layout, so `.scrollTo()`
+             * throws instead of silently passing.
+             */
+            it('navigates between sections from the sidebar, with the content visible without scrolling past the navigation', () => {
+                cy.visit('/settings/company');
+                cy.get('[data-cy="settings-nav"]', { timeout: 10000 }).should('be.visible');
+                // No scroll has happened yet: the content must already be on screen.
+                cy.get('[data-cy="settings-tab-company"]', { timeout: 10000 }).should('be.visible');
+
+                // The nav and the content scroll independently: scrolling the content pane all the
+                // way down leaves the nav's own scroll position untouched.
+                cy.get('[data-cy="settings-nav"]')
+                    .closest('aside')
+                    .then(($aside) => {
+                        const scrollTopBefore = $aside[0].scrollTop;
+                        cy.get('[data-cy="settings-tab-company"]').scrollTo('bottom');
+                        cy.get('[data-cy="settings-nav"]')
+                            .closest('aside')
+                            .should(($asideAfter) => {
+                                expect($asideAfter[0].scrollTop, 'nav scroll position unchanged').to.eq(
+                                    scrollTopBefore,
+                                );
+                            });
+                    });
+
+                // The sidebar still navigates between sections after that scroll, and marks the
+                // active one.
+                cy.get('[data-cy="settings-nav-branding"]').click();
+                cy.url().should('include', '/settings/branding');
+                cy.get('[data-cy="settings-tab-branding"]', { timeout: 10000 }).should('be.visible');
+                cy.get('[data-cy="settings-nav-branding"]').should('have.attr', 'aria-current', 'page');
             });
         });
     });
