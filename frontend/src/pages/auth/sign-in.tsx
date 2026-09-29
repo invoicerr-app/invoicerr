@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { AuthLink, AuthSeparator, AuthShell } from "@/pages/auth/_components/auth-shell"
 import { PasswordInput } from "@/pages/auth/_components/password-input"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,6 +16,27 @@ import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import { authClient } from "@/lib/auth"
 import { envOidcProviderId, getEnvVariable, isOidcOnly } from "@/lib/runtime-config"
 import { useBackendHealth } from "@/hooks/use-backend-health"
+import { useDemoMode } from "@/hooks/queries"
+import { Info } from "lucide-react"
+
+/**
+ * Issue #533: shown above the sign-in form only, on the demo instance. The credentials shown here
+ * are literally correct, not a placeholder, so someone landing on the demo can sign in without going
+ * looking elsewhere for them (the issue's own requirement: "the demo sign-in page shows the
+ * credentials").
+ */
+function DemoCredentialsNotice() {
+  const { t } = useTranslation()
+  return (
+    <Alert variant="default" className="mb-4" data-cy="demo-credentials-notice">
+      <Info />
+      <AlertTitle>{t("demo.signIn.title", "This is a public demo")}</AlertTitle>
+      <AlertDescription>
+        {t("demo.signIn.description", "Sign in with demo@invoicerr.app / demo. Data resets every 4 hours.")}
+      </AlertDescription>
+    </Alert>
+  )
+}
 
 export default function LoginPage() {
   const { t } = useTranslation()
@@ -22,6 +44,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const backendHealth = useBackendHealth()
   const backendUnavailable = backendHealth === "unavailable"
+  const { demoMode } = useDemoMode()
 
   const [searchParams] = useSearchParams()
   // The direct link a company hands its own people: /auth/sign-in?sso=c_<companyId>. No lookup, no
@@ -126,6 +149,7 @@ export default function LoginPage() {
       dataCy="auth-card"
     >
       {backendUnavailable && <ServerUnavailableBanner />}
+      {demoMode && <DemoCredentialsNotice />}
 
       {/* A provider named by the link, or found from the address typed below. Offered above the
           form: someone arriving on their company's own link should not have to read past a

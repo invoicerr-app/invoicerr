@@ -125,11 +125,77 @@ describe('registrationDenialMessage', () => {
       registrationDenialMessage('already_used_code'),
       registrationDenialMessage('expired_code'),
       registrationDenialMessage('signup_disabled'),
+      registrationDenialMessage('demo_mode'),
     ];
     // All distinct — a caller must never see the same string for two different reasons.
     expect(new Set(messages).size).toBe(messages.length);
     for (const message of messages) {
       expect(message.length).toBeGreaterThan(0);
     }
+  });
+});
+
+// Issue #533: sign-up is closed outright on a demo instance, with exactly one narrow exception, the
+// reset script's own bootstrap of the fixed demo account.
+describe('decideRegistration: demo mode (issue #533)', () => {
+  it('rejects the very first user (the bootstrap escape hatch does NOT apply in demo mode)', () => {
+    const decision = decideRegistration({ isFirstUser: true, env: { DEMO_MODE: 'true' } });
+    expect(decision).toEqual({ allowed: false, reason: 'demo_mode' });
+  });
+
+  it('rejects open signup with no code', () => {
+    const decision = decideRegistration({ isFirstUser: false, env: { DEMO_MODE: 'true' } });
+    expect(decision).toEqual({ allowed: false, reason: 'demo_mode' });
+  });
+
+  it('rejects a genuinely valid, unused invitation code: demo mode outranks it', () => {
+    const decision = decideRegistration({
+      invitationCode: 'ABC123',
+      invitation: { found: true, usedAt: null, expiresAt: null },
+      isFirstUser: false,
+      env: { DEMO_MODE: 'true' },
+    });
+    expect(decision).toEqual({ allowed: false, reason: 'demo_mode' });
+  });
+
+  it('allows ONLY the seed script bootstrap: DEMO_SEED_RUN set AND the exact demo address', () => {
+    const decision = decideRegistration({
+      isFirstUser: true,
+      email: 'demo@invoicerr.app',
+      env: { DEMO_MODE: 'true', DEMO_SEED_RUN: 'true' },
+    });
+    expect(decision).toEqual({ allowed: true });
+  });
+
+  it('the bootstrap bypass is case-insensitive on the address', () => {
+    const decision = decideRegistration({
+      isFirstUser: true,
+      email: 'Demo@Invoicerr.App',
+      env: { DEMO_MODE: 'true', DEMO_SEED_RUN: 'true' },
+    });
+    expect(decision).toEqual({ allowed: true });
+  });
+
+  it('DEMO_SEED_RUN alone, for a DIFFERENT address, is still refused', () => {
+    const decision = decideRegistration({
+      isFirstUser: true,
+      email: 'attacker@example.com',
+      env: { DEMO_MODE: 'true', DEMO_SEED_RUN: 'true' },
+    });
+    expect(decision).toEqual({ allowed: false, reason: 'demo_mode' });
+  });
+
+  it('the demo address alone, with NO DEMO_SEED_RUN, is still refused', () => {
+    const decision = decideRegistration({
+      isFirstUser: true,
+      email: 'demo@invoicerr.app',
+      env: { DEMO_MODE: 'true' },
+    });
+    expect(decision).toEqual({ allowed: false, reason: 'demo_mode' });
+  });
+
+  it('DEMO_MODE unset behaves exactly as before (no email param, no regression)', () => {
+    const decision = decideRegistration({ isFirstUser: true, env: {} });
+    expect(decision).toEqual({ allowed: true });
   });
 });

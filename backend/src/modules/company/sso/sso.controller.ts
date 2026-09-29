@@ -15,6 +15,7 @@ import { Throttle } from '@nestjs/throttler';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Roles } from '@/decorators/roles.decorator';
+import { DemoRestricted } from '@/decorators/demo-restricted.decorator';
 
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
 import { SsoRegistrarService } from './sso-registrar.service';
@@ -95,6 +96,10 @@ export class SsoController {
   @ApiResponse({ status: 200, description: 'SSO configured' })
   @ApiResponse({ status: 400, description: 'Missing clientId, or neither a discovery URL nor endpoints' })
   @ApiResponse({ status: 503, description: 'CREDENTIALS_ENCRYPTION_KEY is not configured' })
+  // Demo instance (issue #533): SSO configuration is refused outright, a stranger's identity
+  // provider must never gain any authority over the seeded demo account. See
+  // `guards/demo-restricted.guard.ts`.
+  @DemoRestricted()
   async upsert(@ActiveCompany() companyId: string, @Body() body: UpsertSsoProviderBody) {
     const status = await this.sso.upsert(companyId, body);
 
@@ -119,6 +124,7 @@ export class SsoController {
     description: "Deletes this company's SSO configuration and stops accepting sign-ins through it.",
   })
   @ApiResponse({ status: 200, description: 'SSO removed' })
+  @DemoRestricted()
   async remove(@ActiveCompany() companyId: string) {
     const result = await this.sso.remove(companyId);
     await this.registrar.unregister(companyId);
@@ -168,6 +174,7 @@ export class SsoController {
   @ApiResponse({ status: 201, description: 'Domain claimed' })
   @ApiResponse({ status: 400, description: 'Not a valid bare domain' })
   @ApiResponse({ status: 404, description: 'No SSO provider configured yet for this company' })
+  @DemoRestricted()
   addDomain(@ActiveCompany() companyId: string, @Body() body: { domain?: string }): Promise<SsoDomainStatus> {
     if (!body?.domain) {
       throw new BadRequestException('domain is required.');
@@ -195,6 +202,7 @@ export class SsoController {
   @ApiResponse({ status: 400, description: 'TXT record missing, wrong, or a DNS failure' })
   @ApiResponse({ status: 404, description: 'No such domain claim for this company' })
   @ApiResponse({ status: 409, description: 'Already verified for a different account' })
+  @DemoRestricted()
   verifyDomain(@ActiveCompany() companyId: string, @Param('id') id: string): Promise<SsoDomainStatus> {
     return this.sso.verifyDomain(companyId, id);
   }
@@ -206,6 +214,7 @@ export class SsoController {
   @ApiOperation({ summary: 'Remove a claimed SSO domain' })
   @ApiParam({ name: 'id', type: String, description: 'Domain claim ID' })
   @ApiResponse({ status: 200, description: 'Domain removed' })
+  @DemoRestricted()
   removeDomain(@ActiveCompany() companyId: string, @Param('id') id: string): Promise<{ deleted: boolean }> {
     return this.sso.removeDomain(companyId, id);
   }

@@ -3656,6 +3656,17 @@
       }
     }
   },
+  "demo": {
+    "banner": {
+      "title": "Demo: data resets every 4 hours",
+      "description": "Nothing you enter is kept or sent."
+    },
+    "signIn": {
+      "title": "This is a public demo",
+      "description": "Sign in with demo@invoicerr.app / demo. Data resets every 4 hours."
+    },
+    "disabledTooltip": "Disabled in this demo."
+  },
   "unavailable": {
     "title": "Unavailable on Mobile/Tablet",
     "description": "This feature is only available on desktop devices for optimal experience."

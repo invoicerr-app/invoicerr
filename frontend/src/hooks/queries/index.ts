@@ -47,6 +47,7 @@ export {
   useLegalDocuments,
   useLegalStatus,
   useAcceptLegal,
+  useDemoMode,
   type LegalDocumentView,
   type LegalDocumentsView,
   type LegalStatusView,

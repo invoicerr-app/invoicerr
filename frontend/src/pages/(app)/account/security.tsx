@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { useDemoMode } from "@/hooks/queries"
 import { useHasCredentialAccount } from "./_components/use-has-credential-account"
 import { SettingsFormFooter, SettingsSection, useSavedFlash } from "../settings/_components/settings-section"
 
@@ -16,6 +17,7 @@ export default function AccountSecurityPage() {
   const { t } = useTranslation()
   const [hasCredentialAccount, setHasCredentialAccount] = useHasCredentialAccount()
   const [saved, flashSaved] = useSavedFlash()
+  const { demoMode } = useDemoMode()
 
   const passwordSchema = z
     .object({
@@ -168,6 +170,8 @@ export default function AccountSecurityPage() {
                 <Button
                   type="submit"
                   loading={passwordForm.formState.isSubmitting}
+                  disabled={demoMode}
+                  tooltip={demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
                   data-cy="account-security-submit-button"
                 >
                   {passwordForm.formState.isSubmitting

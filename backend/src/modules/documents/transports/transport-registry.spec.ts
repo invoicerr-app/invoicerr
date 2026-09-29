@@ -8,12 +8,20 @@ import {
 } from './transport-registry';
 
 describe('TransportRegistry', () => {
-  it('resolves a transport that was registered', () => {
+  it('resolves a transport that was registered', async () => {
     const registry = new TransportRegistry();
-    const transport = { send: vi.fn() };
+    const transport = { send: vi.fn().mockResolvedValue({ message: 'sent' }) };
     registry.register('email', 'Email', transport);
 
-    expect(registry.resolve('email')).toBe(transport);
+    // Issue #533: `register()` now wraps `send` in a demo-mode guard (see that method's own header),
+    // so the resolved transport is no longer the SAME object reference, it is a functionally
+    // equivalent one that still delegates to the original `send` outside demo mode.
+    const resolved = registry.resolve('email');
+    expect(resolved).not.toBe(transport);
+    await expect(
+      resolved.send({ companyId: 'c1', document: {} as never, label: 'Invoice' }),
+    ).resolves.toEqual({ message: 'sent' });
+    expect(transport.send).toHaveBeenCalledTimes(1);
   });
 
   it('lists every registered transport, id, label and credentialFields - what a company chooses from', () => {
