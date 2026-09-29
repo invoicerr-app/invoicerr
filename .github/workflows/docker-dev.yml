@@ -1,0 +1,106 @@
+name: Publish Docker Image on dev push
+
+# Every merge into `dev` gets a real, immutable image the beta cluster can run: Flux's
+# image-automation-controller (invoicerr-infra) picks up the newest `dev-...` tag this workflow
+# pushes and writes it into environments/beta/invoicerr.yaml over there. Beta's three nodes are all
+# linux/amd64 (checked 2026-09-29 with `kubectl get nodes -o wide` against the beta kubeconfig), so
+# this builds ONE platform only -- no digest-merge dance needed, unlike docker-publish.yml's
+# multi-arch release build or docker-pr.yml's multi-arch PR build. If beta ever gains an arm64 node,
+# add it to `platforms:` below.
+#
+# The tag is `dev-<UTC timestamp>-<short sha>`: sortable (an ImagePolicy in invoicerr-infra picks
+# the highest by a numerical filter on the timestamp) and unique per build, never reused -- which is
+# what lets invoicerr-infra pin beta by TAG rather than by digest. That is a deliberate, narrower
+# choice than it sounds: Flux's digest-setter marker (`{"$imagepolicy": "...:digest"}`) needs
+# image-reflector-controller >= v0.35.0 and image-automation-controller >= v0.41.0, and the versions
+# matching this cluster's pinned Flux v2.4.0 install are v0.33.0 / v0.39.0 -- both older. Moving to
+# digests means upgrading the whole Flux install together, not just these two new controllers; see
+# invoicerr-infra's PR for the version check and environments/beta/invoicerr.yaml's own comment.
+# Until then, "never reused" is the guarantee that keeps a tag as trustworthy as a digest here, and
+# the step below enforces it instead of merely assuming it.
+#
+# NEVER add `latest` or a release tag here -- docker-publish.yml is the only workflow allowed to
+# publish either, and a wrong `:latest` ships to every self-hoster. Read its own header before
+# touching that boundary.
+on:
+  push:
+    branches:
+      - dev
+
+env:
+  REGISTRY: ghcr.io
+
+# The floor every job inherits -- same reasoning as docker-pr.yml and docker-publish.yml: without a
+# block here a job falls back to the repository-wide default workflow permissions (a SETTING, not a
+# property of this file), which is read-only today but one click from write for everything at once.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    # `contents: read` for `actions/checkout` -- a job-level block REPLACES the top-level floor
+    # rather than adding to it, so it has to be restated here. `packages: write` for the push:
+    # `docker/login-action` authenticates to ghcr.io with GITHUB_TOKEN, and a token without this
+    # scope logs in successfully and then fails at the first layer upload -- see docker-pr.yml's
+    # own `build` job, this mirrors it.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image and tag
+        id: vars
+        run: |
+          REPO_NAME_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          echo "image=${{ env.REGISTRY }}/${REPO_NAME_LOWER}" >> $GITHUB_OUTPUT
+
+          TAG="dev-$(date -u +%Y%m%d%H%M%S)-$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Refuse to overwrite an existing tag
+        # Belt and braces on top of the scheme itself (timestamp + commit sha) already making a
+        # collision practically impossible: the one realistic way to hit this is the same commit
+        # landing on `dev` a second time (a force-push replaying history). Checking rather than
+        # assuming is what lets invoicerr-infra treat this tag as immutable.
+        run: |
+          IMAGE="${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"
+          if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
+            echo "::error::$IMAGE already exists -- refusing to overwrite a published dev tag."
+            exit 1
+          fi
+
+      - id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          # Same stamping as docker-pr.yml and docker-publish.yml -- this is the image most likely
+          # to end up running somewhere real, so it needs the revision at least as much as either.
+          build-args: |
+            GIT_REVISION=${{ github.sha }}
+            GIT_REF_NAME=${{ github.ref_name }}
+          tags: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          push: true
+          cache-from: type=gha,scope=dev-linux-amd64
+          cache-to: type=gha,mode=max,scope=dev-linux-amd64
+
+      - name: Publish pull command
+        run: |
+          IMAGE="${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"
+          docker buildx imagetools inspect "$IMAGE"
+          {
+            echo "### Pushed for beta to follow"
+            echo ""
+            echo '```'
+            echo "docker pull $IMAGE"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
