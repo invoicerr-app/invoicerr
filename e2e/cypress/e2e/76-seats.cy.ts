@@ -41,6 +41,7 @@ function fillSignupForm({
 }) {
 	cy.visit('/auth/sign-up');
 	if (code) {
+		cy.revealInvitationCodeField();
 		cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).should('be.visible').type(code);
 	}
 	cy.get('[data-cy="auth-firstname-input"]', { timeout: 10000 }).should('be.visible').type(firstname);

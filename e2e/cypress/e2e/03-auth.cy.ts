@@ -97,9 +97,15 @@ describe('Authentication E2E', () => {
         const INVALID_CODE_EMAIL = 'invalidcode.jane@acme.org';
         const EXPIRED_CODE_EMAIL = 'expiredcode.jane@acme.org';
 
-        it('shows an optional invitation code field, for everyone, not just a "second user"', () => {
+        it('hides the invitation code field behind a discreet toggle by default (#534)', () => {
             cy.visit('/auth/sign-up');
+            cy.get('[data-cy="auth-invitation-toggle"]', { timeout: 10000 }).should('be.visible');
+            cy.get('[data-cy="auth-invitation-code-input"]').should('not.exist');
+
+            cy.get('[data-cy="auth-invitation-toggle"]').click();
             cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).should('be.visible');
+            cy.get('[data-cy="auth-invitation-toggle"]').should('not.exist');
+            cy.contains('label', /optional/i).should('be.visible');
         });
 
         it('creates an account with no invitation code and lands on sign-in', () => {
@@ -128,6 +134,7 @@ describe('Authentication E2E', () => {
 
         it('rejects an unknown invitation code, explicitly — not a silent fallback to open signup', () => {
             cy.visit('/auth/sign-up');
+            cy.revealInvitationCodeField();
             cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).type('INVALID-CODE-123');
             cy.get('[data-cy="auth-firstname-input"]').type('Jane');
             cy.get('[data-cy="auth-lastname-input"]').type('Smith');
@@ -144,6 +151,7 @@ describe('Authentication E2E', () => {
             createExpiredInvitationCode().then((code) => {
                 cy.clearCookies();
                 cy.visit('/auth/sign-up');
+                cy.revealInvitationCodeField();
                 cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).type(code as string);
                 cy.get('[data-cy="auth-firstname-input"]').type('Jane');
                 cy.get('[data-cy="auth-lastname-input"]').type('Smith');
@@ -159,6 +167,46 @@ describe('Authentication E2E', () => {
             cy.get('[data-cy="auth-signin-link"]', { timeout: 5000 }).should('be.visible');
             cy.get('[data-cy="auth-signin-link"]').click();
             cy.url().should('include', '/auth/sign-in');
+        });
+    });
+
+    // #534: the invitation code field's own visibility rules, covering the two instance states the
+    // issue calls out (open sign-up vs. invitation-only) plus the URL-prefill path. The other
+    // Signup Validation tests above exercise the OPEN-instance default; these two exercise the
+    // remaining states without needing a second, differently-configured backend.
+    describe('Invitation code field states (#534)', () => {
+        it('a code in the URL opens the field pre-filled, with no toggle to click first', () => {
+            cy.visit('/auth/sign-up?code=URL-PREFILLED-CODE');
+            cy.get('[data-cy="auth-invitation-toggle"]').should('not.exist');
+            cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 })
+                .should('be.visible')
+                .and('have.value', 'URL-PREFILLED-CODE');
+        });
+
+        it('invitation-only instance: the field is shown from the start, required, with a plain explanation', () => {
+            // Stubbed rather than driven through a real DISABLE_AUTH backend: this is the frontend's
+            // OWN rendering rule reacting to `can-register`'s answer, not the backend policy decision
+            // itself (backend/src/lib/registration-policy.ts, unchanged by #534, has its own coverage).
+            cy.intercept('GET', '**/api/invitations/can-register*', {
+                statusCode: 200,
+                body: {
+                    allowed: false,
+                    requiresCode: true,
+                    message:
+                        'Sign-ups are currently disabled on this instance. Ask an existing member for an invitation code to join their company.',
+                },
+            }).as('canRegisterClosed');
+
+            cy.visit('/auth/sign-up');
+            cy.wait('@canRegisterClosed');
+
+            // No toggle: on this instance the code is not an optional extra to opt into.
+            cy.get('[data-cy="auth-invitation-toggle"]').should('not.exist');
+            cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 })
+                .should('be.visible')
+                .and('have.attr', 'required');
+            cy.get('[data-cy="auth-invitation-required-hint"]').should('be.visible');
+            cy.get('[data-cy="auth-signup-closed-banner"]').should('be.visible');
         });
     });
 
@@ -183,6 +231,7 @@ describe('Authentication E2E', () => {
                 consumedCode = code;
                 cy.clearCookies();
                 cy.visit('/auth/sign-up');
+                cy.revealInvitationCodeField();
                 cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 })
                     .should('be.visible')
                     .type(code);
@@ -229,6 +278,7 @@ describe('Authentication E2E', () => {
             expect(consumedCode, 'the previous test must have consumed a code first').to.be.a('string');
             cy.clearCookies();
             cy.visit('/auth/sign-up');
+            cy.revealInvitationCodeField();
             cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).type(consumedCode);
             cy.get('[data-cy="auth-firstname-input"]').type('Bob');
             cy.get('[data-cy="auth-lastname-input"]').type('Wilson');
@@ -248,6 +298,7 @@ describe('Authentication E2E', () => {
             createInvitationCodeViaUI().then((code) => {
                 cy.clearCookies();
                 cy.visit('/auth/sign-up');
+                cy.revealInvitationCodeField();
                 cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).type(code);
                 cy.get('[data-cy="auth-firstname-input"]').type('Jean-Pierre');
                 cy.get('[data-cy="auth-lastname-input"]').type("O'Connor");
@@ -262,6 +313,7 @@ describe('Authentication E2E', () => {
             createInvitationCodeViaUI().then((code) => {
                 cy.clearCookies();
                 cy.visit('/auth/sign-up');
+                cy.revealInvitationCodeField();
                 cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).type(code);
                 cy.get('[data-cy="auth-firstname-input"]').type('François');
                 cy.get('[data-cy="auth-lastname-input"]').type('Müller');
@@ -276,6 +328,7 @@ describe('Authentication E2E', () => {
             createInvitationCodeViaUI().then((code) => {
                 cy.clearCookies();
                 cy.visit('/auth/sign-up');
+                cy.revealInvitationCodeField();
                 cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).type(code);
                 cy.get('[data-cy="auth-firstname-input"]').type('John');
                 cy.get('[data-cy="auth-lastname-input"]').type('Doe');

@@ -285,6 +285,7 @@ describe("Company branding — logo, accent color, font, presets", () => {
 				.then((code: string) => {
 					cy.clearCookies();
 					cy.visit("/auth/sign-up");
+					cy.revealInvitationCodeField();
 					cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 })
 						.should("be.visible")
 						.type(code);

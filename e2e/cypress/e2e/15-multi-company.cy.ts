@@ -117,6 +117,7 @@ describe('Leave Company', () => {
             .its('body.code')
             .then((code: string) => {
                 cy.visit('/auth/sign-up');
+                cy.revealInvitationCodeField();
                 cy.get('[data-cy="auth-firstname-input"]', { timeout: 10000 }).type('Léa');
                 cy.get('[data-cy="auth-lastname-input"]').type('Membre');
                 cy.get('[data-cy="auth-email-input"]').type(email);

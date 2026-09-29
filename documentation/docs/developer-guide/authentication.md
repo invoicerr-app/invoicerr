@@ -23,9 +23,15 @@ The redirect URI to register at the identity provider is `/api/auth/callback/<pr
 
 PKCE is enabled by default and the OIDC configuration never turns it off, so the provider must accept an authorization request carrying a `code_challenge`.
 
-### Invitation-gated signup
+### Open signup, and the invitation code
 
-The first user to sign up is always allowed. Subsequent signups require a valid invitation code, validated by the `invitations` module. A user who signs up through a company's own per-company SSO provider (below) is the one exception: they need no invitation at all, and are attached directly to that company as a `MEMBER` — see `sso-policy.ts#companyForOAuthSignup`.
+Open sign-up is the default: anyone can create an account, and one created with no invitation code lands on the company-creation onboarding instead of joining an existing one. An invitation code (`invitations` module) only ever serves to join an EXISTING company; it is not a general signup requirement.
+
+An operator can close open sign-up instance-wide with `DISABLE_AUTH=1` (see `.env.example`; the name is historical and does not affect logging in, only new self-registration). The very first account on a fresh instance is always allowed through regardless, so a brand-new deployment with this already set is not permanently unclaimable. Every signup after that one needs a valid invitation code, validated by the `invitations` module.
+
+The sign-up page (`frontend/src/pages/auth/sign-up.tsx`) reflects this split. By default the invitation code field sits behind a discreet toggle, since most visitors are creating their own company and should not have to read about invitations at all. It opens automatically, labelled required, when the instance itself has closed open sign-up (`GET /api/invitations/can-register` answers `allowed: false`), since entering a code is then the only way forward rather than an optional extra. It also opens pre-filled when a code arrives in the sign-up URL's `code` query parameter.
+
+A user who signs up through a company's own per-company SSO provider (below) is the one exception to needing a code at all: they need no invitation, and are attached directly to that company as a `MEMBER`, see `sso-policy.ts#companyForOAuthSignup`.
 
 ### Setting a password for OIDC-only accounts
 

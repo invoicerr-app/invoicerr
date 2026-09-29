@@ -48,6 +48,26 @@ Cypress.Commands.add('login', () => {
     });
 });
 
+// Reveals the sign-up page's invitation code field when it is hidden behind the discreet toggle
+// (#534), the default on an open-sign-up instance, so a visitor creating their own company is
+// never shown it unasked. A no-op when the field is already visible (a code arrived in the URL, or
+// the instance is invitation-only and forces it open), so every caller below can run this right
+// after `cy.visit('/auth/sign-up')` regardless of which state the instance is actually in.
+//
+// Waits for EITHER the toggle or the field itself through Cypress's own retry-ability
+// (`cy.get` on a combined selector keeps polling until at least one side matches), rather than a
+// single, unretried `cy.get('body').then(...)` snapshot: right after `cy.visit`, React has not
+// necessarily mounted yet, and a snapshot taken too early would see neither element and silently
+// no-op, leaving every caller's later `auth-invitation-code-input` query to time out instead.
+Cypress.Commands.add('revealInvitationCodeField', () => {
+    cy.get('[data-cy="auth-invitation-toggle"], [data-cy="auth-invitation-code-input"]', {
+        timeout: 10000,
+    }).then(($el) => {
+        if ($el.is('[data-cy="auth-invitation-toggle"]')) {
+            cy.wrap($el).click();
+        }
+    });
+});
 
 // Mailpit's HTTP API, from `cypress.config.ts` (`MAILPIT_URL`, default the shared stack's one).
 // Never a literal here: `cy.clearEmails()` empties whatever inbox this points at, and a hardcoded
