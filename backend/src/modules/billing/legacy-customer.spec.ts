@@ -66,21 +66,21 @@ describe('getCompanyCustomerFacts', () => {
     const client = fakeClient({
       customers: {
         getExternal: vi.fn().mockResolvedValue({ id: 'cus_company' }),
-        getState: vi.fn().mockResolvedValue({ activeSubscriptions: [{ id: 'sub_old' }] }),
+        getState: vi.fn().mockResolvedValue({ active_subscriptions: [{ id: 'sub_old' }] }),
       },
     });
 
     const facts = await getCompanyCustomerFacts(sub({ polarCustomerId: 'cus_old_user_level' }), client, 0);
 
     expect(facts).toEqual({ hasCompanyCustomer: true, legacySubscription: true });
-    expect(client.customers.getState as Mock).toHaveBeenCalledWith({ id: 'cus_old_user_level' });
+    expect(client.customers.getState as Mock).toHaveBeenCalledWith('cus_old_user_level');
   });
 
   it('has a company customer but is NOT legacy when the OLD customer still exists but has no active subscription (canceled)', async () => {
     const client = fakeClient({
       customers: {
         getExternal: vi.fn().mockResolvedValue({ id: 'cus_company' }),
-        getState: vi.fn().mockResolvedValue({ activeSubscriptions: [] }),
+        getState: vi.fn().mockResolvedValue({ active_subscriptions: [] }),
       },
     });
 
@@ -89,7 +89,7 @@ describe('getCompanyCustomerFacts', () => {
     expect(facts).toEqual({ hasCompanyCustomer: true, legacySubscription: false });
   });
 
-  it('has a company customer but is NOT legacy when the OLD customer itself was deleted (404) — the reported incident', async () => {
+  it('has a company customer but is NOT legacy when the OLD customer itself was deleted (404), the reported incident', async () => {
     const client = fakeClient({
       customers: {
         getExternal: vi.fn().mockResolvedValue({ id: 'cus_company' }),
@@ -106,7 +106,7 @@ describe('getCompanyCustomerFacts', () => {
     const client = fakeClient({
       customers: {
         getExternal: vi.fn().mockRejectedValue(notFoundError()),
-        getState: vi.fn().mockResolvedValue({ activeSubscriptions: [{ id: 'sub_old' }] }),
+        getState: vi.fn().mockResolvedValue({ active_subscriptions: [{ id: 'sub_old' }] }),
       },
     });
 
@@ -149,22 +149,22 @@ describe('getCompanyCustomerFacts', () => {
 
   // The reported live defect: after a company subscribed successfully, the billing screen kept
   // showing "Subscribe yearly"/"Subscribe monthly" for up to five minutes, and clicking one started a
-  // SECOND Polar subscription — traced to `hasCompanyCustomer: false` cached from a dashboard load
+  // SECOND Polar subscription, traced to `hasCompanyCustomer: false` cached from a dashboard load
   // BEFORE the company ever checked out, still being served well after the checkout completed.
   describe('the reported double-billing defect (a confirmed absence must never be trusted stale)', () => {
-    it('never caches a CONFIRMED absence (404) — every call re-verifies directly against Polar, which is what actually keeps this correct across every API replica/worker process, not just this one', async () => {
+    it('never caches a CONFIRMED absence (404), every call re-verifies directly against Polar, which is what actually keeps this correct across every API replica/worker process, not just this one', async () => {
       const getExternal = vi.fn().mockRejectedValue(notFoundError());
       const client = fakeClient({ customers: { getExternal, getState: vi.fn() } });
       const s = sub({ polarCustomerId: null });
 
       await getCompanyCustomerFacts(s, client, 0);
-      // Still well inside the old 5-minute cache window — a fresh Polar check happens anyway.
+      // Still well inside the old 5-minute cache window, a fresh Polar check happens anyway.
       await getCompanyCustomerFacts(s, client, 60_000);
 
       expect(getExternal).toHaveBeenCalledTimes(2);
     });
 
-    it('DOES still cache a genuine Polar-outage negative (an unrelated failure) — the cache exists so this check does not hammer an already-failing Polar on every status poll', async () => {
+    it('DOES still cache a genuine Polar-outage negative (an unrelated failure), the cache exists so this check does not hammer an already-failing Polar on every status poll', async () => {
       const getExternal = vi.fn().mockRejectedValue(new Error('polar is down'));
       const client = fakeClient({ customers: { getExternal } });
       const s = sub({ polarCustomerId: 'cus_old' });
@@ -176,8 +176,8 @@ describe('getCompanyCustomerFacts', () => {
     });
 
     it(
-      'reproduces the defect directly: a company checking out — the write sites (checkout-session.ts, ' +
-        'customer-provisioning.ts, webhook-handlers.ts) call invalidateCompanyCustomerFactsCache — sees ' +
+      'reproduces the defect directly: a company checking out, the write sites (checkout-session.ts, ' +
+        'customer-provisioning.ts, webhook-handlers.ts) call invalidateCompanyCustomerFactsCache, sees ' +
         'the fresh answer immediately, well inside the window a stale cache used to keep answering false',
       async () => {
         const getExternal = vi
@@ -202,7 +202,7 @@ describe('getCompanyCustomerFacts', () => {
       },
     );
 
-    it('invalidateCompanyCustomerFactsCache also clears a cached CONFIRMED true — belt-and-braces for the single-process case', async () => {
+    it('invalidateCompanyCustomerFactsCache also clears a cached CONFIRMED true, belt-and-braces for the single-process case', async () => {
       const getExternal = vi.fn().mockResolvedValue({ id: 'cus_company' });
       const client = fakeClient({ customers: { getExternal, getState: vi.fn() } });
       const s = sub({ polarCustomerId: 'cus_company' });
@@ -230,8 +230,8 @@ describe('getCompanyCustomerFacts', () => {
       await getCompanyCustomerFacts(subA, clientA, 60_000);
       await getCompanyCustomerFacts(subB, clientB, 60_000);
 
-      expect(getExternalA).toHaveBeenCalledTimes(2); // invalidated — re-checked
-      expect(getExternalB).toHaveBeenCalledTimes(1); // untouched — still cached
+      expect(getExternalA).toHaveBeenCalledTimes(2); // invalidated, re-checked
+      expect(getExternalB).toHaveBeenCalledTimes(1); // untouched, still cached
     });
   });
 });

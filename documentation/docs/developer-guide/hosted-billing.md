@@ -9,10 +9,65 @@ sets `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (`backend/src/modules/billing/
 `/api/billing/*` route, no Settings tab, no banner, no lifecycle sweep, no Polar client constructed.
 This page documents the operator's own hosted offering.
 
-Every Polar API call goes through the one shared client in `polar-client.ts`
-(`getPolarClient()`), which pins the `Polar-Version: 2026-04` header on every request via the
-`POLAR_API_VERSION` constant at the top of that file; bump it there when migrating to a newer
-Polar API contract.
+## API version: `2026-10`, and how to upgrade it
+
+Every Polar API call goes through the one shared client in `polar-client.ts` (`getPolarClient()`),
+built with `@polar-sh/sdk` **1.x**'s versioned client factory: `createPolar()` imported from the
+dated subpath `@polar-sh/sdk/2026-10` (never the bare `@polar-sh/sdk`, which 1.x no longer even
+exports a client class from). The import path itself pins the contract: the SDK stamps
+`Polar-Version: 2026-10` on every request from that subpath automatically; there is no runtime
+`version` option, no manual header hook the way the pre-1.0 SDK needed one (PR #536's fix, retired by
+#537).
+
+`POLAR_API_VERSION` (same file) is kept as the one greppable constant documenting which version that
+is, asserted against in `polar-client.spec.ts`, but it is documentation, not configuration:
+changing it alone does nothing. Upgrading to the next quarterly version (`2027-01`, Current some
+time after 2027-01-01 per Polar's own versioning cadence: first week of January, April, July and
+October, each version roughly nine months total as Next, then Current, then Deprecated) means, together,
+in one PR:
+
+1. Read Polar's own API changelog (`https://polar.sh/docs/changelog/api.md`) for every entry under
+   the new version, and its versioning guide
+   (`https://polar.sh/docs/api-reference/<version>/versioning.md`) for anything procedural that
+   changed.
+2. Change the import in `polar-client.ts` from `@polar-sh/sdk/2026-10` to the new dated subpath, and
+   `POLAR_API_VERSION` to match.
+3. Update every request/response field this module touches for anything the changelog actually
+   changed (checkouts, subscriptions/seats, customers/customer sessions/portal, products, webhooks):
+   `@polar-sh/sdk`'s own shipped `.d.cts` files under the new dated subpath are the source of truth
+   for exact field names; grep this directory for the old version's snake_case field names to find
+   every call site.
+4. Upgrade the webhook endpoint's own `api_version` on Polar's side (see "Webhooks" below): a
+   separate setting from the API version this backend's own outgoing calls use, upgraded independently.
+5. Re-run `polar-client.spec.ts` (its own header-assertion tests) and, with a sandbox
+   `POLAR_ACCESS_TOKEN` available, every `*.live.spec.ts` in this module. A mocked-only green run
+   proves the TypeScript compiles against the new types, not that a real request still round-trips.
+
+### #537 migration notes (2026-09-29, `2026-04` to `2026-10`)
+
+`@polar-sh/sdk` moved from `0.49` (pre-1.0, camelCase-mapped request/response fields, a `Polar` class
+you `new` up) to a stable `1.0.0`: the wire's own snake_case throughout (`external_customer_id`,
+`customer_billing_address`, `current_period_end`, and so on), and `customers.getExternal(id)`/
+`subscriptions.get(id)`-style positional ids instead of `{ externalId }` wrapper objects everywhere.
+`@polar-sh/better-auth` was removed as a dependency in the same change: nothing in `backend/src`
+imported it (confirmed by PR #540 first, re-confirmed here), and it peer-depends on
+`@polar-sh/sdk ^0.47.0`, which is incompatible with the 1.x this backend now ships.
+
+Polar's own API changelog for `2026-10` (`https://polar.sh/docs/changelog/api.md`, read directly)
+lists exactly two entries: the `secret` parameter removed from webhook-endpoint create/update (Polar
+now generates it), and `member_id`/`member` added to license-key responses. Neither touches
+checkouts, subscriptions/seats, customers, customer sessions/portal, or a `subscription.*` webhook's
+own payload shape. This backend's actual request/response field changes below come entirely from the
+SDK's 0.49-to-1.0 architecture change, not from anything Polar's `2026-10` contract itself redefines.
+
+A real behavior change found only by testing against the live sandbox, not by reading types:
+`@polar-sh/sdk@1.0.0`'s HTTP client defaults every request to a 5-second timeout when none is given
+(0.49 had none unless explicitly set). A checkout that sends a `customer_tax_id` Polar has to
+validate against VIES (the EU's live VAT-registration lookup, see `checkout-tax-id.ts`'s own header)
+routinely takes longer than 5 seconds. The same sandbox call that worked under 0.49 failed with
+`PolarNetworkError: The operation was aborted due to timeout` under the bare 1.0.0 default.
+`getPolarClient()` now passes `timeout: 30` (seconds) explicitly to cover this without going back to
+0.49's effectively unbounded wait.
 
 ## One Polar customer per COMPANY (option A, 2026-09-16)
 
@@ -143,9 +198,42 @@ logged message.
 subscription event belongs to primarily from the checkout's own customer `external_id` (present on the
 webhook's wire payload, under `data.customer.external_id`), falling back to `metadata.companyId` —
 never from the user. `status-reconcile.ts`'s own repair path (for a status the webhook never updated)
-filters Polar's subscription list by `externalCustomerId = company.id`, never by a raw customer id, so
+filters Polar's subscription list by `external_customer_id = company.id`, never by a raw customer id, so
 it can never read another company's subscription even if two companies happened to share a Polar
 customer.
+
+This controller parses the raw webhook body itself (`polar-webhook-verify.ts`, own signature
+verification that predates and is independent of the SDK version) rather than going through
+`@polar-sh/sdk`'s own `webhooks.validateEvent`, so a `subscription.*` event's payload fields never
+depend on which SDK version this backend ships. Polar's `2026-10` API changelog changes nothing about
+that payload shape (see "API version" above); #537 needed no field changes here, only the client-side
+`POLAR_API_VERSION` bump.
+
+### The webhook endpoint's own `api_version`
+
+A Polar webhook endpoint carries its own `api_version`, chosen when the endpoint is created and
+determining the shape of every event payload it is sent from then on, independent of the
+`Polar-Version` header this backend's own outgoing API calls use. Existing endpoints stay pinned to
+whatever version they were created under; Polar does not migrate them automatically. This backend's
+own code never changes an endpoint's `api_version`: that is the operator's action, on Polar's side
+(the automated code in this repository has no API token scoped to manage webhook endpoints, and
+should not: this is a one-time, infrequent, deliberate operator action, not something a deploy should
+silently do).
+
+To move the beta's own endpoint from `2026-04` to `2026-10`, the operator does one of:
+
+- **Dashboard** (simplest): Polar dashboard, Settings, Webhooks, the endpoint receiving
+  `<APP_URL>/api/billing/webhooks/polar`, then change the "API Version" field to `2026-10` and save.
+- **API**: `PATCH /v1/webhooks/endpoints/{id}` with body `{"api_version": "2026-10"}`, using an
+  organization-scoped access token (`webhooks.updateWebhookEndpoint(id, { api_version: "2026-10" })`
+  in `@polar-sh/sdk@1.0.0` terms, confirmed by reading the SDK's own shipped source, not merely its
+  types).
+
+Either way, Polar's own docs are explicit that the change applies only to events created afterward: a
+delivery already queued, or an event already fired, keeps the shape it was created with. There is no
+cutover moment to coordinate around; this backend's wire parsing needs no change for `2026-10`
+regardless (see above), so the endpoint's own `api_version` can be moved at any time without a
+matching code deploy.
 
 ## No automatic migration for pre-2026-09-16 subscriptions
 

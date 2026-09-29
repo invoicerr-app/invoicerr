@@ -25,7 +25,7 @@ vi.mock('./billing-customer', () => ({
 }));
 vi.mock('./company-subscription.store');
 // See `webhook-handlers.spec.ts`'s own comment on why this is mocked rather than left real: nothing
-// here needs the real cache, only proof this write site calls it — the other half of the fix for the
+// here needs the real cache, only proof this write site calls it, the other half of the fix for the
 // reported double-billing defect (`legacy-customer.ts`'s own header).
 vi.mock('./legacy-customer', () => ({ invalidateCompanyCustomerFactsCache: vi.fn() }));
 vi.mock('@/prisma/prisma.service', () => ({
@@ -47,14 +47,17 @@ const releaseWindow = releaseCheckoutWindow as Mock;
 const warn = logger.warn as Mock;
 const invalidateFacts = invalidateCompanyCustomerFactsCache as Mock;
 
-/** Shape of Polar's own `HTTPValidationError` (422) — same fixture convention
- *  `customer-provisioning.spec.ts` already uses for the sibling "email already exists" case. */
+/** Shape of Polar's own `HTTPValidationError` (422), same fixture convention
+ *  `customer-provisioning.spec.ts` already uses for the sibling "email already exists" case. #537:
+ *  nested under `.error` now, see `billing-customer.spec.ts`'s own `emailTakenError` header. */
 function taxIdInvalidError(): Error {
   return Object.assign(new Error('HTTPValidationError'), {
     statusCode: 422,
-    detail: [
-      { loc: ['body', 'customer_tax_id'], msg: 'The provided tax ID is invalid.', type: 'value_error' },
-    ],
+    error: {
+      detail: [
+        { loc: ['body', 'customer_tax_id'], msg: 'The provided tax ID is invalid.', type: 'value_error' },
+      ],
+    },
   });
 }
 const findCompany = prisma.company.findUniqueOrThrow as Mock;
@@ -107,7 +110,7 @@ describe('createCheckoutSession', () => {
     reserveWindow.mockResolvedValue(new Date('2026-09-17T00:00:00.000Z'));
     releaseWindow.mockResolvedValue(undefined);
     findCompany.mockResolvedValue(COMPANY_ADDRESS_ROW);
-    // A real, checksum-valid FR VAT number (SIREN 404833048 — same fixture as the live spec's own
+    // A real, checksum-valid FR VAT number (SIREN 404833048, same fixture as the live spec's own
     // proven-accepted number), never claimed to belong to a real company.
     findVat.mockResolvedValue({ value: 'FR83404833048' });
   });
@@ -145,21 +148,21 @@ describe('createCheckoutSession', () => {
     );
     expect(create).toHaveBeenCalledWith({
       products: ['prod_month'],
-      externalCustomerId: 'company-1',
+      external_customer_id: 'company-1',
       metadata: { companyId: 'company-1' },
-      successUrl: 'https://app/success',
-      returnUrl: 'https://app/return',
-      isBusinessCustomer: true,
-      customerBillingName: 'Acme',
-      customerBillingAddress: {
+      success_url: 'https://app/success',
+      return_url: 'https://app/return',
+      is_business_customer: true,
+      customer_billing_name: 'Acme',
+      customer_billing_address: {
         line1: '12 rue de la Paix',
         line2: null,
-        postalCode: '75002',
+        postal_code: '75002',
         city: 'Paris',
         state: null,
         country: 'FR',
       },
-      customerTaxId: 'FR83404833048',
+      customer_tax_id: 'FR83404833048',
     });
     // The atomic reservation itself is covered by `company-subscription.store.spec.ts`; this just
     // confirms `createCheckoutSession` asks for it with the documented window, and never falls back
@@ -167,7 +170,7 @@ describe('createCheckoutSession', () => {
     expect(reserveWindow).toHaveBeenCalledWith('company-1', CHECKOUT_IN_PROGRESS_WINDOW_MS);
     expect(releaseWindow).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'https://sandbox.polar.sh/checkout/abc', redirect: true });
-    // Right after `getOrCreatePolarCustomerForCompany` resolves — the exact instant this company's own
+    // Right after `getOrCreatePolarCustomerForCompany` resolves, the exact instant this company's own
     // `hasCompanyCustomer` can flip false→true (`legacy-customer.ts`'s own header, the reported
     // double-billing defect this closes for the same process's own cached facts).
     expect(invalidateFacts).toHaveBeenCalledWith('company-1');
@@ -197,7 +200,7 @@ describe('createCheckoutSession', () => {
     );
 
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ customerBillingAddress: null, customerTaxId: null }),
+      expect.objectContaining({ customer_billing_address: null, customer_tax_id: null }),
     );
   });
 
@@ -263,18 +266,18 @@ describe('createCheckoutSession', () => {
       ),
     ).rejects.toThrow(CheckoutAlreadyInProgressError);
     expect(create).not.toHaveBeenCalled();
-    // Never even reaches Polar customer resolution — the refusal is purely local.
+    // Never even reaches Polar customer resolution, the refusal is purely local.
     expect(loadIdentity).not.toHaveBeenCalled();
   });
 
   it(
-    'never lets two concurrent callers both pass the reservation check for the same company — the ' +
+    'never lets two concurrent callers both pass the reservation check for the same company, the ' +
       'race this thread is about, exercised at the module boundary the atomic write lives behind',
     async () => {
       // Simulates Postgres serializing the two conditional UPDATEs on the same `company_subscription`
       // row: the first caller's `updateMany` finds the row eligible and claims it; the second, whose
       // WHERE clause is now false, gets `count: 0`. `company-subscription.store.spec.ts` proves the
-      // real query does this atomically in a single statement — this proves `createCheckoutSession`
+      // real query does this atomically in a single statement, this proves `createCheckoutSession`
       // actually acts on that result instead of re-deriving its own (stale) read of `lastCheckoutStartedAt`.
       let claimed = false;
       reserveWindow.mockImplementation(async () => {
@@ -389,7 +392,7 @@ describe('createCheckoutSession', () => {
       client,
     );
 
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ customerTaxId: null }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ customer_tax_id: null }));
     expect(result.taxIdRejected).toBeUndefined();
   });
 
@@ -415,7 +418,7 @@ describe('createCheckoutSession', () => {
       client,
     );
 
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ customerTaxId: null }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ customer_tax_id: null }));
   });
 
   it('retries the checkout without the tax id when Polar refuses it with the named 422 (VIES-absent case), and reports taxIdRejected', async () => {
@@ -443,8 +446,8 @@ describe('createCheckoutSession', () => {
     );
 
     expect(create).toHaveBeenCalledTimes(2);
-    expect(create).toHaveBeenNthCalledWith(1, expect.objectContaining({ customerTaxId: 'FR83404833048' }));
-    expect(create).toHaveBeenNthCalledWith(2, expect.objectContaining({ customerTaxId: null }));
+    expect(create).toHaveBeenNthCalledWith(1, expect.objectContaining({ customer_tax_id: 'FR83404833048' }));
+    expect(create).toHaveBeenNthCalledWith(2, expect.objectContaining({ customer_tax_id: null }));
     expect(result).toEqual({
       url: 'https://sandbox.polar.sh/checkout/abc',
       redirect: true,
@@ -461,7 +464,7 @@ describe('createCheckoutSession', () => {
     expect(JSON.stringify(warn.mock.calls)).not.toContain('FR83404833048');
   });
 
-  it('propagates a 422 that is NOT the tax-id refusal without retrying (no customerTaxId in the request at all)', async () => {
+  it('propagates a 422 that is NOT the tax-id refusal without retrying (no customer_tax_id in the request at all)', async () => {
     loadIdentity.mockResolvedValue({
       id: 'company-2',
       name: 'Acme',
@@ -472,7 +475,9 @@ describe('createCheckoutSession', () => {
     findVat.mockResolvedValue(null); // no tax id sent at all, so this could never be the tax-id 422
     const otherError = Object.assign(new Error('HTTPValidationError'), {
       statusCode: 422,
-      detail: [{ loc: ['body', 'email'], msg: 'A customer with this email address already exists.' }],
+      error: {
+        detail: [{ loc: ['body', 'email'], msg: 'A customer with this email address already exists.' }],
+      },
     });
     const create = vi.fn().mockRejectedValue(otherError);
     const client = fakeClient(create);

@@ -40,9 +40,8 @@ function fakeClient(customerType = 'team'): MemberSyncClient {
   return {
     customers: {
       getExternal: vi.fn().mockResolvedValue({ id: 'cus_1', type: customerType }),
-      members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
+      members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn(), iterList: vi.fn() },
     },
-    members: { listMembers: vi.fn() },
   } as unknown as MemberSyncClient;
 }
 
@@ -50,7 +49,7 @@ describe('syncCompanyMemberOnMembershipChange', () => {
   beforeEach(() => {
     process.env[BILLING_FLAG_NAME] = 'true';
     // Default so every existing `team`-customer test below (none of which cared about the company
-    // billing member before) keeps passing unchanged — `ensureCompanyBillingMember` now also runs for
+    // billing member before) keeps passing unchanged, `ensureCompanyBillingMember` now also runs for
     // each of them; tests that DO care about it override this / assert on it explicitly.
     findCompany.mockResolvedValue(COMPANY_ROW);
     resolveOrCreateCompanyBillingMember.mockResolvedValue('member-company-billing');
@@ -172,7 +171,7 @@ describe('syncCompanyMemberOnMembershipChange', () => {
     await expect(syncCompanyMemberOnMembershipChange('company-1', 'user-1', client)).resolves.toBeUndefined();
   });
 
-  it("also ensures the company's own billing member for every team-customer sync — not just the per-user one", async () => {
+  it("also ensures the company's own billing member for every team-customer sync, not just the per-user one", async () => {
     getOrCreate.mockResolvedValue({ polarSubscriptionId: 'sub_1' });
     findUserCompany.mockResolvedValue({ role: 'OWNER' });
     findUser.mockResolvedValue({ email: 'owner@acme.test', firstname: 'Ada', lastname: 'Owner' });
@@ -206,7 +205,7 @@ describe('ensureCompanyBillingMember', () => {
 
     await ensureCompanyBillingMember('company-1', 'cus_1', client);
 
-    // The billing-email OVERRIDE wins over the plain contact email — same precedence as everywhere
+    // The billing-email OVERRIDE wins over the plain contact email, same precedence as everywhere
     // else this codebase resolves a company's billing email (`billing-customer.ts#resolveBillingEmail`).
     expect(resolveOrCreateCompanyBillingMember).toHaveBeenCalledWith(client, 'cus_1', 'company-1', {
       email: 'billing@acme.test',
@@ -214,7 +213,7 @@ describe('ensureCompanyBillingMember', () => {
     });
   });
 
-  it('never throws — a Polar or DB failure is logged and left for the next pass', async () => {
+  it('never throws, a Polar or DB failure is logged and left for the next pass', async () => {
     findCompany.mockRejectedValue(new Error('db is down'));
     const client = fakeClient('team');
 

@@ -49,7 +49,7 @@ function fakeClient(revoke = vi.fn().mockResolvedValue({})): DeletionPolarClient
   return { subscriptions: { revoke } };
 }
 
-/** Every field `isStillDueForDeletion` reads — the same "one row shape" convention every other
+/** Every field `isStillDueForDeletion` reads, the same "one row shape" convention every other
  *  spec's own `subRow` helper holds, so a case only needs to override what it actually varies. */
 function dueRow(overrides: Record<string, unknown> = {}) {
   return { polarSubscriptionId: null, status: 'ZIPPED', deletionDueAt: DUE_AT, ...overrides };
@@ -58,7 +58,7 @@ function dueRow(overrides: Record<string, unknown> = {}) {
 describe('deleteCompanyPermanently', () => {
   beforeEach(() => {
     // Mirrors both the array form (`Promise.all`) this module used to call and the interactive
-    // callback form it uses now — the callback is invoked with `prisma` itself as `tx`, so a test's
+    // callback form it uses now, the callback is invoked with `prisma` itself as `tx`, so a test's
     // `findSub`/`prisma.webhook.deleteMany`/`prisma.company.delete` mocks apply inside the
     // transaction exactly as they do outside it. Re-assigned every test: `resetAllMocks()` in
     // `afterEach` below wipes a mock's IMPLEMENTATION, not just its call history, so a `vi.fn(impl)`
@@ -73,7 +73,7 @@ describe('deleteCompanyPermanently', () => {
   afterEach(() => vi.resetAllMocks());
 
   it("deletes the company's Webhook rows and the Company row in one transaction, webhooks first", async () => {
-    findSub.mockResolvedValue(dueRow()); // never paid — nothing to cancel
+    findSub.mockResolvedValue(dueRow()); // never paid, nothing to cancel
     const calls: string[] = [];
     (prisma.webhook.deleteMany as Mock).mockImplementation(() => {
       calls.push('webhook');
@@ -106,7 +106,7 @@ describe('deleteCompanyPermanently', () => {
 
     await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
 
-    expect(revoke).toHaveBeenCalledWith({ id: 'polar_sub_123' });
+    expect(revoke).toHaveBeenCalledWith('polar_sub_123');
     expect(order).toEqual(['revoke', 'company-delete']);
   });
 
@@ -130,7 +130,7 @@ describe('deleteCompanyPermanently', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('REFUSES the deletion (named error) when the Polar cancellation fails — never a company deleted while still billed', async () => {
+  it('REFUSES the deletion (named error) when the Polar cancellation fails, never a company deleted while still billed', async () => {
     findSub.mockResolvedValue(dueRow({ polarSubscriptionId: 'polar_sub_123' }));
     const revoke = vi.fn().mockRejectedValue(new Error('polar is down'));
 
@@ -196,7 +196,7 @@ describe('deleteCompanyPermanently', () => {
   });
 });
 
-describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (danger zone "Delete company")', () => {
+describe('deleteCompanyPermanentlyNow, manual, OWNER-initiated deletion (danger zone "Delete company")', () => {
   beforeEach(() => {
     transaction.mockImplementation((arg: unknown) =>
       typeof arg === 'function'
@@ -228,7 +228,7 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
       committed = true;
       return result;
     });
-    // The drain reads the journal — and must only ever do so once the transaction has committed:
+    // The drain reads the journal, and must only ever do so once the transaction has committed:
     // object storage has no rollback, so a byte deleted under a transaction that later aborts is
     // simply gone, with the rows that named it still in place.
     (prisma.pendingStorageErasure.findMany as Mock).mockImplementation(() => {
@@ -241,8 +241,8 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
     expect(calls).toEqual(['journal', 'webhook', 'company', 'drain-after-commit']);
   });
 
-  it('deletes Webhook then Company, in one transaction — no CompanySubscription.status/deletionDueAt gate at all', async () => {
-    findSub.mockResolvedValue({ polarSubscriptionId: null }); // never paid — nothing to cancel
+  it('deletes Webhook then Company, in one transaction, no CompanySubscription.status/deletionDueAt gate at all', async () => {
+    findSub.mockResolvedValue({ polarSubscriptionId: null }); // never paid, nothing to cancel
     const calls: string[] = [];
     (prisma.webhook.deleteMany as Mock).mockImplementation(() => {
       calls.push('webhook');
@@ -273,7 +273,7 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
 
     await deleteCompanyPermanentlyNow('company-1', fakeClient(revoke));
 
-    expect(revoke).toHaveBeenCalledWith({ id: 'polar_sub_123' });
+    expect(revoke).toHaveBeenCalledWith('polar_sub_123');
     expect(order).toEqual(['revoke', 'company-delete']);
   });
 
@@ -287,7 +287,7 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
     expect(prisma.company.delete).toHaveBeenCalled(); // unlike the sweep-driven function, this still deletes
   });
 
-  it('REFUSES the deletion (named error) when the Polar cancellation fails — never a company deleted while still billed', async () => {
+  it('REFUSES the deletion (named error) when the Polar cancellation fails, never a company deleted while still billed', async () => {
     findSub.mockResolvedValue({ polarSubscriptionId: 'polar_sub_123' });
     const revoke = vi.fn().mockRejectedValue(new Error('polar is down'));
 
@@ -299,13 +299,13 @@ describe('deleteCompanyPermanentlyNow — manual, OWNER-initiated deletion (dang
     expect(prisma.company.delete).not.toHaveBeenCalled();
   });
 
-  it('deletes even a company whose subscription is ACTIVE/TRIAL/PAST_DUE — explicit consent is the only gate, not a lifecycle status', async () => {
+  it('deletes even a company whose subscription is ACTIVE/TRIAL/PAST_DUE, explicit consent is the only gate, not a lifecycle status', async () => {
     findSub.mockResolvedValue({ polarSubscriptionId: null, status: 'ACTIVE', deletionDueAt: null });
 
     await deleteCompanyPermanentlyNow('company-1', fakeClient());
 
-    // `deleteCompanyPermanently` (the sweep-driven twin) would have refused this exact row — see
-    // this file's own "stale-read guard" tests above — because ACTIVE is never due for AUTOMATIC
+    // `deleteCompanyPermanently` (the sweep-driven twin) would have refused this exact row, see
+    // this file's own "stale-read guard" tests above, because ACTIVE is never due for AUTOMATIC
     // deletion. This function has no such check: it is one, does not re-read after any await.
     expect(prisma.company.delete).toHaveBeenCalledWith({ where: { id: 'company-1' } });
   });

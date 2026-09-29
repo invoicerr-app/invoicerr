@@ -40,9 +40,9 @@ describe('syncPolarCustomerOnCompanyChange', () => {
       client,
     );
 
-    expect(updateExternal).toHaveBeenCalledWith({
-      externalId: 'company-1',
-      customerUpdateExternalID: { name: 'Acme Renamed', email: 'contact@acme.test' },
+    expect(updateExternal).toHaveBeenCalledWith('company-1', {
+      name: 'Acme Renamed',
+      email: 'contact@acme.test',
     });
   });
 
@@ -57,9 +57,8 @@ describe('syncPolarCustomerOnCompanyChange', () => {
     );
 
     expect(updateExternal).toHaveBeenCalledWith(
-      expect.objectContaining({
-        customerUpdateExternalID: expect.objectContaining({ email: 'billing@acme.test' }),
-      }),
+      'company-1',
+      expect.objectContaining({ email: 'billing@acme.test' }),
     );
   });
 
@@ -76,7 +75,7 @@ describe('syncPolarCustomerOnCompanyChange', () => {
     expect(client.customers.updateExternal).not.toHaveBeenCalled();
   });
 
-  it('is a no-op — never calls Polar with an empty email — when neither billingEmail nor the contact email resolves to anything', async () => {
+  it('is a no-op, never calls Polar with an empty email, when neither billingEmail nor the contact email resolves to anything', async () => {
     const updateExternal = vi.fn();
     const client = fakeClient(updateExternal);
 
@@ -84,13 +83,13 @@ describe('syncPolarCustomerOnCompanyChange', () => {
       syncPolarCustomerOnCompanyChange('company-1', { name: 'Acme', email: '', billingEmail: null }, client),
     ).resolves.toBeUndefined();
     expect(updateExternal).not.toHaveBeenCalled();
-    // Not stamped as a failure either — this is a DATA problem (nobody set an email), not a transient
+    // Not stamped as a failure either, this is a DATA problem (nobody set an email), not a transient
     // Polar problem the sweep's retry could ever fix, same distinction `customer-provisioning.ts`'s
     // own `skipped` count draws.
     expect(updateMany).not.toHaveBeenCalled();
   });
 
-  it('is a no-op — never an error — when this company has no Polar customer at all yet', async () => {
+  it('is a no-op, never an error, when this company has no Polar customer at all yet', async () => {
     const updateExternal = vi.fn().mockRejectedValue({ statusCode: 404 });
     const client = fakeClient(updateExternal);
 
@@ -104,7 +103,7 @@ describe('syncPolarCustomerOnCompanyChange', () => {
     expect(updateMany).not.toHaveBeenCalled();
   });
 
-  it('never throws into its caller on a genuine Polar failure — it logs and marks the row for the sweep to retry', async () => {
+  it('never throws into its caller on a genuine Polar failure, it logs and marks the row for the sweep to retry', async () => {
     const updateExternal = vi.fn().mockRejectedValue(new Error('polar is down'));
     const client = fakeClient(updateExternal);
 
