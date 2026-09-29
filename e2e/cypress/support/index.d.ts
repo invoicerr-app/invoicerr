@@ -8,6 +8,13 @@ declare namespace Cypress {
         login(): Chainable<void>
 
         /**
+         * Reveals the sign-up page's invitation code field when it sits behind the discreet
+         * toggle (#534), a no-op if the field is already visible.
+         * @example cy.revealInvitationCodeField()
+         */
+        revealInvitationCodeField(): Chainable<void>
+
+        /**
          * Truncate, then rebuild the baseline world (user john.doe + company Acme Corp) via the API.
          * Runs before every spec; see the implementation for why one reset for seventeen specs was
          * producing order-dependent failures.

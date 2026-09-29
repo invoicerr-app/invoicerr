@@ -3584,9 +3584,12 @@
           }
         },
         "invitationCode": {
+          "toggle": "Joining an existing company? Enter your invitation code",
           "label": "Invitation Code",
+          "labelOptional": "Invitation Code (optional)",
           "placeholder": "Enter your invitation code",
-          "hint": "Optional — enter a code to join an existing company. Leave it blank to create your own company instead."
+          "hint": "Enter a code to join an existing company. Leave it blank to create your own company instead.",
+          "requiredHint": "This instance only accepts invited users. Enter the code you were given to continue."
         },
         "creatingAccount": "Creating account...",
         "createButton": "Create Account",
@@ -3604,7 +3607,7 @@
         "description": "This instance only accepts new accounts with an invitation code from an existing member. Enter one below, or ask an administrator to invite you."
       },
       "errors": {
-        "invitationCodeRequired": "An invitation code is required — open sign-up is currently disabled on this instance",
+        "invitationCodeRequired": "An invitation code is required because open sign-up is currently disabled on this instance",
         "invalidInvitationCode": "Invalid or expired invitation code",
         "genericError": "An error occurred while creating your account",
         "firstnameMinLength": "First name must be at least 2 characters",

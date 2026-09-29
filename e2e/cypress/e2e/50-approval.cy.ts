@@ -88,6 +88,7 @@ describe("Approval beyond a threshold — a MEMBER is blocked, an OWNER goes thr
 			.then((code: string) => {
 				cy.clearCookies();
 				cy.visit("/auth/sign-up");
+				cy.revealInvitationCodeField();
 				cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 }).should("be.visible").type(code);
 				cy.get('[data-cy="auth-firstname-input"]').type("Mia");
 				cy.get('[data-cy="auth-lastname-input"]').type("Member");
