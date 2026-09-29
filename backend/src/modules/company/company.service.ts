@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   MethodNotAllowedException,
   NotFoundException,
@@ -10,7 +11,7 @@ import {
   normalizeRevenuePeriod,
   resolveRevenueSettings,
 } from '@/modules/company/revenue-basis/resolve-revenue-basis';
-import { MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client';
+import { MailTemplateType, Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { createHash } from 'node:crypto';
@@ -26,9 +27,23 @@ import {
 import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
 import { formatDocumentNumber } from '@/modules/documents/numbering/format-number';
 import { periodKeyFor, resolveNumberFormatFor } from '@/modules/documents/numbering/company-number-format';
+import {
+  extractTrailingNumber,
+  inferNumberPatternFromExample,
+  parseNumberFromPattern,
+  parsePortugueseSeriesIdentifier,
+} from '@/modules/documents/numbering/declare-last-number';
+import { seedSequenceStart } from '@/modules/documents/numbering/sequence';
+import { constraintsFor, patternViolations } from '@/modules/documents/country-policy/number-formats';
 import { defaultCountryPolicyCatalog } from '@/modules/documents/country-policy/registry';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
-import { CompanyNumberFormats } from './dto/number-formats.dto';
+import {
+  CompanyNumberFormats,
+  DeclareLastNumberInferRequest,
+  DeclareLastNumberInferResponse,
+  DeclareLastNumberRequest,
+  DeclareLastNumberResponse,
+} from './dto/number-formats.dto';
 import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country-identifiers/validate-identifier-value';
 import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
 import { withSeatReservation } from '@/modules/billing/seat-sync';
@@ -415,6 +430,196 @@ export class CompanyService {
           resetProvenance: resolved.resetProvenance,
         };
       }),
+    };
+  }
+
+  /**
+   * Issue #340 - "declare your last number issued", step 1: a pure, no-write suggestion the frontend
+   * shows as an EDITABLE pattern before the company confirms anything (`declareLastNumberIssued`
+   * below re-derives everything from the CONFIRMED pattern, never from this guess). No country/DB
+   * lookup needed - `inferNumberPatternFromExample` is a pure function of the example and its date.
+   */
+  inferLastNumberPattern(request: DeclareLastNumberInferRequest): DeclareLastNumberInferResponse {
+    const referenceDate = new Date(request.lastIssueDate);
+    if (Number.isNaN(referenceDate.getTime())) {
+      throw new BadRequestException(`"${request.lastIssueDate}" is not a valid date.`);
+    }
+    const pattern = inferNumberPatternFromExample(request.lastNumber, referenceDate);
+    return { pattern: pattern ?? null };
+  }
+
+  /**
+   * Issue #340 - "declare your last number issued", step 2: the write. Usable WITHOUT importing any
+   * document (the owner's own decision) - a company migrating its numbering by hand still needs the
+   * counter to resume where the old tool left off. See `numbering/declare-last-number.ts`'s own
+   * header for the full design, and `numbering/sequence.ts#seedSequenceStart`'s own header for why
+   * this can only ever seed a counter that has NEVER numbered anything - refused otherwise (the
+   * owner's own decision, §2 point 6: "once the first Invoicerr document is issued, nothing can
+   * change").
+   *
+   * Portugal is handled first and separately: FAQ 4319 makes reusing the previous tool's own series
+   * identifier illegal outright (a validation code, once used by ANY software, is never reused), so
+   * this never even tries to resolve `pattern` against the country's shipped format the way every
+   * other country does - see `declarePortugalNewSeries` below.
+   */
+  async declareLastNumberIssued(
+    companyId: string,
+    request: DeclareLastNumberRequest,
+  ): Promise<DeclareLastNumberResponse> {
+    if (request.typeId !== 'invoice' && request.typeId !== 'credit-note') {
+      throw new BadRequestException(
+        `"${request.typeId}" cannot be declared - issue #340's v1 covers "invoice" and "credit-note" only.`,
+      );
+    }
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { country: true, countryCode: true, numberFormats: true },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+
+    const countryCode = (company.countryCode || guessCountryCode(company.country ?? undefined) || '')
+      .trim()
+      .toUpperCase();
+    if (!countryCode) {
+      throw new BadRequestException(
+        "The company's country could not be resolved, so no number format applies yet.",
+      );
+    }
+    const formats = defaultCountryPolicyCatalog.numberFormatsFor(countryCode);
+    const format = formats?.formats.find((f) => f.typeId === request.typeId);
+    if (!formats || !format) {
+      throw new BadRequestException(
+        `"${request.typeId}" has no defined number format for "${countryCode}" - it may not be an ` +
+          'issuable, numbered document type in this country.',
+      );
+    }
+
+    const alreadyStarted = await prisma.documentNumberSequence.findFirst({
+      where: { companyId, typeId: request.typeId },
+      select: { companyId: true },
+    });
+    if (alreadyStarted) {
+      throw new ConflictException(
+        `Numbering has already started for "${request.typeId}" - the last number issued can only be ` +
+          'declared once, before the first Invoicerr document of this type.',
+      );
+    }
+
+    const referenceDate = new Date(request.lastIssueDate);
+    if (Number.isNaN(referenceDate.getTime())) {
+      throw new BadRequestException(`"${request.lastIssueDate}" is not a valid date.`);
+    }
+    const lastNumber = request.lastNumber?.trim();
+    if (!lastNumber) {
+      throw new BadRequestException('The last number issued is required.');
+    }
+
+    if (countryCode === 'PT') {
+      return this.declarePortugalNewSeries(companyId, request.typeId, format, lastNumber, referenceDate);
+    }
+
+    const pattern = request.pattern?.trim();
+    if (!pattern) {
+      throw new BadRequestException('A number pattern is required (the inferred one, or your own).');
+    }
+    const declaredNumber = parseNumberFromPattern(pattern, referenceDate, lastNumber);
+    if (declaredNumber === undefined) {
+      throw new BadRequestException(
+        `The pattern "${pattern}" does not reproduce "${lastNumber}" on ${request.lastIssueDate} - ` +
+          'adjust it so it does before confirming.',
+      );
+    }
+
+    const constraints = constraintsFor(formats, format);
+    const violations = patternViolations(pattern, constraints);
+    const keepsAsRunningSeries = violations.length === 0 && pattern !== format.pattern;
+
+    if (keepsAsRunningSeries) {
+      const existing = (company.numberFormats as Record<string, unknown> | null) ?? {};
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { numberFormats: { ...existing, [request.typeId]: pattern } as Prisma.InputJsonValue },
+      });
+    }
+
+    const runningSeries = keepsAsRunningSeries
+      ? { ...((company.numberFormats as Record<string, unknown> | null) ?? {}), [request.typeId]: pattern }
+      : (company.numberFormats as Record<string, unknown> | null);
+    const resolved = resolveNumberFormatFor(countryCode, request.typeId, runningSeries);
+    const year = periodKeyFor(resolved, new Date());
+    await seedSequenceStart(prisma, companyId, request.typeId, year, declaredNumber + 1);
+
+    return {
+      typeId: request.typeId,
+      pattern: resolved.pattern,
+      source: resolved.source,
+      nextNumber: declaredNumber + 1,
+      violations: violations.length > 0 ? violations : null,
+      atcudSeriesToRegister: null,
+    };
+  }
+
+  /**
+   * Portugal never resumes the previous tool's own series (AT FAQ 4319: "Um código de validação de
+   * série não poderá ser reutilizado ..."), whatever pattern that tool used - so, unlike every other
+   * country, this NEVER tries `request.pattern`/`patternViolations` against the shipped format at
+   * all. It always opens a brand-new series under the country's own shape (`FT A/{number}` /
+   * `NC A/{number}`, `format.pattern`) UNLESS the previous tool's own last number shows it already
+   * used identifier "A" (Invoicerr's own default) - parsed from `lastNumber` by the same
+   * `TYPE SERIES/NUMBER` shape AT FAQ 4310 mandates (`numbering/atcud.ts#parseAtcudPattern` reads the
+   * identical shape for a PATTERN; this reads it off one REAL NUMBER instead). In that one case the
+   * fallback identifier is dated - "A" + the year this is declared, e.g. "A2026" - so it can never
+   * collide with whatever the previous tool already registered, per the owner's own decision in #340.
+   * Either way the counter still resumes at `last + 1` (FAQ 4318: a series' own numbering, once
+   * communicated, keeps counting - it is the IDENTIFIER that may never repeat, not the requirement to
+   * start over at 1).
+   */
+  private async declarePortugalNewSeries(
+    companyId: string,
+    typeId: 'invoice' | 'credit-note',
+    format: { pattern: string },
+    lastNumber: string,
+    referenceDate: Date,
+  ): Promise<DeclareLastNumberResponse> {
+    const declaredNumber = extractTrailingNumber(lastNumber);
+    if (declaredNumber === undefined) {
+      throw new BadRequestException(
+        `"${lastNumber}" carries no digits to resume numbering from - check the last number issued.`,
+      );
+    }
+
+    const previousSeriesId = parsePortugueseSeriesIdentifier(lastNumber);
+    const typePrefix = typeId === 'invoice' ? 'FT' : 'NC';
+    const defaultSeriesId = 'A';
+    const usesDatedFallback = previousSeriesId?.toUpperCase() === defaultSeriesId;
+    const seriesId = usesDatedFallback ? `${defaultSeriesId}${referenceDate.getFullYear()}` : defaultSeriesId;
+    const pattern = `${typePrefix} ${seriesId}/{number}`;
+    const usesCountryDefault = pattern === format.pattern;
+
+    if (!usesCountryDefault) {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { numberFormats: true },
+      });
+      const existing = (company?.numberFormats as Record<string, unknown> | null) ?? {};
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { numberFormats: { ...existing, [typeId]: pattern } as Prisma.InputJsonValue },
+      });
+    }
+
+    // PT's own format never carries `{year}` (reset: "never" - a series counts continuously once
+    // registered, FAQ 4317/4318), so `year` is always the `year: 0` sentinel here - no need to
+    // resolve/periodKeyFor for a country this file already knows the answer for.
+    await seedSequenceStart(prisma, companyId, typeId, 0, declaredNumber + 1);
+
+    return {
+      typeId,
+      pattern,
+      source: usesCountryDefault ? 'country-policy' : 'running-series',
+      nextNumber: declaredNumber + 1,
+      violations: null,
+      atcudSeriesToRegister: seriesId,
     };
   }
 

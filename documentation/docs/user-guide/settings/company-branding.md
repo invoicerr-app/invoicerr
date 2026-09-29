@@ -74,6 +74,12 @@ series before its first document: the AT issues one per series and document type
 invoices and series `NC A` for credit notes. The ATCUD section shows which series the next document
 belongs to.
 
+**Migrating from another tool?** A **Declare your last number issued** card, right below the Number
+Formats card, lets you tell Invoicerr where your previous tool's own numbering left off, so your next
+invoice or credit note continues from there instead of restarting at 1 — usable on its own, or together
+with [importing your past invoices](../billing/migrating-from-another-tool.md). It can only be used
+once per document type, before that type's first Invoicerr document.
+
 ### Revenue basis
 
 A **Revenue basis** card decides which figure your dashboard and statistics count as revenue, and

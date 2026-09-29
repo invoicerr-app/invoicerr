@@ -177,6 +177,12 @@ const CREDIT_NOTE_STATUSES = [
   // that same join, which only ever matches a note against ONE named invoice id.
   { id: 'sent', label: 'Sent', clientVisible: true },
   { id: 'send_failed', label: 'Send failed' },
+  // Issue #340 - a historical credit note recorded from a previous tool. Same mechanism, and the
+  // same reasoning, as `invoice.descriptor.ts`'s own "imported" status: reached ONLY through the
+  // dedicated import endpoint (never `runAction`/`ActionRegistry`, which `checkTransitionResult`
+  // would refuse for landing anywhere but `initialStatus` on a brand-new record), and never named as
+  // a `from` by any transition here - no outgoing transition, by construction.
+  { id: 'imported', label: 'Imported' },
 ];
 const SAVE_DRAFT_LOCKED_STATUSES = CREDIT_NOTE_STATUSES.map((s) => s.id).filter((id) => id !== 'draft');
 

@@ -16,9 +16,11 @@ A linked credit note's **Currency** always matches the invoice it corrects and i
 ## Actions
 
 - **Add New** - start a free credit note
-- **Issue credit note** - from an invoice's own action menu, starts a linked credit note pre-filled with that invoice
+- **Issue credit note** - from an invoice's own action menu, starts a linked credit note pre-filled with that invoice, including against an imported one (see below)
+- **Import** / **Import CSV** - record a past credit note from a previous tool; see
+  [Migrating from another tool](migrating-from-another-tool.md). A CSV-imported credit note is always free (no invoice link); a linked import needs the one-at-a-time form
 - **Search** - find a credit note by its number or client name
-- **Filter** - toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**
+- **Filter** - toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Imported**
 - **View** (eye icon) - read-only details
 - **Download** - PDF, and once numbered, the same normalized XML formats as an [invoice](invoices.md#download-formats)
 - **Send** - issue the credit note: it is delivered on the invoice's own channel (email or e-invoicing) and archived. There is no separate "edit after issued" action; a mistake here is fixed with a further credit note
