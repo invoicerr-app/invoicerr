@@ -1,28 +1,28 @@
 /**
- * `npm run demo:reset` (issue #533) — wipes the demo instance's data and rebuilds it, deterministic
+ * `npm run demo:reset` (issue #533): wipes the demo instance's data and rebuilds it, deterministic
  * modulo which random seed it draws (a fresh one on every real run; pass `--seed <value>` for a
  * reproducible one, which `demo-mode-seed.spec.ts` and any manual debugging both rely on). Run this
  * from the built image (`node dist/scripts/demo-reset.js` after `npm run build`, mirroring how
  * `catalogs:release`/`worker.js` are already run in production) or via `tsx` in development.
  *
- * ## Safe while visitors are connected — "build all the new, then swap"
+ * ## Safe while visitors are connected: "build all the new, then swap"
  *
  * This does NOT delete-then-rebuild. It builds every new company for every supported country FIRST,
  * each one fully, inside its own set of writes (`seed-company.ts`'s own real `DocumentsService.
- * runAction` calls, each already transactional at the row level) — and only once EVERY new company has
- * been built successfully does it delete the OLD demo companies, in one final pass. A visitor
- * connected mid-run sees, at worst, a company switcher briefly listing MORE companies than usual (the
- * old generation alongside the new one already built) — never fewer, never a half-built company with
- * some document types present and others missing, and never a moment where the demo account has NO
- * company at all. The delete pass itself is a real transactional company delete per row
+ * runAction` calls, each already transactional at the row level), and only once EVERY new company
+ * has been built successfully does it delete the OLD demo companies, in one final pass. A visitor
+ * connected mid-run sees, at worst, a company switcher briefly listing MORE companies than usual
+ * (the old generation alongside the new one already built), never fewer, never a half-built company
+ * with some document types present and others missing, and never a moment where the demo account has
+ * NO company at all. The delete pass itself is a real transactional company delete per row
  * (`prisma.company.delete`, cascading every child table via the schema's own `onDelete: Cascade`
- * FKs — see `danger.service.ts#resetCompanyData`'s own header for the identical cascade shape), so a
+ * FKs; see `danger.service.ts#resetCompanyData`'s own header for the identical cascade shape), so a
  * single old company is either fully gone or (on a crash mid-sweep) still fully present, never half
  * either way.
  *
  * "Old demo companies" is never a guessed or hardcoded list: it is read as "every company the demo
  * user (`demo@invoicerr.app`) currently belongs to", queried BEFORE this run's own new companies are
- * created — the demo account is the sign-up-closed instance's only account (`lib/registration-policy.
+ * created. The demo account is the sign-up-closed instance's only account (`lib/registration-policy.
  * ts`'s own demo-mode branch), so every company it belongs to IS demo data, by construction, no
  * separate marker column needed.
  *
@@ -30,19 +30,19 @@
  *
  * One company per country `defaultCountryPolicyCatalog.countries()` currently declares (today:
  * DE/FR/IT/PL/PT), each with domestic + foreign clients, a small article catalog, and at least two
- * documents of every document type that country's own policy offers — see `seed-company.ts`'s own
+ * documents of every document type that country's own policy offers; see `seed-company.ts`'s own
  * header for exactly which actions build which state. Every date is relative to THIS run's own clock
- * (`new Date()` below, threaded through as `now`), never a fixed literal — the dashboard never looks
- * stale between resets, per the issue's own requirement.
+ * (`new Date()` below, threaded through as `now`), never a fixed literal, so the dashboard never
+ * looks stale between resets, per the issue's own requirement.
  *
  * ## The demo account itself
  *
- * `demo@invoicerr.app` / `demo`, created once (idempotent — a re-run finds the existing row and
- * changes nothing about it: its email/password are refused-from-changing everywhere ELSE in this
- * codebase, so there is nothing for a re-run to reconcile). Created through the REAL `auth.api.
- * signUpEmail` — never a hand-rolled password hash (see `e2e/cypress/support/commands.ts#resetAndSeed`'s
+ * `demo@invoicerr.app` / `demo`, created once (idempotent: a re-run finds the existing row and
+ * changes nothing about it, since its email/password are refused-from-changing everywhere ELSE in
+ * this codebase, so there is nothing for a re-run to reconcile). Created through the REAL `auth.api.
+ * signUpEmail`, never a hand-rolled password hash (see `e2e/cypress/support/commands.ts#resetAndSeed`'s
  * own reasoning, quoted here because it applies verbatim: "the password is hashed by better-auth, and
- * a fixture that writes its own hash is a fixture that breaks the day the auth library changes") —
+ * a fixture that writes its own hash is a fixture that breaks the day the auth library changes"),
  * which needs `DEMO_SEED_RUN=1` set on THIS process only, so `lib/registration-policy.ts#decideRegistration`'s
  * own demo-mode branch lets this ONE bootstrap call through without opening sign-up for anyone else
  * (see that file's own header).
@@ -76,8 +76,8 @@ function readSeedArg(): string {
   return `demo-reset-${Date.now()}`;
 }
 
-/** Idempotent: reuses the existing row on a re-run rather than erroring — the account's own email and
- *  password are refused from ever changing elsewhere in this codebase (`lib/auth.ts`'s own
+/** Idempotent: reuses the existing row on a re-run rather than erroring, since the account's own
+ *  email and password are refused from ever changing elsewhere in this codebase (`lib/auth.ts`'s own
  *  `hooks.before`/`deleteUser.beforeDelete`), so there is nothing left for a re-run to reconcile. */
 async function ensureDemoUser(): Promise<string> {
   const existing = await prisma.user.findUnique({
@@ -97,18 +97,18 @@ async function ensureDemoUser(): Promise<string> {
   });
   const userId = (result as { user?: { id?: string } }).user?.id;
   if (!userId) {
-    throw new Error('demo-reset: auth.api.signUpEmail did not return a user id — cannot continue.');
+    throw new Error('demo-reset: auth.api.signUpEmail did not return a user id, cannot continue.');
   }
-  // better-auth marks a fresh email/password sign-up unverified by default — the demo account is not
+  // better-auth marks a fresh email/password sign-up unverified by default. The demo account is not
   // reached through a verification link (there is no inbox behind it, and demo mode refuses to send
-  // one anyway — `mail/mail.service.ts`), so it is marked verified directly, once, here.
+  // one anyway, see `mail/mail.service.ts`), so it is marked verified directly, once, here.
   await prisma.user.update({ where: { id: userId }, data: { emailVerified: true } });
   return userId;
 }
 
-/** Erases the STORED FILES (never just the rows — the rows are gone the moment the old `Company` rows
- *  are deleted below, cascading every table via the schema's own FKs) an old demo company's documents
- *  left behind: uploaded/received-invoice attachments and archived, signed PDFs — the same two stores
+/** Erases the STORED FILES, never just the rows (the rows are gone the moment the old `Company` rows
+ *  are deleted below, cascading every table via the schema's own FKs), an old demo company's documents
+ *  left behind: uploaded/received-invoice attachments and archived, signed PDFs, the same two stores
  *  `danger.service.ts#resetCompanyData`/`instance-reset.service.ts` already erase, read here BEFORE
  *  the company row (and therefore its `DocumentArchive` rows) is deleted, for the identical reason
  *  that function journals storage objects inside its own transaction first: the archive path carries
@@ -132,7 +132,7 @@ async function eraseOldCompanyFiles(companyId: string): Promise<void> {
 async function main(): Promise<void> {
   if (!isDemoModeEnabled()) {
     logger.error(
-      'DEMO_MODE is not set on this process — refusing to run. This script rebuilds a demo ' +
+      'DEMO_MODE is not set on this process, refusing to run. This script rebuilds a demo ' +
         'dataset; running it against a real instance would fabricate a company and documents in it.',
     );
     process.exitCode = 1;
@@ -140,7 +140,7 @@ async function main(): Promise<void> {
   }
 
   const seed = readSeedArg();
-  logger.log(`demo:reset starting — seed "${seed}"`);
+  logger.log(`demo:reset starting, seed "${seed}"`);
 
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn', 'log'] });
   try {
@@ -163,12 +163,12 @@ async function main(): Promise<void> {
     const rng = createRng(seed);
     const countries = defaultCountryPolicyCatalog.countries() as SupportedCountryCode[];
     if (countries.length === 0) {
-      throw new Error('demo-reset: defaultCountryPolicyCatalog.countries() returned none — nothing to seed.');
+      throw new Error('demo-reset: defaultCountryPolicyCatalog.countries() returned none, nothing to seed.');
     }
 
     const newCompanyIds: string[] = [];
     for (const countryCode of countries) {
-      logger.log(`Seeding a new demo company for ${countryCode}…`);
+      logger.log(`Seeding a new demo company for ${countryCode}...`);
       const summary = await seedCountryCompany(
         { documentsService, articlesService, clientsService },
         { userId, userEmail: DEMO_ACCOUNT_EMAIL, countryCode, rng, now },
@@ -177,7 +177,7 @@ async function main(): Promise<void> {
       logger.log(`  ${summary.companyName} (${countryCode}): ${JSON.stringify(summary.documentsCreated)}`);
     }
 
-    // The swap: every new company exists and is fully built — only now do the old ones go.
+    // The swap: every new company exists and is fully built, only now do the old ones go.
     for (const companyId of oldCompanyIds) {
       await eraseOldCompanyFiles(companyId);
     }
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
     }
 
     logger.log(
-      `demo:reset complete — ${newCompanyIds.length} compan${newCompanyIds.length === 1 ? 'y' : 'ies'} seeded.`,
+      `demo:reset complete: ${newCompanyIds.length} compan${newCompanyIds.length === 1 ? 'y' : 'ies'} seeded.`,
     );
   } finally {
     await app.close();
@@ -203,12 +203,12 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-    // `app.close()` inside `main()` already ran every module's own `onModuleDestroy` — but this
+    // `app.close()` inside `main()` already ran every module's own `onModuleDestroy`, but this
     // process boots the FULL `AppModule`, BullMQ repeatables (document/webhook/backup/transfer
     // sweeps) included, and at least one of those schedulers does not release every timer it holds
     // even once closed (measured: the process idles at low CPU for well over a minute after logging
     // "demo:reset complete" instead of exiting). A Kubernetes CronJob run on a fixed schedule must
-    // actually TERMINATE, not idle until the Job's own deadline kills it — every await this script
+    // actually TERMINATE, not idle until the Job's own deadline kills it. Every await this script
     // needed has already settled by the time this line runs, so forcing the exit here is safe.
     process.exit(process.exitCode ?? 0);
   });

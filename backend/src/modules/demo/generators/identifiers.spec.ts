@@ -15,11 +15,11 @@ import {
 } from './identifiers';
 import { createRng } from './rng';
 
-// Several distinct seeds, deterministic — issue #533's own requirement: "add a test that runs the
+// Several distinct seeds, deterministic: issue #533's own requirement is "add a test that runs the
 // seed with several seeds and checks every country's documents validate".
 const SEEDS = ['demo-seed-1', 'demo-seed-2', 42, 'a-very-different-seed', 2026_09_29];
 
-describe('demo seed identifier generators — checksum round-trip against the real validators', () => {
+describe('demo seed identifier generators: checksum round-trip against the real validators', () => {
   it.each(SEEDS)('FR SIRET + VAT are checksum-valid for seed %s', (seed) => {
     const rng = createRng(seed);
     for (let i = 0; i < 20; i++) {

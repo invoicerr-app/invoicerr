@@ -66,7 +66,7 @@ import { isDemoModeEnabled } from './modules/demo/demo-flag';
 const billingEnabled = isBillingEnabled();
 
 /**
- * Public demo instance (issue #533) — see `modules/demo/demo-flag.ts`'s own header for the full list
+ * Public demo instance (issue #533): see `modules/demo/demo-flag.ts`'s own header for the full list
  * of what turning this on blocks/refuses. Read once here, the same "read once at boot, threaded as a
  * plain param" shape `billingEnabled` above already holds, so `globalGuardProviders` stays a pure
  * function a spec can drive both ways.

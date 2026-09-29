@@ -67,11 +67,11 @@ export function globalGuardProviders(params: {
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
-    // The demo-instance account-lockdown gate (issue #533) — refuses every `@DemoRestricted()` route
+    // The demo-instance account-lockdown gate (issue #533), refuses every `@DemoRestricted()` route
     // outright while `DEMO_MODE` is on. Registered ONLY under that flag, like `CompanyWriteGuard`
     // right below it under `billingEnabled`: an ordinary self-hosted instance never constructs this
     // guard at all. See `demo-restricted.guard.ts`'s own header for why this covers only the plain
-    // NestJS routes (company delete, API keys, SSO, OIDC-only set-password) — the better-auth-native
+    // NestJS routes (company delete, API keys, SSO, OIDC-only set-password); the better-auth-native
     // ones (change-email, change-password, delete-user, sign-up) are refused elsewhere, inside
     // `lib/auth.ts`/`lib/registration-policy.ts`, since they never reach a Nest guard at all.
     ...(params.demoModeEnabled ? [{ provide: APP_GUARD, useClass: DemoRestrictedGuard }] : []),

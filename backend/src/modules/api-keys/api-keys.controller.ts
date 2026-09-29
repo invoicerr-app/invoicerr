@@ -36,7 +36,7 @@ export class ApiKeysController {
       'The plaintext key is only ever returned in this response — it cannot be retrieved again afterwards.',
   })
   @ApiResponse({ status: 201, description: 'API key created' })
-  // Demo instance (issue #533) — API keys are refused outright: a long-lived bearer credential minted
+  // Demo instance (issue #533): API keys are refused outright, a long-lived bearer credential minted
   // on a demo instance would survive the next 4-hour reset even though everything it could reach does
   // not. See `guards/demo-restricted.guard.ts`.
   @DemoRestricted()

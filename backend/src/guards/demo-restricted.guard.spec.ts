@@ -29,10 +29,10 @@ describe('DemoRestrictedGuard (issue #533)', () => {
   });
 
   // This guard is only ever REGISTERED when demo mode is on (`global-guards.ts`'s own
-  // `demoModeEnabled` conditional) — so unlike `assertDemoSendingAllowed`, it never re-checks
+  // `demoModeEnabled` conditional), so unlike `assertDemoSendingAllowed`, it never re-checks
   // `isDemoModeEnabled()` itself. Documented here so the assumption stays visible next to the code
   // that relies on it.
-  it('does not itself read DEMO_MODE — refusal is unconditional once the route is marked', () => {
+  it('does not itself read DEMO_MODE: refusal is unconditional once the route is marked', () => {
     const reflector = new Reflector();
     vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
     const guard = new DemoRestrictedGuard(reflector);

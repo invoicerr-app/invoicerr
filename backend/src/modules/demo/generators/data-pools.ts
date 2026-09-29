@@ -1,8 +1,8 @@
 /**
- * Realistic, country-appropriate name/address/article pools the demo seed draws from — company and
+ * Realistic, country-appropriate name/address/article pools the demo seed draws from: company and
  * client NAMES, amounts, quantities and dates vary between resets (issue #533's own requirement), a
  * fixed SEED making a run reproducible for tests. Seeded from real conventions, not `e2e/cypress/
- * fixtures/scenarios.ts` (a different npm project — `backend/` and `e2e/` share no code), but the same
+ * fixtures/scenarios.ts` (a different npm project: `backend/` and `e2e/` share no code), but the same
  * spirit: plausible company/city names per country, never placeholder "Test Company 1" strings.
  */
 import { Rng, floatBetween, intBetween, pickDistinct, pickOne } from './rng';
@@ -13,7 +13,7 @@ export interface CountryMeta {
   countryCode: SupportedCountryCode;
   countryName: string;
   language: string;
-  /** The next country in the round-robin — every company's ONE foreign, cross-border client is drawn
+  /** The next country in the round-robin: every company's ONE foreign, cross-border client is drawn
    *  from this country's own client pool, so five companies cover all five countries as both seller
    *  and buyer, the same "each country reachable as seller and buyer" spirit
    *  `e2e/cypress/fixtures/scenarios.ts`'s six legs hold, at a fifth of the size for a live demo. */

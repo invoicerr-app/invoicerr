@@ -416,10 +416,10 @@ export const auth = betterAuth({
     // this flag, so `modules/auth-extended/auth-extended.controller.ts` refuses that route explicitly
     // as well; without both halves the flag would merely hide a form rather than close a door.
     enabled: !isOidcOnly(),
-    // Demo instance (issue #533) — the product decision is a literal, four-character password
+    // Demo instance (issue #533): the product decision is a literal, four-character password
     // ("demo"), shown on the sign-in page; better-auth's own default minimum (8) would refuse the
     // ONE `signUpEmail` call that ever creates this account (`scripts/demo-reset.ts#ensureDemoUser`).
-    // Lowered ONLY under `DEMO_MODE`, never on an ordinary instance — sign-up is closed outright in
+    // Lowered ONLY under `DEMO_MODE`, never on an ordinary instance: sign-up is closed outright in
     // demo mode (`lib/registration-policy.ts`), so this weaker minimum is never reachable by anyone
     // choosing their own password; it only ever governs the one fixed, publicly-shown demo account.
     ...(isDemoModeEnabled() ? { minPasswordLength: DEMO_ACCOUNT_PASSWORD.length } : {}),
@@ -522,7 +522,7 @@ export const auth = betterAuth({
       // minting a better-auth-compatible verification token directly — a bigger, separate change than
       // this one warrants.
       beforeDelete: async (user) => {
-        // Demo instance (issue #533) — the account cannot be deleted while `DEMO_MODE` is on. Checked
+        // Demo instance (issue #533): the account cannot be deleted while `DEMO_MODE` is on. Checked
         // before the sole-owner check below, unconditionally: on a demo instance the seeded
         // `demo@invoicerr.app` account is the ONLY account sign-up ever creates
         // (`lib/registration-policy.ts#decideRegistration`'s own demo-mode branch), so there is no
@@ -592,12 +592,12 @@ export const auth = betterAuth({
     },
   },
   /**
-   * Demo instance (issue #533) — refuses `/change-email` and `/change-password` outright while
+   * Demo instance (issue #533): refuses `/change-email` and `/change-password` outright while
    * `DEMO_MODE` is on. These two are the only two account-takeover-shaped actions with NO existing
    * per-action hook of their own to extend the way `/delete-user` has `user.deleteUser.beforeDelete`
-   * and `/sign-up/email` has `databaseHooks.user.create.before` — both above — so this is the ONE
+   * and `/sign-up/email` has `databaseHooks.user.create.before` (both above), so this is the ONE
    * generic path-matching `hooks.before` this file declares. `ctx.path` is better-auth's own route
-   * path with no `/api/auth` prefix (confirmed against the installed better-auth 1.7.4 route source —
+   * path with no `/api/auth` prefix (confirmed against the installed better-auth 1.7.4 route source,
    * `node_modules/better-auth/dist/api/routes/update-user.mjs` registers `changeEmail`/
    * `changePassword` at exactly these two paths). Every OTHER better-auth route this instance exposes
    * (sign-in, get-session, social callbacks…) falls through this matcher untouched.

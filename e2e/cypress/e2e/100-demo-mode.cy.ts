@@ -1,10 +1,10 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
-// Issue #533 — this spec runs against a stack with DEMO_MODE=true and a dataset built by
+// Issue #533: this spec runs against a stack with DEMO_MODE=true and a dataset built by
 // `npm run demo:reset`. It does NOT call `cy.resetAndSeed()` (the shared `before()` hook in
 // `support/e2e.ts`, opted out of here exactly the way `01-register.cy.ts` does): that helper signs
 // up a fresh user through `POST /api/auth/sign-up/email`, which demo mode refuses outright
-// (`lib/registration-policy.ts`) — this spec's whole point is to run against the ONE seeded demo
+// (`lib/registration-policy.ts`). This spec's whole point is to run against the ONE seeded demo
 // account instead, never to create its own.
 Cypress.env('skipSeed', true);
 
@@ -31,7 +31,7 @@ describe('Demo mode (issue #533)', () => {
         cy.get('[data-cy="demo-banner"]', { timeout: 10000 }).should('be.visible');
         cy.get('[data-cy="demo-banner"]').should('contain.text', 'resets every 4 hours');
 
-        // The banner is not a per-page fluke of the dashboard — it is mounted once, for the whole
+        // The banner is not a per-page fluke of the dashboard: it is mounted once, for the whole
         // authenticated shell.
         cy.visit('/documents/invoice');
         cy.get('[data-cy="demo-banner"]', { timeout: 10000 }).should('be.visible');
@@ -53,31 +53,31 @@ describe('Demo mode (issue #533)', () => {
     });
 
     // The one behaviour this spec BREAKS and RESTORES for real (see the PR body / CLOUD_PROMPT
-    // report for the actual break-and-restore command output) — a draft invoice's "Send" is
+    // report for the actual break-and-restore command output): a draft invoice's "Send" is
     // refused by the backend at the transport chokepoint (`TransportRegistry.register`,
     // `modules/demo/demo-blocked.ts`), surfacing as "Send failed" with a named reason, never a
     // silent success.
-    it('refuses to send a document — a draft invoice ends "Send failed" with the demo reason, never a silent success', () => {
+    it('refuses to send a document: a draft invoice ends "Send failed" with the demo reason, never a silent success', () => {
         signInAsDemo();
         cy.visit('/documents/invoice');
         cy.contains(/^draft$/i, { timeout: 10000 }).should('be.visible');
 
-        // The one draft row's own "Send" button — text-based, like 13-api-keys.cy.ts's own
-        // create-button selector: this action has no stable per-test data-cy (its id is a fresh
+        // The one draft row's own "Send" button, found by text (like 13-api-keys.cy.ts's own
+        // create-button selector): this action has no stable per-test data-cy (its id is a fresh
         // document id every seed), so it is found by its visible label instead.
         cy.contains('button', /^send$/i, { timeout: 10000 }).click();
-        // The confirmation dialog can render below the small default Cypress viewport —
+        // The confirmation dialog can render below the small default Cypress viewport, so
         // `scrollIntoView()` first, the same fix `13-api-keys.cy.ts` already uses for an
         // analogous "appeared but is outside the current scroll position" case.
         cy.contains('button', /^confirm$/i, { timeout: 10000 }).scrollIntoView().click();
 
         // The unique, load-bearing assertion: this exact refusal text only ever comes from
-        // `DemoModeBlockedError` (`modules/demo/demo-blocked.ts`) — `/send failed/i` alone is
+        // `DemoModeBlockedError` (`modules/demo/demo-blocked.ts`). `/send failed/i` alone is
         // ambiguous (it also names the list's OWN status filter tab), so the specific reason is
         // what this test actually pins down.
         cy.contains(/is disabled in this demo/i, { timeout: 20000 }).should('be.visible');
         // Never the ordinary "no transport configured" refusal a company with none chosen would
-        // see — this specific company DOES have one (`invoiceTransportId: 'email'`, seeded by
+        // see: this specific company DOES have one (`invoiceTransportId: 'email'`, seeded by
         // `seed-company.ts`), so the ONLY reason it can fail is demo mode itself.
         cy.contains(/no transport is configured/i).should('not.exist');
     });

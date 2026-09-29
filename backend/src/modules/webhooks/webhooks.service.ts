@@ -257,7 +257,7 @@ export class WebhooksService {
    * Send a webhook to a specified URL with HMAC signature
    */
   async send(webhooks: Webhook[], event: WebhookEvent, payload: any) {
-    // Demo instance (issue #533) — the one chokepoint every outbound webhook dispatch in this
+    // Demo instance (issue #533): the one chokepoint every outbound webhook dispatch in this
     // codebase reaches (queued delivery via `WebhookDeliveryService.deliver` and any direct caller
     // alike), checked before the SSRF re-validation and before any network attempt.
     assertDemoSendingAllowed('Webhook delivery');

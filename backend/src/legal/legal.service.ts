@@ -14,11 +14,11 @@ export interface LegalDocumentsView {
    *  `GET /api/billing/status`). */
   saasMode: boolean;
   /**
-   * Demo instance (issue #533) — mirrors `DEMO_MODE`, the same "public, pre-auth, already-polled"
+   * Demo instance (issue #533): mirrors `DEMO_MODE`, the same "public, pre-auth, already-polled"
    * reasoning `saasMode` above already carries: the frontend needs this BEFORE any session exists
    * (the sign-in page's own demo-credentials notice, the sign-up page's "closed" state, the top
    * banner once signed in) and this route is the one `@Public()` endpoint that already exists for
-   * exactly that shape. Hiding UI on this signal is a convenience only — every action it would hide
+   * exactly that shape. Hiding UI on this signal is a convenience only: every action it would hide
    * is ALSO refused server-side (`guards/demo-restricted.guard.ts`, `lib/auth.ts`,
    * `lib/registration-policy.ts`), so a stale or spoofed value here changes nothing about what the
    * backend actually allows.

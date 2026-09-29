@@ -38,9 +38,9 @@ export class AuthExtendedController {
   @ApiResponse({ status: 201, description: 'Password set successfully' })
   @ApiResponse({ status: 401, description: 'Failed to set password' })
   @ApiResponse({ status: 403, description: 'This instance is single-sign-on only (OIDC_ONLY)' })
-  // Demo instance (issue #533) — setting a password (the OIDC-only-account bootstrap path) is
+  // Demo instance (issue #533): setting a password (the OIDC-only-account bootstrap path) is
   // refused too: `/change-password` is already refused by `lib/auth.ts`'s own `hooks.before` for an
-  // account that already has one, but this SECOND route is how an account with NONE gets its first —
+  // account that already has one, but this SECOND route is how an account with NONE gets its first,
   // equally a takeover vector, equally refused. See `guards/demo-restricted.guard.ts`.
   @DemoRestricted()
   async setPassword(@Req() req: Request, @Body() body: { newPassword: string }) {

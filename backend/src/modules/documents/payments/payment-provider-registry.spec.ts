@@ -21,7 +21,7 @@ describe('PaymentProviderRegistry', () => {
     registry.register(provider);
 
     // Issue #533: `register()` now wraps `createCheckoutSession` in a demo-mode guard (see that
-    // method's own header), so the resolved provider is no longer the SAME object reference — it is
+    // method's own header), so the resolved provider is no longer the SAME object reference, it is
     // functionally equivalent and still delegates to the original outside demo mode.
     const resolved = registry.resolve('stripe');
     expect(resolved).not.toBe(provider);

@@ -11,9 +11,9 @@ import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 export class PaymentProviderRegistry {
   private readonly providers = new Map<string, PaymentProvider>();
 
-  /** Demo instance (issue #533) — same "wrap the outbound call at registration" reasoning as
+  /** Demo instance (issue #533): same "wrap the outbound call at registration" reasoning as
    *  `transports/transport-registry.ts#TransportRegistry.register`'s own header: a payment provider
-   *  registered later is blocked automatically too. `parseWebhookEvent` is copied through UNCHANGED —
+   *  registered later is blocked automatically too. `parseWebhookEvent` is copied through UNCHANGED,
    *  a real payment can never be opened in demo mode (`createCheckoutSession` is refused), so there is
    *  no legitimate inbound webhook to verify either way; leaving it wrapped would only complicate a
    *  provider webhook endpoint that already has nothing to receive. */

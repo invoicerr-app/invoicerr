@@ -1,5 +1,5 @@
 /**
- * Forward generators for every checksummed national identifier the demo seed needs — one per
+ * Forward generators for every checksummed national identifier the demo seed needs, one per
  * supported country (FR/DE/IT/PL/PT), each a MIRROR of this codebase's own OFFLINE validator so a
  * generated value is guaranteed to pass it:
  *
@@ -8,16 +8,16 @@
  *  - IT (Partita IVA): `vat-syntax.ts#validateItVat` (Luhn-like).
  *  - PL (NIP): `vat-syntax.ts#validateNip` (weighted mod 11).
  *  - PT (NIF/NIPC): no validator exists ANYWHERE in this codebase (confirmed by research before this
- *    file was written — `country-identifiers/validate-identifier-value.ts` skips the checksum for
+ *    file was written; `country-identifiers/validate-identifier-value.ts` skips the checksum for
  *    every scheme but the pattern regex, and `vat-syntax.ts`'s own dispatcher falls to a
  *    structural-only default for PT). `validatePtNif` below implements the standard, published
  *    Módulo 11 algorithm directly and is the only thing in this codebase (or, until now, this
- *    project's own research) that checks a PT NIF's checksum at all — `demo-mode-seed.spec.ts` proves
+ *    project's own research) that checks a PT NIF's checksum at all. `demo-mode-seed.spec.ts` proves
  *    generator and validator agree with each other, which is the strongest claim available with no
  *    third, independent implementation to cross-check against.
  *
  * `demo-mode-seed.spec.ts` runs every generator below against several seeds and asserts the result
- * passes the matching REAL validator (FR/DE/IT/PL) or this file's own `validatePtNif` (PT) — the test
+ * passes the matching REAL validator (FR/DE/IT/PL) or this file's own `validatePtNif` (PT), the test
  * issue #533 asked for: "runs the seed with several seeds and checks every country's documents
  * validate".
  */
@@ -35,7 +35,7 @@ function digitsToString(digits: number[]): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// France — SIRET (14 digits, Luhn on even 0-based positions) + intra-EU VAT (derived from the SIREN)
+// France: SIRET (14 digits, Luhn on even 0-based positions) + intra-EU VAT (derived from the SIREN)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface FrIdentifiers {
@@ -46,7 +46,7 @@ export interface FrIdentifiers {
 
 export function generateFrIdentifiers(rng: Rng): FrIdentifiers {
   // Build the first 13 digits at random, then solve the 14th (an odd 0-based position, never
-  // doubled — `isValidSiret`'s own loop) so the FULL 14-digit Luhn sum is a multiple of 10.
+  // doubled, see `isValidSiret`'s own loop) so the FULL 14-digit Luhn sum is a multiple of 10.
   const first13 = randomDigits(rng, 13);
   let sum = 0;
   for (let i = 0; i < 13; i++) {
@@ -71,7 +71,7 @@ export function assertValidFrIdentifiers({ siret, vat }: FrIdentifiers): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Germany — USt-IdNr, DE + 9 digits, ISO 7064 Mod 11,10 (mirrors `validateDeVat`'s own loop)
+// Germany: USt-IdNr, DE + 9 digits, ISO 7064 Mod 11,10 (mirrors `validateDeVat`'s own loop)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function generateDeVat(rng: Rng): string {
@@ -92,7 +92,7 @@ export function assertValidDeVat(vat: string): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Italy — Partita IVA, 11 digits, Luhn-like (mirrors `validateItVat`'s own loop)
+// Italy: Partita IVA, 11 digits, Luhn-like (mirrors `validateItVat`'s own loop)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function generateItPartitaIva(rng: Rng): string {
@@ -118,7 +118,7 @@ export function assertValidItPartitaIva(value: string): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Poland — NIP, 10 digits, weighted mod 11 (mirrors `validateNip`'s own weights)
+// Poland: NIP, 10 digits, weighted mod 11 (mirrors `validateNip`'s own weights)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const NIP_WEIGHTS = [6, 5, 7, 2, 3, 4, 5, 6, 7] as const;
@@ -128,7 +128,7 @@ export function generatePlNip(rng: Rng): string {
     const digits = randomDigits(rng, 9);
     const sum = NIP_WEIGHTS.reduce((acc, w, i) => acc + w * digits[i], 0);
     const check = sum % 11;
-    // check === 10 is a reserved, never-valid NIP (`validateNip`'s own refusal) — redraw rather than
+    // check === 10 is a reserved, never-valid NIP (`validateNip`'s own refusal): redraw rather than
     // emit a value the real validator would reject.
     if (check === 10) continue;
     return digitsToString([...digits, check]);
@@ -141,7 +141,7 @@ export function assertValidPlNip(value: string): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Portugal — NIF/NIPC, 9 digits, standard Módulo 11 (no validator exists in this codebase — see this
+// Portugal: NIF/NIPC, 9 digits, standard Módulo 11 (no validator exists in this codebase, see this
 // file's own header). First digit fixed to '5' (sociedade anónima / company), the documented
 // convention for a Portuguese legal-entity NIF.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ export function generatePtNif(rng: Rng): string {
   return digitsToString([...first8, checkDigit]);
 }
 
-/** Standalone, since no reference validator exists to reuse — the SAME formula `generatePtNif` above
+/** Standalone, since no reference validator exists to reuse: the SAME formula `generatePtNif` above
  *  uses to compute the check digit it emits, run in the reverse (verifying) direction. */
 export function validatePtNif(value: string): { valid: boolean; reason?: string } {
   const clean = value.replace(/[\s-]/g, '');

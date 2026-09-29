@@ -1,5 +1,5 @@
 /**
- * A tiny, deterministic, seedable PRNG (mulberry32) — the demo seed's own randomness source. NOT
+ * A tiny, deterministic, seedable PRNG (mulberry32): the demo seed's own randomness source. NOT
  * cryptographic, deliberately: the point is reproducibility, never unpredictability. `scripts/
  * demo-reset.ts` draws a fresh seed (the current time) on every real reset, so company/client/article
  * names, amounts, quantities and dates vary between resets; every spec that exercises the generator
@@ -32,7 +32,7 @@ function mulberry32(seed: number): Rng {
   };
 }
 
-/** Builds a reproducible `Rng` from any string or number seed — a string is hashed to a 32-bit
+/** Builds a reproducible `Rng` from any string or number seed. A string is hashed to a 32-bit
  *  integer first (`xmur3`) so a caller never has to pick a "good" numeric seed by hand. */
 export function createRng(seed: string | number): Rng {
   const numericSeed = typeof seed === 'number' ? seed >>> 0 : xmur3(seed)();
@@ -57,7 +57,7 @@ export function pickOne<T>(rng: Rng, items: readonly T[]): T {
 }
 
 /** `count` DISTINCT items drawn from `items` (never repeats one), order preserved from the source
- *  array. Throws if `count` exceeds `items.length` — a demo generator asking for more distinct
+ *  array. Throws if `count` exceeds `items.length`: a demo generator asking for more distinct
  *  values than a pool offers is a bug in the pool, not a case to silently under-deliver on. */
 export function pickDistinct<T>(rng: Rng, items: readonly T[], count: number): T[] {
   if (count > items.length) {
@@ -73,7 +73,7 @@ export function pickDistinct<T>(rng: Rng, items: readonly T[], count: number): T
   return result;
 }
 
-/** A date `daysOffset` days away from `from` (negative = past, positive = future), at midnight UTC —
+/** A date `daysOffset` days away from `from` (negative = past, positive = future), at midnight UTC,
  *  every generated document's dates are relative to the RESET moment (issue #533's own requirement:
  *  "dates are relative to the reset time so the dashboard never looks stale"), never a fixed literal
  *  date that would drift stale between resets. */

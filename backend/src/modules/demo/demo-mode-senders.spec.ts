@@ -4,27 +4,25 @@
  *
  * `TransportRegistry`/`DeclarationProviderRegistry`/`PaymentProviderRegistry` are built in production
  * ONLY by `documents-core.module.ts`'s own factory functions, which take live Nest-DI dependencies
- * (`ChannelCredentialsService`, `SigningCertificatesService`, a real `MailService`…) and, transitively,
- * require a reachable Redis at boot (`DocumentQueueRedisRequiredGuard`) — outside the scope, and the
+ * (`ChannelCredentialsService`, `SigningCertificatesService`, a real `MailService`...) and, transitively,
+ * require a reachable Redis at boot (`DocumentQueueRedisRequiredGuard`): outside the scope, and the
  * Redis guarantee, of this file's OWN test job (`backend-tests`, real Postgres only; Redis is only
  * guaranteed in the separate `queue-integration` job, per `CLAUDE.md`). Booting the real module here
  * would make this spec an integration test in disguise, flaky exactly where it should be rock solid.
  *
- * What this spec proves instead — and what actually makes the issue's own guarantee true — is that the
+ * What this spec proves instead, and what actually makes the issue's own guarantee true, is that the
  * BLOCK lives at `register()` itself (see each registry's own header:
  * `transports/transport-registry.ts`, `reporting/declaration-provider.ts`,
  * `payments/payment-provider-registry.ts`), not at any particular transport/provider's own id. That
  * means EVERY id `documents-core.module.ts` registers today (`email`, `pdp`, `iopole`, `ksef`, `sdi`,
  * `sdi-pec`, `acube`, `chorus-pro`, `invopop`, `billit` for transports; `pt-at` for declarations;
  * `stripe`/`mollie`/`paypal` for payments) is blocked, and so is one a third party registers tomorrow
- * that this test has never heard of — a stronger guarantee than replaying today's exact id list, and
- * the only one CI can run without a live queue/Redis dependency. `demo-blocked-registration.
- * integration.spec.ts` (skipped without `DEMO_SENDERS_INTEGRATION=1`) separately proves the SAME thing
- * against the real `documents-core.module.ts` factories, for anyone running it locally with Redis up.
+ * that this test has never heard of: a stronger guarantee than replaying today's exact id list, and
+ * the only one CI can run without a live queue/Redis dependency.
  *
  * "mail sender" and "webhook dispatcher" have no registry to enumerate at all (`MailService` is not a
- * registry — see `demo-blocked.ts`'s own header on why there is exactly ONE chokepoint, its two public
- * methods; `WebhooksService.drivers` is a private field with no enumeration method) — both are proven
+ * registry; see `demo-blocked.ts`'s own header on why there is exactly ONE chokepoint, its two public
+ * methods; `WebhooksService.drivers` is a private field with no enumeration method). Both are proven
  * directly below instead.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -58,7 +56,7 @@ describe('demo mode blocks every registered transport (TransportRegistry)', () =
     ['chorus-pro', { send: vi.fn().mockResolvedValue({ message: 'ok' }) }],
     ['invopop', { send: vi.fn().mockResolvedValue({ message: 'ok' }) }],
     ['billit', { send: vi.fn().mockResolvedValue({ message: 'ok' }) }],
-    // A transport this test has never heard of — proves the block is NOT keyed on a known id list.
+    // A transport this test has never heard of: proves the block is NOT keyed on a known id list.
     ['a-third-party-transport-added-tomorrow', { send: vi.fn().mockResolvedValue({ message: 'ok' }) }],
   ] as const)('transport "%s" is refused in demo mode and allowed otherwise', async (id, transport) => {
     const { TransportRegistry } = await import('../documents/transports/transport-registry');

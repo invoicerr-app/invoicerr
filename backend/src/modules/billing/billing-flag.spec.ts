@@ -19,7 +19,7 @@ describe('isBillingEnabled', () => {
 });
 
 // Issue #533: the demo never asks to pay, whatever the billing flag says in that same environment.
-describe('isBillingEnabled — DEMO_MODE overrides it outright (issue #533)', () => {
+describe('isBillingEnabled: DEMO_MODE overrides it outright (issue #533)', () => {
   it('is false when DEMO_MODE is on, even though the billing flag is ALSO on', () => {
     expect(isBillingEnabled({ DEMO_MODE: 'true', [BILLING_FLAG_NAME]: 'true' })).toBe(false);
   });
@@ -28,7 +28,7 @@ describe('isBillingEnabled — DEMO_MODE overrides it outright (issue #533)', ()
     expect(isBillingEnabled({ DEMO_MODE: 'true' })).toBe(false);
   });
 
-  it('the billing flag alone (DEMO_MODE unset) behaves exactly as before — no regression', () => {
+  it('the billing flag alone (DEMO_MODE unset) behaves exactly as before, no regression', () => {
     expect(isBillingEnabled({ [BILLING_FLAG_NAME]: 'true' })).toBe(true);
   });
 

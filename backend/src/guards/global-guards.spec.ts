@@ -77,7 +77,7 @@ describe('globalGuardProviders — the order every request meets', () => {
     ]);
   });
 
-  it('demo mode and billing can both be on at once — both gates present, demo first', () => {
+  it('demo mode and billing can both be on at once: both gates present, demo first', () => {
     expect(guardClasses(globalGuardProviders({ billingEnabled: true, demoModeEnabled: true }))).toEqual([
       ThrottlerGuard.name,
       AuthGuard.name,

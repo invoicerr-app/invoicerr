@@ -141,7 +141,7 @@ export interface DeclarationProvider {
 export class DeclarationProviderRegistry {
   private readonly providers = new Map<string, DeclarationProvider>();
 
-  /** Demo instance (issue #533) — same "wrap at registration, cover a future provider for free"
+  /** Demo instance (issue #533): same "wrap at registration, cover a future provider for free"
    *  reasoning as `transports/transport-registry.ts#TransportRegistry.register`'s own header: a
    *  provider registered later is blocked automatically too, because `declare` is wrapped the moment
    *  it is added here, never because `reporting-runner.ts` remembered to check first. */
@@ -167,7 +167,7 @@ export class DeclarationProviderRegistry {
     return this.providers.get(providerId);
   }
 
-  /** Every registered provider's own id — the same enumeration shape `TransportRegistry.list()`/
+  /** Every registered provider's own id, the same enumeration shape `TransportRegistry.list()`/
    *  `PaymentProviderRegistry.list()` already hold, added so a test (or a future settings screen) can
    *  enumerate every declarative-reporting channel without hardcoding the one id this codebase ships
    *  ("pt-at") today. */

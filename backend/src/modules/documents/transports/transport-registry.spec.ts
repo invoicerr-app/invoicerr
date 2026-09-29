@@ -14,7 +14,7 @@ describe('TransportRegistry', () => {
     registry.register('email', 'Email', transport);
 
     // Issue #533: `register()` now wraps `send` in a demo-mode guard (see that method's own header),
-    // so the resolved transport is no longer the SAME object reference — it is a functionally
+    // so the resolved transport is no longer the SAME object reference, it is a functionally
     // equivalent one that still delegates to the original `send` outside demo mode.
     const resolved = registry.resolve('email');
     expect(resolved).not.toBe(transport);

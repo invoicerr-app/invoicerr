@@ -25,12 +25,12 @@ import { isDemoModeEnabled } from '@/modules/demo/demo-flag';
 export const BILLING_FLAG_NAME = 'WARNING__ENABLE_BILLING_FOR_USERS__WARNING';
 
 /**
- * Demo instance (issue #533) — `DEMO_MODE` overrides this flag outright, in EITHER direction: a demo
+ * Demo instance (issue #533): `DEMO_MODE` overrides this flag outright, in EITHER direction. A demo
  * deployment must never show a paywall, a seat gate, or make a single Polar call, no matter what
  * `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` happens to be set to in that same environment. Checked
- * FIRST, before the billing flag's own read, so every caller of `isBillingEnabled()` — `app.module.ts`
+ * FIRST, before the billing flag's own read, so every caller of `isBillingEnabled()`, `app.module.ts`
  * (whether `BillingModule`/`CompanyWriteGuard`/`LegalAcceptanceGuard` even enter the graph),
- * `send-gate.ts#assertCanSend`, `lib/auth.ts`'s legal-acceptance-at-signup check — gets this for free,
+ * `send-gate.ts#assertCanSend`, `lib/auth.ts`'s legal-acceptance-at-signup check, gets this for free,
  * with no separate demo-mode opinion of its own to keep in sync. `getPolarClient()`
  * (`polar-client.ts`) ALSO refuses outright on its own, independently: this is belt-and-suspenders for
  * the one path that does not go through `isBillingEnabled()` first (an instance operator action that

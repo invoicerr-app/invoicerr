@@ -20,7 +20,7 @@ import { useDemoMode } from "@/hooks/queries"
 import { Info } from "lucide-react"
 
 /**
- * Issue #533 — shown above the sign-in form only, on the demo instance: the credentials shown here
+ * Issue #533: shown above the sign-in form only, on the demo instance. The credentials shown here
  * are literally correct, not a placeholder, so someone landing on the demo can sign in without going
  * looking elsewhere for them (the issue's own requirement: "the demo sign-in page shows the
  * credentials").

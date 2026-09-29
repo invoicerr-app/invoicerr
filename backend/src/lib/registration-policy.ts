@@ -57,16 +57,16 @@ export function decideRegistration(params: {
   isFirstUser: boolean;
   env?: NodeJS.ProcessEnv;
   now?: Date;
-  /** The address attempting to register — needed ONLY for the demo-mode bypass just below. Every
+  /** The address attempting to register, needed ONLY for the demo-mode bypass just below. Every
    *  other branch in this function ignores it entirely. */
   email?: string | null;
 }): RegistrationDecision {
   const { invitationCode, invitation, isFirstUser, now = new Date(), email } = params;
 
-  // Demo instance (issue #533) — checked FIRST, ahead of every other rule including the
+  // Demo instance (issue #533): checked FIRST, ahead of every other rule including the
   // first-user bootstrap and a valid invitation code: sign-up is closed outright on a demo instance,
   // full stop. The ONE exception is `scripts/demo-reset.ts`'s own bootstrap call, which creates the
-  // fixed `demo@invoicerr.app` account through this exact same hook — recognised by BOTH its own
+  // fixed `demo@invoicerr.app` account through this exact same hook, recognised by BOTH its own
   // process-local `DEMO_SEED_RUN` marker AND the exact demo address, never by either alone (a stray
   // `DEMO_SEED_RUN=1` in a real deployment's environment must never open the door for anyone OTHER
   // than that one fixed address, and the address alone is not a secret worth trusting). See

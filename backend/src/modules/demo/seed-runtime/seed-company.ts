@@ -1,8 +1,8 @@
 /**
- * Builds ONE fully-seeded demo company for a single country — the per-country unit `scripts/
+ * Builds ONE fully-seeded demo company for a single country: the per-country unit `scripts/
  * demo-reset.ts` calls once per entry in `defaultCountryPolicyCatalog.countries()` (today: DE/FR/IT/
  * PL/PT). Every document is created through the REAL `DocumentsService.runAction` (never a raw Prisma
- * row — see that service's own header on why this is the only way to get country-policy compliance,
+ * row; see that service's own header on why this is the only way to get country-policy compliance,
  * field validation and correct numbering for free) for every action that does not itself send
  * anything (`save-draft`, `record-payment`, `accept-manually`, `approve`, `reject`, `record`); the one
  * exception is reaching "sent" status, which uses `move-to-sent.ts`'s own numbering-only bypass
@@ -10,7 +10,7 @@
  * configuration existing in whatever namespace it runs in (see that file's own header).
  *
  * Discovers which document TYPES a country offers from `defaultCountryPolicyCatalog.typesFor`, never
- * a hardcoded list — a new type or country the catalog grows later is seeded automatically, per issue
+ * a hardcoded list: a new type or country the catalog grows later is seeded automatically, per issue
  * #533's own requirement.
  */
 import { Logger } from '@nestjs/common';
@@ -127,7 +127,7 @@ export async function seedCountryCompany(
   const meta = countryMeta(countryCode);
   const actor = { id: userId, name: 'Demo Account', email: userEmail };
   // Every `runAction` call below goes through this wrapper so `role`/`actor` are never forgotten on
-  // one call site — `accept-manually` (quote-manual-acceptance.ts) hard-refuses without a real actor
+  // one call site: `accept-manually` (quote-manual-acceptance.ts) hard-refuses without a real actor
   // to record ("Cannot mark a quote accepted manually without an authenticated actor to record"), and
   // passing it everywhere, not only there, matches what a real, logged-in OWNER's own call always
   // carries (`documents.controller.ts`'s own `@User()`-sourced actor).
@@ -149,7 +149,7 @@ export async function seedCountryCompany(
       phone: '+1 555 0100',
       email: `contact@${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.example-demo.invoicerr.app`,
       language: meta.language,
-      // The built-in "email" transport — without a chosen transport, a real "send" click refuses
+      // The built-in "email" transport: without a chosen transport, a real "send" click refuses
       // with the ORDINARY "no transport configured" message (`invoice-actions.ts`) before ever
       // reaching `TransportRegistry.register`'s own demo-mode guard. A visitor clicking "Send" on
       // a demo invoice should see THIS feature's refusal, not an unrelated configuration gap.
@@ -179,7 +179,7 @@ export async function seedCountryCompany(
   // ── quote ────────────────────────────────────────────────────────────────────────────────────
   let paidInvoiceForCreditNote: { id: string; data: unknown } | undefined;
   if (typeIds.has('quote')) {
-    // #1 — draft, WITH options (two distinct named options on its own lines).
+    // #1: draft, WITH options (two distinct named options on its own lines).
     await run('quote', 'save-draft', {
       data: {
         client: clients.domestic,
@@ -193,7 +193,7 @@ export async function seedCountryCompany(
     });
     bump('quote');
 
-    // #2 — plain draft, no options.
+    // #2: plain draft, no options.
     await run('quote', 'save-draft', {
       data: {
         client: clients.foreign,
@@ -204,7 +204,7 @@ export async function seedCountryCompany(
     });
     bump('quote');
 
-    // #3 — sent, then manually accepted ("signed").
+    // #3: sent, then manually accepted ("signed").
     const draft = await run('quote', 'save-draft', {
       data: {
         client: clients.domestic,
@@ -222,7 +222,7 @@ export async function seedCountryCompany(
     );
     // `data` must carry the document's own FULL current data on every call, not just this action's own
     // input (`documents.service.ts#runAction` validates `payload.data` against the whole descriptor
-    // regardless of which action is running) — the action's own extra input goes in `params` instead.
+    // regardless of which action is running); the action's own extra input goes in `params` instead.
     await run('quote', 'accept-manually', {
       documentId: draftDoc.id,
       data: sentQuote.data as Record<string, unknown>,
@@ -261,10 +261,10 @@ export async function seedCountryCompany(
       return sent;
     };
 
-    // Sent, not yet due — "pending".
+    // Sent, not yet due: "pending".
     await createSentInvoice(20);
 
-    // Sent, past due, nothing paid — "overdue".
+    // Sent, past due, nothing paid: "overdue".
     await createSentInvoice(-10);
 
     // Sent, partly paid.
@@ -281,7 +281,7 @@ export async function seedCountryCompany(
       },
     });
 
-    // Sent, fully paid — also the one a credit note corrects below.
+    // Sent, fully paid: also the one a credit note corrects below.
     const paid = await createSentInvoice(10);
     const paidTotal = computeLineTotal(paid);
     await run('invoice', 'record-payment', {
@@ -296,14 +296,14 @@ export async function seedCountryCompany(
   // A country's own `country-policy/data/<cc>.json` can declare "credit-note" among its
   // `documentTypes` (metadata: the type EXISTS in this jurisdiction's vocabulary) while still
   // forbidding the "save-draft" ACTION outright (Poland: FA(3) models a correction as a CORRECTIVE
-  // INVOICE — invoice.descriptor's own "Corrects invoice" reference field — never a separate
+  // INVOICE (invoice.descriptor's own "Corrects invoice" reference field), never a separate
   // credit-note document; the 403 names this explicitly). Wrapped in try/catch, entirely: when a
-  // country's own law route a correction through a different mechanism this seed does not yet build,
+  // country's own law routes a correction through a different mechanism this seed does not yet build,
   // 0 credit notes for that company is the HONEST count, not a bug to paper over with a document the
   // country would itself refuse to accept.
   if (typeIds.has('credit-note')) {
     try {
-      // #1 — standalone (no corrected invoice), own reason + lines.
+      // #1: standalone (no corrected invoice), own reason + lines.
       await run('credit-note', 'save-draft', {
         data: {
           issueDate: isoDate(now),
@@ -314,9 +314,9 @@ export async function seedCountryCompany(
       });
       bump('credit-note');
 
-      // #2 — linked to the fully-paid invoice above, when one exists. `correctedLines` (kind
-      // 'rowSelection') stores the corrected invoice's OWN line ids — `$rowId`
-      // (row-selection.ts#ROW_ID_KEY), stamped onto every 'array' row the moment it is saved through
+      // #2: linked to the fully-paid invoice above, when one exists. `correctedLines` (kind
+      // 'rowSelection') stores the corrected invoice's OWN line ids (`$rowId`, see
+      // row-selection.ts#ROW_ID_KEY), stamped onto every 'array' row the moment it is saved through
       // an action a 'rowSelection' field points at, which the invoice's own earlier "save-draft" call
       // already was. Selecting every one of the invoice's lines: a full-amount credit note, the
       // simplest unambiguous case.
@@ -342,13 +342,13 @@ export async function seedCountryCompany(
     } catch (error) {
       // The exact `correctedLines` (rowSelection) shape a credit note linked to an invoice needs is
       // stricter than a standalone one's, AND a country can forbid the action outright (Poland,
-      // above) — either way, whatever credit notes were already created before the failure (`bump`
+      // above), either way, whatever credit notes were already created before the failure (`bump`
       // already ran for them) stand; this only stops trying further ones for this company.
       const detail = (error as { getResponse?: () => unknown })?.getResponse?.();
       loggerForSeed.warn(
         `credit-note seeding stopped early for ${countryCode}: ${
           error instanceof Error ? error.message : String(error)
-        }${detail ? ` — ${JSON.stringify(detail)}` : ''}`,
+        }${detail ? `, detail: ${JSON.stringify(detail)}` : ''}`,
       );
     }
   }

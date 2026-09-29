@@ -311,13 +311,13 @@ export class TransportRegistry {
   private readonly transports = new Map<string, { label: string; transport: DocumentTransport }>();
 
   /**
-   * Demo instance (issue #533) — wraps the transport's own `send` so EVERY registered transport is
+   * Demo instance (issue #533): wraps the transport's own `send` so EVERY registered transport is
    * blocked in demo mode, including one registered later by a third party who has never read
    * `modules/demo/demo-blocked.ts`. Wrapped HERE, at registration, rather than only at
    * `documents.service.ts`'s own call site: that is what makes `demo-mode-senders.spec.ts`'s
    * enumeration test ("every registered transport is blocked") actually true by construction, not by
    * every future caller remembering to check first. `preflight`/`deliversCreditNotes`/
-   * `credentialFields`/`parseCredentials` are copied through UNCHANGED — a company's own "is this
+   * `credentialFields`/`parseCredentials` are copied through UNCHANGED, a company's own "is this
    * channel connected" check must keep working in demo mode (there is nothing sensitive about
    * reporting whether credentials exist), only the actual delivery is refused.
    */

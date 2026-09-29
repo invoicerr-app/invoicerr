@@ -135,9 +135,9 @@ describe('registrationDenialMessage', () => {
   });
 });
 
-// Issue #533 — sign-up is closed outright on a demo instance, with exactly one narrow exception: the
+// Issue #533: sign-up is closed outright on a demo instance, with exactly one narrow exception, the
 // reset script's own bootstrap of the fixed demo account.
-describe('decideRegistration — demo mode (issue #533)', () => {
+describe('decideRegistration: demo mode (issue #533)', () => {
   it('rejects the very first user (the bootstrap escape hatch does NOT apply in demo mode)', () => {
     const decision = decideRegistration({ isFirstUser: true, env: { DEMO_MODE: 'true' } });
     expect(decision).toEqual({ allowed: false, reason: 'demo_mode' });
@@ -148,7 +148,7 @@ describe('decideRegistration — demo mode (issue #533)', () => {
     expect(decision).toEqual({ allowed: false, reason: 'demo_mode' });
   });
 
-  it('rejects a genuinely valid, unused invitation code — demo mode outranks it', () => {
+  it('rejects a genuinely valid, unused invitation code: demo mode outranks it', () => {
     const decision = decideRegistration({
       invitationCode: 'ABC123',
       invitation: { found: true, usedAt: null, expiresAt: null },

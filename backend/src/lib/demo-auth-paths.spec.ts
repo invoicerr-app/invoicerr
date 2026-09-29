@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { demoBlockedAuthActionLabel, isDemoBlockedAuthPath } from './demo-auth-paths';
 
-describe('isDemoBlockedAuthPath — the better-auth hooks.before matcher (issue #533)', () => {
+describe('isDemoBlockedAuthPath: the better-auth hooks.before matcher (issue #533)', () => {
   it('blocks changing the email', () => {
     expect(isDemoBlockedAuthPath('/change-email')).toBe(true);
   });

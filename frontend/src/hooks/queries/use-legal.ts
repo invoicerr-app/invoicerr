@@ -21,7 +21,7 @@ export interface LegalDocumentsView {
   /** Mirrors `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (backend's own `billing-flag.ts`) — the
    *  sign-up screen's only signal for whether the acceptance checkbox must be shown at all. */
   saasMode: boolean
-  /** Mirrors `DEMO_MODE` (backend's own `modules/demo/demo-flag.ts`, issue #533) — the ONE public,
+  /** Mirrors `DEMO_MODE` (backend's own `modules/demo/demo-flag.ts`, issue #533): the ONE public,
    *  pre-auth signal this frontend has for "every send is refused, the account cannot be changed".
    *  Hiding/disabling UI on this value is a convenience only: every action it gates is ALSO refused
    *  server-side (`guards/demo-restricted.guard.ts`, `lib/auth.ts`, `lib/registration-policy.ts`), so
@@ -43,9 +43,9 @@ export function useLegalDocuments(lang?: string) {
 }
 
 /** Convenience wrapper over `useLegalDocuments()` for callers that only care about the demo-mode
- *  flag (issue #533) — the sign-in page's credentials notice, the authenticated app's demo banner,
+ *  flag (issue #533): the sign-in page's credentials notice, the authenticated app's demo banner,
  *  and every settings screen that disables a takeover-shaped action. `demoMode` defaults to `false`
- *  while the query is still loading/erroring — the same "fail open on the UI, closed on the server"
+ *  while the query is still loading/erroring, the same "fail open on the UI, closed on the server"
  *  posture `LegalDocumentsView.demoMode`'s own doc comment describes: nothing here is the real gate. */
 export function useDemoMode(): { demoMode: boolean; isLoading: boolean } {
   const { data, isLoading } = useLegalDocuments()
