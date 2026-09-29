@@ -544,6 +544,35 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		// (LEGAL_ID, always offered, labelled per country) → company (the rest of the profile, plus any
 		// OTHER identifier the country's own catalog declares) → channels (skipped here; `31-national-
 		// channels.cy.ts` already covers connecting a channel from this exact step). ───────────────────
+		//
+		// The identifier step's own "Next" (`onboarding.tsx#goToCompanyStep`) AWAITS a real search
+		// (`GET /api/company-lookup`) before it advances, whenever the selected country has a
+		// REGISTER-coverage provider AND a value was typed (`canAutoSearch`, see that function's own
+		// header). `SELLER_IDENTIFIERS` below types a real, checksum-valid national identifier for every
+		// seller but `de-fr` (Germany has none typed at this step at all, so this never fires for it).
+		// For `pl-de` and `fr-pl` that identifier is recognised by a LIVE, unmocked national register:
+		// Poland's own Wykaz podatnikow VAT (`pl.provider.ts`) and France's Annuaire des Entreprises
+		// (`fr.provider.ts`), respectively, neither faked for tests the way VIES (`VAT_VALIDATION_FAKE`),
+		// GitHub releases (`GITHUB_RELEASES_FAKE`) or the currency rate feeds (`VAT_CURRENCY_RATE_FAKE`)
+		// already are. This is exactly the dependency `16-company-lookup.cy.ts`'s own header forbids
+		// ("a CI job must never depend on INSEE or VIES being up"), and it is the kind of dependency
+		// `18-onboarding-wizard.cy.ts` only accepts for ITS OWN test of the lookup feature itself
+		// (generous 20s wait, deeper assertions gated behind `COMPANY_LOOKUP_LIVE=1`). This spec has no
+		// interest in the lookup at all (the company step always overwrites whatever it pre-fills, see
+		// below) and gains nothing from letting it reach a real registry, only the risk of a slow or
+		// unavailable one stalling the wizard past this file's own 10s assertions. #531: `pl-de` failed
+		// twice in CI on exactly this, `onboarding-company-name-input` never appearing, because
+		// wl-api.mf.gov.pl was slow enough, on those two runs, to still be in flight when Cypress gave
+		// up. Stubbed here, unconditionally, for every leg: `fr-pl`'s seller reaches the identical
+		// live-network code path through France's own register and could fail the exact same way, just
+		// not yet observed. `pathname` matches the exact path only: a bare `/api/company-lookup` glob
+		// also caught `/api/company-lookup/capabilities/:cc`, whose body has no `found` key at all,
+		// the same trap `18-onboarding-wizard.cy.ts`'s own comment documents.
+		cy.intercept(
+			{ method: "GET", pathname: "/api/company-lookup" },
+			{ statusCode: 200, body: { found: false, company: null } },
+		).as("companyLookupStub");
+
 		const seller = SELLER_IDENTIFIERS[scenarioId];
 		cy.visit("/");
 		cy.wait(2000);
