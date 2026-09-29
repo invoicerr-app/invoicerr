@@ -45,13 +45,44 @@
  *    before ANY catch block, log line, or exception filter — anywhere in this process — ever sees it,
  *    rather than trying to intercept every place that error could end up.
  */
-import { Polar } from '@polar-sh/sdk';
+import { HTTPClient, Polar } from '@polar-sh/sdk';
 
 import { logger } from '@/logger/logger.service';
 
 import { resolvePolarServerEnvironment } from './polar-env';
 
+/**
+ * Polar announced date-based API versioning by e-mail on 2026-09-29: `2026-10` becomes the Current
+ * contract on 2026-10-01, and today's contract is renamed `2026-04` (Deprecated, supported until the
+ * next quarterly release in January 2027). A request carrying no `Polar-Version` header follows
+ * Current, so every call this backend makes would silently switch contract on that date. Pinned here,
+ * in the one constant every Polar request reads (`getPolarHttpClient` below), until the SDK 1.0 /
+ * `2026-10` migration (tracked as a separate follow-up issue, #536's own text).
+ */
+export const POLAR_API_VERSION = '2026-04';
+
 let cached: Polar | null = null;
+let cachedHttpClient: HTTPClient | null = null;
+
+/**
+ * The ONE `HTTPClient` every `Polar` instance this process constructs is built with. A `beforeRequest`
+ * hook is the mechanism `@polar-sh/sdk` itself exposes for stamping a header on every outgoing call
+ * (`node_modules/@polar-sh/sdk/dist/commonjs/lib/http.ts`, read directly): mutating the `Request`'s
+ * own headers and returning nothing is enough, since `HTTPClient#request` keeps using the same
+ * `Request` object after every hook runs. Passing this SAME instance as `httpClient` to `new Polar()`
+ * below is what makes every nested resource (`client.customers`, `client.subscriptions`, …) share it:
+ * `ClientSDK`'s own constructor (the `sdks` module inside `@polar-sh/sdk`) copies `options.httpClient` verbatim into `_options`,
+ * and every nested resource is constructed with that same `_options` object.
+ */
+function getPolarHttpClient(): HTTPClient {
+  if (!cachedHttpClient) {
+    cachedHttpClient = new HTTPClient();
+    cachedHttpClient.addHook('beforeRequest', (request) => {
+      request.headers.set('Polar-Version', POLAR_API_VERSION);
+    });
+  }
+  return cachedHttpClient;
+}
 
 export function getPolarClient(): Polar {
   if (!cached) {
@@ -59,6 +90,7 @@ export function getPolarClient(): Polar {
       new Polar({
         accessToken: process.env.POLAR_ACCESS_TOKEN,
         server: resolvePolarServerEnvironment(),
+        httpClient: getPolarHttpClient(),
       }),
     );
   }
@@ -146,10 +178,11 @@ export function withSanitizedPolarErrors<T extends object>(target: T): T {
   }) as T;
 }
 
-/** Test-only: drops the cached client so a spec that swaps env vars (or mocks the SDK) between
- *  cases does not silently reuse an earlier instance. */
+/** Test-only: drops the cached client (and its `HTTPClient`) so a spec that swaps env vars, mocks
+ *  `fetch`, or mocks the SDK between cases does not silently reuse an earlier instance. */
 export function resetPolarClientForTests(): void {
   cached = null;
+  cachedHttpClient = null;
 }
 
 /** No named `RateLimitError`/`TooManyRequests` class exists in `@polar-sh/sdk`'s own
