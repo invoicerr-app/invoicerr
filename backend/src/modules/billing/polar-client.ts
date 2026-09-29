@@ -71,7 +71,7 @@ let cachedHttpClient: HTTPClient | null = null;
  * own headers and returning nothing is enough, since `HTTPClient#request` keeps using the same
  * `Request` object after every hook runs. Passing this SAME instance as `httpClient` to `new Polar()`
  * below is what makes every nested resource (`client.customers`, `client.subscriptions`, …) share it:
- * `ClientSDK`'s own constructor (`lib/sdks.ts`) copies `options.httpClient` verbatim into `_options`,
+ * `ClientSDK`'s own constructor (the `sdks` module inside `@polar-sh/sdk`) copies `options.httpClient` verbatim into `_options`,
  * and every nested resource is constructed with that same `_options` object.
  */
 function getPolarHttpClient(): HTTPClient {

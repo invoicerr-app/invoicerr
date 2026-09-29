@@ -247,7 +247,7 @@ describe('getPolarClient sets the Polar-Version header (#536)', () => {
     const client = getPolarClient();
 
     // `list()` resolves to a `PageIterator`, but the FIRST page is already fetched while that
-    // promise itself resolves (`$do()` in the SDK's generated `funcs/productsList.ts`, read
+    // promise itself resolves (`$do()` in the SDK's generated productsList function in `@polar-sh/sdk`, read
     // directly), so awaiting the call is enough to observe the outgoing request: `.next()` is not
     // required to trigger it.
     await client.products.list({}).catch(() => undefined);
