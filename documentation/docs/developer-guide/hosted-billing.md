@@ -9,6 +9,11 @@ sets `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (`backend/src/modules/billing/
 `/api/billing/*` route, no Settings tab, no banner, no lifecycle sweep, no Polar client constructed.
 This page documents the operator's own hosted offering.
 
+Every Polar API call goes through the one shared client in `polar-client.ts`
+(`getPolarClient()`), which pins the `Polar-Version: 2026-04` header on every request via the
+`POLAR_API_VERSION` constant at the top of that file; bump it there when migrating to a newer
+Polar API contract.
+
 ## One Polar customer per COMPANY (option A, 2026-09-16)
 
 Invoicerr bills per **company**, never per user. Each company that ever starts a checkout gets its own
