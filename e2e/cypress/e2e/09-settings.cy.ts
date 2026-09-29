@@ -191,7 +191,7 @@ describe('Settings E2E', () => {
             /**
              * Issue #543's own guard: the desktop nav used to be a `sticky` grid of 21 tiles
              * (#427) tall enough to fill the whole window on its own, pushing the section content
-             * below the fold — a user had to scroll PAST the entire nav before a single pixel of
+             * below the fold: a user had to scroll PAST the entire nav before a single pixel of
              * the actual settings form was on screen, and the nav and the content shared one
              * scroll region instead of each scrolling on its own. This test fails on that layout
              * for two independent reasons: the content is not visible without a prior scroll, and

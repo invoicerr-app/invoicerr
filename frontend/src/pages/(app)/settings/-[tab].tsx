@@ -304,7 +304,7 @@ export default function Settings() {
 
   return (
     // `min-h-0` here (and on `aside`/`main` below) overrides flexbox's default `min-height: auto`,
-    // which otherwise floors a flex item's height at its own content size — without it, a tall tab
+    // which otherwise floors a flex item's height at its own content size: without it, a tall tab
     // (Company, Seats) forced this whole row taller than the viewport, so it was the OUTER app shell
     // that ended up scrolling as one piece (sidebar dragged along with it) instead of `main` alone.
     <div className="flex h-full min-h-0 flex-col lg:flex-row">
@@ -354,7 +354,7 @@ export default function Settings() {
       </div>
 
       {/* The desktop rail: real links (middle-click, keyboard, screen reader all work), grouped
-          under small-caps labels, the active one on the accent ground rather than a filled block —
+          under small-caps labels, the active one on the accent ground rather than a filled block:
           it is a "you are here", not a button to press. */}
       {/* Its own `overflow-y-auto`, independent of `main`'s below: a sidebar this tall only ever
           scrolls on a very short screen, but it must never be main's overflow dragging it along. */}
