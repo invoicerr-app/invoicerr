@@ -182,6 +182,12 @@ const WRITE_WITHOUT_WRITE_SCOPE_IS_CORRECT: Record<string, string> = {
     'returns them. It is a POST only because the values are derived from a request BODY (the ' +
     "in-progress document), which a GET cannot carry. Reading the document's own type is exactly " +
     'the authority it needs, hence the read-mode document-type scope.',
+  'CompanyController#inferLastNumberPattern':
+    'A POST that writes nothing (issue #340): it parses one example number the caller typed and ' +
+    'returns a candidate pattern, never touching a company row or any other stored state. It is a ' +
+    'POST only because the example and its reference date come from a request BODY, which a GET ' +
+    'cannot carry. The suggestion is never authoritative on its own: declare-last-number (below) ' +
+    're-verifies whatever pattern is actually confirmed before writing anything.',
 };
 
 interface HandlerRoute {

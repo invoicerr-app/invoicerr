@@ -112,11 +112,17 @@ function escapeRegExp(value: string): string {
  *  number string, regardless of what pattern produced it (used by Portugal's own declare flow,
  *  which never tries to match `lastNumber` against a caller-chosen pattern the way every other
  *  country does - see `company.service.ts#declarePortugalNewSeries`). `undefined` when `value` has
- *  no digits at all. */
+ *  no digits at all.
+ *
+ *  Deliberately NOT `/(\d+)(?!.*\d)/`: that lookahead re-scans the remainder of the string for every
+ *  position `\d+` could start at, which is polynomial in the length of a long digit run (CodeQL
+ *  `js/polynomial-redos`, flagged against this exact line on a caller-supplied `value`). Collecting
+ *  every digit run with the plain, non-backtracking `/\d+/g` and taking the last one is linear in
+ *  `value`'s length and returns the identical result: the rightmost run, nothing else. */
 export function extractTrailingNumber(value: string): number | undefined {
-  const match = /(\d+)(?!.*\d)/.exec(value.trim());
-  if (!match) return undefined;
-  const parsed = Number.parseInt(match[1], 10);
+  const digitRuns = value.trim().match(/\d+/g);
+  if (!digitRuns) return undefined;
+  const parsed = Number.parseInt(digitRuns[digitRuns.length - 1], 10);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 

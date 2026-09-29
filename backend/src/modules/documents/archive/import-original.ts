@@ -13,8 +13,8 @@
  * (the historical document's own `issueDate`, never `archivedAt`/today: the owner's own decision in
  * #340 is that the retention clock counts from the ORIGINAL date, not the day it was imported into
  * Invoicerr; see `archive/retention/schema.ts`'s own `origin` field, mandatory per rule, and this
- * file's own caller, `actions/document-import.ts`, for why `issueDate` is passed in rather than
- * re-read off the row here).
+ * file's own caller, `import/document-import.service.ts`, for why `issueDate` is passed in rather
+ * than re-read off the row here).
  *
  * Deletion is blocked the same STRUCTURAL way every other legally significant document type's own
  * archive is here: no `delete` action is ever registered for `invoice`/`credit-note`
@@ -55,8 +55,8 @@ export interface ImportOriginalArchiveInput {
 
 /**
  * Writes the ONE `IMPORT_ORIGINAL` archive an imported document ever gets, called once, from the
- * import action's own handler (`actions/document-import.ts`), on the same write that creates the
- * `DocumentInstance` row. Mirrors `persistence.ts#createDocumentArchive`'s own shape (content-hash the
+ * import action's own handler (`import/document-import.service.ts`), on the same write that creates
+ * the `DocumentInstance` row. Mirrors `persistence.ts#createDocumentArchive`'s own shape (content-hash the
  * artifact, persist it, resolve retention, write the row) with the two differences this kind actually
  * needs: a single fixed-role artifact (never a caller-supplied list) and a caller-supplied issue date
  * (there is no `DocumentInstance` row to re-read it off yet at the instant this typically runs, since

@@ -574,6 +574,37 @@ export async function findArchivedPdfArtifact(
   return readArchivedArtifact(archive.uri, pdfMeta.role, pdfMeta.mime);
 }
 
+/** The verbatim original file an "imported" document's IMPORT_ORIGINAL archive holds (issue #340) -
+ *  used by `documents.service.ts#renderInstancePdf` INSTEAD of the DELIVERY-archive lookup above for a
+ *  document at that status, which never has a DELIVERY archive at all (import never sends). `null`
+ *  when the document has no IMPORT_ORIGINAL archive (every "imported" document gets exactly one, at
+ *  the same write that creates it - `archive/import-original.ts` - so this is a storage-read failure,
+ *  never an expected state) or the archive read fails - the same "cannot prove it, answer null" honesty
+ *  `findArchivedPdfArtifact` above holds, left for the caller to turn into a refusal rather than a
+ *  silently invented substitute.
+ *
+ *  Role `'import-original'` matches `archive/import-original.ts#IMPORT_ORIGINAL_ROLE` exactly (that
+ *  file cannot be imported here without a cycle: it already imports `DocumentArchiveResult` from this
+ *  one) - the same hardcoded-string precedent `findArchivedPdfArtifact` sets for role `'pdf'` above. */
+export async function findImportOriginalArtifact(
+  companyId: string,
+  documentId: string,
+): Promise<{ bytes: Buffer; mime: string } | null> {
+  const archive = await prisma.documentArchive.findFirst({
+    where: { companyId, documentId, kind: DocumentArchiveKind.IMPORT_ORIGINAL },
+    orderBy: { archivedAt: 'desc' },
+  });
+  if (!archive) return null;
+
+  const metas = (archive.artifacts ?? []) as unknown as StoredArtifactMeta[];
+  const originalMeta = metas.find((meta) => meta.role === 'import-original');
+  if (!originalMeta) return null;
+
+  const bytes = await readArchivedArtifact(archive.uri, originalMeta.role, originalMeta.mime);
+  if (!bytes) return null;
+  return { bytes, mime: originalMeta.mime };
+}
+
 /** 404 (never null) for an id that does not exist or belongs to another company/document — the same
  *  discipline as `documents/persistence.ts#findOwnedDocument`. */
 export async function findOwnedArchive(
