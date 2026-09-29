@@ -11,7 +11,9 @@ import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/comp
 import { computeContentHash } from '../archive/hashing';
 import * as archiveStorage from '../archive/storage';
 import * as persistence from '../persistence';
+import { createESignatureAcceptanceArchive } from '../archive/persistence';
 import { hashSignatureToken } from './signature-token';
+import { DOCUMENT_CHANGED_CODE, hashDocumentData } from './signed-version';
 import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 import { SignaturesService } from './signatures.service';
 
@@ -29,6 +31,13 @@ vi.mock('nodemailer', async (importOriginal) => {
 });
 
 vi.mock('../persistence');
+// Issue #477 - the e-signature's own ACCEPTANCE archive write. Its storage/retention wiring is
+// `archive/persistence.spec.ts`'s job and the real-Postgres `signature-version-binding.spec.ts` proves
+// the manifest end to end; here only "was it written, naming what" matters.
+vi.mock('../archive/persistence', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../archive/persistence')>()),
+  createESignatureAcceptanceArchive: vi.fn().mockResolvedValue({ id: 'acceptance-1' }),
+}));
 // `archive/storage.ts` itself is unit-tested on its own (archive/storage.spec.ts) — mocked here with
 // a tiny in-memory map keyed by the SAME content-addressed uri the real module would compute, so
 // tests below can prove "the second read returns exactly what the first write persisted" without
@@ -106,9 +115,8 @@ vi.mock('@/prisma/prisma.service', () => {
         signedAt: null,
         isActive: true,
         // Real Prisma returns SQL NULL (=== `null`) for an unset nullable column, never `undefined` —
-        // load-bearing here: `freezeDocumentPdfSnapshot`'s guard is `where: { documentPdfUri: null }`,
-        // and this fake's own `matches()` uses `===`, so an `undefined` default would silently never
-        // match that guard and break the freeze this mock exists to prove.
+        // load-bearing for every `where: { column: null }` guard this fake's own `matches()` evaluates
+        // with `===`: an `undefined` default would silently never match one.
         documentPdfUri: null,
         documentPdfHash: null,
         createdAt: new Date(),
@@ -158,16 +166,31 @@ vi.mock('@/prisma/prisma.service', () => {
         }
       : { subject: 'Your code', body: '<p>Code: {otpCode}</p>' };
 
+  // Issue #477 - the ONE delivered version every quote in this file was "sent" as: the DELIVERY archive
+  // a signature request binds to. Swapped per test (`__deliveryArchive.current`) to simulate a newer
+  // send, or none at all.
+  const deliveryArchive: { current: Record<string, any> | null } = { current: null };
+  const documentArchive = {
+    findFirst: vi.fn(async ({ where }: { where: Record<string, any> }) => {
+      const row = deliveryArchive.current;
+      if (!row) return null;
+      if (where.id !== undefined && where.id !== row.id) return null;
+      return { ...row };
+    }),
+  };
+
   return {
     __esModule: true,
     default: {
       signature,
+      documentArchive,
       mailTemplate: { findFirst: vi.fn(defaultMailTemplateFindFirst) },
       // No company language set by default — `resolveRecipientLanguage`'s own fallback chain then
       // lands on English, the exact behavior every pre-existing test in this file already expects.
       company: { findUnique: vi.fn().mockResolvedValue({ language: null }) },
     },
     __rows: rows,
+    __deliveryArchive: deliveryArchive,
     __defaultMailTemplateFindFirst: defaultMailTemplateFindFirst,
   };
 });
@@ -182,23 +205,13 @@ const SENT_QUOTE = {
   displayNumber: 'QUOTE-2026-0001',
 };
 
-function buildService(
-  webhooks: { dispatch: Mock } = { dispatch: vi.fn().mockResolvedValue(undefined) },
-  documentsService: { renderInstancePdf: Mock } = {
-    renderInstancePdf: vi.fn().mockResolvedValue(Buffer.from('%PDF-1.7 fake rendered bytes')),
-  },
-) {
+function buildService(webhooks: { dispatch: Mock } = { dispatch: vi.fn().mockResolvedValue(undefined) }) {
   const clientsService = {
     getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
   };
   const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
-  const service = new SignaturesService(
-    clientsService as any,
-    mailService as any,
-    webhooks as any,
-    documentsService as any,
-  );
-  return { service, clientsService, mailService, webhooks, documentsService };
+  const service = new SignaturesService(clientsService as any, mailService as any, webhooks as any);
+  return { service, clientsService, mailService, webhooks };
 }
 
 // Resolved once, in `beforeAll` — the same "vi.importMock, not Jest's synchronous require-the-mock
@@ -213,6 +226,7 @@ let mockedPrismaModule: {
     company: { findUnique: Mock };
   };
   __rows: Array<Record<string, any>>;
+  __deliveryArchive: { current: Record<string, any> | null };
   __defaultMailTemplateFindFirst: (args: {
     where: { type: string };
   }) => Promise<{ subject: string; body: string }>;
@@ -225,11 +239,28 @@ function rows(): Array<Record<string, any>> {
   return mockedPrismaModule.__rows;
 }
 
+/** Issue #477 - the bytes the client was actually sent, as the DELIVERY archive holds them. */
+const DELIVERED_PDF = Buffer.from('%PDF-1.7 the delivered bytes');
+const DELIVERY_ARCHIVE = {
+  id: 'delivery-archive-1',
+  companyId: 'company-1',
+  documentId: 'quote-1',
+  kind: 'DELIVERY',
+  contentHash: 'a'.repeat(64),
+  uri: 'file:///fake-archive/quote-1/delivered',
+  artifacts: [
+    { role: 'pdf', mime: 'application/pdf', byteLength: DELIVERED_PDF.length, sha256: 'b'.repeat(64) },
+  ],
+  archivedAt: new Date('2026-09-27T10:00:00Z'),
+};
+
 describe('SignaturesService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     rows().length = 0;
     archivedFiles.clear();
+    mockedPrismaModule.__deliveryArchive.current = { ...DELIVERY_ARCHIVE };
+    archivedFiles.set(DELIVERY_ARCHIVE.uri, DELIVERED_PDF);
     // See the mock factory's own comment: implementations survive `clearAllMocks`, so the stored-template
     // fixture is put back deliberately before every test.
     const mock = mockedPrismaModule;
@@ -289,6 +320,43 @@ describe('SignaturesService', () => {
       expect(first.isActive).toBe(false);
       expect(rows()[1].isActive).toBe(true);
     });
+
+    it('issue #477 - binds the new request to the delivered version and the data it was rendered from', async () => {
+      const { service } = buildService();
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      expect(rows()[0]).toMatchObject({
+        deliveryArchiveId: DELIVERY_ARCHIVE.id,
+        deliveryContentHash: DELIVERY_ARCHIVE.contentHash,
+        documentData: SENT_QUOTE.data,
+        documentDataHash: hashDocumentData(SENT_QUOTE.data),
+      });
+    });
+
+    it('issue #477 - refuses (409) to issue a request when no delivered PDF is archived, and mails nothing', async () => {
+      const { service, mailService } = buildService();
+      mockedPrismaModule.__deliveryArchive.current = null;
+
+      await expect(service.requestSignature('company-1', 'quote', 'quote-1')).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(rows()).toHaveLength(0);
+      expect(mailService.sendForCompany).not.toHaveBeenCalled();
+    });
+
+    it("issue #477 - refuses (409) when the only archive predates the latest send's confirmed delivery", async () => {
+      const { service } = buildService();
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        ...SENT_QUOTE,
+        deliveryConfirmedAt: new Date(DELIVERY_ARCHIVE.archivedAt.getTime() + 1000),
+      });
+
+      await expect(service.requestSignature('company-1', 'quote', 'quote-1')).rejects.toThrow(
+        /not archived yet/,
+      );
+      expect(rows()).toHaveLength(0);
+    });
   });
 
   describe('the public flow — resolve / otp / sign', () => {
@@ -305,7 +373,13 @@ describe('SignaturesService', () => {
       const view = await service.resolvePublicSignature(token);
       // Issue #373 ("quotes with options") - `options: null` for a quote with fewer than two of
       // them, the fixture's own case here - see `PublicSignatureView.options`'s own header.
-      expect(view).toEqual({ typeId: 'quote', displayNumber: 'QUOTE-2026-0001', options: null });
+      expect(view).toEqual({
+        typeId: 'quote',
+        displayNumber: 'QUOTE-2026-0001',
+        options: null,
+        changed: false,
+        version: { archiveId: DELIVERY_ARCHIVE.id, contentHash: DELIVERY_ARCHIVE.contentHash },
+      });
     });
 
     it('an unknown token gives the SAME generic refusal everywhere', async () => {
@@ -324,21 +398,36 @@ describe('SignaturesService', () => {
       );
     });
 
-    describe('getPublicDocument — the frozen "what was reviewed" snapshot', () => {
-      it('renders once, freezes the bytes, and serves that SAME copy on every later call', async () => {
-        const { service, mailService, documentsService } = buildService();
+    describe('getPublicDocument - issue #477: the delivered PDF of the bound version, never a render', () => {
+      it('serves the bound DELIVERY archive bytes, byte for byte, on every call, and never renders', async () => {
+        const { service, mailService } = buildService();
         const token = await requestAndGetToken(service, mailService);
 
         const first = await service.getPublicDocument(token);
         const second = await service.getPublicDocument(token);
 
-        expect(documentsService.renderInstancePdf).toHaveBeenCalledTimes(1);
-        expect(second.bytes.equals(first.bytes)).toBe(true);
-        expect(rows()[0].documentPdfUri).toEqual(expect.any(String));
-        expect(rows()[0].documentPdfHash).toMatch(/^[0-9a-f]{64}$/);
+        expect(first.bytes.equals(DELIVERED_PDF)).toBe(true);
+        expect(second.bytes.equals(DELIVERED_PDF)).toBe(true);
       });
 
-      it('an already-signed token can no longer fetch the document — same generic refusal', async () => {
+      it('still serves the BOUND version after a newer send archived another one', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        mockedPrismaModule.__deliveryArchive.current = {
+          ...DELIVERY_ARCHIVE,
+          id: 'delivery-archive-2',
+          contentHash: 'c'.repeat(64),
+          uri: 'file:///fake-archive/quote-1/newer',
+        };
+        archivedFiles.set('file:///fake-archive/quote-1/newer', Buffer.from('%PDF newer'));
+
+        // The fake's `findFirst({ where: { id } })` only knows the newest row now - the bound one is
+        // gone from it, which is what a real lookup by the bound id would never do; a 409 here proves
+        // the page looked the BOUND id up, and never fell back to "the latest".
+        await expect(service.getPublicDocument(token)).rejects.toBeInstanceOf(ConflictException);
+      });
+
+      it('an already-signed token can no longer fetch the document - same generic refusal', async () => {
         const { service, mailService } = buildService();
         const token = await requestAndGetToken(service, mailService);
         await service.getPublicDocument(token); // the reviewer opened it before verifying the OTP
@@ -356,16 +445,12 @@ describe('SignaturesService', () => {
         );
       });
 
-      it('a snapshot missing from storage is re-rendered rather than served as a 500', async () => {
-        const { service, mailService, documentsService } = buildService();
+      it('delivered bytes missing from storage are a 409, never replaced by a fresh render', async () => {
+        const { service, mailService } = buildService();
         const token = await requestAndGetToken(service, mailService);
-        await service.getPublicDocument(token);
         archivedFiles.clear(); // simulate an operator having wiped the archive store by hand
 
-        const result = await service.getPublicDocument(token);
-
-        expect(result.bytes).toBeInstanceOf(Buffer);
-        expect(documentsService.renderInstancePdf).toHaveBeenCalledTimes(2);
+        await expect(service.getPublicDocument(token)).rejects.toBeInstanceOf(ConflictException);
       });
     });
 
@@ -509,15 +594,12 @@ describe('SignaturesService', () => {
         expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
       });
 
-      // Round 3 review, point 4 ("after a refused option, the client cannot choose again") - proves
-      // the two facts the frontend fix relies on: the refusal carries `OPTION_NO_LONGER_VALID_CODE`
-      // (what the public page matches on to know to show the chooser again rather than treat this
-      // like a wrong code) AND the OTP itself survives the refusal untouched, no failed attempt is
-      // recorded and the row stays active - so a retry with the SAME code, once a still-valid option
-      // is named, succeeds. Simulates "the issuer renamed Premium to Gold while the client waited for
-      // the code" by swapping `findOwnedDocument`'s own mock between the two `verifyAndSign` calls -
-      // `markSigned` re-reads the document fresh on every call rather than trusting an earlier read.
-      it('carries a stable code, and leaves the OTP itself valid, when the chosen option no longer exists', async () => {
+      // Issue #477 supersedes #475's round 3 point 4: an option renamed while the client waited for
+      // the code used to be refused as OPTION_NO_LONGER_VALID and the client offered the NEW options,
+      // i.e. asked to sign content their PDF did not show. The rename now makes the whole request
+      // unsignable (DOCUMENT_CHANGED_SINCE_REQUEST); the code is not burned, and the only way forward
+      // is a new send and a new request.
+      it('refuses with DOCUMENT_CHANGED_SINCE_REQUEST, never signs the renamed option, when the quote changed', async () => {
         (persistence.findOwnedDocument as Mock).mockResolvedValue(MULTI_OPTION_QUOTE);
         const { service, mailService } = buildService();
         const token = await requestAndGetToken(service, mailService);
@@ -534,21 +616,20 @@ describe('SignaturesService', () => {
         };
         (persistence.findOwnedDocument as Mock).mockResolvedValue(RENAMED_QUOTE);
 
-        const failure = await service.verifyAndSign(token, code, 'Premium').catch((err) => err);
-        expect(failure).toBeInstanceOf(BadRequestException);
-        expect((failure as BadRequestException).getResponse()).toMatchObject({
-          code: 'OPTION_NO_LONGER_VALID',
-        });
+        for (const choice of ['Premium', 'Gold']) {
+          const failure = await service.verifyAndSign(token, code, choice).catch((err) => err);
+          expect(failure).toBeInstanceOf(ConflictException);
+          expect((failure as ConflictException).getResponse()).toMatchObject({
+            code: DOCUMENT_CHANGED_CODE,
+          });
+        }
         expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
-        // Neither a failed OTP attempt nor a lock - this refusal never reached `recordFailedAttempt`
-        // (it happens inside `markSigned`, entirely after the OTP match already succeeded).
         expect(rows()[0].otpFailedAttempts).toBe(0);
-        expect(rows()[0].isActive).toBe(true);
-
-        // The SAME code, now naming the CURRENT option, still works - no fresh mint was needed.
-        await service.verifyAndSign(token, code, 'Gold');
-        expect(rows()[0].chosenOption).toBe('Gold');
-        expect(rows()[0].signedAt).not.toBeNull();
+        expect(rows()[0].signedAt).toBeNull();
+        // The page learns it too, and still lists the options the client's PDF shows.
+        const view = await service.resolvePublicSignature(token);
+        expect(view.changed).toBe(true);
+        expect(view.options?.map((o) => o.name)).toEqual(['Basic', 'Premium']);
       });
 
       it('signs with a valid option, writing it on the SAME write as "signed" and on the Signature row', async () => {
@@ -572,6 +653,16 @@ describe('SignaturesService', () => {
           MULTI_OPTION_QUOTE.updatedAt,
         );
         expect(rows()[0].chosenOption).toBe('Premium');
+        // Issue #477 - the WORM record names the bound version, with the chosen option frozen.
+        expect(createESignatureAcceptanceArchive).toHaveBeenCalledTimes(1);
+        const call = (createESignatureAcceptanceArchive as Mock).mock.calls[0][0];
+        expect(call.parentArchiveId).toBe(DELIVERY_ARCHIVE.id);
+        expect(JSON.parse(Buffer.from(call.manifest).toString('utf8'))).toMatchObject({
+          kind: 'e-signature',
+          signatureId: rows()[0].id,
+          deliveredVersion: { archiveId: DELIVERY_ARCHIVE.id, contentHash: DELIVERY_ARCHIVE.contentHash },
+          option: { name: 'Premium', grossMinor: 20000 },
+        });
       });
     });
 
@@ -694,6 +785,85 @@ describe('SignaturesService', () => {
       await expect(service.verifyAndSign(token, code)).rejects.toBeInstanceOf(ConflictException);
     });
 
+    describe('issue #477 - a request is only signable while its bound version is current', () => {
+      it('refuses once the data changed, before the code is even checked: no attempt burned, no code mailed', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          ...SENT_QUOTE,
+          data: { ...SENT_QUOTE.data, notes: 'Payment terms: 90 days.' },
+        });
+
+        const wrongCode = await service.verifyAndSign(token, '00000000').catch((err) => err);
+        expect((wrongCode as ConflictException).getResponse()).toMatchObject({ code: DOCUMENT_CHANGED_CODE });
+        const rightCode = await service.verifyAndSign(token, code).catch((err) => err);
+        expect((rightCode as ConflictException).getResponse()).toMatchObject({ code: DOCUMENT_CHANGED_CODE });
+        expect(rows()[0].otpFailedAttempts).toBe(0);
+
+        mailService.sendForCompany.mockClear();
+        await expect(service.requestOtp(token)).rejects.toBeInstanceOf(ConflictException);
+        expect(mailService.sendForCompany).not.toHaveBeenCalled();
+        expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+      });
+
+      it('refuses once a newer send replaced the bound delivery, even with byte-identical data', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+        mockedPrismaModule.__deliveryArchive.current = {
+          ...DELIVERY_ARCHIVE,
+          id: 'delivery-archive-2',
+          contentHash: 'c'.repeat(64),
+        };
+
+        await expect(service.verifyAndSign(token, code)).rejects.toBeInstanceOf(ConflictException);
+        expect((await service.resolvePublicSignature(token)).changed).toBe(true);
+      });
+
+      it('a re-send whose PDF hashes to the same content keeps the request signable', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+        mockedPrismaModule.__deliveryArchive.current = { ...DELIVERY_ARCHIVE, id: 'delivery-archive-2' };
+
+        await expect(service.verifyAndSign(token, code)).resolves.toMatchObject({
+          message: 'Document signed.',
+        });
+      });
+
+      it('key order in the stored JSON is not a change (Postgres jsonb does not keep it)', async () => {
+        const { service, mailService } = buildService();
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          ...SENT_QUOTE,
+          data: { client: 'client-1', currency: 'EUR', lines: [{ description: 'x', quantity: 1 }] },
+        });
+        const token = await requestAndGetToken(service, mailService);
+        (persistence.findOwnedDocument as Mock).mockResolvedValue({
+          ...SENT_QUOTE,
+          data: { lines: [{ quantity: 1, description: 'x' }], currency: 'EUR', client: 'client-1' },
+        });
+
+        expect((await service.resolvePublicSignature(token)).changed).toBe(false);
+      });
+
+      it('a row created before the binding existed is never signable', async () => {
+        const { service, mailService } = buildService();
+        const token = await requestAndGetToken(service, mailService);
+        const code = await mintedCode(service, mailService, token);
+        Object.assign(rows()[0], {
+          deliveryArchiveId: null,
+          deliveryContentHash: null,
+          documentData: null,
+          documentDataHash: null,
+        });
+
+        await expect(service.verifyAndSign(token, code)).rejects.toBeInstanceOf(ConflictException);
+        await expect(service.getPublicDocument(token)).rejects.toBeInstanceOf(ConflictException);
+        expect((await service.resolvePublicSignature(token)).version).toBeNull();
+      });
+    });
+
     it('sends BOTH an html and a text part — never an html-only message', async () => {
       const { service, mailService } = buildService();
 
@@ -736,7 +906,6 @@ describe('SignaturesService', () => {
         clientsService as any,
         mailService as any,
         { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
-        { renderInstancePdf: vi.fn() } as any,
       );
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -758,7 +927,6 @@ describe('SignaturesService', () => {
         clientsService as any,
         mailService as any,
         { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
-        { renderInstancePdf: vi.fn() } as any,
       );
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -778,7 +946,6 @@ describe('SignaturesService', () => {
         clientsService as any,
         mailService as any,
         { dispatch: vi.fn().mockResolvedValue(undefined) } as any,
-        { renderInstancePdf: vi.fn() } as any,
       );
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
@@ -882,12 +1049,9 @@ describe('SignaturesService', () => {
       const clientsService = {
         getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
       };
-      const service = new SignaturesService(
-        clientsService as any,
-        new MailService(),
-        { dispatch: vi.fn() } as any,
-        { renderInstancePdf: vi.fn() } as any,
-      );
+      const service = new SignaturesService(clientsService as any, new MailService(), {
+        dispatch: vi.fn(),
+      } as any);
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
 
@@ -905,12 +1069,9 @@ describe('SignaturesService', () => {
       const clientsService = {
         getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
       };
-      const service = new SignaturesService(
-        clientsService as any,
-        new MailService(),
-        { dispatch: vi.fn() } as any,
-        { renderInstancePdf: vi.fn() } as any,
-      );
+      const service = new SignaturesService(clientsService as any, new MailService(), {
+        dispatch: vi.fn(),
+      } as any);
 
       const result = await service.requestSignature('company-1', 'quote', 'quote-1');
 
@@ -935,12 +1096,9 @@ describe('SignaturesService', () => {
         const clientsService = {
           getClientById: vi.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
         };
-        const service = new SignaturesService(
-          clientsService as any,
-          new MailService(),
-          { dispatch: vi.fn() } as any,
-          { renderInstancePdf: vi.fn() } as any,
-        );
+        const service = new SignaturesService(clientsService as any, new MailService(), {
+          dispatch: vi.fn(),
+        } as any);
         await service.requestSignature('company-1', 'quote', 'quote-1');
         // `resolveActiveOrThrow` compares HASHES, so requesting the OTP below needs the RAW token —
         // recovered from the signature-request email itself, the same way every other public-flow test

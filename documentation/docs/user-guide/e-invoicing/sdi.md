@@ -68,15 +68,26 @@ Invoice lifecycle:
 
 Once you have your credentials, configure the SDI channel in Invoicerr:
 
-1. Go to **Settings → E-invoicing → Channels**.
-2. Click **Connect** on the SDI card.
-3. Fill in the four fields this channel actually asks for:
+1. Go to **Settings → E-invoicing**. The screen shows legal channels on the left and, for the
+   selected one, the operators that implement it on the right. For an Italian company, **Sistema
+   di Interscambio (SdI)** is the country's own legal channel; it opens pre-selected and carries a
+   "Mandatory" badge (SdI has been the law since 2019).
+2. Select **Sistema di Interscambio (SdI)** on the left, then find **Sistema di Interscambio (SdI)
+   - direct (SDICoop)** in the operator list on the right and click **Connect**:
+
+   <img src="/img/settings-channels-sdi.png" alt="The SdI legal channel, with the direct SDICoop operator to connect" width="700" />
+
+   A-Cube also appears in this list and builds the same FatturaPA format, but Italy's own SdI
+   mandate is satisfied only by the direct channel or a PEC mailbox, never by A-Cube specifically;
+   connecting it instead would show as refused at send. See the SDICoop accreditation prerequisite
+   above for why the direct operator is what this guide connects.
+3. In the side sheet that opens, fill in the four fields this channel actually asks for:
    - **IdTrasmittente** — your transmitter ID from step 3 above
    - **SdIRiceviFile endpoint URL** — the exact URL the Revenue Agency handed your accredited account
    - **PFX certificate (base64)** — your SdICoop client certificate
    - **Certificate password** — optional; a real PFX can legitimately carry an empty one
    - **Environment** — `TEST` or `PRODUCTION` (the same selector every channel offers)
-4. Save the configuration.
+4. Click **Connect** at the bottom of the side sheet.
 
 This module is implemented but, as of this writing, has never been run against SdI's real
 production endpoint — see the accreditation note above and "Known limitation" below before relying

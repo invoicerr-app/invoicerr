@@ -1,4 +1,5 @@
 import prisma from '@/prisma/prisma.service';
+import { Prisma } from '../../../../prisma/generated/prisma/client';
 
 import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 
@@ -32,6 +33,12 @@ export interface SignatureRecord {
   chosenOption: string | null;
   documentPdfUri: string | null;
   documentPdfHash: string | null;
+  /** Issue #477 - the version this request is bound to. See `Signature.deliveryArchiveId`'s own
+   *  schema comment and `signed-version.ts`. All null for a row created before the binding existed. */
+  deliveryArchiveId: string | null;
+  deliveryContentHash: string | null;
+  documentData: unknown;
+  documentDataHash: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +56,14 @@ export async function createSignatureForDocument(input: {
   typeId: string;
   documentId: string;
   tokenHash: string;
+  /** Issue #477 - the delivered version this request is bound to, written on the SAME create as the
+   *  row itself: a request never exists, even for an instant, without the version it signs. */
+  version: {
+    deliveryArchiveId: string;
+    deliveryContentHash: string;
+    documentData: Record<string, unknown>;
+    documentDataHash: string;
+  };
 }): Promise<SignatureRecord> {
   await prisma.signature.updateMany({
     where: { documentId: input.documentId, isActive: true },
@@ -60,6 +75,10 @@ export async function createSignatureForDocument(input: {
       typeId: input.typeId,
       documentId: input.documentId,
       tokenHash: input.tokenHash,
+      deliveryArchiveId: input.version.deliveryArchiveId,
+      deliveryContentHash: input.version.deliveryContentHash,
+      documentData: input.version.documentData as Prisma.InputJsonValue,
+      documentDataHash: input.version.documentDataHash,
     },
   });
 }
@@ -149,26 +168,4 @@ export async function markSignatureSigned(id: string, chosenOption?: string): Pr
       ...(chosenOption !== undefined ? { chosenOption } : {}),
     },
   });
-}
-
-/**
- * Freezes the "what the signer reviewed" PDF snapshot — ATOMIC and FIRST-WRITE-WINS, the same shape
- * `mintOtpChallenge`'s own header documents for the identical concurrency problem: two requests that
- * both observe `documentPdfUri === null` and race to render/persist their own copy must not both
- * "win" and leave the row pointing at whichever write happened to run last. The `updateMany`'s own
- * `where: { documentPdfUri: null }` is re-checked by Postgres at write time, so only the FIRST of two
- * concurrent freezes actually changes the row; the second's `updateMany` matches zero rows and its
- * own freshly-rendered (and now orphaned) bytes are simply never referenced by anything. The caller
- * (`SignaturesService.getPublicDocument`) re-fetches afterward and serves whichever snapshot actually
- * won, not necessarily its own — see that method's own header.
- */
-export async function freezeDocumentPdfSnapshot(
-  id: string,
-  snapshot: { uri: string; hash: string },
-): Promise<SignatureRecord> {
-  await prisma.signature.updateMany({
-    where: { id, documentPdfUri: null },
-    data: { documentPdfUri: snapshot.uri, documentPdfHash: snapshot.hash },
-  });
-  return prisma.signature.findUniqueOrThrow({ where: { id } });
 }

@@ -18,7 +18,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `GET /api/webhooks/options` reflects `Object.values(WebhookEvent)` directly — no screen change
  * was needed for that, only this spec.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("The DOCUMENT_SENT webhook fires when an invoice is genuinely sent", () => {
 	before(() => {

@@ -13,7 +13,7 @@ import { logoDataUriFor } from '../documents/rendering/branding/logo-storage';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 import { SignaturesService } from '../documents/signatures/signatures.service';
 import { computeDocumentTotals } from '../documents/totals/compute-totals';
-import { deriveQuoteOptions } from '../documents/options/quote-options';
+import { acceptedOptionTotals, deriveQuoteOptions } from '../documents/options/quote-options';
 import {
   DIRECT_CLIENT_FIELD_KEY,
   clientVisibleStatusIds,
@@ -46,11 +46,13 @@ export interface PortalQuoteRow {
    *  balance math is ever surfaced, and it is never recomputed there either.
    *  Null - issue #373 ("quotes with options") - for a quote offering 2+ options: summing every
    *  option's lines together would be exactly the meaningless total this issue exists to stop
-   *  printing; `optionCount` below is what the portal shows in its place. */
+   *  printing; `optionCount` below is what the portal shows in its place. Issue #479: once an option
+   *  is accepted (`acceptedOption`), this is that option's own total again, never null. */
   amountMinor: number | null;
   /** Issue #373 ("quotes with options") - how many distinct options this quote offers, so the portal
    *  can say "N options" in place of a single amount; 0 for an ordinary single/no-option quote (never
-   *  shown, `amountMinor` carries the real figure instead). */
+   *  shown, `amountMinor` carries the real figure instead). Also 0 once an option is accepted
+   *  (issue #479): the accepted option's total is then in `amountMinor`. */
   optionCount: number;
   /** Whether this row still awaits the client's own decision — exactly `status === 'sent'`, the one
    *  status `requestQuoteSignature`/`refuseQuote` below both require. */
@@ -146,8 +148,11 @@ export class PortalService {
     const rows: PortalQuoteRow[] = [];
     for (const quote of quotes) {
       const data = (quote.data ?? {}) as Record<string, unknown>;
-      // Issue #373 ("quotes with options") - see `PortalQuoteRow.amountMinor`'s own header.
+      // Issue #373 ("quotes with options") - see `PortalQuoteRow.amountMinor`'s own header. Issue
+      // #479: once an option is accepted, that option's own total is the quote's amount again.
       const options = deriveQuoteOptions(data);
+      const accepted = acceptedOptionTotals(data, quote.acceptedOption);
+      const showsOptionCount = options.length >= 2 && !accepted;
 
       rows.push({
         id: quote.id,
@@ -155,8 +160,12 @@ export class PortalService {
         status: quote.status,
         issueDate: typeof data.issueDate === 'string' ? data.issueDate : null,
         currency: typeof data.currency === 'string' ? data.currency : '',
-        amountMinor: options.length >= 2 ? null : computeDocumentTotals(descriptor, data).grossMinor,
-        optionCount: options.length >= 2 ? options.length : 0,
+        amountMinor: accepted
+          ? accepted.grossMinor
+          : showsOptionCount
+            ? null
+            : computeDocumentTotals(descriptor, data).grossMinor,
+        optionCount: showsOptionCount ? options.length : 0,
         canRespond: quote.status === 'sent',
       });
     }

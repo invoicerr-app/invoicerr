@@ -62,7 +62,85 @@ import {
   PEC_RAW_ATTACHMENT_SAFE_MAX_BYTES,
   resolvePecRecipient,
 } from './sdi-pec/pec-protocol';
-import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
+import {
+  CredentialFieldDescriptor,
+  DocumentTransport,
+  DocumentTransportContext,
+  DocumentTransportResult,
+  formatBuildInputOf,
+} from './transport-registry';
+
+/** Issue #526 - exactly the eight fields `extractSdiPecCredentials` below reads. No frontend entry
+ * existed for this provider before this catalogue - `channels.settings.tsx`'s own `PROVIDER_FIELDS`
+ * never had an "sdi-pec" key. `smtpSecure` is NOT required (defaults to `false` - see
+ *  `extractSdiPecCredentials`'s own header) and `sdiReplyAddress` is both NOT required and
+ * `learnedByBackend` - see `SdiPecCredentials.sdiReplyAddress`'s own header: it is written onto the
+ *  SAME stored config blob by `pec-notifiche.service.ts` once SdI's own first reply names it, never
+ *  typed by a human, so a connect form must read it back (to show it) but never render an editable
+ *  input for it. */
+export const SDI_PEC_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'pecAddress',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'yourcompany@pec.example.it',
+    labelKey: 'settings.channels.fields.sdiPecAddress',
+  },
+  {
+    key: 'smtpHost',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'smtps.pec.example.it',
+    labelKey: 'settings.channels.fields.sdiPecSmtpHost',
+  },
+  {
+    key: 'smtpPort',
+    kind: 'text',
+    valueType: 'number',
+    required: true,
+    placeholder: '465',
+    labelKey: 'settings.channels.fields.sdiPecSmtpPort',
+  },
+  {
+    key: 'smtpSecure',
+    kind: 'text',
+    valueType: 'boolean',
+    required: false,
+    labelKey: 'settings.channels.fields.sdiPecSmtpSecure',
+  },
+  {
+    key: 'username',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.sdiPecUsername',
+  },
+  {
+    key: 'password',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.sdiPecPassword',
+  },
+  {
+    key: 'idTrasmittente',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'IT01234567890',
+    labelKey: 'settings.channels.fields.sdiPecIdTrasmittente',
+  },
+  {
+    key: 'sdiReplyAddress',
+    kind: 'text',
+    valueType: 'string',
+    required: false,
+    labelKey: 'settings.channels.fields.sdiPecReplyAddress',
+    learnedByBackend: true,
+  },
+];
 
 export interface SdiPecTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -97,13 +175,13 @@ interface SdiPecCredentials {
 }
 
 /** Extracts and validates the fields this transport needs — shared by `preflight()` and `send()`, the
- *  same split `sdi-transport.ts#extractCredentials` already holds. `smtpSecure` defaults to `false`
+ *  same split `sdi-transport.ts#extractSdiCredentials` already holds. `smtpSecure` defaults to `false`
  *  when absent (most PEC providers' documented SMTP submission port is either always-TLS or
  *  STARTTLS-capable on 587 — nothing in the read specification pins one specific provider's port
  *  convention, so this is a permissive default a company's own settings screen is expected to
  *  override, never a fact claimed from a source). `sdiReplyAddress` stays optional — its ABSENCE is the
  *  ordinary state for a company that has never sent through this channel yet. */
-function extractCredentials(resolved: ResolvedChannelConfig): SdiPecCredentials | null {
+export function extractSdiPecCredentials(resolved: ResolvedChannelConfig): SdiPecCredentials | null {
   const { pecAddress, smtpHost, smtpPort, smtpSecure, username, password, idTrasmittente, sdiReplyAddress } =
     resolved.config;
   if (typeof pecAddress !== 'string' || !pecAddress) return null;
@@ -129,7 +207,7 @@ async function requireConnectedSdiPec(
   companyId: string,
 ): Promise<SdiPecCredentials> {
   const resolved = await channelCredentials.resolveActive(companyId, SDI_PEC_PROVIDER_ID);
-  const credentials = resolved && extractCredentials(resolved);
+  const credentials = resolved && extractSdiPecCredentials(resolved);
   if (!credentials) {
     logger.warn('SdI-via-PEC transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
@@ -153,10 +231,20 @@ export function buildSdiPecTransport(deps: SdiPecTransportDeps): DocumentTranspo
       await requireConnectedSdiPec(deps.channelCredentials, companyId);
     },
 
+    // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
+    deliversCreditNotes: true,
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: SDI_PEC_CREDENTIAL_FIELDS,
+    parseCredentials: extractSdiPecCredentials,
+
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       const credentials = await requireConnectedSdiPec(deps.channelCredentials, ctx.companyId);
 
-      const data = (ctx.document.data ?? {}) as Record<string, unknown>;
+      // Issue #499: built from `ctx.formatSource` when the caller set one (a credit note, built from the
+      // invoice it corrects), from the delivered invoice itself otherwise (`formatBuildInputOf`).
+      const buildInput = formatBuildInputOf(ctx, INVOICE_DESCRIPTOR);
+      const data = (buildInput.document.data ?? {}) as Record<string, unknown>;
       const clientId = typeof data.client === 'string' ? data.client : undefined;
       const [company, client] = await Promise.all([
         prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
@@ -182,10 +270,12 @@ export function buildSdiPecTransport(deps: SdiPecTransportDeps): DocumentTranspo
       }
 
       const buildResult = await deps.fatturapaFormatProvider.build(
-        INVOICE_DESCRIPTOR,
-        ctx.document,
+        buildInput.descriptor,
+        buildInput.document,
         companyToFormatParty(company),
         clientToFormatParty(client),
+        ctx.companyId,
+        buildInput.options,
       );
       if (!buildResult.validation.valid) {
         throw new BadRequestException({

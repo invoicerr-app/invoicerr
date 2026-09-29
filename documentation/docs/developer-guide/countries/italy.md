@@ -13,7 +13,8 @@ runs for a company established there. Support is per mechanism, not a single yes
 :::
 
 Italy's entries name SdI as its invoice transmission platform, and FatturaPA as the format it
-carries.
+carries. An Italian seller's foreign-currency invoice also states both its VAT and its taxable
+amount in euros, at the ECB's rate, frozen at issue.
 
 This page is a pointer by design. Everything Invoicerr knows about Italy lives in its own data
 files, and two pages already say it without anyone retyping it:

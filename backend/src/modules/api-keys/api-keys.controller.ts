@@ -11,6 +11,7 @@ import { CurrentUser } from '@/types/user';
 import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
 import { RequiresScope } from '@/utils/scope-check';
+import { DemoRestricted } from '@/decorators/demo-restricted.decorator';
 
 @ApiTags('api-keys')
 @Controller('api-keys')
@@ -35,6 +36,10 @@ export class ApiKeysController {
       'The plaintext key is only ever returned in this response — it cannot be retrieved again afterwards.',
   })
   @ApiResponse({ status: 201, description: 'API key created' })
+  // Demo instance (issue #533): API keys are refused outright, a long-lived bearer credential minted
+  // on a demo instance would survive the next 4-hour reset even though everything it could reach does
+  // not. See `guards/demo-restricted.guard.ts`.
+  @DemoRestricted()
   async create(@ActiveCompany() companyId: string, @User() user: CurrentUser, @Body() dto: CreateApiKeyDto) {
     return this.apiKeysService.create(companyId, user.id, dto.name, dto.scopes);
   }
@@ -52,6 +57,7 @@ export class ApiKeysController {
   @ApiOperation({ summary: 'Revoke an API key' })
   @ApiParam({ name: 'id', type: String, description: 'API key ID' })
   @ApiResponse({ status: 200, description: 'API key revoked' })
+  @DemoRestricted()
   async revoke(@ActiveCompany() companyId: string, @Param('id') id: string) {
     await this.apiKeysService.revoke(companyId, id);
     return { success: true };

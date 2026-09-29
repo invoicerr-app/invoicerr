@@ -31,6 +31,7 @@ import { ActionRegistry } from '../actions/action-registry';
 import { registerAcceptManuallyAction } from '../actions/quote-manual-acceptance';
 import { generateOtpCode, hashOtpCode } from './otp';
 import { generateSignatureToken } from './signature-token';
+import { hashDocumentData } from './signed-version';
 import { SignaturesService } from './signatures.service';
 
 const ACTOR = { id: 'user-1', name: 'Jane Doe', email: 'jane@example.com' };
@@ -82,6 +83,20 @@ describe('quote acceptance race - manual acceptance vs. OTP signature (issue #37
       },
     });
 
+    // Issue #477 - a signature request is only signable while bound to the quote's current delivered
+    // version; an unbound row would lose every round by construction and turn this race into a
+    // no-op. The DELIVERY archive row stands in for the one the quote's own send wrote.
+    const delivery = await prisma.documentArchive.create({
+      data: {
+        companyId,
+        documentId: quote.id,
+        kind: DocumentArchiveKind.DELIVERY,
+        contentHash: `race-${quote.id}`,
+        uri: `file:///nowhere/${quote.id}`,
+        artifacts: [{ role: 'pdf', mime: 'application/pdf', byteLength: 0, sha256: 'none' }],
+      },
+    });
+
     const { token, tokenHash } = generateSignatureToken();
     const code = generateOtpCode();
     const signature = await prisma.signature.create({
@@ -92,18 +107,20 @@ describe('quote acceptance race - manual acceptance vs. OTP signature (issue #37
         tokenHash,
         otpCodeHash: hashOtpCode(code),
         otpExpiresAt: new Date(Date.now() + 60_000),
+        deliveryArchiveId: delivery.id,
+        deliveryContentHash: delivery.contentHash,
+        documentData: quote.data as object,
+        documentDataHash: hashDocumentData(quote.data),
       },
     });
 
     const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
     const clientsService = { getClientById: vi.fn().mockResolvedValue(null) };
     const mailService = { sendForCompany: vi.fn().mockResolvedValue(undefined) };
-    const documentsService = { renderInstancePdf: vi.fn() };
     const signaturesService = new SignaturesService(
       clientsService as never,
       mailService as never,
       webhooks as never,
-      documentsService as never,
     );
 
     const registry = new ActionRegistry();
@@ -136,6 +153,11 @@ describe('quote acceptance race - manual acceptance vs. OTP signature (issue #37
     const archives = await prisma.documentArchive.findMany({
       where: { documentId: quote.id, kind: DocumentArchiveKind.ACCEPTANCE },
     });
+    // Issue #477: the e-signature writes an ACCEPTANCE archive of its own (`role: 'e-signature'`), so
+    // "which acceptance wrote one" is read off the artifact role, never the kind alone.
+    const acceptanceRoles = archives.flatMap((row) =>
+      (row.artifacts as Array<{ role: string }>).map((artifact) => artifact.role),
+    );
 
     if (manualResult.status === 'fulfilled') {
       // Manual acceptance won: the stored fact is "Basic", nowhere overwritten by the OTP signature.
@@ -150,6 +172,7 @@ describe('quote acceptance race - manual acceptance vs. OTP signature (issue #37
       expect(finalSignature.chosenOption).toBeNull();
       expect(finalSignature.isActive).toBe(true); // never consumed by a signature that never took
       expect(webhooks.dispatch).not.toHaveBeenCalled();
+      expect(acceptanceRoles).not.toContain('e-signature');
     } else {
       // The OTP signature won: the stored fact is "Premium".
       expect(finalQuote.status).toBe('signed');
@@ -166,7 +189,7 @@ describe('quote acceptance race - manual acceptance vs. OTP signature (issue #37
       // compare-and-swap in quote-manual-acceptance.ts, so a lost CAS never reaches them).
       expect(manualResult.status).toBe('rejected');
       expect((manualResult as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
-      expect(archives).toHaveLength(0);
+      expect(acceptanceRoles).toEqual(['e-signature']);
     }
   }
 

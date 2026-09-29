@@ -20,8 +20,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `45-signature.cy.ts` drives, Mailpit included) so the two "Acceptance" sections can be asserted
  * DIFFERENT on screen - the one thing this whole feature exists to guarantee.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;
@@ -277,7 +277,8 @@ describe("Quote manual acceptance (issue #421)", () => {
 						cy.get('[data-cy="document-acceptance-manual"]').should("not.exist");
 
 						// Never confused with a manual acceptance: no manual-acceptance record exists for
-						// this quote at all, and its archive carries no ACCEPTANCE row.
+						// this quote at all. Since issue #477 the e-signature writes an ACCEPTANCE archive of
+						// its own, under the `e-signature` artifact role, never `manual-acceptance`.
 						cy.request({
 							url: `${api}/api/documents/${quoteId}/manual-acceptance?typeId=quote`,
 						}).then((res) => {
@@ -291,10 +292,12 @@ describe("Quote manual acceptance (issue #421)", () => {
 						});
 						cy.request({ url: `${api}/api/documents/${quoteId}/archives?typeId=quote` }).then(
 							(res) => {
-								const kinds = (res.body as Array<{ kind: string }>).map((a) => a.kind);
-								expect(kinds, "no ACCEPTANCE archive row for an e-signed quote").to.not.include(
-									"ACCEPTANCE",
-								);
+								const roles = (res.body as Array<{ kind: string; artifacts: Array<{ role: string }> }>)
+									.filter((a) => a.kind === "ACCEPTANCE")
+									.flatMap((a) => a.artifacts.map((artifact) => artifact.role));
+								expect(roles, "the e-signed quote's ACCEPTANCE archive is the e-signature's").to.deep.eq([
+									"e-signature",
+								]);
 							},
 						);
 					});

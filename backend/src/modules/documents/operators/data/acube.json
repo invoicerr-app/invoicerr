@@ -1,0 +1,55 @@
+{
+  "id": "acube",
+  "name": "A-Cube",
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "backend/src/modules/documents/transports/acube-transport.ts header: \"A-Cube (acubeapi.com), an Italian e-invoicing provider that is also a Peppol access point\".",
+    "sourceCheckedAt": "2026-09-28"
+  },
+  "notes": "Owner review of PR #528: one entity, two offerings -- an Italian SdI intermediary (sourced, wired, proven live) and a Peppol access point (sourced, NOT wired: this repository's own 'acube' transport never exercises that capability, see the peppol offering's own notes). ITALY IS OUT OF SCOPE for the sdi offering in THIS product: channel-policy/data/it.json's own 'sdi' mandate names only 'sdi-pec' as an equivalentProviderId, so an Italian company that picks the 'acube' transport is refused at send -- intended, not a defect (see acube-transport.ts's own header for the full accreditation-uncertainty reasoning: Italian law allows a third-party intermediary, but nothing public confirms A-Cube holds TRANSMISSION accreditation specifically, only a reception-shaped clue). An earlier version of this file's own sdi offering header called A-Cube 'registered by the DGFiP' -- that was wrong and is recorded here so nobody re-derives it: the DGFiP is the FRENCH tax administration and its immatriculation concerns French plateformes agreees, which says nothing whatsoever about Italy, which is exactly why no 'pdp' offering is seeded for this operator despite it appearing alongside the French accredited-platform candidates in the original research pass.",
+  "offerings": [
+    {
+      "legalChannel": "sdi",
+      "description": "An Italian e-invoicing provider building and depositing FatturaPA, with a free sandbox.",
+      "countries": ["IT"],
+      "transportId": "acube",
+      "capabilities": {
+        "emit": true,
+        "receive": false,
+        "lifecycleStatuses": false,
+        "eReporting": false
+      },
+      "sandbox": {
+        "available": true,
+        "notes": "Free work-email signup at acubeapi.com/sandbox -> activation link -> password, 'senza obbligo di acquisto' (no purchase obligation), no stated cap (verified directly on the vendor's own site, 2026-09-23). Round-trip proven live against the sandbox 2026-09-24: a real FatturaPA built by formats/national/fatturapa-provider.ts, gated by the vendored Schema_VFPR12.xsd, deposited and answered with a real uuid, then read back."
+      },
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "backend/src/modules/documents/transports/acube-transport.ts header: \"round-trip proven live against the sandbox on 2026-09-24\" -- a real FatturaPA built, deposited and read back.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Listed as implementing the 'sdi' legal channel because that is the artifact it builds and deposits (FatturaPA), not because this product currently lets an Italian company choose it. No conformity/pollers/ entry is registered for 'acube' -- capabilities.lifecycleStatuses is false because nothing in this codebase follows a post-deposit verdict for it, not because the platform necessarily lacks one."
+    },
+    {
+      "legalChannel": "peppol",
+      "description": "A Peppol access point in Italy, not yet connected for sending through this app.",
+      "countries": ["IT"],
+      "capabilities": {
+        "emit": false,
+        "receive": false,
+        "lifecycleStatuses": false,
+        "eReporting": false
+      },
+      "sandbox": {
+        "available": true,
+        "notes": "Same acubeapi.com/sandbox signup as the sdi offering -- one account, both capabilities, per the vendor's own site (verified 2026-09-23)."
+      },
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "backend/src/modules/documents/transports/acube-transport.ts header: \"an Italian e-invoicing provider that is also a Peppol access point\".",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Deliberately NO transportId: this repository's own wired 'acube' transport never exercises this capability -- its own header states plainly \"'Peppol access point' would be true of the ACCOUNT and false of THIS TRANSPORT, which builds FatturaPA and nothing else today.\" The fact that A-Cube the company offers Peppol AP services is sourced; that this codebase's integration uses it is not, and capabilities are all false to say so honestly."
+    }
+  ]
+}

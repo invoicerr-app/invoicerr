@@ -7,7 +7,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * that the on-screen toggle reflects its state. Discipline: action/reread via the API, reflection
  * verified on screen.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function setReminders(enabled: boolean) {
 	return cy

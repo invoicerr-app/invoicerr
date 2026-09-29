@@ -4,6 +4,7 @@ import { Navigate, Outlet, useLocation } from "react-router"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
+import { DemoBanner } from "@/components/demo-banner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LegalLinks, useLegalLinks } from "@/components/legal-links"
@@ -15,7 +16,7 @@ import { WaitingForSeatScreen } from "@/components/waiting-for-seat-screen"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
 import { useApplyAccountLocale } from "@/hooks/use-apply-account-locale"
 import { ApiError } from "@/hooks/use-api-query"
-import { useLegalStatus, useSeats } from "@/hooks/queries"
+import { useCompanies, useLegalStatus, useSeats } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 
 const ALLOWED_PATHS = ["/signature/[^/]+"]
@@ -38,6 +39,30 @@ const PageHeaderActions = () => {
   if (!actions) return null
 
   return <div className="flex items-center gap-2 ml-auto">{actions}</div>
+}
+
+/**
+ * Issue #512 - `UnauthenticatedLayout`'s own header bar, but skipped ENTIRELY once neither
+ * `PageHeaderTitle` nor `PageHeaderActions` has anything to show - the one route this layout serves
+ * today (`/signature/:token`, `ALLOWED_PATHS` below) never calls `useSetPageHeader`, so the bar
+ * rendered a bare `p-4 border-b` strip with nothing in it. That empty 33px (padding + border) sat
+ * directly above `PublicPageShell`'s OWN header on every load, and was measured as part of why the
+ * next required step on the signing page needed a scroll to reach on common laptop heights - the
+ * shell's `h-dvh` sized itself against the full viewport while this layout's own nested
+ * `h-full`/`overflow-y-auto` chain had already spent 33px of it here. Conditional rather than a flat
+ * removal: a future path added to `ALLOWED_PATHS` that DOES set a title keeps its bar.
+ */
+const UnauthenticatedHeader = () => {
+  const { title, actions } = usePageHeaderContext()
+
+  if (!title && !actions) return null
+
+  return (
+    <header className="p-4 bg-header border-b flex items-center gap-4">
+      <PageHeaderTitle />
+      <PageHeaderActions />
+    </header>
+  )
 }
 
 /**
@@ -94,6 +119,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
             <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
               <Sidebar />
               <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
+                <DemoBanner />
                 <BillingBanner />
                 <header className="p-4 bg-header border-b flex items-center gap-4">
                   <SidebarTrigger />
@@ -149,10 +175,7 @@ const UnauthenticatedLayout = () => {
       <section className="flex flex-col min-h-screen h-screen max-h-screen w-full max-w-screen overflow-y-auto overflow-x-hidden">
         <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
           <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
-            <header className="p-4 bg-header border-b flex items-center gap-4">
-              <PageHeaderTitle />
-              <PageHeaderActions />
-            </header>
+            <UnauthenticatedHeader />
             <section className="h-full overflow-y-auto overflow-x-hidden">
               <Outlet />
             </section>
@@ -171,15 +194,35 @@ const Layout = () => {
   // (`legal.service.ts#getStatus`), so this adds nothing to check for a self-hosted instance beyond
   // one extra cheap, always-200 request.
   const { data: legalStatus, isPending: legalStatusPending } = useLegalStatus(!!session)
-  // Same reasoning as `legalStatus` above: gated on a session existing, harmless (a plain 404, `useSeats`'s
-  // own `retry: false`) on a self-hosted instance where this route does not exist at all.
+  // Issue #535: whether `session` already carries an active company, `useCompanies()` reads it off
+  // the SAME `authClient.useSession()` payload this file's own `session` above comes from (the
+  // backend's `customSession` plugin, `lib/auth.ts`), so this costs no extra request and no separate
+  // loading state: `activeCompanyId` rides along on `session.data` itself, never resolved later. A
+  // freshly signed-up user has a real session but no company yet (before the onboarding dialog below
+  // ever gets a chance to run), so `activeCompanyId` is `null` for exactly that window, and only for
+  // it: it flips to a real id the moment `OnboardingDialogHost`'s own `POST /api/companies` + `switch`
+  // succeeds, never before.
+  const { activeCompanyId } = useCompanies()
+  const hasActiveCompany = !!activeCompanyId
+  // The seat gate below only means anything once a company exists to hold a seat at all, see
+  // `hasActiveCompany`'s own comment. `GET /api/billing/seats` answers 403 ("No active company
+  // selected", `@ActiveCompany()`) for a company-less session, which used to be the ONE error this
+  // gate did not already excuse the way it excuses a self-hosted 404 below, so this exact "renders
+  // nothing while pending" and "shows a full-screen error" behavior used to run for EVERY fresh
+  // sign-up on a billing-enabled instance, before onboarding's own "create a company" dialog
+  // (mounted only once `AuthenticatedLayout` below is reached) ever had a chance to render.
+  // Proven live against a local stack (2026-09-29, this issue's own repro): `GET /api/billing/seats`
+  // for a session with `activeCompanyId: null` answers `403 {"message":"No active company
+  // selected"}`. Never enabling the query for that state, rather than only special-casing its error
+  // the way `seatsRouteMissing` special-cases a 404, is what also stops it from ever firing in the
+  // first place.
   const {
     data: seatsView,
     isPending: seatsPending,
     isError: seatsErrored,
     error: seatsError,
     refetch: refetchSeats,
-  } = useSeats(!!session)
+  } = useSeats(!!session && hasActiveCompany)
 
   // A public route stays outside the app shell UNCONDITIONALLY — a signed-in staff member opening
   // a client's own signature link must see the same bare, public page a client does, never the
@@ -258,12 +301,21 @@ const Layout = () => {
   // `null` branch: `null` is fine for the brief in-flight window (nothing to show yet), but an ERROR
   // is not "still loading" — rendering nothing forever left a member unable to tell the two apart,
   // with no way to recover short of a manual page reload.
+  //
+  // Both blocks below are gated on `hasActiveCompany` (see that constant's own comment): the whole
+  // gate is a no-op, not "still loading" and not "errored", for the company-less window every fresh
+  // sign-up passes through. `useSeats` is disabled for that same window (`enabled: !!session &&
+  // hasActiveCompany` above), so `seatsPending` would otherwise stay permanently true (a disabled
+  // TanStack Query never settles) and block the shell forever instead of letting a company-less user
+  // reach `AuthenticatedLayout` below, where the onboarding dialog can actually run.
   const seatsRouteMissing = seatsErrored && seatsError instanceof ApiError && seatsError.status === 404
-  if (seatsPending) {
-    return null
-  }
-  if (seatsErrored && !seatsRouteMissing) {
-    return <SeatCheckErrorScreen onRetry={() => refetchSeats()} />
+  if (hasActiveCompany) {
+    if (seatsPending) {
+      return null
+    }
+    if (seatsErrored && !seatsRouteMissing) {
+      return <SeatCheckErrorScreen onRetry={() => refetchSeats()} />
+    }
   }
 
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id

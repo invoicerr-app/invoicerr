@@ -85,9 +85,9 @@
  *    even though delivery genuinely already succeeded.
  *
  * `deliver` is the only thing that genuinely varies by type: the quote's unconditional email
- * (quote-actions.ts), the invoice's company-configured transport (invoice-actions.ts), or
- * (credit-note-actions.ts) nothing at all — a plain status transition with no transport, no email,
- * exactly as before the async model, just reached one hop later.
+ * (quote-actions.ts), the invoice's company-configured transport (invoice-actions.ts), or the
+ * credit note's (credit-note-actions.ts): the channel its corrected invoice's client is reached
+ * through since issue #499, and an archive-only issuance for a free credit note, which names no client.
  */
 import { ConflictException } from '@nestjs/common';
 
@@ -95,6 +95,7 @@ import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import { DocumentInstanceResult, ActionResult } from './action-registry';
 import { archiveDeliveredArtifactsIfAny } from '../archive/archive-on-send';
+import { hashDocumentData } from '../archive/document-data-hash';
 import { ArchivedArtifactInput } from '../archive/hashing';
 import { logger } from '@/logger/logger.service';
 import { isNumberingAllowedFrom } from '../numbering/only-from';
@@ -230,8 +231,15 @@ export interface RunAsyncSendInput {
    * the enqueued job's own payload just below, so `deliver()`'s later re-resolution (see
    * `invoice-actions.ts`'s own header) runs on ALREADY-RESOLVED data — which is why that resolution
    * has to be idempotent (tax/resolve-invoice-tax.spec.ts proves it is).
+   *
+   * `ctx.willNumber` (issue #497) says whether THIS call is about to take a number (the same
+   * `eligibleForAtomicNumbering` decision the status write below acts on, computed once, before this
+   * runs). A gate that only makes sense for a document that is about to be numbered reads it: the
+   * credit note's Portuguese ATCUD preflight (credit-note-actions.ts) must not block a LEGACY credit
+   * note retried from "send_failed" unnumbered (`numberingOnlyFrom`), which will never get a number
+   * and so can never get an ATCUD either.
    */
-  preflight?: () => Promise<Record<string, unknown> | undefined>;
+  preflight?: (ctx: { willNumber: boolean }) => Promise<Record<string, unknown> | undefined>;
   /**
    * Publishes a `{documentId, typeId, kind}` nudge (never the
    * resulting state, see `queue/document-events.ts`'s own header) for the SSE stream
@@ -311,7 +319,7 @@ export interface RunAsyncSendInput {
    * exact same `numbered` truthy condition the stock-effect call already gates on — never for the
    * loser of a concurrent race, never for a "send_failed" retry of an already-numbered record). Exists
    * for a fact that can only be computed from the FROZEN `displayNumber` numbering just produced —
-   * e.g. the invoice's own Portuguese ATCUD (`actions/atcud-issuance.ts#attachAtcudToNumberedInvoice`)
+   * e.g. the invoice's own Portuguese ATCUD (`actions/atcud-issuance.ts#attachAtcudToNumberedDocument`)
    * — which cannot run any earlier: `preflight()` above executes BEFORE a real number exists at all.
    * Kept generic here (never a `typeId === 'invoice'` branch in this file — see this module's own
    * header on why `deliver` is the only thing that is meant to vary by type) so a type with no such
@@ -323,6 +331,13 @@ export interface RunAsyncSendInput {
     typeId: string;
     documentId: string;
     numbered: TakenDocumentNumber;
+    /** The SAME `data` this call is about to persist/already persisted for the "sending" record:
+     *  the RESOLVED value (post-`preflight`) on the ordinary path, `input.data` unchanged on the rare
+     *  numberless-"sending"-recovery path (see this function's own header on that branch). Added for
+     *  issue #517's own `vat-currency-issuance.ts#attachVatNationalCurrencyToNumberedDocument`, which
+     *  needs to read back a sidecar `runVatCurrencyPreflight` already stashed on it. `numbered`
+     *  alone (ATCUD's own need) never required this. */
+    data: Record<string, unknown>;
   }) => Promise<void>;
 }
 
@@ -399,7 +414,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
         // (PR #473 review point 2) - see that field's own header.
         if (declaresArticleReference) await applyStockOnIssuance(companyId, record);
         if (onNumbered) {
-          await onNumbered({ companyId, typeId, documentId: record.id, numbered: recovery.numbered });
+          await onNumbered({ companyId, typeId, documentId: record.id, numbered: recovery.numbered, data });
         }
       }
     }
@@ -515,7 +530,15 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       // (see its own header) — a storage/DB problem here must never undo a delivery that already
       // happened; it is instead recorded on the document itself (`lastArchiveError`) and logged
       // loudly, never silently.
-      await archiveDeliveredArtifactsIfAny({ companyId, documentId, artifacts: delivered.artifacts });
+      await archiveDeliveredArtifactsIfAny({
+        companyId,
+        documentId,
+        artifacts: delivered.artifacts,
+        // Issue #490: `record` is the very row `deliver()` just rendered from (it is handed over as
+        // `document` above), so its `data` is what the archived PDF shows - hashed here, at delivery
+        // time, never re-read later when the document may already have been edited again.
+        documentDataHash: hashDocumentData(record.data),
+      });
     }
 
     const { message, reference, providerId } = delivered;
@@ -589,15 +612,6 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     return { document: sent, changed: true, message };
   }
 
-  if (preflight) {
-    // A resolved replacement REPLACES `data` for everything below: the
-    // "sending" write just after this, AND the job payload enqueued further down. `deliver()` later
-    // re-resolves that SAME (already-resolved) value again — see this function's own `preflight`
-    // header on why that has to be, and is, idempotent.
-    const resolved = await preflight();
-    if (resolved) data = resolved;
-  }
-
   // `fromStatuses: ['draft', 'send_failed']` — every type's own SEND_TRANSITIONS starts "send" from
   // exactly these two statuses (this file's own header). Without this guard, two concurrent "send"
   // calls on the SAME draft (a double-click, a second tab) would both still read a pre-"sending"
@@ -624,6 +638,17 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     existing.number == null &&
     isNumberingAllowedFrom({ onlyFrom: numberingOnlyFrom }, existing.status);
 
+  if (preflight) {
+    // A resolved replacement REPLACES `data` for everything below: the
+    // "sending" write just after this, AND the job payload enqueued further down. `deliver()` later
+    // re-resolves that SAME (already-resolved) value again - see this function's own `preflight`
+    // header on why that has to be, and is, idempotent. Runs AFTER `eligibleForAtomicNumbering` is
+    // decided (a pure read of `existing`, nothing written yet) only so it can be handed over as
+    // `willNumber`, and still BEFORE anything is written or numbered.
+    const resolved = await preflight({ willNumber: eligibleForAtomicNumbering });
+    if (resolved) data = resolved;
+  }
+
   let sending: DocumentInstanceResult;
   let numbered: TakenDocumentNumber | undefined;
   if (eligibleForAtomicNumbering) {
@@ -643,7 +668,22 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // `numberingOnlyFrom` refuses it (a LEGACY credit note, issued before #471, retried from
     // "send_failed" - see `RunAsyncSendInput.numberingOnlyFrom`'s own header). Plain status write,
     // exactly as before this fix.
-    sending = await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft', 'send_failed']);
+    //
+    // Issue #477: a send that starts from "draft" on a record that was ALREADY delivered once is a
+    // NEW delivery, and must clear `deliveryConfirmedAt` on the same write. The only way a delivered
+    // record gets back to "draft" is "save-draft" (the quote's own, which stays available on a "sent"
+    // quote so a typo can be fixed and the quote sent again - quote.descriptor.ts): the content has
+    // been reopened, and whatever was confirmed delivered before is not what this send delivers.
+    // Leaving the mark in place made phase 2 below read the OLD delivery as this one's and skip
+    // `deliver()` entirely: the edited quote was never emailed and never archived, and a signature
+    // request issued afterwards would have been bound to the previous PDF. A "send_failed" retry
+    // keeps the mark exactly as before (the case this column exists for: delivery happened, only the
+    // final status write failed), and `fromStatuses` narrows to "draft" so the reset can never land
+    // on a record that concurrently became "send_failed".
+    const startNewDelivery = existing.status === 'draft' && existing.deliveryConfirmedAt != null;
+    sending = startNewDelivery
+      ? await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft'], { startNewDelivery })
+      : await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft', 'send_failed']);
   }
 
   // The fact is ACQUIRED right above (Postgres already holds "sending", numbered atomically with it
@@ -671,7 +711,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // `typeId` in this core file. Runs AFTER the stock effect, same as it, for the same reason: both
     // are anchored to `numbered` being the atomic winner of the numbering race, never to
     // `numberOnEnqueue` alone.
-    if (onNumbered) await onNumbered({ companyId, typeId, documentId: sending.id, numbered });
+    if (onNumbered) await onNumbered({ companyId, typeId, documentId: sending.id, numbered, data });
   }
 
   await queueDispatcher.enqueueAction({

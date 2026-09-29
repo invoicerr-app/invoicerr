@@ -7,7 +7,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * 3. Authentication is properly enforced
  * 4. Error cases are handled
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Document PDF rendering", () => {
 	before(() => {

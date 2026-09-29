@@ -22,7 +22,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     screen opens the config dialog instead, and saving it both fills in the missing field and
  *     activates the method in one action — the last test in this file.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createClient() {
 	return cy

@@ -9,6 +9,11 @@ sets `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (`backend/src/modules/billing/
 `/api/billing/*` route, no Settings tab, no banner, no lifecycle sweep, no Polar client constructed.
 This page documents the operator's own hosted offering.
 
+Every Polar API call goes through the one shared client in `polar-client.ts`
+(`getPolarClient()`), which pins the `Polar-Version: 2026-04` header on every request via the
+`POLAR_API_VERSION` constant at the top of that file; bump it there when migrating to a newer
+Polar API contract.
+
 ## One Polar customer per COMPANY (option A, 2026-09-16)
 
 Invoicerr bills per **company**, never per user. Each company that ever starts a checkout gets its own
@@ -111,6 +116,26 @@ automatically (no action needed) the moment a seat frees up or is bought back. A
 takeover (`(app)/_layout.tsx`, driven by `GET /api/billing/seats`) naming the OWNER — the same
 gate `write-gate.ts#assertCompanyWritable`'s `COMPANY_BLOCKED` already holds for a blocked company,
 checked right alongside it.
+
+**The gate does not apply before a company exists** (issue #535). `GET /api/billing/seats` is guarded by
+`@ActiveCompany()`, which answers 403 for a session with no active company, the state a freshly
+signed-up user is in for as long as it takes the onboarding dialog to create their first company.
+`(app)/_layout.tsx` used to enable that query unconditionally the moment a session existed, so this
+403 landed in the same bucket as a genuine outage and showed a full-screen "Couldn't check your seat"
+retry screen instead of ever reaching the onboarding dialog that would have fixed the underlying "no
+company yet" state. The frontend now reads `activeCompanyId` off the SAME session payload
+(`customSession`, `lib/auth.ts`) it already has in hand and only enables `useSeats`, and only applies
+the gate, once that id is set.
+
+**Boot-time provisioning failures now log their real cause** (issue #535). `LoggerService.warn`/`.error`
+(`backend/src/logger/logger.service.ts`) only ever print `[category] message` to the process's own
+stdout; the structured `details` object lands in the `Log` table only, one click away in Settings > Logs
+but invisible to `kubectl logs`. `customer-provisioning.ts`'s own boot/sweep-tick pass
+(`BillingCustomerProvisioningBootService`) used a static message for every Polar failure, so a pod's own
+console showed "Polar customer provisioning failed for one company, retried next pass" with no cause at
+all. The three call sites there that reach out to Polar now embed the HTTP status and Polar's own
+message (never a header or token, see `polar-client.ts`'s own `sanitizePolarError`) directly in the
+logged message.
 
 ## Webhooks
 

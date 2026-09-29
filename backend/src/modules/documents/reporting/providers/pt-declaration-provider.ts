@@ -13,11 +13,19 @@
  * The AT webservice also exposes `ChangeInvoiceStatusRequest` (e.g. marking a document "Anulado") and
  * `DeleteInvoiceRequest` — this codebase's own trigger (`reporting/report-on-send.ts`) only ever
  * fires on a document's OWN "sent" transition, which happens exactly once, at issuance, so CREATE is
- * the only operation this bridge ever has occasion to call. A credit note reaching a FUTURE
- * `reporting/data/pt.json` entry with `appliesTo: 'credit-note'` would need its own mapping (AT's own
- * `InvoiceType` enum already has an "NC – Nota de Crédito" value for this — see
- * `PT_AT_INVOICE_TYPE_FOR` below) — not built further than that single enum value here, deliberately,
- * rather than guessed at.
+ * the only operation this bridge ever has occasion to call.
+ *
+ * ## What is declared: the invoice and, since issue #501, the credit note
+ *
+ * Decreto-Lei n.º 198/2012 applies « às faturas e documentos retificativos de fatura » (art. 1.º
+ * n.º 2), and the data model of the communication must carry the « Identificação do documento
+ * retificado » and the « Código único de documento » (art. 3.º n.º 4 n) and p)). Both are quoted, with
+ * their source and reading date, in `reporting/data/pt.json`. So:
+ *  - every declared document carries its real ATCUD (field 1.6.2), never the literal "0" this bridge
+ *    used to send (see `ptAtAtcudFor` below), and a document without one is refused;
+ *  - a credit note is declared as `InvoiceType` "NC", its `LineSummary` lines carry
+ *    `DebitCreditIndicator` "D" and a `Reference` to the corrected invoice's own number (manual fields
+ *    1.6.4, 1.6.14.3 and 1.6.14.4, see `buildPtAtLineSummaries`).
  *
  * ## The `authorityId` caveat — SYNTHESIZED, not authority-minted (see `synthesizePtAtAuthorityId`
  * below and `reporting/data/pt.json`'s own `notes`)
@@ -44,6 +52,7 @@ import {
   DeclaredInvoice,
   DeclaredInvoiceLine,
 } from '../declaration-provider';
+import { isAtcudTypeId, SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID } from '../../numbering/atcud';
 import {
   buildPtAtClient,
   describePtAtCodigoResposta,
@@ -103,12 +112,13 @@ export function stripPtNifPrefix(vatNumber: string | undefined): string | undefi
  *  convention for "no buyer NIF on file", never an invented fallback. */
 export const PT_AT_UNKNOWN_CONSUMER_NIF = '999999990';
 
-/** Field 1.6.4 (InvoiceType) — see this file's own header on scope: this bridge only ever declares
- *  `typeId: 'invoice'` (mapped to "FT" — the manual's own worked example, an ordinary "Fatura") today;
- *  "NC" (Nota de Crédito) is named here, ready for a FUTURE `pt.json` `appliesTo: 'credit-note'` fact,
- *  never wired further than this one enum value without one. */
+/** Field 1.6.4 (InvoiceType): "FT" for the invoice, "NC" for the credit note. The codes come from
+ *  `numbering/atcud.ts#SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID`, the one table (sourced there to Portaria
+ *  n.º 302/2016, field 4.1.4.8, read first-hand on the AT portal for issue #497) that also decides
+ *  which series type an ATCUD is registered under. Any type outside that table keeps the "FT" it
+ *  always had. */
 export function ptAtInvoiceTypeFor(typeId: string): string {
-  return typeId === 'credit-note' ? 'NC' : 'FT';
+  return isAtcudTypeId(typeId) ? SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID[typeId] : 'FT';
 }
 
 /**
@@ -154,16 +164,77 @@ function groupPtAtLinesByVatRate(lines: DeclaredInvoiceLine[]): PtAtLineSummaryG
   return Array.from(groups.values());
 }
 
-/** Builds the `doc:LineSummary` array — one entry per distinct VAT rate present on the invoice (see
- *  `groupPtAtLinesByVatRate` above). `TaxPointDate` (field 1.6.14.2, "data de envio da mercadoria ou
- *  da prestação do serviço") falls back to the invoice's own `issueDate` — `DeclaredInvoice` carries
- *  no separate dispatch/delivery date, so no finer timestamp is available to fill this field with.
- *  `DebitCreditIndicator` is fixed to "C" (Crédito) — the worked example's own value for an ordinary
- *  sales invoice, and the only case this scope covers (see this file's own header). */
+/**
+ * Thrown when a document cannot lawfully be declared to the AT as it stands: no ATCUD, or a credit
+ * note that names no corrected invoice. Permanent, and deliberately NOT caught here: it propagates
+ * like any other failure of `declare()`, so the runner retries it and then journals `report:failed`
+ * with this message on the Declarations screen. Thrown before any credential is read or any request
+ * is sent, so nothing incomplete ever reaches the authority.
+ */
+export class PtAtUndeclarableDocumentError extends Error {}
+
+/**
+ * Field 1.6.2 (ATCUD). The manual's own note says « deve ser preenchido com «0» (zero) até à sua
+ * regulamentação », and that regulation has existed since Portaria n.º 195/2020 (« Regulamenta os
+ * requisitos de criação [...] do código único do documento (ATCUD) », in force 1 January 2021). Its
+ * art. 3.º n.º 2 defines the code itself: « a concatenação dos seguintes elementos, separados pelo
+ * carácter «-», sem aspas: a) Código de validação da série [...]; b) O número sequencial do documento
+ * dentro da série ». The « ATCUD: » prefix belongs to the printed mention only (art. 4.º n.º 1, « com o
+ * formato «ATCUD:CodigodeValidação-NumeroSequencial» »), which is the form
+ * `actions/atcud-issuance.ts` freezes onto the document; it is stripped here, so the field carries
+ * `<code>-<sequential>`. Decreto-Lei n.º 198/2012, art. 3.º n.º 4 p) makes the « Código único de
+ * documento » part of what is communicated, so a document without one is refused, never sent as "0".
+ */
+export function ptAtAtcudFor(invoice: DeclaredInvoice): string {
+  const code = invoice.atcud?.trim().replace(/^ATCUD:/, '');
+  if (!code || !/^\S+-\d+$/.test(code)) {
+    throw new PtAtUndeclarableDocumentError(
+      `Refusing to declare ${invoice.typeId} ${invoice.number} to the AT: it carries no ATCUD` +
+        (invoice.atcud ? ` in the "<code>-<sequential>" shape (found "${invoice.atcud}")` : '') +
+        ". The communication must include the document's unique code (Decreto-Lei n.º 198/2012, art. " +
+        '3.º n.º 4 p); Portaria n.º 195/2020, art. 3.º), and a placeholder would declare a code the ' +
+        'document never had.',
+    );
+  }
+  return code;
+}
+
+/** The corrected invoice's own number, for a credit note's field 1.6.14.3 (Reference). Refused when
+ *  absent: a correcting document is declared with the « Identificação do documento retificado »
+ *  (Decreto-Lei n.º 198/2012, art. 3.º n.º 4 n)). */
+function ptAtCorrectedInvoiceReferenceFor(invoice: DeclaredInvoice): string {
+  const reference = invoice.correctedInvoice?.number?.trim();
+  if (!reference) {
+    throw new PtAtUndeclarableDocumentError(
+      `Refusing to declare credit note ${invoice.number} to the AT: it names no corrected invoice, and ` +
+        'a correcting document is declared with the identification of the document it corrects ' +
+        '(Decreto-Lei n.º 198/2012, art. 3.º n.º 4 n)).',
+    );
+  }
+  return reference;
+}
+
+/**
+ * Builds the `doc:LineSummary` array: one entry per distinct VAT rate present on the document (see
+ * `groupPtAtLinesByVatRate` above). `TaxPointDate` (field 1.6.14.2, "data de envio da mercadoria ou
+ * da prestação do serviço") falls back to the document's own `issueDate`: `DeclaredInvoice` carries
+ * no separate dispatch/delivery date, so no finer timestamp is available to fill this field with.
+ *
+ * `DebitCreditIndicator` (field 1.6.14.4): « D – Débito (caso o valor da linha, sem imposto, dos
+ * documentos a lançar a débito na respetiva conta) », « C – Crédito » otherwise. An invoice's sale is
+ * booked to credit ("C", the manual's own worked example); a credit note reverses it, so it is booked
+ * to debit ("D"), and carries `Reference` (field 1.6.14.3, « Referência à fatura [...] através de
+ * identificação única da mesma [...] Deve ser utilizada a estrutura de numeração do campo de origem »),
+ * the corrected invoice's own number. The keys are emitted in the manual's field order (1.6.14.2,
+ * 1.6.14.3, 1.6.14.4, then the amount and the tax), since the XML is written in insertion order.
+ */
 export function buildPtAtLineSummaries(invoice: DeclaredInvoice): Record<string, unknown>[] {
+  const isCreditNote = invoice.typeId === 'credit-note';
+  const reference = isCreditNote ? ptAtCorrectedInvoiceReferenceFor(invoice) : undefined;
   return groupPtAtLinesByVatRate(invoice.lines).map((group) => ({
     'doc:TaxPointDate': invoice.issueDate,
-    'doc:DebitCreditIndicator': 'C',
+    ...(reference ? { 'doc:Reference': reference } : {}),
+    'doc:DebitCreditIndicator': isCreditNote ? 'D' : 'C',
     'doc:Amount': group.netAmount.toFixed(2),
     'doc:Tax': {
       'doc:TaxType': 'IVA',
@@ -193,9 +264,10 @@ export const PT_AT_AUDIT_FILE_VERSION = '1.04_01';
  * Maps `DeclaredInvoice` onto `RegisterInvoiceRequest`'s own fields (Aspetos Específicos §2.1.1.1) —
  * every figure comes straight from `DeclaredInvoice` (itself built from `totals/compute-totals.ts`,
  * never recomputed here), the same "never invent a number" discipline every sibling provider in this
- * directory holds. Fields with no `DeclaredInvoice` equivalent (ATCUD, HashCharacters,
+ * directory holds. Fields with no `DeclaredInvoice` equivalent (HashCharacters,
  * SoftwareCertificateNumber) use the manual's own documented placeholder for "not applicable to a
- * non-certified/ATCUD-unregulated sender" — quoted in each field's own comment below, never guessed.
+ * non-certified sender", quoted in each field's own comment below, never guessed. The ATCUD is the
+ * document's own (`ptAtAtcudFor`), and throws `PtAtUndeclarableDocumentError` when it has none.
  */
 export function buildPtAtInvoiceRequestFields(invoice: DeclaredInvoice): Record<string, unknown> {
   const sellerNif = stripPtNifPrefix(invoice.seller.vatNumber) ?? invoice.seller.legalId ?? '';
@@ -222,9 +294,8 @@ export function buildPtAtInvoiceRequestFields(invoice: DeclaredInvoice): Record<
     'doc:SoftwareCertificateNumber': '0',
     'doc:InvoiceData': {
       'doc:InvoiceNo': invoice.number,
-      // "deve ser preenchido com «0» (zero) até à sua regulamentação" (field 1.6.2) — quoted verbatim
-      // from the manual; this bridge does not compute a real ATCUD.
-      'doc:ATCUD': '0',
+      // The document's own ATCUD, "<code>-<sequential>": see `ptAtAtcudFor` for why not "0".
+      'doc:ATCUD': ptAtAtcudFor(invoice),
       'doc:InvoiceDate': invoice.issueDate,
       'doc:InvoiceType': ptAtInvoiceTypeFor(invoice.typeId),
       // "1" se autofaturação, "0" caso contrário (field 1.6.5) — this product never self-bills.
@@ -283,6 +354,11 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
     providerId: PT_AT_PROVIDER_ID,
 
     async declare(companyId: string, invoice: DeclaredInvoice): Promise<DeclarationResult> {
+      // Built first: a document that cannot be declared (no ATCUD, a credit note with no corrected
+      // invoice) is refused on its own terms, whatever the state of the credentials, and before any
+      // request could carry it (`PtAtUndeclarableDocumentError`'s own header).
+      const requestFields = buildPtAtInvoiceRequestFields(invoice);
+
       const resolved = await deps.channelCredentials.resolveActive(companyId, PT_AT_PROVIDER_ID);
       const credentials = resolved && extractPtAtCredentials(resolved);
       if (!resolved || !credentials) {
@@ -294,7 +370,6 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
       // `pt-at-client.ts` — so this is a no-op (Node's system trust store) outside of
       // `pt-declaration-provider.spec.ts`'s own local mTLS stub.
       const client = buildPtAtClient(credentials, baseUrl, { ca: credentials.caPem });
-      const requestFields = buildPtAtInvoiceRequestFields(invoice);
 
       // A POSITIVE CodigoResposta (an authentication-layer rejection) is thrown by the client itself
       // as `PtAtApiError` and PROPAGATES from here, unhandled — same posture every sibling provider's

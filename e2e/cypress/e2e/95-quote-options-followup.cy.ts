@@ -18,8 +18,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * single Cypress run without an artificial synchronization point, which would test the test harness
  * more than the product.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function createClient(name: string, contactEmail: string, language?: string) {
 	return cy

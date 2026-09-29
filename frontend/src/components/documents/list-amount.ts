@@ -1,7 +1,11 @@
-import { computeDocumentOptionTotals, computeDocumentTotals } from "@/components/documents/document-totals"
+import {
+  acceptedOptionTotals,
+  computeDocumentOptionTotals,
+  computeDocumentTotals,
+} from "@/components/documents/document-totals"
 import { toMinor } from "@/components/documents/totals-calculator"
 import { extractCurrency } from "@/components/documents/totals-shape"
-import type { DocumentTypeDescriptor } from "@/components/documents/types"
+import type { DerivedDocumentTotals, DocumentTypeDescriptor } from "@/components/documents/types"
 
 export interface RowAmount {
   minor: number
@@ -21,13 +25,25 @@ export interface RowAmount {
  * Null when neither applies - the row simply shows no amount, it never invents one. Also null -  * issue #373 ("quotes with options") - for a quote offering 2+ options: summing every option's
  * lines together would be exactly the meaningless total this issue exists to stop printing, so the
  * row shows no amount at all rather than a wrong one (the same "never invents one" contract this
- * function already holds for every other gap).
+ * function already holds for every other gap). Issue #479: once an option is accepted
+ * (`acceptedOption`, by signature or manual acceptance), the row shows THAT option's own total again.
+ * Issue #507: `derivedTotals` (a LINKED credit note's, computed by the backend from the invoice it
+ * corrects - see `DocumentInstance.derivedTotals`) wins over both sources above, since the row's own
+ * `lines` are empty by construction and would read 0.00.
  */
 export function resolveRowAmount(
   descriptor: DocumentTypeDescriptor,
   data: Record<string, unknown>,
+  acceptedOption?: string | null,
+  derivedTotals?: DerivedDocumentTotals | null,
 ): RowAmount | null {
-  if (computeDocumentOptionTotals(descriptor, data)) return null
+  if (derivedTotals?.currency) return { minor: derivedTotals.grossMinor, currency: derivedTotals.currency }
+
+  const optionTotals = computeDocumentOptionTotals(descriptor, data)
+  if (optionTotals) {
+    const accepted = acceptedOptionTotals(optionTotals, acceptedOption)
+    return accepted?.currency ? { minor: accepted.grossMinor, currency: accepted.currency } : null
+  }
 
   const totals = computeDocumentTotals(descriptor, data)
   if (totals && totals.currency) {

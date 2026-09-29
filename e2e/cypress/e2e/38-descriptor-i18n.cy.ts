@@ -29,7 +29,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * 28, 34, 37…) — they must pass AS THEY ARE, without a single weakened assertion, since the
  * EN values added here are, word for word, the labels they already expected.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createInvoiceDraft() {
 	return cy

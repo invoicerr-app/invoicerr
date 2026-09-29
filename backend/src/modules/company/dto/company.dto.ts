@@ -37,12 +37,12 @@ export class EditCompanyDto {
   // The six `quote/invoice/paymentStartingNumber`/`*NumberFormat` fields that used to live here are
   // gone: they belonged to a Prisma query extension removed on this branch (see Company.numberFormats'
   // own schema.prisma comment and the `20260913120000_migrate_legacy_number_formats` migration that
-  // absorbed their last values), and nothing has read them since. A document type's number FORMAT is
-  // now written through `PUT /api/company/number-format` (`CompanyService#updateNumberFormat`), keyed
-  // by the real `DocumentTypeDescriptor` id — never through this DTO's wholesale `...rest` write path,
-  // which is also why `company.service.ts#editCompanyInfo` allow-lists its columns explicitly rather
-  // than spreading this object: `numberFormats` must only ever be set through the endpoint that
-  // validates the pattern. There is no "starting number" capability any more either — see that
+  // absorbed their last values), and nothing has read them since. Since issue #496 a document type's
+  // number FORMAT is not the company's to set at all: it comes from the company's country
+  // (`documents/country-policy/data/xx.json`'s `numberFormats`), and `PUT /api/company/number-format`
+  // refuses every change. `company.service.ts#editCompanyInfo` allow-lists its columns explicitly
+  // rather than spreading this object, so `numberFormats` (now the frozen running series) can never be
+  // written through this DTO either. There is no "starting number" capability any more either - see that
   // migration's own header for what a migrating customer loses.
   identifiers?: IdentifierEntry[];
   /** Which registered document transport (documents/transports/transport-registry.ts) the invoice
@@ -69,4 +69,11 @@ export class EditCompanyDto {
    *  Company.remindersEnabled's own schema.prisma comment. Off by default; a company left untouched
    *  stays invisible to the sweep. */
   remindersEnabled?: boolean;
+  /** "invoiced" or "cashed" - see Company.revenueBasis's own schema.prisma comment and
+   *  `revenue-basis/resolve-revenue-basis.ts` for the per-country default this overrides. Null/empty
+   *  clears it back to that computed default; validated in `company.service.ts#editCompanyInfo`. */
+  revenueBasis?: string | null;
+  /** "monthly" or "quarterly" - see Company.revenuePeriod's own schema.prisma comment. Null/empty
+   *  clears it back to the "monthly" default. */
+  revenuePeriod?: string | null;
 }

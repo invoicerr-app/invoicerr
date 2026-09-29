@@ -7,7 +7,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * hardest is the one the feature exists to guarantee: an entry, once billed, can never be billed
  * again — see the backend's `TimeEntriesService.billToInvoice` for the atomic guard this exercises.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 interface ClientRow {
 	id: string;

@@ -32,6 +32,19 @@
  * limitation for a rate outside {23,22,8,7,5,0} (e.g. a reduced rate this catalog doesn't carry for
  * Poland), not a new gap introduced here.
  *
+ * ## A credit note is refused here, never built (issue #472)
+ *
+ * `options.creditNote` (a credit-note document, `../credit-note-source.ts`) makes this provider THROW
+ * rather than emit anything. Polish law has no seller-issued credit-note instrument distinct from the
+ * faktura korygująca: art. 106j ust. 1 ustawy o VAT covers every post-issue change (a reduction
+ * included) with that ONE corrective invoice, and the FA(3) `RodzajFaktury` enumeration has `KOR` for
+ * it and no "nota kredytowa" type at all (`correction-routes/data/pl.json`'s own CREDIT_NOTE fact,
+ * `forbidden`, and `country-policy/data/pl.json`'s `credit-note` rules, both sourced). The Polish path
+ * is therefore the INVOICE carrying `correctsInvoiceId` (below), and a credit-note document must never
+ * be dressed up as one: it would be numbered in the credit-note series, not the invoice series art.
+ * 106j ust. 2 pkt 2 requires. The credit note's own `download-xml` action does not offer `fa3`
+ * (`credit-note.descriptor.ts`), so this throw is only reachable by a scripted caller.
+ *
  * ## KOR — the faktura korygująca gap this file's own header used to name, now closed
  * `RodzajFaktury = KOR` + the `PrzyczynaKorekty`/`DaneFaKorygowanej` block, when `data.correctsInvoiceId`
  * (`descriptors/invoice.descriptor.ts`) names the invoice this one corrects — same XSD elements, same
@@ -55,8 +68,14 @@ import { fromMinor } from '@/utils/financial';
 import { DocumentInstanceResult } from '../../actions/action-registry';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
-import { toDateOnly } from '../shared-build';
-import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from '../format-provider';
+import { requireDisplayNumber, toDateOnly } from '../shared-build';
+import {
+  DocumentFormatBuildOptions,
+  DocumentFormatBuildResult,
+  DocumentFormatParty,
+  DocumentFormatProvider,
+} from '../format-provider';
+import { SemanticBuildError } from '../semantic/build-semantic-invoice';
 import { validateXsd } from '../vendored/validate-xsd';
 import { FaVatKorContext, resolveFaVatKorContext } from './fa3-kor';
 import { extractNationalLines, NationalLine } from './national-lines';
@@ -123,7 +142,16 @@ async function build(
   // than silently building an ordinary (RodzajFaktury=VAT) invoice for what the data itself flags as a
   // correction.
   companyId?: string,
+  options?: DocumentFormatBuildOptions,
 ): Promise<DocumentFormatBuildResult> {
+  if (options?.creditNote) {
+    // See this file's own header, "A credit note is refused here".
+    throw new SemanticBuildError(
+      'FA(3) has no credit-note document: under art. 106j ust. 1 ustawy o VAT a Polish seller corrects ' +
+        'an invoice with a faktura korygująca (RodzajFaktury KOR), which is an INVOICE carrying ' +
+        '"correctsInvoiceId", numbered in the invoice series. Issue the correction as an invoice instead.',
+    );
+  }
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractNationalLines(data, totals);
@@ -145,7 +173,8 @@ async function build(
     korContext = await resolveFaVatKorContext(companyId, correctsInvoiceId);
   }
 
-  const invoiceNumber = document.displayNumber ?? 'DRAFT';
+  // Never a `'DRAFT'` placeholder - see `shared-build.ts#requireDisplayNumber`'s own header.
+  const invoiceNumber = requireDisplayNumber(document);
   const issueDate = toDateOnly(data.issueDate);
   // "DataWytworzeniaFa" — full datetime, no millis/zone suffix, same convention fa-vat.ts used.
   const creationSource =

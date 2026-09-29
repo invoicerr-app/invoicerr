@@ -31,6 +31,18 @@ import { extractLines, toDateOnly } from '../formats/shared-build';
 import { DocumentFormatParty } from '../formats/format-provider';
 import { computeDocumentTotals } from '../totals/compute-totals';
 
+/**
+ * Thrown when a document with no number reaches a declaration (issue #497). A declaration is a legal
+ * statement to a tax authority that THIS numbered document was issued; there is no honest value to
+ * declare in place of a number, and the literal "DRAFT" this bridge used to send was a placeholder the
+ * authority would have recorded as a real document number. Unreachable for a document numbered on its
+ * way to "sent" (`actions/async-send.ts` numbers it BEFORE the "sent" write `report-on-send.ts` fires
+ * on); reaching it means a document got to "sent" unnumbered, which must fail loudly, never declare.
+ * Propagates like any other failure of `reporting-runner.ts#runReport`: retried by BullMQ, then
+ * journaled `report:failed` with this message.
+ */
+export class UndeclarableDocumentError extends Error {}
+
 function toDeclaredParty(party: DocumentFormatParty): DeclaredParty {
   return {
     name: party.name,
@@ -43,14 +55,38 @@ function toDeclaredParty(party: DocumentFormatParty): DeclaredParty {
   };
 }
 
+/**
+ * `pricingData`: the data the figures are computed from, when it is not the document's own. A linked
+ * credit note owns no amounts (`formats/credit-note-source.ts`, "Why the invoice's descriptor prices
+ * a credit note"), so `reporting-runner.ts` passes the corrected invoice's descriptor and the
+ * invoice-shaped data that file builds, exactly as the credit note's e-invoicing export does. The
+ * number, id and ATCUD always stay the document's own.
+ */
+export interface BuildDeclaredInvoiceOptions {
+  pricingData?: Record<string, unknown>;
+  correctedInvoice?: DeclaredInvoice['correctedInvoice'];
+}
+
 export function buildDeclaredInvoice(
   typeId: string,
   descriptor: DocumentTypeDescriptor,
-  document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber'>,
+  document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber'> &
+    Partial<Pick<DocumentInstanceResult, 'atcud'>>,
   seller: DocumentFormatParty,
   buyer: DocumentFormatParty,
+  options: BuildDeclaredInvoiceOptions = {},
 ): DeclaredInvoice {
-  const data = (document.data ?? {}) as Record<string, unknown>;
+  // Never a placeholder: see `UndeclarableDocumentError`'s own header. Checked first, before any
+  // figure is computed, so nothing about an unnumbered document is ever assembled for declaration.
+  const number = document.displayNumber?.trim();
+  if (!number) {
+    throw new UndeclarableDocumentError(
+      `Refusing to declare ${typeId} ${document.id}: it has no number. A declaration names the issued ` +
+        'document by its number, and this one was never numbered, so there is nothing lawful to declare.',
+    );
+  }
+
+  const data = options.pricingData ?? ((document.data ?? {}) as Record<string, unknown>);
   const totals = computeDocumentTotals(descriptor, data);
   // Currency detection can fail (see `computeDocumentTotals`'s own header — a document with no
   // resolvable currency field still totals with a warning); a declarative report cannot omit a
@@ -77,9 +113,7 @@ export function buildDeclaredInvoice(
   return {
     documentId: document.id,
     typeId,
-    // Guaranteed non-null by the time a report is ever enqueued — `actions/async-send.ts` numbers a
-    // document BEFORE the "sent" write this trigger fires on (see `report-on-send.ts`'s own header).
-    number: document.displayNumber ?? 'DRAFT',
+    number,
     issueDate: toDateOnly(data.issueDate),
     currency,
     seller: toDeclaredParty(seller),
@@ -88,5 +122,7 @@ export function buildDeclaredInvoice(
     netTotal: fromMinor(totals.netMinor, currency),
     vatTotal: fromMinor(totals.vatMinor, currency),
     grossTotal: fromMinor(totals.grossMinor, currency),
+    atcud: document.atcud ?? null,
+    ...(options.correctedInvoice ? { correctedInvoice: options.correctedInvoice } : {}),
   };
 }

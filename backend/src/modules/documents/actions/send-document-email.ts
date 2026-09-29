@@ -110,7 +110,7 @@ export async function sendDocumentInstanceEmail(
   const descriptor = deps.typeRegistry.resolve(typeId);
 
   if (descriptor.numbering?.onEnterStatus === document.status && document.number == null) {
-    const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id);
+    const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id, document.data);
     if (numbered) {
       document = { ...document, ...numbered };
       // STOCK EFFECT: this is the PRIMARY issuance path for a document with
@@ -122,11 +122,10 @@ export async function sendDocumentInstanceEmail(
       //
       // GATED on `declaresArticleReference(descriptor)` (PR #473 round 3, point 2b) - the SAME
       // `descriptor` already resolved a few lines up (`deps.typeRegistry.resolve`), never a second
-      // lookup. This site is never actually reached by a credit note today (its own `deliver` never
-      // calls this function - see this file's own header), but it must not rely on that routing fact
-      // alone: the rule is "never decrement for a type whose descriptor declares no article
-      // reference", checked here directly, the same way `documents.service.ts#runAction`'s own site
-      // now is.
+      // lookup. A credit note reaches this function since issue #499 (its "email" delivery), and the
+      // rule does not rely on it being numbered elsewhere first: "never decrement for a type whose
+      // descriptor declares no article reference" is checked here directly, the same way
+      // `documents.service.ts#runAction`'s own site now is.
       if (declaresArticleReference(descriptor)) {
         await applyStockOnIssuance(companyId, document);
       }
@@ -141,6 +140,9 @@ export async function sendDocumentInstanceEmail(
     companyId,
     descriptor,
     document,
+    // Issue #494: the bytes this send delivers and archives, rendered while the record is "sending":
+    // no status line (`rendering/status-line-policy.ts`).
+    'delivery',
   );
 
   const companyTemplates = await getCompanyDocumentEmailTemplates(companyId);

@@ -191,6 +191,17 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(5) Eine Rechnung kann berichtigt werden, wenn a) sie nicht alle Angaben nach § 14 Abs. 4 oder § 14a des Gesetzes enthält oder b) Angaben in der Rechnung unzutreffend sind. Es müssen nur die fehlenden oder unzutreffenden Angaben durch ein Dokument, das spezifisch und eindeutig auf die Rechnung bezogen ist, übermittelt werden. Es gelten die gleichen Anforderungen an Form und Inhalt wie in § 14 des Gesetzes.",
+        "sourceCheckedAt": "2026-09-27"
+      },
+      "notes": "Issue #472. § 31 Abs. 5 UStDV, read verbatim on gesetze-im-internet.de (ustdv_1980/__31.html) on 2026-09-27. Read with § 14 Abs. 1 Satz 3 UStG, read on the same page set the same day: « Eine elektronische Rechnung ist eine Rechnung, die in einem strukturierten elektronischen Format ausgestellt, übermittelt und empfangen wird und eine elektronische Verarbeitung ermöglicht. » A correcting document takes the same FORM as the invoice it corrects, so where the invoice is a structured e-invoice the correction is one too. NO DISTINCT GERMAN DOCUMENT TYPE IS NEEDED BEYOND EN 16931's own: the KoSIT XRechnung delta this repository vendors (formats/vendored/de/XRechnung-UBL-validation-preprocessed.sch, itplr-kosit/xrechnung-schematron v2.5.0) lists the credit note among the codes BT-3 may carry, rule BR-DE-17: « 326 (Partial invoice), 380 (Commercial invoice), 384 (Corrected invoice), 389 (Self-billed invoice) und 381 (Credit note) [...] », and the credit-note export passes that delta with 0 error (formats/credit-note-formats.spec.ts). TERMINOLOGY TRAP, same page: the German « Gutschrift » of § 14 Abs. 2 Satz 5 UStG is a document issued by the RECIPIENT of the supply (self-billing, UNTDID 389), not a seller's credit note; this action never emits 389, and nothing in this product should translate this document type as « Gutschrift » in a tax sense. Whether a German credit note needs a number of its own stays the open question this file's own credit-note `numbering` fact records - unchanged by this rule."
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,
@@ -322,5 +333,91 @@
       },
       "notes": "Numbering it anyway is never contrary to either text read here - a unique identifier is exactly what § 14 Abs. 4 Nr. 4 asks of an invoice, and § 31 Abs. 5 UStDV's own « gleiche Anforderungen » points the same direction - which is why the product numbers German credit notes too, pending the first-hand read that would turn this into a `legal` entry."
     }
-  ]
+  ],
+  "numberFormats": {
+    "constraints": [
+      {
+        "id": "de-ustg-14-4-4",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "German law requires a sequential number, in one or more series, assigned once, that identifies the invoice. It constrains no character and no length.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« 4. eine fortlaufende Nummer mit einer oder mehreren Zahlenreihen, die zur Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben wird (Rechnungsnummer), » (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Read first-hand on gesetze-im-internet.de/ustg_1980/__14.html on 2026-09-28. Bound to the credit note too because the product numbers German credit notes (this file's credit-note `numbering` fact, still `unverified` on whether a credit note needs a number of its own). Neither format checked here adds a limit: EN 16931 gives BT-1 no length, and the vendored KoSIT XRechnung Schematron (formats/vendored/de/XRechnung-UBL-validation-preprocessed.sch) holds no assertion on BT-1's length or characters (its one string-length test, BR-DEX-13, is about decimals of an amount), checked on 2026-09-28."
+      }
+    ],
+    "formats": [
+      {
+        "typeId": "quote",
+        "pattern": "QUOTE-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A quote (Angebot) is not an invoice: § 14 Abs. 4 UStG governs the Rechnung. No German text read in this pass constrains the number of a quote.",
+        "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no German text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "pattern": "INVOICE-{year}-{number:4}",
+        "constrainedBy": ["de-ustg-14-4-4"],
+        "rationale": "Unchanged from the product's previous shared default, so a German company already running it keeps it as it is. No German rule limits its length or characters.",
+        "reset": "yearly",
+        "resetProvenance": {
+          "kind": "legal",
+          "sourceText": "(10) ¹Durch die fortlaufende Nummer (Rechnungsnummer) soll sichergestellt werden, dass die vom Unternehmer erstellte Rechnung einmalig ist. [...] ⁴Eine lückenlose Abfolge der ausgestellten Rechnungsnummern ist nicht zwingend. (11) ¹Bei der Erstellung der Rechnungsnummer bleibt es dem Rechnungsaussteller überlassen, wie viele und welche separaten Nummernkreise geschaffen werden, in denen eine Rechnungsnummer jeweils einmalig vergeben wird. ²Dabei sind Nummernkreise für zeitlich, geographisch oder organisatorisch abgegrenzte Bereiche zulässig, z. B. für Zeiträume (Monate, Wochen, Tage) [...] ⁴Es muss jedoch gewährleistet sein [...], dass die jeweilige Rechnung leicht und eindeutig dem jeweiligen Nummernkreis zugeordnet werden kann und die Rechnungsnummer einmalig ist.",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "UStAE 14.5 Abs. (10)-(11), read first-hand from the BMF's own current consolidated PDF (bundesfinanzministerium.de, \"Umsatzsteuer-Anwendungserlass-aktuell.pdf\", header \"BMF-Schreiben vom 9. April 2026 - III C 3 - S 7157-a/00005/001/052\", extracted with pdftotext) on 2026-09-28. Abs. 11 lets the issuer define its own Nummernkreise for \"zeitlich [...] abgegrenzte Bereiche\" (temporally delimited ranges) - the stated examples are months, weeks and days (\"z. B.\", non-exhaustive), but a calendar YEAR is the same kind of temporally delimited range, conditioned only on unambiguous assignment to the right range and uniqueness of the resulting number (sentence 4) - exactly what a {year}-{number} pattern guarantees. Abs. 10 sentence 4 additionally confirms no gapless sequence is required, which a fresh per-year counter does not provide either. NOT READ as an official-text sentence (secondary commentary only, Haufe): the specific worked example \"2016001...2016750; erste Rechnung 2017 = 2017001\" some secondary sources attribute to this provision."
+      },
+      {
+        "typeId": "credit-note",
+        "pattern": "CN-{year}-{number:4}",
+        "constrainedBy": ["de-ustg-14-4-4"],
+        "rationale": "No German rule needs a shorter credit-note number. The same short form as the other countries is used so a company working across them reads one convention, in a series of its own, distinct from the invoice series.",
+        "reset": "yearly",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "UStAE 14.5 Abs. (10)-(11) (this file's own invoice `resetProvenance`, read first-hand 2026-09-28) permits a yearly Nummernkreis for the Rechnung. Whether a German credit note (Gutschrift) needs a number OF ITS OWN at all is itself still unverified (this file's own credit-note `numbering` fact above), and § 31 Abs. 5 UStDV's \"gleiche Anforderungen an Form und Inhalt wie in § 14\" - the SAME cross-reference that fact and the de-ustg-14-4-4 constraint already lean on to number a German credit note at all - extends Abs. 10-11's yearly-Nummernkreis permission to it by the identical logic, not by a fresh Gutschrift-specific sentence. Kept `unverified` rather than `legal` for that reason: this is one inference away from a text actually read about the credit note itself. What would settle it: UStAE 17.1 (Gutschrift/kaufmännische Rechnungskorrektur), read first-hand, on whether it says anything of its own about numbering."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no German text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no German text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no German text read in this pass constrains its number.",
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no German text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
+      }
+    ],
+    "runningSeries": {
+      "summary": "A series this company already started is kept as it is: German law asks for one sequential number assigned once, and switching a running series to another format is never required by it.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« 4. eine fortlaufende Nummer mit einer oder mehreren Zahlenreihen, die zur Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben wird (Rechnungsnummer), » (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "onViolation": "No German constraint limits the characters or the length of the number, so a running series can only fall back when its own pattern cannot be rendered at all. The country format then applies from the next number; the counter is not reset and no number is reused."
+    }
+  }
 }

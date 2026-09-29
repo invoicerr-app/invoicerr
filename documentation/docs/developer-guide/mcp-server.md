@@ -19,6 +19,7 @@ The intended flow for an agent:
 1. **`list_document_types`** — the entry point. Returns every document type the active company's country currently makes available, each with its full field list and its declared actions (and, for an action the company's country currently forbids, why — `policyBlockedReason`). This is the same descriptor a document's edit screen in the app itself renders from, so the agent discovers what it can do from data rather than from a hardcoded tool list.
 2. **`list_documents`** — saved instances of one type, most recently updated first (status, number, stored field data).
 3. **`get_document`** — one instance in full: stored data, computed totals, and, for an invoice specifically, its payment settlement.
+   For a quote with options, `totals.options` lists each option's own totals (common lines included). The top-level net, VAT and gross are the accepted option's, and `null` while no option is accepted: never the sum of every option.
 4. **`run_document_action`** — the one generic mutation tool. Runs a declared action (`"save-draft"`, `"send"`, `"convert-to-invoice"`, …) of one type, exactly the same entry point the app's own UI goes through, so every gate the UI would hit applies here too: an unknown type or action, a country that forbids the action, a document status that doesn't allow it, an action declared but not yet implemented, or invalid field/param data all come back as a clear, named error rather than a silent no-op.
 5. **`get_document_pdf_link`** — see below.
 

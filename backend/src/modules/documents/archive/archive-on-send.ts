@@ -59,10 +59,16 @@ export interface ArchiveDeliveredArtifactsInput {
   documentId: string;
   /** What `deliver()` actually delivered — see `transports/transport-registry.ts`'s
    *  `DocumentTransportResult.artifacts`'s own header. Absent, or empty, for a delivery that produced
-   *  NO archivable artifact at all (the credit-note's "send", `credit-note-actions.ts` — a plain
-   *  status transition, with no transport and no email): nothing to archive is not a failure, it is
-   *  simply nothing to do. */
+   *  NO archivable artifact at all: nothing to archive is not a failure, it is simply nothing to do.
+   *  (The credit note's "send" was that case until issue #499; it now always archives its own PDF,
+   *  `credit-note-actions.ts`.) */
   artifacts: ArchivedArtifactInput[] | undefined;
+  /** Issue #490: `hashDocumentData` (`document-data-hash.ts`) of the `data` `deliver()` rendered
+   *  these artifacts from, written onto the DELIVERY archive (and journaled with the bytes if
+   *  archiving fails) so the PDF download can later tell whether the archive still matches the
+   *  document. Optional: a caller that cannot name it leaves the column NULL, which only ever costs a
+   *  fresh render for a document that is not issued yet, never a stale PDF. */
+  documentDataHash?: string;
 }
 
 /**
@@ -71,7 +77,7 @@ export interface ArchiveDeliveredArtifactsInput {
  * — nothing here names "invoice" or "pdp").
  */
 export async function archiveDeliveredArtifactsIfAny(input: ArchiveDeliveredArtifactsInput): Promise<void> {
-  const { companyId, documentId, artifacts } = input;
+  const { companyId, documentId, artifacts, documentDataHash } = input;
   if (!artifacts || artifacts.length === 0) return;
 
   // Wrapped in `runWithCompanyId` — this runs from `async-send.ts`, itself reached either in-request
@@ -84,7 +90,7 @@ export async function archiveDeliveredArtifactsIfAny(input: ArchiveDeliveredArti
     // sweep pass would dutifully archive them a second time.
     let archived = false;
     try {
-      await createDocumentArchive({ companyId, documentId, artifacts });
+      await createDocumentArchive({ companyId, documentId, artifacts, documentDataHash });
       archived = true;
       // Whatever this document still owed the archive is paid: drop the journal row (a no-op for the
       // ordinary first-attempt success, which never journaled anything) BEFORE clearing the error, so
@@ -113,7 +119,7 @@ export async function archiveDeliveredArtifactsIfAny(input: ArchiveDeliveredArti
       // close it.
       let journaled = false;
       try {
-        await journalFailedArchive({ companyId, documentId, artifacts, error: message });
+        await journalFailedArchive({ companyId, documentId, artifacts, documentDataHash, error: message });
         journaled = true;
       } catch (journalError) {
         logger.error(

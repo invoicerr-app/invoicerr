@@ -1,6 +1,5 @@
 import { ArrowLeft, ChevronDown, Download, FileCode, Link2, Repeat, UserCheck } from "lucide-react"
 import { useState } from "react"
-import { useWatch } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
@@ -45,9 +44,12 @@ import { DocumentTaxWarningsSection } from "@/components/documents/document-tax-
 import {
   DocumentTotals,
   formatTotal,
+  fromDerivedTotals,
+  acceptedOptionTotals,
   useDocumentOptionTotals,
   useDocumentTotals,
 } from "@/components/documents/document-totals"
+import { decimalsFor } from "@/components/documents/totals-calculator"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { hasUnsavedChanges } from "@/components/documents/form-dirty"
 import { isEmptyFieldValue, resolveListFields } from "@/components/documents/list-fields"
@@ -55,12 +57,14 @@ import { MarkQuoteAcceptedDialog } from "@/components/documents/mark-quote-accep
 import { SectionCard } from "@/components/documents/section-card"
 import { ShareLinkDialog } from "@/components/documents/share-link-dialog"
 import type {
+  DerivedDocumentTotals,
   DocumentActionDescriptor,
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
 import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { type DocumentFormState, useDocumentForm } from "@/components/documents/use-document-form"
+import { useUnsavedChanges } from "@/components/documents/use-unsaved-changes"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -156,13 +160,15 @@ interface DocumentDetailBodyProps {
   onDiscard: () => void
 }
 
-/** Split from DocumentDetail only so the hooks that read the form (`useWatch`,
+/** Split from DocumentDetail only so the hooks that read the form (`useUnsavedChanges`,
  *  `useDocumentTotals`) run INSIDE the `<Form>` provider the parent mounts. */
 function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }: DocumentDetailBodyProps) {
   const { t } = useTranslation()
   // Value comparison against the saved baseline, never RHF's own `isDirty` — see form-dirty.ts.
-  const values = useWatch({ control: state.form.control })
-  const isDirty = hasUnsavedChanges(values, baseline)
+  // Never a whole-form `useWatch` here (issue #488): this component is the page body, and
+  // re-rendering it on every keystroke re-rendered every field under it. `useUnsavedChanges`
+  // re-renders it only when the answer flips, see that hook's own header.
+  const isDirty = useUnsavedChanges(state.form, baseline)
   const { currentStatus, currentDisplayNumber, availableActions, showSettlement } = state
 
   // "sending" is the generic queue-processing status the async "send" mechanism introduces
@@ -252,6 +258,25 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             descriptor={descriptor}
             documentId={instance.id}
             acceptedOption={instance.acceptedOption}
+            derivedTotals={instance.derivedTotals}
+            vatNationalCurrency={
+              instance.vatNationalCurrency
+                ? {
+                    currency: instance.vatNationalCurrency,
+                    taxableMinor: instance.vatNationalCurrencyTaxableMinor ?? null,
+                    vatMinor: instance.vatNationalCurrencyVatMinor ?? 0,
+                    // The backend serializes Prisma's `Decimal` as a STRING over JSON (decimal.js's own
+                    // `toJSON()`), never a number. `Number(...)` here is the one place this feature
+                    // crosses that boundary, so `VatNationalCurrencyInfo.rate` stays a real `number`
+                    // for everything downstream (`.toFixed`) rather than every caller re-coercing it.
+                    rate: Number(instance.vatNationalCurrencyRate ?? 0),
+                    // The API sends a full ISO datetime (it's a DateTime column, frozen at midnight
+                    // UTC on the resolved business day) - sliced to the date-only part, the same
+                    // "yyyy-mm-dd" the PDF itself prints (render-instance-pdf.ts's own identical slice).
+                    rateAsOf: instance.vatNationalCurrencyRateAsOf?.slice(0, 10) ?? null,
+                  }
+                : null
+            }
           />
           {showSettlement && <DocumentSettlementSection typeId={descriptor.id} documentId={instance.id} />}
           {/* Legal archiving ⚖ — shown for ANY document type/status once it has at least one
@@ -407,7 +432,11 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
               </span>
             )
           })}
-          <HeadlineAmount descriptor={descriptor} />
+          <HeadlineAmount
+            descriptor={descriptor}
+            acceptedOption={instance.acceptedOption}
+            derivedTotals={instance.derivedTotals}
+          />
         </div>
       </div>
 
@@ -419,14 +448,27 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
 /** The live gross total, in the mono figures face — the one number a reader looks for first.
  *  Absent for a type with nothing to total (see useDocumentTotals), and - issue #373 ("quotes with
  *  options") - absent for a quote offering 2+ options: there is no single gross to headline until the
- *  client picks one, and the per-option totals card below is where each option's own total lives. */
-function HeadlineAmount({ descriptor }: { descriptor: DocumentTypeDescriptor }) {
+ *  client picks one, and the per-option totals card below is where each option's own total lives.
+ *  Issue #479: once an option IS picked (`acceptedOption`), that option's own total is the headline.
+ *  Issue #507: a linked credit note's headline is its `derivedTotals` (`DocumentInstance`'s own
+ *  header), never the 0.00 its own empty lines sum to. */
+function HeadlineAmount({
+  descriptor,
+  acceptedOption,
+  derivedTotals,
+}: {
+  descriptor: DocumentTypeDescriptor
+  acceptedOption?: string | null
+  derivedTotals?: DerivedDocumentTotals | null
+}) {
   const optionTotals = useDocumentOptionTotals(descriptor)
-  const totals = useDocumentTotals(descriptor)
-  if (optionTotals || !totals) return null
+  const liveTotals = useDocumentTotals(descriptor)
+  const totals = derivedTotals ? fromDerivedTotals(derivedTotals) : liveTotals
+  const headline = optionTotals ? acceptedOptionTotals(optionTotals, acceptedOption) : totals
+  if (!headline) return null
   return (
     <span className="amount text-base font-semibold text-foreground" data-cy="document-detail-amount">
-      {formatTotal(totals.grossMinor, totals.currency || "")}
+      {formatTotal(headline.grossMinor, headline.currency || "")}
     </span>
   )
 }
@@ -439,24 +481,76 @@ function HeadlineAmount({ descriptor }: { descriptor: DocumentTypeDescriptor }) 
  * also why they are not in the settlement card — that one is about what has been PAID, not about how
  * the amount was arrived at.
  */
+interface VatNationalCurrencyInfo {
+  currency: string
+  taxableMinor: number | null
+  vatMinor: number
+  rate: number
+  rateAsOf: string | null
+}
+
 function TotalsCard({
   descriptor,
   documentId,
   acceptedOption,
+  derivedTotals,
+  vatNationalCurrency,
 }: {
   descriptor: DocumentTypeDescriptor
   documentId: string
   acceptedOption?: string | null
+  derivedTotals?: DerivedDocumentTotals | null
+  /** Issue #517 - see `DocumentInstance.vatNationalCurrency`'s own header. Null for every document
+   *  this feature does not apply to - renders nothing extra. */
+  vatNationalCurrency?: VatNationalCurrencyInfo | null
 }) {
   const { t } = useTranslation()
   const optionTotals = useDocumentOptionTotals(descriptor)
   const totals = useDocumentTotals(descriptor)
-  if (!optionTotals && !totals) return null
+  if (!optionTotals && !totals && !derivedTotals) return null
   return (
     <SectionCard title={t("documents.detail.totalsTitle")} dataCy="document-totals-card">
-      <DocumentTotals descriptor={descriptor} acceptedOption={acceptedOption} />
+      <DocumentTotals descriptor={descriptor} acceptedOption={acceptedOption} derivedTotals={derivedTotals} />
+      {vatNationalCurrency && <VatNationalCurrencySection info={vatNationalCurrency} />}
       <DocumentTaxWarningsSection typeId={descriptor.id} documentId={documentId} />
     </SectionCard>
+  )
+}
+
+/**
+ * Issue #517 - the frozen, converted VAT (and, for Italy, taxable amount) figure - a DATED legal
+ * fact resolved once at issuance (`backend/src/modules/documents/vat-currency/vat-currency-issuance.ts`),
+ * never recomputed here the way
+ * `DocumentTotals` above recomputes live from the form: a rate entered/refreshed after the fact must
+ * never silently change what this invoice already printed. Shown only once the document actually
+ * carries one (see `TotalsCard`'s own null check).
+ */
+function VatNationalCurrencySection({ info }: { info: VatNationalCurrencyInfo }) {
+  const { t } = useTranslation()
+  const decimals = decimalsFor(info.currency)
+  return (
+    <div className="mt-3 space-y-1 border-t pt-3 text-sm" data-cy="document-vat-national-currency">
+      {info.taxableMinor !== null && (
+        <div className="flex justify-between gap-4 text-xs text-muted-foreground">
+          <dt>{t("documents.totals.taxableInNationalCurrency", { currency: info.currency })}</dt>
+          <dd className="amount" data-cy="document-vat-national-currency-taxable">
+            {formatTotal(info.taxableMinor, info.currency)}
+          </dd>
+        </div>
+      )}
+      <div className="flex justify-between gap-4 font-medium">
+        <dt>{t("documents.totals.vatInNationalCurrency", { currency: info.currency })}</dt>
+        <dd className="amount" data-cy="document-vat-national-currency-vat">
+          {formatTotal(info.vatMinor, info.currency)}
+        </dd>
+      </div>
+      <div className="text-xs text-muted-foreground" data-cy="document-vat-national-currency-rate">
+        {t("documents.totals.exchangeRate", {
+          rate: info.rate.toFixed(decimals + 2),
+          date: info.rateAsOf ?? "",
+        })}
+      </div>
+    </div>
   )
 }
 

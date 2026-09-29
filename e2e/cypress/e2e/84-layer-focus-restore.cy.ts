@@ -38,7 +38,7 @@
  * stranding keyboard users on <body>) — `waitForLayerTeardown`'s focus assertion already fails on
  * that, see its header in support/commands.ts.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 // `@radix-ui/react-focus-scope`'s own AUTOFOCUS_ON_UNMOUNT constant.
 const RESTORE_EVENT = "focusScope.autoFocusOnUnmount";

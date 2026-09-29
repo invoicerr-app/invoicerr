@@ -2,7 +2,7 @@ import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import {
-  attachAtcudToNumberedInvoice,
+  attachAtcudToNumberedDocument,
   AtcudValidationCodeMissingError,
   ensureAtcudIssuable,
   isAtcudBlockError,
@@ -40,17 +40,17 @@ beforeEach(() => {
 describe('ensureAtcudIssuable — the load-bearing preflight gate, before any number is spent', () => {
   it('is a no-op for a non-Portuguese company — never even reads its number format', async () => {
     mockCompany('France');
-    await expect(ensureAtcudIssuable('company-1', PT_DATE)).resolves.toBeUndefined();
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).resolves.toBeUndefined();
     // Only the country lookup ran — a second `findUnique` call for `numberFormats` never happened.
     expect(mockedPrisma.company.findUnique).toHaveBeenCalledTimes(1);
   });
 
   it('is a no-op for a company with no resolvable country at all', async () => {
     mockCompany(null);
-    await expect(ensureAtcudIssuable('company-1', PT_DATE)).resolves.toBeUndefined();
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).resolves.toBeUndefined();
   });
 
-  it('passes for a Portuguese company with an ATCUD-compatible format AND a registered series code', async () => {
+  it('passes for a Portuguese company whose RUNNING series is ATCUD-compatible, with its code registered (issue #496: the running series is kept)', async () => {
     mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({
       id: 'series-1',
@@ -60,7 +60,7 @@ describe('ensureAtcudIssuable — the load-bearing preflight gate, before any nu
       validationCode: 'JCVPTS0J',
     });
 
-    await expect(ensureAtcudIssuable('company-1', PT_DATE)).resolves.toBeUndefined();
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).resolves.toBeUndefined();
     expect(mockedPrisma.companyAtcudSeries.findUnique).toHaveBeenCalledWith({
       where: {
         companyId_typeId_seriesId: { companyId: 'company-1', typeId: 'invoice', seriesId: 'FT 2026' },
@@ -68,12 +68,27 @@ describe('ensureAtcudIssuable — the load-bearing preflight gate, before any nu
     });
   });
 
-  // FAILURE PATH 1/2 — an incompatible number format.
-  it('throws AtcudFormatIncompatibleError for a Portuguese company on the shipped DEFAULT number format', async () => {
-    mockCompany('Portugal', null); // no override at all -> defaultNumberFormatFor('invoice')
-    await expect(ensureAtcudIssuable('company-1', PT_DATE)).rejects.toThrow(AtcudFormatIncompatibleError);
-    // Never even looked up a series — the format check runs first and fails fast.
-    expect(mockedPrisma.companyAtcudSeries.findUnique).not.toHaveBeenCalled();
+  // Issue #496: with no running series, Portugal's own format ("FT A/{number}", country-policy/data/
+  // pt.json) applies - ATCUD-compatible out of the box, so the only thing left to configure is the AT
+  // validation code of series "FT A". The old shared default had no "/" at all and blocked here.
+  it('a Portuguese company with no running series gets Portugal\'s own format: series "FT A", no per-year code', async () => {
+    mockCompany('Portugal', null);
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({ validationCode: 'JCVPTS0J' });
+
+    await expect(ensureAtcudIssuable('company-1', 'invoice', new Date(2031, 5, 1))).resolves.toBeUndefined();
+    expect(mockedPrisma.companyAtcudSeries.findUnique).toHaveBeenCalledWith({
+      where: { companyId_typeId_seriesId: { companyId: 'company-1', typeId: 'invoice', seriesId: 'FT A' } },
+    });
+  });
+
+  it('a running series that cannot carry an ATCUD gives way to the country format (series "FT A")', async () => {
+    mockCompany('Portugal', { invoice: 'INVOICE-{year}-{number:4}' });
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
+
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).rejects.toThrow(
+      AtcudValidationCodeMissingError,
+    );
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).rejects.toThrow(/"FT A"/);
   });
 
   // FAILURE PATH 2/2 — a compatible format, but no AT code registered for the predicted series yet.
@@ -81,15 +96,17 @@ describe('ensureAtcudIssuable — the load-bearing preflight gate, before any nu
     mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
 
-    await expect(ensureAtcudIssuable('company-1', PT_DATE)).rejects.toThrow(AtcudValidationCodeMissingError);
-    await expect(ensureAtcudIssuable('company-1', PT_DATE)).rejects.toThrow(/FT 2026/);
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).rejects.toThrow(
+      AtcudValidationCodeMissingError,
+    );
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).rejects.toThrow(/FT 2026/);
   });
 
   it('resolves the series id fresh from `now` — a company with a per-year series needs a fresh code every year', async () => {
     mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
 
-    await ensureAtcudIssuable('company-1', new Date(2027, 0, 1)).catch(() => undefined);
+    await ensureAtcudIssuable('company-1', 'invoice', new Date(2027, 0, 1)).catch(() => undefined);
     expect(mockedPrisma.companyAtcudSeries.findUnique).toHaveBeenCalledWith({
       where: {
         companyId_typeId_seriesId: { companyId: 'company-1', typeId: 'invoice', seriesId: 'FT 2027' },
@@ -109,10 +126,10 @@ describe('isAtcudBlockError', () => {
   });
 });
 
-describe('attachAtcudToNumberedInvoice — the defensive re-check AFTER a number is already spent', () => {
+describe('attachAtcudToNumberedDocument - the defensive re-check AFTER a number is already spent', () => {
   it('is a no-op for a non-Portuguese company', async () => {
     mockCompany('France');
-    await attachAtcudToNumberedInvoice('company-1', 'doc-1', {
+    await attachAtcudToNumberedDocument('company-1', 'invoice', 'doc-1', {
       number: 1,
       displayNumber: 'INVOICE-2026-0001',
     });
@@ -129,7 +146,10 @@ describe('attachAtcudToNumberedInvoice — the defensive re-check AFTER a number
       validationCode: 'JCVPTS0J',
     });
 
-    await attachAtcudToNumberedInvoice('company-1', 'doc-1', { number: 7, displayNumber: 'FT 2026/0007' });
+    await attachAtcudToNumberedDocument('company-1', 'invoice', 'doc-1', {
+      number: 7,
+      displayNumber: 'FT 2026/0007',
+    });
 
     expect(mockedPrisma.documentInstance.update).toHaveBeenCalledWith({
       where: { id: 'doc-1' },
@@ -145,16 +165,79 @@ describe('attachAtcudToNumberedInvoice — the defensive re-check AFTER a number
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
 
     await expect(
-      attachAtcudToNumberedInvoice('company-1', 'doc-1', { number: 7, displayNumber: 'FT 2026/0007' }),
+      attachAtcudToNumberedDocument('company-1', 'invoice', 'doc-1', {
+        number: 7,
+        displayNumber: 'FT 2026/0007',
+      }),
     ).resolves.toBeUndefined();
     expect(mockedPrisma.documentInstance.update).not.toHaveBeenCalled();
   });
 
-  it('never throws — logs and swallows if the number format itself has since become incompatible', async () => {
-    mockCompany('Portugal', { invoice: 'INVOICE-{year}-{number:4}' }); // no "/" at all
+  it('never throws - logs and swallows if the number it is handed cannot carry an ATCUD', async () => {
+    mockCompany('Portugal', null);
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
     await expect(
-      attachAtcudToNumberedInvoice('company-1', 'doc-1', { number: 7, displayNumber: 'INVOICE-2026-0007' }),
+      attachAtcudToNumberedDocument('company-1', 'invoice', 'doc-1', {
+        number: 7,
+        displayNumber: 'INVOICE-2026-0007',
+      }),
     ).resolves.toBeUndefined();
     expect(mockedPrisma.documentInstance.update).not.toHaveBeenCalled();
+  });
+});
+
+// Issue #497 - the credit note gets its own ATCUD, from its OWN number format and its OWN series
+// (Portaria n.º 195/2020, art. 2.º b): a series is registered per SAF-T document type, NC here).
+describe("the credit note (issue #497): its own format, its own NC series, never the invoice's", () => {
+  const formats = { invoice: 'FT {year}/{number:4}', 'credit-note': 'NC {year}/{number:4}' };
+
+  it("ensureAtcudIssuable looks up the credit note's own series, predicted from its own number format", async () => {
+    mockCompany('Portugal', formats);
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({ validationCode: 'NCVALID01' });
+
+    await expect(ensureAtcudIssuable('company-1', 'credit-note', PT_DATE)).resolves.toBeUndefined();
+    expect(mockedPrisma.companyAtcudSeries.findUnique).toHaveBeenCalledWith({
+      where: {
+        companyId_typeId_seriesId: { companyId: 'company-1', typeId: 'credit-note', seriesId: 'NC 2026' },
+      },
+    });
+  });
+
+  // Issue #496: a Portuguese credit note left without a running series is numbered in Portugal's own
+  // NC format, so the series to register is "NC A" - never a format the company has to configure.
+  it('a credit note with no running series gets Portugal\'s own NC format: series "NC A"', async () => {
+    mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' });
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
+    await expect(ensureAtcudIssuable('company-1', 'credit-note', PT_DATE)).rejects.toThrow(
+      /credit note series "NC A" \(SAF-T document type NC\)/,
+    );
+  });
+
+  it('refuses when only the INVOICE series is registered: the error names the NC series', async () => {
+    mockCompany('Portugal', formats);
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
+    await expect(ensureAtcudIssuable('company-1', 'credit-note', PT_DATE)).rejects.toThrow(
+      /credit note series "NC 2026" \(SAF-T document type NC\)/,
+    );
+  });
+
+  it('attachAtcudToNumberedDocument freezes ATCUD:<NC code>-<sequential> onto the credit note', async () => {
+    mockCompany('Portugal', formats);
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({ validationCode: 'NCVALID01' });
+
+    await attachAtcudToNumberedDocument('company-1', 'credit-note', 'cn-1', {
+      number: 3,
+      displayNumber: 'NC 2026/0003',
+    });
+
+    expect(mockedPrisma.companyAtcudSeries.findUnique).toHaveBeenCalledWith({
+      where: {
+        companyId_typeId_seriesId: { companyId: 'company-1', typeId: 'credit-note', seriesId: 'NC 2026' },
+      },
+    });
+    expect(mockedPrisma.documentInstance.update).toHaveBeenCalledWith({
+      where: { id: 'cn-1' },
+      data: { atcud: 'ATCUD:NCVALID01-0003' },
+    });
   });
 });

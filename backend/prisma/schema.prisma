@@ -432,15 +432,16 @@ model Company {
   // branding at all, or colour/font set by hand without ever picking a named starting point.
   brandingPreset      String?
 
-  // Per-document-type number FORMAT, keyed by DocumentTypeDescriptor.id — e.g.
-  // `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here falls back to
-  // documents/numbering/format-number.ts's own `defaultNumberFormatFor(typeId)` — never a hole in the
-  // format, only in WHO chose it. Written through `PUT /api/company/number-format`
-  // (`CompanyService#updateNumberFormat`, the only path that runs `assertValidNumberPattern`) — by the
-  // Portuguese ATCUD settings screen and, since the migration above, by the main "Number formats" card
-  // too, one type at a time. Never through `POST /api/company/info`'s `EditCompanyDto`: see
-  // `editCompanyInfo`'s own comment for why that write path allow-lists its columns instead of
-  // spreading the request body.
+  // Issue #496: the company's RUNNING SERIES, keyed by DocumentTypeDescriptor.id - e.g.
+  // `{ "invoice": "FAC-{year}-{number:5}" }` - NOT a setting any more. Number formats are defined per
+  // country and document type (documents/country-policy/data/xx.json, `numberFormats`) and no company
+  // can change them; this column only records, for each type the company had already numbered before
+  // that rule, the format its series was running under, so the series continues unchanged (continuity
+  // of an issued series is a legal obligation). Frozen by migration
+  // `20260928000000_issue_496_freeze_running_number_series`, written by nothing since
+  // (`PUT /api/company/number-format` answers 405; `editCompanyInfo` allow-lists its columns). Read by
+  // documents/numbering/company-number-format.ts, which keeps a running series only while it satisfies
+  // the country's constraints. A type absent here is numbered with the country format.
   numberFormats Json?
 
   // Which registered payment provider (documents/payments/payment-provider-registry.ts) an invoice's
@@ -492,6 +493,29 @@ model Company {
   // presentation convenience for ONE dropdown (CurrencySelect), not a second source of truth this
   // column needs to satisfy too. See CurrencyRate.from/to's own comment for the same choice.
   referenceCurrency String?
+
+  // Issue #516 - which figure THIS company declares as its own revenue: "invoiced" (the moment a
+  // document is issued - this product's own existing "Invoiced this month" dashboard tiles) or
+  // "cashed" (the moment a payment actually arrives - see `revenue-report/cashed-revenue.ts`).
+  // `String?`, not a Prisma enum - same reasoning as `referenceCurrency` right above: read back
+  // through ONE narrowing resolver (`company/revenue-basis/resolve-revenue-basis.ts#resolveRevenueBasis`)
+  // that already treats anything but exactly "invoiced"/"cashed" as "not set". NULL - every company
+  // that existed before this column, and any new one that never touched the setting - is NOT "no
+  // opinion": that resolver still returns a real default, computed from this company's own
+  // `countryCode`, because several regimes this product serves LEGALLY require cashed-basis
+  // reporting (FR micro-entrepreneur/URSSAF, IT regime forfettario) and defaulting those companies to
+  // "invoiced" would be quietly wrong for the return they actually have to file. See that resolver's
+  // own header for the exact per-country table and its sources - this column only ever stores the
+  // EXPLICIT override, never the computed default itself.
+  revenueBasis String?
+
+  // Issue #516 - the DECLARATION PERIOD the cashed-revenue view (and any future export built on it)
+  // buckets by: "monthly" or "quarterly". Same nullable/resolved-by-a-function shape as
+  // `revenueBasis` right above - NULL still resolves to a real default ("monthly": the URSSAF default
+  // for a micro-entrepreneur who never opted into quarterly filing, and the finer of the two
+  // granularities for every other regime, which a reader can always re-aggregate into quarters by
+  // hand but never the reverse - see `resolve-revenue-basis.ts`'s own header).
+  revenuePeriod String?
 
   // Automatic reminders ("relances automatiques") — OPT-IN, default `false`: auto-emailing a
   // company's own CLIENTS is side-effectful in a way none of this module's other background sweeps
@@ -1571,6 +1595,36 @@ model DocumentInstance {
   // untouched forever.
   atcud String?
 
+  // Issue #517: VAT (and, where the seller's country requires it, the taxable amount too) in the
+  // seller's own COUNTRY'S national currency, when the invoice itself is issued in a different one.
+  // FR/PL/IT all make this mandatory (see `../vat-currency/data/*.json` for the sourced, per-country
+  // rule and `../vat-currency/vat-currency-issuance.ts` for the freeze). Computed and frozen the SAME
+  // moment `displayNumber`/`atcud` above are, for the exact same reason: the exchange rate is a fact
+  // about the day this document was ISSUED (CGI art. 266 1 bis "au jour de l'exigibilité", VAT act
+  // art. 31a ust. 1 "ostatni dzień roboczy poprzedzający", DPR 633/1972 art. 13 c.4 "il giorno di
+  // effettuazione... o, in mancanza, il giorno di emissione"). Re-resolving it on a later read would
+  // let a rate entered AFTER the fact (or a currency-rate backfill) silently rewrite an already-issued
+  // invoice's own printed VAT amount, the identical risk `settlement/convert-payment.ts`'s own header
+  // already explains for a payment's `conversionRate`. All five columns are null together, forever, for
+  // every document whose seller country either has no such requirement (DE/PT, see the catalog's own
+  // `notes`) or whose invoice currency already IS the seller's own national currency (nothing to
+  // convert), never partially set.
+  vatNationalCurrency           String?
+  // Taxable amount (net) converted, minor units, set only when the country's own rule ALSO requires
+  // the base to be shown (Italy: DPR 633/1972 art. 21 c.2 lett. l), null for a country requiring the
+  // VAT amount alone (France: BOI-TVA-DECLA-30-20-20-10 §380 names only "le montant de taxe").
+  vatNationalCurrencyTaxableMinor Int?
+  vatNationalCurrencyVatMinor     Int?
+  // Units of `vatNationalCurrency` per one unit of the invoice's own currency, same direction
+  // `CurrencyRate.rate`/`DocumentPayment.conversionRate` already use, so `convert.ts#convertMinor` is
+  // reused verbatim rather than a second, feature-specific rounding rule.
+  vatNationalCurrencyRate      Decimal?
+  vatNationalCurrencyRateAsOf  DateTime?
+  // 'ecb' (FR/IT, Regulation (EU) via CGI art. 266 1 bis / DPR 633/1972 art. 13 c.4) or 'nbp' (PL,
+  // VAT act art. 31a ust. 1, NBP Table A specifically: never a silent ECB/open.er-api.com fallback for
+  // Poland, see `../vat-currency/nbp-rates-client.ts`'s own header).
+  vatNationalCurrencyRateSource String?
+
   // Issue #373 ("quotes with options"): the OPTION NAME the client chose when accepting a quote that
   // offers two or more (`documents/options/quote-options.ts#deriveQuoteOptions` - the distinct,
   // non-empty `option` tags a quote's own `data.lines` carry, in first-appearance order). A dedicated
@@ -2187,10 +2241,13 @@ model DocumentReminder {
 // backfill beyond the enum's own default.
 // ## `ACCEPTANCE` - issue #421, "accept a quote manually, without the e-signature"
 //
-// Written ONLY by `actions/quote-manual-acceptance.ts`, the moment the issuer records that a client
-// accepted a quote by some OTHER means (a phone call, a reply email, a signed paper scan) - never by
-// the e-signature flow (`signatures/signatures.service.ts#markSigned`, which touches no archive at
-// all: the client's OTP-verified signature is its own probative record, the `Signature` row itself).
+// Written by `actions/quote-manual-acceptance.ts`, the moment the issuer records that a client
+// accepted a quote by some OTHER means (a phone call, a reply email, a signed paper scan), under
+// `role: 'manual-acceptance'`. Since issue #477 it is ALSO written by the e-signature flow
+// (`signatures/signatures.service.ts#markSigned`), under `role: 'e-signature'`: the `Signature` row
+// is an ordinary, mutable database row, and "which delivered version did the client sign" deserved
+// the same WORM record a manual acceptance already had. Both manifests name the DELIVERY archive
+// (id and content hash) the acceptance refers to, verbatim in their own bytes.
 // A SEPARATE kind was necessary, not merely tidier, for a concrete reason:
 // `archive/persistence.ts#findArchivedPdfArtifact` picks the MOST RECENT row of `kind: DELIVERY` for
 // a document to serve a cached PDF - reusing DELIVERY for a manual-acceptance manifest (a JSON
@@ -2230,6 +2287,10 @@ model DocumentArchive {
   parentArchiveId String?
   verdictArchives DocumentArchive[] @relation("DocumentArchiveVerdictOf")
 
+  // Issue #477: the signature requests bound to THIS delivered version (`Signature.deliveryArchiveId`).
+  // Only ever a DELIVERY row.
+  boundSignatures Signature[] @relation("SignatureDeliveryArchive")
+
   // VERDICT rows only: `${documentId}|${providerId}|${statusCode}` — the dedup key that makes
   // archiving a terminal verdict idempotent under a re-poll or a redelivered queue job (the identical
   // `@@unique([documentId, providerId, statusCode])` discipline `DocumentAuthorityEvent` already
@@ -2262,6 +2323,15 @@ model DocumentArchive {
   // VERDICT row: always exactly one artifact, `{ role: "authority-verdict", mime: "application/json",
   // ... }` — see `archive/verdict-artifact.ts`.
   artifacts Json
+
+  // Issue #490: SHA-256 over the document's `data` the archived PDF was rendered from, computed with
+  // the SAME canonical hash an e-signature binds to (`archive/document-data-hash.ts`, issue #477).
+  // DELIVERY rows only. `documents.service.ts#renderInstancePdf` serves the archived PDF of a document
+  // that is not issued yet only while its current `data` still hashes to this value, so a quote
+  // edited back to "draft" downloads its edited content instead of the last sent one. NULL for every
+  // row written before this column existed and for every non-DELIVERY row: nothing proves which data
+  // those bytes came from, so an unissued document with a NULL here is rendered fresh. No backfill.
+  documentDataHash String?
 
   archivedAt DateTime @default(now())
 
@@ -2350,6 +2420,12 @@ model PendingDocumentArchive {
   // above records metadata for, plus the payload itself, which that column deliberately never
   // carries (its bytes are already at `uri`; these have nowhere else to be yet).
   artifacts Json
+
+  // Issue #490: the `documentDataHash` the DocumentArchive row written from these bytes must carry
+  // (see that column). Captured at delivery time, never recomputed at retry time: the document may
+  // have been edited between the failed attempt and the sweep, and these bytes still come from the
+  // data as it was when they were delivered.
+  documentDataHash String?
 
   // When archiving first failed for THESE bytes — the start of the gap an auditor would measure, and
   // what the escalated message on `DocumentInstance.lastArchiveError` quotes. Reset when a newer
@@ -2689,8 +2765,31 @@ model Signature {
   // is that store's own URI, `documentPdfHash` its SHA-256. Every later view reads back these exact
   // bytes rather than rendering again, which is what actually makes "what the signer saw" and "what
   // gets sealed" the same artifact, not merely two renders that are expected to agree.
+  //
+  // Issue #477: only rows created BEFORE the version binding below existed ever set these two. A
+  // bound request serves the delivered PDF straight from its DELIVERY archive (`deliveryArchiveId`)
+  // and never renders or freezes a copy of its own; these columns stay as the evidence of what every
+  // earlier signer reviewed.
   documentPdfUri  String?
   documentPdfHash String?
+
+  // Issue #477, "an e-signature must bind to the exact version the client read". A request is bound,
+  // when it is created (`signatures.service.ts#requestSignature`), to ONE delivered version of the
+  // document: the DELIVERY archive holding the PDF the client was sent (`deliveryArchiveId`, with its
+  // `contentHash` copied into `deliveryContentHash` so the evidence survives even if the foreign key
+  // is ever nulled), plus the document's own `data` as it stood at that moment (`documentData`, and
+  // `documentDataHash` over a canonical, key-sorted serialization of it). The signing page shows that
+  // PDF, `markSigned` validates the client's choice (the chosen option) against `documentData`, never
+  // against the live document, and a request whose document has since changed (its `data` no longer
+  // hashes to `documentDataHash`, or a newer DELIVERY archive replaced the bound one) is refused with
+  // `DOCUMENT_CHANGED_CODE` - see `signatures/signed-version.ts` for exactly what counts as a change.
+  // All four are NULL for a row created before this binding existed, and such a row is never
+  // signable: nothing proves which version its signer read.
+  deliveryArchive     DocumentArchive? @relation("SignatureDeliveryArchive", fields: [deliveryArchiveId], references: [id], onDelete: SetNull)
+  deliveryArchiveId   String?
+  deliveryContentHash String?
+  documentData        Json?
+  documentDataHash    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2815,12 +2914,22 @@ model ClientPortalToken {
 // country-policy/data/fr.json's top-level `notes` for the honest, unverified flag on the legal
 // question itself.
 model DocumentNumberSequence {
-  companyId  String
-  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  typeId     String
-  nextNumber Int     @default(1)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  typeId    String
+  // Issue #515: which period this counter belongs to. `0` is the sentinel for the ONE continuous
+  // counter every type used before this feature: a `reset: "never"` country format, an unconstrained
+  // type (quote, purchase order, goods receipt), or a `reset: "yearly"` document dated before
+  // `numbering/company-number-format.ts#YEARLY_RESET_STARTS_FROM_YEAR` (2027); see that constant's
+  // own header for why a document dated in the old year keeps using this row even when it is NUMBERED
+  // after the cutover. The calendar YEAR, taken from the document's own `issueDate` field and never
+  // the server clock, for every later `reset: "yearly"` document: each year opens its own fresh row at
+  // `nextNumber = 1`, never touching an earlier year's row, so no already-issued number ever changes
+  // and two documents of two different years can never collide on the same counter.
+  year       Int @default(0)
+  nextNumber Int @default(1)
 
-  @@id([companyId, typeId])
+  @@id([companyId, typeId, year])
 }
 
 // The persistent, atomic PEC filename progressivo counter — see

@@ -17,7 +17,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * with its own render-html.spec.ts coverage - nothing about it is visible through the app UI, so no
  * e2e case is added for it here.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createClient(name: string, contactEmail: string) {
 	return cy

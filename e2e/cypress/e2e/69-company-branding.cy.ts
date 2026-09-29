@@ -25,7 +25,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * assertion — the toast alone proved nothing on CI before (see 65-company-mail-settings.cy.ts's own
  * header for the exact false-green this guards against).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 // `cypress/fixtures/branding/logo-fixture.png` is deliberately plain ASCII, not a real PNG — the
 // backend never inspects a logo's magic bytes (only its declared mime, via `ALLOWED_LOGO_MIMES`;
@@ -285,6 +285,7 @@ describe("Company branding — logo, accent color, font, presets", () => {
 				.then((code: string) => {
 					cy.clearCookies();
 					cy.visit("/auth/sign-up");
+					cy.revealInvitationCodeField();
 					cy.get('[data-cy="auth-invitation-code-input"]', { timeout: 10000 })
 						.should("be.visible")
 						.type(code);

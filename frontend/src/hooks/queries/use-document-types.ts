@@ -447,10 +447,78 @@ export function useMultiEntityReferenceSearch(entities: string[], query: string)
   })
 }
 
+/** One credential FORM field a transport's connect screen must render - mirrors the backend's
+ *  `transports/transport-registry.ts#CredentialFieldDescriptor` exactly. Issue #527: `channels.
+ *  settings.tsx`'s own connect side sheet is built from THIS, replacing the old hard-coded
+ *  `PROVIDER_FIELDS` map - see that file's own header for the full "never a second, drifting copy"
+ *  reasoning. */
+export interface CredentialFieldDescriptor {
+  key: string
+  kind: "text" | "secret"
+  valueType: "string" | "number" | "boolean"
+  required: boolean
+  placeholder?: string
+  labelKey: string
+  learnedByBackend?: boolean
+}
+
+/** One row of `GET /api/documents/transports` - mirrors the backend's `TransportRegistry.list()`. */
+export interface DocumentTransportSummary {
+  id: string
+  label: string
+  credentialFields: CredentialFieldDescriptor[]
+}
+
 /** The registered document transports (documents/transports/transport-registry.ts) — what a
- *  company's settings screen offers for `invoiceTransportId`. Never scoped by country. */
+ *  company's settings screen offers for `invoiceTransportId`, PLUS (issue #526) each transport's own
+ *  `credentialFields` - see `DocumentTransportSummary`'s own header. Never scoped by country. */
 export function useDocumentTransports() {
-  return useApiQuery<DocumentTypeSummary[]>(["document-transports"], "/api/documents/transports")
+  return useApiQuery<DocumentTransportSummary[]>(["document-transports"], "/api/documents/transports")
+}
+
+/** One offering (`documents/operators/schema.ts#OperatorOffering`) of an operator catalogue entry -
+ *  everything CHANNEL-SPECIFIC about it. See that backend file's own header, "ONE OPERATOR, MANY
+ *  OFFERINGS". */
+export interface DocumentOperatorOffering {
+  legalChannel: string
+  /** ONE plain, user-facing sentence - what this offering IS and who it is FOR. Owner review of
+   *  #527: the settings screen renders THIS, never `notes` below (internal documentation - provenance
+   *  trails, corrected mistakes, cross-references to source code). See the backend's
+   *  `operators/schema.ts#OperatorOffering.description` for the full rule this mirrors. */
+  description: string
+  countries: string[]
+  transportId?: string
+  baseUrl?: { sandbox?: string; production?: string }
+  capabilities: { emit: boolean; receive: boolean; lifecycleStatuses: boolean; eReporting: boolean }
+  sandbox: { available: boolean; notes?: string }
+  provenance:
+    | { kind: "legal"; sourceText: string; sourceCheckedAt: string }
+    | { kind: "unverified"; resolutionNote: string }
+  notes?: string
+}
+
+/** One row of `GET /api/documents/operators` - mirrors the backend's `OperatorFact`. Issue #526/#527:
+ *  the level-2 ("operators of the selected channel") list of the channels settings screen. */
+export interface DocumentOperator {
+  id: string
+  name: string
+  provenance:
+    | { kind: "legal"; sourceText: string; sourceCheckedAt: string }
+    | { kind: "unverified"; resolutionNote: string }
+  offerings: DocumentOperatorOffering[]
+  notes?: string
+}
+
+/** Every operator implementing `legalChannel` (or every operator, when omitted) -
+ *  `documents/operators/registry.ts#OperatorCatalog`. Reference data, never scoped by
+ *  `@ActiveCompany()`: the company's OWN configured operator per channel is a separate fact, `GET
+ *  /api/company/channels`'s own `configured[].operatorId`. */
+export function useDocumentOperators(legalChannel?: string) {
+  const query = legalChannel ? `?channel=${encodeURIComponent(legalChannel)}` : ""
+  return useApiQuery<DocumentOperator[]>(
+    ["document-operators", legalChannel ?? null],
+    `/api/documents/operators${query}`,
+  )
 }
 
 /** One row a 'rowSelection' field may currently offer — the source row's own field values, exactly

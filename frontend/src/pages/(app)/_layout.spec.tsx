@@ -36,7 +36,19 @@ const mockedUseLegalStatus = vi.mocked(queriesModule.useLegalStatus)
 const mockedUseSeats = vi.mocked(queriesModule.useSeats)
 const mockedUseLegalDocuments = vi.mocked(queriesModule.useLegalDocuments)
 
-const SESSION = { user: { id: "user-1" } }
+// `useCompanies()` (`@/hooks/queries`) is NOT mocked above, on purpose: it reads `activeCompanyId`
+// straight off the SAME `authClient.useSession()` payload this spec already controls via
+// `mockedUseSession`, the real hook's own header explains why (rides along on the backend's
+// `customSession` plugin, no extra request). `activeCompanyId`/`companies` below give every test in
+// the "no-free-seat gate" describe block below an existing, active company, the same "a company
+// already exists" state the gate's own tests were written against before issue #535 taught this file
+// that a company-less session is also possible. See the dedicated
+// "no active company yet" describe block further down for that other state.
+const SESSION = {
+  user: { id: "user-1" },
+  activeCompanyId: "company-1",
+  companies: [{ id: "company-1", name: "Acme", role: "OWNER" }],
+}
 
 /** A settled, non-blocking legal check — every test below is about the SEATS gate, not this one. */
 function legalStatusResult() {
@@ -171,6 +183,90 @@ describe("(app)/_layout — no-free-seat gate", () => {
 })
 
 /**
+ * Issue #535: a freshly signed-up user has a real session but no company yet, `activeCompanyId: null`
+ * (better-auth's own `customSession` plugin, `lib/auth.ts`) until the onboarding dialog's own
+ * `POST /api/companies` succeeds. `GET /api/billing/seats` answers 403 for exactly that state
+ * (`@ActiveCompany()`, proven live against a local stack, this issue's own repro) - before this fix,
+ * the gate treated that 403 the same as any other genuine error and rendered
+ * `SeatCheckErrorScreen`, which blocked the app shell (and the onboarding dialog it hosts) forever for
+ * every such user. The fix is `useSeats` staying disabled, and the gate staying inert, for as long as
+ * `activeCompanyId` is `null` - these tests fail against the pre-fix gate, which blocked or error-
+ * screened this exact state.
+ */
+describe("(app)/_layout - no active company yet (issue #535)", () => {
+  const COMPANYLESS_SESSION = { user: { id: "user-1" }, activeCompanyId: null, companies: [] }
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    )
+    mockedUseLegalDocuments.mockReturnValue(legalDocumentsResult())
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it("never enables the seats query while there is no active company", () => {
+    mockedUseSession.mockReturnValue({ data: COMPANYLESS_SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(seatsResult({ isPending: true }))
+
+    renderLayout()
+
+    // `useSeats(enabled)` is called with `enabled` as its sole argument (`use-seats.ts`) - asserting
+    // on the call itself, not merely on its (mocked) return value, is what actually proves the gate
+    // stopped CALLING the seats endpoint for this session, not just that it stopped reacting to one
+    // particular mocked response.
+    expect(mockedUseSeats).toHaveBeenCalledWith(false)
+  })
+
+  it("reaches the authenticated shell even while the (disabled) seats query never settles", () => {
+    mockedUseSession.mockReturnValue({ data: COMPANYLESS_SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    // A disabled TanStack Query never leaves `isPending: true` on its own - this is the shape it
+    // actually returns, and the gate must not wait on it regardless.
+    mockedUseSeats.mockReturnValue(seatsResult({ isPending: true }))
+
+    renderLayout()
+
+    expect(screen.getByTestId("dashboard-content")).toBeInTheDocument()
+    expect(screen.queryByTestId("seat-check-error-screen")).not.toBeInTheDocument()
+  })
+
+  it("never shows the seat-check error screen even if a stale seats response is somehow errored", () => {
+    mockedUseSession.mockReturnValue({ data: COMPANYLESS_SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(
+      seatsResult({ isError: true, error: new ApiError(403, "No active company selected") }),
+    )
+
+    renderLayout()
+
+    expect(screen.queryByTestId("seat-check-error-screen")).not.toBeInTheDocument()
+    expect(screen.getByTestId("dashboard-content")).toBeInTheDocument()
+  })
+
+  it("enables the seats query again, and the gate applies again, once a company becomes active", () => {
+    mockedUseSession.mockReturnValue({ data: SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(seatsResult({ isPending: true }))
+
+    renderLayout()
+
+    expect(mockedUseSeats).toHaveBeenCalledWith(true)
+    // Pending again, this time for real (the query IS enabled): the shell must not render yet.
+    expect(screen.queryByTestId("dashboard-content")).not.toBeInTheDocument()
+  })
+})
+
+/**
  * The permanent legal-links `<footer>` — the wrapper this task added a border/padding to. It must
  * disappear along with its contents on a self-hosted instance, not sit there as an empty bordered
  * strip once `<LegalLinks/>` itself renders `null` (see `legal-links.tsx#useLegalLinks`'s own header
@@ -198,7 +294,7 @@ describe("(app)/_layout — the legal-links footer", () => {
 
   it("renders no <footer> at all once a self-hosted instance's catalogue settles empty", () => {
     mockedUseLegalDocuments.mockReturnValue(
-      legalDocumentsResult({ data: { saasMode: false, documents: [] } }),
+      legalDocumentsResult({ data: { saasMode: false, demoMode: false, documents: [] } }),
     )
 
     const { container } = renderLayout()
@@ -213,6 +309,7 @@ describe("(app)/_layout — the legal-links footer", () => {
       legalDocumentsResult({
         data: {
           saasMode: true,
+          demoMode: false,
           documents: [
             {
               slug: "terms-of-service",

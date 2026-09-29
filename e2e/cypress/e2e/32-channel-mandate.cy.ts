@@ -29,7 +29,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * what the 14 tests in 31-national-channels.cy.ts already prove implicitly (their invoices are all
  * issued on 2026-08-31, before the mandate) — this file makes it explicit.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 /** Same fake credentials as 31 — see that file's own header for why (port 1, never
  *  open on a normal machine: immediate ECONNREFUSED, no real platform behind it). */
@@ -89,18 +89,16 @@ describe("Country-mandated channel — France mandates PDP for invoices issued s
 		cy.login();
 	});
 
-	it('the Channels screen shows the "mandated" badge for PDP, distinct from the "suggested" badge, with its source visible', () => {
+	it('the Channels screen shows the "mandated" badge for PDP, and the top banner carries its source (issue #527: legal channel nav + design A banner)', () => {
 		cy.visit("/settings/channels");
 
-		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
-		// The "suggested" badge stays true even once the channel is mandated — a mandate reinforces
-		// a suggestion, it does not contradict it (see channels.settings.tsx's own comment).
-		cy.get('[data-cy="channel-pdp-suggested"]').should("exist");
-		cy.get('[data-cy="channel-pdp-mandated"]', { timeout: 10000 })
+		cy.get('[data-cy="channel-nav-pdp"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="channel-nav-pdp-badge"]', { timeout: 10000 })
 			.should("exist")
 			.and("contain.text", "2026-09-01");
-		// The source (the citation carried over from the landmark) is visible in the card's description.
-		cy.get('[data-cy="channel-pdp"]').should("contain.text", "plateforme agréée");
+		// The banner states the company's OWN situation (design A folded onto design C) - the source
+		// (the citation carried over from the landmark) is quoted verbatim there.
+		cy.get('[data-cy="channels-banner"]').should("contain.text", "plateforme agréée");
 	});
 
 	it("an invoice ISSUED BEFORE the mandate (2026-08-31) goes out freely via email — the mandate never bites on today's date", () => {
@@ -172,13 +170,15 @@ describe("Country-mandated channel — France mandates PDP for invoices issued s
 
 	it("connects PDP via the screen → the mandate no longer blocks: the queue really goes out and then fails at the fake deposit, never at the mandate (as in 31)", () => {
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-pdp-baseurl-input"]', { timeout: 15000 }).clear().type(FAKE_PDP.baseUrl);
+		cy.get('[data-cy="channel-nav-pdp"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="operator-superpdp-connect-button"]', { timeout: 10000 }).click();
+		cy.get('[data-cy="channel-pdp-baseurl-input"]', { timeout: 10000 }).clear().type(FAKE_PDP.baseUrl);
 		cy.get('[data-cy="channel-pdp-clientid-input"]').clear().type(FAKE_PDP.clientId);
 		cy.get('[data-cy="channel-pdp-clientsecret-input"]').clear().type(FAKE_PDP.clientSecret);
 		cy.get('[data-cy="channel-pdp-connect-button"]').click();
 
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Channel connected");
-		cy.get('[data-cy="channel-pdp-status"]', { timeout: 10000 }).should("contain.text", "Connected");
+		cy.get('[data-cy="operator-superpdp-status"]', { timeout: 10000 }).should("contain.text", "Connected");
 
 		createInvoiceDraft("2026-09-03").then((invoiceId) => {
 			cy.visit("/documents/invoice");

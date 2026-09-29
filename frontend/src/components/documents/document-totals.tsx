@@ -3,7 +3,7 @@ import { useMemo } from "react"
 import { useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
-import type { DocumentTypeDescriptor } from "@/components/documents/types"
+import type { DerivedDocumentTotals, DocumentTypeDescriptor } from "@/components/documents/types"
 import {
   type ClientDocumentTotals,
   type VatRateFieldOptions,
@@ -208,6 +208,23 @@ export function computeDocumentOptionTotals(
 }
 
 /**
+ * Issue #479 - the frontend mirror of the backend's own `options/quote-options.ts#acceptedOptionTotals`:
+ * the totals of the option a quote was ACCEPTED for, picked out of `computeDocumentOptionTotals`'
+ * own result so the summary places (list amount, detail header) show exactly the figure the
+ * per-option totals card prints for that option. Null when there are no options, when nothing has
+ * been accepted yet, or when `acceptedOption` no longer names one of the CURRENT options (the quote
+ * was edited after acceptance - the caller then keeps showing no single amount, rather than a figure
+ * for an option that no longer exists).
+ */
+export function acceptedOptionTotals(
+  optionTotals: DocumentOptionTotals[] | null,
+  acceptedOption: string | null | undefined,
+): ClientDocumentTotals | null {
+  if (!optionTotals || !acceptedOption) return null
+  return optionTotals.find((entry) => entry.option === acceptedOption)?.totals ?? null
+}
+
+/**
  * Issue #373 follow-up ("common lines") - the frontend mirror of the backend's own
  * `computeCommonLineTotals`: the common (untagged) lines' OWN informational total, shown alongside
  * the per-option blocks so a reader can see where each option's own common contribution came from.
@@ -296,8 +313,27 @@ export function formatTotal(minor: number, currency: string): string {
   return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency || "—"}`
 }
 
+/** Issue #507 - `DocumentInstance.derivedTotals` in the shape every totals row here renders. The
+ *  backend sends no per-line breakdown for it (nothing here reads one), and its `showVat` is the same
+ *  rule `ClientDocumentTotals.showVat` mirrors, absent meaning "show". */
+export function fromDerivedTotals(derived: DerivedDocumentTotals): ClientDocumentTotals {
+  return {
+    currency: derived.currency,
+    lines: [],
+    netMinor: derived.netMinor,
+    vatMinor: derived.vatMinor,
+    grossMinor: derived.grossMinor,
+    vatBreakdown: derived.vatBreakdown,
+    warnings: derived.warnings,
+    showVat: derived.showVat !== false,
+  }
+}
+
 interface DocumentTotalsProps {
   descriptor: DocumentTypeDescriptor
+  /** Issue #507 - see `DocumentInstance.derivedTotals`: when set, these are the figures shown, in
+   *  place of the live sum of the form's own lines. */
+  derivedTotals?: DerivedDocumentTotals | null
   /** Issue #373 ("quotes with options") - the option currently recorded as ACCEPTED
    *  (`instance.acceptedOption`), so its own group gets an "Accepted" badge. Undefined for the create
    *  dialog / editor (nothing has been accepted yet - there is no instance at all). */
@@ -377,11 +413,12 @@ function TotalsRows({ totals, includesCommon }: { totals: ClientDocumentTotals; 
  * labelled block per option instead - NO global total alongside them, see this module's own
  * `computeDocumentOptionTotals` header for why summing options together would be meaningless.
  */
-export function DocumentTotals({ descriptor, acceptedOption }: DocumentTotalsProps) {
+export function DocumentTotals({ descriptor, acceptedOption, derivedTotals }: DocumentTotalsProps) {
   const { t } = useTranslation()
   const optionTotals = useDocumentOptionTotals(descriptor)
   const commonDescriptions = useCommonLineDescriptions(descriptor)
-  const totals = useDocumentTotals(descriptor)
+  const liveTotals = useDocumentTotals(descriptor)
+  const totals = derivedTotals ? fromDerivedTotals(derivedTotals) : liveTotals
 
   if (optionTotals) {
     return (

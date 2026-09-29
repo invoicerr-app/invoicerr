@@ -33,9 +33,13 @@ import {
   TransportRegistry,
   UnknownTransportError,
 } from '../transports/transport-registry';
+import {
+  attachVatNationalCurrencyToNumberedDocument,
+  runVatCurrencyPreflight,
+} from '../vat-currency/vat-currency-issuance';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
-import { attachAtcudToNumberedInvoice, ensureAtcudIssuable, isAtcudBlockError } from './atcud-issuance';
+import { attachAtcudToNumberedDocument, runAtcudPreflight } from './atcud-issuance';
 import { performSaveDraft } from './generic-actions';
 
 export interface InvoiceActionDeps {
@@ -225,8 +229,11 @@ function hasValue(value: unknown): boolean {
  * company's own free-choice paths never do, since neither carries a per-invoice format decision of
  * its own the way a B2G rule does.
  */
-interface ResolvedInvoiceTransport {
+export interface ResolvedInvoiceTransport {
   transport: DocumentTransport;
+  /** Issue #499 - the registered id `transport` was resolved from, so a caller refusing it (the credit
+   *  note's "send", for a channel that cannot carry a credit note) can name it. */
+  transportId: string;
   formatOverride?: string;
 }
 
@@ -271,7 +278,11 @@ function resolveB2gInvoiceTransport(
     // "xrechnung" here (the content requirement is real, unaffected by which transport can carry it),
     // but its `transportId` now names a channel this registry does not implement either, so this call
     // throws `UnknownTransportError` below before `formatOverride` is ever consulted.
-    return { transport: transportRegistry.resolve(rule.transportId), formatOverride: rule.formatSyntax };
+    return {
+      transport: transportRegistry.resolve(rule.transportId),
+      transportId: rule.transportId,
+      formatOverride: rule.formatSyntax,
+    };
   } catch (error) {
     if (error instanceof UnknownTransportError) {
       logger.warn('Invoice "send" blocked: B2G channel not implemented in this deployment', {
@@ -341,7 +352,7 @@ function mandateChannelNotReadyMessage(
  * below is never consulted at all for that invoice, precedence documented in full at this file's own
  * B2G section header.
  */
-async function resolveInvoiceTransport(
+export async function resolveInvoiceTransport(
   transportRegistry: TransportRegistry,
   companyId: string,
   issueDate: string | undefined,
@@ -395,7 +406,7 @@ async function resolveInvoiceTransport(
     // No `formatOverride` on this path — neither the seller-country mandate nor the company's own
     // free choice carries a per-invoice format decision the way a B2G rule does (see
     // `ResolvedInvoiceTransport`'s own header).
-    return { transport: transportRegistry.resolve(transportId) };
+    return { transport: transportRegistry.resolve(transportId), transportId };
   } catch (error) {
     if (error instanceof UnknownTransportError) {
       throw new NotImplementedException(
@@ -417,22 +428,16 @@ async function resolveInvoiceTransport(
  * exactly like the "wrong transport entirely" case above, not a bare "not connected" with no country
  * context attached.
  */
-async function runInvoiceSendPreflight(
+export async function runInvoiceSendPreflight(
   transportRegistry: TransportRegistry,
   companyId: string,
   issueDate: string | undefined,
   clientId: string | undefined,
   data: Record<string, unknown> | undefined,
-): Promise<void> {
-  const { transport } = await resolveInvoiceTransport(
-    transportRegistry,
-    companyId,
-    issueDate,
-    clientId,
-    data,
-  );
+): Promise<ResolvedInvoiceTransport> {
+  const resolved = await resolveInvoiceTransport(transportRegistry, companyId, issueDate, clientId, data);
   try {
-    await transport.preflight?.(companyId);
+    await resolved.transport.preflight?.(companyId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
@@ -451,6 +456,7 @@ async function runInvoiceSendPreflight(
     }
     throw error;
   }
+  return resolved;
 }
 
 /**
@@ -490,28 +496,6 @@ async function runInvoiceCrossBorderTaxPreflight(
     return (await resolveInvoiceCrossBorderTaxForCompany(companyId, data)).data;
   } catch (error) {
     if (isInvoiceTaxBlockError(error)) {
-      throw new BadRequestException(error.message);
-    }
-    throw error;
-  }
-}
-
-/**
- * Portugal's ATCUD — a no-op for every company whose resolved country is not Portugal
- * (`atcud-issuance.ts#ensureAtcudIssuable`'s own header), otherwise the LOAD-BEARING hard block: this
- * runs at the SAME preflight moment as the transport/mandate and cross-border-tax checks above, before
- * the record is ever transitioned to "sending" and before `numberOnEnqueue` (this action's own
- * registration below) can spend a sequence number this codebase can never hand back
- * (numbering/sequence.ts's own "never waste a number" header). `isAtcudBlockError` turns either of
- * `ensureAtcudIssuable`'s two named errors — an incompatible number format, or a validation code not
- * yet registered for the predicted series — into a 400 the user can act on, the exact same posture
- * `runInvoiceCrossBorderTaxPreflight` just above already holds for its own named errors.
- */
-async function runInvoiceAtcudPreflight(companyId: string): Promise<void> {
-  try {
-    await ensureAtcudIssuable(companyId);
-  } catch (error) {
-    if (isAtcudBlockError(error)) {
       throw new BadRequestException(error.message);
     }
     throw error;
@@ -700,25 +684,35 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
           const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
           const clientId = typeof data.client === 'string' ? data.client : undefined;
           await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate, clientId, data);
-          // Portugal's ATCUD — see `runInvoiceAtcudPreflight`'s own header. A no-op for every other
+          // Portugal's ATCUD - see `runAtcudPreflight`'s own header. A no-op for every other
           // country; for Portugal, the LOAD-BEARING check (before `numberOnEnqueue` below can ever spend
           // a sequence number this codebase can never hand back — numbering/sequence.ts's own header).
-          await runInvoiceAtcudPreflight(companyId);
+          await runAtcudPreflight(companyId, 'invoice');
           // Poland's `correctionReason` — see this file's own NOTE just above `registerInvoiceActions`'s
           // header: no dedicated preflight needed, the generic descriptor gate already enforces it.
           // See `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never
           // discarded): `runAsyncSendAction` persists exactly this as the "sending" document's own
           // `data`, so the record that just left "draft" already carries the resolved treatment, not
           // the user's raw entry.
-          return runInvoiceCrossBorderTaxPreflight(companyId, data);
+          const resolvedData = await runInvoiceCrossBorderTaxPreflight(companyId, data);
+          // Issue #517: VAT in the national currency, resolved against the ALREADY cross-border
+          // resolved totals above (never the draft's own, possibly stale, vatRate). See
+          // `runVatCurrencyPreflight`'s own header: the LOAD-BEARING check for a country whose rule
+          // requires this and has no rate available (Poland's own NBP table A, primarily), stashing
+          // the resolved conversion as a `__vatNationalCurrency` sidecar the "onNumbered" hook below
+          // reads back rather than resolving the rate a second time.
+          return runVatCurrencyPreflight(companyId, resolvedData);
         },
-        // Portugal's ATCUD, part two — computes and freezes it onto the invoice the MOMENT it is
-        // numbered (before anything is enqueued), reading the FROZEN `displayNumber` numbering just
-        // produced. See `attachAtcudToNumberedInvoice`'s own header for why this never throws: the
-        // preflight step just above is what can still refuse the whole issuance, this is a defensive
-        // re-check running after a number has already been irreversibly spent.
-        onNumbered: async ({ companyId: c, documentId, numbered }) =>
-          attachAtcudToNumberedInvoice(c, documentId, numbered),
+        // Portugal's ATCUD, and issue #517's VAT-national-currency conversion, both computed and
+        // frozen onto the invoice the MOMENT it is numbered (before anything is enqueued), reading the
+        // FROZEN `displayNumber` numbering just produced / the sidecar the preflight above already
+        // stashed. See each function's own header for why NEITHER ever throws: the preflight step just
+        // above is what can still refuse the whole issuance, these are defensive re-checks running
+        // after a number has already been irreversibly spent.
+        onNumbered: async ({ companyId: c, documentId, numbered, data: numberedData }) => {
+          await attachAtcudToNumberedDocument(c, 'invoice', documentId, numbered);
+          await attachVatNationalCurrencyToNumberedDocument(documentId, numberedData);
+        },
         // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
         // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
         // and attaches the PDF itself; see that file's own header and actions/send-document-email.ts

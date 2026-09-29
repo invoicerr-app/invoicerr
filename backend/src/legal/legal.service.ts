@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { isBillingEnabled } from '../modules/billing/billing-flag';
+import { isDemoModeEnabled } from '../modules/demo/demo-flag';
 import { AcceptanceMeta, getPendingAcceptanceSlugs, recordLegalAcceptance } from './legal-acceptance';
 import { LegalDocumentView, resolveLegalDocumentView } from './legal-document-view';
 import { REQUIRED_ACCEPTANCE_SLUGS, listLegalDocuments } from './legal-documents';
@@ -12,6 +13,17 @@ export interface LegalDocumentsView {
    *  the server-side flag, the same reasoning `use-billing.ts`'s own header gives for
    *  `GET /api/billing/status`). */
   saasMode: boolean;
+  /**
+   * Demo instance (issue #533): mirrors `DEMO_MODE`, the same "public, pre-auth, already-polled"
+   * reasoning `saasMode` above already carries: the frontend needs this BEFORE any session exists
+   * (the sign-in page's own demo-credentials notice, the sign-up page's "closed" state, the top
+   * banner once signed in) and this route is the one `@Public()` endpoint that already exists for
+   * exactly that shape. Hiding UI on this signal is a convenience only: every action it would hide
+   * is ALSO refused server-side (`guards/demo-restricted.guard.ts`, `lib/auth.ts`,
+   * `lib/registration-policy.ts`), so a stale or spoofed value here changes nothing about what the
+   * backend actually allows.
+   */
+  demoMode: boolean;
   documents: LegalDocumentView[];
 }
 
@@ -52,6 +64,7 @@ export class LegalService {
     const saasMode = isBillingEnabled();
     return {
       saasMode,
+      demoMode: isDemoModeEnabled(),
       documents: saasMode
         ? listLegalDocuments().map((doc) => resolveLegalDocumentView(doc, preferredLanguages))
         : [],

@@ -22,7 +22,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `makeCreditNoteLegacyUnnumbered` and `96-credit-note-followup.cy.ts`'s reuse of this exact task
  * already rest on.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createClient() {
 	return cy

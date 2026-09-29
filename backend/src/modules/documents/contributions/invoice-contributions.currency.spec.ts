@@ -230,6 +230,90 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
     expect(consolidated?.link).toBeUndefined();
   });
 
+  it("issue #516: a CLOSED period's consolidated total does not move when a rate dated TODAY is added", async () => {
+    seedDocuments([
+      invoice({
+        id: 'sent-usd',
+        status: 'sent',
+        data: { currency: 'USD', issueDate: '2026-07-10', lines: [{ quantity: 1, unitPrice: 100 }] },
+      }),
+    ]);
+    const closedPeriodPayment = {
+      documentId: 'sent-usd',
+      amountMinor: 10000,
+      currency: 'USD',
+      paidAt: new Date('2026-07-15'),
+      documentAmountMinor: 10000,
+      conversionRate: null,
+      conversionRateAsOf: null,
+      conversionSource: null,
+      method: null,
+      note: null,
+      createdAt: new Date('2026-07-15'),
+      id: 'p1',
+    };
+    listPaymentsInRange.mockResolvedValue([closedPeriodPayment]);
+    getReferenceCurrency.mockResolvedValue('EUR');
+
+    // "now" (fake system time above) is 2026-08-30 - July is a CLOSED period.
+    const closedPeriod = { dateFrom: '2026-07-01', dateTo: '2026-07-31' };
+
+    // Pass 1: only the rate that existed when July was still open.
+    listCurrencyRates.mockResolvedValue([
+      {
+        id: 'r1',
+        companyId: 'c1',
+        from: 'USD',
+        to: 'EUR',
+        rate: 0.9,
+        asOf: new Date('2026-07-01'),
+        source: 'manual',
+        createdAt: new Date('2026-07-01'),
+      },
+    ]);
+    const before = (await buildInvoiceDashboardWidgetsWithConsolidation({
+      companyId: 'c1',
+      period: closedPeriod,
+    })) as MetricWidget[];
+
+    // Pass 2: SAME closed period, but a brand-new rate dated TODAY (2026-08-30) was just entered -
+    // wildly different (5.0 instead of 0.9) so any leak would be impossible to miss.
+    listCurrencyRates.mockResolvedValue([
+      {
+        id: 'r1',
+        companyId: 'c1',
+        from: 'USD',
+        to: 'EUR',
+        rate: 0.9,
+        asOf: new Date('2026-07-01'),
+        source: 'manual',
+        createdAt: new Date('2026-07-01'),
+      },
+      {
+        id: 'r2',
+        companyId: 'c1',
+        from: 'USD',
+        to: 'EUR',
+        rate: 5.0,
+        asOf: new Date('2026-08-30'),
+        source: 'manual',
+        createdAt: new Date('2026-08-30'),
+      },
+    ]);
+    const after = (await buildInvoiceDashboardWidgetsWithConsolidation({
+      companyId: 'c1',
+      period: closedPeriod,
+    })) as MetricWidget[];
+
+    const beforeConsolidated = before.find((w) => w.id === 'invoice:collected:consolidated');
+    const afterConsolidated = after.find((w) => w.id === 'invoice:collected:consolidated');
+
+    // 100.00 USD * 0.90 = 90.00 EUR either way - the July-dated rate, never the one dated today.
+    expect(beforeConsolidated?.value).toBe(90);
+    expect(afterConsolidated?.value).toBe(90);
+    expect(afterConsolidated?.warnings).toEqual(beforeConsolidated?.warnings);
+  });
+
   it('nothing pending at all: no per-currency total widgets, consolidation never attempted', async () => {
     seedDocuments([]);
     getReferenceCurrency.mockResolvedValue('EUR');

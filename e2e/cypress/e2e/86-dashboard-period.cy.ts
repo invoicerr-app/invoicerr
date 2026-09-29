@@ -30,7 +30,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Screenshots at the end are for the owner (issue #418's own before/after), not assertions.
  */
 
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createClient(name: string) {
 	return cy

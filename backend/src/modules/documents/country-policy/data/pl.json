@@ -193,6 +193,17 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "download-xml",
+      "allowed": false,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+        "sourceCheckedAt": "2026-09-26"
+      },
+      "notes": "Issue #472. Same citation, same read and same date as this file's own credit-note rules and `numbering` fact (art. 106j ust. 2 pkt 2 ustawy o VAT, reused). NOTHING IS NEEDED IN POLAND BEYOND THE EXISTING KOR: the Polish correction is a faktura korygująca, built by formats/national/fa3-provider.ts as RodzajFaktury KOR on an INVOICE carrying correctsInvoiceId, numbered in the invoice series - and FA(3) has no credit-note document type to map this one to. A credit-note document (only a legacy one can exist for a Polish seller, the type is refused at save) therefore gets no electronic file: the credit note's own download-xml does not even offer fa3, and fa3-provider.ts refuses a credit note outright."
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,
@@ -325,5 +336,103 @@
       },
       "notes": "art. 106j ust. 2 pkt 2 ustawy o VAT (tekst jednolity, isap.sejm.gov.pl PDF D20040535Lj, read 2026-09-26). The credit-note TYPE is refused outright for a Polish seller (correction-routes/data/pl.json's own CREDIT_NOTE 'forbidden' route, read by credit-note-actions.ts#assertCreditNoteAllowedForCountry) - the Polish correction is a KOR, i.e. an INVOICE carrying correctsInvoiceId, numbered in the invoice's own series by the invoice's own numbering (descriptors/invoice.descriptor.ts). This fact's requirement is therefore already satisfied by the invoice type; there is nothing on the credit-note type itself to number for a Polish seller."
     }
-  ]
+  ],
+  "numberFormats": {
+    "constraints": [
+      {
+        "id": "pl-vat-106e-1-2",
+        "appliesTo": ["invoice"],
+        "summary": "Polish law requires a sequential number, in one or more series, that identifies the invoice unambiguously. It constrains no character and no length.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Art. 106e. 1. Faktura powinna zawierać: [...] 2) kolejny numer nadany w ramach jednej lub więcej serii, który w sposób jednoznaczny identyfikuje fakturę; »",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Ustawa o podatku od towarów i usług, consolidated text Dz.U. 2025 poz. 775 (the latest « tekst jednolity » the Sejm's ELI API lists for DU/2004/535), read first-hand from https://api.sejm.gov.pl/eli/acts/DU/2025/775/text.pdf with pdftotext on 2026-09-28."
+      },
+      {
+        "id": "pl-ksef-fa3-p2",
+        "appliesTo": ["invoice"],
+        "summary": "KSeF's FA(3) schema holds the invoice number (P_2) as a single-line token of 1 to 256 characters; whitespace at the edges or doubled would be collapsed by the schema's token type.",
+        "maxLength": 256,
+        "forbidsEdgeOrDoubleSpaces": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "<xsd:element name=\"P_2\" type=\"tns:TZnakowy\"> <xsd:documentation>Kolejny numer faktury, nadany w ramach jednej lub więcej serii, który w sposób jednoznaczny identyfikuje fakturę</xsd:documentation> [...] <xsd:simpleType name=\"TZnakowy\"> <xsd:documentation>Typ znakowy ograniczony do 256 znaków</xsd:documentation> <xsd:restriction base=\"xsd:token\"> <xsd:minLength value=\"1\"/> <xsd:maxLength value=\"256\"/>",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "The Ministry of Finance schema this repository vendors (formats/vendored/pl/schemat_FA3.xsd), read on 2026-09-28. `forbidsEdgeOrDoubleSpaces` is derived from xsd:token's whitespace collapsing, not from a sentence of the schema: a number with such spaces would not survive the round trip unchanged."
+      }
+    ],
+    "formats": [
+      {
+        "typeId": "quote",
+        "pattern": "QUOTE-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A quote (oferta) is not an invoice: art. 106e of the ustawa o VAT and the FA(3) schema govern the faktura. No Polish text read in this pass constrains the number of a quote.",
+        "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Polish text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "pattern": "INVOICE-{year}-{number:4}",
+        "constrainedBy": ["pl-vat-106e-1-2", "pl-ksef-fa3-p2"],
+        "rationale": "Unchanged from the product's previous shared default, so a Polish company already running it keeps it as it is; far below KSeF's 256 characters.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515, researched 2026-09-28: art. 106e ust. 1 pkt 2 (this file's own pl-vat-106e-1-2 constraint) requires a sequential number assigned \"w ramach jednej lub więcej serii\" (within one or more series) that unambiguously identifies the invoice, without naming a calendar year or any other time-bounded range the way FR's BOI-TVA-DECLA-30-20-20-10 §90, DE's UStAE 14.5 Abs. 11 or IT's Risoluzione 1/E/2013 do. The closest official ruling found, KIS (Dyrektor Krajowej Informacji Skarbowej) 0114-KDIP1-3.4012.603.2022.1.KP of 7 February 2023 (eureka.mf.gov.pl, read first-hand), confirms only that \"sposób nadawania numerów poszczególnym fakturom ustala wyłącznie podatnik\" (the taxpayer alone decides how numbers are assigned to invoices) while keeping the sequence chronological, continuous and identifiable - a general freedom-of-method statement, never a ruling on a calendar-year-bounded series by name. Several Polish accounting-practice sources describe annual-reset invoice numbering as common and accepted, but none is the primary legal text or on-point administrative ruling this catalog's `legal` provenance requires. No source found forbids it either. Stays `never` under issue #515's own rule (\"if a country's source does not allow it, or you cannot read it first-hand, that country stays never\"). What would settle it: a KIS interpretacja indywidualna, or Ministry of Finance guidance, addressing a calendar-year-bounded invoice series by name."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "pattern": "CN-{year}-{number:4}",
+        "constrainedBy": [],
+        "rationale": "Declared only so the type resolves like every other: a Polish seller issues no credit note (the correction is a KOR invoice, numbered in the invoice series), and the type's save-draft and send are refused for Poland.",
+        "unconstrained": "No Polish rule constrains this number because Polish law has no such document: see this file's credit-note `numbering` fact (type-not-issuable, art. 106j ust. 2 pkt 2) and correction-routes/data/pl.json's CREDIT_NOTE 'forbidden' route.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Moot: a Polish seller never issues this type at all (type-not-issuable, this file's own credit-note `numbering` fact above), so there is nothing to number, let alone restart. Declared `never` only so every format carries the field consistently."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no Polish text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Polish text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Polish text read in this pass constrains its number.",
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Polish text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
+      }
+    ],
+    "runningSeries": {
+      "summary": "A series this company already started is kept as it is: Polish law asks for a sequential number within one or more series, and never for a running series to change format.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Art. 106e. 1. Faktura powinna zawierać: [...] 2) kolejny numer nadany w ramach jednej lub więcej serii, który w sposób jednoznaczny identyfikuje fakturę; »",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "onViolation": "If the running series breaks the KSeF rule above (over 256 characters, or spaces at the edges or doubled), the country format applies from the next number. The counter is not reset and no number is reused."
+    }
+  }
 }

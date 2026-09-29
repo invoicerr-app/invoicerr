@@ -13,7 +13,9 @@ runs for a company established there. Support is per mechanism, not a single yes
 :::
 
 France's entries name Chorus Pro and Factur-X for public buyers, and a PDP channel for sellers
-established there.
+established there. A French seller's foreign-currency invoice also states its VAT in euros, at the
+ECB's rate, frozen at issue; and its late-payment mention falls back to the statutory rule's own
+wording once the twice-yearly rate table runs out, rather than blocking the send.
 
 This page is a pointer by design. Everything Invoicerr knows about France lives in its own data
 files, and two pages already say it without anyone retyping it:

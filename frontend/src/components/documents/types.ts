@@ -38,7 +38,7 @@ export interface DocumentFieldDescriptor {
   /** Mirrors the backend's `DocumentFieldDescriptor.suggestSiblingValues` (descriptors/types.ts) -
    *  'text' only, and only inside an 'array' row's own `fields`: opts THIS row subfield into a plain
    *  HTML5 `<datalist>` of values already typed for the SAME subfield on OTHER rows of the SAME
-   *  array (`field-renderers/primitive-fields.tsx#useOptionSuggestions`). An explicit opt-in, never
+   *  array (`field-renderers/primitive-fields.tsx#SiblingSuggestionsDatalist`). An explicit opt-in, never
    *  inferred from "any 'text' subfield inside an array" - the mechanism is generic, but the UX
    *  change is real and unrequested on a type that never asked for it. Set ONLY on the quote's own
    *  `option` line subfield today (issue #373). Absent/false: no datalist, unchanged render. */
@@ -290,6 +290,17 @@ export interface DocumentTypeSummary {
   label: string
 }
 
+/** The backend's `DocumentTotals` as the API serializes it - see `DocumentInstance.derivedTotals`. */
+export interface DerivedDocumentTotals {
+  currency: string | null
+  netMinor: number
+  vatMinor: number
+  grossMinor: number
+  vatBreakdown: { ratePercent: number; baseMinor: number; vatMinor: number }[]
+  warnings: string[]
+  showVat?: boolean
+}
+
 export interface DocumentInstance {
   id: string
   typeId: string
@@ -321,6 +332,30 @@ export interface DocumentInstance {
    *  than two options, and for one that has not been accepted yet either way. Shown read-only on the
    *  detail page (document-detail.tsx) - never a form field, this key is not part of any descriptor. */
   acceptedOption?: string | null
+  /** Issue #507 - totals the backend derives for this document from ANOTHER document's rows: today
+   *  only a LINKED credit note, worth the corrected invoice's selected lines priced with the invoice's
+   *  own rules (the backend's `totals/linked-credit-note.ts`, the one rule its settlement, PDF and XML
+   *  export read). Absent for every other document. When present, the list row, the header amount and
+   *  the totals card show THIS rather than summing the document's own `lines`, which a linked credit
+   *  note leaves empty by construction. It is the SAVED state: selecting other lines moves it once the
+   *  draft is saved. */
+  derivedTotals?: DerivedDocumentTotals | null
+  /** Issue #517 - the VAT (and, for Italy, the taxable amount too) converted and frozen into the
+   *  seller's own country's national currency, when the invoice's own currency is a different one -
+   *  mirrors the backend's `DocumentInstance.vatNationalCurrency*` columns, all six set together or
+   *  not at all (`vat-currency-issuance.ts`'s own header). Absent/null for every document whose
+   *  seller country has no active requirement (`documents/vat-currency/`), or that already invoices
+   *  in the national currency. Never recomputed on the client - this is a frozen, dated legal fact,
+   *  not a live calculation the way `DocumentTotals` above is. */
+  vatNationalCurrency?: string | null
+  vatNationalCurrencyTaxableMinor?: number | null
+  vatNationalCurrencyVatMinor?: number | null
+  // A STRING over the wire (the backend's Prisma `Decimal` serializes via decimal.js's own
+  // `toJSON()`, never a number), see `document-detail.tsx`'s own `Number(...)` coercion, the one
+  // place this feature crosses that boundary.
+  vatNationalCurrencyRate?: string | number | null
+  vatNationalCurrencyRateAsOf?: string | null
+  vatNationalCurrencyRateSource?: string | null
 }
 
 /**

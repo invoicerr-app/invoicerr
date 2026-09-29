@@ -4,6 +4,7 @@ import { ConflictException } from '@nestjs/common';
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import * as archiveOnSend from '../archive/archive-on-send';
+import { hashDocumentData } from '../archive/document-data-hash';
 import * as takeNumber from '../numbering/take-number';
 import * as persistence from '../persistence';
 import * as reportOnSend from '../reporting/report-on-send';
@@ -185,6 +186,71 @@ describe('runAsyncSendAction', () => {
       expect(result.document).toMatchObject({ number: 3, displayNumber: 'QUOTE-2026-0003' });
     });
 
+    // Issue #477: a quote edited after it was sent goes back to "draft" (its save-draft stays
+    // available on "sent"); sending it again is a NEW delivery. The first send's
+    // `deliveryConfirmedAt` used to survive, so phase 2 took it for this send's own confirmation and
+    // skipped `deliver()`: the edit was never emailed, never archived.
+    it('issue #477: from "draft" on an already-delivered record, clears deliveryConfirmedAt on the "sending" write', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 3,
+        displayNumber: 'QUOTE-2026-0003',
+        deliveryConfirmedAt: new Date('2026-09-01T00:00:00Z'),
+      });
+      (persistence.upsertDocument as Mock).mockResolvedValue({ id: 'doc-1', status: 'sending' });
+
+      await runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: vi.fn().mockResolvedValue(undefined) },
+        deliver: vi.fn(),
+      });
+
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        'sending',
+        baseInput.data,
+        ['draft'],
+        { startNewDelivery: true },
+      );
+    });
+
+    it('issue #477: a "send_failed" retry keeps deliveryConfirmedAt - the delivery it records really happened', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'send_failed',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 3,
+        displayNumber: 'QUOTE-2026-0003',
+        deliveryConfirmedAt: new Date('2026-09-01T00:00:00Z'),
+      });
+      (persistence.upsertDocument as Mock).mockResolvedValue({ id: 'doc-1', status: 'sending' });
+
+      await runAsyncSendAction({
+        ...baseInput,
+        queueDispatcher: { enqueueAction: vi.fn().mockResolvedValue(undefined) },
+        deliver: vi.fn(),
+      });
+
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        'sending',
+        baseInput.data,
+        ['draft', 'send_failed'],
+      );
+    });
+
     it('two concurrent "send" calls on the SAME draft: the loser 409s instead of both numbering and enqueueing', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -274,11 +340,16 @@ describe('runAsyncSendAction', () => {
         await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: vi.fn(), onNumbered });
 
         expect(onNumbered).toHaveBeenCalledTimes(1);
+        // Issue #517: `data` was added to the `onNumbered` context (see that field's own header on
+        // async-send.ts) so `vat-currency-issuance.ts#attachVatNationalCurrencyToNumberedDocument` can
+        // read back the sidecar a preceding `preflight` already stashed. No `preflight` is passed in
+        // this test's `baseInput`, so `data` here is simply `baseInput.data`, unchanged.
         expect(onNumbered).toHaveBeenCalledWith({
           companyId: 'company-1',
           typeId: 'quote',
           documentId: 'doc-1',
           numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
+          data: baseInput.data,
         });
       });
 
@@ -700,6 +771,8 @@ describe('runAsyncSendAction', () => {
         companyId: 'company-1',
         documentId: 'doc-1',
         artifacts,
+        // Issue #490: the hash of the very row `deliver()` rendered from.
+        documentDataHash: hashDocumentData(baseInput.data),
       });
     });
 
@@ -730,6 +803,7 @@ describe('runAsyncSendAction', () => {
         companyId: 'company-1',
         documentId: 'cn-1',
         artifacts: undefined,
+        documentDataHash: expect.any(String),
       });
     });
 

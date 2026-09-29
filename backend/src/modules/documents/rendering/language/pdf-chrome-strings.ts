@@ -73,6 +73,27 @@ export interface PdfChromeStrings {
    *  itself no longer prints any total of its own for a reader to trace the inclusion back to - see
    *  `render-html.ts#renderOptionGroupsField`'s own header. */
   totalIncludingCommonLines: string;
+  /** Issue #507 - "Corrects invoice {number} of {date}", the header line of a LINKED credit note
+   *  (`render-html.ts`'s own `correctedInvoice` input). A full phrase for the same word-order reason
+   *  as `vatOn`; callers pass already-escaped values. */
+  correctsInvoice(number: string, date: string): string;
+  /** Issue #517: "VAT in EUR" (a LABEL, no amount, same "label span / amount span" split
+   *  `vatOn` above already uses), the row heading for the converted VAT figure printed under the
+   *  ordinary totals block on an invoice whose seller country requires it (FR/PL/IT today,
+   *  `documents/vat-currency/`), when the invoice's own currency is NOT already that country's
+   *  national one. `currency` is the NATIONAL currency's own ISO code (EUR/PLN), never the
+   *  invoice's own. */
+  vatInNationalCurrency(currency: string): string;
+  /** Issue #517: Italy only (`VatCurrencyRule.taxableAmountRequiredOnInvoice`), the row heading
+   *  for the converted taxable (net) amount, printed alongside `vatInNationalCurrency` above for a
+   *  seller whose country requires BOTH figures converted, never just the VAT one. */
+  taxableInNationalCurrency(currency: string): string;
+  /** Issue #517: "Exchange rate: {rate} ({date})", printed once under whichever of the two rows
+   *  above are shown, naming the frozen rate and the date it was published for
+   *  (`DocumentInstance.vatNationalCurrencyRateAsOf`), never the invoice's own issue date, since
+   *  the two can differ (a weekend/holiday issue date resolves to the last published business day
+   *  before/on it). */
+  exchangeRate(rate: string, date: string): string;
 }
 
 const EN: PdfChromeStrings = {
@@ -92,6 +113,10 @@ const EN: PdfChromeStrings = {
   acceptedOptionBadge: 'Accepted',
   commonToAllOptionsHeading: 'Common to all options',
   totalIncludingCommonLines: 'Total (including common lines)',
+  correctsInvoice: (number, date) => `Corrects invoice ${number} of ${date}`,
+  vatInNationalCurrency: (currency) => `VAT in ${currency}`,
+  taxableInNationalCurrency: (currency) => `Taxable amount in ${currency}`,
+  exchangeRate: (rate, date) => `Exchange rate: ${rate} (${date})`,
 };
 
 const FR: PdfChromeStrings = {
@@ -111,6 +136,10 @@ const FR: PdfChromeStrings = {
   acceptedOptionBadge: 'Accepté',
   commonToAllOptionsHeading: 'Commun à toutes les options',
   totalIncludingCommonLines: 'Total (lignes communes incluses)',
+  correctsInvoice: (number, date) => `Rectifie la facture ${number} du ${date}`,
+  vatInNationalCurrency: (currency) => `TVA en ${currency}`,
+  taxableInNationalCurrency: (currency) => `Base imposable en ${currency}`,
+  exchangeRate: (rate, date) => `Taux de change : ${rate} (${date})`,
 };
 
 const IT: PdfChromeStrings = {
@@ -130,6 +159,10 @@ const IT: PdfChromeStrings = {
   acceptedOptionBadge: 'Accettata',
   commonToAllOptionsHeading: 'Comune a tutte le opzioni',
   totalIncludingCommonLines: 'Totale (righe comuni incluse)',
+  correctsInvoice: (number, date) => `Rettifica la fattura ${number} del ${date}`,
+  vatInNationalCurrency: (currency) => `IVA in ${currency}`,
+  taxableInNationalCurrency: (currency) => `Imponibile in ${currency}`,
+  exchangeRate: (rate, date) => `Tasso di cambio: ${rate} (${date})`,
 };
 
 const PL: PdfChromeStrings = {
@@ -149,6 +182,10 @@ const PL: PdfChromeStrings = {
   acceptedOptionBadge: 'Zaakceptowano',
   commonToAllOptionsHeading: 'Wspólne dla wszystkich opcji',
   totalIncludingCommonLines: 'Razem (z pozycjami wspólnymi)',
+  correctsInvoice: (number, date) => `Koryguje fakturę ${number} z dnia ${date}`,
+  vatInNationalCurrency: (currency) => `VAT w ${currency}`,
+  taxableInNationalCurrency: (currency) => `Podstawa opodatkowania w ${currency}`,
+  exchangeRate: (rate, date) => `Kurs wymiany: ${rate} (${date})`,
 };
 
 const DE: PdfChromeStrings = {
@@ -168,6 +205,10 @@ const DE: PdfChromeStrings = {
   acceptedOptionBadge: 'Akzeptiert',
   commonToAllOptionsHeading: 'Gemeinsam für alle Optionen',
   totalIncludingCommonLines: 'Gesamt (inkl. gemeinsamer Positionen)',
+  correctsInvoice: (number, date) => `Berichtigt die Rechnung ${number} vom ${date}`,
+  vatInNationalCurrency: (currency) => `USt. in ${currency}`,
+  taxableInNationalCurrency: (currency) => `Bemessungsgrundlage in ${currency}`,
+  exchangeRate: (rate, date) => `Wechselkurs: ${rate} (${date})`,
 };
 
 const PT: PdfChromeStrings = {
@@ -187,6 +228,10 @@ const PT: PdfChromeStrings = {
   acceptedOptionBadge: 'Aceite',
   commonToAllOptionsHeading: 'Comum a todas as opções',
   totalIncludingCommonLines: 'Total (incluindo linhas comuns)',
+  correctsInvoice: (number, date) => `Retifica a fatura ${number} de ${date}`,
+  vatInNationalCurrency: (currency) => `IVA em ${currency}`,
+  taxableInNationalCurrency: (currency) => `Valor tributável em ${currency}`,
+  exchangeRate: (rate, date) => `Taxa de câmbio: ${rate} (${date})`,
 };
 
 const CHROME_STRINGS: Record<RenderLanguage, PdfChromeStrings> = {

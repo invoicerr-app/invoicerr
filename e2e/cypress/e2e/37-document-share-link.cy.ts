@@ -15,7 +15,7 @@ import { tolerateUncaughtException } from "../support/e2e";
  * the public link calls EXACTLY the same render, never a second implementation) and 28 (an
  * invoice's asynchronous send is not disrupted by adding the "share-link" button on the same row).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createInvoiceDraft() {
 	return cy

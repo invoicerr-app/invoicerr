@@ -190,6 +190,17 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "6 - As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações",
+        "sourceCheckedAt": "2026-09-27"
+      },
+      "notes": "Issue #472. CIVA art. 36.º n.º 6, re-read on info.portaldasfinancas.gov.pt (civa_rep/Pages/iva36.aspx) on 2026-09-27, the text this file's own credit-note `numbering` fact already quotes. The EN 16931 export carries what it asks of a correcting document: its own date and number (BT-2, BT-1) and « a referência à fatura a que respeitam » (BG-3). Same scope as invoice.download-xml above: a voluntary EN 16931 export, not the format Portuguese law establishes. WHAT PORTUGAL NEEDS BEYOND THE EN 16931 EXPORT (issue #497): (1) in SAF-T (PT) a credit note is its own document type, `InvoiceType` NC: Portaria n.º 302/2016, field 4.1.4.8, « \"NC\" – Nota de crédito », now read first-hand on the AT's own copy of the Portaria (info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_302_2016.pdf, 2026-09-28), replacing the GitHub mirror of SAFTPT1.04_01.xsd this note first cited; the AT's e-Fatura webservice manual (field 1.6.4, same portal) lists the same value. Invoicerr generates no SAF-T (PT) file, so NC is used where the product does need it: the series type an ATCUD is registered under (numbering/atcud.ts#SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID). (2) the ATCUD, now attached to a Portuguese credit note: see this file's `atcud-required` numbering fact for \"credit-note\"."
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,
@@ -320,7 +331,162 @@
         "sourceText": "6 - As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações",
         "sourceCheckedAt": "2026-09-26"
       },
-      "notes": "CIVA art. 36.º n.º 6 (redacção do D.L. n.º 197/2012), read on info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx on 2026-09-26 - same static-HTML-per-article source this file's own notes already used for art. 18/29/36/53/78. Honest gap: the invoice's own numbering (numbering/atcud.ts) attaches a Portuguese ATCUD to the number; the credit note is numbered (numbering/sequence.ts's own per-typeId series) but does NOT get an ATCUD - atcud.ts is keyed to typeId 'invoice' only, and extending it to the credit note is out of scope for issue #471 (see documents.service.ts/async-send.ts's own comments on why sending a PT credit note must not throw for lack of one)."
+      "notes": "CIVA art. 36.º n.º 6 (redacção do D.L. n.º 197/2012), read on info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx on 2026-09-26 - same static-HTML-per-article source this file's own notes already used for art. 18/29/36/53/78. The ATCUD this number now carries (issue #497, closing the gap issue #471 left open) is its own fact just below, `atcud-required`, with its own source."
+    },
+    {
+      "typeId": "invoice",
+      "requirement": "atcud-required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "1 - O ATCUD, com o formato «ATCUD:CodigodeValidação-NumeroSequencial», deve constar obrigatoriamente em todas as faturas e outros documentos fiscalmente relevantes, emitidos por qualquer dos meios de processamento identificados no artigo 3.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Portaria n.º 195/2020, art. 4.º n.º 1, read in full on the AT's own copy (info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_195_2020.pdf, pdftotext -layout, 2026-09-28). Recorded here for issue #497 so the invoice and the credit note carry the same kind of fact; the invoice's ATCUD itself predates it (invoice.send's own notes above). SAF-T (PT) document type FT (Portaria n.º 302/2016, field 4.1.4.8, « \"FT\" – Fatura, emitida nos termos do artigo 36.º do Código do IVA »): the type its series is registered under, Portaria n.º 195/2020, art. 2.º alínea b)."
+    },
+    {
+      "typeId": "credit-note",
+      "requirement": "atcud-required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "1 - O ATCUD, com o formato «ATCUD:CodigodeValidação-NumeroSequencial», deve constar obrigatoriamente em todas as faturas e outros documentos fiscalmente relevantes, emitidos por qualquer dos meios de processamento identificados no artigo 3.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Issue #497. Portaria n.º 195/2020, art. 4.º n.º 1 puts the ATCUD on « todas as faturas e outros documentos fiscalmente relevantes ». A credit note is a « fatura » for that purpose: Decreto-Lei n.º 28/2019 (the decree whose art. 7.º n.º 3 this Portaria regulates), art. 2.º alínea c), « «Fatura», o documento em papel ou em formato eletrónico que: [...] ii) Constitua um documento retificativo de fatura nos termos legais », and CIVA art. 36.º n.º 6 is the « documentos retificativos de faturas » provision this file's own sequential-number fact quotes. Art. 7.º n.º 3 of the same decree: « Nas faturas e demais documentos fiscalmente relevantes deve constar um código de barras bidimensional (código QR) e um código único de documento ». Both read on the AT's consolidated copy (info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Decreto_Lei_28_2019.pdf, « Estado: vigente », amendments listed up to Decreto-Lei n.º 49/2025, 2026-09-28). THE SERIES: Portaria n.º 195/2020, art. 2.º alínea b) makes the document type, « de acordo com as tipologias documentais definidas na estrutura de dados » of the SAF-T (PT), part of what is communicated to obtain a series' validation code, so a credit note's series is its own \"NC\" series (Portaria n.º 302/2016, field 4.1.4.8, « \"NC\" – Nota de crédito »), never the invoice's FT one; field 4.1.4.1 also forbids using « o mesmo código interno de tipo de documento em diferentes tipos de documentos ». Produced exactly as for the invoice (actions/atcud-issuance.ts): the credit note's number format (Portugal's own \"NC A/{number}\" since issue #496, this file's `numberFormats`) ends in \"/{number}\", a code must be registered for its predicted series before \"send\", and the ATCUD is frozen on the document when it is numbered. NOT covered: the QR code (Portaria n.º 195/2020, art. 6.º, binds programs certified by the AT, which Invoicerr is not; the invoice has none either)."
     }
-  ]
+  ],
+  "numberFormats": {
+    "constraints": [
+      {
+        "id": "pt-civa-36-5",
+        "appliesTo": ["invoice"],
+        "summary": "Portuguese law requires every invoice to be dated and numbered sequentially.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« 5 - As faturas devem ser datadas, numeradas sequencialmente e conter os seguintes elementos: »",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "CIVA art. 36.º n.º 5, https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx, read first-hand on 2026-09-28."
+      },
+      {
+        "id": "pt-civa-36-6",
+        "appliesTo": ["credit-note"],
+        "summary": "Portuguese law requires a document correcting an invoice to carry a sequential number too.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "6 - As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "CIVA art. 36.º n.º 6, reused from this file's credit-note `numbering` fact (same page, read 2026-09-26)."
+      },
+      {
+        "id": "pt-at-faq-4310",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "In invoicing software the document number is the document-type code, a space, the series identifier, a slash, then the sequential number within the series. The ATCUD is built from those digits after the slash.",
+        "mustMatch": "^[^ /]+ [^ /]+/[0-9]+$",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Nos programas de faturação, esta identificação é composta sequencialmente pelos seguintes elementos: o código interno do tipo de documento, um espaço, o identificador da série do documento, uma barra (/) e o número sequencial desse documento dentro dessa série. Por exemplo, em “FT SERIE/000001”, a série corresponde ao conjunto de carateres “SERIE”. » (AT, FAQ 4310)",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "AT FAQ « Séries/ATCUD », https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand (curl, static HTML) on 2026-09-28. Portaria n.º 195/2020, art. 3.º n.º 3 (quoted in numbering/atcud.ts) defines the ATCUD's sequential number as the digits right after the slash, which is why numbering/atcud.ts refuses any other shape."
+      },
+      {
+        "id": "pt-at-faq-4696",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "A series identifier holds at most 35 characters among unaccented letters, digits, dot, underscore and hyphen; with the space and slash of the number's structure, those are the only characters a Portuguese number may use.",
+        "allowedCharacters": "A-Za-z0-9 ._/-",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« O identificador da série do documento não pode conter mais de 35 carateres [...] são aceites os carateres: [A-Z] - Letras maiúsculas (não inclui carateres acentuados nem o “Ç”); [a-z] - Letras minúsculas (não inclui carateres acentuados nem o “ç”); [0-9] - Números de 0 a 9; [._-] - Ponto, sublinhado e traço [...] não é possível utilizar: um separador no início e/ou no fim; dois ou mais separadores consecutivos; séries com identificador iniciado por “AT” » (AT, FAQ 4696)",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "AT FAQ « Séries/ATCUD », https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand (curl, static HTML) on 2026-09-28. The 35-character limit and the separator rules bind the series identifier alone, which a whole-number check cannot isolate; the shipped series \"A\" satisfies all of them."
+      },
+      {
+        "id": "pt-saft-invoiceno",
+        "appliesTo": ["invoice", "credit-note"],
+        "summary": "SAF-T (PT) holds the document number (InvoiceNo) in at most 60 characters, shaped \"TYPE SERIES/NUMBER\".",
+        "maxLength": 60,
+        "mustMatch": "^[^ ]+ [^/^ ]+/[0-9]+$",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Read on 2026-09-28 from a THIRD-PARTY copy of the AT's SAF-T (PT) 1.04_01 schema (github.com/fredericoregateiro/saft, SAFTPT1.04_01.xsd, Windows-1252): <xs:element name=\"InvoiceNo\"> <xs:restriction base=\"xs:string\"> <xs:pattern value=\"[^ ]+ [^/^ ]+/[0-9]+\" /> <xs:minLength value=\"1\" /> <xs:maxLength value=\"60\" />. The AT's own URL for the schema returned 404 in this pass. What would settle it: SAFTPT1.04_01.xsd downloaded from info.portaldasfinancas.gov.pt (Portaria n.º 302/2016) and compared byte for byte."
+        }
+      }
+    ],
+    "formats": [
+      {
+        "typeId": "quote",
+        "pattern": "QUOTE-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "No Portuguese text read in this pass constrains the number of a quote. OPEN QUESTION, not settled here: whether a quote handed to a client is a 'documento de conferência' that Decreto-Lei n.º 28/2019 would require to be issued in its own communicated series, with an ATCUD, was not checked. This product issues no ATCUD on a quote today.",
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance (and this format carries no {year} token to key by regardless)."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "pattern": "FT A/{number}",
+        "constrainedBy": ["pt-civa-36-5", "pt-at-faq-4310", "pt-at-faq-4696", "pt-saft-invoiceno"],
+        "rationale": "\"FT\" is SAF-T (PT)'s document-type code for a fatura, \"A\" the series identifier, then the sequential number after the slash, the shape FAQ 4310 describes and the ATCUD needs. The series carries no year: FAQ 4317 and 4318 allow one series and one validation code across several years as long as its numbering never restarts, and this product's counter never restarts. A Portuguese company registers the AT validation code of series \"FT A\" once, before its first invoice. The product's previous default (\"INVOICE-{year}-{number:4}\") could not produce an ATCUD at all.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "legal",
+          "sourceText": "Não é possível reiniciar a numeração sequencial de uma série já utilizada. [...] A mesma série e respetivo código de validação só pode ser utilizada em mais do que um ano (plurianual) desde que seja garantida a numeração sequencial ao longo dos vários anos, sem ser reiniciada. Caso pretenda reiniciar a numeração anualmente, terão de ser utilizadas séries distintas, por exemplo referenciando o ano na série (por exemplo A2021; A2022; A2023…).",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "AT FAQ \"Séries/ATCUD\" 4318, https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand on 2026-09-28 - the same FAQ this file's own `runningSeries` fact already quotes. Explicit and unambiguous the OTHER way from FR/DE/IT: restarting the numbering of an ALREADY-USED series is expressly forbidden. A yearly restart is technically lawful in Portugal, but only through a BRAND NEW series with its own freshly-registered AT validation code each year (FAQ 4318's own example: \"A2021; A2022; A2023\") - a fundamentally different mechanism from keying one counter by the document's issue year, and one this product's ATCUD registration flow (`CompanyAtcudSeries`, `numbering/atcud.ts`) does not support today: registering a series is a one-time, company-initiated step, never an automatic yearly renewal. Building that is its own feature, out of #515's scope - recorded here as a deliberate, sourced non-choice rather than an oversight, per the issue's own expectation (\"Portugal: a yearly restart means a new ATCUD series registered each year [...], so it keeps its continuous series unless a source says otherwise\")."
+      },
+      {
+        "typeId": "credit-note",
+        "pattern": "NC A/{number}",
+        "constrainedBy": ["pt-civa-36-6", "pt-at-faq-4310", "pt-at-faq-4696", "pt-saft-invoiceno"],
+        "rationale": "\"NC\" is SAF-T (PT)'s document-type code for a nota de crédito, in series \"A\", numbered on its own counter. The same shape as the invoice: the credit note carries its own ATCUD from series \"NC A\" (this file's credit-note `atcud-required` fact, issue #497).",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "legal",
+          "sourceText": "Não é possível reiniciar a numeração sequencial de uma série já utilizada. [...] A mesma série e respetivo código de validação só pode ser utilizada em mais do que um ano (plurianual) desde que seja garantida a numeração sequencial ao longo dos vários anos, sem ser reiniciada. Caso pretenda reiniciar a numeração anualmente, terão de ser utilizadas séries distintas, por exemplo referenciando o ano na série (por exemplo A2021; A2022; A2023…).",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Same source, same read, same reasoning as this file's own invoice `resetProvenance` above: FAQ 4318 binds every ATCUD series equally, credit note included."
+      },
+      {
+        "typeId": "purchase-order",
+        "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no Portuguese text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+        "constrainedBy": [],
+        "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Portuguese text read in this pass constrains its number.",
+        "rationale": "Unchanged from the product's previous shared default.",
+        "reset": "never",
+        "resetProvenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+        }
+      }
+    ],
+    "runningSeries": {
+      "summary": "A series this company already started, with its AT validation code, is kept as it is: the AT forbids restarting the numbering of a series already in use, and a series may run across years as long as its numbering never restarts.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Não é possível reiniciar a numeração sequencial de uma série já utilizada. [...] A mesma série e respetivo código de validação só pode ser utilizada em mais do que um ano (plurianual) desde que seja garantida a numeração sequencial ao longo dos vários anos, sem ser reiniciada. » (AT, FAQ 4318) ; « uma série e respetivo código de validação pode ser utilizada durante mais do que um ano, desde que seja mantida a respetiva numeração sequencial ao longo da sua utilização. » (AT, FAQ 4317)",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "onViolation": "A running series without the \"TYPE SERIES/NUMBER\" shape cannot carry an ATCUD. The country format then applies from the next number, which starts a NEW series (\"FT A\" or \"NC A\"): its AT validation code must be registered before the first document in it (FAQ 4308). The counter is not reset, so the new series starts at the next number rather than at 1; the starting number is declared when the series is communicated to the AT.",
+      "notes": "AT FAQ « Séries/ATCUD », https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand (curl, static HTML) on 2026-09-28. NOT READ, would confirm the last sentence: the AT's series-communication form or webservice specification, for the field that declares a new series' first sequential number."
+    }
+  }
 }

@@ -95,7 +95,7 @@ import { buildSdiTransport } from './transports/sdi-transport';
 import { buildSdiPecTransport } from './transports/sdi-pec-transport';
 import { PecInboxPollerService } from './transports/sdi-pec/pec-inbox-poller.service';
 import { PecNotificheService } from './transports/sdi-pec/pec-notifiche.service';
-import { TransportRegistry } from './transports/transport-registry';
+import { TransportRegistry, validateTransportCredentialFields } from './transports/transport-registry';
 import { ciiFormatProvider } from './formats/cii-provider';
 import { buildFacturxFormatProvider } from './formats/facturx-provider';
 import { FormatProviderRegistry } from './formats/format-registry';
@@ -377,6 +377,16 @@ function buildTransportRegistry(
   // "anaf" (Romania) and "face" (Spain, B2G) used to be registered here — both deleted outright
   // along with the rest of their countries' scope (2026-09-10, see
   // `documentation/docs/developer-guide/live-testing.md`), never left dormant.
+
+  // Issue #526 (scope addition) - "validated at boot against what that transport's own credential
+  // parser reads". Runs once, here, the moment this factory builds the real registry (a NestJS
+  // `useFactory` provider - see this module's own `TRANSPORT_REGISTRY` wiring below) - throws
+  // synchronously on the first drifted declaration, crashing boot rather than shipping a settings
+  // screen built from a lie. See `transport-registry.ts#validateTransportCredentialFields`'s own
+  // header for the full reasoning and `transport-registry.spec.ts` for the checker proven against
+  // synthetic fake transports.
+  validateTransportCredentialFields(registry);
+
   return registry;
 }
 
@@ -562,6 +572,11 @@ function buildActionRegistry(
   });
   registerCreditNoteActions(registry, {
     queueDispatcher,
+    // Issue #499 - see credit-note-actions.ts's own header: a credit note is delivered on the channel
+    // its corrected invoice's client is reached through, and its PDF is archived at issuance.
+    transportRegistry,
+    referenceRegistry,
+    signingCertificates,
     events: eventsPublisher,
     // See credit-note-actions.ts's own header on why this type, deliberately
     // webhook-less before (no per-type `CREDIT_NOTE_SENT` ever existed), gets `DOCUMENT_SENT` for
@@ -839,18 +854,9 @@ function buildEntityReferenceRegistry(
     {
       provide: ACTION_REGISTRY,
       useFactory: buildActionRegistry,
-      // Since `SignaturesService.getPublicDocument` (its own header) needs
-      // `DocumentsService.renderInstancePdf`, `SignaturesService` now depends on `DocumentsService`,
-      // which itself depends on this very `ACTION_REGISTRY` token (documents.service.ts's own
-      // `@Inject(ACTION_REGISTRY)`) — a genuine 3-hop cycle (ACTION_REGISTRY -> SignaturesService ->
-      // DocumentsService -> ACTION_REGISTRY), not merely a TypeScript import-order nuisance. The break
-      // lives entirely on `SignaturesService`'s OWN side — its `@Inject(forwardRef(() => DocumentsService))`
-      // (see that class's own header) makes Nest construct it with a LAZY, back-patched reference to
-      // `DocumentsService` rather than blocking on it, which is what lets `SignaturesService` finish
-      // constructing (and this factory proceed) without ever needing `DocumentsService` — and
-      // therefore `ACTION_REGISTRY` itself — to exist first. `FactoryProvider.inject`'s own TypeScript
-      // signature does not accept a `ForwardReference` entry (`InjectionToken | OptionalFactoryDependency`
-      // only), so this array stays exactly as it always was — nothing to mark here.
+      // Issue #477: `SignaturesService` no longer depends on `DocumentsService` (its public page serves
+      // the bound DELIVERY archive instead of rendering), so the ACTION_REGISTRY -> SignaturesService ->
+      // DocumentsService -> ACTION_REGISTRY cycle that used to need a `forwardRef` on its side is gone.
       inject: [
         ClientsService,
         MailService,

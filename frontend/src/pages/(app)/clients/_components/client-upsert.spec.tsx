@@ -25,13 +25,22 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 type FetchHandler = (url: URL, init?: RequestInit) => unknown
 
+// The Address step's `address` field is now an `AddressAutocompleteInput` (#197), which always
+// checks this capability endpoint on mount regardless of what a given test is about - defaulted here
+// (disabled, the self-hosted default) so none of the tests below need to know about it. A test
+// exercising the feature itself overrides this key in its own `handlers` map.
+const DEFAULT_HANDLERS: Record<string, FetchHandler> = {
+  "GET /api/address-autocomplete/capability": () => ({ enabled: false }),
+}
+
 function installFetchMock(handlers: Record<string, FetchHandler>) {
+  const merged = { ...DEFAULT_HANDLERS, ...handlers }
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input.toString()
     const url = new URL(raw, "http://localhost")
     const method = (init?.method ?? "GET").toUpperCase()
     const key = `${method} ${url.pathname}`
-    const handler = handlers[key]
+    const handler = merged[key]
     if (!handler) throw new Error(`Unmocked fetch in test: ${key}${url.search}`)
     return jsonResponse(handler(url, init))
   })

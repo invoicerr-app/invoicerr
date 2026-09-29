@@ -132,6 +132,25 @@ You will rarely need all of these for a new country. A country whose only need i
 engine compute a destination rate for it" needs *only* `tax/tax-systems/data/xx.json` — see
 `tax/tax-systems/data/all.ts`'s own header for the EU member states added purely for that reason.
 
+### Maintainer note: a mention whose value changes on a schedule
+
+A mention's `noteValues` table is not always a one-time fact. France's late-payment penalty rate
+(`mentions/data/fr.json`, placeholder `{lateFeeRate}`) is set by the ECB's Governing Council twice a
+year (the rate in force from 1 January is decided mid-December, the one from 1 July mid-June, per
+C. com. art. L441-10 II) and this app's table necessarily lags the real calendar by however long it
+takes someone to add the new window after each decision.
+
+Two things keep a send working while that catches up:
+
+- `InvoiceNoteRule.fallbackText` (`mentions/schema.ts`): printed, quoted from the statute itself,
+  whenever `at` has reached or passed the table's own last `validTo`. A send is never refused just
+  because the table has not been updated yet; see `resolveNoteText` in `mentions/invoice-notes.ts`.
+- `data/all.spec.ts`'s own canary: fails once more than 21 days have passed since `lateFeeRate`'s
+  last window ended, via `isPastMaintenanceGracePeriod`. Not sooner: the real figure genuinely does
+  not exist before the ECB meets, so a canary that fired the day the window closes would just teach
+  everyone to ignore a red build. When it fires, add the new `noteValues` entry to `fr.json` with the
+  ECB's published rate and its own `sourceCheckedAt`.
+
 ## Step by step
 
 ### 1. Decide what this country actually needs

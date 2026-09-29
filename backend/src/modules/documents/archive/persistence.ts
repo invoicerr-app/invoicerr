@@ -136,6 +136,9 @@ export async function createDocumentArchive(
     companyId: string;
     documentId: string;
     artifacts: ArchivedArtifactInput[];
+    /** Issue #490 - hash of the `data` these artifacts were rendered from (`document-data-hash.ts`),
+     *  see `DocumentArchive.documentDataHash`'s own schema comment. Omitted/null when unknown. */
+    documentDataHash?: string | null;
   },
   retentionCatalog: RetentionCatalog = defaultRetentionCatalog,
 ): Promise<DocumentArchiveResult> {
@@ -163,6 +166,7 @@ export async function createDocumentArchive(
       contentHash,
       uri,
       artifacts: artifactMetas as unknown as Prisma.InputJsonValue,
+      documentDataHash: input.documentDataHash ?? null,
       archivedAt,
       retentionUntil,
       retentionBasis,
@@ -303,14 +307,50 @@ export interface ManualAcceptanceManifest {
    * archived. Undefined for a quote with fewer than two options - `resolveChosenOption`
    * (`options/quote-options.ts`) never asks for a choice on those, so there is nothing to snapshot.
    */
-  option?: {
-    name: string;
-    lines: Record<string, unknown>[];
-    netMinor: number;
-    vatMinor: number;
-    grossMinor: number;
-    currency: string | null;
-  };
+  option?: AcceptedOptionSnapshot;
+  /**
+   * Issue #477 - the delivered version this acceptance refers to: the most recent DELIVERY archive
+   * of the quote when the issuer recorded the acceptance, named by id AND content hash in the
+   * manifest's own bytes, so the record still says which PDF was accepted with no database at all.
+   * `null` when the quote has no DELIVERY archive written for its latest send (archiving failed and
+   * is being retried, or it was sent before archiving existed): the acceptance still stands, and the
+   * manifest says plainly that no archived version could be named.
+   */
+  deliveredVersion: AcceptedDeliveredVersion | null;
+}
+
+/** Issue #373 - the accepted option, frozen with its own lines and totals. */
+export interface AcceptedOptionSnapshot {
+  name: string;
+  lines: Record<string, unknown>[];
+  netMinor: number;
+  vatMinor: number;
+  grossMinor: number;
+  currency: string | null;
+}
+
+/** Issue #477 - a DELIVERY archive, named in an acceptance manifest's own bytes. */
+export interface AcceptedDeliveredVersion {
+  archiveId: string;
+  contentHash: string;
+}
+
+/**
+ * Issue #477 - the e-signature twin of `ManualAcceptanceManifest`, written by
+ * `signatures/signatures.service.ts#markSigned` once a client's OTP-verified signature has taken.
+ * `deliveredVersion` is never null here: a request that is not bound to a delivered version is never
+ * signable in the first place (`signatures/signed-version.ts`).
+ */
+export interface ESignatureAcceptanceManifest {
+  kind: 'e-signature';
+  documentId: string;
+  signatureId: string;
+  /** ISO 8601, the `Signature.signedAt` the same signature row carries. */
+  signedAt: string;
+  deliveredVersion: AcceptedDeliveredVersion;
+  /** SHA-256 over the canonical `data` the request was bound to (`Signature.documentDataHash`). */
+  documentDataHash: string;
+  option?: AcceptedOptionSnapshot;
 }
 
 /** The artifact role a manual-acceptance manifest is stored under - see `DocumentArchiveKind`'s own
@@ -318,6 +358,31 @@ export interface ManualAcceptanceManifest {
  *  writer) and this file's own read side below agree on the exact same string without either one
  *  hand-typing it twice. */
 export const MANUAL_ACCEPTANCE_ROLE = 'manual-acceptance';
+
+/** The artifact role an e-signature acceptance manifest is stored under (issue #477). Distinct from
+ *  `MANUAL_ACCEPTANCE_ROLE` so `findManualAcceptanceArchive` never reads one as the other. */
+export const ESIGNATURE_ACCEPTANCE_ROLE = 'e-signature';
+
+/**
+ * The most recent DELIVERY archive of a document, as an acceptance manifest names it - see
+ * `ManualAcceptanceManifest.deliveredVersion`. Only an archive written for the CURRENT delivery
+ * counts (`archivedAt >= deliveryConfirmedAt`, the same rule `signatures/signed-version.ts` applies
+ * when binding a signature request); an older one belongs to an earlier send and is not named.
+ */
+export async function findCurrentDeliveredVersion(
+  companyId: string,
+  documentId: string,
+  deliveryConfirmedAt: Date | null,
+): Promise<AcceptedDeliveredVersion | null> {
+  const archive = await prisma.documentArchive.findFirst({
+    where: { companyId, documentId, kind: DocumentArchiveKind.DELIVERY },
+    orderBy: { archivedAt: 'desc' },
+    select: { id: true, contentHash: true, archivedAt: true },
+  });
+  if (!archive) return null;
+  if (deliveryConfirmedAt && archive.archivedAt.getTime() < deliveryConfirmedAt.getTime()) return null;
+  return { archiveId: archive.id, contentHash: archive.contentHash };
+}
 
 /**
  * Archives ONE manual quote acceptance (issue #421) - the same WORM discipline every archive in this
@@ -339,15 +404,39 @@ export async function createManualAcceptanceArchive(input: {
    *  `createDocumentArchive` already holds for a DELIVERY's own artifacts). */
   manifest: Uint8Array;
 }): Promise<DocumentArchiveResult> {
-  const { companyId, documentId, manifest } = input;
-  const artifacts: ArchivedArtifactInput[] = [
-    { role: MANUAL_ACCEPTANCE_ROLE, mime: 'application/json', bytes: manifest },
-  ];
+  return createAcceptanceArchive({ ...input, role: MANUAL_ACCEPTANCE_ROLE });
+}
+
+/**
+ * Issue #477 - the e-signature's own ACCEPTANCE archive, same discipline as the manual one above.
+ * `parentArchiveId` is the DELIVERY archive the signature request was BOUND to, never "the most
+ * recent one": the signer signed that exact version, whatever was archived since.
+ */
+export async function createESignatureAcceptanceArchive(input: {
+  companyId: string;
+  documentId: string;
+  manifest: Uint8Array;
+  parentArchiveId: string;
+}): Promise<DocumentArchiveResult> {
+  return createAcceptanceArchive({ ...input, role: ESIGNATURE_ACCEPTANCE_ROLE });
+}
+
+async function createAcceptanceArchive(input: {
+  companyId: string;
+  documentId: string;
+  manifest: Uint8Array;
+  role: string;
+  parentArchiveId?: string;
+}): Promise<DocumentArchiveResult> {
+  const { companyId, documentId, manifest, role } = input;
+  const artifacts: ArchivedArtifactInput[] = [{ role, mime: 'application/json', bytes: manifest }];
   const { uri, contentHash } = await persistArtifacts(documentId, artifacts);
   const archivedAt = new Date();
 
   const parent = await prisma.documentArchive.findFirst({
-    where: { companyId, documentId, kind: DocumentArchiveKind.DELIVERY },
+    where: input.parentArchiveId
+      ? { id: input.parentArchiveId, companyId, documentId, kind: DocumentArchiveKind.DELIVERY }
+      : { companyId, documentId, kind: DocumentArchiveKind.DELIVERY },
     orderBy: { archivedAt: 'desc' },
   });
 
@@ -402,10 +491,18 @@ export async function findManualAcceptanceArchive(
   companyId: string,
   documentId: string,
 ): Promise<ManualAcceptanceManifest | null> {
-  const archive = await prisma.documentArchive.findFirst({
+  // Issue #477: an e-signature now writes an ACCEPTANCE row too (`ESIGNATURE_ACCEPTANCE_ROLE`), so
+  // "the most recent ACCEPTANCE row" is no longer necessarily a manual one - picked by its artifact
+  // role, never by kind alone.
+  const candidates = await prisma.documentArchive.findMany({
     where: { companyId, documentId, kind: DocumentArchiveKind.ACCEPTANCE },
     orderBy: { archivedAt: 'desc' },
   });
+  const archive = candidates.find((row) =>
+    ((row.artifacts ?? []) as unknown as StoredArtifactMeta[]).some(
+      (meta) => meta.role === MANUAL_ACCEPTANCE_ROLE,
+    ),
+  );
   if (!archive) return null;
 
   const bytes = await readArchivedArtifact(archive.uri, MANUAL_ACCEPTANCE_ROLE, 'application/json');
@@ -449,15 +546,26 @@ export async function listDocumentArchives(
  * always meant for exactly the companies who configured signing. `null` for a document with no
  * DELIVERY archive at all (a draft, a document whose archiving attempt itself failed —
  * `lastArchiveError`), for one delivered through "ksef"/"sdi" (their own archived artifact is XML,
- * never a PDF), and for the credit note's transport-less "send" (nothing archived at all) — the
+ * never a PDF), and for a credit note issued before issue #499 (its send archived nothing; since
+ * then it always archives its own PDF, `credit-note-actions.ts`), the
  * caller falls back to rendering fresh in every one of those cases, exactly as it always has.
+ *
+ * Issue #490: `isServable`, when given, is asked with the archive's own recorded `documentDataHash`
+ * BEFORE any byte is read from storage, and a `false` answers `null` like every case above - that is
+ * how `renderInstancePdf` refuses an archive that no longer matches an unissued document's current
+ * data (`rendering/archived-pdf-policy.ts`) without paying for a storage read it would then discard.
  */
-export async function findArchivedPdfArtifact(companyId: string, documentId: string): Promise<Buffer | null> {
+export async function findArchivedPdfArtifact(
+  companyId: string,
+  documentId: string,
+  isServable?: (archivedDataHash: string | null) => boolean,
+): Promise<Buffer | null> {
   const archive = await prisma.documentArchive.findFirst({
     where: { companyId, documentId, kind: DocumentArchiveKind.DELIVERY },
     orderBy: { archivedAt: 'desc' },
   });
   if (!archive) return null;
+  if (isServable && !isServable(archive.documentDataHash ?? null)) return null;
 
   const metas = (archive.artifacts ?? []) as unknown as StoredArtifactMeta[];
   const pdfMeta = metas.find((meta) => meta.role === 'pdf' && meta.mime === 'application/pdf');

@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authenticatedFetch, useDelete, useGet, usePost, usePut } from "@/hooks/use-fetch"
+import { useDemoMode } from "@/hooks/queries"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { copyToClipboard } from "@/lib/clipboard"
 import {
@@ -150,6 +151,8 @@ export default function SsoSettings() {
 
   const [form, setForm] = useState<Record<string, string>>(emptyForm)
   const [editing, setEditing] = useState(false)
+  const { demoMode } = useDemoMode()
+  const demoTooltip = demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined
 
   const { trigger: save, loading: saving } = useMutationWithToast(
     usePut("/api/company/sso"),
@@ -350,7 +353,14 @@ export default function SsoSettings() {
           isConfigured && (
             <div className="flex items-center gap-2">
               {!editing && (
-                <Button variant="outline" size="sm" onClick={() => setEditing(true)} dataCy="sso-edit-button">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditing(true)}
+                  disabled={demoMode}
+                  tooltip={demoTooltip}
+                  dataCy="sso-edit-button"
+                >
                   {t("settings.sso.actions.edit", "Edit")}
                 </Button>
               )}
@@ -360,6 +370,8 @@ export default function SsoSettings() {
                 className="text-destructive hover:text-destructive"
                 onClick={handleRemove}
                 loading={removing}
+                disabled={demoMode}
+                tooltip={demoTooltip}
                 dataCy="sso-remove-button"
               >
                 {t("settings.sso.actions.remove", "Remove")}
@@ -454,7 +466,8 @@ export default function SsoSettings() {
                 variant="outline"
                 onClick={handleAddDomain}
                 loading={addingDomain}
-                disabled={!newDomain.trim()}
+                disabled={!newDomain.trim() || demoMode}
+                tooltip={demoTooltip}
                 dataCy="sso-domain-add-button"
               >
                 <Plus className="h-4 w-4" />
@@ -597,7 +610,14 @@ export default function SsoSettings() {
                   {t("settings.sso.actions.cancel", "Cancel")}
                 </Button>
               )}
-              <Button size="sm" onClick={handleSave} loading={saving} dataCy="sso-save-button">
+              <Button
+                size="sm"
+                onClick={handleSave}
+                loading={saving}
+                disabled={demoMode}
+                tooltip={demoTooltip}
+                dataCy="sso-save-button"
+              >
                 {t("settings.sso.actions.save", "Save")}
               </Button>
             </SettingsFormFooter>

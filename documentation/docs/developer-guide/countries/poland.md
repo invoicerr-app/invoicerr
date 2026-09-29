@@ -13,6 +13,8 @@ runs for a company established there. Support is per mechanism, not a single yes
 :::
 
 Poland's entries name KSeF as its invoice transmission platform, and FA(3) as the format it carries.
+A Polish seller's foreign-currency invoice also states its VAT in PLN, sourced to the NBP's own
+Table A rather than the ECB, frozen at issue.
 
 This page is a pointer by design. Everything Invoicerr knows about Poland lives in its own data
 files, and two pages already say it without anyone retyping it:

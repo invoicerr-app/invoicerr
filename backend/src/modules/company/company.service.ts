@@ -1,5 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  MethodNotAllowedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { EditCompanyDto, IdentifierEntry } from '@/modules/company/dto/company.dto';
+import {
+  normalizeRevenueBasis,
+  normalizeRevenuePeriod,
+  resolveRevenueSettings,
+} from '@/modules/company/revenue-basis/resolve-revenue-basis';
 import { MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
@@ -14,7 +24,11 @@ import {
   systemEmailFamilyLabel,
 } from '@/mail/system-email-templates';
 import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
-import { assertValidNumberPattern } from '@/modules/documents/numbering/format-number';
+import { formatDocumentNumber } from '@/modules/documents/numbering/format-number';
+import { periodKeyFor, resolveNumberFormatFor } from '@/modules/documents/numbering/company-number-format';
+import { defaultCountryPolicyCatalog } from '@/modules/documents/country-policy/registry';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { CompanyNumberFormats } from './dto/number-formats.dto';
 import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country-identifiers/validate-identifier-value';
 import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
 import { withSeatReservation } from '@/modules/billing/seat-sync';
@@ -95,6 +109,8 @@ type PickedCompanyInput = Pick<
   | 'approvalThresholdMinor'
   | 'remindersEnabled'
   | 'distanceSalesRegime'
+  | 'revenueBasis'
+  | 'revenuePeriod'
 >;
 
 /**
@@ -145,6 +161,8 @@ export function pickCompanyInput(input: EditCompanyDto): PickedCompanyInput {
     approvalThresholdMinor: input.approvalThresholdMinor,
     remindersEnabled: input.remindersEnabled,
     distanceSalesRegime: normalizeDistanceSalesRegime(input.distanceSalesRegime),
+    revenueBasis: normalizeRevenueBasis(input.revenueBasis),
+    revenuePeriod: normalizeRevenuePeriod(input.revenuePeriod),
   };
 }
 
@@ -190,6 +208,21 @@ export class CompanyService {
       });
     }
     return await prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } });
+  }
+
+  /** Issue #516 - see `company.controller.ts#getRevenueSettings`'s own header. A 404 rather than a
+   *  thrown 500 when the company somehow doesn't exist, matching `getCompanyInfo`'s own posture for
+   *  the same case (that one logs and returns null; a resolved-settings caller always expects an
+   *  object, so this one 404s instead of a shape the frontend would have to special-case). */
+  async getRevenueSettings(companyId: string) {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { revenueBasis: true, revenuePeriod: true, countryCode: true },
+    });
+    if (!company) {
+      throw new NotFoundException(`Company "${companyId}" not found.`);
+    }
+    return resolveRevenueSettings(company);
   }
 
   private async upsertPartyIdentifiers(
@@ -251,9 +284,10 @@ export class CompanyService {
     // API (no ValidationPipe, no class-validator — `EditCompanyDto` is a TypeScript `interface`,
     // erased at compile time), so `rest` is really just the raw, caller-supplied JSON body with two
     // keys deleted. Spreading it wholesale would let a caller write ANY Company column by naming it —
-    // `id`, `createdAt`, and, directly relevant to numbering, `numberFormats` itself, which would
-    // bypass `assertValidNumberPattern` (the check `updateNumberFormat` below always runs) and let an
-    // invalid pattern sit in the database until it fails loudly, far from here, at issuance. Every
+    // `id`, `createdAt`, and, directly relevant to numbering, `numberFormats` itself: since issue #496
+    // that column holds a company's frozen RUNNING SERIES (see `documents/numbering/
+    // company-number-format.ts`), which nothing may write any more, and a caller naming it here would
+    // silently change the format its next documents are numbered with. Every
     // field this settings screen is actually allowed to write is named once, in `pickCompanyInput`
     // above — shared with `createCompany` so the two paths can never diverge.
     const updatedCompany = await prisma.company.update({
@@ -294,58 +328,94 @@ export class CompanyService {
   }
 
   /**
-   * Sets ONE document type's own number-format PATTERN (`Company.numberFormats`,
-   * `documents/numbering/format-number.ts`). Deliberately its OWN small endpoint/method, never folded
-   * into `editCompanyInfo`'s `EditCompanyDto` above: `numberFormats` must only ever be written through
-   * a path that runs `assertValidNumberPattern` — see `editCompanyInfo`'s own comment on why its
-   * allow-list deliberately excludes this column. Two callers merge into the same JSON blob today: the
-   * Portuguese ATCUD settings screen (`documents/numbering/atcud.ts#parseAtcudPattern` requires a
-   * "/{number...}"-shaped pattern) and the main company settings screen's "Number formats" card, one
-   * `PUT` per type (quote, then invoice) rather than a single multi-type call — see that screen's own
-   * `onSubmit` for why the two are sequenced rather than fired concurrently.
-   *
-   * MERGES into the existing JSON blob (read-modify-write) rather than replacing it outright — a
-   * future second type writing through this same method must never silently erase what a prior call
-   * stored for a DIFFERENT typeId. `assertValidNumberPattern` is the SAME eager check
-   * `numbering/format-number.ts#resolveNumberFormat` re-applies at issuance time — reject here, at
-   * SAVE time, rather than let a company store a pattern that would only fail loudly the next time it
-   * tries to issue anything.
+   * Issue #496 - REFUSES every change. A document number format is defined per (country, document
+   * type) in `documents/country-policy/data/xx.json`'s `numberFormats`, with the rules that constrain
+   * it and their sources; the owner's decision of 2026-09-27 is that a company can no longer change it.
+   * The endpoint stays, answering 405 with the reason, so an API client that used to set a format
+   * learns why it cannot rather than meeting a bare 404. `GET /api/company/number-formats`
+   * (`getNumberFormats` below) says which format applies and why.
    */
-  async updateNumberFormat(
-    companyId: string,
-    typeId: string,
-    pattern: string,
-  ): Promise<Record<string, string>> {
-    const trimmedTypeId = typeId?.trim();
-    const trimmedPattern = pattern?.trim();
-    if (!trimmedTypeId) throw new BadRequestException('typeId is required.');
-    if (!trimmedPattern) throw new BadRequestException('pattern is required.');
+  updateNumberFormat(): never {
+    throw new MethodNotAllowedException(
+      'Document number formats can no longer be changed: they are defined per country and document ' +
+        'type from the rules that constrain them (law, e-invoicing formats, clearance platforms). ' +
+        'GET /api/company/number-formats shows the format that applies to each document type and why.',
+    );
+  }
 
-    try {
-      assertValidNumberPattern(trimmedPattern, `for document type "${trimmedTypeId}"`);
-    } catch (err) {
-      throw new BadRequestException((err as Error).message);
-    }
-
-    const existingCompany = await prisma.company.findUnique({
+  /**
+   * The format each numbered document type of this company is numbered with, and why - the read-only
+   * settings card. One entry per format the company's country declares, each resolved exactly as
+   * numbering resolves it (`numbering/company-number-format.ts#resolveNumberFormatFor`, the running
+   * series included), with the NEXT number it would print: read from the real counter, never
+   * invented, so the screen shows the series continuing where it stands.
+   */
+  async getNumberFormats(companyId: string): Promise<CompanyNumberFormats> {
+    const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { numberFormats: true },
+      select: { country: true, countryCode: true, numberFormats: true },
     });
-    if (!existingCompany) {
-      throw new NotFoundException('Company not found');
+    if (!company) throw new NotFoundException('Company not found');
+
+    const countryCode =
+      (company.countryCode || guessCountryCode(company.country ?? undefined) || '').trim().toUpperCase() ||
+      null;
+    const formats = countryCode ? defaultCountryPolicyCatalog.numberFormatsFor(countryCode) : undefined;
+    if (!countryCode || !formats) {
+      return {
+        countryCode,
+        runningSeries: null,
+        formats: [],
+        unavailableReason: countryCode
+          ? `No document number formats are defined for country "${countryCode}".`
+          : "The company's country could not be resolved, so no number format applies yet.",
+      };
     }
 
-    const existingFormats = (existingCompany.numberFormats as Record<string, string> | null) ?? {};
-    const numberFormats = { ...existingFormats, [trimmedTypeId]: trimmedPattern };
-
-    await prisma.company.update({ where: { id: companyId }, data: { numberFormats } });
-
-    logger.info('Company number format updated', {
-      category: 'company',
-      details: { companyId, typeId: trimmedTypeId },
+    // Issue #515: `year` is part of `DocumentNumberSequence`'s own key now, so "the next number"
+    // depends on which counter row a document issued TODAY would land on - see `periodKeyFor`'s own
+    // header. Reading every row (never filtering by year in the query) keeps this one round trip: the
+    // map below picks, per format, the row `periodKeyFor(resolved, now)` names.
+    const sequences = await prisma.documentNumberSequence.findMany({
+      where: { companyId },
+      select: { typeId: true, year: true, nextNumber: true },
     });
+    const now = new Date();
 
-    return numberFormats;
+    return {
+      countryCode,
+      runningSeries: formats.runningSeries,
+      unavailableReason: null,
+      formats: formats.formats.map((format) => {
+        const resolved = resolveNumberFormatFor(
+          countryCode,
+          format.typeId,
+          company.numberFormats as Record<string, unknown> | null,
+        );
+        const year = periodKeyFor(resolved, now);
+        const nextNumber =
+          sequences.find((row) => row.typeId === format.typeId && row.year === year)?.nextNumber ?? 1;
+        return {
+          typeId: resolved.typeId,
+          pattern: resolved.pattern,
+          source: resolved.source,
+          countryPattern: resolved.countryPattern,
+          nextNumber,
+          nextDisplayNumber: formatDocumentNumber(resolved.pattern, { number: nextNumber, date: now }),
+          rationale: resolved.rationale,
+          unconstrained: resolved.unconstrained ?? null,
+          supersededRunningSeries: resolved.supersededRunningSeries ?? null,
+          constraints: resolved.constraints.map((c) => ({
+            id: c.id,
+            summary: c.summary,
+            maxLength: c.maxLength ?? null,
+            provenance: c.provenance,
+          })),
+          reset: resolved.reset,
+          resetProvenance: resolved.resetProvenance,
+        };
+      }),
+    };
   }
 
   // Creates a brand-new company and makes the creating user its OWNER —

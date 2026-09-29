@@ -33,6 +33,19 @@ After signing, the quote status changes to **Signed** on your side, and the **Cr
 
 If the client didn't receive the email, click **Send for signature** again on the quote to resend the link and a new OTP.
 
+## Editing a quote after requesting a signature
+
+A signing link is tied to the exact version of the quote the client was sent: the page shows that
+PDF, and the client signs that version, never a later one. If you edit the quote after requesting a
+signature (any change to its content: a line, a price, an option, a date, the notes), the old link
+stops working and the client sees a message saying the quote changed. To get it signed:
+
+1. Send the edited quote again. This emails and archives the new version.
+2. Click **Send for signature** again. The client receives a new link, for the new version.
+
+A signature request is refused while the PDF of the quote's latest send is not archived yet
+(archiving is retried automatically); try again a moment later.
+
 ## First use
 
 The first time you send a quote for signature, make sure your client's email address is correct on their [client profile](../clients.md).

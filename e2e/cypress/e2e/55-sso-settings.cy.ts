@@ -35,7 +35,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * matter read the API back — never the DOM we just filled in as proof of what is
  * actually stored.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 // Reserved by RFC 2606 for exactly this use: a domain guaranteed to NEVER resolve a
 // TXT record, so the verification failure tested here is a real DNS failure, not a test coincidence.

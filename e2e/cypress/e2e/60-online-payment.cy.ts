@@ -28,7 +28,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *    instead observed via `cy.intercept` (a spy, never a mocked response — the request still hits the
  *    real backend).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const STRIPE_SECRET_KEY = "sk_test_e2e_fake_secret_key";
 const STRIPE_WEBHOOK_SECRET = "whsec_e2e_fake_webhook_secret";

@@ -1,6 +1,6 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
-const api = Cypress.env('apiUrl') || 'http://localhost:4000';
+const api = Cypress.env('apiUrl');
 const TEST_PASSWORD = 'Super_Secret_Password123!';
 
 beforeEach(() => {
@@ -117,6 +117,7 @@ describe('Leave Company', () => {
             .its('body.code')
             .then((code: string) => {
                 cy.visit('/auth/sign-up');
+                cy.revealInvitationCodeField();
                 cy.get('[data-cy="auth-firstname-input"]', { timeout: 10000 }).type('Léa');
                 cy.get('[data-cy="auth-lastname-input"]').type('Membre');
                 cy.get('[data-cy="auth-email-input"]').type(email);

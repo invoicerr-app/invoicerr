@@ -15,7 +15,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * on the intercepted request BEFORE any toast is asserted, and no test relies on a computed date or
  * on a document dialog's open/closed state (this spec never opens one).
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const OWNER_EMAIL = "john.doe@acme.org";
 const OWNER_PASSWORD = "Super_Secret_Password123!";

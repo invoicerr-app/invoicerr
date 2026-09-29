@@ -31,6 +31,18 @@ export class ChannelPolicyCatalog {
   factsFor(countryCode: string): ChannelPolicyFact[] {
     return this.files[(countryCode ?? '').toUpperCase()]?.facts ?? [];
   }
+
+  /**
+   * Issue #527 - every country's file, in the same (sorted-by-code) order `data/all.ts` loaded them.
+   * Added for the channels settings screen's own "legal channel, then operator" grouping
+   * (`channels.service.ts#legalChannels`): it needs to say, for a legal channel that is NOT this
+   * company's own country's fact, WHICH other country's law actually names it - e.g. "sdi is Italy's
+   * own mandate" shown to a French company - which a single-country `factsFor` cannot answer alone.
+   * Never used by `mandate.ts`'s own preflight (that stays scoped to exactly one country, the seller's).
+   */
+  all(): CountryChannelPolicyFile[] {
+    return Object.values(this.files);
+  }
 }
 
 export const defaultChannelPolicyCatalog = new ChannelPolicyCatalog();

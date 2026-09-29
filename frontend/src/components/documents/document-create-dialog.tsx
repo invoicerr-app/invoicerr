@@ -1,4 +1,5 @@
 import type React from "react"
+import { useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 
@@ -178,10 +179,19 @@ function RecapStep({ descriptor, state, primaryAction, secondaryActions }: Recap
   const { t } = useTranslation()
   const totals = useDocumentTotals(descriptor)
 
+  // `useWatch`, scoped to THIS component, never `state.form.watch(name)` read during render (issue
+  // #488). The latter subscribes the component that owns `useForm` (the whole dialog), and react-hook-
+  // form keeps the watched names registered after this step unmounts: once the user had visited the
+  // Summary step, every keystroke back on "Lines" re-rendered the whole dialog and every field in it
+  // (measured: 10 characters in one line of five committed 100 text fields, against 30 before the
+  // Summary step was ever opened). Watching the whole form is fine here: this step has no inputs, and
+  // only this step re-renders.
+  const values = useWatch({ control: state.form.control }) as Record<string, unknown>
+
   const clientField = descriptor.fields.find(
     (field) => field.kind === "reference" && field.entity === "client" && !field.entities,
   )
-  const clientId = clientField ? (state.form.watch(clientField.key) as string | undefined) : undefined
+  const clientId = clientField ? (values[clientField.key] as string | undefined) : undefined
   const { data: resolvedClient } = useReferenceResolve(
     clientField ? "client" : undefined,
     clientId || undefined,
@@ -189,12 +199,12 @@ function RecapStep({ descriptor, state, primaryAction, secondaryActions }: Recap
 
   const lineFields = descriptor.fields.filter(isLinesKind)
   const lineCount = lineFields.reduce((sum, field) => {
-    const rows = state.form.watch(field.key)
+    const rows = values[field.key]
     return sum + (Array.isArray(rows) ? rows.length : 0)
   }, 0)
 
   const notesField = descriptor.fields.find((field) => field.key === "notes" && field.kind === "longText")
-  const notes = notesField ? (state.form.watch(notesField.key) as string | undefined) : undefined
+  const notes = notesField ? (values[notesField.key] as string | undefined) : undefined
 
   return (
     <div className="space-y-6" data-cy="document-create-recap">

@@ -1882,6 +1882,7 @@
       "seats": "Seats",
       "recurring": "Recurrences",
       "accountingExport": "Accounting export",
+      "cashedRevenue": "Cashed revenue",
       "sso": "SSO",
       "customFields": "Custom fields",
       "expenseCategories": "Expense categories",
@@ -1944,6 +1945,27 @@
         "rangeRequired": "Pick both a start and end date",
         "invalidRange": "\"From\" must not be after \"to\"",
         "error": "Export failed"
+      }
+    },
+    "cashedRevenue": {
+      "title": "Cashed revenue",
+      "description": "What was actually received against your sent invoices, per month or quarter - for a company that declares revenue on a cashed basis.",
+      "disclaimerFallback": "This is an aid to help prepare a revenue declaration, not the official declaration itself. Verify every figure against your own accounting records and your local tax authority's rules before filing.",
+      "loading": "Loading…",
+      "empty": "No cashed revenue in this range yet.",
+      "basisNote": "Your revenue basis is set to \"{{basis}}\". Bucketed {{granularity}}.",
+      "form": {
+        "granularity": "Bucket by",
+        "granularityDefault": "Use your company's default",
+        "export": "Export CSV"
+      },
+      "periods": {
+        "title": "Periods",
+        "zero": "Nothing cashed this period",
+        "rateMissing": "Rate missing"
+      },
+      "messages": {
+        "exportError": "Export failed"
       }
     },
     "dataExport": {
@@ -2024,10 +2046,31 @@
       },
       "numberFormats": {
         "title": "Number Formats",
-        "description": "Customize the number formats for quotes and invoices",
-        "messages": {
-          "saveError": "Failed to save the number format"
-        }
+        "description": "Fixed per country and document type by the rules that constrain them (tax law, e-invoicing formats, clearance platforms). They cannot be changed.",
+        "types": {
+          "quote": "Quote",
+          "invoice": "Invoice",
+          "creditNote": "Credit note",
+          "purchaseOrder": "Purchase order",
+          "goodsReceipt": "Goods receipt"
+        },
+        "source": {
+          "country": "Format for {{country}}",
+          "runningSeries": "Your running series, kept"
+        },
+        "next": "Next number:",
+        "superseded": "Your previous format {{pattern}} can break a rule of this country ({{reasons}}), so this format applies from the next number. Numbering continues without reset.",
+        "provenance": {
+          "legal": "source read {{date}}",
+          "unverified": "source not yet confirmed"
+        },
+        "reset": {
+          "yearly": "Restarts every year",
+          "never": "Never restarts",
+          "yearlyHint": "The number restarts at 1 on 1 January, where the law allows it.",
+          "neverHint": "The number never restarts: it keeps counting up, year after year."
+        },
+        "runningSeriesTitle": "A series you already started:"
       },
       "other": {
         "title": "Other Settings",
@@ -2040,6 +2083,10 @@
       "currency": {
         "title": "Multi-currency",
         "description": "Choose a reference currency to see a consolidated total alongside your per-currency dashboard figures. Leave empty to keep every aggregate grouped by currency, unchanged."
+      },
+      "revenueBasis": {
+        "title": "Revenue basis",
+        "description": "Which figure this company declares as its own revenue, and over which period. Defaulted from your country where a clear regime exists, always overridable. This is an aid, not tax advice - verify against your own accounting records."
       },
       "reminders": {
         "title": "Payment reminders",
@@ -2178,36 +2225,6 @@
             "format": "IBAN format is invalid"
           }
         },
-        "quoteNumberFormat": {
-          "label": "Quote Number Format",
-          "placeholder": "Enter quote number format (e.g., Q-{year}-{number})",
-          "description": "Format for quote numbers",
-          "errors": {
-            "required": "Quote number format is required",
-            "maxLength": "Quote number format must be less than 100 characters",
-            "format": "Quote number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
-          }
-        },
-        "invoiceNumberFormat": {
-          "label": "Invoice Number Format",
-          "placeholder": "Enter invoice number format (e.g., INV-{year}-{number})",
-          "description": "Format for invoice numbers",
-          "errors": {
-            "required": "Invoice number format is required",
-            "maxLength": "Invoice number format must be less than 100 characters",
-            "format": "Invoice number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
-          }
-        },
-        "creditNoteNumberFormat": {
-          "label": "Credit Note Number Format",
-          "placeholder": "Enter credit note number format (e.g., CN-{year}-{number})",
-          "description": "Format for credit note numbers - a credit note is legally an invoice and needs its own sequential number, in its own series, separate from the invoice one",
-          "errors": {
-            "required": "Credit note number format is required",
-            "maxLength": "Credit note number format must be less than 100 characters",
-            "format": "Credit note number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
-          }
-        },
         "invoicePDFFormat": {
           "label": "Invoice PDF Format",
           "placeholder": "Select invoice PDF format",
@@ -2233,6 +2250,24 @@
         "referenceCurrency": {
           "label": "Reference currency",
           "description": "Requires an exchange rate (below) for every OTHER currency you actually use before a consolidated total appears."
+        },
+        "revenueBasis": {
+          "label": "Revenue basis",
+          "description": "\"Invoiced\" counts revenue when a document is issued (this product's own dashboard totals); \"cashed\" counts it when a payment actually arrives.",
+          "options": {
+            "default": "Use the default ({{basis}})",
+            "invoiced": "Invoiced",
+            "cashed": "Cashed"
+          }
+        },
+        "revenuePeriod": {
+          "label": "Declaration period",
+          "description": "Used by the cashed-revenue view (Cashed revenue tab) to bucket what was received.",
+          "options": {
+            "default": "Use the default (monthly)",
+            "monthly": "Monthly",
+            "quarterly": "Quarterly"
+          }
         },
         "approvalThreshold": {
           "label": "Approval threshold",
@@ -2659,9 +2694,32 @@
         "disconnect": "Disconnect",
         "edit": "Edit"
       },
+      "banner": {
+        "mandatedBody": "Since {{date}}, your invoices from {{country}} must go through {{channel}}.",
+        "mandatedTitle": "Mandatory transmission channel",
+        "noneBody": "Any lawful transport, including email, may be used to send your invoices.",
+        "noneTitle": "No transmission channel is imposed on {{country}}",
+        "readSource": "Read the source",
+        "suggestedBody": "{{country}} recommends {{channel}} for your invoices. Not yet a legal obligation - connecting it is optional.",
+        "suggestedTitle": "Recommended transmission channel"
+      },
+      "blocked": {
+        "body": "This channel was connected before your country's current mandate took effect. It is refused at send time. You may disconnect it safely; invoices already sent stay archived.",
+        "disconnect": "Disconnect {{operator}}",
+        "title": "{{operator}} no longer sends anything"
+      },
+      "declarations": {
+        "description": "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate, post-issuance duty to declare invoice data to a tax authority.",
+        "pt-at": {
+          "label": "Portuguese Tax Authority (AT)"
+        },
+        "title": "Declarations"
+      },
       "description": "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
       "emptyState": "No national channel available yet",
       "fields": {
+        "acubeEmail": "Account e-mail",
+        "acubePassword": "Password",
         "baseUrl": "API base URL",
         "billitApiKey": "API key",
         "billitPartyId": "PartyID",
@@ -2674,22 +2732,59 @@
         "environment": "Environment",
         "environmentProd": "Production",
         "environmentTest": "Test (sandbox)",
+        "invopopApiKey": "API key",
+        "invopopWorkflowId": "Workflow ID",
         "iopoleClientId": "Client ID (your Iopole account e-mail)",
         "iopoleCustomerId": "Customer ID",
         "ksefNip": "NIP",
         "ksefToken": "KSeF token",
+        "optional": "(optional)",
         "peppolAccessPointUrl": "Access Point URL",
         "peppolApiKey": "API key",
         "peppolParticipantId": "Peppol participant ID (yours)",
         "sdiCertificate": "PFX certificate (base64)",
         "sdiCertificatePassword": "Certificate password",
         "sdiEndpoint": "SdIRiceviFile endpoint URL",
-        "sdiIdTrasmittente": "IdTrasmittente"
+        "sdiIdTrasmittente": "IdTrasmittente",
+        "sdiPecAddress": "PEC address",
+        "sdiPecIdTrasmittente": "IdTrasmittente",
+        "sdiPecPassword": "PEC mailbox password",
+        "sdiPecReplyAddress": "SdI reply address (learned automatically)",
+        "sdiPecSmtpHost": "PEC SMTP host",
+        "sdiPecSmtpPort": "PEC SMTP port",
+        "sdiPecSmtpSecure": "PEC SMTP uses TLS",
+        "sdiPecUsername": "PEC mailbox username"
+      },
+      "legal": {
+        "badge": {
+          "automatic": "Automatic",
+          "blocked": "No longer accepted",
+          "mandated": "Mandatory from {{date}}",
+          "notAcceptedDomestic": "Not accepted domestically",
+          "outside": "Outside your invoicing country",
+          "suggested": "Recommended for your country"
+        },
+        "chorus-pro": {
+          "label": "Chorus Pro"
+        },
+        "ksef": {
+          "label": "KSeF"
+        },
+        "navLabel": "Legal channels",
+        "pdp": {
+          "label": "Accredited platform (PDP)"
+        },
+        "peppol": {
+          "label": "Peppol"
+        },
+        "sdi": {
+          "label": "Sistema di Interscambio (SdI)"
+        }
       },
       "mandatePrompt": {
         "cta": "Connect now",
-        "descriptionNotConnected": "{{country}} requires invoices to go through {{channel}} from {{date}} — {{source}}. It isn't connected yet.",
-        "descriptionWrongTransport": "{{country}} requires invoices to go through {{channel}} from {{date}} — {{source}}. This company is currently set to send via \"{{current}}\" instead.",
+        "descriptionNotConnected": "Since {{date}}, your invoices from {{country}} must go through {{channel}}. It isn't connected yet.",
+        "descriptionWrongTransport": "Since {{date}}, your invoices from {{country}} must go through {{channel}}. This company is currently set to send via \"{{current}}\" instead.",
         "title": "E-invoicing channel required"
       },
       "messages": {
@@ -2700,10 +2795,33 @@
         "fieldsRequired": "{{fields}} are all required",
         "noFields": "This channel has no configurable fields yet."
       },
+      "notAccepted": {
+        "body": "{{channel}} is a cross-border network, not a specific country's own channel. Your own invoicing country requires a different channel for a domestic invoice today.",
+        "title": "Not accepted for {{country}} domestic invoices"
+      },
+      "operator": {
+        "manage": "Manage",
+        "notIntegrated": "Not yet available",
+        "sandboxAvailable": "Sandbox available"
+      },
+      "outside": {
+        "automatic": "This channel is {{countries}}'s own automatic government portal, not part of your own invoicing country's rules.",
+        "body": "A national e-invoicing mandate binds domestic operations only. When you invoice a foreign buyer, the invoice may travel by any channel you and the buyer agree on (email, PDF, Peppol...); what changes is which authority you must report the transaction to under your own country's rules, never a foreign platform.",
+        "elsewhere": "This channel is required or recommended in {{countries}}, not in your own invoicing country.",
+        "title": "Outside your invoicing country"
+      },
       "prompt": {
         "cta": "Connect now",
         "description": "Your country's usual channel — {{channels}} — isn't connected yet.",
         "title": "E-invoicing channel suggested"
+      },
+      "search": {
+        "empty": "No operator matches your search",
+        "placeholder": "Search an operator by name"
+      },
+      "sheet": {
+        "description": "Legal channel: {{channel}}",
+        "title": "Connect {{operator}}"
       },
       "status": {
         "connected": "Connected ({{environment}})",
@@ -2804,19 +2922,14 @@
       "notApplicable": "The ATCUD is a Portuguese legal requirement — this section only applies to a company registered in Portugal.",
       "numberFormat": {
         "title": "Invoice number format",
-        "description": "The ATCUD sequential number is, by law, \"the digits immediately after the / \" in your invoice number (Portaria n.º 195/2020, art. 3.º n.º 3). Your format must therefore end in a literal \"/\" immediately followed by \"{number}\" (or \"{number:N}\"), e.g. \"FT {year}/{number:4}\".",
-        "label": "Invoice number format",
-        "save": "Save",
-        "compatible": "Compatible with the ATCUD sequential-number rule",
-        "incompatible": "Not compatible yet — it must end in \"/\" immediately followed by \"{number}\" or \"{number:N}\"",
-        "messages": {
-          "saveError": "Failed to save the number format",
-          "saveSuccess": "Invoice number format saved"
-        }
+        "description": "Portugal's own format, fixed by law and the SAF-T (PT) structure: document type, a space, the series, a \"/\" and the sequential number the ATCUD is built from. It cannot be changed.",
+        "label": "Format",
+        "next": "Next number",
+        "series": "Series to register"
       },
       "series": {
         "addTitle": "Register a series validation code",
-        "addDescription": "The series identifier is the part of your invoice number BEFORE the \"/\" — e.g. \"FT 2026\" for the format \"FT {year}/{number:4}\".",
+        "addDescription": "The series identifier is the part of your invoice number BEFORE the \"/\", e.g. \"FT A\" for the format \"FT A/{number}\".",
         "seriesId": "Series identifier",
         "validationCode": "AT validation code",
         "save": "Save",
@@ -2826,7 +2939,19 @@
           "saveSuccess": "Series saved",
           "deleteError": "Failed to remove this series",
           "deleteSuccess": "Series removed"
-        }
+        },
+        "documentType": "Document type",
+        "addDescriptionTyped": "The AT issues one code per series and document type: register invoice (FT) and credit note (NC) series separately. The series identifier is the part of the number BEFORE the \"/\", e.g. \"NC A\" for credit notes numbered \"NC A/{number}\".",
+        "emptyStateDocuments": "No ATCUD series registered yet. Invoices and credit notes cannot be sent until their series is."
+      },
+      "descriptionDocuments": "Portaria n.º 195/2020 requires every Portuguese invoice and credit note to carry an ATCUD, obtained per series from the AT (Portal das Finanças), BEFORE any document in that series is issued.",
+      "types": {
+        "invoice": "Invoice (FT)",
+        "creditNote": "Credit note (NC)"
+      },
+      "creditNoteNumberFormat": {
+        "title": "Credit note number format",
+        "description": "Portugal's own format for a credit note, which carries its own ATCUD from its own series (SAF-T type NC). It cannot be changed."
       }
     },
     "members": {
@@ -3459,9 +3584,12 @@
           }
         },
         "invitationCode": {
+          "toggle": "Joining an existing company? Enter your invitation code",
           "label": "Invitation Code",
+          "labelOptional": "Invitation Code (optional)",
           "placeholder": "Enter your invitation code",
-          "hint": "Optional — enter a code to join an existing company. Leave it blank to create your own company instead."
+          "hint": "Enter a code to join an existing company. Leave it blank to create your own company instead.",
+          "requiredHint": "This instance only accepts invited users. Enter the code you were given to continue."
         },
         "creatingAccount": "Creating account...",
         "createButton": "Create Account",
@@ -3479,7 +3607,7 @@
         "description": "This instance only accepts new accounts with an invitation code from an existing member. Enter one below, or ask an administrator to invite you."
       },
       "errors": {
-        "invitationCodeRequired": "An invitation code is required — open sign-up is currently disabled on this instance",
+        "invitationCodeRequired": "An invitation code is required because open sign-up is currently disabled on this instance",
         "invalidInvitationCode": "Invalid or expired invitation code",
         "genericError": "An error occurred while creating your account",
         "firstnameMinLength": "First name must be at least 2 characters",
@@ -3502,6 +3630,17 @@
         "backToSignIn": "Back to sign in"
       }
     }
+  },
+  "demo": {
+    "banner": {
+      "title": "Demo: data resets every 4 hours",
+      "description": "Nothing you enter is kept or sent."
+    },
+    "signIn": {
+      "title": "This is a public demo",
+      "description": "Sign in with demo@invoicerr.app / demo. Data resets every 4 hours."
+    },
+    "disabledTooltip": "Disabled in this demo."
   },
   "unavailable": {
     "title": "Unavailable on Mobile/Tablet",
@@ -3540,6 +3679,9 @@
       "placeholder": "Select a country",
       "searchPlaceholder": "Search countries...",
       "noResults": "No countries found"
+    },
+    "address-autocomplete": {
+      "suggestionsLabel": "Address suggestions"
     },
     "document-language-select": {
       "automatic": "Automatic",
@@ -4429,6 +4571,22 @@
           "send": {
             "label": "Send"
           },
+          "download-xml": {
+            "label": "Download normalized XML",
+            "params": {
+              "syntax": {
+                "label": "Syntax",
+                "options": {
+                  "cii": "CII (UN/CEFACT Cross Industry Invoice)",
+                  "ubl": "UBL 2.1",
+                  "facturx": "Factur-X (PDF/A-3 with embedded CII)",
+                  "fatturapa": "FatturaPA - Italian SdI national schema",
+                  "peppol-bis": "Peppol BIS Billing 3.0",
+                  "xrechnung": "XRechnung 3.0 (KoSIT, Germany)"
+                }
+              }
+            }
+          },
           "share-link": {
             "label": "Share link"
           }
@@ -4875,6 +5033,9 @@
       "optionAccepted": "Accepted",
       "commonToAllOptions": "Common to all options",
       "grossIncludingCommon": "Total (including common lines)",
+      "taxableInNationalCurrency": "Taxable amount in {{currency}}",
+      "vatInNationalCurrency": "VAT in {{currency}}",
+      "exchangeRate": "Exchange rate: {{rate}} ({{date}})",
       "warnings": {
         "noUsableVatRate": "Line {{line}} has no usable VAT rate — counted in net only"
       }
@@ -4929,6 +5090,7 @@
       "description": "You have been asked to sign this document.",
       "descriptionWithNumber": "You have been asked to sign {{number}}.",
       "chooseOptionLabel": "This quote offers several options - choose the one you accept:",
+      "chosenOptionLabel": "You chose: {{name}} ({{amount}})",
       "requestCodeButton": "Send verification code",
       "resendCodeButton": "Send a new code",
       "codeSent": "A verification code was sent to your email.",
@@ -4939,7 +5101,9 @@
       "unavailableTitle": "Link unavailable",
       "unavailableDescription": "This signature link is invalid, expired, or has already been used.",
       "genericError": "Something went wrong. Please try again.",
-      "optionsChangedError": "This quote's options have changed since you made your choice. Please choose again from the current options below.",
+      "changedTitle": "This document has changed",
+      "changedDescription": "The sender changed this document after sending you this link, so it can no longer be signed here. Ask them to send you the updated document and a new signature link.",
+      "changedDescriptionWithNumber": "The sender changed {{number}} after sending you this link, so it can no longer be signed here. Ask them to send you the updated document and a new signature link.",
       "documentPreviewLabel": "Document preview",
       "documentLoadError": "Could not load the document to review. Please try again.",
       "previewUnavailable": "Your browser can't display the document here.",

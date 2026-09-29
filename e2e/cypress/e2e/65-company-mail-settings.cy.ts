@@ -12,9 +12,9 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     in `company-mail-settings.types.ts`); this test would fail loudly the day that DTO grows a
  *     secret field by mistake.
  *  2. "Test send" exercises the REAL cascade end to end: this test points the company's own SMTP at
- *     the e2e stack's real Mailpit (`localhost:1025`, already the INSTANCE's own SMTP target per
- *     `backend/.env.test`) and checks the message actually lands in Mailpit
- *     (`localhost:8025`), the same real-SMTP discipline `23-document-email.cy.ts` already uses for
+ *     the e2e stack's real Mailpit (SMTP side, `mailpitSmtpPort`, already the INSTANCE's own SMTP
+ *     target per `backend/.env.test`) and checks the message actually lands in Mailpit (HTTP side,
+ *     `mailpitUrl`), the same real-SMTP discipline `23-document-email.cy.ts` already uses for
  *     document sends.
  *  3. The test email goes to the CALLER's own address (`john.doe@acme.org`, the user `cy.login()`
  *     signs in as — see `commands.ts#resetAndSeed`), never an address this screen could be tricked
@@ -25,7 +25,9 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Usual discipline: ACTIONS go through the screen (typing, clicking), the ASSERTIONS that matter read
  * the API (and Mailpit) back — never the DOM we just filled in as proof of what is actually stored.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
+// Mailpit's SMTP port on this stack (`MAILPIT_SMTP_PORT` in `cypress.config.ts`, default 1025).
+const mailpitSmtpPort: number = Cypress.env("mailpitSmtpPort");
 
 interface CompanyMailSettingsStatus {
 	configured: boolean;
@@ -84,11 +86,11 @@ describe("Company mail settings — configuration screen", () => {
 		}).should("contain.text", "SMTP");
 
 		// The e2e stack's real Mailpit — already what the INSTANCE-level SMTP config in
-		// backend/.env.test points at (SMTP_HOST=localhost, SMTP_PORT=1025, SMTP_SECURE=false),
+		// backend/.env.test points at (SMTP_HOST=localhost, SMTP_PORT=<mailpitSmtpPort>, SMTP_SECURE=false),
 		// so a company-level override here exercises the SAME real server, just through the
 		// "company" branch of the cascade instead of the instance one.
 		cy.get('[data-cy="mail-settings-host-input"]').clear().type("localhost");
-		cy.get('[data-cy="mail-settings-port-input"]').clear().type("1025");
+		cy.get('[data-cy="mail-settings-port-input"]').clear().type(String(mailpitSmtpPort));
 		cy.get('[data-cy="mail-settings-username-input"]')
 			.clear()
 			.type("company-e2e");
@@ -223,7 +225,7 @@ describe("Company mail settings — configuration screen", () => {
 			body: {
 				kind: "smtp",
 				host: "localhost",
-				port: 1025,
+				port: mailpitSmtpPort,
 				secure: false,
 				username: "company-e2e",
 				password: "does-not-matter-for-mailpit",

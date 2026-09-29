@@ -32,6 +32,7 @@ import { ActionRegistry } from './action-registry';
 import { registerCreditNoteActions } from './credit-note-actions';
 import { performSaveDraft } from './generic-actions';
 import { registerInvoiceActions } from './invoice-actions';
+import { EntityReferenceRegistry } from '../references/reference-registry';
 import { TransportRegistry } from '../transports/transport-registry';
 
 // Every save-draft handler under test only ever reaches "send"'s own enqueue path through a real
@@ -137,7 +138,11 @@ describe("save-draft CAS - a status that moved on between runAction's read and t
 
   it("the credit note's own save-draft handler (registerCreditNoteSaveDraftAction) honors the same CAS", async () => {
     const registry = new ActionRegistry();
-    registerCreditNoteActions(registry, { queueDispatcher });
+    registerCreditNoteActions(registry, {
+      queueDispatcher,
+      transportRegistry: new TransportRegistry(),
+      referenceRegistry: new EntityReferenceRegistry(),
+    });
     const handler = registry.resolve('credit-note', 'save-draft')!;
 
     const created = await performSaveDraft(companyId, 'credit-note', undefined, {

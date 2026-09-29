@@ -33,9 +33,75 @@ established for each supported country, and says plainly where nothing has been 
 
 ### Document numbering
 
-The pattern used to number a document type is set per type, and the app falls back to a sensible
-default for any type you have not configured. Portuguese sellers should read the ATCUD section of the
-settings screen, where the invoice series is part of the numbering pattern.
+Document number formats are not a setting. They are fixed per country and per document type, from the
+rules that constrain them: the tax law (a unique, sequential number), the e-invoicing formats (for
+example FatturaPA's 20-character limit in Italy) and the clearance platforms (for example Chorus Pro's
+20 characters for French public buyers). The **Number Formats** card of the company settings shows, for
+each numbered document type, the format that applies, the next number it will print, and every rule
+behind it with its source. Nothing on that card can be edited, and the API refuses a change.
+
+| Country | Invoice | Credit note | Quote, purchase order, goods receipt |
+| --- | --- | --- | --- |
+| France, Germany, Italy, Poland | `INVOICE-{year}-{number:4}` | `CN-{year}-{number:4}` | `QUOTE-…`, `PURCHASE-ORDER-…`, `GOODS-RECEIPT-…` (`-{year}-{number:4}`) |
+| Portugal | `FT A/{number}` | `NC A/{number}` | as above |
+
+**The counter restarts at 1 on 1 January, only where a primary source actually permits it.** France,
+Germany and Italy read a text that allows a calendar-year series for the invoice (Germany and France
+for the credit note too); Poland and Portugal, and every quote/purchase-order/goods-receipt format in
+every country, stay on one counter that never restarts: `{year}` there only prints the moment of
+issuance. The Number Formats card shows which applies to each type, and the source behind it. The
+restart itself applies only from the first document dated **1 January 2027** or later: a series already
+running keeps its counter exactly where it stood, and a document dated in December but numbered in
+January still belongs to the old year's series.
+
+**A series you started before formats became fixed** is kept, because an issued series has to stay
+continuous. The card marks it "Your running series, kept". The one exception is a series whose format
+breaks a rule of your country (the old credit-note format `CREDIT-NOTE-{year}-{number:4}` is 21
+characters, too long for FatturaPA and Chorus Pro): the country format then applies from the next
+number, the counter going on where it stood, so no number is reused and none is skipped. The card says
+so on that document type.
+
+**A kept series never restarts unless its own printed number carries a year.** The yearly restart above
+applies to the *country's* format; a kept series that never printed a year of its own (for example
+`FAC-{number}`) keeps counting up, year after year, even in a country and document type where the
+country's own format restarts every January: printing the same year-less number again would be a
+duplicate invoice number, which is unlawful everywhere this product ships. A kept series that does print
+its own year (for example `FACT-{year}-{number:5}`) restarts exactly like the country format does. The
+card always shows the reset rule of the series actually in use, whichever it is, next to its pattern.
+
+Portuguese sellers register, in the ATCUD section of the settings screen, the AT validation code of each
+series before its first document: the AT issues one per series and document type, so series `FT A` for
+invoices and series `NC A` for credit notes. The ATCUD section shows which series the next document
+belongs to.
+
+### Revenue basis
+
+A **Revenue basis** card decides which figure your dashboard and statistics count as revenue, and
+over which period:
+
+- **Revenue basis** - **Invoiced** (counts revenue the moment a document is issued, this product's
+  own long-standing behaviour) or **Cashed** (counts it only once a payment actually arrives). Left
+  unset, it defaults per your company's country where a clear regime exists: France and Italy
+  default to **Cashed** (both have a sourced micro-entrepreneur/regime forfettario basis), every
+  other supported country defaults to **Invoiced**. The card states the sourced reason behind
+  whichever default applies to you.
+- **Declaration period** - **Monthly** or **Quarterly**, used to bucket the **Cashed revenue**
+  settings tab (below). Defaults to monthly.
+
+Both are an aid, not tax advice. Verify against your own accounting records before declaring.
+
+A period that has already closed keeps the consolidated total it showed when it closed: entering a
+new exchange rate today never revises a past period's own figure on the dashboard, even in a
+company that invoices in several currencies.
+
+### Cashed revenue
+
+The **Cashed revenue** settings tab lists, period by period, what was actually received against
+sent invoices, as opposed to what was invoiced, converted into your reference currency at each
+payment's own rate, dated to when that payment arrived. Each period shows the rate, its date and
+its source, and a period where nothing was cashed still shows as zero rather than being left out.
+Export the whole thing as a CSV for your own records; the view and the export both say plainly that
+this is an aid, never your official declaration.
 
 ## What this page used to describe, and does not any more
 

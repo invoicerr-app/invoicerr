@@ -31,7 +31,21 @@ const EXPECTED_ROOT: Record<'cii' | 'ubl', string> = {
   ubl: 'Invoice',
 };
 
-export function validateStructural(xml: string, syntax: 'cii' | 'ubl'): StructuralCheckResult {
+/** Issue #472 - a UBL credit note is its own document, rooted at `CreditNote` (the UBL 2.1
+ *  credit-note schema), never an `Invoice` carrying type code 381: `@e-invoice-eu/core` rewrites the
+ *  tree for a credit-note type code (see `semantic/build-semantic-invoice.ts`'s own header, "BT-3").
+ *  CII has no such split - one `CrossIndustryInvoice` root for both, the type code alone tells them
+ *  apart - so the CII entry is the same for both kinds. */
+const EXPECTED_CREDIT_NOTE_ROOT: Record<'cii' | 'ubl', string> = {
+  cii: 'CrossIndustryInvoice',
+  ubl: 'CreditNote',
+};
+
+export function validateStructural(
+  xml: string,
+  syntax: 'cii' | 'ubl',
+  kind: 'invoice' | 'credit-note' = 'invoice',
+): StructuralCheckResult {
   const errors: string[] = [];
 
   // 1. Well-formedness — @xmldom/xmldom's DOMParser reports non-fatal findings via its
@@ -58,7 +72,7 @@ export function validateStructural(xml: string, syntax: 'cii' | 'ubl'): Structur
   }
 
   // 2. Root element — local name only, same convention `wrongRootElement` used at the reference.
-  const expected = EXPECTED_ROOT[syntax];
+  const expected = (kind === 'credit-note' ? EXPECTED_CREDIT_NOTE_ROOT : EXPECTED_ROOT)[syntax];
   const actual = doc.documentElement.localName || doc.documentElement.nodeName;
   if (actual !== expected) {
     errors.push(

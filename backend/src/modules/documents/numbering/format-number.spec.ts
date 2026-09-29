@@ -1,10 +1,4 @@
-import {
-  assertValidNumberPattern,
-  defaultNumberFormatFor,
-  DocumentNumberParts,
-  formatDocumentNumber,
-  resolveNumberFormat,
-} from './format-number';
+import { assertValidNumberPattern, DocumentNumberParts, formatDocumentNumber } from './format-number';
 
 const PARTS = (overrides: Partial<DocumentNumberParts> = {}): DocumentNumberParts => ({
   number: 7,
@@ -86,43 +80,5 @@ describe('assertValidNumberPattern', () => {
     expect(() => assertValidNumberPattern('X-{year}', 'for document type "quote"')).toThrow(
       /for document type "quote"/,
     );
-  });
-});
-
-describe('defaultNumberFormatFor', () => {
-  it('uppercases the type id and appends the standard {year}-{number:4} shape', () => {
-    expect(defaultNumberFormatFor('invoice')).toBe('INVOICE-{year}-{number:4}');
-    expect(defaultNumberFormatFor('quote')).toBe('QUOTE-{year}-{number:4}');
-  });
-});
-
-describe('resolveNumberFormat', () => {
-  it('falls back to the default pattern when the company has no numberFormats at all', () => {
-    expect(resolveNumberFormat(null, 'invoice')).toBe('INVOICE-{year}-{number:4}');
-    expect(resolveNumberFormat(undefined, 'invoice')).toBe('INVOICE-{year}-{number:4}');
-  });
-
-  it('falls back to the default pattern when numberFormats exists but has no entry for this type', () => {
-    expect(resolveNumberFormat({ quote: 'Q-{number}' }, 'invoice')).toBe('INVOICE-{year}-{number:4}');
-  });
-
-  it('uses the company-configured pattern when present', () => {
-    expect(resolveNumberFormat({ invoice: 'FAC-{year}-{number:5}' }, 'invoice')).toBe(
-      'FAC-{year}-{number:5}',
-    );
-  });
-
-  it('ignores a non-string / empty entry and falls back to the default', () => {
-    expect(resolveNumberFormat({ invoice: '' }, 'invoice')).toBe('INVOICE-{year}-{number:4}');
-    expect(resolveNumberFormat({ invoice: 42 as unknown as string }, 'invoice')).toBe(
-      'INVOICE-{year}-{number:4}',
-    );
-  });
-
-  // THE "at load time" requirement: a company-configured pattern missing {number} must fail the
-  // moment it is RESOLVED, before anything downstream ever spends a real sequence number trying to
-  // format it (see sequence.ts's own header on never wasting a number).
-  it('refuses, loudly, a company-configured pattern with no {number} token', () => {
-    expect(() => resolveNumberFormat({ invoice: 'FAC-{year}' }, 'invoice')).toThrow(/no "\{number\}" token/);
   });
 });

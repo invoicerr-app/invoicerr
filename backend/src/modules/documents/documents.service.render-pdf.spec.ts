@@ -2,6 +2,7 @@ import { vi, type Mock } from 'vitest';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
+import { hashDocumentData } from './archive/document-data-hash';
 import * as archivePersistence from './archive/persistence';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { DocumentsService } from './documents.service';
@@ -74,7 +75,11 @@ describe('DocumentsService.renderInstancePdf — serving the archive instead of 
     // The EXACT same object, not a copy re-derived from it — the strongest form of "the bytes are
     // the same" a unit test can assert.
     expect(pdf).toBe(archivedBytes);
-    expect(archivePersistence.findArchivedPdfArtifact).toHaveBeenCalledWith('company-1', 'doc-1');
+    expect(archivePersistence.findArchivedPdfArtifact).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      expect.any(Function),
+    );
     expect(renderInstancePdf.renderDocumentInstance).not.toHaveBeenCalled();
   });
 
@@ -102,6 +107,39 @@ describe('DocumentsService.renderInstancePdf — serving the archive instead of 
     const service = buildService();
     await service.renderInstancePdf('company-9', 'quote', 'doc-42');
 
-    expect(archivePersistence.findArchivedPdfArtifact).toHaveBeenCalledWith('company-9', 'doc-42');
+    expect(archivePersistence.findArchivedPdfArtifact).toHaveBeenCalledWith(
+      'company-9',
+      'doc-42',
+      expect.any(Function),
+    );
+  });
+
+  // Issue #490: the predicate this method hands `findArchivedPdfArtifact` is what keeps a stale
+  // archive from being served. Proven end to end against real Postgres and real storage in
+  // `documents.service.render-pdf-currency.spec.ts`; here, only that it is wired to the instance
+  // this call read and to the type's own issued statuses.
+  describe('the archive predicate (issue #490)', () => {
+    async function predicateFor(instance: typeof SENT_QUOTE) {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(instance);
+      (archivePersistence.findArchivedPdfArtifact as Mock).mockResolvedValue(null);
+      (renderInstancePdf.renderDocumentInstance as Mock).mockResolvedValue({ pdf: Buffer.from('x') });
+      await buildService().renderInstancePdf('company-1', 'quote', 'doc-1');
+      return (archivePersistence.findArchivedPdfArtifact as Mock).mock.calls[0][2] as (
+        hash: string | null,
+      ) => boolean;
+    }
+
+    it('accepts an archive rendered from the current data, refuses one rendered from other data or of unknown data', async () => {
+      const isServable = await predicateFor(SENT_QUOTE);
+      expect(isServable(hashDocumentData(SENT_QUOTE.data))).toBe(true);
+      expect(isServable(hashDocumentData({ client: 'client-2' }))).toBe(false);
+      expect(isServable(null)).toBe(false);
+    });
+
+    it('accepts any archive of a quote in an issued status ("signed")', async () => {
+      const isServable = await predicateFor({ ...SENT_QUOTE, status: 'signed' });
+      expect(isServable(hashDocumentData({ client: 'client-2' }))).toBe(true);
+      expect(isServable(null)).toBe(true);
+    });
   });
 });

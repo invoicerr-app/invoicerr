@@ -9,6 +9,7 @@
  * `numbering` field) - see the last `it` below.
  */
 import { buildCreditNoteDescriptor } from '../../descriptors/credit-note.descriptor';
+import { SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID } from '../../numbering/atcud';
 import { ALL_COUNTRY_POLICY_FILES } from './all';
 
 function fileFor(countryCode: string) {
@@ -56,8 +57,39 @@ describe('country-policy/data - the `numbering` facts (issue #471)', () => {
     if (fact.provenance.kind === 'legal') {
       expect(fact.provenance.sourceText).toMatch(/numeração sequencial/);
     }
-    // The honest ATCUD gap - see this fact's own `notes` and actions/atcud-issuance.ts's own header.
-    expect(fact.notes).toMatch(/ATCUD/);
+    // Points at the ATCUD fact below (issue #497), which closed the gap issue #471 left open.
+    expect(fact.notes).toMatch(/atcud-required/);
+  });
+
+  it('PT requires an ATCUD on the credit note, sourced to Portaria n.º 195/2020 art. 4.º n.º 1, series type NC (issue #497)', () => {
+    const fact = fileFor('PT').numbering!.find(
+      (f) => f.typeId === 'credit-note' && f.requirement === 'atcud-required',
+    )!;
+    expect(fact).toBeDefined();
+    expect(fact.provenance.kind).toBe('legal');
+    if (fact.provenance.kind === 'legal') {
+      expect(fact.provenance.sourceText).toMatch(/deve constar obrigatoriamente em todas as faturas/);
+      expect(fact.provenance.sourceCheckedAt).toBe('2026-09-28');
+    }
+    // Why a credit note is a "fatura" here, and which series type it is registered under.
+    expect(fact.notes).toMatch(/documento retificativo de fatura/);
+    expect(fact.notes).toMatch(/"NC" – Nota de crédito/);
+  });
+
+  // The runtime side of `atcud-required`: `numbering/atcud.ts`'s table is the set of types the "send"
+  // actions actually produce an ATCUD for. A type added there without a sourced fact here (or a fact
+  // added here that no code honours) fails this test.
+  it('the PT `atcud-required` facts name exactly the types the ATCUD code produces one for, and no other country has any', () => {
+    const ptTypes = fileFor('PT')
+      .numbering!.filter((f) => f.requirement === 'atcud-required')
+      .map((f) => f.typeId)
+      .sort();
+    expect(ptTypes).toEqual(Object.keys(SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID).sort());
+
+    for (const file of ALL_COUNTRY_POLICY_FILES) {
+      if (file.countryCode === 'PT') continue;
+      expect((file.numbering ?? []).filter((f) => f.requirement === 'atcud-required')).toEqual([]);
+    }
   });
 
   it('DE and IT require a sequential number but stay honestly `unverified`, each naming what would settle it', () => {

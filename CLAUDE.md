@@ -59,6 +59,11 @@ npm run e2e:run                # the numbered suites (cypress/e2e/*.cy.ts)
 npx cypress run --spec "cypress/e2e/21-document-lifecycle.cy.ts"
 ```
 
+The ports above are defaults, not requirements. `e2e/cypress.config.ts` reads `FRONTEND_URL`,
+`VITE_BACKEND_URL`, `MAILPIT_URL` and `MAILPIT_SMTP_PORT` (plus `DATABASE_URL` and `REDIS_URL` for its
+Node tasks), so a second stack on other ports runs the suite through env alone. Specs never name a
+`localhost:<port>`: `npm run check:ports` (run in CI's `e2e-typecheck` job) fails on one.
+
 `e2e/cypress/e2e/scenarios/full-lifecycle.cy.ts` — the per-country business-scenario spec — was
 restored after the old compliance engine's removal (see the file's own header for what it now
 asserts against, and why some outcomes deliberately contradict `e2e/cypress/fixtures/scenarios.ts`'s

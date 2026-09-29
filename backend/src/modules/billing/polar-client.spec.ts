@@ -7,7 +7,16 @@ import { vi, type Mock } from 'vitest';
 // leak (and the fix) against the exact shape `@polar-sh/sdk` produces, not a guess at it.
 import { HTTPValidationError } from '@polar-sh/sdk/models/errors/httpvalidationerror.js';
 
-import { callPolarWithRetry, sanitizePolarError, withSanitizedPolarErrors } from './polar-client';
+import {
+  callPolarWithRetry,
+  getPolarClient,
+  POLAR_API_VERSION,
+  resetPolarClientForTests,
+  sanitizePolarError,
+  withSanitizedPolarErrors,
+} from './polar-client';
+import { DemoModeBlockedError } from '../demo/demo-blocked';
+import { DEMO_MODE_FLAG_NAME } from '../demo/demo-flag';
 
 /** Builds a REAL `HTTPValidationError` the way `@polar-sh/sdk`'s own generated `customersCreate.js`
  *  does (read directly): a real `Request` carrying the bearer token as its `Authorization` header, a
@@ -176,5 +185,118 @@ describe('withSanitizedPolarErrors', () => {
 
     expect((caught as Error).message).not.toContain('private state missed');
     expect(util.inspect(caught, { depth: 6 })).not.toContain('polar_oat_NESTEDSECRET789');
+  });
+});
+
+/**
+ * #536: on 2026-10-01 Polar's Current contract becomes `2026-10` and today's contract is renamed
+ * `2026-04`. A request with no `Polar-Version` header follows Current, so proving the header is on
+ * the wire (not just that a constant exists) is the whole point of this block: real `getPolarClient()`
+ * calls through a mocked global `fetch`, never a hand-rolled stand-in for the SDK's own request path.
+ *
+ * There is no `@polar-sh/better-auth` plugin path left to exercise: `polar-client.ts`'s own header,
+ * `lib/auth.ts`'s `plugins` array (no `polar`/`checkout`/`portal`/`webhooks` plugin registered), and
+ * `documentation/docs/developer-guide/hosted-billing.md` ("not `@polar-sh/better-auth`'s plugin")
+ * agree that checkout/portal/webhooks all moved to plain Nest routes calling `getPolarClient()`
+ * directly on 2026-09-16, before this backend ever depended on that package's plugin surface. `grep
+ * -rn "from '@polar-sh/better-auth'" src/` (2026-09-29) returns nothing: the package is still a listed
+ * dependency but nothing in `src/` imports it. `getPolarClient()` is therefore already the ONLY place
+ * this backend constructs a Polar client, which the two calls below exercise directly.
+ */
+describe('getPolarClient sets the Polar-Version header (#536)', () => {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.POLAR_ACCESS_TOKEN;
+
+  beforeEach(() => {
+    resetPolarClientForTests();
+    process.env.POLAR_ACCESS_TOKEN = 'polar_oat_test_536';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.POLAR_ACCESS_TOKEN = originalToken;
+    resetPolarClientForTests();
+  });
+
+  /** Captures the real `Request` objects `HTTPClient`'s default fetcher hands to `fetch`: the exact
+   *  wire-level object Polar's own server reads headers off. The response body is intentionally NOT a
+   *  valid Polar schema: this test asserts on the OUTGOING request, so what a caller does with an
+   *  invalid response (reject, in every case below, always swallowed) is irrelevant to it. */
+  function interceptFetch(): Request[] {
+    const seen: Request[] = [];
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      seen.push(request);
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch;
+    return seen;
+  }
+
+  it('stamps Polar-Version on a customerSessions.create call (portal-session.ts path)', async () => {
+    const seen = interceptFetch();
+    const client = getPolarClient();
+
+    await client.customerSessions
+      .create({ externalCustomerId: 'company_536_test', returnUrl: 'https://example.test/return' })
+      .catch(() => undefined);
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.headers.get('Polar-Version')).toBe(POLAR_API_VERSION);
+  });
+
+  it('stamps Polar-Version on a products.list call (a second, unrelated resource/method)', async () => {
+    const seen = interceptFetch();
+    const client = getPolarClient();
+
+    // `list()` resolves to a `PageIterator`, but the FIRST page is already fetched while that
+    // promise itself resolves (`$do()` in the SDK's generated productsList function in `@polar-sh/sdk`, read
+    // directly), so awaiting the call is enough to observe the outgoing request: `.next()` is not
+    // required to trigger it.
+    await client.products.list({}).catch(() => undefined);
+
+    expect(seen.length).toBeGreaterThan(0);
+    for (const request of seen) {
+      expect(request.headers.get('Polar-Version')).toBe(POLAR_API_VERSION);
+    }
+  });
+
+  it('reuses the same HTTPClient (and its hook) across every nested resource of one getPolarClient() instance', async () => {
+    const seen = interceptFetch();
+    const client = getPolarClient();
+
+    await client.customerSessions
+      .create({ externalCustomerId: 'a', returnUrl: 'https://x.test' })
+      .catch(() => undefined);
+    await client.subscriptions.list({}).catch(() => undefined);
+
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+    for (const request of seen) {
+      expect(request.headers.get('Polar-Version')).toBe(POLAR_API_VERSION);
+    }
+  });
+});
+
+// Issue #533: no Polar call is ever possible in demo mode, independently of `isBillingEnabled()`'s own
+// override: this is the belt-and-suspenders check `getPolarClient()`'s own header describes.
+describe('getPolarClient: refuses outright in demo mode (issue #533)', () => {
+  const ORIGINAL = process.env[DEMO_MODE_FLAG_NAME];
+
+  afterEach(() => {
+    if (ORIGINAL === undefined) delete process.env[DEMO_MODE_FLAG_NAME];
+    else process.env[DEMO_MODE_FLAG_NAME] = ORIGINAL;
+    resetPolarClientForTests();
+  });
+
+  it('throws DemoModeBlockedError before constructing a client', () => {
+    process.env[DEMO_MODE_FLAG_NAME] = 'true';
+    resetPolarClientForTests();
+    expect(() => getPolarClient()).toThrow(DemoModeBlockedError);
+  });
+
+  it('never caches a client while demo mode is on (a later real call still gets refused)', () => {
+    process.env[DEMO_MODE_FLAG_NAME] = 'true';
+    resetPolarClientForTests();
+    expect(() => getPolarClient()).toThrow(DemoModeBlockedError);
+    expect(() => getPolarClient()).toThrow(DemoModeBlockedError);
   });
 });

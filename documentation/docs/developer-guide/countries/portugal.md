@@ -12,8 +12,12 @@ Portugal is one of five countries with data files in the per-country catalogues,
 runs for a company established there. Support is per mechanism, not a single yes or no.
 :::
 
-Portugal's entries name FE-AP as its invoice transmission platform, and UBL as the format it
-carries.
+Portugal's B2G entry (selling to a government client) names FE-AP as the transmission platform, and
+UBL 2.1 as the format it carries; there is no channel mandate for an ordinary B2B seller. `fe-ap` is
+not backed by a transport this app talks to yet, so a send to a government client is refused, naming
+the channel, rather than silently falling back to email. The AT monthly declaration now carries each
+document's real ATCUD and declares credit notes too (as `NC`, referencing the invoice they correct).
+See [Compliance - Portugal](/compliance/pt) for the full, sourced picture.
 
 This page is a pointer by design. Everything Invoicerr knows about Portugal lives in its own data
 files, and two pages already say it without anyone retyping it:

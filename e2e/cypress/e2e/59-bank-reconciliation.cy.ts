@@ -14,7 +14,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * reconciliation attempt on the SAME line, replayed directly against the API, is refused (409) — the
  * concrete proof "the same line cannot be reconciled twice".
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 // 1000.00 € net, 20% VAT -> 1200.00 € gross (120000 minor units).
 const GROSS_MINOR = 120000;

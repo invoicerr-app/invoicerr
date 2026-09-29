@@ -1,7 +1,10 @@
-import { createHmac } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { createHmac, generateKeyPairSync } from "node:crypto";
+import { mkdtempSync, readFileSync } from "node:fs";
 import * as http from "node:http";
+import * as https from "node:https";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { defineConfig } from "cypress";
@@ -174,6 +177,159 @@ function startFakePdpServer(): Promise<string> {
       const address = server.address() as AddressInfo;
       fakePdpServerUrl = `http://127.0.0.1:${address.port}`;
       resolve(fakePdpServerUrl);
+    });
+  });
+}
+
+/**
+ * The Photon geocoder side for `109-address-autocomplete.cy.ts` (issue #197): a local `node:http`
+ * server standing in for `https://photon.komoot.io` - the backend's own proxy
+ * (`address-autocomplete.controller.ts`) is what calls this, never the browser, so a `cy.intercept`
+ * can prove the CLIENT never fires a raw request to komoot.io but cannot serve what the BACKEND's
+ * own server-to-server fetch needs; a real fake server is required for the same reason the PDP and
+ * AT fakes above are.
+ *
+ * FIXED PORT, deliberately, unlike the ephemeral (`.listen(0, ...)`) fakes above: `ADDRESS_AUTOCOMPLETE_URL`
+ * is read by the backend from its own environment (never written to a DB row mid-test the way the
+ * PDP/AT channel configs are), so the URL has to be known BEFORE the backend boots - `npm run
+ * start:test` picks it up from whatever exported it (a developer's own shell locally; the
+ * `cypress-run` job's own `env:` block in `.github/workflows/cypress.yml`, same override pattern as
+ * REDIS_URL there, in CI), well before this Node process or its Cypress run even starts. This is the
+ * one thing every OTHER stack running against that same fixed value tolerates without breaking:
+ * `AddressAutocompleteService` degrades to an EMPTY suggestion list (never an error) when nothing
+ * listens on this port, which is exactly what every OTHER shard/spec sees - a harmless
+ * connection-refused warning in their own backend log, no different in kind from `SireneService`'s
+ * own real "network error" WARN any offline test run already produces. Only
+ * `109-address-autocomplete.cy.ts` itself starts this server (`cy.task('startFakePhotonServer')`),
+ * so only that spec ever sees a populated dropdown.
+ */
+const FAKE_PHOTON_PORT = 41976;
+interface FakePhotonFeature {
+  properties: {
+    housenumber?: string;
+    street?: string;
+    postcode?: string;
+    city?: string;
+    country?: string;
+    countrycode?: string;
+    name?: string;
+  };
+}
+let fakePhotonServerUrl: string | null = null;
+const fakePhotonRequests: string[] = [];
+/** Mutable per-test fixture - a spec sets this with `cy.task('setFakePhotonSuggestions', [...])`
+ *  before typing, so different tests can prove different Photon answers without restarting anything. */
+let fakePhotonFeatures: FakePhotonFeature[] = [];
+
+function startFakePhotonServer(): Promise<string> {
+  if (fakePhotonServerUrl) return Promise.resolve(fakePhotonServerUrl);
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      fakePhotonRequests.push(req.url ?? "");
+      const url = new URL(req.url ?? "/", "http://fake-photon.local");
+      if (req.method === "GET" && url.pathname === "/api/") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ type: "FeatureCollection", features: fakePhotonFeatures }));
+        return;
+      }
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+    server.on("error", reject);
+    server.listen(FAKE_PHOTON_PORT, "127.0.0.1", () => {
+      fakePhotonServerUrl = `http://127.0.0.1:${FAKE_PHOTON_PORT}`;
+      resolve(fakePhotonServerUrl);
+    });
+  });
+}
+
+/**
+ * The "AT webservice" side for `107-pt-at-declaration-payload.cy.ts` (issue #501): a local HTTPS
+ * server standing in for the Portuguese AT's `fatcorews` endpoint, started once for the run, for the
+ * same reason as the two fakes above. The backend's `pt-at` provider posts its SOAP
+ * `RegisterInvoiceRequest` server to server, so a `cy.intercept` never sees it, and the declared
+ * payload is exactly what that spec must read.
+ *
+ * `pt-at-client.ts` only speaks HTTPS and always presents a client certificate (mTLS, Aspetos
+ * Genericos section 2.1), so this fake needs real certificates: a self-signed server certificate for
+ * 127.0.0.1, which the channel config hands the backend as its test-only `caPem`, and a client
+ * PKCS#12 the backend presents. They are generated per run with the `openssl` CLI into a temporary
+ * directory, never committed. The fake does not decrypt the WS-Security header (the backend's own
+ * `pt-declaration-provider.spec.ts` stub does that against a real key pair); it records every body
+ * and answers `CodigoResposta` 0.
+ */
+interface FakeAtConfig {
+  baseUrl: string;
+  /** The `pt-at` channel config a spec PUTs to `/api/company/channels/pt-at`, pointing at this fake. */
+  channelConfig: Record<string, string>;
+}
+let fakeAtConfig: FakeAtConfig | null = null;
+const fakeAtRequests: string[] = [];
+
+function openssl(args: string[]): void {
+  execFileSync("openssl", args, { stdio: "pipe" });
+}
+
+function startFakeAt(): Promise<FakeAtConfig> {
+  if (fakeAtConfig) return Promise.resolve(fakeAtConfig);
+  const dir = mkdtempSync(join(tmpdir(), "invoicerr-fake-at-"));
+  const file = (name: string) => join(dir, name);
+  openssl([
+    "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=Fake AT fatcorews",
+    "-addext", "subjectAltName=IP:127.0.0.1", "-keyout", file("server.key"), "-out", file("server.crt"),
+  ]);
+  openssl([
+    "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=Fake AT subutilizador",
+    "-keyout", file("client.key"), "-out", file("client.crt"),
+  ]);
+  const pfxPassword = "fake-at-pfx-password";
+  openssl([
+    "pkcs12", "-export", "-inkey", file("client.key"), "-in", file("client.crt"), "-out", file("client.p12"),
+    "-passout", `pass:${pfxPassword}`,
+  ]);
+  const serverCertPem = readFileSync(file("server.crt"), "utf-8");
+  const { publicKey: authPublicKeyPem } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: "spki", format: "pem" },
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+  });
+
+  return new Promise((resolve, reject) => {
+    const server = https.createServer(
+      { key: readFileSync(file("server.key")), cert: serverCertPem },
+      (req, res) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk) => chunks.push(chunk));
+        req.on("end", () => {
+          fakeAtRequests.push(Buffer.concat(chunks).toString("utf-8"));
+          res.writeHead(200, { "Content-Type": "text/xml; charset=utf-8" });
+          res.end(
+            '<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"><S:Body>' +
+              '<RegisterInvoiceResponse xmlns="http://factemi.at.min_financas.pt/documents">' +
+              "<CodigoResposta>0</CodigoResposta><Mensagem>Operação efetuada com sucesso.</Mensagem>" +
+              "<DataOperacao>2026-09-28T10:00:00</DataOperacao></RegisterInvoiceResponse>" +
+              "</S:Body></S:Envelope>",
+          );
+        });
+      },
+    );
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address() as AddressInfo;
+      const baseUrl = `https://127.0.0.1:${address.port}/fatcorews/ws/`;
+      fakeAtConfig = {
+        baseUrl,
+        channelConfig: {
+          username: "509442661/1",
+          password: "fake-at-password",
+          authPublicKeyPem,
+          clientCertificateBase64: readFileSync(file("client.p12")).toString("base64"),
+          clientCertificatePassword: pfxPassword,
+          baseUrl,
+          caPem: serverCertPem,
+        },
+      };
+      resolve(fakeAtConfig);
     });
   });
 }
@@ -380,6 +536,14 @@ export default defineConfig({
   // 25-document-settlement and 29-document-recurrence to renderer crashes -- the exact four named
   // above -- while the same specs pass on Firefox. A default that cannot be green teaches people to
   // ignore the suite. Pass `--browser electron` explicitly if you want to reproduce the crash.
+  //
+  // The ONLY place the suite learns where the stack under test listens (#502). Specs and
+  // `support/commands.ts` read `Cypress.config("baseUrl")`, `Cypress.env("apiUrl")`,
+  // `Cypress.env("mailpitUrl")` and `Cypress.env("mailpitSmtpPort")`, never a literal
+  // `localhost:<port>` (`scripts/check-e2e-literal-ports.mjs` fails CI on one). The defaults are
+  // the shared stack's ports, so CI sets nothing; a second stack on the same machine exports
+  // FRONTEND_URL, VITE_BACKEND_URL, MAILPIT_URL and MAILPIT_SMTP_PORT instead of editing specs.
+  // Without MAILPIT_URL an isolated run's `cy.clearEmails()` would empty the SHARED inbox.
   e2e: {
     video: true,
     baseUrl: process.env.FRONTEND_URL || "http://localhost:6284",
@@ -387,6 +551,8 @@ export default defineConfig({
     supportFile: "cypress/support/e2e.ts",
     env: {
       apiUrl: process.env.VITE_BACKEND_URL || "http://localhost:4000",
+      mailpitUrl: process.env.MAILPIT_URL || "http://localhost:8025",
+      mailpitSmtpPort: Number(process.env.MAILPIT_SMTP_PORT || 1025),
     },
     setupNodeEvents(on) {
       on("task", {
@@ -557,6 +723,38 @@ export default defineConfig({
         },
         triggerPdpReceptionSweep() {
           return triggerPdpReceptionSweep();
+        },
+
+        // See `startFakeAt`'s own header (issue #501): the Portuguese AT webservice, faked over real
+        // HTTPS so the backend's `pt-at` provider can reach it and the declared payload can be read.
+        startFakeAt() {
+          return startFakeAt();
+        },
+        getFakeAtRequests() {
+          return [...fakeAtRequests];
+        },
+        resetFakeAtRequests() {
+          fakeAtRequests.length = 0;
+          return null;
+        },
+
+        // See the fake Photon server's own header above (issue #197): a fixed-port `node:http`
+        // stand-in for photon.komoot.io, so `109-address-autocomplete.cy.ts` can prove the backend's
+        // proxy round-trips a real HTTP request/response without ever reaching the real komoot.io.
+        startFakePhotonServer() {
+          return startFakePhotonServer();
+        },
+        setFakePhotonSuggestions(features: FakePhotonFeature[]) {
+          fakePhotonFeatures = features;
+          return null;
+        },
+        getFakePhotonRequests() {
+          return [...fakePhotonRequests];
+        },
+        resetFakePhotonServer() {
+          fakePhotonFeatures = [];
+          fakePhotonRequests.length = 0;
+          return null;
         },
 
         /**
@@ -781,6 +979,50 @@ export default defineConfig({
               throw new Error(
                 `makeCreditNoteLegacyUnnumbered: expected exactly one credit-note row for id ${documentId}, matched ${rowCount}`,
               );
+            }
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
+
+        /**
+         * Issue #496 - writes a company's RUNNING SERIES (`Company.numberFormats`, `{ typeId: pattern }`)
+         * directly: the state the migration `20260928000000_issue_496_freeze_running_number_series`
+         * leaves for a company that had issued documents under a custom format (or the old shared
+         * default) before formats became fixed per country. No API can write it any more (`PUT
+         * /api/company/number-format` answers 405), so a direct DB write is the only way to set up that
+         * pre-#496 company - the same "migration scenario, not a reachable creation journey" reasoning
+         * `makeCreditNoteLegacyUnnumbered` above rests on. Resolves the company via its OWNER's email,
+         * the convention `setCompanySubscriptionSeats` holds.
+         */
+        async setCompanyRunningSeries({
+          email,
+          runningSeries,
+        }: {
+          email: string;
+          runningSeries: Record<string, string>;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rowCount } = await client.query(
+              `UPDATE "Company" SET "numberFormats" = $2::jsonb
+               WHERE id = (
+                 SELECT uc."companyId" FROM "user" u
+                 JOIN "user_company" uc ON uc."userId" = u.id
+                 WHERE u.email = $1 AND uc.role = 'OWNER'
+                 ORDER BY uc."createdAt" ASC
+                 LIMIT 1
+               )`,
+              [email, JSON.stringify(runningSeries)],
+            );
+            if (rowCount !== 1) {
+              throw new Error(`setCompanyRunningSeries: expected one OWNER company for ${email}, matched ${rowCount}`);
             }
             return null;
           } finally {

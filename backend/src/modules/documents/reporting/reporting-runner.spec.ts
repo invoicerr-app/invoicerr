@@ -20,6 +20,7 @@ import { DeclarationProviderRegistry } from './declaration-provider';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
 import { InvalidDeclarationResultError, ReportingRunner } from './reporting-runner';
+import { UndeclarableDocumentError } from './build-declared-invoice';
 
 vi.mock('../persistence');
 vi.mock('../conformity/authority-events.persistence');
@@ -180,6 +181,27 @@ describe('ReportingRunner.runReport', () => {
     await expect(runner.runReport(JOB_DATA)).rejects.toThrow('NAV HTTP 500');
     expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
     expect(mockedJournalSynthetic).not.toHaveBeenCalled();
+  });
+
+  // Issue #497: the last `?? 'DRAFT'` fallback. A document with no number must never reach a provider
+  // with the literal "DRAFT" (or anything else) standing in for its number: the runner fails, loudly,
+  // before `declare` is ever called, and nothing is journaled as a declaration.
+  it.each([
+    ['null', null],
+    ['empty', ''],
+    ['blank', '   '],
+  ])('a document with a %s displayNumber is never declared: UndeclarableDocumentError, provider never called', async (_label, displayNumber) => {
+    mockedFindOwnedDocument.mockResolvedValue({ ...FIXTURE_DOCUMENT, displayNumber });
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    const attempt = runner.runReport(JOB_DATA);
+    await expect(attempt).rejects.toThrow(UndeclarableDocumentError);
+    await expect(runner.runReport(JOB_DATA)).rejects.toThrow(
+      /Refusing to declare invoice doc-1: it has no number/,
+    );
+    expect(declare).not.toHaveBeenCalled();
+    expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
   });
 
   // ⚖ "MARK/transactionId not empty" — the hard contract this whole mechanism refuses to relax.
@@ -418,5 +440,129 @@ describe('ReportingRunner — webhooks', () => {
     const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }); // no webhooks
     await expect(runner.runReport(JOB_DATA)).resolves.toEqual({ journaled: 1 });
+  });
+});
+
+// Issue #501: a credit note is declared too. It owns no amounts and no client, so the runner prices
+// it, and takes its buyer, from the invoice it corrects (`formats/credit-note-source.ts`), and hands
+// the provider the corrected invoice's number. Its own number and ATCUD stay its own.
+describe('ReportingRunner.runReport: credit notes and the ATCUD (issue #501)', () => {
+  const INVOICE = {
+    ...FIXTURE_DOCUMENT,
+    id: 'inv-1',
+    displayNumber: 'FT 2026/0001',
+    atcud: 'ATCUD:FTCODE01-0001',
+    data: {
+      ...FIXTURE_DOCUMENT.data,
+      issueDate: '2026-09-14T00:00:00.000Z',
+      currency: 'EUR',
+      lines: [
+        {
+          $rowId: 'row-a',
+          description: 'Consultoria',
+          quantity: 1,
+          unit: 'day',
+          unitPrice: 500,
+          vatRate: 23,
+        },
+        { $rowId: 'row-b', description: 'Formacao', quantity: 2, unit: 'day', unitPrice: 300, vatRate: 23 },
+      ],
+    },
+  };
+  const CREDIT_NOTE = {
+    id: 'cn-1',
+    typeId: 'credit-note',
+    status: 'sent',
+    displayNumber: 'NC 2026/0001',
+    atcud: 'ATCUD:NCCODE01-0001',
+    data: { invoice: 'inv-1', correctedLines: ['row-b'], issueDate: '2026-09-20', currency: 'EUR' },
+  };
+  const CN_JOB: ReportJobData = {
+    ...JOB_DATA,
+    documentId: 'cn-1',
+    typeId: 'credit-note',
+    providerId: 'pt-at',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedFindOwnedDocument.mockImplementation(async (_companyId: string, typeId: string, id: string) => {
+      if (typeId === 'credit-note' && id === 'cn-1') return CREDIT_NOTE;
+      if (typeId === 'invoice' && id === 'inv-1') return INVOICE;
+      throw new Error(`unexpected document ${typeId}/${id}`);
+    });
+    mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
+    mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
+    mockedCreateAuthorityEvents.mockResolvedValue(1);
+  });
+
+  it('an invoice hands the provider its own frozen ATCUD', async () => {
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'pt-at', declare });
+
+    await runner.runReport({ ...JOB_DATA, documentId: 'inv-1', providerId: 'pt-at' });
+
+    const declared = declare.mock.calls[0][1];
+    expect(declared.number).toBe('FT 2026/0001');
+    expect(declared.atcud).toBe('ATCUD:FTCODE01-0001');
+    expect(declared.correctedInvoice).toBeUndefined();
+  });
+
+  it("a credit note is declared with its own number and ATCUD, the corrected invoice, and that invoice's buyer and selected lines", async () => {
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'pt-at', declare });
+
+    const result = await runner.runReport(CN_JOB);
+
+    expect(result).toEqual({ journaled: 1 });
+    const declared = declare.mock.calls[0][1];
+    expect(declared).toEqual(
+      expect.objectContaining({
+        documentId: 'cn-1',
+        typeId: 'credit-note',
+        number: 'NC 2026/0001',
+        atcud: 'ATCUD:NCCODE01-0001',
+        issueDate: '2026-09-20',
+        currency: 'EUR',
+        correctedInvoice: { number: 'FT 2026/0001', issueDate: '2026-09-14' },
+        netTotal: 600,
+        vatTotal: 138,
+        grossTotal: 738,
+      }),
+    );
+    // Only the corrected line (row-b), priced by the invoice's own descriptor.
+    expect(declared.lines).toHaveLength(1);
+    expect(declared.lines[0]).toEqual(expect.objectContaining({ description: 'Formacao', netAmount: 600 }));
+    // The buyer is the corrected invoice's client, scoped to the company.
+    expect(mockedPrisma.client.findFirstOrThrow).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'client-1', companyId: 'company-1' } }),
+    );
+    expect(declared.buyer.vatNumber).toBe('HU87654321');
+    expect(mockedCreateAuthorityEvents).toHaveBeenCalledWith('company-1', 'cn-1', 'pt-at', [SUCCESS_RESULT]);
+  });
+
+  it('a credit note that corrects no invoice is never declared: UndeclarableDocumentError, provider never called', async () => {
+    mockedFindOwnedDocument.mockResolvedValue({
+      ...CREDIT_NOTE,
+      data: { issueDate: '2026-09-20', lines: [] },
+    });
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'pt-at', declare });
+
+    await expect(runner.runReport(CN_JOB)).rejects.toThrow(UndeclarableDocumentError);
+    await expect(runner.runReport(CN_JOB)).rejects.toThrow(/credit note cn-1: it corrects no invoice/);
+    expect(declare).not.toHaveBeenCalled();
+    expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
+  });
+
+  it('a credit note whose corrected invoice has no number is never declared either', async () => {
+    mockedFindOwnedDocument.mockImplementation(async (_companyId: string, typeId: string) =>
+      typeId === 'credit-note' ? CREDIT_NOTE : { ...INVOICE, displayNumber: null },
+    );
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'pt-at', declare });
+
+    await expect(runner.runReport(CN_JOB)).rejects.toThrow(UndeclarableDocumentError);
+    expect(declare).not.toHaveBeenCalled();
   });
 });

@@ -25,7 +25,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  4. on screen (the invoice dialog): the THREE blocks (payments, credits, balance) are
  *     displayed, never mixed together, and the badge becomes "Settled".
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const INVOICE_GROSS_MINOR = 12000; // 60+40 € net, 20% VAT on each line.
 const LINE_A_GROSS_MINOR = 7200; // what the credit note corrects.
@@ -174,7 +174,9 @@ describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAF
 			body: {
 				data: {
 					invoice: invoiceId,
-					issueDate: "2026-09-01",
+					// Issue #499: a linked credit note is delivered on its invoice's channel ("email" here),
+					// which the French mandate refuses for a domestic document issued on or after 2026-09-01.
+					issueDate: "2026-08-31",
 					currency: "EUR",
 					correctedLines: [lineARowId],
 				},
@@ -322,7 +324,7 @@ describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAF
 			.its("body.displayNumber")
 			.then((displayNumber) => {
 				expect(displayNumber, "the sent credit note carries its own number").to.match(
-					/^CREDIT-NOTE-\d{4}-\d{4}$/,
+					/^CN-\d{4}-\d{4}$/,
 				);
 				cy.get(`[data-cy="document-settlement-credit-${creditNoteId}"]`).should(
 					"contain.text",

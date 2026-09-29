@@ -58,7 +58,41 @@ import { computeDocumentTotals } from '../totals/compute-totals';
 import { GOBL_MIME, GoblLineInput, buildGoblInvoice } from './invopop/gobl-invoice';
 import { InvopopClient, InvopopJob, InvopopSiloEntry } from './invopop/invopop-client';
 import { invopopDeterministicId } from './invopop/invopop-ids';
-import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
+import {
+  CredentialFieldDescriptor,
+  DocumentTransport,
+  DocumentTransportContext,
+  DocumentTransportResult,
+} from './transport-registry';
+
+/** Issue #526 - exactly the three fields `extractInvopopCredentials` below reads. No frontend entry
+ * existed for this provider before this catalogue - `channels.settings.tsx`'s own `PROVIDER_FIELDS`
+ * never had an "invopop" key. `baseUrl` is the one OPTIONAL field here - see
+ *  `InvopopCredentials.baseUrl`'s own header: every workspace is served from the same host, the API
+ *  key alone decides which one. */
+export const INVOPOP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'baseUrl',
+    kind: 'text',
+    valueType: 'string',
+    required: false,
+    labelKey: 'settings.channels.fields.baseUrl',
+  },
+  {
+    key: 'apiKey',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.invopopApiKey',
+  },
+  {
+    key: 'workflowId',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.invopopWorkflowId',
+  },
+];
 
 const PROVIDER_ID = 'invopop';
 
@@ -144,6 +178,10 @@ export function buildInvopopTransport(deps: InvopopTransportDeps): DocumentTrans
     async preflight(companyId: string): Promise<void> {
       await requireConnectedInvopop(deps.channelCredentials, companyId);
     },
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: INVOPOP_CREDENTIAL_FIELDS,
+    parseCredentials: extractInvopopCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result - the company's configuration

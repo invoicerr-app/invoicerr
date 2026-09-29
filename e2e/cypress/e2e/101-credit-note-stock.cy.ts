@@ -12,7 +12,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * rather than refusing the field - this proves the API still accepts it (never silently dropped) and
  * that the article's stock is nonetheless UNCHANGED once the credit note is sent.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function createTrackedArticle() {
 	return cy
@@ -93,7 +93,7 @@ describe('PR #473 review point 2 - a credit note with an articleId on its line n
 					.then((doc) => {
 						expect(doc.status, "issued").to.eq("sent");
 						expect(doc.displayNumber, "numbered like every credit note since issue #471").to.eq(
-							"CREDIT-NOTE-2026-0001",
+							"CN-2026-0001",
 						);
 					});
 

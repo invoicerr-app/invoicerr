@@ -4,7 +4,7 @@
  * already established for a different preflight gate on the same action. This file's job is "does
  * invoice-actions.ts's 'send' actually call the ATCUD preflight/onNumbered hooks correctly" — never
  * "is `parseAtcudPattern`/`computeAtcud` itself right" (that is `numbering/atcud.spec.ts`'s job) nor
- * "does `ensureAtcudIssuable`/`attachAtcudToNumberedInvoice` resolve a series correctly on their own"
+ * "does `ensureAtcudIssuable`/`attachAtcudToNumberedDocument` resolve a series correctly on their own"
  * (that is `atcud-issuance.spec.ts`'s job). Calls the registered "send" handler directly, bypassing
  * `DocumentsService.runAction`'s own gates entirely — the exact same style `send-divergence.spec.ts`
  * and `invoice-channel-mandate.spec.ts` already established for this module.
@@ -127,35 +127,28 @@ describe('invoice "send" — Portugal\'s ATCUD preflight and numbering-time atta
     expect(mockedPrisma.documentInstance.update).not.toHaveBeenCalled();
   });
 
-  it('BLOCKS at the preflight for a Portuguese company on an ATCUD-incompatible number format — never persisted, never numbered', async () => {
+  // Issue #496: Portugal's own format ("FT A/{number}") is ATCUD-compatible, so the one thing a new
+  // Portuguese company still has to do before its first invoice is register series "FT A"'s AT code.
+  it('BLOCKS at the preflight for a Portuguese company whose series has no registered validation code', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
-    mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: null }); // shipped default: no "/"
-
-    const action = sendAction();
-
-    await expect(action).rejects.toBeInstanceOf(BadRequestException);
-    await expect(action).rejects.toThrow(/cannot produce a lawful ATCUD/);
-    expect(persistence.upsertDocument).not.toHaveBeenCalled();
-    expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
-  });
-
-  it('BLOCKS at the preflight for a Portuguese company with a compatible format but no registered validation code', async () => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
-    mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: { invoice: 'FT {year}/{number:4}' } });
+    mockedPrisma.company.findUnique.mockResolvedValue({ countryCode: 'PT', numberFormats: null });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue(null);
 
     const action = sendAction();
 
     await expect(action).rejects.toBeInstanceOf(BadRequestException);
     await expect(action).rejects.toThrow(/No AT validation code is registered/);
-    await expect(action).rejects.toThrow(/FT 2026/);
+    await expect(action).rejects.toThrow(/"FT A"/);
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
     expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
   });
 
   it('numbers, THEN computes and persists the ATCUD, for a fully-configured Portuguese company', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');
-    mockedPrisma.company.findUnique.mockResolvedValue({ numberFormats: { invoice: 'FT {year}/{number:4}' } });
+    mockedPrisma.company.findUnique.mockResolvedValue({
+      countryCode: 'PT',
+      numberFormats: { invoice: 'FT {year}/{number:4}' },
+    });
     mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({
       id: 'series-1',
       companyId: 'company-1',

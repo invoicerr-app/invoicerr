@@ -14,8 +14,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * (`signatures/otp.spec.ts`, `signatures.service.spec.ts`); here we prove the real on-screen JOURNEY +
  * the named refusal of a wrong code.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;

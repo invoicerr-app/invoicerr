@@ -13,7 +13,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * pagination — never about filling a create form. Every assertion that matters reads the API, never
  * a DOM re-read, as proof of what the server actually returned.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Document list — server-side pagination and filters", () => {
 	before(() => {

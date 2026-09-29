@@ -23,14 +23,30 @@
  *    not truthiness, so `{ contactEmail: "" }` still counts as "this caller is using the old shape"):
  *    an old-shape caller (API key, MCP tool, an external integration that has not adopted `contacts`
  *    yet). Its four fields become (create) or update (merge into) the primary contact; every OTHER
- *    contact already on the client is left untouched.
+ *    contact already on the client is left untouched. If the merge leaves the primary row empty
+ *    (every legacy field sent as `""` and no `role` on the row), that row is DELETED rather than kept
+ *    as a "-" contact (#478), the same "an empty contact is never stored" rule the `contacts` path
+ *    applies, and the next contact in `position` order, if any, is promoted primary.
  *  - Neither: no-op. A caller that touches neither shape (e.g. an address-only edit through a
  *    `contacts`-aware frontend that simply did not resend contacts) must never wipe them out from
  *    under it.
+ *
+ * Concurrency (#478): two saves of the same client at the same moment are LAST-WRITER-WINS, not a
+ * 409. Every write below starts by taking the parent `Client` row's lock (`SELECT ... FOR UPDATE`),
+ * so a second writer waits for the first to commit, then reads the committed rows and replaces them
+ * with its own snapshot. Without that lock, both writers' `deleteMany` ran against the same committed
+ * rows, both inserted a primary, and the second insert hit the partial unique index
+ * `ClientContact_clientId_primary_key`: its whole transaction rolled back (address included) and the
+ * caller got a generic 500. Why not a 409: the client form, the contacts list, the address and
+ * `customFields` are all already full-snapshot, last-writer-wins writes; `Client` carries no version
+ * a caller could send back, so a 409 would give the caller nothing to act on beyond "retry", which is
+ * what the lock does for it. `editClientsInfo` happens to update the `Client` row before calling this
+ * function, which already takes the same lock; the explicit lock here is what keeps the guarantee
+ * when a caller does not (a reordered transaction, a future write path), instead of relying on it.
  */
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { ClientContactDto } from '../dto/clients.dto';
-import { normalizeClientContacts } from './normalize-contacts';
+import { isBlankContact, normalizeClientContacts } from './normalize-contacts';
 
 const LEGACY_CONTACT_KEYS = ['contactFirstname', 'contactLastname', 'contactEmail', 'contactPhone'] as const;
 
@@ -48,6 +64,11 @@ export async function writeClientContacts(
   rawPayload: Record<string, unknown>,
   contacts: ClientContactDto[] | undefined,
 ): Promise<void> {
+  if (contacts === undefined && !hasLegacyContactField(rawPayload)) return;
+
+  // Serializes concurrent writers of the same client's contacts (#478) - see this file's own header.
+  await tx.$queryRaw`SELECT "id" FROM "Client" WHERE "id" = ${clientId} FOR UPDATE`;
+
   if (contacts !== undefined) {
     // Delete-then-recreate, never a per-row upsert-and-reconcile: the frontend's contacts step is a
     // full snapshot of the list on every save (add/remove/reorder all happen client-side first), the
@@ -81,8 +102,6 @@ export async function writeClientContacts(
     return;
   }
 
-  if (!hasLegacyContactField(rawPayload)) return;
-
   const legacy = rawPayload as {
     contactFirstname?: string | null;
     contactLastname?: string | null;
@@ -98,7 +117,7 @@ export async function writeClientContacts(
     // key means don't touch it" Prisma convention `editClientsInfo`'s own `customFields` write
     // already relies on. A key it DOES send, even as an empty string, overwrites - that is what
     // "unsetting the phone number" through the old API shape looks like.
-    await tx.clientContact.update({
+    const merged = await tx.clientContact.update({
       where: { id: existingPrimary.id },
       data: {
         firstName: 'contactFirstname' in rawPayload ? blankToNull(legacy.contactFirstname) : undefined,
@@ -107,14 +126,36 @@ export async function writeClientContacts(
         phone: 'contactPhone' in rawPayload ? blankToNull(legacy.contactPhone) : undefined,
       },
     });
+
+    // #478: the merge emptied the primary (a legacy caller clearing "the" contact by sending every
+    // field as ""). Judged on the MERGED row, not the payload: a caller that blanks only the phone
+    // keeps its contact, and a row that still carries a `role` (a column a legacy caller cannot even
+    // see) is not empty either. Delete first, then promote, so two primaries never coexist even
+    // inside this transaction.
+    if (isBlankContact(merged)) {
+      await tx.clientContact.delete({ where: { id: merged.id } });
+      const next = await tx.clientContact.findFirst({
+        where: { clientId },
+        orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      });
+      if (next) await tx.clientContact.update({ where: { id: next.id }, data: { isPrimary: true } });
+    }
     return;
   }
 
   // No primary yet - a brand new client created through the old flat shape, or an existing one that
   // never had a contact. Skip creating an empty row for a caller that sent every field blank (e.g.
   // `{ contactFirstname: "", ... }` on an edit that never touched contacts at all in practice).
-  const allBlank = LEGACY_CONTACT_KEYS.every((key) => !(legacy as Record<string, unknown>)[key]);
-  if (allBlank) return;
+  if (
+    isBlankContact({
+      firstName: legacy.contactFirstname,
+      lastName: legacy.contactLastname,
+      email: legacy.contactEmail,
+      phone: legacy.contactPhone,
+    })
+  ) {
+    return;
+  }
 
   await tx.clientContact.create({
     data: {

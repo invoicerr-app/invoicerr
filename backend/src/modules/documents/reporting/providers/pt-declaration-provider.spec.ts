@@ -28,7 +28,13 @@ import {
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { ChannelNotConnectedError, DeclaredInvoice } from '../declaration-provider';
-import { buildPtAtDeclarationProvider, PT_AT_PROVIDER_ID } from './pt-declaration-provider';
+import {
+  buildPtAtDeclarationProvider,
+  buildPtAtInvoiceRequestFields,
+  PT_AT_PROVIDER_ID,
+  ptAtInvoiceTypeFor,
+  PtAtUndeclarableDocumentError,
+} from './pt-declaration-provider';
 import { PtAtApiError } from './pt-at-client';
 import { buildClientPfx, generateSelfSignedCert } from './mtls-test-fixtures';
 import { firstByLocalName, parseXml, textOf } from '../../transports/sdi/xml-helpers';
@@ -89,6 +95,19 @@ const FIXTURE_INVOICE: DeclaredInvoice = {
   netTotal: 100,
   vatTotal: 23,
   grossTotal: 123,
+  // As frozen by `actions/atcud-issuance.ts`: the printed form, prefix included.
+  atcud: 'ATCUD:JJCVPTS0J-1',
+};
+
+/** A credit note correcting `FIXTURE_INVOICE`, as `reporting-runner.ts` builds it (issue #501). */
+const FIXTURE_CREDIT_NOTE: DeclaredInvoice = {
+  ...FIXTURE_INVOICE,
+  documentId: 'doc-2',
+  typeId: 'credit-note',
+  number: 'NC 1/1',
+  issueDate: '2026-09-20',
+  atcud: 'ATCUD:NCVALCODE-1',
+  correctedInvoice: { number: 'FT 1/1', issueDate: '2026-09-11' },
 };
 
 interface PtAtStub {
@@ -367,5 +386,130 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
     const provider = buildPtAtDeclarationProvider({ channelCredentials });
 
     await expect(provider.declare('company-1', FIXTURE_INVOICE)).rejects.toThrow(ChannelNotConnectedError);
+  });
+});
+
+// Issue #497: field 1.6.4 (InvoiceType) reads the SAF-T (PT) document type from the same table the
+// ATCUD series are keyed by (numbering/atcud.ts), sourced to Portaria n.º 302/2016, field 4.1.4.8.
+describe('ptAtInvoiceTypeFor (issue #497)', () => {
+  it('maps the invoice to FT and the credit note to NC', () => {
+    expect(ptAtInvoiceTypeFor('invoice')).toBe('FT');
+    expect(ptAtInvoiceTypeFor('credit-note')).toBe('NC');
+  });
+
+  it('the request an invoice produces still says FT', () => {
+    const fields = buildPtAtInvoiceRequestFields({ ...FIXTURE_INVOICE, typeId: 'invoice' });
+    expect((fields['doc:InvoiceData'] as Record<string, unknown>)['doc:InvoiceType']).toBe('FT');
+  });
+});
+
+// Issue #501: the declared payload itself, read off the wire by the same mTLS stub as above. What the
+// AT receives is the only thing that matters here, so every assertion reads `stub.lastBody`.
+describe('the declared payload (issue #501): the real ATCUD, and credit notes', () => {
+  let stub: PtAtStub;
+
+  afterEach(async () => {
+    await stub?.close();
+  });
+
+  function field(body: string | undefined, name: string): string[] {
+    const { doc } = parseXml(body ?? '<empty/>');
+    const nodes = doc.getElementsByTagNameNS('*', name);
+    const values: string[] = [];
+    for (let i = 0; i < nodes.length; i++) values.push(nodes.item(i)?.textContent ?? '');
+    return values;
+  }
+
+  it('a numbered invoice is declared with its own ATCUD, "<code>-<sequential>", never "0"', async () => {
+    stub = await startPtAtStub('success');
+    const provider = buildPtAtDeclarationProvider({ channelCredentials: channelCredentialsFor(stub) });
+
+    const result = await provider.declare('company-1', FIXTURE_INVOICE);
+
+    expect(result.statusCode).toBe('ACCEPTED');
+    expect(field(stub.lastBody, 'InvoiceNo')).toEqual(['FT 1/1']);
+    // Portaria n.º 195/2020, art. 3.º n.º 2: the code is "<validation code>-<sequential>"; the
+    // "ATCUD:" prefix belongs to the printed mention (art. 4.º) and is not part of the field.
+    expect(field(stub.lastBody, 'ATCUD')).toEqual(['JJCVPTS0J-1']);
+    expect(field(stub.lastBody, 'InvoiceType')).toEqual(['FT']);
+    expect(field(stub.lastBody, 'DebitCreditIndicator')).toEqual(['C']);
+    expect(field(stub.lastBody, 'Reference')).toEqual([]);
+  });
+
+  it('a credit note correcting it is declared as NC, with its own ATCUD, "D" and a Reference to the invoice', async () => {
+    stub = await startPtAtStub('success');
+    const provider = buildPtAtDeclarationProvider({ channelCredentials: channelCredentialsFor(stub) });
+
+    const result = await provider.declare('company-1', FIXTURE_CREDIT_NOTE);
+
+    expect(result.statusCode).toBe('ACCEPTED');
+    expect(field(stub.lastBody, 'InvoiceNo')).toEqual(['NC 1/1']);
+    expect(field(stub.lastBody, 'ATCUD')).toEqual(['NCVALCODE-1']);
+    expect(field(stub.lastBody, 'InvoiceType')).toEqual(['NC']);
+    expect(field(stub.lastBody, 'DebitCreditIndicator')).toEqual(['D']);
+    expect(field(stub.lastBody, 'Reference')).toEqual(['FT 1/1']);
+    // Manual field order inside LineSummary: TaxPointDate, Reference, DebitCreditIndicator.
+    expect(stub.lastBody).toMatch(
+      /<doc:TaxPointDate>2026-09-20<\/doc:TaxPointDate>\s*<doc:Reference>FT 1\/1<\/doc:Reference>\s*<doc:DebitCreditIndicator>D<\/doc:DebitCreditIndicator>/,
+    );
+  });
+
+  it('one LineSummary per VAT rate on a credit note, each carrying the Reference and "D"', () => {
+    const fields = buildPtAtInvoiceRequestFields({
+      ...FIXTURE_CREDIT_NOTE,
+      lines: [
+        { ...FIXTURE_CREDIT_NOTE.lines[0], vatRatePercent: 23, netAmount: 100 },
+        { ...FIXTURE_CREDIT_NOTE.lines[0], vatRatePercent: 6, netAmount: 50 },
+      ],
+    });
+    const summaries = (fields['doc:InvoiceData'] as Record<string, unknown>)['doc:LineSummary'] as Record<
+      string,
+      unknown
+    >[];
+    expect(summaries).toHaveLength(2);
+    for (const summary of summaries) {
+      expect(summary['doc:Reference']).toBe('FT 1/1');
+      expect(summary['doc:DebitCreditIndicator']).toBe('D');
+    }
+  });
+
+  it.each([
+    ['null', null],
+    ['absent', undefined],
+    ['blank', '  '],
+    ['the old placeholder "0"', '0'],
+  ])('a document whose ATCUD is %s is refused, and nothing is sent to the AT', async (_label, atcud) => {
+    stub = await startPtAtStub('success');
+    const provider = buildPtAtDeclarationProvider({ channelCredentials: channelCredentialsFor(stub) });
+
+    await expect(provider.declare('company-1', { ...FIXTURE_INVOICE, atcud })).rejects.toThrow(
+      PtAtUndeclarableDocumentError,
+    );
+    await expect(provider.declare('company-1', { ...FIXTURE_INVOICE, atcud })).rejects.toThrow(
+      /FT 1\/1.*no ATCUD/,
+    );
+    expect(stub.lastBody).toBeUndefined();
+  });
+
+  it('a credit note naming no corrected invoice is refused, and nothing is sent to the AT', async () => {
+    stub = await startPtAtStub('success');
+    const provider = buildPtAtDeclarationProvider({ channelCredentials: channelCredentialsFor(stub) });
+
+    await expect(
+      provider.declare('company-1', { ...FIXTURE_CREDIT_NOTE, correctedInvoice: undefined }),
+    ).rejects.toThrow(/NC 1\/1.*names no corrected invoice/);
+    expect(stub.lastBody).toBeUndefined();
+  });
+
+  it('an undeclarable document is refused before the credentials are even read', async () => {
+    const resolveActive = vi.fn().mockResolvedValue(null);
+    const provider = buildPtAtDeclarationProvider({
+      channelCredentials: { resolveActive } as unknown as ChannelCredentialsService,
+    });
+
+    await expect(provider.declare('company-1', { ...FIXTURE_INVOICE, atcud: null })).rejects.toThrow(
+      PtAtUndeclarableDocumentError,
+    );
+    expect(resolveActive).not.toHaveBeenCalled();
   });
 });

@@ -13,15 +13,17 @@
  * Consumed by `queue/processors/document-action.processor.ts`, exactly one more `job.name` branch on
  * the SAME `Q_DOCUMENT_ACTION` queue (`report-job.ts`'s own header).
  */
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
 import { createAuthorityEvents, journalSyntheticEvent } from '../conformity/authority-events.persistence';
 import { ChannelNotConnectedError } from '../conformity/authority-status-poller';
-import { DeclarationProviderRegistry, DeclarationResult } from './declaration-provider';
-import { buildDeclaredInvoice } from './build-declared-invoice';
+import { DeclarationProviderRegistry, DeclarationResult, DeclaredInvoice } from './declaration-provider';
+import { buildDeclaredInvoice, UndeclarableDocumentError } from './build-declared-invoice';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
+import { DocumentTypeDescriptor } from '../descriptors/types';
+import { resolveCreditNoteFormatSource } from '../formats/credit-note-source';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { findOwnedDocument } from '../persistence';
 import { dispatchDocumentAuthorityEventWebhook } from '../queue/document-authority-webhook';
@@ -104,12 +106,11 @@ export class ReportingRunner {
     }
 
     const document = await findOwnedDocument(data.companyId, data.typeId, data.documentId);
-    const descriptor = this.typeRegistry.resolve(data.typeId);
+    const source = await this.resolvePricingSource(data, document);
 
-    const clientId =
-      typeof document.data === 'object' && document.data !== null
-        ? (document.data as Record<string, unknown>).client
-        : undefined;
+    // The buyer: the document's own `client`, or, for a credit note, the corrected invoice's
+    // (`resolvePricingSource`).
+    const clientId = (source.pricingData ?? (document.data as Record<string, unknown> | null))?.client;
 
     const [company, client] = await Promise.all([
       prisma.company.findUniqueOrThrow({
@@ -132,7 +133,7 @@ export class ReportingRunner {
 
     const declaredInvoice = buildDeclaredInvoice(
       data.typeId,
-      descriptor,
+      source.descriptor,
       document,
       companyToFormatParty(company),
       client
@@ -150,6 +151,7 @@ export class ReportingRunner {
             country: null,
             partyIdentifiers: [],
           },
+      { pricingData: source.pricingData, correctedInvoice: source.correctedInvoice },
     );
 
     let result: DeclarationResult;
@@ -215,6 +217,61 @@ export class ReportingRunner {
       );
     }
     return { journaled };
+  }
+
+  /**
+   * What a document is priced from, and what it corrects (issue #501). An invoice is priced from its
+   * own descriptor and data. A credit note owns no amounts and no client: it is priced, and takes its
+   * buyer, from the invoice it corrects, through `formats/credit-note-source.ts`, the one resolution
+   * its e-invoicing export already uses, so the declared total is to the cent the amount settlement
+   * subtracts from that invoice. A credit note that corrects no invoice cannot be declared at all:
+   * it has no buyer, and the declaration must identify the corrected document (Decreto-Lei
+   * n.º 198/2012, art. 3.º n.º 4 n), « Identificação do documento retificado »). That, and every
+   * refusal `resolveCreditNoteFormatSource` makes (a corrected invoice with no number, no corrected
+   * line left on it), becomes `UndeclarableDocumentError`, which propagates like any other failure:
+   * retried, then journaled `report:failed` with its message.
+   */
+  private async resolvePricingSource(
+    data: ReportJobData,
+    document: { data: unknown },
+  ): Promise<{
+    descriptor: DocumentTypeDescriptor;
+    pricingData?: Record<string, unknown>;
+    correctedInvoice?: DeclaredInvoice['correctedInvoice'];
+  }> {
+    if (data.typeId !== 'credit-note') {
+      return { descriptor: this.typeRegistry.resolve(data.typeId) };
+    }
+
+    const noteData = (document.data ?? {}) as Record<string, unknown>;
+    if (typeof noteData.invoice !== 'string' || !noteData.invoice.trim()) {
+      throw new UndeclarableDocumentError(
+        `Refusing to declare credit note ${data.documentId}: it corrects no invoice. A declared ` +
+          'correcting document must identify the document it corrects (Decreto-Lei n.º 198/2012, art. ' +
+          '3.º n.º 4 n)), and a credit note takes its buyer from that invoice, so there is nothing ' +
+          'lawful to declare.',
+      );
+    }
+
+    let source: Awaited<ReturnType<typeof resolveCreditNoteFormatSource>>;
+    try {
+      source = await resolveCreditNoteFormatSource(data.companyId, { data: noteData });
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw new UndeclarableDocumentError(
+          `Refusing to declare credit note ${data.documentId}: ${error.message}`,
+        );
+      }
+      throw error;
+    }
+    return {
+      descriptor: source.pricingDescriptor,
+      pricingData: source.pricingData,
+      correctedInvoice: {
+        number: source.correctedInvoice.displayNumber,
+        issueDate: source.correctedInvoice.issueDate,
+      },
+    };
   }
 
   /**

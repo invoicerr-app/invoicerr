@@ -13,8 +13,14 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
+import { isArchivedPdfServable } from './rendering/archived-pdf-policy';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
+import {
+  DocumentTotalsView,
+  resolveDocumentTotalsView,
+  resolveSettlementTotals,
+} from './totals/document-totals-view';
 import { computeQuoteOptionTotals, isQuoteWithOptions, rejectStrayOptionTag } from './options/quote-options';
 import {
   APPROVAL_REQUIRED_MESSAGE,
@@ -49,7 +55,7 @@ import {
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
 import { listDeclarations, ListDeclarationsResult } from './reporting/list-declarations';
-import { ActionRegistry, ActionResult } from './actions/action-registry';
+import { ActionRegistry, ActionResult, DocumentInstanceResult } from './actions/action-registry';
 import { collectWidgets } from './contributions/collect-widgets';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { Widget } from './contributions/widgets';
@@ -101,6 +107,12 @@ import { FormatProviderRegistry, UnknownFormatError } from './formats/format-reg
 import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
 import { companyToFormatParty, clientToFormatParty } from './formats/party-snapshot';
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
+import { resolveCreditNoteFormatSource } from './formats/credit-note-source';
+import {
+  findLinkedCreditNote,
+  linkedCreditNoteTotals,
+  linkedCreditNoteTotalsByNoteId,
+} from './totals/linked-credit-note';
 import { ParsedListDocumentsQuery } from './dto/list-documents.dto';
 import { resolveClientFieldKey, resolveDateFieldKey, resolveSearchTextFieldKeys } from './list-filters';
 import { isNumberingAllowedFrom } from './numbering/only-from';
@@ -140,7 +152,9 @@ import {
   parseDistanceSalesRegime,
   resolveInvoiceCrossBorderTax,
 } from './tax/resolve-invoice-tax';
-import { TransportRegistry } from './transports/transport-registry';
+import { CredentialFieldDescriptor, TransportRegistry } from './transports/transport-registry';
+import { defaultOperatorCatalog } from './operators/registry';
+import { OperatorFact } from './operators/schema';
 import { VatRateCatalog } from './vat-rates/registry';
 import {
   ACTION_EXTENSION_REGISTRY,
@@ -358,8 +372,21 @@ export class DocumentsService implements OnModuleInit {
   /** Every registered document transport, id and label only — what a company's settings screen
    *  offers to choose from for `Company.invoiceTransportId`. Never filtered by country: the whole
    *  point is that the choice is the company's, not derived from where it is. */
-  listTransports(): { id: string; label: string }[] {
+  listTransports(): { id: string; label: string; credentialFields: CredentialFieldDescriptor[] }[] {
     return this.transportRegistry.list();
+  }
+
+  /**
+   * Issue #526 - the operator catalogue (`documents/operators/`): which operators implement a given
+   * legal channel (`pdp`, `sdi`, `ksef`, `chorus-pro`, `pt-at`...), or every operator this catalogue
+   * knows about when no `legalChannel` is given. Not scoped by `@ActiveCompany()` - this is reference
+   * data, the same "not tenant-specific" reasoning `listTransports()` above and `listTypes()` already
+   * hold; the company's OWN configured operator per channel is a SEPARATE fact, read from
+   * `GET /api/company/channels`'s own `operatorId` (`channels.service.ts#resolveOperatorId`), never
+   * from here.
+   */
+  listOperators(legalChannel?: string): OperatorFact[] {
+    return legalChannel ? defaultOperatorCatalog.forLegalChannel(legalChannel) : defaultOperatorCatalog.all();
   }
 
   /**
@@ -973,7 +1000,7 @@ export class DocumentsService implements OnModuleInit {
       }
     }
 
-    return listDocumentsPage(companyId, {
+    const page = await listDocumentsPage(companyId, {
       typeId,
       page: query.page,
       pageSize: query.pageSize,
@@ -990,6 +1017,7 @@ export class DocumentsService implements OnModuleInit {
       searchClientIds,
       ids: settlementIds,
     });
+    return { ...page, items: await this.withDerivedTotals(companyId, page.items) };
   }
 
   /** Client ids whose own `name` contains `q` (case-insensitive), company-scoped — `listDocuments`'s
@@ -1008,6 +1036,34 @@ export class DocumentsService implements OnModuleInit {
 
   async getDocument(companyId: string, typeId: string, id: string) {
     return findOwnedDocument(companyId, typeId, id);
+  }
+
+  /** `getDocument` as the screen reads it (`GET /documents/:id`): the same row, plus `derivedTotals`
+   *  for a linked credit note (issue #507, see `withDerivedTotals`). Kept apart from `getDocument`,
+   *  which a dozen internal callers use as a plain tenant-scoped lookup with no use for totals. */
+  async getDocumentView(companyId: string, typeId: string, id: string) {
+    const document = await findOwnedDocument(companyId, typeId, id);
+    const [withDerived] = await this.withDerivedTotals(companyId, [document]);
+    return withDerived;
+  }
+
+  /**
+   * Issue #507 - `derivedTotals` on every LINKED credit note of `documents`: the totals it takes from
+   * the invoice it corrects (`totals/linked-credit-note.ts`, the one rule settlement, the PDF and the
+   * XML export read). The screen's list row and detail page show THIS instead of summing the note's
+   * own `lines`, which a linked note leaves empty by construction. Every other document is returned
+   * untouched, with no `derivedTotals` key at all. One query for the whole page.
+   */
+  private async withDerivedTotals<T extends DocumentInstanceResult>(
+    companyId: string,
+    documents: T[],
+  ): Promise<(T & { derivedTotals?: DocumentTotals })[]> {
+    const byId = await linkedCreditNoteTotalsByNoteId(companyId, documents);
+    if (byId.size === 0) return documents;
+    return documents.map((document) => {
+      const derivedTotals = byId.get(document.id);
+      return derivedTotals ? { ...document, derivedTotals } : document;
+    });
   }
 
   /**
@@ -1513,7 +1569,12 @@ export class DocumentsService implements OnModuleInit {
       isNumberingAllowedFrom(descriptor.numbering, currentStatus);
 
     if (enteringNumberedStatus && result.document) {
-      const numbered = await takeDocumentNumberForTransition(companyId, typeId, result.document.id);
+      const numbered = await takeDocumentNumberForTransition(
+        companyId,
+        typeId,
+        result.document.id,
+        result.document.data,
+      );
       // `numbered` is undefined only if a concurrent request already numbered this exact record
       // between the in-memory check just above and the atomic DB write inside `takeDocumentNumber` —
       // see that function's own header. Nothing to do in that case: the record already has whatever
@@ -1580,11 +1641,26 @@ export class DocumentsService implements OnModuleInit {
   /**
    * Computes totals (net, VAT, gross) for a document instance by parsing its lines and applying
    * VAT breakdown logic. Pure calculation, scoped by company.
+   *
+   * Issue #487: a quote with options is never summed across its options. Once one is accepted the
+   * top level carries that option's totals (common lines included), before that it carries none and
+   * `options` lists each option's own - see `totals/document-totals-view.ts`'s own header.
    */
-  async computeTotals(companyId: string, typeId: string, id: string): Promise<DocumentTotals> {
+  async computeTotals(companyId: string, typeId: string, id: string): Promise<DocumentTotalsView> {
     const instance = await findOwnedDocument(companyId, typeId, id);
     const descriptor = this.mergedDescriptor(typeId);
-    return computeDocumentTotals(descriptor, instance.data as Record<string, unknown>);
+    // Issue #507 - a linked credit note is worth its corrected invoice rows, never its own empty
+    // `lines` (`totals/linked-credit-note.ts`).
+    const linked = await findLinkedCreditNote(companyId, typeId, instance.data as Record<string, unknown>);
+    if (linked) {
+      return { ...linkedCreditNoteTotals(linked), options: null, acceptedOption: null };
+    }
+    return resolveDocumentTotalsView(
+      typeId,
+      descriptor,
+      instance.data as Record<string, unknown>,
+      instance.acceptedOption,
+    );
   }
 
   /**
@@ -1603,7 +1679,16 @@ export class DocumentsService implements OnModuleInit {
     const instance = await findOwnedDocument(companyId, typeId, id);
     const descriptor = this.mergedDescriptor(typeId);
     const data = instance.data as Record<string, unknown>;
-    const totals = computeDocumentTotals(descriptor, data);
+    // Issue #487: a quote with options settles against its accepted option (common lines included),
+    // never the sum of every option; with none accepted there is no balance to compute and this
+    // refuses with 409 (`resolveSettlementTotals`'s own header says who can reach that).
+    const totals = resolveSettlementTotals(
+      typeId,
+      descriptor,
+      data,
+      instance.acceptedOption,
+      instance.displayNumber ?? instance.id,
+    );
     const payments = await listPayments(companyId, id);
     const { credits, warnings } = await resolveCreditsForDocument(companyId, typeId, id, descriptor, data);
     // `toSettlementPaymentInputs`, never the raw `payments` array directly:
@@ -1742,19 +1827,39 @@ export class DocumentsService implements OnModuleInit {
    * synchronous 200 with the same bytes, never a 202/polling handoff. A draft, a document delivered
    * through a channel with no plain-PDF artifact (pdp/ksef/sdi/chorus-pro), or one whose archiving
    * itself failed all fall through to the render below exactly as before.
+   *
+   * Issue #490: an archive is served only while it is still the right PDF for the document -
+   * always for an ISSUED document (the archive is the legal copy), otherwise only while the
+   * document's current `data` still hashes to the data the archived PDF was rendered from. A quote
+   * edited back to "draft" after a send therefore renders its edited content instead of the last sent
+   * one. See `rendering/archived-pdf-policy.ts` for the rule and for exactly which statuses count as
+   * issued. Every consumer of this method inherits it: the authenticated download, the public
+   * share-link download, the client portal's `getDocumentPdf` and the ZIP export. The signing page
+   * never comes through here: it serves the DELIVERY archive its signature request is bound to
+   * (`signatures/signatures.service.ts`, issue #477).
    */
   async renderInstancePdf(companyId: string, typeId: string, id: string): Promise<Buffer> {
     const instance = await findOwnedDocument(companyId, typeId, id);
+    const descriptor = this.mergedDescriptor(typeId);
 
-    const archived = await findArchivedPdfArtifact(companyId, id);
+    const archived = await findArchivedPdfArtifact(companyId, id, (archivedDataHash) =>
+      isArchivedPdfServable({
+        descriptor,
+        status: instance.status,
+        currentData: instance.data,
+        archivedDataHash,
+      }),
+    );
     if (archived) return archived;
 
-    const descriptor = this.mergedDescriptor(typeId);
     const { pdf } = await renderDocumentInstance(
       { referenceRegistry: this.referenceRegistry },
       companyId,
       descriptor,
       instance,
+      // Issue #494: a working copy prints its status, an issued document's stand-in for its archive
+      // does not (`rendering/status-line-policy.ts`).
+      'on-demand',
     );
     // Signs PAdES-BES when (and only when) this company has an active,
     // applicable, non-expired certificate configured (`signing/sign-instance-pdf.ts`'s own header).
@@ -1826,6 +1931,32 @@ export class DocumentsService implements OnModuleInit {
           `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${instance.status}".`,
       );
     }
+    // Issue #472 - a status the action is available from does not guarantee a number: a credit note
+    // issued before issue #471 gave the type a numbering sits in "sent" with none, and must never be
+    // numbered after the fact (`credit-note.descriptor.ts`, "Numbering"). No number, no file - never a
+    // file carrying a placeholder where the legal number goes (`shared-build.ts#requireDisplayNumber`
+    // refuses the same thing again at the builder, for every other caller).
+    if (!instance.displayNumber) {
+      throw new ConflictException(
+        'Cannot download an electronic invoice file for a document issued without a number: the file ' +
+          'must carry the legal number the document was issued with (EN 16931 BT-1), and none will be ' +
+          'invented after the fact.',
+      );
+    }
+
+    // Issue #472 - the syntax must be one THIS type's own action offers, not merely one the registry
+    // knows: a credit note deliberately does not offer `fa3` (credit-note.descriptor.ts), and a
+    // scripted client asking for it anyway gets the same 501 an unregistered syntax gets, rather than
+    // reaching a builder that was never meant to see this type.
+    const offeredSyntaxes = action.params
+      ?.find((param) => param.key === 'syntax')
+      ?.options?.map((option) => option.value);
+    if (offeredSyntaxes && !offeredSyntaxes.includes(syntax)) {
+      throw new NotImplementedException(
+        `Document format "${syntax}" is not offered for document type "${typeId}" - offered formats: ` +
+          `${offeredSyntaxes.join(', ')}.`,
+      );
+    }
 
     let provider: DocumentFormatProvider;
     try {
@@ -1843,7 +1974,13 @@ export class DocumentsService implements OnModuleInit {
       throw error;
     }
 
-    const data = (instance.data ?? {}) as Record<string, unknown>;
+    // Issue #472 - a credit note is built from the invoice it corrects (its buyer, its selected lines,
+    // priced with the invoice's own descriptor) - see `formats/credit-note-source.ts`'s own header.
+    // Every other type builds from its own data, exactly as before.
+    const creditNoteSource =
+      typeId === 'credit-note' ? await resolveCreditNoteFormatSource(companyId, instance) : undefined;
+    const buildDescriptor = creditNoteSource?.pricingDescriptor ?? descriptor;
+    const data = creditNoteSource?.pricingData ?? ((instance.data ?? {}) as Record<string, unknown>);
     const clientId = typeof data.client === 'string' ? data.client : undefined;
     const [company, client] = await Promise.all([
       prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } }),
@@ -1876,7 +2013,13 @@ export class DocumentsService implements OnModuleInit {
     // for why this same rewrite ALSO has to happen there (every transport, not just this download
     // button, must agree on the resolved treatment).
     let dataForBuild = data;
-    if (typeId === 'invoice') {
+    if (typeId === 'invoice' || creditNoteSource) {
+      // Issue #472 - a credit note carries the tax treatment of the supply it reduces: it is resolved
+      // against the CORRECTED INVOICE's own issue date (the date its treatment was fixed at), then the
+      // credit note's own date is put back for BT-2 below. An invoice resolves against its own date.
+      const taxData = creditNoteSource
+        ? { ...data, issueDate: creditNoteSource.correctedInvoiceIssueDate }
+        : data;
       const buyerVatRow = client.partyIdentifiers.find((pi) => pi.scheme === 'VAT');
       try {
         dataForBuild = resolveInvoiceCrossBorderTax({
@@ -1899,8 +2042,11 @@ export class DocumentsService implements OnModuleInit {
           buyerVat: buyerVatRow
             ? { value: buyerVatRow.value, validationStatus: buyerVatRow.validationStatus }
             : undefined,
-          data,
+          data: taxData,
         }).data;
+        if (creditNoteSource) {
+          dataForBuild = { ...dataForBuild, issueDate: data.issueDate };
+        }
       } catch (error) {
         if (isInvoiceTaxBlockError(error)) {
           throw new BadRequestException({ message: error.message, errors: [error.message] });
@@ -1908,16 +2054,22 @@ export class DocumentsService implements OnModuleInit {
         throw error;
       }
     }
-    const instanceForBuild = dataForBuild === data ? instance : { ...instance, data: dataForBuild };
+    const instanceForBuild = dataForBuild === instance.data ? instance : { ...instance, data: dataForBuild };
 
     let buildResult: DocumentFormatBuildResult;
     try {
       buildResult = await provider.build(
-        descriptor,
+        buildDescriptor,
         instanceForBuild,
         companyToFormatParty(company),
         clientToFormatParty(client),
         companyId,
+        creditNoteSource
+          ? {
+              creditNote: { correctedInvoice: creditNoteSource.correctedInvoice },
+              humanReadable: { descriptor, document: instance },
+            }
+          : undefined,
       );
     } catch (error) {
       if (error instanceof SemanticBuildError) {

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
@@ -6,6 +6,7 @@ import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { resolveCorrectionRoutesForCountry } from '../correction-routes/correction-routes';
 import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { resolveCreditNoteDeliverySource } from '../formats/credit-note-source';
 import { findOwnedDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
@@ -14,11 +15,23 @@ import { computeSettlement } from '../settlement/compute-settlement';
 import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
 import { crossedIntoSettled, emitDocumentSettled } from '../settlement/document-settled';
 import { listPayments, toSettlementPaymentInputs } from '../settlement/payments';
+import { EntityReferenceRegistry } from '../references/reference-registry';
+import { renderDocumentInstance } from '../rendering/render-instance-pdf';
+import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
+import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
 import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
 import { computeDocumentTotals } from '../totals/compute-totals';
+import { TransportFormatSource, TransportRegistry } from '../transports/transport-registry';
+import { ArchivedArtifactInput } from '../archive/hashing';
 import { runAsyncSendAction } from './async-send';
+import { attachAtcudToNumberedDocument, runAtcudPreflight } from './atcud-issuance';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
 import { performSaveDraft } from './generic-actions';
+import {
+  ResolvedInvoiceTransport,
+  resolveInvoiceTransport,
+  runInvoiceSendPreflight,
+} from './invoice-actions';
 
 /** Same direct-import model as actions/invoice-actions.ts's own `INVOICE_DESCRIPTOR` constant — used
  *  ONLY to feed `computeDocumentTotals` the invoice's own field shape when a credit note the
@@ -34,6 +47,14 @@ const CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(CREDIT_N
 
 export interface CreditNoteActionDeps {
   queueDispatcher: DocumentActionQueueDispatcher;
+  /** Issue #499 - the registry the invoice's own "send" resolves its channel from: a linked credit
+   *  note travels on the channel its corrected invoice's client is reached through. */
+  transportRegistry: TransportRegistry;
+  /** Issue #499 - rendering the credit note's own PDF at issuance, archived whatever the channel. */
+  referenceRegistry: EntityReferenceRegistry;
+  /** Same optional, "no certificate is a no-op" contract as `SendDocumentEmailDeps.signingCertificates`:
+   *  the archived PDF is signed exactly as the download would sign it. */
+  signingCertificates?: SigningCredentialsPort;
   /** See `async-send.ts`'s own `RunAsyncSendInput.events` header. */
   events?: DocumentEventPublisher;
   /**
@@ -48,22 +69,25 @@ export interface CreditNoteActionDeps {
 
 /**
  * Registers the credit note type's action IMPLEMENTATIONS — "save-draft" (the exact same generic
- * mechanism the quote and the invoice already share, generic-actions.ts) and, for credit matching,
- * "send" (see credit-note.descriptor.ts's own "Actions" paragraph for the
- * full reasoning). "send" is deliberately NOT the quote's own send-by-email mechanism
- * (quote-actions.ts), nor any bespoke transport lookup (the invoice's own, invoice-actions.ts): its
- * own `deliver` below does nothing at all — no transport, no email, no recipient — only the shared
- * status machinery moves the record from "draft"/"send_failed" through "sending" to "sent": this type
- * still has no "client" field, no transport, and no policy on who a credit note goes to, exactly the
- * gap this file's own history already refused to invent. What DOES need this transition to exist:
- * settlement/credits.ts only counts a credit note that is "sent" — a draft settles nothing (its own
- * comment, carried over from the removed pre-refactor settlement module), so credit matching needed SOME way out of
- * "draft" to mean anything at all.
+ * mechanism the quote and the invoice already share, generic-actions.ts) and "send".
  *
- * This goes through `runAsyncSendAction` (actions/async-send.ts) like every
- * other type's "send" — see credit-note.descriptor.ts's own comment on why that is deliberate even
- * though this type's `deliver` has nothing to await: ONE mechanism for the action id "send", whatever
- * a given type's own delivery actually does.
+ * "send" issues the credit note: numbered on entering "sending", then delivered and archived by the
+ * worker like every other type's "send" (`runAsyncSendAction`, actions/async-send.ts - ONE mechanism
+ * for the action id "send"). Until issue #499 its `deliver` did nothing at all: the record moved to
+ * "sent", nothing was archived and nobody received anything, although a credit note is an invoice in
+ * law (CGI art. 289, I, 5) that has to be kept unaltered and has to reach the client. It is now
+ * delivered on the channel its corrected invoice's client is reached through and its own PDF is
+ * archived at issuance - see `deliverCreditNote` below for the two shapes (linked, free) and
+ * `resolveCreditNoteDelivery` for the channel.
+ *
+ * A credit note issued BEFORE issue #499 keeps no archive and was delivered to nobody. Nothing
+ * back-dates one for it: an archive written today would claim to preserve bytes nobody issued. Its
+ * download keeps rendering fresh (`documents.service.ts#renderInstancePdf` finds no archive and falls
+ * back, with no status line since it is issued, issue #494), and "send" is not offered from "sent", so
+ * forwarding that PDF to the client stays a manual step for those few documents.
+ *
+ * What also needs "sent" to exist: settlement/credits.ts only counts a credit note that is "sent": a
+ * draft settles nothing.
  */
 /**
  * A credit note reaching "sent" is the SECOND (and only
@@ -364,6 +388,136 @@ function registerCreditNoteSaveDraftAction(
   });
 }
 
+/**
+ * Issue #499 - the channel a LINKED credit note is delivered through, and what it is built from.
+ *
+ * A credit note is an invoice in law (CGI art. 289, I, 5, already cited by `country-policy/data/
+ * fr.json`'s numbering fact), so it is delivered exactly the way its corrected invoice's client is
+ * reached: the SAME resolution the invoice's own "send" runs (`invoice-actions.ts#
+ * resolveInvoiceTransport` - B2G routing for a government client, then the seller-country channel
+ * mandate, then the company's own transport choice), asked about the corrected invoice's client and
+ * evaluated against the CREDIT NOTE's own issue date: the mandate binds the document being issued,
+ * and a credit note issued after France's 2026-09-01 start goes through the platform even when the
+ * invoice it corrects was emailed before it.
+ *
+ * The buyer and every structured format come from `resolveCreditNoteDeliverySource`
+ * (`formats/credit-note-source.ts`): the invoice's client, its selected lines priced with the invoice
+ * descriptor, BG-3 / TD04 naming the invoice. That source also carries the refusals a linked credit
+ * note has to answer before it can be issued at all, whatever the channel: the corrected invoice must
+ * carry a number (a credit note must reference it "de façon spécifique et non équivoque", CGI art.
+ * 289, I, 5), its corrected lines must still exist, and the tax treatment must resolve.
+ */
+async function resolveCreditNoteDelivery(
+  transportRegistry: TransportRegistry,
+  companyId: string,
+  creditNote: DocumentInstanceResult,
+  { runPreflight }: { runPreflight: boolean },
+): Promise<{ resolved: ResolvedInvoiceTransport; formatSource: TransportFormatSource }> {
+  const formatSource = await resolveCreditNoteDeliverySource(companyId, creditNote, CREDIT_NOTE_DESCRIPTOR);
+  const buildData = (formatSource.document.data ?? {}) as Record<string, unknown>;
+  const clientId = typeof buildData.client === 'string' ? buildData.client : undefined;
+  const creditNoteData = (creditNote.data ?? {}) as Record<string, unknown>;
+  const issueDate = typeof creditNoteData.issueDate === 'string' ? creditNoteData.issueDate : undefined;
+
+  const resolved = runPreflight
+    ? await runInvoiceSendPreflight(transportRegistry, companyId, issueDate, clientId, buildData)
+    : await resolveInvoiceTransport(transportRegistry, companyId, issueDate, clientId, buildData);
+
+  if (!resolved.transport.deliversCreditNotes) {
+    // Named, never a silent issuance nobody receives: today "ksef" (Poland has no credit note at all,
+    // `assertCreditNoteAllowedForCountry` above, and FA(3) refuses one, `fa3-provider.ts`) and
+    // "invopop" (its GOBL conversion, `invopop/gobl-invoice.ts`, only ever builds an invoice).
+    throw new NotImplementedException(
+      `This credit note has to be delivered through "${resolved.transportId}", the channel its ` +
+        "corrected invoice's client is reached through, and that channel cannot carry a credit note " +
+        'yet. It was not issued: a credit note is an invoice in law and has to reach the client the ' +
+        'same way.',
+    );
+  }
+  return { resolved, formatSource };
+}
+
+/**
+ * Issue #499 - the credit note's own PDF, rendered for delivery (no status line, issue #494) and
+ * signed exactly as `documents.service.ts#renderInstancePdf` would sign it. Archived at issuance
+ * whatever the channel, so the download serves the copy issued rather than a re-render that a later
+ * branding, template or data change would silently alter (`rendering/archived-pdf-policy.ts`: "sent"
+ * is issued for this type, so the archive is always served).
+ */
+async function renderCreditNoteDeliveryPdf(
+  deps: CreditNoteActionDeps,
+  companyId: string,
+  creditNote: DocumentInstanceResult,
+): Promise<ArchivedArtifactInput> {
+  const rendered = await renderDocumentInstance(
+    { referenceRegistry: deps.referenceRegistry },
+    companyId,
+    CREDIT_NOTE_DESCRIPTOR,
+    creditNote,
+    'delivery',
+  );
+  const pdf = await signRenderedPdfIfConfigured(
+    deps.signingCertificates ?? new NullSigningCredentials(),
+    companyId,
+    rendered.pdf,
+  );
+  return { role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array(pdf) };
+}
+
+/**
+ * Issue #499 - the credit note's `deliver()`: what used to be `async () => ({ message: undefined })`,
+ * an issuance that archived nothing and reached nobody.
+ *
+ *  - LINKED: delivered on the channel resolved by `resolveCreditNoteDelivery` above, exactly as an
+ *    invoice to the same client would be - by email with the PDF attached, or deposited in its
+ *    credit-note form (EN 16931 type 381 + BG-3, FatturaPA TD04, issue #472) on an e-invoicing
+ *    channel.
+ *  - FREE (no invoice): issued and archived, delivered to nobody. This type has no client field
+ *    (`credit-note.descriptor.ts`, "Two shapes, one type"); a free credit note has no recipient this
+ *    product knows of, and none is invented. The result message says so, every time.
+ *
+ * The archive always holds the credit note's own rendered PDF (`renderCreditNoteDeliveryPdf`): for
+ * email it IS the attachment the client received (`send-document-email.ts` hands those exact bytes
+ * back); for a structured channel it is added next to the deposited file, because what the platform
+ * received (Factur-X, FatturaPA) is not the PDF the download serves.
+ */
+async function deliverCreditNote(
+  deps: CreditNoteActionDeps,
+  companyId: string,
+  creditNote: DocumentInstanceResult,
+): Promise<{ message: string; reference?: string; providerId?: string; artifacts: ArchivedArtifactInput[] }> {
+  const data = (creditNote.data ?? {}) as Record<string, unknown>;
+  if (!hasOriginInvoice(data)) {
+    return {
+      message:
+        'Credit note issued and archived. It was not delivered: a credit note that corrects no invoice ' +
+        'names no client, so there is nobody to send it to. Download its PDF and send it yourself.',
+      artifacts: [await renderCreditNoteDeliveryPdf(deps, companyId, creditNote)],
+    };
+  }
+
+  const { resolved, formatSource } = await resolveCreditNoteDelivery(
+    deps.transportRegistry,
+    companyId,
+    creditNote,
+    {
+      runPreflight: false,
+    },
+  );
+  const result = await resolved.transport.send({
+    companyId,
+    document: creditNote,
+    label: 'Credit note',
+    formatOverride: resolved.formatOverride,
+    formatSource,
+  });
+  const artifacts = [...(result.artifacts ?? [])];
+  if (!artifacts.some((artifact) => artifact.role === 'pdf')) {
+    artifacts.push(await renderCreditNoteDeliveryPdf(deps, companyId, creditNote));
+  }
+  return { ...result, artifacts };
+}
+
 export function registerCreditNoteActions(registry: ActionRegistry, deps: CreditNoteActionDeps): void {
   registerCreditNoteSaveDraftAction(registry, deps.webhooks);
 
@@ -393,15 +547,36 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       // mismatches the invoice and have it persisted uncaught — the exact bypass this preflight
       // closes, no `data` replacement needed (returning `undefined` leaves `data` exactly as
       // submitted; only a MISMATCH ever throws).
-      preflight: async () => {
+      preflight: async ({ willNumber }) => {
         assertCreditNoteAmountSourceIsUnambiguous(data);
         await assertCreditNoteAllowedForCountry(companyId, data);
         await assertCreditNoteCurrencyMatchesInvoice(companyId, data);
+        // Portugal's ATCUD (issue #497) - the invoice's own gate, on the credit note's own number
+        // format and its own "NC" series (see atcud-issuance.ts's header for the legal basis). A no-op
+        // outside Portugal. Only when this send is about to take a number: a legacy credit note
+        // retried unnumbered (`numberingOnlyFrom` above) gets no number, so it can get no ATCUD, and
+        // refusing it here would strand it in "send_failed" for a code it could never carry.
+        if (willNumber) await runAtcudPreflight(companyId, 'credit-note');
+        // Issue #499: a linked credit note that cannot be delivered (no channel, a channel that is
+        // not ready or cannot carry a credit note, an unnumbered corrected invoice...) is refused
+        // HERE, before it is numbered or queued - the invoice's own preflight discipline. `data` is
+        // what phase 1 is about to persist, not yet a stored record, hence the stand-in instance.
+        if (hasOriginInvoice(data)) {
+          await resolveCreditNoteDelivery(
+            deps.transportRegistry,
+            companyId,
+            { id: documentId ?? '', data, status: 'sending', displayNumber: null } as DocumentInstanceResult,
+            { runPreflight: true },
+          );
+        }
         return undefined;
       },
-      // Nothing to deliver — see this file's own header. The status transition itself IS the
-      // action's entire effect.
-      deliver: async () => ({ message: undefined }),
+      // Portugal's ATCUD, part two - frozen onto the credit note the moment it is numbered, exactly as
+      // for the invoice. Never throws: see `attachAtcudToNumberedDocument`'s own header.
+      onNumbered: async ({ companyId: c, documentId: id, numbered }) =>
+        attachAtcudToNumberedDocument(c, 'credit-note', id, numbered),
+      // Issue #499 - see `deliverCreditNote`'s own header.
+      deliver: async ({ companyId: c, document }) => deliverCreditNote(deps, c, document),
     });
 
     // `result.document.status` is "sending" after phase 1 (draft/send_failed -> sending, the

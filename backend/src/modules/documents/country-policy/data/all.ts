@@ -26,6 +26,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { assertValidNumberFormats } from '../number-formats';
 import { assertValidNumberingProvenance, assertValidProvenance, CountryDocumentPolicyFile } from '../schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
@@ -63,6 +64,15 @@ function loadCountryFile(code: string): CountryDocumentPolicyFile {
   for (const fact of parsed.numbering ?? []) {
     assertValidNumberingProvenance(fact, `documents/country-policy/data/${code}.json`);
   }
+  // `numberFormats` (issue #496) - REQUIRED for every shipped file: numbering reads its format from
+  // here and nowhere else, so a country without one could not number anything at all.
+  if (!parsed.numberFormats) {
+    throw new Error(
+      `documents/country-policy/data/${code}.json must declare "numberFormats" - see schema.ts's own ` +
+        'comment on that field.',
+    );
+  }
+  assertValidNumberFormats(parsed, `documents/country-policy/data/${code}.json`);
   return parsed;
 }
 

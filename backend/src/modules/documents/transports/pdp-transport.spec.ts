@@ -141,6 +141,50 @@ describe('buildPdpTransport', () => {
       expect(mockSendInvoice).not.toHaveBeenCalled();
     });
 
+    it("issue #499: a credit note is built from `formatSource` (the corrected invoice's buyer, 381 options), deposited under its own number", async () => {
+      mockSendInvoice.mockResolvedValue({ id: 991 });
+      const build = vi
+        .fn()
+        .mockResolvedValue({ bytes: new Uint8Array([7]), validation: { valid: true, errors: [] } });
+      const deps = buildDeps({ build });
+      const transport = buildPdpTransport(deps);
+      expect(transport.deliversCreditNotes).toBe(true);
+
+      const creditNote = {
+        ...CTX.document,
+        id: 'cn-1',
+        typeId: 'credit-note',
+        displayNumber: 'CN-2026-0001',
+        data: { invoice: 'inv-1', correctedLines: ['r1'] },
+      };
+      const sourceDescriptor = { id: 'invoice' } as never;
+      const sourceDocument = { ...creditNote, data: { client: 'client-9', lines: [] } };
+      const options = {
+        creditNote: { correctedInvoice: { displayNumber: 'INV-1', issueDate: '2026-08-31' } },
+      };
+
+      const result = await transport.send({
+        companyId: 'company-1',
+        label: 'Credit note',
+        document: creditNote,
+        formatSource: { descriptor: sourceDescriptor, document: sourceDocument, options },
+      });
+
+      expect(mockedPrisma.client.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'client-9', companyId: 'company-1' } }),
+      );
+      expect(build).toHaveBeenCalledWith(
+        sourceDescriptor,
+        sourceDocument,
+        expect.anything(),
+        expect.anything(),
+        'company-1',
+        options,
+      );
+      expect(mockSendInvoice).toHaveBeenCalledWith(expect.anything(), { externalId: 'CN-2026-0001' });
+      expect(result.reference).toBe('991');
+    });
+
     it('refuses when the invoice has no valid client on file', async () => {
       mockedPrisma.client.findFirst.mockResolvedValue(null);
       const deps = buildDeps();

@@ -16,7 +16,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * actions this spec was asked to prove, so it gets the same screen-driven treatment "send"/"cancel"
  * already have below, rather than being reduced to setup.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () => {
 	before(() => {

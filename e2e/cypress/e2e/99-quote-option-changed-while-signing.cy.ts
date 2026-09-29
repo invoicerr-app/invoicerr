@@ -1,18 +1,19 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Issue #373 follow-up (review round 3, point 4): "after a refused option, the client cannot choose
- * again". A public signer picks an option, requests an OTP, and the issuer renames it (a "sent" quote
- * stays editable) while the code is in flight - before this fix, the Verify step resent the same
- * now-invalid name on every "Sign" click, with no explanation and no way to pick the current option,
- * only a page reload (which this spec never does) recovered. This spec proves, through the screen:
- * the refusal shows a message plus the option chooser again with the CURRENT options, the stale pick
- * is gone, and the client can choose the renamed option and sign successfully - with the SAME OTP
- * code the first attempt already typed (`signatures.service.ts#markSigned`'s own header: this one
- * refusal never touches the lifetime OTP-attempt counter, so nothing about it should force a resend).
+ * A quote's option is renamed while the client is verifying an OTP.
+ *
+ * Issue #373 follow-up (review round 3, point 4) first made this scenario recoverable by showing the
+ * client the CURRENT options again and letting them sign the renamed one with the same code. Issue
+ * #477 reverses that on purpose: the client would then sign an option their PDF never showed. A
+ * signature request is now bound to the version the client was sent, so any change to the quote's
+ * data, a rename included, makes the link unsignable: the Sign attempt is refused, the page explains
+ * that the document changed, and the quote is NOT signed. The rename is done straight in the database
+ * (the `renameQuoteOption` task), which keeps the status "sent": the edit a "save-draft" would make
+ * also moves the quote back to "draft", which `103-signature-bound-version.cy.ts` covers.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;
@@ -46,7 +47,7 @@ function createClient(name: string, contactEmail: string) {
 		});
 }
 
-describe("A quote's option is renamed while the client is verifying an OTP (issue #373, review round 3 point 4)", () => {
+describe("A quote's option is renamed while the client is verifying an OTP (issues #373 and #477)", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -56,7 +57,7 @@ describe("A quote's option is renamed while the client is verifying an OTP (issu
 		cy.login();
 	});
 
-	it("shows a message and the current options again, clears the stale pick, and signs with the renamed option using the SAME code", () => {
+	it("refuses the signature, says the document changed, and leaves the quote unsigned", () => {
 		const CLIENT_EMAIL = "options-changed@example.com";
 		createClient("Options-Changed Client", CLIENT_EMAIL).then((clientId) => {
 			const quoteData = {
@@ -120,7 +121,10 @@ describe("A quote's option is renamed while the client is verifying an OTP (issu
 						cy.get('[data-cy="signature-card"]', { timeout: 15000 }).should("be.visible");
 						cy.get('[data-cy="signature-document-preview"]', { timeout: 15000 }).should("exist");
 
-						// The client's ORIGINAL choice: "Premium".
+						// The client's ORIGINAL choice: "Premium". Issue #512 pinned the chooser inside the
+						// signing card's own sticky action bar, so it is on screen without scrolling and does
+						// not depend on the PDF preview's own layout (#509's own flakiness) - a bare
+						// visibility assertion is reliable here now.
 						cy.get('[data-cy="signature-option-chooser"]').should("be.visible");
 						cy.get('[data-cy="signature-option-item"]').should("have.length", 2);
 						cy.contains('[data-cy="signature-option-item"]', "Premium")
@@ -137,69 +141,35 @@ describe("A quote's option is renamed while the client is verifying an OTP (issu
 							const code = `${(otp as RegExpMatchArray)[1]}${(otp as RegExpMatchArray)[2]}`;
 							// `input[data-slot="input-otp"]` - the ONE real `<input>` the `input-otp` library
 							// renders (a SIBLING of the visible slots, per its own source, never a descendant of
-							// `InputOTPGroup`) - never a bare `.find("input").first()` off the whole card: once
-							// the option chooser reappears below (this fix's own point), its OWN radio `input`s
-							// sit ABOVE the OTP slots in the DOM, so "first input in the card" would silently
-							// stop meaning "the OTP slot" the moment that happens.
+							// `InputOTPGroup`) - never a bare `.find("input").first()` off the whole card.
 							cy.get('input[data-slot="input-otp"]').type(code, { force: true });
 
-							// The issuer renames "Premium" to "Gold" WHILE this client holds a live code -
-							// a "sent" quote stays editable (quote.descriptor.ts's own `lockedStatuses`), the
-							// exact scenario this fix exists for. Done through the DB task, not "save-draft":
-							// that action would flip the quote back to "draft" (see cypress.config.ts's own
-							// `renameQuoteOption` header), which is not what this spec is proving.
+							// The issuer renames "Premium" to "Gold" WHILE this client holds a live code.
+							// Done through the DB task, not "save-draft": that action would flip the quote back
+							// to "draft" (see cypress.config.ts's own `renameQuoteOption` header), which is
+							// `103-signature-bound-version.cy.ts`'s case, not this one.
 							cy.task("renameQuoteOption", { documentId: quoteId, from: "Premium", to: "Gold" });
 
-							// Attempts to sign with the now-stale "Premium" choice - refused, but the message
-							// and the CURRENT options reappear right here in the Verify step, no page reload.
+							// Attempts to sign with the "Premium" choice the client's PDF shows: refused, and
+							// the whole page now says the document changed. No chooser offering "Gold".
 							cy.get('[data-cy="signature-sign-button"]').click();
 							cy.get('[data-cy="signature-confirm-dialog"]').should("be.visible");
 							cy.get('[data-cy="signature-confirm-dialog-confirm"]').click();
 
-							cy.get('[data-cy="signature-options-changed-message"]', { timeout: 10000 }).should(
+							cy.get('[data-cy="signature-document-changed-card"]', { timeout: 10000 }).should(
 								"be.visible",
 							);
-							cy.get('[data-cy="signature-confirm-dialog"]').should("not.exist");
 							cy.get('[data-cy="signature-success-card"]').should("not.exist");
-
-							cy.get('[data-cy="signature-option-chooser"]').should("be.visible");
-							cy.get('[data-cy="signature-option-item"]').should(($items) => {
-								const texts = $items.toArray().map((el) => el.textContent);
-								expect(texts.some((t) => t?.includes("Basic"))).to.be.true;
-								expect(texts.some((t) => t?.includes("Gold"))).to.be.true;
-								expect(texts.some((t) => t?.includes("Premium"))).to.be.false;
-							});
-							// Nothing pre-selected any more - the stale "Premium" pick was cleared, never
-							// silently kept as "Gold" on the client's behalf.
-							cy.get('[data-cy="signature-option-radio"]').should(($radios) => {
-								expect($radios.toArray().some((el) => (el as HTMLInputElement).checked)).to.be
-									.false;
-							});
-							// The OTP code itself is untouched - proving the fix never forced a resend.
-							cy.get('input[data-slot="input-otp"]').should("have.value", code);
-							// Signing is blocked again until a fresh choice is made.
-							cy.get('[data-cy="signature-sign-button"]').should("be.disabled");
-
-							cy.screenshot("475-r3-4-after-options-changed", { capture: "viewport" });
-
-							cy.contains('[data-cy="signature-option-item"]', "Gold")
-								.find('[data-cy="signature-option-radio"]')
-								.check({ force: true });
-							cy.get('[data-cy="signature-sign-button"]').should("not.be.disabled").click();
-							cy.get('[data-cy="signature-confirm-dialog"]').should("be.visible");
-							cy.get('[data-cy="signature-confirm-dialog-confirm"]').click();
-							cy.get('[data-cy="signature-success-card"]', { timeout: 15000 }).should("be.visible");
+							cy.get('[data-cy="signature-option-chooser"]').should("not.exist");
+							cy.get('[data-cy="signature-sign-button"]').should("not.exist");
 						});
 
 						cy.request({
 							url: `${api}/api/documents/${quoteId}?typeId=quote`,
 							headers: { Cookie: `better-auth.session_token=${authCookie}` },
 						}).then((res) => {
-							expect(res.body.status, "the quote ends signed").to.eq("signed");
-							expect(
-								res.body.acceptedOption,
-								"the signed document names the RENAMED option, not the stale one",
-							).to.eq("Gold");
+							expect(res.body.status, "the quote is NOT signed").to.eq("sent");
+							expect(res.body.acceptedOption, "no option was recorded").to.be.null;
 						});
 					});
 				});

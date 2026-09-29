@@ -16,8 +16,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  - a THIRD, single-option quote proves the untouched case: still one global total, no option
  *    chooser anywhere.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
-const appOrigin = "http://localhost:6284";
+const api = Cypress.env("apiUrl");
+const appOrigin = Cypress.config("baseUrl");
 
 function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;
@@ -548,9 +548,12 @@ describe("Quotes with options (issue #373)", () => {
 									}).should("exist");
 
 									// The required option choice, on the public page - the client picks "Basic".
-									cy.get('[data-cy="signature-option-chooser"]').should(
-										"be.visible",
-									);
+									// Issue #512 pinned the chooser inside the signing card's own sticky action
+									// bar, so its screen position no longer depends on the PDF preview's own
+									// layout (#509's own flakiness, a plain scroll-and-assert was enough to hide
+									// before that fix, is gone at the root) - a bare visibility assertion is
+									// reliable here now.
+									cy.get('[data-cy="signature-option-chooser"]').should("be.visible");
 									cy.get('[data-cy="signature-option-item"]').should(
 										"have.length",
 										2,
@@ -566,26 +569,14 @@ describe("Quotes with options (issue #373)", () => {
 										.find('[data-cy="signature-option-radio"]')
 										.should("be.checked");
 
-									// Orchestrator review follow-up: a VIEWPORT screenshot taken here kept
-									// coming back showing only the page top and the PDF preview, no matter how
-									// the page was scrolled beforehand (Cypress's own `.scrollIntoView()`; a
-									// native `Element.scrollIntoView()` under several `block` alignments;
-									// `cy.viewport()` to a taller size; `capture: "fullPage"`; a settle
-									// `cy.wait()` - every one of them measurably moved the element or the
-									// layout, confirmed via `getBoundingClientRect()`, yet the CAPTURED image
-									// never reflected it under this harness's Firefox headless screenshot
-									// pipeline). An ELEMENT screenshot - chaining `.screenshot()` directly off
-									// the chooser container, exactly as the orchestrator asked - does not
-									// depend on the page's own scroll position at all: Cypress captures that
-									// element's own rendered box regardless of where it sits on the page. A
-									// FIRST attempt at this element screenshot (no settle wait) still came back
-									// a blank gray rectangle, matching the PDF preview's own loading-placeholder
-									// fill - the preview's own async render (react-pdf/pdfjs) still shifting
-									// the layout underneath the freshly-scrolled chooser, at the exact moment
-									// the crop was taken. The explicit wait below is what that attempt lacked.
+									// Issue #512 - the chooser now lives in the signing card's own sticky action
+									// bar, always on screen, so this no longer needs a scroll before the element
+									// screenshot below. The settle wait stays: an ELEMENT screenshot (chaining
+									// `.screenshot()` directly off the chooser container) still raced the PDF
+									// preview's own async render (react-pdf/pdfjs) painting behind/around it,
+									// which a first attempt with no wait caught as a blank gray rectangle.
 									cy.wait(1000);
 									cy.get('[data-cy="signature-option-chooser"]')
-										.scrollIntoView()
 										.should("be.visible")
 										.screenshot("373-after-signature-choice");
 

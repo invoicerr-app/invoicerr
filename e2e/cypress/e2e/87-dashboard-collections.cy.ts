@@ -50,7 +50,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * payments.settings.tsx` is payment METHODS/billing settings, not a list of recorded payments) - so
  * this tile is, and must stay, static.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 function setInvoiceTransport(transportId: string) {
 	return cy

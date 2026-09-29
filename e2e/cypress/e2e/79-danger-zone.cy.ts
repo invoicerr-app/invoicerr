@@ -17,7 +17,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  3. That same (now emptied) company is deleted entirely: afterward this user can no longer switch
  *     into it at all — the company, and this user's own membership on it, are genuinely gone.
  */
-const api = Cypress.env('apiUrl') || 'http://localhost:4000';
+const api = Cypress.env('apiUrl');
 
 function createInvoiceDraftFor(clientId: string) {
     return cy

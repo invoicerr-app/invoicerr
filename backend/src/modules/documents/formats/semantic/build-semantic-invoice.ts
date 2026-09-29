@@ -30,9 +30,19 @@
  *
  *  - BT-1  Invoice number              → `cbc:ID`                          (the instance's `displayNumber`)
  *  - BT-2  Issue date                  → `cbc:IssueDate`
- *  - BT-3  Invoice type code           → `cbc:InvoiceTypeCode` = '380' (Commercial invoice) — this
- *    bridge only ever serves the "invoice" document type (see `format-registry.ts`); a credit note
- *    would need '381' the day this bridge is reused for one, deliberately not guessed here.
+ *  - BT-3  Invoice type code           → `cbc:InvoiceTypeCode` = '380' (Commercial invoice), or '381'
+ *    (Credit note) when `input.creditNote` is set (issue #472). Never inferred from amounts or from a
+ *    document's data: only the caller that KNOWS it is building a credit note
+ *    (`../credit-note-source.ts`) sets it. For UBL, `@e-invoice-eu/core` turns a '381' document into a
+ *    genuine `<CreditNote>` root (`CreditNoteTypeCode`, `CreditNoteLine`, `CreditedQuantity`) - the
+ *    UBL 2.1 credit-note schema EN 16931's UBL binding maps BT-3 381 to; CII keeps its one
+ *    `CrossIndustryInvoice` root and carries 381 in `ram:TypeCode`. Amounts stay POSITIVE: in EN 16931
+ *    the type code, not the sign, is what makes a document a credit note.
+ *  - BG-3  Preceding invoice reference → `cac:BillingReference/cac:InvoiceDocumentReference`
+ *    (`cbc:ID` BT-25, `cbc:IssueDate` BT-26) - the corrected invoice's own number and issue date, set
+ *    only for a credit note (`input.creditNote.correctedInvoice`). CGI art. 289, I, 5 is why it is not
+ *    optional in practice for a French seller: a correcting document must refer to the initial
+ *    invoice "de façon spécifique et non équivoque" (see `country-policy/data/fr.json`).
  *  - BT-5  Invoice currency code       → `cbc:DocumentCurrencyCode`        (`totals.currency`)
  *  - BT-9  Payment due date            → `cbc:PaymentDueDate` — OMITTED. No `dueDate` is threaded
  *    into this bridge's input today: adding it is a one-line change once a caller has a reason to
@@ -159,6 +169,7 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { getIdentifier } from '@/utils/entity-identifiers';
 
 import { DocumentTotals } from '../../totals/compute-totals';
+import type { CorrectedInvoiceReference } from '../format-provider';
 import { TaxCategoryCode } from '../../tax/types';
 import {
   resolveInvoiceNotes,
@@ -355,6 +366,29 @@ export interface SemanticInvoiceInput {
    * here.
    */
   customizationId?: string;
+  /**
+   * Issue #472 - set ONLY when this document is a credit note: switches BT-3 to '381' and emits BG-3
+   * (see this file's own header, "BT-3" and "BG-3"). `undefined` for every invoice, whose output is
+   * therefore byte-for-byte what it was before.
+   */
+  creditNote?: { correctedInvoice: CorrectedInvoiceReference };
+  /**
+   * Issue #517: BT-6 (VAT accounting currency code, `cbc:TaxCurrencyCode`) and BT-111 (Invoice
+   * total VAT amount in accounting currency, the SECOND `cac:TaxTotal`: `@e-invoice-eu/core`'s own
+   * `Invoice['ubl:Invoice']['cac:TaxTotal']` type is exactly `[TAXTOTAL] | [TAXTOTAL, TAXTOTAL]`, so a
+   * second entry is how the base standard represents this, never a second syntax-specific field).
+   * `vatMinor` is the invoice's own total VAT (`totals.vatMinor`) ALREADY converted into `currency`,
+   * frozen at issuance, see `DocumentInstance.vatNationalCurrencyVatMinor`'s own schema comment for
+   * why this is never recomputed here. `undefined` (the default) for every invoice whose seller
+   * country has no active requirement, or whose invoice currency already IS the national one,
+   * exactly the pre-existing, single-`cac:TaxTotal` output, byte-for-byte.
+   *
+   * Deliberately carries NO converted taxable-amount field: EN 16931 defines no business term for
+   * "the taxable amount in the accounting currency" (only BT-111, the TAX amount). Italy's own
+   * `taxableAmountRequiredOnInvoice` (the one country whose statute also names the base) is therefore
+   * a PDF-printing concern only (`rendering/render-instance-pdf.ts`), never a semantic-model one.
+   */
+  vatAccountingCurrency?: { currency: string; vatMinor: number };
 }
 
 /**
@@ -839,7 +873,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       ...(businessProcessCode ? { 'cbc:ProfileID': businessProcessCode } : {}),
       'cbc:ID': input.displayNumber,
       'cbc:IssueDate': input.issueDate,
-      'cbc:InvoiceTypeCode': '380',
+      'cbc:InvoiceTypeCode': input.creditNote ? '381' : '380',
       // The user's own free-text note FIRST, then every country-mandated mention — never the other
       // way round: a mandatory mention must never read as if it were something the user chose to
       // write. `legalMentionNotes` is `[]` for a seller in a country with no mentions file, so this
@@ -848,9 +882,26 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
         ? { 'cbc:Note': [...(input.notes ? [input.notes] : []), ...legalMentionNotes] }
         : {}),
       'cbc:DocumentCurrencyCode': currency,
+      // BT-6, see `SemanticInvoiceInput.vatAccountingCurrency`'s own header. Absent entirely when
+      // not supplied, exactly the pre-existing behaviour for every invoice this feature does not
+      // apply to.
+      ...(input.vatAccountingCurrency ? { 'cbc:TaxCurrencyCode': input.vatAccountingCurrency.currency } : {}),
       // BT-10 — see `SemanticInvoiceInput.buyerReference`'s own header. Absent entirely when not
       // supplied, exactly the pre-existing behaviour for every syntax that never sets it.
       ...(input.buyerReference ? { 'cbc:BuyerReference': input.buyerReference } : {}),
+      // BG-3 - see this file's own header. Absent for every invoice.
+      ...(input.creditNote
+        ? {
+            'cac:BillingReference': [
+              {
+                'cac:InvoiceDocumentReference': {
+                  'cbc:ID': input.creditNote.correctedInvoice.displayNumber,
+                  'cbc:IssueDate': input.creditNote.correctedInvoice.issueDate,
+                },
+              },
+            ],
+          }
+        : {}),
       'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as never },
       'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as never },
       // BT-72 (Actual delivery date) is OPTIONAL in EN 16931 — but `@e-invoice-eu/core`'s CII
@@ -897,13 +948,31 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // BG-16/BG-17 — see `sellerPaymentMeans`'s own header. Absent entirely when the seller has no
       // IBAN on file, exactly the pre-existing behaviour (no such block was ever emitted before this).
       ...(paymentMeans ? { 'cac:PaymentMeans': paymentMeans as never } : {}),
-      'cac:TaxTotal': [
-        {
-          'cbc:TaxAmount': fmt2(input.totals.vatMinor, currency),
-          'cbc:TaxAmount@currencyID': currency,
-          'cac:TaxSubtotal': taxSubtotals as never,
-        },
-      ],
+      // BT-111, see `SemanticInvoiceInput.vatAccountingCurrency`'s own header. A SECOND entry, never
+      // a replacement: the first one (in the invoice's own currency, BT-110/BG-23) is unconditional
+      // and unchanged.
+      'cac:TaxTotal': input.vatAccountingCurrency
+        ? [
+            {
+              'cbc:TaxAmount': fmt2(input.totals.vatMinor, currency),
+              'cbc:TaxAmount@currencyID': currency,
+              'cac:TaxSubtotal': taxSubtotals as never,
+            },
+            {
+              'cbc:TaxAmount': fmt2(
+                input.vatAccountingCurrency.vatMinor,
+                input.vatAccountingCurrency.currency,
+              ),
+              'cbc:TaxAmount@currencyID': input.vatAccountingCurrency.currency,
+            },
+          ]
+        : [
+            {
+              'cbc:TaxAmount': fmt2(input.totals.vatMinor, currency),
+              'cbc:TaxAmount@currencyID': currency,
+              'cac:TaxSubtotal': taxSubtotals as never,
+            },
+          ],
       'cac:LegalMonetaryTotal': {
         'cbc:LineExtensionAmount': fmt2(input.totals.netMinor, currency),
         'cbc:LineExtensionAmount@currencyID': currency,

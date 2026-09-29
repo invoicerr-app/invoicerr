@@ -460,11 +460,37 @@ export class DocumentsController {
     summary: 'List document transports',
     description:
       'Every registered document transport, id and label only — what a company chooses from for ' +
-      'Company.invoiceTransportId. Never scoped by country: the choice is a company setting.',
+      'Company.invoiceTransportId. Never scoped by country: the choice is a company setting. Also ' +
+      "carries each transport's own `credentialFields` (issue #526) - the exact config keys its " +
+      "connect form must collect, validated at boot against what that transport's own credential " +
+      'parser actually reads (see transports/transport-registry.ts#validateTransportCredentialFields).',
   })
   @ApiResponse({ status: 200, description: 'Transports retrieved' })
   listTransports() {
     return this.documentsService.listTransports();
+  }
+
+  @Get('operators')
+  @RequiresDocumentTypeScope('read', 'every-type')
+  @ApiOperation({
+    summary: 'List the operator catalogue (issue #526)',
+    description:
+      'Every operator this catalogue knows about - which legal channel it implements (pdp, sdi, ' +
+      'ksef, chorus-pro, pt-at...), which transports/transport-registry.ts id talks to it (when this ' +
+      'codebase has actually wired one), its capabilities and sandbox availability, each with its own ' +
+      'provenance. Optionally narrowed to one legal channel via `?channel=`. Not scoped by ' +
+      "@ActiveCompany() - this is reference data, the same as GET transports above; a company's OWN " +
+      "configured operator per channel is GET /api/company/channels's own `operatorId` field.",
+  })
+  @ApiQuery({
+    name: 'channel',
+    required: false,
+    type: String,
+    description: 'A legal channel id, e.g. "pdp".',
+  })
+  @ApiResponse({ status: 200, description: 'Operators retrieved (possibly empty for an unknown channel)' })
+  listOperators(@Query('channel') channel?: string) {
+    return this.documentsService.listOperators(channel);
   }
 
   /**
@@ -829,7 +855,10 @@ export class DocumentsController {
   @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Compute document totals',
-    description: 'Computes net, VAT, and gross totals (in minor units) for a document instance.',
+    description:
+      'Computes net, VAT, and gross totals (in minor units) for a document instance. For a quote with ' +
+      "options, `options` lists each option's own totals (common lines included) and the top-level " +
+      'net/VAT/gross are those of the accepted option, or null while none is accepted.',
   })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })
@@ -857,6 +886,10 @@ export class DocumentsController {
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })
   @ApiResponse({ status: 200, description: 'Settlement computed' })
+  @ApiResponse({
+    status: 409,
+    description: 'A quote with options and no accepted option: there is no single total to settle against',
+  })
   @ApiResponse({ status: 404, description: 'Not found for this company/type' })
   getSettlement(
     @ActiveCompany() companyId: string,
@@ -1156,12 +1189,18 @@ export class DocumentsController {
 
   @Get(':id')
   @RequiresDocumentTypeScope('read')
-  @ApiOperation({ summary: 'Get a document instance', description: 'One saved document instance by id.' })
+  @ApiOperation({
+    summary: 'Get a document instance',
+    description:
+      'One saved document instance by id. A credit note linked to an invoice also carries ' +
+      '`derivedTotals`: the totals of the invoice lines it corrects, the amount settlement takes off ' +
+      'that invoice.',
+  })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })
   @ApiResponse({ status: 200, description: 'Instance retrieved' })
   @ApiResponse({ status: 404, description: 'Not found for this company/type' })
   getDocument(@ActiveCompany() companyId: string, @Param('id') id: string, @Query('typeId') typeId: string) {
-    return this.documentsService.getDocument(companyId, typeId, id);
+    return this.documentsService.getDocumentView(companyId, typeId, id);
   }
 }

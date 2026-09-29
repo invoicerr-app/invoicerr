@@ -380,7 +380,9 @@ describe('dangling file references in comments', () => {
       `Found ${findings.length} comment(s) citing a file path that does not exist in this repository ` +
         `(checked against \`git ls-files -c -o --exclude-standard\`):\n${report}\n\n${fixAdvice}`,
     );
-  });
+    // It reads every comment in the repository: 1.6 s on an idle machine, over the 5 s default on a
+    // loaded CI runner or next to a Cypress run.
+  }, 60_000);
 });
 
 /** This repo's TODO_<NAME>.md tracking files (currently two of them) point AT the code — never the

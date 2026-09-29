@@ -1,0 +1,34 @@
+{
+  "id": "sdi",
+  "name": "Sistema di Interscambio (SdI) - direct (SDICoop)",
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "documentation/docs/developer-guide/credentials-guide.md item 4: \"SdI (SDICoop/SDIFTP) | Italy | (missing) | Partita IVA on Entratel + channel accreditation (collaudo)\".",
+    "sourceCheckedAt": "2026-09-28"
+  },
+  "notes": "Italy's OWN mandatory clearance system, not a commercial vendor -- exactly one operator for the accredited/direct route (SDICoop), distinct from the sdi-pec legal channel (a certified-email route to the SAME underlying SdI network, needing no accreditation at all -- see sdi-pec-transport.ts).",
+  "offerings": [
+    {
+      "legalChannel": "sdi",
+      "description": "Italy's own government clearance system, the direct SDICoop connection (accreditation required).",
+      "countries": ["IT"],
+      "transportId": "sdi",
+      "capabilities": {
+        "emit": true,
+        "receive": false,
+        "lifecycleStatuses": false,
+        "eReporting": false
+      },
+      "sandbox": {
+        "available": false,
+        "notes": "'Implemented-awaiting-accreditation': a real SDICoop SOAP client exists (sdicoop-client.ts), but Partita IVA registration on Entratel plus AdE-issued certificates (collaudo) are required to actually reach the real service -- documentation/docs/developer-guide/credentials-guide.md item 4 status is Repo: RED (missing)."
+      },
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "documentation/docs/developer-guide/credentials-guide.md item 4: \"SdI (SDICoop/SDIFTP) | Italy | (missing) | Partita IVA on Entratel + channel accreditation (collaudo)\"; sdi-transport.ts's own header: 'no POLLER is registered for this id (e.g. \"sdi\" - push-only SOAP notifiche, see conformity/pollers/'s own header)'.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "capabilities.lifecycleStatuses is false: SdI pushes notifiche to the accredited channel itself rather than exposing a pollable status endpoint this codebase follows."
+    }
+  ]
+}

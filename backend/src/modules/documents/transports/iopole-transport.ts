@@ -63,7 +63,41 @@ import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { IopoleClient, IopoleClientConfig, iopoleFileExtensionFor } from './iopole/iopole-client';
-import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
+import {
+  CredentialFieldDescriptor,
+  DocumentTransport,
+  DocumentTransportContext,
+  DocumentTransportResult,
+  formatBuildInputOf,
+} from './transport-registry';
+
+/** Issue #526 - exactly the three fields `extractIopoleCredentials` below reads, replacing the
+ *  frontend's own hard-coded `iopole` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
+export const IOPOLE_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+  {
+    key: 'clientId',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'you@example.com',
+    labelKey: 'settings.channels.fields.iopoleClientId',
+  },
+  {
+    key: 'clientSecret',
+    kind: 'secret',
+    valueType: 'string',
+    required: true,
+    labelKey: 'settings.channels.fields.clientSecret',
+  },
+  {
+    key: 'customerId',
+    kind: 'text',
+    valueType: 'string',
+    required: true,
+    placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    labelKey: 'settings.channels.fields.iopoleCustomerId',
+  },
+];
 
 export interface IopoleTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -172,13 +206,23 @@ export function buildIopoleTransport(deps: IopoleTransportDeps): DocumentTranspo
       await requireConnectedIopole(deps.channelCredentials, companyId);
     },
 
+    // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
+    deliversCreditNotes: true,
+
+    // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
+    credentialFields: IOPOLE_CREDENTIAL_FIELDS,
+    parseCredentials: extractIopoleCredentials,
+
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result - the same reasoning every
       // sibling transport's own `send()` documents: the company's configuration could have changed
       // in the (possibly long, retried) time between the two calls.
       const credentials = await requireConnectedIopole(deps.channelCredentials, ctx.companyId);
 
-      const data = (ctx.document.data ?? {}) as Record<string, unknown>;
+      // Issue #499: built from `ctx.formatSource` when the caller set one (a credit note, built from the
+      // invoice it corrects), from the delivered invoice itself otherwise (`formatBuildInputOf`).
+      const buildInput = formatBuildInputOf(ctx, INVOICE_DESCRIPTOR);
+      const data = (buildInput.document.data ?? {}) as Record<string, unknown>;
       const clientId = typeof data.client === 'string' ? data.client : undefined;
       const [company, client] = await Promise.all([
         prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
@@ -204,11 +248,12 @@ export function buildIopoleTransport(deps: IopoleTransportDeps): DocumentTranspo
       }
 
       const buildResult = await deps.facturxFormatProvider.build(
-        INVOICE_DESCRIPTOR,
-        ctx.document,
+        buildInput.descriptor,
+        buildInput.document,
         companyToFormatParty(company),
         clientToFormatParty(client),
         ctx.companyId,
+        buildInput.options,
       );
       if (!buildResult.validation.valid) {
         // The same gate `documents.service.ts#downloadDocumentFormat` enforces for a manual download

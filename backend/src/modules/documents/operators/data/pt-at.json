@@ -1,0 +1,33 @@
+{
+  "id": "pt-at",
+  "name": "AT - Autoridade Tributaria e Aduaneira (Portugal)",
+  "provenance": {
+    "kind": "legal",
+    "sourceText": "backend/src/modules/documents/reporting/data/pt.json and reporting/providers/pt-at (the one implemented DeclarationProvider documents-core.module.ts registers, buildPtAtDeclarationProvider) -- see CLAUDE.md's own 'reporting/' section: 'Two data files, pt.json and fr.json, but exactly ONE implemented DeclarationProvider: pt-at'.",
+    "sourceCheckedAt": "2026-09-28"
+  },
+  "notes": "Portugal's OWN tax authority, not a commercial vendor -- exactly one operator, the same reasoning 'chorus-pro'/'ksef'/'sdi' hold.",
+  "offerings": [
+    {
+      "legalChannel": "pt-at",
+      "description": "Portugal's own tax authority, for declaring invoice data after issuance.",
+      "countries": ["PT"],
+      "capabilities": {
+        "emit": false,
+        "receive": false,
+        "lifecycleStatuses": false,
+        "eReporting": true
+      },
+      "sandbox": {
+        "available": false,
+        "notes": "Portuguese NIF, subutilizador and an X.509 certificate signed by the AT are the blockers -- purely administrative to obtain (no accreditation gate), but not obtained by this session."
+      },
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "backend/src/modules/documents/reporting/data/pt.json and reporting/providers/pt-at (the one implemented DeclarationProvider documents-core.module.ts registers, buildPtAtDeclarationProvider).",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "NOT a delivery channel and deliberately has no 'transportId': 'pt-at' is registered in the SEPARATE declaration-provider registry (documents-core.module.ts, the 'declaration providers' section), never in transports/transport-registry.ts -- a Portuguese invoice still leaves by whatever ordinary transport the company chose (e.g. 'email'); this offering only discharges the SELLER's post-issuance duty to communicate invoice data to the AT ('comunicacao de faturas'), the same distinction channels.service.ts#reportingObligations draws between a channel and a declaration."
+    }
+  ]
+}

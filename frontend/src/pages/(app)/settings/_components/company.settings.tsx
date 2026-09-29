@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
+import { AddressAutocompleteInput } from "@/components/address-autocomplete-input"
 import ChannelConnectPrompt from "@/components/channel-connect-prompt"
 import CountryReadinessAlert from "@/components/country-readiness-alert"
 import CountrySelect from "@/components/country-select"
@@ -16,6 +17,7 @@ import CurrencyRatesSettings from "./currency-rates.settings"
 import DataExportSettings from "./data-export.settings"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
+import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -44,28 +46,14 @@ import {
   useSetReconciliationSettings,
 } from "@/hooks/queries"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
-import { useGet, usePost, usePut } from "@/hooks/use-fetch"
+import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
-import type { Company } from "@/types"
+import type { Company, ResolvedRevenueSettings } from "@/types"
 
-/**
- * This product's own shipped defaults when a company has never set an entry in
- * `Company.numberFormats` — backend's `documents/numbering/format-number.ts#defaultNumberFormatFor`,
- * spelled out verbatim (never expressible with a literal "{type}" token here: that substitution
- * happens server-side, once, before storage). Shown as the field's value the first time this card
- * loads for a company with nothing configured yet, exactly like `atcud.settings.tsx`'s own
- * `SHIPPED_DEFAULT_INVOICE_FORMAT` does for the same reason.
- */
-const SHIPPED_DEFAULT_QUOTE_FORMAT = "QUOTE-{year}-{number:4}"
-const SHIPPED_DEFAULT_INVOICE_FORMAT = "INVOICE-{year}-{number:4}"
-/** Issue #471: credit-note.descriptor.ts now declares `numbering` too - same mechanism, same shipped
- *  default shape as the two above (`defaultNumberFormatFor('credit-note')` uppercases the typeId
- *  verbatim: "CREDIT-NOTE-{year}-{number:4}", never a shortened "CN-" - there is no per-type override
- *  point in that function to hang a shorter default off without special-casing one type, which would
- *  be exactly the kind of type-specific branch the rest of this generic numbering mechanism avoids). */
-const SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT = "CREDIT-NOTE-{year}-{number:4}"
+import { NumberFormatsSection } from "./number-formats.section"
+
 /** Mirrors the backend's `reconciliation-settings.ts#DEFAULT_TOLERANCE_PERCENT` — shown the first
  *  time this card loads, before `useReconciliationSettings()` itself resolves (see this file's own
  *  `reconciliationSettings` sync effect). */
@@ -75,9 +63,14 @@ const SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT = 2
  *  nullable and clearing it is legitimate), so the option carries this sentinel and the field maps it
  *  back to "" — never sent to the backend, which only ever sees "ORIGIN", "DESTINATION" or null. */
 const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
+/** Same Radix "empty string is not a valid item value" workaround as
+ *  `UNDECLARED_DISTANCE_SALES_REGIME` above - issue #516's revenueBasis/revenuePeriod are ALSO
+ *  legitimately empty ("use the computed per-country default"), not merely a loading placeholder. */
+const USE_DEFAULT_REVENUE_BASIS = "__default_basis__"
+const USE_DEFAULT_REVENUE_PERIOD = "__default_period__"
 
 export default function CompanySettings() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const ALLOWED_DATE_FORMATS = [
     "dd/MM/yyyy",
@@ -88,44 +81,6 @@ export default function CompanySettings() {
     "yyyy-MM-dd",
     "EEEE, dd MMM yyyy",
   ]
-
-  const validateNumberFormat = (pattern: string): boolean => {
-    const patternRegex = /\{(\w+)(?::(\d+))?\}/g
-    const validKeys = ["year", "month", "day", "number"]
-    const requiredKeys = ["number"]
-
-    let match: RegExpExecArray | null
-    const matches = []
-
-    // biome-ignore lint/suspicious/noAssignInExpressions: canonical RegExp.exec iteration pattern
-    while ((match = patternRegex.exec(pattern)) !== null) {
-      matches.push(match)
-    }
-
-    for (const key of requiredKeys) {
-      if (!matches.some((m) => m[1] === key)) {
-        return false
-      }
-    }
-
-    for (const match of matches) {
-      const key = match[1]
-      const padding = match[2]
-
-      if (!validKeys.includes(key)) {
-        return false
-      }
-
-      if (padding !== undefined) {
-        const paddingNum = Number.parseInt(padding, 10)
-        if (Number.isNaN(paddingNum) || paddingNum < 0 || paddingNum > 20) {
-          return false
-        }
-      }
-    }
-
-    return true
-  }
 
   const companySchema = z.object({
     name: z
@@ -179,33 +134,6 @@ export default function CompanySettings() {
         if (!val?.trim()) return true
         return /^[A-Za-z]{2}[0-9]{2}[A-Za-z0-9]{1,30}$/.test(val.replace(/\s+/g, ""))
       }, t("settings.company.form.iban.errors.format")),
-    // These three back `Company.numberFormats.quote`/`.invoice`/`.credit-note`, not a dedicated
-    // column - saved through `PUT /api/company/number-format` (see this file's own `onSubmit`),
-    // never through this form's main `POST /api/company/info` submission. Issue #471 added the third:
-    // credit-note.descriptor.ts now declares `numbering` too (quote/invoice/credit-note - see
-    // backend's descriptors/types.ts), so this card exposes all three, generic over typeId exactly
-    // like the endpoint itself already is.
-    quoteNumberFormat: z
-      .string()
-      .min(1, t("settings.company.form.quoteNumberFormat.errors.required"))
-      .max(100, t("settings.company.form.quoteNumberFormat.errors.maxLength"))
-      .refine((val) => {
-        return validateNumberFormat(val)
-      }, t("settings.company.form.quoteNumberFormat.errors.format")),
-    invoiceNumberFormat: z
-      .string()
-      .min(1, t("settings.company.form.invoiceNumberFormat.errors.required"))
-      .max(100, t("settings.company.form.invoiceNumberFormat.errors.maxLength"))
-      .refine((val) => {
-        return validateNumberFormat(val)
-      }, t("settings.company.form.invoiceNumberFormat.errors.format")),
-    creditNoteNumberFormat: z
-      .string()
-      .min(1, t("settings.company.form.creditNoteNumberFormat.errors.required"))
-      .max(100, t("settings.company.form.creditNoteNumberFormat.errors.maxLength"))
-      .refine((val) => {
-        return validateNumberFormat(val)
-      }, t("settings.company.form.creditNoteNumberFormat.errors.format")),
     invoicePDFFormat: z.string().refine((val) => {
       const validFormats = ["pdf", "facturx", "zugferd", "xrechnung", "ubl", "cii"]
       return validFormats.includes(val.toLowerCase())
@@ -236,6 +164,11 @@ export default function CompanySettings() {
     // which is the default and stays valid forever: every dashboard aggregate simply stays grouped
     // by currency (see backend's Company.referenceCurrency comment).
     referenceCurrency: z.string().optional(),
+    // Issue #516 - "" means "use the computed per-country default" (see backend's
+    // Company.revenueBasis/revenuePeriod comments and resolve-revenue-basis.ts): a legitimate,
+    // always-returnable state, same convention as distanceSalesRegime above.
+    revenueBasis: z.string().optional(),
+    revenuePeriod: z.string().optional(),
     // Approval threshold — MAJOR units, in the company's own `currency` (see backend's
     // Company.approvalThresholdMinor comment). A FORM-ONLY field: converted to/from
     // `approvalThresholdMinor` at the load/submit boundary below, the same way peppolSchemeId/
@@ -260,6 +193,14 @@ export default function CompanySettings() {
   })
 
   const { data } = useGet<Company>("/api/company/info")
+  // Issue #516 - the RESOLVED basis/period (this company's own explicit choice, or the computed
+  // per-country default) plus whether each is explicit, so the select below can show "using the
+  // default (<reason>)" without duplicating the backend's own per-country table client-side.
+  // Refetched (`mutate`) after every successful save, since the two selects below can change which
+  // value resolves. Re-fetched again whenever the country changes too (below), since that can
+  // change what the DEFAULT itself resolves to even with no explicit choice.
+  const { data: resolvedRevenueSettings, mutate: refetchResolvedRevenueSettings } =
+    useGet<ResolvedRevenueSettings>("/api/company/revenue-settings")
   const { data: invoiceTransports } = useDocumentTransports()
   // The 3-way-match tolerance is a SEPARATE endpoint/query, not part of `/api/company/info`
   // (see this field's own zod comment above).
@@ -268,12 +209,6 @@ export default function CompanySettings() {
   const { trigger } = useMutationWithToast(
     usePost<Company>("/api/company/info"),
     t("settings.company.messages.updateError"),
-  )
-  // `Company.numberFormats` is written through its own endpoint, never through `POST /api/company/info`
-  // — see this file's own `onSubmit` and backend's `company.service.ts#editCompanyInfo` comment for why.
-  const { trigger: saveNumberFormat } = useMutationWithToast(
-    usePut<Record<string, string>>("/api/company/number-format"),
-    t("settings.company.numberFormats.messages.saveError", "Failed to save the number format"),
   )
   const [isLoading, setIsLoading] = useState(false)
   const [saved, flashSaved] = useSavedFlash()
@@ -299,14 +234,13 @@ export default function CompanySettings() {
       email: "",
       iban: "",
       invoicePDFFormat: "",
-      quoteNumberFormat: SHIPPED_DEFAULT_QUOTE_FORMAT,
-      invoiceNumberFormat: SHIPPED_DEFAULT_INVOICE_FORMAT,
-      creditNoteNumberFormat: SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT,
       identifiers: [],
       peppolSchemeId: "0088",
       peppolEndpointId: "",
       invoiceTransportId: "",
       referenceCurrency: "",
+      revenueBasis: "",
+      revenuePeriod: "",
       approvalThreshold: undefined,
       remindersEnabled: false,
       reconciliationTolerancePercent: SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT,
@@ -350,15 +284,8 @@ export default function CompanySettings() {
         iban: data.iban ?? "",
         invoiceTransportId: data.invoiceTransportId ?? "",
         referenceCurrency: data.referenceCurrency ?? "",
-        // From `Company.numberFormats`, not a dedicated column — a type absent there (the common case
-        // for a company that never touched this card) shows this product's own shipped default, the
-        // same value `documents/numbering/format-number.ts#defaultNumberFormatFor` would resolve to.
-        quoteNumberFormat: data.numberFormats?.quote ?? SHIPPED_DEFAULT_QUOTE_FORMAT,
-        invoiceNumberFormat: data.numberFormats?.invoice ?? SHIPPED_DEFAULT_INVOICE_FORMAT,
-        // `numberFormats` is keyed by typeId - "credit-note" (descriptors/credit-note.descriptor.ts's
-        // own `id`), never a camelCase variant, so this reads the bracket form the other two entries'
-        // plain dot-access could not express.
-        creditNoteNumberFormat: data.numberFormats?.["credit-note"] ?? SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT,
+        revenueBasis: data.revenueBasis ?? "",
+        revenuePeriod: data.revenuePeriod ?? "",
         // MINOR (stored) -> MAJOR (form) — the company's OWN currency, same "rough guardrail, not
         // currency-converted" assumption the backend gate documents (approval-gate.ts).
         approvalThreshold:
@@ -549,17 +476,10 @@ export default function CompanySettings() {
         : null
     // `approvalThreshold` is form-only (MAJOR units) — never sent as-is, replaced by
     // `approvalThresholdMinor` below (MINOR units, the column the backend actually reads).
-    // `quoteNumberFormat`/`invoiceNumberFormat` back `Company.numberFormats`, not a dedicated column —
-    // saved below through `PUT /api/company/number-format`, never through this `POST /api/company/info`
-    // body (see backend's `company.service.ts#editCompanyInfo` for why that endpoint allow-lists its
-    // columns and does not accept `numberFormats` at all).
     const {
       peppolSchemeId: _ps,
       peppolEndpointId: _pe,
       approvalThreshold,
-      quoteNumberFormat,
-      invoiceNumberFormat,
-      creditNoteNumberFormat,
       reconciliationTolerancePercent,
       ...valuesWithoutPeppol
     } = values
@@ -578,6 +498,10 @@ export default function CompanySettings() {
       foundedAt: toCalendarDateInstant(values.foundedAt),
       // "" means "no reference currency chosen" in the form; stored as null, not an empty string.
       referenceCurrency: values.referenceCurrency?.trim() ? values.referenceCurrency : null,
+      // Same "empty means use the computed default, stored as null" convention as referenceCurrency
+      // above - see backend's Company.revenueBasis/revenuePeriod comments.
+      revenueBasis: values.revenueBasis?.trim() ? values.revenueBasis : null,
+      revenuePeriod: values.revenuePeriod?.trim() ? values.revenuePeriod : null,
       // Same convention: "" is "not declared", stored as null. Clearing it is legitimate (a company
       // whose option lapsed, or that dropped back under the threshold) and puts sending a
       // cross-border B2C sale of goods back behind the backend's own named block.
@@ -598,24 +522,8 @@ export default function CompanySettings() {
       const result = await trigger(payload)
       if (!result) return // error already toasted by the wrapper
 
-      // Sequential, deliberately not `Promise.all`: `updateNumberFormat` merges the new pattern into
-      // the SAME `numberFormats` JSON blob via a read-modify-write on the backend — two concurrent
-      // PUTs would each read the value before the other's write lands, and the second write would
-      // silently drop the first (see backend's `CompanyService#updateNumberFormat`'s own "MERGES ...
-      // read-modify-write" comment).
-      const quoteSaved = await saveNumberFormat({ typeId: "quote", pattern: quoteNumberFormat })
-      if (!quoteSaved) return // error already toasted by the wrapper
-      const invoiceSaved = await saveNumberFormat({ typeId: "invoice", pattern: invoiceNumberFormat })
-      if (!invoiceSaved) return // error already toasted by the wrapper
-      // Issue #471 - same sequential-write discipline as the two above, same shared JSON blob.
-      const creditNoteSaved = await saveNumberFormat({
-        typeId: "credit-note",
-        pattern: creditNoteNumberFormat,
-      })
-      if (!creditNoteSaved) return // error already toasted by the wrapper
-
-      // A THIRD, independent endpoint (see this field's own zod comment) — same sequential-await
-      // discipline as the two number-format saves just above, its own try/catch since it goes through
+      // A SECOND, independent endpoint (see this field's own zod comment) - awaited after the main
+      // save, its own try/catch since it goes through
       // `useApiMutation` (React Query), not the `usePost`/`usePut`+`useMutationWithToast` pair the rest
       // of this form still uses.
       try {
@@ -627,6 +535,7 @@ export default function CompanySettings() {
 
       toast.success(t("settings.company.messages.updateSuccess"))
       flashSaved()
+      refetchResolvedRevenueSettings()
     } finally {
       setIsLoading(false)
     }
@@ -992,10 +901,13 @@ export default function CompanySettings() {
                 <FormItem>
                   <FormLabel required>{t("settings.company.form.address.label")}</FormLabel>
                   <FormControl>
-                    <Input
+                    <AddressAutocompleteInput
                       placeholder={t("settings.company.form.address.placeholder")}
                       {...field}
                       data-cy="company-address-input"
+                      onSuggestionSelect={(suggestion) =>
+                        applyAddressSuggestion(form, suggestion, i18n.language)
+                      }
                     />
                   </FormControl>
                   <FormDescription>{t("settings.company.form.address.description")}</FormDescription>
@@ -1145,91 +1057,6 @@ export default function CompanySettings() {
                 </FormItem>
               )}
             />
-          </SettingsSection>
-
-          <SettingsSection
-            title={t("settings.company.numberFormats.title")}
-            description={t("settings.company.numberFormats.description")}
-            contentClassName="grid gap-5"
-          >
-            {/*
-                No "starting number" fields any more, and no fourth "payment" format field - see this
-                file's own `SHIPPED_DEFAULT_*` comment. Neither backend field a removed pre-refonte
-                engine used to read (`quoteStartingNumber`/`invoiceStartingNumber`) is honoured by any
-                sequence logic today (`documents/numbering/sequence.ts` always starts a fresh
-                (company, type) counter at 1 — see `bumpSequence`'s own header), so showing a control
-                for either would be exactly the inert-input bug this card was rewritten to stop being.
-                A company migrating from another product and wanting "start my invoice numbering at
-                500" has no way to do that today - a real gap, not implemented here. THREE fields
-                below, not two, since issue #471: credit-note.descriptor.ts now declares `numbering`
-                too.
-              */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="quoteNumberFormat"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel required>{t("settings.company.form.quoteNumberFormat.label")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("settings.company.form.quoteNumberFormat.placeholder")}
-                        {...field}
-                        data-cy="company-quote-number-format-input"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("settings.company.form.quoteNumberFormat.description")}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="invoiceNumberFormat"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel required>{t("settings.company.form.invoiceNumberFormat.label")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("settings.company.form.invoiceNumberFormat.placeholder")}
-                        {...field}
-                        data-cy="company-invoice-number-format-input"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("settings.company.form.invoiceNumberFormat.description")}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {/* Issue #471 - credit-note.descriptor.ts now declares `numbering` too, same mechanism,
-                  same per-(company, typeId) sequence, so this card exposes it exactly like the two
-                  above (own PUT call, own shipped default - see SHIPPED_DEFAULT_CREDIT_NOTE_FORMAT's
-                  own comment for why it is not a shortened "CN-"). */}
-              <FormField
-                control={form.control}
-                name="creditNoteNumberFormat"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel required>{t("settings.company.form.creditNoteNumberFormat.label")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("settings.company.form.creditNoteNumberFormat.placeholder")}
-                        {...field}
-                        data-cy="company-credit-note-number-format-input"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("settings.company.form.creditNoteNumberFormat.description")}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
           </SettingsSection>
 
           <SettingsSection
@@ -1571,12 +1398,138 @@ export default function CompanySettings() {
             />
           </SettingsSection>
 
+          <SettingsSection
+            title={t("settings.company.revenueBasis.title", "Revenue basis")}
+            description={t(
+              "settings.company.revenueBasis.description",
+              "Which figure this company declares as its own revenue, and over which period. Defaulted from your country where a clear regime exists, always overridable. This is an aid, not tax advice - verify against your own accounting records.",
+            )}
+            contentClassName="grid gap-5 sm:grid-cols-2"
+          >
+            <FormField
+              control={form.control}
+              name="revenueBasis"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.revenueBasis.label", "Revenue basis")}</FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value?.trim() ? field.value : USE_DEFAULT_REVENUE_BASIS}
+                      onValueChange={(value) =>
+                        field.onChange(value === USE_DEFAULT_REVENUE_BASIS ? "" : value)
+                      }
+                    >
+                      <SelectTrigger data-cy="company-revenue-basis-select">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          value={USE_DEFAULT_REVENUE_BASIS}
+                          data-cy="company-revenue-basis-option-default"
+                        >
+                          {t(
+                            "settings.company.form.revenueBasis.options.default",
+                            "Use the default ({{basis}})",
+                            {
+                              basis: resolvedRevenueSettings
+                                ? t(
+                                    `settings.company.form.revenueBasis.options.${resolvedRevenueSettings.basis}`,
+                                  )
+                                : "…",
+                            },
+                          )}
+                        </SelectItem>
+                        <SelectItem value="invoiced" data-cy="company-revenue-basis-option-invoiced">
+                          {t("settings.company.form.revenueBasis.options.invoiced", "Invoiced")}
+                        </SelectItem>
+                        <SelectItem value="cashed" data-cy="company-revenue-basis-option-cashed">
+                          {t("settings.company.form.revenueBasis.options.cashed", "Cashed")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription data-cy="company-revenue-basis-reason">
+                    {!field.value?.trim() && resolvedRevenueSettings
+                      ? resolvedRevenueSettings.basisDefaultReason
+                      : t(
+                          "settings.company.form.revenueBasis.description",
+                          '"Invoiced" counts revenue when a document is issued (this product\'s own dashboard totals); "cashed" counts it when a payment actually arrives.',
+                        )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="revenuePeriod"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t("settings.company.form.revenuePeriod.label", "Declaration period")}
+                  </FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value?.trim() ? field.value : USE_DEFAULT_REVENUE_PERIOD}
+                      onValueChange={(value) =>
+                        field.onChange(value === USE_DEFAULT_REVENUE_PERIOD ? "" : value)
+                      }
+                    >
+                      <SelectTrigger data-cy="company-revenue-period-select">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          value={USE_DEFAULT_REVENUE_PERIOD}
+                          data-cy="company-revenue-period-option-default"
+                        >
+                          {t(
+                            "settings.company.form.revenuePeriod.options.default",
+                            "Use the default (monthly)",
+                          )}
+                        </SelectItem>
+                        <SelectItem value="monthly" data-cy="company-revenue-period-option-monthly">
+                          {t("settings.company.form.revenuePeriod.options.monthly", "Monthly")}
+                        </SelectItem>
+                        <SelectItem value="quarterly" data-cy="company-revenue-period-option-quarterly">
+                          {t("settings.company.form.revenuePeriod.options.quarterly", "Quarterly")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      "settings.company.form.revenuePeriod.description",
+                      "Used by the cashed-revenue view (Cashed revenue tab) to bucket what was received.",
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+
           <SettingsStickyFooter saved={saved}>
             <Button type="submit" disabled={isLoading} className="min-w-32" data-cy="company-submit-btn">
               {isLoading ? t("settings.company.form.saving") : t("settings.company.form.saveSettings")}
             </Button>
           </SettingsStickyFooter>
         </form>
+
+        {/* Issue #496: read-only, no field of this form - number formats are fixed per country and
+            document type, never saved by "Save Settings". Kept OUTSIDE the form, alongside the other
+            standalone panels below, on purpose: `useGet` here resolves asynchronously and, unlike
+            every field above (whose VALUE changes but never their layout), this card's own height
+            jumps once it does (loading placeholder -> the real per-type list). Sitting inside the
+            form, right before the invoice transport picker, that jump used to shove every field below
+            it down the page the moment the fetch settled — real for a user mid-click there, and what
+            made 32-channel-mandate.cy.ts flaky/red after #504 (the picker's own popover opening, or
+            one of its options, right as the page reflowed underneath the cursor). Moving it here
+            removes the race instead of papering over it with a longer timeout. */}
+        <div className="mt-2">
+          <NumberFormatsSection />
+        </div>
 
         <div className="mt-2">
           <CurrencyRatesSettings />

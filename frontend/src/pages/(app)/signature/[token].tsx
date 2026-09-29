@@ -24,14 +24,12 @@ import {
 type SignatureStep = "review" | "verify" | "signed"
 const STEP_ORDER: SignatureStep[] = ["review", "verify", "signed"]
 
-/** Round 3 review, point 4 ("after a refused option, the client cannot choose again") - the backend's
- *  own `quote-options.ts#OPTION_NO_LONGER_VALID_CODE`, hand-mirrored here (no shared package between
- *  the two projects - the same convention `billing.settings.tsx`'s own `BILLING_EMAIL_TAKEN_CODE`
- *  already documents). Thrown by `resolveChosenOption` ONLY for "this name is not one of the quote's
- *  CURRENT options" - the issuer renamed or removed the one this visitor chose before requesting the
- *  code, while every OTHER sign refusal (wrong/expired code, locked, already signed) keeps its plain,
- *  generic message and no code at all. */
-const OPTION_NO_LONGER_VALID_CODE = "OPTION_NO_LONGER_VALID"
+/** Issue #477 - the backend's own `signatures/signed-version.ts#DOCUMENT_CHANGED_CODE`, hand-mirrored
+ *  here (no shared package between the two projects - the same convention `billing.settings.tsx`'s
+ *  own `BILLING_EMAIL_TAKEN_CODE` already documents). Carried by the 409 the backend answers once the
+ *  document changed since this link was sent, on a code request or a sign attempt; every OTHER sign
+ *  refusal (wrong/expired code, locked, already signed) keeps its plain, generic message and no code. */
+const DOCUMENT_CHANGED_CODE = "DOCUMENT_CHANGED_SINCE_REQUEST"
 
 function signErrorCode(error: unknown): string | undefined {
   if (!(error instanceof ApiError)) return undefined
@@ -165,6 +163,14 @@ function DocumentPreview({
  * each with its OWN total (never a global one, see the backend's own `PublicSignatureView.options`
  * header). Rendered nothing at all for `options === null` (fewer than two, or a document type other
  * than "quote") - the ordinary single-total review this page always showed, byte-for-byte.
+ *
+ * Issue #512 (review follow-up) - this now lives inside the signing card's own sticky action bar, so
+ * its own height directly bounds how much of a phone viewport that bar takes. Every row is forced to
+ * ONE line (`min-w-0 flex-1 truncate` on the name, `shrink-0` on the price and the radio itself) -
+ * at 375px wide, a two-line row (name wrapping under a long option name, or under the price) was what
+ * pushed the bar's height past the readable-preview budget in the first review round. The label line
+ * above the list also states which option is CURRENTLY chosen once one is, rather than only showing it
+ * through the checked radio's own border/background colour - the review's own "say what you chose".
  */
 function SignatureOptionChooser({
   options,
@@ -176,28 +182,35 @@ function SignatureOptionChooser({
   onChange: (value: string) => void
 }) {
   const { t } = useTranslation()
+  const chosen = options.find((option) => option.name === value)
   return (
-    <div className="space-y-2 rounded-lg border p-3" data-cy="signature-option-chooser">
-      <p className="text-sm font-medium">{t("documents.publicSignature.chooseOptionLabel")}</p>
-      <div className="space-y-2">
+    <div className="space-y-1.5 rounded-lg border p-2" data-cy="signature-option-chooser">
+      <p className="text-sm font-medium" data-cy="signature-option-chooser-label">
+        {chosen
+          ? t("documents.publicSignature.chosenOptionLabel", {
+              name: chosen.name,
+              amount: formatTotal(chosen.grossMinor, chosen.currency || ""),
+            })
+          : t("documents.publicSignature.chooseOptionLabel")}
+      </p>
+      <div className="space-y-1">
         {options.map((option) => (
           <label
             key={option.name}
-            className="flex cursor-pointer items-center justify-between gap-3 rounded-md border p-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+            className="flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
             data-cy="signature-option-item"
           >
-            <span className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="signature-option"
-                value={option.name}
-                checked={value === option.name}
-                onChange={() => onChange(option.name)}
-                data-cy="signature-option-radio"
-              />
-              {option.name}
-            </span>
-            <span className="amount font-medium" data-cy="signature-option-total">
+            <input
+              type="radio"
+              name="signature-option"
+              value={option.name}
+              checked={value === option.name}
+              onChange={() => onChange(option.name)}
+              className="shrink-0"
+              data-cy="signature-option-radio"
+            />
+            <span className="min-w-0 flex-1 truncate">{option.name}</span>
+            <span className="amount shrink-0 font-medium" data-cy="signature-option-total">
               {formatTotal(option.grossMinor, option.currency || "")}
             </span>
           </label>
@@ -247,18 +260,12 @@ export default function PublicSignaturePage() {
   // (stays undefined, never sent) otherwise - see `SignatureOptionChooser`'s own header.
   const [chosenOption, setChosenOption] = useState<string | undefined>(undefined)
   const needsOptionChoice = (view?.options?.length ?? 0) >= 2
-  // Round 3 review, point 4 - set once `handleSign` is refused with `OPTION_NO_LONGER_VALID_CODE` (the
-  // issuer renamed/removed the chosen option while this visitor held a live code). Never cleared back
-  // to false: once it fires, the chooser stays visible in the Verify step for the rest of this visit,
-  // which is exactly where a client who has already requested a code needs it to reappear - this page
-  // never had a chooser anywhere but the pre-OTP Review step before this fix.
-  const [optionsChanged, setOptionsChanged] = useState(false)
 
-  // Fetched as soon as the request resolves — not gated on the Review step still being the current
-  // one — so the SAME "render once, freeze, serve forever" artifact the backend promises
-  // (`SignaturesService.getPublicDocument`'s own header) is already in flight by the time a visitor
-  // finishes reading the header above it.
-  const documentQuery = usePublicSignatureDocument(token, !!view)
+  // Fetched as soon as the request resolves, not gated on the Review step still being the current
+  // one, so the delivered PDF this link is bound to (`SignaturesService.getPublicDocument`'s own
+  // header, issue #477) is already in flight by the time a visitor finishes reading the header above
+  // it. Never fetched for a link whose document changed: that page shows no document at all.
+  const documentQuery = usePublicSignatureDocument(token, !!view && !view.changed)
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
 
   // Object URLs are a browser-memory resource, not the query cache's own concern — created once per
@@ -279,6 +286,12 @@ export default function PublicSignaturePage() {
         setOtpMessage(t("documents.publicSignature.codeSent"))
       },
       onError: (err) => {
+        // Issue #477 - the document changed since this link was sent: refetch the view, whose
+        // `changed` flag swaps the whole page to the explanation below.
+        if (signErrorCode(err) === DOCUMENT_CHANGED_CODE) {
+          void refetchView()
+          return
+        }
         setOtpMessage(err instanceof ApiError ? err.message : t("documents.publicSignature.genericError"))
       },
     })
@@ -299,17 +312,12 @@ export default function PublicSignaturePage() {
           // behind a dialog that has nothing to say about it.
           setConfirmSignOpen(false)
 
-          // Round 3 review, point 4 ("after a refused option, the client cannot choose again") - THIS
-          // one refusal is not "wrong code": the backend refused the OPTION, after the code had already
-          // verified (`quote-options.ts#resolveChosenOption`'s own header), which is also why it never
-          // consumes an OTP attempt - the code just typed stays live, so there is no need to send the
-          // visitor back to Review for a fresh one. Refetch `view` for the CURRENT options/totals, drop
-          // the now-invalid pick, and let the chooser reappear right here in the Verify step - never
-          // treated as the generic `signError` line below, which would just repeat "invalid option" with
-          // no way for the visitor to act on it.
-          if (signErrorCode(err) === OPTION_NO_LONGER_VALID_CODE) {
-            setChosenOption(undefined)
-            setOptionsChanged(true)
+          // Issue #477 - the document changed while this visitor held a code: not a wrong code (the
+          // backend checks the version before the code and burns no attempt), and nothing this visitor
+          // can fix by choosing again. Refetch the view; its `changed` flag swaps the whole page to the
+          // explanation below. This replaces #475's "choose again from the current options" retry,
+          // which asked the client to sign options their PDF did not show.
+          if (signErrorCode(err) === DOCUMENT_CHANGED_CODE) {
             void refetchView()
             return
           }
@@ -384,6 +392,29 @@ export default function PublicSignaturePage() {
     )
   }
 
+  if (view.changed) {
+    return (
+      <PublicPageShell width="default">
+        <div className="flex min-h-[50vh] items-center justify-center p-6">
+          <div
+            className="w-full max-w-md space-y-2 rounded-xl border bg-card p-6 text-center"
+            data-cy="signature-document-changed-card"
+          >
+            <p className="flex items-center justify-center gap-2 font-semibold">
+              <FileWarning className="h-5 w-5 text-warning-foreground" />
+              {t("documents.publicSignature.changedTitle")}
+            </p>
+            <p className="text-sm text-muted-foreground text-pretty">
+              {view.displayNumber
+                ? t("documents.publicSignature.changedDescriptionWithNumber", { number: view.displayNumber })
+                : t("documents.publicSignature.changedDescription")}
+            </p>
+          </div>
+        </div>
+      </PublicPageShell>
+    )
+  }
+
   const downloadFilename = `${view.typeId}${view.displayNumber ? `-${view.displayNumber}` : ""}.pdf`
 
   return (
@@ -404,92 +435,108 @@ export default function PublicSignaturePage() {
           </div>
 
           {!otpRequested && (
-            <div className="space-y-4">
-              <DocumentPreview
-                isLoading={documentQuery.isLoading}
-                isError={documentQuery.isError}
-                error={documentQuery.error}
-                documentUrl={documentUrl}
-              />
-
-              {documentUrl && (
-                <div className="flex justify-center">
-                  <Button asChild variant="outline" size="sm" dataCy="signature-download-button">
-                    <a href={documentUrl} download={downloadFilename}>
-                      <Download className="h-4 w-4" />
-                      {t("documents.publicSignature.downloadButton")}
-                    </a>
-                  </Button>
-                </div>
-              )}
-
-              {needsOptionChoice && view.options && (
-                <SignatureOptionChooser
-                  options={view.options}
-                  value={chosenOption}
-                  onChange={setChosenOption}
+            <>
+              <div className="space-y-4">
+                <DocumentPreview
+                  isLoading={documentQuery.isLoading}
+                  isError={documentQuery.isError}
+                  error={documentQuery.error}
+                  documentUrl={documentUrl}
                 />
-              )}
 
-              <div className="mx-auto flex max-w-sm items-start gap-2 text-left">
-                <Checkbox
-                  id="signature-confirm-read"
-                  checked={hasReadDocument}
-                  onCheckedChange={(checked) => setHasReadDocument(checked === true)}
-                  disabled={!documentUrl}
-                  className="mt-0.5"
-                  data-cy="signature-confirm-read-checkbox"
-                />
-                <Label
-                  htmlFor="signature-confirm-read"
-                  className="text-sm font-normal leading-snug text-muted-foreground"
-                >
-                  {t("documents.publicSignature.confirmReadLabel")}
-                </Label>
+                {documentUrl && (
+                  <div className="flex justify-center">
+                    <Button asChild variant="outline" size="sm" dataCy="signature-download-button">
+                      <a href={documentUrl} download={downloadFilename}>
+                        <Download className="h-4 w-4" />
+                        {t("documents.publicSignature.downloadButton")}
+                      </a>
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              <Button
-                type="button"
-                className="mx-auto block w-full max-w-sm"
-                disabled={!hasReadDocument || (needsOptionChoice && !chosenOption)}
-                loading={requestOtp.isPending}
-                onClick={handleRequestOtp}
-                dataCy="signature-request-otp-button"
+              {/* Issue #512 - the next required step (the option choice, then this button) sitting
+                  below a 70vh document preview left both off screen at 1280x720/1366x768/1440x900 and
+                  on a phone viewport, with nothing on screen saying there was anything to do below the
+                  document. `position: sticky` on the LAST element of the card, rather than a shorter
+                  preview or a two-column layout: it keeps the document at its full, already-readable
+                  height (#477 binds the signature to what the client actually read, so shrinking the
+                  preview to force a fit was the one option this issue's own text ruled out), pins to
+                  the viewport's own bottom edge the moment this block would otherwise render below the
+                  fold, and needs no per-viewport tuning to reach three different laptop heights plus a
+                  phone - one CSS position covers all of them. Same idiom `document-detail.tsx`'s own
+                  `document-unsaved-bar` already uses for an identical "keep the next action reachable
+                  regardless of how tall the content above it is" bar, bled edge-to-edge with the SAME
+                  `-mx-6 -mb-6` trick against this card's own `p-6`.
+                  A side effect that resolves issue #509's own flakiness at the root: the option
+                  chooser's screen position no longer depends on the PDF preview's own transient height
+                  (the `<object>` embed briefly renders at 0px before the plugin lays out the real page,
+                  see `cypress/support/commands.ts`'s former `revealSignatureOptionChooser` for the
+                  measurements) - it is pinned to the viewport regardless, so nothing needs to wait for
+                  the preview to settle before it can be scrolled to or asserted visible.
+                  Issue #512 (review follow-up) - `bg-card`, not a translucent `bg-background/95` with
+                  a blur: the bar sits directly over the PDF preview once its own natural position would
+                  overlap it (unavoidable once the bar is pinned and the preview above it is tall - see
+                  the compact `SignatureOptionChooser` above for the other half of the fix, shrinking
+                  how much of the preview that overlap actually covers), and a translucent bar over a
+                  document full of small print read as the preview's own text bleeding through the
+                  chooser. `bg-card` is the SAME opaque token the card itself already uses (`bg-card` on
+                  `signature-card` below), so the bar reads as the card's own bottom edge rather than a
+                  floating pane, in both themes - `--card` carries no alpha channel in either
+                  `:root` or `.dark` (`index.css`). The `border-t` plus this shadow are what mark it as
+                  a distinct layer instead of just "the card got shorter". */}
+              <div
+                className="sticky bottom-0 z-10 -mx-6 -mb-6 space-y-2 rounded-b-xl border-t bg-card px-6 py-3 shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.18)]"
+                data-cy="signature-action-bar"
               >
-                {t("documents.publicSignature.requestCodeButton")}
-              </Button>
+                {needsOptionChoice && view.options && (
+                  <SignatureOptionChooser
+                    options={view.options}
+                    value={chosenOption}
+                    onChange={setChosenOption}
+                  />
+                )}
 
-              {otpMessage && (
-                <p className="text-center text-sm text-muted-foreground" data-cy="signature-otp-message">
-                  {otpMessage}
-                </p>
-              )}
-            </div>
+                <div className="mx-auto flex max-w-sm items-start gap-2 text-left">
+                  <Checkbox
+                    id="signature-confirm-read"
+                    checked={hasReadDocument}
+                    onCheckedChange={(checked) => setHasReadDocument(checked === true)}
+                    disabled={!documentUrl}
+                    className="mt-0.5"
+                    data-cy="signature-confirm-read-checkbox"
+                  />
+                  <Label
+                    htmlFor="signature-confirm-read"
+                    className="text-sm font-normal leading-snug text-muted-foreground"
+                  >
+                    {t("documents.publicSignature.confirmReadLabel")}
+                  </Label>
+                </div>
+
+                <Button
+                  type="button"
+                  className="mx-auto block w-full max-w-sm"
+                  disabled={!hasReadDocument || (needsOptionChoice && !chosenOption)}
+                  loading={requestOtp.isPending}
+                  onClick={handleRequestOtp}
+                  dataCy="signature-request-otp-button"
+                >
+                  {t("documents.publicSignature.requestCodeButton")}
+                </Button>
+
+                {otpMessage && (
+                  <p className="text-center text-sm text-muted-foreground" data-cy="signature-otp-message">
+                    {otpMessage}
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {otpRequested && (
             <div className="mx-auto w-full max-w-sm space-y-4">
-              {optionsChanged && (
-                <p
-                  className="text-center text-sm text-destructive"
-                  data-cy="signature-options-changed-message"
-                >
-                  {t("documents.publicSignature.optionsChangedError")}
-                </p>
-              )}
-
-              {/* Round 3 review, point 4 - the ONE place this page shows the chooser outside the
-                  Review step: only ever rendered once a sign attempt was refused for naming an option
-                  the quote no longer offers (`optionsChanged`), with the FRESH options `refetchView`
-                  just brought back - never the stale ones this visitor originally picked from. */}
-              {optionsChanged && needsOptionChoice && view.options && (
-                <SignatureOptionChooser
-                  options={view.options}
-                  value={chosenOption}
-                  onChange={setChosenOption}
-                />
-              )}
-
               <div className="flex justify-center">
                 <InputOTP maxLength={8} value={code} onChange={(value) => setCode(value.replace(/\D/g, ""))}>
                   <InputOTPGroup data-cy="signature-otp-input">
@@ -513,10 +560,6 @@ export default function PublicSignaturePage() {
               <Button
                 type="button"
                 className="w-full"
-                // `needsOptionChoice && !chosenOption` (not just `optionsChanged`) - a quote that lost
-                // an option entirely (dropped to fewer than two) between the code request and now
-                // stops needing a choice at all, exactly like the Review step's own request-code button
-                // already gates it, so this never blocks on a chooser that would not even be rendered.
                 disabled={code.length !== 8 || (needsOptionChoice && !chosenOption)}
                 onClick={() => setConfirmSignOpen(true)}
                 dataCy="signature-sign-button"

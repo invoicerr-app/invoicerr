@@ -26,7 +26,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  - `supplier-invoice-facturx.pdf`: a second, independent real Factur-X — used for the "reject with
  *    a reason" leg, so the two legs never fight over the same `pdpInboundId`/document.
  */
-const api = Cypress.env("apiUrl") || "http://localhost:4000";
+const api = Cypress.env("apiUrl");
 
 const CII_FIXTURE_RELATIVE = "received-invoices/supplier-invoice-cii.xml";
 const FACTURX_FIXTURE_RELATIVE = "received-invoices/supplier-invoice-facturx.pdf";
@@ -82,12 +82,12 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 		cy.login();
 	});
 
-	it('connects the PDP channel via the screen, pointed at the fake sandbox — status "Connected"', () => {
+	it('connects the PDP channel via the screen, pointed at the fake sandbox - status "Connected" (issue #527 screen: legal channel nav, then operator)', () => {
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-pdp-status"]').should("contain.text", "Not connected");
+		cy.get('[data-cy="channel-nav-pdp"]', { timeout: 15000 }).should("exist").click();
+		cy.get('[data-cy="operator-superpdp-connect-button"]', { timeout: 10000 }).should("exist").click();
 
-		cy.get('[data-cy="channel-pdp-baseurl-input"]')
+		cy.get('[data-cy="channel-pdp-baseurl-input"]', { timeout: 10000 })
 			.clear()
 			.type(fakePdpUrl);
 		cy.get('[data-cy="channel-pdp-clientid-input"]').clear().type("e2e-fake-client-id");
@@ -95,7 +95,7 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 		cy.get('[data-cy="channel-pdp-connect-button"]').click();
 
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Channel connected");
-		cy.get('[data-cy="channel-pdp-status"]', { timeout: 10000 }).should("contain.text", "Connected");
+		cy.get('[data-cy="operator-superpdp-status"]', { timeout: 10000 }).should("contain.text", "Connected");
 	});
 
 	it("an empty PDP inbox: the real sweep runs and imports nothing", () => {

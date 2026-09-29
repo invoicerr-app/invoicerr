@@ -4,7 +4,12 @@
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
-import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
+import {
+  DocumentFormatBuildOptions,
+  DocumentFormatBuildResult,
+  DocumentFormatParty,
+  DocumentFormatProvider,
+} from './format-provider';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
 import { EN16931_UBL_SCH, validateSchematron } from './vendored/validate-schematron';
@@ -14,15 +19,19 @@ async function build(
   document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
+  _companyId?: string,
+  options?: DocumentFormatBuildOptions,
 ): Promise<DocumentFormatBuildResult> {
-  const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client);
+  const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
+    creditNote: options?.creditNote,
+  });
 
   const service = newEuInvoiceService();
   // UBL needs no post-processing — the multi-note packing `splitCiiIncludedNotes` fixes is a CII-only
   // defect of the generator (UBL keeps `cbc:Note` as a genuine repeatable element).
   const xml = (await service.generate(euInvoice, { format: 'UBL', lang: 'en' })) as string;
 
-  const structural = validateStructural(xml, 'ubl');
+  const structural = validateStructural(xml, 'ubl', options?.creditNote ? 'credit-note' : 'invoice');
   if (!structural.valid) {
     return { bytes: new TextEncoder().encode(xml), validation: { valid: false, errors: structural.errors } };
   }
