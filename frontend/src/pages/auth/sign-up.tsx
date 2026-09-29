@@ -1,7 +1,7 @@
 import { TicketIcon, UserX } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router"
+import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { AuthLink, AuthShell } from "@/pages/auth/_components/auth-shell"
@@ -43,6 +43,21 @@ export default function SignupPage() {
   const [checkingRegistrationStatus, setCheckingRegistrationStatus] = useState(true)
   const backendHealth = useBackendHealth()
   const backendUnavailable = backendHealth === "unavailable"
+
+  // The invitation code field is a discreet, opt-in toggle by default (issue #534): most visitors
+  // are creating their own company and should never have to read about invitations at all. It is
+  // forced open in two cases instead of staying behind the toggle:
+  //  - `invitationOnly` (this instance closed open sign-up, `openSignupAllowed === false`): the
+  //    field is the only way forward, so hiding it behind a click would just add a step.
+  //  - a code already sitting in the URL's `code` query param, which is what a company's own
+  //    invitation flow hands a visitor (`?code=...`, see `settings/_components/invitations.
+  //    settings.tsx` for how the code is minted). The field opens pre-filled instead of asking
+  //    the visitor to notice the toggle and paste it in by hand.
+  const [searchParams] = useSearchParams()
+  const codeFromUrl = searchParams.get("code")?.trim() || null
+  const [invitationRevealed, setInvitationRevealed] = useState(false)
+  const invitationOnly = openSignupAllowed === false
+  const showInvitationField = invitationOnly || invitationRevealed || codeFromUrl !== null
 
   // `saasMode` mirrors `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (backend's own `billing-flag.ts`)
   // — the checkbox below (and the server-side `LEGAL_ACCEPTANCE_REQUIRED` refusal it exists to avoid)
@@ -314,25 +329,56 @@ export default function SignupPage() {
           )}
         </div>
 
-        {/* Always shown, always optional: a code only ever serves to join an existing
-            company (see backend/src/lib/registration-policy.ts) — leaving it blank
-            creates a brand-new account that lands on the company-creation onboarding. */}
-        <div className="space-y-1.5">
-          <Label htmlFor="invitationCode">{t("auth.signup.form.invitationCode.label")}</Label>
-          <div className="relative">
-            <TicketIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="invitationCode"
-              name="invitationCode"
-              placeholder={t("auth.signup.form.invitationCode.placeholder")}
-              disabled={loading}
-              className="pl-9 font-mono uppercase"
-              data-cy="auth-invitation-code-input"
-            />
+        {/* A code only ever serves to join an existing company (see
+            backend/src/lib/registration-policy.ts): leaving it blank creates a brand-new account
+            that lands on the company-creation onboarding. Hidden behind a discreet toggle by
+            default so a visitor creating their own company never has to read about invitations;
+            forced open (and required) when this instance has closed open sign-up, since the code
+            is then the only way forward rather than an optional extra. */}
+        {!showInvitationField ? (
+          <div>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-sm text-muted-foreground"
+              onClick={() => setInvitationRevealed(true)}
+              aria-expanded={false}
+              data-cy="auth-invitation-toggle"
+            >
+              {t("auth.signup.form.invitationCode.toggle")}
+            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">{t("auth.signup.form.invitationCode.hint")}</p>
-          {errors.invitationCode && <p className="text-sm text-destructive">{errors.invitationCode[0]}</p>}
-        </div>
+        ) : (
+          <div className="space-y-1.5">
+            <Label htmlFor="invitationCode">
+              {invitationOnly
+                ? t("auth.signup.form.invitationCode.label")
+                : t("auth.signup.form.invitationCode.labelOptional")}
+            </Label>
+            {invitationOnly && (
+              <p className="text-xs text-muted-foreground" data-cy="auth-invitation-required-hint">
+                {t("auth.signup.form.invitationCode.requiredHint")}
+              </p>
+            )}
+            <div className="relative">
+              <TicketIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="invitationCode"
+                name="invitationCode"
+                placeholder={t("auth.signup.form.invitationCode.placeholder")}
+                disabled={loading}
+                required={invitationOnly}
+                defaultValue={codeFromUrl ?? undefined}
+                className="pl-9 font-mono uppercase"
+                data-cy="auth-invitation-code-input"
+              />
+            </div>
+            {!invitationOnly && (
+              <p className="text-xs text-muted-foreground">{t("auth.signup.form.invitationCode.hint")}</p>
+            )}
+            {errors.invitationCode && <p className="text-sm text-destructive">{errors.invitationCode[0]}</p>}
+          </div>
+        )}
 
         {/* SaaS mode only (`saasMode`, mirroring the backend's own `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`)
             — a self-hosted instance has nothing to accept, so this never renders there at all rather
