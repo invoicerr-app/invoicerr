@@ -16,6 +16,19 @@
  * satisfies every constraint the country format itself satisfies: one that breaks them (FatturaPA's
  * 20 characters, say) gives way to the country format from the next number, and the counter goes on
  * without reset, so no issued number changes and no gap or duplicate appears.
+ *
+ * Issue #539 - the SAME continuity obligation decides what happens to a kept series at the 2027 yearly
+ * reset (#515). Two options were on the table: (a) the series keeps counting continuously forever,
+ * never reset, or (b) it is superseded by the country format from the switch point, the same way a
+ * series that breaks a constraint already is. This module picks (a). (b) was rejected: superseding a
+ * COMPLIANT series specifically because a feature shipped is exactly the outcome #496 exists to
+ * prevent - a company that has been legally numbering "FAC-1", "FAC-2", ... would, overnight and with
+ * no fault of its own, start printing a different prefix AND restart at 1, which is no more continuous
+ * than the duplicate it would otherwise have produced, and strictly worse than doing nothing (a kept
+ * series is never REQUIRED to restart - `reset: "yearly"` on the country format only ever means the
+ * COUNTRY's own default pattern may restart, never that every invoice number in that country must). So
+ * a kept running series without a `{year}` token simply never restarts: `reset: "never"`, whatever the
+ * country format's own reset says - see `resolveNumberFormatFor` below.
  */
 import { BadRequestException } from '@nestjs/common';
 
@@ -24,6 +37,7 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 import {
   constraintsFor,
+  HAS_YEAR_TOKEN,
   NumberFormatViolation,
   numberViolations,
   patternViolations,
@@ -53,10 +67,17 @@ export interface ResolvedNumberFormat {
    *  moved to the country format - the old pattern, and every rule it broke. */
   supersededRunningSeries?: { pattern: string; violations: NumberFormatViolation[] };
   /** Issue #515 - whether this type's counter may restart at 1 on every 1 January, in this country.
-   *  Read off the COUNTRY's own format for `typeId`, never off a running series: a running series is
-   *  only ever a different printed prefix for the same legal document type, so it shares the same
-   *  reset rule the country format itself carries (`periodKeyFor` below reads this field, never the
-   *  format string, to decide which counter row a document lands on). */
+   *  Read off the COUNTRY's own format for `typeId` for a company with no running series, or one whose
+   *  running series itself prints a year: a running series is normally just a different printed prefix
+   *  for the same legal document type, so it shares the same reset rule the country format carries
+   *  (`periodKeyFor` below reads this field, never the format string, to decide which counter row a
+   *  document lands on).
+   *  Issue #539 - the one exception: a kept running series whose pattern carries NO `{year}` token can
+   *  never inherit a `'yearly'` country reset, whatever the country format says - opening a fresh,
+   *  year-keyed row would render a number that series already issued a second time (e.g. "FAC-1"
+   *  again), a duplicate that is a legal fault in every country this catalog covers. Such a series
+   *  stays `'never'` here, forever - see this file's own header for why continuity was chosen over
+   *  superseding the series by the country format at the switch point. */
   reset: 'yearly' | 'never';
   /** Why THIS reset rule - see `schema.ts#DocumentNumberFormatFact.resetProvenance`'s own header. */
   resetProvenance: PolicyProvenance;
@@ -114,6 +135,32 @@ export function resolveNumberFormatFor(
   if (violations.length > 0) {
     return { ...base, supersededRunningSeries: { pattern: running, violations } };
   }
+
+  // Issue #539 - `base.reset` above is the COUNTRY format's own reset rule, and a kept series that
+  // itself prints a year is content to share it (that is exactly what #515 intends: such a series
+  // restarts too). But `assertValidNumberFormats`'s own "yearly needs {year}" gate
+  // (`country-policy/number-formats.ts`) only ever checked the country's SHIPPED pattern - it has never
+  // seen a company's running series, which is composed here, at request time, not at catalog load time.
+  // A kept series with no `{year}` token inheriting a `'yearly'` reset would open a fresh, year-keyed
+  // counter row on 1 January 2027 while still printing the SAME string it always has, so the very first
+  // number of the new row (e.g. "FAC-1") would collide with a number this series already issued years
+  // ago - the exact duplicate this file's own header explains why #539 refuses to allow. So the reset
+  // is forced to `'never'` here, unconditionally, whatever the country format says - see this file's
+  // header for why continuity (never restart) was chosen over superseding the series by the country
+  // format at the switch point. `resetProvenance` is not re-derived: it is the SAME per-country
+  // continuity obligation (`runningSeries.provenance`) that already justifies keeping this series'
+  // pattern unchanged in the first place - a kept series never restarting is that same obligation
+  // applied to the one moment (a calendar year turning over) where restarting would otherwise happen.
+  if (format.reset === 'yearly' && !HAS_YEAR_TOKEN.test(running)) {
+    return {
+      ...base,
+      pattern: running,
+      source: 'running-series',
+      reset: 'never',
+      resetProvenance: formats.runningSeries.provenance,
+    };
+  }
+
   return { ...base, pattern: running, source: 'running-series' };
 }
 

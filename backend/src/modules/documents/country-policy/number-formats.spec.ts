@@ -377,6 +377,40 @@ describe('resolveNumberFormatFor - the running series (issue #496)', () => {
     expect(resolved.supersededRunningSeries?.violations[0].constraintId).toBe('pattern');
   });
 
+  // Issue #539 - a kept series with no {year} token must never inherit the country's own "yearly"
+  // reset: the load-time gate (`assertValidNumberFormats`'s HAS_YEAR_TOKEN check, tested above) only
+  // ever looks at the COUNTRY's shipped pattern, never at a company's running series, which is composed
+  // here, at request time. FR, DE and IT all declare `reset: "yearly"` for `invoice` - see "FR/DE allow
+  // a yearly reset..." above - so all three exercise the same bug this issue reports.
+  it("a kept running series with no {year} token never inherits the country's yearly reset - issue #539", () => {
+    for (const country of ['FR', 'DE', 'IT']) {
+      const resolved = resolveNumberFormatFor(country, 'invoice', { invoice: 'FAC-{number}' });
+      expect(resolved, country).toMatchObject({
+        pattern: 'FAC-{number}',
+        source: 'running-series',
+        reset: 'never',
+      });
+      // Sourced, not silent - shown on the settings screen next to the pattern.
+      expect(['legal', 'unverified'], country).toContain(resolved.resetProvenance.kind);
+    }
+  });
+
+  it('a kept running series that DOES contain {year} still restarts yearly, as #515 intends', () => {
+    const resolved = resolveNumberFormatFor('FR', 'invoice', { invoice: 'FACT-{year}-{number:6}' });
+    expect(resolved).toMatchObject({
+      pattern: 'FACT-{year}-{number:6}',
+      source: 'running-series',
+      reset: 'yearly',
+    });
+  });
+
+  it('a kept running series with no {year} token is unaffected in a country whose format is already "never" - nothing to override', () => {
+    // PL's own invoice format is `reset: "never"` - see "FR/DE allow a yearly reset..." above - so this
+    // is the pre-existing, unaffected path: `base.reset` was already "never" before #539.
+    const resolved = resolveNumberFormatFor('PL', 'invoice', { invoice: 'FV-{number}' });
+    expect(resolved).toMatchObject({ pattern: 'FV-{number}', source: 'running-series', reset: 'never' });
+  });
+
   it('refuses a country with no catalog - there is no fallback format', () => {
     expect(() => resolveNumberFormatFor('US', 'invoice', null)).toThrow(/No document number format/);
     expect(() => resolveNumberFormatFor(undefined, 'invoice', null)).toThrow(/could not be resolved/);

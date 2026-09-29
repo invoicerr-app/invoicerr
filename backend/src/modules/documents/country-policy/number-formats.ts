@@ -27,8 +27,11 @@ import {
 
 /** Issue #515 - a `{year}` (optionally `{year:N}`) token, the one thing a `reset: "yearly"` format's
  *  pattern must carry: `assertValidNumberFormats` below refuses a format that declares `'yearly'`
- *  without one, since two different years would otherwise render the identical number. */
-const HAS_YEAR_TOKEN = /\{year(?::\d+)?\}/;
+ *  without one, since two different years would otherwise render the identical number. Exported for
+ *  issue #539: `numbering/company-number-format.ts#resolveNumberFormatFor` runs the SAME check on a
+ *  company's kept running series, which this load-time gate never sees (it only ever validates the
+ *  COUNTRY's own shipped pattern). */
+export const HAS_YEAR_TOKEN = /\{year(?::\d+)?\}/;
 
 export const WORST_CASE_SEQUENCE_NUMBER = 999_999;
 /** 31 December: the widest `{month}`/`{day}` render (two digits each without padding). */
