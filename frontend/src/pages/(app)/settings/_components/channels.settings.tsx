@@ -6,6 +6,13 @@ import { type ReactNode, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import {
+  type ChannelProvenance,
+  ChannelBannerSource,
+  countryName,
+  formatMandateDate,
+  legalChannelLabel,
+} from "@/components/channel-banner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,13 +40,6 @@ import {
 
 type ChannelEnvironment = "TEST" | "PROD"
 type ChannelRequirement = "suggested" | "mandated"
-
-interface ChannelProvenance {
-  kind: "legal" | "unverified"
-  resolutionNote?: string
-  sourceText?: string
-  sourceCheckedAt?: string
-}
 
 interface ConfiguredChannel {
   providerId: string
@@ -114,54 +114,8 @@ interface ChannelsResponse {
   banner: ChannelPolicyBanner
 }
 
-/** Display label DEFAULTS for a legal channel id (`documents/operators/schema.ts#OperatorOffering.
- *  legalChannel`) - every string still goes through `t()` (issue #527's own instruction), this is
- *  only the English fallback + translation key stem. A channel this map has no opinion about (a
- *  future legal channel the operator catalogue grows) falls back to its bare, upper-cased id, exactly
- *  like the old `PROVIDER_LABELS` this replaces. */
-const LEGAL_CHANNEL_LABEL_DEFAULTS: Record<string, string> = {
-  pdp: "Accredited platform (PDP)",
-  sdi: "Sistema di Interscambio (SdI)",
-  ksef: "KSeF",
-  "chorus-pro": "Chorus Pro",
-  peppol: "Peppol",
-}
-
 const DECLARATION_LABEL_DEFAULTS: Record<string, string> = {
   "pt-at": "Portuguese Tax Authority (AT)",
-}
-
-function legalChannelLabel(t: TFunction, id: string): string {
-  return t(`settings.channels.legal.${id}.label`, LEGAL_CHANNEL_LABEL_DEFAULTS[id] ?? id.toUpperCase())
-}
-
-/** A human-readable country name from an ISO 3166-1 alpha-2 code, in the reader's own language -
- *  same `Intl.DisplayNames` convention `lib/apply-address-suggestion.ts` already uses; never a legal
- *  fact, purely a display nicety over a code the backend already resolved. */
-function countryName(language: string, code?: string): string {
-  if (!code) return ""
-  try {
-    return new Intl.DisplayNames([language, "en"], { type: "region" }).of(code) ?? code
-  } catch {
-    return code
-  }
-}
-
-/** A `YYYY-MM-DD` mandate date, spelled out in the reader's own language (e.g. "1 September 2026") -
- *  owner review of #527: the banner used to interpolate the raw ISO string into a sentence, which
- *  reads fine in a table cell but not in prose. Falls back to the raw string if it does not parse -
- *  never throws, never blanks a date the backend did send. */
-function formatMandateDate(language: string, isoDate?: string): string {
-  if (!isoDate) return ""
-  const parsed = new Date(`${isoDate}T00:00:00Z`)
-  if (Number.isNaN(parsed.getTime())) return isoDate
-  try {
-    return new Intl.DateTimeFormat(language, { day: "numeric", month: "long", year: "numeric" }).format(
-      parsed,
-    )
-  } catch {
-    return isoDate
-  }
 }
 
 /** One (operator, offering) pair for a given legal channel - the level-2 row. */
@@ -479,24 +433,6 @@ function ChannelNavBadge({
     )
   }
   return null
-}
-
-/** The full legal quote behind a banner, revealed on demand rather than dumped into the page by
- *  default - owner review of #527: a full statute article in the page's own language mismatch (the
- *  source is quoted in the COUNTRY's language, the page renders in the READER's) read as a wall of
- *  red text, not as the "one plain sentence" this banner is meant to be. `<details>` needs no state
- *  and no extra dependency, and degrades to a plain, readable block for anyone printing the page. */
-function ChannelBannerSource({ provenance, t }: { provenance?: ChannelProvenance; t: TFunction }) {
-  const quote = provenance?.kind === "legal" ? provenance.sourceText : provenance?.resolutionNote
-  if (!quote) return null
-  return (
-    <details className="mt-1" data-cy="channels-banner-source">
-      <summary className="cursor-pointer text-sm underline-offset-2 hover:underline">
-        {t("settings.channels.banner.readSource", "Read the source")}
-      </summary>
-      <blockquote className="mt-1 border-l-2 pl-3 text-sm italic">{quote}</blockquote>
-    </details>
-  )
 }
 
 function ChannelBanner({
