@@ -23,6 +23,7 @@
  *      on the company-creation onboarding (see frontend/src/components/onboarding.tsx and
  *      sidebar.tsx's auto-open-when-companies.length===0 effect).
  */
+import { DEMO_ACCOUNT_EMAIL, isDemoModeEnabled, isDemoSeedBypassActive } from '@/modules/demo/demo-flag';
 
 export type InvitationLookupResult =
   | { found: false }
@@ -32,7 +33,8 @@ export type RegistrationDenialReason =
   | 'invalid_code'
   | 'already_used_code'
   | 'expired_code'
-  | 'signup_disabled';
+  | 'signup_disabled'
+  | 'demo_mode';
 
 export type RegistrationDecision = { allowed: true } | { allowed: false; reason: RegistrationDenialReason };
 
@@ -55,8 +57,28 @@ export function decideRegistration(params: {
   isFirstUser: boolean;
   env?: NodeJS.ProcessEnv;
   now?: Date;
+  /** The address attempting to register — needed ONLY for the demo-mode bypass just below. Every
+   *  other branch in this function ignores it entirely. */
+  email?: string | null;
 }): RegistrationDecision {
-  const { invitationCode, invitation, isFirstUser, now = new Date() } = params;
+  const { invitationCode, invitation, isFirstUser, now = new Date(), email } = params;
+
+  // Demo instance (issue #533) — checked FIRST, ahead of every other rule including the
+  // first-user bootstrap and a valid invitation code: sign-up is closed outright on a demo instance,
+  // full stop. The ONE exception is `scripts/demo-reset.ts`'s own bootstrap call, which creates the
+  // fixed `demo@invoicerr.app` account through this exact same hook — recognised by BOTH its own
+  // process-local `DEMO_SEED_RUN` marker AND the exact demo address, never by either alone (a stray
+  // `DEMO_SEED_RUN=1` in a real deployment's environment must never open the door for anyone OTHER
+  // than that one fixed address, and the address alone is not a secret worth trusting). See
+  // `modules/demo/demo-flag.ts`'s own header for why this bypass can never be reached from an HTTP
+  // request: the live API process never sets `DEMO_SEED_RUN`.
+  if (isDemoModeEnabled(params.env)) {
+    const isSeedBootstrap =
+      isDemoSeedBypassActive(params.env) && email?.trim().toLowerCase() === DEMO_ACCOUNT_EMAIL;
+    if (!isSeedBootstrap) {
+      return { allowed: false, reason: 'demo_mode' };
+    }
+  }
 
   if (invitationCode) {
     if (!invitation?.found) {
@@ -92,5 +114,7 @@ export function registrationDenialMessage(reason: RegistrationDenialReason): str
       return 'This invitation code has expired';
     case 'signup_disabled':
       return 'Sign-ups are currently disabled on this instance. Ask an existing member for an invitation code to join their company.';
+    case 'demo_mode':
+      return 'Sign-ups are closed on this demo instance. Sign in with the demo account shown on the sign-in page.';
   }
 }

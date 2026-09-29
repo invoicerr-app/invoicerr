@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
+import { useDemoMode } from "@/hooks/queries"
 import { copyToClipboard } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
 
@@ -42,6 +43,7 @@ export default function ApiKeysSettings() {
   const { trigger: createApiKey, loading: creating } = usePost("/api/api-keys")
   const { data: options } = useGet<{ scopes: string[] }>("/api/api-keys/options")
   const [saved, flash] = useSavedFlash()
+  const { demoMode } = useDemoMode()
 
   const [createdKey, setCreatedKey] = useState<string | null>(null)
   const [multiResetKey, setMultiResetKey] = useState(0)
@@ -207,7 +209,12 @@ export default function ApiKeysSettings() {
             contentClassName="grid gap-4 sm:grid-cols-2"
             footer={
               <SettingsFormFooter saved={saved}>
-                <Button type="submit" loading={creating}>
+                <Button
+                  type="submit"
+                  loading={creating}
+                  disabled={demoMode}
+                  tooltip={demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
+                >
                   {t("settings.apiKeys.create.button")}
                 </Button>
               </SettingsFormFooter>

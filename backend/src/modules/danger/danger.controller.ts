@@ -8,6 +8,7 @@ import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { LegalGateExempt } from '@/legal/legal-gate-exempt.decorator';
 import { Roles } from '@/decorators/roles.decorator';
+import { DemoRestricted } from '@/decorators/demo-restricted.decorator';
 
 interface OtpConfirmationBody {
   otp: string;
@@ -124,6 +125,10 @@ export class DangerController {
   // `legal-acceptance.guard.ts`'s own header for the write-gate/termination split this decorator
   // belongs to.
   @LegalGateExempt()
+  // Demo instance (issue #533) — the seeded demo company cannot be deleted, so nobody looking at the
+  // demo can grief the next visitor by removing it before the scheduled reset. See
+  // `guards/demo-restricted.guard.ts`.
+  @DemoRestricted()
   async deleteCompany(
     @User() user: CurrentUser,
     @ActiveCompany() companyId: string,

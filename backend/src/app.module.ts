@@ -54,6 +54,7 @@ import { auth } from './lib/auth';
 import { BillingModule } from './modules/billing/billing.module';
 import { BillingQueueWorkerModule } from './modules/billing/billing-queue-worker.module';
 import { isBillingEnabled } from './modules/billing/billing-flag';
+import { isDemoModeEnabled } from './modules/demo/demo-flag';
 
 /**
  * Hosted billing (product decision 2026-09-15) — `BillingModule` is imported ONLY when
@@ -63,6 +64,14 @@ import { isBillingEnabled } from './modules/billing/billing-flag';
  * module's own header for the full "invisible and inert" guarantee this is the structural half of.
  */
 const billingEnabled = isBillingEnabled();
+
+/**
+ * Public demo instance (issue #533) — see `modules/demo/demo-flag.ts`'s own header for the full list
+ * of what turning this on blocks/refuses. Read once here, the same "read once at boot, threaded as a
+ * plain param" shape `billingEnabled` above already holds, so `globalGuardProviders` stays a pure
+ * function a spec can drive both ways.
+ */
+const demoModeEnabled = isDemoModeEnabled();
 
 /**
  * Instance file backup (`backend/src/modules/backup`) — a periodic sweep to a SECONDARY,
@@ -259,7 +268,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // refusal, so the rate limiter has to come first or refused requests are never counted). A new
     // global guard belongs in that list, not here: the order is the security property, and only that
     // file is under test for it.
-    ...globalGuardProviders({ billingEnabled }),
+    ...globalGuardProviders({ billingEnabled, demoModeEnabled }),
     // Request-scoped `companyId` for every `Log` write this request triggers — see
     // `@/interceptors/company-context.interceptor.ts`'s own header for why this has to be an
     // Interceptor (runs after every `APP_GUARD` above, `AuthGuard` included) rather than folded into

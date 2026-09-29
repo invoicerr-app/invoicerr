@@ -1,4 +1,5 @@
 import { ResolvedChannelConfig } from '@/modules/company/channels/channels.service';
+import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ArchivedArtifactInput } from '../archive/hashing';
@@ -309,11 +310,29 @@ export class UnknownTransportError extends Error {
 export class TransportRegistry {
   private readonly transports = new Map<string, { label: string; transport: DocumentTransport }>();
 
+  /**
+   * Demo instance (issue #533) — wraps the transport's own `send` so EVERY registered transport is
+   * blocked in demo mode, including one registered later by a third party who has never read
+   * `modules/demo/demo-blocked.ts`. Wrapped HERE, at registration, rather than only at
+   * `documents.service.ts`'s own call site: that is what makes `demo-mode-senders.spec.ts`'s
+   * enumeration test ("every registered transport is blocked") actually true by construction, not by
+   * every future caller remembering to check first. `preflight`/`deliversCreditNotes`/
+   * `credentialFields`/`parseCredentials` are copied through UNCHANGED — a company's own "is this
+   * channel connected" check must keep working in demo mode (there is nothing sensitive about
+   * reporting whether credentials exist), only the actual delivery is refused.
+   */
   register(id: string, label: string, transport: DocumentTransport): void {
     if (this.transports.has(id)) {
       throw new Error(`Transport "${id}" is already registered.`);
     }
-    this.transports.set(id, { label, transport });
+    const guarded: DocumentTransport = {
+      ...transport,
+      send: async (ctx) => {
+        assertDemoSendingAllowed(`Sending via "${id}"`);
+        return transport.send(ctx);
+      },
+    };
+    this.transports.set(id, { label, transport: guarded });
   }
 
   /** Every registered transport, id and label - what a company's settings screen offers to choose

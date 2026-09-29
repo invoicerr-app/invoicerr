@@ -15,6 +15,7 @@ import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 import { SUPPORTED_RENDER_LANGUAGES } from '@/modules/documents/rendering/language/supported-languages';
 import { parseAccountLocaleInput, setUserLocale } from './preferences';
+import { DemoRestricted } from '@/decorators/demo-restricted.decorator';
 
 @ApiTags('auth-extended')
 @Controller('auth-extended')
@@ -37,6 +38,11 @@ export class AuthExtendedController {
   @ApiResponse({ status: 201, description: 'Password set successfully' })
   @ApiResponse({ status: 401, description: 'Failed to set password' })
   @ApiResponse({ status: 403, description: 'This instance is single-sign-on only (OIDC_ONLY)' })
+  // Demo instance (issue #533) — setting a password (the OIDC-only-account bootstrap path) is
+  // refused too: `/change-password` is already refused by `lib/auth.ts`'s own `hooks.before` for an
+  // account that already has one, but this SECOND route is how an account with NONE gets its first —
+  // equally a takeover vector, equally refused. See `guards/demo-restricted.guard.ts`.
+  @DemoRestricted()
   async setPassword(@Req() req: Request, @Body() body: { newPassword: string }) {
     // better-auth does NOT gate `setPassword`/`changePassword` behind `emailAndPassword.enabled`, so
     // on an OIDC_ONLY instance a signed-in user could still mint themselves a password here and walk

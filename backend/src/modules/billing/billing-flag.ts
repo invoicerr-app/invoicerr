@@ -20,9 +20,24 @@
  * and `="True"` both count, and a stray trailing space from a copy-paste never silently reads as
  * "unset".
  */
+import { isDemoModeEnabled } from '@/modules/demo/demo-flag';
+
 export const BILLING_FLAG_NAME = 'WARNING__ENABLE_BILLING_FOR_USERS__WARNING';
 
+/**
+ * Demo instance (issue #533) — `DEMO_MODE` overrides this flag outright, in EITHER direction: a demo
+ * deployment must never show a paywall, a seat gate, or make a single Polar call, no matter what
+ * `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` happens to be set to in that same environment. Checked
+ * FIRST, before the billing flag's own read, so every caller of `isBillingEnabled()` — `app.module.ts`
+ * (whether `BillingModule`/`CompanyWriteGuard`/`LegalAcceptanceGuard` even enter the graph),
+ * `send-gate.ts#assertCanSend`, `lib/auth.ts`'s legal-acceptance-at-signup check — gets this for free,
+ * with no separate demo-mode opinion of its own to keep in sync. `getPolarClient()`
+ * (`polar-client.ts`) ALSO refuses outright on its own, independently: this is belt-and-suspenders for
+ * the one path that does not go through `isBillingEnabled()` first (an instance operator action that
+ * still resolves a client directly), not a redundant check for the ordinary one.
+ */
 export function isBillingEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (isDemoModeEnabled(env)) return false;
   const raw = (env[BILLING_FLAG_NAME] ?? '').trim().toLowerCase();
   return raw === 'true' || raw === '1';
 }

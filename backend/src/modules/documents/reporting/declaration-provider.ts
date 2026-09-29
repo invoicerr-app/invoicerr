@@ -19,6 +19,7 @@
  * than "every event the platform now reports".
  */
 import { ChannelNotConnectedError, RawAuthorityEvent } from '../conformity/authority-status-poller';
+import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 
 export { ChannelNotConnectedError, RawAuthorityEvent };
 
@@ -140,11 +141,23 @@ export interface DeclarationProvider {
 export class DeclarationProviderRegistry {
   private readonly providers = new Map<string, DeclarationProvider>();
 
+  /** Demo instance (issue #533) — same "wrap at registration, cover a future provider for free"
+   *  reasoning as `transports/transport-registry.ts#TransportRegistry.register`'s own header: a
+   *  provider registered later is blocked automatically too, because `declare` is wrapped the moment
+   *  it is added here, never because `reporting-runner.ts` remembered to check first. */
   register(provider: DeclarationProvider): void {
     if (this.providers.has(provider.providerId)) {
       throw new Error(`A declaration provider for "${provider.providerId}" is already registered.`);
     }
-    this.providers.set(provider.providerId, provider);
+    const { providerId } = provider;
+    const guarded: DeclarationProvider = {
+      providerId,
+      declare: async (companyId, invoice) => {
+        assertDemoSendingAllowed(`Declaring to "${providerId}"`);
+        return provider.declare(companyId, invoice);
+      },
+    };
+    this.providers.set(providerId, guarded);
   }
 
   /** Never throws for an unknown id — the runner treats `undefined` as "nothing to do" (defensive
@@ -152,5 +165,13 @@ export class DeclarationProviderRegistry {
    *  named, and the registry below is built from the SAME set of ids production actually wires). */
   resolve(providerId: string): DeclarationProvider | undefined {
     return this.providers.get(providerId);
+  }
+
+  /** Every registered provider's own id — the same enumeration shape `TransportRegistry.list()`/
+   *  `PaymentProviderRegistry.list()` already hold, added so a test (or a future settings screen) can
+   *  enumerate every declarative-reporting channel without hardcoding the one id this codebase ships
+   *  ("pt-at") today. */
+  list(): string[] {
+    return [...this.providers.keys()];
   }
 }

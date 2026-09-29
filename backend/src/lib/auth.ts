@@ -5,6 +5,10 @@ import { GenericOAuthConfig, customSession, genericOAuth } from 'better-auth/plu
 import { PrismaClient } from '../../prisma/generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { APIError, betterAuth } from 'better-auth';
+import { createAuthMiddleware } from 'better-auth/api';
+import { DEMO_MODE_BLOCKED_CODE, demoModeBlockedMessage } from '../modules/demo/demo-blocked';
+import { DEMO_ACCOUNT_PASSWORD, isDemoModeEnabled } from '../modules/demo/demo-flag';
+import { demoBlockedAuthActionLabel, isDemoBlockedAuthPath } from './demo-auth-paths';
 import { InvitationLookupResult, decideRegistration, registrationDenialMessage } from './registration-policy';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import {
@@ -131,7 +135,7 @@ const validateInvitationForSignup = async (
       : { found: false };
   }
 
-  const decision = decideRegistration({ invitationCode, invitation, isFirstUser });
+  const decision = decideRegistration({ invitationCode, invitation, isFirstUser, email });
 
   if (!decision.allowed) {
     // A code was supplied and rejected: forget it, it must not be silently retried
@@ -412,6 +416,13 @@ export const auth = betterAuth({
     // this flag, so `modules/auth-extended/auth-extended.controller.ts` refuses that route explicitly
     // as well; without both halves the flag would merely hide a form rather than close a door.
     enabled: !isOidcOnly(),
+    // Demo instance (issue #533) — the product decision is a literal, four-character password
+    // ("demo"), shown on the sign-in page; better-auth's own default minimum (8) would refuse the
+    // ONE `signUpEmail` call that ever creates this account (`scripts/demo-reset.ts#ensureDemoUser`).
+    // Lowered ONLY under `DEMO_MODE`, never on an ordinary instance — sign-up is closed outright in
+    // demo mode (`lib/registration-policy.ts`), so this weaker minimum is never reachable by anyone
+    // choosing their own password; it only ever governs the one fixed, publicly-shown demo account.
+    ...(isDemoModeEnabled() ? { minPasswordLength: DEMO_ACCOUNT_PASSWORD.length } : {}),
   },
   // Powers `user.changeEmail` below. Despite the name, this is NOT a signup feature here: `sendOnSignUp`
   // and `sendOnSignIn` are both left unset (default off, and `requireEmailVerification` is never set
@@ -511,6 +522,17 @@ export const auth = betterAuth({
       // minting a better-auth-compatible verification token directly — a bigger, separate change than
       // this one warrants.
       beforeDelete: async (user) => {
+        // Demo instance (issue #533) — the account cannot be deleted while `DEMO_MODE` is on. Checked
+        // before the sole-owner check below, unconditionally: on a demo instance the seeded
+        // `demo@invoicerr.app` account is the ONLY account sign-up ever creates
+        // (`lib/registration-policy.ts#decideRegistration`'s own demo-mode branch), so there is no
+        // caller this refusal could ever be wrong for.
+        if (isDemoModeEnabled()) {
+          throw new APIError('FORBIDDEN', {
+            message: demoModeBlockedMessage('Deleting the account'),
+            code: DEMO_MODE_BLOCKED_CODE,
+          });
+        }
         try {
           const memberships = await assertNotSoleOwner(user.id);
           await pendingSignupStore.setPendingMembershipsForDeletedUser(user.id, memberships);
@@ -568,6 +590,27 @@ export const auth = betterAuth({
         },
       },
     },
+  },
+  /**
+   * Demo instance (issue #533) — refuses `/change-email` and `/change-password` outright while
+   * `DEMO_MODE` is on. These two are the only two account-takeover-shaped actions with NO existing
+   * per-action hook of their own to extend the way `/delete-user` has `user.deleteUser.beforeDelete`
+   * and `/sign-up/email` has `databaseHooks.user.create.before` — both above — so this is the ONE
+   * generic path-matching `hooks.before` this file declares. `ctx.path` is better-auth's own route
+   * path with no `/api/auth` prefix (confirmed against the installed better-auth 1.7.4 route source —
+   * `node_modules/better-auth/dist/api/routes/update-user.mjs` registers `changeEmail`/
+   * `changePassword` at exactly these two paths). Every OTHER better-auth route this instance exposes
+   * (sign-in, get-session, social callbacks…) falls through this matcher untouched.
+   */
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (!isDemoModeEnabled() || !isDemoBlockedAuthPath(ctx.path)) return;
+
+      throw new APIError('FORBIDDEN', {
+        message: demoModeBlockedMessage(demoBlockedAuthActionLabel(ctx.path)),
+        code: DEMO_MODE_BLOCKED_CODE,
+      });
+    }),
   },
   plugins: [
     // The gate is unchanged — `OIDC_CLIENT_ID` still decides whether the environment provider is

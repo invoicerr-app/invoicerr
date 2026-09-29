@@ -1,4 +1,5 @@
 import { PaymentProvider } from './provider';
+import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 
 /**
  * A provider registers itself under an id — the same minimal shape
@@ -10,11 +11,25 @@ import { PaymentProvider } from './provider';
 export class PaymentProviderRegistry {
   private readonly providers = new Map<string, PaymentProvider>();
 
+  /** Demo instance (issue #533) — same "wrap the outbound call at registration" reasoning as
+   *  `transports/transport-registry.ts#TransportRegistry.register`'s own header: a payment provider
+   *  registered later is blocked automatically too. `parseWebhookEvent` is copied through UNCHANGED —
+   *  a real payment can never be opened in demo mode (`createCheckoutSession` is refused), so there is
+   *  no legitimate inbound webhook to verify either way; leaving it wrapped would only complicate a
+   *  provider webhook endpoint that already has nothing to receive. */
   register(provider: PaymentProvider): void {
     if (this.providers.has(provider.id)) {
       throw new Error(`A payment provider for "${provider.id}" is already registered.`);
     }
-    this.providers.set(provider.id, provider);
+    const { id } = provider;
+    const guarded: PaymentProvider = {
+      ...provider,
+      createCheckoutSession: async (credentials, input) => {
+        assertDemoSendingAllowed(`Opening a "${id}" checkout session`);
+        return provider.createCheckoutSession(credentials, input);
+      },
+    };
+    this.providers.set(id, guarded);
   }
 
   /** Every registered provider's own id — what the settings screen (and this codebase's own

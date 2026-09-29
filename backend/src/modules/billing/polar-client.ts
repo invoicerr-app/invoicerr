@@ -48,6 +48,7 @@
 import { HTTPClient, Polar } from '@polar-sh/sdk';
 
 import { logger } from '@/logger/logger.service';
+import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 
 import { resolvePolarServerEnvironment } from './polar-env';
 
@@ -85,6 +86,12 @@ function getPolarHttpClient(): HTTPClient {
 }
 
 export function getPolarClient(): Polar {
+  // Demo instance (issue #533) — refuses BEFORE the client is even constructed, independently of
+  // `isBillingEnabled()`'s own demo-mode override (`billing-flag.ts`): this is belt-and-suspenders for
+  // any caller that reaches this chokepoint without going through that flag first, on the same "the
+  // ONE chokepoint every Polar call already goes through" reasoning this file's own header states for
+  // why sanitization lives here.
+  assertDemoSendingAllowed('Polar billing');
   if (!cached) {
     cached = withSanitizedPolarErrors(
       new Polar({
