@@ -20,9 +20,12 @@ vi.mock('../webhooks/webhook-dispatcher.service', () => ({
   WebhookDispatcherService: vi.fn(),
 }));
 
+import { randomUUID } from 'node:crypto';
+
 import { MethodNotAllowedException } from '@nestjs/common';
 import { CompanyService } from './company.service';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { getSeatsView } from '@/modules/billing/seats-view';
 import prisma from '@/prisma/prisma.service';
 
 const fakeWebhookDispatcher = {
@@ -171,6 +174,76 @@ describe('CompanyService — mass-assignment allow-list', () => {
       });
     } finally {
       await prisma.company.delete({ where: { id: company.id } }).catch(() => undefined);
+    }
+  });
+});
+
+/**
+ * Issue #535: one of the two things a fix has to guarantee ("a new company's owner always has a
+ * seat"). `createCompany` reserves the OWNER's own seat through `billing/seat-sync.ts#withSeatReservation`
+ * (see that call site's own comment, "A brand-new company's own OWNER is its first seat") - this is
+ * an END-TO-END proof of that, real Prisma against a real `CompanySubscription` row (`seats Int
+ * @default(1)`, `schema.prisma`), not the mocked `withSeatReservation` unit coverage
+ * `seat-sync.spec.ts` already has. Gated on the SAME billing flag production reads
+ * (`WARNING__ENABLE_BILLING_FOR_USERS__WARNING`), set and restored around each test since
+ * `withSeatReservation` reads `process.env` directly, not an injected flag.
+ */
+describe('CompanyService#createCompany - issue #535: the owner always gets a seat', () => {
+  let service: CompanyService;
+  const ORIGINAL_BILLING_FLAG = process.env.WARNING__ENABLE_BILLING_FOR_USERS__WARNING;
+
+  beforeAll(() => {
+    service = new CompanyService(fakeWebhookDispatcher);
+  });
+
+  beforeEach(() => {
+    process.env.WARNING__ENABLE_BILLING_FOR_USERS__WARNING = 'true';
+  });
+
+  afterEach(() => {
+    if (ORIGINAL_BILLING_FLAG === undefined) {
+      delete process.env.WARNING__ENABLE_BILLING_FOR_USERS__WARNING;
+    } else {
+      process.env.WARNING__ENABLE_BILLING_FOR_USERS__WARNING = ORIGINAL_BILLING_FLAG;
+    }
+  });
+
+  it('seats the creating user at desk 1 on their own brand-new company, never in the waiting list', async () => {
+    const owner = await prisma.user.create({
+      data: {
+        id: randomUUID(),
+        firstname: 'Fresh',
+        lastname: 'Owner',
+        email: `company-service-spec-owner-${Date.now()}-${Math.random()}@example.com`,
+      },
+    });
+
+    let companyId: string | undefined;
+    try {
+      const company = await service.createCompany(owner.id, {
+        name: 'Issue 535 Fresh Co',
+        country: 'France',
+        countryCode: 'FR',
+      } as never);
+      companyId = company.id;
+
+      const membership = await prisma.userCompany.findUnique({
+        where: { userId_companyId: { userId: owner.id, companyId: company.id } },
+      });
+      expect(membership).not.toBeNull();
+      expect(membership?.role).toBe('OWNER');
+      expect(membership?.seatIndex).toBe(1);
+
+      const subscription = await prisma.companySubscription.findUnique({ where: { companyId: company.id } });
+      expect(subscription?.seats).toBe(1);
+
+      const seatsView = await getSeatsView(company.id);
+      expect(seatsView.waiting).toEqual([]);
+      expect(seatsView.members).toHaveLength(1);
+      expect(seatsView.members[0]).toMatchObject({ userId: owner.id, role: 'OWNER', seatIndex: 1 });
+    } finally {
+      if (companyId) await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
+      await prisma.user.delete({ where: { id: owner.id } }).catch(() => undefined);
     }
   });
 });

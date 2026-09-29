@@ -117,6 +117,26 @@ takeover (`(app)/_layout.tsx`, driven by `GET /api/billing/seats`) naming the OW
 gate `write-gate.ts#assertCompanyWritable`'s `COMPANY_BLOCKED` already holds for a blocked company,
 checked right alongside it.
 
+**The gate does not apply before a company exists** (issue #535). `GET /api/billing/seats` is guarded by
+`@ActiveCompany()`, which answers 403 for a session with no active company, the state a freshly
+signed-up user is in for as long as it takes the onboarding dialog to create their first company.
+`(app)/_layout.tsx` used to enable that query unconditionally the moment a session existed, so this
+403 landed in the same bucket as a genuine outage and showed a full-screen "Couldn't check your seat"
+retry screen instead of ever reaching the onboarding dialog that would have fixed the underlying "no
+company yet" state. The frontend now reads `activeCompanyId` off the SAME session payload
+(`customSession`, `lib/auth.ts`) it already has in hand and only enables `useSeats`, and only applies
+the gate, once that id is set.
+
+**Boot-time provisioning failures now log their real cause** (issue #535). `LoggerService.warn`/`.error`
+(`backend/src/logger/logger.service.ts`) only ever print `[category] message` to the process's own
+stdout; the structured `details` object lands in the `Log` table only, one click away in Settings > Logs
+but invisible to `kubectl logs`. `customer-provisioning.ts`'s own boot/sweep-tick pass
+(`BillingCustomerProvisioningBootService`) used a static message for every Polar failure, so a pod's own
+console showed "Polar customer provisioning failed for one company, retried next pass" with no cause at
+all. The three call sites there that reach out to Polar now embed the HTTP status and Polar's own
+message (never a header or token, see `polar-client.ts`'s own `sanitizePolarError`) directly in the
+logged message.
+
 ## Webhooks
 
 `POST /api/billing/webhooks/polar` (own controller, not better-auth's) resolves which company a

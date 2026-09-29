@@ -101,6 +101,36 @@ function extractPolarErrorDetails(error: unknown): { statusCode: number | 'unkno
   return { statusCode, message: error instanceof Error ? error.message : String(error) };
 }
 
+/**
+ * Issue #535: `LoggerService.warn`/`.error` (`@/logger/logger.service.ts`) only ever print
+ * `[category] message` to the process's own stdout, which is what `kubectl logs` shows. Everything
+ * under `details` is written to the `Log` table ONLY, reachable from Settings > Logs but never from a
+ * pod's own console output. Every WARN below used to pass `extractPolarErrorDetails(error)`'s result
+ * EXCLUSIVELY through `details`, with a static message string carrying no dynamic content at all, so
+ * the beta's own pod logs showed "Polar customer provisioning failed for one company, retried next
+ * pass" with nothing telling an operator why. Proven live against a local stack (2026-09-29, this
+ * issue's own repro): a boot pass against a company with a billing email but a bad Polar token printed
+ * exactly that bare line to stdout, while the real cause (`statusCode: 401`, Polar's own
+ * "invalid_token" body) sat in the `Log` row's `details` the whole time, one click away in the UI but
+ * invisible to anyone reading pod logs directly.
+ *
+ * This renders the SAME fields `extractPolarErrorDetails` already extracts (`statusCode`/`message`
+ * only, never `rawResponse`/`headers`/`data$`, the three fields `polar-client.ts#sanitizePolarError`
+ * strips before any error from `getPolarClient()` can reach a catch block at all, see that file's own
+ * header for the credential-leak this module never re-introduces) into the visible message string
+ * itself, the same "put what the console needs directly in the template literal" convention
+ * `polar-client.ts`'s own rate-limit warning already uses. `details` keeps carrying the structured
+ * version for the Log table/UI, this is additive, not a replacement.
+ *
+ * Named generically ("...ErrorForLog", not "...PolarErrorForLog") because `persistPolarCustomerId`'s
+ * own catch below reuses it for a plain DB write failure, not a Polar call at all: `statusCode`
+ * simply reads `'unknown'` for that case, which is still more useful on a console line than nothing.
+ */
+function formatErrorForLog(error: unknown): string {
+  const { statusCode, message } = extractPolarErrorDetails(error);
+  return `status ${statusCode}: ${message}`;
+}
+
 /** `false` (never throws) on anything other than "no customer registered at all" — the caller treats
  *  that as `failed`, not as `false` meaning "definitely missing", so a transient outage never causes a
  *  duplicate-creation attempt to race a customer that may already exist. Returns the customer's own id
@@ -120,11 +150,15 @@ async function checkCustomerExists(
     return { id: customer.id, type: customer.type };
   } catch (error) {
     if (isResourceNotFoundError(error)) return false;
-    logger.warn('Polar customer existence check failed during provisioning — retried next pass', {
-      category: 'billing',
-      companyId,
-      details: { companyId, ...extractPolarErrorDetails(error) },
-    });
+    logger.warn(
+      `Polar customer existence check failed during provisioning (${formatErrorForLog(error)}), ` +
+        'retried next pass',
+      {
+        category: 'billing',
+        companyId,
+        details: { companyId, ...extractPolarErrorDetails(error) },
+      },
+    );
     return 'error';
   }
 }
@@ -144,11 +178,14 @@ async function persistPolarCustomerId(companyId: string, polarCustomerId: string
     // `legacy-customer.ts`'s own header on why a cached "no customer yet" must not outlive this write.
     invalidateCompanyCustomerFactsCache(companyId);
   } catch (error) {
-    logger.warn('Failed to persist a confirmed Polar customer id — retried next pass', {
-      category: 'billing',
-      companyId,
-      details: { companyId, ...extractPolarErrorDetails(error) },
-    });
+    logger.warn(
+      `Failed to persist a confirmed Polar customer id (${formatErrorForLog(error)}), retried next pass`,
+      {
+        category: 'billing',
+        companyId,
+        details: { companyId, ...extractPolarErrorDetails(error) },
+      },
+    );
   }
 }
 
@@ -262,11 +299,15 @@ export async function reconcileMissingCompanyCustomers(
           continue;
         }
         summary.failed++;
-        logger.warn('Polar customer provisioning failed for one company — retried next pass', {
-          category: 'billing',
-          companyId: company.id,
-          details: { companyId: company.id, ...extractPolarErrorDetails(error) },
-        });
+        logger.warn(
+          `Polar customer provisioning failed for one company (${formatErrorForLog(error)}), retried ` +
+            'next pass',
+          {
+            category: 'billing',
+            companyId: company.id,
+            details: { companyId: company.id, ...extractPolarErrorDetails(error) },
+          },
+        );
       }
     }
 
