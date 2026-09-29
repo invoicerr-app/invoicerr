@@ -111,6 +111,37 @@ describe('Settings > Seats', () => {
 		const MEMBER_EMAIL = `seats-member-${Date.now()}@acme.org`;
 		const REFUSED_EMAIL = `seats-refused-${Date.now()}@acme.org`;
 
+		/**
+		 * Issue #535: a freshly signed-up user (no invitation code, no company yet) used to see a
+		 * full-screen "Couldn't check your seat" error on their very first authenticated screen -
+		 * `GET /api/billing/seats` answers 403 ("No active company selected", `@ActiveCompany()`) for
+		 * a company-less session, and `(app)/_layout.tsx`'s own gate treated that 403 like any other
+		 * genuine failure instead of the "no company yet" state it actually is. The fix keeps that
+		 * gate inert until a company exists, so a fresh sign-up reaches the onboarding dialog (the
+		 * one screen whose whole job is creating that first company) instead.
+		 */
+		it("issue #535: a fresh sign-up with no company never sees the seat-check error, and reaches onboarding", function () {
+			if (!saasMode) this.skip();
+
+			const freshEmail = `signup-535-${Date.now()}@acme.org`;
+			cy.clearCookies();
+			fillSignupForm({ firstname: 'Fresh', lastname: 'Signup', email: freshEmail, saasMode });
+			cy.url({ timeout: 20000 }).should('include', '/auth/sign-in');
+
+			// A direct sign-in, not `cy.login()` - that helper is hardcoded to the seeded OWNER
+			// (`john.doe@acme.org`), who already has a company.
+			cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).should('be.visible').type(freshEmail);
+			cy.get('[data-cy="auth-password-input"]').type(PASSWORD);
+			cy.get('[data-cy="auth-submit-btn"]').click();
+			cy.url({ timeout: 20000 }).should('include', '/dashboard');
+
+			cy.get('[data-cy="seat-check-error-screen"]', { timeout: 15000 }).should('not.exist');
+			// The onboarding dialog auto-opens the moment the authenticated shell renders for a
+			// company-less user (`components/sidebar.tsx`'s own first-run effect) - reaching it proves
+			// the seat gate let this session through rather than blocking on its own 403.
+			cy.get('[data-cy="onboarding-dialog"]', { timeout: 15000 }).should('be.visible');
+		});
+
 		it('the OWNER alone sits at desk 1 on a brand-new company', function () {
 			if (!saasMode) this.skip();
 
