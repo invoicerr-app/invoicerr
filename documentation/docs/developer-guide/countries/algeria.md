@@ -43,9 +43,10 @@ than a strong negative finding.
   Code de commerce art. 12, both read directly.
 - **Domestic currency**: a sale between an Algerian seller and an Algerian buyer must be invoiced in
   Algerian dinars (DZD): Banque d'Algérie règlement n° 07-01 du 3 février 2007, art. 5, quoted
-  verbatim. Invoicerr preselects DZD when both parties are established in Algeria, and **blocks
-  sending** such an invoice in any other currency, naming the rule. Export invoicing in a foreign
-  currency stays allowed.
+  verbatim in the catalog. Invoicerr preselects DZD when both parties are established in Algeria, and
+  **blocks sending** such an invoice in any other currency, with a short translated message telling
+  the user to switch to DZD; the source text itself stays in the catalog and is never shown to the
+  user. Export invoicing in a foreign currency stays allowed.
 
 ## What is `unverified` (contributor practice, not a legal text)
 

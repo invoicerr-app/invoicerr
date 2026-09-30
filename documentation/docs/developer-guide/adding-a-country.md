@@ -156,11 +156,23 @@ Two consumers read it, both under `country-policy/domestic-currency-issuance.ts`
   to PRESELECT the required currency once the company's own country and the chosen client's country
   turn out to match, a convenience only, never itself a block.
 - The "send" preflight (`actions/invoice-actions.ts`) calls `runDomesticInvoiceCurrencyPreflight`,
-  which BLOCKS the send outright (a `BadRequestException`, naming the required currency and the
-  source) when the operation is domestic and the invoice's own currency does not match. "Domestic" is
-  decided the same way `transports/channel-policy/mandate.ts`'s own `isDomestic` already decides it
-  for a channel mandate (an unresolved buyer country is treated as domestic, fail-closed), not a
-  second, independently-drifting definition.
+  which BLOCKS the send outright when the operation is domestic and the invoice's own currency does
+  not match. "Domestic" is decided the same way `transports/channel-policy/mandate.ts`'s own
+  `isDomestic` already decides it for a channel mandate (an unresolved buyer country is treated as
+  domestic, fail-closed), not a second, independently-drifting definition.
+
+The thrown `BadRequestException` carries a stable `code`
+(`DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE`) plus structured `params` (`countryCode`,
+`requiredCurrency`, `invoiceCurrency`), never the raw catalog quote: two already-decided product
+rules (issues #554, #563) say user-facing text lives in `frontend/src/locales/en/translation.json`,
+translated, never a developer-facing message pasted straight into a toast. The frontend
+(`use-document-action-runner.ts`) branches on that code and renders its own short, translated message,
+resolving the country's DISPLAY name from `countryCode` via `Intl.DisplayNames` (the same convention
+`channel-banner.tsx`'s own `countryName` already uses), never the bare ISO code. The exception's own
+`message` field stays as a plain, quote-free, date-free English fallback for a non-UI API consumer
+only (a script reading the JSON body directly) - it is never shown to a user. A new country adding
+this fact needs no frontend change at all: the message is generic over `countryCode`/
+`requiredCurrency`.
 
 ### Maintainer note: a mention whose value changes on a schedule
 

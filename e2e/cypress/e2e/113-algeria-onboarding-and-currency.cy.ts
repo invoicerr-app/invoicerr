@@ -16,8 +16,10 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  b) issue #558's own schema addition, `country-policy/schema.ts#DomesticInvoiceCurrencyFact`:
  *     Algeria requires a domestic invoice (seller AND buyer both established there) to be issued in
  *     DZD (Banque d'Algerie reglement n. 07-01, art. 5). An invoice priced in EUR for a domestic
- *     Algerian client is refused at "send", before any number is spent, with a toast naming the
- *     required currency and the source - never silently taxed or converted.
+ *     Algerian client is refused at "send", before any number is spent, with a short translated toast
+ *     naming the required currency - never the raw catalog quote (#566 review: the source text and
+ *     its check date stay in the catalog only, never shown to the user) - and never silently taxed or
+ *     converted.
  */
 const api = Cypress.env("apiUrl");
 const YEAR = new Date().getFullYear();
@@ -251,7 +253,7 @@ describe("Issue #558 - Algeria (DZ): the domestic-currency block", () => {
 		onboardAlgerianCompany();
 	});
 
-	it("a domestic DZ invoice priced in EUR is refused at send, before any number is spent, naming DZD and the source", () => {
+	it("a domestic DZ invoice priced in EUR is refused at send, before any number is spent, with a translated message naming Algeria and DZD", () => {
 		createAlgerianClient().then((clientId) => {
 			saveInvoiceDraft(clientId, "EUR").then((invoiceId) => {
 				cy.visit("/documents/invoice");
@@ -263,11 +265,14 @@ describe("Issue #558 - Algeria (DZ): the domestic-currency block", () => {
 
 				// The preflight blocks SYNCHRONOUSLY (country-policy/domestic-currency-issuance.ts), the
 				// same discipline 32-channel-mandate.cy.ts's own PDP-mandate block already proves for a
-				// different fact - a visible toast says so right away, naming the required currency and
-				// quoting the Banque d'Algerie regulation itself.
+				// different fact - a visible toast says so right away. #566 review: the toast is the
+				// FRONTEND's own translated copy (use-document-action-runner.ts), naming the country's
+				// display name and the required currency - never the backend's raw catalog quote, which
+				// stays server-side only (asserted against directly in
+				// domestic-currency-issuance.spec.ts).
 				cy.get('[data-sonner-toast]', { timeout: 10000 })
-					.should("contain.text", "DZD")
-					.and("contain.text", "dinars algeriens");
+					.should("contain.text", "Algeria")
+					.and("contain.text", "DZD");
 
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`)
 					.find('[data-cy="document-status-badge"]')

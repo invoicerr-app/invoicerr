@@ -4958,7 +4958,8 @@
       "messages": {
         "invalid": "Please fix the highlighted fields before continuing.",
         "actionSuccess": "Done.",
-        "actionError": "Something went wrong running this action."
+        "actionError": "Something went wrong running this action.",
+        "domesticInvoiceCurrencyMismatch": "Invoices between two companies in {{country}} must be in {{currencyName}} ({{currencyCode}}). Change the currency to {{currencyCode}} before sending."
       },
       "newTitle": "New: {{label}}",
       "transitionOr": "or",

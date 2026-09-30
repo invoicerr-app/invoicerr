@@ -89,18 +89,29 @@ export function resolveDomesticInvoiceCurrencyViolation(
   };
 }
 
-function describeViolation(violation: DomesticInvoiceCurrencyViolation): string {
-  const { provenance } = violation.fact;
-  const sourceDescription =
-    provenance.kind === 'legal'
-      ? `"${provenance.sourceText}" (checked ${provenance.sourceCheckedAt})`
-      : provenance.resolutionNote;
+/** `documents.controller.ts`'s response body carries this alongside a plain fallback `message` (never
+ *  shown in the UI - see below) so the frontend can branch on a stable string the same way
+ *  `portal-session.ts`'s own `BILLING_NO_COMPANY_CUSTOMER_CODE` already does for billing. */
+export const DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE = 'DOMESTIC_INVOICE_CURRENCY_MISMATCH';
+
+export interface DomesticInvoiceCurrencyMismatchParams {
+  countryCode: string;
+  requiredCurrency: string;
+  invoiceCurrency: string;
+}
+
+/**
+ * The raw catalog quote (`fact.provenance.sourceText`/`sourceCheckedAt`) and the bare ISO country
+ * code never reach this message: two already-decided product rules (#554, #563) say user-facing text
+ * lives in `frontend/src/locales/en/translation.json`, translated, with a country DISPLAY name, not a
+ * developer-facing message pasted straight into a toast. This string is only ever a fallback for a
+ * non-UI API consumer (a script reading the JSON body directly) or a log line; the frontend branches
+ * on `code`/`params` below and renders its own translated copy instead of this `message`.
+ */
+function describeViolationForApi(violation: DomesticInvoiceCurrencyViolation): string {
   return (
-    `This invoice is domestic to ${violation.sellerCountryCode} (both the seller and the buyer are ` +
-    `established there) and is set to "${violation.invoiceCurrency}", but ${violation.sellerCountryCode} ` +
-    `law requires a domestic invoice to be issued in ${violation.requiredCurrency}: ${sourceDescription}. ` +
-    `Change the invoice's currency to ${violation.requiredCurrency}, or bill a buyer established ` +
-    `elsewhere, before sending.`
+    `Domestic invoices in ${violation.sellerCountryCode} must be issued in ` +
+    `${violation.requiredCurrency}. This invoice is set to ${violation.invoiceCurrency}.`
   );
 }
 
@@ -132,5 +143,14 @@ export async function runDomesticInvoiceCurrencyPreflight(
     catalog,
   );
   if (!violation) return;
-  throw new BadRequestException(describeViolation(violation));
+  const params: DomesticInvoiceCurrencyMismatchParams = {
+    countryCode: violation.sellerCountryCode,
+    requiredCurrency: violation.requiredCurrency,
+    invoiceCurrency: violation.invoiceCurrency,
+  };
+  throw new BadRequestException({
+    message: describeViolationForApi(violation),
+    code: DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE,
+    params,
+  });
 }

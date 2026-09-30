@@ -1,7 +1,9 @@
+import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import * as countryPolicy from './country-policy';
 import {
+  DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE,
   resolveDomesticInvoiceCurrencyViolation,
   runDomesticInvoiceCurrencyPreflight,
 } from './domestic-currency-issuance';
@@ -97,6 +99,34 @@ describe('runDomesticInvoiceCurrencyPreflight', () => {
     await expect(
       runDomesticInvoiceCurrencyPreflight('company-1', 'client-1', { currency: 'EUR' }, catalog),
     ).rejects.toThrow(/DZD/);
+  });
+
+  // #566 review: the thrown body must carry a stable `code` + `params` the FRONTEND translates
+  // (country display name, never the raw catalog quote) - same `{ message, code }` shape
+  // `portal-session.ts`'s `BILLING_NO_COMPANY_CUSTOMER_CODE` already establishes. The fallback
+  // `message` is for a non-UI consumer only: no quote, no source-checked date, no em dash.
+  it('carries a stable code and structured params, with no quote/date in the fallback message', async () => {
+    mockedResolveCompanyCountryCode.mockResolvedValue('DZ');
+    mockedResolveClientCountryCode.mockResolvedValue('DZ');
+
+    const error = await runDomesticInvoiceCurrencyPreflight(
+      'company-1',
+      'client-1',
+      { currency: 'EUR' },
+      catalog,
+    ).catch((e) => e);
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    const response = error.getResponse();
+    expect(response).toMatchObject({
+      code: DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE,
+      params: { countryCode: 'DZ', requiredCurrency: 'DZD', invoiceCurrency: 'EUR' },
+    });
+    const message = (response as { message: string }).message;
+    expect(message).not.toContain('dinars algeriens');
+    expect(message).not.toContain('reglement');
+    expect(message).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(message).not.toContain('—');
   });
 
   it('is a no-op for a DZ -> DZ send already in DZD', async () => {
