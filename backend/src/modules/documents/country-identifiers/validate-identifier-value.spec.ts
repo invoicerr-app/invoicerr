@@ -234,4 +234,108 @@ describe('assertIdentifierValueMatchesPattern', () => {
       expect(findRequirement).not.toHaveBeenCalled();
     });
   });
+
+  // Issue #567: NIF and NIS each gained a `pattern` in `country-identifiers/data/dz.json`, sourced
+  // to PR #566's review (native contributor, 2026-09-30), digits only, a primary establishment's
+  // length or a secondary one's. These fixtures mirror that file's two declared patterns exactly.
+  describe('DZ NIF and NIS patterns (issue #567)', () => {
+    const DZ_NIF_FACT = {
+      pattern: '^\\d{15}(\\d{5})?$',
+      label: "NIF (Numero d'Identification Fiscale)",
+      helpText: 'digits only, 15 digits, or 20 for a secondary establishment',
+    };
+    const DZ_NIS_FACT = {
+      pattern: '^\\d{15}(\\d{3})?$',
+      label: "NIS (Numero d'Identification Statistique)",
+      helpText: 'digits only, 15 digits, or 18 for a secondary establishment',
+    };
+
+    it('accepts a 15-digit NIF (a primary establishment)', async () => {
+      findRequirement.mockResolvedValue(DZ_NIF_FACT);
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'DZ',
+          scheme: 'NIF',
+          value: '000116000123456',
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('accepts a 20-digit NIF (a secondary establishment)', async () => {
+      findRequirement.mockResolvedValue(DZ_NIF_FACT);
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'DZ',
+          scheme: 'NIF',
+          value: '00011600012345600001',
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('refuses a 14-digit NIF, one digit short of the shortest valid length', async () => {
+      findRequirement.mockResolvedValue(DZ_NIF_FACT);
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'DZ',
+          scheme: 'NIF',
+          value: '00011600012345',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('refuses a lettered NIF even at the right length', async () => {
+      findRequirement.mockResolvedValue(DZ_NIF_FACT);
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'DZ',
+          scheme: 'NIF',
+          value: '00011600012345A',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('accepts a 15-digit NIS (a primary establishment)', async () => {
+      findRequirement.mockResolvedValue(DZ_NIS_FACT);
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'DZ',
+          scheme: 'NIS',
+          value: '160001234567890',
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('accepts an 18-digit NIS (a secondary establishment)', async () => {
+      findRequirement.mockResolvedValue(DZ_NIS_FACT);
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'DZ',
+          scheme: 'NIS',
+          value: '160001234567890123',
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('refuses a 14-digit NIS, the length the demo generator used to produce before issue #567', async () => {
+      findRequirement.mockResolvedValue(DZ_NIS_FACT);
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'DZ',
+          scheme: 'NIS',
+          value: '16000123456789',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('refuses a lettered NIS even at the right length', async () => {
+      findRequirement.mockResolvedValue(DZ_NIS_FACT);
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'DZ',
+          scheme: 'NIS',
+          value: '16000123456789A',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
 });
