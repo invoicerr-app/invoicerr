@@ -36,9 +36,21 @@ async function fetchAllReleases() {
   return allReleases.filter((r) => !r.draft);
 }
 
+// Release notes are GitHub markdown written by humans and PR titles, but the blog compiles them
+// as MDX: a title such as "series without {year}" became a JSX expression and failed the whole
+// build (ReferenceError: year is not defined, v2.0.0-alpha.2). Braces are escaped everywhere
+// except inside code, where MDX already treats them literally.
+function escapeMdxBraces(markdown) {
+  return markdown
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((part, i) => (i % 2 === 1 ? part : part.replace(/[{}]/g, (c) => `\\${c}`)))
+    .join('');
+}
+
 function generatePost(release) {
   const date = release.published_at?.split('T')[0] ?? 'Unknown date';
-  const body = (release.body ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  const raw = (release.body ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  const body = escapeMdxBraces(raw);
 
   const frontmatter = [
     '---',
