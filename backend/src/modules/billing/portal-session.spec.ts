@@ -15,28 +15,33 @@ function fakeClient(overrides: Partial<PortalSessionClient> = {}): PortalSession
   return {
     customers: {
       getExternal: vi.fn(),
-      members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
+      members: {
+        getExternal: vi.fn(),
+        createExternal: vi.fn(),
+        delete: vi.fn(),
+        iterList: vi.fn().mockReturnValue(asItems([])),
+      },
     },
-    members: { listMembers: vi.fn() },
     customerSessions: { create: vi.fn() },
     ...overrides,
   } as unknown as PortalSessionClient;
 }
 
-async function* asPages(items: Array<{ id: string; email: string; externalId: string | null }>) {
-  yield { result: { items } };
+// #537: `customers.members.iterList` (`@polar-sh/sdk@1.0.0`) yields MEMBERS directly, not pages
+// wrapping a `result.items` array the way 0.49's `members.listMembers` used to.
+async function* asItems(items: Array<{ id: string; email: string; external_id: string | null }>) {
+  yield* items;
 }
 
 describe('createCustomerPortalSession', () => {
-  it('opens a session by externalCustomerId for an individual customer — no memberId, no member lookup', async () => {
-    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/abc' });
-    const listMembers = vi.fn();
+  it('opens a session by external_customer_id for an individual customer, no memberId, no member lookup', async () => {
+    const create = vi.fn().mockResolvedValue({ customer_portal_url: 'https://polar.sh/portal/abc' });
+    const iterList = vi.fn().mockReturnValue(asItems([]));
     const client = fakeClient({
       customers: {
         getExternal: vi.fn().mockResolvedValue({ id: 'cus_1', type: 'individual' }),
-        members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
-      },
-      members: { listMembers },
+        members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn(), iterList },
+      } as unknown as PortalSessionClient['customers'],
       customerSessions: { create },
     });
 
@@ -48,21 +53,21 @@ describe('createCustomerPortalSession', () => {
     );
 
     expect(create).toHaveBeenCalledWith({
-      externalCustomerId: 'company-1',
-      returnUrl: 'https://app/settings/billing',
+      external_customer_id: 'company-1',
+      return_url: 'https://app/settings/billing',
     });
-    expect(listMembers).not.toHaveBeenCalled();
+    expect(iterList).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'https://polar.sh/portal/abc', redirect: true });
   });
 
-  it("opens a session for the COMPANY's own billing member — already known by its own sentinel externalId, never a user's", async () => {
-    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team' });
+  it("opens a session for the COMPANY's own billing member, already known by its own sentinel externalId, never a user's", async () => {
+    const create = vi.fn().mockResolvedValue({ customer_portal_url: 'https://polar.sh/portal/team' });
     const getExternalMember = vi.fn().mockResolvedValue({ id: 'member-company-billing' });
     const client = fakeClient({
       customers: {
         getExternal: vi.fn().mockResolvedValue({ id: 'cus_team', type: 'team' }),
         members: { getExternal: getExternalMember, createExternal: vi.fn(), delete: vi.fn() },
-      },
+      } as unknown as PortalSessionClient['customers'],
       customerSessions: { create },
     });
 
@@ -75,44 +80,40 @@ describe('createCustomerPortalSession', () => {
 
     // Resolved by the company's own sentinel id (`__company_billing__`), NEVER by `CLICKING_USER.id` —
     // this is the exact bug this function fixes: the portal must not depend on who clicked.
-    expect(getExternalMember).toHaveBeenCalledWith({
-      externalId: 'company-2',
-      memberExternalId: '__company_billing__',
-    });
+    expect(getExternalMember).toHaveBeenCalledWith('company-2', '__company_billing__');
     expect(create).toHaveBeenCalledWith({
-      customerId: 'cus_team',
-      memberId: 'member-company-billing',
-      returnUrl: 'https://app/settings/billing',
+      customer_id: 'cus_team',
+      member_id: 'member-company-billing',
+      return_url: 'https://app/settings/billing',
     });
     expect(result).toEqual({ url: 'https://polar.sh/portal/team', redirect: true });
   });
 
   it("falls back to matching by email (Polar's own auto-created owner member, minted from the company's own billing email) when no sentinel externalId match exists", async () => {
-    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team2' });
+    const create = vi.fn().mockResolvedValue({ customer_portal_url: 'https://polar.sh/portal/team2' });
     const getExternalMember = vi
       .fn()
       .mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 }));
-    const listMembers = vi
+    const iterList = vi
       .fn()
-      .mockResolvedValue(
-        asPages([{ id: 'member-auto-owner', email: COMPANY_BILLING.email, externalId: null }]),
+      .mockReturnValue(
+        asItems([{ id: 'member-auto-owner', email: COMPANY_BILLING.email, external_id: null }]),
       );
     const client = fakeClient({
       customers: {
         getExternal: vi.fn().mockResolvedValue({ id: 'cus_team2', type: 'team' }),
-        members: { getExternal: getExternalMember, createExternal: vi.fn(), delete: vi.fn() },
-      },
-      members: { listMembers },
+        members: { getExternal: getExternalMember, createExternal: vi.fn(), delete: vi.fn(), iterList },
+      } as unknown as PortalSessionClient['customers'],
       customerSessions: { create },
     });
 
     await createCustomerPortalSession('company-3', COMPANY_BILLING, 'https://app/settings/billing', client);
 
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ memberId: 'member-auto-owner' }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ member_id: 'member-auto-owner' }));
   });
 
   it('creates a fresh company billing member, role billing_manager, when neither lookup matches', async () => {
-    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/team3' });
+    const create = vi.fn().mockResolvedValue({ customer_portal_url: 'https://polar.sh/portal/team3' });
     const getExternalMember = vi
       .fn()
       .mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 }));
@@ -120,24 +121,25 @@ describe('createCustomerPortalSession', () => {
     const client = fakeClient({
       customers: {
         getExternal: vi.fn().mockResolvedValue({ id: 'cus_team3', type: 'team' }),
-        members: { getExternal: getExternalMember, createExternal, delete: vi.fn() },
-      },
-      members: { listMembers: vi.fn().mockResolvedValue(asPages([])) },
+        members: {
+          getExternal: getExternalMember,
+          createExternal,
+          delete: vi.fn(),
+          iterList: vi.fn().mockReturnValue(asItems([])),
+        },
+      } as unknown as PortalSessionClient['customers'],
       customerSessions: { create },
     });
 
     await createCustomerPortalSession('company-4', COMPANY_BILLING, 'https://app/settings/billing', client);
 
-    expect(createExternal).toHaveBeenCalledWith({
-      externalId: 'company-4',
-      memberCreateFromCustomer: {
-        email: COMPANY_BILLING.email,
-        name: COMPANY_BILLING.name,
-        externalId: '__company_billing__',
-        role: 'billing_manager',
-      },
+    expect(createExternal).toHaveBeenCalledWith('company-4', {
+      email: COMPANY_BILLING.email,
+      name: COMPANY_BILLING.name,
+      external_id: '__company_billing__',
+      role: 'billing_manager',
     });
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ memberId: 'member-new' }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ member_id: 'member-new' }));
   });
 
   it('throws PolarCustomerNotFoundError when the company has no Polar customer yet', async () => {
@@ -145,7 +147,7 @@ describe('createCustomerPortalSession', () => {
       customers: {
         getExternal: vi.fn().mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 })),
         members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
-      },
+      } as unknown as PortalSessionClient['customers'],
     });
 
     const error = await createCustomerPortalSession(
@@ -165,7 +167,7 @@ describe('createCustomerPortalSession', () => {
       customers: {
         getExternal: vi.fn().mockRejectedValue(new Error('polar is down')),
         members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
-      },
+      } as unknown as PortalSessionClient['customers'],
     });
 
     await expect(
@@ -176,13 +178,13 @@ describe('createCustomerPortalSession', () => {
 
 describe('createLegacyCustomerPortalSession', () => {
   it("opens a session keyed by the CLICKING user's own id, not a company id", async () => {
-    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/legacy' });
+    const create = vi.fn().mockResolvedValue({ customer_portal_url: 'https://polar.sh/portal/legacy' });
     const getExternal = vi.fn().mockResolvedValue({ id: 'cus_legacy', type: 'individual' });
     const client = fakeClient({
       customers: {
         getExternal,
         members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
-      },
+      } as unknown as PortalSessionClient['customers'],
       customerSessions: { create },
     });
 
@@ -192,33 +194,30 @@ describe('createLegacyCustomerPortalSession', () => {
       client,
     );
 
-    expect(getExternal).toHaveBeenCalledWith({ externalId: CLICKING_USER.id });
+    expect(getExternal).toHaveBeenCalledWith(CLICKING_USER.id);
     expect(create).toHaveBeenCalledWith({
-      externalCustomerId: CLICKING_USER.id,
-      returnUrl: 'https://app/settings/billing',
+      external_customer_id: CLICKING_USER.id,
+      return_url: 'https://app/settings/billing',
     });
     expect(result).toEqual({ url: 'https://polar.sh/portal/legacy', redirect: true });
   });
 
-  it("still resolves a member by the CLICKING user's own identity for a team legacy customer — unlike the company-scoped portal above", async () => {
-    const create = vi.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/legacy-team' });
+  it("still resolves a member by the CLICKING user's own identity for a team legacy customer, unlike the company-scoped portal above", async () => {
+    const create = vi.fn().mockResolvedValue({ customer_portal_url: 'https://polar.sh/portal/legacy-team' });
     const getExternal = vi.fn().mockResolvedValue({ id: 'cus_legacy_team', type: 'team' });
     const getExternalMember = vi.fn().mockResolvedValue({ id: 'member-legacy-user' });
     const client = fakeClient({
       customers: {
         getExternal,
         members: { getExternal: getExternalMember, createExternal: vi.fn(), delete: vi.fn() },
-      },
+      } as unknown as PortalSessionClient['customers'],
       customerSessions: { create },
     });
 
     await createLegacyCustomerPortalSession(CLICKING_USER, 'https://app/settings/billing', client);
 
-    expect(getExternalMember).toHaveBeenCalledWith({
-      externalId: CLICKING_USER.id,
-      memberExternalId: CLICKING_USER.id,
-    });
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ memberId: 'member-legacy-user' }));
+    expect(getExternalMember).toHaveBeenCalledWith(CLICKING_USER.id, CLICKING_USER.id);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ member_id: 'member-legacy-user' }));
   });
 
   it('throws PolarCustomerNotFoundError (keyed by the user id) when no legacy customer exists', async () => {
@@ -226,7 +225,7 @@ describe('createLegacyCustomerPortalSession', () => {
       customers: {
         getExternal: vi.fn().mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 })),
         members: { getExternal: vi.fn(), createExternal: vi.fn(), delete: vi.fn() },
-      },
+      } as unknown as PortalSessionClient['customers'],
     });
 
     const error = await createLegacyCustomerPortalSession(

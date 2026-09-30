@@ -142,4 +142,66 @@ describe('DocumentsService.renderInstancePdf — serving the archive instead of 
       expect(isServable(null)).toBe(true);
     });
   });
+
+  // Issue #340: an "imported" document is issued too (`archived-pdf-policy.spec.ts` proves
+  // `issuedStatusesOf` says so), but it can never carry a DELIVERY archive - it was never sent BY THIS
+  // APPLICATION - so its legal copy is the IMPORT_ORIGINAL archive instead, resolved BEFORE
+  // `findArchivedPdfArtifact`/`isArchivedPdfServable` ever run. This is the fix for the exact defect a
+  // real CI run caught: without it, an imported document fell through to a FRESH Chromium render of
+  // whatever `data` the import stored, served as if it were the issued copy it is not.
+  describe('"imported" documents (issue #340) - the IMPORT_ORIGINAL archive, never a fresh render', () => {
+    const IMPORTED_INVOICE = {
+      id: 'doc-imported-1',
+      typeId: 'invoice',
+      status: 'imported',
+      data: { client: 'client-1' },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('serves the archived original byte-for-byte when it is already a PDF, and never renders or consults the DELIVERY archive', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(IMPORTED_INVOICE);
+      const originalBytes = Buffer.from('%PDF-1.4 the previous tool own original invoice');
+      (archivePersistence.findImportOriginalArtifact as Mock).mockResolvedValue({
+        bytes: originalBytes,
+        mime: 'application/pdf',
+      });
+
+      const service = buildService();
+      const pdf = await service.renderInstancePdf('company-1', 'invoice', 'doc-imported-1');
+
+      expect(pdf).toBe(originalBytes);
+      expect(archivePersistence.findImportOriginalArtifact).toHaveBeenCalledWith(
+        'company-1',
+        'doc-imported-1',
+      );
+      expect(archivePersistence.findArchivedPdfArtifact).not.toHaveBeenCalled();
+      expect(renderInstancePdf.renderDocumentInstance).not.toHaveBeenCalled();
+    });
+
+    it('refuses (409) rather than render fresh when the archived original is not a PDF (a structured XML the previous tool issued)', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(IMPORTED_INVOICE);
+      (archivePersistence.findImportOriginalArtifact as Mock).mockResolvedValue({
+        bytes: Buffer.from('<Invoice>fake KSeF FA(3) xml</Invoice>'),
+        mime: 'application/xml',
+      });
+
+      const service = buildService();
+      await expect(service.renderInstancePdf('company-1', 'invoice', 'doc-imported-1')).rejects.toThrow(
+        /not a PDF/,
+      );
+      expect(renderInstancePdf.renderDocumentInstance).not.toHaveBeenCalled();
+    });
+
+    it('refuses (409) rather than render fresh when the document has no IMPORT_ORIGINAL archive at all', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(IMPORTED_INVOICE);
+      (archivePersistence.findImportOriginalArtifact as Mock).mockResolvedValue(null);
+
+      const service = buildService();
+      await expect(service.renderInstancePdf('company-1', 'invoice', 'doc-imported-1')).rejects.toThrow(
+        /no archived original/,
+      );
+      expect(renderInstancePdf.renderDocumentInstance).not.toHaveBeenCalled();
+    });
+  });
 });

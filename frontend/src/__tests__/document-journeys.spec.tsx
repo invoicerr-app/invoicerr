@@ -741,6 +741,24 @@ describe("Correct — correction routes, by seller country", () => {
   const limitationText =
     "This reads the document's SELLER country only — never the buyer's. See the seller×buyer " +
     "composition limitation."
+  // Issue #554: the dialog no longer renders `data.limitation` (the raw text above, still sent by
+  // the API for other consumers, see the fixtures below) nor `route.label` (the raw
+  // `provenance.sourceText`, `frCitation`/`cancelCitation` below). It renders these curated,
+  // translated keys instead (`translation.json`'s own `documents.correction.limitation` /
+  // `documents.correction.explanations.<countryCode>.<routeId>`), copied here verbatim so a change to
+  // either copy source is caught by this suite either way.
+  const translatedLimitationHeader =
+    "These correction options reflect the law of the invoice's own seller country only, not the " +
+    "buyer's. For a purely domestic sale this is the full picture; for a cross-border one, the " +
+    "buyer's own country may also affect whether and how the tax amount can be adjusted."
+  const frInternalCreditNoteExplanation =
+    "If your invoice is refused or rejected by the public invoicing portal, you must record an " +
+    "internal accounting write-off. It is purely internal and is never transmitted through the " +
+    "portal. (DGFiP/AIFE external specifications v3.2, Section 3.6.4)"
+  const frCancelAndReplaceExplanation =
+    "You may cancel the invoice and replace it with a new one, as long as the new invoice exactly " +
+    "references the original and expressly states that the original is cancelled. " +
+    "(BOI-TVA-DED-40-10-20, Section 70)"
 
   it("seller FR: the internal credit note (INTERNAL_CREDIT_NOTE) is shown IMPOSED with its legal basis, clickable, and leads to the REAL pre-linked credit note (reference filled, currency locked)", async () => {
     const invoice = issuedInvoice("inv-fr")
@@ -792,13 +810,23 @@ describe("Correct — correction routes, by seller country", () => {
     fireEvent.click(await screen.findByTestId("document-correction-button-inv-fr"))
     await screen.findByTestId("document-correction-dialog")
 
+    // Issue #554: the header is the curated, translated explanation, never the backend's own raw
+    // developer note sent as `limitation`.
+    const limitationParagraph = await screen.findByTestId("document-correction-limitation")
+    expect(limitationParagraph).toHaveTextContent(translatedLimitationHeader)
+    expect(limitationParagraph).not.toHaveTextContent(limitationText)
+
     const requiredRow = await screen.findByTestId("document-correction-route-INTERNAL_CREDIT_NOTE")
     expect(
       within(requiredRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-status"),
     ).toHaveTextContent("Required by law")
-    expect(
-      within(requiredRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-label"),
-    ).toHaveTextContent(frCitation)
+    // Issue #554: the row shows the curated, translated explanation, never the catalog's own raw
+    // `provenance.sourceText` (`frCitation`, mixed French/legal-quote research notes).
+    const requiredRowLabel = within(requiredRow).getByTestId(
+      "document-correction-route-INTERNAL_CREDIT_NOTE-label",
+    )
+    expect(requiredRowLabel).toHaveTextContent(frInternalCreditNoteExplanation)
+    expect(requiredRowLabel).not.toHaveTextContent(frCitation)
     const chooseButton = within(requiredRow).getByTestId(
       "document-correction-route-INTERNAL_CREDIT_NOTE-button",
     )
@@ -824,7 +852,14 @@ describe("Correct — correction routes, by seller country", () => {
   // red→green mutation test below, which targets this exact function against the PL fixture instead
   // of repeating the same fixture here).
 
-  it("seller PL: the SAME routeId (INTERNAL_CREDIT_NOTE) is shown FORBIDDEN, disabled, with its own reason — never the French route", async () => {
+  // Issue #552: a `forbidden` route no longer renders a row at all, see
+  // invoice-correction-routes-button.tsx's own `visibleRoutes` filter. The API itself is unchanged
+  // (this fixture is exactly what the old test above sent, `implemented: true` included, the case a
+  // naive "implemented alone decides clickability" bug would get wrong), so this is purely a screen
+  // assertion: PL's own INTERNAL_CREDIT_NOTE citation (`plCitation`) is the ONLY route this fixture
+  // declares, so hiding it leaves nothing choosable: the honest "every route forbidden" sentence,
+  // never an empty list.
+  it("seller PL: INTERNAL_CREDIT_NOTE is forbidden, the row never renders, and with nothing else to show the dialog says every route is forbidden for PL", async () => {
     const invoice = issuedInvoice("inv-pl")
 
     installFetchMock({
@@ -843,25 +878,14 @@ describe("Correct — correction routes, by seller country", () => {
     renderDocumentTypeScreen("invoice")
 
     fireEvent.click(await screen.findByTestId("document-correction-button-inv-pl"))
-    const forbiddenRow = await screen.findByTestId("document-correction-route-INTERNAL_CREDIT_NOTE")
+    const allForbidden = await screen.findByTestId("document-correction-all-forbidden")
+    expect(allForbidden).toHaveTextContent("PL")
 
-    expect(
-      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-status"),
-    ).toHaveTextContent("Forbidden")
-    const button = within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-button")
-    expect(button).toBeDisabled()
-    // The reason is the country's OWN citation, wrapped in the same policyBlockedReason phrasing the
-    // rest of this screen already uses — never hidden, never a generic "blocked" with no reason.
-    expect(
-      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-reason"),
-    ).toHaveTextContent(plCitation)
-    expect(
-      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-reason"),
-    ).toHaveTextContent("Not available:")
+    expect(screen.queryByTestId("document-correction-route-INTERNAL_CREDIT_NOTE")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("document-correction-routes-list")).not.toBeInTheDocument()
 
     // Never even reaches the credit-note screen — a forbidden route has no click to fire in the
-    // first place, whatever `implemented` claims (this fixture deliberately sets it `true`, exactly
-    // the case a naive "implemented alone decides clickability" bug would get wrong).
+    // first place, whatever `implemented` claims.
     expect(screen.queryByTestId("document-create-dialog")).not.toBeInTheDocument()
   })
 
@@ -970,7 +994,10 @@ describe("Correct — correction routes, by seller country", () => {
     // The confirmation step — clicking "choose" never cancels on its own.
     const confirmPanel = await screen.findByTestId("document-correction-confirm-cancel")
     expect(confirmPanel).toHaveTextContent("cannot be undone")
-    expect(screen.getByTestId("document-correction-confirm-cancel-label")).toHaveTextContent(cancelCitation)
+    // Issue #554: same curated explanation here too, never the raw citation even on this screen.
+    const confirmCancelLabel = screen.getByTestId("document-correction-confirm-cancel-label")
+    expect(confirmCancelLabel).toHaveTextContent(frCancelAndReplaceExplanation)
+    expect(confirmCancelLabel).not.toHaveTextContent(cancelCitation)
     expect(ranCancel, "no cancel ran yet — only the confirmation panel opened").toBe(false)
 
     fireEvent.click(screen.getByTestId("document-correction-confirm-cancel-confirm"))
@@ -982,12 +1009,12 @@ describe("Correct — correction routes, by seller country", () => {
   // confirm-cancel" never appears — the choose click falls through to the generic "not-implemented"
   // panel instead, exactly the silent regression that would let a click skip the irreversibility
   // confirmation. Reverted; suite green again.
-  // MUTATION (proven, reverted): invoice-correction-routes-button.tsx — `isChoosable`'s own
-  // `route.status === "required" || route.status === "allowed"` -> `true` unconditionally. RED: the
-  // PL test above ("the SAME routeId ... is shown FORBIDDEN, disabled") fails —
-  // "document-correction-route-INTERNAL_CREDIT_NOTE-button" is no longer disabled even though its own
-  // status is still "forbidden", and clicking it would silently navigate to the credit-note screen
-  // for a route the seller's own country refuses outright. Reverted; suite green again.
+  // The PL test above used to prove `isChoosable`'s own `forbidden` branch this same way (flip it to
+  // `true` unconditionally, watch the button stop being disabled). Issue #552 moved that guard one
+  // step earlier: a `forbidden` route is filtered out of `visibleRoutes` before `CorrectionRouteRow`
+  // ever renders it, so `isChoosable` never even runs against one on this screen any more; the PL
+  // test's own "row never renders, honest all-forbidden sentence instead" assertions are what would
+  // catch a regression there today.
 })
 
 /**

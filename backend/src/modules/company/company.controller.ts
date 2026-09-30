@@ -15,6 +15,10 @@ import {
 import { CompanyMailSettingsService } from '@/modules/company/mail-settings/company-mail-settings.service';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import { RequiresScope } from '@/utils/scope-check';
+import {
+  DeclareLastNumberInferRequest,
+  DeclareLastNumberRequest,
+} from '@/modules/company/dto/number-formats.dto';
 
 @ApiTags('company')
 @Controller('company')
@@ -86,6 +90,52 @@ export class CompanyController {
   @ApiResponse({ status: 405, description: 'Number formats cannot be changed' })
   updateNumberFormat() {
     return this.companyService.updateNumberFormat();
+  }
+
+  /**
+   * POST /api/company/number-formats/infer-pattern - issue #340: suggests a pattern from one example
+   * number (e.g. "FA-2026-0142" -> "FA-{year}-{number:4}"). Pure, read-only - see
+   * `company.service.ts#inferLastNumberPattern`.
+   */
+  @Post('number-formats/infer-pattern')
+  @RequiresScope('company:read')
+  @ApiOperation({
+    summary: "Suggest a number-format pattern from one example ('declare your last number issued')",
+    description:
+      'A candidate pattern inferred from the example - always editable, never authoritative on its ' +
+      'own: declare-last-number re-verifies whatever pattern is actually confirmed.',
+  })
+  @ApiResponse({ status: 200, description: 'Suggested pattern (or none, if no digits were found)' })
+  inferLastNumberPattern(@Body() body: DeclareLastNumberInferRequest) {
+    return this.companyService.inferLastNumberPattern(body);
+  }
+
+  /**
+   * POST /api/company/number-formats/declare-last-number - issue #340: "declare your last number
+   * issued", usable with or without also importing a document. See
+   * `company.service.ts#declareLastNumberIssued`'s own header for the full design - the pattern
+   * becomes the company's own running series when it satisfies the country's own constraints,
+   * otherwise the country format applies and the counter still continues at `last + 1`. Portugal
+   * never resumes the previous tool's own series (a validation code is never reused) and always opens
+   * a new one.
+   */
+  @Post('number-formats/declare-last-number')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
+  @ApiOperation({
+    summary: "Declare the last number issued by a previous tool ('resume the numbering')",
+    description:
+      'Refused (409) once numbering has already started for this document type - the declaration ' +
+      'can only be made once, before the first Invoicerr document of this type.',
+  })
+  @ApiResponse({ status: 201, description: 'The pattern and next number now in effect' })
+  @ApiResponse({
+    status: 400,
+    description: 'Missing/invalid input, or the pattern does not reproduce the number',
+  })
+  @ApiResponse({ status: 409, description: 'Numbering has already started for this type' })
+  declareLastNumberIssued(@ActiveCompany() companyId: string, @Body() body: DeclareLastNumberRequest) {
+    return this.companyService.declareLastNumberIssued(companyId, body);
   }
 
   /**

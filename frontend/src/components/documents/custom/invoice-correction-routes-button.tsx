@@ -28,12 +28,25 @@ import { cn } from "@/lib/utils"
  * custom-slots.ts's own header, including why two registrations for one type used to be
  * impossible, a real bug found and fixed while wiring this button).
  *
- * The dialog never invents a legal fact: `status` and `label` are rendered EXACTLY as the API sends
- * them — `label` in particular is the country file's own legal citation (or, for `unverified`, its
- * honest resolution note), shown VERBATIM, never re-summarized (see CorrectionRouteRow below). Only
- * the STATUS badge, the route's own display name, and every button/heading around them are UI chrome
- * translated through `t()` — the same "backend's own words vs. this app's own chrome" split
- * `DocumentAuthorityEvent.statusText`/`ActionResult.message` already hold elsewhere in this module.
+ * A `forbidden` route is never rendered here (issue #552): the API itself still returns it
+ * (`getCorrectionRoutes` answers the same for every consumer; this filter is purely a display
+ * choice, `CorrectionRoutesDialogBody`'s own `visibleRoutes`), but a route the seller's own
+ * country outright refuses is not a choice worth presenting on this screen. If every route this
+ * country recognizes is forbidden, the dialog shows one plain sentence instead of an empty list.
+ *
+ * `status` is still rendered EXACTLY as the API sends it (translated through `t()` for its display
+ * label only, never re-derived). `label` and `data.limitation`, on the other hand, no longer reach
+ * the screen at all as of issue #554: both are the catalog's own research notes (the raw
+ * `provenance.sourceText`, mostly in French mixed with Polish/Italian/German/Portuguese legal
+ * quotations, or the backend's own English developer note about seller-only jurisdiction) and read as
+ * exactly that, not as something a user should be told to read. Both fields STAY on the API response
+ * for other consumers (`CorrectionRouteView.label`, `CorrectionRoutesDecision.limitation`, see
+ * correction-routes.ts); this dialog just stops displaying them. In their place: a curated, English,
+ * user-facing explanation per country and route, keyed
+ * `documents.correction.explanations.<countryCode>.<routeId>` in `translation.json` (Weblate
+ * translates it like every other string here), rendered by `CorrectionRouteRow` below, and a single
+ * static `documents.correction.limitation` key for the header text. A missing explanation key renders
+ * nothing, never the raw `label` as a fallback.
  *
  * `required`/`allowed` routes are CHOOSABLE (a country's own law permits attempting them);
  * `forbidden`/`unverified` never are, whatever `implemented` might say for that routeId elsewhere —
@@ -105,16 +118,21 @@ const STATUS_BADGE_CLASS: Record<CorrectionRouteView["status"], string> = {
 
 interface CorrectionRouteRowProps {
   route: CorrectionRouteView
+  countryCode: string
   onChoose: (route: CorrectionRouteView) => void
 }
 
-/** One route, one row: its display name and status (both UI chrome, translated), its legal `label`
- *  VERBATIM, and either a real "choose" button or a disabled one carrying its own blocked reason —
- *  the exact same dual rendering (a `tooltip` AND a plain, always-visible paragraph) document-list.
- *  tsx's own `DocumentRowActions` already uses for `policyBlockedReason`, for the identical reason
- *  spelled out there: a disabled `<button>`'s `disabled:pointer-events-none` means a mouse hover
- *  never reveals a tooltip-only reason at all. */
-function CorrectionRouteRow({ route, onChoose }: CorrectionRouteRowProps) {
+/** One route, one row: its display name and status (both UI chrome, translated), a curated
+ *  user-facing explanation (see this file's own header on why NOT the raw `label` any more, issue
+ *  #554), and either a real "choose" button or a disabled one carrying its own blocked reason, the
+ *  exact same dual rendering (a `tooltip` AND a plain, always-visible paragraph) document-list.tsx's
+ *  own `DocumentRowActions` already uses for `policyBlockedReason`, for the identical reason spelled
+ *  out there: a disabled `<button>`'s `disabled:pointer-events-none` means a mouse hover never reveals
+ *  a tooltip-only reason at all. `unverifiedReason` below still interpolates `route.label`; that is
+ *  NOT the raw `sourceText` issue #554 is about (a route can only be `unverified` with an already
+ *  English `resolutionNote`, never a `legal` citation, see `schema.ts#assertValidCorrectionRouteFact`
+ *  and `describeLabel` in correction-routes.ts), so it is left as-is. */
+function CorrectionRouteRow({ route, countryCode, onChoose }: CorrectionRouteRowProps) {
   const { t } = useTranslation()
   const choosable = isChoosable(route)
   const blockedReason =
@@ -123,6 +141,11 @@ function CorrectionRouteRow({ route, onChoose }: CorrectionRouteRowProps) {
       : route.status === "unverified"
         ? t("documents.correction.unverifiedReason", { note: route.label })
         : undefined
+  // See this file's own header: the curated replacement for the raw `route.label`. A country/route
+  // pair this catalog ships without a matching key (should not happen, issue #554's own brief covers
+  // all eleven routes for all five shipped countries) falls back to "", which renders nothing below,
+  // never the raw provenance text.
+  const explanation = t(`documents.correction.explanations.${countryCode}.${route.routeId}`, "")
 
   return (
     <div
@@ -142,16 +165,17 @@ function CorrectionRouteRow({ route, onChoose }: CorrectionRouteRowProps) {
         </Badge>
       </div>
 
-      {/* The legal citation (or, for `unverified`, the resolution note) — the API's own words,
-          rendered as-is, never rewritten. Always shown, whatever the status: a FORBIDDEN route's own
-          citation is exactly what explains why (see `blockedReason` above, which wraps this same
-          text for the disabled button's reason line below), never hidden once a route is refused. */}
-      <p
-        className="text-xs text-muted-foreground"
-        data-cy={`document-correction-route-${route.routeId}-label`}
-      >
-        {route.label}
-      </p>
+      {/* The curated explanation, translated (issue #554), never the raw `route.label` any more (see
+          this file's own header). Rendered only when a translation exists; a missing key renders
+          nothing rather than falling back to the catalog's own research notes. */}
+      {explanation && (
+        <p
+          className="text-xs text-muted-foreground break-words"
+          data-cy={`document-correction-route-${route.routeId}-label`}
+        >
+          {explanation}
+        </p>
+      )}
 
       <Button
         type="button"
@@ -167,7 +191,7 @@ function CorrectionRouteRow({ route, onChoose }: CorrectionRouteRowProps) {
 
       {blockedReason && (
         <p
-          className="text-xs text-muted-foreground"
+          className="text-xs text-muted-foreground break-words"
           data-cy={`document-correction-route-${route.routeId}-reason`}
         >
           {blockedReason}
@@ -256,7 +280,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
 
   if (isLoading) {
     return (
-      <div className="space-y-2" data-cy="document-correction-loading">
+      <div className="space-y-2 min-w-0" data-cy="document-correction-loading">
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-16 w-full" />
@@ -269,7 +293,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
     // or the unresolved-country variant — see correction-routes.ts's own header) shown VERBATIM: a
     // country with no file gets exactly what the API said, never a blank dialog and never a paraphrase.
     return (
-      <Alert variant="destructive" data-cy="document-correction-error">
+      <Alert variant="destructive" className="min-w-0" data-cy="document-correction-error">
         <AlertTitle>{t("documents.correction.errorTitle")}</AlertTitle>
         <AlertDescription data-cy="document-correction-error-message">
           {error instanceof ApiError ? error.message : t("documents.correction.genericError")}
@@ -282,7 +306,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
 
   if (view.kind === "not-implemented") {
     return (
-      <div className="space-y-4" data-cy="document-correction-not-implemented">
+      <div className="space-y-4 min-w-0" data-cy="document-correction-not-implemented">
         <Alert data-cy="document-correction-not-implemented-alert">
           <AlertTitle>{t("documents.correction.notImplemented.title")}</AlertTitle>
           <AlertDescription>
@@ -305,18 +329,26 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   }
 
   if (view.kind === "confirm-cancel") {
+    // Same curated explanation as the routes list (see this file's own header, issue #554), never
+    // `view.route.label` any more, not even on this confirmation screen.
+    const confirmCancelExplanation = t(
+      `documents.correction.explanations.${data.countryCode}.${view.route.routeId}`,
+      "",
+    )
     return (
-      <div className="space-y-4" data-cy="document-correction-confirm-cancel">
+      <div className="space-y-4 min-w-0" data-cy="document-correction-confirm-cancel">
         <Alert variant="destructive" data-cy="document-correction-confirm-cancel-alert">
           <AlertTitle>{t("documents.correction.confirmCancel.title")}</AlertTitle>
           <AlertDescription>{t("documents.correction.confirmCancel.body")}</AlertDescription>
         </Alert>
-        {/* The route's own legal citation, once more, verbatim — the same "backend's own words"
-            discipline every OTHER label in this dialogue already holds, never re-summarized here
-            just because it's the confirmation screen. */}
-        <p className="text-xs text-muted-foreground" data-cy="document-correction-confirm-cancel-label">
-          {view.route.label}
-        </p>
+        {confirmCancelExplanation && (
+          <p
+            className="text-xs text-muted-foreground break-words"
+            data-cy="document-correction-confirm-cancel-label"
+          >
+            {confirmCancelExplanation}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
@@ -341,19 +373,49 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
     )
   }
 
+  // `forbidden` routes are never shown here: a route the seller's own country outright refuses is
+  // not a choice the owner wants to present, whatever its blocked reason says (see this file's own
+  // header: `required`/`allowed` stay choosable, `unverified` stays visible-but-not-choosable, exactly
+  // as before). The API itself is untouched: it still returns every route, `forbidden` included, for
+  // any other consumer; this is a display-only filter.
+  const visibleRoutes = data.routes.filter((route) => route.status !== "forbidden")
+
   return (
-    <div className="space-y-4">
-      {/* The seller×buyer limitation — the API's own words, discreet but never hidden: this is the
-          SELLER-only answer, and the seller's own law is not always the whole story once a buyer in
-          a different country is involved. */}
-      <p className="text-xs text-muted-foreground" data-cy="document-correction-limitation">
-        {data.limitation}
+    // `min-w-0`: this div is a GRID ITEM (`DialogContent`'s own base class is `grid`), and a grid
+    // item's automatic minimum width defaults to its MIN-CONTENT size: `break-words` on the
+    // paragraphs below (`overflow-wrap: break-word`) wraps a long line once the box is already
+    // narrow, but it does NOT shrink that automatic minimum for intrinsic-sizing purposes (a CSS
+    // quirk: only `overflow-wrap: anywhere` does). Without `min-w-0` here, this item refused to
+    // shrink below its own longest unwrapped line's width, which kept the dialog itself wider than a
+    // phone's viewport no matter how narrow `DialogContent`'s own max-width was set, caught by the
+    // phone-viewport half of the e2e no-horizontal-scroll assertion in 43-correction-routes.cy.ts.
+    <div className="space-y-4 min-w-0">
+      {/* The seller×buyer limitation, discreet but never hidden: this is the SELLER-only answer, and
+          the seller's own law is not always the whole story once a buyer in a different country is
+          involved. A single static, translated key (issue #554), never `data.limitation`, the
+          backend's own developer note, any more (see this file's own header; the field stays on the
+          API response for other consumers). */}
+      <p className="text-xs text-muted-foreground break-words" data-cy="document-correction-limitation">
+        {t("documents.correction.limitation")}
       </p>
-      <div className="space-y-3" data-cy="document-correction-routes-list">
-        {data.routes.map((route) => (
-          <CorrectionRouteRow key={route.routeId} route={route} onChoose={handleChoose} />
-        ))}
-      </div>
+      {visibleRoutes.length === 0 ? (
+        // Every route this country recognizes is forbidden: a plain sentence, never an empty list
+        // that reads as a loading glitch or a bug.
+        <p className="text-sm text-muted-foreground" data-cy="document-correction-all-forbidden">
+          {t("documents.correction.allForbidden", { countryCode: data.countryCode })}
+        </p>
+      ) : (
+        <div className="space-y-3" data-cy="document-correction-routes-list">
+          {visibleRoutes.map((route) => (
+            <CorrectionRouteRow
+              key={route.routeId}
+              route={route}
+              countryCode={data.countryCode}
+              onChoose={handleChoose}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -383,7 +445,25 @@ function InvoiceCorrectionRoutesButton({ instance }: DocumentCustomSlotProps) {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto" data-cy="document-correction-dialog">
+        {/* `sm:max-w-2xl` (same width `import-document-button.tsx`'s own content-heavy dialog picked)
+            instead of the base `sm:max-w-lg`: at 512px, an ordinary legal citation wrapped onto enough
+            lines to push the eleven-route list past `max-h-[85vh]` AND, for a long unbroken token (a
+            German compound word, a statute reference), past the box's own width too: a dialog that
+            scrolled BOTH ways, the exact bug #552 reports. The `sm:` prefix matters here, not a stylistic
+            choice: `DialogContent`'s own base class already carries an UNPREFIXED
+            `max-w-[calc(100%-2rem)]`, and `cn()` (twMerge) only dedupes within the SAME modifier: an
+            unprefixed `max-w-2xl` here would REPLACE that always-on, viewport-aware cap outright, at
+            every width including a phone's, which is exactly what widened this dialog past a 375px
+            screen the first time this was tried (caught by the e2e phone-viewport assertion below,
+            never by the desktop-sized default Cypress runs). `overflow-x-hidden` plus `break-words` on
+            every label/reason paragraph above is the second half of the fix: whatever the content, this
+            box itself never grows wider than its own max-width. `overflow-y-auto` is the only scroll
+            left, and only once the (now usually shorter, forbidden routes filtered out) list actually
+            needs it. */}
+        <DialogContent
+          className="sm:max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden"
+          data-cy="document-correction-dialog"
+        >
           <DialogHeader>
             <DialogTitle>
               {t("documents.correction.dialogTitle", {

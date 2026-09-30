@@ -521,15 +521,22 @@ describe('buildInvoiceDashboardWidgets with a period set', () => {
     const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1', period });
 
     const overdueTotal = widgets.find((w) => w.id === 'invoice:overdue-total');
+    // Issue #340 - "imported" joins "sent" on every link: an imported invoice can be pending/overdue
+    // too (the owner's own decision allows recording a payment on one), and the tile's own total
+    // already counts it (`filterUnsettledInvoices`), so the drill-down link must offer it too.
     expect((overdueTotal as MetricWidget).link).toMatchObject({
       typeId: 'invoice',
-      status: ['sent'],
+      status: ['sent', 'imported'],
       settlement: 'overdue',
       ...period,
     });
 
     const issued = widgets.find((w) => w.id.startsWith('invoice:issued-in-period'));
-    expect((issued as MetricWidget).link).toMatchObject({ typeId: 'invoice', status: ['sent'], ...period });
+    expect((issued as MetricWidget).link).toMatchObject({
+      typeId: 'invoice',
+      status: ['sent', 'imported'],
+      ...period,
+    });
   });
 
   it('"issued in period" sums sent invoices in the period, under a distinct id, with no previousValue', async () => {

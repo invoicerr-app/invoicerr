@@ -280,9 +280,11 @@ describe('resolveClientStatement', () => {
 
     await resolveClientStatement('company-42', 'client-1', ASOF);
 
+    // Issue #340 - "imported" joins "sent": an imported invoice's own balance belongs on the
+    // client's statement too (see resolveClientStatement's own header).
     expect(listAllDocuments).toHaveBeenCalledWith('company-42', {
       typeId: 'invoice',
-      status: ['sent'],
+      status: ['sent', 'imported'],
       dataEquals: { client: 'client-1' },
     });
     expect(listCreditNotes).toHaveBeenCalledWith('company-42');

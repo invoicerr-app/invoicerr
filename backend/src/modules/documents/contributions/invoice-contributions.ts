@@ -266,9 +266,13 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // `MetricWidgetLink`'s own header, a metric carries a link only when a list exists whose rows are
   // exactly the documents the figure aggregates. `...period` (issue #418) carries the active period
   // onto the link too - absent (spreading `undefined`) when no period is set, the pre-#418 shape.
+  // 'imported' (issue #340) added to every link below alongside 'sent': the tile's own TOTAL already
+  // includes imported invoices (`pendingInvoices` comes from `filterUnsettledInvoices`, widened for
+  // this issue), so its drill-down link must offer the same statuses or "click through to see these"
+  // would silently drop rows the tile just counted.
   const overdueLink: MetricWidgetLink = {
     typeId: 'invoice',
-    status: ['sent'],
+    status: ['sent', 'imported'],
     settlement: 'overdue',
     ...period,
   };
@@ -311,7 +315,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // these, to feed multi-currency consolidation.
   const pendingLink: MetricWidgetLink = {
     typeId: 'invoice',
-    status: ['sent'],
+    status: ['sent', 'imported'],
     settlement: 'unsettled',
     ...period,
   };
@@ -355,11 +359,14 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   };
 
   // "Issued this month" (no period set) / "Issued in period" (period set) - what was actually
-  // invoiced, per currency. Only invoices that REACHED "sent" count: a draft is not issued, a
-  // "send_failed" one never left, and a "cancelled" one is void (the same exclusion the pending list
-  // applies above). The curve just above deliberately keeps counting every invoice by date, whatever
-  // its status - it answers "how busy was each month", this answers "what did we invoice"; two
-  // questions, two widgets.
+  // invoiced, per currency. Only invoices that REACHED "sent", or were recorded "imported" (issue
+  // #340 - the owner's own decision: statistics include an imported invoice), count: a draft is not
+  // issued, a "send_failed" one never left, and a "cancelled" one is void (the same exclusion the
+  // pending list applies above). An imported invoice lands in ITS OWN historical month (`monthKey`
+  // reads its real `issueDate`, never today's), so importing history does not inflate THIS month's
+  // figure unless the import genuinely is dated this month. The curve just above deliberately keeps
+  // counting every invoice by date, whatever its status - it answers "how busy was each month", this
+  // answers "what did we invoice"; two questions, two widgets.
   //
   // Two entirely separate branches, not one parameterized over "which window": the UNSET path below
   // is untouched, byte-for-byte, from before issue #418 (a trailing "this month vs last month"
@@ -375,7 +382,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
     const lastMonthKey = months[months.length - 2].key;
     const issuedByCurrency = new Map<string, { thisMonth: number; lastMonth: number }>();
     for (const invoice of invoices) {
-      if (invoice.status !== 'sent') continue;
+      if (invoice.status !== 'sent' && invoice.status !== 'imported') continue;
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const key = monthKey(data.issueDate);
       if (key !== thisMonthKey && key !== lastMonthKey) continue;
@@ -389,7 +396,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
     // link never drifts from the number it decorates.
     const issuedLink: MetricWidgetLink = {
       typeId: 'invoice',
-      status: ['sent'],
+      status: ['sent', 'imported'],
       ...monthRange(thisMonthKey),
     };
     issuedWidgets =
@@ -420,14 +427,16 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
     // chosen range) and giving them the same id would make a consumer (a test, an i18n key, a future
     // "pin this metric") unable to tell which one it was actually looking at, especially since both
     // can never be present in the same response (this branch replaces the other, never adds to it).
-    const sentInPeriod = periodInvoices.filter((invoice) => invoice.status === 'sent');
+    const sentInPeriod = periodInvoices.filter(
+      (invoice) => invoice.status === 'sent' || invoice.status === 'imported',
+    );
     const issuedByCurrency = new Map<string, number>();
     for (const invoice of sentInPeriod) {
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
       issuedByCurrency.set(currency, (issuedByCurrency.get(currency) ?? 0) + invoiceTotal(data));
     }
-    const issuedLink: MetricWidgetLink = { typeId: 'invoice', status: ['sent'], ...period };
+    const issuedLink: MetricWidgetLink = { typeId: 'invoice', status: ['sent', 'imported'], ...period };
     issuedWidgets =
       issuedByCurrency.size === 0
         ? [
@@ -480,8 +489,11 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // way - `record-payment` only ever accepts a strictly positive `amount` (actions/invoice-actions.ts's
   // own guard), so there is no negative/reversing payment row to net a refund against. A
   // draft/sending/send_failed invoice can never have a payment in the first place
-  // (`record-payment`'s own `availableWhen: ['sent']`), so `status === 'sent'` is the exact, not
-  // merely approximate, set of invoices this tile may honestly attribute cash to.
+  // (`record-payment`'s own `availableWhen: ['sent', 'imported']`), so `sent`/`imported` is the
+  // exact, not merely approximate, set of invoices this tile may honestly attribute cash to.
+  // "imported" (issue #340): a payment recorded against a historical invoice is exactly as real as
+  // one recorded against a sent one - excluding it here would make "record a payment" silently not
+  // count toward "cash collected", the opposite of what recording it is for.
   //
   // NO `link` on any of these - unlike every other metric above, there is no list of PAYMENTS
   // anywhere in this app a click could open (the frontend's own "payments" screens are payment
@@ -490,7 +502,9 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // purpose - inventing a link to the invoice list (filtered by ISSUE date) would show a different
   // set of documents than the ones this figure actually sums.
   const issuedInvoiceIds = new Set(
-    invoices.filter((invoice) => invoice.status === 'sent').map((invoice) => invoice.id),
+    invoices
+      .filter((invoice) => invoice.status === 'sent' || invoice.status === 'imported')
+      .map((invoice) => invoice.id),
   );
   let collectedWidgets: MetricWidget[];
   if (!period) {
@@ -622,7 +636,7 @@ export const buildInvoiceDashboardWidgetsWithConsolidation: ContributionHandler 
         // `invoice:pending-total:*` tiles above already link to: same list, same filter -
         // `...ctx.period` carries the active period onto it too (issue #418), same as those tiles'
         // own link.
-        link: { typeId: 'invoice', status: ['sent'], settlement: 'unsettled', ...ctx.period },
+        link: { typeId: 'invoice', status: ['sent', 'imported'], settlement: 'unsettled', ...ctx.period },
       });
     }
     // `!consolidated && warnings.length === 0` -> no referenceCurrency set at all: the default,

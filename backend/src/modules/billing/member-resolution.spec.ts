@@ -17,18 +17,21 @@ function notFoundError(): Error {
   return Object.assign(new Error('not found'), { statusCode: 404 });
 }
 
-async function* asPages(items: Array<{ id: string; email: string; externalId: string | null }>) {
-  yield { result: { items } };
+// #537: `customers.members.iterList` (`@polar-sh/sdk@1.0.0`) yields MEMBERS directly, a plain
+// `AsyncGenerator`, returned SYNCHRONOUSLY by the mock (never a resolved promise the old
+// `members.listMembers` page-iterator shape needed), not pages wrapping `result.items`.
+async function* asItems(items: Array<{ id: string; email: string; external_id: string | null }>) {
+  yield* items;
 }
 
 function fakeClient(overrides: Partial<MemberResolutionClient> = {}): MemberResolutionClient {
   return {
-    members: { listMembers: vi.fn().mockResolvedValue(asPages([])) },
     customers: {
       members: {
         getExternal: vi.fn().mockRejectedValue(notFoundError()),
         createExternal: vi.fn(),
         delete: vi.fn(),
+        iterList: vi.fn().mockReturnValue(asItems([])),
       },
     },
     ...overrides,
@@ -40,42 +43,59 @@ describe('findMemberIdForUser', () => {
 
   it('returns the member found by our own externalId, without listing', async () => {
     const getExternal = vi.fn().mockResolvedValue({ id: 'member-1' });
-    const listMembers = vi.fn();
+    const iterList = vi.fn();
     const client = fakeClient({
-      customers: { members: { getExternal, createExternal: vi.fn(), delete: vi.fn() } },
-      members: { listMembers },
-    });
+      customers: { members: { getExternal, createExternal: vi.fn(), delete: vi.fn(), iterList } },
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await findMemberIdForUser(client, 'cus_1', 'company-1', USER);
 
-    expect(getExternal).toHaveBeenCalledWith({ externalId: 'company-1', memberExternalId: 'user-1' });
-    expect(listMembers).not.toHaveBeenCalled();
+    expect(getExternal).toHaveBeenCalledWith('company-1', 'user-1');
+    expect(iterList).not.toHaveBeenCalled();
     expect(result).toBe('member-1');
   });
 
   it('falls back to matching by email when no externalId match exists', async () => {
-    const listMembers = vi.fn().mockResolvedValue(
-      asPages([
-        { id: 'member-other', email: 'other@acme.test', externalId: null },
-        { id: 'member-match', email: 'ada@acme.test', externalId: null },
+    const iterList = vi.fn().mockReturnValue(
+      asItems([
+        { id: 'member-other', email: 'other@acme.test', external_id: null },
+        { id: 'member-match', email: 'ada@acme.test', external_id: null },
       ]),
     );
-    const client = fakeClient({ members: { listMembers } });
+    const client = fakeClient({
+      customers: {
+        members: {
+          getExternal: vi.fn().mockRejectedValue(notFoundError()),
+          createExternal: vi.fn(),
+          delete: vi.fn(),
+          iterList,
+        },
+      },
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await findMemberIdForUser(client, 'cus_1', 'company-1', USER);
 
     expect(result).toBe('member-match');
   });
 
-  it("resolves Polar's own auto-created owner member (no externalId — minted on the company's first seat-based checkout) by matching the clicking user's email, using ITS OWN Polar-internal id from then on", async () => {
+  it("resolves Polar's own auto-created owner member (no externalId, minted on the company's first seat-based checkout) by matching the clicking user's email, using ITS OWN Polar-internal id from then on", async () => {
     // The exact shape a company's first seat-based checkout produces, Polar-side (this file's own
     // header): ONE `role: "owner"` member, minted straight from the customer's own email/name, with
-    // no `externalId` this app ever set — never adopted into the externalId lookup path, matched by
+    // no `externalId` this app ever set, never adopted into the externalId lookup path, matched by
     // email every time this function is called.
-    const listMembers = vi
+    const iterList = vi
       .fn()
-      .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
-    const client = fakeClient({ members: { listMembers } });
+      .mockReturnValue(asItems([{ id: 'member-auto-owner', email: 'ada@acme.test', external_id: null }]));
+    const client = fakeClient({
+      customers: {
+        members: {
+          getExternal: vi.fn().mockRejectedValue(notFoundError()),
+          createExternal: vi.fn(),
+          delete: vi.fn(),
+          iterList,
+        },
+      },
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await findMemberIdForUser(client, 'cus_1', 'company-1', USER);
 
@@ -99,23 +119,32 @@ describe('findMemberIdForUser', () => {
           delete: vi.fn(),
         },
       },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     await expect(findMemberIdForUser(client, 'cus_1', 'company-1', USER)).rejects.toThrow('polar down');
   });
 
   it('with matchByEmail: false, never even lists members and returns null when no externalId match exists', async () => {
     // Same fixture as the "auto-created owner member" test above (a member sharing this user's own
-    // email exists) — but with the flag `removeMemberForUser` passes, this must NOT find it.
-    const listMembers = vi
+    // email exists), but with the flag `removeMemberForUser` passes, this must NOT find it.
+    const iterList = vi
       .fn()
-      .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
-    const client = fakeClient({ members: { listMembers } });
+      .mockReturnValue(asItems([{ id: 'member-auto-owner', email: 'ada@acme.test', external_id: null }]));
+    const client = fakeClient({
+      customers: {
+        members: {
+          getExternal: vi.fn().mockRejectedValue(notFoundError()),
+          createExternal: vi.fn(),
+          delete: vi.fn(),
+          iterList,
+        },
+      },
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await findMemberIdForUser(client, 'cus_1', 'company-1', USER, { matchByEmail: false });
 
     expect(result).toBeNull();
-    expect(listMembers).not.toHaveBeenCalled();
+    expect(iterList).not.toHaveBeenCalled();
   });
 });
 
@@ -132,7 +161,7 @@ describe('resolveOrCreateMemberIdForUser', () => {
           delete: vi.fn(),
         },
       },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await resolveOrCreateMemberIdForUser(client, 'cus_1', 'company-1', USER);
 
@@ -148,15 +177,17 @@ describe('resolveOrCreateMemberIdForUser', () => {
           getExternal: vi.fn().mockRejectedValue(notFoundError()),
           createExternal,
           delete: vi.fn(),
+          iterList: vi.fn().mockReturnValue(asItems([])),
         },
       },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await resolveOrCreateMemberIdForUser(client, 'cus_1', 'company-1', USER);
 
-    expect(createExternal).toHaveBeenCalledWith({
-      externalId: 'company-1',
-      memberCreateFromCustomer: { email: 'ada@acme.test', name: 'Ada', externalId: 'user-1' },
+    expect(createExternal).toHaveBeenCalledWith('company-1', {
+      email: 'ada@acme.test',
+      name: 'Ada',
+      external_id: 'user-1',
     });
     expect(result).toBe('member-new');
   });
@@ -170,22 +201,19 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
     const createExternal = vi.fn();
     const client = fakeClient({
       customers: { members: { getExternal, createExternal, delete: vi.fn() } },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
 
-    expect(getExternal).toHaveBeenCalledWith({
-      externalId: 'company-1',
-      memberExternalId: COMPANY_BILLING_MEMBER_EXTERNAL_ID,
-    });
+    expect(getExternal).toHaveBeenCalledWith('company-1', COMPANY_BILLING_MEMBER_EXTERNAL_ID);
     expect(result).toBe('member-company');
     expect(createExternal).not.toHaveBeenCalled();
   });
 
-  it("reuses Polar's own auto-created owner member when its email already matches the resolved billing email — the common case right after a company's first seat-based checkout", async () => {
-    const listMembers = vi
+  it("reuses Polar's own auto-created owner member when its email already matches the resolved billing email, the common case right after a company's first seat-based checkout", async () => {
+    const iterList = vi
       .fn()
-      .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: BILLING.email, externalId: null }]));
+      .mockReturnValue(asItems([{ id: 'member-auto-owner', email: BILLING.email, external_id: null }]));
     const createExternal = vi.fn();
     const client = fakeClient({
       customers: {
@@ -193,10 +221,10 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
           getExternal: vi.fn().mockRejectedValue(notFoundError()),
           createExternal,
           delete: vi.fn(),
+          iterList,
         },
       },
-      members: { listMembers },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
 
@@ -204,7 +232,7 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
     expect(createExternal).not.toHaveBeenCalled();
   });
 
-  it('creates a fresh member as role "billing_manager" — never the default "member" role — when nothing matches', async () => {
+  it('creates a fresh member as role "billing_manager", never the default "member" role, when nothing matches', async () => {
     const createExternal = vi.fn().mockResolvedValue({ id: 'member-new-billing' });
     const client = fakeClient({
       customers: {
@@ -212,51 +240,59 @@ describe('resolveOrCreateCompanyBillingMemberId', () => {
           getExternal: vi.fn().mockRejectedValue(notFoundError()),
           createExternal,
           delete: vi.fn(),
+          iterList: vi.fn().mockReturnValue(asItems([])),
         },
       },
-      members: { listMembers: vi.fn().mockResolvedValue(asPages([])) },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     const result = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
 
-    expect(createExternal).toHaveBeenCalledWith({
-      externalId: 'company-1',
-      memberCreateFromCustomer: {
-        email: BILLING.email,
-        name: BILLING.name,
-        externalId: COMPANY_BILLING_MEMBER_EXTERNAL_ID,
-        role: 'billing_manager',
-      },
+    expect(createExternal).toHaveBeenCalledWith('company-1', {
+      email: BILLING.email,
+      name: BILLING.name,
+      external_id: COMPANY_BILLING_MEMBER_EXTERNAL_ID,
+      role: 'billing_manager',
     });
     expect(result).toBe('member-new-billing');
   });
 
-  it("never resolves to a member found under a real user's own externalId — only the sentinel", async () => {
-    // `USER.id` ('user-1') must NEVER be looked up by this function — it stands for the COMPANY, not
+  it("never resolves to a member found under a real user's own externalId, only the sentinel", async () => {
+    // `USER.id` ('user-1') must NEVER be looked up by this function, it stands for the COMPANY, not
     // any particular Invoicerr user (the exact bug this function exists to fix).
     const getExternal = vi.fn().mockRejectedValue(notFoundError());
     const createExternal = vi.fn().mockResolvedValue({ id: 'member-new-billing' });
     const client = fakeClient({
-      customers: { members: { getExternal, createExternal, delete: vi.fn() } },
-    });
+      customers: {
+        members: {
+          getExternal,
+          createExternal,
+          delete: vi.fn(),
+          iterList: vi.fn().mockReturnValue(asItems([])),
+        },
+      },
+    } as unknown as Partial<MemberResolutionClient>);
 
     await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', BILLING);
 
-    expect(getExternal).not.toHaveBeenCalledWith(expect.objectContaining({ memberExternalId: USER.id }));
+    expect(getExternal).not.toHaveBeenCalledWith('company-1', USER.id);
   });
 
   // Reachable when `Company.billingEmail`/`Company.email` went blank AFTER this company was already
   // promoted to a `team` customer, so nothing matches the (now empty) resolved billing email any more
-  // — same guard `billing-customer.ts#getOrCreatePolarCustomerForCompany` holds for the CUSTOMER
+  //, same guard `billing-customer.ts#getOrCreatePolarCustomerForCompany` holds for the CUSTOMER
   // create call, here for the MEMBER create call.
   it('refuses BEFORE calling Polar when the resolved billing email is empty and no existing member matches', async () => {
     const createExternal = vi.fn();
     const client = fakeClient({
       customers: {
-        members: { getExternal: vi.fn().mockRejectedValue(notFoundError()), createExternal, delete: vi.fn() },
+        members: {
+          getExternal: vi.fn().mockRejectedValue(notFoundError()),
+          createExternal,
+          delete: vi.fn(),
+          iterList: vi.fn().mockReturnValue(asItems([])),
+        },
       },
-      members: { listMembers: vi.fn().mockResolvedValue(asPages([])) },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     const error = await resolveOrCreateCompanyBillingMemberId(client, 'cus_1', 'company-1', {
       email: '',
@@ -281,11 +317,11 @@ describe('removeMemberForUser', () => {
           delete: del,
         },
       },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     await removeMemberForUser(client, 'cus_1', 'company-1', USER);
 
-    expect(del).toHaveBeenCalledWith({ id: 'cus_1', memberId: 'member-1' });
+    expect(del).toHaveBeenCalledWith('cus_1', 'member-1');
   });
 
   it('is a no-op when no member exists at all', async () => {
@@ -298,7 +334,7 @@ describe('removeMemberForUser', () => {
           delete: del,
         },
       },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     await removeMemberForUser(client, 'cus_1', 'company-1', USER);
 
@@ -306,34 +342,34 @@ describe('removeMemberForUser', () => {
   });
 
   it(
-    'NEVER deletes a member found only by email — the reproduction of the incident this fix closes: ' +
+    'NEVER deletes a member found only by email, the reproduction of the incident this fix closes: ' +
       "Polar's own auto-created owner member happens to share this user's own billing email, and a " +
       'demotion/removal for this user must not strip the company of it',
     async () => {
       const del = vi.fn();
-      const listMembers = vi
+      const iterList = vi
         .fn()
-        .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
+        .mockReturnValue(asItems([{ id: 'member-auto-owner', email: 'ada@acme.test', external_id: null }]));
       const client = fakeClient({
         customers: {
           members: {
             getExternal: vi.fn().mockRejectedValue(notFoundError()), // no member under OUR externalId
             createExternal: vi.fn(),
             delete: del,
+            iterList,
           },
         },
-        members: { listMembers },
-      });
+      } as unknown as Partial<MemberResolutionClient>);
 
       await removeMemberForUser(client, 'cus_1', 'company-1', USER);
 
-      // Not merely "found but declined to delete" — the email lookup never even runs for a deletion.
-      expect(listMembers).not.toHaveBeenCalled();
+      // Not merely "found but declined to delete", the email lookup never even runs for a deletion.
+      expect(iterList).not.toHaveBeenCalled();
       expect(del).not.toHaveBeenCalled();
     },
   );
 
-  it('still deletes a member found by OUR OWN externalId — the fix narrows the match, it does not disable deletion entirely', async () => {
+  it('still deletes a member found by OUR OWN externalId, the fix narrows the match, it does not disable deletion entirely', async () => {
     const del = vi.fn();
     const client = fakeClient({
       customers: {
@@ -343,10 +379,10 @@ describe('removeMemberForUser', () => {
           delete: del,
         },
       },
-    });
+    } as unknown as Partial<MemberResolutionClient>);
 
     await removeMemberForUser(client, 'cus_1', 'company-1', USER);
 
-    expect(del).toHaveBeenCalledWith({ id: 'cus_1', memberId: 'member-ours' });
+    expect(del).toHaveBeenCalledWith('cus_1', 'member-ours');
   });
 });

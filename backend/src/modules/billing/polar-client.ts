@@ -1,89 +1,76 @@
 /**
- * The ONE `@polar-sh/sdk` client instance this process uses for every server-to-server Polar call —
+ * The ONE `@polar-sh/sdk` client instance this process uses for every server-to-server Polar call:
  * `checkout-session.ts`'s `checkouts.create`/`customers.*`, `portal-session.ts`'s
  * `customerSessions.create`, `seat-sync.ts`'s `subscriptions.update({ subscriptionUpdate: { seats } })`,
- * `status-reconcile.ts`'s `subscriptions.list`, `legacy-customer.ts`'s `customers.getExternal` — every
- * one of them a plain Nest route or function now (option A, product decision 2026-09-16), never
- * `@polar-sh/better-auth`'s own middleware, which this backend no longer depends on at all. Never
- * constructed unless something actually calls `getPolarClient()`, so an instance with the billing flag
- * off never even imports `@polar-sh/sdk`'s runtime.
+ * `status-reconcile.ts`'s `subscriptions.list`, `legacy-customer.ts`'s `customers.getExternal`. Every
+ * one of them is a plain Nest route or function now (option A, product decision 2026-09-16), never
+ * `@polar-sh/better-auth`'s own middleware; that package is no longer even a dependency (#537, see
+ * below). Never constructed unless something actually calls `getPolarClient()`, so an instance with
+ * the billing flag off never even imports `@polar-sh/sdk`'s runtime.
  *
- * CREDENTIAL LEAK (live incident): every error `@polar-sh/sdk` throws for a non-2xx response is a
- * `PolarError` subclass (`node_modules/@polar-sh/sdk/dist/commonjs/models/errors/polarerror.js`, read
- * directly) whose OWN constructor stamps `this.rawResponse`; the ~31 schema-parsed subclasses
- * (`HTTPValidationError` included, `httpvalidationerror.js`) additionally stamp `this.data$ = err`,
- * where `err.request$` is the REAL `Request` object this SDK call sent — `Authorization: Bearer
- * polar_oat_…` header and all (confirmed by constructing a real `HTTPValidationError` with a real
- * `Request`/`Response` and reading `error.data$.request$.headers.get('authorization')` back out — it
- * is exactly that token). Node's `util.inspect` (what Nest's own default exception logging — and any
- * future `logger.error('x', error)` passing the raw object — ultimately calls) walks INTO that nested
- * `Request`'s `headers` (a `Headers` instance with its own custom inspector that prints every entry,
- * `authorization` included) and that is the exact live log line this incident reported. `getPolarClient`
- * below wraps every call this app makes through the SDK so that whatever error escapes it has already
- * had `rawResponse`/`headers`/`data$` stripped — see `sanitizePolarError`'s own header for why this is
- * a denylist, not an allowlist, and for the one path (an `AsyncIterable` page walk mid-iteration,
- * `member-resolution.ts`'s own `members.listMembers`) it does not reach.
+ * ## #537: `@polar-sh/sdk` 1.x, versioned import, `2026-10` (2026-09-29)
  *
- * Chosen over the other two ways this could have been fixed, and why:
- *  - A global Nest exception filter would only catch an error that reaches an HTTP controller
- *    unhandled — every OTHER Polar caller in this module family (the boot-reseed service, the
- *    lifecycle-sweep runner, the BullMQ processor) runs with no HTTP request/response cycle at all, so
- *    a filter protects NONE of them; it would also do nothing for a future caller that catches the
- *    error itself and logs it directly, which is a real pattern this codebase already uses everywhere
- *    (`customer-provisioning.ts`, `member-sync.ts`, `customer-sync.ts` — though every one of those
- *    already only logs `error.message`, by discipline, not by anything enforcing it).
- *  - A log-formatter redaction (regex/deny-key scrubbing at the point something is written to a log
- *    sink) has to run on every sink this app has (console, and whatever aggregator reads it downstream)
- *    and has to keep matching whatever SHAPE a credential-carrying object takes — a `Headers` instance
- *    formats itself with its OWN `util.inspect` custom method, so a formatter would need to know to
- *    look inside `Request`/`Headers` objects specifically, the same fragile "guess the shape" problem
- *    this file's sanitizer already solves once, structurally, at the source.
- *  - Sanitizing AT `getPolarClient()` instead: this is the ONE chokepoint every Polar call in this
- *    codebase already goes through (this file's own opening paragraph) — including one added later by
- *    someone who has never read this comment, as long as it calls `getPolarClient()` like every
- *    existing caller does. The credential-carrying data is removed from the error object itself,
- *    before ANY catch block, log line, or exception filter — anywhere in this process — ever sees it,
- *    rather than trying to intercept every place that error could end up.
+ * `@polar-sh/sdk` 1.0.0 (npm, read directly, no more alpha) restructured the whole package. It no
+ * longer exports a `Polar` CLASS you `new` up: `import { Polar } from '@polar-sh/sdk'` now resolves to
+ * only the base error classes, confirmed by reading `node_modules/@polar-sh/sdk/dist/index.d.cts`
+ * (no `Polar`/`HTTPClient` there at all). Instead every dated API version is its own subpath export
+ * (`@polar-sh/sdk/2026-04`, `@polar-sh/sdk/2026-10`, `@polar-sh/sdk/2027-01`, confirmed by reading the
+ * package's own `exports` map in `package.json`), each exporting a `createPolar(options)` factory.
+ * `options.version` is baked in by whichever subpath you import, not a runtime-settable field
+ * (`PolarOptions extends Omit<ClientOptions, 'baseUrl' | 'version'>`, read directly), and every request
+ * that client builds stamps `Polar-Version: <that version>` itself (`ClientBase.buildRequest`, in the
+ * package's own shipped `base-*.cjs`: `headers: new Headers({ 'Polar-Version': this.options.version,
+ * … })`). So the PR #536 fix this file used to carry, a hand-built `HTTPClient` with a `beforeRequest`
+ * hook stamping the header on every call, is no longer needed or possible: `HTTPClient` itself is
+ * gone from the package. Pinning the API version is now "import the right dated subpath", nothing else.
+ *
+ * `POLAR_API_VERSION` below is kept as the single, greppable source of truth for which version that
+ * is: asserted against in `polar-client.spec.ts`, named in
+ * `documentation/docs/developer-guide/hosted-billing.md`. It is documentation, not configuration;
+ * changing it without also changing the `from '@polar-sh/sdk/2026-10'` import path two lines below does
+ * nothing. The next quarterly upgrade (`2027-01` becomes Current some time after 2027-01-01, per
+ * Polar's own https://polar.sh/docs/api-reference/2026-10/versioning.md: quarterly releases in the first week of
+ * January/April/July/October, roughly 3 months each as Next/Current/Deprecated) changes both together.
+ *
+ * CREDENTIAL LEAK (live incident, pre-#537): every error `@polar-sh/sdk@0.49` threw for a non-2xx
+ * response was a `PolarError` subclass whose own constructor stamped `this.rawResponse`, with the
+ * roughly 31 schema-parsed subclasses (`HTTPValidationError` included) additionally stamping
+ * `this.data$`, whose own `request$` was the real `Request` object the SDK sent, `Authorization:
+ * Bearer polar_oat_…` header and all. `sanitizePolarError`/`withSanitizedPolarErrors` below were built
+ * to strip that before any catch block or log line could see it.
+ *
+ * **This specific leak is gone in 1.0.0, structurally.** Confirmed by reading
+ * `node_modules/@polar-sh/sdk`'s shipped `base-*.cjs`/`errors-*.cjs` directly: `PolarClientError` (the
+ * base every generated error subclass, `HTTPValidationError` included, extends) is constructed as
+ * `new ErrorClass(statusCode, parsedResponseBody)`, nothing else; `PolarRateLimitError` as
+ * `new PolarRateLimitError(statusCode, retryAfter)`; `PolarServerError`/`PolarNetworkError` carry only
+ * a message string. No subclass, in this version, is ever handed the raw
+ * `Request`/`Response`/`Headers` object at all, so there is nothing left for
+ * `POLAR_ERROR_SECRET_CARRIERS` to find on a real error this SDK throws today.
+ * `sanitizePolarError`/`withSanitizedPolarErrors` are kept anyway, deliberately, as defense in depth.
+ * They cost nothing on an error that never carries the denylisted keys (the loop below simply skips
+ * nothing), and they still protect this process against a future `@polar-sh/sdk` release reintroducing
+ * the pattern, or any other library this module family might one day wrap the same way. A parsed error
+ * body is still copied through on purpose (see `HTTPValidationError.error` below): that is the
+ * diagnostic `detail` array every duck-typed check in this file family reads, never a credential.
  */
-import { HTTPClient, Polar } from '@polar-sh/sdk';
+import { createPolar, type Polar } from '@polar-sh/sdk/2026-10';
 
 import { logger } from '@/logger/logger.service';
 import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 
 import { resolvePolarServerEnvironment } from './polar-env';
 
-/**
- * Polar announced date-based API versioning by e-mail on 2026-09-29: `2026-10` becomes the Current
- * contract on 2026-10-01, and today's contract is renamed `2026-04` (Deprecated, supported until the
- * next quarterly release in January 2027). A request carrying no `Polar-Version` header follows
- * Current, so every call this backend makes would silently switch contract on that date. Pinned here,
- * in the one constant every Polar request reads (`getPolarHttpClient` below), until the SDK 1.0 /
- * `2026-10` migration (tracked as a separate follow-up issue, #536's own text).
- */
-export const POLAR_API_VERSION = '2026-04';
+/** See this file's own header, "#537: `@polar-sh/sdk` 1.x, versioned import, `2026-10`", this constant
+ *  and the `from '@polar-sh/sdk/2026-10'` import two lines above move together; changing one without
+ *  the other is a lie the next reader (and `polar-client.spec.ts`'s own header-assertion tests) will
+ *  catch. `2026-04` (this app's contract from PR #536 until 2026-10-01, when it was renamed Deprecated
+ *  by Polar) is retired: `2026-10` became Current on 2026-10-01 and is itself renamed Deprecated at the
+ *  next quarterly release, in the first week of January 2027 (Polar's own
+ *  https://polar.sh/docs/api-reference/2026-10/versioning.md), upgrade before then. */
+export const POLAR_API_VERSION = '2026-10';
 
 let cached: Polar | null = null;
-let cachedHttpClient: HTTPClient | null = null;
-
-/**
- * The ONE `HTTPClient` every `Polar` instance this process constructs is built with. A `beforeRequest`
- * hook is the mechanism `@polar-sh/sdk` itself exposes for stamping a header on every outgoing call
- * (`node_modules/@polar-sh/sdk/dist/commonjs/lib/http.ts`, read directly): mutating the `Request`'s
- * own headers and returning nothing is enough, since `HTTPClient#request` keeps using the same
- * `Request` object after every hook runs. Passing this SAME instance as `httpClient` to `new Polar()`
- * below is what makes every nested resource (`client.customers`, `client.subscriptions`, …) share it:
- * `ClientSDK`'s own constructor (the `sdks` module inside `@polar-sh/sdk`) copies `options.httpClient` verbatim into `_options`,
- * and every nested resource is constructed with that same `_options` object.
- */
-function getPolarHttpClient(): HTTPClient {
-  if (!cachedHttpClient) {
-    cachedHttpClient = new HTTPClient();
-    cachedHttpClient.addHook('beforeRequest', (request) => {
-      request.headers.set('Polar-Version', POLAR_API_VERSION);
-    });
-  }
-  return cachedHttpClient;
-}
 
 export function getPolarClient(): Polar {
   // Demo instance (issue #533): refuses BEFORE the client is even constructed, independently of
@@ -94,36 +81,58 @@ export function getPolarClient(): Polar {
   assertDemoSendingAllowed('Polar billing');
   if (!cached) {
     cached = withSanitizedPolarErrors(
-      new Polar({
-        accessToken: process.env.POLAR_ACCESS_TOKEN,
-        server: resolvePolarServerEnvironment(),
-        httpClient: getPolarHttpClient(),
+      createPolar({
+        // #537: `PolarOptions.accessToken` is a required `string` in `@polar-sh/sdk@1.0.0` (0.49's was
+        // optional), `?? ''` is a type-level fallback only, never reached with billing genuinely
+        // enabled: `assertPolarEnvConfiguredForBoot` (`polar-env.ts`, called from `main.ts`) already
+        // refuses to boot with the flag on and `POLAR_ACCESS_TOKEN` blank, so this function is never
+        // actually called with an empty token in a real deployment.
+        accessToken: process.env.POLAR_ACCESS_TOKEN ?? '',
+        // #537: `PolarOptions`'s own field is `environment` in `@polar-sh/sdk@1.0.0` (`Environment =
+        // "production" | "sandbox"`, read directly), 0.49's was named `server`, same two values.
+        environment: resolvePolarServerEnvironment(),
+        // #537, LIVE-SANDBOX FINDING (2026-09-29): `ClientBase`'s own constructor
+        // (`node_modules/@polar-sh/sdk`'s own shipped `dist/base-*.cjs`, read directly) defaults
+        // `timeout` to 5 SECONDS when not given, `this.options = { timeout: 5, ...options }`.
+        // `@polar-sh/sdk@0.49` had no such default (`timeoutMs` only applied when explicitly set and
+        // `> 0`, that version's own request-dispatch source, read directly, so an un-configured
+        // 0.49 call had NO timeout at all). This is a real behavior regression, not a hypothetical
+        // one: re-running
+        // `checkout-tax-id.live.spec.ts`'s own "checksum-valid FR VAT number" case against the real
+        // sandbox, the one case that makes Polar perform a live VIES lookup server-side
+        // (`checkout-session.ts`'s own header), failed with `PolarNetworkError: The operation was
+        // aborted due to timeout` under the bare 5s default; the exact same call succeeds once a
+        // longer timeout is set here. 30s is generous for every OTHER call this module makes (all much
+        // faster than a VIES round trip) and still bounded, never the unbounded wait 0.49 silently
+        // allowed, which could hang a request indefinitely on a genuine Polar outage.
+        timeout: 30,
       }),
     );
   }
   return cached;
 }
 
-/** Property names `@polar-sh/sdk`'s own `PolarError` base class (`polarerror.js`) and its
- *  schema-parsed subclasses (`data$`, e.g. `httpvalidationerror.js`) always use to carry the real,
- *  sent `Request`/`Response` — see this file's own header. A DENYLIST, deliberately, not an allowlist
- *  of "fields to keep": a future Polar error subclass can add any OTHER diagnostic field (this SDK
- *  ships ~31 named business-error classes today, each with its own extra fields beyond
- *  `HTTPValidationError`'s own `detail`) and it survives sanitization untouched, because nothing here
- *  needs to know its name — only these three, which the shared base class/codegen pattern make
- *  structural, are ever stripped. */
+/** Property names `@polar-sh/sdk@0.49`'s own `PolarError` base class and its schema-parsed subclasses
+ *  (`data$`) used to carry the real, sent `Request`/`Response` on, see this file's own header, "The
+ *  credential leak is gone in 1.0.0, structurally": no error this SDK version actually throws carries
+ *  any of these three any more, confirmed by reading `node_modules/@polar-sh/sdk`'s own shipped
+ *  `base-*.cjs`/`errors-*.cjs`. Kept as a DENYLIST anyway, deliberately, not an allowlist of "fields to
+ *  keep", a future Polar error subclass (or a future SDK major version) can add any OTHER diagnostic
+ *  field and it survives sanitization untouched, because nothing here needs to know its name; only
+ *  these three, historically structural to the shared base class/codegen pattern, are ever stripped. */
 const POLAR_ERROR_SECRET_CARRIERS = new Set(['rawResponse', 'headers', 'data$']);
 
 /**
- * Rebuilds a Polar SDK error with every property EXCEPT the ones in `POLAR_ERROR_SECRET_CARRIERS` —
- * `statusCode`, `message`, `name`, `stack`, and (for `HTTPValidationError`) `detail` all survive, which
- * is everything every duck-typed check in this module family reads (`billing-customer.ts`'s own
+ * Rebuilds a Polar SDK error with every property EXCEPT the ones in `POLAR_ERROR_SECRET_CARRIERS`:
+ * `statusCode`, `message`, `name`, `stack`, and (in 1.0.0, for every generated error class:
+ * `HTTPValidationError` included) `error`, the parsed response body itself (`PolarClientError`'s own
+ * constructor: `new ErrorClass(statusCode, parsedBody)`, stored as `this.error`) all survive, which is
+ * everything every duck-typed check in this module family reads (`billing-customer.ts`'s own
  * `isResourceNotFoundError`/`isEmailAlreadyExistsError`, `checkout-session.ts`'s `isTaxIdInvalidError`,
- * this file's own `isPolarRateLimitError`) and everything worth putting in a log line. Anything that
- * is not an `Error` carrying a `statusCode` is returned UNCHANGED — a plain network failure, an abort,
- * or any non-Polar error this wrapper might also see is not this function's concern (`sdks.js`'s own
- * `_do` already names those as `RequestAbortedError`/`RequestTimeoutError`/`ConnectionError`, none of
- * which carry a `Request` at all).
+ * this file's own `isPolarRateLimitError`, every one of them now reading `.error.detail` rather than
+ * 0.49's top-level `.detail`, see each file's own header) and everything worth putting in a log line.
+ * Anything that is not an `Error` carrying a `statusCode` is returned UNCHANGED, a plain network
+ * failure, an abort, or any non-Polar error this wrapper might also see is not this function's concern.
  */
 export function sanitizePolarError(error: unknown): unknown {
   if (!(error instanceof Error) || !('statusCode' in error)) return error;
@@ -139,25 +148,30 @@ export function sanitizePolarError(error: unknown): unknown {
 
 /**
  * Wraps every function reachable on a Polar SDK client/namespace object so a rejected (or thrown)
- * call always surfaces `sanitizePolarError`'s output instead of the SDK's own error — see this file's
+ * call always surfaces `sanitizePolarError`'s output instead of the SDK's own error, see this file's
  * own header for why this lives here rather than at a logging or HTTP boundary. Recurses into nested
  * namespaces (`client.customers`, `client.customers.members`, …), each of which is re-wrapped the same
  * way, so a method several levels deep is covered without this function needing to know the SDK's
  * exact surface.
  *
- * `Reflect.get(obj, prop, obj)` — the THIRD argument pinned to the real, unwrapped `obj`, never the
- * proxy `receiver` a bare `get(obj, prop, receiver)` trap would default to — is the one detail that
- * makes this safe to use at all: several of this SDK's own classes (`Customers extends ClientSDK`,
- * `sdks.js`, read directly) read private state off a `WeakMap` keyed by `this`, and `Customers` itself
- * exposes `members` as a GETTER (`get members() { return this._members ?? (this._members = new
- * PolarMembers(...)) }`). Either one invoked with `this` bound to the Proxy instead of the real
- * instance throws or silently re-creates state on every access; binding every call and every getter
- * back to `obj` keeps `this` identical to what an unwrapped `getPolarClient()` would have used.
+ * `Reflect.get(obj, prop, obj)`, the THIRD argument pinned to the real, unwrapped `obj`, never the
+ * proxy `receiver` a bare `get(obj, prop, receiver)` trap would default to, is the one detail that
+ * makes this safe to use at all. `@polar-sh/sdk@0.49`'s own classes (`Customers extends ClientSDK`)
+ * used to read private state off a `WeakMap` keyed by `this` and expose nested resources as GETTERS
+ * (`get members() { return this._members ?? (this._members = new PolarMembers(...)) }`), invoked with
+ * `this` bound to the Proxy instead of the real instance, either one throws or silently re-creates
+ * state on every access. `@polar-sh/sdk@1.0.0`'s `createPolar(options)` (read directly,
+ * `dist/2026-10/index-*.cjs`) instead returns a PLAIN object of plain, eagerly-constructed namespace
+ * objects (`{ organizations: {...}, subscriptions: {...}, customers: { ..., members: {...} }, ... }`,
+ * no getters, no `WeakMap`), so this specific failure mode no longer exists to trigger. The
+ * `Reflect.get(obj, prop, obj)` binding is kept anyway: it is still the structurally correct way to
+ * proxy an arbitrary object graph whose shape this function does not control, and costs nothing extra
+ * against a plain object.
  *
- * KNOWN GAP: this wraps the CALL that returns a promise, not values a resolved promise hands back —
- * `members.listMembers()` resolves to an `AsyncIterable` (`member-resolution.ts`'s own `for await`
- * page walk) whose OWN later page fetches are not covered, because by the time iteration starts the
- * wrapped call has already resolved successfully. Accepted: every caller of that iterable already logs
+ * KNOWN GAP: this wraps the CALL that returns a promise, not values a resolved promise hands back, a
+ * paginated `iterList` resolves to an `AsyncGenerator` (`member-resolution.ts`'s own `for await` walk,
+ * post-#537) whose OWN later page fetches are not covered, because by the time iteration starts the
+ * wrapped call has already resolved successfully. Accepted: every caller of that generator already logs
  * only `error.message` on failure (`member-resolution.ts`, `member-sync.ts`), by the same discipline
  * every OTHER Polar caller in this codebase already holds, independently of this wrapper.
  */
@@ -185,17 +199,16 @@ export function withSanitizedPolarErrors<T extends object>(target: T): T {
   }) as T;
 }
 
-/** Test-only: drops the cached client (and its `HTTPClient`) so a spec that swaps env vars, mocks
- *  `fetch`, or mocks the SDK between cases does not silently reuse an earlier instance. */
+/** Test-only: drops the cached client so a spec that swaps env vars, mocks `fetch`, or mocks the SDK
+ *  between cases does not silently reuse an earlier instance. */
 export function resetPolarClientForTests(): void {
   cached = null;
-  cachedHttpClient = null;
 }
 
-/** No named `RateLimitError`/`TooManyRequests` class exists in `@polar-sh/sdk`'s own
- *  `models/errors/` directory (read directly, every file there enumerated) — a 429 surfaces as a
- *  plain `PolarError`/`SDKError` carrying `statusCode: 429`, the same generic field every OTHER
- *  duck-typed Polar error check in this module family reads (`billing-customer.ts#isResourceNotFoundError`). */
+/** `PolarRateLimitError` (`@polar-sh/sdk@1.0.0`'s own named class, `base-*.cjs`, read directly) always
+ *  carries `statusCode: 429`, the same generic field every OTHER duck-typed Polar error check in this
+ *  module family reads (`billing-customer.ts#isResourceNotFoundError`), so this stays correct without
+ *  importing that class by name, and without caring whether a future SDK version renames it again. */
 function isPolarRateLimitError(error: unknown): boolean {
   return (
     typeof error === 'object' && error !== null && (error as { statusCode?: unknown }).statusCode === 429
@@ -207,7 +220,7 @@ async function sleep(ms: number): Promise<void> {
 }
 
 export interface PolarRetryOptions {
-  /** Total attempts, including the first — bounded (never unbounded backoff-and-retry-forever, which
+  /** Total attempts, including the first, bounded (never unbounded backoff-and-retry-forever, which
    *  would turn a persistent rate limit into a request that simply never returns). */
   maxAttempts?: number;
   baseDelayMs?: number;
@@ -217,9 +230,9 @@ const DEFAULT_MAX_ATTEMPTS = 4;
 const DEFAULT_BASE_DELAY_MS = 500;
 
 /**
- * The ONE choke point every automatic (never user-initiated) Polar sync call goes through —
+ * The ONE choke point every automatic (never user-initiated) Polar sync call goes through:
  * `seat-sync.ts`'s seat-count push and `member-resolution.ts`'s member lookup/create/delete calls,
- * shared by `member-sync.ts`'s own membership-driven sync. Retries ONLY a 429 (rate limit) — every
+ * shared by `member-sync.ts`'s own membership-driven sync. Retries ONLY a 429 (rate limit), every
  * other failure (a business refusal, an outage, a bad token) is not something retrying fixes, and is
  * left to each caller's own existing "log and swallow, the next membership change retries" discipline.
  * Bounded exponential backoff (`DEFAULT_BASE_DELAY_MS * 2^attempt`), logged on every retry so a
@@ -242,7 +255,7 @@ export async function callPolarWithRetry<T>(
       if (!isPolarRateLimitError(error) || attempt >= maxAttempts) throw error;
 
       const delayMs = baseDelayMs * 2 ** (attempt - 1);
-      logger.warn(`Polar rate limit hit (${description}) — retrying in ${delayMs}ms`, {
+      logger.warn(`Polar rate limit hit (${description}), retrying in ${delayMs}ms`, {
         category: 'billing',
         details: { description, attempt, maxAttempts, delayMs },
       });

@@ -44,3 +44,41 @@ export interface CompanyNumberFormats {
   /** Set when no format applies (no country, or a country without a catalog) - why. */
   unavailableReason: string | null;
 }
+
+/**
+ * "Declare your last number issued" (issue #340) - `numbering/declare-last-number.ts` and
+ * `company.service.ts#declareLastNumberIssued`, usable with or without also importing a document.
+ */
+export interface DeclareLastNumberInferRequest {
+  typeId: string;
+  lastNumber: string;
+  /** ISO date (YYYY-MM-DD) - the date the previous tool issued `lastNumber` on. */
+  lastIssueDate: string;
+}
+
+export interface DeclareLastNumberInferResponse {
+  /** `undefined` when no pattern could be inferred at all (the example has no digits) - the company
+   *  then types one in by hand; the field stays editable either way. */
+  pattern: string | null;
+}
+
+export interface DeclareLastNumberRequest extends DeclareLastNumberInferRequest {
+  /** The pattern the company confirmed (or typed) - re-verified server-side against `lastNumber`
+   *  before anything is written, never trusted blindly. */
+  pattern: string;
+}
+
+export interface DeclareLastNumberResponse {
+  typeId: string;
+  /** The pattern that will actually be used going forward. */
+  pattern: string;
+  source: NumberFormatSource;
+  /** The counter's own next value (`lastNumber`'s own sequential value + 1). */
+  nextNumber: number;
+  /** Why the declared pattern did NOT become the running series - `null` when it did. */
+  violations: NumberFormatViolation[] | null;
+  /** Portugal only - the ATCUD series identifier this company must register with the AT
+   *  (`PUT /api/company/atcud-series`) before its first document of this type. `null` everywhere
+   *  else, where a running series carries no ATCUD concept at all. */
+  atcudSeriesToRegister: string | null;
+}

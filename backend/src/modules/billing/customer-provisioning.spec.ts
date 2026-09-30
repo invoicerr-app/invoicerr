@@ -12,7 +12,7 @@ vi.mock('./legacy-customer', () => ({ invalidateCompanyCustomerFactsCache: vi.fn
 
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  // `findUniqueOrThrow` is only exercised by the `type: "team"` test below — `ensureCompanyBillingMember`
+  // `findUniqueOrThrow` is only exercised by the `type: "team"` test below, `ensureCompanyBillingMember`
   // (`member-sync.ts`) calls straight through to `billing-customer.ts#loadCompanyBillingIdentity`, which
   // reads the SAME mocked `prisma.company` this spec already narrows to `findMany` for every other test.
   default: { company: { findMany: vi.fn(), findUniqueOrThrow: vi.fn() } },
@@ -30,19 +30,22 @@ const warn = logger.warn as Mock;
 const recordCustomerId = recordPolarCustomerId as Mock;
 const invalidateFacts = invalidateCompanyCustomerFactsCache as Mock;
 
-/** The WHERE this file's own query filters on — a company still missing a known Polar customer id. */
+/** The WHERE this file's own query filters on, a company still missing a known Polar customer id. */
 const MISSING_CUSTOMER_WHERE = { OR: [{ subscription: null }, { subscription: { polarCustomerId: null } }] };
 
 function notFoundError(): Error {
   return Object.assign(new Error('ResourceNotFound'), { statusCode: 404 });
 }
 
+// #537: nested under `.error` now, see `billing-customer.spec.ts`'s own `emailTakenError` header.
 function emailTakenError(): Error {
   return Object.assign(new Error('HTTPValidationError'), {
     statusCode: 422,
-    detail: [
-      { loc: ['body', 'email'], msg: 'A customer with this email address already exists.', type: 'x' },
-    ],
+    error: {
+      detail: [
+        { loc: ['body', 'email'], msg: 'A customer with this email address already exists.', type: 'x' },
+      ],
+    },
   });
 }
 
@@ -54,7 +57,7 @@ function fakeClient(overrides: Partial<BillingCustomerClient> = {}): BillingCust
 }
 
 /** Same runtime shape as `fakeClient` above, but ALSO carrying the `MemberResolutionClient` surface
- *  (`customers.members.*`/`members.listMembers`) — only the `type: "team"` test below needs it, for
+ *  (`customers.members.*`), only the `type: "team"` test below needs it, for
  *  `ensureCompanyBillingMember`'s own call (`customer-provisioning.ts`'s own header on why a `team`
  *  customer discovered already-existing also ensures the company's billing member). Typed loosely
  *  (`unknown`, not `BillingCustomerClient`) since this test also asserts on the `members.*` mocks —
@@ -64,9 +67,15 @@ function fakeClientWithMembers(getExternal: Mock, memberGetExternal: Mock, creat
     customers: {
       getExternal,
       create: vi.fn(),
-      members: { getExternal: memberGetExternal, createExternal, delete: vi.fn() },
+      members: {
+        getExternal: memberGetExternal,
+        createExternal,
+        delete: vi.fn(),
+        // #537: `iterList` (`@polar-sh/sdk@1.0.0`) returns an `AsyncGenerator` SYNCHRONOUSLY, no
+        // more `members.listMembers` resolving to a promise of a page-async-iterable.
+        iterList: vi.fn().mockReturnValue((async function* () {})()),
+      },
     },
-    members: { listMembers: vi.fn().mockResolvedValue((async function* () {})()) },
   };
 }
 
@@ -109,17 +118,14 @@ describe('reconcileMissingCompanyCustomers', () => {
     const summary = await reconcileMissingCompanyCustomers(client as unknown as BillingCustomerClient);
 
     expect(summary.alreadyExisted).toBe(1);
-    // Resolved by the company's own billing identity (no override set — falls back to `Company.email`),
-    // never any particular user's — see `member-resolution.ts#resolveOrCreateCompanyBillingMemberId`'s
+    // Resolved by the company's own billing identity (no override set, falls back to `Company.email`),
+    // never any particular user's, see `member-resolution.ts#resolveOrCreateCompanyBillingMemberId`'s
     // own header.
-    expect(createExternal).toHaveBeenCalledWith({
-      externalId: 'company-a',
-      memberCreateFromCustomer: {
-        email: 'a@acme.test',
-        name: 'Acme',
-        externalId: '__company_billing__',
-        role: 'billing_manager',
-      },
+    expect(createExternal).toHaveBeenCalledWith('company-a', {
+      email: 'a@acme.test',
+      name: 'Acme',
+      external_id: '__company_billing__',
+      role: 'billing_manager',
     });
   });
 
@@ -141,7 +147,7 @@ describe('reconcileMissingCompanyCustomers', () => {
     });
     expect(create).toHaveBeenCalledWith({
       type: 'individual',
-      externalId: 'company-a',
+      external_id: 'company-a',
       email: 'a@acme.test',
       name: 'Acme',
     });
@@ -211,10 +217,10 @@ describe('reconcileMissingCompanyCustomers', () => {
     );
   });
 
-  it('processes every company independently — one failure never sinks the others', async () => {
+  it('processes every company independently, one failure never sinks the others', async () => {
     findMany.mockResolvedValue([COMPANY_A, COMPANY_B]);
     // Company A: this function's OWN existence check 404s, then `getOrCreatePolarCustomerForCompany`
-    // re-checks internally (also 404s) before attempting — and failing — to create. Company B: this
+    // re-checks internally (also 404s) before attempting, and failing, to create. Company B: this
     // function's own existence check finds one straight away, so nothing else is called for it.
     const getExternal = vi
       .fn()
@@ -309,7 +315,7 @@ describe('reconcileMissingCompanyCustomers', () => {
     );
   });
 
-  it('queries only companies without a known Polar customer id yet — never rescans a provisioned company', async () => {
+  it('queries only companies without a known Polar customer id yet, never rescans a provisioned company', async () => {
     findMany.mockResolvedValue([]);
 
     await reconcileMissingCompanyCustomers(fakeClient());
@@ -326,7 +332,7 @@ describe('reconcileMissingCompanyCustomers', () => {
 
     expect(recordCustomerId).toHaveBeenCalledWith('company-a', 'cus_a');
     // The write that resolves `hasCompanyCustomer` from false to true for a company this pass just
-    // discovered already had a Polar customer this app never recorded locally — see
+    // discovered already had a Polar customer this app never recorded locally, see
     // `legacy-customer.ts`'s own header on the reported double-billing defect this closes.
     expect(invalidateFacts).toHaveBeenCalledWith('company-a');
   });
@@ -359,7 +365,7 @@ describe('reconcileMissingCompanyCustomers', () => {
       skipped: 0,
       failed: 0,
     });
-    // The DB write never landed, so there is nothing to invalidate — see this file's own
+    // The DB write never landed, so there is nothing to invalidate, see this file's own
     // `persistPolarCustomerId`: the invalidation call sits right after the write it depends on.
     expect(invalidateFacts).not.toHaveBeenCalled();
     // Issue #535: the same "cause must be in the logged message, not only in details" requirement as

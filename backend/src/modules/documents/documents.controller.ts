@@ -970,6 +970,12 @@ export class DocumentsController {
   @ApiQuery({ name: 'typeId', required: true, type: String })
   @ApiResponse({ status: 200, description: 'PDF generated', schema: { type: 'string', format: 'binary' } })
   @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Issue #340: an "imported" document whose archived original is not itself a PDF (a structured ' +
+      'XML the previous tool issued), or one somehow missing its archive entirely',
+  })
   @ApiResponse({ status: 500, description: 'PDF rendering failed' })
   async renderPdf(
     @ActiveCompany() companyId: string,

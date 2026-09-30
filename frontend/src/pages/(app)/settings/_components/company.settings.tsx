@@ -53,6 +53,7 @@ import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-
 import type { Company, ResolvedRevenueSettings } from "@/types"
 
 import { NumberFormatsSection } from "./number-formats.section"
+import { DeclareLastNumberSection } from "./declare-last-number.section"
 
 /** Mirrors the backend's `reconciliation-settings.ts#DEFAULT_TOLERANCE_PERCENT` — shown the first
  *  time this card loads, before `useReconciliationSettings()` itself resolves (see this file's own
@@ -1529,6 +1530,10 @@ export default function CompanySettings() {
             removes the race instead of papering over it with a longer timeout. */}
         <div className="mt-2">
           <NumberFormatsSection />
+        </div>
+
+        <div className="mt-2">
+          <DeclareLastNumberSection />
         </div>
 
         <div className="mt-2">

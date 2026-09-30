@@ -3271,6 +3271,31 @@
         "billingEmailSaveError": "Failed to save the billing email",
         "taxIdNotAccepted": "Your VAT number was not accepted by Polar (VIES); the checkout continues without it — Polar will ask for it if needed."
       }
+    },
+    "declareLastNumber": {
+      "title": "Declare your last number issued",
+      "description": "Migrating from another tool? Tell Invoicerr the last number it printed so your own numbering resumes at last + 1, with no gap. Works even if you never import a single document.",
+      "type": "Document type",
+      "typeInvoice": "Invoice",
+      "typeCreditNote": "Credit note",
+      "lastNumber": "Last number issued (as the previous tool printed it)",
+      "lastIssueDate": "Date it was issued",
+      "pattern": "Pattern",
+      "patternHint": "Infer it from the example above, or type your own. It must reproduce the last number exactly.",
+      "infer": "Infer from example",
+      "submit": "Declare",
+      "errors": {
+        "infer": "Could not infer a pattern",
+        "declare": "Could not declare the last number issued"
+      },
+      "result": {
+        "pattern": "Pattern in effect:",
+        "sourceRunning": "(your own running series)",
+        "sourceCountry": "(the country's own format)",
+        "next": "Next number:",
+        "violations": "The pattern you typed does not satisfy this country's own rules, so the country format applies instead: {{reasons}}",
+        "atcudSeries": "Register series \"{{series}}\" with the tax authority before your first document of this type."
+      }
     }
   },
   "account": {
@@ -5023,6 +5048,66 @@
       "receivedInvoiceDownload": {
         "button": "Download original file",
         "error": "Download failed"
+      },
+      "importDocument": {
+        "button": "Import",
+        "uploadTitle": "Import a past document",
+        "uploadDescription": "Upload the original file (PDF or XML) exactly as the previous tool produced it.",
+        "dropHint": "Drag and drop a PDF, or an XML invoice, here",
+        "maxSize": "Maximum 10 MB",
+        "browse": "Browse files",
+        "uploadError": "Upload failed",
+        "formTitle": "Import {{label}}",
+        "formDescription": "Original file: {{fileName}}",
+        "originalNumber": "Original number (as the previous tool printed it)",
+        "transmissionTitle": "Transmission evidence",
+        "transmissionHint": "Did the previous tool actually transmit this document? Leave blank if you are not sure: the import is still accepted, with a visible warning that it must be regularised.",
+        "transmissionSdiId": "SdI id (Italy)",
+        "transmissionKsefNumber": "KSeF number (Poland)",
+        "transmissionPaReference": "Accredited platform reference (France)",
+        "transmissionAtcud": "ATCUD (Portugal)",
+        "cancel": "Cancel",
+        "confirm": "Import",
+        "imported": "Document imported.",
+        "importedUntransmitted": "Document imported, no transmission evidence was declared. It must be regularised.",
+        "importError": "Import failed"
+      },
+      "importCsv": {
+        "button": "Import CSV",
+        "title": "Import {{label}} from a CSV file",
+        "description": "One row per document, plus the original files (PDF or XML) it references by name.",
+        "downloadTemplate": "Download the CSV template",
+        "step1": "1. Select the original files (PDF or XML), all at once",
+        "filesHint": "{{count}} file(s) uploaded so far.",
+        "step2": "2. Select the CSV file",
+        "dropHint": "Drag and drop a CSV file here, or click to choose one",
+        "uploadError": "Upload failed",
+        "filesUploaded": "{{count}} file(s) uploaded.",
+        "fileTooLarge": "This file is over the {{maxKb}} KB limit",
+        "empty": "The file has no data rows to import.",
+        "tooManyRows": "This file has {{count}} rows, over the {{max}}-row limit a single import can process.",
+        "previewFailed": "Preview failed",
+        "parseFailed": "Could not read this file",
+        "confirmFailed": "Import failed",
+        "summary": {
+          "willImport": "{{count}} will be imported",
+          "rejected": "{{count}} rejected"
+        },
+        "preview": {
+          "row": "Row",
+          "originalNumber": "Original number",
+          "status": "Status",
+          "detail": "Detail"
+        },
+        "status": {
+          "valid": "Valid",
+          "rejected": "Rejected"
+        },
+        "confirm": "Import {{count}}",
+        "result": {
+          "imported": "Imported",
+          "rejected": "Rejected"
+        }
       }
     },
     "totals": {
@@ -5142,8 +5227,10 @@
       "dialogTitle": "Correction routes — {{number}}",
       "errorTitle": "Could not load correction routes",
       "genericError": "Something went wrong loading correction routes.",
+      "limitation": "These correction options reflect the law of the invoice's own seller country only, not the buyer's. For a purely domestic sale this is the full picture; for a cross-border one, the buyer's own country may also affect whether and how the tax amount can be adjusted.",
       "chooseRoute": "Choose this route",
       "unverifiedReason": "Not established for this country: {{note}}",
+      "allForbidden": "No correction route is allowed for {{countryCode}}: every route this invoice's country recognizes is forbidden by its own law.",
       "notImplemented": {
         "title": "Not implemented yet",
         "body": "\"{{route}}\" is declared by {{countryCode}}'s own law, but this application does not implement it yet — no mechanism runs it here today.",
@@ -5173,6 +5260,73 @@
         "LEDGER_ANNOTATION": "Ledger annotation",
         "NO_DOCUMENT_BY_LAW": "No document required by law",
         "COUNTERPARTY_OBJECTION": "Counterparty objection"
+      },
+      "explanations": {
+        "DE": {
+          "CREDIT_NOTE": "In Germany, issuing a separate credit note is optional, not required, for a rebate, a discount, or a cancelled sale. (UStAE 14.11 Abs. 4 S. 1)",
+          "DEBIT_NOTE": "Germany has no dedicated debit note instrument. An upward correction is normally made through a corrective invoice instead, and whether a separate debit note route applies has not been confirmed against a specific provision.",
+          "CORRECTIVE_INVOICE": "This is Germany's standard correction route: a document that specifically references the original invoice and supplies the missing or incorrect mandatory details. No new invoice number is needed, and only the seller may issue it. (Section 31(5) UStDV)",
+          "CANCEL_AND_REPLACE": "You may cancel the invoice and issue a new one in its place, which can have retroactive effect for VAT deduction. Any duplicate copies must be clearly marked as such, or each one risks being treated as a separately owed tax amount. (UStAE 14c.1 Abs. 4)",
+          "INTERNAL_CREDIT_NOTE": "A purely internal write-off is not enough in Germany: correcting VAT wrongly stated on an issued invoice requires a written correction that actually reaches the buyer. (UStAE 14c.1 Abs. 7)",
+          "AUTHORITY_ANNULMENT": "For the narrow case of VAT wrongly shown on an invoice with no underlying taxable supply, correcting the amount owed requires prior written approval from the tax office. (Section 14c(2) UStG)",
+          "RESUBMIT_SAME_IDENTITY": "Resending the exact same electronic invoice as an identical duplicate is harmless and does not create a new correction. (UStAE 14c.1 Abs. 4)",
+          "NO_DOCUMENT_BY_LAW": "For rebates, discounts, bad debts, and cancellations, German VAT law adjusts the tax automatically: no corrective document needs to be issued or sent at all. (Section 17(1) UStG)",
+          "COUNTERPARTY_OBJECTION": "For a self-billed invoice, you as the supplier can object to it and have the document lose its effect as an invoice. This takes effect once the buyer who issued the self-billed invoice receives your objection, with no time limit. (Section 14(2) sentence 6 UStG)",
+          "LEDGER_ANNOTATION": "Whether a correction can be made by a simple internal register entry alone, with no document at all, has not been confirmed for Germany. In practice, most such cases are already covered by the automatic adjustment route above.",
+          "ANNOTATED_DUPLICATE": "Whether an invoice can be resent unchanged, with an added note, as a correction has not been researched for Germany."
+        },
+        "FR": {
+          "CREDIT_NOTE": "For a cancelled or terminated sale, or a discount or rebate, you may correct the invoice by cancelling and replacing it, or by issuing a credit note. This is not available for a simple unpaid debt. (CGI art. 289, I, 5)",
+          "DEBIT_NOTE": "French law has no separate debit note instrument: any document that increases the invoiced amount is treated as a corrective invoice. Whether issuing one is mandatory in every case has not been fully confirmed. (CGI art. 289, I, 5)",
+          "CORRECTIVE_INVOICE": "Any document that changes the original invoice and clearly, specifically references it counts as a corrective invoice under French law. (CGI art. 289, I, 5)",
+          "CANCEL_AND_REPLACE": "You may cancel the invoice and replace it with a new one, as long as the new invoice exactly references the original and expressly states that the original is cancelled. (BOI-TVA-DED-40-10-20, Section 70)",
+          "INTERNAL_CREDIT_NOTE": "If your invoice is refused or rejected by the public invoicing portal, you must record an internal accounting write-off. It is purely internal and is never transmitted through the portal. (DGFiP/AIFE external specifications v3.2, Section 3.6.4)",
+          "AUTHORITY_ANNULMENT": "There is no request-based cancellation with the tax authority in France: when the public portal rejects an invoice, it notifies the authority itself, but this is not a correction route the seller can invoke. (Specifications externes v2.4, p. 56/59/61)",
+          "RESUBMIT_SAME_IDENTITY": "In the narrow case of a technical rejection during file generation, or a routing error, you may resend the invoice under the same number. Outside those two cases, a new invoice number is required. (Specifications externes v3.2, Section 3.6.9)",
+          "ANNOTATED_DUPLICATE": "For an unpaid debt, you must correct the invoice by resending a duplicate of the original, marked with the mandatory statement of the unpaid amount and the VAT that cannot be deducted. A recap statement of unpaid invoices is also accepted. (CGI art. 272, 1)",
+          "LEDGER_ANNOTATION": "A correction made only in your own accounting records has no effect on VAT in France: recovering or adjusting the tax requires first justifying to the authority that the original invoice itself was corrected. (CGI art. 272, 1)",
+          "NO_DOCUMENT_BY_LAW": "Unlike some countries, France does not adjust VAT automatically when the taxable amount changes: a corrective document is required before the adjustment can be claimed, except in two narrow cases, an untraceable debtor or a conditional discount already stated on the original invoice. (CGI art. 272, 1)",
+          "COUNTERPARTY_OBJECTION": "Whether a buyer can unilaterally reject an invoice and strip it of its effect has not been confirmed for France. For self-billed invoices specifically, a dispute leads to a corrective invoice rather than an outright rejection."
+        },
+        "IT": {
+          "CREDIT_NOTE": "Issuing a credit note is optional, not required, for a cancelled, annulled, or terminated sale, a contractual rebate or discount, or an unpaid debt in insolvency proceedings. A one-year deadline applies for contractual causes; other causes have no deadline. (Art. 26 DPR 633/72, comma 2)",
+          "DEBIT_NOTE": "Any increase to the invoiced amount or the VAT, for whatever reason, must be corrected through a debit note. Unlike the credit note, this upward correction is mandatory. (Art. 26 DPR 633/72, comma 1)",
+          "CORRECTIVE_INVOICE": "Italy has no separate corrective invoice instrument: every variation to an issued invoice must go through a credit note or a debit note instead. (Provvedimento 89757/2018, point 6.1)",
+          "CANCEL_AND_REPLACE": "You may cancel and replace an invoice only after it was rejected by the exchange system (SdI), never once it has actually reached the recipient. Reissuing uses either a new number and date linked to the rejected invoice by an internal adjustment, or a separate numbering section. (Circolare 13/E, Section 1.6)",
+          "INTERNAL_CREDIT_NOTE": "If a rejected invoice had already been recorded in your accounts, you must correct it with an internal accounting adjustment. No variation note is sent to the exchange system for it. (Provvedimento 89757/2018, point 6.3)",
+          "AUTHORITY_ANNULMENT": "There is no authority-side cancellation procedure for an issued invoice in Italy, and the exchange system does not process cancellation requests from the buyer either. (Provvedimento 89757/2018, points 6.1 and 6.2)",
+          "RESUBMIT_SAME_IDENTITY": "After a rejection, it is recommended, though not strictly required, to resend the invoice within five days, keeping the original number and date. (Circolare 13/E, Section 1.6)",
+          "LEDGER_ANNOTATION": "For material or calculation errors, and for certain listed variations, you may correct the record by annotating your own VAT registers alone, with no document issued or transmitted. (Art. 26 DPR 633/72, commas 7 and 8)",
+          "ANNOTATED_DUPLICATE": "Whether an invoice can be resent unchanged, with an added note, instead of a credit note or a corrective document, has not been researched for Italy.",
+          "NO_DOCUMENT_BY_LAW": "Whether VAT can adjust automatically for a taxable-amount change with no document at all has not been researched for Italy.",
+          "COUNTERPARTY_OBJECTION": "Whether a buyer can unilaterally reject an invoice and strip it of its effect has not been researched for Italy."
+        },
+        "PL": {
+          "CREDIT_NOTE": "Poland has no separate credit note document: both upward and downward corrections go through the single corrective invoice (faktura korygujaca) instead. (Art. 106j ust. 1, VAT Act)",
+          "DEBIT_NOTE": "Poland has no separate debit note document either: an upward correction, like a downward one, is made through the single corrective invoice (KOR). (Art. 106j ust. 1 pkt 1, VAT Act)",
+          "CORRECTIVE_INVOICE": "This is Poland's standard correction route: you must issue a corrective invoice (KOR) whenever a legally listed situation applies, such as an error found anywhere on the invoice. It must reference the original invoice's KSeF number, unless that original invoice was never assigned one. (Art. 106j ust. 1, VAT Act)",
+          "CANCEL_AND_REPLACE": "For a wrong buyer tax ID, you must zero out the original invoice with a corrective invoice and issue a new, correct one. There is no cancellation mechanism as such: it is done entirely through corrective invoices. (Podrecznik KSeF 2.0, Part II, Section 1.6.4)",
+          "INTERNAL_CREDIT_NOTE": "Once an invoice has been accepted by KSeF, it cannot be edited or written off internally: the only way to fix an error is a corrective invoice submitted to KSeF. (Podrecznik KSeF 2.0, Part II, Section 1.6.2)",
+          "AUTHORITY_ANNULMENT": "KSeF has no mechanism to cancel an already-issued invoice, whether at the seller's request or by the authority. (Podrecznik KSeF 2.0, Part II, Section 1.6.3)",
+          "RESUBMIT_SAME_IDENTITY": "After a rejection, you may resend the corrected invoice under the same original number: you are not required to change the number just to fix a rejected submission. (Podrecznik KSeF 2.0, Part II, Section 1.6.7)",
+          "LEDGER_ANNOTATION": "Whether a correction can be made by a simple internal register entry alone, with no document at all, has not been researched for Poland.",
+          "ANNOTATED_DUPLICATE": "Whether an invoice can be resent unchanged, with an added note, instead of a corrective invoice, has not been researched for Poland.",
+          "NO_DOCUMENT_BY_LAW": "Whether VAT can adjust automatically for a taxable-amount change with no document at all has not been researched for Poland.",
+          "COUNTERPARTY_OBJECTION": "Whether a buyer can unilaterally reject an invoice and strip it of its effect has not been researched for Poland."
+        },
+        "PT": {
+          "CREDIT_NOTE": "For a cancelled sale, returned goods, or a rebate or discount, you may reduce the tax due. This is optional, and must be claimed within two years. (Art. 78, CIVA)",
+          "DEBIT_NOTE": "If tax was originally undercharged on the invoice, correcting it upward is mandatory, and can be done without penalty until the end of the period following the invoice's own. (Art. 78, CIVA)",
+          "CORRECTIVE_INVOICE": "You may issue a rectifying document that references the original invoice and states which details are being amended, for any correction reason. (Art. 36, CIVA)",
+          "CANCEL_AND_REPLACE": "Portugal has no real-time invoice clearance system, so there is no confirmed mechanism where the tax authority rejects an invoice and allows it to be reissued under a cancel-and-replace flow.",
+          "INTERNAL_CREDIT_NOTE": "A downward correction can only be used by the seller if there is proof the buyer was informed of it or reimbursed. Whether a purely internal write-off with no such proof is allowed has not been settled. (Art. 78, n.5, CIVA)",
+          "AUTHORITY_ANNULMENT": "Whether the tax authority can cancel an already-issued invoice, on its own initiative or at the seller's request, has not been confirmed for Portugal.",
+          "RESUBMIT_SAME_IDENTITY": "This route assumes a rejection by a real-time clearance platform, which Portugal does not have. No mechanism for reissuing an invoice under the same number and date has been found.",
+          "ANNOTATED_DUPLICATE": "Whether an invoice can be reissued unchanged, under the same number, with an added note, has not been confirmed for Portugal.",
+          "LEDGER_ANNOTATION": "Correcting a material or calculation error directly in your VAT register or return, without any document to the customer, is optional when it benefits you, within two years, and mandatory when it benefits the State. (Art. 78, n.6, CIVA)",
+          "NO_DOCUMENT_BY_LAW": "Whether VAT can adjust automatically with no document, entry, or notification at all has not been confirmed for Portugal.",
+          "COUNTERPARTY_OBJECTION": "No mechanism was found for the buyer to unilaterally reject an invoice. Portuguese law only has the buyer adjusting its own deduction once the seller itself has corrected the invoice, which is a consequence rather than an initial objection. (Art. 78, n.4, CIVA)"
+        }
       }
     },
     "reconciliation": {
@@ -5205,7 +5359,8 @@
       "unsavedChanges": "Unsaved changes",
       "discard": "Discard",
       "totalsTitle": "Totals",
-      "notFound": "This document could not be found."
+      "notFound": "This document could not be found.",
+      "importNotTransmitted": "This document was imported with no transmission evidence declared (no SdI id, KSeF number, accredited platform reference, or ATCUD). It must be regularised with the relevant authority."
     },
     "acceptance": {
       "menuLabel": "Mark as accepted",

@@ -32,6 +32,12 @@ export const ALLOWED_ATTACHMENT_MIMES: readonly string[] = [
   'image/jpeg',
   'image/png',
   'image/webp',
+  // Issue #340 - importing a past document's original file: the legal archive of an imported
+  // invoice/credit-note is a PDF for most sellers, but can be the structured XML a previous tool
+  // issued (FatturaPA, KSeF FA(3), Factur-X/CII, XRechnung/UBL) - see archive/import-original.ts's
+  // own header on why the original format is kept verbatim, never re-derived from a PDF alone.
+  'application/xml',
+  'text/xml',
 ];
 
 /**

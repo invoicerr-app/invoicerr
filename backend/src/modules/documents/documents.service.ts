@@ -33,6 +33,7 @@ import {
   ArchiveVerificationResult,
   DocumentArchiveResult,
   findArchivedPdfArtifact,
+  findImportOriginalArtifact,
   findManualAcceptanceArchive,
   listDocumentArchives,
   ManualAcceptanceManifest,
@@ -1837,11 +1838,43 @@ export class DocumentsService implements OnModuleInit {
    * share-link download, the client portal's `getDocumentPdf` and the ZIP export. The signing page
    * never comes through here: it serves the DELIVERY archive its signature request is bound to
    * (`signatures/signatures.service.ts`, issue #477).
+   *
+   * Issue #340 - "imported" is ALSO issued per `archived-pdf-policy.ts` (a status "save-draft" locks,
+   * so its content can never change again), but it can never have a DELIVERY archive: an imported
+   * document was never sent BY THIS APPLICATION, so `findArchivedPdfArtifact` above always answers
+   * `null` for one and every import would otherwise fall through to a FRESH render of whatever `data`
+   * the import stored - a document this application never actually produced, served as if it were the
+   * issued copy. Its real legal copy is the IMPORT_ORIGINAL archive `import/document-import.service.ts`
+   * wrote at import time (`archive/import-original.ts`), so this status is resolved FIRST, before the
+   * DELIVERY-archive branch even runs: the original's own bytes when it is already a PDF (the common
+   * case, a scan or a print from the previous tool), or a 409 when it is not (a structured XML original
+   * with no PDF of its own - `GET .../pdf` cannot honestly relabel FatturaPA/KSeF FA(3)/Factur-X/
+   * XRechnung as `application/pdf`, and inventing one here would be the exact defect this fixes, only
+   * moved one status over).
    */
   async renderInstancePdf(companyId: string, typeId: string, id: string): Promise<Buffer> {
     const instance = await findOwnedDocument(companyId, typeId, id);
-    const descriptor = this.mergedDescriptor(typeId);
 
+    if (instance.status === 'imported') {
+      const original = await findImportOriginalArtifact(companyId, id);
+      if (!original) {
+        throw new ConflictException(
+          'This imported document has no archived original on file, so no PDF can be served for it. ' +
+            'Contact support: an imported document must never be missing its legal archive.',
+        );
+      }
+      if (original.mime !== 'application/pdf') {
+        throw new ConflictException(
+          "This document's original file, as imported, is not a PDF (it is a structured " +
+            `"${original.mime}" file the previous tool issued). Invoicerr keeps it verbatim as the ` +
+            'legal original, but this endpoint only ever serves a PDF, so it cannot be relabeled or ' +
+            'converted here.',
+        );
+      }
+      return original.bytes;
+    }
+
+    const descriptor = this.mergedDescriptor(typeId);
     const archived = await findArchivedPdfArtifact(companyId, id, (archivedDataHash) =>
       isArchivedPdfServable({
         descriptor,
