@@ -404,7 +404,7 @@ export default function Settings() {
         className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-6"
         data-cy={`settings-tab-${currentTab}`}
       >
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-6xl">
           <Content />
         </div>
       </main>

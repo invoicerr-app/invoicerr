@@ -229,5 +229,36 @@ describe('Settings E2E', () => {
                 cy.get('[data-cy="settings-nav-branding"]').should('have.attr', 'aria-current', 'page');
             });
         });
+
+        // #560: the settings content column was capped at `max-w-4xl` (896px), wasting most of a
+        // desktop screen next to the 21-tab sidebar. Widened to `max-w-6xl` (1152px) - the single
+        // `<div className="mx-auto max-w-6xl">` in `-[tab].tsx` that wraps every tab's content.
+        // Guards both ends of that change: the column must actually be wider now on a large
+        // viewport, and the phone layout (a rail-less layout, see the "navigates between sections"
+        // test above) must never grow a horizontal scrollbar regardless of the new cap.
+        describe('Content width (#560)', () => {
+            it('is wider than the old 896px cap at 1920x1080', () => {
+                cy.viewport(1920, 1080);
+                cy.visit('/settings/company');
+                cy.get('[data-cy="settings-tab-company"] > div')
+                    .first()
+                    .should(($column) => {
+                        const width = $column[0].getBoundingClientRect().width;
+                        expect(width, 'settings content column width').to.be.greaterThan(896);
+                    });
+            });
+
+            it('never grows a horizontal scrollbar at phone width', () => {
+                cy.viewport('iphone-x');
+                cy.visit('/settings/company');
+                cy.get('[data-cy="settings-tab-company"]', { timeout: 10000 }).should('be.visible');
+                cy.document().should((doc) => {
+                    const root = doc.documentElement;
+                    expect(root.scrollWidth, 'no horizontal overflow at phone width').to.be.at.most(
+                        root.clientWidth + 1,
+                    );
+                });
+            });
+        });
     });
 });
