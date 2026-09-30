@@ -741,6 +741,24 @@ describe("Correct — correction routes, by seller country", () => {
   const limitationText =
     "This reads the document's SELLER country only — never the buyer's. See the seller×buyer " +
     "composition limitation."
+  // Issue #554: the dialog no longer renders `data.limitation` (the raw text above, still sent by
+  // the API for other consumers, see the fixtures below) nor `route.label` (the raw
+  // `provenance.sourceText`, `frCitation`/`cancelCitation` below). It renders these curated,
+  // translated keys instead (`translation.json`'s own `documents.correction.limitation` /
+  // `documents.correction.explanations.<countryCode>.<routeId>`), copied here verbatim so a change to
+  // either copy source is caught by this suite either way.
+  const translatedLimitationHeader =
+    "These correction options reflect the law of the invoice's own seller country only, not the " +
+    "buyer's. For a purely domestic sale this is the full picture; for a cross-border one, the " +
+    "buyer's own country may also affect whether and how the tax amount can be adjusted."
+  const frInternalCreditNoteExplanation =
+    "If your invoice is refused or rejected by the public invoicing portal, you must record an " +
+    "internal accounting write-off. It is purely internal and is never transmitted through the " +
+    "portal. (DGFiP/AIFE external specifications v3.2, Section 3.6.4)"
+  const frCancelAndReplaceExplanation =
+    "You may cancel the invoice and replace it with a new one, as long as the new invoice exactly " +
+    "references the original and expressly states that the original is cancelled. " +
+    "(BOI-TVA-DED-40-10-20, Section 70)"
 
   it("seller FR: the internal credit note (INTERNAL_CREDIT_NOTE) is shown IMPOSED with its legal basis, clickable, and leads to the REAL pre-linked credit note (reference filled, currency locked)", async () => {
     const invoice = issuedInvoice("inv-fr")
@@ -792,13 +810,23 @@ describe("Correct — correction routes, by seller country", () => {
     fireEvent.click(await screen.findByTestId("document-correction-button-inv-fr"))
     await screen.findByTestId("document-correction-dialog")
 
+    // Issue #554: the header is the curated, translated explanation, never the backend's own raw
+    // developer note sent as `limitation`.
+    const limitationParagraph = await screen.findByTestId("document-correction-limitation")
+    expect(limitationParagraph).toHaveTextContent(translatedLimitationHeader)
+    expect(limitationParagraph).not.toHaveTextContent(limitationText)
+
     const requiredRow = await screen.findByTestId("document-correction-route-INTERNAL_CREDIT_NOTE")
     expect(
       within(requiredRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-status"),
     ).toHaveTextContent("Required by law")
-    expect(
-      within(requiredRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-label"),
-    ).toHaveTextContent(frCitation)
+    // Issue #554: the row shows the curated, translated explanation, never the catalog's own raw
+    // `provenance.sourceText` (`frCitation`, mixed French/legal-quote research notes).
+    const requiredRowLabel = within(requiredRow).getByTestId(
+      "document-correction-route-INTERNAL_CREDIT_NOTE-label",
+    )
+    expect(requiredRowLabel).toHaveTextContent(frInternalCreditNoteExplanation)
+    expect(requiredRowLabel).not.toHaveTextContent(frCitation)
     const chooseButton = within(requiredRow).getByTestId(
       "document-correction-route-INTERNAL_CREDIT_NOTE-button",
     )
@@ -966,7 +994,10 @@ describe("Correct — correction routes, by seller country", () => {
     // The confirmation step — clicking "choose" never cancels on its own.
     const confirmPanel = await screen.findByTestId("document-correction-confirm-cancel")
     expect(confirmPanel).toHaveTextContent("cannot be undone")
-    expect(screen.getByTestId("document-correction-confirm-cancel-label")).toHaveTextContent(cancelCitation)
+    // Issue #554: same curated explanation here too, never the raw citation even on this screen.
+    const confirmCancelLabel = screen.getByTestId("document-correction-confirm-cancel-label")
+    expect(confirmCancelLabel).toHaveTextContent(frCancelAndReplaceExplanation)
+    expect(confirmCancelLabel).not.toHaveTextContent(cancelCitation)
     expect(ranCancel, "no cancel ran yet — only the confirmation panel opened").toBe(false)
 
     fireEvent.click(screen.getByTestId("document-correction-confirm-cancel-confirm"))

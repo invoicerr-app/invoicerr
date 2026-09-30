@@ -346,14 +346,17 @@ describe("Correct — the screen, browser level", () => {
 						timeout: 5000,
 					}).should("be.visible");
 
-					// The imposed route: status AND legal basis — the API's own WORDS (the excerpt
-					// from the DGFiP/AIFE specification file), never a summary rewritten on the frontend.
+					// The imposed route: status, AND the curated, translated explanation (issue #554)
+					// and never the catalog's own raw provenance text (the DGFiP/AIFE excerpt, in
+					// French) rewritten on the frontend.
 					cy.get(
 						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-status"]',
 					).should("contain.text", "Required by law");
 					cy.get(
 						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-label"]',
-					).should("contain.text", "annulation comptable");
+					)
+						.should("contain.text", "internal accounting write-off")
+						.and("not.contain.text", "annulation comptable");
 
 					cy.get(
 						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]',
@@ -443,6 +446,48 @@ describe("Correct — the screen, browser level", () => {
 								).to.eq("EUR");
 							});
 					});
+				});
+			});
+		});
+	});
+
+	/**
+	 * Issue #554: the dialog used to print the catalog's own raw `provenance.sourceText` (research
+	 * notes, mostly in French mixed with foreign-language legal quotations) and the backend's own
+	 * English developer note about seller×buyer jurisdiction, both verbatim, inside an otherwise
+	 * translated English interface. Both are now replaced by curated, translated
+	 * `translation.json` keys (`documents.correction.limitation`,
+	 * `documents.correction.explanations.<countryCode>.<routeId>`); this test proves BOTH halves:
+	 * the translated explanation renders, and the raw catalog text never does, anywhere in the
+	 * dialog (the routes list AND the header).
+	 */
+	it("issue #554: the dialog shows the translated explanation and header, never the catalog's raw provenance text", () => {
+		setInvoiceTransport("email");
+		const preMandateDates = { issueDate: "2026-08-18", dueDate: "2026-09-18" };
+
+		createClient("Client Traduction SARL").then((clientId) => {
+			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
+				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
+					openCorrectionDialog(invoiceId);
+					cy.get('[data-cy="document-correction-dialog"]', {
+						timeout: 5000,
+					}).should("be.visible");
+
+					// The header: the curated, translated explanation, never the backend's own raw
+					// developer note (`correction-routes.ts`'s own `LIMITATION_TEXT`, still sent by the
+					// API as `limitation` for other consumers, just not rendered here any more).
+					cy.get('[data-cy="document-correction-limitation"]')
+						.should("contain.text", "seller country")
+						.and("not.contain.text", "This reads the document's SELLER country only");
+
+					// The imposed route's own row: the curated, translated explanation, never the
+					// catalog's own raw `provenance.sourceText` (French, legal-quote research notes).
+					cy.get(
+						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-label"]',
+					)
+						.should("contain.text", "internal accounting write-off")
+						.and("not.contain.text", "annulation comptable")
+						.and("not.contain.text", "PPF");
 				});
 			});
 		});

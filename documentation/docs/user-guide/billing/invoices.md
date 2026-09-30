@@ -49,7 +49,7 @@ There is no "recurring" choice at creation time. Once an invoice exists, its row
 
 ## Correcting an invoice
 
-Click the scale icon on a **Sent** or **Send failed** invoice to see the correction routes your seller country's law allows for it. Only routes you can actually consider are listed:
+Click the scale icon on a **Sent** or **Send failed** invoice to see the correction routes your seller country's law allows for it. Only routes you can actually consider are listed. Each route carries a short, plain-language explanation of what it means for you and, where the law provides one, a short legal reference (for example "Art. 106j ust. 1, VAT Act"), never the raw legal research notes behind the app's own country data.
 
 - **Required** or **Allowed** routes are choosable. Picking one that this app implements (an internal credit note, a local cancellation, or, for Poland, a corrective invoice) takes you straight to the pre-linked screen; picking one your country's law permits but this app doesn't implement yet shows an honest "not implemented" message instead of pretending to run something.
 - **Not established** routes are shown but not choosable: the law hasn't settled whether this country allows them.
