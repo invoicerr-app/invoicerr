@@ -469,6 +469,8 @@ function FiscalStep({
   b2gRuleLoading,
   requiredIdentifiers,
   requiredIdentifiersReason,
+  catalogRequirements,
+  countryCode,
   canLookupScheme,
   onCompanyLookup,
   companyLookupLoading,
@@ -480,6 +482,11 @@ function FiscalStep({
   b2gRuleLoading: boolean
   requiredIdentifiers: IdentifierRequirement[] | undefined
   requiredIdentifiersReason: string | undefined
+  // The raw country-identifiers catalog result (issue #563), distinct from `requiredIdentifiers`,
+  // which also mixes in B2G-only requirements. Used only to tell, by reference, which entry in
+  // `requiredIdentifiers` is actually catalog-sourced and should get the translated help text.
+  catalogRequirements: IdentifierRequirement[] | undefined
+  countryCode: string | undefined
   canLookupScheme: (scheme: string) => boolean
   onCompanyLookup: (value: string | undefined, scheme?: LookupScheme) => void | Promise<void>
   companyLookupLoading: boolean
@@ -584,6 +591,16 @@ function FiscalStep({
             const current = form.watch("identifiers" as never) || []
             const formIndex = (current as { scheme: string }[]).findIndex((i) => i.scheme === req.scheme)
             if (formIndex < 0) return null
+            // Same guard as company.settings.tsx/onboarding.tsx (issue #563): a requirement sourced
+            // straight from the country-identifiers catalog (`req` is one of the objects
+            // `requiredIdentifiersResult.requirements` itself returned) shows a curated, translated
+            // help text, falling back to nothing rather than the catalog's own raw developer note.
+            // A B2G-only requirement (its `helpText` is the B2G rule's own `why`, a different
+            // catalog entirely) is shown as-is.
+            const isCatalogSourced = catalogRequirements?.includes(req)
+            const helpText = isCatalogSourced
+              ? t(`settings.identifiers.help.${countryCode}.${req.scheme}`, "")
+              : req.helpText
             return (
               <FormField
                 key={req.scheme}
@@ -619,7 +636,14 @@ function FiscalStep({
                         )}
                       </div>
                     </FormControl>
-                    {req.helpText && <p className="text-xs text-muted-foreground">{req.helpText}</p>}
+                    {helpText && (
+                      <p
+                        className="text-xs text-muted-foreground"
+                        data-cy={`client-identifier-${req.scheme}-help`}
+                      >
+                        {helpText}
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1661,6 +1685,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           b2gRuleLoading={b2gRuleLoading}
           requiredIdentifiers={requiredIdentifiers}
           requiredIdentifiersReason={requiredIdentifiersReason}
+          catalogRequirements={requiredIdentifiersResult?.requirements}
+          countryCode={countryCodeValue}
           canLookupScheme={canLookupScheme}
           onCompanyLookup={onCompanyLookup}
           companyLookupLoading={companyLookupLoading}

@@ -2399,6 +2399,26 @@
         "description": "The leeway (as a percent) allowed between a purchase order, its goods receipt(s), and the received invoice before a line is flagged \"to review\" in the 3-way-match panel. 0 means no leeway at all — any difference is flagged."
       }
     },
+    "identifiers": {
+      "help": {
+        "DE": {
+          "VAT": "Your German EU VAT number: DE followed by 9 digits, for example DE123456789. Needed to qualify as a business (B2B) for cross-border VAT treatment.",
+          "LEGAL_ID": "Your commercial register number: the registering court (Amtsgericht) plus the register number, for example HRB 12345 München."
+        },
+        "FR": {
+          "LEGAL_ID": "9 digits (SIREN, the legal-unit number required on every invoice) or 14 digits (SIRET, the establishment number, also accepted since its first 9 digits are the SIREN)."
+        },
+        "IT": {
+          "IT_PA_CODE": "The 6-character Codice Ufficio for a government client (Pubblica Amministrazione), looked up on indicepa.gov.it. Needed so an invoice to a government client routes correctly.",
+          "IT_SDI": "The 7-character Codice Destinatario the Sistema di Interscambio assigns, on request, to a recipient with an accredited receiving channel. Needed so a domestic invoice routes to the right mailbox.",
+          "PEC": "A certified email address (PEC) used to deliver the invoice when the recipient has no Codice Destinatario on file."
+        },
+        "PT": {
+          "LEGAL_ID": "Your NIF (individuals) or NIPC, Número de Identificação de Pessoa Coletiva (companies). Every person and company in Portugal has one, whether or not they are VAT-registered.",
+          "VAT": "In practice, the same as your NIF/NIPC with a PT prefix, for example PT123456789. Used for intra-EU VAT exchanges (VIES)."
+        }
+      }
+    },
     "dangerZone": {
       "title": "Danger Zone",
       "description": "Irreversible and destructive actions",

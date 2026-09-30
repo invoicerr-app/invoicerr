@@ -670,6 +670,18 @@ export default function CompanySettings() {
                     const formIndex = current.findIndex((i) => i.scheme === req.scheme)
                     if (formIndex < 0) return null
                     const isLegalId = req.scheme === "LEGAL_ID"
+                    // `req.helpText` off the API is the country-identifiers catalog's own raw
+                    // developer note (research language, em dashes) for a requirement sourced
+                    // straight from that catalog (issue #563), never shown any more. A curated,
+                    // translated key replaces it, falling back to nothing (never the raw text) when
+                    // none exists yet. An entry NOT sourced from the catalog (the synthetic VAT
+                    // field `withVatIdentifier` adds for a country with no VAT scheme of its own, or
+                    // a B2G-only requirement) already carries a properly localized `helpText` and is
+                    // shown as-is: reference equality against the raw API result tells them apart.
+                    const isCatalogSourced = requiredIdentifiersResult?.requirements?.includes(req)
+                    const helpText = isCatalogSourced
+                      ? t(`settings.identifiers.help.${countryCodeValue}.${req.scheme}`, "")
+                      : req.helpText
                     return (
                       <FormField
                         key={req.scheme}
@@ -715,7 +727,14 @@ export default function CompanySettings() {
                                 )}
                               </div>
                             </FormControl>
-                            {req.helpText && <p className="text-xs text-muted-foreground">{req.helpText}</p>}
+                            {helpText && (
+                              <p
+                                className="text-xs text-muted-foreground"
+                                data-cy={`company-identifier-${req.scheme}-help`}
+                              >
+                                {helpText}
+                              </p>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
