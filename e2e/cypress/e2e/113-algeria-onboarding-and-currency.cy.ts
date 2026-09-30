@@ -20,6 +20,11 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     naming the required currency - never the raw catalog quote (#566 review: the source text and
  *     its check date stay in the catalog only, never shown to the user) - and never silently taxed or
  *     converted.
+ *
+ * A third describe block, added for issue #567 (the PR #566 review's own NIF/NIS format follow-up),
+ * proves the two identifier patterns now declared in country-identifiers/data/dz.json end to end: a
+ * malformed NIF is rejected with a clear, translated message on Settings > Company, and the four DZ
+ * help texts (settings.identifiers.help.DZ.*, the #563/#564 i18n mechanism) actually render.
  */
 const api = Cypress.env("apiUrl");
 const YEAR = new Date().getFullYear();
@@ -64,7 +69,10 @@ function onboardAlgerianCompany() {
 	// the native contributor's own practice answer on issue #558 (2026-09-30) for AI/NIF (unverified).
 	cy.get('input[placeholder="AI (Article d\'Imposition)"]', { timeout: 10000 }).type("16/2026", { force: true });
 	cy.get('input[placeholder="NIF (Numero d\'Identification Fiscale)"]').type("000116000123456", { force: true });
-	cy.get('input[placeholder="NIS (Numero d\'Identification Statistique)"]').type("16000123456789", {
+	// 15 digits (issue #567: `country-identifiers/data/dz.json` now declares a `^\d{15}(\d{3})?$`
+	// pattern for NIS, sourced to PR #566's review — the 14-digit value this spec used to type here
+	// would now be refused at save time by `validate-identifier-value.ts`).
+	cy.get('input[placeholder="NIS (Numero d\'Identification Statistique)"]').type("160001234567890", {
 		force: true,
 	});
 	cy.get('input[placeholder="RC (Registre du Commerce)"]').type("16/00-1234567B25", { force: true });
@@ -118,7 +126,8 @@ function createAlgerianClient() {
 				identifiers: [
 					{ scheme: "AI", value: "16/2018" },
 					{ scheme: "NIF", value: "000116000987654" },
-					{ scheme: "NIS", value: "16000987654321" },
+					// 15 digits, same issue #567 pattern as onboardAlgerianCompany() above.
+					{ scheme: "NIS", value: "160009876543210" },
 					{ scheme: "RC", value: "16/00-7654321B18" },
 				],
 			},
@@ -298,5 +307,63 @@ describe("Issue #558 - Algeria (DZ): the domestic-currency block", () => {
 					.should("contain.text", "Sent");
 			});
 		});
+	});
+});
+
+describe("Issue #567 - Algeria (DZ): NIF/NIS formats and help texts", () => {
+	beforeEach(() => {
+		cy.resetAndSeed();
+		cy.login();
+		onboardAlgerianCompany();
+	});
+
+	it("the four DZ help texts show on Settings > Company, and a malformed NIF is rejected with a clear message", () => {
+		cy.visit("/settings/company");
+		cy.wait(1000);
+		cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("be.visible");
+
+		// Phone and email are mandatory on this form (companySchema) but never collected by the
+		// onboarding wizard itself - fill them so the submit below reaches the identifiers check at
+		// all, instead of stopping on these two fields first.
+		cy.get('[data-cy="company-phone-input"]').clear().type("+213551234567");
+		cy.get('[data-cy="company-email-input"]').clear().type("contact@atelier-alger.dz");
+
+		// The four DZ help texts (settings.identifiers.help.DZ.*, issue #567) render under their own
+		// field - the #563/#564 mechanism company.settings.tsx already wires up generically for every
+		// catalog-sourced scheme, proven here for real rather than assumed to still work.
+		cy.get('[data-cy="company-identifier-NIF-help"]', { timeout: 10000 }).should(
+			"contain.text",
+			"tax identification number",
+		);
+		cy.get('[data-cy="company-identifier-NIS-help"]').should(
+			"contain.text",
+			"statistical identification number",
+		);
+		cy.get('[data-cy="company-identifier-RC-help"]').should("contain.text", "trade register number");
+		cy.get('[data-cy="company-identifier-AI-help"]').should("contain.text", "tax-office article number");
+
+		// 14 digits - one short of NIF's shortest valid length (country-identifiers/data/dz.json's own
+		// `^\d{15}(\d{5})?$`, sourced to PR #566's review, native contributor, 2026-09-30).
+		cy.get('input[placeholder="NIF (Numero d\'Identification Fiscale)"]')
+			.scrollIntoView()
+			.clear({ force: true })
+			.type("00011600012345", { force: true });
+
+		cy.get('[data-cy="company-submit-btn"]').click();
+
+		// company.settings.tsx's own client-side echo of the server's pattern gate (never the raw
+		// catalog helpText - a curated, translated, generic message instead): "{{label}} format is
+		// invalid", label being the catalog's own NIF label.
+		cy.get('[data-sonner-toast]', { timeout: 10000 })
+			.should("contain.text", "NIF")
+			.and("contain.text", "format is invalid");
+
+		// Never saved: the malformed value stops the submit before any request leaves the browser.
+		cy.request(`${api}/api/company/info`)
+			.its("body")
+			.then((company) => {
+				const nif = company.partyIdentifiers.find((i: { scheme: string }) => i.scheme === "NIF");
+				expect(nif?.value, "the malformed NIF typed above was never persisted").to.eq("000116000123456");
+			});
 	});
 });

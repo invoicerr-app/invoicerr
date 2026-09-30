@@ -57,6 +57,19 @@ marked `unverified` rather than `legal`, per this repository's own provenance di
 - **NIF (Numéro d'Identification Fiscale)** and **AI (Article d'Imposition)**: not named anywhere in
   decree 05-468's own list of mandatory invoice mentions (a full reading, not an oversight), but shown
   in practice per the contributor.
+
+### Identifier formats (PR #566 review, issue #567)
+
+Decree 05-468 states no format for any of the four identifiers: every format below comes from the
+native contributor's review of PR #566 (2026-09-30), not from the decree.
+
+- **NIF**: digits only, 15 digits, or 20 for a secondary establishment. Invoicerr enforces this at
+  save time (`country-identifiers/data/dz.json`'s own `pattern`).
+- **NIS**: digits only, 15 digits, or 18 for a secondary establishment. Enforced the same way.
+- **RC**: several styles are in use, older `NN/NN-NNNNNNN B NN` and newer `NNBNNNNNNN`; a secondary
+  registration uses the same number as the primary one. Kept free text, no enforced format.
+- **AI**: a numeric code (11 digits on the contributor's own business document). Kept free text, no
+  enforced format.
 - **Correction routes**: decree 05-468 defines exactly one correction mechanism: an issuer-written
   "facture annulée" mention, diagonal, on the original document: and is otherwise silent. All eleven
   canonical correction routes this catalogue covers are honestly `unverified` for Algeria; the

@@ -2406,10 +2406,10 @@
           "LEGAL_ID": "Your commercial register number: the registering court (Amtsgericht) plus the register number, for example HRB 12345 München."
         },
         "DZ": {
-          "RC": "Your trade register number (Registre du Commerce). Required for a business; not required for a private, final consumer.",
-          "NIS": "Your statistical identification number (Numéro d'Identification Statistique). Required for a business; not required for a private, final consumer.",
-          "NIF": "Your tax identification number (Numéro d'Identification Fiscale). Shown in practice on Algerian invoices, though not named by decree 05-468's own list of mandatory mentions.",
-          "AI": "Your tax-office article number (Article d'Imposition). Shown in practice on Algerian invoices, though not named by decree 05-468's own list of mandatory mentions."
+          "RC": "Your trade register number (Registre du Commerce). Two styles are in use: the older NN/NN-NNNNNNN B NN, for example 16/00-1234567 B 25, and the newer NNBNNNNNNN, for example 16B1234567. A secondary registration uses the same number as the primary one. Required for a business; not required for a private, final consumer.",
+          "NIS": "Your statistical identification number (Numéro d'Identification Statistique): digits only, 15 digits, or 18 for a secondary establishment, for example 160001234567890. Required for a business; not required for a private, final consumer.",
+          "NIF": "Your tax identification number (Numéro d'Identification Fiscale): digits only, 15 digits, or 20 for a secondary establishment, for example 000116000123456.",
+          "AI": "Your tax-office article number (Article d'Imposition): a numeric code, for example 12345678901."
         },
         "FR": {
           "LEGAL_ID": "9 digits (SIREN, the legal-unit number required on every invoice) or 14 digits (SIRET, the establishment number, also accepted since its first 9 digits are the SIREN)."

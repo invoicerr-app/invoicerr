@@ -19,25 +19,27 @@
       "appliesTo": "COMPANY",
       "label": "NIS (Numero d'Identification Statistique)",
       "required": true,
+      "pattern": "^\\d{15}(\\d{3})?$",
       "helpText": "The statistical identification number: same sourcing and the same seller/buyer distinction as RC above. The native contributor consulted on issue #558 described this one as only sometimes shown in practice; the decree's own text states it plainly, so this entry follows the decree.",
       "provenance": {
         "kind": "legal",
         "sourceText": "La facture doit comporter les mentions, ci-après, se rapportant à l'agent économique : 1°) Mentions relatives au vendeur : [...] numéro d'identification statistique ; [...] 2°) Mentions relatives à l'acheteur : [...] numéro du registre du commerce ; numéro d'identification statistique.",
         "sourceCheckedAt": "2026-09-30"
       },
-      "notes": "Decret executif n. 05-468, art. 3: same reading as RC above. The native contributor's answer on issue #558 (2026-09-30) said NIS is 'sometimes' shown in practice, which is weaker than the decree's own unconditional wording for the seller; this entry follows the primary legal text (required: true, legal provenance) and records the practice caveat here rather than weakening the sourced fact."
+      "notes": "Decret executif n. 05-468, art. 3: same reading as RC above. The native contributor's answer on issue #558 (2026-09-30) said NIS is 'sometimes' shown in practice, which is weaker than the decree's own unconditional wording for the seller; this entry follows the primary legal text (required: true, legal provenance) and records the practice caveat here rather than weakening the sourced fact. Format: digits only, 15 digits, or 18 for a secondary establishment. Source: PR #566 review, native contributor, 2026-09-30 (the decree itself states no format for this scheme)."
     },
     {
       "scheme": "NIF",
       "appliesTo": "COMPANY",
       "label": "NIF (Numero d'Identification Fiscale)",
       "required": true,
+      "pattern": "^\\d{15}(\\d{5})?$",
       "helpText": "The tax identification number. Not found in decree 05-468's own list of mandatory invoice mentions after a full reading of its text: this requirement rests only on the native contributor's description of current practice, not on a legal text this task read.",
       "provenance": {
         "kind": "unverified",
         "resolutionNote": "Decree 05-468 art. 3 (read in full by the issue #558 research pass, RECHERCHE_558_ALGERIE.md section 2) does not mention the NIF anywhere among the invoice's mandatory mentions: a solid negative finding on a fully-read text, not an oversight. The native contributor for issue #558 (GitHub user athmanemokraoui), asked directly, answered on 2026-09-30: 'Algerian invoices show the NIF, RC (Registre de commerce) and Article d'Imposition (AI), and sometimes NIS (statistique) are required.' Per this PR's own provenance rule, a fact resting only on that practice answer is marked unverified, not legal, even though it is confidently stated. What would settle it: the Code des Impots Directs et Taxes Assimilees (CIDTA) or the Code des Procedures Fiscales, read directly for a provision requiring the NIF on a commercial invoice: neither was read for this specific question by the research pass (see RECHERCHE_558_ALGERIE.md's own 'Ce que je n'ai pas pu verifier' section, first bullet)."
       },
-      "notes": "Source: issue #558, native contributor, 2026-09-30 (practice only, not a primary legal text)."
+      "notes": "Source: issue #558, native contributor, 2026-09-30 (practice only, not a primary legal text). Format: digits only, 15 digits, or 20 for a secondary establishment. Source: PR #566 review, native contributor, 2026-09-30."
     },
     {
       "scheme": "AI",

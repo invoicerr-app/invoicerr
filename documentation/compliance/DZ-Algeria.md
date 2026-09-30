@@ -79,6 +79,19 @@ than merely exempting it: `tax/tax-systems/data/dz.json` stays at the ordinary V
   contributor's own answer on 2026-09-30: kept `unverified`, never promoted to a legal citation this
   pass does not hold.
 
+### Formats (PR #566 review, issue #567)
+
+Decree 05-468 states no format for any of these four identifiers: the formats below come from the
+native contributor's review of PR #566 (2026-09-30), kept separate from each scheme's own
+required/not-required sourcing above.
+
+- **NIF**: digits only, 15 digits, or 20 for a secondary establishment. Enforced by the app at save
+  time.
+- **NIS**: digits only, 15 digits, or 18 for a secondary establishment. Enforced the same way.
+- **RC**: several styles in use, older `NN/NN-NNNNNNN B NN` and newer `NNBNNNNNNN`; a secondary
+  registration uses the same number as the primary one. Kept free text.
+- **AI**: a numeric code (11 digits on the contributor's own business document). Kept free text.
+
 ## Domestic invoicing currency: DZD, enforced
 
 Règlement de la Banque d'Algérie n° 07-01 du 3 février 2007, art. 5: *"Toute facturation ou vente de
@@ -127,4 +140,5 @@ doivent être conservés pendant dix ans."*
 above). No `b2g-routing/data/dz.json` and no `reporting/data/dz.json` exist: nothing found by this
 pass justifies either yet. See issue #558 and its own research file for the full citation list,
 including what was checked and not found, and the native contributor's six practice answers
-(2026-09-30).
+(2026-09-30). The NIF/NIS formats above come from the native contributor's review of PR #566
+(2026-09-30, issue #567), not from decree 05-468.
