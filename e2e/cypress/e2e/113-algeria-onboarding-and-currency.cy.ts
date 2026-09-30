@@ -70,7 +70,7 @@ function onboardAlgerianCompany() {
 	cy.get('input[placeholder="AI (Article d\'Imposition)"]', { timeout: 10000 }).type("16/2026", { force: true });
 	cy.get('input[placeholder="NIF (Numero d\'Identification Fiscale)"]').type("000116000123456", { force: true });
 	// 15 digits (issue #567: `country-identifiers/data/dz.json` now declares a `^\d{15}(\d{3})?$`
-	// pattern for NIS, sourced to PR #566's review — the 14-digit value this spec used to type here
+	// pattern for NIS, sourced to PR #566's review: the 14-digit value this spec used to type here
 	// would now be refused at save time by `validate-identifier-value.ts`).
 	cy.get('input[placeholder="NIS (Numero d\'Identification Statistique)"]').type("160001234567890", {
 		force: true,

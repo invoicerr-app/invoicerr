@@ -40,7 +40,7 @@ export interface PartyIdentifierEntry {
  *  parties never collide. No checksum (see this file's own header on RC/NIS/NIF/AI). NIS and NIF are
  *  each built to exactly 15 digits, the shorter of the two lengths `country-identifiers/data/dz.json`
  *  now declares a `pattern` for (NIF `^\d{15}(\d{5})?$`, NIS `^\d{15}(\d{3})?$`, both from PR #566's
- *  review, native contributor, 2026-09-30) — a demo party is always a primary establishment, never a
+ *  review, native contributor, 2026-09-30). A demo party is always a primary establishment, never a
  *  secondary one, so the longer (20/18-digit) branch is never exercised here. */
 function generateDzIdentifiers(rng: Rng): PartyIdentifierEntry[] {
   const digits = (count: number) => Array.from({ length: count }, () => intBetween(rng, 0, 9)).join('');
