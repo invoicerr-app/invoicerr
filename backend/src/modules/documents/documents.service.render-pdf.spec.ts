@@ -5,7 +5,13 @@ import { ActionRegistry } from './actions/action-registry';
 import { hashDocumentData } from './archive/document-data-hash';
 import * as archivePersistence from './archive/persistence';
 import { ContributionRegistry } from './contributions/contribution-registry';
-import { DocumentsService } from './documents.service';
+import {
+  asciiContentDispositionFallback,
+  buildOriginalContentDisposition,
+  DocumentsService,
+  rfc5987Encode,
+  safeOriginalMime,
+} from './documents.service';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
@@ -211,7 +217,7 @@ describe('DocumentsService.renderInstancePdf — serving the archive instead of 
  * users at when an imported document's original is not a PDF: serves the SAME `IMPORT_ORIGINAL`
  * archive's bytes, but for ANY mime, never refusing on the syntax alone the way `GET .../pdf` does.
  */
-describe('DocumentsService.downloadImportOriginal — the archived original, for any mime', () => {
+describe('DocumentsService.downloadImportOriginal - the archived original, for any mime', () => {
   beforeEach(() => vi.resetAllMocks());
 
   const IMPORTED_INVOICE = {
@@ -256,6 +262,23 @@ describe('DocumentsService.downloadImportOriginal — the archived original, for
     expect(result.filename).toBe('FV/2024/01-original.jpg');
   });
 
+  it('falls back to application/octet-stream (never the stored mime verbatim) for a mime outside the import allow-list', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(IMPORTED_INVOICE);
+    (archivePersistence.findImportOriginalArtifact as Mock).mockResolvedValue({
+      bytes: Buffer.from('whatever this row actually holds'),
+      // Never accepted by the import path (attachments.service.ts#ALLOWED_ATTACHMENT_MIMES) - stands
+      // in for a stale/tampered archive row, which must never be served with a browser-renderable
+      // mime such as text/html.
+      mime: 'text/html',
+    });
+
+    const service = buildService();
+    const result = await service.downloadImportOriginal('company-1', 'invoice', 'doc-imported-1');
+
+    expect(result.mime).toBe('application/octet-stream');
+    expect(result.filename).toBe('FV/2024/01-original.bin');
+  });
+
   it('refuses (409) for a document that was never imported', async () => {
     (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...IMPORTED_INVOICE, status: 'sent' });
 
@@ -274,5 +297,80 @@ describe('DocumentsService.downloadImportOriginal — the archived original, for
     await expect(service.downloadImportOriginal('company-1', 'invoice', 'doc-imported-1')).rejects.toThrow(
       /no archived original/,
     );
+  });
+});
+
+/**
+ * Issue #549 code review - `filename` fed into `Content-Disposition` is built from
+ * `instance.displayNumber`, the PREVIOUS TOOL's own number, entered verbatim (#340's own decision:
+ * never reformatted, never validated against a charset). That makes it as untrusted as any other
+ * user input: a quote or backslash could break out of the `filename="..."` quoted string, CR/LF
+ * could inject a second header line, and non-ASCII would be mangled by everything downstream of a
+ * naive ASCII-only header anyway. These prove the header this repo actually sends is safe AND still
+ * carries the real name for a client that understands `filename*` (RFC 6266/5987).
+ */
+describe('Content-Disposition safety for a user-controlled original file name (issue #549)', () => {
+  // The exact shape the review asked for: a double quote, a literal newline, and an accented
+  // character, all in the SAME value - a previous tool's own number is free-form text, so nothing
+  // stops a real one from containing any of these.
+  const HOSTILE_NUMBER = 'INV"2024\n/Été-001';
+
+  it('the ASCII fallback carries no quote, no backslash and no control character (including CR/LF)', () => {
+    const fallback = asciiContentDispositionFallback(`${HOSTILE_NUMBER}-original.xml`);
+
+    expect(fallback).not.toMatch(/["\\]/);
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: the assertion IS that none survive.
+    expect(fallback).not.toMatch(/[\x00-\x1f\x7f]/);
+    expect(fallback).toBe('INV_2024_/_t_-001-original.xml');
+  });
+
+  it('the RFC 5987 filename* form percent-encodes the quote, the newline and the accented character', () => {
+    const encoded = rfc5987Encode(`${HOSTILE_NUMBER}.xml`);
+
+    // Never a raw quote/backslash/newline in the header value itself.
+    expect(encoded).not.toMatch(/["\\\n\r]/);
+    // The accented "é" (U+00E9) is 2 UTF-8 bytes (0xC3 0xA9) - both percent-encoded, never passed
+    // through as a raw non-ASCII byte a header must not carry.
+    expect(encoded).toContain('%C3%A9');
+    expect(encoded).toContain('%22'); // "
+    expect(encoded).toContain('%0A'); // \n
+    // A real client decodes this back to the ORIGINAL value - the whole point of shipping it
+    // alongside the ASCII fallback rather than only a mangled name.
+    expect(decodeURIComponent(encoded)).toBe(`${HOSTILE_NUMBER}.xml`);
+  });
+
+  it('the full header carries both forms, and the quoted ASCII fallback is a syntactically valid quoted-string', () => {
+    const header = buildOriginalContentDisposition(`${HOSTILE_NUMBER}-original.xml`);
+
+    expect(header).toMatch(/^attachment; filename="[^"\\]*"; filename\*=UTF-8''.+$/);
+    expect(header).not.toMatch(/[\r\n]/);
+    // "É" (U+00C9, UTF-8 0xC3 0x89) and "é" (U+00E9, UTF-8 0xC3 0xA9) encode to DIFFERENT byte
+    // pairs - proving this is a real byte-level encode, not a case-insensitive lookup.
+    expect(header).toContain("filename*=UTF-8''INV%222024%0A%2F%C3%89t%C3%A9-001-original.xml");
+  });
+
+  it('an ordinary, already-safe number is left untouched by the ASCII fallback', () => {
+    expect(asciiContentDispositionFallback('OLD-2024-0142-original.xml')).toBe('OLD-2024-0142-original.xml');
+  });
+});
+
+describe('safeOriginalMime (issue #549)', () => {
+  it('passes through every mime the import path itself accepts', () => {
+    for (const mime of [
+      'application/pdf',
+      'application/xml',
+      'text/xml',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ]) {
+      expect(safeOriginalMime(mime)).toBe(mime);
+    }
+  });
+
+  it('falls back to application/octet-stream for anything else, including a browser-renderable mime', () => {
+    expect(safeOriginalMime('text/html')).toBe('application/octet-stream');
+    expect(safeOriginalMime('image/svg+xml')).toBe('application/octet-stream');
+    expect(safeOriginalMime('')).toBe('application/octet-stream');
   });
 });

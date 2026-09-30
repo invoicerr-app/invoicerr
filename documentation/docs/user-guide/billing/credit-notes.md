@@ -22,7 +22,7 @@ A linked credit note's **Currency** always matches the invoice it corrects and i
 - **Search** - find a credit note by its number or client name
 - **Filter** - toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Imported**
 - **View** (eye icon) - read-only details
-- **Download** - PDF, and once numbered, the same normalized XML formats as an [invoice](invoices.md#download-formats). An **Imported** credit note also offers **Download original** — see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
+- **Download** - PDF, and once numbered, the same normalized XML formats as an [invoice](invoices.md#download-formats). An **Imported** credit note also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
 - **Send** - issue the credit note: it is delivered on the invoice's own channel (email or e-invoicing) and archived. There is no separate "edit after issued" action; a mistake here is fixed with a further credit note
 
 ## Delivery

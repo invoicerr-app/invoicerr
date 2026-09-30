@@ -12,6 +12,7 @@ import {
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
+import { ALLOWED_ATTACHMENT_MIMES } from './attachments/attachments.service';
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { isArchivedPdfServable } from './rendering/archived-pdf-policy';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
@@ -261,7 +262,7 @@ export interface DocumentTaxWarningsView {
 
 /**
  * The extension `DocumentsService#downloadImportOriginal` (issue #549) puts on the filename it
- * hands back — presentation only, deliberately separate from `archive/storage.ts#extFor`, which
+ * hands back - presentation only, deliberately separate from `archive/storage.ts#extFor`, which
  * names the file this same artifact is written to ON DISK. Changing THAT map would silently break
  * reading back every archive already written under it; this one only ever affects a fresh
  * `Content-Disposition` header, so it is free to cover every mime `attachments.service.ts#
@@ -275,6 +276,76 @@ function extensionForOriginalMime(mime: string): string {
   if (mime === 'image/png') return 'png';
   if (mime === 'image/webp') return 'webp';
   return 'bin';
+}
+
+/**
+ * The mime `DocumentsService#downloadImportOriginal` actually serves - never the archive row's
+ * stored value verbatim. That value came from whatever `mime` the ORIGINAL upload declared
+ * (`attachments.service.ts#AttachmentUploadInput`, client-supplied, before #340's own import wrote
+ * it into the `IMPORT_ORIGINAL` archive), so a row written by a build that once accepted a wider
+ * mime, or one that predates a later tightening of the allow-list, must never be trusted as-is:
+ * this is the one function deciding what this route is willing to tell a browser to do with the
+ * bytes it is about to stream. `ALLOWED_ATTACHMENT_MIMES` is the exact set the import path itself
+ * accepts today (`attachments.service.ts`) - anything outside it falls back to the inert
+ * `application/octet-stream`, which every browser downloads rather than renders.
+ */
+export function safeOriginalMime(mime: string): string {
+  return ALLOWED_ATTACHMENT_MIMES.includes(mime) ? mime : 'application/octet-stream';
+}
+
+/**
+ * The ASCII-only `Content-Disposition` fallback filename (RFC 6266 section 4.3): every byte outside
+ * printable ASCII (0x20-0x7E) - control characters INCLUDING CR/LF, and anything non-ASCII - becomes
+ * `_`, and a literal quote or backslash is replaced the same way so the value can never break out of
+ * the `filename="..."` quoted string it is embedded in. `displayNumber` (this function's only real
+ * caller's own input) is the number the IMPORTED document's previous tool printed - never validated
+ * against a charset, since #340 keeps it "exactly as entered" - so this is the one place issue #549's
+ * code review asked for: header-injection and control-character safety belongs here, not upstream of
+ * it, because upstream is exactly where the legal requirement is to keep the value verbatim.
+ */
+export function asciiContentDispositionFallback(value: string): string {
+  const sanitized = Array.from(value)
+    .map((ch) => {
+      const code = ch.codePointAt(0) ?? 0;
+      if (code < 0x20 || code > 0x7e) return '_';
+      if (ch === '"' || ch === '\\') return '_';
+      return ch;
+    })
+    .join('');
+  return sanitized || 'original';
+}
+
+/**
+ * The UTF-8, percent-encoded `filename*` extension (RFC 5987/8187) that lets a compliant client
+ * recover the real, accented/quoted/whatever-it-was file name the ASCII fallback above had to
+ * mangle. Encodes every byte outside RFC 5987's own `attr-char` set (`ALPHA / DIGIT / "!" / "#" /
+ * "$" / "&" / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"`) - stricter than `encodeURIComponent`
+ * alone, which leaves `'`, `(`, `)` and `*` unescaped even though RFC 5987 does not allow them
+ * unescaped in this position.
+ */
+export function rfc5987Encode(value: string): string {
+  const ATTR_CHAR = /^[A-Za-z0-9!#$&+\-.^_`|~]$/;
+  let out = '';
+  for (const byte of Buffer.from(value, 'utf8')) {
+    const ch = String.fromCharCode(byte);
+    out += ATTR_CHAR.test(ch) ? ch : `%${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+  }
+  return out;
+}
+
+/**
+ * The full `Content-Disposition` header value for issue #549's "Download original" - the one place
+ * this repo builds this header from a value it did not itself generate (every OTHER
+ * `Content-Disposition` in this module is built from `typeId`/`id`/a provider's own fixed `syntax`,
+ * never a user-supplied string). Carries BOTH forms RFC 6266 documents for exactly this situation:
+ * an ASCII-sanitized `filename=` every client understands, and a UTF-8 `filename*` a compliant one
+ * prefers - see `asciiContentDispositionFallback`/`rfc5987Encode` above for what each strips or
+ * encodes and why.
+ */
+export function buildOriginalContentDisposition(filename: string): string {
+  const ascii = asciiContentDispositionFallback(filename);
+  const encoded = rfc5987Encode(filename);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 @Injectable()
@@ -1938,19 +2009,27 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * "GET .../original" (issue #549) — the archived `IMPORT_ORIGINAL` artifact's own bytes, verbatim,
+   * "GET .../original" (issue #549) - the archived `IMPORT_ORIGINAL` artifact's own bytes, verbatim,
    * for ANY original type (PDF, structured XML, image), the one route this repo offers for the
    * non-PDF case `renderInstancePdf` above refuses (409) by design. Authorization is exactly
    * `renderInstancePdf`'s own: `findOwnedDocument` first (company scoping, 404 for another company's
-   * or a nonexistent document — never a distinguishing message), never a path or filename read from
-   * user input — the bytes come from the archive row this company's OWN document owns, resolved by
+   * or a nonexistent document - never a distinguishing message), never a path or filename read from
+   * user input - the bytes come from the archive row this company's OWN document owns, resolved by
    * `companyId`/`documentId` alone.
    *
    * Only an "imported" document ever has an `IMPORT_ORIGINAL` archive at all (`archive/
-   * import-original.ts`'s own header) — every other status refuses with the same 409 shape
+   * import-original.ts`'s own header) - every other status refuses with the same 409 shape
    * `renderInstancePdf` already uses for "no archived original", so a scripted client probing this
    * route on an ordinary sent invoice gets a clear, named refusal rather than a 404 that could be
    * mistaken for "wrong id".
+   *
+   * The `mime` returned is `safeOriginalMime(original.mime)`, never the archive row's raw value -
+   * see that function's own header on why a stored mime is never trusted as-is. `filename` is the
+   * plain, human-readable name (used by `billing/export-zip.service.ts` as a zip entry name, where
+   * header-injection does not apply); the CALLER that puts it in an HTTP header
+   * (`documents.controller.ts#downloadOriginal`) is responsible for running it through
+   * `buildOriginalContentDisposition` first - `displayNumber` is a previous tool's own number,
+   * entered verbatim (#340's own decision), so it is exactly as untrusted as any other user input.
    */
   async downloadImportOriginal(
     companyId: string,
@@ -1960,7 +2039,7 @@ export class DocumentsService implements OnModuleInit {
     const instance = await findOwnedDocument(companyId, typeId, id);
     if (instance.status !== 'imported') {
       throw new ConflictException(
-        'Only an imported document has an archived original to download — this document was never ' +
+        'Only an imported document has an archived original to download - this document was never ' +
           'imported from another tool.',
       );
     }
@@ -1973,11 +2052,12 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
+    const mime = safeOriginalMime(original.mime);
     const base = instance.displayNumber ?? id;
     return {
       bytes: original.bytes,
-      mime: original.mime,
-      filename: `${base}-original.${extensionForOriginalMime(original.mime)}`,
+      mime,
+      filename: `${base}-original.${extensionForOriginalMime(mime)}`,
     };
   }
 

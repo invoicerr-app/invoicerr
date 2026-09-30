@@ -42,7 +42,7 @@ import {
   AttachmentsService,
   MAX_ATTACHMENT_BYTES,
 } from './attachments/attachments.service';
-import { DocumentsService } from './documents.service';
+import { buildOriginalContentDisposition, DocumentsService } from './documents.service';
 import { parseDashboardQuery, RawDashboardQuery } from './dto/dashboard-query.dto';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
 import {
@@ -1045,7 +1045,13 @@ export class DocumentsController {
   ): Promise<void> {
     const original = await this.documentsService.downloadImportOriginal(companyId, typeId, id);
     res.setHeader('Content-Type', original.mime);
-    res.setHeader('Content-Disposition', `attachment; filename="${original.filename}"`);
+    res.setHeader('Content-Disposition', buildOriginalContentDisposition(original.filename));
+    // The stored mime came from whatever the original upload declared (attachments.service.ts),
+    // never re-verified against the bytes themselves - `safeOriginalMime` already narrows it to a
+    // known allow-list, and `nosniff` stops a browser from second-guessing it against the bytes on
+    // its own, which is exactly how a stray `text/html` mime on an old row could have become a
+    // reflected-content risk otherwise.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(Buffer.from(original.bytes));
   }
 

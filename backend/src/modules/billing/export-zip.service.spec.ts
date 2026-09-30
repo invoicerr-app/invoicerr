@@ -66,7 +66,7 @@ describe('BillingExportService.buildCompanyZip', () => {
     expect(filenames).toEqual(['quote/doc-1.json']);
   });
 
-  it('reaches for the archived original instead of rendering a PDF for an imported document — issue #549, whatever format the original was issued in', async () => {
+  it('reaches for the archived original instead of rendering a PDF for an imported document - issue #549, whatever format the original was issued in', async () => {
     listAllDocumentsMock.mockResolvedValue([
       { id: 'doc-1', typeId: 'invoice', number: null, status: 'imported', data: {} },
     ]);

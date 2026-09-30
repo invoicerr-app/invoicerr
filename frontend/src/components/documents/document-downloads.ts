@@ -36,7 +36,7 @@ export async function downloadDocumentPdf(typeId: string, documentId: string, t:
     if (!response.ok) {
       // Issue #549 - the backend names the ONE refusal with a translated message worth surfacing:
       // an imported document whose original isn't a PDF (`documents.service.ts#renderInstancePdf`'s
-      // own `code: "IMPORT_ORIGINAL_NOT_PDF"`). Every other refusal keeps the generic HTTP error —
+      // own `code: "IMPORT_ORIGINAL_NOT_PDF"`). Every other refusal keeps the generic HTTP error -
       // this route, unlike downloadDocumentXml below, otherwise has no per-cause messages to relay.
       const body = await response.json().catch(() => null)
       if (body?.code === "IMPORT_ORIGINAL_NOT_PDF") {
@@ -54,7 +54,7 @@ export async function downloadDocumentPdf(typeId: string, documentId: string, t:
 
 /** Issue #549 - the archived original of an imported document, verbatim, whatever format it was
  *  issued in (PDF, structured XML, image). Same transport shape as `downloadDocumentPdf` above
- *  (authenticated, blob-opened in a new tab) — the backend names the filename and content type, this
+ *  (authenticated, blob-opened in a new tab) - the backend names the filename and content type, this
  *  never guesses either from the document's own data. */
 export async function downloadDocumentOriginal(typeId: string, documentId: string, t: TFunction) {
   try {
