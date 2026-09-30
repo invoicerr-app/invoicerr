@@ -74,6 +74,7 @@ import {
 } from './country-identifiers/country-identifiers';
 import { PartyType } from './country-identifiers/schema';
 import { resolveB2gRoutingRule, resolveClientB2gRouting } from './b2g-routing/b2g-routing';
+import { defaultCountryPolicyCatalog } from './country-policy/registry';
 import {
   CorrectionRoutesDecision,
   CORRECTION_ROUTES_DATA_DIR_HINT,
@@ -833,6 +834,15 @@ export class DocumentsService implements OnModuleInit {
    *  `documents.controller.ts#getB2gRoutingRule`'s own header. */
   async getB2gRoutingRule(countryCode: string) {
     return resolveB2gRoutingRule(countryCode);
+  }
+
+  /** Issue #558: the domestic-invoicing-currency obligation declared for a country, or `undefined`
+   *  when none is declared. See `documents.controller.ts#getDomesticInvoiceCurrencyRule`'s own header
+   *  for why this is exposed at all (the create-invoice form's own currency preselection) and
+   *  `country-policy/domestic-currency-issuance.ts` for the actual send-time enforcement, which never
+   *  reads this endpoint and re-derives the same fact from the catalog directly. */
+  getDomesticInvoiceCurrencyRule(countryCode: string) {
+    return defaultCountryPolicyCatalog.domesticInvoiceCurrencyFor(countryCode) ?? null;
   }
 
   private resolveType(typeId: string): DocumentTypeDescriptor {

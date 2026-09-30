@@ -379,6 +379,29 @@ export class DocumentsController {
     return (await this.documentsService.getB2gRoutingRule(countryCode)) ?? null;
   }
 
+  @Get('domestic-invoice-currency')
+  @RequiresDocumentTypeScope('read', 'every-type')
+  @ApiOperation({
+    summary: 'The domestic-invoicing-currency rule declared for a country, if any',
+    description:
+      'Whether the given country requires an invoice to be issued in its OWN official currency ' +
+      "when both the seller and the buyer are established there (issue #558, Algeria's own " +
+      "Banque d'Algerie reglement n. 07-01 art. 5 is the first sourced example), see " +
+      "country-policy/schema.ts's own DomesticInvoiceCurrencyFact. `null` means no such rule is " +
+      'declared for this country. Used by the invoice create form to PRESELECT the required ' +
+      'currency once both parties are known to be domestic, a convenience only, never the actual ' +
+      'enforcement: the real block happens at "send" ' +
+      '(country-policy/domestic-currency-issuance.ts#runDomesticInvoiceCurrencyPreflight). Not ' +
+      "scoped by @ActiveCompany(), same reasoning as 'required-identifiers'/'b2g-routing' " +
+      "above: the country in question is the CALLER's own company country, read here purely as " +
+      'data, unrelated to which company happens to be active.',
+  })
+  @ApiQuery({ name: 'countryCode', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'The rule, or null when none is declared for this country' })
+  getDomesticInvoiceCurrencyRule(@Query('countryCode') countryCode: string) {
+    return this.documentsService.getDomesticInvoiceCurrencyRule(countryCode);
+  }
+
   @Get('declarations')
   @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({

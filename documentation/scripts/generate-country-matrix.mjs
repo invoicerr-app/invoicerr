@@ -1225,6 +1225,7 @@ const COUNTRY_NAMES = {
     SK: 'Slovakia',
     SI: 'Slovenia',
     GB: 'United Kingdom',
+    DZ: 'Algeria',
   },
   fr: {
     FR: 'France',
@@ -1261,6 +1262,7 @@ const COUNTRY_NAMES = {
     SK: 'Slovaquie',
     SI: 'Slovénie',
     GB: 'Royaume-Uni',
+    DZ: 'Algérie',
   },
 };
 assertSameShape(COUNTRY_NAMES.en, COUNTRY_NAMES.fr, 'COUNTRY_NAMES');
@@ -1296,13 +1298,12 @@ function transportWithModel(id, locale) {
   return `${label} (${STRINGS[locale].transportModel[model]})`;
 }
 
-// The 5 countries this product covers today (2026-09-10 prune — every other country's data files
-// were removed; see the root git log for that change). Every one of these gets
-// a full two-part narrative page (Part 1 "In plain words" + Part 2 "The details"); `unionCountries`
-// below is, as a direct consequence, ALSO exactly this set — there is no country left with data in
-// only some mechanisms and no page at all, unlike the pre-prune matrix, which had rows with no
-// detail page (a thin row for a country nobody had written a narrative for yet).
-const DETAIL_PAGES = ['DE', 'FR', 'IT', 'PL', 'PT'];
+// The 5 countries kept by the 2026-09-10 prune, plus Algeria (DZ, issue #558). Every one of these
+// gets a full two-part narrative page (Part 1 "In plain words" + Part 2 "The details");
+// `unionCountries` below is, as a direct consequence, ALSO exactly this set: there is no country
+// left with data in only some mechanisms and no page at all, unlike the pre-prune matrix, which had
+// rows with no detail page (a thin row for a country nobody had written a narrative for yet).
+const DETAIL_PAGES = ['DE', 'DZ', 'FR', 'IT', 'PL', 'PT'];
 
 // =================================================================================================
 // TEXT / MDX HELPERS

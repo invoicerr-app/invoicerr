@@ -119,8 +119,40 @@ export interface CountryDocumentPolicyFile {
    * `number-formats.ts#assertValidNumberFormats` at the same two points every other fact here is.
    */
   numberFormats?: CountryNumberFormats;
+  /**
+   * Issue #558 - whether this country requires an invoice to be issued in its OWN official currency
+   * when BOTH the seller and the buyer are established there (a purely domestic operation) - Algeria's
+   * own Banque d'Algerie reglement n. 07-01, art. 5, is the first sourced example
+   * (`data/dz.json`). Deliberately a per-country, OPTIONAL fact, not a new top-level catalog: most
+   * shipped countries (DE/FR/IT/PL/PT today) have no such obligation sourced and simply omit this
+   * field - absence here means "no domestic-currency rule found", never "foreign currency forbidden"
+   * by omission (the same "no permissive fallback, no invented block" discipline every other fact in
+   * this file already holds). File-only, like `numberFormats` above: read at request time from the
+   * in-memory catalog (`registry.ts#domesticInvoiceCurrencyFor`), never mirrored into a table, and
+   * enforced at "send" by `domestic-currency-issuance.ts#runDomesticInvoiceCurrencyPreflight`, see
+   * that file's own header for how "domestic" is decided (mirrors
+   * `transports/channel-policy/mandate.ts`'s own `isDomestic`, the established precedent for exactly
+   * this seller/buyer-country comparison).
+   */
+  domesticInvoiceCurrency?: DomesticInvoiceCurrencyFact;
   /** Free-form, file-level caveats — e.g. "this file deliberately does not cover X" — distinct from
    *  a per-rule `notes`, which explains ONE rule. */
+  notes?: string;
+}
+
+/**
+ * ONE country's domestic-invoicing-currency obligation - see `CountryDocumentPolicyFile
+ * .domesticInvoiceCurrency`'s own header for the full "why" and for why this is deliberately NOT a
+ * boolean or a bare string: the currency itself is the fact, and it needs the same provenance every
+ * other legal claim in this catalog already carries.
+ */
+export interface DomesticInvoiceCurrencyFact {
+  /** ISO 4217 code, e.g. "DZD" - the country's own official currency, mandatory for an invoice whose
+   *  seller AND buyer are both established in this country. Never a company preference: like
+   *  `numberFormats` above, this is a compliance matter the country file states once, not something a
+   *  company configures for itself. */
+  currency: string;
+  provenance: PolicyProvenance;
   notes?: string;
 }
 
@@ -257,6 +289,31 @@ export function assertValidNumberingProvenance(fact: DocumentNumberingFact, cont
     fact.provenance,
     `${context}: numbering fact "${fact.typeId}"`,
     'a numbering fact',
+  );
+}
+
+export class InvalidDomesticInvoiceCurrencyError extends Error {}
+
+/**
+ * The `domesticInvoiceCurrency` (issue #558) analogue of `assertValidProvenance` above - same
+ * provenance gate, called from the same load-time point (data/all.ts) every other fact here already
+ * is, plus the one extra check this fact needs and the others don't: a real 3-letter ISO 4217 code,
+ * never a blank or placeholder string a downstream currency lookup would fail on silently.
+ */
+export function assertValidDomesticInvoiceCurrencyFact(
+  fact: DomesticInvoiceCurrencyFact,
+  context: string,
+): void {
+  if (fact.currency?.trim()?.length !== 3) {
+    throw new InvalidDomesticInvoiceCurrencyError(
+      `${context}: "domesticInvoiceCurrency.currency" must be a real 3-letter ISO 4217 code, got ` +
+        `${JSON.stringify(fact.currency)}.`,
+    );
+  }
+  assertValidPolicyProvenance(
+    fact.provenance,
+    `${context}: domestic-invoice-currency fact`,
+    'a domestic-invoice-currency fact',
   );
 }
 

@@ -18,9 +18,9 @@ describe('country-identifiers/data — the shipped FR, DE, PT, IT and PL files',
   // those notes for why an unconditional seller-side rule still can't be encoded as `required: true`
   // without also wrongly gating a buyer-side client record). US, GB and BE (below) were removed by
   // the prune along with every other country outside FR/PL/IT/PT/DE.
-  it('loads exactly the five countries this mechanism ships', () => {
+  it('loads exactly the six countries this mechanism ships', () => {
     const codes = ALL_COUNTRY_IDENTIFIER_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+    expect(codes).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every fact in every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit here)', () => {
@@ -97,7 +97,17 @@ describe('country-identifiers/data — the shipped FR, DE, PT, IT and PL files',
   // ACCIDENTALLY (a typo, a copy-paste of another country's scheme under a new name) — every legitimate
   // scheme must be added here explicitly, with the fact that names it.
   it("every `scheme` used by a shipped file is one this test explicitly names as legitimate — a typo'd or accidental new scheme name goes red here, not silently", () => {
-    const knownSchemes = new Set(['LEGAL_ID', 'VAT', 'IT_PA_CODE', 'IT_SDI', 'PEC']);
+    const knownSchemes = new Set([
+      'LEGAL_ID',
+      'VAT',
+      'IT_PA_CODE',
+      'IT_SDI',
+      'PEC',
+      'RC',
+      'NIS',
+      'NIF',
+      'AI',
+    ]);
     for (const file of ALL_COUNTRY_IDENTIFIER_FILES) {
       for (const fact of file.schemes) {
         expect(knownSchemes.has(fact.scheme)).toBe(true);

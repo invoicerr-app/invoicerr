@@ -7,16 +7,16 @@
  */
 import { Rng, floatBetween, intBetween, pickDistinct, pickOne } from './rng';
 
-export type SupportedCountryCode = 'FR' | 'DE' | 'IT' | 'PL' | 'PT';
+export type SupportedCountryCode = 'FR' | 'DE' | 'IT' | 'PL' | 'PT' | 'DZ';
 
 export interface CountryMeta {
   countryCode: SupportedCountryCode;
   countryName: string;
   language: string;
   /** The next country in the round-robin: every company's ONE foreign, cross-border client is drawn
-   *  from this country's own client pool, so five companies cover all five countries as both seller
-   *  and buyer, the same "each country reachable as seller and buyer" spirit
-   *  `e2e/cypress/fixtures/scenarios.ts`'s six legs hold, at a fifth of the size for a live demo. */
+   *  from this country's own client pool, so six companies cover all six countries as both seller
+   *  and buyer (FR -> DE -> IT -> PT -> PL -> DZ -> FR), the same "each country reachable as seller
+   *  and buyer" spirit `e2e/cypress/fixtures/scenarios.ts`'s six legs hold, for a live demo. */
   foreignClientCountry: SupportedCountryCode;
   cities: { city: string; postalCode: string }[];
   companyNamePool: { base: string; suffix: string }[];
@@ -119,7 +119,7 @@ const COUNTRIES: Record<SupportedCountryCode, CountryMeta> = {
     countryCode: 'PL',
     countryName: 'Poland',
     language: 'pl',
-    foreignClientCountry: 'FR',
+    foreignClientCountry: 'DZ',
     cities: [
       { city: 'Warszawa', postalCode: '00-624' },
       { city: 'Kraków', postalCode: '30-001' },
@@ -173,6 +173,39 @@ const COUNTRIES: Record<SupportedCountryCode, CountryMeta> = {
     ],
     streetPool: ['Rua das Flores 12', 'Avenida da Liberdade 45', 'Rua do Comércio 3'],
   },
+  // Issue #566 (demo dataset follow-up to #558): DZ closes the round-robin (PL -> DZ -> FR), so all
+  // six countries stay reachable as both seller and buyer. Every name/address below is plainly
+  // fictitious demo data, never a legal claim or a real business - no sourcing needed, unlike the
+  // country-policy/vat-rates/etc. catalogs this same issue added.
+  DZ: {
+    countryCode: 'DZ',
+    countryName: 'Algeria',
+    language: 'fr',
+    foreignClientCountry: 'FR',
+    cities: [
+      { city: 'Alger', postalCode: '16000' },
+      { city: 'Oran', postalCode: '31000' },
+      { city: 'Constantine', postalCode: '25000' },
+    ],
+    companyNamePool: [
+      { base: 'Atelier Casbah Design', suffix: 'EURL' },
+      { base: 'Oran Industrie Services', suffix: 'SARL' },
+      { base: 'Constantine Conseil', suffix: 'EURL' },
+    ],
+    clientNamePool: [
+      { base: 'Boulangerie Ain Naadja', suffix: 'SARL' },
+      { base: 'Garage Moderne Oran', suffix: 'EURL' },
+      { base: 'Librairie Ibn Badis', suffix: 'SARL' },
+    ],
+    contactFirstNames: ['Yasmine', 'Karim', 'Amel', 'Sofiane'],
+    contactLastNames: ['Benali', 'Cherif', 'Boukhalfa', 'Meziane'],
+    articleNamePool: [
+      { name: 'Journée de conseil', type: 'SERVICE' },
+      { name: 'Maintenance de site web', type: 'SERVICE' },
+      { name: 'Chaise de bureau ergonomique', type: 'PRODUCT' },
+    ],
+    streetPool: ['12 Rue Didouche Mourad', '5 Boulevard Zighout Youcef', "Rue Larbi Ben M'hidi 9"],
+  },
 };
 
 export function countryMeta(code: SupportedCountryCode): CountryMeta {
@@ -216,4 +249,4 @@ export function randomLineQuantity(rng: Rng): number {
   return intBetween(rng, 1, 6);
 }
 
-export const SUPPORTED_COUNTRY_CODES: SupportedCountryCode[] = ['FR', 'DE', 'IT', 'PL', 'PT'];
+export const SUPPORTED_COUNTRY_CODES: SupportedCountryCode[] = ['FR', 'DE', 'IT', 'PL', 'PT', 'DZ'];

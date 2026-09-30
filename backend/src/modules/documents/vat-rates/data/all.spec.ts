@@ -17,8 +17,8 @@ describe('vat-rates/data — the shipped DE/FR/IT/PL/PT catalog', () => {
   // facts keep their EXPLICIT `standardRate` regardless (see tax-systems/registry.ts#toTaxSystemSpec:
   // an explicit rate always wins over a derived one), so this addition changes nothing there — it
   // only populates the vat-rates dropdown these three countries lacked until now.
-  it('loads exactly DE, FR, IT, PL and PT', () => {
-    expect(ALL_VAT_RATE_FILES.map((f) => f.countryCode).sort()).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+  it('loads exactly DE, DZ, FR, IT, PL and PT', () => {
+    expect(ALL_VAT_RATE_FILES.map((f) => f.countryCode).sort()).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every rate in every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit)', () => {

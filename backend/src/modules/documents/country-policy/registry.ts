@@ -4,6 +4,7 @@ import {
   CountryNumberFormats,
   DocumentActionRuleFact,
   DocumentNumberingFact,
+  DomesticInvoiceCurrencyFact,
 } from './schema';
 
 function buildIndex(files: CountryDocumentPolicyFile[]): Record<string, CountryDocumentPolicyFile> {
@@ -68,6 +69,13 @@ export class CountryPolicyCatalog {
    *  same "no permissive fallback" discipline every other reader here holds. */
   numberFormatsFor(countryCode: string): CountryNumberFormats | undefined {
     return this.files[(countryCode ?? '').toUpperCase()]?.numberFormats;
+  }
+
+  /** The domestic-invoicing-currency obligation declared for a country (issue #558) - file-only, like
+   *  `numberFormatsFor` above. `undefined` for a country with no such fact: there is no fallback
+   *  currency, the same "no permissive fallback" discipline every other reader here holds. */
+  domesticInvoiceCurrencyFor(countryCode: string): DomesticInvoiceCurrencyFact | undefined {
+    return this.files[(countryCode ?? '').toUpperCase()]?.domesticInvoiceCurrency;
   }
 }
 

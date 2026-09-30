@@ -11,6 +11,7 @@ import {
 } from '../b2g-routing/b2g-routing';
 import { loadRatesSafely } from '../../company/currency-rates/currency-rates.store';
 import { resolveClientCountryCode, resolveCompanyCountryCode } from '../country-policy/country-policy';
+import { runDomesticInvoiceCurrencyPreflight } from '../country-policy/domestic-currency-issuance';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { stripSidecarKeys } from '../descriptors/validate';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
@@ -688,6 +689,14 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
           // country; for Portugal, the LOAD-BEARING check (before `numberOnEnqueue` below can ever spend
           // a sequence number this codebase can never hand back — numbering/sequence.ts's own header).
           await runAtcudPreflight(companyId, 'invoice');
+          // Issue #558: Algeria's own domestic-invoicing-currency obligation (and any future
+          // country's own `country-policy/schema.ts#DomesticInvoiceCurrencyFact`), see
+          // `runDomesticInvoiceCurrencyPreflight`'s own header for why this blocks outright rather
+          // than converting, unlike issue #517's VAT-currency preflight below. Runs against the RAW
+          // submitted `data.currency`, before cross-border tax resolution: this fact never depends on
+          // the resolved tax treatment, only on the seller's/buyer's own countries and the invoice's
+          // own currency field, so there is nothing to gain from waiting for `resolvedData` below.
+          await runDomesticInvoiceCurrencyPreflight(companyId, clientId, data);
           // Poland's `correctionReason` — see this file's own NOTE just above `registerInvoiceActions`'s
           // header: no dedicated preflight needed, the generic descriptor gate already enforces it.
           // See `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never

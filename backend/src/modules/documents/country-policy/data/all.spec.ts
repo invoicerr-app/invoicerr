@@ -68,9 +68,9 @@ describe('country-policy/data — the shipped FR/DE/IT/PL/PT files', () => {
   // Re-pinned by the 5-country prune (2026-09-10): this mechanism now ships exactly the five kept
   // countries. US, HU and every other country ever added were `git rm`'d along with their
   // data/xx.json.
-  it('loads exactly the five kept countries', () => {
+  it('loads exactly the six kept countries', () => {
     const codes = ALL_COUNTRY_POLICY_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+    expect(codes).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('FR — the reference jurisdiction every test fixture company uses — declares a rule for EVERY native action the core exposes today', () => {
@@ -119,7 +119,7 @@ describe('country-policy/data — the shipped FR/DE/IT/PL/PT files', () => {
   // ALREADY-ISSUED Polish credit note unreachable in the app (no sidebar entry, no list) - the
   // carve-out is reverted: every kept country, PL included, declares every document type.
   it('every kept country declares every document type the core registers today', () => {
-    for (const code of ['FR', 'DE', 'IT', 'PL', 'PT']) {
+    for (const code of ['FR', 'DE', 'IT', 'PL', 'PT', 'DZ']) {
       const file = fileFor(code);
       expect((file.documentTypes ?? []).slice().sort()).toEqual(ALL_DOCUMENT_TYPE_IDS.slice().sort());
     }
@@ -152,7 +152,7 @@ describe('country-policy/data — the shipped FR/DE/IT/PL/PT files', () => {
     // Every one of the five kept countries (FR/DE/IT/PL/PT) sources this narrowing today — the
     // longer list this test used to carry (BE/NL/AT/EE/GR/CY/…) was removed by the
     // 5-country prune (2026-09-10) along with those countries' own data/xx.json files.
-    const COUNTRIES_WITH_SOURCED_SAVE_DRAFT_NARROWING = ['FR', 'DE', 'IT', 'PL', 'PT'];
+    const COUNTRIES_WITH_SOURCED_SAVE_DRAFT_NARROWING = ['FR', 'DE', 'IT', 'PL', 'PT', 'DZ'];
     const isKnownNarrowing = (countryCode: string, typeId: string, actionId: string) =>
       (typeId === 'invoice' &&
         actionId === 'save-draft' &&
@@ -228,9 +228,9 @@ describe('country-policy/data — FR rules promoted to "legal" (2026-09-01)', ()
 // Re-scoped by the 5-country prune (2026-09-10): ES and MX were removed along with their
 // data/xx.json — this block now pins DE/IT/PL only, the three additions that survived the prune.
 describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass', () => {
-  it('the catalog now covers exactly the five kept countries (DE/FR/IT/PL/PT)', () => {
+  it('the catalog now covers exactly the six kept countries (DE/DZ/FR/IT/PL/PT)', () => {
     const codes = ALL_COUNTRY_POLICY_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+    expect(codes).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('PL invoice.save-draft cites the Podręcznik KSeF verbatim: a file sent to KSeF cannot be edited, only corrected by a new faktura korygująca', () => {
@@ -329,7 +329,7 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
     const frKeys = fileFor('FR')
       .rules.map((r) => `${r.typeId}::${r.actionId}`)
       .sort();
-    for (const code of ['DE', 'IT', 'PL', 'PT']) {
+    for (const code of ['DE', 'IT', 'PL', 'PT', 'DZ']) {
       const keys = fileFor(code)
         .rules.map((r) => `${r.typeId}::${r.actionId}`)
         .sort();

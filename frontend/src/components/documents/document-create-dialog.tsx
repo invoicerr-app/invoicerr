@@ -1,4 +1,5 @@
 import type React from "react"
+import { useEffect } from "react"
 import { useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
@@ -17,7 +18,8 @@ import type {
 import { useDocumentForm, type DocumentFormState } from "@/components/documents/use-document-form"
 import { Button } from "@/components/ui/button"
 import { type SteppedDialogStep, SteppedDialog } from "@/components/ui/stepped-dialog"
-import { useReferenceResolve } from "@/hooks/queries"
+import { useClient, useCompany, useReferenceResolve } from "@/hooks/queries"
+import { useDomesticInvoiceCurrencyRule } from "@/hooks/use-domestic-invoice-currency"
 
 interface DocumentCreateDialogProps {
   descriptor: DocumentTypeDescriptor
@@ -317,6 +319,54 @@ export function DocumentCreateDialog({
 
   const { effectiveDescriptor } = state
   const { detailsFields, lineFields, optionsFields } = buildFieldGroups(effectiveDescriptor.fields)
+
+  // Issue #558: preselect a country's own domestic-invoicing-currency (Algeria's DZD today) the
+  // moment BOTH the active company and the chosen client turn out to be established in the same
+  // country that declares one. A convenience only: the real enforcement is server side, at "send"
+  // (country-policy/domestic-currency-issuance.ts): this effect never blocks anything, it only ever
+  // fills in a value the user is free to change again before submitting.
+  const currencyField = effectiveDescriptor.fields.find(
+    (field) => field.kind === "select" && field.key === "currency",
+  )
+  const invoiceClientField = effectiveDescriptor.fields.find(
+    (field) => field.kind === "reference" && field.entity === "client" && !field.entities,
+  )
+  // Watches the WHOLE form (never a conditional `name` filter, which would call this hook a
+  // different number of times depending on whether `invoiceClientField` exists), same pattern
+  // RecapStep below already uses for the identical reason.
+  const watchedValues = useWatch({ control: state.form.control }) as Record<string, unknown>
+  const invoiceClientId = invoiceClientField
+    ? (watchedValues[invoiceClientField.key] as string | undefined)
+    : undefined
+  const { data: company } = useCompany()
+  const { data: domesticCurrencyClient } = useClient(
+    descriptor.id === "invoice" ? invoiceClientId : undefined,
+  )
+  const { data: domesticCurrencyRule } = useDomesticInvoiceCurrencyRule(
+    company?.countryCode,
+    descriptor.id === "invoice" && !!invoiceClientId,
+  )
+  useEffect(() => {
+    if (descriptor.id !== "invoice" || !currencyField || !domesticCurrencyRule) return
+    const sellerCountry = (company?.countryCode ?? "").trim().toUpperCase()
+    const buyerCountry = (domesticCurrencyClient?.countryCode ?? "").trim().toUpperCase()
+    if (!sellerCountry || !buyerCountry || sellerCountry !== buyerCountry) return
+    // Never overwrite a value the user already touched by hand.
+    if ((state.form.formState.dirtyFields as Record<string, unknown>)[currencyField.key]) return
+    const current = state.form.getValues(currencyField.key) as string | undefined
+    if (current === domesticCurrencyRule.currency) return
+    state.form.setValue(currencyField.key, domesticCurrencyRule.currency, {
+      shouldDirty: false,
+      shouldValidate: false,
+    })
+  }, [
+    descriptor.id,
+    currencyField,
+    domesticCurrencyRule,
+    company?.countryCode,
+    domesticCurrencyClient?.countryCode,
+    state.form,
+  ])
 
   // `SteppedDialog` mounts exactly one step's `render()` at a time (see that component's own
   // header), so `notice` (a caller-level condition, not a per-step one) is prepended inside EVERY

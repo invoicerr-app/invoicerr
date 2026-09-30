@@ -27,7 +27,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { assertValidNumberFormats } from '../number-formats';
-import { assertValidNumberingProvenance, assertValidProvenance, CountryDocumentPolicyFile } from '../schema';
+import {
+  assertValidDomesticInvoiceCurrencyFact,
+  assertValidNumberingProvenance,
+  assertValidProvenance,
+  CountryDocumentPolicyFile,
+} from '../schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
@@ -73,6 +78,14 @@ function loadCountryFile(code: string): CountryDocumentPolicyFile {
     );
   }
   assertValidNumberFormats(parsed, `documents/country-policy/data/${code}.json`);
+  // `domesticInvoiceCurrency` (issue #558) - optional, so absent is fine; a present fact gets the
+  // same load-time gate every other fact in this file already holds - see schema.ts's own header.
+  if (parsed.domesticInvoiceCurrency) {
+    assertValidDomesticInvoiceCurrencyFact(
+      parsed.domesticInvoiceCurrency,
+      `documents/country-policy/data/${code}.json`,
+    );
+  }
   return parsed;
 }
 

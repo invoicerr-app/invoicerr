@@ -10,6 +10,14 @@
  *    only ever appears on the derived VAT-number FORM, which this catalog does not separately declare
  *    for Poland).
  *  - PT: `LEGAL_ID` (NIF/NIPC, required) + `VAT` ("PT" + the same NIF digits).
+ *  - DZ: `RC`, `NIS`, `NIF`, `AI` (all four, `country-identifiers/data/dz.json`'s own four schemes,
+ *    every one `required: true`). None of the four declares a `pattern`
+ *    (`validate-identifier-value.ts` only ever enforces a DECLARED pattern, DECISION 3 in its own
+ *    header), and no check-digit algorithm for any of them turned up in issue #558's own research -
+ *    unlike FR/DE/IT/PL's real checksums or even PT's homegrown one (`identifiers.ts`'s own header),
+ *    there is nothing to compute here. The four values below are plausible, fixed-shape demo strings
+ *    only - not a legal claim, same discipline `data-pools.ts`'s own DZ entry states for names and
+ *    addresses.
  */
 import {
   generateDeVat,
@@ -19,11 +27,26 @@ import {
   generatePtNif,
 } from './identifiers';
 import { SupportedCountryCode } from './data-pools';
-import { Rng } from './rng';
+import { Rng, intBetween } from './rng';
 
 export interface PartyIdentifierEntry {
-  scheme: 'LEGAL_ID' | 'VAT';
+  scheme: 'LEGAL_ID' | 'VAT' | 'RC' | 'NIS' | 'NIF' | 'AI';
   value: string;
+}
+
+/** Same general shape as the fixtures `e2e/cypress/e2e/113-algeria-onboarding-and-currency.cy.ts`
+ *  already types by hand for its own Algerian company/client, randomized per-digit so two demo
+ *  parties never collide. No checksum (see this file's own header on RC/NIS/NIF/AI). */
+function generateDzIdentifiers(rng: Rng): PartyIdentifierEntry[] {
+  const digits = (count: number) => Array.from({ length: count }, () => intBetween(rng, 0, 9)).join('');
+  const wilaya = String(intBetween(rng, 1, 58)).padStart(2, '0');
+  const year = 2000 + intBetween(rng, 15, 26);
+  return [
+    { scheme: 'RC', value: `${wilaya}/00-${digits(7)}B${String(year).slice(-2)}` },
+    { scheme: 'NIS', value: `${wilaya}${digits(12)}` },
+    { scheme: 'NIF', value: `000${wilaya}${digits(10)}` },
+    { scheme: 'AI', value: `${wilaya}/${year}` },
+  ];
 }
 
 export function generatePartyIdentifiers(
@@ -51,6 +74,8 @@ export function generatePartyIdentifiers(
         { scheme: 'VAT', value: `PT${nif}` },
       ];
     }
+    case 'DZ':
+      return generateDzIdentifiers(rng);
   }
 }
 

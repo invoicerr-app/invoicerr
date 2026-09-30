@@ -132,6 +132,48 @@ You will rarely need all of these for a new country. A country whose only need i
 engine compute a destination rate for it" needs *only* `tax/tax-systems/data/xx.json` — see
 `tax/tax-systems/data/all.ts`'s own header for the EU member states added purely for that reason.
 
+### Maintainer note: `domesticInvoiceCurrency`, a currency-of-account rule, not a new mechanism
+
+Issue #558 (Algeria) added one more OPTIONAL fact to `country-policy/schema.ts`'s
+`CountryDocumentPolicyFile`, alongside `numberFormats`: `domesticInvoiceCurrency`, for a country whose
+law requires an invoice to be issued in its OWN official currency whenever BOTH the seller and the
+buyer are established there (a purely domestic operation). Algeria's own Banque d'Algérie règlement
+n° 07-01, art. 5, *"Toute facturation ou vente de biens et services sur le territoire douanier
+national s'effectue en dinars algériens sauf cas prévus par la réglementation en vigueur,"* is the
+first sourced example (`country-policy/data/dz.json`).
+
+It is deliberately NOT its own catalog directory: it is one more field on the SAME file every other
+document-action rule already lives in, file-only like `numberFormats` (no DB mirror, read at request
+time from `registry.ts#domesticInvoiceCurrencyFor`), with the same mandatory provenance every other
+fact here carries (`assertValidDomesticInvoiceCurrencyFact`, called at load time, `data/all.ts`).
+Absence means "no domestic-currency rule found for this country", never "foreign currency forbidden
+by omission", the same "no permissive fallback, no invented block" discipline every fact in this file
+already holds; DE/FR/IT/PL/PT simply omit it.
+
+Two consumers read it, both under `country-policy/domestic-currency-issuance.ts`:
+
+- The invoice create form (frontend) calls `GET /api/documents/domestic-invoice-currency?countryCode=`
+  to PRESELECT the required currency once the company's own country and the chosen client's country
+  turn out to match, a convenience only, never itself a block.
+- The "send" preflight (`actions/invoice-actions.ts`) calls `runDomesticInvoiceCurrencyPreflight`,
+  which BLOCKS the send outright when the operation is domestic and the invoice's own currency does
+  not match. "Domestic" is decided the same way `transports/channel-policy/mandate.ts`'s own
+  `isDomestic` already decides it for a channel mandate (an unresolved buyer country is treated as
+  domestic, fail-closed), not a second, independently-drifting definition.
+
+The thrown `BadRequestException` carries a stable `code`
+(`DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE`) plus structured `params` (`countryCode`,
+`requiredCurrency`, `invoiceCurrency`), never the raw catalog quote: two already-decided product
+rules (issues #554, #563) say user-facing text lives in `frontend/src/locales/en/translation.json`,
+translated, never a developer-facing message pasted straight into a toast. The frontend
+(`use-document-action-runner.ts`) branches on that code and renders its own short, translated message,
+resolving the country's DISPLAY name from `countryCode` via `Intl.DisplayNames` (the same convention
+`channel-banner.tsx`'s own `countryName` already uses), never the bare ISO code. The exception's own
+`message` field stays as a plain, quote-free, date-free English fallback for a non-UI API consumer
+only (a script reading the JSON body directly) - it is never shown to a user. A new country adding
+this fact needs no frontend change at all: the message is generic over `countryCode`/
+`requiredCurrency`.
+
 ### Maintainer note: a mention whose value changes on a schedule
 
 A mention's `noteValues` table is not always a one-time fact. France's late-payment penalty rate
